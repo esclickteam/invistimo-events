@@ -2,9 +2,16 @@
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
+
+    /*  מאפשר ל-TS לטעון קבצי .ts/.tsx ו-JS */
     "allowJs": true,
+
+    /*  חובה להשאיר כדי לפתור שגיאות טיפוסים של מודולים חיצוניים */
     "skipLibCheck": true,
+
+    /*  strict יכול להישאר, אין בעיה */
     "strict": true,
+
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -13,23 +20,35 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+
+    /*  חובה שה־types שלנו ייטענו */
+    "typeRoots": ["./types", "./node_modules/@types"],
+
+    /* תוספת כדי לוודא ש־global.d.ts נטען */
     "types": ["node"],
+
     "plugins": [
       {
         "name": "next"
       }
     ],
+
+    /* Paths קיימים — משאיר כמו שהם */
     "paths": {
       "@/*": ["./*"]
     }
   },
+
+  /* חובה לכלול את התיקייה types */
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
+    "types/**/*.d.ts",
     "**/*.mts"
   ],
+
   "exclude": ["node_modules"]
 }
