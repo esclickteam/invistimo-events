@@ -4,92 +4,89 @@ import { useState } from "react";
 import axios from "axios";
 import { useEditorStore } from "./editorStore";
 
-/* === ICON LIBRARIES === */
+/* -----------------------------------------
+   ICONIFY – מאגר אייקונים עצום כמו קאנבה
+------------------------------------------ */
 import { Icon } from "@iconify/react";
-import * as Unicons from "@iconscout/react-unicons";
-import { Heart, Star, Camera } from "lucide-react";
-import * as Feather from "react-feather";
-import * as MuiIcons from "@mui/icons-material";
 
-/* === LOTTIE === */
-import lottieLight from "lottie-web/build/player/lottie_light";
+/* -----------------------------------------
+   LOTTIE – אנימציות כמו בקאנבה
+------------------------------------------ */
+import Lottie from "lottie-react";
 
-/* -------------------------------------------
-   PATTERNS — ללא hero-patterns, ללא שגיאות
--------------------------------------------- */
-const patterns: Record<
-  "dots" | "stripes" | "grid",
-  (color?: string) => string
-> = {
-  dots: (color = "#ccc") =>
-    `radial-gradient(${color} 1px, transparent 1px)`,
+/* -----------------------------------------
+   PATTERNS – פטרנים יפים לרקעים
+------------------------------------------ */
+const patterns = [
+  { name: "Dots", css: "radial-gradient(#ccc 1px, transparent 1px)" },
+  { name: "Stripes", css: "repeating-linear-gradient(45deg,#ccc,#ccc 10px,transparent 10px,transparent 20px)" },
+  { name: "Grid", css: "linear-gradient(#ccc 1px, transparent 1px),linear-gradient(90deg,#ccc 1px, transparent 1px)" },
+];
 
-  stripes: (color = "#ccc") =>
-    `repeating-linear-gradient(45deg, ${color}, ${color} 10px, transparent 10px, transparent 20px)`,
+/* -----------------------------------------
+   GRADIENTS – גרדיאנטים יפים
+------------------------------------------ */
+const gradients = [
+  ["#ff9a9e", "#fad0c4"],
+  ["#a18cd1", "#fbc2eb"],
+  ["#f6d365", "#fda085"],
+  ["#96e6a1", "#d4fc79"],
+  ["#84fab0", "#8fd3f4"],
+];
 
-  grid: (color = "#ccc") =>
-    `linear-gradient(${color} 1px, transparent 1px),
-     linear-gradient(90deg, ${color} 1px, transparent 1px)`,
-};
-
-/* ------------------------------------------- */
+/* -----------------------------------------
+   דוגמאות לוטי
+------------------------------------------ */
+const sampleLotties = [
+  "/lotties/party.json",
+  "/lotties/fireworks.json",
+];
 
 interface SidebarProps {
   canvasRef: any;
 }
 
 export default function Sidebar({ canvasRef }: SidebarProps) {
-  /* === Zustand store === */
+  // Zustand
   const selectedId = useEditorStore((s) => s.selectedId);
   const objects = useEditorStore((s) => s.objects);
   const updateObject = useEditorStore((s) => s.updateObject);
   const selectedObject = objects.find((o) => o.id === selectedId);
 
-  /* === Canvas Actions === */
+  // Canvas methods
   const addText = () => canvasRef.current?.addText();
   const addRect = () => canvasRef.current?.addRect();
   const addCircle = () => canvasRef.current?.addCircle();
   const addImage = (url: string) => canvasRef.current?.addImage(url);
   const addLottie = (data: any) => canvasRef.current?.addLottie(data);
-  const setBackground = (bg: any) => canvasRef.current?.setBackground(bg);
+  const setBackground = (bg: string) => canvasRef.current?.setBackground(bg);
 
-  /* === Tabs === */
+  // Tabs
   const [tab, setTab] = useState<
-    "text" | "elements" | "icons" | "backgrounds" | "lottie"
+    "text" | "elements" | "icons" | "images" | "backgrounds" | "lottie"
   >("text");
 
-  /* === Image Search === */
+  // Image search
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<string[]>([]);
 
   const searchImages = async () => {
     try {
       const res = await axios.get(`/api/search-images?query=${query}`);
-      const urls = res.data.results.map((img: any) => img.urls.small);
+      const urls = res.data.results.map((x: any) => x.urls.small);
       setSearchResults(urls);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  /* === Text Tools === */
+  // Text settings
   const fontOptions = ["Assistant", "Heebo", "Rubik", "David"];
-
-  const alignments: { label: string; value: "left" | "center" | "right" }[] = [
+  const alignments = [
     { label: "ימין", value: "right" },
     { label: "מרכז", value: "center" },
     { label: "שמאל", value: "left" },
   ];
-
-  /* === Icons === */
-  const iconifyIcons = ["mdi:flower", "mdi:gift", "mdi:party-popper"];
-  const lucideIcons = [Heart, Star, Camera];
-  const featherIcons = [Feather.Star, Feather.Heart, Feather.Smile];
-  const muiIcons = ["Favorite", "Star", "Cake", "Celebration"];
-
-  /* ============================================
-     UI START
-  ============================================ */
 
   return (
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
@@ -103,15 +100,14 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           ["text", "טקסט"],
           ["elements", "צורות"],
           ["icons", "אייקונים"],
+          ["images", "תמונות"],
           ["backgrounds", "רקעים"],
           ["lottie", "אנימציות"],
         ].map(([key, label]) => (
           <button
             key={key}
             className={`flex-1 p-2 text-center border-l first:border-l-0 ${
-              tab === key
-                ? "bg-purple-100 text-purple-700 font-bold"
-                : "hover:bg-gray-50"
+              tab === key ? "bg-purple-100 text-purple-700 font-bold" : "hover:bg-gray-50"
             }`}
             onClick={() => setTab(key as any)}
           >
@@ -120,11 +116,12 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
         ))}
       </div>
 
-      {/* ---------------------------------------
-          TEXT TAB
-      ---------------------------------------- */}
+      {/* -----------------------------------------
+         TEXT TAB
+      ------------------------------------------ */}
       {tab === "text" && (
         <div className="p-4 space-y-4 overflow-y-auto">
+
           {selectedObject?.type === "text" && (
             <div className="p-3 border bg-gray-50 rounded space-y-4">
 
@@ -138,8 +135,8 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
                   }
                   className="w-full border p-2 rounded"
                 >
-                  {fontOptions.map((font) => (
-                    <option key={font}>{font}</option>
+                  {fontOptions.map((f) => (
+                    <option key={f}>{f}</option>
                   ))}
                 </select>
               </div>
@@ -151,9 +148,7 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
                   type="number"
                   value={selectedObject.fontSize}
                   onChange={(e) =>
-                    updateObject(selectedId!, {
-                      fontSize: Number(e.target.value),
-                    })
+                    updateObject(selectedId!, { fontSize: Number(e.target.value) })
                   }
                   className="w-full border p-2 rounded"
                 />
@@ -202,9 +197,9 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
         </div>
       )}
 
-      {/* ---------------------------------------
-          ELEMENTS TAB
-      ---------------------------------------- */}
+      {/* -----------------------------------------
+         ELEMENTS TAB – צורות וקטנות כמו בקאנבה
+      ------------------------------------------ */}
       {tab === "elements" && (
         <div className="p-4 space-y-4 overflow-y-auto">
           <button onClick={addRect} className="w-full border rounded py-2">
@@ -216,119 +211,123 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
         </div>
       )}
 
-      {/* ---------------------------------------
-          ICONS TAB
-      ---------------------------------------- */}
+      {/* -----------------------------------------
+         ICONS – כאן השינוי הגדול!!
+         אלפי אייקונים יפים מ־Iconify, כמו בקאנבה
+      ------------------------------------------ */}
       {tab === "icons" && (
         <div className="p-4 grid grid-cols-3 gap-3 overflow-y-auto">
 
-          {/* ICONIFY */}
-          {iconifyIcons.map((icon) => (
+          {[
+            "mdi:heart",
+            "mdi:party-popper",
+            "mdi:diamond",
+            "mdi:butterfly",
+            "mdi:flower",
+            "mdi:star",
+            "mdi:gift",
+            "mdi:balloon",
+            "mdi:lightning-bolt",
+            "mdi:camera",
+            "mdi:crown",
+            "mdi:leaf",
+          ].map((icon) => (
             <div
               key={icon}
-              onClick={() => addImage(icon)}
-              className="p-2 rounded bg-gray-50 cursor-pointer"
+              onClick={() => addImage(`https://api.iconify.design/${icon}.svg`)}
+              className="p-2 rounded bg-gray-50 cursor-pointer hover:bg-gray-100 flex items-center justify-center"
             >
-              <Icon icon={icon} width={34} height={34} />
+              <Icon icon={icon} width={32} height={32} />
             </div>
           ))}
-
-          {/* UNICONS */}
-          {Object.values(Unicons)
-            .slice(0, 12)
-            .map((U: any, i) => (
-              <div key={i} className="p-2 rounded bg-gray-50 cursor-pointer">
-                <U size={34} />
-              </div>
-            ))}
-
-          {/* LUCIDE */}
-          {lucideIcons.map((L, i) => (
-            <div key={i} className="p-2 rounded bg-gray-50 cursor-pointer">
-              <L size={34} />
-            </div>
-          ))}
-
-          {/* FEATHER */}
-          {featherIcons.map((F, i) => (
-            <div key={i} className="p-2 rounded bg-gray-50 cursor-pointer">
-              <F size={34} />
-            </div>
-          ))}
-
-          {/* MATERIAL ICONS */}
-          {muiIcons.map((name) => {
-            const Comp = (MuiIcons as any)[name];
-            return (
-              <div key={name} className="p-2 rounded bg-gray-50 cursor-pointer">
-                <Comp fontSize="large" />
-              </div>
-            );
-          })}
         </div>
       )}
 
-      {/* ---------------------------------------
-          BACKGROUNDS TAB
-      ---------------------------------------- */}
+      {/* -----------------------------------------
+         IMAGES (Unsplash/Pexels)
+      ------------------------------------------ */}
+      {tab === "images" && (
+        <div className="p-4 space-y-4 overflow-y-auto">
+
+          <input
+            type="text"
+            placeholder="חיפוש תמונות…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && searchImages()}
+            className="border p-2 w-full rounded"
+          />
+
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            {searchResults.map((src) => (
+              <img
+                key={src}
+                src={src}
+                className="h-24 w-full object-cover rounded cursor-pointer"
+                onClick={() => addImage(src)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* -----------------------------------------
+         BACKGROUNDS – צבעים, פטרנים, גרדיאנטים
+      ------------------------------------------ */}
       {tab === "backgrounds" && (
         <div className="p-4 space-y-6 overflow-y-auto">
 
           {/* COLORS */}
           <div className="grid grid-cols-5 gap-2">
-            {["#fff", "#000", "#e3f2fd", "#fce4ec", "#f3e5f5"].map((c) => (
+            {["#fff", "#000", "#f3e5f5", "#e3f2fd", "#ffe0b2"].map((c) => (
               <div
                 key={c}
                 className="h-10 rounded cursor-pointer"
                 style={{ backgroundColor: c }}
                 onClick={() => setBackground(c)}
-              />
+              ></div>
             ))}
           </div>
 
           {/* GRADIENTS */}
           <div className="grid grid-cols-2 gap-2">
-            {[["#ff9a9e", "#fad0c4"], ["#a18cd1", "#fbc2eb"], ["#f6d365", "#fda085"], ["#96e6a1", "#d4fc79"], ["#84fab0", "#8fd3f4"]].map(
-              (g, i) => (
-                <div
-                  key={i}
-                  className="h-20 rounded cursor-pointer"
-                  style={{
-                    backgroundImage: `linear-gradient(45deg, ${g.join(",")})`,
-                  }}
-                  onClick={() =>
-                    setBackground(`linear-gradient(45deg, ${g.join(",")})`)
-                  }
-                />
-              )
-            )}
+            {gradients.map((g, i) => (
+              <div
+                key={i}
+                className="h-20 rounded cursor-pointer"
+                style={{
+                  backgroundImage: `linear-gradient(45deg, ${g[0]}, ${g[1]})`,
+                }}
+                onClick={() =>
+                  setBackground(`linear-gradient(45deg, ${g[0]}, ${g[1]})`)
+                }
+              />
+            ))}
           </div>
 
           {/* PATTERNS */}
           <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(patterns) as Array<keyof typeof patterns>).map(
-              (p) => (
-                <div
-                  key={p}
-                  className="h-20 rounded cursor-pointer bg-white"
-                  style={{
-                    backgroundImage: patterns[p]("#aaa"),
-                    backgroundSize: p === "grid" ? "20px 20px" : "auto",
-                  }}
-                  onClick={() => setBackground(patterns[p]("#aaa"))}
-                />
-              )
-            )}
+            {patterns.map((p) => (
+              <div
+                key={p.name}
+                className="h-20 rounded cursor-pointer bg-white"
+                style={{
+                  backgroundImage: p.css,
+                  backgroundSize: "20px 20px",
+                }}
+                onClick={() => setBackground(p.css)}
+              />
+            ))}
           </div>
         </div>
       )}
 
-      {/* ---------------------------------------
-          LOTTIE TAB
-      ---------------------------------------- */}
+      {/* -----------------------------------------
+         LOTTIE
+      ------------------------------------------ */}
       {tab === "lottie" && (
         <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto">
-          {["/lotties/party.json", "/lotties/fireworks.json"].map((path) => (
+          {sampleLotties.map((path) => (
             <div
               key={path}
               className="h-24 border rounded flex items-center justify-center cursor-pointer hover:bg-gray-100"
@@ -343,6 +342,7 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           ))}
         </div>
       )}
+
     </aside>
   );
 }
