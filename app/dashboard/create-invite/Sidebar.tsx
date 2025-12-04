@@ -11,25 +11,41 @@ import { Heart, Star, Camera } from "lucide-react";
 import * as Feather from "react-feather";
 import * as MuiIcons from "@mui/icons-material";
 
-/* === BACKGROUND LIBRARIES === */
-import * as patterns from "hero-patterns";
-import gradients from "ui-gradients";
-
 /* === LOTTIE === */
 import lottieLight from "lottie-web/build/player/lottie_light";
+
+/* -------------------------------------------
+   PATTERNS — ללא hero-patterns, ללא שגיאות
+-------------------------------------------- */
+const patterns: Record<
+  "dots" | "stripes" | "grid",
+  (color?: string) => string
+> = {
+  dots: (color = "#ccc") =>
+    `radial-gradient(${color} 1px, transparent 1px)`,
+
+  stripes: (color = "#ccc") =>
+    `repeating-linear-gradient(45deg, ${color}, ${color} 10px, transparent 10px, transparent 20px)`,
+
+  grid: (color = "#ccc") =>
+    `linear-gradient(${color} 1px, transparent 1px),
+     linear-gradient(90deg, ${color} 1px, transparent 1px)`,
+};
+
+/* ------------------------------------------- */
 
 interface SidebarProps {
   canvasRef: any;
 }
 
 export default function Sidebar({ canvasRef }: SidebarProps) {
-  /* === ZUSTAND STORE === */
+  /* === Zustand store === */
   const selectedId = useEditorStore((s) => s.selectedId);
   const objects = useEditorStore((s) => s.objects);
   const updateObject = useEditorStore((s) => s.updateObject);
   const selectedObject = objects.find((o) => o.id === selectedId);
 
-  /* === CANVAS FUNCTIONS === */
+  /* === Canvas Actions === */
   const addText = () => canvasRef.current?.addText();
   const addRect = () => canvasRef.current?.addRect();
   const addCircle = () => canvasRef.current?.addCircle();
@@ -37,16 +53,12 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
   const addLottie = (data: any) => canvasRef.current?.addLottie(data);
   const setBackground = (bg: any) => canvasRef.current?.setBackground(bg);
 
-  /* === TABS === */
+  /* === Tabs === */
   const [tab, setTab] = useState<
     "text" | "elements" | "icons" | "backgrounds" | "lottie"
   >("text");
 
-  /* === SAMPLE ASSETS === */
-  const sampleImages = ["/samples/photo1.jpg", "/samples/photo2.jpg"];
-  const sampleLotties = ["/lotties/party.json", "/lotties/fireworks.json"];
-
-  /* === IMAGE SEARCH === */
+  /* === Image Search === */
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<string[]>([]);
 
@@ -60,28 +72,33 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
     }
   };
 
-  /* === FONTS === */
+  /* === Text Tools === */
   const fontOptions = ["Assistant", "Heebo", "Rubik", "David"];
-  const alignments = [
-    { label: "ימין", value: "right" as const },
-    { label: "מרכז", value: "center" as const },
-    { label: "שמאל", value: "left" as const },
+
+  const alignments: { label: string; value: "left" | "center" | "right" }[] = [
+    { label: "ימין", value: "right" },
+    { label: "מרכז", value: "center" },
+    { label: "שמאל", value: "left" },
   ];
 
-  /* === ICON PACKS === */
+  /* === Icons === */
   const iconifyIcons = ["mdi:flower", "mdi:gift", "mdi:party-popper"];
   const lucideIcons = [Heart, Star, Camera];
   const featherIcons = [Feather.Star, Feather.Heart, Feather.Smile];
   const muiIcons = ["Favorite", "Star", "Cake", "Celebration"];
 
+  /* ============================================
+     UI START
+  ============================================ */
+
   return (
-    <div className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
+    <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
 
       {/* HEADER */}
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
       {/* TABS */}
-      <div className="w-full flex border-b text-sm font-medium bg-gray-50">
+      <div className="w-full flex border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
           ["elements", "צורות"],
@@ -93,8 +110,8 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
             key={key}
             className={`flex-1 p-2 text-center border-l first:border-l-0 ${
               tab === key
-                ? "bg-purple-200 text-purple-900 font-bold"
-                : "hover:bg-gray-100"
+                ? "bg-purple-100 text-purple-700 font-bold"
+                : "hover:bg-gray-50"
             }`}
             onClick={() => setTab(key as any)}
           >
@@ -103,22 +120,23 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
         ))}
       </div>
 
-      {/* ---------------- TEXT TAB ---------------- */}
+      {/* ---------------------------------------
+          TEXT TAB
+      ---------------------------------------- */}
       {tab === "text" && (
         <div className="p-4 space-y-4 overflow-y-auto">
-
           {selectedObject?.type === "text" && (
-            <div className="space-y-4 p-3 border bg-gray-50 rounded">
+            <div className="p-3 border bg-gray-50 rounded space-y-4">
 
               {/* FONT */}
               <div>
-                <label className="text-sm font-bold">פונט</label>
+                <label>פונט</label>
                 <select
                   value={selectedObject.fontFamily}
-                  className="w-full border p-2 rounded"
                   onChange={(e) =>
                     updateObject(selectedId!, { fontFamily: e.target.value })
                   }
+                  className="w-full border p-2 rounded"
                 >
                   {fontOptions.map((font) => (
                     <option key={font}>{font}</option>
@@ -128,29 +146,29 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
 
               {/* SIZE */}
               <div>
-                <label className="text-sm font-bold">גודל</label>
+                <label>גודל</label>
                 <input
                   type="number"
-                  className="w-full border p-2 rounded"
                   value={selectedObject.fontSize}
                   onChange={(e) =>
                     updateObject(selectedId!, {
                       fontSize: Number(e.target.value),
                     })
                   }
+                  className="w-full border p-2 rounded"
                 />
               </div>
 
               {/* COLOR */}
               <div>
-                <label className="text-sm font-bold">צבע</label>
+                <label>צבע</label>
                 <input
                   type="color"
                   value={selectedObject.fill}
-                  className="w-full h-10 border rounded"
                   onChange={(e) =>
                     updateObject(selectedId!, { fill: e.target.value })
                   }
+                  className="w-full h-10 border rounded"
                 />
               </div>
 
@@ -159,10 +177,14 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
                 {alignments.map((a) => (
                   <button
                     key={a.value}
-                    className={`border py-1 rounded ${
-                      selectedObject.align === a.value ? "bg-purple-300" : ""
+                    className={`border rounded py-1 ${
+                      selectedObject.align === a.value ? "bg-purple-200" : ""
                     }`}
-                    onClick={() => updateObject(selectedId!, { align: a.value })}
+                    onClick={() =>
+                      updateObject(selectedId!, {
+                        align: a.value as "left" | "center" | "right",
+                      })
+                    }
                   >
                     {a.label}
                   </button>
@@ -172,27 +194,31 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           )}
 
           <button
-            className="w-full bg-purple-600 text-white py-2 rounded"
             onClick={addText}
+            className="w-full bg-purple-600 text-white py-2 rounded"
           >
             הוסף טקסט
           </button>
         </div>
       )}
 
-      {/* ---------------- ELEMENTS TAB ---------------- */}
+      {/* ---------------------------------------
+          ELEMENTS TAB
+      ---------------------------------------- */}
       {tab === "elements" && (
         <div className="p-4 space-y-4 overflow-y-auto">
-          <button className="w-full border p-2 rounded" onClick={addRect}>
+          <button onClick={addRect} className="w-full border rounded py-2">
             ריבוע
           </button>
-          <button className="w-full border p-2 rounded" onClick={addCircle}>
+          <button onClick={addCircle} className="w-full border rounded py-2">
             עיגול
           </button>
         </div>
       )}
 
-      {/* ---------------- ICONS TAB ---------------- */}
+      {/* ---------------------------------------
+          ICONS TAB
+      ---------------------------------------- */}
       {tab === "icons" && (
         <div className="p-4 grid grid-cols-3 gap-3 overflow-y-auto">
 
@@ -200,8 +226,8 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           {iconifyIcons.map((icon) => (
             <div
               key={icon}
-              className="p-2 bg-gray-50 rounded cursor-pointer"
               onClick={() => addImage(icon)}
+              className="p-2 rounded bg-gray-50 cursor-pointer"
             >
               <Icon icon={icon} width={34} height={34} />
             </div>
@@ -211,30 +237,30 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           {Object.values(Unicons)
             .slice(0, 12)
             .map((U: any, i) => (
-              <div key={i} className="p-2 bg-gray-50 rounded cursor-pointer">
+              <div key={i} className="p-2 rounded bg-gray-50 cursor-pointer">
                 <U size={34} />
               </div>
             ))}
 
           {/* LUCIDE */}
           {lucideIcons.map((L, i) => (
-            <div key={i} className="p-2 bg-gray-50 rounded cursor-pointer">
+            <div key={i} className="p-2 rounded bg-gray-50 cursor-pointer">
               <L size={34} />
             </div>
           ))}
 
           {/* FEATHER */}
           {featherIcons.map((F, i) => (
-            <div key={i} className="p-2 bg-gray-50 rounded cursor-pointer">
+            <div key={i} className="p-2 rounded bg-gray-50 cursor-pointer">
               <F size={34} />
             </div>
           ))}
 
-          {/* MATERIAL ICONS — FIXED TS ERROR */}
+          {/* MATERIAL ICONS */}
           {muiIcons.map((name) => {
             const Comp = (MuiIcons as any)[name];
             return (
-              <div key={name} className="p-2 bg-gray-50 rounded cursor-pointer">
+              <div key={name} className="p-2 rounded bg-gray-50 cursor-pointer">
                 <Comp fontSize="large" />
               </div>
             );
@@ -242,11 +268,13 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
         </div>
       )}
 
-      {/* ---------------- BACKGROUNDS TAB ---------------- */}
+      {/* ---------------------------------------
+          BACKGROUNDS TAB
+      ---------------------------------------- */}
       {tab === "backgrounds" && (
         <div className="p-4 space-y-6 overflow-y-auto">
 
-          {/* SOLID COLORS */}
+          {/* COLORS */}
           <div className="grid grid-cols-5 gap-2">
             {["#fff", "#000", "#e3f2fd", "#fce4ec", "#f3e5f5"].map((c) => (
               <div
@@ -259,43 +287,48 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           </div>
 
           {/* GRADIENTS */}
-          <div className="grid grid-cols-2 gap-3">
-            {gradients.slice(0, 20).map((g: any) => (
-              <div
-                key={g.name}
-                className="h-20 rounded cursor-pointer"
-                style={{
-                  backgroundImage: `linear-gradient(45deg, ${g.colors.join(",")})`,
-                }}
-                onClick={() =>
-                  setBackground(`linear-gradient(45deg, ${g.colors.join(",")})`)
-                }
-              />
-            ))}
+          <div className="grid grid-cols-2 gap-2">
+            {[["#ff9a9e", "#fad0c4"], ["#a18cd1", "#fbc2eb"], ["#f6d365", "#fda085"], ["#96e6a1", "#d4fc79"], ["#84fab0", "#8fd3f4"]].map(
+              (g, i) => (
+                <div
+                  key={i}
+                  className="h-20 rounded cursor-pointer"
+                  style={{
+                    backgroundImage: `linear-gradient(45deg, ${g.join(",")})`,
+                  }}
+                  onClick={() =>
+                    setBackground(`linear-gradient(45deg, ${g.join(",")})`)
+                  }
+                />
+              )
+            )}
           </div>
 
           {/* PATTERNS */}
-          <div className="grid grid-cols-2 gap-3">
-            {Object.keys(patterns)
-              .slice(0, 20)
-              .map((p) => (
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(patterns) as Array<keyof typeof patterns>).map(
+              (p) => (
                 <div
                   key={p}
                   className="h-20 rounded cursor-pointer bg-white"
                   style={{
-                    backgroundImage: patterns[p]("#000000", 0.25),
+                    backgroundImage: patterns[p]("#aaa"),
+                    backgroundSize: p === "grid" ? "20px 20px" : "auto",
                   }}
-                  onClick={() => setBackground(patterns[p]("#000000", 0.25))}
+                  onClick={() => setBackground(patterns[p]("#aaa"))}
                 />
-              ))}
+              )
+            )}
           </div>
         </div>
       )}
 
-      {/* ---------------- LOTTIE TAB ---------------- */}
+      {/* ---------------------------------------
+          LOTTIE TAB
+      ---------------------------------------- */}
       {tab === "lottie" && (
         <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto">
-          {sampleLotties.map((path) => (
+          {["/lotties/party.json", "/lotties/fireworks.json"].map((path) => (
             <div
               key={path}
               className="h-24 border rounded flex items-center justify-center cursor-pointer hover:bg-gray-100"
@@ -310,6 +343,6 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           ))}
         </div>
       )}
-    </div>
+    </aside>
   );
 }

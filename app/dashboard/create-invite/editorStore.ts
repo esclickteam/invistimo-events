@@ -1,8 +1,13 @@
 import { create } from "zustand";
 
+/* ================================
+   🎨 Editor Object Type
+================================ */
 export interface EditorObject {
   id: string;
   type: "text" | "rect" | "circle" | "image" | "lottie";
+
+  // Basic properties
   x?: number;
   y?: number;
   width?: number;
@@ -10,19 +15,29 @@ export interface EditorObject {
   rotation?: number;
   fill?: string;
 
-  // Text-specific:
+  // TEXT
+  text?: string;
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: "normal" | "bold";
   align?: "left" | "center" | "right";
-  
-  text?: string;
 
+  // CIRCLE
+  radius?: number;
+
+  // IMAGE
   image?: HTMLImageElement | null;
+
+  // LOTTIE
   lottieData?: any;
+
+  // Extension
   [key: string]: any;
 }
 
+/* ================================
+   🎨 Store State
+================================ */
 interface EditorState {
   objects: EditorObject[];
   selectedId: string | null;
@@ -30,33 +45,37 @@ interface EditorState {
   scale: number;
 
   setSelected: (id: string | null) => void;
-
   updateObject: (id: string, data: Partial<EditorObject>) => void;
 
   addText: () => void;
   addRect: () => void;
   addCircle: () => void;
   addImage: (url: string) => void;
-  addLottie: (lottieData: any) => void;
+  addLottie: (data: any) => void;
+
+  removeObject: (id: string) => void;
 
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
-
-  removeObject: (id: string) => void;
 
   setBackground: (url: string | null) => void;
 
   setScale: (scale: number) => void;
 }
 
+/* ================================
+   🎨 Zustand Store
+================================ */
 export const useEditorStore = create<EditorState>((set, get) => ({
   objects: [],
   selectedId: null,
   background: null,
   scale: 1,
 
+  /* -------- SELECT -------- */
   setSelected: (id) => set({ selectedId: id }),
 
+  /* -------- UPDATE OBJECT -------- */
   updateObject: (id, data) =>
     set((state) => ({
       objects: state.objects.map((o) =>
@@ -64,7 +83,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ),
     })),
 
-  // ✨ Add Text with Fonts Support
+  /* -------- ADD TEXT -------- */
   addText: () =>
     set((state) => ({
       objects: [
@@ -76,7 +95,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           y: 150,
           text: "טקסט חדש",
           fontSize: 40,
-          fontFamily: "Assistant",     // ← ברירת מחדל
+          fontFamily: "Assistant",
           fontWeight: "normal",
           align: "center",
           fill: "#000",
@@ -84,6 +103,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
+  /* -------- ADD RECT -------- */
   addRect: () =>
     set((state) => ({
       objects: [
@@ -100,6 +120,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
+  /* -------- ADD CIRCLE -------- */
   addCircle: () =>
     set((state) => ({
       objects: [
@@ -115,10 +136,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
+  /* -------- ADD IMAGE -------- */
   addImage: (url: string) => {
     const img = new Image();
     img.src = url;
-    img.onload = () =>
+
+    img.onload = () => {
       set((state) => ({
         objects: [
           ...state.objects,
@@ -133,8 +156,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           },
         ],
       }));
+    };
   },
 
+  /* -------- ADD LOTTIE -------- */
   addLottie: (lottieData: any) =>
     set((state) => ({
       objects: [
@@ -151,29 +176,36 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
+  /* -------- REMOVE -------- */
   removeObject: (id: string) =>
     set((state) => ({
       objects: state.objects.filter((o) => o.id !== id),
       selectedId: null,
     })),
 
-  bringToFront: (id) => {
+  /* -------- BRING TO FRONT -------- */
+  bringToFront: (id: string) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;
+
     set({
       objects: [...get().objects.filter((o) => o.id !== id), obj],
     });
   },
 
-  sendToBack: (id) => {
+  /* -------- SEND TO BACK -------- */
+  sendToBack: (id: string) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;
+
     set({
       objects: [obj, ...get().objects.filter((o) => o.id !== id)],
     });
   },
 
+  /* -------- BACKGROUND -------- */
   setBackground: (url: string | null) => set({ background: url }),
 
-  setScale: (scale) => set({ scale }),
+  /* -------- SCALE -------- */
+  setScale: (scale: number) => set({ scale }),
 }));
