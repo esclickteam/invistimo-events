@@ -1,0 +1,127 @@
+/* חייב להיות ראשון – טעינת הפונט */
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------
+   פלטת צבעים יוקרתית – Modern Cream + Champagne
+----------------------------------------------------------- */
+:root {
+  --cream: #faf8f4;        /* רקע קרם יוקרתי */
+  --cream-soft: #f3eee7;   /* רקע עדין */
+  --sand: #e8dfd4;         /* רקע כרטיס */
+  --champagne: #d1bba3;    /* זהב עדין */
+  --champagne-dark: #b79d85;
+  --brown-soft: #8f7a67;   /* טקסט כהה – לא שחור */
+  --brown-dark: #4a413a;   /* טקסט עוצמתי */
+  --white: #ffffff;
+}
+
+/* -----------------------------------------------------------
+   בסיס אתר
+----------------------------------------------------------- */
+body {
+  background: var(--cream);
+  color: var(--brown-dark);
+  font-family: "Heebo", sans-serif !important;
+  direction: rtl;
+  overflow-x: hidden;
+}
+
+/* -----------------------------------------------------------
+   רקע WOW – שכבות אלגנטיות
+----------------------------------------------------------- */
+.bg-luxury {
+  background: radial-gradient(
+      circle at top left,
+      #ffffff 0%,
+      var(--cream) 40%,
+      var(--cream-soft) 70%,
+      var(--sand) 100%
+    );
+}
+
+/* גריין – רעש עדין לאפקט יוקרה */
+.bg-grain {
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+}
+
+/* -----------------------------------------------------------
+   HEADER שקוף יוקרתי
+----------------------------------------------------------- */
+.header-blur {
+  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.55);
+  border-bottom: 1px solid rgba(209, 187, 163, 0.25);
+}
+
+/* -----------------------------------------------------------
+   כרטיסים יוקרתיים
+----------------------------------------------------------- */
+.card {
+  background: var(--white);
+  border-radius: 32px;
+  padding: 28px;
+  border: 1px solid rgba(209, 187, 163, 0.25);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
+  transition: 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* -----------------------------------------------------------
+   כפתורים – סטייל יוקרתי אמיתי
+----------------------------------------------------------- */
+.btn-primary {
+  background: var(--champagne);
+  color: white;
+  padding: 12px 28px;
+  font-weight: 600;
+  border-radius: 50px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transition: 0.25s ease-in-out;
+  display: inline-block;
+}
+.btn-primary:hover {
+  background: var(--champagne-dark);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+}
+
+.btn-outline {
+  border: 2px solid var(--champagne);
+  color: var(--champagne-dark);
+  padding: 12px 28px;
+  font-weight: 600;
+  border-radius: 50px;
+  transition: 0.25s ease-in-out;
+  display: inline-block;
+}
+.btn-outline:hover {
+  background: var(--champagne);
+  color: white;
+}
+
+/* -----------------------------------------------------------
+   תגיות אירועים
+----------------------------------------------------------- */
+.tag {
+  background: var(--white);
+  border: 1px solid rgba(209, 187, 163, 0.38);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--brown-soft);
+}
+
+/* -----------------------------------------------------------
+   כותרות כל האתר
+----------------------------------------------------------- */
+h1, h2, h3 {
+  color: var(--brown-dark);
+}
