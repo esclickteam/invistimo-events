@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { EditorObject } from "../../dashboard/create-invite/editorStore";
+import type { EditorObject } from "../../dashboard/create-invite/editorStore";
 
 interface OverlayRect {
   x: number;
@@ -10,36 +10,52 @@ interface OverlayRect {
   height: number;
 }
 
+/** טיפוס תקין ובטוח — אובייקט טקסט */
+type TextObject = EditorObject & { type: "text" };
+
 interface EditableTextOverlayProps {
-  obj: EditorObject | null;
+  obj: TextObject | null;
   rect: OverlayRect | null;
   onFinish: (newText: string) => void;
+  onLiveChange?: (newValue: string) => void;
 }
 
 /**
  * EditableTextOverlay
- * מופיע מעל הקנבס בזמן עריכת טקסט — כמו קאנבה
+ * עריכת טקסט על הקנבס — כמו קאנבה
  */
 export default function EditableTextOverlay({
   obj,
   rect,
   onFinish,
+  onLiveChange,
 }: EditableTextOverlayProps) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const [value, setValue] = useState(obj?.text || "");
+  const [value, setValue] = useState(obj?.text ?? "");
 
-  /* עדכון ערך כאשר אובייקט חדש נבחר */
+  /* בכל פעם שנבחר אובייקט טקסט חדש */
   useEffect(() => {
-    if (obj) setValue(obj.text || "");
+    if (obj) {
+      setValue(obj.text ?? "");
+    }
   }, [obj]);
 
   /* פוקוס אוטומטי */
   useEffect(() => {
-    if (inputRef.current) {
+    if (inputRef.current && rect) {
       inputRef.current.focus();
       inputRef.current.select();
     }
   }, [rect]);
+
+  /* התאמת גובה לתוכן */
+  useEffect(() => {
+    if (!inputRef.current) return;
+    const el = inputRef.current;
+
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, [value]);
 
   if (!rect || !obj) return null;
 
@@ -47,7 +63,11 @@ export default function EditableTextOverlay({
     <textarea
       ref={inputRef}
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => {
+        const newVal = e.target.value;
+        setValue(newVal);
+        onLiveChange?.(newVal); // עדכון חי לקנבס
+      }}
       onBlur={() => onFinish(value)}
       onKeyDown={(e) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -55,34 +75,36 @@ export default function EditableTextOverlay({
           onFinish(value);
         }
         if (e.key === "Escape") {
-          onFinish(obj.text || "");
+          onFinish(obj.text ?? "");
         }
       }}
       style={{
         position: "absolute",
         top: rect.y,
         left: rect.x,
-        width: rect.width || 200,
-        height: rect.height || (obj.fontSize || 20) * 1.4,
+        width: rect.width,
+        minHeight: rect.height,
 
-        /* סטייל כמו קאנבה */
-        padding: "4px 6px",
-        fontSize: obj.fontSize,
-        fontFamily: obj.fontFamily,
-        fontWeight: obj.fontWeight,
+        /* עיצוב מלא — כמו קאנבה */
+        background: "transparent",
+        padding: 0,
+        margin: 0,
+        border: "none",
+        outline: "none",
+        resize: "none",
+
+        fontSize: obj.fontSize ?? 16,
+        fontFamily: obj.fontFamily ?? "Inter",
+        fontWeight: obj.fontWeight ?? "normal",
         fontStyle: obj.italic ? "italic" : "normal",
         textDecoration: obj.underline ? "underline" : "none",
-        lineHeight: obj.lineHeight,
-        letterSpacing: obj.letterSpacing || 0,
-        color: obj.fill || "#000",
+        color: obj.fill ?? "#000",
+        lineHeight: obj.lineHeight ? `${obj.lineHeight}` : "1.2",
+        letterSpacing: obj.letterSpacing ?? 0,
 
-        background: "rgba(255,255,255,0.95)",
-        border: "1px solid #aaa",
-        borderRadius: "4px",
-        zIndex: 9999,
-        resize: "none",
-        outline: "none",
         whiteSpace: "pre-wrap",
+        overflow: "hidden",
+        zIndex: 99999,
       }}
     />
   );
