@@ -51,8 +51,8 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
   // פונקציה לדוגמה להוספה למאגר
   const handleAddToLibrary = (tabKey: string) => {
-    // כאן תוכלי לקרוא ל-API שלך ולהוסיף אובייקט חדש למאגר
     alert(`נוסיף אובייקט למאגר של הטאב: ${tabKey}`);
+    // כאן אפשר לממש קריאה ל-API או פתיחת Modal
   };
 
   return (
@@ -71,7 +71,9 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
           <button
             key={key}
             className={`flex-1 p-2 text-center border-l first:border-l-0 ${
-              tab === key ? "bg-purple-100 text-purple-700 font-bold" : "hover:bg-gray-50"
+              tab === key
+                ? "bg-purple-100 text-purple-700 font-bold"
+                : "hover:bg-gray-50"
             }`}
             onClick={() => setTab(key as any)}
           >
@@ -80,7 +82,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         ))}
       </div>
 
-      {/* TAB TEXT (לא נגעתי) */}
+      {/* TAB TEXT */}
       {tab === "text" && (
         <div className="p-4 space-y-4 overflow-y-auto">
           {selectedObject?.type === "text" && (
@@ -144,7 +146,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
       {/* TAB ELEMENTS */}
       {tab === "elements" && (
-        <div>
+        <div className="p-3">
           <ElementsTab />
           <button
             onClick={() => handleAddToLibrary("elements")}
@@ -157,7 +159,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
       {/* TAB SHAPES */}
       {tab === "images" && (
-        <div>
+        <div className="p-3">
           <ShapesTab />
           <button
             onClick={() => handleAddToLibrary("shapes")}
@@ -170,7 +172,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
       {/* TAB BACKGROUNDS */}
       {tab === "backgrounds" && (
-        <div>
+        <div className="p-3">
           <BackgroundsTab />
           <button
             onClick={() => handleAddToLibrary("backgrounds")}
@@ -181,9 +183,9 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         </div>
       )}
 
-      {/* TAB LOTTIE / אנימציות */}
+      {/* TAB LOTTIE */}
       {tab === "lottie" && (
-        <div>
+        <div className="p-3">
           <LottieTab />
           <button
             onClick={() => handleAddToLibrary("lottie")}
