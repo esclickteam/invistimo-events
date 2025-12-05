@@ -1,105 +1,81 @@
 "use client";
 
-import { useState } from "react";
-import axios from "axios";
-import { useEditorStore } from "./editorStore";
+import { useState, useEffect } from "react";
+import { useEditorStore, EditorObject } from "./editorStore";
 
-/* -----------------------------------------
-   ICONIFY – מאגר אייקונים עצום כמו קאנבה
------------------------------------------- */
-import { Icon } from "@iconify/react";
-
-/* -----------------------------------------
-   LOTTIE – אנימציות כמו בקאנבה
------------------------------------------- */
-import Lottie from "lottie-react";
-
-/* -----------------------------------------
-   PATTERNS – פטרנים יפים לרקעים
------------------------------------------- */
-const patterns = [
-  { name: "Dots", css: "radial-gradient(#ccc 1px, transparent 1px)" },
-  { name: "Stripes", css: "repeating-linear-gradient(45deg,#ccc,#ccc 10px,transparent 10px,transparent 20px)" },
-  { name: "Grid", css: "linear-gradient(#ccc 1px, transparent 1px),linear-gradient(90deg,#ccc 1px, transparent 1px)" },
-];
-
-/* -----------------------------------------
-   GRADIENTS – גרדיאנטים יפים
------------------------------------------- */
-const gradients = [
-  ["#ff9a9e", "#fad0c4"],
-  ["#a18cd1", "#fbc2eb"],
-  ["#f6d365", "#fda085"],
-  ["#96e6a1", "#d4fc79"],
-  ["#84fab0", "#8fd3f4"],
-];
-
-/* -----------------------------------------
-   דוגמאות לוטי
------------------------------------------- */
-const sampleLotties = [
-  "/lotties/party.json",
-  "/lotties/fireworks.json",
-];
-
+/* -------------------------------------------
+   Sidebar Props
+-------------------------------------------- */
 interface SidebarProps {
   canvasRef: any;
+  googleApiKey: string; // Google Fonts API Key
 }
 
-export default function Sidebar({ canvasRef }: SidebarProps) {
-  // Zustand
+/* -------------------------------------------
+   Sidebar Component
+-------------------------------------------- */
+export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
   const selectedId = useEditorStore((s) => s.selectedId);
   const objects = useEditorStore((s) => s.objects);
   const updateObject = useEditorStore((s) => s.updateObject);
+  const addText = useEditorStore((s) => s.addText);
+  const addRect = useEditorStore((s) => s.addRect);
+  const addCircle = useEditorStore((s) => s.addCircle);
+  const removeObject = useEditorStore((s) => s.removeObject);
+  const bringToFront = useEditorStore((s) => s.bringToFront);
+  const sendToBack = useEditorStore((s) => s.sendToBack);
+
   const selectedObject = objects.find((o) => o.id === selectedId);
 
-  // Canvas methods
-  const addText = () => canvasRef.current?.addText();
-  const addRect = () => canvasRef.current?.addRect();
-  const addCircle = () => canvasRef.current?.addCircle();
-  const addImage = (url: string) => canvasRef.current?.addImage(url);
-  const addLottie = (data: any) => canvasRef.current?.addLottie(data);
-  const setBackground = (bg: string) => canvasRef.current?.setBackground(bg);
-
-  // Tabs
+  /* -------------------------------------------
+     Tabs
+  -------------------------------------------- */
   const [tab, setTab] = useState<
-    "text" | "elements" | "icons" | "images" | "backgrounds" | "lottie"
+    "text" | "elements" | "images" | "backgrounds" | "lottie"
   >("text");
 
-  // Image search
-  const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<string[]>([]);
+  /* -------------------------------------------
+     Google Fonts
+  -------------------------------------------- */
+  const [fonts, setFonts] = useState<string[]>([]);
 
-  const searchImages = async () => {
-    try {
-      const res = await axios.get(`/api/search-images?query=${query}`);
-      const urls = res.data.results.map((x: any) => x.urls.small);
-      setSearchResults(urls);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  useEffect(() => {
+    const fetchFonts = async () => {
+      try {
+        const res = await fetch(
+          `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}`
+        );
+        const data = await res.json();
+        setFonts(data.items.map((f: any) => f.family));
+      } catch (err) {
+        console.error("Error fetching Google Fonts:", err);
+      }
+    };
+    fetchFonts();
+  }, [googleApiKey]);
 
-  // Text settings
-  const fontOptions = ["Assistant", "Heebo", "Rubik", "David"];
-  const alignments = [
+  /* -------------------------------------------
+     Text Controls
+  -------------------------------------------- */
+  const alignments: { label: string; value: "left" | "center" | "right" }[] = [
     { label: "ימין", value: "right" },
     { label: "מרכז", value: "center" },
     { label: "שמאל", value: "left" },
   ];
 
+  /* -------------------------------------------
+     Sidebar UI
+  -------------------------------------------- */
   return (
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
-
       {/* HEADER */}
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
       {/* TABS */}
-      <div className="w-full flex border-b text-sm font-medium">
+      <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
           ["elements", "צורות"],
-          ["icons", "אייקונים"],
           ["images", "תמונות"],
           ["backgrounds", "רקעים"],
           ["lottie", "אנימציות"],
@@ -116,15 +92,13 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
         ))}
       </div>
 
-      {/* -----------------------------------------
-         TEXT TAB
-      ------------------------------------------ */}
+      {/* -----------------------------
+          TAB: TEXT
+      ----------------------------- */}
       {tab === "text" && (
         <div className="p-4 space-y-4 overflow-y-auto">
-
           {selectedObject?.type === "text" && (
             <div className="p-3 border bg-gray-50 rounded space-y-4">
-
               {/* FONT */}
               <div>
                 <label>פונט</label>
@@ -135,8 +109,8 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
                   }
                   className="w-full border p-2 rounded"
                 >
-                  {fontOptions.map((f) => (
-                    <option key={f}>{f}</option>
+                  {fonts.map((font) => (
+                    <option key={font}>{font}</option>
                   ))}
                 </select>
               </div>
@@ -167,6 +141,21 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
                 />
               </div>
 
+              {/* BOLD */}
+              <button
+                className={`w-full py-2 border rounded ${
+                  selectedObject.fontWeight === "bold" ? "bg-purple-200" : ""
+                }`}
+                onClick={() =>
+                  updateObject(selectedId!, {
+                    fontWeight:
+                      selectedObject.fontWeight === "bold" ? "normal" : "bold",
+                  })
+                }
+              >
+                <b>Bold</b>
+              </button>
+
               {/* ALIGN */}
               <div className="grid grid-cols-3 gap-2">
                 {alignments.map((a) => (
@@ -176,18 +165,46 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
                       selectedObject.align === a.value ? "bg-purple-200" : ""
                     }`}
                     onClick={() =>
-                      updateObject(selectedId!, {
-                        align: a.value as "left" | "center" | "right",
-                      })
+                      updateObject(selectedId!, { align: a.value })
                     }
                   >
                     {a.label}
                   </button>
                 ))}
               </div>
+
+              {/* ROTATE */}
+              <div>
+                <label>סיבוב</label>
+                <input
+                  type="number"
+                  value={selectedObject.rotation || 0}
+                  onChange={(e) =>
+                    updateObject(selectedId!, { rotation: Number(e.target.value) })
+                  }
+                  className="w-full border p-2 rounded"
+                />
+              </div>
+
+              {/* DUPLICATE */}
+              <button
+                onClick={() => canvasRef.current?.duplicateObject(selectedId!)}
+                className="w-full bg-blue-500 text-white py-2 rounded"
+              >
+                שכפל
+              </button>
+
+              {/* DELETE */}
+              <button
+                onClick={() => removeObject(selectedId!)}
+                className="w-full bg-red-500 text-white py-2 rounded"
+              >
+                מחק
+              </button>
             </div>
           )}
 
+          {/* ADD TEXT */}
           <button
             onClick={addText}
             className="w-full bg-purple-600 text-white py-2 rounded"
@@ -197,9 +214,9 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
         </div>
       )}
 
-      {/* -----------------------------------------
-         ELEMENTS TAB – צורות וקטנות כמו בקאנבה
-      ------------------------------------------ */}
+      {/* -----------------------------
+          TAB: ELEMENTS
+      ----------------------------- */}
       {tab === "elements" && (
         <div className="p-4 space-y-4 overflow-y-auto">
           <button onClick={addRect} className="w-full border rounded py-2">
@@ -210,139 +227,6 @@ export default function Sidebar({ canvasRef }: SidebarProps) {
           </button>
         </div>
       )}
-
-      {/* -----------------------------------------
-         ICONS – כאן השינוי הגדול!!
-         אלפי אייקונים יפים מ־Iconify, כמו בקאנבה
-      ------------------------------------------ */}
-      {tab === "icons" && (
-        <div className="p-4 grid grid-cols-3 gap-3 overflow-y-auto">
-
-          {[
-            "mdi:heart",
-            "mdi:party-popper",
-            "mdi:diamond",
-            "mdi:butterfly",
-            "mdi:flower",
-            "mdi:star",
-            "mdi:gift",
-            "mdi:balloon",
-            "mdi:lightning-bolt",
-            "mdi:camera",
-            "mdi:crown",
-            "mdi:leaf",
-          ].map((icon) => (
-            <div
-              key={icon}
-              onClick={() => addImage(`https://api.iconify.design/${icon}.svg`)}
-              className="p-2 rounded bg-gray-50 cursor-pointer hover:bg-gray-100 flex items-center justify-center"
-            >
-              <Icon icon={icon} width={32} height={32} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* -----------------------------------------
-         IMAGES (Unsplash/Pexels)
-      ------------------------------------------ */}
-      {tab === "images" && (
-        <div className="p-4 space-y-4 overflow-y-auto">
-
-          <input
-            type="text"
-            placeholder="חיפוש תמונות…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && searchImages()}
-            className="border p-2 w-full rounded"
-          />
-
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {searchResults.map((src) => (
-              <img
-                key={src}
-                src={src}
-                className="h-24 w-full object-cover rounded cursor-pointer"
-                onClick={() => addImage(src)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* -----------------------------------------
-         BACKGROUNDS – צבעים, פטרנים, גרדיאנטים
-      ------------------------------------------ */}
-      {tab === "backgrounds" && (
-        <div className="p-4 space-y-6 overflow-y-auto">
-
-          {/* COLORS */}
-          <div className="grid grid-cols-5 gap-2">
-            {["#fff", "#000", "#f3e5f5", "#e3f2fd", "#ffe0b2"].map((c) => (
-              <div
-                key={c}
-                className="h-10 rounded cursor-pointer"
-                style={{ backgroundColor: c }}
-                onClick={() => setBackground(c)}
-              ></div>
-            ))}
-          </div>
-
-          {/* GRADIENTS */}
-          <div className="grid grid-cols-2 gap-2">
-            {gradients.map((g, i) => (
-              <div
-                key={i}
-                className="h-20 rounded cursor-pointer"
-                style={{
-                  backgroundImage: `linear-gradient(45deg, ${g[0]}, ${g[1]})`,
-                }}
-                onClick={() =>
-                  setBackground(`linear-gradient(45deg, ${g[0]}, ${g[1]})`)
-                }
-              />
-            ))}
-          </div>
-
-          {/* PATTERNS */}
-          <div className="grid grid-cols-2 gap-2">
-            {patterns.map((p) => (
-              <div
-                key={p.name}
-                className="h-20 rounded cursor-pointer bg-white"
-                style={{
-                  backgroundImage: p.css,
-                  backgroundSize: "20px 20px",
-                }}
-                onClick={() => setBackground(p.css)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* -----------------------------------------
-         LOTTIE
-      ------------------------------------------ */}
-      {tab === "lottie" && (
-        <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto">
-          {sampleLotties.map((path) => (
-            <div
-              key={path}
-              className="h-24 border rounded flex items-center justify-center cursor-pointer hover:bg-gray-100"
-              onClick={async () => {
-                const res = await fetch(path);
-                const json = await res.json();
-                addLottie(json);
-              }}
-            >
-              🎉
-            </div>
-          ))}
-        </div>
-      )}
-
     </aside>
   );
 }
