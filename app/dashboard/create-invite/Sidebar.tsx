@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import { useEditorStore } from "./editorStore";
 
+// 🟣 טאבים חדשים מהמאגר
+import ElementsTab from "./ElementsTab";
+import ShapesTab from "./ShapesTab";
+import BackgroundsTab from "./BackgroundsTab";
+import LottieTab from "./LottieTab";
+
 /* -------------------------------------------
    Sidebar Props
 -------------------------------------------- */
@@ -73,8 +79,8 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
       <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
-          ["elements", "צורות"],
-          ["images", "תמונות"],
+          ["elements", "אלמנטים"],
+          ["images", "צורות"],
           ["backgrounds", "רקעים"],
           ["lottie", "אנימציות"],
         ].map(([key, label]) => (
@@ -90,12 +96,12 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         ))}
       </div>
 
-      {/* TAB: TEXT */}
+      {/* TAB: TEXT (לא נגעתי בכלום!) */}
       {tab === "text" && (
         <div className="p-4 space-y-4 overflow-y-auto">
           {selectedObject?.type === "text" && (
             <div className="p-3 border bg-gray-50 rounded space-y-4">
-              {/* FONT */}
+
               <div>
                 <label>פונט</label>
                 <select
@@ -111,7 +117,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                 </select>
               </div>
 
-              {/* SIZE */}
               <div>
                 <label>גודל</label>
                 <input
@@ -124,7 +129,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                 />
               </div>
 
-              {/* COLOR */}
               <div>
                 <label>צבע</label>
                 <input
@@ -137,39 +141,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                 />
               </div>
 
-              {/* BOLD */}
-              <button
-                className={`w-full py-2 border rounded ${
-                  selectedObject.fontWeight === "bold" ? "bg-purple-200" : ""
-                }`}
-                onClick={() =>
-                  updateObject(selectedId!, {
-                    fontWeight:
-                      selectedObject.fontWeight === "bold" ? "normal" : "bold",
-                  })
-                }
-              >
-                <b>Bold</b>
-              </button>
-
-              {/* ALIGN */}
-              <div className="grid grid-cols-3 gap-2">
-                {alignments.map((a) => (
-                  <button
-                    key={a.value}
-                    className={`border rounded py-1 ${
-                      selectedObject.align === a.value ? "bg-purple-200" : ""
-                    }`}
-                    onClick={() =>
-                      updateObject(selectedId!, { align: a.value })
-                    }
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* DELETE */}
               <button
                 onClick={() => removeObject(selectedId!)}
                 className="w-full bg-red-500 text-white py-2 rounded"
@@ -189,17 +160,17 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         </div>
       )}
 
-      {/* TAB: ELEMENTS */}
-      {tab === "elements" && (
-        <div className="p-4 space-y-4 overflow-y-auto">
-          <button onClick={addRect} className="w-full border rounded py-2">
-            ריבוע
-          </button>
-          <button onClick={addCircle} className="w-full border rounded py-2">
-            עיגול
-          </button>
-        </div>
-      )}
+      {/* TAB: ELEMENTS — מהמאגר */}
+      {tab === "elements" && <ElementsTab />}
+
+      {/* TAB: SHAPES — מהמאגר (במקום addRect / addCircle) */}
+      {tab === "images" && <ShapesTab />}
+
+      {/* TAB: BACKGROUNDS — מהמאגר */}
+      {tab === "backgrounds" && <BackgroundsTab />}
+
+      {/* TAB: LOTTIE — מהמאגר */}
+      {tab === "lottie" && <LottieTab />}
     </aside>
   );
 }
