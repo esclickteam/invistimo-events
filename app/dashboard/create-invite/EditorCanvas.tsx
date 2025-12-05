@@ -29,30 +29,24 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 ) {
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const objects = useEditorStore((s: any) => s.objects);
   const setSelected = useEditorStore((s: any) => s.setSelected);
-  const updateObject = useEditorStore((s: any) => s.updateObject);
-  const removeObject = useEditorStore((s: any) => s.removeObject);
-  const addText = useEditorStore((s: any) => s.addText);
-  const addRect = useEditorStore((s: any) => s.addRect);
-  const addCircle = useEditorStore((s: any) => s.addCircle);
-  const addImage = useEditorStore((s: any) => s.addImage);
-  const addLottie = useEditorStore((s: any) => s.addLottie);
-  const bringToFront = useEditorStore((s: any) => s.bringToFront);
-  const sendToBack = useEditorStore((s: any) => s.sendToBack);
   const background = useEditorStore((s: any) => s.background);
+  const updateObject = useEditorStore((s: any) => s.updateObject);
   const scale = useEditorStore((s: any) => s.scale);
   const setScale = useEditorStore((s: any) => s.setScale);
+  const addText = useEditorStore((s: any) => s.addText);
+  const removeObject = useEditorStore((s: any) => s.removeObject);
+  const duplicateObject = useEditorStore((s: any) => s.addText); // נשתמש ב־addText לשכפול לדוגמה
 
   const CANVAS_WIDTH = 900;
   const CANVAS_HEIGHT = 1600;
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const [copiedObject, setCopiedObject] = useState<any | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  /* שינוי scale */
+  // שינוי scale אוטומטי
   useEffect(() => {
     const updateScale = () => {
       const maxHeight = window.innerHeight - 100;
@@ -63,13 +57,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
       );
       setScale(scaleFactor);
     };
-
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
   }, [setScale]);
 
-  /* בחירת אובייקט */
+  // בחירת אובייקט
   const handleSelect = (id: string | null) => {
     setSelected(id);
     const obj = objects.find((o: any) => o.id === id) || null;
@@ -85,37 +78,37 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     }
   };
 
-  /* התחלת עריכת טקסט */
+  // עריכת טקסט inline
   const startEditingText = (obj: any) => {
     setEditingTextId(obj.id);
 
     setTimeout(() => {
       if (!inputRef.current) return;
-
       inputRef.current.value = obj.text || "";
 
       const stageBox = stageRef.current.container().getBoundingClientRect();
       const x = stageBox.left + obj.x * scale;
       const y = stageBox.top + obj.y * scale;
 
-      inputRef.current.style.position = "absolute";
-      inputRef.current.style.top = y + "px";
-      inputRef.current.style.left = x + "px";
-      inputRef.current.style.fontSize = obj.fontSize * scale + "px";
-      inputRef.current.style.color = obj.fill;
-      inputRef.current.style.fontFamily = obj.fontFamily || "Arial";
-      inputRef.current.style.fontWeight = obj.fontWeight || "normal";
-      inputRef.current.style.border = "1px solid #999";
-      inputRef.current.style.background = "white";
-      inputRef.current.style.padding = "2px 4px";
-      inputRef.current.style.zIndex = "9999";
-      inputRef.current.style.display = "block";
+      Object.assign(inputRef.current.style, {
+        display: "block",
+        position: "absolute",
+        top: y + "px",
+        left: x + "px",
+        fontSize: obj.fontSize * scale + "px",
+        color: obj.fill,
+        fontFamily: obj.fontFamily || "Arial",
+        fontWeight: obj.fontWeight || "normal",
+        border: "1px solid #999",
+        background: "white",
+        padding: "2px 4px",
+        zIndex: "9999",
+      });
 
       inputRef.current.focus();
     }, 10);
   };
 
-  /* סיום עריכה */
   const finishEditing = () => {
     if (!editingTextId || !inputRef.current) return;
     updateObject(editingTextId, { text: inputRef.current.value });
@@ -123,56 +116,44 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     setEditingTextId(null);
   };
 
-  /* -----------------------------
-      Keyboard Events
-  ----------------------------- */
+  // חיבור לפונקציות sidebar
+  useImperativeHandle(ref, () => ({
+    addText,
+    addRect: useEditorStore.getState().addRect,
+    addCircle: useEditorStore.getState().addCircle,
+    removeObject,
+    duplicateObject,
+    setBackground: useEditorStore.getState().setBackground,
+  }));
+
+  // מחיקה/שכפול מהמקלדת
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const selectedObj = objects.find((o: any) => o.id === stageRef.current?.selectedId);
-      if (!selectedObj) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (!objects.length) return;
+      const selected = objects.find((o: any) => o.id === useEditorStore.getState().selectedId);
+      if (!selected) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        removeObject(selectedObj.id);
+        removeObject(selected.id);
       }
-
       if (e.ctrlKey && e.key === "c") {
-        setCopiedObject({ ...selectedObj, id: `copy-${Date.now()}` });
+        localStorage.setItem("clipboard", JSON.stringify(selected));
       }
-
-      if (e.ctrlKey && e.key === "v" && copiedObject) {
-        if (copiedObject.type === "image") {
-          addImage(copiedObject.image.src);
-        } else if (copiedObject.type === "lottie") {
-          addLottie(copiedObject.lottieData);
-        } else {
-          const newObj = { ...copiedObject, id: `copy-${Date.now()}`, x: copiedObject.x + 20, y: copiedObject.y + 20 };
-          useEditorStore.getState().updateObject(newObj.id, newObj); // add new object
+      if (e.ctrlKey && e.key === "v") {
+        const clip = JSON.parse(localStorage.getItem("clipboard") || "null");
+        if (clip) {
+          const newObj = { ...clip, id: `text-${Date.now()}`, x: clip.x + 20, y: clip.y + 20 };
+          useEditorStore.getState().addText(); // אפשר להחליף לפי סוג
+          updateObject(newObj.id, newObj);
         }
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [objects, copiedObject, addImage, addLottie, removeObject]);
-
-  /* פונקציות ל-Sidebar */
-  useImperativeHandle(ref, () => ({
-    addText,
-    addRect,
-    addCircle,
-    addImage,
-    addLottie,
-    setBackground: useEditorStore.getState().setBackground,
-    duplicateObject: (id: string) => {
-      const obj = objects.find((o: any) => o.id === id);
-      if (!obj) return;
-      const copy = { ...obj, id: `copy-${Date.now()}`, x: obj.x + 20, y: obj.y + 20 };
-      useEditorStore.getState().updateObject(copy.id, copy); // add new object
-    },
-  }));
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [objects, removeObject, updateObject]);
 
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-100 overflow-auto relative">
-      {/* input לעריכת טקסט */}
       <input
         ref={inputRef}
         onBlur={finishEditing}
@@ -183,31 +164,19 @@ const EditorCanvas = forwardRef(function EditorCanvas(
             setEditingTextId(null);
           }
         }}
-        style={{
-          display: "none",
-          position: "absolute",
-        }}
+        style={{ display: "none", position: "absolute" }}
       />
 
-      {/* Canvas */}
-      <div
-        className="shadow-2xl rounded-xl bg-white"
-        style={{
-          transform: `scale(${scale || 1})`,
-          transformOrigin: "top left",
-        }}
-      >
+      <div style={{ transform: `scale(${scale || 1})`, transformOrigin: "top left" }}>
         <Stage
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
           ref={stageRef}
-          className="bg-white rounded-xl border"
           onMouseDown={(e: KonvaEventObject<MouseEvent>) => {
             if (e.target === e.target.getStage()) handleSelect(null);
           }}
         >
           <Layer>
-            {/* רקע */}
             {background && (
               <KonvaImage
                 image={(() => {
@@ -220,7 +189,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               />
             )}
 
-            {/* אובייקטים */}
             {objects.map((obj: any) => {
               const baseProps = {
                 name: obj.id,
@@ -231,28 +199,23 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 width: obj.width,
                 height: obj.height,
                 fill: obj.fill,
-                text: obj.text,
                 fontSize: obj.fontSize,
                 fontFamily: obj.fontFamily,
                 fontWeight: obj.fontWeight,
                 align: obj.align,
+                text: obj.text,
                 onClick: () => handleSelect(obj.id),
                 onTap: () => handleSelect(obj.id),
                 onDragEnd: (e: KonvaEventObject<DragEvent>) =>
                   updateObject(obj.id, { x: e.target.x(), y: e.target.y() }),
+                onDblClick: () => obj.type === "text" && startEditingText(obj),
               };
 
               switch (obj.type) {
                 case "rect":
                   return <Rect key={obj.id} {...baseProps} />;
                 case "text":
-                  return (
-                    <Text
-                      key={obj.id}
-                      {...baseProps}
-                      onDblClick={() => startEditingText(obj)}
-                    />
-                  );
+                  return <Text key={obj.id} {...baseProps} />;
                 case "image":
                   return <KonvaImage key={obj.id} {...baseProps} image={obj.image} />;
                 case "lottie":
@@ -260,14 +223,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     <Lottie
                       key={obj.id}
                       animationData={obj.lottieData}
-                      style={{
-                        position: "absolute",
-                        top: obj.y,
-                        left: obj.x,
-                        width: obj.width,
-                        height: obj.height,
-                        pointerEvents: "none",
-                      }}
+                      style={{ position: "absolute", top: obj.y, left: obj.x, width: obj.width, height: obj.height }}
                       loop
                     />
                   );
@@ -276,7 +232,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               }
             })}
 
-            {/* Transformer */}
             <Transformer ref={transformerRef} />
           </Layer>
         </Stage>
