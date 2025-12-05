@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useEditorStore, EditorObject } from "./editorStore";
+import { useEditorStore } from "./editorStore";
 
 /* -------------------------------------------
    Sidebar Props
@@ -30,9 +30,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
   /* -------------------------------------------
      Tabs
   -------------------------------------------- */
-  const [tab, setTab] = useState<
-    "text" | "elements" | "images" | "backgrounds" | "lottie"
-  >("text");
+  const [tab, setTab] = useState<"text" | "elements" | "images" | "backgrounds" | "lottie">("text");
 
   /* -------------------------------------------
      Google Fonts
@@ -43,7 +41,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
     const fetchFonts = async () => {
       try {
         const res = await fetch(
-          `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}`
+          `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}&sort=alpha`
         );
         const data = await res.json();
         setFonts(data.items.map((f: any) => f.family));
@@ -92,9 +90,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         ))}
       </div>
 
-      {/* -----------------------------
-          TAB: TEXT
-      ----------------------------- */}
+      {/* TAB: TEXT */}
       {tab === "text" && (
         <div className="p-4 space-y-4 overflow-y-auto">
           {selectedObject?.type === "text" && (
@@ -173,27 +169,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                 ))}
               </div>
 
-              {/* ROTATE */}
-              <div>
-                <label>סיבוב</label>
-                <input
-                  type="number"
-                  value={selectedObject.rotation || 0}
-                  onChange={(e) =>
-                    updateObject(selectedId!, { rotation: Number(e.target.value) })
-                  }
-                  className="w-full border p-2 rounded"
-                />
-              </div>
-
-              {/* DUPLICATE */}
-              <button
-                onClick={() => canvasRef.current?.duplicateObject(selectedId!)}
-                className="w-full bg-blue-500 text-white py-2 rounded"
-              >
-                שכפל
-              </button>
-
               {/* DELETE */}
               <button
                 onClick={() => removeObject(selectedId!)}
@@ -214,9 +189,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         </div>
       )}
 
-      {/* -----------------------------
-          TAB: ELEMENTS
-      ----------------------------- */}
+      {/* TAB: ELEMENTS */}
       {tab === "elements" && (
         <div className="p-4 space-y-4 overflow-y-auto">
           <button onClick={addRect} className="w-full border rounded py-2">

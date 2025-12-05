@@ -29,11 +29,20 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 ) {
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const objects = useEditorStore((s: any) => s.objects);
   const setSelected = useEditorStore((s: any) => s.setSelected);
-  const background = useEditorStore((s: any) => s.background);
   const updateObject = useEditorStore((s: any) => s.updateObject);
+  const removeObject = useEditorStore((s: any) => s.removeObject);
+  const addText = useEditorStore((s: any) => s.addText);
+  const addRect = useEditorStore((s: any) => s.addRect);
+  const addCircle = useEditorStore((s: any) => s.addCircle);
+  const addImage = useEditorStore((s: any) => s.addImage);
+  const addLottie = useEditorStore((s: any) => s.addLottie);
+  const bringToFront = useEditorStore((s: any) => s.bringToFront);
+  const sendToBack = useEditorStore((s: any) => s.sendToBack);
+  const background = useEditorStore((s: any) => s.background);
   const scale = useEditorStore((s: any) => s.scale);
   const setScale = useEditorStore((s: any) => s.setScale);
 
@@ -41,7 +50,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const CANVAS_HEIGHT = 1600;
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [copiedObject, setCopiedObject] = useState<any | null>(null);
 
   /* שינוי scale */
   useEffect(() => {
@@ -96,7 +105,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
       inputRef.current.style.color = obj.fill;
       inputRef.current.style.fontFamily = obj.fontFamily || "Arial";
       inputRef.current.style.fontWeight = obj.fontWeight || "normal";
-
       inputRef.current.style.border = "1px solid #999";
       inputRef.current.style.background = "white";
       inputRef.current.style.padding = "2px 4px";
@@ -110,26 +118,61 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   /* סיום עריכה */
   const finishEditing = () => {
     if (!editingTextId || !inputRef.current) return;
-
     updateObject(editingTextId, { text: inputRef.current.value });
     inputRef.current.style.display = "none";
     setEditingTextId(null);
   };
 
+  /* -----------------------------
+      Keyboard Events
+  ----------------------------- */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const selectedObj = objects.find((o: any) => o.id === stageRef.current?.selectedId);
+      if (!selectedObj) return;
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        removeObject(selectedObj.id);
+      }
+
+      if (e.ctrlKey && e.key === "c") {
+        setCopiedObject({ ...selectedObj, id: `copy-${Date.now()}` });
+      }
+
+      if (e.ctrlKey && e.key === "v" && copiedObject) {
+        if (copiedObject.type === "image") {
+          addImage(copiedObject.image.src);
+        } else if (copiedObject.type === "lottie") {
+          addLottie(copiedObject.lottieData);
+        } else {
+          const newObj = { ...copiedObject, id: `copy-${Date.now()}`, x: copiedObject.x + 20, y: copiedObject.y + 20 };
+          useEditorStore.getState().updateObject(newObj.id, newObj); // add new object
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [objects, copiedObject, addImage, addLottie, removeObject]);
+
   /* פונקציות ל-Sidebar */
   useImperativeHandle(ref, () => ({
-    addText: useEditorStore.getState().addText,
-    addRect: useEditorStore.getState().addRect,
-    addCircle: useEditorStore.getState().addCircle,
-    addImage: useEditorStore.getState().addImage,
-    addLottie: useEditorStore.getState().addLottie,
+    addText,
+    addRect,
+    addCircle,
+    addImage,
+    addLottie,
     setBackground: useEditorStore.getState().setBackground,
+    duplicateObject: (id: string) => {
+      const obj = objects.find((o: any) => o.id === id);
+      if (!obj) return;
+      const copy = { ...obj, id: `copy-${Date.now()}`, x: obj.x + 20, y: obj.y + 20 };
+      useEditorStore.getState().updateObject(copy.id, copy); // add new object
+    },
   }));
 
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-100 overflow-auto relative">
-
-      {/* input לעריכת טקסט — חייב להיות מחוץ ל-scale */}
+      {/* input לעריכת טקסט */}
       <input
         ref={inputRef}
         onBlur={finishEditing}
@@ -146,7 +189,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         }}
       />
 
-      {/* קנבס */}
+      {/* Canvas */}
       <div
         className="shadow-2xl rounded-xl bg-white"
         style={{
@@ -181,8 +224,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
             {objects.map((obj: any) => {
               const baseProps = {
                 name: obj.id,
+                className: obj.id,
                 draggable: true,
-                listening: true,
                 x: obj.x,
                 y: obj.y,
                 width: obj.width,
@@ -190,25 +233,18 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 fill: obj.fill,
                 text: obj.text,
                 fontSize: obj.fontSize,
-
-                /* ⚠️ אלה 3 השדות שהיו חסרים ❗ */
                 fontFamily: obj.fontFamily,
                 fontWeight: obj.fontWeight,
                 align: obj.align,
-
                 onClick: () => handleSelect(obj.id),
                 onTap: () => handleSelect(obj.id),
                 onDragEnd: (e: KonvaEventObject<DragEvent>) =>
-                  updateObject(obj.id, {
-                    x: e.target.x(),
-                    y: e.target.y(),
-                  }),
+                  updateObject(obj.id, { x: e.target.x(), y: e.target.y() }),
               };
 
               switch (obj.type) {
                 case "rect":
                   return <Rect key={obj.id} {...baseProps} />;
-
                 case "text":
                   return (
                     <Text
@@ -217,12 +253,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                       onDblClick={() => startEditingText(obj)}
                     />
                   );
-
                 case "image":
-                  return (
-                    <KonvaImage key={obj.id} {...baseProps} image={obj.image} />
-                  );
-
+                  return <KonvaImage key={obj.id} {...baseProps} image={obj.image} />;
                 case "lottie":
                   return (
                     <Lottie
@@ -239,7 +271,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                       loop
                     />
                   );
-
                 default:
                   return null;
               }
