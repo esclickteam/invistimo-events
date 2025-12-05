@@ -23,7 +23,7 @@ import EditableTextOverlay from "../../components/editor/EditableTextOverlay";
 import { loadFont } from "../../components/editor/loadFont";
 
 /* ============================================================
-   TYPES — EditorObject משופר
+   TYPE DEFINITIONS
 ============================================================ */
 
 export interface TextObject {
@@ -71,7 +71,9 @@ export type EditorObject =
       y: number;
       width: number;
       height: number;
-      image?: HTMLImageElement | null;
+      url?: string;                     // הוספה חשובה
+      image?: HTMLImageElement | null;  // תמונה אמיתית
+      removeBackground?: boolean;       // הורדת רקע
     }
   | {
       id: string;
@@ -89,6 +91,37 @@ interface EditorCanvasProps {
 
 const CANVAS_WIDTH = 900;
 const CANVAS_HEIGHT = 1600;
+
+/* ============================================================
+   REMOVE BACKGROUND (WHITE TO TRANSPARENT)
+============================================================ */
+
+function removeWhiteBackground(img: HTMLImageElement): string {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  ctx.drawImage(img, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    // כל פיקסל כמעט לבן → שקוף
+    if (r > 240 && g > 240 && b > 240) {
+      data[i + 3] = 0;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL();
+}
 
 /* ============================================================
    MAIN COMPONENT
@@ -114,7 +147,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const [textInputRect, setTextInputRect] = useState<any>(null);
 
   /* ============================================================
-      AUTO SCALE
+      AUTO SCALE SCREEN
   ============================================================ */
   useEffect(() => {
     const handleResize = () => {
@@ -135,11 +168,36 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [setScale]);
 
   /* ============================================================
+      LOAD IMAGE OBJECTS (URL → HTMLImageElement)
+  ============================================================ */
+  useEffect(() => {
+    objects.forEach((obj) => {
+      if (obj.type === "image" && obj.url && !obj.image) {
+        
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.onload = () => {
+          if (obj.removeBackground) {
+            const cleared = removeWhiteBackground(img);
+            const newImg = new Image();
+            newImg.src = cleared;
+            updateObject(obj.id, { image: newImg });
+          } else {
+            updateObject(obj.id, { image: img });
+          }
+        };
+
+        img.src = obj.url;
+      }
+    });
+  }, [objects, updateObject]);
+
+  /* ============================================================
       SELECTION LOGIC
   ============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
-
     const obj = objects.find((o) => o.id === id) || null;
     onSelect(obj);
 
@@ -154,7 +212,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-      DOUBLE CLICK → EDIT TEXT
+      DOUBLE CLICK FOR TEXT EDIT
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
@@ -175,7 +233,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-      KEYBOARD SHORTCUTS
+      DELETE OBJECTS WITH KEYBOARD
   ============================================================ */
   const handleKeyDown = (e: KeyboardEvent) => {
     const obj = objects.find((o) => o.id === selectedId);
@@ -223,7 +281,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         >
           <Layer>
             {objects.map((obj) => {
-              /* TEXT */
+
+              /* -------------------- TEXT -------------------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
 
@@ -241,9 +300,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     width={obj.width}
                     fill={obj.fill}
                     align={obj.align}
-                    fontStyle={`${
-                      obj.fontWeight === "bold" ? "bold" : "normal"
-                    } ${obj.italic ? "italic" : ""}`}
+                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : "normal"} ${obj.italic ? "italic" : ""}`}
                     textDecoration={obj.underline ? "underline" : ""}
                     onDblClick={() => handleDblClick(obj)}
                     onClick={() => handleSelect(obj.id)}
@@ -257,7 +314,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* RECTANGLE */
+              /* -------------------- RECTANGLE -------------------- */
               if (obj.type === "rect") {
                 return (
                   <Rect
@@ -281,7 +338,26 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* IMAGE */
+              /* -------------------- CIRCLE -------------------- */
+              if (obj.type === "circle") {
+                return (
+                  <Rect
+                    key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
+                    draggable
+                    x={obj.x}
+                    y={obj.y}
+                    width={obj.radius * 2}
+                    height={obj.radius * 2}
+                    cornerRadius={obj.radius}
+                    fill={obj.fill}
+                    onClick={() => handleSelect(obj.id)}
+                  />
+                );
+              }
+
+              /* -------------------- IMAGE (WITH REMOVED BACKGROUND) -------------------- */
               if (obj.type === "image") {
                 if (!obj.image) return null;
 
@@ -303,30 +379,20 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                         y: e.target.y(),
                       })
                     }
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      updateObject(obj.id, {
+                        width: node.width() * node.scaleX(),
+                        height: node.height() * node.scaleY(),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                   />
                 );
               }
 
-              /* CIRCLE */
-              if (obj.type === "circle") {
-                return (
-                  <Rect
-                    key={obj.id}
-                    name={obj.id}
-                    className={obj.id}
-                    draggable
-                    x={obj.x}
-                    y={obj.y}
-                    width={obj.radius * 2}
-                    height={obj.radius * 2}
-                    cornerRadius={obj.radius}
-                    fill={obj.fill}
-                    onClick={() => handleSelect(obj.id)}
-                  />
-                );
-              }
-
-              /* LOTTIE */
+              /* -------------------- LOTTIE -------------------- */
               if (obj.type === "lottie") {
                 return (
                   <Lottie

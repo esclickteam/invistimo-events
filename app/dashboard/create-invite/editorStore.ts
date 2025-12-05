@@ -1,59 +1,49 @@
 import { create } from "zustand";
 
-/* ================================
-   🎨 Editor Object Type — FULL CANVA SUPPORT
-================================ */
+/* ============================================================
+   TYPES — FULL CANVA SUPPORT
+============================================================ */
 export interface EditorObject {
   id: string;
   type: "text" | "rect" | "circle" | "image" | "lottie";
 
-  /* Basic positioning */
   x?: number;
   y?: number;
   width?: number;
   height?: number;
   rotation?: number;
 
-  /* Fill (text color / shapes) */
   fill?: string;
 
-  /* ================================
-       TEXT — Canva-level features
-  ================================= */
   text?: string;
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: "normal" | "bold";
   italic?: boolean;
   underline?: boolean;
-
   align?: "left" | "center" | "right";
-
   letterSpacing?: number;
   lineHeight?: number;
 
-  /* SHADOW */
   shadowColor?: string;
   shadowBlur?: number;
   shadowOffsetX?: number;
   shadowOffsetY?: number;
 
-  /* CIRCLE */
   radius?: number;
 
-  /* IMAGE */
+  url?: string;
   image?: HTMLImageElement | null;
+  removeBackground?: boolean;
 
-  /* LOTTIE */
   lottieData?: any;
 
-  /* Any extension */
   [key: string]: any;
 }
 
-/* ================================
-   🎨 Store State
-================================ */
+/* ============================================================
+   STATE TYPES
+============================================================ */
 interface EditorState {
   objects: EditorObject[];
   selectedId: string | null;
@@ -67,8 +57,18 @@ interface EditorState {
   addText: () => void;
   addRect: () => void;
   addCircle: () => void;
-  addImage: (url: string) => void;
+
+  addImage: (data: {
+    url: string;
+    width?: number;
+    height?: number;
+    removeBackground?: boolean;
+  }) => void;
+
   addLottie: (data: any) => void;
+
+  /** ⭐ REQUIRED FOR SHAPES TAB */
+  addObject: (obj: EditorObject) => void;
 
   removeObject: (id: string) => void;
 
@@ -76,33 +76,25 @@ interface EditorState {
   sendToBack: (id: string) => void;
 
   setBackground: (url: string | null) => void;
-
   setScale: (scale: number) => void;
 }
 
-/* ================================
-   🎨 Zustand Store
-================================ */
+/* ============================================================
+   ZUSTAND STORE
+============================================================ */
 export const useEditorStore = create<EditorState>((set, get) => ({
   objects: [],
   selectedId: null,
   background: null,
   scale: 1,
 
-  /* -------- SELECT -------- */
   setSelected: (id) => set({ selectedId: id }),
 
-  /* -------- UPDATE OBJECT -------- */
   updateObject: (id, data) =>
     set((state) => ({
-      objects: state.objects.map((o) =>
-        o.id === id ? { ...o, ...data } : o
-      ),
+      objects: state.objects.map((o) => (o.id === id ? { ...o, ...data } : o)),
     })),
 
-  /* -----------------------------------------
-      ADD TEXT — Canva level text defaults
-  -------------------------------------------- */
   addText: () =>
     set((state) => ({
       objects: [
@@ -112,8 +104,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           type: "text",
           x: 150,
           y: 150,
-
-          /* TEXT DEFAULTS */
           text: "טקסט חדש",
           fontSize: 40,
           fontFamily: "Assistant",
@@ -122,12 +112,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           underline: false,
           align: "center",
           fill: "#000",
-
-          /* Better typography */
           letterSpacing: 0,
           lineHeight: 1.1,
-
-          /* Shadow (off by default) */
           shadowColor: "transparent",
           shadowBlur: 0,
           shadowOffsetX: 0,
@@ -136,7 +122,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
-  /* -------- ADD RECT -------- */
   addRect: () =>
     set((state) => ({
       objects: [
@@ -153,7 +138,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
-  /* -------- ADD CIRCLE -------- */
   addCircle: () =>
     set((state) => ({
       objects: [
@@ -169,9 +153,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
-  /* -------- ADD IMAGE -------- */
-  addImage: (url: string) => {
+  /* ============================================================
+      ADD IMAGE — fully typed + matches ElementsTab
+  ============================================================ */
+  addImage: ({ url, width = 200, height = 200, removeBackground = false }) => {
+    const id = `img-${Date.now()}`;
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.src = url;
 
     img.onload = () => {
@@ -179,21 +167,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         objects: [
           ...state.objects,
           {
-            id: `img-${Date.now()}`,
+            id,
             type: "image",
             x: 100,
             y: 100,
-            width: img.width / 3,
-            height: img.height / 3,
+            width,
+            height,
+            url,
             image: img,
+            removeBackground,
           },
         ],
       }));
     };
   },
 
-  /* -------- ADD LOTTIE -------- */
-  addLottie: (lottieData: any) =>
+  addLottie: (lottieData) =>
     set((state) => ({
       objects: [
         ...state.objects,
@@ -209,36 +198,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
-  /* -------- REMOVE -------- */
-  removeObject: (id: string) =>
+  /* ============================================================
+      ⭐ REQUIRED FOR SHAPES TAB
+  ============================================================ */
+  addObject: (obj) =>
+    set((state) => ({
+      objects: [...state.objects, obj],
+    })),
+
+  removeObject: (id) =>
     set((state) => ({
       objects: state.objects.filter((o) => o.id !== id),
       selectedId: null,
     })),
 
-  /* -------- BRING TO FRONT -------- */
-  bringToFront: (id: string) => {
+  bringToFront: (id) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;
-
-    set({
-      objects: [...get().objects.filter((o) => o.id !== id), obj],
-    });
+    set({ objects: [...get().objects.filter((o) => o.id !== id), obj] });
   },
 
-  /* -------- SEND TO BACK -------- */
-  sendToBack: (id: string) => {
+  sendToBack: (id) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;
-
-    set({
-      objects: [obj, ...get().objects.filter((o) => o.id !== id)],
-    });
+    set({ objects: [obj, ...get().objects.filter((o) => o.id !== id)] });
   },
 
-  /* -------- BACKGROUND -------- */
-  setBackground: (url: string | null) => set({ background: url }),
+  setBackground: (url) => set({ background: url }),
 
-  /* -------- SCALE -------- */
-  setScale: (scale: number) => set({ scale }),
+  setScale: (scale) => set({ scale }),
 }));
