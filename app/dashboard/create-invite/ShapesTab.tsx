@@ -16,32 +16,14 @@ interface ShapeItem {
 }
 
 export default function ShapesTab() {
-  const { data = [], addToLibrary } = useInvityLibrary("shape"); // כאן משתמשים גם ב-addToLibrary
+  const { data = [] } = useInvityLibrary("shape"); // שימוש רק ב-data
   const addObject = useEditorStore((s: any) => s.addObject);
 
-  // גם אם אין נתונים במאגר, נציג טאב ריק עם כפתור להוספה
+  // גם אם אין נתונים במאגר, נציג טאב ריק
   const shapesData = data.length > 0 ? data : [];
-
-  const handleAddToLibrary = async () => {
-    const newItem: ShapeItem = {
-      _id: crypto.randomUUID(),
-      shapeData: { width: 120, height: 120, fill: "#888" },
-      url: "https://res.cloudinary.com/dnbewcz79/image/upload/v1764969094/1_wafk5l.png",
-    };
-
-    addToLibrary && addToLibrary(newItem); // שולח לשרת ומעדכן את query cache
-  };
 
   return (
     <div className="p-3">
-      {/* כפתור להוספה למאגר */}
-      <button
-        onClick={handleAddToLibrary}
-        className="mb-3 w-full bg-purple-600 text-white py-2 rounded"
-      >
-        הוסף צורה למאגר
-      </button>
-
       {/* רשימת הצורות מהמאגר */}
       <div className="grid grid-cols-3 gap-3">
         {shapesData.map((item: ShapeItem) => {
