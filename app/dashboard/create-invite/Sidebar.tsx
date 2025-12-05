@@ -3,46 +3,31 @@
 import { useState, useEffect } from "react";
 import { useEditorStore } from "./editorStore";
 
-// 🟣 טאבים חדשים מהמאגר
+// טאבים מהמאגר
 import ElementsTab from "./ElementsTab";
 import ShapesTab from "./ShapesTab";
 import BackgroundsTab from "./BackgroundsTab";
 import LottieTab from "./LottieTab";
 
-/* -------------------------------------------
-   Sidebar Props
--------------------------------------------- */
 interface SidebarProps {
   canvasRef: any;
-  googleApiKey: string; // Google Fonts API Key
+  googleApiKey: string;
 }
 
-/* -------------------------------------------
-   Sidebar Component
--------------------------------------------- */
 export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
   const selectedId = useEditorStore((s) => s.selectedId);
   const objects = useEditorStore((s) => s.objects);
   const updateObject = useEditorStore((s) => s.updateObject);
   const addText = useEditorStore((s) => s.addText);
-  const addRect = useEditorStore((s) => s.addRect);
-  const addCircle = useEditorStore((s) => s.addCircle);
   const removeObject = useEditorStore((s) => s.removeObject);
-  const bringToFront = useEditorStore((s) => s.bringToFront);
-  const sendToBack = useEditorStore((s) => s.sendToBack);
 
   const selectedObject = objects.find((o) => o.id === selectedId);
 
-  /* -------------------------------------------
-     Tabs
-  -------------------------------------------- */
-  const [tab, setTab] = useState<"text" | "elements" | "images" | "backgrounds" | "lottie">("text");
+  const [tab, setTab] = useState<
+    "text" | "elements" | "images" | "backgrounds" | "lottie"
+  >("text");
 
-  /* -------------------------------------------
-     Google Fonts
-  -------------------------------------------- */
   const [fonts, setFonts] = useState<string[]>([]);
-
   useEffect(() => {
     const fetchFonts = async () => {
       try {
@@ -58,21 +43,20 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
     fetchFonts();
   }, [googleApiKey]);
 
-  /* -------------------------------------------
-     Text Controls
-  -------------------------------------------- */
   const alignments: { label: string; value: "left" | "center" | "right" }[] = [
     { label: "ימין", value: "right" },
     { label: "מרכז", value: "center" },
     { label: "שמאל", value: "left" },
   ];
 
-  /* -------------------------------------------
-     Sidebar UI
-  -------------------------------------------- */
+  // פונקציה לדוגמה להוספה למאגר
+  const handleAddToLibrary = (tabKey: string) => {
+    // כאן תוכלי לקרוא ל-API שלך ולהוסיף אובייקט חדש למאגר
+    alert(`נוסיף אובייקט למאגר של הטאב: ${tabKey}`);
+  };
+
   return (
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
-      {/* HEADER */}
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
       {/* TABS */}
@@ -96,12 +80,11 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         ))}
       </div>
 
-      {/* TAB: TEXT (לא נגעתי בכלום!) */}
+      {/* TAB TEXT (לא נגעתי) */}
       {tab === "text" && (
         <div className="p-4 space-y-4 overflow-y-auto">
           {selectedObject?.type === "text" && (
             <div className="p-3 border bg-gray-50 rounded space-y-4">
-
               <div>
                 <label>פונט</label>
                 <select
@@ -150,7 +133,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
             </div>
           )}
 
-          {/* ADD TEXT */}
           <button
             onClick={addText}
             className="w-full bg-purple-600 text-white py-2 rounded"
@@ -160,17 +142,57 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         </div>
       )}
 
-      {/* TAB: ELEMENTS — מהמאגר */}
-      {tab === "elements" && <ElementsTab />}
+      {/* TAB ELEMENTS */}
+      {tab === "elements" && (
+        <div>
+          <ElementsTab />
+          <button
+            onClick={() => handleAddToLibrary("elements")}
+            className="w-full bg-green-500 text-white py-2 rounded my-2"
+          >
+            הוסף למאגר
+          </button>
+        </div>
+      )}
 
-      {/* TAB: SHAPES — מהמאגר (במקום addRect / addCircle) */}
-      {tab === "images" && <ShapesTab />}
+      {/* TAB SHAPES */}
+      {tab === "images" && (
+        <div>
+          <ShapesTab />
+          <button
+            onClick={() => handleAddToLibrary("shapes")}
+            className="w-full bg-green-500 text-white py-2 rounded my-2"
+          >
+            הוסף למאגר
+          </button>
+        </div>
+      )}
 
-      {/* TAB: BACKGROUNDS — מהמאגר */}
-      {tab === "backgrounds" && <BackgroundsTab />}
+      {/* TAB BACKGROUNDS */}
+      {tab === "backgrounds" && (
+        <div>
+          <BackgroundsTab />
+          <button
+            onClick={() => handleAddToLibrary("backgrounds")}
+            className="w-full bg-green-500 text-white py-2 rounded my-2"
+          >
+            הוסף למאגר
+          </button>
+        </div>
+      )}
 
-      {/* TAB: LOTTIE — מהמאגר */}
-      {tab === "lottie" && <LottieTab />}
+      {/* TAB LOTTIE / אנימציות */}
+      {tab === "lottie" && (
+        <div>
+          <LottieTab />
+          <button
+            onClick={() => handleAddToLibrary("lottie")}
+            className="w-full bg-green-500 text-white py-2 rounded my-2"
+          >
+            הוסף למאגר
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
