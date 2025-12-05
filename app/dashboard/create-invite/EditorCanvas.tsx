@@ -7,6 +7,7 @@ import React, {
   forwardRef,
   useState,
 } from "react";
+
 import {
   Stage,
   Layer,
@@ -15,51 +16,131 @@ import {
   Image as KonvaImage,
   Transformer,
 } from "react-konva";
-import { useEditorStore } from "./editorStore";
+
 import Lottie from "lottie-react";
-import type { KonvaEventObject } from "konva/lib/Node";
+import { useEditorStore } from "./editorStore";
+import EditableTextOverlay from "../../components/editor/EditableTextOverlay";
+import { loadFont } from "../../components/editor/loadFont";
+
+/* ============================================================
+   TYPES — EditorObject משופר
+============================================================ */
+
+export interface TextObject {
+  id: string;
+  type: "text";
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  fontWeight?: "bold" | "normal";
+  italic?: boolean;
+  underline?: boolean;
+  align?: "left" | "center" | "right";
+  letterSpacing?: number;
+  lineHeight?: number;
+  fill?: string;
+}
+
+export type EditorObject =
+  | TextObject
+  | {
+      id: string;
+      type: "rect";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      fill?: string;
+    }
+  | {
+      id: string;
+      type: "circle";
+      x: number;
+      y: number;
+      radius: number;
+      fill?: string;
+    }
+  | {
+      id: string;
+      type: "image";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      image?: HTMLImageElement | null;
+    }
+  | {
+      id: string;
+      type: "lottie";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      lottieData: any;
+    };
 
 interface EditorCanvasProps {
-  onSelect: (obj: any | null) => void;
+  onSelect: (obj: EditorObject | null) => void;
 }
+
+const CANVAS_WIDTH = 900;
+const CANVAS_HEIGHT = 1600;
+
+/* ============================================================
+   MAIN COMPONENT
+============================================================ */
 
 const EditorCanvas = forwardRef(function EditorCanvas(
   { onSelect }: EditorCanvasProps,
-  ref: React.Ref<any>
+  ref
 ) {
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
 
-  const objects = useEditorStore((s: any) => s.objects);
-  const setSelected = useEditorStore((s: any) => s.setSelected);
-  const updateObject = useEditorStore((s: any) => s.updateObject);
-  const removeObject = useEditorStore((s: any) => s.removeObject);
-  const scale = useEditorStore((s: any) => s.scale);
-  const setScale = useEditorStore((s: any) => s.setScale);
+  const objects = useEditorStore((s) => s.objects as EditorObject[]);
+  const selectedId = useEditorStore((s) => s.selectedId);
+  const setSelected = useEditorStore((s) => s.setSelected);
+  const updateObject = useEditorStore((s) => s.updateObject);
+  const removeObject = useEditorStore((s) => s.removeObject);
 
-  const CANVAS_WIDTH = 900;
-  const CANVAS_HEIGHT = 1600;
+  const scale = useEditorStore((s) => s.scale);
+  const setScale = useEditorStore((s) => s.setScale);
 
-  /* שינוי scale לפי חלון */
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [textInputRect, setTextInputRect] = useState<any>(null);
+
+  /* ============================================================
+      AUTO SCALE
+  ============================================================ */
   useEffect(() => {
-    const updateScale = () => {
+    const handleResize = () => {
       const maxHeight = window.innerHeight - 100;
       const maxWidth = window.innerWidth - 450;
-      const scaleFactor = Math.min(
+
+      const factor = Math.min(
         maxWidth / CANVAS_WIDTH,
         maxHeight / CANVAS_HEIGHT
       );
-      setScale(scaleFactor);
+
+      setScale(factor);
     };
-    updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [setScale]);
 
-  /* בחירת אובייקט */
+  /* ============================================================
+      SELECTION LOGIC
+  ============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
-    const obj = objects.find((o: any) => o.id === id) || null;
+
+    const obj = objects.find((o) => o.id === id) || null;
     onSelect(obj);
 
     if (transformerRef.current) {
@@ -72,57 +153,62 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     }
   };
 
-  /* העתק/הדבק */
+  /* ============================================================
+      DOUBLE CLICK → EDIT TEXT
+  ============================================================ */
+  const handleDblClick = (obj: EditorObject) => {
+    if (obj.type !== "text") return;
+
+    const node = stageRef.current.findOne(`.${obj.id}`);
+    if (!node) return;
+
+    const abs = node.getAbsolutePosition();
+
+    setTextInputRect({
+      x: abs.x * scale,
+      y: abs.y * scale,
+      width: (obj.width || 200) * scale,
+      height: obj.fontSize * 1.4 * scale,
+    });
+
+    setEditingTextId(obj.id);
+  };
+
+  /* ============================================================
+      KEYBOARD SHORTCUTS
+  ============================================================ */
   const handleKeyDown = (e: KeyboardEvent) => {
-    const selectedObj = objects.find((o: any) => o.id === stageRef.current?.selectedId);
-    if (!selectedObj) return;
+    const obj = objects.find((o) => o.id === selectedId);
+    if (!obj) return;
 
-    if (e.ctrlKey && e.key === "c") {
-      // copy
-      window.localStorage.setItem("copiedObject", JSON.stringify(selectedObj));
-    }
-
-    if (e.ctrlKey && e.key === "v") {
-      // paste
-      const copied = JSON.parse(window.localStorage.getItem("copiedObject") || "{}");
-      if (copied.id) {
-        const newObj = { ...copied, id: `obj-${Date.now()}`, x: copied.x + 20, y: copied.y + 20 };
-        useEditorStore.getState().objects.push(newObj);
-      }
-    }
-
-    if (e.key === "Delete") {
-      removeObject(selectedObj.id);
-    }
+    if (e.key === "Delete") removeObject(obj.id);
   };
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [objects]);
+  });
 
-  /* פונקציות ל-Sidebar */
+  /* ============================================================
+      EXPOSE ACTIONS TO SIDEBAR
+  ============================================================ */
   useImperativeHandle(ref, () => ({
     addText: useEditorStore.getState().addText,
     addRect: useEditorStore.getState().addRect,
     addCircle: useEditorStore.getState().addCircle,
     addImage: useEditorStore.getState().addImage,
     addLottie: useEditorStore.getState().addLottie,
-    setBackground: useEditorStore.getState().setBackground,
-    duplicateObject: (id: string) => {
-      const obj = objects.find((o: any) => o.id === id);
-      if (!obj) return;
-      const newObj = { ...obj, id: `obj-${Date.now()}`, x: obj.x + 20, y: obj.y + 20 };
-      useEditorStore.getState().objects.push(newObj);
-    },
   }));
 
+  /* ============================================================
+      RENDER CANVAS
+  ============================================================ */
   return (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100 overflow-auto relative">
+    <div className="w-full h-full flex items-center justify-center overflow-auto bg-gray-100 relative">
       <div
         className="shadow-2xl rounded-xl bg-white"
         style={{
-          transform: `scale(${scale || 1})`,
+          transform: `scale(${scale})`,
           transformOrigin: "top left",
         }}
       >
@@ -131,65 +217,156 @@ const EditorCanvas = forwardRef(function EditorCanvas(
           height={CANVAS_HEIGHT}
           ref={stageRef}
           className="bg-white rounded-xl border"
-          onMouseDown={(e: KonvaEventObject<MouseEvent>) => {
+          onMouseDown={(e) => {
             if (e.target === e.target.getStage()) handleSelect(null);
           }}
         >
           <Layer>
-            {/* אובייקטים */}
-            {objects.map((obj: any) => {
-              const baseProps = {
-                name: obj.id,
-                className: obj.id,
-                draggable: true,
-                x: obj.x,
-                y: obj.y,
-                width: obj.width,
-                height: obj.height,
-                fill: obj.fill,
-                text: obj.text,
-                fontSize: obj.fontSize,
-                fontFamily: obj.fontFamily,
-                fontStyle: obj.fontWeight === "bold" ? "bold" : "normal",
-                align: obj.align,
-                onClick: () => handleSelect(obj.id),
-                onTap: () => handleSelect(obj.id),
-                onDragEnd: (e: KonvaEventObject<DragEvent>) =>
-                  updateObject(obj.id, { x: e.target.x(), y: e.target.y() }),
-              };
+            {objects.map((obj) => {
+              /* TEXT */
+              if (obj.type === "text") {
+                loadFont(obj.fontFamily);
 
-              switch (obj.type) {
-                case "rect":
-                  return <Rect key={obj.id} {...baseProps} />;
-                case "text":
-                  return <Text key={obj.id} {...baseProps} />;
-                case "image":
-                  return <KonvaImage key={obj.id} {...baseProps} image={obj.image} />;
-                case "lottie":
-                  return (
-                    <Lottie
-                      key={obj.id}
-                      animationData={obj.lottieData}
-                      style={{
-                        position: "absolute",
-                        top: obj.y,
-                        left: obj.x,
-                        width: obj.width,
-                        height: obj.height,
-                        pointerEvents: "none",
-                      }}
-                      loop
-                    />
-                  );
-                default:
-                  return null;
+                return (
+                  <Text
+                    key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
+                    draggable
+                    x={obj.x}
+                    y={obj.y}
+                    text={obj.text}
+                    fontFamily={obj.fontFamily}
+                    fontSize={obj.fontSize}
+                    width={obj.width}
+                    fill={obj.fill}
+                    align={obj.align}
+                    fontStyle={`${
+                      obj.fontWeight === "bold" ? "bold" : "normal"
+                    } ${obj.italic ? "italic" : ""}`}
+                    textDecoration={obj.underline ? "underline" : ""}
+                    onDblClick={() => handleDblClick(obj)}
+                    onClick={() => handleSelect(obj.id)}
+                    onDragEnd={(e) =>
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
+                    }
+                  />
+                );
               }
+
+              /* RECTANGLE */
+              if (obj.type === "rect") {
+                return (
+                  <Rect
+                    key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
+                    draggable
+                    x={obj.x}
+                    y={obj.y}
+                    width={obj.width}
+                    height={obj.height}
+                    fill={obj.fill}
+                    onClick={() => handleSelect(obj.id)}
+                    onDragEnd={(e) =>
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
+                    }
+                  />
+                );
+              }
+
+              /* IMAGE */
+              if (obj.type === "image") {
+                if (!obj.image) return null;
+
+                return (
+                  <KonvaImage
+                    key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
+                    draggable
+                    x={obj.x}
+                    y={obj.y}
+                    width={obj.width}
+                    height={obj.height}
+                    image={obj.image}
+                    onClick={() => handleSelect(obj.id)}
+                    onDragEnd={(e) =>
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
+                    }
+                  />
+                );
+              }
+
+              /* CIRCLE */
+              if (obj.type === "circle") {
+                return (
+                  <Rect
+                    key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
+                    draggable
+                    x={obj.x}
+                    y={obj.y}
+                    width={obj.radius * 2}
+                    height={obj.radius * 2}
+                    cornerRadius={obj.radius}
+                    fill={obj.fill}
+                    onClick={() => handleSelect(obj.id)}
+                  />
+                );
+              }
+
+              /* LOTTIE */
+              if (obj.type === "lottie") {
+                return (
+                  <Lottie
+                    key={obj.id}
+                    animationData={obj.lottieData}
+                    style={{
+                      position: "absolute",
+                      top: obj.y,
+                      left: obj.x,
+                      width: obj.width,
+                      height: obj.height,
+                      pointerEvents: "none",
+                    }}
+                  />
+                );
+              }
+
+              return null;
             })}
 
             <Transformer ref={transformerRef} />
           </Layer>
         </Stage>
       </div>
+
+      {/* TEXT OVERLAY EDITOR */}
+      {editingTextId && (
+        <EditableTextOverlay
+          obj={
+            (objects.find(
+              (o) => o.id === editingTextId && o.type === "text"
+            ) as TextObject | null) || null
+          }
+          rect={textInputRect}
+          onFinish={(txt) => {
+            updateObject(editingTextId, { text: txt });
+            setEditingTextId(null);
+          }}
+        />
+      )}
     </div>
   );
 });

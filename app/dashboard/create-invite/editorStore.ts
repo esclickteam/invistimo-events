@@ -1,37 +1,53 @@
 import { create } from "zustand";
 
 /* ================================
-   🎨 Editor Object Type
+   🎨 Editor Object Type — FULL CANVA SUPPORT
 ================================ */
 export interface EditorObject {
   id: string;
   type: "text" | "rect" | "circle" | "image" | "lottie";
 
-  // Basic properties
+  /* Basic positioning */
   x?: number;
   y?: number;
   width?: number;
   height?: number;
   rotation?: number;
+
+  /* Fill (text color / shapes) */
   fill?: string;
 
-  // TEXT
+  /* ================================
+       TEXT — Canva-level features
+  ================================= */
   text?: string;
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: "normal" | "bold";
+  italic?: boolean;
+  underline?: boolean;
+
   align?: "left" | "center" | "right";
 
-  // CIRCLE
+  letterSpacing?: number;
+  lineHeight?: number;
+
+  /* SHADOW */
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+
+  /* CIRCLE */
   radius?: number;
 
-  // IMAGE
+  /* IMAGE */
   image?: HTMLImageElement | null;
 
-  // LOTTIE
+  /* LOTTIE */
   lottieData?: any;
 
-  // Extension
+  /* Any extension */
   [key: string]: any;
 }
 
@@ -41,6 +57,7 @@ export interface EditorObject {
 interface EditorState {
   objects: EditorObject[];
   selectedId: string | null;
+
   background: string | null;
   scale: number;
 
@@ -83,7 +100,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ),
     })),
 
-  /* -------- ADD TEXT -------- */
+  /* -----------------------------------------
+      ADD TEXT — Canva level text defaults
+  -------------------------------------------- */
   addText: () =>
     set((state) => ({
       objects: [
@@ -93,12 +112,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           type: "text",
           x: 150,
           y: 150,
+
+          /* TEXT DEFAULTS */
           text: "טקסט חדש",
           fontSize: 40,
           fontFamily: "Assistant",
           fontWeight: "normal",
+          italic: false,
+          underline: false,
           align: "center",
           fill: "#000",
+
+          /* Better typography */
+          letterSpacing: 0,
+          lineHeight: 1.1,
+
+          /* Shadow (off by default) */
+          shadowColor: "transparent",
+          shadowBlur: 0,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
         },
       ],
     })),
