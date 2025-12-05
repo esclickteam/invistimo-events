@@ -11,8 +11,7 @@ interface LibraryItem {
 }
 
 export default function ElementsTab() {
-  const { data = [] } = useInvityLibrary("element");
-
+  const { data = [], addToLibrary } = useInvityLibrary("element"); // הוספנו addToLibrary
   const addImage = useEditorStore((s) => s.addImage);
 
   const handleAdd = (item: LibraryItem) => {
@@ -24,23 +23,44 @@ export default function ElementsTab() {
     });
   };
 
+  const handleAddToLibrary = async () => {
+    const newItem: LibraryItem = {
+      _id: crypto.randomUUID(),
+      url: "/placeholder.png", // ניתן להחליף ל-URL של התמונה החדשה
+      thumbnail: "/placeholder.png",
+    };
+
+    addToLibrary && addToLibrary(newItem); // מוסיף למאגר
+  };
+
   return (
-    <div className="grid grid-cols-3 gap-3 p-3">
-      {data.map((item: LibraryItem) => (
-        <div
-          key={item._id}
-          className="cursor-pointer"
-          onClick={() => handleAdd(item)}
-        >
-          <Image
-            src={item.thumbnail || item.url}
-            width={90}
-            height={90}
-            alt=""
-            className="rounded shadow"
-          />
-        </div>
-      ))}
+    <div className="p-3">
+      {/* כפתור להוספה למאגר */}
+      <button
+        onClick={handleAddToLibrary}
+        className="mb-3 w-full bg-purple-600 text-white py-2 rounded"
+      >
+        הוסף תמונה למאגר
+      </button>
+
+      {/* רשימת אלמנטים */}
+      <div className="grid grid-cols-3 gap-3">
+        {data.map((item: LibraryItem) => (
+          <div
+            key={item._id}
+            className="cursor-pointer"
+            onClick={() => handleAdd(item)}
+          >
+            <Image
+              src={item.thumbnail || item.url}
+              width={90}
+              height={90}
+              alt=""
+              className="rounded shadow"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

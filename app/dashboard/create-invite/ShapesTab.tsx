@@ -12,41 +12,37 @@ interface ShapeItem {
     cornerRadius?: number;
     fill?: string;
   };
-  url?: string; // אם רוצים לשמור URL של תמונה במאגר
+  url?: string; // אם רוצים תמונה מהמאגר
 }
 
 export default function ShapesTab() {
-  const { data = [], addToLibrary } = useInvityLibrary("shape"); // שימוש ב-hook שלך
+  const { data = [], addToLibrary } = useInvityLibrary("shape"); // כאן משתמשים גם ב-addToLibrary
   const addObject = useEditorStore((s: any) => s.addObject);
 
-  // דיפולטיבי למקרה שהמאגר ריק
-  const shapesData = data.length > 0 ? data : [
-    {
-      _id: "dummy-shape-1",
-      shapeData: { width: 120, height: 120, fill: "#000" },
-      url: "https://res.cloudinary.com/dnbewcz79/image/upload/v1764969094/1_wafk5l.png"
-    }
-  ];
+  // גם אם אין נתונים במאגר, נציג טאב ריק עם כפתור להוספה
+  const shapesData = data.length > 0 ? data : [];
 
   const handleAddToLibrary = async () => {
-    // כאן תוכלי לפתוח UI להוספת תמונה חדשה או פריט חדש
-    const newItem = {
+    const newItem: ShapeItem = {
       _id: crypto.randomUUID(),
       shapeData: { width: 120, height: 120, fill: "#888" },
-      url: "https://res.cloudinary.com/dnbewcz79/image/upload/v1764969094/1_wafk5l.png"
+      url: "https://res.cloudinary.com/dnbewcz79/image/upload/v1764969094/1_wafk5l.png",
     };
-    await addToLibrary(newItem); // פונקציה ב-hook ששומרת את הפריט במאגר
+
+    addToLibrary && addToLibrary(newItem); // שולח לשרת ומעדכן את query cache
   };
 
   return (
     <div className="p-3">
+      {/* כפתור להוספה למאגר */}
       <button
         onClick={handleAddToLibrary}
-        className="w-full mb-3 bg-purple-600 text-white py-2 rounded"
+        className="mb-3 w-full bg-purple-600 text-white py-2 rounded"
       >
-        הוסף למאגר
+        הוסף צורה למאגר
       </button>
 
+      {/* רשימת הצורות מהמאגר */}
       <div className="grid grid-cols-3 gap-3">
         {shapesData.map((item: ShapeItem) => {
           const shape = item.shapeData;
@@ -66,6 +62,7 @@ export default function ShapesTab() {
             radius: shape.radius,
             cornerRadius: shape.cornerRadius,
             fill: shape.fill || "#000",
+            url: item.url,
           };
 
           return (
