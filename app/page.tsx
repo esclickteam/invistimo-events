@@ -37,9 +37,10 @@ export default function HomePage() {
           הושבה, תזכורות ועוד — הכול בעיצוב אלגנטי ברמה גבוהה.
         </p>
 
+        {/* 🔗 כפתורי פעולה */}
         <div className="flex justify-center gap-4 mt-8">
-          <Link href="/create-event" className="btn-primary">
-            יצירת הזמנה חדשה
+          <Link href="/login" className="btn-primary">
+            התחברות
           </Link>
           <a href="#packages" className="btn-outline">
             צפייה בחבילות
@@ -70,16 +71,16 @@ export default function HomePage() {
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              t: "יוצרים הזמנה",
-              d: "מזינים פרטי אירוע, בוחרים עיצוב יוקרתי — ובתוך דקות יש הזמנה מוכנה.",
+              t: "נרשמים למערכת",
+              d: "נכנסים לחשבון שלכם כדי להתחיל לנהל את האירוע בקלות.",
             },
             {
               t: "שולחים למוזמנים",
               d: "רשימת מוזמנים + שליחה ב-SMS/וואטסאפ. הכל מתעדכן אוטומטית.",
             },
             {
-              t: "ניהול מלא במקום אחד",
-              d: "אישורי הגעה, הושבה לשולחנות, תזכורות — הכול אוטומטי ונוח.",
+              t: "מנהלים הכול במקום אחד",
+              d: "אישורי הגעה, הושבה, תזכורות — הכול אוטומטי ונוח.",
             },
           ].map((item, i) => (
             <motion.div
@@ -134,25 +135,25 @@ export default function HomePage() {
                 </>
               ) : (
                 <>
-     <h3 className="text-xl font-bold text-[#6d5e4f]">
-    חבילת ניהול אירוע מלאה
-    </h3>
+                  <h3 className="text-xl font-bold text-[#6d5e4f]">
+                    חבילת ניהול אירוע מלאה
+                  </h3>
 
-  <p className="text-[#6d5e4f] text-sm mt-2 leading-relaxed">
-    כולל הכל — אישורים, הושבה, תזכורות, עיצוב יוקרתי.
-  </p>
+                  <p className="text-[#6d5e4f] text-sm mt-2 leading-relaxed">
+                    כולל הכל — אישורים, הושבה, תזכורות, עיצוב יוקרתי.
+                  </p>
 
-  <ul className="mt-4 text-sm text-[#6d5e4f] space-y-1">
-    <li>• הזמנה יוקרתית</li>
-    <li>• ניהול אישורי הגעה</li>
-    <li>• הושבה לשולחנות</li>
-    <li>• תזכורות אוטומטיות</li>
-  </ul>
+                  <ul className="mt-4 text-sm text-[#6d5e4f] space-y-1">
+                    <li>• הזמנה יוקרתית</li>
+                    <li>• ניהול אישורי הגעה</li>
+                    <li>• הושבה לשולחנות</li>
+                    <li>• תזכורות אוטומטיות</li>
+                  </ul>
 
-  <Link href="/plans?plan=full" className="btn-primary mt-6">
-    המשך לחבילה מלאה
-  </Link>
-</>
+                  <Link href="/plans?plan=full" className="btn-primary mt-6">
+                    המשך לחבילה מלאה
+                  </Link>
+                </>
               )}
             </motion.div>
           ))}
