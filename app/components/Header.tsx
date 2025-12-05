@@ -37,21 +37,21 @@ export default function Header() {
           <Link href="/login" className="hover:text-gold transition">התחברות</Link>
         </nav>
 
-        {/* כפתור */}
+        {/* כפתור שולחן עבודה */}
         <Link
-          href="/create-event"
+          href="/login"
           className="hidden md:block btn-gold px-6 py-2 text-sm"
         >
-          יצירת אירוע
+          התחברות
         </Link>
 
-        {/* מובייל */}
+        {/* כפתור מובייל */}
         <div className="md:hidden">
           <Link
-            href="/create-event"
+            href="/login"
             className="px-4 py-2 rounded-full bg-gold text-white text-sm font-semibold"
           >
-            אירוע חדש
+            התחברות
           </Link>
         </div>
       </div>
