@@ -8,7 +8,7 @@ import { useEditorStore } from "./editorStore";
 -------------------------------------------- */
 interface SidebarProps {
   canvasRef: any;
-  googleApiKey: string;
+  googleApiKey: string; // Google Fonts API Key
 }
 
 /* -------------------------------------------
@@ -22,20 +22,21 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
   const addRect = useEditorStore((s) => s.addRect);
   const addCircle = useEditorStore((s) => s.addCircle);
   const removeObject = useEditorStore((s) => s.removeObject);
+  const bringToFront = useEditorStore((s) => s.bringToFront);
+  const sendToBack = useEditorStore((s) => s.sendToBack);
 
   const selectedObject = objects.find((o) => o.id === selectedId);
 
   /* -------------------------------------------
      Tabs
   -------------------------------------------- */
-  const [tab, setTab] = useState<
-    "text" | "elements" | "images" | "backgrounds" | "lottie"
-  >("text");
+  const [tab, setTab] = useState<"text" | "elements" | "images" | "backgrounds" | "lottie">("text");
 
   /* -------------------------------------------
      Google Fonts
   -------------------------------------------- */
   const [fonts, setFonts] = useState<string[]>([]);
+
   useEffect(() => {
     const fetchFonts = async () => {
       try {
@@ -45,14 +46,14 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         const data = await res.json();
         setFonts(data.items.map((f: any) => f.family));
       } catch (err) {
-        console.error("Google Fonts API error:", err);
+        console.error("Error fetching Google Fonts:", err);
       }
     };
     fetchFonts();
   }, [googleApiKey]);
 
   /* -------------------------------------------
-     Text Alignments
+     Text Controls
   -------------------------------------------- */
   const alignments: { label: string; value: "left" | "center" | "right" }[] = [
     { label: "ימין", value: "right" },
@@ -167,16 +168,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   </button>
                 ))}
               </div>
-
-              {/* DUPLICATE */}
-              <button
-                onClick={() =>
-                  canvasRef.current?.duplicateObject(selectedId!)
-                }
-                className="w-full bg-blue-500 text-white py-2 rounded"
-              >
-                שכפל
-              </button>
 
               {/* DELETE */}
               <button
