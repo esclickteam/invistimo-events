@@ -22,8 +22,15 @@ export async function GET() {
     }));
 
     return NextResponse.json(shapes);
-  } catch (err) {
+  } catch (err: any) {
+    // 🟣 הצגת שגיאה אמיתית בלוג וב-Response
     console.error("❌ Cloudinary fetch failed:", err);
-    return NextResponse.json({ error: "Failed to load shapes" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: err?.message || err?.error?.message || "Failed to load shapes",
+        details: err,
+      },
+      { status: 500 }
+    );
   }
 }
