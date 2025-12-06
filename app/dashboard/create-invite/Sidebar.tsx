@@ -12,7 +12,7 @@ import LottieTab from "./LottieTab";
 interface SidebarProps {
   canvasRef: any;
   googleApiKey: string;
-  selectedObject: any | null;   // ← נוספה התמיכה
+  selectedObject: any | null;
 }
 
 export default function Sidebar({
@@ -28,28 +28,37 @@ export default function Sidebar({
     "text" | "elements" | "shapes" | "backgrounds" | "lottie"
   >("text");
 
-  // פונטס
+  /* =========================
+     Google Fonts (ללא שינוי)
+  ========================= */
   const [fonts, setFonts] = useState<string[]>([]);
+
   useEffect(() => {
-    const fetchFonts = async () => {
+    const loadFonts = async () => {
       try {
         const res = await fetch(
-          `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}&sort=alpha`
+          `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}&sort=popularity`
         );
+
         const data = await res.json();
         setFonts(data.items.map((f: any) => f.family));
       } catch (err) {
-        console.error("Error fetching Google Fonts:", err);
+        console.error("Error loading fonts:", err);
       }
     };
-    fetchFonts();
+
+    loadFonts();
   }, [googleApiKey]);
+
+  /* =========================
+        SIDEBAR HTML
+  ========================= */
 
   return (
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
-      {/* ───── Tabs ───── */}
+      {/* Tabs */}
       <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
@@ -72,13 +81,17 @@ export default function Sidebar({
         ))}
       </div>
 
-      {/* ───── Content ───── */}
+      {/* CONTENT */}
       <div className="flex-1 overflow-y-auto p-3">
-        {/* טקסט */}
+
+        {/* טקסט — משוחזר כמו שהיה */}
         {tab === "text" && (
           <div className="space-y-4">
+
             {selectedObject?.type === "text" && (
               <div className="p-3 border bg-gray-50 rounded space-y-4">
+
+                {/* פונט */}
                 <div>
                   <label>פונט</label>
                   <select
@@ -96,6 +109,7 @@ export default function Sidebar({
                   </select>
                 </div>
 
+                {/* גודל */}
                 <div>
                   <label>גודל</label>
                   <input
@@ -110,6 +124,7 @@ export default function Sidebar({
                   />
                 </div>
 
+                {/* צבע */}
                 <div>
                   <label>צבע</label>
                   <input
@@ -124,6 +139,7 @@ export default function Sidebar({
                   />
                 </div>
 
+                {/* מחיקה */}
                 <button
                   onClick={() => removeObject(selectedObject.id)}
                   className="w-full bg-red-500 text-white py-2 rounded"
@@ -133,6 +149,7 @@ export default function Sidebar({
               </div>
             )}
 
+            {/* הוסף טקסט */}
             <button
               onClick={addText}
               className="w-full bg-purple-600 text-white py-2 rounded"
@@ -142,6 +159,7 @@ export default function Sidebar({
           </div>
         )}
 
+        {/* שאר הטאבים */}
         {tab === "elements" && <ElementsTab />}
         {tab === "shapes" && <ShapesTab />}
         {tab === "backgrounds" && <BackgroundsTab />}
