@@ -1,17 +1,29 @@
+import { v2 as cloudinary } from "cloudinary";
 import { NextResponse } from "next/server";
 
-let shapes: any[] = []; // מאגר זמני
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+});
 
 export async function GET() {
-  return NextResponse.json(shapes); // מחזיר את כל הצורות
-}
-
-export async function POST(req: Request) {
   try {
-    const body = await req.json(); // JSON מהבקשה
-    shapes.push(body); // מוסיף למאגר
-    return NextResponse.json(body, { status: 201 });
+    const result = await cloudinary.api.resources({
+      type: "upload",
+      prefix: "shapes/",
+      resource_type: "image",
+      max_results: 100,
+    });
+
+    const shapes = result.resources.map((r: any) => ({
+      name: r.public_id.split("/").pop(),
+      url: r.secure_url,
+    }));
+
+    return NextResponse.json(shapes);
   } catch (err) {
-    return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    console.error("❌ Cloudinary fetch failed:", err);
+    return NextResponse.json({ error: "Failed to load shapes" }, { status: 500 });
   }
 }

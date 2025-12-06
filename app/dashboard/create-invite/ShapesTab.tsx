@@ -1,69 +1,69 @@
 "use client";
 
-import { useInvityLibrary } from "@/app/hooks/useInvityLibrary";
+import { useEffect, useState } from "react";
 import { useEditorStore } from "./editorStore";
 
-interface ShapeItem {
-  _id: string;
-  shapeData: {
-    width?: number;
-    height?: number;
-    radius?: number;
-    cornerRadius?: number;
-    fill?: string;
-  };
-  url?: string; // אם רוצים תמונה מהמאגר
+interface CloudShape {
+  name: string;
+  url: string;
 }
 
 export default function ShapesTab() {
-  const { data = [] } = useInvityLibrary("shape"); // שימוש רק ב-data
+  const [shapes, setShapes] = useState<CloudShape[]>([]);
   const addObject = useEditorStore((s: any) => s.addObject);
 
-  // גם אם אין נתונים במאגר, נציג טאב ריק
-  const shapesData = data.length > 0 ? data : [];
+  /* ===============================
+     טוען צורות מהקלאודינרי
+  =============================== */
+  useEffect(() => {
+    const fetchShapes = async () => {
+      try {
+        const res = await fetch("/api/invity/library/shape");
+        const data = await res.json();
+        if (Array.isArray(data)) setShapes(data);
+      } catch (err) {
+        console.error("❌ Failed to load shapes:", err);
+      }
+    };
+    fetchShapes();
+  }, []);
 
+  /* ===============================
+     רינדור הצורות
+  =============================== */
   return (
     <div className="p-3">
-      {/* רשימת הצורות מהמאגר */}
       <div className="grid grid-cols-3 gap-3">
-        {shapesData.map((item: ShapeItem) => {
-          const shape = item.shapeData;
+        {shapes.map((shape) => (
+          <div
+            key={shape.name}
+            className="cursor-pointer hover:scale-105 transition-transform"
+            onClick={() =>
+              addObject({
+                id: crypto.randomUUID(),
+                type: "image",
+                x: 100,
+                y: 100,
+                width: 150,
+                height: 150,
+                url: shape.url,
+              })
+            }
+          >
+            <img
+              src={shape.url}
+              alt={shape.name}
+              className="w-20 h-20 object-contain border rounded"
+            />
+          </div>
+        ))}
 
-          const type: "circle" | "rect" =
-            typeof shape.radius === "number" && shape.radius > 0
-              ? "circle"
-              : "rect";
-
-          const newShape = {
-            id: crypto.randomUUID(),
-            type,
-            x: 100,
-            y: 100,
-            width: shape.width ?? 120,
-            height: shape.height ?? 120,
-            radius: shape.radius,
-            cornerRadius: shape.cornerRadius,
-            fill: shape.fill || "#000",
-            url: item.url,
-          };
-
-          return (
-            <div
-              key={item._id}
-              className="cursor-pointer"
-              onClick={() => addObject(newShape)}
-            >
-              <div
-                style={{
-                  width: 70,
-                  height: 70,
-                  background: shape.fill || "#000",
-                  borderRadius: shape.cornerRadius || shape.radius || 0,
-                }}
-              />
-            </div>
-          );
-        })}
+        {/* במידה ואין צורות */}
+        {shapes.length === 0 && (
+          <p className="text-center text-gray-400 col-span-3">
+            אין צורות זמינות כרגע.
+          </p>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useEditorStore } from "./editorStore";
 
-// טאבים מהמאגר
+// טאבים
 import ElementsTab from "./ElementsTab";
 import ShapesTab from "./ShapesTab";
 import BackgroundsTab from "./BackgroundsTab";
@@ -24,7 +24,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
   const selectedObject = objects.find((o) => o.id === selectedId);
 
   const [tab, setTab] = useState<
-    "text" | "elements" | "images" | "backgrounds" | "lottie"
+    "text" | "elements" | "shapes" | "backgrounds" | "lottie"
   >("text");
 
   const [fonts, setFonts] = useState<string[]>([]);
@@ -43,18 +43,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
     fetchFonts();
   }, [googleApiKey]);
 
-  const alignments: { label: string; value: "left" | "center" | "right" }[] = [
-    { label: "ימין", value: "right" },
-    { label: "מרכז", value: "center" },
-    { label: "שמאל", value: "left" },
-  ];
-
-  // פונקציה לדוגמה להוספה למאגר
-  const handleAddToLibrary = (tabKey: string) => {
-    alert(`נוסיף אובייקט למאגר של הטאב: ${tabKey}`);
-    // כאן אפשר לממש קריאה ל-API או פתיחת Modal
-  };
-
   return (
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
@@ -64,7 +52,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         {[
           ["text", "טקסט"],
           ["elements", "אלמנטים"],
-          ["images", "צורות"],
+          ["shapes", "צורות"],
           ["backgrounds", "רקעים"],
           ["lottie", "אנימציות"],
         ].map(([key, label]) => (
@@ -82,119 +70,76 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         ))}
       </div>
 
-      {/* TAB TEXT */}
-      {tab === "text" && (
-        <div className="p-4 space-y-4 overflow-y-auto">
-          {selectedObject?.type === "text" && (
-            <div className="p-3 border bg-gray-50 rounded space-y-4">
-              <div>
-                <label>פונט</label>
-                <select
-                  value={selectedObject.fontFamily}
-                  onChange={(e) =>
-                    updateObject(selectedId!, { fontFamily: e.target.value })
-                  }
-                  className="w-full border p-2 rounded"
+      {/* TAB CONTENT */}
+      <div className="flex-1 overflow-y-auto p-3">
+        {tab === "text" && (
+          <div className="space-y-4">
+            {selectedObject?.type === "text" && (
+              <div className="p-3 border bg-gray-50 rounded space-y-4">
+                <div>
+                  <label>פונט</label>
+                  <select
+                    value={selectedObject.fontFamily}
+                    onChange={(e) =>
+                      updateObject(selectedId!, { fontFamily: e.target.value })
+                    }
+                    className="w-full border p-2 rounded"
+                  >
+                    {fonts.map((font) => (
+                      <option key={font}>{font}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label>גודל</label>
+                  <input
+                    type="number"
+                    value={selectedObject.fontSize}
+                    onChange={(e) =>
+                      updateObject(selectedId!, {
+                        fontSize: Number(e.target.value),
+                      })
+                    }
+                    className="w-full border p-2 rounded"
+                  />
+                </div>
+
+                <div>
+                  <label>צבע</label>
+                  <input
+                    type="color"
+                    value={selectedObject.fill}
+                    onChange={(e) =>
+                      updateObject(selectedId!, { fill: e.target.value })
+                    }
+                    className="w-full h-10 border rounded"
+                  />
+                </div>
+
+                <button
+                  onClick={() => removeObject(selectedId!)}
+                  className="w-full bg-red-500 text-white py-2 rounded"
                 >
-                  {fonts.map((font) => (
-                    <option key={font}>{font}</option>
-                  ))}
-                </select>
+                  מחק
+                </button>
               </div>
+            )}
 
-              <div>
-                <label>גודל</label>
-                <input
-                  type="number"
-                  value={selectedObject.fontSize}
-                  onChange={(e) =>
-                    updateObject(selectedId!, { fontSize: Number(e.target.value) })
-                  }
-                  className="w-full border p-2 rounded"
-                />
-              </div>
+            <button
+              onClick={addText}
+              className="w-full bg-purple-600 text-white py-2 rounded"
+            >
+              הוסף טקסט
+            </button>
+          </div>
+        )}
 
-              <div>
-                <label>צבע</label>
-                <input
-                  type="color"
-                  value={selectedObject.fill}
-                  onChange={(e) =>
-                    updateObject(selectedId!, { fill: e.target.value })
-                  }
-                  className="w-full h-10 border rounded"
-                />
-              </div>
-
-              <button
-                onClick={() => removeObject(selectedId!)}
-                className="w-full bg-red-500 text-white py-2 rounded"
-              >
-                מחק
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={addText}
-            className="w-full bg-purple-600 text-white py-2 rounded"
-          >
-            הוסף טקסט
-          </button>
-        </div>
-      )}
-
-      {/* TAB ELEMENTS */}
-      {tab === "elements" && (
-        <div className="p-3">
-          <ElementsTab />
-          <button
-            onClick={() => handleAddToLibrary("elements")}
-            className="w-full bg-green-500 text-white py-2 rounded my-2"
-          >
-            הוסף למאגר
-          </button>
-        </div>
-      )}
-
-      {/* TAB SHAPES */}
-      {tab === "images" && (
-        <div className="p-3">
-          <ShapesTab />
-          <button
-            onClick={() => handleAddToLibrary("shapes")}
-            className="w-full bg-green-500 text-white py-2 rounded my-2"
-          >
-            הוסף למאגר
-          </button>
-        </div>
-      )}
-
-      {/* TAB BACKGROUNDS */}
-      {tab === "backgrounds" && (
-        <div className="p-3">
-          <BackgroundsTab />
-          <button
-            onClick={() => handleAddToLibrary("backgrounds")}
-            className="w-full bg-green-500 text-white py-2 rounded my-2"
-          >
-            הוסף למאגר
-          </button>
-        </div>
-      )}
-
-      {/* TAB LOTTIE */}
-      {tab === "lottie" && (
-        <div className="p-3">
-          <LottieTab />
-          <button
-            onClick={() => handleAddToLibrary("lottie")}
-            className="w-full bg-green-500 text-white py-2 rounded my-2"
-          >
-            הוסף למאגר
-          </button>
-        </div>
-      )}
+        {tab === "elements" && <ElementsTab />}
+        {tab === "shapes" && <ShapesTab />}
+        {tab === "backgrounds" && <BackgroundsTab />}
+        {tab === "lottie" && <LottieTab />}
+      </div>
     </aside>
   );
 }

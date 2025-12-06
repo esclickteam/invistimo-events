@@ -21,6 +21,7 @@
     "animejs": "^4.2.2",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.8.0",
     "framer-motion": "^12.23.25",
     "gradient-avatar": "^1.0.2",
     "gsap": "^3.13.0",
