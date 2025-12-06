@@ -9,10 +9,10 @@ cloudinary.config({
 
 export async function GET() {
   try {
-    // ✅ טוען לפי תיקייה אמיתית בקלאודינרי
-    // מחזיר גם GIF/WEBP וגם MP4 אם הם יושבים תחת animations
+    // ⭐ חיפוש לפי תיקייה אמיתית בקלאודינרי
+    // עובד ל-GIF / WEBP / MP4 / WEBM / JSON
     const result = await cloudinary.search
-      .expression("folder:animations/*")
+      .expression('folder="animations"') // ← התיקון הקריטי
       .sort_by("public_id", "desc")
       .max_results(200)
       .execute();
@@ -22,8 +22,8 @@ export async function GET() {
       url: r.secure_url,
       width: r.width,
       height: r.height,
-      format: r.format,
-      resource_type: r.resource_type, // image / video
+      format: r.format,          // gif / webp / mp4 / json
+      resource_type: r.resource_type, // image / video / raw
     }));
 
     return NextResponse.json(data);

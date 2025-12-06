@@ -3,10 +3,14 @@
 import { useState, useEffect } from "react";
 import { useEditorStore } from "./editorStore";
 
-// טאבים
+// טאבים קיימים
 import ElementsTab from "./ElementsTab";
 import ShapesTab from "./ShapesTab";
 import BackgroundsTab from "./BackgroundsTab";
+
+// ⭐ טאב חדש לאנימציות
+import AnimationsTab from "./AnimationsTab";
+
 
 interface SidebarProps {
   canvasRef: any;
@@ -22,7 +26,10 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
   const selectedObject = objects.find((o) => o.id === selectedId);
 
-  const [tab, setTab] = useState<"text" | "elements" | "shapes" | "backgrounds">("text");
+  // ⭐ הוספתי animations לרשימת הבחירה
+  const [tab, setTab] = useState<
+    "text" | "elements" | "shapes" | "backgrounds" | "animations"
+  >("text");
 
   const [fonts, setFonts] = useState<string[]>([]);
   useEffect(() => {
@@ -44,18 +51,21 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
-      {/* TABS */}
+      {/* ⭐ TABS כולל אנימציות */}
       <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
           ["elements", "אלמנטים"],
           ["shapes", "צורות"],
           ["backgrounds", "רקעים"],
+          ["animations", "אנימציות"], // ⭐ טאב חדש
         ].map(([key, label]) => (
           <button
             key={key}
             className={`flex-1 p-2 text-center border-l first:border-l-0 ${
-              tab === key ? "bg-purple-100 text-purple-700 font-bold" : "hover:bg-gray-50"
+              tab === key
+                ? "bg-purple-100 text-purple-700 font-bold"
+                : "hover:bg-gray-50"
             }`}
             onClick={() => setTab(key as any)}
           >
@@ -66,7 +76,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
       {/* TAB CONTENT */}
       <div className="flex-1 overflow-y-auto p-3">
-
         {/* ---- TEXT ---- */}
         {tab === "text" && (
           <div className="space-y-4">
@@ -76,7 +85,9 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   <label>פונט</label>
                   <select
                     value={selectedObject.fontFamily}
-                    onChange={(e) => updateObject(selectedId!, { fontFamily: e.target.value })}
+                    onChange={(e) =>
+                      updateObject(selectedId!, { fontFamily: e.target.value })
+                    }
                     className="w-full border p-2 rounded"
                   >
                     {fonts.map((font) => (
@@ -90,7 +101,11 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   <input
                     type="number"
                     value={selectedObject.fontSize}
-                    onChange={(e) => updateObject(selectedId!, { fontSize: Number(e.target.value) })}
+                    onChange={(e) =>
+                      updateObject(selectedId!, {
+                        fontSize: Number(e.target.value),
+                      })
+                    }
                     className="w-full border p-2 rounded"
                   />
                 </div>
@@ -100,7 +115,9 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   <input
                     type="color"
                     value={selectedObject.fill}
-                    onChange={(e) => updateObject(selectedId!, { fill: e.target.value })}
+                    onChange={(e) =>
+                      updateObject(selectedId!, { fill: e.target.value })
+                    }
                     className="w-full h-10 border rounded"
                   />
                 </div>
@@ -131,6 +148,10 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
         {/* ---- BACKGROUNDS ---- */}
         {tab === "backgrounds" && <BackgroundsTab />}
+
+        {/* ⭐ ---- ANIMATIONS ---- */}
+        {tab === "animations" && <AnimationsTab />}
+
       </div>
     </aside>
   );
