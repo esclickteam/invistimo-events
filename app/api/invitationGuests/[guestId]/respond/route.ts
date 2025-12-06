@@ -2,16 +2,19 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Guest from "@/models/Guest";
 
-export async function POST(
-  req: Request,
-  context: { params: { guestId: string } }
-) {
+export const dynamic = "force-dynamic"; // אופציונלי – למנוע caching
+
+export async function POST(request: Request, context: any) {
   try {
     await db();
 
-    const { guestId } = context.params;
-    const body = await req.json();
+    const body = await request.json();
     const { rsvp, guestsCount, notes } = body;
+
+    const guestId = context?.params?.guestId;
+    if (!guestId) {
+      return NextResponse.json({ error: "Missing guestId" }, { status: 400 });
+    }
 
     const guest = await Guest.findByIdAndUpdate(
       guestId,
@@ -24,8 +27,8 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true, guest });
-  } catch (err) {
-    console.error("❌ Error in POST /api/invitationGuests/[guestId]/respond:", err);
+  } catch (error) {
+    console.error("❌ Error in respond route:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
