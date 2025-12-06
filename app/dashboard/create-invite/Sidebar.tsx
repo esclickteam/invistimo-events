@@ -12,21 +12,23 @@ import LottieTab from "./LottieTab";
 interface SidebarProps {
   canvasRef: any;
   googleApiKey: string;
+  selectedObject: any | null;   // ← נוספה התמיכה
 }
 
-export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const objects = useEditorStore((s) => s.objects);
+export default function Sidebar({
+  canvasRef,
+  googleApiKey,
+  selectedObject,
+}: SidebarProps) {
   const updateObject = useEditorStore((s) => s.updateObject);
   const addText = useEditorStore((s) => s.addText);
   const removeObject = useEditorStore((s) => s.removeObject);
-
-  const selectedObject = objects.find((o) => o.id === selectedId);
 
   const [tab, setTab] = useState<
     "text" | "elements" | "shapes" | "backgrounds" | "lottie"
   >("text");
 
+  // פונטס
   const [fonts, setFonts] = useState<string[]>([]);
   useEffect(() => {
     const fetchFonts = async () => {
@@ -47,7 +49,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
-      {/* TABS */}
+      {/* ───── Tabs ───── */}
       <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
@@ -70,8 +72,9 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         ))}
       </div>
 
-      {/* TAB CONTENT */}
+      {/* ───── Content ───── */}
       <div className="flex-1 overflow-y-auto p-3">
+        {/* טקסט */}
         {tab === "text" && (
           <div className="space-y-4">
             {selectedObject?.type === "text" && (
@@ -81,7 +84,9 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   <select
                     value={selectedObject.fontFamily}
                     onChange={(e) =>
-                      updateObject(selectedId!, { fontFamily: e.target.value })
+                      updateObject(selectedObject.id, {
+                        fontFamily: e.target.value,
+                      })
                     }
                     className="w-full border p-2 rounded"
                   >
@@ -97,7 +102,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                     type="number"
                     value={selectedObject.fontSize}
                     onChange={(e) =>
-                      updateObject(selectedId!, {
+                      updateObject(selectedObject.id, {
                         fontSize: Number(e.target.value),
                       })
                     }
@@ -111,14 +116,16 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                     type="color"
                     value={selectedObject.fill}
                     onChange={(e) =>
-                      updateObject(selectedId!, { fill: e.target.value })
+                      updateObject(selectedObject.id, {
+                        fill: e.target.value,
+                      })
                     }
                     className="w-full h-10 border rounded"
                   />
                 </div>
 
                 <button
-                  onClick={() => removeObject(selectedId!)}
+                  onClick={() => removeObject(selectedObject.id)}
                   className="w-full bg-red-500 text-white py-2 rounded"
                 >
                   מחק

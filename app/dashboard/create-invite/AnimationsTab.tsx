@@ -1,65 +1,61 @@
 "use client";
 
-import Lottie from "lottie-react";
-import { useInvityLibrary } from "@/app/hooks/useInvityLibrary";
+import { memo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useEditorStore } from "./editorStore";
 
 interface AnimationItem {
-  _id: string;
-  lottieData: any;
-  thumbnail?: string;
+  name: string;
+  url: string;
 }
 
-export default function AnimationsTab() {
-  const { data = [], addToLibrary } = useInvityLibrary("animation"); // כולל addToLibrary
-  const addLottie = useEditorStore((s) => s.addLottie);
+function AnimationsTabComponent() {
+  const addObject = useEditorStore((s) => s.addObject);
 
-  const handleAdd = (item: AnimationItem) => {
-    addLottie({
-      id: `lottie-${Date.now()}`,
-      type: "lottie",
-      x: 100,
-      y: 100,
-      width: 200,
-      height: 200,
-      lottieData: item.lottieData,
-    });
-  };
+  const { data = [], isLoading } = useQuery<AnimationItem[]>({
+    queryKey: ["library", "animations"],
+    queryFn: () =>
+      fetch("/api/invity/library/animations").then((r) => r.json()),
+  });
 
-  const handleAddToLibrary = async () => {
-    const newItem: AnimationItem = {
-      _id: crypto.randomUUID(),
-      lottieData: {}, // אפשר לשים אובייקט לוטי לדיפולטיבי או placeholder
-      thumbnail: "/lottie-placeholder.png",
-    };
+  if (isLoading) return <SkeletonGrid />;
 
-    addToLibrary && addToLibrary(newItem); // מוסיף למאגר
-  };
+  if (!data.length)
+    return <p className="text-center text-gray-400">אין אנימציות זמינות.</p>;
 
   return (
-    <div className="p-3">
-      {/* כפתור להוספה למאגר */}
-      <button
-        onClick={handleAddToLibrary}
-        className="mb-3 w-full bg-purple-600 text-white py-2 rounded"
-      >
-        הוסף אנימציה למאגר
-      </button>
+    <div className="grid grid-cols-3 gap-3">
+      {data.map((item) => (
+        <div
+          key={item.name}
+          className="cursor-pointer border rounded hover:bg-gray-100 p-2"
+          onClick={() =>
+            addObject({
+              id: crypto.randomUUID(),
+              type: "image",
+              url: item.url,
+              x: 100,
+              y: 100,
+              width: 200,
+              height: 200,
+            })
+          }
+        >
+          <img src={item.url} className="w-full h-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-      <div className="grid grid-cols-3 gap-3">
-        {data.map((item: AnimationItem) => (
-          <div
-            key={item._id}
-            className="cursor-pointer"
-            onClick={() => handleAdd(item)}
-          >
-            <Lottie
-              animationData={item.lottieData}
-              style={{ width: 90, height: 90 }}
-            />
-          </div>
-        ))}
-      </div>
+export default memo(AnimationsTabComponent);
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="w-full h-24 bg-gray-200 animate-pulse rounded" />
+      ))}
     </div>
   );
 }

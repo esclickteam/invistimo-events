@@ -1,35 +1,49 @@
 "use client";
 
-import Image from "next/image";
-import { useInvityLibrary } from "@/app/hooks/useInvityLibrary";
+import { memo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useEditorStore } from "./editorStore";
 
-interface BackgroundItem {
-  _id: string;
+interface BgItem {
+  name: string;
   url: string;
-  thumbnail?: string;
 }
 
-export default function BackgroundsTab() {
-  const { data = [] } = useInvityLibrary("background");
-  const setBackground = useEditorStore((s) => s.setBackground);
+function BackgroundsTabComponent() {
+  const addBackground = useEditorStore((s) => s.addBackground);
+
+  const { data = [], isLoading } = useQuery<BgItem[]>({
+    queryKey: ["library", "backgrounds"],
+    queryFn: () => fetch("/api/invity/library/backgrounds").then((r) => r.json()),
+  });
+
+  if (isLoading) return <SkeletonGrid />;
+
+  if (!data.length)
+    return <p className="text-center text-gray-400">אין רקעים זמינים.</p>;
 
   return (
-    <div className="grid grid-cols-2 gap-2 p-2">
-      {data.map((item: BackgroundItem) => (
+    <div className="grid grid-cols-2 gap-3">
+      {data.map((item) => (
         <div
-          key={item._id}
-          className="cursor-pointer"
-          onClick={() => setBackground(item.url)}
+          key={item.name}
+          className="cursor-pointer border rounded overflow-hidden hover:ring-2 hover:ring-purple-400"
+          onClick={() => addBackground(item.url)}
         >
-          <Image
-            src={item.thumbnail || item.url}
-            width={150}
-            height={220}
-            alt=""
-            className="rounded shadow"
-          />
+          <img src={item.url} className="w-full h-full object-cover" />
         </div>
+      ))}
+    </div>
+  );
+}
+
+export default memo(BackgroundsTabComponent);
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="w-full h-32 bg-gray-200 animate-pulse rounded" />
       ))}
     </div>
   );

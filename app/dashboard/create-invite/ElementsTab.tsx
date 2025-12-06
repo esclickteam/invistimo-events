@@ -1,66 +1,65 @@
 "use client";
 
-import Image from "next/image";
-import { useInvityLibrary } from "@/app/hooks/useInvityLibrary";
+import { memo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useEditorStore } from "./editorStore";
 
-interface LibraryItem {
-  _id: string;
+interface ElementItem {
+  name: string;
   url: string;
-  thumbnail?: string;
 }
 
-export default function ElementsTab() {
-  const { data = [], addToLibrary } = useInvityLibrary("element"); // הוספנו addToLibrary
-  const addImage = useEditorStore((s) => s.addImage);
+function ElementsTabComponent() {
+  const addObject = useEditorStore((s) => s.addObject);
 
-  const handleAdd = (item: LibraryItem) => {
-    addImage({
-      url: item.url,
-      width: 250,
-      height: 250,
-      removeBackground: true,
-    });
-  };
+  const { data = [], isLoading } = useQuery<ElementItem[]>({
+    queryKey: ["library", "elements"],
+    queryFn: () => fetch("/api/invity/library/elements").then((r) => r.json()),
+  });
 
-  const handleAddToLibrary = async () => {
-    const newItem: LibraryItem = {
-      _id: crypto.randomUUID(),
-      url: "/placeholder.png", // ניתן להחליף ל-URL של התמונה החדשה
-      thumbnail: "/placeholder.png",
-    };
+  if (isLoading) return <SkeletonGrid />;
 
-    addToLibrary && addToLibrary(newItem); // מוסיף למאגר
-  };
+  if (!data.length)
+    return (
+      <p className="text-center text-gray-400">אין אלמנטים זמינים כרגע.</p>
+    );
 
   return (
-    <div className="p-3">
-      {/* כפתור להוספה למאגר */}
-      <button
-        onClick={handleAddToLibrary}
-        className="mb-3 w-full bg-purple-600 text-white py-2 rounded"
-      >
-        הוסף תמונה למאגר
-      </button>
+    <div className="grid grid-cols-3 gap-3">
+      {data.map((item) => (
+        <div
+          key={item.name}
+          className="cursor-pointer p-2 border rounded hover:bg-gray-100"
+          onClick={() =>
+            addObject({
+              id: crypto.randomUUID(),
+              type: "image",
+              url: item.url,
+              x: 150,
+              y: 150,
+              width: 200,
+              height: 200,
+            })
+          }
+        >
+          <img src={item.url} className="w-full h-full object-contain" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-      {/* רשימת אלמנטים */}
-      <div className="grid grid-cols-3 gap-3">
-        {data.map((item: LibraryItem) => (
-          <div
-            key={item._id}
-            className="cursor-pointer"
-            onClick={() => handleAdd(item)}
-          >
-            <Image
-              src={item.thumbnail || item.url}
-              width={90}
-              height={90}
-              alt=""
-              className="rounded shadow"
-            />
-          </div>
-        ))}
-      </div>
+export default memo(ElementsTabComponent);
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="w-full h-24 bg-gray-200 animate-pulse rounded"
+        />
+      ))}
     </div>
   );
 }
