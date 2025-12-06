@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Guest from "@/models/Guest";
 
-export async function POST(req: Request, { params }: { params: { guestId: string } }) {
+export async function POST(
+  req: Request,
+  { params }: { params: { guestId: string } }
+) {
   try {
     await db();
     const body = await req.json();
