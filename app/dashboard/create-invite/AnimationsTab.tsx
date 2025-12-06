@@ -7,11 +7,14 @@ import { useEditorStore } from "./editorStore";
 interface AnimationItem {
   name: string;
   url: string;
-  format: string;
-  resource_type: string;
+  format: string;          // gif/webp/mp4/json
+  resource_type: string;   // video / image
+  width?: number;
+  height?: number;
 }
 
 function AnimationsTab() {
+  // ⭐ הפונקציה הנכונה מה-store
   const addAnimatedAsset = useEditorStore((s) => s.addAnimatedAsset);
 
   const { data = [], isLoading } = useQuery<AnimationItem[]>({
@@ -31,7 +34,7 @@ function AnimationsTab() {
         <div
           key={item.name}
           className="cursor-pointer border rounded p-2 bg-white shadow hover:bg-gray-100"
-          onClick={() => addAnimatedAsset(item)}
+          onClick={() => addAnimatedAsset(item)} // ⭐ זה מה שמכניס לקנבס
         >
           {item.resource_type === "video" ? (
             <video
