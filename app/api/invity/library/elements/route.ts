@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const result = await cloudinary.api.resources({
       type: "upload",
-      prefix: "Home/elements/",   // ← תיקון חובה!
+      prefix: "elements",   // ← תיקון חובה!
       resource_type: "image",
       max_results: 200,
     });

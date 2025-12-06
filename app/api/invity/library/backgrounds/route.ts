@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const result = await cloudinary.api.resources({
       type: "upload",
-      prefix: "Home/backgrounds/", // ← התיקון הקריטי!!
+      prefix: "backgrounds", // ← התיקון הקריטי!!
       resource_type: "image",
       max_results: 200,
     });
