@@ -4,15 +4,17 @@ import Guest from "@/models/Guest";
 
 export async function POST(
   req: Request,
-  { params }: { params: { guestId: string } }
+  context: { params: { guestId: string } }
 ) {
   try {
     await db();
+
+    const { guestId } = context.params;
     const body = await req.json();
     const { rsvp, guestsCount, notes } = body;
 
     const guest = await Guest.findByIdAndUpdate(
-      params.guestId,
+      guestId,
       { rsvp, guestsCount, notes },
       { new: true }
     );
@@ -23,7 +25,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, guest });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error in POST /api/invitationGuests/[guestId]/respond:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
