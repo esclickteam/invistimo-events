@@ -14,7 +14,8 @@ function ElementsTabComponent() {
 
   const { data = [], isLoading } = useQuery<ElementItem[]>({
     queryKey: ["library", "elements"],
-    queryFn: () => fetch("/api/invity/library/elements").then((r) => r.json()),
+    queryFn: () =>
+      fetch("/api/invity/library/elements").then((r) => r.json()),
   });
 
   if (isLoading) return <SkeletonGrid />;
@@ -42,7 +43,11 @@ function ElementsTabComponent() {
             })
           }
         >
-          <img src={item.url} className="w-full h-full object-contain" />
+          <img
+            src={item.url}
+            alt={item.name}
+            className="w-full h-full object-contain"
+          />
         </div>
       ))}
     </div>
