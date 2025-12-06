@@ -2,18 +2,32 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request, context: any) {
   try {
     await db();
-    const invitation = await Invitation.findById(params.id).populate("guests");
 
-    if (!invitation) {
-      return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+    const id = context?.params?.id;
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing invitation id" },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(invitation);
+    const invitation = await Invitation.findById(id).populate("guests");
+
+    if (!invitation) {
+      return NextResponse.json(
+        { error: "Invitation not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(invitation, { status: 200 });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error in GET /api/invitations/[id]:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
