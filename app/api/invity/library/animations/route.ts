@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const result = await cloudinary.api.resources({
       type: "upload",
-      prefix: "animations", // ← התיקון הקריטי
+      prefix: "animations/", 
       max_results: 200,
     });
 
@@ -26,9 +26,6 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("❌ Animations fetch error:", err);
-    return NextResponse.json(
-      { error: err?.message || "Failed to load animations" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load animations" }, { status: 500 });
   }
 }

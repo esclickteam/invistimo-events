@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const result = await cloudinary.api.resources({
       type: "upload",
-      prefix: "elements",   // ← תיקון חובה!
+      prefix: "elements/", 
       resource_type: "image",
       max_results: 200,
     });
@@ -26,9 +26,6 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("❌ Elements fetch error:", err);
-    return NextResponse.json(
-      { error: err?.message || "Failed to load elements" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load elements" }, { status: 500 });
   }
 }
