@@ -67,7 +67,7 @@ interface EditorState {
 
   addLottie: (data: any) => void;
 
-  /** ⭐ USED BY SHAPES TAB */
+  /** ⭐ REQUIRED FOR SHAPES TAB */
   addObject: (obj: EditorObject) => void;
 
   removeObject: (id: string) => void;
@@ -75,11 +75,7 @@ interface EditorState {
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
 
-  /** ⭐ USED BY BACKGROUNDS TAB */
-  addBackground: (url: string) => void;
-
   setBackground: (url: string | null) => void;
-
   setScale: (scale: number) => void;
 }
 
@@ -89,7 +85,6 @@ interface EditorState {
 export const useEditorStore = create<EditorState>((set, get) => ({
   objects: [],
   selectedId: null,
-
   background: null,
   scale: 1,
 
@@ -100,9 +95,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       objects: state.objects.map((o) => (o.id === id ? { ...o, ...data } : o)),
     })),
 
-  /* ============================================================
-      TEXT / SHAPES
-  ============================================================ */
   addText: () =>
     set((state) => ({
       objects: [
@@ -122,6 +114,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           fill: "#000",
           letterSpacing: 0,
           lineHeight: 1.1,
+          shadowColor: "transparent",
+          shadowBlur: 0,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
         },
       ],
     })),
@@ -158,7 +154,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   /* ============================================================
-     ELEMENTS (Images)
+      ADD IMAGE — fully typed + matches ElementsTab
   ============================================================ */
   addImage: ({ url, width = 200, height = 200, removeBackground = false }) => {
     const id = `img-${Date.now()}`;
@@ -186,9 +182,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
   },
 
-  /* ============================================================
-     LOTTIE
-  ============================================================ */
   addLottie: (lottieData) =>
     set((state) => ({
       objects: [
@@ -206,16 +199,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   /* ============================================================
-     SHAPES — raw objects pushed directly
+      ⭐ REQUIRED FOR SHAPES TAB
   ============================================================ */
   addObject: (obj) =>
     set((state) => ({
       objects: [...state.objects, obj],
     })),
 
-  /* ============================================================
-     DELETE OBJECT
-  ============================================================ */
   removeObject: (id) =>
     set((state) => ({
       objects: state.objects.filter((o) => o.id !== id),
@@ -234,15 +224,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ objects: [obj, ...get().objects.filter((o) => o.id !== id)] });
   },
 
-  /* ============================================================
-     ⭐ BACKGROUND SUPPORT (Cloudinary Backgrounds Tab)
-  ============================================================ */
-  addBackground: (url) => set({ background: url }),
-
   setBackground: (url) => set({ background: url }),
 
-  /* ============================================================
-     CANVAS SCALE
-  ============================================================ */
   setScale: (scale) => set({ scale }),
 }));

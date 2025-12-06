@@ -10,11 +10,13 @@ interface BgItem {
 }
 
 function BackgroundsTabComponent() {
-  const addBackground = useEditorStore((s) => s.addBackground);
+  // ⭐ במקום addBackground → הפונקציה הנכונה היא setBackground
+  const setBackground = useEditorStore((s) => s.setBackground);
 
   const { data = [], isLoading } = useQuery<BgItem[]>({
     queryKey: ["library", "backgrounds"],
-    queryFn: () => fetch("/api/invity/library/backgrounds").then((r) => r.json()),
+    queryFn: () =>
+      fetch("/api/invity/library/backgrounds").then((r) => r.json()),
   });
 
   if (isLoading) return <SkeletonGrid />;
@@ -28,7 +30,7 @@ function BackgroundsTabComponent() {
         <div
           key={item.name}
           className="cursor-pointer border rounded overflow-hidden hover:ring-2 hover:ring-purple-400"
-          onClick={() => addBackground(item.url)}
+          onClick={() => setBackground(item.url)} // ⭐ פה התיקון
         >
           <img src={item.url} className="w-full h-full object-cover" />
         </div>
@@ -43,7 +45,10 @@ function SkeletonGrid() {
   return (
     <div className="grid grid-cols-2 gap-3">
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="w-full h-32 bg-gray-200 animate-pulse rounded" />
+        <div
+          key={i}
+          className="w-full h-32 bg-gray-200 animate-pulse rounded"
+        />
       ))}
     </div>
   );
