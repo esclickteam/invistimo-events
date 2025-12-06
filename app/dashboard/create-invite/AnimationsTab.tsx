@@ -7,14 +7,14 @@ import { useEditorStore } from "./editorStore";
 interface AnimationItem {
   name: string;
   url: string;
-  format: string;          // gif/webp/mp4/json
-  resource_type: string;   // video / image
   width?: number;
   height?: number;
+  format?: string; // gif/webp/mp4/webm/json וכו'
+  resource_type?: string; // image / video (מגיע מה-API)
 }
 
 function AnimationsTab() {
-  // ⭐ הפונקציה הנכונה מה-store
+  // ⭐ חשוב: להשתמש בפונקציה שמטפלת בכל הלוגיקה (וידאו/לוטי/גיפ)
   const addAnimatedAsset = useEditorStore((s) => s.addAnimatedAsset);
 
   const { data = [], isLoading } = useQuery<AnimationItem[]>({
@@ -30,30 +30,59 @@ function AnimationsTab() {
 
   return (
     <div className="grid grid-cols-2 gap-4">
-      {data.map((item) => (
-        <div
-          key={item.name}
-          className="cursor-pointer border rounded p-2 bg-white shadow hover:bg-gray-100"
-          onClick={() => addAnimatedAsset(item)} // ⭐ זה מה שמכניס לקנבס
-        >
-          {item.resource_type === "video" ? (
-            <video
-              src={item.url}
-              muted
-              autoPlay
-              loop
-              playsInline
-              className="w-full h-32 object-cover rounded"
-            />
-          ) : (
-            <img
-              src={item.url}
-              alt={item.name}
-              className="w-full h-32 object-cover rounded"
-            />
-          )}
-        </div>
-      ))}
+      {data.map((item) => {
+        const format = (item.format || "").toLowerCase();
+        const isVideo =
+          item.resource_type === "video" || format === "mp4" || format === "webm";
+        const isLottie = format === "json";
+
+        // ✅ שולחים רק שדות שהטיפוס של addAnimatedAsset מכיר
+        const payload = {
+          name: item.name,
+          url: item.url,
+          format: item.format,
+          width: item.width,
+          height: item.height,
+        };
+
+        return (
+          <button
+            key={item.name}
+            type="button"
+            className="cursor-pointer border rounded p-2 bg-white shadow hover:bg-gray-50 text-left"
+            onClick={() => addAnimatedAsset(payload)}
+            title={item.name}
+          >
+            {/* ---- Preview ---- */}
+            <div className="w-full h-32 rounded overflow-hidden bg-gray-50 flex items-center justify-center">
+              {isVideo ? (
+                <video
+                  src={item.url}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : isLottie ? (
+                <div className="text-xs text-gray-500 font-medium">
+                  Lottie JSON
+                </div>
+              ) : (
+                <img
+                  src={item.url}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </div>
+
+            <div className="mt-2 text-xs text-gray-600 truncate">
+              {item.name}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
