@@ -1,6 +1,13 @@
 import { create } from "zustand";
 
 /* ============================================================
+   CANVAS DEFAULTS (בלי לגעת בקנבס)
+   אם הקנבס אצלך בגודל אחר — אפשר לשנות פה בלבד.
+============================================================ */
+const CANVAS_WIDTH = 900;
+const CANVAS_HEIGHT = 1600;
+
+/* ============================================================
    TYPES — FULL CANVA SUPPORT
 ============================================================ */
 export interface EditorObject {
@@ -38,6 +45,9 @@ export interface EditorObject {
 
   lottieData?: any;
 
+  /** ⭐ marker לרקע */
+  isBackground?: boolean;
+
   [key: string]: any;
 }
 
@@ -48,7 +58,12 @@ interface EditorState {
   objects: EditorObject[];
   selectedId: string | null;
 
+  /** legacy background string (נשמור תאימות) */
   background: string | null;
+
+  /** ⭐ חדש: מזהה אובייקט הרקע בקנבס */
+  backgroundObjectId: string | null;
+
   scale: number;
 
   setSelected: (id: string | null) => void;
@@ -75,7 +90,13 @@ interface EditorState {
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
 
+  /**
+   * ⭐ שדרוג:
+   * במקום רק לשמור background string,
+   * יוסיף תמונה על הקנבס בגודל מלא + ניתן לעריכה.
+   */
   setBackground: (url: string | null) => void;
+
   setScale: (scale: number) => void;
 }
 
@@ -85,7 +106,10 @@ interface EditorState {
 export const useEditorStore = create<EditorState>((set, get) => ({
   objects: [],
   selectedId: null,
+
   background: null,
+  backgroundObjectId: null,
+
   scale: 1,
 
   setSelected: (id) => set({ selectedId: id }),
@@ -207,24 +231,92 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   removeObject: (id) =>
-    set((state) => ({
-      objects: state.objects.filter((o) => o.id !== id),
-      selectedId: null,
-    })),
+    set((state) => {
+      const isBg = state.backgroundObjectId === id;
+
+      return {
+        objects: state.objects.filter((o) => o.id !== id),
+        selectedId: state.selectedId === id ? null : state.selectedId,
+        backgroundObjectId: isBg ? null : state.backgroundObjectId,
+        background: isBg ? null : state.background,
+      };
+    }),
 
   bringToFront: (id) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;
+
+    // ⭐ לא מרים רקע מעל הכל
+    if (obj.isBackground) return;
+
     set({ objects: [...get().objects.filter((o) => o.id !== id), obj] });
   },
 
   sendToBack: (id) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;
+
     set({ objects: [obj, ...get().objects.filter((o) => o.id !== id)] });
   },
 
-  setBackground: (url) => set({ background: url }),
+  /* ============================================================
+      ✅ NEW BEHAVIOR — setBackground
+      - מוסיף אובייקט תמונה בגודל מלא
+      - ניתן לעריכה/הקטנה
+      - נשמר מאחור
+      - מבטל background string כדי לא ליצור כפילות בקנבס
+  ============================================================ */
+  setBackground: (url) => {
+    const { backgroundObjectId } = get();
+
+    // אם מבקשים להסיר רקע
+    if (!url) {
+      set((state) => ({
+        background: null,
+        backgroundObjectId: null,
+        objects: backgroundObjectId
+          ? state.objects.filter((o) => o.id !== backgroundObjectId)
+          : state.objects,
+        selectedId:
+          state.selectedId === backgroundObjectId ? null : state.selectedId,
+      }));
+      return;
+    }
+
+    const id = `bg-${Date.now()}`;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = url;
+
+    img.onload = () => {
+      set((state) => {
+        // מסירים רקע קודם אם היה
+        const withoutOldBg = backgroundObjectId
+          ? state.objects.filter((o) => o.id !== backgroundObjectId)
+          : state.objects;
+
+        const bgObj: EditorObject = {
+          id,
+          type: "image",
+          x: 0,
+          y: 0,
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+          url,
+          image: img,
+          isBackground: true,
+        };
+
+        return {
+          // ⭐ רקע תמיד ראשון = מאחור
+          objects: [bgObj, ...withoutOldBg.filter((o) => !o.isBackground)],
+          backgroundObjectId: id,
+          background: null, // חשוב: לא לצייר רקע כפול בקנבס
+          selectedId: id,   // כדי שתוכלי לערוך מיד
+        };
+      });
+    };
+  },
 
   setScale: (scale) => set({ scale }),
 }));
