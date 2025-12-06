@@ -132,35 +132,18 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const updateObject = useEditorStore((s) => s.updateObject);
   const removeObject = useEditorStore((s) => s.removeObject);
 
-  const scale = useEditorStore((s) => s.scale);
   const setScale = useEditorStore((s) => s.setScale);
+
+  // בטלנו SCALE אוטומטי — חוזר לגודל מלא כמו שהיה
+  useEffect(() => {
+    setScale(1);
+  }, [setScale]);
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [textInputRect, setTextInputRect] = useState<any>(null);
 
   /* ============================================================
-      AUTO SCALE TO SCREEN
-  ============================================================ */
-  useEffect(() => {
-    const handleResize = () => {
-      const maxHeight = window.innerHeight - 100;
-      const maxWidth = window.innerWidth - 450;
-
-      const factor = Math.min(
-        maxWidth / CANVAS_WIDTH,
-        maxHeight / CANVAS_HEIGHT
-      );
-
-      setScale(factor);
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [setScale]);
-
-  /* ============================================================
-      LOAD IMAGE OBJECTS
+      LOAD IMAGES
 ============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
@@ -185,12 +168,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [objects, updateObject]);
 
   /* ============================================================
-      SELECTION
+      SELECT OBJECT
 ============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
-    const obj = objects.find((o) => o.id === id) || null;
 
+    const obj = objects.find((o) => o.id === id) || null;
     onSelect(obj);
 
     if (transformerRef.current) {
@@ -204,7 +187,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-      DOUBLE CLICK = TEXT EDIT
+      DOUBLE CLICK TEXT EDIT
 ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
@@ -215,17 +198,17 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     const abs = node.getAbsolutePosition();
 
     setTextInputRect({
-      x: abs.x * scale,
-      y: abs.y * scale,
-      width: (obj.width || 200) * scale,
-      height: obj.fontSize * 1.4 * scale,
+      x: abs.x,
+      y: abs.y,
+      width: obj.width || 200,
+      height: obj.fontSize * 1.4,
     });
 
     setEditingTextId(obj.id);
   };
 
   /* ============================================================
-      DELETE OBJECT (Keyboard)
+      DELETE WITH KEYBOARD
 ============================================================ */
   const handleKeyDown = (e: KeyboardEvent) => {
     const obj = objects.find((o) => o.id === selectedId);
@@ -242,7 +225,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   });
 
   /* ============================================================
-      SIDEBAR EXPORTED ACTIONS
+      EXPORT ACTIONS TO SIDEBAR
 ============================================================ */
   useImperativeHandle(ref, () => ({
     addText: useEditorStore.getState().addText,
@@ -253,17 +236,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }));
 
   /* ============================================================
-      RENDER CANVAS
+      RENDER CANVAS (900×1600 FULL SIZE)
 ============================================================ */
   return (
-    <div className="w-full h-full flex items-center justify-center overflow-auto bg-gray-100 relative">
-      <div
-        className="shadow-2xl rounded-xl bg-white"
-        style={{
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
-        }}
-      >
+    <div className="w-full h-full flex items-center justify-center bg-gray-100 relative">
+
+      <div className="shadow-2xl rounded-xl bg-white">
         <Stage
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
@@ -435,6 +413,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         </Stage>
       </div>
 
+      {/* TEXT EDITOR */}
       {editingTextId && (
         <EditableTextOverlay
           obj={
