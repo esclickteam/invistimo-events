@@ -9,24 +9,28 @@ cloudinary.config({
 
 export async function GET() {
   try {
-    const result = await cloudinary.api.resources({
-      type: "upload",
-      max_results: 200,
-    });
+    // ✅ טוען לפי תיקייה אמיתית בקלאודינרי
+    // מחזיר גם GIF/WEBP וגם MP4 אם הם יושבים תחת animations
+    const result = await cloudinary.search
+      .expression("folder:animations/*")
+      .sort_by("public_id", "desc")
+      .max_results(200)
+      .execute();
 
-    const data = result.resources.map((r: any) => ({
+    const data = (result.resources || []).map((r: any) => ({
       name: r.public_id.split("/").pop(),
       url: r.secure_url,
       width: r.width,
       height: r.height,
       format: r.format,
+      resource_type: r.resource_type, // image / video
     }));
 
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("❌ Animations fetch error:", err);
     return NextResponse.json(
-      { error: "Failed to load animations" },
+      { error: err?.message || "Failed to load animations" },
       { status: 500 }
     );
   }
