@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const result = await cloudinary.api.resources({
       type: "upload",
-      prefix: "animations/",
+      prefix: "home/animations/", // ← התיקון הקריטי
       max_results: 200,
     });
 
@@ -20,7 +20,7 @@ export async function GET() {
       url: r.secure_url,
       width: r.width,
       height: r.height,
-      format: r.format, // GIF / WEBP / MP4 / PNG
+      format: r.format,
     }));
 
     return NextResponse.json(data);

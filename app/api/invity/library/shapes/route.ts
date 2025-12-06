@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const result = await cloudinary.api.resources({
       type: "upload",
-      prefix: "shapes/",
+      prefix: "home/shapes/",   // ← התיקון הקריטי!!
       resource_type: "image",
       max_results: 200,
     });
@@ -26,6 +26,9 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("❌ Shapes fetch error:", err);
-    return NextResponse.json({ error: err?.message || "Failed to load shapes" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "Failed to load shapes" },
+      { status: 500 }
+    );
   }
 }
