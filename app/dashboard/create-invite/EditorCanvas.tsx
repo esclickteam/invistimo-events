@@ -72,7 +72,7 @@ export type EditorObject =
       width: number;
       height: number;
       url?: string;
-      image?: HTMLImageElement | HTMLVideoElement | null; // ⭐ תמיכה גם בוידאו
+      image?: HTMLImageElement | HTMLVideoElement | null;
       removeBackground?: boolean;
       isAnimated?: boolean;
     }
@@ -90,32 +90,28 @@ interface EditorCanvasProps {
   onSelect: (obj: EditorObject | null) => void;
 }
 
-const CANVAS_WIDTH = 900;
-const CANVAS_HEIGHT = 1600;
+/* ============================================================
+   CANVAS SIZE (טלפון)
+============================================================ */
+const CANVAS_WIDTH = 400;
+const CANVAS_HEIGHT = 720;
 
 /* ============================================================
    REMOVE BACKGROUND (WHITE TO TRANSPARENT)
-   ⚠️ מומלץ רק לתמונות סטטיות
 ============================================================ */
-
 function removeWhiteBackground(img: HTMLImageElement): string {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
-
   canvas.width = img.width;
   canvas.height = img.height;
-
   ctx.drawImage(img, 0, 0);
-
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
-
   for (let i = 0; i < data.length; i += 4) {
     if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) {
       data[i + 3] = 0;
     }
   }
-
   ctx.putImageData(imageData, 0, 0);
   return canvas.toDataURL();
 }
@@ -123,7 +119,6 @@ function removeWhiteBackground(img: HTMLImageElement): string {
 /* ============================================================
    MAIN COMPONENT
 ============================================================ */
-
 const EditorCanvas = forwardRef(function EditorCanvas(
   { onSelect }: EditorCanvasProps,
   ref
@@ -144,18 +139,16 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const [textInputRect, setTextInputRect] = useState<any>(null);
 
   /* ============================================================
-      AUTO SCALE SCREEN
+     AUTO SCALE SCREEN
   ============================================================ */
   useEffect(() => {
     const handleResize = () => {
       const maxHeight = window.innerHeight - 100;
       const maxWidth = window.innerWidth - 450;
-
       const factor = Math.min(
         maxWidth / CANVAS_WIDTH,
         maxHeight / CANVAS_HEIGHT
       );
-
       setScale(factor);
     };
 
@@ -165,17 +158,14 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [setScale]);
 
   /* ============================================================
-      LOAD IMAGE / VIDEO
-      ✅ זיהוי סיומת יציב + הגנה מהסרת רקע על אנימציות
+     LOAD IMAGE / VIDEO
   ============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
       if (obj.type !== "image" || !obj.url || obj.image) return;
-
       const cleanUrl = obj.url.split("?")[0];
       const format = cleanUrl.split(".").pop()?.toLowerCase();
 
-      // 🎬 VIDEO SUPPORT
       if (format === "mp4" || format === "webm") {
         const video = document.createElement("video");
         video.src = obj.url;
@@ -184,30 +174,24 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         video.muted = true;
         video.playsInline = true;
         video.preload = "auto";
-
         const onLoaded = () => {
           video.removeEventListener("loadeddata", onLoaded);
           video.play().catch(() => {});
           updateObject(obj.id, { image: video, isAnimated: true });
         };
-
         video.addEventListener("loadeddata", onLoaded);
         return;
       }
 
-      // 🖼️ IMAGE / GIF / WEBP
       const img = new Image();
       img.crossOrigin = "anonymous";
-
       img.onload = () => {
-        // ❗ אם זה אנימציה (או שסומן isAnimated) — לא מסירים רקע אוטומטית
-        const isLikelyAnimated = obj.isAnimated || format === "gif" || format === "webp";
-
+        const isLikelyAnimated =
+          obj.isAnimated || format === "gif" || format === "webp";
         if (obj.removeBackground && !isLikelyAnimated) {
           const cleared = removeWhiteBackground(img);
           const newImg = new Image();
           newImg.src = cleared;
-
           newImg.onload = () => {
             updateObject(obj.id, { image: newImg });
           };
@@ -215,18 +199,15 @@ const EditorCanvas = forwardRef(function EditorCanvas(
           updateObject(obj.id, { image: img });
         }
       };
-
       img.src = obj.url;
     });
   }, [objects, updateObject]);
 
   /* ============================================================
-      FORCE REDRAW WHEN VIDEO EXISTS
-      ✅ זה מה שמבטיח שוידאו נראה בקנבס
+     FORCE REDRAW WHEN VIDEO EXISTS
   ============================================================ */
   useEffect(() => {
     let raf = 0;
-
     const tick = () => {
       const stage = stageRef.current;
       if (stage) {
@@ -235,22 +216,19 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         );
         if (hasVideo) stage.batchDraw();
       }
-
       raf = requestAnimationFrame(tick);
     };
-
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [objects]);
 
   /* ============================================================
-      SELECTION LOGIC
+     SELECTION LOGIC
   ============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
     const obj = objects.find((o) => o.id === id) || null;
     onSelect(obj);
-
     if (transformerRef.current) {
       if (id) {
         const node = stageRef.current?.findOne(`.${id}`);
@@ -262,43 +240,37 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-      DOUBLE CLICK EDIT TEXT
+     DOUBLE CLICK EDIT TEXT
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
-
     const node = stageRef.current?.findOne(`.${obj.id}`);
     if (!node) return;
-
     const abs = node.getAbsolutePosition();
-
     setTextInputRect({
       x: abs.x * scale,
       y: abs.y * scale,
       width: (obj.width || 200) * scale,
       height: obj.fontSize * 1.4 * scale,
     });
-
     setEditingTextId(obj.id);
   };
 
   /* ============================================================
-      DELETE WITH KEYBOARD
+     DELETE WITH KEYBOARD
   ============================================================ */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const obj = objects.find((o) => o.id === selectedId);
       if (!obj) return;
-
       if (e.key === "Delete") removeObject(obj.id);
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [objects, selectedId, removeObject]);
 
   /* ============================================================
-      EXPORT ACTIONS TO SIDEBAR
+     EXPORT ACTIONS TO SIDEBAR
   ============================================================ */
   useImperativeHandle(ref, () => ({
     addText: useEditorStore.getState().addText,
@@ -309,32 +281,33 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }));
 
   /* ============================================================
-      RENDER CANVAS
+     RENDER CANVAS (טלפון)
   ============================================================ */
   return (
-    <div className="w-full h-full flex items-center justify-center overflow-auto bg-gray-100 relative">
+    <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
       <div
-        className="shadow-2xl rounded-xl bg-white"
+        className="shadow-2xl rounded-3xl bg-white overflow-hidden relative"
         style={{
           transform: `scale(${scale})`,
-          transformOrigin: "top left",
+          transformOrigin: "top center",
+          width: `${CANVAS_WIDTH}px`,
+          height: `${CANVAS_HEIGHT}px`,
+          border: "10px solid #f8f8f8",
         }}
       >
         <Stage
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
           ref={stageRef}
-          className="bg-white rounded-xl border"
+          className="bg-white"
           onMouseDown={(e) => {
             if (e.target === e.target.getStage()) handleSelect(null);
           }}
         >
           <Layer>
             {objects.map((obj) => {
-              /* -------------------- TEXT -------------------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
-
                 return (
                   <Text
                     key={obj.id}
@@ -365,13 +338,11 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* -------------------- RECT -------------------- */
               if (obj.type === "rect") {
                 return (
                   <Rect
                     key={obj.id}
                     name={obj.id}
-                    className={obj.id}
                     draggable
                     x={obj.x}
                     y={obj.y}
@@ -389,13 +360,11 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* -------------------- CIRCLE -------------------- */
               if (obj.type === "circle") {
                 return (
                   <Rect
                     key={obj.id}
                     name={obj.id}
-                    className={obj.id}
                     draggable
                     x={obj.x}
                     y={obj.y}
@@ -408,15 +377,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* -------------------- IMAGE / VIDEO -------------------- */
               if (obj.type === "image") {
                 if (!obj.image) return null;
-
                 return (
                   <KonvaImage
                     key={obj.id}
                     name={obj.id}
-                    className={obj.id}
                     draggable
                     x={obj.x}
                     y={obj.y}
@@ -430,20 +396,10 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                         y: e.target.y(),
                       })
                     }
-                    onTransformEnd={(e) => {
-                      const node = e.target;
-                      updateObject(obj.id, {
-                        width: node.width() * node.scaleX(),
-                        height: node.height() * node.scaleY(),
-                      });
-                      node.scaleX(1);
-                      node.scaleY(1);
-                    }}
                   />
                 );
               }
 
-              /* -------------------- LOTTIE -------------------- */
               if (obj.type === "lottie") {
                 return (
                   <Lottie
@@ -463,13 +419,11 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
               return null;
             })}
-
             <Transformer ref={transformerRef} />
           </Layer>
         </Stage>
       </div>
 
-      {/* TEXT OVERLAY EDITOR */}
       {editingTextId && (
         <EditableTextOverlay
           obj={
