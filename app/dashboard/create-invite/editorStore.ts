@@ -40,13 +40,16 @@ export interface EditorObject {
   radius?: number;
 
   url?: string;
-  image?: HTMLImageElement | null;
+  image?: HTMLImageElement | HTMLVideoElement | null;
   removeBackground?: boolean;
 
   lottieData?: any;
 
   /** ⭐ marker לרקע */
   isBackground?: boolean;
+
+  /** ⭐ marker לאובייקט מונפש (GIF/WEBP/MP4 וכו') */
+  isAnimated?: boolean;
 
   [key: string]: any;
 }
@@ -84,6 +87,17 @@ interface EditorState {
 
   /** ⭐ REQUIRED FOR SHAPES TAB */
   addObject: (obj: EditorObject) => void;
+
+  /** ⭐ NEW — תמיכה באוסף אנימציות מהמאגר */
+  addLottieFromUrl: (url: string) => Promise<void>;
+
+  addAnimatedAsset: (item: {
+    name: string;
+    url: string;
+    format?: string;
+    width?: number;
+    height?: number;
+  }) => void;
 
   removeObject: (id: string) => void;
 
@@ -229,6 +243,98 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       objects: [...state.objects, obj],
     })),
+
+  /* ============================================================
+      ⭐ NEW — Lottie from URL (Cloudinary JSON)
+  ============================================================ */
+  addLottieFromUrl: async (url) => {
+    const res = await fetch(url);
+    const json = await res.json();
+    get().addLottie(json);
+  },
+
+  /* ============================================================
+      ⭐ NEW — addAnimatedAsset
+      תומך:
+      - JSON (Lottie)
+      - MP4 / WEBM (וידאו)
+      - GIF / WEBP מונפש כתמונה
+  ============================================================ */
+  addAnimatedAsset: (item) => {
+    const format = (item.format || "").toLowerCase();
+    const width = item.width ?? 240;
+    const height = item.height ?? 240;
+
+    // 1) Lottie JSON
+    if (format === "json") {
+      get().addLottieFromUrl(item.url);
+      return;
+    }
+
+    // 2) Video
+    if (format === "mp4" || format === "webm") {
+      const id = `vid-${Date.now()}`;
+      const video = document.createElement("video");
+      video.src = item.url;
+      video.crossOrigin = "anonymous";
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+
+      const onCanPlay = () => {
+        video.removeEventListener("canplay", onCanPlay);
+        // ניסיון ניגון שקט
+        video.play().catch(() => {});
+
+        set((state) => ({
+          objects: [
+            ...state.objects,
+            {
+              id,
+              type: "image",
+              x: 100,
+              y: 100,
+              width,
+              height,
+              url: item.url,
+              image: video,
+              isAnimated: true,
+            },
+          ],
+          selectedId: id,
+        }));
+      };
+
+      video.addEventListener("canplay", onCanPlay);
+      return;
+    }
+
+    // 3) GIF / Animated WEBP / כל תמונה מונפשת
+    const id = `anim-${Date.now()}`;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = item.url;
+
+    img.onload = () => {
+      set((state) => ({
+        objects: [
+          ...state.objects,
+          {
+            id,
+            type: "image",
+            x: 100,
+            y: 100,
+            width,
+            height,
+            url: item.url,
+            image: img,
+            isAnimated: true,
+          },
+        ],
+        selectedId: id,
+      }));
+    };
+  },
 
   removeObject: (id) =>
     set((state) => {

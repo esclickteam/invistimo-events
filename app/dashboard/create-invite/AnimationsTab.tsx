@@ -7,10 +7,13 @@ import { useEditorStore } from "./editorStore";
 interface AnimationItem {
   name: string;
   url: string;
+  format?: string; // ⭐ חשוב לקבל מ-API את פורמט הקובץ
+  width?: number;
+  height?: number;
 }
 
 function AnimationsTabComponent() {
-  const addObject = useEditorStore((s) => s.addObject);
+  const addAnimatedAsset = useEditorStore((s) => s.addAnimatedAsset);
 
   const { data = [], isLoading } = useQuery<AnimationItem[]>({
     queryKey: ["library", "animations"],
@@ -29,19 +32,10 @@ function AnimationsTabComponent() {
         <div
           key={item.name}
           className="cursor-pointer border rounded hover:bg-gray-100 p-2"
-          onClick={() =>
-            addObject({
-              id: crypto.randomUUID(),
-              type: "image",
-              url: item.url,
-              x: 100,
-              y: 100,
-              width: 200,
-              height: 200,
-            })
-          }
+          onClick={() => addAnimatedAsset(item)} // ⭐ שימוש בפונקציה החדשה
         >
-          <img src={item.url} className="w-full h-full" />
+          {/* תצוגה מקדימה */}
+          <img src={item.url} className="w-full h-full object-cover" />
         </div>
       ))}
     </div>
