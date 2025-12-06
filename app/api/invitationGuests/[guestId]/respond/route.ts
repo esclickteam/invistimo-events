@@ -2,38 +2,15 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Guest from "@/models/Guest";
 
-type RSVP = "yes" | "no" | "pending";
-
-export async function POST(
-  req: Request,
-  { params }: { params: { guestId: string } }
-) {
+export async function POST(req: Request, { params }: { params: { guestId: string } }) {
   try {
     await db();
-
     const body = await req.json();
-    const { rsvp, guestsCount, notes } = body as {
-      rsvp?: RSVP;
-      guestsCount?: number;
-      notes?: string;
-    };
-
-    // ולידציה בסיסית
-    if (rsvp && !["yes", "no", "pending"].includes(rsvp)) {
-      return NextResponse.json(
-        { error: "Invalid rsvp value" },
-        { status: 400 }
-      );
-    }
-
-    const updateData: any = {};
-    if (rsvp !== undefined) updateData.rsvp = rsvp;
-    if (guestsCount !== undefined) updateData.guestsCount = guestsCount;
-    if (notes !== undefined) updateData.notes = notes;
+    const { rsvp, guestsCount, notes } = body;
 
     const guest = await Guest.findByIdAndUpdate(
       params.guestId,
-      updateData,
+      { rsvp, guestsCount, notes },
       { new: true }
     );
 
