@@ -11,7 +11,7 @@ const CANVAS_HEIGHT = 1600;
 ============================================================ */
 export interface EditorObject {
   id: string;
-  type: "text" | "rect" | "circle" | "image" | "lottie" | "video";
+  type: "text" | "rect" | "circle" | "image" | "lottie"; // ❗ אין "video"
 
   x?: number;
   y?: number;
@@ -248,7 +248,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ⭐ ADD ANIMATED FILE (GIF / WEBP / MP4 / JSON)
   ============================================================ */
   addAnimatedAsset: (item) => {
-    const format = (item.format || "").toLowerCase();
+    const cleanUrl = item.url.split("?")[0];
+    const format =
+      (item.format || cleanUrl.split(".").pop() || "").toLowerCase();
     const width = item.width ?? 240;
     const height = item.height ?? 240;
 
@@ -258,9 +260,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return;
     }
 
-    // MP4 / WEBM → HTMLVideoElement
+    // MP4 / WEBM → HTMLVideoElement אבל עדיין type: "image"
     if (format === "mp4" || format === "webm") {
-      const id = `vid-${Date.now()}`;
+      const id = `anim-${Date.now()}`;
       const video = document.createElement("video");
       video.src = item.url;
       video.loop = true;
@@ -278,7 +280,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             ...state.objects,
             {
               id,
-              type: "video",
+              type: "image", // ❗ חשוב — הקנבס מצייר type "image"
               x: 100,
               y: 100,
               width,
@@ -296,7 +298,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return;
     }
 
-    // GIF / WEBP
+    // GIF / WEBP / PNG וכו'
     const id = `anim-${Date.now()}`;
     const img = new Image();
     img.src = item.url;

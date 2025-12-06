@@ -72,7 +72,7 @@ export type EditorObject =
       width: number;
       height: number;
       url?: string;
-      image?: HTMLImageElement | HTMLVideoElement | null;  // ⭐ תמיכה גם בוידאו
+      image?: HTMLImageElement | HTMLVideoElement | null; // ⭐ תמיכה גם בוידאו
       removeBackground?: boolean;
       isAnimated?: boolean;
     }
@@ -95,6 +95,7 @@ const CANVAS_HEIGHT = 1600;
 
 /* ============================================================
    REMOVE BACKGROUND (WHITE TO TRANSPARENT)
+   ⚠️ מומלץ רק לתמונות סטטיות
 ============================================================ */
 
 function removeWhiteBackground(img: HTMLImageElement): string {
@@ -165,50 +166,86 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
       LOAD IMAGE / VIDEO
-============================================================ */
+      ✅ זיהוי סיומת יציב + הגנה מהסרת רקע על אנימציות
+  ============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
       if (obj.type !== "image" || !obj.url || obj.image) return;
 
-      const format = obj.url.split(".").pop()?.toLowerCase();
+      const cleanUrl = obj.url.split("?")[0];
+      const format = cleanUrl.split(".").pop()?.toLowerCase();
 
       // 🎬 VIDEO SUPPORT
-      if (["mp4", "webm"].includes(format || "")) {
+      if (format === "mp4" || format === "webm") {
         const video = document.createElement("video");
         video.src = obj.url;
         video.crossOrigin = "anonymous";
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
+        video.preload = "auto";
 
-        video.oncanplay = () => {
+        const onLoaded = () => {
+          video.removeEventListener("loadeddata", onLoaded);
           video.play().catch(() => {});
-          updateObject(obj.id, { image: video });
+          updateObject(obj.id, { image: video, isAnimated: true });
         };
 
+        video.addEventListener("loadeddata", onLoaded);
         return;
       }
 
       // 🖼️ IMAGE / GIF / WEBP
       const img = new Image();
       img.crossOrigin = "anonymous";
+
       img.onload = () => {
-        if (obj.removeBackground) {
+        // ❗ אם זה אנימציה (או שסומן isAnimated) — לא מסירים רקע אוטומטית
+        const isLikelyAnimated = obj.isAnimated || format === "gif" || format === "webp";
+
+        if (obj.removeBackground && !isLikelyAnimated) {
           const cleared = removeWhiteBackground(img);
           const newImg = new Image();
           newImg.src = cleared;
-          updateObject(obj.id, { image: newImg });
+
+          newImg.onload = () => {
+            updateObject(obj.id, { image: newImg });
+          };
         } else {
           updateObject(obj.id, { image: img });
         }
       };
+
       img.src = obj.url;
     });
   }, [objects, updateObject]);
 
   /* ============================================================
+      FORCE REDRAW WHEN VIDEO EXISTS
+      ✅ זה מה שמבטיח שוידאו נראה בקנבס
+  ============================================================ */
+  useEffect(() => {
+    let raf = 0;
+
+    const tick = () => {
+      const stage = stageRef.current;
+      if (stage) {
+        const hasVideo = objects.some(
+          (o) => o.type === "image" && o.image instanceof HTMLVideoElement
+        );
+        if (hasVideo) stage.batchDraw();
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [objects]);
+
+  /* ============================================================
       SELECTION LOGIC
-============================================================ */
+  ============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
     const obj = objects.find((o) => o.id === id) || null;
@@ -216,7 +253,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
     if (transformerRef.current) {
       if (id) {
-        const node = stageRef.current.findOne(`.${id}`);
+        const node = stageRef.current?.findOne(`.${id}`);
         transformerRef.current.nodes(node ? [node] : []);
       } else {
         transformerRef.current.nodes([]);
@@ -226,11 +263,11 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
       DOUBLE CLICK EDIT TEXT
-============================================================ */
+  ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
 
-    const node = stageRef.current.findOne(`.${obj.id}`);
+    const node = stageRef.current?.findOne(`.${obj.id}`);
     if (!node) return;
 
     const abs = node.getAbsolutePosition();
@@ -247,22 +284,22 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
       DELETE WITH KEYBOARD
-============================================================ */
-  const handleKeyDown = (e: KeyboardEvent) => {
-    const obj = objects.find((o) => o.id === selectedId);
-    if (!obj) return;
-
-    if (e.key === "Delete") removeObject(obj.id);
-  };
-
+  ============================================================ */
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const obj = objects.find((o) => o.id === selectedId);
+      if (!obj) return;
+
+      if (e.key === "Delete") removeObject(obj.id);
+    };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+  }, [objects, selectedId, removeObject]);
 
   /* ============================================================
       EXPORT ACTIONS TO SIDEBAR
-============================================================ */
+  ============================================================ */
   useImperativeHandle(ref, () => ({
     addText: useEditorStore.getState().addText,
     addRect: useEditorStore.getState().addRect,
@@ -273,7 +310,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
       RENDER CANVAS
-============================================================ */
+  ============================================================ */
   return (
     <div className="w-full h-full flex items-center justify-center overflow-auto bg-gray-100 relative">
       <div
@@ -372,34 +409,9 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               }
 
               /* -------------------- IMAGE / VIDEO -------------------- */
-              if (obj.type === "image" && obj.image) {
-                // וידאו → ציור מחזורי
-                if (obj.image instanceof HTMLVideoElement) {
-                  return (
-                    <KonvaImage
-                      key={obj.id}
-                      name={obj.id}
-                      className={obj.id}
-                      draggable
-                      x={obj.x}
-                      y={obj.y}
-                      width={obj.width}
-                      height={obj.height}
-                      image={obj.image}
-                      onClick={() => handleSelect(obj.id)}
-                      onDragEnd={(e) =>
-                        updateObject(obj.id, {
-                          x: e.target.x(),
-                          y: e.target.y(),
-                        })
-                      }
-                      // נדרש כדי ש-Konva תצייר וידאו כל פריים
-                      onFrame={() => obj.image && stageRef.current?.batchDraw()}
-                    />
-                  );
-                }
+              if (obj.type === "image") {
+                if (!obj.image) return null;
 
-                // תמונה רגילה / GIF / WEBP
                 return (
                   <KonvaImage
                     key={obj.id}
