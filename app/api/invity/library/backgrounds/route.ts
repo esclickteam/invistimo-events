@@ -9,24 +9,26 @@ cloudinary.config({
 
 export async function GET() {
   try {
-    const result = await cloudinary.api.resources({
-      type: "upload",
-      resource_type: "image",
-      max_results: 200,
-    });
+    // ✅ טוען לפי תיקייה אמיתית בקלאודינרי
+    const result = await cloudinary.search
+      .expression("folder:backgrounds/*")
+      .sort_by("public_id", "desc")
+      .max_results(200)
+      .execute();
 
-    const data = result.resources.map((r: any) => ({
+    const data = (result.resources || []).map((r: any) => ({
       name: r.public_id.split("/").pop(),
       url: r.secure_url,
       width: r.width,
       height: r.height,
+      format: r.format,
     }));
 
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("❌ Backgrounds fetch error:", err);
     return NextResponse.json(
-      { error: "Failed to load backgrounds" },
+      { error: err?.message || "Failed to load backgrounds" },
       { status: 500 }
     );
   }
