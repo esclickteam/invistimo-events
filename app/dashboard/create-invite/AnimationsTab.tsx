@@ -7,13 +7,12 @@ import { useEditorStore } from "./editorStore";
 interface AnimationItem {
   name: string;
   url: string;
-  format?: string; // ⭐ חשוב לקבל מ-API את פורמט הקובץ
-  width?: number;
-  height?: number;
+  format: string;          // gif/webp/mp4
+  resource_type: string;   // video / image
 }
 
-function AnimationsTabComponent() {
-  const addAnimatedAsset = useEditorStore((s) => s.addAnimatedAsset);
+function AnimationsTab() {
+  const addObject = useEditorStore((s) => s.addObject);
 
   const { data = [], isLoading } = useQuery<AnimationItem[]>({
     queryKey: ["library", "animations"],
@@ -27,28 +26,58 @@ function AnimationsTabComponent() {
     return <p className="text-center text-gray-400">אין אנימציות זמינות.</p>;
 
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {data.map((item) => (
-        <div
-          key={item.name}
-          className="cursor-pointer border rounded hover:bg-gray-100 p-2"
-          onClick={() => addAnimatedAsset(item)} // ⭐ שימוש בפונקציה החדשה
-        >
-          {/* תצוגה מקדימה */}
-          <img src={item.url} className="w-full h-full object-cover" />
-        </div>
-      ))}
+    <div className="grid grid-cols-2 gap-4">
+      {data.map((item) => {
+        const isVideo = item.resource_type === "video";
+
+        return (
+          <div
+            key={item.name}
+            className="cursor-pointer border rounded p-2 bg-white shadow hover:bg-gray-100"
+            onClick={() =>
+              addObject({
+                id: crypto.randomUUID(),
+                type: isVideo ? "video" : "image",
+                url: item.url,
+                x: 100,
+                y: 100,
+                width: 250,
+                height: 250,
+                autoplay: true,           // ⭐ מתחיל באופן אוטומטי
+                removeBackground: true,   // ⭐ הסרה אוטומטית של הרקע
+              })
+            }
+          >
+            {/* ---- Preview ---- */}
+            {isVideo ? (
+              <video
+                src={item.url}
+                muted
+                autoPlay
+                loop
+                playsInline
+                className="w-full h-32 object-cover rounded"
+              />
+            ) : (
+              <img
+                src={item.url}
+                className="w-full h-32 object-cover rounded"
+              />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-export default memo(AnimationsTabComponent);
+export default memo(AnimationsTab);
 
 function SkeletonGrid() {
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="w-full h-24 bg-gray-200 animate-pulse rounded" />
+    <div className="grid grid-cols-2 gap-3">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="w-full h-32 bg-gray-200 animate-pulse rounded" />
       ))}
     </div>
   );

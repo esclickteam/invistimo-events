@@ -71,9 +71,10 @@ export type EditorObject =
       y: number;
       width: number;
       height: number;
-      url?: string;                     // הוספה חשובה
-      image?: HTMLImageElement | null;  // תמונה אמיתית
-      removeBackground?: boolean;       // הורדת רקע
+      url?: string;
+      image?: HTMLImageElement | HTMLVideoElement | null;  // ⭐ תמיכה גם בוידאו
+      removeBackground?: boolean;
+      isAnimated?: boolean;
     }
   | {
       id: string;
@@ -109,12 +110,7 @@ function removeWhiteBackground(img: HTMLImageElement): string {
   const data = imageData.data;
 
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-
-    // כל פיקסל כמעט לבן → שקוף
-    if (r > 240 && g > 240 && b > 240) {
+    if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) {
       data[i + 3] = 0;
     }
   }
@@ -168,34 +164,51 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [setScale]);
 
   /* ============================================================
-      LOAD IMAGE OBJECTS (URL → HTMLImageElement)
-  ============================================================ */
+      LOAD IMAGE / VIDEO
+============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
-      if (obj.type === "image" && obj.url && !obj.image) {
-        
-        const img = new Image();
-        img.crossOrigin = "anonymous";
+      if (obj.type !== "image" || !obj.url || obj.image) return;
 
-        img.onload = () => {
-          if (obj.removeBackground) {
-            const cleared = removeWhiteBackground(img);
-            const newImg = new Image();
-            newImg.src = cleared;
-            updateObject(obj.id, { image: newImg });
-          } else {
-            updateObject(obj.id, { image: img });
-          }
+      const format = obj.url.split(".").pop()?.toLowerCase();
+
+      // 🎬 VIDEO SUPPORT
+      if (["mp4", "webm"].includes(format || "")) {
+        const video = document.createElement("video");
+        video.src = obj.url;
+        video.crossOrigin = "anonymous";
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+
+        video.oncanplay = () => {
+          video.play().catch(() => {});
+          updateObject(obj.id, { image: video });
         };
 
-        img.src = obj.url;
+        return;
       }
+
+      // 🖼️ IMAGE / GIF / WEBP
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (obj.removeBackground) {
+          const cleared = removeWhiteBackground(img);
+          const newImg = new Image();
+          newImg.src = cleared;
+          updateObject(obj.id, { image: newImg });
+        } else {
+          updateObject(obj.id, { image: img });
+        }
+      };
+      img.src = obj.url;
     });
   }, [objects, updateObject]);
 
   /* ============================================================
       SELECTION LOGIC
-  ============================================================ */
+============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
     const obj = objects.find((o) => o.id === id) || null;
@@ -212,8 +225,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-      DOUBLE CLICK FOR TEXT EDIT
-  ============================================================ */
+      DOUBLE CLICK EDIT TEXT
+============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
 
@@ -233,8 +246,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-      DELETE OBJECTS WITH KEYBOARD
-  ============================================================ */
+      DELETE WITH KEYBOARD
+============================================================ */
   const handleKeyDown = (e: KeyboardEvent) => {
     const obj = objects.find((o) => o.id === selectedId);
     if (!obj) return;
@@ -248,8 +261,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   });
 
   /* ============================================================
-      EXPOSE ACTIONS TO SIDEBAR
-  ============================================================ */
+      EXPORT ACTIONS TO SIDEBAR
+============================================================ */
   useImperativeHandle(ref, () => ({
     addText: useEditorStore.getState().addText,
     addRect: useEditorStore.getState().addRect,
@@ -260,7 +273,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
       RENDER CANVAS
-  ============================================================ */
+============================================================ */
   return (
     <div className="w-full h-full flex items-center justify-center overflow-auto bg-gray-100 relative">
       <div
@@ -281,7 +294,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         >
           <Layer>
             {objects.map((obj) => {
-
               /* -------------------- TEXT -------------------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
@@ -300,7 +312,9 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     width={obj.width}
                     fill={obj.fill}
                     align={obj.align}
-                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : "normal"} ${obj.italic ? "italic" : ""}`}
+                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : "normal"} ${
+                      obj.italic ? "italic" : ""
+                    }`}
                     textDecoration={obj.underline ? "underline" : ""}
                     onDblClick={() => handleDblClick(obj)}
                     onClick={() => handleSelect(obj.id)}
@@ -314,7 +328,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* -------------------- RECTANGLE -------------------- */
+              /* -------------------- RECT -------------------- */
               if (obj.type === "rect") {
                 return (
                   <Rect
@@ -357,10 +371,35 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* -------------------- IMAGE (WITH REMOVED BACKGROUND) -------------------- */
-              if (obj.type === "image") {
-                if (!obj.image) return null;
+              /* -------------------- IMAGE / VIDEO -------------------- */
+              if (obj.type === "image" && obj.image) {
+                // וידאו → ציור מחזורי
+                if (obj.image instanceof HTMLVideoElement) {
+                  return (
+                    <KonvaImage
+                      key={obj.id}
+                      name={obj.id}
+                      className={obj.id}
+                      draggable
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.width}
+                      height={obj.height}
+                      image={obj.image}
+                      onClick={() => handleSelect(obj.id)}
+                      onDragEnd={(e) =>
+                        updateObject(obj.id, {
+                          x: e.target.x(),
+                          y: e.target.y(),
+                        })
+                      }
+                      // נדרש כדי ש-Konva תצייר וידאו כל פריים
+                      onFrame={() => obj.image && stageRef.current?.batchDraw()}
+                    />
+                  );
+                }
 
+                // תמונה רגילה / GIF / WEBP
                 return (
                   <KonvaImage
                     key={obj.id}

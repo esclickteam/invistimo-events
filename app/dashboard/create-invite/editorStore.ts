@@ -1,8 +1,7 @@
 import { create } from "zustand";
 
 /* ============================================================
-   CANVAS DEFAULTS (בלי לגעת בקנבס)
-   אם הקנבס אצלך בגודל אחר — אפשר לשנות פה בלבד.
+   CANVAS DEFAULTS
 ============================================================ */
 const CANVAS_WIDTH = 900;
 const CANVAS_HEIGHT = 1600;
@@ -12,7 +11,7 @@ const CANVAS_HEIGHT = 1600;
 ============================================================ */
 export interface EditorObject {
   id: string;
-  type: "text" | "rect" | "circle" | "image" | "lottie";
+  type: "text" | "rect" | "circle" | "image" | "lottie" | "video";
 
   x?: number;
   y?: number;
@@ -45,10 +44,7 @@ export interface EditorObject {
 
   lottieData?: any;
 
-  /** ⭐ marker לרקע */
   isBackground?: boolean;
-
-  /** ⭐ marker לאובייקט מונפש (GIF/WEBP/MP4 וכו') */
   isAnimated?: boolean;
 
   [key: string]: any;
@@ -61,10 +57,7 @@ interface EditorState {
   objects: EditorObject[];
   selectedId: string | null;
 
-  /** legacy background string (נשמור תאימות) */
   background: string | null;
-
-  /** ⭐ חדש: מזהה אובייקט הרקע בקנבס */
   backgroundObjectId: string | null;
 
   scale: number;
@@ -85,10 +78,8 @@ interface EditorState {
 
   addLottie: (data: any) => void;
 
-  /** ⭐ REQUIRED FOR SHAPES TAB */
   addObject: (obj: EditorObject) => void;
 
-  /** ⭐ NEW — תמיכה באוסף אנימציות מהמאגר */
   addLottieFromUrl: (url: string) => Promise<void>;
 
   addAnimatedAsset: (item: {
@@ -104,11 +95,6 @@ interface EditorState {
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
 
-  /**
-   * ⭐ שדרוג:
-   * במקום רק לשמור background string,
-   * יוסיף תמונה על הקנבס בגודל מלא + ניתן לעריכה.
-   */
   setBackground: (url: string | null) => void;
 
   setScale: (scale: number) => void;
@@ -130,7 +116,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   updateObject: (id, data) =>
     set((state) => ({
-      objects: state.objects.map((o) => (o.id === id ? { ...o, ...data } : o)),
+      objects: state.objects.map((o) =>
+        o.id === id ? { ...o, ...data } : o
+      ),
     })),
 
   addText: () =>
@@ -192,7 +180,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   /* ============================================================
-      ADD IMAGE — fully typed + matches ElementsTab
+      ADD IMAGE
   ============================================================ */
   addImage: ({ url, width = 200, height = 200, removeBackground = false }) => {
     const id = `img-${Date.now()}`;
@@ -220,6 +208,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
   },
 
+  /* ============================================================
+      ADD LOTTIE
+  ============================================================ */
   addLottie: (lottieData) =>
     set((state) => ({
       objects: [
@@ -237,7 +228,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   /* ============================================================
-      ⭐ REQUIRED FOR SHAPES TAB
+      BASIC addObject
   ============================================================ */
   addObject: (obj) =>
     set((state) => ({
@@ -245,7 +236,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   /* ============================================================
-      ⭐ NEW — Lottie from URL (Cloudinary JSON)
+      LOAD JSON AS LOTTIE
   ============================================================ */
   addLottieFromUrl: async (url) => {
     const res = await fetch(url);
@@ -254,36 +245,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   /* ============================================================
-      ⭐ NEW — addAnimatedAsset
-      תומך:
-      - JSON (Lottie)
-      - MP4 / WEBM (וידאו)
-      - GIF / WEBP מונפש כתמונה
+      ⭐ ADD ANIMATED FILE (GIF / WEBP / MP4 / JSON)
   ============================================================ */
   addAnimatedAsset: (item) => {
     const format = (item.format || "").toLowerCase();
     const width = item.width ?? 240;
     const height = item.height ?? 240;
 
-    // 1) Lottie JSON
+    // JSON → Lottie
     if (format === "json") {
       get().addLottieFromUrl(item.url);
       return;
     }
 
-    // 2) Video
+    // MP4 / WEBM → HTMLVideoElement
     if (format === "mp4" || format === "webm") {
       const id = `vid-${Date.now()}`;
       const video = document.createElement("video");
       video.src = item.url;
-      video.crossOrigin = "anonymous";
       video.loop = true;
       video.muted = true;
+      video.autoplay = true;
       video.playsInline = true;
+      video.crossOrigin = "anonymous";
 
-      const onCanPlay = () => {
-        video.removeEventListener("canplay", onCanPlay);
-        // ניסיון ניגון שקט
+      const onReady = () => {
+        video.removeEventListener("canplay", onReady);
         video.play().catch(() => {});
 
         set((state) => ({
@@ -291,7 +278,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             ...state.objects,
             {
               id,
-              type: "image",
+              type: "video",
               x: 100,
               y: 100,
               width,
@@ -305,15 +292,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }));
       };
 
-      video.addEventListener("canplay", onCanPlay);
+      video.addEventListener("canplay", onReady);
       return;
     }
 
-    // 3) GIF / Animated WEBP / כל תמונה מונפשת
+    // GIF / WEBP
     const id = `anim-${Date.now()}`;
     const img = new Image();
-    img.crossOrigin = "anonymous";
     img.src = item.url;
+    img.crossOrigin = "anonymous";
 
     img.onload = () => {
       set((state) => ({
@@ -336,6 +323,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
   },
 
+  /* ============================================================
+      REMOVE
+  ============================================================ */
   removeObject: (id) =>
     set((state) => {
       const isBg = state.backgroundObjectId === id;
@@ -348,41 +338,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       };
     }),
 
+  /* ============================================================
+      BRING TO FRONT / BACK
+  ============================================================ */
   bringToFront: (id) => {
     const obj = get().objects.find((o) => o.id === id);
-    if (!obj) return;
+    if (!obj || obj.isBackground) return;
 
-    // ⭐ לא מרים רקע מעל הכל
-    if (obj.isBackground) return;
-
-    set({ objects: [...get().objects.filter((o) => o.id !== id), obj] });
+    set({
+      objects: [...get().objects.filter((o) => o.id !== id), obj],
+    });
   },
 
   sendToBack: (id) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;
 
-    set({ objects: [obj, ...get().objects.filter((o) => o.id !== id)] });
+    set({
+      objects: [obj, ...get().objects.filter((o) => o.id !== id)],
+    });
   },
 
   /* ============================================================
-      ✅ NEW BEHAVIOR — setBackground
-      - מוסיף אובייקט תמונה בגודל מלא
-      - ניתן לעריכה/הקטנה
-      - נשמר מאחור
-      - מבטל background string כדי לא ליצור כפילות בקנבס
-  ============================================================ */
+      SET BACKGROUND
+============================================================ */
   setBackground: (url) => {
     const { backgroundObjectId } = get();
 
-    // אם מבקשים להסיר רקע
     if (!url) {
       set((state) => ({
         background: null,
         backgroundObjectId: null,
-        objects: backgroundObjectId
-          ? state.objects.filter((o) => o.id !== backgroundObjectId)
-          : state.objects,
+        objects: state.objects.filter((o) => o.id !== backgroundObjectId),
         selectedId:
           state.selectedId === backgroundObjectId ? null : state.selectedId,
       }));
@@ -396,29 +383,28 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     img.onload = () => {
       set((state) => {
-        // מסירים רקע קודם אם היה
-        const withoutOldBg = backgroundObjectId
+        const cleaned = backgroundObjectId
           ? state.objects.filter((o) => o.id !== backgroundObjectId)
           : state.objects;
 
-        const bgObj: EditorObject = {
-          id,
-          type: "image",
-          x: 0,
-          y: 0,
-          width: CANVAS_WIDTH,
-          height: CANVAS_HEIGHT,
-          url,
-          image: img,
-          isBackground: true,
-        };
-
         return {
-          // ⭐ רקע תמיד ראשון = מאחור
-          objects: [bgObj, ...withoutOldBg.filter((o) => !o.isBackground)],
+          objects: [
+            {
+              id,
+              type: "image",
+              x: 0,
+              y: 0,
+              width: CANVAS_WIDTH,
+              height: CANVAS_HEIGHT,
+              url,
+              image: img,
+              isBackground: true,
+            },
+            ...cleaned,
+          ],
           backgroundObjectId: id,
-          background: null, // חשוב: לא לצייר רקע כפול בקנבס
-          selectedId: id,   // כדי שתוכלי לערוך מיד
+          background: null,
+          selectedId: id,
         };
       });
     };
