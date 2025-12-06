@@ -16,10 +16,10 @@ export default function CreateInvitePage() {
   const [saving, setSaving] = useState(false);
   const router = useRouter();
 
-  // 🎨 נתוני הקנבס מהעורך
+  // 🎨 כל האובייקטים מהעורך (הקנבס)
   const objects = useEditorStore((s) => s.objects);
 
-  // 🔹 כפתור שמירה
+  // 🔹 שמירה של ההזמנה
   async function handleSaveInvitation() {
     try {
       setSaving(true);
@@ -39,7 +39,7 @@ export default function CreateInvitePage() {
         alert("✅ ההזמנה נשמרה בהצלחה!");
         console.log("Invitation ID:", data.invitation._id);
 
-        // מעבר לתצוגת מקדימה
+        // מעבירים לתצוגת מקדימה
         router.push(`/dashboard/invitations/${data.invitation._id}/preview`);
       } else {
         alert("שגיאה בשמירה: " + data.error);
@@ -52,7 +52,7 @@ export default function CreateInvitePage() {
     }
   }
 
-  // Google Fonts API Key
+  // 🔑 מפתח Google Fonts
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   return (
@@ -64,8 +64,6 @@ export default function CreateInvitePage() {
         {/* Editor */}
         <div className="flex-1 flex flex-col">
           <Toolbar />
-
-          {/* קנבס העריכה */}
           <div className="flex-1 flex items-center justify-center p-4">
             <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
           </div>
