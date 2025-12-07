@@ -8,7 +8,10 @@ export async function GET(req: Request, context: any) {
   try {
     await db();
 
-    const id = context?.params?.id;
+    // ✔ מתקנים את הבאג של context.params = Promise
+    const params = await context.params;
+    const id = params?.id;
+
     if (!id) {
       return NextResponse.json(
         { error: "Missing invitation id" },
@@ -26,6 +29,7 @@ export async function GET(req: Request, context: any) {
     }
 
     return NextResponse.json(invitation, { status: 200 });
+
   } catch (err) {
     console.error("❌ Error in GET /api/invitations/[id]:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
