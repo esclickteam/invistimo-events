@@ -8,13 +8,16 @@ export async function GET(req: Request, context: any) {
   try {
     await db();
 
-    // ✔ מתקנים את הבאג של context.params = Promise
+    // ⭐ תיקון Next.js — params יכול להיות Promise
     const params = await context.params;
     const id = params?.id;
 
-    if (!id) {
+    console.log("📌 GET INVITATION BY ID:", id);
+
+    // ⭐ תיקון קריטי: מניעת CastError
+    if (!id || id === "undefined" || typeof id !== "string") {
       return NextResponse.json(
-        { error: "Missing invitation id" },
+        { error: "Invalid invitation id" },
         { status: 400 }
       );
     }
@@ -28,7 +31,13 @@ export async function GET(req: Request, context: any) {
       );
     }
 
-    return NextResponse.json(invitation, { status: 200 });
+    // ⭐ ממירים ל־JSON נקי כדי למנוע undefined בדפדפן
+    const cleanInvite = JSON.parse(JSON.stringify(invitation));
+
+    return NextResponse.json(
+      { success: true, invitation: cleanInvite },
+      { status: 200 }
+    );
 
   } catch (err) {
     console.error("❌ Error in GET /api/invitations/[id]:", err);
