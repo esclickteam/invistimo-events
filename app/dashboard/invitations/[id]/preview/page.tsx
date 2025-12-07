@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation"; // ✅ במקום props.params
+import { useParams } from "next/navigation";
 import Link from "next/link";
+import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 
 /* -------------------------------------------------------------
    טיפוס להזמנה
@@ -15,17 +16,17 @@ interface InvitationData {
 }
 
 /* -------------------------------------------------------------
-   קומפוננטת התצוגה
+   קומפוננטת תצוגה מקדימה
 ------------------------------------------------------------- */
 export default function InvitationPreviewPage() {
-  const params = useParams(); // 🔥 שולף את הנתיב מה-URL
+  const params = useParams();
   const id = params?.id as string | undefined;
 
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [loading, setLoading] = useState(true);
 
   /* -------------------------------------------------------------
-     טעינת הנתונים
+     טעינת נתוני ההזמנה
   ------------------------------------------------------------- */
   useEffect(() => {
     console.log("🚀 useEffect — id =", id);
@@ -63,7 +64,7 @@ export default function InvitationPreviewPage() {
   }, [id]);
 
   /* -------------------------------------------------------------
-     UI
+     UI – טעינה / שגיאה
   ------------------------------------------------------------- */
   if (loading)
     return <div className="p-10 text-center text-xl">טוען...</div>;
@@ -79,17 +80,20 @@ export default function InvitationPreviewPage() {
       </div>
     );
 
+  /* -------------------------------------------------------------
+     תצוגת פריוויו אמיתית עם קנבס
+  ------------------------------------------------------------- */
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
       <h1 className="text-3xl font-bold mb-2">{invitation.title}</h1>
       <p className="text-gray-500 mb-8">תצוגת מקדימה</p>
 
-      <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10">
-        <pre className="text-gray-600 text-sm overflow-auto whitespace-pre-wrap">
-          {JSON.stringify(invitation.canvasData, null, 2)}
-        </pre>
+      {/* ⭐ תצוגה אמיתית של הקנבס במקום JSON */}
+      <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10 flex justify-center">
+        <PublicInviteRenderer canvasData={invitation.canvasData} />
       </div>
 
+      {/* ⭐ תצוגת iframe של הדף הציבורי */}
       <div className="text-center">
         <h2 className="text-lg font-medium mb-3">כך ייראה לאורחים:</h2>
 
@@ -106,6 +110,7 @@ export default function InvitationPreviewPage() {
         )}
       </div>
 
+      {/* ⭐ כפתור מעבר לעמוד הציבורי */}
       {invitation.shareId && (
         <div className="mt-8">
           <Link
