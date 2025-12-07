@@ -273,28 +273,27 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      ⭐⭐ EXPORT API → SAVE CANVAS + PREVIEW ⭐⭐
   ============================================================ */
   useImperativeHandle(ref, () => ({
-    addText: useEditorStore.getState().addText,
-    addRect: useEditorStore.getState().addRect,
-    addCircle: useEditorStore.getState().addCircle,
-    addImage: useEditorStore.getState().addImage,
-    addLottie: useEditorStore.getState().addLottie,
+  addText: useEditorStore.getState().addText,
+  addRect: useEditorStore.getState().addRect,
+  addCircle: useEditorStore.getState().addCircle,
+  addImage: useEditorStore.getState().addImage,
+  addLottie: useEditorStore.getState().addLottie,
 
-    getCanvasData: () => {
-      const state = useEditorStore.getState();
+  // ⭐ ייצוא הנתונים כפי שצריך לשמירה + תצוגה מקדימה
+  getCanvasData: () => {
+    const objects = useEditorStore.getState().objects;
 
-      const exported = {
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
-        objects: state.objects.map((o) => ({
-          ...o,
-          image: undefined, // אסור לשמור DOM object
-        })),
-      };
+    return {
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      objects: objects.map((o) => ({
+        ...o,
+        image: undefined, // ❌ חובה להסיר — אי אפשר לשמור DOM object
+      })),
+    };
+  },
+}));
 
-      console.log("🎨 EXPORTED CANVAS DATA:", exported);
-      return exported;
-    },
-  }));
 
   /* ============================================================
      RENDER CANVAS

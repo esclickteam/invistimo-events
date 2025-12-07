@@ -22,13 +22,14 @@ export default function CreateInvitePage() {
     try {
       setSaving(true);
 
-      if (!canvasRef.current || !canvasRef.current.getStageJSON) {
-        alert("❌ הקנבס לא מוכן לייצוא. בדקי ש-EditorCanvas תומך ב-getStageJSON()");
+      // ⭐ בדיקה שהפונקציה קיימת
+      if (!canvasRef.current || !canvasRef.current.getCanvasData) {
+        alert("❌ הקנבס לא מוכן לייצוא. ודאי ש-EditorCanvas כולל getCanvasData()");
         return;
       }
 
-      // ⭐ ייצוא מלא של הקנבס (כולל כל ה־Objects)
-      const canvasJSON = canvasRef.current.getStageJSON();
+      // ⭐ ייצוא נכון של הקנבס
+      const canvasJSON = canvasRef.current.getCanvasData();
       console.log("🎨 EXPORTED CANVAS JSON:", canvasJSON);
 
       const res = await fetch("/api/invitations", {
@@ -73,7 +74,7 @@ export default function CreateInvitePage() {
           <Toolbar />
 
           <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
-            {/* ⭐ onSelect חובה בקומפוננטה הזו */}
+            {/* ⭐ EditorCanvas + ref + onSelect */}
             <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
           </div>
 
