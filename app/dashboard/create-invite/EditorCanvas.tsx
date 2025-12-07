@@ -204,7 +204,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [objects, updateObject]);
 
   /* ============================================================
-     FORCE REDRAW WHEN VIDEO EXISTS
+     FORCE REDRAW FOR VIDEO
   ============================================================ */
   useEffect(() => {
     let raf = 0;
@@ -240,7 +240,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-     DOUBLE CLICK EDIT TEXT
+     DOUBLE CLICK -> EDIT TEXT
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
@@ -270,27 +270,34 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [objects, selectedId, removeObject]);
 
   /* ============================================================
-     EXPORT ACTIONS TO SIDEBAR
+     ⭐⭐ EXPORT API → SAVE CANVAS + PREVIEW ⭐⭐
   ============================================================ */
   useImperativeHandle(ref, () => ({
-  addText: useEditorStore.getState().addText,
-  addRect: useEditorStore.getState().addRect,
-  addCircle: useEditorStore.getState().addCircle,
-  addImage: useEditorStore.getState().addImage,
-  addLottie: useEditorStore.getState().addLottie,
+    addText: useEditorStore.getState().addText,
+    addRect: useEditorStore.getState().addRect,
+    addCircle: useEditorStore.getState().addCircle,
+    addImage: useEditorStore.getState().addImage,
+    addLottie: useEditorStore.getState().addLottie,
 
-  // ⭐️⭐️ זה החלק שחסר — חייבים אותו!
-  getStageJSON: () => {
-    if (!stageRef.current) return null;
-    const json = stageRef.current.toJSON();
-    console.log("🎨 CANVAS JSON EXPORTED:", JSON.parse(json));
-    return JSON.parse(json);
-  },
-}));
+    getCanvasData: () => {
+      const state = useEditorStore.getState();
 
+      const exported = {
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        objects: state.objects.map((o) => ({
+          ...o,
+          image: undefined, // אסור לשמור DOM object
+        })),
+      };
+
+      console.log("🎨 EXPORTED CANVAS DATA:", exported);
+      return exported;
+    },
+  }));
 
   /* ============================================================
-     RENDER CANVAS (טלפון)
+     RENDER CANVAS
   ============================================================ */
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
