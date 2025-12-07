@@ -273,12 +273,21 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      EXPORT ACTIONS TO SIDEBAR
   ============================================================ */
   useImperativeHandle(ref, () => ({
-    addText: useEditorStore.getState().addText,
-    addRect: useEditorStore.getState().addRect,
-    addCircle: useEditorStore.getState().addCircle,
-    addImage: useEditorStore.getState().addImage,
-    addLottie: useEditorStore.getState().addLottie,
-  }));
+  addText: useEditorStore.getState().addText,
+  addRect: useEditorStore.getState().addRect,
+  addCircle: useEditorStore.getState().addCircle,
+  addImage: useEditorStore.getState().addImage,
+  addLottie: useEditorStore.getState().addLottie,
+
+  // ⭐️⭐️ זה החלק שחסר — חייבים אותו!
+  getStageJSON: () => {
+    if (!stageRef.current) return null;
+    const json = stageRef.current.toJSON();
+    console.log("🎨 CANVAS JSON EXPORTED:", JSON.parse(json));
+    return JSON.parse(json);
+  },
+}));
+
 
   /* ============================================================
      RENDER CANVAS (טלפון)
