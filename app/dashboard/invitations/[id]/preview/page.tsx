@@ -19,8 +19,13 @@ export default function InvitationPreviewPage({
 
         console.log("📦 DATA FROM SERVER:", data);
 
-        // ⭐ קריטי: לקחת רק data.invitation
-        setInvitation(data.invitation || null);
+        // ⭐⭐ קריטי — לוודא שהבקשה הצליחה
+        if (data.success && data.invitation) {
+          setInvitation(data.invitation);
+        } else {
+          // נתונים לא תקינים או קריאה אוטומטית של Next עם id=undefined
+          setInvitation(null);
+        }
       } catch (err) {
         console.error("❌ Error loading invitation:", err);
         setInvitation(null);
@@ -56,7 +61,6 @@ export default function InvitationPreviewPage({
       <div className="text-center">
         <h2 className="text-lg font-medium mb-3">כך ייראה לאורחים:</h2>
 
-        {/* ⭐ הגנה כדי לא לטעון iframe אם shareId לא קיים */}
         {shareId ? (
           <iframe
             key={shareId}
@@ -65,12 +69,12 @@ export default function InvitationPreviewPage({
           ></iframe>
         ) : (
           <div className="text-red-600 font-semibold">
-            ⚠ לא נמצא ShareId להזמנה. ייתכן שהשמירה לא החזירה נתונים מלאים.
+            ⚠ לא נמצא ShareId להזמנה — ייתכן שהשמירה לא החזירה נתונים מלאים.
           </div>
         )}
       </div>
 
-      {/* כפתור צפייה ציבורית */}
+      {/* כפתור לצפייה ציבורית */}
       {shareId && (
         <div className="mt-8">
           <Link
