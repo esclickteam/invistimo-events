@@ -6,13 +6,13 @@ export const dynamic = "force-dynamic"; // מבטל Cache של Next.js
 
 export async function GET(
   req: Request,
-  context: { params: { shareId: string } }
+  context: { params: Promise<{ shareId: string }> }  // ← חובה ב-Next.js 14
 ) {
   try {
     await db();
 
-    // ⛳ שליפת הפרמטר מתוך הנתיב
-    const { shareId } = context.params;
+    // ⛳ חובה! params הוא Promise → צריך await
+    const { shareId } = await context.params;
 
     console.log("📌 SHARE ID:", shareId);
 
