@@ -2,17 +2,16 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 
-export const dynamic = "force-dynamic"; // מבטל Cache של Next.js
+export const dynamic = "force-dynamic";
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ shareId: string }> }  // ← חובה ב-Next.js 14
+  { params }: { params: { shareId: string } }
 ) {
   try {
     await db();
 
-    // ⛳ חובה! params הוא Promise → צריך await
-    const { shareId } = await context.params;
+    const { shareId } = params;
 
     console.log("📌 SHARE ID:", shareId);
 
@@ -23,7 +22,6 @@ export async function GET(
       );
     }
 
-    // 🧩 חיפוש ההזמנה לפי shareId
     const invitation = await Invitation.findOne({ shareId }).populate("guests");
 
     if (!invitation) {
@@ -34,13 +32,11 @@ export async function GET(
       );
     }
 
-    // 🧹 הפיכת Mongoose Document ל-JSON נקי
-    const cleanInvite = JSON.parse(JSON.stringify(invitation));
-
-    console.log("✅ Invitation found:", cleanInvite._id);
-
     return NextResponse.json(
-      { success: true, invitation: cleanInvite },
+      {
+        success: true,
+        invitation: JSON.parse(JSON.stringify(invitation)),
+      },
       { status: 200 }
     );
   } catch (err) {
