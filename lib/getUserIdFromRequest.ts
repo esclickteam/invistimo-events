@@ -1,21 +1,14 @@
 import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
-export function getUserIdFromRequest(req: Request) {
+export async function getUserIdFromRequest() {
   try {
-    const cookie = req.headers.get("cookie");
-    if (!cookie) return null;
+    const cookieStore = await cookies(); // 👈 חובה await
 
-    // מפרקים את כל ה-cookies בצורה בטוחה
-    const cookiePairs = cookie.split(";").map((c) => c.trim());
-
-    // מחפשים את authToken או token
-    const rawToken = cookiePairs.find((c) =>
-      c.startsWith("authToken=") || c.startsWith("token=")
-    );
-    if (!rawToken) return null;
-
-    // כאן הטוקן יכול להכיל "=" — לכן משתמשים ב-slice ולא split("=")
-    const token = rawToken.slice(rawToken.indexOf("=") + 1);
+    const token =
+      cookieStore.get("authToken")?.value ||
+      cookieStore.get("token")?.value ||
+      null;
 
     if (!token) return null;
 
