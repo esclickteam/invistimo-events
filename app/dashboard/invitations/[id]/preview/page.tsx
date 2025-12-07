@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useParams } from "next/navigation"; // ✅ במקום props.params
 import Link from "next/link";
 
-// ⭐ טיפוס ל־params
-interface InvitationPageParams {
-  id: string;
-}
-
-// ⭐ טיפוס להזמנה עצמה
+/* -------------------------------------------------------------
+   טיפוס להזמנה
+------------------------------------------------------------- */
 interface InvitationData {
   _id: string;
   title: string;
@@ -16,21 +14,24 @@ interface InvitationData {
   canvasData: any;
 }
 
-export default function InvitationPreviewPage({
-  params,
-}: {
-  params: InvitationPageParams;
-}) {
-  console.log("🔍 PARAMS:", params);
+/* -------------------------------------------------------------
+   קומפוננטת התצוגה
+------------------------------------------------------------- */
+export default function InvitationPreviewPage() {
+  const params = useParams(); // 🔥 שולף את הנתיב מה-URL
+  const id = params?.id as string | undefined;
 
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* -------------------------------------------------------------
+     טעינת הנתונים
+  ------------------------------------------------------------- */
   useEffect(() => {
-    console.log("🚀 useEffect — params.id =", params.id);
+    console.log("🚀 useEffect — id =", id);
 
-    if (!params.id) {
-      console.warn("⚠ params.id is undefined!");
+    if (!id) {
+      console.warn("⚠ אין id בנתיב");
       setInvitation(null);
       setLoading(false);
       return;
@@ -38,11 +39,10 @@ export default function InvitationPreviewPage({
 
     async function fetchData() {
       try {
-        console.log(`🌐 Fetching → /api/invitations/${params.id}`);
+        console.log(`🌐 Fetching → /api/invitations/${id}`);
+        const res = await fetch(`/api/invitations/${id}`);
 
-        const res = await fetch(`/api/invitations/${params.id}`);
         console.log("📡 Status:", res.status);
-
         const data = await res.json();
         console.log("📦 DATA FROM SERVER:", data);
 
@@ -60,10 +60,11 @@ export default function InvitationPreviewPage({
     }
 
     fetchData();
-  }, [params.id]);
+  }, [id]);
 
-  // UI -------------------------------------------------------
-
+  /* -------------------------------------------------------------
+     UI
+  ------------------------------------------------------------- */
   if (loading)
     return <div className="p-10 text-center text-xl">טוען...</div>;
 
@@ -73,7 +74,7 @@ export default function InvitationPreviewPage({
         ❌ לא נמצאה הזמנה  
         <br />
         <span className="text-sm text-gray-500">
-          בדקי בקונסול מה הגיע ב־params.id
+          בדקי בקונסול מה הגיע ב־useParams()
         </span>
       </div>
     );
