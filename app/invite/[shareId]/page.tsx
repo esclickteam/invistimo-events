@@ -8,6 +8,8 @@ export default function PublicInvitePage({
 }: {
   params: { shareId: string };
 }) {
+  console.log("📌 Component Mounted — params:", params);
+
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
@@ -24,17 +26,23 @@ export default function PublicInvitePage({
       📦 טעינת נתוני ההזמנה לפי shareId
   ============================================================ */
   useEffect(() => {
+    console.log("🔄 useEffect Triggered — shareId:", params?.shareId);
+
     async function fetchData() {
       try {
-        console.log("🔍 useEffect – shareId =", params.shareId);
+        if (!params?.shareId) {
+          console.error("❌ ERROR — shareId is undefined!");
+        }
 
         const url = `/api/invite/${params.shareId}`;
-        console.log("📩 Fetching →", url);
+        console.log("🌐 Fetching URL →", url);
 
         const res = await fetch(url);
 
+        console.log("📥 Server Response Status:", res.status, res.statusText);
+
         if (!res.ok) {
-          console.error("❌ SERVER returned:", res.status, res.statusText);
+          console.error("❌ SERVER returned error:", res.status);
           setInvite(null);
           return;
         }
@@ -43,8 +51,18 @@ export default function PublicInvitePage({
         console.log("📦 DATA FROM SERVER:", data);
 
         if (data.success && data.invitation) {
+          console.log("✅ Invitation Loaded:", data.invitation);
+
+          console.log(
+            "🎨 canvasData Type:",
+            typeof data.invitation.canvasData,
+            "Value:",
+            data.invitation.canvasData
+          );
+
           setInvite(data.invitation);
         } else {
+          console.warn("⚠ No invitation found in API response");
           setInvite(null);
         }
       } catch (err) {
@@ -59,7 +77,7 @@ export default function PublicInvitePage({
   }, [params.shareId]);
 
   /* ============================================================
-      📨 שליחת תשובת אורח
+      📨 שליחת RSVP
   ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,6 +88,8 @@ export default function PublicInvitePage({
     }
 
     try {
+      console.log("📤 Sending RSVP →", selectedGuest._id, form);
+
       const res = await fetch(
         `/api/invitationGuests/${selectedGuest._id}/respond`,
         {
@@ -80,6 +100,7 @@ export default function PublicInvitePage({
       );
 
       const data = await res.json();
+
       console.log("📤 RSVP RESPONSE:", data);
 
       if (data.success) setSent(true);
@@ -102,27 +123,45 @@ export default function PublicInvitePage({
     );
 
   /* ============================================================
+      🎨 לוגים לפני רינדור אמיתי
+  ============================================================ */
+  console.log("🎯 Rendering Page — invite.title:", invite.title);
+  console.log("🎨 canvasData before render:", invite.canvasData);
+
+  /* ============================================================
       🎨 רינדור דף ההזמנה
   ============================================================ */
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
       <h1 className="text-3xl font-bold mb-4 text-center">{invite.title}</h1>
 
-      {/* תצוגת קנבס - רינדור אמיתי */}
+      {/* תצוגה גרפית של ההזמנה */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8 flex justify-center">
         {invite?.canvasData ? (
-          <PublicInviteRenderer canvasData={invite.canvasData} />
+          <>
+            {console.log(
+              "🚀 Sending canvasData to Renderer:",
+              invite.canvasData
+            )}
+
+            <PublicInviteRenderer canvasData={invite.canvasData} />
+          </>
         ) : (
-          <div className="text-gray-400 text-center">אין נתוני עיצוב להצגה</div>
+          <div className="text-gray-400 text-center">
+            אין נתוני עיצוב להצגה
+          </div>
         )}
       </div>
 
-      {/* טופס אורחים ● לא נגעתי בו */}
+      {/* טופס אורחים */}
       {!sent ? (
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-md bg-white rounded-xl shadow p-6 flex flex-col gap-4"
         >
+          {/* ============================
+              בחירת אורח
+          ============================= */}
           <label className="text-gray-700">בחר את שמך:</label>
           <select
             className="border rounded p-2"
@@ -146,6 +185,9 @@ export default function PublicInvitePage({
             )}
           </select>
 
+          {/* ============================
+              האם מגיעים?
+          ============================= */}
           <label className="text-gray-700">מגיעים?</label>
           <div className="flex gap-3">
             <button
@@ -159,6 +201,7 @@ export default function PublicInvitePage({
             >
               מגיע
             </button>
+
             <button
               type="button"
               onClick={() => setForm({ ...form, rsvp: "no" })}
@@ -172,6 +215,9 @@ export default function PublicInvitePage({
             </button>
           </div>
 
+          {/* ============================
+              מספר מוזמנים
+          ============================= */}
           <label className="text-gray-700">כמה אנשים יגיעו:</label>
           <input
             type="number"
@@ -183,6 +229,9 @@ export default function PublicInvitePage({
             className="border rounded p-2"
           />
 
+          {/* ============================
+              הערות
+          ============================= */}
           <label className="text-gray-700">בקשות מיוחדות / הערות:</label>
           <textarea
             value={form.notes}
