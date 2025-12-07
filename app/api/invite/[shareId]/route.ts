@@ -6,12 +6,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: Request,
-  { params }: { params: { shareId: string } }
+  context: { params: { shareId: string } }
 ) {
   try {
     await db();
 
-    const { shareId } = params;
+    const shareId = context.params.shareId;
 
     console.log("📌 SHARE ID:", shareId);
 
@@ -25,7 +25,6 @@ export async function GET(
     const invitation = await Invitation.findOne({ shareId }).populate("guests");
 
     if (!invitation) {
-      console.warn("⚠️ Invitation not found for shareId:", shareId);
       return NextResponse.json(
         { error: "Invitation not found" },
         { status: 404 }
@@ -33,14 +32,11 @@ export async function GET(
     }
 
     return NextResponse.json(
-      {
-        success: true,
-        invitation: JSON.parse(JSON.stringify(invitation)),
-      },
+      { success: true, invitation: JSON.parse(JSON.stringify(invitation)) },
       { status: 200 }
     );
   } catch (err) {
-    console.error("❌ Error in GET /api/invite/[shareId]:", err);
+    console.error("❌ API ERROR:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
