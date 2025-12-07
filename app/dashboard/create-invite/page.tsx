@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
 import Toolbar from "./Toolbar";
-import { useEditorStore } from "./editorStore";
 import { useRouter } from "next/navigation";
 
 const queryClient = new QueryClient();
@@ -15,28 +14,37 @@ export default function CreateInvitePage() {
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
-  const objects = useEditorStore((s) => s.objects);
 
   /* ===========================================================
-     SAVE INVITATION — תיקון מלא כולל credentials: "include"
+      SAVE INVITATION — ייצוא JSON מלא של הקנבס
   ============================================================ */
   const handleSave = async () => {
     try {
       setSaving(true);
+
+      if (!canvasRef.current || !canvasRef.current.getStageJSON) {
+        alert("❌ הקנבס לא מוכן לייצוא. בדקי ש-EditorCanvas תומך ב-getStageJSON()");
+        return;
+      }
+
+      // ⭐ ייצוא מלא של הקנבס (כולל כל ה־Objects)
+      const canvasJSON = canvasRef.current.getStageJSON();
+      console.log("🎨 EXPORTED CANVAS JSON:", canvasJSON);
 
       const res = await fetch("/api/invitations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // ⬅⬅⬅ חובה! שולח את ה-cookie לשרת
+        credentials: "include",
         body: JSON.stringify({
           title: "ההזמנה שלי 🎉",
-          canvasData: objects,
+          canvasData: canvasJSON,
         }),
       });
 
       const data = await res.json();
+      console.log("📡 SERVER RESPONSE:", data);
 
       if (data.success) {
         alert("✅ ההזמנה נשמרה בהצלחה!");
@@ -45,7 +53,7 @@ export default function CreateInvitePage() {
         alert("❌ שגיאה: " + data.error);
       }
     } catch (err) {
-      console.error(err);
+      console.error("❌ Error saving invitation:", err);
       alert("❌ שגיאת שרת בשמירה");
     } finally {
       setSaving(false);
@@ -57,15 +65,15 @@ export default function CreateInvitePage() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex h-screen bg-gray-100">
-        
         {/* Sidebar */}
         <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
 
         {/* Editor */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <Toolbar />
-          
+
           <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+            {/* ⭐ onSelect חובה בקומפוננטה הזו */}
             <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
           </div>
 
