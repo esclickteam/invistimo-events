@@ -8,7 +8,12 @@ export async function GET(req: Request, context: any) {
   try {
     await db();
 
-    const shareId = context?.params?.shareId;
+    // ⭐⭐ תיקון קריטי: context.params יכול להיות Promise
+    const params = await context.params;
+    const shareId = params?.shareId;
+
+    console.log("📌 SHARE ID:", shareId);
+
     if (!shareId) {
       return NextResponse.json(
         { error: "Missing shareId" },
@@ -25,7 +30,13 @@ export async function GET(req: Request, context: any) {
       );
     }
 
-    return NextResponse.json(invitation, { status: 200 });
+    // ⭐⭐ החזרת JSON נקי כדי למנוע undefined בצד הלקוח
+    const cleanInvite = JSON.parse(JSON.stringify(invitation));
+
+    return NextResponse.json(
+      { success: true, invitation: cleanInvite },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("❌ Error in GET /api/invite/[shareId]:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

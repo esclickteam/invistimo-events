@@ -2,21 +2,21 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { nanoid } from "nanoid";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";  // נתיב נכון
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export async function POST(req: Request) {
   try {
     await db();
 
-    // ✅ קריאה נכונה לפונקציה (חובה await ולא מעבירים req!)
+    // ✔️ זיהוי משתמש
     const userId = await getUserIdFromRequest();
-
     console.log("USER ID →", userId);
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // ✔️ קבלת גוף הבקשה
     const body = await req.json();
     const { title, canvasData } = body;
 
@@ -27,9 +27,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✔️ יצירת shareId אקראי
     const shareId = nanoid(10);
 
-    // יצירת ההזמנה
+    // ✔️ יצירת מסמך במונגו
     const newInvite = await Invitation.create({
       ownerId: userId,
       title: title || "Untitled Invitation",
@@ -37,11 +38,16 @@ export async function POST(req: Request) {
       shareId,
     });
 
+    // ⭐⭐ חשוב מאוד:
+    // Mongoose Document → JSON נקי, כדי למנוע undefined בצד לקוח
+    const cleanInvite = JSON.parse(JSON.stringify(newInvite));
+
+    console.log("🔥 NEW INVITATION CREATED:", cleanInvite);
+
     return NextResponse.json(
-      { success: true, invitation: newInvite },
+      { success: true, invitation: cleanInvite },
       { status: 201 }
     );
-
   } catch (err) {
     console.error("❌ Error creating invitation:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

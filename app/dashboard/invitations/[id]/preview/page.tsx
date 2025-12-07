@@ -19,7 +19,7 @@ export default function InvitationPreviewPage({
 
         console.log("📦 DATA FROM SERVER:", data);
 
-        // ⭐⭐ תיקון קריטי: לוקחים רק data.invitation
+        // ⭐ קריטי: לקחת רק data.invitation
         setInvitation(data.invitation || null);
       } catch (err) {
         console.error("❌ Error loading invitation:", err);
@@ -28,11 +28,17 @@ export default function InvitationPreviewPage({
         setLoading(false);
       }
     }
+
     fetchData();
   }, [params.id]);
 
-  if (loading) return <div className="p-10 text-center">טוען...</div>;
-  if (!invitation) return <div className="p-10 text-center">לא נמצאה הזמנה</div>;
+  if (loading)
+    return <div className="p-10 text-center text-xl">טוען...</div>;
+
+  if (!invitation)
+    return <div className="p-10 text-center text-xl">לא נמצאה הזמנה</div>;
+
+  const shareId = invitation?.shareId;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
@@ -41,7 +47,7 @@ export default function InvitationPreviewPage({
 
       {/* תצוגת הקאנבס ששמרת */}
       <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10">
-        <pre className="text-gray-600 text-sm overflow-auto">
+        <pre className="text-gray-600 text-sm overflow-auto whitespace-pre-wrap">
           {JSON.stringify(invitation?.canvasData, null, 2)}
         </pre>
       </div>
@@ -49,21 +55,33 @@ export default function InvitationPreviewPage({
       {/* תצוגת עמוד האורחים */}
       <div className="text-center">
         <h2 className="text-lg font-medium mb-3">כך ייראה לאורחים:</h2>
-        <iframe
-          src={`/invite/${invitation?.shareId}`}
-          className="w-[400px] h-[600px] border rounded-xl shadow"
-        ></iframe>
+
+        {/* ⭐ הגנה כדי לא לטעון iframe אם shareId לא קיים */}
+        {shareId ? (
+          <iframe
+            key={shareId}
+            src={`/invite/${shareId}`}
+            className="w-[400px] h-[600px] border rounded-xl shadow"
+          ></iframe>
+        ) : (
+          <div className="text-red-600 font-semibold">
+            ⚠ לא נמצא ShareId להזמנה. ייתכן שהשמירה לא החזירה נתונים מלאים.
+          </div>
+        )}
       </div>
 
-      <div className="mt-8">
-        <Link
-          href={`/invite/${invitation?.shareId}`}
-          target="_blank"
-          className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
-        >
-          צפי בעמוד הציבורי
-        </Link>
-      </div>
+      {/* כפתור צפייה ציבורית */}
+      {shareId && (
+        <div className="mt-8">
+          <Link
+            href={`/invite/${shareId}`}
+            target="_blank"
+            className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
+          >
+            צפי בעמוד הציבורי
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
