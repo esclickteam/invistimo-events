@@ -3,13 +3,10 @@
 import { useState, useEffect } from "react";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 
-export default function PublicInvitePage({
-  params,
-}: {
-  params: { shareId: string };
-}) {
-  console.log("📌 Component Mounted — params:", params);
+export default function PublicInvitePage({ params }: any) {
+  console.log("📌 Component Mounted — RAW params:", params);
 
+  const [shareId, setShareId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
@@ -23,18 +20,35 @@ export default function PublicInvitePage({
   const [sent, setSent] = useState(false);
 
   /* ============================================================
-      📦 טעינת נתוני ההזמנה לפי shareId
+     🟦 שלב 1 — FIX קריטי: params הוא PROMISE → חייבים await
   ============================================================ */
   useEffect(() => {
-    console.log("🔄 useEffect Triggered — shareId:", params?.shareId);
+    async function unwrapParams() {
+      console.log("🌀 RAW params before await:", params);
+
+      const resolved = await params; // 👈 זה היה חסר!!
+      console.log("🎯 Resolved params:", resolved);
+
+      setShareId(resolved.shareId);
+    }
+
+    unwrapParams();
+  }, [params]);
+
+  /* ============================================================
+     🟦 שלב 2 — טעינת נתוני ההזמנה לאחר שה-shareId מוכן
+  ============================================================ */
+  useEffect(() => {
+    if (!shareId) {
+      console.log("⏳ shareId עדיין לא נטען...");
+      return;
+    }
+
+    console.log("🔄 useEffect Triggered — shareId:", shareId);
 
     async function fetchData() {
       try {
-        if (!params?.shareId) {
-          console.error("❌ ERROR — shareId is undefined!");
-        }
-
-        const url = `/api/invite/${params.shareId}`;
+        const url = `/api/invite/${shareId}`;
         console.log("🌐 Fetching URL →", url);
 
         const res = await fetch(url);
@@ -51,15 +65,6 @@ export default function PublicInvitePage({
         console.log("📦 DATA FROM SERVER:", data);
 
         if (data.success && data.invitation) {
-          console.log("✅ Invitation Loaded:", data.invitation);
-
-          console.log(
-            "🎨 canvasData Type:",
-            typeof data.invitation.canvasData,
-            "Value:",
-            data.invitation.canvasData
-          );
-
           setInvite(data.invitation);
         } else {
           console.warn("⚠ No invitation found in API response");
@@ -74,10 +79,10 @@ export default function PublicInvitePage({
     }
 
     fetchData();
-  }, [params.shareId]);
+  }, [shareId]);
 
   /* ============================================================
-      📨 שליחת RSVP
+     📨 שליחת RSVP
   ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,8 +93,6 @@ export default function PublicInvitePage({
     }
 
     try {
-      console.log("📤 Sending RSVP →", selectedGuest._id, form);
-
       const res = await fetch(
         `/api/invitationGuests/${selectedGuest._id}/respond`,
         {
@@ -101,8 +104,6 @@ export default function PublicInvitePage({
 
       const data = await res.json();
 
-      console.log("📤 RSVP RESPONSE:", data);
-
       if (data.success) setSent(true);
     } catch (err) {
       console.error("❌ Error sending RSVP:", err);
@@ -110,7 +111,7 @@ export default function PublicInvitePage({
   }
 
   /* ============================================================
-      🕒 Loading / Error
+     🕒 Loading / Error
   ============================================================ */
   if (loading)
     return <div className="p-10 text-center text-xl">טוען הזמנה...</div>;
@@ -123,29 +124,15 @@ export default function PublicInvitePage({
     );
 
   /* ============================================================
-      🎨 לוגים לפני רינדור אמיתי
-  ============================================================ */
-  console.log("🎯 Rendering Page — invite.title:", invite.title);
-  console.log("🎨 canvasData before render:", invite.canvasData);
-
-  /* ============================================================
-      🎨 רינדור דף ההזמנה
+     🎨 רינדור ההזמנה האמיתית
   ============================================================ */
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
       <h1 className="text-3xl font-bold mb-4 text-center">{invite.title}</h1>
 
-      {/* תצוגה גרפית של ההזמנה */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8 flex justify-center">
         {invite?.canvasData ? (
-          <>
-            {console.log(
-              "🚀 Sending canvasData to Renderer:",
-              invite.canvasData
-            )}
-
-            <PublicInviteRenderer canvasData={invite.canvasData} />
-          </>
+          <PublicInviteRenderer canvasData={invite.canvasData} />
         ) : (
           <div className="text-gray-400 text-center">
             אין נתוני עיצוב להצגה
@@ -153,15 +140,14 @@ export default function PublicInvitePage({
         )}
       </div>
 
-      {/* טופס אורחים */}
+      {/* ---------------------------------------------------------
+         טופס אורחים
+      --------------------------------------------------------- */}
       {!sent ? (
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-md bg-white rounded-xl shadow p-6 flex flex-col gap-4"
         >
-          {/* ============================
-              בחירת אורח
-          ============================= */}
           <label className="text-gray-700">בחר את שמך:</label>
           <select
             className="border rounded p-2"
@@ -185,9 +171,6 @@ export default function PublicInvitePage({
             )}
           </select>
 
-          {/* ============================
-              האם מגיעים?
-          ============================= */}
           <label className="text-gray-700">מגיעים?</label>
           <div className="flex gap-3">
             <button
@@ -215,9 +198,6 @@ export default function PublicInvitePage({
             </button>
           </div>
 
-          {/* ============================
-              מספר מוזמנים
-          ============================= */}
           <label className="text-gray-700">כמה אנשים יגיעו:</label>
           <input
             type="number"
@@ -229,9 +209,6 @@ export default function PublicInvitePage({
             className="border rounded p-2"
           />
 
-          {/* ============================
-              הערות
-          ============================= */}
           <label className="text-gray-700">בקשות מיוחדות / הערות:</label>
           <textarea
             value={form.notes}
