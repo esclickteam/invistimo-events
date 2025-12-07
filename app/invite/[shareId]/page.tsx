@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 
 export default function PublicInvitePage({
   params,
 }: {
-  params: { shareId: string }; // ✔ תואם לשם התיקייה [shareId]
+  params: { shareId: string };
 }) {
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ export default function PublicInvitePage({
   const [sent, setSent] = useState(false);
 
   /* ============================================================
-     📦 טעינת נתוני ההזמנה לפי shareId
+      📦 טעינת נתוני ההזמנה לפי shareId
   ============================================================ */
   useEffect(() => {
     async function fetchData() {
@@ -58,7 +59,7 @@ export default function PublicInvitePage({
   }, [params.shareId]);
 
   /* ============================================================
-     📨 שליחת תשובת אורח
+      📨 שליחת תשובת אורח
   ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,7 +89,7 @@ export default function PublicInvitePage({
   }
 
   /* ============================================================
-     🕒 מצבים שונים
+      🕒 Loading / Error
   ============================================================ */
   if (loading)
     return <div className="p-10 text-center text-xl">טוען הזמנה...</div>;
@@ -101,30 +102,27 @@ export default function PublicInvitePage({
     );
 
   /* ============================================================
-     🎨 רינדור דף ההזמנה
+      🎨 רינדור דף ההזמנה
   ============================================================ */
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
       <h1 className="text-3xl font-bold mb-4 text-center">{invite.title}</h1>
 
-      {/* תצוגת קנבס */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
+      {/* תצוגת קנבס - רינדור אמיתי */}
+      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8 flex justify-center">
         {invite?.canvasData ? (
-          <pre className="text-sm text-gray-600 overflow-auto whitespace-pre-wrap">
-            {JSON.stringify(invite.canvasData, null, 2)}
-          </pre>
+          <PublicInviteRenderer canvasData={invite.canvasData} />
         ) : (
           <div className="text-gray-400 text-center">אין נתוני עיצוב להצגה</div>
         )}
       </div>
 
-      {/* טופס אורחים */}
+      {/* טופס אורחים ● לא נגעתי בו */}
       {!sent ? (
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-md bg-white rounded-xl shadow p-6 flex flex-col gap-4"
         >
-          {/* בחירת אורח */}
           <label className="text-gray-700">בחר את שמך:</label>
           <select
             className="border rounded p-2"
@@ -148,7 +146,6 @@ export default function PublicInvitePage({
             )}
           </select>
 
-          {/* מגיע / לא מגיע */}
           <label className="text-gray-700">מגיעים?</label>
           <div className="flex gap-3">
             <button
@@ -175,7 +172,6 @@ export default function PublicInvitePage({
             </button>
           </div>
 
-          {/* מספר אורחים */}
           <label className="text-gray-700">כמה אנשים יגיעו:</label>
           <input
             type="number"
@@ -187,7 +183,6 @@ export default function PublicInvitePage({
             className="border rounded p-2"
           />
 
-          {/* הערות */}
           <label className="text-gray-700">בקשות מיוחדות / הערות:</label>
           <textarea
             value={form.notes}
