@@ -5,10 +5,17 @@ export function getUserIdFromRequest(req: Request) {
     const cookie = req.headers.get("cookie");
     if (!cookie) return null;
 
-    const token = cookie
-      .split(";")
-      .find((c) => c.trim().startsWith("token="))
-      ?.split("=")[1];
+    // מפרקים את כל ה-cookies בצורה בטוחה
+    const cookiePairs = cookie.split(";").map((c) => c.trim());
+
+    // מחפשים את authToken או token
+    const rawToken = cookiePairs.find((c) =>
+      c.startsWith("authToken=") || c.startsWith("token=")
+    );
+    if (!rawToken) return null;
+
+    // כאן הטוקן יכול להכיל "=" — לכן משתמשים ב-slice ולא split("=")
+    const token = rawToken.slice(rawToken.indexOf("=") + 1);
 
     if (!token) return null;
 
