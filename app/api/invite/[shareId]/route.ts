@@ -6,12 +6,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: Request,
-  context: { params: { shareId: string } }
+  context: { params: Promise<{ shareId: string }> } // 👈 חובה Promise
 ) {
   try {
     await db();
 
-    const shareId = context.params.shareId;
+    const { shareId } = await context.params; // 👈 חובה await
 
     console.log("📌 SHARE ID:", shareId);
 
