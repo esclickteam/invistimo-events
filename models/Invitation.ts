@@ -14,11 +14,11 @@ const InvitationSchema = new Schema(
     previewImage: { type: String },               // תמונה להצגה מהירה
     shareId: { type: String, unique: true },      // קישור ציבורי להזמנה
 
-    // ⭐ חדש — קישור לרשימת האורחים
+    // ⭐ קישור לרשימת האורחים (מותאם למודל שלך)
     guests: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Guest",
+        ref: "InvitationGuest",
       },
     ],
   },
