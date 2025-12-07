@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 export default function PublicInvitePage({
   params,
 }: {
-  params: { shareId: string };
+  params: { shareid: string }; // ✅ תואם לשם התיקייה [shareid]
 }) {
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -18,13 +18,17 @@ export default function PublicInvitePage({
   const [sent, setSent] = useState(false);
 
   /* ============================================================
-     📦 טעינת נתוני ההזמנה לפי shareId
+     📦 טעינת נתוני ההזמנה לפי shareid
   ============================================================ */
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`/api/invite/${params.shareId}`);
+        console.log("📩 Fetching →", `/api/invite/${params.shareid}`);
+
+        const res = await fetch(`/api/invite/${params.shareid}`);
         const data = await res.json();
+
+        console.log("📦 DATA FROM SERVER:", data);
 
         if (data.success && data.invitation) {
           setInvite(data.invitation);
@@ -40,7 +44,7 @@ export default function PublicInvitePage({
     }
 
     fetchData();
-  }, [params.shareId]);
+  }, [params.shareid]); // ✅ שם תואם גם כאן
 
   /* ============================================================
      📨 שליחת תשובת אורח
