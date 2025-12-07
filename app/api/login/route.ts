@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       );
 
     const token = jwt.sign(
-      { id: user._id, email: user.email },
+      { userId: user._id, email: user.email },
       process.env.JWT_SECRET!,
       { expiresIn: "7d" }
     );
@@ -34,6 +34,7 @@ export async function POST(req: Request) {
     res.cookies.set("authToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "none",     // ⬅⬅⬅ חובה ב-Vercel !!!
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });

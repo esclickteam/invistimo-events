@@ -17,12 +17,19 @@ export default function CreateInvitePage() {
   const router = useRouter();
   const objects = useEditorStore((s) => s.objects);
 
+  /* ===========================================================
+     SAVE INVITATION — תיקון מלא כולל credentials: "include"
+  ============================================================ */
   const handleSave = async () => {
     try {
       setSaving(true);
+
       const res = await fetch("/api/invitations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // ⬅⬅⬅ חובה! שולח את ה-cookie לשרת
         body: JSON.stringify({
           title: "ההזמנה שלי 🎉",
           canvasData: objects,
@@ -30,6 +37,7 @@ export default function CreateInvitePage() {
       });
 
       const data = await res.json();
+
       if (data.success) {
         alert("✅ ההזמנה נשמרה בהצלחה!");
         router.push(`/dashboard/invitations/${data.invitation._id}/preview`);
@@ -49,17 +57,19 @@ export default function CreateInvitePage() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex h-screen bg-gray-100">
+        
         {/* Sidebar */}
         <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
 
         {/* Editor */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <Toolbar />
+          
           <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
             <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
           </div>
 
-          {/* כפתור שמירה - מופרד לגמרי מהקנבס */}
+          {/* Save Button */}
           <div className="p-4 bg-white border-t text-right">
             <button
               onClick={handleSave}

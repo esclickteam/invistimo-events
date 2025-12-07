@@ -3,13 +3,14 @@ import { cookies } from "next/headers";
 
 export async function getUserIdFromRequest() {
   try {
-    const cookieStore = await cookies(); // ✔ אצלך זה Promise
+    // ✔ אצלך cookies() מחזיר Promise
+    const cookieStore = await cookies();
 
-    console.log("🔥 SERVER COOKIES:", await cookieStore.getAll());
+    console.log("🔥 SERVER COOKIES:", cookieStore.getAll());
 
     const token =
-      (await cookieStore.get("authToken"))?.value ||
-      (await cookieStore.get("token"))?.value ||
+      cookieStore.get("authToken")?.value ||
+      cookieStore.get("token")?.value ||
       null;
 
     console.log("🔑 TOKEN FOUND:", token ? "YES" : "NO");
@@ -20,7 +21,8 @@ export async function getUserIdFromRequest() {
 
     console.log("🧩 DECODED JWT:", decoded);
 
-    return decoded.userId || null;
+    // אצלך ה-JWT מכיל id ולא userId
+    return decoded.id || decoded.userId || null;
 
   } catch (err) {
     console.error("❌ JWT decode error:", err);
