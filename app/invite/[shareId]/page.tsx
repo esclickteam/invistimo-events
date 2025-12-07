@@ -5,29 +5,40 @@ import { useState, useEffect } from "react";
 export default function PublicInvitePage({
   params,
 }: {
-  params: { shareid: string }; // ✅ תואם לשם התיקייה [shareid]
+  params: { shareId: string }; // ✔ תואם לשם התיקייה [shareId]
 }) {
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
+
   const [form, setForm] = useState({
     rsvp: "pending",
     guestsCount: 1,
     notes: "",
   });
+
   const [sent, setSent] = useState(false);
 
   /* ============================================================
-     📦 טעינת נתוני ההזמנה לפי shareid
+     📦 טעינת נתוני ההזמנה לפי shareId
   ============================================================ */
   useEffect(() => {
     async function fetchData() {
       try {
-        console.log("📩 Fetching →", `/api/invite/${params.shareid}`);
+        console.log("🔍 useEffect – shareId =", params.shareId);
 
-        const res = await fetch(`/api/invite/${params.shareid}`);
+        const url = `/api/invite/${params.shareId}`;
+        console.log("📩 Fetching →", url);
+
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          console.error("❌ SERVER returned:", res.status, res.statusText);
+          setInvite(null);
+          return;
+        }
+
         const data = await res.json();
-
         console.log("📦 DATA FROM SERVER:", data);
 
         if (data.success && data.invitation) {
@@ -44,7 +55,7 @@ export default function PublicInvitePage({
     }
 
     fetchData();
-  }, [params.shareid]); // ✅ שם תואם גם כאן
+  }, [params.shareId]);
 
   /* ============================================================
      📨 שליחת תשובת אורח
@@ -68,6 +79,8 @@ export default function PublicInvitePage({
       );
 
       const data = await res.json();
+      console.log("📤 RSVP RESPONSE:", data);
+
       if (data.success) setSent(true);
     } catch (err) {
       console.error("❌ Error sending RSVP:", err);
@@ -75,39 +88,43 @@ export default function PublicInvitePage({
   }
 
   /* ============================================================
-     🕒 מצבים שונים של טעינה / שגיאה
+     🕒 מצבים שונים
   ============================================================ */
-  if (loading) return <div className="p-10 text-center">טוען הזמנה...</div>;
+  if (loading)
+    return <div className="p-10 text-center text-xl">טוען הזמנה...</div>;
+
   if (!invite)
-    return <div className="p-10 text-center">❌ ההזמנה לא נמצאה.</div>;
+    return (
+      <div className="p-10 text-center text-xl text-red-600">
+        ❌ ההזמנה לא נמצאה.
+      </div>
+    );
 
   /* ============================================================
-     🎨 רינדור הדף הציבורי להזמנה
+     🎨 רינדור דף ההזמנה
   ============================================================ */
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
       <h1 className="text-3xl font-bold mb-4 text-center">{invite.title}</h1>
 
-      {/* אזור תצוגת הקנבס שנשמר בעורך */}
+      {/* תצוגת קנבס */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
         {invite?.canvasData ? (
           <pre className="text-sm text-gray-600 overflow-auto whitespace-pre-wrap">
             {JSON.stringify(invite.canvasData, null, 2)}
           </pre>
         ) : (
-          <div className="text-gray-400 text-center">
-            אין נתוני עיצוב להצגה
-          </div>
+          <div className="text-gray-400 text-center">אין נתוני עיצוב להצגה</div>
         )}
       </div>
 
-      {/* טופס תשובת אורח */}
+      {/* טופס אורחים */}
       {!sent ? (
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-md bg-white rounded-xl shadow p-6 flex flex-col gap-4"
         >
-          {/* רשימת אורחים */}
+          {/* בחירת אורח */}
           <label className="text-gray-700">בחר את שמך:</label>
           <select
             className="border rounded p-2"
@@ -119,6 +136,7 @@ export default function PublicInvitePage({
             }
           >
             <option value="">בחר מהרשימה</option>
+
             {invite?.guests?.length ? (
               invite.guests.map((g: any) => (
                 <option key={g._id} value={g._id}>
@@ -130,7 +148,7 @@ export default function PublicInvitePage({
             )}
           </select>
 
-          {/* כפתורי מגיע / לא מגיע */}
+          {/* מגיע / לא מגיע */}
           <label className="text-gray-700">מגיעים?</label>
           <div className="flex gap-3">
             <button
@@ -157,7 +175,7 @@ export default function PublicInvitePage({
             </button>
           </div>
 
-          {/* מספר מוזמנים */}
+          {/* מספר אורחים */}
           <label className="text-gray-700">כמה אנשים יגיעו:</label>
           <input
             type="number"

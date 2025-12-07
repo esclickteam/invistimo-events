@@ -2,37 +2,39 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 
-export const dynamic = "force-dynamic"; // מבטל cache של Next.js
+export const dynamic = "force-dynamic"; // מבטל Cache של Next.js
 
-export async function GET(req: Request, context: any) {
+export async function GET(
+  req: Request,
+  context: { params: { shareId: string } }
+) {
   try {
     await db();
 
-    // ⭐ context.params יכול להיות Promise, לכן נמתין
-    const params = await context.params;
-    const shareid = params?.shareid; // ✅ תואם בדיוק לשם התיקייה שלך [shareid]
+    // ⛳ שליפת הפרמטר מתוך הנתיב
+    const { shareId } = context.params;
 
-    console.log("📌 SHARE ID:", shareid);
+    console.log("📌 SHARE ID:", shareId);
 
-    if (!shareid) {
+    if (!shareId) {
       return NextResponse.json(
-        { error: "Missing shareid in URL" },
+        { error: "Missing shareId in URL" },
         { status: 400 }
       );
     }
 
-    // 🧩 חיפוש ההזמנה לפי shareid
-    const invitation = await Invitation.findOne({ shareId: shareid }).populate("guests");
+    // 🧩 חיפוש ההזמנה לפי shareId
+    const invitation = await Invitation.findOne({ shareId }).populate("guests");
 
     if (!invitation) {
-      console.warn("⚠️ Invitation not found for shareid:", shareid);
+      console.warn("⚠️ Invitation not found for shareId:", shareId);
       return NextResponse.json(
         { error: "Invitation not found" },
         { status: 404 }
       );
     }
 
-    // 🧹 המרה ל-JSON נקי
+    // 🧹 הפיכת Mongoose Document ל-JSON נקי
     const cleanInvite = JSON.parse(JSON.stringify(invitation));
 
     console.log("✅ Invitation found:", cleanInvite._id);
@@ -42,7 +44,7 @@ export async function GET(req: Request, context: any) {
       { status: 200 }
     );
   } catch (err) {
-    console.error("❌ Error in GET /api/invite/[shareid]:", err);
+    console.error("❌ Error in GET /api/invite/[shareId]:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
