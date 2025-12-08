@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
-import Guest from "@/models/Guest";
+import InvitationGuest from "@/models/InvitationGuest";
 
 export const dynamic = "force-dynamic"; // מבטל cache של Next.js
 
@@ -9,6 +9,7 @@ export async function POST(request: Request, context: any) {
     await db();
 
     const guestId = context?.params?.guestId;
+
     if (!guestId) {
       return NextResponse.json(
         { error: "Missing guestId in request" },
@@ -19,9 +20,9 @@ export async function POST(request: Request, context: any) {
     const body = await request.json();
     const { rsvp, guestsCount, notes } = body;
 
-    // -------------------------------
-    // 🔎 ולידציה בסיסית
-    // -------------------------------
+    /* -------------------------------
+       🔎 ולידציה בסיסית
+    -------------------------------- */
     if (!rsvp || !["yes", "no", "pending"].includes(rsvp)) {
       return NextResponse.json(
         { error: "Invalid RSVP value" },
@@ -29,21 +30,21 @@ export async function POST(request: Request, context: any) {
       );
     }
 
-    // אם האורח סימן "לא מגיע" – לא צריך guestsCount
+    // אם סימן "לא מגיע" — כמות אורחים = 0
     let validatedGuestsCount = guestsCount;
     if (rsvp === "no") {
       validatedGuestsCount = 0;
     } else {
-      // במקרה של "מגיע"
+      // אם סימן "מגיע" ודיווח 0 — נדרש מינימום 1
       if (!validatedGuestsCount || validatedGuestsCount < 1) {
         validatedGuestsCount = 1;
       }
     }
 
-    // -------------------------------
-    // 🔧 עדכון האורח
-    // -------------------------------
-    const updatedGuest = await Guest.findByIdAndUpdate(
+    /* -------------------------------
+       🔧 עדכון אורח בהזמנה
+    -------------------------------- */
+    const updatedGuest = await InvitationGuest.findByIdAndUpdate(
       guestId,
       {
         rsvp,
@@ -69,6 +70,7 @@ export async function POST(request: Request, context: any) {
       },
       { status: 200 }
     );
+
   } catch (err) {
     console.error("❌ Error updating RSVP:", err);
     return NextResponse.json(

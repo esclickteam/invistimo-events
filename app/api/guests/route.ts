@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
-import Guest from "@/models/Guest";
+import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
@@ -17,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ guests: [] });
     }
 
-    // פלט כל ההזמנות של המשתמש
+    // שליפת כל ההזמנות של המשתמש
     const invitations = await Invitation.find({ ownerId: userId }).select("_id");
 
     if (!invitations.length) {
@@ -27,12 +27,13 @@ export async function GET() {
 
     const ids = invitations.map((i) => i._id);
 
-    // שליפת כל האורחים לכל ההזמנות
-    const guests = await Guest.find({
+    // שליפת כל האורחים לפי כל ההזמנות
+    const guests = await InvitationGuest.find({
       invitationId: { $in: ids },
     }).sort({ createdAt: -1 });
 
     return NextResponse.json({ guests });
+
   } catch (err) {
     console.error("🔥 ERROR in GET /api/guests:", err);
     return NextResponse.json({ guests: [] });
