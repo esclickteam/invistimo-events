@@ -1,9 +1,9 @@
 "use client";
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Stage, Layer, Rect, Circle, Text, Group, Image } from "react-konva";
+import { Stage, Layer, Rect, Circle, Text, Group, Image, Line } from "react-konva";
 import useImage from "use-image";
 import GuestSidebar from "./GuestSidebar";
+import AddTableModal from "./AddTableModal";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +20,12 @@ export default function SeatingEditor({ background }) {
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
   const [editPosition, setEditPosition] = useState({ x: 0, y: 0 });
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
   const [bgImage] = useImage(background || "", "anonymous");
   const stageRef = useRef();
 
-  // 📏 עדכון גודל קנבס
+  /* 📏 עדכון גודל קנבס */
   useEffect(() => {
     if (typeof window !== "undefined") {
       const updateSize = () =>
@@ -39,10 +39,10 @@ export default function SeatingEditor({ background }) {
     }
   }, []);
 
-  /* ➕ יצירת שולחן חדש */
+  /* ➕ הוספת שולחן */
   const handleAddTable = (type = "rect", seats = 10) => {
     const newTable = {
-      id: `table_${Date.now()}`,
+      id: `שולחן ${tables.length + 1}`,
       type,
       seats,
       x: 200 + tables.length * 120,
@@ -56,7 +56,9 @@ export default function SeatingEditor({ background }) {
   /* 🎯 גרירה של שולחן */
   const handleDrag = useCallback((id, e) => {
     const { x, y } = e.target.position();
-    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
+    setTables((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, x, y } : t))
+    );
   }, []);
 
   /* ✏️ עריכת שם שולחן */
@@ -71,7 +73,9 @@ export default function SeatingEditor({ background }) {
 
   const handleEditBlur = () => {
     setTables((prev) =>
-      prev.map((t) => (t.id === editingId ? { ...t, name: editText } : t))
+      prev.map((t) =>
+        t.id === editingId ? { ...t, name: editText } : t
+      )
     );
     setEditingId(null);
   };
@@ -86,23 +90,15 @@ export default function SeatingEditor({ background }) {
     const guest = guests.find((g) => g.id === guestId);
     if (!guest) return;
 
-    setTables((prevTables) =>
-      prevTables.map((t) => {
+    setTables((prev) =>
+      prev.map((t) => {
         if (t.id !== tableId) return t;
-
-        const usedSeats = t.seatedGuests.reduce(
-          (sum, g) => sum + g.count,
-          0
-        );
-        if (usedSeats + guest.count > t.seats) {
+        const used = t.seatedGuests.reduce((s, g) => s + g.count, 0);
+        if (used + guest.count > t.seats) {
           alert("אין מספיק מקומות בשולחן הזה 😅");
           return t;
         }
-
-        return {
-          ...t,
-          seatedGuests: [...t.seatedGuests, { ...guest, tableId }],
-        };
+        return { ...t, seatedGuests: [...t.seatedGuests, { ...guest }] };
       })
     );
 
@@ -113,23 +109,12 @@ export default function SeatingEditor({ background }) {
     );
   };
 
-  /* 🪑 ציור שולחן */
+  /* 🎨 ציור שולחנות */
   const renderTable = (table) => {
-    const seatRadius = 7;
-    const seatColor = "#f59e0b";
-    const seats = [];
-
-    const usedSeats = table.seatedGuests.reduce((sum, g) => sum + g.count, 0);
+    const usedSeats = table.seatedGuests.reduce((s, g) => s + g.count, 0);
     const width = 160;
     const height = 60;
-    const spacing = width / (table.seats / 2 + 1);
-
-    for (let i = 1; i <= table.seats / 2; i++) {
-      seats.push(
-        <Circle key={`top${i}`} x={i * spacing} y={-10} radius={seatRadius} fill={seatColor} />,
-        <Circle key={`bottom${i}`} x={i * spacing} y={height + 10} radius={seatRadius} fill={seatColor} />
-      );
-    }
+    const radius = 50;
 
     return (
       <Group
@@ -143,44 +128,43 @@ export default function SeatingEditor({ background }) {
         onDrop={(e) => handleGuestDrop(table.id, e)}
         onDragOver={(e) => e.preventDefault()}
       >
-        <Rect
-          x={0}
-          y={0}
-          width={width}
-          height={height}
-          fill="#60a5fa"
-          cornerRadius={6}
-          shadowBlur={selectedTable?.id === table.id ? 10 : 0}
-        />
-        {seats}
+        {table.type === "rect" && (
+          <Rect width={width} height={height} fill="#60a5fa" cornerRadius={8} />
+        )}
+        {table.type === "round" && <Circle radius={radius} fill="#60a5fa" />}
+        {table.type === "knights" && (
+          <Line
+            points={[0, 0, 100, 0, 80, 60, 20, 60]}
+            closed
+            fill="#60a5fa"
+          />
+        )}
 
-        {/* 🏷️ שם השולחן */}
+        {/* שם השולחן */}
         <Text
-          x={width / 2 - 25}
-          y={height / 2 - 7}
           text={table.name}
+          x={-20}
+          y={table.type === "round" ? -5 : height / 3}
           fontSize={13}
           fill="white"
-          listening={false}
         />
 
-        {/* 📊 מספר מושבים */}
+        {/* ספירה */}
         <Text
-          x={width / 2 - 25}
-          y={height + 25}
-          text={`${table.seatedGuests.reduce((sum, g) => sum + g.count, 0)}/${table.seats} הושבו`}
+          text={`${usedSeats}/${table.seats} הושבו`}
+          x={-25}
+          y={table.type === "round" ? 20 : height + 20}
           fontSize={12}
           fill="#ffffffcc"
-          listening={false}
         />
 
-        {/* 👥 שמות האורחים */}
+        {/* שמות האורחים */}
         {table.seatedGuests.map((g, i) => (
           <Text
             key={`${g.id}_${i}`}
-            x={10}
-            y={height + 45 + i * 14}
             text={`${g.name} (${g.count})`}
+            x={-25}
+            y={height + 40 + i * 14}
             fontSize={12}
             fill="#fff"
           />
@@ -191,15 +175,13 @@ export default function SeatingEditor({ background }) {
 
   return (
     <div className="flex h-full">
-      {/* ✅ סיידבר קבוע בצד שמאל */}
-      <div className="min-w-[260px] max-w-[260px] bg-white shadow-md z-30 border-r border-gray-200">
+      <div className="min-w-[260px] max-w-[260px] bg-white border-r z-30">
         <GuestSidebar guests={guests} onDragStart={handleGuestDragStart} />
       </div>
 
-      {/* ✅ אזור המפה */}
       <div className="flex-1 relative bg-gray-100 overflow-hidden">
         <button
-          onClick={() => handleAddTable("rect", 10)}
+          onClick={() => setIsModalOpen(true)}
           className="absolute top-4 left-4 z-20 bg-green-600 text-white px-3 py-1.5 rounded-lg shadow hover:bg-green-700"
         >
           ➕ הוסף שולחן
@@ -224,12 +206,15 @@ export default function SeatingEditor({ background }) {
             onBlur={handleEditBlur}
             autoFocus
             className="absolute z-30 border border-blue-400 rounded-md px-2 py-1 text-sm"
-            style={{
-              top: editPosition.y,
-              left: editPosition.x,
-            }}
+            style={{ top: editPosition.y, left: editPosition.x }}
           />
         )}
+
+        <AddTableModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onAdd={handleAddTable}
+        />
       </div>
     </div>
   );

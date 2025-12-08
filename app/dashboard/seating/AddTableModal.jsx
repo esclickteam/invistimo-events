@@ -1,51 +1,57 @@
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 
-export default function AddTableModal({ onClose, onAdd }) {
-  const [type, setType] = useState("round");
+export default function AddTableModal({ isOpen, onClose, onAdd }) {
+  const [type, setType] = useState("rect");
   const [seats, setSeats] = useState(10);
 
-  const handleAdd = () => {
-    onAdd({ type, seats });
-    onClose();
-  };
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow-xl w-[400px]">
-        <h2 className="text-lg font-bold mb-4">הוספת שולחן חדש</h2>
+      <div className="bg-white rounded-xl shadow-2xl w-80 p-6">
+        <h2 className="text-lg font-bold mb-4 text-center">➕ הוספת שולחן</h2>
 
-        <label className="block mb-2 text-sm font-medium">צורת שולחן</label>
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="w-full border rounded-lg p-2 mb-4"
-        >
-          <option value="round">שולחן עגול</option>
-          <option value="square">שולחן מרובע</option>
-          <option value="rect">שולחן אבירים (מלבני)</option>
-        </select>
+        <div className="space-y-4">
+          <label className="block text-sm font-medium">
+            סוג שולחן:
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full border mt-1 px-2 py-1.5 rounded-md"
+            >
+              <option value="rect">שולחן מלבני</option>
+              <option value="round">שולחן עגול</option>
+              <option value="knights">שולחן אבירים</option>
+            </select>
+          </label>
 
-        <label className="block mb-2 text-sm font-medium">כמות אורחים</label>
-        <input
-          type="number"
-          min={2}
-          max={20}
-          value={seats}
-          onChange={(e) => setSeats(Number(e.target.value))}
-          className="w-full border rounded-lg p-2 mb-6"
-        />
+          <label className="block text-sm font-medium">
+            מספר מקומות:
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={seats}
+              onChange={(e) => setSeats(Number(e.target.value))}
+              className="w-full border mt-1 px-2 py-1.5 rounded-md"
+            />
+          </label>
+        </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end mt-5 gap-3">
           <button
             onClick={onClose}
-            className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300"
+            className="px-3 py-1.5 text-gray-600 hover:text-black"
           >
             ביטול
           </button>
           <button
-            onClick={handleAdd}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            onClick={() => {
+              onAdd(type, seats);
+              onClose();
+            }}
+            className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             הוסף שולחן
           </button>
