@@ -28,7 +28,6 @@ export default function SeatingEditor({ background }) {
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
-  // ⭐ פונקציה להוספת שולחן חדש
   const addTable = useSeatingStore((s) => s.addTable);
 
   /* -------------------- INIT SAMPLE DATA -------------------- */
@@ -72,7 +71,7 @@ export default function SeatingEditor({ background }) {
   };
 
   return (
-    <div className="flex">
+    <div className="flex relative w-full h-full">
 
       {/* SIDEBAR */}
       <GuestSidebar
@@ -87,6 +86,7 @@ export default function SeatingEditor({ background }) {
         height={height}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        className="flex-1"
       >
         <Layer>
           {/* BACKGROUND */}
@@ -120,10 +120,11 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* ADD TABLE BUTTON */}
+      {/* ADD TABLE BUTTON — NOW FIXED & VISIBLE */}
       <button
         onClick={() => setShowAddModal(true)}
-        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow"
+        className="absolute top-4 left-4 bg-green-600 
+                   text-white px-4 py-2 rounded-lg shadow z-50"
       >
         ➕ הוסף שולחן
       </button>
