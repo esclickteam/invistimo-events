@@ -120,8 +120,6 @@ export default function SeatingEditor({ background }) {
     const seats = [];
 
     const usedSeats = table.seatedGuests.reduce((sum, g) => sum + g.count, 0);
-    const remaining = table.seats - usedSeats;
-
     const width = 160;
     const height = 60;
     const spacing = width / (table.seats / 2 + 1);
@@ -168,9 +166,9 @@ export default function SeatingEditor({ background }) {
 
         {/* 📊 מספר מושבים */}
         <Text
-          x={width / 2 - 20}
+          x={width / 2 - 25}
           y={height + 25}
-          text={`${usedSeats}/${table.seats} הושבו`}
+          text={`${table.seatedGuests.reduce((sum, g) => sum + g.count, 0)}/${table.seats} הושבו`}
           fontSize={12}
           fill="#ffffffcc"
           listening={false}
@@ -193,9 +191,13 @@ export default function SeatingEditor({ background }) {
 
   return (
     <div className="flex h-full">
-      <GuestSidebar guests={guests} onDragStart={handleGuestDragStart} />
+      {/* ✅ סיידבר קבוע בצד שמאל */}
+      <div className="min-w-[260px] max-w-[260px] bg-white shadow-md z-30 border-r border-gray-200">
+        <GuestSidebar guests={guests} onDragStart={handleGuestDragStart} />
+      </div>
 
-      <div className="flex-1 relative bg-gray-100">
+      {/* ✅ אזור המפה */}
+      <div className="flex-1 relative bg-gray-100 overflow-hidden">
         <button
           onClick={() => handleAddTable("rect", 10)}
           className="absolute top-4 left-4 z-20 bg-green-600 text-white px-3 py-1.5 rounded-lg shadow hover:bg-green-700"
@@ -204,7 +206,7 @@ export default function SeatingEditor({ background }) {
         </button>
 
         {dimensions.width > 0 && (
-          <Stage width={dimensions.width} height={dimensions.height} ref={stageRef}>
+          <Stage width={dimensions.width - 260} height={dimensions.height} ref={stageRef}>
             <Layer>
               {bgImage && (
                 <Image image={bgImage} width={dimensions.width} height={dimensions.height} />
