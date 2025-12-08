@@ -6,22 +6,20 @@ import { nanoid } from "nanoid";
 export const dynamic = "force-dynamic";
 
 /* ==========================================================
-   טיפוס לגרסאות Next.js 16+
-   (params הוא Promise ולכן נדרש await)
+   טיפוס נכון לגרסאות Next.js 14–16
 ========================================================== */
-type RouteContext = {
-  params: Promise<{ id: string }>;
-};
+interface RouteContext {
+  params: { id: string };
+}
 
 /* ==========================================================
-   POST — יצירת אורח חדש להזמנה
+   POST — יצירת מוזמן חדש להזמנה
 ========================================================== */
 export async function POST(req: NextRequest, { params }: RouteContext) {
-  const { id: invitationId } = await params; // ✅ await חובה
-
   try {
     await db();
 
+    const invitationId = params.id; // 👈 אין צורך ב-await
     const { name, phone } = await req.json();
 
     if (!invitationId) {
@@ -38,15 +36,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // 🔎 בדיקת כפילות — אותו טלפון באותה הזמנה
+    // 🔎 בדיקת כפילות
     const existingGuest = await InvitationGuest.findOne({ phone, invitationId });
-
     if (existingGuest) {
       return NextResponse.json(
-        {
-          error: "Guest already exists for this event",
-          guest: existingGuest,
-        },
+        { error: "Guest already exists for this event", guest: existingGuest },
         { status: 409 }
       );
     }
@@ -54,7 +48,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     // 🆔 token ייחודי לקישור RSVP אישי
     const token = nanoid(12);
 
-    // 🟢 יצירת אורח חדש
+    // 🟢 יצירת מוזמן חדש
     const guest = await InvitationGuest.create({
       name,
       phone,
@@ -62,7 +56,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       rsvp: "pending",
       guestsCount: 1,
       notes: "",
-      token, // ⭐ מזהה ייחודי לצורך קישור אישי
+      token,
     });
 
     return NextResponse.json({ success: true, guest }, { status: 201 });
