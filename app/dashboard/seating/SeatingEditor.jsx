@@ -5,8 +5,8 @@ import { Stage, Layer, Image } from "react-konva";
 import useImage from "use-image";
 
 import { useSeatingStore } from "@/store/seatingStore";
-import TableRenderer from "@/components/seating/TableRenderer";
-import GhostPreview from "@/components/GhostPreview";
+import TableRenderer from "@/app/components/seating/TableRenderer";
+import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 
