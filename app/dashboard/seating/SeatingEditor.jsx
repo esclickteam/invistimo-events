@@ -25,7 +25,7 @@ export default function SeatingEditor({ background }) {
   const [bgImage] = useImage(background || "", "anonymous");
   const stageRef = useRef();
 
-  // גודל קנבס
+  // 📏 עדכון גודל קנבס
   useEffect(() => {
     if (typeof window !== "undefined") {
       const updateSize = () =>
@@ -39,7 +39,7 @@ export default function SeatingEditor({ background }) {
     }
   }, []);
 
-  /* יצירת שולחן חדש */
+  /* ➕ יצירת שולחן חדש */
   const handleAddTable = (type = "rect", seats = 10) => {
     const newTable = {
       id: `table_${Date.now()}`,
@@ -53,13 +53,13 @@ export default function SeatingEditor({ background }) {
     setTables((prev) => [...prev, newTable]);
   };
 
-  /* גרירה */
+  /* 🎯 גרירה של שולחן */
   const handleDrag = useCallback((id, e) => {
     const { x, y } = e.target.position();
     setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
   }, []);
 
-  /* עריכת שם שולחן */
+  /* ✏️ עריכת שם שולחן */
   const handleDoubleClick = (table) => {
     setEditingId(table.id);
     setEditText(table.name);
@@ -76,7 +76,7 @@ export default function SeatingEditor({ background }) {
     setEditingId(null);
   };
 
-  /* גרירת אורחים */
+  /* 🧍‍♀️ גרירת אורחים */
   const handleGuestDragStart = (e, guest) => {
     e.dataTransfer.setData("guestId", guest.id);
   };
@@ -99,20 +99,6 @@ export default function SeatingEditor({ background }) {
           return t;
         }
 
-        // הסרה משולחן קודם אם קיים
-        setTables((tables) =>
-          tables.map((table) =>
-            table.id === guest.tableId
-              ? {
-                  ...table,
-                  seatedGuests: table.seatedGuests.filter(
-                    (g) => g.id !== guest.id
-                  ),
-                }
-              : table
-          )
-        );
-
         return {
           ...t,
           seatedGuests: [...t.seatedGuests, { ...guest, tableId }],
@@ -127,7 +113,7 @@ export default function SeatingEditor({ background }) {
     );
   };
 
-  /* ציור שולחן */
+  /* 🪑 ציור שולחן */
   const renderTable = (table) => {
     const seatRadius = 7;
     const seatColor = "#f59e0b";
@@ -169,20 +155,33 @@ export default function SeatingEditor({ background }) {
           shadowBlur={selectedTable?.id === table.id ? 10 : 0}
         />
         {seats}
+
+        {/* 🏷️ שם השולחן */}
         <Text
           x={width / 2 - 25}
           y={height / 2 - 7}
-          text={`${table.name} (${remaining} פנויים)`}
+          text={table.name}
           fontSize={13}
           fill="white"
           listening={false}
         />
-        {/* הצגת שמות האורחים */}
+
+        {/* 📊 מספר מושבים */}
+        <Text
+          x={width / 2 - 20}
+          y={height + 25}
+          text={`${usedSeats}/${table.seats} הושבו`}
+          fontSize={12}
+          fill="#ffffffcc"
+          listening={false}
+        />
+
+        {/* 👥 שמות האורחים */}
         {table.seatedGuests.map((g, i) => (
           <Text
             key={`${g.id}_${i}`}
             x={10}
-            y={height + 25 + i * 14}
+            y={height + 45 + i * 14}
             text={`${g.name} (${g.count})`}
             fontSize={12}
             fill="#fff"

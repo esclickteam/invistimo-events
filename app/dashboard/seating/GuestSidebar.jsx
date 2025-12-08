@@ -16,7 +16,7 @@ export default function GuestSidebar({ guests, onDragStart }) {
             }`}
           >
             <span>{guest.name}</span>
-            <span className="text-sm text-gray-500">מגיעים: {guest.count}</span>
+            <span className="text-sm text-gray-500">{guest.count} מקומות</span>
           </li>
         ))}
       </ul>
