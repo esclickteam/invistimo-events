@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Stage, Layer, Rect, Circle, Text, Group, Image, Line } from "react-konva";
+import { Stage, Layer, Rect, Circle, Text, Group } from "react-konva";
 import useImage from "use-image";
 import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
@@ -17,15 +17,15 @@ export default function SeatingEditor({ background }) {
   ]);
 
   const [selectedTable, setSelectedTable] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
   const [editPosition, setEditPosition] = useState({ x: 0, y: 0 });
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [bgImage] = useImage(background || "", "anonymous");
   const stageRef = useRef();
+  const [bgImage] = useImage(background || "", "anonymous");
 
-  /* 📏 עדכון גודל קנבס */
+  /* 📏 גודל קנבס */
   useEffect(() => {
     if (typeof window !== "undefined") {
       const updateSize = () =>
@@ -39,8 +39,8 @@ export default function SeatingEditor({ background }) {
     }
   }, []);
 
-  /* ➕ הוספת שולחן */
-  const handleAddTable = (type = "rect", seats = 10) => {
+  /* ➕ יצירת שולחן חדש */
+  const handleAddTable = ({ type, seats }) => {
     const newTable = {
       id: `שולחן ${tables.length + 1}`,
       type,
@@ -53,7 +53,7 @@ export default function SeatingEditor({ background }) {
     setTables((prev) => [...prev, newTable]);
   };
 
-  /* 🎯 גרירה של שולחן */
+  /* 🎯 גרירה */
   const handleDrag = useCallback((id, e) => {
     const { x, y } = e.target.position();
     setTables((prev) =>
@@ -80,7 +80,7 @@ export default function SeatingEditor({ background }) {
     setEditingId(null);
   };
 
-  /* 🧍‍♀️ גרירת אורחים */
+  /* 🧍 גרירת אורח */
   const handleGuestDragStart = (e, guest) => {
     e.dataTransfer.setData("guestId", guest.id);
   };
@@ -109,12 +109,11 @@ export default function SeatingEditor({ background }) {
     );
   };
 
-  /* 🎨 ציור שולחנות */
+  /* 🎨 ציור שולחן */
   const renderTable = (table) => {
     const usedSeats = table.seatedGuests.reduce((s, g) => s + g.count, 0);
-    const width = 160;
-    const height = 60;
-    const radius = 50;
+    const color =
+      usedSeats >= table.seats ? "#f87171" : "#60a5fa";
 
     return (
       <Group
@@ -128,43 +127,36 @@ export default function SeatingEditor({ background }) {
         onDrop={(e) => handleGuestDrop(table.id, e)}
         onDragOver={(e) => e.preventDefault()}
       >
-        {table.type === "rect" && (
-          <Rect width={width} height={height} fill="#60a5fa" cornerRadius={8} />
+        {table.type === "round" && <Circle radius={50} fill={color} />}
+        {table.type === "square" && (
+          <Rect width={80} height={80} fill={color} cornerRadius={6} />
         )}
-        {table.type === "round" && <Circle radius={radius} fill="#60a5fa" />}
-        {table.type === "knights" && (
-          <Line
-            points={[0, 0, 100, 0, 80, 60, 20, 60]}
-            closed
-            fill="#60a5fa"
-          />
+        {table.type === "rect" && (
+          <Rect width={140} height={60} fill={color} cornerRadius={6} />
         )}
 
-        {/* שם השולחן */}
         <Text
           text={table.name}
-          x={-20}
-          y={table.type === "round" ? -5 : height / 3}
+          y={table.type === "round" ? -5 : 10}
+          x={-25}
           fontSize={13}
           fill="white"
         />
 
-        {/* ספירה */}
         <Text
           text={`${usedSeats}/${table.seats} הושבו`}
+          y={table.type === "round" ? 20 : 30}
           x={-25}
-          y={table.type === "round" ? 20 : height + 20}
           fontSize={12}
           fill="#ffffffcc"
         />
 
-        {/* שמות האורחים */}
         {table.seatedGuests.map((g, i) => (
           <Text
-            key={`${g.id}_${i}`}
+            key={g.id + i}
             text={`${g.name} (${g.count})`}
+            y={50 + i * 14}
             x={-25}
-            y={height + 40 + i * 14}
             fontSize={12}
             fill="#fff"
           />
@@ -191,7 +183,11 @@ export default function SeatingEditor({ background }) {
           <Stage width={dimensions.width - 260} height={dimensions.height} ref={stageRef}>
             <Layer>
               {bgImage && (
-                <Image image={bgImage} width={dimensions.width} height={dimensions.height} />
+                <Rect
+                  width={dimensions.width}
+                  height={dimensions.height}
+                  fillPatternImage={bgImage}
+                />
               )}
               {tables.map((table) => renderTable(table))}
             </Layer>
@@ -210,11 +206,12 @@ export default function SeatingEditor({ background }) {
           />
         )}
 
-        <AddTableModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onAdd={handleAddTable}
-        />
+        {isModalOpen && (
+          <AddTableModal
+            onClose={() => setIsModalOpen(false)}
+            onAdd={handleAddTable}
+          />
+        )}
       </div>
     </div>
   );
