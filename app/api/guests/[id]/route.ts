@@ -1,4 +1,3 @@
-// ✅ app/api/guests/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -7,49 +6,44 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
-/* ============================================
-   טיפוס לקונטקסט עם params
-============================================ */
-interface RouteContext {
-  params: { id: string };
-}
+/* ======================================================
+   סוג חדש שנדרש לגרסאות Next.js 16+
+   params הוא Promise<{ id: string }>
+====================================================== */
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
 
-/* ============================================
-   GET — שליפת אורח יחיד
-============================================ */
-export async function GET(
-  req: NextRequest,
-  context: RouteContext
-): Promise<NextResponse> {
+/* ======================================================
+   GET — שליפת אורח
+====================================================== */
+export async function GET(req: NextRequest, { params }: RouteContext) {
+  const { id } = await params; // ✅ חובה await בגלל שזה Promise
+
   try {
     await db();
-    const guestId = context.params.id;
-    const guest = await InvitationGuest.findById(guestId);
-
+    const guest = await InvitationGuest.findById(id);
     if (!guest) {
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
-
     return NextResponse.json({ success: true, guest });
-  } catch (error) {
-    console.error("GET /guests/[id] error:", error);
+  } catch (err) {
+    console.error("GET /guests/[id] error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-/* ============================================
+/* ======================================================
    PUT — עדכון אורח
-============================================ */
-export async function PUT(
-  req: NextRequest,
-  context: RouteContext
-): Promise<NextResponse> {
+====================================================== */
+export async function PUT(req: NextRequest, { params }: RouteContext) {
+  const { id } = await params;
+
   try {
     await db();
-    const guestId = context.params.id;
     const data = await req.json();
 
-    const guest = await InvitationGuest.findById(guestId);
+    const guest = await InvitationGuest.findById(id);
     if (!guest) return NextResponse.json({ error: "Guest not found" }, { status: 404 });
 
     const invitation = await Invitation.findById(guest.invitationId);
@@ -61,34 +55,30 @@ export async function PUT(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    Object.assign(guest, {
-      name: data.name ?? guest.name,
-      phone: data.phone ?? guest.phone,
-      rsvp: data.rsvp ?? guest.rsvp,
-      guestsCount: data.guestsCount ?? guest.guestsCount,
-      notes: data.notes ?? guest.notes,
-    });
+    guest.name = data.name ?? guest.name;
+    guest.phone = data.phone ?? guest.phone;
+    guest.rsvp = data.rsvp ?? guest.rsvp;
+    guest.guestsCount = data.guestsCount ?? guest.guestsCount;
+    guest.notes = data.notes ?? guest.notes;
 
     await guest.save();
     return NextResponse.json({ success: true, guest });
-  } catch (error) {
-    console.error("PUT /guests/[id] error:", error);
+  } catch (err) {
+    console.error("PUT /guests/[id] error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-/* ============================================
+/* ======================================================
    DELETE — מחיקת אורח
-============================================ */
-export async function DELETE(
-  req: NextRequest,
-  context: RouteContext
-): Promise<NextResponse> {
+====================================================== */
+export async function DELETE(req: NextRequest, { params }: RouteContext) {
+  const { id } = await params;
+
   try {
     await db();
-    const guestId = context.params.id;
 
-    const guest = await InvitationGuest.findById(guestId);
+    const guest = await InvitationGuest.findById(id);
     if (!guest) return NextResponse.json({ error: "Guest not found" }, { status: 404 });
 
     const invitation = await Invitation.findById(guest.invitationId);
@@ -102,13 +92,8 @@ export async function DELETE(
 
     await guest.deleteOne();
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("DELETE /guests/[id] error:", error);
+  } catch (err) {
+    console.error("DELETE /guests/[id] error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-
-/* ============================================
-   ❗ הוספת שורה קריטית לעקוף את הבאג
-============================================ */
-export const runtime = "nodejs";
