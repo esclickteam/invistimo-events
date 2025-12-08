@@ -24,6 +24,27 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
+  /* ---------------- ADD TABLE (חסר!) ---------------- */
+  addTable: (type, seats) => {
+    const { tables } = get();
+
+    const newTable = {
+      id: "t" + (tables.length + 1),
+      name: `שולחן ${tables.length + 1}`,
+      type,
+      seats,
+      x: 300 + tables.length * 40,
+      y: 200,
+      seatedGuests: [],
+    };
+
+    console.log("🟩 ADD TABLE — New Table:", newTable);
+
+    set({
+      tables: [...tables, newTable],
+    });
+  },
+
   /* ---------------- MODAL ---------------- */
   setShowAddModal: (v) => set({ showAddModal: v }),
 
@@ -104,7 +125,6 @@ export const useSeatingStore = create((set, get) => ({
 
     console.log("🟤 TARGET TABLE BEFORE UPDATE:", targetTable);
 
-    // Remove guest from any previous table
     updatedTables = updatedTables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
@@ -112,7 +132,6 @@ export const useSeatingStore = create((set, get) => ({
       ),
     }));
 
-    // Assign to new table
     updatedTables = updatedTables.map((t) =>
       t.id === targetTable.id
         ? {
@@ -130,7 +149,6 @@ export const useSeatingStore = create((set, get) => ({
 
     console.log("🟧 TABLE UPDATED:", updatedTables);
 
-    // Update guest.tableId
     const updatedGuests = guests.map((g) =>
       g.id === draggedGuest.id ? { ...g, tableId: targetTable.id } : g
     );
