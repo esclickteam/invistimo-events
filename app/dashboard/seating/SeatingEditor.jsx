@@ -74,12 +74,11 @@ export default function SeatingEditor({ background }) {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      return dist < 140;
+      return dist < 160; 
     });
 
     if (!table) return;
 
-    // מציאת כיסא פנוי
     const used = table.seatedGuests.map((g) => g.seatIndex);
     const freeSeat = [...Array(table.seats).keys()].find(
       (i) => !used.includes(i)
@@ -97,7 +96,6 @@ export default function SeatingEditor({ background }) {
   const assignGuestToSeat = (tableId, seatIndex, guestId) => {
     const guest = guests.find((g) => g.id === guestId);
 
-    // עדכון שולחן
     setTables((prev) =>
       prev.map((t) =>
         t.id === tableId
@@ -106,7 +104,6 @@ export default function SeatingEditor({ background }) {
       )
     );
 
-    // עדכון אורח
     setGuests((prev) =>
       prev.map((g) => (g.id === guestId ? { ...g, tableId } : g))
     );
@@ -116,7 +113,7 @@ export default function SeatingEditor({ background }) {
   const removeSeat = (tableId, seatIndex) => {
     const guest = tables
       .find((t) => t.id === tableId)
-      .seatedGuests.find((g) => g.seatIndex === seatIndex);
+      ?.seatedGuests?.find((g) => g.seatIndex === seatIndex);
 
     if (!guest) return;
 
@@ -138,53 +135,46 @@ export default function SeatingEditor({ background }) {
     );
   };
 
-  /* ---------------- MANUAL TABLE CHANGE ---------------- */
+  /* ---------------- שינוי ידני של מספר שולחן ---------------- */
   const handleManualTableChange = (guestId, newTableId) => {
+    if (!newTableId) return;
+
     const guest = guests.find((g) => g.id === guestId);
     if (!guest) return;
 
-    // הורד מהשולחן הקודם
+    // הסרה משולחן קודם
     if (guest.tableId) {
-      removeGuestFromTable(guest.tableId, guestId);
+      setTables((prev) =>
+        prev.map((t) =>
+          t.id === guest.tableId
+            ? {
+                ...t,
+                seatedGuests: t.seatedGuests.filter((g) => g.id !== guestId)
+              }
+            : t
+        )
+      );
     }
 
-    // הושב בשולחן החדש (כיסא ראשון פנוי)
     const table = tables.find((t) => t.id === newTableId);
     if (!table) return;
 
     const used = table.seatedGuests.map((g) => g.seatIndex);
-    const free = [...Array(table.seats).keys()].find((i) => !used.includes(i));
-
-    if (free === undefined) return alert("אין מקום פנוי");
-
-    assignGuestToSeat(newTableId, free, guestId);
-  };
-
-  /* ---------------- REMOVE ALL GUESTS FROM TABLE ---------------- */
-  const removeGuestFromTable = (tableId, guestId) => {
-    setTables((prev) =>
-      prev.map((t) =>
-        t.id === tableId
-          ? {
-              ...t,
-              seatedGuests: t.seatedGuests.filter((g) => g.id !== guestId)
-            }
-          : t
-      )
+    const freeSeat = [...Array(table.seats).keys()].find(
+      (i) => !used.includes(i)
     );
 
-    setGuests((prev) =>
-      prev.map((g) => (g.id === guestId ? { ...g, tableId: null } : g))
-    );
+    if (freeSeat === undefined) return alert("אין מקום פנוי");
+
+    assignGuestToSeat(newTableId, freeSeat, guestId);
   };
 
-  /* ---------------- TABLE RENDERING ---------------- */
-  const renderTable = (table) => {
+  /* ---------------- SEAT POSITION LOGIC ---------------- */
+  const getSeatCoords = (table) => {
     const seats = table.seats;
-    const chairs = [];
     let coords = [];
 
-    // ⭕ עגול
+    /* עגול */
     if (table.type === "round") {
       for (let i = 0; i < seats; i++) {
         const angle = (i / seats) * Math.PI * 2;
@@ -195,50 +185,54 @@ export default function SeatingEditor({ background }) {
       }
     }
 
-    // ▢ מרובע
+    /* מרובע */
     if (table.type === "square") {
-      const side = Math.ceil(seats / 4);
-      for (let i = 0; i < seats; i++) {
-        const sideIndex = Math.floor(i / side);
-        const pos = i % side;
-        const offset = pos * 30 - (side * 30) / 2;
+      const perSide = Math.ceil(seats / 4);
+      const spacing = 35;
 
-        if (sideIndex === 0)
-          coords.push({ x: offset, y: -90 });
-        if (sideIndex === 1)
-          coords.push({ x: 90, y: offset });
-        if (sideIndex === 2)
-          coords.push({ x: offset, y: 90 });
-        if (sideIndex === 3)
-          coords.push({ x: -90, y: offset });
+      for (let i = 0; i < seats; i++) {
+        const side = Math.floor(i / perSide);
+        const pos = i % perSide;
+        const offset = pos * spacing - ((perSide - 1) * spacing) / 2;
+
+        if (side === 0) coords.push({ x: offset, y: -95 });
+        if (side === 1) coords.push({ x: 95, y: offset });
+        if (side === 2) coords.push({ x: offset, y: 95 });
+        if (side === 3) coords.push({ x: -95, y: offset });
       }
     }
 
-    // 🟦 אבירים (מלבן)
+    /* אבירים — שתי שורות ישרות */
     if (table.type === "banquet") {
-      const half = Math.ceil(seats / 2);
+      const left = Math.ceil(seats / 2);
+      const right = seats - left;
+
+      const spacing = 32;
+      const leftOffset = (left - 1) * spacing / 2;
+      const rightOffset = (right - 1) * spacing / 2;
+
       for (let i = 0; i < seats; i++) {
-        const pos = i % half;
-        const offset = pos * 35 - (half * 35) / 2;
-        if (i < half)
-          coords.push({ x: offset, y: -60 });
-        else
-          coords.push({ x: offset, y: 60 });
+        let x = 0, y = 0;
+
+        if (i < left) {
+          x = -130;
+          y = i * spacing - leftOffset;
+        } else {
+          const idx = i - left;
+          x = 130;
+          y = idx * spacing - rightOffset;
+        }
+
+        coords.push({ x, y });
       }
     }
 
-    // בניית הכיסאות
-    coords.forEach((c, i) => {
-      chairs.push(
-        <Circle
-          key={i}
-          x={c.x}
-          y={c.y}
-          radius={10}
-          fill="#d1d5db"
-        />
-      );
-    });
+    return coords;
+  };
+
+  /* ---------------- RENDER TABLE ---------------- */
+  const renderTable = (table) => {
+    const coords = getSeatCoords(table);
 
     return (
       <Group
@@ -249,20 +243,21 @@ export default function SeatingEditor({ background }) {
         onDragEnd={(e) => handleDrag(table.id, e)}
         onClick={() => setSelectedTable(table)}
       >
-        {/* גוף השולחן בצבע כחול */}
-        {table.type === "round" && (
-          <Circle radius={55} fill="#3b82f6" />
-        )}
+        {/* גוף השולחן */}
+        {table.type === "round" && <Circle radius={55} fill="#3b82f6" />}
         {table.type === "square" && (
           <Rect width={130} height={130} offsetX={65} offsetY={65} fill="#3b82f6" />
         )}
         {table.type === "banquet" && (
-          <Rect width={220} height={80} offsetX={110} offsetY={40} fill="#3b82f6" />
+          <Rect width={260} height={80} offsetX={130} offsetY={40} fill="#3b82f6" />
         )}
 
-        {chairs}
+        {/* כיסאות */}
+        {coords.map((c, i) => (
+          <Circle key={i} x={c.x} y={c.y} radius={10} fill="#d1d5db" />
+        ))}
 
-        {/* שם + כמות */}
+        {/* שם שולחן + סטטוס */}
         <Text
           text={table.name}
           y={-5}
@@ -273,7 +268,7 @@ export default function SeatingEditor({ background }) {
           offsetX={100}
         />
         <Text
-          text={`${table.seatedGuests.length}/${table.seats} הושבו`}
+          text={`${table.seatedGuests.length}/${table.seats} הושבו`} 
           y={15}
           fontSize={12}
           fill="#e5e7eb"
@@ -289,6 +284,7 @@ export default function SeatingEditor({ background }) {
     <div className="flex h-full">
       <GuestSidebar
         guests={guests}
+        tables={tables}
         onDragStart={handleGuestDragStart}
         onManualTableChange={handleManualTableChange}
       />
