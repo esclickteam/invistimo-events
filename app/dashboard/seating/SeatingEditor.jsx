@@ -11,7 +11,7 @@ export default function SeatingEditor({ background }) {
   const [guests, setGuests] = useState([
     { id: "g1", name: "דנה לוי", count: 3, tableId: null },
     { id: "g2", name: "משפחת כהן", count: 2, tableId: null },
-    { id: "g3", name: "נועם ישראלי", count: 1, tableId: null }
+    { id: "g3", name: "נועם ישראלי", count: 1, tableId: null },
   ]);
 
   const [selectedTable, setSelectedTable] = useState(null);
@@ -52,9 +52,7 @@ export default function SeatingEditor({ background }) {
   /* ---------------- DRAG TABLE ---------------- */
   const handleDrag = (id, e) => {
     const { x, y } = e.target.position();
-    setTables((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, x, y } : t))
-    );
+    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
   };
 
   /* ---------------- DRAG GUEST ---------------- */
@@ -62,7 +60,7 @@ export default function SeatingEditor({ background }) {
     e.dataTransfer.setData("guest", JSON.stringify(guest));
   };
 
-  /* ---------------- FIND CONTINUOUS BLOCK (A) ---------------- */
+  /* ---------------- FIND CONTINUOUS BLOCK ---------------- */
   const findBlock = (table, needed) => {
     const used = new Set(table.seatedGuests.map((g) => g.seatIndex));
     const seats = table.seats;
@@ -105,7 +103,7 @@ export default function SeatingEditor({ background }) {
     assignGuestBlock(table.id, startIndex, guest.id);
   };
 
-  /* ---------------- ASSIGN MULTI-SEAT BLOCK (A) ---------------- */
+  /* ---------------- ASSIGN MULTI-SEAT BLOCK ---------------- */
   const assignGuestBlock = (tableId, startIndex, guestId) => {
     const guest = guests.find((g) => g.id === guestId);
 
@@ -123,13 +121,11 @@ export default function SeatingEditor({ background }) {
     );
 
     setGuests((prev) =>
-      prev.map((g) =>
-        g.id === guestId ? { ...g, tableId } : g
-      )
+      prev.map((g) => (g.id === guestId ? { ...g, tableId } : g))
     );
   };
 
-  /* ---------------- REMOVE WHOLE BLOCK (A) ---------------- */
+  /* ---------------- REMOVE WHOLE BLOCK ---------------- */
   const removeSeat = (tableId, seatIndex) => {
     const table = tables.find((t) => t.id === tableId);
     if (!table) return;
@@ -152,11 +148,12 @@ export default function SeatingEditor({ background }) {
     );
   };
 
-  /* ---------------- SEAT POSITIONS ---------------- */
+  /* ---------------- SEAT POSITIONS (IMPROVED) ---------------- */
   const getCoords = (table) => {
     const seats = table.seats;
     const coords = [];
 
+    // 🔵 עגול — נשאר זהה
     if (table.type === "round") {
       for (let i = 0; i < seats; i++) {
         const angle = (i / seats) * Math.PI * 2;
@@ -167,37 +164,38 @@ export default function SeatingEditor({ background }) {
       }
     }
 
-    if (table.type === "square") {
-      const perSide = Math.ceil(seats / 4);
-      const spacing = 35;
+    // 🟢 ריבוע / מלבן — ריווח שווה כולל פינות
+    if (table.type === "square" || table.type === "banquet") {
+      const width = table.type === "square" ? 140 : 220;
+      const height = table.type === "square" ? 140 : 80;
+
+      const perimeter = 2 * (width + height);
+      const spacing = perimeter / seats;
 
       for (let i = 0; i < seats; i++) {
-        const side = Math.floor(i / perSide);
-        const pos = i % perSide;
-        const off = pos * spacing - ((perSide - 1) * spacing) / 2;
+        const d = i * spacing;
+        let x = 0,
+          y = 0;
 
-        if (side === 0) coords.push({ x: off, y: -95 });
-        if (side === 1) coords.push({ x: 95, y: off });
-        if (side === 2) coords.push({ x: off, y: 95 });
-        if (side === 3) coords.push({ x: -95, y: off });
-      }
-    }
-
-    if (table.type === "banquet") {
-      const top = Math.ceil(seats / 2);
-      const bottom = seats - top;
-      const spacing = 32;
-
-      const topOff = (top - 1) * spacing / 2;
-      const bottomOff = (bottom - 1) * spacing / 2;
-
-      for (let i = 0; i < seats; i++) {
-        if (i < top) {
-          coords.push({ x: i * spacing - topOff, y: -50 });
+        if (d < width) {
+          // עליון
+          x = -width / 2 + d;
+          y = -height / 2 - 25;
+        } else if (d < width + height) {
+          // ימין
+          x = width / 2 + 25;
+          y = -height / 2 + (d - width);
+        } else if (d < 2 * width + height) {
+          // תחתון
+          x = width / 2 - (d - width - height);
+          y = height / 2 + 25;
         } else {
-          const idx = i - top;
-          coords.push({ x: idx * spacing - bottomOff, y: 50 });
+          // שמאל
+          x = -width / 2 - 25;
+          y = height / 2 - (d - 2 * width - height);
         }
+
+        coords.push({ x, y });
       }
     }
 
@@ -219,10 +217,22 @@ export default function SeatingEditor({ background }) {
       >
         {table.type === "round" && <Circle radius={60} fill="#3b82f6" />}
         {table.type === "square" && (
-          <Rect width={140} height={140} offsetX={70} offsetY={70} fill="#3b82f6" />
+          <Rect
+            width={140}
+            height={140}
+            offsetX={70}
+            offsetY={70}
+            fill="#3b82f6"
+          />
         )}
         {table.type === "banquet" && (
-          <Rect width={220} height={80} offsetX={110} offsetY={40} fill="#3b82f6" />
+          <Rect
+            width={220}
+            height={80}
+            offsetX={110}
+            offsetY={40}
+            fill="#3b82f6"
+          />
         )}
 
         {coords.map((c, i) => (
