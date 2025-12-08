@@ -6,6 +6,7 @@ export default function AddTableModal({ onClose, onAdd }) {
   const [seats, setSeats] = useState(10);
 
   const handleAdd = () => {
+    // שולח type מדויק שהמערכת שלך עובדת איתו!
     onAdd({ type, seats });
     onClose();
   };
@@ -23,14 +24,16 @@ export default function AddTableModal({ onClose, onAdd }) {
         >
           <option value="round">שולחן עגול</option>
           <option value="square">שולחן מרובע</option>
-          <option value="rect">שולחן אבירים (מלבני)</option>
+
+          {/* חשובה: שולח את הערך שה־SeatingEditor מצפה לו */}
+          <option value="banquet">שולחן אבירים (מלבני)</option>
         </select>
 
         <label className="block mb-2 text-sm font-medium">כמות אורחים</label>
         <input
           type="number"
           min={2}
-          max={20}
+          max={50}
           value={seats}
           onChange={(e) => setSeats(Number(e.target.value))}
           className="w-full border rounded-lg p-2 mb-6"

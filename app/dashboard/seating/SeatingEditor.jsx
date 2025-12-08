@@ -45,7 +45,7 @@ export default function SeatingEditor({ background }) {
         x: 300,
         y: 250,
         name: `שולחן ${prev.length + 1}`,
-        seatedGuests: []
+        seatedGuests: [] // {id,name,count, seatIndex}
       }
     ]);
   };
@@ -56,12 +56,12 @@ export default function SeatingEditor({ background }) {
     setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
   };
 
-  /* ---------------- DRAG GUEST START ---------------- */
+  /* ---------------- DRAG GUEST FROM SIDEBAR ---------------- */
   const handleGuestDragStart = (e, guest) => {
     e.dataTransfer.setData("guest", JSON.stringify(guest));
   };
 
-  /* ---------------- DROP GUEST ---------------- */
+  /* ---------------- DROP GUEST ON CANVAS ---------------- */
   const handleDropGuest = (e) => {
     const raw = e.evt.dataTransfer.getData("guest");
     if (!raw) return;
@@ -69,69 +69,100 @@ export default function SeatingEditor({ background }) {
     const guest = JSON.parse(raw);
     const pointer = stageRef.current.getPointerPosition();
 
-    // מציאת שולחן לפי קרבה
+    // מוצאים את השולחן הקרוב
     const table = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      return dist < 160; 
+      return dist < 160;
     });
 
     if (!table) return;
 
-    const used = table.seatedGuests.map((g) => g.seatIndex);
-    const freeSeat = [...Array(table.seats).keys()].find(
-      (i) => !used.includes(i)
-    );
+    assignGuestToTableWithCount(table, guest);
+  };
 
-    if (freeSeat === undefined) {
-      alert("אין מקום פנוי בשולחן");
+  /* ---------------- ASSIGN GUEST WITH COUNT (OPTION A) ---------------- */
+  const assignGuestToTableWithCount = (table, guest) => {
+    const needed = guest.count;
+    const seats = table.seats;
+
+    // רשימת מקומות תפוסים
+    const used = table.seatedGuests.map((g) => g.seatIndex);
+
+    // מחפשים רצף פנוי באורך count
+    let freeStart = null;
+
+    for (let i = 0; i <= seats - needed; i++) {
+      let blockOK = true;
+
+      for (let j = 0; j < needed; j++) {
+        if (used.includes(i + j)) {
+          blockOK = false;
+          break;
+        }
+      }
+
+      if (blockOK) {
+        freeStart = i;
+        break;
+      }
+    }
+
+    if (freeStart === null) {
+      alert("אין מספיק כיסאות רצופים פנויים");
       return;
     }
 
-    assignGuestToSeat(table.id, freeSeat, guest.id);
-  };
-
-  /* ---------------- ASSIGN GUEST TO SEAT ---------------- */
-  const assignGuestToSeat = (tableId, seatIndex, guestId) => {
-    const guest = guests.find((g) => g.id === guestId);
-
+    // מוסיפים את כל הכיסאות הרצופים
     setTables((prev) =>
       prev.map((t) =>
-        t.id === tableId
-          ? { ...t, seatedGuests: [...t.seatedGuests, { ...guest, seatIndex }] }
-          : t
-      )
-    );
-
-    setGuests((prev) =>
-      prev.map((g) => (g.id === guestId ? { ...g, tableId } : g))
-    );
-  };
-
-  /* ---------------- REMOVE SEAT ---------------- */
-  const removeSeat = (tableId, seatIndex) => {
-    const guest = tables
-      .find((t) => t.id === tableId)
-      ?.seatedGuests?.find((g) => g.seatIndex === seatIndex);
-
-    if (!guest) return;
-
-    setTables((prev) =>
-      prev.map((t) =>
-        t.id === tableId
+        t.id === table.id
           ? {
               ...t,
-              seatedGuests: t.seatedGuests.filter(
-                (g) => g.seatIndex !== seatIndex
-              )
+              seatedGuests: [
+                ...t.seatedGuests,
+                ...Array.from({ length: needed }).map((_, idx) => ({
+                  ...guest,
+                  seatIndex: freeStart + idx
+                }))
+              ]
             }
           : t
       )
     );
 
+    // מעדכנים tableId לאורח
     setGuests((prev) =>
-      prev.map((g) => (g.id === guest.id ? { ...g, tableId: null } : g))
+      prev.map((g) => (g.id === guest.id ? { ...g, tableId: table.id } : g))
+    );
+  };
+
+  /* ---------------- REMOVE SEAT ---------------- */
+  const removeSeat = (tableId, seatIndex) => {
+    const table = tables.find((t) => t.id === tableId);
+    if (!table) return;
+
+    const guest = table.seatedGuests.find((g) => g.seatIndex === seatIndex);
+    if (!guest) return;
+
+    const removedGuestId = guest.id;
+
+    // מסירים את כל הכיסאות שתפס אותו אורח
+    setTables((prev) =>
+      prev.map((t) =>
+        t.id === tableId
+          ? {
+              ...t,
+              seatedGuests: t.seatedGuests.filter((g) => g.id !== removedGuestId)
+            }
+          : t
+      )
+    );
+
+    // מאפסים tableId לאורח
+    setGuests((prev) =>
+      prev.map((g) => (g.id === removedGuestId ? { ...g, tableId: null } : g))
     );
   };
 
@@ -142,34 +173,38 @@ export default function SeatingEditor({ background }) {
     const guest = guests.find((g) => g.id === guestId);
     if (!guest) return;
 
-    // הסרה משולחן קודם
-    if (guest.tableId) {
-      setTables((prev) =>
-        prev.map((t) =>
-          t.id === guest.tableId
-            ? {
-                ...t,
-                seatedGuests: t.seatedGuests.filter((g) => g.id !== guestId)
-              }
-            : t
-        )
-      );
-    }
+    // מסירים מהשולחן הקודם
+    tables.forEach((t) => {
+      if (t.seatedGuests.some((g) => g.id === guestId)) {
+        removeGuestFromTable(guestId, t.id);
+      }
+    });
 
+    // משיבים לשולחן החדש
     const table = tables.find((t) => t.id === newTableId);
     if (!table) return;
 
-    const used = table.seatedGuests.map((g) => g.seatIndex);
-    const freeSeat = [...Array(table.seats).keys()].find(
-      (i) => !used.includes(i)
-    );
-
-    if (freeSeat === undefined) return alert("אין מקום פנוי");
-
-    assignGuestToSeat(newTableId, freeSeat, guestId);
+    assignGuestToTableWithCount(table, guest);
   };
 
-  /* ---------------- SEAT POSITION LOGIC ---------------- */
+  const removeGuestFromTable = (guestId, tableId) => {
+    setTables((prev) =>
+      prev.map((t) =>
+        t.id === tableId
+          ? {
+              ...t,
+              seatedGuests: t.seatedGuests.filter((g) => g.id !== guestId)
+            }
+          : t
+      )
+    );
+
+    setGuests((prev) =>
+      prev.map((g) => (g.id === guestId ? { ...g, tableId: null } : g))
+    );
+  };
+
+  /* ---------------- CALCULATE SEAT POSITIONS ---------------- */
   const getSeatCoords = (table) => {
     const seats = table.seats;
     let coords = [];
@@ -202,8 +237,8 @@ export default function SeatingEditor({ background }) {
       }
     }
 
-    /* אבירים — שתי שורות ישרות */
-    if (table.type === "banquet") {
+    /* אבירים — מלבני מלא ויפה */
+    if (table.type === "rect" || table.type === "banquet") {
       const left = Math.ceil(seats / 2);
       const right = seats - left;
 
@@ -212,7 +247,7 @@ export default function SeatingEditor({ background }) {
       const rightOffset = (right - 1) * spacing / 2;
 
       for (let i = 0; i < seats; i++) {
-        let x = 0, y = 0;
+        let x, y;
 
         if (i < left) {
           x = -130;
@@ -243,21 +278,31 @@ export default function SeatingEditor({ background }) {
         onDragEnd={(e) => handleDrag(table.id, e)}
         onClick={() => setSelectedTable(table)}
       >
-        {/* גוף השולחן */}
+        {/* גוף השולחן — תמיד כחול מלא */}
         {table.type === "round" && <Circle radius={55} fill="#3b82f6" />}
         {table.type === "square" && (
           <Rect width={130} height={130} offsetX={65} offsetY={65} fill="#3b82f6" />
         )}
-        {table.type === "banquet" && (
+        {(table.type === "rect" || table.type === "banquet") && (
           <Rect width={260} height={80} offsetX={130} offsetY={40} fill="#3b82f6" />
         )}
 
         {/* כיסאות */}
         {coords.map((c, i) => (
-          <Circle key={i} x={c.x} y={c.y} radius={10} fill="#d1d5db" />
+          <Circle
+            key={i}
+            x={c.x}
+            y={c.y}
+            radius={10}
+            fill={
+              table.seatedGuests.some((g) => g.seatIndex === i)
+                ? "#2563eb"
+                : "#d1d5db"
+            }
+          />
         ))}
 
-        {/* שם שולחן + סטטוס */}
+        {/* שם שולחן */}
         <Text
           text={table.name}
           y={-5}
@@ -267,8 +312,10 @@ export default function SeatingEditor({ background }) {
           width={200}
           offsetX={100}
         />
+
+        {/* ספירת הושבה */}
         <Text
-          text={`${table.seatedGuests.length}/${table.seats} הושבו`} 
+          text={`${table.seatedGuests.length}/${table.seats} הושבו`}
           y={15}
           fontSize={12}
           fill="#e5e7eb"
@@ -318,7 +365,7 @@ export default function SeatingEditor({ background }) {
             table={tables.find((t) => t.id === selectedTable.id)}
             availableGuests={guests.filter((g) => !g.tableId)}
             onClose={() => setSelectedTable(null)}
-            onAssignSeat={assignGuestToSeat}
+            onAssignSeat={assignGuestToTableWithCount}
             onRemoveSeat={removeSeat}
           />
         )}
