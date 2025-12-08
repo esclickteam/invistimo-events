@@ -1,44 +1,29 @@
 "use client";
-
-import React, { useState } from "react";
+import React from "react";
 
 export default function TableView({ table, onClose }) {
-  const [seats, setSeats] = useState(
-    Array.from({ length: table.seats }, (_, i) => ({
-      seatNumber: i + 1,
-      guest: null,
-    }))
-  );
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-[600px] max-h-[90vh] overflow-y-auto p-6">
-        <h2 className="text-lg font-bold mb-4">{table.name}</h2>
+    <div className="fixed top-0 right-0 w-72 bg-white shadow-xl h-full border-l z-40">
+      <div className="flex justify-between items-center p-4 border-b">
+        <h2 className="font-bold">{table.name}</h2>
+        <button onClick={onClose} className="text-gray-500 hover:text-red-500">✕</button>
+      </div>
 
-        <div className="grid grid-cols-5 gap-4 mb-6">
-          {seats.map((seat) => (
-            <div
-              key={seat.seatNumber}
-              className="border rounded-lg p-3 text-center hover:bg-blue-50 transition"
-            >
-              <div className="font-medium mb-1">מקום {seat.seatNumber}</div>
-              {seat.guest ? (
-                <div className="text-sm text-gray-700">{seat.guest.name}</div>
-              ) : (
-                <button className="text-xs text-blue-600">הושב אורח</button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg"
-          >
-            סגור
-          </button>
-        </div>
+      <div className="p-4">
+        {table.seatedGuests.length === 0 ? (
+          <p className="text-gray-400 text-sm">אין אורחים בשולחן זה</p>
+        ) : (
+          <ul className="space-y-2">
+            {table.seatedGuests.map((g) => (
+              <li
+                key={g.id}
+                className="bg-blue-50 border border-blue-100 rounded-lg p-2 text-sm"
+              >
+                {g.name} — {g.count} מקומות
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

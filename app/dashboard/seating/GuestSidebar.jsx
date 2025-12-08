@@ -3,30 +3,20 @@ import React from "react";
 
 export default function GuestSidebar({ guests, onDragStart }) {
   return (
-    <div className="w-full h-full bg-white overflow-y-auto">
-      <div className="p-4 border-b bg-gray-50">
-        <h2 className="text-lg font-bold">🧾 רשימת אורחים</h2>
-      </div>
-
+    <div className="w-64 bg-white shadow-lg border-r h-full overflow-y-auto">
+      <h2 className="text-lg font-bold p-4 border-b">🧾 רשימת אורחים</h2>
       <ul>
         {guests.map((guest) => (
           <li
             key={guest.id}
             draggable
             onDragStart={(e) => onDragStart(e, guest)}
-            className={`cursor-grab p-3 hover:bg-gray-100 border-b ${
-              guest.tableId ? "opacity-60" : ""
+            className={`cursor-grab p-3 hover:bg-gray-100 border-b flex justify-between ${
+              guest.tableId ? "opacity-50" : ""
             }`}
           >
-            <div className="flex justify-between">
-              <span>{guest.name}</span>
-              <span className="text-sm text-gray-500">{guest.count}</span>
-            </div>
-            {guest.tableId && (
-              <p className="text-xs text-blue-600 mt-1">
-                יושב ב-{guest.tableId}
-              </p>
-            )}
+            <span>{guest.name}</span>
+            <span className="text-sm text-gray-500">{guest.count} מקומות</span>
           </li>
         ))}
       </ul>
