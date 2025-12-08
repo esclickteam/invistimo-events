@@ -149,11 +149,12 @@ export default function SeatingEditor({ background }) {
 
   /* ---------------- SEAT POSITIONS (AUTO + UX ROTATION) ---------------- */
   /* ---------------- SEAT POSITIONS (UX FIXED FOR ALL SHAPES) ---------------- */
+/* ---------------- SEAT POSITIONS (BY SIDES + UX ROTATION) ---------------- */
 const getCoords = (table) => {
   const seats = table.seats;
   const coords = [];
 
-  /* 🌀 עגול – מושלם כבר */
+  // 🌀 עגול
   if (table.type === "round") {
     const baseRadius = 75;
     const radius =
@@ -172,28 +173,52 @@ const getCoords = (table) => {
     }
   }
 
-  /* 🟦 ריבוע / מלבן — כיסאות במעגל סביב הצורה */
+  // 🟦 ריבוע / מלבני — כיסאות לפי צדדים
   if (table.type === "square" || table.type === "banquet") {
-    const baseW = table.type === "square" ? 140 : 220;
-    const baseH = table.type === "square" ? 140 : 80;
+    const width = table.type === "square" ? 140 : 220;
+    const height = table.type === "square" ? 140 : 80;
+    const margin = 30;
 
-    // נוסיף מעט ריווח מעגלי סביב
-    const rx = baseW / 2 + 40; // רדיוס בציר X
-    const ry = baseH / 2 + 50; // רדיוס בציר Y
+    const perSide = Math.ceil(seats / 4);
+    const spacingX = width / (perSide + 1);
+    const spacingY = height / (perSide + 1);
 
-     for (let i = 0; i < seats; i++) {
-      const angle = (i / seats) * Math.PI * 2;
+    for (let i = 0; i < seats; i++) {
+      const side = Math.floor((i * 4) / seats); // לאיזה צד שייך הכיסא
+      const pos = i % perSide;
+      let x = 0,
+        y = 0,
+        rotation = 0;
 
-      coords.push({
-        x: Math.cos(angle) * rx,
-        y: Math.sin(angle) * ry,
-        rotation: (angle * 180) / Math.PI + 90,
-      });
+      if (side === 0) {
+        // צד עליון
+        x = -width / 2 + spacingX * (pos + 1);
+        y = -height / 2 - margin;
+        rotation = 180;
+      } else if (side === 1) {
+        // צד ימין
+        x = width / 2 + margin;
+        y = -height / 2 + spacingY * (pos + 1);
+        rotation = -90;
+      } else if (side === 2) {
+        // צד תחתון
+        x = width / 2 - spacingX * (pos + 1);
+        y = height / 2 + margin;
+        rotation = 0;
+      } else {
+        // צד שמאל
+        x = -width / 2 - margin;
+        y = height / 2 - spacingY * (pos + 1);
+        rotation = 90;
+      }
+
+      coords.push({ x, y, rotation });
     }
   }
 
   return coords;
 };
+
 
 
   /* ---------------- RENDER TABLE ---------------- */
