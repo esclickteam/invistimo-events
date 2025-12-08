@@ -1,15 +1,33 @@
 "use client";
 
+import { useState, useCallback, useEffect } from "react";
 import { Stage, Layer, Rect, Image, Text } from "react-konva";
 import useImage from "use-image";
-import { useState, useCallback, useEffect } from "react";
 import TableView from "./TableView";
 
 export default function SeatingEditor({ background }) {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
+  // ✅ טוען את הרקע אם קיים
   const [bgImage] = useImage(background || "", "anonymous");
+
+  // ✅ קובע את גודל הקנבס רק בצד הלקוח
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const updateSize = () => {
+        setDimensions({
+          width: window.innerWidth,
+          height: window.innerHeight - 80,
+        });
+      };
+
+      updateSize();
+      window.addEventListener("resize", updateSize);
+      return () => window.removeEventListener("resize", updateSize);
+    }
+  }, []);
 
   /* =========================================================
      הוספת שולחן חדש
@@ -36,7 +54,7 @@ export default function SeatingEditor({ background }) {
   }, []);
 
   /* =========================================================
-     רינדור הקנבס
+     רינדור ראשי
   ========================================================= */
   return (
     <div className="relative h-full w-full bg-gray-100">
@@ -48,49 +66,52 @@ export default function SeatingEditor({ background }) {
         ➕ הוסף שולחן
       </button>
 
-      <Stage width={window.innerWidth} height={window.innerHeight - 80}>
-        <Layer>
-          {/* רקע (אם הועלה) */}
-          {bgImage && (
-            <Image
-              image={bgImage}
-              width={window.innerWidth}
-              height={window.innerHeight - 80}
-            />
-          )}
+      {/* רק כאשר יש גודל ידוע */}
+      {dimensions.width > 0 && (
+        <Stage width={dimensions.width} height={dimensions.height}>
+          <Layer>
+            {/* רקע (אם קיים) */}
+            {bgImage && (
+              <Image
+                image={bgImage}
+                width={dimensions.width}
+                height={dimensions.height}
+              />
+            )}
 
-          {/* שולחנות */}
-          {tables.map((table) => (
-            <Rect
-              key={table.id}
-              x={table.x}
-              y={table.y}
-              width={100}
-              height={100}
-              fill="#60a5fa"
-              cornerRadius={10}
-              draggable
-              onDragEnd={(e) => handleDrag(table.id, e)}
-              onClick={() => setSelectedTable(table)}
-              shadowBlur={5}
-            />
-          ))}
+            {/* ציור כל השולחנות */}
+            {tables.map((table) => (
+              <Rect
+                key={table.id}
+                x={table.x}
+                y={table.y}
+                width={100}
+                height={100}
+                fill="#60a5fa"
+                cornerRadius={10}
+                draggable
+                onDragEnd={(e) => handleDrag(table.id, e)}
+                onClick={() => setSelectedTable(table)}
+                shadowBlur={5}
+              />
+            ))}
 
-          {/* טקסט של שמות שולחנות */}
-          {tables.map((table) => (
-            <Text
-              key={`${table.id}_text`}
-              x={table.x + 15}
-              y={table.y + 40}
-              text={table.name}
-              fontSize={14}
-              fill="white"
-            />
-          ))}
-        </Layer>
-      </Stage>
+            {/* טקסט של שמות השולחנות */}
+            {tables.map((table) => (
+              <Text
+                key={`${table.id}_text`}
+                x={table.x + 15}
+                y={table.y + 40}
+                text={table.name}
+                fontSize={14}
+                fill="white"
+              />
+            ))}
+          </Layer>
+        </Stage>
+      )}
 
-      {/* פתיחת תצוגת שולחן */}
+      {/* תצוגת השולחן הפתוח */}
       {selectedTable && (
         <TableView
           table={selectedTable}
