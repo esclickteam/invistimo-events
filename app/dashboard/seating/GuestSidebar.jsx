@@ -16,25 +16,24 @@ export default function GuestSidebar({ guests, onDragStart, onManualTableChange 
           >
             <div>
               <div>{guest.name}</div>
+              <div className="text-xs text-gray-500">{guest.count} מקומות</div>
 
               {guest.tableId && (
-                <div className="text-xs text-green-600">
-                  יושב בשולחן {guest.tableId}
+                <div className="mt-1 text-xs text-green-600">
+                  שולחן {guest.tableId}
                 </div>
               )}
 
-              {/* שינוי מספר שולחן */}
               {guest.tableId && (
                 <input
                   type="number"
                   className="border rounded px-1 py-0.5 text-xs mt-1 w-20"
                   value={guest.tableId}
+                  min={1}
                   onChange={(e) => onManualTableChange(guest.id, e.target.value)}
                 />
               )}
             </div>
-
-            <span className="text-sm">{guest.count} מקומות</span>
           </li>
         ))}
       </ul>
