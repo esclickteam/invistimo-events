@@ -15,7 +15,7 @@ export default function GuestSidebar({ guests, onDragStart }) {
             draggable
             onDragStart={(e) => onDragStart(e, guest)}
             className={`cursor-grab p-3 hover:bg-gray-100 border-b ${
-              guest.tableId ? "opacity-50" : ""
+              guest.tableId ? "opacity-60" : ""
             }`}
           >
             <div className="flex justify-between">
