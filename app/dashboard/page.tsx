@@ -1,24 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import EditGuestModal from "../components/EditGuestModal";
+
 
 export default function DashboardPage() {
   const [guests, setGuests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("guest-list");
+  const [selectedGuest, setSelectedGuest] = useState<any | null>(null); // 👈 לניהול מודאל העריכה
+
+  // ============================================================
+  //  טוען רשימת מוזמנים
+  // ============================================================
+  async function loadGuests() {
+    try {
+      const res = await fetch("/api/guests");
+      const data = await res.json();
+      setGuests(data.guests || []);
+    } catch (err) {
+      console.error("❌ שגיאה בטעינת מוזמנים:", err);
+    }
+    setLoading(false);
+  }
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/guests");
-        const data = await res.json();
-        setGuests(data.guests || []);
-      } catch (err) {
-        console.error(err);
-      }
-      setLoading(false);
-    };
-    load();
+    loadGuests();
   }, []);
 
   const stats = {
@@ -28,9 +35,9 @@ export default function DashboardPage() {
     noResponse: guests.filter((g) => g.rsvp === "pending").length,
   };
 
-  /* ============================================================
-      ACTIONS
-  ============================================================ */
+  // ============================================================
+  //  פעולות
+  // ============================================================
 
   // שליחת קישור ייחודי לוואטסאפ
   const sendWhatsApp = (guest: any) => {
@@ -40,48 +47,54 @@ export default function DashboardPage() {
     window.open(url, "_blank");
   };
 
-  // עריכת אורח (תפתח מודאל)
+  // עריכת אורח
   const editGuest = (guest: any) => {
-    alert(`עריכת אורח: ${guest.name}`);
-    // כאן נפתח מודאל עריכה אמיתי
+    setSelectedGuest(guest); // 👈 פותח את המודאל עם הנתונים
   };
 
   // הושבה בשולחן
   const seatGuest = (guest: any) => {
     alert(`הושבה לשולחן: ${guest.name}`);
-    // בהמשך יעבור למסך הושבה
   };
 
+  // ============================================================
+  //  רינדור
+  // ============================================================
   return (
     <div className="p-10">
-
       <h1 className="text-4xl font-semibold mb-6">ניהול האירוע שלך</h1>
 
       {/* Tabs */}
       <div className="flex gap-4 mb-8 border-b pb-3">
         <button
           onClick={() => setActiveTab("guest-list")}
-          className={`pb-2 ${activeTab === "guest-list" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "guest-list" ? "border-b-2 border-black" : "text-gray-500"
+          }`}
         >
           רשימת מוזמנים
         </button>
 
         <button
           onClick={() => setActiveTab("seating")}
-          className={`pb-2 ${activeTab === "seating" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "seating" ? "border-b-2 border-black" : "text-gray-500"
+          }`}
         >
           סידורי הושבה
         </button>
 
         <button
           onClick={() => setActiveTab("stats")}
-          className={`pb-2 ${activeTab === "stats" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "stats" ? "border-b-2 border-black" : "text-gray-500"
+          }`}
         >
           סטטיסטיקות
         </button>
 
         <button
-          onClick={() => window.location.href = "/dashboard/create-invite"}
+          onClick={() => (window.location.href = "/dashboard/create-invite")}
           className="ml-auto bg-black text-white px-6 py-2 rounded-full"
         >
           🎨 יצירת הזמנה
@@ -92,7 +105,7 @@ export default function DashboardPage() {
 
       {/* ============================
           GUEST LIST TAB
-      ============================= */}
+      ============================ */}
       {activeTab === "guest-list" && !loading && (
         <div>
           {/* Summary */}
@@ -167,7 +180,7 @@ export default function DashboardPage() {
 
           {/* Add Guest Button */}
           <button
-            onClick={() => alert("פתח מודאל הוספה")}
+            onClick={() => alert("מודאל הוספה יבנה בהמשך")}
             className="mt-6 bg-black text-white px-6 py-3 rounded-full"
           >
             + הוספת מוזמן
@@ -177,18 +190,24 @@ export default function DashboardPage() {
 
       {/* Seating */}
       {activeTab === "seating" && (
-        <div className="text-xl text-gray-700">
-          מסך ניהול הושבה — נבנה אחרי אישור.
-        </div>
+        <div className="text-xl text-gray-700">מסך ניהול הושבה — נבנה אחרי אישור.</div>
       )}
 
       {/* Stats */}
       {activeTab === "stats" && (
-        <div className="text-xl text-gray-700">
-          גרפים וניתוחים — נבנה גם אחרי אישור.
-        </div>
+        <div className="text-xl text-gray-700">גרפים וניתוחים — נבנה גם אחרי אישור.</div>
       )}
 
+      {/* ============================
+          MODAL עריכת אורח
+      ============================ */}
+      {selectedGuest && (
+        <EditGuestModal
+          guest={selectedGuest}
+          onClose={() => setSelectedGuest(null)}
+          onSuccess={() => loadGuests()}
+        />
+      )}
     </div>
   );
 }
@@ -206,9 +225,7 @@ function Box({ title, value, color }: any) {
   return (
     <div className="border p-5 rounded-xl bg-white shadow-sm text-center">
       <div className="text-gray-500 text-sm mb-1">{title}</div>
-      <div className={`text-3xl font-bold ${colors[color] || ""}`}>
-        {value}
-      </div>
+      <div className={`text-3xl font-bold ${colors[color] || ""}`}>{value}</div>
     </div>
   );
 }
