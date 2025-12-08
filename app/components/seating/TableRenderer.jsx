@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { getSeatCoordinates } from "@/logic/seatingEngine";
@@ -10,24 +11,48 @@ export default function TableRenderer({ table }) {
 
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
-
-  // ✔ מושכים את רשימת האורחים בצורה ריאקטיבית!
   const guests = useSeatingStore((s) => s.guests);
 
   const seatsCoords = getSeatCoordinates(table);
   const isHighlighted = highlightedTable === table.id;
   const assigned = table.seatedGuests || [];
-
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* ---------------- CLICK ON OCCUPIED SEAT = START DRAG AGAIN ---------------- */
+  /* ---------------- REFS ---------------- */
+  const tableRef = useRef();
+
+  /* ------- UPDATE ABSOLUTE POSITION IN STORE ------- */
+  const updateAbsolute = () => {
+    if (!tableRef.current) return;
+    const abs = tableRef.current.getAbsolutePosition();
+
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id ? { ...t, absoluteX: abs.x, absoluteY: abs.y } : t
+      ),
+    }));
+  };
+
+  // update on first render (initial load)
+  useEffect(() => {
+    updateAbsolute();
+  }, []);
+
+  /* ---------------- CLICK ON OCCUPIED SEAT ---------------- */
   const handleSeatDrag = (guestId) => {
     const g = guests.find((x) => x.id === guestId);
     if (g) startDragGuest(g);
   };
 
   return (
-    <Group x={table.x} y={table.y} draggable>
+    <Group
+      ref={tableRef}
+      x={table.x}
+      y={table.y}
+      draggable
+      onDragMove={updateAbsolute}
+      onDragEnd={updateAbsolute}
+    >
       {/* TABLE SHAPE */}
       {table.type === "round" && (
         <Circle radius={60} fill={isHighlighted ? "#60A5FA" : "#3b82f6"} />
@@ -74,8 +99,13 @@ export default function TableRenderer({ table }) {
           : null;
 
         return (
-          <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
-            {/* Highlight */}
+          <Group
+            key={i}
+            x={c.x}
+            y={c.y}
+            rotation={(c.rotation * 180) / Math.PI}
+          >
+            {/* Highlight seat */}
             {isInHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}
