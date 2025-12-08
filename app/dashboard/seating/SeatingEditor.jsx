@@ -16,7 +16,6 @@ export default function SeatingEditor({ background }) {
     { id: "g4", name: "רותם דויד", count: 2, tableId: null },
   ]);
 
-  const [selectedTable, setSelectedTable] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [bgImage] = useImage(background || "", "anonymous");
@@ -37,7 +36,7 @@ export default function SeatingEditor({ background }) {
   /* ➕ הוספת שולחן חדש */
   const handleAddTable = ({ type, seats }) => {
     const newTable = {
-      id: `שולחן ${tables.length + 1}`,
+      id: `table_${Date.now()}`,
       type,
       seats,
       x: 200 + tables.length * 120,
@@ -72,50 +71,95 @@ export default function SeatingEditor({ background }) {
           alert("אין מספיק מקומות בשולחן הזה 😅");
           return t;
         }
+
+        // מוסיפים את האורח לפי כמות המקומות שהוא תופס
+        const newSeats = [];
+        for (let i = 0; i < guest.count; i++) {
+          newSeats.push({ ...guest, seatIndex: used + i });
+        }
+
         return {
           ...t,
-          seatedGuests: [...t.seatedGuests, guest],
+          seatedGuests: [...t.seatedGuests, ...newSeats],
         };
       })
     );
 
     setGuests((prev) =>
-      prev.map((g) =>
-        g.id === guestId ? { ...g, tableId } : g
-      )
+      prev.map((g) => (g.id === guestId ? { ...g, tableId } : g))
     );
   };
 
   /* 🎨 ציור שולחן ריאליסטי */
   const renderTable = (table) => {
-    const usedSeats = table.seatedGuests.reduce((s, g) => s + g.count, 0);
+    const usedSeats = table.seatedGuests.length;
     const remaining = table.seats - usedSeats;
-
-    const seatRadius = 8;
-    const tableRadius = table.type === "round" ? 50 : 45;
+    const seatRadius = 9;
 
     const chairs = [];
-    for (let i = 0; i < table.seats; i++) {
-      let angle = (i / table.seats) * Math.PI * 2;
-      let x = tableRadius * Math.cos(angle);
-      let y = tableRadius * Math.sin(angle);
+    const guestSeats = table.seatedGuests;
 
-      chairs.push(
-        <Group key={`chair-${i}`}>
-          <Circle x={x} y={y} radius={seatRadius} fill="#fbbf24" />
-          {table.seatedGuests[i] && (
-            <Text
-              x={x - 20}
-              y={y - 25}
-              text={table.seatedGuests[i].name}
-              fontSize={11}
-              fill="#fff"
-              width={40}
-              align="center"
-            />
-          )}
-        </Group>
-      );
+    const drawChair = (x, y, angle, guestAtSeat) => (
+      <Group key={`${x}-${y}`}>
+        <Circle
+          x={x}
+          y={y}
+          radius={seatRadius}
+          fill={guestAtSeat ? "#22c55e" : "#fbbf24"}
+        />
+        {guestAtSeat && (
+          <Text
+            x={x - 25}
+            y={y - 25}
+            text={guestAtSeat.name}
+            fontSize={10}
+            fill="white"
+            width={50}
+            align="center"
+          />
+        )}
+      </Group>
+    );
+
+    // 🟢 ציור לפי סוג
+    if (table.type === "round") {
+      const radius = 55;
+      for (let i = 0; i < table.seats; i++) {
+        const angle = (i / table.seats) * Math.PI * 2;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        chairs.push(drawChair(x, y, angle, guestSeats[i]));
+      }
+    }
+
+    if (table.type === "square") {
+      const side = Math.ceil(table.seats / 4);
+      let idx = 0;
+      const spacing = 25;
+      for (let i = 0; i < side; i++) {
+        chairs.push(drawChair(-60 + i * spacing, -60, 0, guestSeats[idx++]));
+      }
+      for (let i = 0; i < side; i++) {
+        chairs.push(drawChair(60, -60 + i * spacing, 0, guestSeats[idx++]));
+      }
+      for (let i = 0; i < side; i++) {
+        chairs.push(drawChair(60 - i * spacing, 60, 0, guestSeats[idx++]));
+      }
+      for (let i = 0; i < side; i++) {
+        chairs.push(drawChair(-60, 60 - i * spacing, 0, guestSeats[idx++]));
+      }
+    }
+
+    if (table.type === "rect") {
+      const perSide = Math.ceil(table.seats / 2);
+      const spacing = 25;
+      let idx = 0;
+      for (let i = 0; i < perSide; i++) {
+        chairs.push(drawChair(-70 + i * spacing, -40, 0, guestSeats[idx++]));
+      }
+      for (let i = 0; i < perSide; i++) {
+        chairs.push(drawChair(-70 + i * spacing, 40, 0, guestSeats[idx++]));
+      }
     }
 
     return (
@@ -128,16 +172,22 @@ export default function SeatingEditor({ background }) {
         onDrop={(e) => handleGuestDrop(table.id, e)}
         onDragOver={(e) => e.preventDefault()}
       >
-        <Circle radius={tableRadius - 10} fill="#3b82f6" />
+        {/* גוף השולחן */}
+        {table.type === "round" && <Circle radius={40} fill="#3b82f6" />}
+        {table.type === "square" && <Rect width={80} height={80} fill="#3b82f6" offsetX={40} offsetY={40} cornerRadius={10} />}
+        {table.type === "rect" && <Rect width={120} height={50} fill="#3b82f6" offsetX={60} offsetY={25} cornerRadius={8} />}
+
         {chairs}
+
+        {/* טקסטים */}
         <Text
           text={table.name}
           y={-8}
           fontSize={13}
           fill="white"
           align="center"
-          width={100}
-          x={-50}
+          width={120}
+          x={-60}
         />
         <Text
           text={`${usedSeats}/${table.seats} הושבו`}
@@ -145,8 +195,8 @@ export default function SeatingEditor({ background }) {
           fontSize={12}
           fill="#ffffffcc"
           align="center"
-          width={100}
-          x={-50}
+          width={120}
+          x={-60}
         />
       </Group>
     );
