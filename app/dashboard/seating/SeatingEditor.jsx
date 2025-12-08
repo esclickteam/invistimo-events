@@ -20,7 +20,8 @@ export default function SeatingEditor({ background }) {
   const guests = useSeatingStore((s) => s.guests);
 
   // תוקן ❗ משתמשים בפונקציה שקיימת ב-store
-  const init = useSeatingStore((s) => s.setInitialData);
+  const init = useSeatingStore((s) => s.init);
+
 
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
