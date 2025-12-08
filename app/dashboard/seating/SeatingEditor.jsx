@@ -6,7 +6,7 @@ import useImage from "use-image";
 
 import { useSeatingStore } from "@/store/seatingStore";
 
-// נתיבים נכונים לחלוטין ל־Next.js 13+
+// נתיבים נכונים
 import TableRenderer from "@/app/components/seating/TableRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
@@ -20,7 +20,6 @@ export default function SeatingEditor({ background }) {
   const guests = useSeatingStore((s) => s.guests);
 
   const init = useSeatingStore((s) => s.init);
-
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
@@ -28,6 +27,9 @@ export default function SeatingEditor({ background }) {
 
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
+
+  // ⭐ פונקציה להוספת שולחן חדש
+  const addTable = useSeatingStore((s) => s.addTable);
 
   /* -------------------- INIT SAMPLE DATA -------------------- */
   useEffect(() => {
@@ -109,7 +111,13 @@ export default function SeatingEditor({ background }) {
 
       {/* ADD TABLE MODAL */}
       {showAddModal && (
-        <AddTableModal onClose={() => setShowAddModal(false)} />
+        <AddTableModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={({ type, seats }) => {
+            addTable(type, seats);
+            setShowAddModal(false);
+          }}
+        />
       )}
 
       {/* ADD TABLE BUTTON */}
