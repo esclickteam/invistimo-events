@@ -11,10 +11,12 @@ export default function GuestSidebar({ guests, onDragStart }) {
             key={guest.id}
             draggable
             onDragStart={(e) => onDragStart(e, guest)}
-            className="cursor-grab p-3 hover:bg-gray-100 border-b flex justify-between"
+            className={`cursor-grab p-3 hover:bg-gray-100 border-b flex justify-between ${
+              guest.tableId ? "opacity-50" : ""
+            }`}
           >
             <span>{guest.name}</span>
-            <span className="text-sm text-gray-500">{guest.count}</span>
+            <span className="text-sm text-gray-500">מגיעים: {guest.count}</span>
           </li>
         ))}
       </ul>
