@@ -150,6 +150,7 @@ export default function SeatingEditor({ background }) {
   /* ---------------- SEAT POSITIONS (AUTO + UX ROTATION) ---------------- */
   /* ---------------- SEAT POSITIONS (UX FIXED FOR ALL SHAPES) ---------------- */
 /* ---------------- SEAT POSITIONS (BY SIDES + UX ROTATION) ---------------- */
+/* ---------------- SEAT POSITIONS (SIDES FIXED + PERFECT SYMMETRY) ---------------- */
 const getCoords = (table) => {
   const seats = table.seats;
   const coords = [];
@@ -173,42 +174,41 @@ const getCoords = (table) => {
     }
   }
 
-  // 🟦 ריבוע / מלבני — כיסאות לפי צדדים
+  // 🟦 ריבוע / מלבני
   if (table.type === "square" || table.type === "banquet") {
     const width = table.type === "square" ? 140 : 220;
     const height = table.type === "square" ? 140 : 80;
     const margin = 30;
 
+    // כמה כיסאות בכל צד
     const perSide = Math.ceil(seats / 4);
     const spacingX = width / (perSide + 1);
     const spacingY = height / (perSide + 1);
 
     for (let i = 0; i < seats; i++) {
-      const side = Math.floor((i * 4) / seats); // לאיזה צד שייך הכיסא
+      const side = Math.floor((i * 4) / seats);
       const pos = i % perSide;
-      let x = 0,
-        y = 0,
-        rotation = 0;
+      let x = 0, y = 0, rotation = 0;
 
       if (side === 0) {
-        // צד עליון
+        // עליון
         x = -width / 2 + spacingX * (pos + 1);
         y = -height / 2 - margin;
         rotation = 180;
       } else if (side === 1) {
-        // צד ימין
+        // ימין
         x = width / 2 + margin;
         y = -height / 2 + spacingY * (pos + 1);
         rotation = -90;
       } else if (side === 2) {
-        // צד תחתון
+        // תחתון
         x = width / 2 - spacingX * (pos + 1);
         y = height / 2 + margin;
         rotation = 0;
       } else {
-        // צד שמאל
+        // שמאל — תיקון לכיוון! 👇
         x = -width / 2 - margin;
-        y = height / 2 - spacingY * (pos + 1);
+        y = -height / 2 + spacingY * (pos + 1);
         rotation = 90;
       }
 
@@ -218,6 +218,7 @@ const getCoords = (table) => {
 
   return coords;
 };
+
 
 
 
