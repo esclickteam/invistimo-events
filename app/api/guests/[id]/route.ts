@@ -4,58 +4,56 @@ import Guest from "@/models/Guest";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
-// מניעת Cache
 export const dynamic = "force-dynamic";
 
-/* ================================
-   ✔️ GET - שליפת אורח יחיד (לא חובה)
-================================ */
+/* ============================================
+   GET — שליפת אורח יחיד (אופציונלי לדשבורד)
+============================================ */
 export async function GET(req: Request, context: any) {
   try {
     await db();
     const guestId = context.params.id;
 
     const guest = await Guest.findById(guestId);
-    if (!guest) return NextResponse.json({ error: "Guest not found" }, { status: 404 });
+    if (!guest)
+      return NextResponse.json({ error: "Guest not found" }, { status: 404 });
 
     return NextResponse.json({ success: true, guest });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error("GET /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-/* ================================
-   ✏️ PUT - עדכון אורח
-   ✔ רק בעל האירוע יכול לערוך
-   ✔ אורח לא יכול לערוך את עצמו
-================================ */
+/* ============================================
+   PUT — עדכון אורח
+   ✔ רק בעל האירוע יכול לבצע עדכון
+============================================ */
 export async function PUT(req: Request, context: any) {
   try {
     await db();
-
     const guestId = context.params.id;
     const body = await req.json();
 
-    // שליפת האורח
     const guest = await Guest.findById(guestId);
-    if (!guest) {
+    if (!guest)
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
-    }
 
-    // שליפת ההזמנה כדי לבדוק בעלות
+    // שליפה של ההזמנה שהאורח שייך אליה
     const invitation = await Invitation.findById(guest.invitationId);
-    if (!invitation) {
-      return NextResponse.json({ error: "Parent invitation not found" }, { status: 404 });
-    }
+    if (!invitation)
+      return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
 
-    // בדיקת הרשאות: רק בעל האירוע
+    // בדיקת בעלות (מאוד חשוב!)
     const userId = await getUserIdFromRequest();
     if (!userId || userId.toString() !== invitation.ownerId.toString()) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Not authorized to edit this guest" },
+        { status: 403 }
+      );
     }
 
-    // עדכון מותר לבעל האירוע:
+    // ביצוע העדכון
     guest.name = body.name ?? guest.name;
     guest.phone = body.phone ?? guest.phone;
     guest.rsvp = body.rsvp ?? guest.rsvp;
@@ -65,40 +63,44 @@ export async function PUT(req: Request, context: any) {
     await guest.save();
 
     return NextResponse.json({ success: true, guest });
-  } catch (err) {
-    console.error("PUT /guests/[id] error:", err);
+  } catch (error) {
+    console.error("PUT /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-/* ================================
-   ❌ DELETE - מחיקת אורח
-   ✔ רק בעל האירוע יכול למחוק
-================================ */
+/* ============================================
+   DELETE — מחיקת אורח
+   ✔ רק בעל האירוע יכול למחוק אורח
+============================================ */
 export async function DELETE(req: Request, context: any) {
   try {
     await db();
-
     const guestId = context.params.id;
 
     const guest = await Guest.findById(guestId);
-    if (!guest) {
+    if (!guest)
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
-    }
 
-    // בדיקת בעלות על האירוע
+    // בדיקה שהאורח שייך לאירוע
     const invitation = await Invitation.findById(guest.invitationId);
+    if (!invitation)
+      return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
 
+    // בדיקת בעלות (רק בעל האירוע)
     const userId = await getUserIdFromRequest();
     if (!userId || userId.toString() !== invitation.ownerId.toString()) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Not authorized to delete this guest" },
+        { status: 403 }
+      );
     }
 
     await guest.deleteOne();
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("DELETE /guests/[id] error:", err);
+  } catch (error) {
+    console.error("DELETE /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
