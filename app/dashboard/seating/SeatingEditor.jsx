@@ -141,7 +141,14 @@ export default function SeatingEditor({ background }) {
     );
   };
 
-  /* ---------------- SEAT POSITIONS (SIDES + UX) ---------------- */
+  /* ---------------- CALCULATE OCCUPIED COUNT ---------------- */
+  const getOccupiedCount = (table) => {
+    const seated = table.seatedGuests || [];
+    const uniqueSeats = new Set(seated.map((g) => g.seatIndex));
+    return uniqueSeats.size;
+  };
+
+  /* ---------------- SEAT POSITIONS ---------------- */
   const getCoords = (table) => {
     const seats = table.seats;
     const coords = [];
@@ -210,6 +217,12 @@ export default function SeatingEditor({ background }) {
   /* ---------------- RENDER TABLE ---------------- */
   const renderTable = (table) => {
     const coords = getCoords(table);
+    const occupied = getOccupiedCount(table);
+    const labelWidth =
+      table.type === "round" ? 120 :
+      table.type === "square" ? 140 :
+      220;
+
     return (
       <Group
         key={table.id}
@@ -219,6 +232,7 @@ export default function SeatingEditor({ background }) {
         onDragEnd={(e) => handleDrag(table.id, e)}
         onClick={() => setSelectedTable(table)}
       >
+        {/* Table shape */}
         {table.type === "round" && <Circle radius={60} fill="#3b82f6" />}
         {table.type === "square" && (
           <Rect width={140} height={140} offsetX={70} offsetY={70} fill="#3b82f6" />
@@ -227,7 +241,7 @@ export default function SeatingEditor({ background }) {
           <Rect width={220} height={80} offsetX={110} offsetY={40} fill="#3b82f6" />
         )}
 
-        {/* 💺 Chairs with color states */}
+        {/* Chairs */}
         {coords.map((c, i) => {
           const isOccupied = table.seatedGuests?.some((g) => g.seatIndex === i);
           return (
@@ -244,20 +258,22 @@ export default function SeatingEditor({ background }) {
                 y={-12}
                 offsetX={5}
                 cornerRadius={2}
-                fill={isOccupied ? "#9CA3AF" : "#2563EB"} // גוון כהה יותר לפנוי
+                fill={isOccupied ? "#9CA3AF" : "#2563EB"}
               />
             </Group>
           );
         })}
 
+        {/* Label: table name + occupancy */}
         <Text
-          text={table.name}
-          y={-10}
+          text={`${table.name}\n${occupied}/${table.seats}`}
           fontSize={14}
+          lineHeight={1.2}
           fill="white"
           align="center"
-          width={200}
-          offsetX={100}
+          width={labelWidth}
+          offsetX={labelWidth / 2}
+          y={-16}
         />
       </Group>
     );
