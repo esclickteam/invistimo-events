@@ -11,17 +11,18 @@ export default function TableRenderer({ table }) {
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
 
+  // ✔ מושכים את רשימת האורחים בצורה ריאקטיבית!
+  const guests = useSeatingStore((s) => s.guests);
+
   const seatsCoords = getSeatCoordinates(table);
-
   const isHighlighted = highlightedTable === table.id;
-
   const assigned = table.seatedGuests || [];
 
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
   /* ---------------- CLICK ON OCCUPIED SEAT = START DRAG AGAIN ---------------- */
   const handleSeatDrag = (guestId) => {
-    const g = useSeatingStore.getState().guests.find((x) => x.id === guestId);
+    const g = guests.find((x) => x.id === guestId);
     if (g) startDragGuest(g);
   };
 
@@ -59,7 +60,6 @@ export default function TableRenderer({ table }) {
         fill="white"
         align="center"
         offsetY={10}
-        offsetX={0}
         width={160}
       />
 
@@ -68,6 +68,10 @@ export default function TableRenderer({ table }) {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
         const isInHighlight = highlightedSeats.includes(i);
+
+        const guestName = !isFree
+          ? guests.find((g) => g.id === seatGuest.guestId)?.name
+          : null;
 
         return (
           <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
@@ -100,15 +104,13 @@ export default function TableRenderer({ table }) {
             {/* Guest Name */}
             {!isFree && (
               <Text
-                text={
-                  useSeatingStore
-                    .getState()
-                    .guests.find((g) => g.id === seatGuest.guestId)?.name
-                }
+                text={guestName}
                 offsetY={18}
                 align="center"
                 fontSize={12}
                 fill="#374151"
+                width={80}
+                offsetX={40}
               />
             )}
           </Group>

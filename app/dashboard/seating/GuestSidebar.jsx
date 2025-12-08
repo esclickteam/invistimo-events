@@ -7,7 +7,7 @@ export default function GuestSidebar({ onDragStart }) {
   const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
 
-  // 🟨 הגנה נגד undefined בשלב טעינה
+  // 🟨 הגנה נגד undefined בשלב טעינה ראשוני
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
     return (
       <div className="w-72 bg-white shadow-xl border-r h-full p-4 text-gray-400">
@@ -28,18 +28,18 @@ export default function GuestSidebar({ onDragStart }) {
             <li
               key={guest.id}
               draggable
-              onDragStart={() => onDragStart(guest)}
+              onDragStart={() => onDragStart(guest)}   // ✔ תקין
               className="cursor-grab p-3 hover:bg-gray-100 border-b"
             >
               {/* שם האורח */}
               <div className="font-medium">{guest.name}</div>
 
-              {/* כמות מקומות */}
+              {/* מספר מקומות */}
               <div className="text-xs text-gray-500">
                 {guest.count} מקומות
               </div>
 
-              {/* הצגת השולחן שאליו שובץ */}
+              {/* שם השולחן אם שובץ */}
               {table && (
                 <div className="mt-1 text-xs text-green-600">
                   {table.name}
