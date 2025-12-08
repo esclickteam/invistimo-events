@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
 export const useSeatingStore = create((set, get) => ({
+
+  /* ---------------- STATE ---------------- */
   tables: [],
   guests: [],
 
@@ -11,14 +13,19 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* --------------------- INIT REAL DATA --------------------- */
+  showAddModal: false,
+
+  /* ---------------- INIT DATA ---------------- */
   init: (tables, guests) =>
     set({
       tables,
       guests,
     }),
 
-  /* --------------------- DRAG START --------------------- */
+  /* ---------------- MODAL ---------------- */
+  setShowAddModal: (v) => set({ showAddModal: v }),
+
+  /* ---------------- DRAG START ---------------- */
   startDragGuest: (guest) =>
     set({
       draggedGuest: guest,
@@ -26,14 +33,13 @@ export const useSeatingStore = create((set, get) => ({
       highlightedSeats: [],
     }),
 
-  /* --------------------- DRAG MOVE --------------------- */
+  /* ---------------- DRAG MOVE ---------------- */
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
 
-    // מזהה איזה שולחן אנו מרחפים מעליו
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
@@ -42,7 +48,7 @@ export const useSeatingStore = create((set, get) => ({
           ? 90
           : t.type === "square"
           ? 110
-          : 140; // banquet
+          : 140;
 
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
@@ -54,7 +60,6 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    // מוצא בלוק פנוי
     const block = findFreeBlock(hoveredTable, draggedGuest.count);
 
     set({
@@ -63,7 +68,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* --------------------- DROP GUEST --------------------- */
+  /* ---------------- DROP GUEST ---------------- */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -73,7 +78,6 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    // אין לאן לשבץ
     if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
       return set({
         draggedGuest: null,
@@ -84,9 +88,10 @@ export const useSeatingStore = create((set, get) => ({
 
     let updatedTables = [...tables];
 
+    // שולחן היעד
     const table = updatedTables.find((t) => t.id === highlightedTable);
 
-    // אם האורח כבר ישב בשולחן אחר — מסירים אותו משם
+    // מסירים אותו מכל שולחן קודם
     updatedTables = updatedTables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
@@ -94,7 +99,7 @@ export const useSeatingStore = create((set, get) => ({
       ),
     }));
 
-    // משבצים לשולחן החדש
+    // מוסיפים אותו לשולחן החדש
     updatedTables = updatedTables.map((t) =>
       t.id === table.id
         ? {
@@ -110,7 +115,7 @@ export const useSeatingStore = create((set, get) => ({
         : t
     );
 
-    // עדכון guest.tableId
+    // עדכון ה־guest עצמו
     const updatedGuests = guests.map((g) =>
       g.id === draggedGuest.id ? { ...g, tableId: table.id } : g
     );
@@ -124,7 +129,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* --------------------- REMOVE FROM SEAT --------------------- */
+  /* ---------------- REMOVE SEAT ---------------- */
   removeFromSeat: (tableId, guestId) => {
     const { tables, guests } = get();
 
