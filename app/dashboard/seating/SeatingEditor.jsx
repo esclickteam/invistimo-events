@@ -1,379 +1,120 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
-import { Stage, Layer, Rect, Circle, Group, Text, Image } from "react-konva";
+
+import { useEffect } from "react";
+import { Stage, Layer, Image } from "react-konva";
 import useImage from "use-image";
+
+import { useSeatingStore } from "@/store/seatingStore";
+import TableRenderer from "./TableRenderer";
+import GhostPreview from "./GhostPreview";
 import GuestSidebar from "./GuestSidebar";
-import TableView from "./TableView";
 import AddTableModal from "./AddTableModal";
 
 export default function SeatingEditor({ background }) {
-  const [tables, setTables] = useState([]);
-  const [guests, setGuests] = useState([
-    { id: "g1", name: "דנה לוי", count: 3, tableId: null },
-    { id: "g2", name: "משפחת כהן", count: 2, tableId: null },
-    { id: "g3", name: "נועם ישראלי", count: 1, tableId: null },
-  ]);
-
-  const [selectedTable, setSelectedTable] = useState(null);
-  const [highlightedTable, setHighlightedTable] = useState(null);
-  const [draggedGuest, setDraggedGuest] = useState(null); // 🟢 חדש
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [showAddModal, setShowAddModal] = useState(false);
-  const stageRef = useRef();
   const [bgImage] = useImage(background || "", "anonymous");
 
-  /* ---------------- RESIZE ---------------- */
+  /* -------------------- Zustand State -------------------- */
+  const tables = useSeatingStore((s) => s.tables);
+  const guests = useSeatingStore((s) => s.guests);
+
+  const init = useSeatingStore((s) => s.init);
+
+  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
+  const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
+  const evalHover = useSeatingStore((s) => s.evaluateHover);
+  const dropGuest = useSeatingStore((s) => s.dropGuest);
+
+  const showAddModal = useSeatingStore((s) => s.showAddModal);
+  const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
+
+  /* -------------------- INIT DATA -------------------- */
   useEffect(() => {
-    const update = () =>
-      setDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight - 80,
-      });
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  /* ---------------- ADD TABLE ---------------- */
-  const handleAddTable = ({ type, seats }) => {
-    setTables((prev) => [
-      ...prev,
-      {
-        id: `t_${Date.now()}`,
-        type,
-        seats,
-        x: 300,
-        y: 250,
-        name: `שולחן ${prev.length + 1}`,
-        seatedGuests: [],
-      },
-    ]);
-  };
-
-  /* ---------------- DRAG TABLE ---------------- */
-  const handleDrag = (id, e) => {
-    const { x, y } = e.target.position();
-    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
-  };
-
-  /* ---------------- DRAG GUEST ---------------- */
-  const handleGuestDragStart = (guest) => {
-    setDraggedGuest(guest); // ✅ שומר את האורח שנגרר
-  };
-
-  const handleGuestDragEnd = () => {
-    setDraggedGuest(null);
-    setHighlightedTable(null);
-  };
-
-  const handleGuestDragOver = (e) => {
-    e.preventDefault();
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    const hoveredTable = tables.find((t) => {
-      const dx = pointer.x - t.x;
-      const dy = pointer.y - t.y;
-      const radius = t.type === "round" ? 90 : 110;
-      return Math.sqrt(dx * dx + dy * dy) < radius;
-    });
-    setHighlightedTable(hoveredTable ? hoveredTable.id : null);
-  };
-
-  const handleGuestDragLeave = () => {
-    setHighlightedTable(null);
-  };
-
-  /* ---------------- DROP ---------------- */
-  const handleDropGuest = (e) => {
-    e.preventDefault();
-    if (!draggedGuest) return; // 🟢 משתמש באורח מה-state
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-
-    const table = tables.find((t) => {
-      const dx = pointer.x - t.x;
-      const dy = pointer.y - t.y;
-      const radius = t.type === "round" ? 90 : 110;
-      return Math.sqrt(dx * dx + dy * dy) < radius;
-    });
-    if (!table) return;
-
-    const startIndex = findBlock(table, draggedGuest.count);
-    if (startIndex === null) {
-      alert("אין מספיק מקומות רצופים בשולחן הזה");
-      return;
-    }
-
-    assignGuestBlock(table.id, startIndex, draggedGuest.id);
-    setDraggedGuest(null);
-    setHighlightedTable(null);
-  };
-
-  /* ---------------- FIND CONTINUOUS BLOCK ---------------- */
-  const findBlock = (table, needed) => {
-    const used = new Set(table.seatedGuests.map((g) => g.seatIndex));
-    const seats = table.seats;
-    for (let start = 0; start <= seats - needed; start++) {
-      let ok = true;
-      for (let offset = 0; offset < needed; offset++) {
-        if (used.has(start + offset)) {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) return start;
-    }
-    return null;
-  };
-
-  /* ---------------- ASSIGN MULTI-SEAT BLOCK ---------------- */
-  const assignGuestBlock = (tableId, startIndex, guestId) => {
-    const guest = guests.find((g) => g.id === guestId);
-    if (!guest) return;
-    const block = [];
-    for (let i = 0; i < guest.count; i++) {
-      block.push({ ...guest, seatIndex: startIndex + i });
-    }
-    setTables((prev) =>
-      prev.map((t) =>
-        t.id === tableId
-          ? { ...t, seatedGuests: [...t.seatedGuests, ...block] }
-          : t
-      )
+    init(
+      [
+        {
+          id: "t1",
+          name: "שולחן 1",
+          type: "round",
+          seats: 12,
+          x: 400,
+          y: 300,
+          seatedGuests: [],
+        },
+      ],
+      [
+        { id: "g1", name: "דנה לוי", count: 3, tableId: null },
+        { id: "g2", name: "משפחת כהן", count: 2, tableId: null },
+        { id: "g3", name: "נועם ישראלי", count: 1, tableId: null },
+      ]
     );
-    setGuests((prev) =>
-      prev.map((g) => (g.id === guestId ? { ...g, tableId } : g))
-    );
+  }, [init]);
+
+  /* -------------------- Sizes -------------------- */
+  const width = typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
+  const height =
+    typeof window !== "undefined" ? window.innerHeight - 100 : 800;
+
+  /* -------------------- Move Ghost -------------------- */
+  const handleMouseMove = (e) => {
+    const pos = e.target.getStage().getPointerPosition();
+    if (!pos) return;
+    updateGhost(pos);
+    evalHover(pos);
   };
 
-  /* ---------------- REMOVE WHOLE BLOCK ---------------- */
-  const removeSeat = (tableId, seatIndex) => {
-    const table = tables.find((t) => t.id === tableId);
-    if (!table) return;
-    const item = table.seatedGuests.find((g) => g.seatIndex === seatIndex);
-    if (!item) return;
-    const guestId = item.id;
-
-    setTables((prev) =>
-      prev.map((t) =>
-        t.id === tableId
-          ? { ...t, seatedGuests: t.seatedGuests.filter((g) => g.id !== guestId) }
-          : t
-      )
-    );
-    setGuests((prev) =>
-      prev.map((g) => (g.id === guestId ? { ...g, tableId: null } : g))
-    );
+  /* -------------------- Drop Guest -------------------- */
+  const handleMouseUp = () => {
+    dropGuest();
   };
 
-  /* ---------------- CALCULATE OCCUPIED COUNT ---------------- */
-  const getOccupiedCount = (table) => {
-    const seated = table.seatedGuests || [];
-    const uniqueSeats = new Set(seated.map((g) => g.seatIndex));
-    return uniqueSeats.size;
-  };
-
-  /* ---------------- SEAT POSITIONS ---------------- */
-  const getCoords = (table) => {
-    const seats = table.seats;
-    const coords = [];
-
-    if (table.type === "round") {
-      const baseRadius = 75;
-      const radius =
-        seats <= 6
-          ? baseRadius + 10
-          : seats <= 10
-          ? baseRadius + 20
-          : seats <= 14
-          ? baseRadius + 30
-          : baseRadius + 40;
-
-      for (let i = 0; i < seats; i++) {
-        const angle = (i / seats) * Math.PI * 2;
-        coords.push({
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius,
-          rotation: (angle * 180) / Math.PI + 90,
-        });
-      }
-    }
-
-    if (table.type === "square" || table.type === "banquet") {
-      const width = table.type === "square" ? 140 : 220;
-      const height = table.type === "square" ? 140 : 80;
-      const margin = 30;
-
-      const perSide = Math.ceil(seats / 4);
-      const spacingX = width / (perSide + 1);
-      const spacingY = height / (perSide + 1);
-
-      for (let i = 0; i < seats; i++) {
-        const side = Math.floor((i * 4) / seats);
-        const pos = i % perSide;
-        let x = 0,
-          y = 0,
-          rotation = 0;
-
-        if (side === 0) {
-          x = -width / 2 + spacingX * (pos + 1);
-          y = -height / 2 - margin;
-          rotation = 180;
-        } else if (side === 1) {
-          x = width / 2 + margin;
-          y = -height / 2 + spacingY * (pos + 1);
-          rotation = -90;
-        } else if (side === 2) {
-          x = width / 2 - spacingX * (pos + 1);
-          y = height / 2 + margin;
-          rotation = 0;
-        } else {
-          x = -width / 2 - margin;
-          y = -height / 2 + spacingY * (pos + 1);
-          rotation = 90;
-        }
-        coords.push({ x, y, rotation });
-      }
-    }
-
-    return coords;
-  };
-
-  /* ---------------- RENDER TABLE ---------------- */
-  const renderTable = (table) => {
-    const coords = getCoords(table);
-    const occupied = getOccupiedCount(table);
-    const labelWidth =
-      table.type === "round" ? 120 : table.type === "square" ? 140 : 220;
-
-    const isHighlighted = highlightedTable === table.id;
-
-    return (
-      <Group
-        key={table.id}
-        x={table.x}
-        y={table.y}
-        draggable
-        onDragEnd={(e) => handleDrag(table.id, e)}
-        onClick={() => setSelectedTable(table)}
-      >
-        {table.type === "round" && (
-          <Circle radius={60} fill={isHighlighted ? "#60A5FA" : "#3b82f6"} />
-        )}
-        {table.type === "square" && (
-          <Rect
-            width={140}
-            height={140}
-            offsetX={70}
-            offsetY={70}
-            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-          />
-        )}
-        {table.type === "banquet" && (
-          <Rect
-            width={220}
-            height={80}
-            offsetX={110}
-            offsetY={40}
-            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-          />
-        )}
-
-        {/* Chairs */}
-        {coords.map((c, i) => {
-          const isOccupied = table.seatedGuests?.some((g) => g.seatIndex === i);
-          return (
-            <Group key={i} x={c.x} y={c.y} rotation={c.rotation || 0}>
-              <Circle
-                radius={10}
-                fill={isOccupied ? "#D1D5DB" : "#3B82F6"} // אפור תפוס, כחול פנוי
-                stroke="#9CA3AF"
-                strokeWidth={1}
-              />
-              <Rect
-                width={10}
-                height={6}
-                y={-12}
-                offsetX={5}
-                cornerRadius={2}
-                fill={isOccupied ? "#9CA3AF" : "#2563EB"}
-              />
-            </Group>
-          );
-        })}
-
-        {/* Label: table name + occupancy */}
-        <Text
-          text={`${table.name}\n${occupied}/${table.seats}`}
-          fontSize={14}
-          lineHeight={1.2}
-          fill="white"
-          align="center"
-          width={labelWidth}
-          offsetX={labelWidth / 2}
-          y={-16}
-        />
-      </Group>
-    );
-  };
-
-  /* ---------------- RETURN JSX ---------------- */
   return (
-    <div className="flex h-full">
+    <div className="flex">
+      {/* SIDEBAR */}
       <GuestSidebar
-        guests={guests}
-        tables={tables}
-        onDragStart={(_, guest) => handleGuestDragStart(guest)}
-        onDragEnd={handleGuestDragEnd}
+        guests={guests.filter((g) => !g.tableId)}
+        onDragStart={(g) => startDragGuest(g)}
       />
-      <div
-        className="flex-1 relative"
-        onDragOver={handleGuestDragOver}
-        onDragLeave={handleGuestDragLeave}
-        onDrop={handleDropGuest}
+
+      {/* MAIN CANVAS */}
+      <Stage
+        width={width}
+        height={height}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
       >
-        <Stage
-          width={dimensions.width - 260}
-          height={dimensions.height}
-          ref={stageRef}
-        >
-          <Layer>
-            {bgImage && (
-              <Image
-                image={bgImage}
-                width={dimensions.width}
-                height={dimensions.height}
-                opacity={0.25}
-              />
-            )}
-            {tables.map((table) => renderTable(table))}
-          </Layer>
-        </Stage>
+        <Layer>
+          {/* background */}
+          {bgImage && (
+            <Image
+              image={bgImage}
+              width={width}
+              height={height}
+              opacity={0.28}
+            />
+          )}
 
-        {selectedTable && (
-          <TableView
-            table={tables.find((t) => t.id === selectedTable.id)}
-            availableGuests={guests.filter((g) => !g.tableId)}
-            onAssignSeat={assignGuestBlock}
-            onRemoveSeat={removeSeat}
-            onClose={() => setSelectedTable(null)}
-          />
-        )}
+          {/* tables */}
+          {tables.map((t) => (
+            <TableRenderer key={t.id} table={t} />
+          ))}
 
-        {showAddModal && (
-          <AddTableModal
-            onClose={() => setShowAddModal(false)}
-            onAdd={handleAddTable}
-          />
-        )}
+          {/* ghost */}
+          <GhostPreview />
+        </Layer>
+      </Stage>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow"
-        >
-          ➕ הוסף שולחן
-        </button>
-      </div>
+      {/* ADD TABLE MODAL */}
+      {showAddModal && (
+        <AddTableModal onClose={() => setShowAddModal(false)} />
+      )}
+
+      {/* BTN */}
+      <button
+        onClick={() => setShowAddModal(true)}
+        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow"
+      >
+        ➕ הוסף שולחן
+      </button>
     </div>
   );
 }
