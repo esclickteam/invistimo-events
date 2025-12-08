@@ -16,22 +16,26 @@ export const useSeatingStore = create((set, get) => ({
   showAddModal: false,
 
   /* ---------------- INIT DATA ---------------- */
-  init: (tables, guests) =>
+  init: (tables, guests) => {
+    console.log("🟦 INIT — Loading tables & guests:", { tables, guests });
     set({
-      tables,
-      guests,
-    }),
+      tables: tables || [],
+      guests: guests || [],
+    });
+  },
 
   /* ---------------- MODAL ---------------- */
   setShowAddModal: (v) => set({ showAddModal: v }),
 
   /* ---------------- DRAG START ---------------- */
-  startDragGuest: (guest) =>
+  startDragGuest: (guest) => {
+    console.log("🟡 DRAG START — Guest:", guest);
     set({
       draggedGuest: guest,
       highlightedTable: null,
       highlightedSeats: [],
-    }),
+    });
+  },
 
   /* ---------------- DRAG MOVE ---------------- */
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
@@ -39,6 +43,8 @@ export const useSeatingStore = create((set, get) => ({
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
+
+    console.log("🟠 HOVER — Pointer:", pointer, "Guest:", draggedGuest);
 
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
@@ -49,18 +55,18 @@ export const useSeatingStore = create((set, get) => ({
           : t.type === "square"
           ? 110
           : 140;
-
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
+    console.log("🟣 HOVER RESULT — Table:", hoveredTable);
+
     if (!hoveredTable) {
-      return set({
-        highlightedTable: null,
-        highlightedSeats: [],
-      });
+      set({ highlightedTable: null, highlightedSeats: [] });
+      return;
     }
 
     const block = findFreeBlock(hoveredTable, draggedGuest.count);
+    console.log("🟢 FREE BLOCK FOUND:", block);
 
     set({
       highlightedTable: hoveredTable.id,
@@ -78,7 +84,14 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
+    console.log("🔵 DROP — Data:", {
+      draggedGuest,
+      highlightedTable,
+      highlightedSeats,
+    });
+
     if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
+      console.log("🔴 DROP CANCELLED — Missing data");
       return set({
         draggedGuest: null,
         highlightedTable: null,
@@ -87,11 +100,11 @@ export const useSeatingStore = create((set, get) => ({
     }
 
     let updatedTables = [...tables];
+    const targetTable = updatedTables.find((t) => t.id === highlightedTable);
 
-    // שולחן היעד
-    const table = updatedTables.find((t) => t.id === highlightedTable);
+    console.log("🟤 TARGET TABLE BEFORE UPDATE:", targetTable);
 
-    // מסירים אותו מכל שולחן קודם
+    // Remove guest from any previous table
     updatedTables = updatedTables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
@@ -99,9 +112,9 @@ export const useSeatingStore = create((set, get) => ({
       ),
     }));
 
-    // מוסיפים אותו לשולחן החדש
+    // Assign to new table
     updatedTables = updatedTables.map((t) =>
-      t.id === table.id
+      t.id === targetTable.id
         ? {
             ...t,
             seatedGuests: [
@@ -115,10 +128,14 @@ export const useSeatingStore = create((set, get) => ({
         : t
     );
 
-    // עדכון ה־guest עצמו
+    console.log("🟧 TABLE UPDATED:", updatedTables);
+
+    // Update guest.tableId
     const updatedGuests = guests.map((g) =>
-      g.id === draggedGuest.id ? { ...g, tableId: table.id } : g
+      g.id === draggedGuest.id ? { ...g, tableId: targetTable.id } : g
     );
+
+    console.log("🟨 GUEST UPDATED:", updatedGuests);
 
     set({
       tables: updatedTables,
@@ -127,10 +144,14 @@ export const useSeatingStore = create((set, get) => ({
       highlightedTable: null,
       highlightedSeats: [],
     });
+
+    console.log("✅ DROP FINISHED");
   },
 
   /* ---------------- REMOVE SEAT ---------------- */
   removeFromSeat: (tableId, guestId) => {
+    console.log("❌ REMOVE SEAT — Table:", tableId, "Guest:", guestId);
+
     const { tables, guests } = get();
 
     const updatedTables = tables.map((t) =>
@@ -147,6 +168,8 @@ export const useSeatingStore = create((set, get) => ({
     const updatedGuests = guests.map((g) =>
       g.id === guestId ? { ...g, tableId: null } : g
     );
+
+    console.log("🧹 CLEANUP RESULT:", { updatedTables, updatedGuests });
 
     set({
       tables: updatedTables,
