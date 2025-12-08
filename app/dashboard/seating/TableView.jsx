@@ -10,11 +10,29 @@ export default function TableView({
 }) {
   const [selectSeatIndex, setSelectSeatIndex] = useState(null);
 
+  // 🔥 מוצא את כל הבלוק של האורח לפי שיטת A
+  const getGuestBlock = (seatIndex) => {
+    const seat = table.seatedGuests.find((g) => g.seatIndex === seatIndex);
+    if (!seat) return null;
+
+    const guestId = seat.id;
+
+    const allSeats = table.seatedGuests.filter((g) => g.id === guestId);
+
+    return {
+      guestId,
+      name: seat.name,
+      count: allSeats.length,
+      seats: allSeats.map((g) => g.seatIndex)
+    };
+  };
+
   return (
     <>
       {/* פופאפ המרכזי */}
       <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
         <div className="bg-white rounded-xl shadow-xl w-[420px] p-6 relative">
+
           <button
             onClick={onClose}
             className="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl"
@@ -27,32 +45,33 @@ export default function TableView({
           {/* כיסאות */}
           <div className="grid grid-cols-4 gap-3 justify-center mx-auto">
             {Array.from({ length: table.seats }).map((_, i) => {
-              const seated = table.seatedGuests.find((g) => g.seatIndex === i);
+              const guestBlock = getGuestBlock(i);
 
               return (
-                <div
-                  key={i}
-                  className="flex flex-col items-center"
-                >
+                <div key={i} className="flex flex-col items-center">
+
                   <button
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-xs ${
-                      seated
+                      guestBlock
                         ? "bg-blue-600 text-white"
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                     onClick={() => {
-                      if (seated) {
+                      if (guestBlock) {
+                        // מוחק בלוק שלם
                         onRemoveSeat(table.id, i);
                       } else {
                         setSelectSeatIndex(i);
                       }
                     }}
                   >
-                    {seated ? "👤" : i + 1}
+                    {guestBlock ? "👤" : i + 1}
                   </button>
 
-                  {seated && (
-                    <span className="text-xs mt-1">{seated.name}</span>
+                  {guestBlock && (
+                    <span className="text-xs mt-1">
+                      {guestBlock.name} × {guestBlock.count}
+                    </span>
                   )}
                 </div>
               );
@@ -61,7 +80,7 @@ export default function TableView({
         </div>
       </div>
 
-      {/* מודאל בחירת אורח */}
+      {/* פופאפ בחירת אורח */}
       {selectSeatIndex !== null && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-[60]">
           <div className="bg-white p-4 rounded-lg shadow-lg w-80">

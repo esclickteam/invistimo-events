@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 
-export default function GuestSidebar({ guests, tables, onDragStart, onManualTableChange }) {
+export default function GuestSidebar({ guests, tables, onDragStart }) {
   return (
     <div className="w-72 bg-white shadow-xl border-r h-full overflow-y-auto">
       <h2 className="text-lg font-bold p-4 border-b">🧾 רשימת אורחים</h2>
@@ -20,32 +20,16 @@ export default function GuestSidebar({ guests, tables, onDragStart, onManualTabl
               {/* שם האורח */}
               <div className="font-medium">{guest.name}</div>
 
-              {/* מספר המקומות שהוא תופס */}
+              {/* כמות מקומות */}
               <div className="text-xs text-gray-500">
                 {guest.count} מקומות
               </div>
 
-              {/* שולחן שהוא יושב בו */}
+              {/* הצגת השולחן */}
               {table && (
                 <div className="mt-1 text-xs text-green-600">
                   {table.name}
                 </div>
-              )}
-
-              {/* שינוי שולחן ידני */}
-              {table && (
-                <select
-                  className="border rounded px-1 py-0.5 text-xs mt-2 w-28"
-                  value={table.id}
-                  onChange={(e) => onManualTableChange(guest.id, e.target.value)}
-                >
-                  <option value="">ללא</option>
-                  {tables.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
               )}
             </li>
           );

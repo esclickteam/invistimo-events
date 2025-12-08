@@ -9,10 +9,9 @@ import AddTableModal from "./AddTableModal";
 export default function SeatingEditor({ background }) {
   const [tables, setTables] = useState([]);
   const [guests, setGuests] = useState([
-    { id: "g1", name: "דנה לוי", count: 2, tableId: null },
-    { id: "g2", name: "משפחת כהן", count: 3, tableId: null },
-    { id: "g3", name: "נועם ישראלי", count: 1, tableId: null },
-    { id: "g4", name: "רותם דויד", count: 2, tableId: null }
+    { id: "g1", name: "דנה לוי", count: 3, tableId: null },
+    { id: "g2", name: "משפחת כהן", count: 2, tableId: null },
+    { id: "g3", name: "נועם ישראלי", count: 1, tableId: null }
   ]);
 
   const [selectedTable, setSelectedTable] = useState(null);
@@ -27,7 +26,7 @@ export default function SeatingEditor({ background }) {
     const update = () =>
       setDimensions({
         width: window.innerWidth,
-        height: window.innerHeight - 80
+        height: window.innerHeight - 80,
       });
     update();
     window.addEventListener("resize", update);
@@ -45,23 +44,43 @@ export default function SeatingEditor({ background }) {
         x: 300,
         y: 250,
         name: `שולחן ${prev.length + 1}`,
-        seatedGuests: [] // {id,name,count, seatIndex}
-      }
+        seatedGuests: [],
+      },
     ]);
   };
 
   /* ---------------- DRAG TABLE ---------------- */
   const handleDrag = (id, e) => {
     const { x, y } = e.target.position();
-    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
+    setTables((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, x, y } : t))
+    );
   };
 
-  /* ---------------- DRAG GUEST FROM SIDEBAR ---------------- */
+  /* ---------------- DRAG GUEST ---------------- */
   const handleGuestDragStart = (e, guest) => {
     e.dataTransfer.setData("guest", JSON.stringify(guest));
   };
 
-  /* ---------------- DROP GUEST ON CANVAS ---------------- */
+  /* ---------------- FIND CONTINUOUS BLOCK (A) ---------------- */
+  const findBlock = (table, needed) => {
+    const used = new Set(table.seatedGuests.map((g) => g.seatIndex));
+    const seats = table.seats;
+
+    for (let start = 0; start <= seats - needed; start++) {
+      let ok = true;
+      for (let offset = 0; offset < needed; offset++) {
+        if (used.has(start + offset)) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return start;
+    }
+    return null;
+  };
+
+  /* ---------------- DROP ---------------- */
   const handleDropGuest = (e) => {
     const raw = e.evt.dataTransfer.getData("guest");
     if (!raw) return;
@@ -69,132 +88,61 @@ export default function SeatingEditor({ background }) {
     const guest = JSON.parse(raw);
     const pointer = stageRef.current.getPointerPosition();
 
-    // מוצאים את השולחן הקרוב
     const table = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      return dist < 160;
+      return Math.sqrt(dx * dx + dy * dy) < 200;
     });
 
     if (!table) return;
 
-    assignGuestToTableWithCount(table, guest);
-  };
-
-  /* ---------------- ASSIGN GUEST WITH COUNT (OPTION A) ---------------- */
-  const assignGuestToTableWithCount = (table, guest) => {
-    const needed = guest.count;
-    const seats = table.seats;
-
-    // רשימת מקומות תפוסים
-    const used = table.seatedGuests.map((g) => g.seatIndex);
-
-    // מחפשים רצף פנוי באורך count
-    let freeStart = null;
-
-    for (let i = 0; i <= seats - needed; i++) {
-      let blockOK = true;
-
-      for (let j = 0; j < needed; j++) {
-        if (used.includes(i + j)) {
-          blockOK = false;
-          break;
-        }
-      }
-
-      if (blockOK) {
-        freeStart = i;
-        break;
-      }
-    }
-
-    if (freeStart === null) {
-      alert("אין מספיק כיסאות רצופים פנויים");
+    const startIndex = findBlock(table, guest.count);
+    if (startIndex === null) {
+      alert("אין מספיק מקומות רצופים בשולחן");
       return;
     }
 
-    // מוסיפים את כל הכיסאות הרצופים
+    assignGuestBlock(table.id, startIndex, guest.id);
+  };
+
+  /* ---------------- ASSIGN MULTI-SEAT BLOCK (A) ---------------- */
+  const assignGuestBlock = (tableId, startIndex, guestId) => {
+    const guest = guests.find((g) => g.id === guestId);
+
+    const block = [];
+    for (let i = 0; i < guest.count; i++) {
+      block.push({ ...guest, seatIndex: startIndex + i });
+    }
+
     setTables((prev) =>
       prev.map((t) =>
-        t.id === table.id
-          ? {
-              ...t,
-              seatedGuests: [
-                ...t.seatedGuests,
-                ...Array.from({ length: needed }).map((_, idx) => ({
-                  ...guest,
-                  seatIndex: freeStart + idx
-                }))
-              ]
-            }
+        t.id === tableId
+          ? { ...t, seatedGuests: [...t.seatedGuests, ...block] }
           : t
       )
     );
 
-    // מעדכנים tableId לאורח
     setGuests((prev) =>
-      prev.map((g) => (g.id === guest.id ? { ...g, tableId: table.id } : g))
+      prev.map((g) =>
+        g.id === guestId ? { ...g, tableId } : g
+      )
     );
   };
 
-  /* ---------------- REMOVE SEAT ---------------- */
+  /* ---------------- REMOVE WHOLE BLOCK (A) ---------------- */
   const removeSeat = (tableId, seatIndex) => {
     const table = tables.find((t) => t.id === tableId);
     if (!table) return;
 
-    const guest = table.seatedGuests.find((g) => g.seatIndex === seatIndex);
-    if (!guest) return;
+    const item = table.seatedGuests.find((g) => g.seatIndex === seatIndex);
+    if (!item) return;
 
-    const removedGuestId = guest.id;
+    const guestId = item.id;
 
-    // מסירים את כל הכיסאות שתפס אותו אורח
     setTables((prev) =>
       prev.map((t) =>
         t.id === tableId
-          ? {
-              ...t,
-              seatedGuests: t.seatedGuests.filter((g) => g.id !== removedGuestId)
-            }
-          : t
-      )
-    );
-
-    // מאפסים tableId לאורח
-    setGuests((prev) =>
-      prev.map((g) => (g.id === removedGuestId ? { ...g, tableId: null } : g))
-    );
-  };
-
-  /* ---------------- שינוי ידני של מספר שולחן ---------------- */
-  const handleManualTableChange = (guestId, newTableId) => {
-    if (!newTableId) return;
-
-    const guest = guests.find((g) => g.id === guestId);
-    if (!guest) return;
-
-    // מסירים מהשולחן הקודם
-    tables.forEach((t) => {
-      if (t.seatedGuests.some((g) => g.id === guestId)) {
-        removeGuestFromTable(guestId, t.id);
-      }
-    });
-
-    // משיבים לשולחן החדש
-    const table = tables.find((t) => t.id === newTableId);
-    if (!table) return;
-
-    assignGuestToTableWithCount(table, guest);
-  };
-
-  const removeGuestFromTable = (guestId, tableId) => {
-    setTables((prev) =>
-      prev.map((t) =>
-        t.id === tableId
-          ? {
-              ...t,
-              seatedGuests: t.seatedGuests.filter((g) => g.id !== guestId)
-            }
+          ? { ...t, seatedGuests: t.seatedGuests.filter((g) => g.id !== guestId) }
           : t
       )
     );
@@ -204,23 +152,21 @@ export default function SeatingEditor({ background }) {
     );
   };
 
-  /* ---------------- CALCULATE SEAT POSITIONS ---------------- */
-  const getSeatCoords = (table) => {
+  /* ---------------- SEAT POSITIONS ---------------- */
+  const getCoords = (table) => {
     const seats = table.seats;
-    let coords = [];
+    const coords = [];
 
-    /* עגול */
     if (table.type === "round") {
       for (let i = 0; i < seats; i++) {
         const angle = (i / seats) * Math.PI * 2;
         coords.push({
-          x: Math.cos(angle) * 80,
-          y: Math.sin(angle) * 80
+          x: Math.cos(angle) * 85,
+          y: Math.sin(angle) * 85,
         });
       }
     }
 
-    /* מרובע */
     if (table.type === "square") {
       const perSide = Math.ceil(seats / 4);
       const spacing = 35;
@@ -228,37 +174,30 @@ export default function SeatingEditor({ background }) {
       for (let i = 0; i < seats; i++) {
         const side = Math.floor(i / perSide);
         const pos = i % perSide;
-        const offset = pos * spacing - ((perSide - 1) * spacing) / 2;
+        const off = pos * spacing - ((perSide - 1) * spacing) / 2;
 
-        if (side === 0) coords.push({ x: offset, y: -95 });
-        if (side === 1) coords.push({ x: 95, y: offset });
-        if (side === 2) coords.push({ x: offset, y: 95 });
-        if (side === 3) coords.push({ x: -95, y: offset });
+        if (side === 0) coords.push({ x: off, y: -95 });
+        if (side === 1) coords.push({ x: 95, y: off });
+        if (side === 2) coords.push({ x: off, y: 95 });
+        if (side === 3) coords.push({ x: -95, y: off });
       }
     }
 
-    /* אבירים — מלבני מלא ויפה */
-    if (table.type === "rect" || table.type === "banquet") {
-      const left = Math.ceil(seats / 2);
-      const right = seats - left;
-
+    if (table.type === "banquet") {
+      const top = Math.ceil(seats / 2);
+      const bottom = seats - top;
       const spacing = 32;
-      const leftOffset = (left - 1) * spacing / 2;
-      const rightOffset = (right - 1) * spacing / 2;
+
+      const topOff = (top - 1) * spacing / 2;
+      const bottomOff = (bottom - 1) * spacing / 2;
 
       for (let i = 0; i < seats; i++) {
-        let x, y;
-
-        if (i < left) {
-          x = -130;
-          y = i * spacing - leftOffset;
+        if (i < top) {
+          coords.push({ x: i * spacing - topOff, y: -50 });
         } else {
-          const idx = i - left;
-          x = 130;
-          y = idx * spacing - rightOffset;
+          const idx = i - top;
+          coords.push({ x: idx * spacing - bottomOff, y: 50 });
         }
-
-        coords.push({ x, y });
       }
     }
 
@@ -267,7 +206,7 @@ export default function SeatingEditor({ background }) {
 
   /* ---------------- RENDER TABLE ---------------- */
   const renderTable = (table) => {
-    const coords = getSeatCoords(table);
+    const coords = getCoords(table);
 
     return (
       <Group
@@ -278,47 +217,23 @@ export default function SeatingEditor({ background }) {
         onDragEnd={(e) => handleDrag(table.id, e)}
         onClick={() => setSelectedTable(table)}
       >
-        {/* גוף השולחן — תמיד כחול מלא */}
-        {table.type === "round" && <Circle radius={55} fill="#3b82f6" />}
+        {table.type === "round" && <Circle radius={60} fill="#3b82f6" />}
         {table.type === "square" && (
-          <Rect width={130} height={130} offsetX={65} offsetY={65} fill="#3b82f6" />
+          <Rect width={140} height={140} offsetX={70} offsetY={70} fill="#3b82f6" />
         )}
-        {(table.type === "rect" || table.type === "banquet") && (
-          <Rect width={260} height={80} offsetX={130} offsetY={40} fill="#3b82f6" />
+        {table.type === "banquet" && (
+          <Rect width={220} height={80} offsetX={110} offsetY={40} fill="#3b82f6" />
         )}
 
-        {/* כיסאות */}
         {coords.map((c, i) => (
-          <Circle
-            key={i}
-            x={c.x}
-            y={c.y}
-            radius={10}
-            fill={
-              table.seatedGuests.some((g) => g.seatIndex === i)
-                ? "#2563eb"
-                : "#d1d5db"
-            }
-          />
+          <Circle key={i} x={c.x} y={c.y} radius={10} fill="#d1d5db" />
         ))}
 
-        {/* שם שולחן */}
         <Text
           text={table.name}
-          y={-5}
+          y={-10}
           fontSize={14}
           fill="white"
-          align="center"
-          width={200}
-          offsetX={100}
-        />
-
-        {/* ספירת הושבה */}
-        <Text
-          text={`${table.seatedGuests.length}/${table.seats} הושבו`}
-          y={15}
-          fontSize={12}
-          fill="#e5e7eb"
           align="center"
           width={200}
           offsetX={100}
@@ -333,40 +248,37 @@ export default function SeatingEditor({ background }) {
         guests={guests}
         tables={tables}
         onDragStart={handleGuestDragStart}
-        onManualTableChange={handleManualTableChange}
       />
 
       <div className="flex-1 relative">
-        {dimensions.width > 0 && (
-          <Stage
-            width={dimensions.width - 260}
-            height={dimensions.height}
-            ref={stageRef}
-            onDrop={handleDropGuest}
-            onDragOver={(e) => e.evt.preventDefault()}
-          >
-            <Layer>
-              {bgImage && (
-                <Image
-                  image={bgImage}
-                  width={dimensions.width}
-                  height={dimensions.height}
-                  opacity={0.3}
-                />
-              )}
+        <Stage
+          width={dimensions.width - 260}
+          height={dimensions.height}
+          ref={stageRef}
+          onDrop={handleDropGuest}
+          onDragOver={(e) => e.evt.preventDefault()}
+        >
+          <Layer>
+            {bgImage && (
+              <Image
+                image={bgImage}
+                width={dimensions.width}
+                height={dimensions.height}
+                opacity={0.25}
+              />
+            )}
 
-              {tables.map((table) => renderTable(table))}
-            </Layer>
-          </Stage>
-        )}
+            {tables.map((table) => renderTable(table))}
+          </Layer>
+        </Stage>
 
         {selectedTable && (
           <TableView
             table={tables.find((t) => t.id === selectedTable.id)}
             availableGuests={guests.filter((g) => !g.tableId)}
-            onClose={() => setSelectedTable(null)}
-            onAssignSeat={assignGuestToTableWithCount}
+            onAssignSeat={assignGuestBlock}
             onRemoveSeat={removeSeat}
+            onClose={() => setSelectedTable(null)}
           />
         )}
 

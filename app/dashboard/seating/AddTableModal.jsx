@@ -6,7 +6,6 @@ export default function AddTableModal({ onClose, onAdd }) {
   const [seats, setSeats] = useState(10);
 
   const handleAdd = () => {
-    // שולח type מדויק שהמערכת שלך עובדת איתו!
     onAdd({ type, seats });
     onClose();
   };
@@ -24,8 +23,6 @@ export default function AddTableModal({ onClose, onAdd }) {
         >
           <option value="round">שולחן עגול</option>
           <option value="square">שולחן מרובע</option>
-
-          {/* חשובה: שולח את הערך שה־SeatingEditor מצפה לו */}
           <option value="banquet">שולחן אבירים (מלבני)</option>
         </select>
 
@@ -41,6 +38,7 @@ export default function AddTableModal({ onClose, onAdd }) {
 
         <div className="flex justify-end gap-2">
           <button
+            onClose={onClose}
             onClick={onClose}
             className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300"
           >
