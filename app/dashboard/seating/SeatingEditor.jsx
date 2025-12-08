@@ -1,15 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  Stage,
-  Layer,
-  Rect,
-  Circle,
-  Text,
-  Group,
-  Image,
-} from "react-konva";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Stage, Layer, Rect, Circle, Text, Group, Image } from "react-konva";
 import useImage from "use-image";
 import TableView from "./TableView";
 import AddTableModal from "./AddTableModal";
@@ -17,14 +9,16 @@ import AddTableModal from "./AddTableModal";
 export default function SeatingEditor({ background }) {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
+  const [editPosition, setEditPosition] = useState({ x: 0, y: 0 });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   const [bgImage] = useImage(background || "", "anonymous");
+  const stageRef = useRef();
 
-  // ✅ גודל הקנבס רק בצד הלקוח
+  // 🧱 עדכון גודל הקנבס
   useEffect(() => {
     if (typeof window !== "undefined") {
       const updateSize = () =>
@@ -39,14 +33,14 @@ export default function SeatingEditor({ background }) {
   }, []);
 
   /* =========================================================
-     הוספת שולחן חדש
+     יצירת שולחן חדש
   ========================================================= */
   const handleAddTable = ({ type, seats }) => {
     const newTable = {
       id: `table_${Date.now()}`,
       type,
       seats,
-      x: 200 + tables.length * 120,
+      x: 150 + tables.length * 120,
       y: 200,
       name: `שולחן ${tables.length + 1}`,
     };
@@ -54,13 +48,11 @@ export default function SeatingEditor({ background }) {
   };
 
   /* =========================================================
-     גרירה
+     גרירה חלקה של כל הקבוצה
   ========================================================= */
   const handleDrag = useCallback((id, e) => {
     const { x, y } = e.target.position();
-    setTables((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, x, y } : t))
-    );
+    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
   }, []);
 
   /* =========================================================
@@ -69,21 +61,21 @@ export default function SeatingEditor({ background }) {
   const handleDoubleClick = (table) => {
     setEditingId(table.id);
     setEditText(table.name);
+    setEditPosition({
+      x: table.x + 40,
+      y: table.y + 45,
+    });
   };
-
-  const handleEditChange = (e) => setEditText(e.target.value);
 
   const handleEditBlur = () => {
     setTables((prev) =>
-      prev.map((t) =>
-        t.id === editingId ? { ...t, name: editText } : t
-      )
+      prev.map((t) => (t.id === editingId ? { ...t, name: editText } : t))
     );
     setEditingId(null);
   };
 
   /* =========================================================
-     ציור שולחן לפי סוג
+     ציור שולחנות לפי סוג
   ========================================================= */
   const renderTable = (table) => {
     const seatRadius = 7;
@@ -94,27 +86,37 @@ export default function SeatingEditor({ background }) {
       const radius = 55;
       for (let i = 0; i < table.seats; i++) {
         const angle = (i / table.seats) * Math.PI * 2;
-        const seatX = table.x + radius * Math.cos(angle) + 60;
-        const seatY = table.y + radius * Math.sin(angle) + 60;
+        const seatX = radius * Math.cos(angle);
+        const seatY = radius * Math.sin(angle);
         seats.push(
           <Circle key={i} x={seatX} y={seatY} radius={seatRadius} fill={seatColor} />
         );
       }
       return (
         <Group
+          key={table.id}
+          x={table.x}
+          y={table.y}
           draggable
           onDragEnd={(e) => handleDrag(table.id, e)}
           onClick={() => setSelectedTable(table)}
           onDblClick={() => handleDoubleClick(table)}
         >
-          <Circle x={table.x + 60} y={table.y + 60} radius={45} fill="#60a5fa" />
-          {seats}
+          <Circle x={60} y={60} radius={45} fill="#60a5fa" />
+          {seats.map((s, i) =>
+            React.cloneElement(s, {
+              x: 60 + s.props.x,
+              y: 60 + s.props.y,
+              key: i,
+            })
+          )}
           <Text
-            x={table.x + 40}
-            y={table.y + 55}
+            x={40}
+            y={55}
             text={table.name}
             fontSize={13}
             fill="white"
+            listening={false}
           />
         </Group>
       );
@@ -122,47 +124,36 @@ export default function SeatingEditor({ background }) {
 
     if (table.type === "square") {
       const size = 100;
-      const half = size / 2;
       const perSide = Math.ceil(table.seats / 4);
       const step = size / (perSide + 1);
       let seatIndex = 0;
-
       for (let side = 0; side < 4; side++) {
         for (let i = 1; i <= perSide; i++) {
-          const offset = i * step - half;
-          let seatX = table.x + half;
-          let seatY = table.y + half;
-          if (side === 0) seatX = table.x + offset + half, seatY = table.y - 12;
-          if (side === 1) seatX = table.x + size + 12, seatY = table.y + offset + half;
-          if (side === 2) seatX = table.x + offset + half, seatY = table.y + size + 12;
-          if (side === 3) seatX = table.x - 12, seatY = table.y + offset + half;
-          seats.push(<Circle key={seatIndex++} x={seatX} y={seatY} radius={seatRadius} fill={seatColor} />);
+          const offset = i * step - size / 2;
+          let seatX = 0;
+          let seatY = 0;
+          if (side === 0) seatX = offset + 50, seatY = -15;
+          if (side === 1) seatX = size + 15, seatY = offset + 50;
+          if (side === 2) seatX = offset + 50, seatY = size + 15;
+          if (side === 3) seatX = -15, seatY = offset + 50;
+          seats.push(
+            <Circle key={seatIndex++} x={seatX} y={seatY} radius={seatRadius} fill={seatColor} />
+          );
         }
       }
-
       return (
         <Group
+          key={table.id}
+          x={table.x}
+          y={table.y}
           draggable
           onDragEnd={(e) => handleDrag(table.id, e)}
           onClick={() => setSelectedTable(table)}
           onDblClick={() => handleDoubleClick(table)}
         >
-          <Rect
-            x={table.x}
-            y={table.y}
-            width={size}
-            height={size}
-            fill="#60a5fa"
-            cornerRadius={8}
-          />
+          <Rect x={0} y={0} width={100} height={100} fill="#60a5fa" cornerRadius={8} />
           {seats}
-          <Text
-            x={table.x + 30}
-            y={table.y + 42}
-            text={table.name}
-            fontSize={13}
-            fill="white"
-          />
+          <Text x={30} y={42} text={table.name} fontSize={13} fill="white" listening={false} />
         </Group>
       );
     }
@@ -172,38 +163,26 @@ export default function SeatingEditor({ background }) {
       const height = 60;
       const sideSeats = Math.ceil(table.seats / 2);
       const spacing = width / (sideSeats + 1);
-
       for (let i = 1; i <= sideSeats; i++) {
-        const seatX = table.x + i * spacing;
+        const seatX = i * spacing;
         seats.push(
-          <Circle key={`top${i}`} x={seatX} y={table.y - 10} radius={seatRadius} fill={seatColor} />,
-          <Circle key={`bottom${i}`} x={seatX} y={table.y + height + 10} radius={seatRadius} fill={seatColor} />
+          <Circle key={`top${i}`} x={seatX} y={-10} radius={seatRadius} fill={seatColor} />,
+          <Circle key={`bottom${i}`} x={seatX} y={height + 10} radius={seatRadius} fill={seatColor} />
         );
       }
-
       return (
         <Group
+          key={table.id}
+          x={table.x}
+          y={table.y}
           draggable
           onDragEnd={(e) => handleDrag(table.id, e)}
           onClick={() => setSelectedTable(table)}
           onDblClick={() => handleDoubleClick(table)}
         >
-          <Rect
-            x={table.x}
-            y={table.y}
-            width={width}
-            height={height}
-            fill="#60a5fa"
-            cornerRadius={6}
-          />
+          <Rect x={0} y={0} width={width} height={height} fill="#60a5fa" cornerRadius={6} />
           {seats}
-          <Text
-            x={table.x + width / 2 - 25}
-            y={table.y + height / 2 - 7}
-            text={table.name}
-            fontSize={13}
-            fill="white"
-          />
+          <Text x={width / 2 - 25} y={height / 2 - 7} text={table.name} fontSize={13} fill="white" listening={false} />
         </Group>
       );
     }
@@ -222,7 +201,7 @@ export default function SeatingEditor({ background }) {
       </button>
 
       {dimensions.width > 0 && (
-        <Stage width={dimensions.width} height={dimensions.height}>
+        <Stage width={dimensions.width} height={dimensions.height} ref={stageRef}>
           <Layer>
             {bgImage && (
               <Image
@@ -250,18 +229,17 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* שדה עריכה בזמן אמת */}
       {editingId && (
         <input
           type="text"
           value={editText}
-          onChange={handleEditChange}
+          onChange={(e) => setEditText(e.target.value)}
           onBlur={handleEditBlur}
           autoFocus
           className="absolute z-30 border border-blue-400 rounded-md px-2 py-1 text-sm"
           style={{
-            top: selectedTable?.y + 60 || 200,
-            left: selectedTable?.x + 60 || 200,
+            top: editPosition.y,
+            left: editPosition.x,
           }}
         />
       )}
