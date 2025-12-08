@@ -6,20 +6,17 @@ import { nanoid } from "nanoid";
 export const dynamic = "force-dynamic";
 
 /* ==========================================================
-   טיפוס נכון לגרסאות Next.js 14–16
+   התאמה מלאה ל־Next.js 16 (params הוא Promise)
 ========================================================== */
-interface RouteContext {
-  params: { id: string };
-}
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id: invitationId } = await context.params; // ✅ חובה await כאן
 
-/* ==========================================================
-   POST — יצירת מוזמן חדש להזמנה
-========================================================== */
-export async function POST(req: NextRequest, { params }: RouteContext) {
   try {
     await db();
 
-    const invitationId = params.id; // 👈 אין צורך ב-await
     const { name, phone } = await req.json();
 
     if (!invitationId) {
@@ -36,11 +33,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // 🔎 בדיקת כפילות
+    // 🔍 בדיקת כפילות — אותו טלפון באותה הזמנה
     const existingGuest = await InvitationGuest.findOne({ phone, invitationId });
+
     if (existingGuest) {
       return NextResponse.json(
-        { error: "Guest already exists for this event", guest: existingGuest },
+        {
+          error: "Guest already exists for this event",
+          guest: existingGuest,
+        },
         { status: 409 }
       );
     }
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     // 🆔 token ייחודי לקישור RSVP אישי
     const token = nanoid(12);
 
-    // 🟢 יצירת מוזמן חדש
+    // 🟢 יצירת אורח חדש
     const guest = await InvitationGuest.create({
       name,
       phone,
