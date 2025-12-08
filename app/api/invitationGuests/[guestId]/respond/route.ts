@@ -2,33 +2,78 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Guest from "@/models/Guest";
 
-export const dynamic = "force-dynamic"; // אופציונלי – למנוע caching
+export const dynamic = "force-dynamic"; // מבטל cache של Next.js
 
 export async function POST(request: Request, context: any) {
   try {
     await db();
 
+    const guestId = context?.params?.guestId;
+    if (!guestId) {
+      return NextResponse.json(
+        { error: "Missing guestId in request" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { rsvp, guestsCount, notes } = body;
 
-    const guestId = context?.params?.guestId;
-    if (!guestId) {
-      return NextResponse.json({ error: "Missing guestId" }, { status: 400 });
+    // -------------------------------
+    // 🔎 ולידציה בסיסית
+    // -------------------------------
+    if (!rsvp || !["yes", "no", "pending"].includes(rsvp)) {
+      return NextResponse.json(
+        { error: "Invalid RSVP value" },
+        { status: 400 }
+      );
     }
 
-    const guest = await Guest.findByIdAndUpdate(
+    // אם האורח סימן "לא מגיע" – לא צריך guestsCount
+    let validatedGuestsCount = guestsCount;
+    if (rsvp === "no") {
+      validatedGuestsCount = 0;
+    } else {
+      // במקרה של "מגיע"
+      if (!validatedGuestsCount || validatedGuestsCount < 1) {
+        validatedGuestsCount = 1;
+      }
+    }
+
+    // -------------------------------
+    // 🔧 עדכון האורח
+    // -------------------------------
+    const updatedGuest = await Guest.findByIdAndUpdate(
       guestId,
-      { rsvp, guestsCount, notes },
+      {
+        rsvp,
+        guestsCount: validatedGuestsCount,
+        notes: notes || "",
+      },
       { new: true }
     );
 
-    if (!guest) {
-      return NextResponse.json({ error: "Guest not found" }, { status: 404 });
+    if (!updatedGuest) {
+      return NextResponse.json(
+        { error: "Guest not found" },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({ success: true, guest });
-  } catch (error) {
-    console.error("❌ Error in respond route:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.log("✅ RSVP updated:", updatedGuest);
+
+    return NextResponse.json(
+      {
+        success: true,
+        guest: updatedGuest,
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("❌ Error updating RSVP:", err);
+    return NextResponse.json(
+      { error: "Server error" },
+      { status: 500 }
+    );
   }
 }
