@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import { nanoid } from "nanoid";
@@ -6,15 +6,13 @@ import { nanoid } from "nanoid";
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
+  req: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
     await db();
 
-    // ⭐ Next.js build quirks: params עשוי להיות Promise
-    const { id: invitationId } = await context.params;
-
+    const { id: invitationId } = params;
     const { name, phone } = await req.json();
 
     if (!invitationId) {
@@ -47,7 +45,7 @@ export async function POST(
       );
     }
 
-    // יצירת token ייחודי ל-RSVP
+    // token ייחודי
     const token = nanoid(12);
 
     const guest = await InvitationGuest.create({
@@ -61,8 +59,12 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true, guest }, { status: 201 });
+
   } catch (err) {
     console.error("❌ Error POST /api/invitations/[id]/guests:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server error" },
+      { status: 500 }
+    );
   }
 }
