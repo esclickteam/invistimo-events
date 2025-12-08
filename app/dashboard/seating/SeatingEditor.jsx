@@ -15,9 +15,9 @@ export default function SeatingEditor({ background }) {
   ]);
 
   const [selectedTable, setSelectedTable] = useState(null);
+  const [highlightedTable, setHighlightedTable] = useState(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [showAddModal, setShowAddModal] = useState(false);
-
   const stageRef = useRef();
   const [bgImage] = useImage(background || "", "anonymous");
 
@@ -58,6 +58,24 @@ export default function SeatingEditor({ background }) {
   /* ---------------- DRAG GUEST ---------------- */
   const handleGuestDragStart = (e, guest) => {
     e.dataTransfer.setData("guest", JSON.stringify(guest));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleGuestDragOver = (e) => {
+    e.preventDefault();
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    const hoveredTable = tables.find((t) => {
+      const dx = pointer.x - t.x;
+      const dy = pointer.y - t.y;
+      const radius = t.type === "round" ? 90 : 110;
+      return Math.sqrt(dx * dx + dy * dy) < radius;
+    });
+    setHighlightedTable(hoveredTable ? hoveredTable.id : null);
+  };
+
+  const handleGuestDragLeave = () => {
+    setHighlightedTable(null);
   };
 
   /* ---------------- FIND CONTINUOUS BLOCK ---------------- */
@@ -79,26 +97,29 @@ export default function SeatingEditor({ background }) {
 
   /* ---------------- DROP ---------------- */
   const handleDropGuest = (e) => {
+    e.preventDefault();
     const raw = e.evt.dataTransfer.getData("guest");
     if (!raw) return;
     const guest = JSON.parse(raw);
-    const pointer = stageRef.current.getPointerPosition();
+    const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
 
     const table = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-      return Math.sqrt(dx * dx + dy * dy) < 200;
+      const radius = t.type === "round" ? 90 : 110;
+      return Math.sqrt(dx * dx + dy * dy) < radius;
     });
     if (!table) return;
 
     const startIndex = findBlock(table, guest.count);
     if (startIndex === null) {
-      alert("אין מספיק מקומות רצופים בשולחן");
+      alert("אין מספיק מקומות רצופים בשולחן הזה");
       return;
     }
 
     assignGuestBlock(table.id, startIndex, guest.id);
+    setHighlightedTable(null);
   };
 
   /* ---------------- ASSIGN MULTI-SEAT BLOCK ---------------- */
@@ -219,9 +240,9 @@ export default function SeatingEditor({ background }) {
     const coords = getCoords(table);
     const occupied = getOccupiedCount(table);
     const labelWidth =
-      table.type === "round" ? 120 :
-      table.type === "square" ? 140 :
-      220;
+      table.type === "round" ? 120 : table.type === "square" ? 140 : 220;
+
+    const isHighlighted = highlightedTable === table.id;
 
     return (
       <Group
@@ -232,13 +253,26 @@ export default function SeatingEditor({ background }) {
         onDragEnd={(e) => handleDrag(table.id, e)}
         onClick={() => setSelectedTable(table)}
       >
-        {/* Table shape */}
-        {table.type === "round" && <Circle radius={60} fill="#3b82f6" />}
+        {table.type === "round" && (
+          <Circle radius={60} fill={isHighlighted ? "#60A5FA" : "#3b82f6"} />
+        )}
         {table.type === "square" && (
-          <Rect width={140} height={140} offsetX={70} offsetY={70} fill="#3b82f6" />
+          <Rect
+            width={140}
+            height={140}
+            offsetX={70}
+            offsetY={70}
+            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
+          />
         )}
         {table.type === "banquet" && (
-          <Rect width={220} height={80} offsetX={110} offsetY={40} fill="#3b82f6" />
+          <Rect
+            width={220}
+            height={80}
+            offsetX={110}
+            offsetY={40}
+            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
+          />
         )}
 
         {/* Chairs */}
@@ -279,10 +313,19 @@ export default function SeatingEditor({ background }) {
     );
   };
 
+  /* ---------------- RETURN JSX ---------------- */
   return (
     <div className="flex h-full">
-      <GuestSidebar guests={guests} tables={tables} onDragStart={handleGuestDragStart} />
-      <div className="flex-1 relative">
+      <GuestSidebar
+        guests={guests}
+        tables={tables}
+        onDragStart={handleGuestDragStart}
+      />
+      <div
+        className="flex-1 relative"
+        onDragOver={handleGuestDragOver}
+        onDragLeave={handleGuestDragLeave}
+      >
         <Stage
           width={dimensions.width - 260}
           height={dimensions.height}
