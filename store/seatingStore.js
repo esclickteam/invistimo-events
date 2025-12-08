@@ -11,8 +11,8 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* --------------------- INIT DATA --------------------- */
-  setInitialData: (tables, guests) =>
+  /* --------------------- INIT REAL DATA --------------------- */
+  init: (tables, guests) =>
     set({
       tables,
       guests,
@@ -33,24 +33,28 @@ export const useSeatingStore = create((set, get) => ({
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
 
-    // מזהה איזה שולחן העכבר נמצא מעליו
+    // מזהה איזה שולחן אנו מרחפים מעליו
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
       const radius =
-        t.type === "round" ? 90 : t.type === "square" ? 110 : 140;
+        t.type === "round"
+          ? 90
+          : t.type === "square"
+          ? 110
+          : 140; // banquet
+
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
     if (!hoveredTable) {
-      set({
+      return set({
         highlightedTable: null,
         highlightedSeats: [],
       });
-      return;
     }
 
-    // מוצא את הבלוק הפנוי
+    // מוצא בלוק פנוי
     const block = findFreeBlock(hoveredTable, draggedGuest.count);
 
     set({
@@ -59,7 +63,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* --------------------- DROP --------------------- */
+  /* --------------------- DROP GUEST --------------------- */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -69,36 +73,28 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0)
+    // אין לאן לשבץ
+    if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
       return set({
         draggedGuest: null,
         highlightedTable: null,
         highlightedSeats: [],
       });
-
-    const table = tables.find((t) => t.id === highlightedTable);
-
-    // אם האורח כבר הוקצה לשולחן אחר — מחיקה קודם
-    const previousTable = tables.find((t) =>
-      t.seatedGuests?.some((s) => s.guestId === draggedGuest.id)
-    );
+    }
 
     let updatedTables = [...tables];
 
-    if (previousTable) {
-      updatedTables = updatedTables.map((t) =>
-        t.id === previousTable.id
-          ? {
-              ...t,
-              seatedGuests: t.seatedGuests.filter(
-                (s) => s.guestId !== draggedGuest.id
-              ),
-            }
-          : t
-      );
-    }
+    const table = updatedTables.find((t) => t.id === highlightedTable);
 
-    // הוספה לשולחן החדש
+    // אם האורח כבר ישב בשולחן אחר — מסירים אותו משם
+    updatedTables = updatedTables.map((t) => ({
+      ...t,
+      seatedGuests: t.seatedGuests.filter(
+        (s) => s.guestId !== draggedGuest.id
+      ),
+    }));
+
+    // משבצים לשולחן החדש
     updatedTables = updatedTables.map((t) =>
       t.id === table.id
         ? {
@@ -114,11 +110,9 @@ export const useSeatingStore = create((set, get) => ({
         : t
     );
 
-    // עדכון ה־guest.tableId
+    // עדכון guest.tableId
     const updatedGuests = guests.map((g) =>
-      g.id === draggedGuest.id
-        ? { ...g, tableId: table.id }
-        : g
+      g.id === draggedGuest.id ? { ...g, tableId: table.id } : g
     );
 
     set({
