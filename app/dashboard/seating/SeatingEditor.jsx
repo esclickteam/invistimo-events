@@ -28,7 +28,6 @@ export default function SeatingEditor({ background }) {
         width: window.innerWidth,
         height: window.innerHeight - 80,
       });
-
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -65,7 +64,6 @@ export default function SeatingEditor({ background }) {
   const findBlock = (table, needed) => {
     const used = new Set(table.seatedGuests.map((g) => g.seatIndex));
     const seats = table.seats;
-
     for (let start = 0; start <= seats - needed; start++) {
       let ok = true;
       for (let offset = 0; offset < needed; offset++) {
@@ -83,7 +81,6 @@ export default function SeatingEditor({ background }) {
   const handleDropGuest = (e) => {
     const raw = e.evt.dataTransfer.getData("guest");
     if (!raw) return;
-
     const guest = JSON.parse(raw);
     const pointer = stageRef.current.getPointerPosition();
     if (!pointer) return;
@@ -93,7 +90,6 @@ export default function SeatingEditor({ background }) {
       const dy = pointer.y - t.y;
       return Math.sqrt(dx * dx + dy * dy) < 200;
     });
-
     if (!table) return;
 
     const startIndex = findBlock(table, guest.count);
@@ -109,12 +105,10 @@ export default function SeatingEditor({ background }) {
   const assignGuestBlock = (tableId, startIndex, guestId) => {
     const guest = guests.find((g) => g.id === guestId);
     if (!guest) return;
-
     const block = [];
     for (let i = 0; i < guest.count; i++) {
       block.push({ ...guest, seatIndex: startIndex + i });
     }
-
     setTables((prev) =>
       prev.map((t) =>
         t.id === tableId
@@ -122,18 +116,17 @@ export default function SeatingEditor({ background }) {
           : t
       )
     );
-
-    setGuests((prev) => prev.map((g) => (g.id === guestId ? { ...g, tableId } : g)));
+    setGuests((prev) =>
+      prev.map((g) => (g.id === guestId ? { ...g, tableId } : g))
+    );
   };
 
   /* ---------------- REMOVE WHOLE BLOCK ---------------- */
   const removeSeat = (tableId, seatIndex) => {
     const table = tables.find((t) => t.id === tableId);
     if (!table) return;
-
     const item = table.seatedGuests.find((g) => g.seatIndex === seatIndex);
     if (!item) return;
-
     const guestId = item.id;
 
     setTables((prev) =>
@@ -143,88 +136,80 @@ export default function SeatingEditor({ background }) {
           : t
       )
     );
-
-    setGuests((prev) => prev.map((g) => (g.id === guestId ? { ...g, tableId: null } : g)));
+    setGuests((prev) =>
+      prev.map((g) => (g.id === guestId ? { ...g, tableId: null } : g))
+    );
   };
 
-  /* ---------------- SEAT POSITIONS (AUTO + UX ROTATION) ---------------- */
-  /* ---------------- SEAT POSITIONS (UX FIXED FOR ALL SHAPES) ---------------- */
-/* ---------------- SEAT POSITIONS (BY SIDES + UX ROTATION) ---------------- */
-const getCoords = (table) => {
-  const seats = table.seats;
-  const coords = [];
+  /* ---------------- SEAT POSITIONS (SIDES + UX) ---------------- */
+  const getCoords = (table) => {
+    const seats = table.seats;
+    const coords = [];
 
-  // 🌀 עגול
-  if (table.type === "round") {
-    const baseRadius = 75;
-    const radius =
-      seats <= 6 ? baseRadius + 10 :
-      seats <= 10 ? baseRadius + 20 :
-      seats <= 14 ? baseRadius + 30 :
-      baseRadius + 40;
+    if (table.type === "round") {
+      const baseRadius = 75;
+      const radius =
+        seats <= 6
+          ? baseRadius + 10
+          : seats <= 10
+          ? baseRadius + 20
+          : seats <= 14
+          ? baseRadius + 30
+          : baseRadius + 40;
 
-    for (let i = 0; i < seats; i++) {
-      const angle = (i / seats) * Math.PI * 2;
-      coords.push({
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
-        rotation: (angle * 180) / Math.PI + 90,
-      });
-    }
-  }
-
-  // 🟦 ריבוע / מלבני — כיסאות לפי צדדים
-  if (table.type === "square" || table.type === "banquet") {
-    const width = table.type === "square" ? 140 : 220;
-    const height = table.type === "square" ? 140 : 80;
-    const margin = 30;
-
-    const perSide = Math.ceil(seats / 4);
-    const spacingX = width / (perSide + 1);
-    const spacingY = height / (perSide + 1);
-
-    for (let i = 0; i < seats; i++) {
-      const side = Math.floor((i * 4) / seats); // לאיזה צד שייך הכיסא
-      const pos = i % perSide;
-      let x = 0,
-        y = 0,
-        rotation = 0;
-
-      if (side === 0) {
-        // צד עליון
-        x = -width / 2 + spacingX * (pos + 1);
-        y = -height / 2 - margin;
-        rotation = 180;
-      } else if (side === 1) {
-        // צד ימין
-        x = width / 2 + margin;
-        y = -height / 2 + spacingY * (pos + 1);
-        rotation = -90;
-      } else if (side === 2) {
-        // צד תחתון
-        x = width / 2 - spacingX * (pos + 1);
-        y = height / 2 + margin;
-        rotation = 0;
-      } else {
-        // צד שמאל
-        x = -width / 2 - margin;
-        y = height / 2 - spacingY * (pos + 1);
-        rotation = 90;
+      for (let i = 0; i < seats; i++) {
+        const angle = (i / seats) * Math.PI * 2;
+        coords.push({
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+          rotation: (angle * 180) / Math.PI + 90,
+        });
       }
-
-      coords.push({ x, y, rotation });
     }
-  }
 
-  return coords;
-};
+    if (table.type === "square" || table.type === "banquet") {
+      const width = table.type === "square" ? 140 : 220;
+      const height = table.type === "square" ? 140 : 80;
+      const margin = 30;
 
+      const perSide = Math.ceil(seats / 4);
+      const spacingX = width / (perSide + 1);
+      const spacingY = height / (perSide + 1);
 
+      for (let i = 0; i < seats; i++) {
+        const side = Math.floor((i * 4) / seats);
+        const pos = i % perSide;
+        let x = 0,
+          y = 0,
+          rotation = 0;
+
+        if (side === 0) {
+          x = -width / 2 + spacingX * (pos + 1);
+          y = -height / 2 - margin;
+          rotation = 180;
+        } else if (side === 1) {
+          x = width / 2 + margin;
+          y = -height / 2 + spacingY * (pos + 1);
+          rotation = -90;
+        } else if (side === 2) {
+          x = width / 2 - spacingX * (pos + 1);
+          y = height / 2 + margin;
+          rotation = 0;
+        } else {
+          x = -width / 2 - margin;
+          y = -height / 2 + spacingY * (pos + 1);
+          rotation = 90;
+        }
+        coords.push({ x, y, rotation });
+      }
+    }
+
+    return coords;
+  };
 
   /* ---------------- RENDER TABLE ---------------- */
   const renderTable = (table) => {
     const coords = getCoords(table);
-
     return (
       <Group
         key={table.id}
@@ -234,7 +219,6 @@ const getCoords = (table) => {
         onDragEnd={(e) => handleDrag(table.id, e)}
         onClick={() => setSelectedTable(table)}
       >
-        {/* Table shape */}
         {table.type === "round" && <Circle radius={60} fill="#3b82f6" />}
         {table.type === "square" && (
           <Rect width={140} height={140} offsetX={70} offsetY={70} fill="#3b82f6" />
@@ -243,24 +227,29 @@ const getCoords = (table) => {
           <Rect width={220} height={80} offsetX={110} offsetY={40} fill="#3b82f6" />
         )}
 
-        {/* Chairs with UX orientation */}
-        {coords.map((c, i) => (
-          <Group key={i} x={c.x} y={c.y} rotation={c.rotation || 0}>
-            {/* Seat */}
-            <Circle radius={10} fill="#d1d5db" />
-            {/* קטן "גב כיסא" כדי שהסיבוב יורגש */}
-            <Rect
-              width={10}
-              height={6}
-              y={-12}
-              offsetX={5}
-              cornerRadius={2}
-              fill="#9ca3af"
-            />
-          </Group>
-        ))}
+        {/* 💺 Chairs with color states */}
+        {coords.map((c, i) => {
+          const isOccupied = table.seatedGuests?.some((g) => g.seatIndex === i);
+          return (
+            <Group key={i} x={c.x} y={c.y} rotation={c.rotation || 0}>
+              <Circle
+                radius={10}
+                fill={isOccupied ? "#D1D5DB" : "#3B82F6"} // אפור תפוס, כחול פנוי
+                stroke="#9CA3AF"
+                strokeWidth={1}
+              />
+              <Rect
+                width={10}
+                height={6}
+                y={-12}
+                offsetX={5}
+                cornerRadius={2}
+                fill={isOccupied ? "#9CA3AF" : "#2563EB"} // גוון כהה יותר לפנוי
+              />
+            </Group>
+          );
+        })}
 
-        {/* Table name */}
         <Text
           text={table.name}
           y={-10}
@@ -276,12 +265,7 @@ const getCoords = (table) => {
 
   return (
     <div className="flex h-full">
-      <GuestSidebar
-        guests={guests}
-        tables={tables}
-        onDragStart={handleGuestDragStart}
-      />
-
+      <GuestSidebar guests={guests} tables={tables} onDragStart={handleGuestDragStart} />
       <div className="flex-1 relative">
         <Stage
           width={dimensions.width - 260}
@@ -299,7 +283,6 @@ const getCoords = (table) => {
                 opacity={0.25}
               />
             )}
-
             {tables.map((table) => renderTable(table))}
           </Layer>
         </Stage>
