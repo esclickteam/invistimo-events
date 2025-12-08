@@ -149,58 +149,78 @@ export default function SeatingEditor({ background }) {
   };
 
   /* ---------------- SEAT POSITIONS (IMPROVED) ---------------- */
-  const getCoords = (table) => {
-    const seats = table.seats;
-    const coords = [];
+  /* ---------------- SEAT POSITIONS (AUTO SPACING + SMART LAYOUT) ---------------- */
+const getCoords = (table) => {
+  const seats = table.seats;
+  const coords = [];
 
-    // 🔵 עגול — נשאר זהה
-    if (table.type === "round") {
-      for (let i = 0; i < seats; i++) {
-        const angle = (i / seats) * Math.PI * 2;
-        coords.push({
-          x: Math.cos(angle) * 85,
-          y: Math.sin(angle) * 85,
-        });
-      }
+  /* 🌀 שולחן עגול */
+  if (table.type === "round") {
+    // מרחק דינמי מהמרכז לפי מספר הכיסאות
+    const baseRadius = 75;
+    const radius =
+      seats <= 6 ? baseRadius + 10 :
+      seats <= 10 ? baseRadius + 20 :
+      seats <= 14 ? baseRadius + 30 :
+      baseRadius + 40;
+
+    for (let i = 0; i < seats; i++) {
+      const angle = (i / seats) * Math.PI * 2;
+      coords.push({
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+      });
     }
+  }
 
-    // 🟢 ריבוע / מלבן — ריווח שווה כולל פינות
-    if (table.type === "square" || table.type === "banquet") {
-      const width = table.type === "square" ? 140 : 220;
-      const height = table.type === "square" ? 140 : 80;
+  /* 🟦 שולחן מרובע / מלבני */
+  if (table.type === "square" || table.type === "banquet") {
+    const baseWidth = table.type === "square" ? 140 : 220;
+    const baseHeight = table.type === "square" ? 140 : 80;
 
-      const perimeter = 2 * (width + height);
-      const spacing = perimeter / seats;
+    // הגדלת מרחק מהשולחן כשיש יותר כיסאות
+    const margin =
+      seats <= 8 ? 25 :
+      seats <= 12 ? 30 :
+      seats <= 16 ? 35 :
+      40;
 
-      for (let i = 0; i < seats; i++) {
-        const d = i * spacing;
-        let x = 0,
-          y = 0;
+    // גודל מדויק של השולחן
+    const width = baseWidth;
+    const height = baseHeight;
 
-        if (d < width) {
-          // עליון
-          x = -width / 2 + d;
-          y = -height / 2 - 25;
-        } else if (d < width + height) {
-          // ימין
-          x = width / 2 + 25;
-          y = -height / 2 + (d - width);
-        } else if (d < 2 * width + height) {
-          // תחתון
-          x = width / 2 - (d - width - height);
-          y = height / 2 + 25;
-        } else {
-          // שמאל
-          x = -width / 2 - 25;
-          y = height / 2 - (d - 2 * width - height);
-        }
+    const perimeter = 2 * (width + height);
+    const spacing = perimeter / seats;
 
-        coords.push({ x, y });
+    for (let i = 0; i < seats; i++) {
+      const d = i * spacing;
+      let x = 0, y = 0;
+
+      if (d < width) {
+        // עליון
+        x = -width / 2 + d;
+        y = -height / 2 - margin;
+      } else if (d < width + height) {
+        // ימין
+        x = width / 2 + margin;
+        y = -height / 2 + (d - width);
+      } else if (d < 2 * width + height) {
+        // תחתון
+        x = width / 2 - (d - width - height);
+        y = height / 2 + margin;
+      } else {
+        // שמאל
+        x = -width / 2 - margin;
+        y = height / 2 - (d - 2 * width - height);
       }
-    }
 
-    return coords;
-  };
+      coords.push({ x, y });
+    }
+  }
+
+  return coords;
+};
+
 
   /* ---------------- RENDER TABLE ---------------- */
   const renderTable = (table) => {
