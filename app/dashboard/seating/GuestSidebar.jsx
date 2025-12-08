@@ -14,15 +14,14 @@ export default function GuestSidebar({ guests, onDragStart }) {
             key={guest.id}
             draggable
             onDragStart={(e) => onDragStart(e, guest)}
-            className={`cursor-grab p-3 hover:bg-gray-100 border-b flex flex-col ${
-              guest.tableId ? "opacity-60" : ""
+            className={`cursor-grab p-3 hover:bg-gray-100 border-b ${
+              guest.tableId ? "opacity-50" : ""
             }`}
           >
             <div className="flex justify-between">
               <span>{guest.name}</span>
               <span className="text-sm text-gray-500">{guest.count}</span>
             </div>
-
             {guest.tableId && (
               <p className="text-xs text-blue-600 mt-1">
                 יושב ב-{guest.tableId}
