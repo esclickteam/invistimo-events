@@ -181,7 +181,7 @@ const getCoords = (table) => {
     const rx = baseW / 2 + 40; // רדיוס בציר X
     const ry = baseH / 2 + 50; // רדיוס בציר Y
 
-    for (let i = 0; i < seats; i++) {
+     for (let i = 0; i < seats; i++) {
       const angle = (i / seats) * Math.PI * 2;
 
       coords.push({
