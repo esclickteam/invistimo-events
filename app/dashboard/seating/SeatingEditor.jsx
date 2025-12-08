@@ -16,6 +16,7 @@ export default function SeatingEditor({ background }) {
 
   const [selectedTable, setSelectedTable] = useState(null);
   const [highlightedTable, setHighlightedTable] = useState(null);
+  const [draggedGuest, setDraggedGuest] = useState(null); // 🟢 חדש
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [showAddModal, setShowAddModal] = useState(false);
   const stageRef = useRef();
@@ -56,9 +57,13 @@ export default function SeatingEditor({ background }) {
   };
 
   /* ---------------- DRAG GUEST ---------------- */
-  const handleGuestDragStart = (e, guest) => {
-    e.dataTransfer.setData("guest", JSON.stringify(guest));
-    e.dataTransfer.effectAllowed = "move";
+  const handleGuestDragStart = (guest) => {
+    setDraggedGuest(guest); // ✅ שומר את האורח שנגרר
+  };
+
+  const handleGuestDragEnd = () => {
+    setDraggedGuest(null);
+    setHighlightedTable(null);
   };
 
   const handleGuestDragOver = (e) => {
@@ -78,6 +83,32 @@ export default function SeatingEditor({ background }) {
     setHighlightedTable(null);
   };
 
+  /* ---------------- DROP ---------------- */
+  const handleDropGuest = (e) => {
+    e.preventDefault();
+    if (!draggedGuest) return; // 🟢 משתמש באורח מה-state
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+
+    const table = tables.find((t) => {
+      const dx = pointer.x - t.x;
+      const dy = pointer.y - t.y;
+      const radius = t.type === "round" ? 90 : 110;
+      return Math.sqrt(dx * dx + dy * dy) < radius;
+    });
+    if (!table) return;
+
+    const startIndex = findBlock(table, draggedGuest.count);
+    if (startIndex === null) {
+      alert("אין מספיק מקומות רצופים בשולחן הזה");
+      return;
+    }
+
+    assignGuestBlock(table.id, startIndex, draggedGuest.id);
+    setDraggedGuest(null);
+    setHighlightedTable(null);
+  };
+
   /* ---------------- FIND CONTINUOUS BLOCK ---------------- */
   const findBlock = (table, needed) => {
     const used = new Set(table.seatedGuests.map((g) => g.seatIndex));
@@ -93,33 +124,6 @@ export default function SeatingEditor({ background }) {
       if (ok) return start;
     }
     return null;
-  };
-
-  /* ---------------- DROP ---------------- */
-  const handleDropGuest = (e) => {
-    e.preventDefault();
-    const raw = e.evt.dataTransfer.getData("guest");
-    if (!raw) return;
-    const guest = JSON.parse(raw);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-
-    const table = tables.find((t) => {
-      const dx = pointer.x - t.x;
-      const dy = pointer.y - t.y;
-      const radius = t.type === "round" ? 90 : 110;
-      return Math.sqrt(dx * dx + dy * dy) < radius;
-    });
-    if (!table) return;
-
-    const startIndex = findBlock(table, guest.count);
-    if (startIndex === null) {
-      alert("אין מספיק מקומות רצופים בשולחן הזה");
-      return;
-    }
-
-    assignGuestBlock(table.id, startIndex, guest.id);
-    setHighlightedTable(null);
   };
 
   /* ---------------- ASSIGN MULTI-SEAT BLOCK ---------------- */
@@ -319,19 +323,19 @@ export default function SeatingEditor({ background }) {
       <GuestSidebar
         guests={guests}
         tables={tables}
-        onDragStart={handleGuestDragStart}
+        onDragStart={(_, guest) => handleGuestDragStart(guest)}
+        onDragEnd={handleGuestDragEnd}
       />
       <div
         className="flex-1 relative"
         onDragOver={handleGuestDragOver}
         onDragLeave={handleGuestDragLeave}
+        onDrop={handleDropGuest}
       >
         <Stage
           width={dimensions.width - 260}
           height={dimensions.height}
           ref={stageRef}
-          onDrop={handleDropGuest}
-          onDragOver={(e) => e.evt.preventDefault()}
         >
           <Layer>
             {bgImage && (
