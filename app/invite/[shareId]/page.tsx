@@ -20,58 +20,39 @@ export default function PublicInvitePage({ params }: any) {
   const [sent, setSent] = useState(false);
 
   /* ============================================================
-     🟦 שלב 1 — FIX קריטי: params הוא PROMISE → חייבים await
+     FIX: params הוא Promise
   ============================================================ */
   useEffect(() => {
     async function unwrapParams() {
-      console.log("🌀 RAW params before await:", params);
-
-      const resolved = await params; // 👈 זה היה חסר!!
-      console.log("🎯 Resolved params:", resolved);
-
+      const resolved = await params;
       setShareId(resolved.shareId);
     }
-
     unwrapParams();
   }, [params]);
 
   /* ============================================================
-     🟦 שלב 2 — טעינת נתוני ההזמנה לאחר שה-shareId מוכן
+     טעינת נתוני הזמנה
   ============================================================ */
   useEffect(() => {
-    if (!shareId) {
-      console.log("⏳ shareId עדיין לא נטען...");
-      return;
-    }
-
-    console.log("🔄 useEffect Triggered — shareId:", shareId);
+    if (!shareId) return;
 
     async function fetchData() {
       try {
-        const url = `/api/invite/${shareId}`;
-        console.log("🌐 Fetching URL →", url);
-
-        const res = await fetch(url);
-
-        console.log("📥 Server Response Status:", res.status, res.statusText);
+        const res = await fetch(`/api/invite/${shareId}`);
 
         if (!res.ok) {
-          console.error("❌ SERVER returned error:", res.status);
           setInvite(null);
           return;
         }
 
         const data = await res.json();
-        console.log("📦 DATA FROM SERVER:", data);
-
         if (data.success && data.invitation) {
           setInvite(data.invitation);
         } else {
-          console.warn("⚠ No invitation found in API response");
           setInvite(null);
         }
       } catch (err) {
-        console.error("❌ Error fetching invite:", err);
+        console.error("❌ Fetch error:", err);
         setInvite(null);
       } finally {
         setLoading(false);
@@ -82,11 +63,10 @@ export default function PublicInvitePage({ params }: any) {
   }, [shareId]);
 
   /* ============================================================
-     📨 שליחת RSVP
+     שליחת RSVP
   ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
     if (!selectedGuest) {
       alert("נא לבחור שם אורח מהרשימה");
       return;
@@ -103,18 +83,21 @@ export default function PublicInvitePage({ params }: any) {
       );
 
       const data = await res.json();
-
       if (data.success) setSent(true);
     } catch (err) {
-      console.error("❌ Error sending RSVP:", err);
+      console.error("❌ Error submitting RSVP:", err);
     }
   }
 
   /* ============================================================
-     🕒 Loading / Error
+     מצבי טעינה / שגיאה
   ============================================================ */
   if (loading)
-    return <div className="p-10 text-center text-xl">טוען הזמנה...</div>;
+    return (
+      <div className="p-10 text-center text-xl text-gray-700">
+        טוען הזמנה...
+      </div>
+    );
 
   if (!invite)
     return (
@@ -124,7 +107,7 @@ export default function PublicInvitePage({ params }: any) {
     );
 
   /* ============================================================
-     🎨 רינדור ההזמנה האמיתית
+     רינדור ראשי
   ============================================================ */
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
@@ -134,99 +117,199 @@ export default function PublicInvitePage({ params }: any) {
         {invite?.canvasData ? (
           <PublicInviteRenderer canvasData={invite.canvasData} />
         ) : (
-          <div className="text-gray-400 text-center">
-            אין נתוני עיצוב להצגה
-          </div>
+          <div className="text-gray-400 text-center">אין נתוני עיצוב להצגה</div>
         )}
       </div>
 
       {/* ---------------------------------------------------------
-         טופס אורחים
+         טופס אורחים - גרסה יוקרתית
       --------------------------------------------------------- */}
       {!sent ? (
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-md bg-white rounded-xl shadow p-6 flex flex-col gap-4"
+          className="
+            w-full max-w-md 
+            bg-white 
+            rounded-2xl 
+            shadow-[0_6px_30px_rgba(0,0,0,0.12)]
+            p-8 
+            flex 
+            flex-col 
+            gap-6
+            border border-[#e8e4d9]
+          "
         >
-          <label className="text-gray-700">בחר את שמך:</label>
-          <select
-            className="border rounded p-2"
-            value={selectedGuest?._id || ""}
-            onChange={(e) =>
-              setSelectedGuest(
-                invite?.guests?.find((g: any) => g._id === e.target.value)
-              )
-            }
-          >
-            <option value="">בחר מהרשימה</option>
+          <h2 className="text-center text-xl font-semibold text-[#6b6046] tracking-wide mb-1">
+            אישור הגעה
+          </h2>
 
-            {invite?.guests?.length ? (
-              invite.guests.map((g: any) => (
-                <option key={g._id} value={g._id}>
-                  {g.name}
-                </option>
-              ))
-            ) : (
-              <option disabled>אין אורחים להזמנה זו</option>
-            )}
-          </select>
+          {/* בחירת שם */}
+          <div>
+            <label className="block mb-2 text-[#5a5a5a] font-medium text-sm tracking-wide">
+              בחר את שמך:
+            </label>
 
-          <label className="text-gray-700">מגיעים?</label>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, rsvp: "yes" })}
-              className={`px-4 py-2 rounded ${
-                form.rsvp === "yes"
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
+            <select
+              className="
+                rounded-xl 
+                px-4 py-3 
+                w-full 
+                bg-[#faf9f6] 
+                border border-[#d1c7b4]
+                focus:ring-2 focus:ring-[#c3b28b] 
+                focus:border-[#c3b28b]
+                transition 
+                text-gray-700
+              "
+              value={selectedGuest?._id || ""}
+              onChange={(e) =>
+                setSelectedGuest(
+                  invite?.guests?.find((g: any) => g._id === e.target.value)
+                )
+              }
             >
-              מגיע
-            </button>
+              <option value="">בחר מהרשימה</option>
 
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, rsvp: "no" })}
-              className={`px-4 py-2 rounded ${
-                form.rsvp === "no"
-                  ? "bg-red-500 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              לא מגיע
-            </button>
+              {invite?.guests?.length ? (
+                invite.guests.map((g: any) => (
+                  <option key={g._id} value={g._id}>
+                    {g.name}
+                  </option>
+                ))
+              ) : (
+                <option disabled>אין אורחים להזמנה זו</option>
+              )}
+            </select>
           </div>
 
-          <label className="text-gray-700">כמה אנשים יגיעו:</label>
-          <input
-            type="number"
-            min="1"
-            value={form.guestsCount}
-            onChange={(e) =>
-              setForm({ ...form, guestsCount: Number(e.target.value) })
-            }
-            className="border rounded p-2"
-          />
+          {/* מגיע / לא מגיע */}
+          <div>
+            <label className="block mb-2 text-[#5a5a5a] font-medium text-sm">
+              האם בכוונתך להגיע?
+            </label>
 
-          <label className="text-gray-700">בקשות מיוחדות / הערות:</label>
-          <textarea
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            className="border rounded p-2"
-            placeholder="כשר, טבעוני, מושבים מסוימים וכו'..."
-          />
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, rsvp: "yes" })}
+                className={`
+                  flex-1 py-3 rounded-full font-medium transition border
+                  ${
+                    form.rsvp === "yes"
+                      ? "bg-[#c3b28b] text-white border-[#c3b28b] shadow"
+                      : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                  }
+                `}
+              >
+                מגיע
+              </button>
 
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, rsvp: "no" })}
+                className={`
+                  flex-1 py-3 rounded-full font-medium transition border
+                  ${
+                    form.rsvp === "no"
+                      ? "bg-[#b88a8a] text-white border-[#b88a8a] shadow"
+                      : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                  }
+                `}
+              >
+                לא מגיע
+              </button>
+            </div>
+          </div>
+
+          {/* כמות אורחים — רק אם מגיע */}
+          {form.rsvp === "yes" && (
+            <div>
+              <label className="block mb-2 text-[#5a5a5a] font-medium text-sm">
+                כמה אנשים יגיעו?
+              </label>
+
+              <input
+                type="number"
+                min="1"
+                value={form.guestsCount}
+                onChange={(e) =>
+                  setForm({ ...form, guestsCount: Number(e.target.value) })
+                }
+                className="
+                  w-full 
+                  px-4 py-3 
+                  rounded-xl 
+                  bg-[#faf9f6]
+                  border border-[#d1c7b4]
+                  focus:ring-2 focus:ring-[#c3b28b]
+                  focus:border-[#c3b28b]
+                  text-[#6b6046]
+                "
+              />
+            </div>
+          )}
+
+          {/* הערות — רק אם מגיע */}
+          {form.rsvp === "yes" && (
+            <div>
+              <label className="block mb-2 text-[#5a5a5a] font-medium text-sm">
+                בקשות מיוחדות / הערות (לא חובה):
+              </label>
+
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="כשר, טבעוני, רגישויות, מושבים מיוחדים..."
+                className="
+                  w-full 
+                  h-28 
+                  px-4 py-3 
+                  rounded-xl 
+                  bg-[#faf9f6] 
+                  border border-[#d1c7b4]
+                  focus:ring-2 focus:ring-[#c3b28b]
+                  focus:border-[#c3b28b]
+                  text-[#6b6046]
+                  resize-none
+                "
+              />
+            </div>
+          )}
+
+          {/* כפתור שליחה */}
           <button
             type="submit"
-            className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+            className="
+              w-full 
+              py-3 
+              rounded-full 
+              bg-gradient-to-r from-[#c9b48f] to-[#bda780] 
+              text-white 
+              font-semibold 
+              text-lg 
+              shadow-lg 
+              hover:opacity-90 
+              transition
+            "
           >
-            שלח תשובה
+            שליחת אישור הגעה
           </button>
         </form>
       ) : (
-        <div className="text-center text-green-600 text-lg font-medium">
-          ✅ תודה! התשובה שלך נשמרה.
+        <div
+          className="
+            text-center 
+            text-green-700 
+            text-xl 
+            font-semibold 
+            bg-white 
+            px-6 py-4 
+            rounded-xl 
+            shadow-md
+            border border-[#e8e4d9]
+          "
+        >
+          ✓ תודה! תשובתך התקבלה.
         </div>
       )}
     </div>
