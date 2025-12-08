@@ -1,7 +1,21 @@
 "use client";
 import React from "react";
+import { useSeatingStore } from "@/store/seatingStore";
 
-export default function GuestSidebar({ guests, tables, onDragStart }) {
+export default function GuestSidebar({ onDragStart }) {
+  // 🟦 מושכים State מה־Zustand
+  const guests = useSeatingStore((s) => s.guests);
+  const tables = useSeatingStore((s) => s.tables);
+
+  // 🟨 הגנה נגד undefined בשלב טעינה
+  if (!Array.isArray(guests) || !Array.isArray(tables)) {
+    return (
+      <div className="w-72 bg-white shadow-xl border-r h-full p-4 text-gray-400">
+        טוען נתונים...
+      </div>
+    );
+  }
+
   return (
     <div className="w-72 bg-white shadow-xl border-r h-full overflow-y-auto">
       <h2 className="text-lg font-bold p-4 border-b">🧾 רשימת אורחים</h2>
@@ -14,7 +28,7 @@ export default function GuestSidebar({ guests, tables, onDragStart }) {
             <li
               key={guest.id}
               draggable
-              onDragStart={(e) => onDragStart(e, guest)}
+              onDragStart={() => onDragStart(guest)}
               className="cursor-grab p-3 hover:bg-gray-100 border-b"
             >
               {/* שם האורח */}
@@ -25,7 +39,7 @@ export default function GuestSidebar({ guests, tables, onDragStart }) {
                 {guest.count} מקומות
               </div>
 
-              {/* הצגת השולחן */}
+              {/* הצגת השולחן שאליו שובץ */}
               {table && (
                 <div className="mt-1 text-xs text-green-600">
                   {table.name}

@@ -5,6 +5,8 @@ import { Stage, Layer, Image } from "react-konva";
 import useImage from "use-image";
 
 import { useSeatingStore } from "@/store/seatingStore";
+
+// נתיבים נכונים לפי התיקיות שלך
 import TableRenderer from "@/app/components/seating/TableRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
@@ -15,8 +17,6 @@ export default function SeatingEditor({ background }) {
 
   /* -------------------- Zustand State -------------------- */
   const tables = useSeatingStore((s) => s.tables);
-  const guests = useSeatingStore((s) => s.guests);
-
   const init = useSeatingStore((s) => s.init);
 
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
@@ -49,7 +49,7 @@ export default function SeatingEditor({ background }) {
     );
   }, [init]);
 
-  /* -------------------- Sizes -------------------- */
+  /* -------------------- Canvas Size -------------------- */
   const width = typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
   const height =
     typeof window !== "undefined" ? window.innerHeight - 100 : 800;
@@ -71,8 +71,7 @@ export default function SeatingEditor({ background }) {
     <div className="flex">
       {/* SIDEBAR */}
       <GuestSidebar
-        guests={guests.filter((g) => !g.tableId)}
-        onDragStart={(g) => startDragGuest(g)}
+        onDragStart={(guest) => startDragGuest(guest)}
       />
 
       {/* MAIN CANVAS */}
@@ -108,7 +107,7 @@ export default function SeatingEditor({ background }) {
         <AddTableModal onClose={() => setShowAddModal(false)} />
       )}
 
-      {/* BTN */}
+      {/* ADD TABLE BUTTON */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow"
