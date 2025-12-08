@@ -11,17 +11,24 @@ const GuestSchema = new mongoose.Schema(
     name: { type: String, required: true },
     phone: { type: String, required: true },
 
-    // 🟡 הסטטוס שהאורח בוחר בקישור שלו
+    // 🔵 מזהה אישי לכל אורח — חובה להפעלת קישור אישי
+    shareId: {
+      type: String,
+      unique: true,
+      required: true,
+    },
+
+    // 🟡 סטטוס RSVP שהאורח בוחר בקישור האישי שלו
     rsvp: {
       type: String,
       enum: ["yes", "no", "pending"],
       default: "pending",
     },
 
-    // 🟢 מתעדכן אוטומטית מהממשק של האורח
+    // 🟢 כמה מגיעים — האורח יכול לשנות בקישור האישי
     guestsCount: { type: Number, default: 1 },
 
-    // 📝 אופציונלי
+    // 📝 אופציונלי — הערה פנימית של בעל האירוע
     notes: { type: String, default: "" },
   },
   { timestamps: true }
