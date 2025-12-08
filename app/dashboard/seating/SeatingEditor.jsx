@@ -6,7 +6,7 @@ import useImage from "use-image";
 
 import { useSeatingStore } from "@/store/seatingStore";
 
-// נתיבים נכונים לפי התיקיות שלך
+// נתיבים נכונים
 import TableRenderer from "@/app/components/seating/TableRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
@@ -17,7 +17,10 @@ export default function SeatingEditor({ background }) {
 
   /* -------------------- Zustand State -------------------- */
   const tables = useSeatingStore((s) => s.tables);
-  const init = useSeatingStore((s) => s.init);
+  const guests = useSeatingStore((s) => s.guests);
+
+  // תוקן ❗ משתמשים בפונקציה שקיימת ב-store
+  const init = useSeatingStore((s) => s.setInitialData);
 
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
@@ -51,8 +54,7 @@ export default function SeatingEditor({ background }) {
 
   /* -------------------- Canvas Size -------------------- */
   const width = typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
-  const height =
-    typeof window !== "undefined" ? window.innerHeight - 100 : 800;
+  const height = typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
   /* -------------------- Move Ghost -------------------- */
   const handleMouseMove = (e) => {
@@ -69,8 +71,11 @@ export default function SeatingEditor({ background }) {
 
   return (
     <div className="flex">
+
       {/* SIDEBAR */}
       <GuestSidebar
+        guests={guests.filter((g) => !g.tableId)}
+        tables={tables}
         onDragStart={(guest) => startDragGuest(guest)}
       />
 
@@ -82,7 +87,7 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
       >
         <Layer>
-          {/* background */}
+          {/* BACKGROUND */}
           {bgImage && (
             <Image
               image={bgImage}
@@ -92,12 +97,12 @@ export default function SeatingEditor({ background }) {
             />
           )}
 
-          {/* tables */}
+          {/* TABLES */}
           {tables.map((t) => (
             <TableRenderer key={t.id} table={t} />
           ))}
 
-          {/* ghost */}
+          {/* GHOST PREVIEW */}
           <GhostPreview />
         </Layer>
       </Stage>
@@ -107,7 +112,7 @@ export default function SeatingEditor({ background }) {
         <AddTableModal onClose={() => setShowAddModal(false)} />
       )}
 
-      {/* ADD TABLE BUTTON */}
+      {/* BUTTON: ADD TABLE */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow"
