@@ -20,11 +20,11 @@ export default function TableRenderer({ table }) {
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* --------- FIX: update x,y in store when table moves --------- */
+  /* -------- UPDATE TABLE POSITION IN STORE -------- */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
 
-    const pos = tableRef.current.getPosition(); // <-- NOT absolute!
+    const pos = tableRef.current.getPosition();
 
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
@@ -51,39 +51,87 @@ export default function TableRenderer({ table }) {
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
     >
-      {/* TABLE SHAPE */}
+      {/* ====================== TABLE SHAPES ====================== */}
+
+      {/* ROUND TABLE */}
       {table.type === "round" && (
-        <Circle radius={60} fill={isHighlighted ? "#60A5FA" : "#3b82f6"} />
+        <>
+          <Circle
+            radius={60}
+            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
+            shadowBlur={4}
+          />
+
+          {/* CENTER LABEL */}
+          <Text
+            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            fontSize={16}
+            fill="white"
+            align="center"
+            verticalAlign="middle"
+            width={120}
+            height={120}
+            offsetX={60}
+            offsetY={60}
+          />
+        </>
       )}
 
+      {/* SQUARE TABLE */}
       {table.type === "square" && (
-        <Rect
-          width={160}
-          height={160}
-          offsetX={80}
-          offsetY={80}
-          fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-        />
+        <>
+          <Rect
+            width={160}
+            height={160}
+            offsetX={80}
+            offsetY={80}
+            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
+            shadowBlur={4}
+          />
+
+          {/* CENTER LABEL */}
+          <Text
+            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            fontSize={18}
+            fill="white"
+            align="center"
+            verticalAlign="middle"
+            width={160}
+            height={160}
+            offsetX={80}
+            offsetY={80}
+          />
+        </>
       )}
 
+      {/* BANQUET / RECTANGULAR TABLE */}
       {table.type === "banquet" && (
-        <Rect
-          width={240}
-          height={90}
-          offsetX={120}
-          offsetY={45}
-          fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-        />
+        <>
+          <Rect
+            width={240}
+            height={90}
+            offsetX={120}
+            offsetY={45}
+            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
+            shadowBlur={4}
+          />
+
+          {/* CENTER LABEL */}
+          <Text
+            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            fontSize={18}
+            fill="white"
+            align="center"
+            verticalAlign="middle"
+            width={240}
+            height={90}
+            offsetX={120}
+            offsetY={45}
+          />
+        </>
       )}
 
-      <Text
-        text={`${table.name}\n${occupiedCount}/${table.seats}`}
-        fontSize={16}
-        fill="white"
-        align="center"
-        offsetY={10}
-        width={160}
-      />
+      {/* ====================== SEATS ====================== */}
 
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
@@ -101,10 +149,10 @@ export default function TableRenderer({ table }) {
             y={c.y}
             rotation={(c.rotation * 180) / Math.PI}
           >
-            {isInHighlight && (
-              <Circle radius={14} fill="#34d399" opacity={0.5} />
-            )}
+            {/* Highlight seat when dragging */}
+            {isInHighlight && <Circle radius={14} fill="#34d399" opacity={0.5} />}
 
+            {/* Seat circle */}
             <Circle
               radius={10}
               fill={isFree ? "#3b82f6" : "#d1d5db"}
@@ -113,6 +161,7 @@ export default function TableRenderer({ table }) {
               onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
             />
 
+            {/* Seat base (rectangle under circle) */}
             <Rect
               width={12}
               height={6}
@@ -122,6 +171,7 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
+            {/* Guest name under seat */}
             {!isFree && (
               <Text
                 text={guestName}
