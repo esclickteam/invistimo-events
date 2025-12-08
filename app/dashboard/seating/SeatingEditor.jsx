@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Stage, Layer, Rect, Circle, Text, Group, Image } from "react-konva";
 import useImage from "use-image";
 import TableView from "./TableView";
 import AddTableModal from "./AddTableModal";
+
+export const dynamic = "force-dynamic"; // ✅ נדרש עבור Vercel כדי למנוע שגיאות SSR
 
 export default function SeatingEditor({ background }) {
   const [tables, setTables] = useState([]);
@@ -110,14 +112,7 @@ export default function SeatingEditor({ background }) {
               key: i,
             })
           )}
-          <Text
-            x={40}
-            y={55}
-            text={table.name}
-            fontSize={13}
-            fill="white"
-            listening={false}
-          />
+          <Text x={40} y={55} text={table.name} fontSize={13} fill="white" listening={false} />
         </Group>
       );
     }
@@ -136,9 +131,7 @@ export default function SeatingEditor({ background }) {
           if (side === 1) seatX = size + 15, seatY = offset + 50;
           if (side === 2) seatX = offset + 50, seatY = size + 15;
           if (side === 3) seatX = -15, seatY = offset + 50;
-          seats.push(
-            <Circle key={seatIndex++} x={seatX} y={seatY} radius={seatRadius} fill={seatColor} />
-          );
+          seats.push(<Circle key={seatIndex++} x={seatX} y={seatY} radius={seatRadius} fill={seatColor} />);
         }
       }
       return (
@@ -204,11 +197,7 @@ export default function SeatingEditor({ background }) {
         <Stage width={dimensions.width} height={dimensions.height} ref={stageRef}>
           <Layer>
             {bgImage && (
-              <Image
-                image={bgImage}
-                width={dimensions.width}
-                height={dimensions.height}
-              />
+              <Image image={bgImage} width={dimensions.width} height={dimensions.height} />
             )}
             {tables.map((table) => renderTable(table))}
           </Layer>
@@ -216,17 +205,11 @@ export default function SeatingEditor({ background }) {
       )}
 
       {showAddModal && (
-        <AddTableModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={handleAddTable}
-        />
+        <AddTableModal onClose={() => setShowAddModal(false)} onAdd={handleAddTable} />
       )}
 
       {selectedTable && (
-        <TableView
-          table={selectedTable}
-          onClose={() => setSelectedTable(null)}
-        />
+        <TableView table={selectedTable} onClose={() => setSelectedTable(null)} />
       )}
 
       {editingId && (
