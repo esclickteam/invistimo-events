@@ -6,8 +6,12 @@ export default function AddTableModal({ onClose, onAdd }) {
   const [seats, setSeats] = useState(10);
 
   const handleAdd = () => {
+    if (typeof onAdd !== "function") {
+      console.error("❌ onAdd is NOT a function!", onAdd);
+      return;
+    }
+
     onAdd({ type, seats });
-    onClose();
   };
 
   return (
@@ -38,12 +42,12 @@ export default function AddTableModal({ onClose, onAdd }) {
 
         <div className="flex justify-end gap-2">
           <button
-            onClose={onClose}
             onClick={onClose}
             className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300"
           >
             ביטול
           </button>
+
           <button
             onClick={handleAdd}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
