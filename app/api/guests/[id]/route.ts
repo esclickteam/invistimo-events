@@ -1,3 +1,4 @@
+// ✅ app/api/guests/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -7,24 +8,24 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================
-   טיפוס לקונטקסט עם params (תואם ל-Next.js 14/15)
+   טיפוס לקונטקסט עם params
 ============================================ */
-type RouteContext = {
+interface RouteContext {
   params: { id: string };
-};
+}
 
 /* ============================================
    GET — שליפת אורח יחיד
 ============================================ */
 export async function GET(
   req: NextRequest,
-  { params }: RouteContext
-) {
+  context: RouteContext
+): Promise<NextResponse> {
   try {
     await db();
-    const guestId = params.id;
-
+    const guestId = context.params.id;
     const guest = await InvitationGuest.findById(guestId);
+
     if (!guest) {
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
@@ -41,39 +42,34 @@ export async function GET(
 ============================================ */
 export async function PUT(
   req: NextRequest,
-  { params }: RouteContext
-) {
+  context: RouteContext
+): Promise<NextResponse> {
   try {
     await db();
-    const guestId = params.id;
+    const guestId = context.params.id;
     const data = await req.json();
 
     const guest = await InvitationGuest.findById(guestId);
-    if (!guest) {
-      return NextResponse.json({ error: "Guest not found" }, { status: 404 });
-    }
+    if (!guest) return NextResponse.json({ error: "Guest not found" }, { status: 404 });
 
     const invitation = await Invitation.findById(guest.invitationId);
-    if (!invitation) {
+    if (!invitation)
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
-    }
 
     const userId = await getUserIdFromRequest();
     if (!userId || userId.toString() !== invitation.ownerId.toString()) {
-      return NextResponse.json(
-        { error: "Not authorized to update this guest" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    guest.name = data.name ?? guest.name;
-    guest.phone = data.phone ?? guest.phone;
-    guest.rsvp = data.rsvp ?? guest.rsvp;
-    guest.guestsCount = data.guestsCount ?? guest.guestsCount;
-    guest.notes = data.notes ?? guest.notes;
+    Object.assign(guest, {
+      name: data.name ?? guest.name,
+      phone: data.phone ?? guest.phone,
+      rsvp: data.rsvp ?? guest.rsvp,
+      guestsCount: data.guestsCount ?? guest.guestsCount,
+      notes: data.notes ?? guest.notes,
+    });
 
     await guest.save();
-
     return NextResponse.json({ success: true, guest });
   } catch (error) {
     console.error("PUT /guests/[id] error:", error);
@@ -86,28 +82,22 @@ export async function PUT(
 ============================================ */
 export async function DELETE(
   req: NextRequest,
-  { params }: RouteContext
-) {
+  context: RouteContext
+): Promise<NextResponse> {
   try {
     await db();
-    const guestId = params.id;
+    const guestId = context.params.id;
 
     const guest = await InvitationGuest.findById(guestId);
-    if (!guest) {
-      return NextResponse.json({ error: "Guest not found" }, { status: 404 });
-    }
+    if (!guest) return NextResponse.json({ error: "Guest not found" }, { status: 404 });
 
     const invitation = await Invitation.findById(guest.invitationId);
-    if (!invitation) {
+    if (!invitation)
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
-    }
 
     const userId = await getUserIdFromRequest();
     if (!userId || userId.toString() !== invitation.ownerId.toString()) {
-      return NextResponse.json(
-        { error: "Not authorized to delete this guest" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     await guest.deleteOne();
@@ -117,3 +107,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+/* ============================================
+   ❗ הוספת שורה קריטית לעקוף את הבאג
+============================================ */
+export const runtime = "nodejs";
