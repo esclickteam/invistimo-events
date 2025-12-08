@@ -2,22 +2,27 @@
 
 import { useState, useEffect } from "react";
 import EditGuestModal from "../components/EditGuestModal";
-
+import AddGuestModal from "../components/AddGuestModal"; // 👈 הייבוא החדש
 
 export default function DashboardPage() {
   const [guests, setGuests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("guest-list");
-  const [selectedGuest, setSelectedGuest] = useState<any | null>(null); // 👈 לניהול מודאל העריכה
+  const [selectedGuest, setSelectedGuest] = useState<any | null>(null);
+  const [openAddModal, setOpenAddModal] = useState(false); // 👈 ניהול מודאל הוספה
+  const [invitationId, setInvitationId] = useState<string>(""); // 👈 מזהה ההזמנה הנוכחית
 
   // ============================================================
-  //  טוען רשימת מוזמנים
+  //  טעינת מוזמנים
   // ============================================================
   async function loadGuests() {
     try {
       const res = await fetch("/api/guests");
       const data = await res.json();
       setGuests(data.guests || []);
+
+      // ✅ במידה ויש הזמנה אחת עיקרית - שומר את ה־ID שלה
+      if (data.invitationId) setInvitationId(data.invitationId);
     } catch (err) {
       console.error("❌ שגיאה בטעינת מוזמנים:", err);
     }
@@ -39,7 +44,6 @@ export default function DashboardPage() {
   //  פעולות
   // ============================================================
 
-  // שליחת קישור ייחודי לוואטסאפ
   const sendWhatsApp = (guest: any) => {
     const link = `https://invistimo.com/invite/${guest.shareId}`;
     const msg = `היי ${guest.name}! הנה ההזמנה לאירוע:\n${link}`;
@@ -47,15 +51,8 @@ export default function DashboardPage() {
     window.open(url, "_blank");
   };
 
-  // עריכת אורח
-  const editGuest = (guest: any) => {
-    setSelectedGuest(guest); // 👈 פותח את המודאל עם הנתונים
-  };
-
-  // הושבה בשולחן
-  const seatGuest = (guest: any) => {
-    alert(`הושבה לשולחן: ${guest.name}`);
-  };
+  const editGuest = (guest: any) => setSelectedGuest(guest);
+  const seatGuest = (guest: any) => alert(`הושבה לשולחן: ${guest.name}`);
 
   // ============================================================
   //  רינדור
@@ -68,27 +65,21 @@ export default function DashboardPage() {
       <div className="flex gap-4 mb-8 border-b pb-3">
         <button
           onClick={() => setActiveTab("guest-list")}
-          className={`pb-2 ${
-            activeTab === "guest-list" ? "border-b-2 border-black" : "text-gray-500"
-          }`}
+          className={`pb-2 ${activeTab === "guest-list" ? "border-b-2 border-black" : "text-gray-500"}`}
         >
           רשימת מוזמנים
         </button>
 
         <button
           onClick={() => setActiveTab("seating")}
-          className={`pb-2 ${
-            activeTab === "seating" ? "border-b-2 border-black" : "text-gray-500"
-          }`}
+          className={`pb-2 ${activeTab === "seating" ? "border-b-2 border-black" : "text-gray-500"}`}
         >
           סידורי הושבה
         </button>
 
         <button
           onClick={() => setActiveTab("stats")}
-          className={`pb-2 ${
-            activeTab === "stats" ? "border-b-2 border-black" : "text-gray-500"
-          }`}
+          className={`pb-2 ${activeTab === "stats" ? "border-b-2 border-black" : "text-gray-500"}`}
         >
           סטטיסטיקות
         </button>
@@ -108,7 +99,6 @@ export default function DashboardPage() {
       ============================ */}
       {activeTab === "guest-list" && !loading && (
         <div>
-          {/* Summary */}
           <div className="grid grid-cols-4 gap-4 mb-8">
             <Box title="סה״כ מוזמנים" value={stats.total} />
             <Box title="מאשרים הגעה" value={stats.coming} color="green" />
@@ -116,7 +106,6 @@ export default function DashboardPage() {
             <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
           </div>
 
-          {/* Table */}
           <table className="w-full text-right border rounded-xl overflow-hidden">
             <thead className="bg-gray-100">
               <tr>
@@ -124,7 +113,7 @@ export default function DashboardPage() {
                 <th className="p-3">טלפון</th>
                 <th className="p-3">סטטוס</th>
                 <th className="p-3">מס׳ מגיעים</th>
-                <th className="p-3">שליחת וואטספ</th>
+                <th className="p-3">וואטסאפ</th>
                 <th className="p-3">הושבה</th>
                 <th className="p-3">עריכה</th>
               </tr>
@@ -134,42 +123,24 @@ export default function DashboardPage() {
                 <tr key={g._id} className="border-b">
                   <td className="p-3">{g.name}</td>
                   <td className="p-3">{g.phone}</td>
-
-                  {/* RSVP */}
                   <td className="p-3">
                     {g.rsvp === "yes" && <span className="text-green-600">מגיע</span>}
                     {g.rsvp === "no" && <span className="text-red-600">לא מגיע</span>}
                     {g.rsvp === "pending" && <span className="text-gray-500">ממתין</span>}
                   </td>
-
                   <td className="p-3">{g.guestsCount}</td>
-
-                  {/* WhatsApp */}
                   <td className="p-3">
-                    <button
-                      onClick={() => sendWhatsApp(g)}
-                      className="text-green-600 hover:underline"
-                    >
+                    <button onClick={() => sendWhatsApp(g)} className="text-green-600 hover:underline">
                       שלח 📩
                     </button>
                   </td>
-
-                  {/* Seating */}
                   <td className="p-3">
-                    <button
-                      onClick={() => seatGuest(g)}
-                      className="text-purple-600 hover:underline"
-                    >
+                    <button onClick={() => seatGuest(g)} className="text-purple-600 hover:underline">
                       הושב 🪑
                     </button>
                   </td>
-
-                  {/* Edit */}
                   <td className="p-3">
-                    <button
-                      onClick={() => editGuest(g)}
-                      className="text-blue-600 hover:underline"
-                    >
+                    <button onClick={() => editGuest(g)} className="text-blue-600 hover:underline">
                       ערוך
                     </button>
                   </td>
@@ -180,7 +151,7 @@ export default function DashboardPage() {
 
           {/* Add Guest Button */}
           <button
-            onClick={() => alert("מודאל הוספה יבנה בהמשך")}
+            onClick={() => setOpenAddModal(true)} // 👈 נפתח המודאל שלך
             className="mt-6 bg-black text-white px-6 py-3 rounded-full"
           >
             + הוספת מוזמן
@@ -188,23 +159,21 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Seating */}
-      {activeTab === "seating" && (
-        <div className="text-xl text-gray-700">מסך ניהול הושבה — נבנה אחרי אישור.</div>
-      )}
-
-      {/* Stats */}
-      {activeTab === "stats" && (
-        <div className="text-xl text-gray-700">גרפים וניתוחים — נבנה גם אחרי אישור.</div>
-      )}
-
       {/* ============================
-          MODAL עריכת אורח
+          מודאלים
       ============================ */}
       {selectedGuest && (
         <EditGuestModal
           guest={selectedGuest}
           onClose={() => setSelectedGuest(null)}
+          onSuccess={() => loadGuests()}
+        />
+      )}
+
+      {openAddModal && (
+        <AddGuestModal
+          invitationId={invitationId}
+          onClose={() => setOpenAddModal(false)}
           onSuccess={() => loadGuests()}
         />
       )}
@@ -221,7 +190,6 @@ function Box({ title, value, color }: any) {
     red: "text-red-600",
     orange: "text-orange-500",
   };
-
   return (
     <div className="border p-5 rounded-xl bg-white shadow-sm text-center">
       <div className="text-gray-500 text-sm mb-1">{title}</div>
