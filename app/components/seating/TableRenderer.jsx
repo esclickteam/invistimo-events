@@ -53,7 +53,7 @@ export default function TableRenderer({ table }) {
       }}
 
       onDragMove={(e) => {
-        e.cancelBubble = true; // חשוב!
+        e.cancelBubble = true;
         updatePositionInStore();
       }}
 
@@ -65,14 +65,21 @@ export default function TableRenderer({ table }) {
       onMouseDown={(e) => (e.cancelBubble = true)}
       onTouchStart={(e) => (e.cancelBubble = true)}
 
-      /* ⭐ אם לחצו על delete button — לא לעשות highlight */
+      /* ⭐ לחיצה על שולחן — פתיחת חלון הוספת אורחים */
       onClick={(e) => {
         if (e.target?.attrs?.isDeleteButton) return;
+
+        e.cancelBubble = true;
 
         useSeatingStore.setState({
           highlightedTable: table.id,
           highlightedSeats: [],
         });
+
+        // ⭐ פותח את חלון הוספת האורחים — אם הורה סיפק פונקציה
+        if (table.openAddGuestModal) {
+          table.openAddGuestModal(table);
+        }
       }}
     >
       {/* -------------------------------- TABLE SHAPES ------------------------------- */}

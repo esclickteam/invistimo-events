@@ -12,6 +12,9 @@ import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 
+import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
+
+
 export default function SeatingEditor({ background }) {
   const [bgImage] = useImage(background || "", "anonymous");
 
@@ -29,6 +32,9 @@ export default function SeatingEditor({ background }) {
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
   const addTable = useSeatingStore((s) => s.addTable);
+
+  // ⭐ שולחן שאליו רוצים להוסיף אורחים
+  const [addGuestTable, setAddGuestTable] = useState(null);
 
   /* -------------------- INIT SAMPLE DATA -------------------- */
   useEffect(() => {
@@ -87,16 +93,14 @@ export default function SeatingEditor({ background }) {
       {/* 🔍 ZOOM BUTTONS */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-          className="absolute top-[70px] left-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
-
+        className="absolute top-[70px] left-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
       >
         +
       </button>
 
       <button
         onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-          className="absolute top-[130px] left-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
-
+        className="absolute top-[130px] left-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
       >
         −
       </button>
@@ -125,7 +129,8 @@ export default function SeatingEditor({ background }) {
           };
 
           const direction = e.evt.deltaY > 0 ? -1 : 1;
-          const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+          const newScale =
+            direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
           setScale(newScale);
 
@@ -140,7 +145,7 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
-        {/* ---------------------- שכבת שולחנות + רקע ---------------------- */}
+        {/* TABLES + BACKGROUND */}
         <Layer>
           {bgImage && (
             <Image
@@ -152,13 +157,19 @@ export default function SeatingEditor({ background }) {
           )}
 
           {tables.map((t) => (
-            <TableRenderer key={t.id} table={t} />
+            <TableRenderer
+              key={t.id}
+              table={{
+                ...t,
+                openAddGuestModal: () => setAddGuestTable(t),
+              }}
+            />
           ))}
 
           <GhostPreview />
         </Layer>
 
-        {/* ---------------------- שכבת כפתורי מחיקה ---------------------- */}
+        {/* DELETE BUTTONS */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -174,6 +185,15 @@ export default function SeatingEditor({ background }) {
             addTable(type, seats);
             setShowAddModal(false);
           }}
+        />
+      )}
+
+      {/* ⭐ ADD GUESTS TO TABLE MODAL */}
+      {addGuestTable && (
+        <AddGuestToTableModal
+          table={addGuestTable}
+          guests={guests.filter((g) => !g.tableId)}
+          onClose={() => setAddGuestTable(null)}
         />
       )}
 
