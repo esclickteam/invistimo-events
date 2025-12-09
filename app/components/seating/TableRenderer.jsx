@@ -48,13 +48,17 @@ export default function TableRenderer({ table }) {
       draggable
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
-      onClick={() =>
+      onClick={(e) => {
+        // ⭐ קריטי: אם זה קליק על כפתור מחיקה — לא לעשות highlight
+        if (e.target?.attrs?.isDeleteButton) return;
+
         useSeatingStore.setState({
           highlightedTable: table.id,
           highlightedSeats: [],
-        })
-      }
+        });
+      }}
     >
+
       {/* -------------------------------- TABLE SHAPES ------------------------------- */}
 
       {table.type === "round" && (

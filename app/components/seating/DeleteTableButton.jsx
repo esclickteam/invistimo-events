@@ -23,6 +23,7 @@ export default function DeleteTableButton({ table }) {
       x={table.x}
       y={table.y + offsetY}
       listening={true}
+      isDeleteButton={true}      // ⭐ קריטי!
       onClick={handleDelete}
       onTap={handleDelete}
     >
@@ -34,6 +35,7 @@ export default function DeleteTableButton({ table }) {
         cornerRadius={8}
         shadowBlur={8}
         listening={true}
+        isDeleteButton={true}    // ⭐ חשוב מאוד
         onClick={handleDelete}
         onTap={handleDelete}
       />
@@ -48,6 +50,7 @@ export default function DeleteTableButton({ table }) {
         height={40}
         offsetX={60}
         listening={true}
+        isDeleteButton={true}    // ⭐ גם פה
         onClick={handleDelete}
         onTap={handleDelete}
       />
