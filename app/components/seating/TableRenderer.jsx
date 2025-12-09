@@ -9,7 +9,7 @@ export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
 
-  const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
+  const deleteTable = useSeatingStore((s) => s.deleteTable);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const guests = useSeatingStore((s) => s.guests);
 
@@ -50,7 +50,42 @@ export default function TableRenderer({ table }) {
       draggable
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
+      onClick={() =>
+        useSeatingStore.setState({
+          highlightedTable: table.id,
+          highlightedSeats: [],
+        })
+      }
     >
+      {/* ====================== DELETE BUTTON ====================== */}
+      {isHighlighted && (
+        <Group
+          x={0}
+          y={-100}
+          onClick={() => deleteTable(table.id)}
+          listening={true}
+        >
+          <Rect
+            width={90}
+            height={32}
+            offsetX={45}
+            fill="#ef4444"
+            cornerRadius={6}
+            shadowBlur={4}
+          />
+          <Text
+            text="מחק שולחן"
+            fontSize={14}
+            fill="white"
+            align="center"
+            verticalAlign="middle"
+            width={90}
+            height={32}
+            offsetX={45}
+          />
+        </Group>
+      )}
+
       {/* ====================== TABLE SHAPES ====================== */}
 
       {/* ROUND TABLE */}
@@ -150,7 +185,9 @@ export default function TableRenderer({ table }) {
             rotation={(c.rotation * 180) / Math.PI}
           >
             {/* Highlight seat when dragging */}
-            {isInHighlight && <Circle radius={14} fill="#34d399" opacity={0.5} />}
+            {isInHighlight && (
+              <Circle radius={14} fill="#34d399" opacity={0.5} />
+            )}
 
             {/* Seat circle */}
             <Circle
@@ -161,7 +198,7 @@ export default function TableRenderer({ table }) {
               onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
             />
 
-            {/* Seat base (rectangle under circle) */}
+            {/* Seat base */}
             <Rect
               width={12}
               height={6}
