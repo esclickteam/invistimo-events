@@ -62,16 +62,20 @@ export default function TableRenderer({ table }) {
         <Group
           x={0}
           y={-100}
-          onClick={() => deleteTable(table.id)}
           listening={true}
+          onClick={(e) => {
+            e.cancelBubble = true; // ← חובה כדי לבטל קליק על Group הראשי
+            deleteTable(table.id);
+          }}
         >
           <Rect
             width={90}
             height={32}
             offsetX={45}
             fill="#ef4444"
-            cornerRadius={6}
+            cornerRadius={8}
             shadowBlur={4}
+            listening={true}
           />
           <Text
             text="מחק שולחן"
@@ -82,6 +86,7 @@ export default function TableRenderer({ table }) {
             width={90}
             height={32}
             offsetX={45}
+            listening={true}
           />
         </Group>
       )}
