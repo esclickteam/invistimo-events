@@ -46,10 +46,27 @@ export default function TableRenderer({ table }) {
       x={table.x}
       y={table.y}
       draggable
-      onDragMove={updatePositionInStore}
-      onDragEnd={updatePositionInStore}
+
+      /* ⭐ מונע גרירת Stage במקום שולחן */
+      onDragStart={(e) => {
+        e.cancelBubble = true;
+      }}
+
+      onDragMove={(e) => {
+        e.cancelBubble = true; // חשוב!
+        updatePositionInStore();
+      }}
+
+      onDragEnd={(e) => {
+        e.cancelBubble = true;
+        updatePositionInStore();
+      }}
+
+      onMouseDown={(e) => (e.cancelBubble = true)}
+      onTouchStart={(e) => (e.cancelBubble = true)}
+
+      /* ⭐ אם לחצו על delete button — לא לעשות highlight */
       onClick={(e) => {
-        // ⭐ קריטי: אם זה קליק על כפתור מחיקה — לא לעשות highlight
         if (e.target?.attrs?.isDeleteButton) return;
 
         useSeatingStore.setState({
@@ -58,7 +75,6 @@ export default function TableRenderer({ table }) {
         });
       }}
     >
-
       {/* -------------------------------- TABLE SHAPES ------------------------------- */}
 
       {table.type === "round" && (
