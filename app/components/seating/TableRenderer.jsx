@@ -14,18 +14,17 @@ export default function TableRenderer({ table }) {
   const guests = useSeatingStore((s) => s.guests);
 
   const tableRef = useRef();
-
   const seatsCoords = getSeatCoordinates(table);
+
   const isHighlighted = highlightedTable === table.id;
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* -------- UPDATE TABLE POSITION IN STORE -------- */
+  /* -------- UPDATE POS -------- */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
 
     const pos = tableRef.current.getPosition();
-
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
         t.id === table.id ? { ...t, x: pos.x, y: pos.y } : t
@@ -57,43 +56,50 @@ export default function TableRenderer({ table }) {
         })
       }
     >
-      {/* ====================== DELETE BUTTON ====================== */}
+      {/* -------------------------------- DELETE BUTTON (ON TOP) ------------------------------- */}
       {isHighlighted && (
         <Group
           x={0}
-          y={-100}
+          y={-110}
           listening={true}
           onClick={(e) => {
-            e.cancelBubble = true; // ← חובה כדי לבטל קליק על Group הראשי
+            e.cancelBubble = true; 
+            deleteTable(table.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
             deleteTable(table.id);
           }}
         >
           <Rect
-            width={90}
-            height={32}
-            offsetX={45}
+            width={110}
+            height={36}
+            offsetX={55}
             fill="#ef4444"
-            cornerRadius={8}
-            shadowBlur={4}
+            cornerRadius={6}
+            shadowBlur={6}
             listening={true}
+            onClick={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
+            onTap={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
           />
           <Text
             text="מחק שולחן"
-            fontSize={14}
+            fontSize={16}
             fill="white"
             align="center"
             verticalAlign="middle"
-            width={90}
-            height={32}
-            offsetX={45}
+            width={110}
+            height={36}
+            offsetX={55}
             listening={true}
+            onClick={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
+            onTap={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
           />
         </Group>
       )}
 
-      {/* ====================== TABLE SHAPES ====================== */}
+      {/* -------------------------------- TABLE SHAPES ------------------------------- */}
 
-      {/* ROUND TABLE */}
       {table.type === "round" && (
         <>
           <Circle
@@ -102,10 +108,9 @@ export default function TableRenderer({ table }) {
             shadowBlur={4}
           />
 
-          {/* CENTER LABEL */}
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={16}
+            fontSize={18}
             fill="white"
             align="center"
             verticalAlign="middle"
@@ -117,7 +122,6 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* SQUARE TABLE */}
       {table.type === "square" && (
         <>
           <Rect
@@ -128,8 +132,6 @@ export default function TableRenderer({ table }) {
             fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
             shadowBlur={4}
           />
-
-          {/* CENTER LABEL */}
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
@@ -144,7 +146,6 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* BANQUET / RECTANGULAR TABLE */}
       {table.type === "banquet" && (
         <>
           <Rect
@@ -155,8 +156,6 @@ export default function TableRenderer({ table }) {
             fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
             shadowBlur={4}
           />
-
-          {/* CENTER LABEL */}
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
@@ -171,7 +170,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ====================== SEATS ====================== */}
+      {/* -------------------------------- SEATS ------------------------------- */}
 
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
@@ -183,18 +182,11 @@ export default function TableRenderer({ table }) {
           : null;
 
         return (
-          <Group
-            key={i}
-            x={c.x}
-            y={c.y}
-            rotation={(c.rotation * 180) / Math.PI}
-          >
-            {/* Highlight seat when dragging */}
+          <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
             {isInHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}
 
-            {/* Seat circle */}
             <Circle
               radius={10}
               fill={isFree ? "#3b82f6" : "#d1d5db"}
@@ -203,7 +195,6 @@ export default function TableRenderer({ table }) {
               onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
             />
 
-            {/* Seat base */}
             <Rect
               width={12}
               height={6}
@@ -213,7 +204,6 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
-            {/* Guest name under seat */}
             {!isFree && (
               <Text
                 text={guestName}
