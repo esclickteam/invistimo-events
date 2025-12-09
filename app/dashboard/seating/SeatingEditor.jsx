@@ -87,14 +87,16 @@ export default function SeatingEditor({ background }) {
       {/* 🔍 ZOOM BUTTONS */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-        className="absolute top-4 right-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
+          className="absolute top-[70px] left-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
+
       >
         +
       </button>
 
       <button
         onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-        className="absolute top-20 right-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
+          className="absolute top-[130px] left-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
+
       >
         −
       </button>
