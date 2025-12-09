@@ -56,8 +56,50 @@ export default function TableRenderer({ table }) {
         })
       }
     >
+      {/* -------------------------------- DELETE BUTTON (ON TOP) ------------------------------- */}
+      {isHighlighted && (
+        <Group
+          x={0}
+          y={-110}
+          listening={true}
+          onClick={(e) => {
+            e.cancelBubble = true; 
+            deleteTable(table.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            deleteTable(table.id);
+          }}
+        >
+          <Rect
+            width={110}
+            height={36}
+            offsetX={55}
+            fill="#ef4444"
+            cornerRadius={6}
+            shadowBlur={6}
+            listening={true}
+            onClick={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
+            onTap={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
+          />
+          <Text
+            text="מחק שולחן"
+            fontSize={16}
+            fill="white"
+            align="center"
+            verticalAlign="middle"
+            width={110}
+            height={36}
+            offsetX={55}
+            listening={true}
+            onClick={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
+            onTap={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
+          />
+        </Group>
+      )}
 
-      {/* -------------------- TABLE SHAPES -------------------- */}
+      {/* -------------------------------- TABLE SHAPES ------------------------------- */}
+
       {table.type === "round" && (
         <>
           <Circle
@@ -128,7 +170,8 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* -------------------- SEATS -------------------- */}
+      {/* -------------------------------- SEATS ------------------------------- */}
+
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
@@ -175,48 +218,6 @@ export default function TableRenderer({ table }) {
           </Group>
         );
       })}
-
-      {/* -------------------- DELETE BUTTON (ALWAYS ON TOP!) -------------------- */}
-      {isHighlighted && (
-        <Group
-          x={0}
-          y={-110}
-          listening={true}
-          onClick={(e) => {
-            e.cancelBubble = true;
-            deleteTable(table.id);
-          }}
-          onTap={(e) => {
-            e.cancelBubble = true;
-            deleteTable(table.id);
-          }}
-          ref={(node) => {
-            if (node) node.zIndex(9999);  // ← תמיד עליון
-          }}
-        >
-          <Rect
-            width={110}
-            height={36}
-            offsetX={55}
-            fill="#ef4444"
-            cornerRadius={8}
-            shadowBlur={6}
-            listening={true}
-          />
-          <Text
-            text="מחק שולחן"
-            fontSize={16}
-            fill="white"
-            align="center"
-            verticalAlign="middle"
-            width={110}
-            height={36}
-            offsetX={55}
-            listening={true}
-          />
-        </Group>
-      )}
-
     </Group>
   );
 }
