@@ -9,19 +9,22 @@ export default function DeleteTableButton({ table }) {
 
   if (highlightedTable !== table.id) return null;
 
-  let offsetY = -165; // ברירת מחדל (עגול)
+  let offsetY = -180;
+  if (table.type === "square") offsetY = -200;
+  if (table.type === "banquet") offsetY = -160;
 
-  if (table.type === "square") offsetY = -170;
-  if (table.type === "banquet") offsetY = -130;
+  const handleDelete = (e) => {
+    e.cancelBubble = true;
+    deleteTable(table.id);
+  };
 
   return (
     <Group
       x={table.x}
       y={table.y + offsetY}
-      onClick={(e) => {
-        e.cancelBubble = true;
-        deleteTable(table.id);
-      }}
+      listening={true}
+      onClick={handleDelete}
+      onTap={handleDelete}
     >
       <Rect
         width={120}
@@ -30,7 +33,11 @@ export default function DeleteTableButton({ table }) {
         fill="#ef4444"
         cornerRadius={8}
         shadowBlur={8}
+        listening={true}
+        onClick={handleDelete}
+        onTap={handleDelete}
       />
+
       <Text
         text="מחק שולחן"
         fontSize={18}
@@ -40,6 +47,9 @@ export default function DeleteTableButton({ table }) {
         width={120}
         height={40}
         offsetX={60}
+        listening={true}
+        onClick={handleDelete}
+        onTap={handleDelete}
       />
     </Group>
   );
