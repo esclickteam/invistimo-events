@@ -9,7 +9,7 @@ export default function DeleteTableButton({ table }) {
 
   if (highlightedTable !== table.id) return null;
 
-  let offsetY = -140; // ברירת מחדל (עגול)
+  let offsetY = -165; // ברירת מחדל (עגול)
 
   if (table.type === "square") offsetY = -170;
   if (table.type === "banquet") offsetY = -130;
