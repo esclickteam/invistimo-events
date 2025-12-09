@@ -15,11 +15,10 @@ export const useSeatingStore = create((set, get) => ({
 
   showAddModal: false,
 
-  // ⭐ חדש — שולחן שאליו רוצים להוסיף אנשים בלחיצה
   addGuestTable: null,
   setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
 
-  /* ---------------- INIT DATA ---------------- */
+  /* ---------------- INIT ---------------- */
   init: (tables, guests) => {
     console.log("🟦 INIT — Loading tables & guests:", { tables, guests });
     set({
@@ -42,19 +41,12 @@ export const useSeatingStore = create((set, get) => ({
       seatedGuests: [],
     };
 
-    console.log("🟩 ADD TABLE — New Table:", newTable);
-
-    set({
-      tables: [...tables, newTable],
-    });
+    set({ tables: [...tables, newTable] });
   },
 
   /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
     set((state) => {
-      console.log("🗑️ DELETE TABLE:", tableId);
-
-      // הוצאת אורחים מהשולחן
       const updatedGuests = state.guests.map((g) =>
         g.tableId === tableId ? { ...g, tableId: null } : g
       );
@@ -67,22 +59,20 @@ export const useSeatingStore = create((set, get) => ({
       };
     }),
 
-  /* ---------------- MODAL ---------------- */
   setShowAddModal: (v) => set({ showAddModal: v }),
 
   /* ---------------- DRAG START ---------------- */
   startDragGuest: (guest) => {
-    console.log("🟡 DRAG START — Guest:", guest);
     set({
       draggedGuest: guest,
-      highlightedTable: null,
       highlightedSeats: [],
+      highlightedTable: null,
     });
   },
 
-  /* ---------------- DRAG MOVE ---------------- */
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
+  /* ---------------- HOVER TABLE ---------------- */
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
@@ -90,12 +80,7 @@ export const useSeatingStore = create((set, get) => ({
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-
-      const radius =
-        t.type === "round" ? 90 :
-        t.type === "square" ? 110 :
-        140;
-
+      const radius = t.type === "round" ? 90 : t.type === "square" ? 110 : 140;
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
@@ -114,7 +99,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- DROP GUEST ---------------- */
+  /* ---------------- DROP ---------------- */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -124,16 +109,8 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    console.log("🔵 DROP — Data:", {
-      draggedGuest,
-      highlightedTable,
-      highlightedSeats,
-    });
-
-    // CASE 1 – שוחרר לשטח ריק
+    // Released outside → remove assignment
     if (draggedGuest && !highlightedTable) {
-      console.log("🔴 DROP EMPTY — Remove guest from any table");
-
       const cleanedTables = tables.map((t) => ({
         ...t,
         seatedGuests: t.seatedGuests.filter(
@@ -150,13 +127,10 @@ export const useSeatingStore = create((set, get) => ({
         guests: cleanedGuests,
         draggedGuest: null,
         highlightedSeats: [],
-        highlightedTable: null,
       });
     }
 
-    // CASE 2 — נתונים חסרים
     if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
-      console.log("🔴 DROP CANCELLED — Missing data");
       return set({
         draggedGuest: null,
         highlightedTable: null,
@@ -164,7 +138,7 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    // CASE 3 — שיבוץ תקין
+    // Valid drop
     let updatedTables = tables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
@@ -175,7 +149,7 @@ export const useSeatingStore = create((set, get) => ({
     const targetTable = updatedTables.find((t) => t.id === highlightedTable);
 
     updatedTables = updatedTables.map((t) =>
-      t.id === targetTable.id
+      t.id === highlightedTable
         ? {
             ...t,
             seatedGuests: [
@@ -190,24 +164,20 @@ export const useSeatingStore = create((set, get) => ({
     );
 
     const updatedGuests = guests.map((g) =>
-      g.id === draggedGuest.id ? { ...g, tableId: targetTable.id } : g
+      g.id === draggedGuest.id ? { ...g, tableId: highlightedTable } : g
     );
 
     set({
       tables: updatedTables,
       guests: updatedGuests,
       draggedGuest: null,
-      highlightedTable: null,
       highlightedSeats: [],
+      highlightedTable: null,
     });
-
-    console.log("✅ DROP FINISHED");
   },
 
   /* ---------------- REMOVE SEAT ---------------- */
   removeFromSeat: (tableId, guestId) => {
-    console.log("❌ REMOVE SEAT — Table:", tableId, "Guest:", guestId);
-
     const { tables, guests } = get();
 
     const updatedTables = tables.map((t) =>
@@ -225,38 +195,51 @@ export const useSeatingStore = create((set, get) => ({
       g.id === guestId ? { ...g, tableId: null } : g
     );
 
-    set({
-      tables: updatedTables,
-      guests: updatedGuests,
-    });
+    set({ tables: updatedTables, guests: updatedGuests });
   },
 
-  /* ---------------- MANUAL TABLE ASSIGN (NEW) ---------------- */
-  assignGuestsToTable: (tableId, guestIds) => {
+  /* --------------------------------------------------
+        ⭐⭐⭐  MANUAL ASSIGN (NEW & FIXED!)  ⭐⭐⭐
+     פונקציה תואמת ל־Modal שלך:
+     assignGuestsToTable(tableId, guestId, count)
+  -------------------------------------------------- */
+  assignGuestsToTable: (tableId, guestId, count) => {
     const { tables, guests } = get();
+
     const table = tables.find((t) => t.id === tableId);
+    const guest = guests.find((g) => g.id === guestId);
 
-    if (!table) return;
+    if (!table || !guest)
+      return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
 
-    guestIds.forEach((guestId) => {
-      const guest = guests.find((g) => g.id === guestId);
-      if (!guest) return;
+    // מציאת מקומות פנויים רציפים
+    const block = findFreeBlock(table, count);
+    if (!block)
+      return { ok: false, message: "אין מספיק מקומות פנויים בשולחן" };
 
-      const block = findFreeBlock(table, guest.count);
-      if (!block) return;
-
-      // שיבוץ בפועל
-      table.seatedGuests.push(
-        ...block.map((seatIndex) => ({
-          guestId,
-          seatIndex,
-        }))
+    // הסרה משולחן קודם
+    tables.forEach((t) => {
+      t.seatedGuests = t.seatedGuests.filter(
+        (s) => s.guestId !== guestId
       );
-
-      guest.tableId = tableId;
     });
 
-    set({ tables: [...tables], guests: [...guests] });
+    // שיבוץ חדש
+    table.seatedGuests.push(
+      ...block.map((seatIndex) => ({
+        guestId,
+        seatIndex,
+      }))
+    );
+
+    guest.tableId = tableId;
+
+    set({
+      tables: [...tables],
+      guests: [...guests],
+    });
+
+    return { ok: true };
   },
 
 }));
