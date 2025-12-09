@@ -11,6 +11,7 @@ import TableRenderer from "@/app/components/seating/TableRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
+import DeleteTableButton from "@/app/components/seating/DeleteTableButton";  // ⭐ חדש
 
 export default function SeatingEditor({ background }) {
   const [bgImage] = useImage(background || "", "anonymous");
@@ -88,8 +89,8 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
+        {/* ---------------------- שכבת שולחנות + רקע ---------------------- */}
         <Layer>
-          {/* BACKGROUND */}
           {bgImage && (
             <Image
               image={bgImage}
@@ -99,13 +100,18 @@ export default function SeatingEditor({ background }) {
             />
           )}
 
-          {/* TABLES */}
           {tables.map((t) => (
             <TableRenderer key={t.id} table={t} />
           ))}
 
-          {/* GHOST PREVIEW */}
           <GhostPreview />
+        </Layer>
+
+        {/* ---------------------- שכבה עליונה — כפתורי מחיקה ---------------------- */}
+        <Layer>
+          {tables.map((t) => (
+            <DeleteTableButton key={t.id} table={t} />
+          ))}
         </Layer>
       </Stage>
 
@@ -120,7 +126,7 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* ADD TABLE BUTTON — NOW FIXED & VISIBLE */}
+      {/* ADD TABLE BUTTON */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600 

@@ -9,7 +9,6 @@ export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
 
-  const deleteTable = useSeatingStore((s) => s.deleteTable);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const guests = useSeatingStore((s) => s.guests);
 
@@ -20,7 +19,7 @@ export default function TableRenderer({ table }) {
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* -------- UPDATE POS -------- */
+  /* -------- UPDATE POSITION IN STORE -------- */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
 
@@ -56,48 +55,6 @@ export default function TableRenderer({ table }) {
         })
       }
     >
-      {/* -------------------------------- DELETE BUTTON (ON TOP) ------------------------------- */}
-      {isHighlighted && (
-        <Group
-          x={0}
-          y={-110}
-          listening={true}
-          onClick={(e) => {
-            e.cancelBubble = true; 
-            deleteTable(table.id);
-          }}
-          onTap={(e) => {
-            e.cancelBubble = true;
-            deleteTable(table.id);
-          }}
-        >
-          <Rect
-            width={110}
-            height={36}
-            offsetX={55}
-            fill="#ef4444"
-            cornerRadius={6}
-            shadowBlur={6}
-            listening={true}
-            onClick={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
-            onTap={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
-          />
-          <Text
-            text="מחק שולחן"
-            fontSize={16}
-            fill="white"
-            align="center"
-            verticalAlign="middle"
-            width={110}
-            height={36}
-            offsetX={55}
-            listening={true}
-            onClick={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
-            onTap={(e) => { e.cancelBubble = true; deleteTable(table.id); }}
-          />
-        </Group>
-      )}
-
       {/* -------------------------------- TABLE SHAPES ------------------------------- */}
 
       {table.type === "round" && (
