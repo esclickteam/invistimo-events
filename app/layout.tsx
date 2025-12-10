@@ -36,7 +36,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
               {/* ניווט – צמוד לקצה הימני באמת */}
               <nav className="hidden md:flex items-center gap-10 text-lg text-[var(--brown-soft)]">
-
                 <a
                   href="#how"
                   className="hover:text-[var(--brown-dark)] transition-colors"
@@ -67,8 +66,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          {/* תוכן הדפים */}
-          <main className="pt-10">{children}</main>
+          {/* תוכן הדפים – הורדתי את ה-paddding העליון כדי שהרקע יעלה עד ההדר */}
+          <main>{children}</main>
 
           {/* FOOTER */}
           <footer className="mt-24 py-10 text-center text-sm text-[var(--brown-soft)]">
