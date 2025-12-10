@@ -89,7 +89,8 @@ export default function DashboardPage() {
      פונקציה: שליחת וואטסאפ (בודד)
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
-    const inviteLink = `https://invistimo.com/invite/rsvp/${guest.token}`;
+    const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}`;
+
     const message = `
 היי ${guest.name}! 💛✨
 
@@ -140,7 +141,8 @@ ${inviteLink}
       const g = guests[i];
       if (!g.phone) continue;
 
-      const inviteLink = `https://invistimo.com/invite/rsvp/${g.token}`;
+      const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}`;
+
       const message = `
 היי ${g.name}! 💛✨
 
