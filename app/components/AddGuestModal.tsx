@@ -31,26 +31,10 @@ export default function AddGuestModal({ onClose, onSuccess, invitationId }: Prop
         return;
       }
 
-      const guest = data.guest;
-
-      // ⭐ יצירת קישור אישי למוזמן
-      const inviteLink = `https://invistimo.com/invite/rsvp/${guest.token}`;
-
-      // ⭐ הודעה אישית
-      const message = `היי ${guest.name}! הנה ההזמנה האישית שלך 🎉  
-${inviteLink}`;
-
-      // ⭐ המרה לפורמט WhatsApp
-      const phoneForWhatsapp = `972${guest.phone.replace(/^0/, "")}`;
-
-      // ⭐ פתיחת WhatsApp
-      window.open(
-        `https://wa.me/${phoneForWhatsapp}?text=${encodeURIComponent(message)}`,
-        "_blank"
-      );
-
+      // ⭐ בשלב זה — רק שומרים וחוזרים לדשבורד
       onSuccess();
       onClose();
+
     } catch (err) {
       console.error(err);
       alert("שגיאה בשמירת הנתונים");

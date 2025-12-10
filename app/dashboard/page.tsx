@@ -16,7 +16,7 @@ export default function DashboardPage() {
   const [invitationId, setInvitationId] = useState<string>("");
 
   /* ============================================================
-     טוען את ההזמנה של המשתמש
+     טוען הזמנה של המשתמש
   ============================================================ */
   async function loadInvitation() {
     try {
@@ -36,7 +36,7 @@ export default function DashboardPage() {
   }
 
   /* ============================================================
-     טוען מוזמנים של ההזמנה
+     טוען מוזמנים לפי invitationId
   ============================================================ */
   async function loadGuests() {
     if (!invitationId) return;
@@ -52,7 +52,7 @@ export default function DashboardPage() {
   }
 
   /* ============================================================
-     טוען הזמנה + מוזמנים
+     INIT
   ============================================================ */
   useEffect(() => {
     async function init() {
@@ -66,6 +66,9 @@ export default function DashboardPage() {
     if (invitationId) loadGuests();
   }, [invitationId]);
 
+  /* ============================================================
+     סטטיסטיקות
+  ============================================================ */
   const stats = {
     total: guests.length,
     coming: guests.filter((g) => g.rsvp === "yes").length,
@@ -73,11 +76,33 @@ export default function DashboardPage() {
     noResponse: guests.filter((g) => g.rsvp === "pending").length,
   };
 
+  /* ============================================================
+     שליחת וואטסאפ ידנית
+  ============================================================ */
   const sendWhatsApp = (guest: any) => {
-    const link = `https://invistimo.com/invite/${guest.shareId}`;
-    const msg = `היי ${guest.name}! הנה ההזמנה לאירוע:\n${link}`;
-    const url = `https://wa.me/${guest.phone}?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
+    const inviteLink = `https://invistimo.com/invite/rsvp/${guest.token}`;
+
+    const message = `
+היי ${guest.name}! 🤍✨  
+הזמנה אישית מחכה לך 🎉
+
+📨 קישור להזמנה:
+${inviteLink}
+
+נשמח לראותך!
+🕊 אנא אשר/י הגעה בלחיצה על הכפתור בהזמנה
+`;
+
+    const normalizedPhone = guest.phone
+      .replace(/\D/g, "")
+      .replace(/^0/, "");
+
+    const phoneForWhatsapp = `972${normalizedPhone}`;
+
+    window.open(
+      `https://wa.me/${phoneForWhatsapp}?text=${encodeURIComponent(message)}`,
+      "_blank"
+    );
   };
 
   return (
@@ -86,41 +111,27 @@ export default function DashboardPage() {
 
       {/* Tabs */}
       <div className="flex gap-4 mb-8 border-b pb-3">
-
         <button
           onClick={() => setActiveTab("guest-list")}
-          className={`pb-2 ${
-            activeTab === "guest-list"
-              ? "border-b-2 border-black"
-              : "text-gray-500"
-          }`}
+          className={`pb-2 ${activeTab === "guest-list" ? "border-b-2 border-black" : "text-gray-500"}`}
         >
           רשימת מוזמנים
         </button>
 
         <button
           onClick={() => setActiveTab("seating")}
-          className={`pb-2 ${
-            activeTab === "seating"
-              ? "border-b-2 border-black"
-              : "text-gray-500"
-          }`}
+          className={`pb-2 ${activeTab === "seating" ? "border-b-2 border-black" : "text-gray-500"}`}
         >
           סידורי הושבה
         </button>
 
         <button
           onClick={() => setActiveTab("stats")}
-          className={`pb-2 ${
-            activeTab === "stats"
-              ? "border-b-2 border-black"
-              : "text-gray-500"
-          }`}
+          className={`pb-2 ${activeTab === "stats" ? "border-b-2 border-black" : "text-gray-500"}`}
         >
           סטטיסטיקות
         </button>
 
-        {/* כפתור יצירה / עריכה */}
         {!invitation ? (
           <button
             onClick={() => (window.location.href = "/dashboard/create-invite")}
@@ -143,7 +154,7 @@ export default function DashboardPage() {
       {/* Loading */}
       {loading && <div>טוען...</div>}
 
-      {/* No invitation */}
+      {/* אין הזמנה */}
       {!invitation && !loading && (
         <div className="text-center text-gray-600 text-xl mt-20">
           עדיין לא יצרת הזמנה 🎉  
@@ -188,15 +199,9 @@ export default function DashboardPage() {
                   <td className="p-3">{g.name}</td>
                   <td className="p-3">{g.phone}</td>
                   <td className="p-3">
-                    {g.rsvp === "yes" && (
-                      <span className="text-green-600">מגיע</span>
-                    )}
-                    {g.rsvp === "no" && (
-                      <span className="text-red-600">לא מגיע</span>
-                    )}
-                    {g.rsvp === "pending" && (
-                      <span className="text-gray-500">ממתין</span>
-                    )}
+                    {g.rsvp === "yes" && <span className="text-green-600">מגיע</span>}
+                    {g.rsvp === "no" && <span className="text-red-600">לא מגיע</span>}
+                    {g.rsvp === "pending" && <span className="text-gray-500">ממתין</span>}
                   </td>
                   <td className="p-3">{g.guestsCount}</td>
 
@@ -228,7 +233,7 @@ export default function DashboardPage() {
             </tbody>
           </table>
 
-          {/* Add Guest */}
+          {/* כפתור הוספת מוזמן */}
           <button
             onClick={() => setOpenAddModal(true)}
             className="mt-6 bg-black text-white px-6 py-3 rounded-full"
@@ -258,9 +263,9 @@ export default function DashboardPage() {
   );
 }
 
-/* ==========================
-   Box Component
-========================== */
+/* ============================================================
+   BOX COMPONENT
+=========================================================== */
 function Box({ title, value, color }: any) {
   const colors: any = {
     green: "text-green-600",
