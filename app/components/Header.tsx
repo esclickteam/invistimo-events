@@ -14,6 +14,7 @@ export default function Header() {
 
   return (
     <header
+      dir="ltr"  // ⭐⭐⭐ הפתרון הקריטי כדי שהלוגו יהיה שמאלה והתפריט ימינה
       className={`fixed top-0 left-0 w-full z-50 transition-all ${
         scrolled
           ? "bg-cream/95 backdrop-blur border-b border-gold-soft shadow-sm"
