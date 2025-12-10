@@ -13,11 +13,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="he" dir="rtl">
       <body className="bg-luxury min-h-screen font-[Heebo]">
-        {/* ✅ עטיפה גלובלית של React Query */}
         <Providers>
           {/* HEADER – יוקרתי עם Blur */}
           <header className="header-blur sticky top-0 z-50">
             <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+
               {/* לוגו + טקסט */}
               <Link href="/" className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white text-lg font-bold shadow-md">
@@ -54,17 +54,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   חבילות
                 </a>
 
+                {/* ⭐ כפתור התחברות חדש במקום יצירת הזמנה */}
                 <Link
-                  href="/create-event"
+                  href="/login"
                   className="btn-primary text-sm px-5 py-2"
                 >
-                  יצירת הזמנה
+                  התחברות
                 </Link>
               </nav>
+
             </div>
           </header>
 
-          {/* תצוגת התוכן */}
+          {/* תוכן הדפים */}
           <main className="pt-10">{children}</main>
 
           {/* FOOTER */}

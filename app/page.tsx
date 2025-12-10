@@ -43,24 +43,17 @@ export default function HomePage() {
           transition={{ delay: 0.35, duration: 0.9 }}
           className="text-lg md:text-2xl text-[#7b6754] max-w-3xl mx-auto leading-relaxed"
         >
-          פלטפורמה מעוצבת וחדשנית לניהול אירוע ב־⁧Invity⁩:
+          פלטפורמה מעוצבת וחדשנית לניהול אירוע ב־<strong>invistimo</strong>:
           הזמנות, אישורי הגעה, הושבה, תזכורות — הכול במקום אחד חכם ויוקרתי.
         </motion.p>
 
-        {/* כפתורים יוקרתיים */}
+        {/* כפתור יחיד — צפייה בחבילות */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.7 }}
-          className="flex justify-center gap-4 mt-10"
+          className="flex justify-center mt-10"
         >
-          <Link
-            href="/login"
-            className="px-10 py-4 rounded-full text-lg font-semibold text-white bg-[#c7a17a] hover:bg-[#b7936f] transition shadow-lg hover:shadow-xl active:scale-95"
-          >
-            התחברות
-          </Link>
-
           <a
             href="#packages"
             className="px-10 py-4 rounded-full text-lg font-semibold border-2 border-[#c7a17a] text-[#6a5440] hover:bg-[#f5e8dd] transition shadow-md hover:shadow-lg active:scale-95"
@@ -81,7 +74,7 @@ export default function HomePage() {
           </h3>
 
           <div className="flex flex-wrap justify-center gap-2">
-            {EVENT_TYPES.map((t, i) => (
+            {EVENT_TYPES.map((t) => (
               <motion.span
                 key={t}
                 whileHover={{ scale: 1.1, y: -3 }}
