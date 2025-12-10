@@ -6,6 +6,9 @@ import UploadBackgroundModal from "./UploadBackgroundModal";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function SeatingPage() {
+  // 🛑 חשוב: למנוע SSR — אחרת Next ינסה להריץ fetch בצד השרת ויקרוס
+  if (typeof window === "undefined") return null;
+
   const [background, setBackground] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
 
@@ -13,7 +16,8 @@ export default function SeatingPage() {
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
 
-  const [invitationId, setInvitationId] = useState<string | null>(null);
+  // ❗ אין טיפוס TS פה אחרת תהיה שגיאה "string is not defined"
+  const [invitationId, setInvitationId] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -107,12 +111,8 @@ export default function SeatingPage() {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // ⭐ COMPONENT RENDER
-  // -------------------------------------------------------------------------
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-
       {/* HEADER */}
       <div className="flex items-center justify-between px-6 py-3 border-b bg-white shadow-sm">
         <h1 className="text-xl font-semibold">הושבה באולם</h1>
@@ -125,7 +125,6 @@ export default function SeatingPage() {
             העלאת תבנית אולם
           </button>
 
-          {/* ⭐ כפתור שמירת הושבה ⭐ */}
           <button
             onClick={saveSeating}
             className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg"
