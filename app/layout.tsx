@@ -64,7 +64,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </header>
 
           {/* MAIN */}
-          <main className="bg-luxury min-h-screen pt-32">
+          <main className="bg-luxury min-h-screen pt-16">
+
             {children}
           </main>
 
