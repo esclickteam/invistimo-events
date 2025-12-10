@@ -4,12 +4,22 @@ import { useState, useEffect } from "react";
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
 
+/* טיפוס בסיסי למוזמן */
+type Guest = {
+  _id: string;
+  name: string;
+  phone: string;
+  token: string;
+  rsvp: "yes" | "no" | "pending";
+  guestsCount: number;
+};
+
 export default function DashboardPage() {
-  const [guests, setGuests] = useState<any[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("guest-list");
 
-  const [selectedGuest, setSelectedGuest] = useState<any | null>(null);
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
 
   const [invitation, setInvitation] = useState<any | null>(null);
@@ -77,13 +87,13 @@ export default function DashboardPage() {
   };
 
   /* ============================================================
-     שליחת וואטסאפ ידנית
+     שליחת וואטסאפ (מובייל + ווב)
   ============================================================ */
-  const sendWhatsApp = (guest: any) => {
+  const sendWhatsApp = (guest: Guest) => {
     const inviteLink = `https://invistimo.com/invite/rsvp/${guest.token}`;
 
-    const message = 
-`היי ${guest.name}! 💛✨
+    const message = `
+היי ${guest.name}! 💛✨
 
 הזמנה אישית מחכה לך 🎉
 
@@ -91,24 +101,35 @@ export default function DashboardPage() {
 ${inviteLink}
 
 נשמח לראותך! ❤️
-אנא אשר/י הגעה בלחיצה על הכפתור שבהזמנה 👇`;
+אנא אשר/י הגעה בלחיצה על הכפתור שבהזמנה 👇
+`;
 
-console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
+    console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
 
-
-
-    const normalizedPhone = guest.phone
-      .replace(/\D/g, "")
-      .replace(/^0/, "");
-
+    // 📞 ניקוי מספר והפיכתו לתבנית בינלאומית
+    const normalizedPhone = guest.phone.replace(/\D/g, "").replace(/^0/, "");
     const phoneForWhatsapp = `972${normalizedPhone}`;
 
-    window.open(
-      `https://wa.me/${phoneForWhatsapp}?text=${encodeURIComponent(message)}`,
-      "_blank"
-    );
+    // ✅ קידוד הודעה (כולל אימוג׳ים ועברית)
+    const encodedMessage = encodeURIComponent(message);
+
+    // 🔍 בדיקה אם המשתמש במובייל או דסקטופ
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // 🌐 בחירת URL לפי סוג מכשיר
+    const whatsappBaseUrl = isMobile
+      ? "https://wa.me"
+      : "https://web.whatsapp.com/send";
+
+    const whatsappUrl = `${whatsappBaseUrl}?phone=${phoneForWhatsapp}&text=${encodedMessage}`;
+
+    // 📤 פתיחת הודעה
+    window.open(whatsappUrl, "_blank");
   };
 
+  /* ============================================================
+     תצוגת דף
+  ============================================================ */
   return (
     <div className="p-10">
       <h1 className="text-4xl font-semibold mb-6">ניהול האירוע שלך</h1>
@@ -117,21 +138,33 @@ console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
       <div className="flex gap-4 mb-8 border-b pb-3">
         <button
           onClick={() => setActiveTab("guest-list")}
-          className={`pb-2 ${activeTab === "guest-list" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "guest-list"
+              ? "border-b-2 border-black"
+              : "text-gray-500"
+          }`}
         >
           רשימת מוזמנים
         </button>
 
         <button
           onClick={() => setActiveTab("seating")}
-          className={`pb-2 ${activeTab === "seating" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "seating"
+              ? "border-b-2 border-black"
+              : "text-gray-500"
+          }`}
         >
           סידורי הושבה
         </button>
 
         <button
           onClick={() => setActiveTab("stats")}
-          className={`pb-2 ${activeTab === "stats" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "stats"
+              ? "border-b-2 border-black"
+              : "text-gray-500"
+          }`}
         >
           סטטיסטיקות
         </button>
@@ -161,7 +194,7 @@ console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
       {/* אין הזמנה */}
       {!invitation && !loading && (
         <div className="text-center text-gray-600 text-xl mt-20">
-          עדיין לא יצרת הזמנה 🎉  
+          עדיין לא יצרת הזמנה 🎉
           <br />
           <button
             onClick={() => (window.location.href = "/dashboard/create-invite")}
@@ -203,9 +236,15 @@ console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
                   <td className="p-3">{g.name}</td>
                   <td className="p-3">{g.phone}</td>
                   <td className="p-3">
-                    {g.rsvp === "yes" && <span className="text-green-600">מגיע</span>}
-                    {g.rsvp === "no" && <span className="text-red-600">לא מגיע</span>}
-                    {g.rsvp === "pending" && <span className="text-gray-500">ממתין</span>}
+                    {g.rsvp === "yes" && (
+                      <span className="text-green-600">מגיע</span>
+                    )}
+                    {g.rsvp === "no" && (
+                      <span className="text-red-600">לא מגיע</span>
+                    )}
+                    {g.rsvp === "pending" && (
+                      <span className="text-gray-500">ממתין</span>
+                    )}
                   </td>
                   <td className="p-3">{g.guestsCount}</td>
 
@@ -270,8 +309,16 @@ console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
 /* ============================================================
    BOX COMPONENT
 =========================================================== */
-function Box({ title, value, color }: any) {
-  const colors: any = {
+function Box({
+  title,
+  value,
+  color,
+}: {
+  title: string;
+  value: number;
+  color?: string;
+}) {
+  const colors: Record<string, string> = {
     green: "text-green-600",
     red: "text-red-600",
     orange: "text-orange-500",
@@ -279,7 +326,7 @@ function Box({ title, value, color }: any) {
   return (
     <div className="border p-5 rounded-xl bg-white shadow-sm text-center">
       <div className="text-gray-500 text-sm mb-1">{title}</div>
-      <div className={`text-3xl font-bold ${colors[color] || ""}`}>
+      <div className={`text-3xl font-bold ${colors[color || ""] || ""}`}>
         {value}
       </div>
     </div>
