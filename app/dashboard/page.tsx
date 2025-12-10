@@ -92,6 +92,8 @@ export default function DashboardPage() {
     const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?guest=${guest._id}`;
 
 
+
+
     const message = `
 היי ${guest.name}! 💛✨
 
@@ -143,6 +145,7 @@ ${inviteLink}
       if (!g.phone) continue;
 
       const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?guest=${g._id}`;
+
 
 
       const message = `

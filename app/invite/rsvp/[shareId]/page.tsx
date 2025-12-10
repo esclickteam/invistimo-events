@@ -39,16 +39,16 @@ export default function InviteRsvpPage({ params }: any) {
   }, [params]);
 
   /* ============================================================
-     קבלת guestId מה־URL
+     קבלת token מה־URL
 ============================================================ */
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    const guestId = query.get("guest");
+    const token = query.get("token");
 
-    if (!guestId) return;
+    if (!token) return;
 
     async function loadGuest() {
-      const res = await fetch(`/api/invitationGuests/${guestId}`);
+      const res = await fetch(`/api/invitationGuests/byToken/${token}`);
       const data = await res.json();
       if (data.success) setGuest(data.guest);
     }
@@ -92,14 +92,12 @@ export default function InviteRsvpPage({ params }: any) {
     );
   }
 
-  if (!invitation) {
-    return notFound();
-  }
+  if (!invitation) return notFound();
 
   const { title, canvasData } = invitation;
 
   /* ============================================================
-     שליחת אישור הגעה לשרת
+     שליחת אישור הגעה לשרת לפי token
 ============================================================ */
   async function submitRsvp() {
     if (!rsvp) {
@@ -107,13 +105,13 @@ export default function InviteRsvpPage({ params }: any) {
       return;
     }
 
-    if (!guest?._id) {
+    if (!guest?.token) {
       alert("שגיאה: האורח לא מזוהה מהקישור");
       return;
     }
 
     try {
-      const res = await fetch(`/api/invitationGuests/${guest._id}/respond`, {
+      const res = await fetch(`/api/invitationGuests/respondByToken/${guest.token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -193,7 +191,7 @@ export default function InviteRsvpPage({ params }: any) {
         </Stage>
       </div>
 
-      {/* ====== כרטיס אישור הגעה מעוצב ====== */}
+      {/* ====== כרטיס אישור הגעה ====== */}
       <div className="mt-8 w-[390px] bg-white shadow-xl rounded-3xl p-8 border border-[#e8e4d9] text-center">
 
         {!sent ? (
@@ -218,7 +216,7 @@ export default function InviteRsvpPage({ params }: any) {
               )}
             </p>
 
-            {/* כפתורי מגיע / לא מגיע */}
+            {/* כפתורים */}
             <div className="flex gap-4 mb-6">
               <button
                 onClick={() => setRsvp("yes")}
@@ -243,7 +241,7 @@ export default function InviteRsvpPage({ params }: any) {
               </button>
             </div>
 
-             <button
+            <button
               onClick={submitRsvp}
               className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-bold text-lg shadow-lg hover:opacity-90 transition"
             >
@@ -252,7 +250,7 @@ export default function InviteRsvpPage({ params }: any) {
           </>
         ) : (
           <div className="text-green-700 text-xl font-semibold">
-             ✓ תודה! תשובתך נקלטה.
+            ✓ תודה! תשובתך נקלטה.
           </div>
         )}
       </div>
