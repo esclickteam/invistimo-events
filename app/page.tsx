@@ -25,7 +25,7 @@ export default function HomePage() {
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, ease: "easeOut" }}
-        className="max-w-5xl mx-auto pt-16 md:pt-20 px-6 text-center space-y-8"
+        className="max-w-5xl mx-auto pt-10 md:pt-14 px-6 text-center space-y-8"
 
       >
         <motion.h1
