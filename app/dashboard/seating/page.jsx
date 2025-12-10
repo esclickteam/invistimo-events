@@ -34,6 +34,14 @@ export default function SeatingPage() {
         const gData = await gRes.json();
         console.log("📥 guests loaded:", gData);
 
+        // ⭐⭐⭐ נורמליזציה — חובה כדי שהגרירה תעבוד ⭐⭐⭐
+        const normalizedGuests = (gData.guests || []).map((g) => ({
+          id: g._id,                    // ← Zustand דורש id, לא _id
+          name: g.name,
+          count: g.guestsCount || 1,    // ← מספר מושבים
+          tableId: g.tableId || null,   // ← שיוך שולחן אם קיים
+        }));
+
         // 3️⃣ טען טבלאות — מוגן מקריסה
         console.log("🔄 Loading seating tables...");
         let tables = [];
@@ -41,17 +49,16 @@ export default function SeatingPage() {
         const tRes = await fetch(`/api/seating/tables/${invitationId}`);
 
         if (tRes.ok) {
-          // רק אם זה JSON תקין
           const tData = await tRes.json();
           tables = tData.tables || [];
           console.log("📥 tables loaded:", tables);
         } else {
-          console.warn("⚠ No seating tables found, loading empty array.");
+          console.warn("⚠ No seating tables found, using empty array.");
         }
 
         // 4️⃣ העברת הנתונים ל-Zustand
-        console.log("🔧 INIT Zustand:", { tables, guests: gData.guests });
-        init(tables, gData.guests || []);
+        console.log("🔧 INIT Zustand:", { tables, guests: normalizedGuests });
+        init(tables, normalizedGuests);
 
         console.log("✅ Zustand INIT completed");
       } catch (err) {
