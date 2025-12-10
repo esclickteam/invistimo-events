@@ -2,36 +2,69 @@
 
 import { useState, useEffect } from "react";
 import EditGuestModal from "../components/EditGuestModal";
-import AddGuestModal from "../components/AddGuestModal"; // 👈 הייבוא החדש
+import AddGuestModal from "../components/AddGuestModal";
 
 export default function DashboardPage() {
   const [guests, setGuests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("guest-list");
+
   const [selectedGuest, setSelectedGuest] = useState<any | null>(null);
-  const [openAddModal, setOpenAddModal] = useState(false); // 👈 ניהול מודאל הוספה
-  const [invitationId, setInvitationId] = useState<string>(""); // 👈 מזהה ההזמנה הנוכחית
+  const [openAddModal, setOpenAddModal] = useState(false);
 
-  // ============================================================
-  //  טעינת מוזמנים
-  // ============================================================
-  async function loadGuests() {
+  const [invitation, setInvitation] = useState<any | null>(null);
+  const [invitationId, setInvitationId] = useState<string>("");
+
+  /* ============================================================
+     טוען את ההזמנה של המשתמש
+  ============================================================ */
+  async function loadInvitation() {
     try {
-      const res = await fetch("/api/guests");
+      const res = await fetch("/api/invitations/my");
       const data = await res.json();
-      setGuests(data.guests || []);
 
-      // ✅ במידה ויש הזמנה אחת עיקרית - שומר את ה־ID שלה
-      if (data.invitationId) setInvitationId(data.invitationId);
+      if (data.success) {
+        setInvitation(data.invitation || null);
+
+        if (data.invitation?._id) {
+          setInvitationId(data.invitation._id);
+        }
+      }
+    } catch (err) {
+      console.error("❌ שגיאה בטעינת הזמנה:", err);
+    }
+  }
+
+  /* ============================================================
+     טוען מוזמנים של ההזמנה
+  ============================================================ */
+  async function loadGuests() {
+    if (!invitationId) return;
+
+    try {
+      const res = await fetch(`/api/guests?invitation=${invitationId}`);
+      const data = await res.json();
+
+      setGuests(data.guests || []);
     } catch (err) {
       console.error("❌ שגיאה בטעינת מוזמנים:", err);
     }
-    setLoading(false);
   }
 
+  /* ============================================================
+     טוען הזמנה + מוזמנים
+  ============================================================ */
   useEffect(() => {
-    loadGuests();
+    async function init() {
+      await loadInvitation();
+      setLoading(false);
+    }
+    init();
   }, []);
+
+  useEffect(() => {
+    if (invitationId) loadGuests();
+  }, [invitationId]);
 
   const stats = {
     total: guests.length,
@@ -40,10 +73,6 @@ export default function DashboardPage() {
     noResponse: guests.filter((g) => g.rsvp === "pending").length,
   };
 
-  // ============================================================
-  //  פעולות
-  // ============================================================
-
   const sendWhatsApp = (guest: any) => {
     const link = `https://invistimo.com/invite/${guest.shareId}`;
     const msg = `היי ${guest.name}! הנה ההזמנה לאירוע:\n${link}`;
@@ -51,53 +80,87 @@ export default function DashboardPage() {
     window.open(url, "_blank");
   };
 
-  const editGuest = (guest: any) => setSelectedGuest(guest);
-  const seatGuest = (guest: any) => alert(`הושבה לשולחן: ${guest.name}`);
-
-  // ============================================================
-  //  רינדור
-  // ============================================================
   return (
     <div className="p-10">
       <h1 className="text-4xl font-semibold mb-6">ניהול האירוע שלך</h1>
 
       {/* Tabs */}
       <div className="flex gap-4 mb-8 border-b pb-3">
+
         <button
           onClick={() => setActiveTab("guest-list")}
-          className={`pb-2 ${activeTab === "guest-list" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "guest-list"
+              ? "border-b-2 border-black"
+              : "text-gray-500"
+          }`}
         >
           רשימת מוזמנים
         </button>
 
         <button
           onClick={() => setActiveTab("seating")}
-          className={`pb-2 ${activeTab === "seating" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "seating"
+              ? "border-b-2 border-black"
+              : "text-gray-500"
+          }`}
         >
           סידורי הושבה
         </button>
 
         <button
           onClick={() => setActiveTab("stats")}
-          className={`pb-2 ${activeTab === "stats" ? "border-b-2 border-black" : "text-gray-500"}`}
+          className={`pb-2 ${
+            activeTab === "stats"
+              ? "border-b-2 border-black"
+              : "text-gray-500"
+          }`}
         >
           סטטיסטיקות
         </button>
 
-        <button
-          onClick={() => (window.location.href = "/dashboard/create-invite")}
-          className="ml-auto bg-black text-white px-6 py-2 rounded-full"
-        >
-          🎨 יצירת הזמנה
-        </button>
+        {/* כפתור יצירה / עריכה */}
+        {!invitation ? (
+          <button
+            onClick={() => (window.location.href = "/dashboard/create-invite")}
+            className="ml-auto bg-black text-white px-6 py-2 rounded-full"
+          >
+            🎨 יצירת הזמנה
+          </button>
+        ) : (
+          <button
+            onClick={() =>
+              (window.location.href = `/dashboard/edit-invite/${invitation._id}`)
+            }
+            className="ml-auto bg-black text-white px-6 py-2 rounded-full"
+          >
+            ✏️ עריכת הזמנה
+          </button>
+        )}
       </div>
 
+      {/* Loading */}
       {loading && <div>טוען...</div>}
+
+      {/* No invitation */}
+      {!invitation && !loading && (
+        <div className="text-center text-gray-600 text-xl mt-20">
+          עדיין לא יצרת הזמנה 🎉  
+          <br />
+          <button
+            onClick={() => (window.location.href = "/dashboard/create-invite")}
+            className="mt-5 bg-black text-white px-6 py-3 rounded-full"
+          >
+            יצירת הזמנה
+          </button>
+        </div>
+      )}
 
       {/* ============================
           GUEST LIST TAB
       ============================ */}
-      {activeTab === "guest-list" && !loading && (
+      {invitation && activeTab === "guest-list" && (
         <div>
           <div className="grid grid-cols-4 gap-4 mb-8">
             <Box title="סה״כ מוזמנים" value={stats.total} />
@@ -118,29 +181,45 @@ export default function DashboardPage() {
                 <th className="p-3">עריכה</th>
               </tr>
             </thead>
+
             <tbody>
               {guests.map((g) => (
                 <tr key={g._id} className="border-b">
                   <td className="p-3">{g.name}</td>
                   <td className="p-3">{g.phone}</td>
                   <td className="p-3">
-                    {g.rsvp === "yes" && <span className="text-green-600">מגיע</span>}
-                    {g.rsvp === "no" && <span className="text-red-600">לא מגיע</span>}
-                    {g.rsvp === "pending" && <span className="text-gray-500">ממתין</span>}
+                    {g.rsvp === "yes" && (
+                      <span className="text-green-600">מגיע</span>
+                    )}
+                    {g.rsvp === "no" && (
+                      <span className="text-red-600">לא מגיע</span>
+                    )}
+                    {g.rsvp === "pending" && (
+                      <span className="text-gray-500">ממתין</span>
+                    )}
                   </td>
                   <td className="p-3">{g.guestsCount}</td>
+
                   <td className="p-3">
-                    <button onClick={() => sendWhatsApp(g)} className="text-green-600 hover:underline">
+                    <button
+                      onClick={() => sendWhatsApp(g)}
+                      className="text-green-600 hover:underline"
+                    >
                       שלח 📩
                     </button>
                   </td>
+
                   <td className="p-3">
-                    <button onClick={() => seatGuest(g)} className="text-purple-600 hover:underline">
+                    <button className="text-purple-600 hover:underline">
                       הושב 🪑
                     </button>
                   </td>
+
                   <td className="p-3">
-                    <button onClick={() => editGuest(g)} className="text-blue-600 hover:underline">
+                    <button
+                      onClick={() => setSelectedGuest(g)}
+                      className="text-blue-600 hover:underline"
+                    >
                       ערוך
                     </button>
                   </td>
@@ -149,9 +228,9 @@ export default function DashboardPage() {
             </tbody>
           </table>
 
-          {/* Add Guest Button */}
+          {/* Add Guest */}
           <button
-            onClick={() => setOpenAddModal(true)} // 👈 נפתח המודאל שלך
+            onClick={() => setOpenAddModal(true)}
             className="mt-6 bg-black text-white px-6 py-3 rounded-full"
           >
             + הוספת מוזמן
@@ -159,9 +238,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ============================
-          מודאלים
-      ============================ */}
+      {/* Modals */}
       {selectedGuest && (
         <EditGuestModal
           guest={selectedGuest}
@@ -181,9 +258,9 @@ export default function DashboardPage() {
   );
 }
 
-/* ================================
-   BOX COMPONENT
-================================ */
+/* ==========================
+   Box Component
+========================== */
 function Box({ title, value, color }: any) {
   const colors: any = {
     green: "text-green-600",
@@ -193,7 +270,9 @@ function Box({ title, value, color }: any) {
   return (
     <div className="border p-5 rounded-xl bg-white shadow-sm text-center">
       <div className="text-gray-500 text-sm mb-1">{title}</div>
-      <div className={`text-3xl font-bold ${colors[color] || ""}`}>{value}</div>
+      <div className={`text-3xl font-bold ${colors[color] || ""}`}>
+        {value}
+      </div>
     </div>
   );
 }
