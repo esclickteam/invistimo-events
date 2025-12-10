@@ -18,7 +18,7 @@ export default function Header() {
 
         {/* ====================== תפריט — צד ימין ====================== */}
         <div className="flex items-center gap-10">
-          <nav className="hidden md:flex gap-8 text-text-dark font-medium">
+          <nav className="hidden md:flex gap-8 text-[#4a413a] font-medium">
             <Link href="#how" className="hover:text-gold transition">
               איך זה עובד
             </Link>
