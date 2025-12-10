@@ -6,7 +6,15 @@ import useImage from "use-image";
 import { notFound } from "next/navigation";
 
 /* ============================================================
-   רכיב להצגת Canvas אמיתי מהנתונים השמורים
+   hook מותאם לטעינת תמונה לפי URL (ניתן לקריאה בתוך map)
+============================================================ */
+function LoadedImage({ src, ...rest }: { src: string; [key: string]: any }) {
+  const [img] = useImage(src);
+  return <KonvaImage image={img} {...rest} />;
+}
+
+/* ============================================================
+   InviteRsvpPage
 ============================================================ */
 export default function InviteRsvpPage({ params }: any) {
   const [invitation, setInvitation] = useState<any | null>(null);
@@ -14,19 +22,17 @@ export default function InviteRsvpPage({ params }: any) {
 
   const stageRef = useRef<any>(null);
 
-  /* ⭐ Next.js 16 — חובה לפתור את params כ־Promise */
+  /* ⭐ Next.js 16 – params הוא Promise */
   useEffect(() => {
     async function fetchInvitation() {
       const resolved = await params;
       const { shareId } = resolved;
-      console.log("🎟️ Fetching invitation by shareId:", shareId);
 
       try {
         const res = await fetch(`/api/invite/${shareId}`);
         const data = await res.json();
 
         if (!data.success) {
-          console.error("❌ Invitation not found:", data.error);
           setInvitation(null);
           setLoading(false);
           return;
@@ -35,7 +41,6 @@ export default function InviteRsvpPage({ params }: any) {
         setInvitation(data.invitation);
       } catch (err) {
         console.error("❌ Fetch error:", err);
-        setInvitation(null);
       } finally {
         setLoading(false);
       }
@@ -44,9 +49,6 @@ export default function InviteRsvpPage({ params }: any) {
     fetchInvitation();
   }, [params]);
 
-  /* ------------------------------------------------------------
-     ⏳ בזמן טעינה
-  ------------------------------------------------------------ */
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-lg">
@@ -56,12 +58,9 @@ export default function InviteRsvpPage({ params }: any) {
   }
 
   if (!invitation) {
-    notFound();
+    return notFound();
   }
 
-  /* ------------------------------------------------------------
-     🎨 מציג את ההזמנה מה-canvasData (JSON)
-  ------------------------------------------------------------ */
   const { title, canvasData } = invitation;
 
   return (
@@ -70,22 +69,17 @@ export default function InviteRsvpPage({ params }: any) {
 
       <div
         className="rounded-3xl shadow-2xl overflow-hidden border bg-white"
-        style={{
-          width: "390px",
-          height: "700px",
-        }}
+        style={{ width: "390px", height: "700px" }}
       >
-        <Stage ref={stageRef} width={390} height={700} className="bg-white">
+        <Stage ref={stageRef} width={390} height={700}>
           <Layer>
-            {/* ⭐️ טעינת האובייקטים שנשמרו בבטחה */}
             {canvasData?.objects?.length ? (
               canvasData.objects.map((obj: any, i: number) => {
                 if (obj.type === "image") {
-                  const [image] = useImage(obj.src);
                   return (
-                    <KonvaImage
+                    <LoadedImage
                       key={i}
-                      image={image}
+                      src={obj.src}
                       x={obj.x}
                       y={obj.y}
                       width={obj.width}
@@ -124,7 +118,6 @@ export default function InviteRsvpPage({ params }: any) {
         </Stage>
       </div>
 
-      {/* כפתור אישור הגעה */}
       <button
         className="mt-8 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg transition-all active:scale-95"
         onClick={() => alert("תודה! ההגעה אושרה 🎉")}
