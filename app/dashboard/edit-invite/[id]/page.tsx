@@ -14,8 +14,7 @@ export default function EditInvitePage({ params }: any) {
   const canvasRef = useRef<any>(null);
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
 
-  const googleApiKey =
-    "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
+  const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* ============================================================
      ⭐ params ב־Next 16 הוא Promise — חובה לפתור אותו
@@ -59,7 +58,7 @@ export default function EditInvitePage({ params }: any) {
   }, [inviteId]);
 
   /* ============================================================
-     💾 שמירה
+     💾 שמירה — דרך POST (כמו CreateInvitePage)
   ============================================================ */
   const handleSave = async () => {
     if (!inviteId || !invite) {
@@ -77,12 +76,15 @@ export default function EditInvitePage({ params }: any) {
     try {
       setSaving(true);
 
-      const res = await fetch(`/api/invitations/${inviteId}`, {
-        method: "PUT",
+      // שולחים POST כמו בדף יצירה, אבל עם inviteId בגוף הבקשה
+      const res = await fetch(`/api/invitations`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
-          canvasData,
+          inviteId, // ⭐ מזהה ההזמנה לעדכון
           title: invite.title,
+          canvasData,
         }),
       });
 
@@ -130,7 +132,7 @@ export default function EditInvitePage({ params }: any) {
           />
         </div>
 
-        {/* 💾 כפתור שמירה קבוע וגלוי תמיד */}
+        {/* 💾 כפתור שמירה קבוע בתחתית */}
         <button
           onClick={handleSave}
           disabled={saving}
