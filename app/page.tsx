@@ -47,7 +47,7 @@ export default function HomePage() {
           הזמנות, אישורי הגעה, הושבה, תזכורות — הכול במקום אחד חכם ויוקרתי.
         </motion.p>
 
-        {/* כפתור יחיד — צפייה בחבילות */}
+        {/* כפתור צפייה בחבילות */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -62,23 +62,31 @@ export default function HomePage() {
           </a>
         </motion.div>
 
-        {/* תגיות אירועים */}
+        {/* תגיות אירועים — עכשיו גדולות ויוקרתיות */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.9 }}
           className="mt-10 space-y-3"
         >
-          <h3 className="text-sm text-[#857766] font-semibold">
+          <h3 className="text-base text-[#857766] font-semibold">
             מתאים לכל סוגי האירועים:
           </h3>
 
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-3">
             {EVENT_TYPES.map((t) => (
               <motion.span
                 key={t}
                 whileHover={{ scale: 1.1, y: -3 }}
-                className="px-4 py-2 text-xs rounded-full bg-white/90 border border-[#d6c5b5] text-[#7d6b59] shadow-sm"
+                className="
+                  px-5 py-3 
+                  text-sm md:text-base 
+                  rounded-full 
+                  bg-white/90 
+                  border border-[#d8c7b8] 
+                  text-[#6f5b4a] 
+                  shadow-sm
+                "
               >
                 {t}
               </motion.span>
@@ -180,7 +188,7 @@ export default function HomePage() {
 
             <Link
               href="/plans?plan=full"
-               className="block mt-8 text-center px-8 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
+              className="block mt-8 text-center px-8 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
             >
               בחרו חבילה מלאה
             </Link>
