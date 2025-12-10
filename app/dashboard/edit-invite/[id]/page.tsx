@@ -6,19 +6,32 @@ import Sidebar from "../../create-invite/Sidebar";
 import Toolbar from "../../create-invite/Toolbar";
 
 export default function EditInvitePage({ params }: any) {
-  const { id } = params;
+  const [id, setId] = useState<string | null>(null);
+
+  // ⚠️ חובה: params הוא Promise!
+  useEffect(() => {
+    async function unwrapParams() {
+      const resolved = await params;
+      setId(resolved.id);
+      console.log("📌 Resolved invite ID:", resolved.id);
+    }
+    unwrapParams();
+  }, [params]);
 
   const canvasRef = useRef<any>(null);
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
-  const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
+
+  const googleApiKey =
+    "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* ============================================================
-     📌 טוען הזמנה לפי ID
+     📌 טוען הזמנה אחרי שה-ID באמת קיים
   ============================================================ */
   useEffect(() => {
+    if (!id) return; // עדיין לא נטען
+
     async function load() {
       try {
         const res = await fetch(`/api/invitations/${id}`);
@@ -32,15 +45,14 @@ export default function EditInvitePage({ params }: any) {
 
         setInvite(data.invitation);
 
-        // טעינת הקנבס אחרי שה־ref קיים
+        // המתנה קצרה עד שהקנבס עולה
         setTimeout(() => {
           if (canvasRef.current?.loadCanvasData) {
             canvasRef.current.loadCanvasData(data.invitation.canvasData);
           } else {
             console.warn("⚠️ loadCanvasData לא נמצא ב־canvasRef");
           }
-        }, 120);
-
+        }, 150);
       } catch (err) {
         console.error("❌ Failed loading invitation:", err);
         alert("שגיאה בטעינה");
@@ -56,12 +68,12 @@ export default function EditInvitePage({ params }: any) {
      💾 שמירה
   ============================================================ */
   const handleSave = async () => {
-    if (!invite) {
-      alert("⏳ ההזמנה עדיין נטענת. נסה שוב בעוד רגע");
+    if (!id || !invite) {
+      alert("⏳ ההזמנה עדיין נטענת");
       return;
     }
 
-    if (!canvasRef.current || !canvasRef.current.getCanvasData) {
+    if (!canvasRef.current?.getCanvasData) {
       alert("❌ הקנבס לא מוכן לשמירה");
       return;
     }
@@ -74,7 +86,7 @@ export default function EditInvitePage({ params }: any) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           canvasData: newData,
-          title: invite.title, // בטוח קיים כי בדקנו invite קודם
+          title: invite.title,
         }),
       });
 
@@ -94,7 +106,7 @@ export default function EditInvitePage({ params }: any) {
   /* ============================================================
      ⏳ מצב טעינה
   ============================================================ */
-  if (loading || !invite) {
+  if (!id || loading) {
     return (
       <div className="p-10 text-center text-xl">
         טוען את ההזמנה...
@@ -107,7 +119,6 @@ export default function EditInvitePage({ params }: any) {
   ============================================================ */
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
