@@ -7,9 +7,9 @@ export function useInvityLibrary(type: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["invity-library", type],
+    queryKey: ["invistimo-library", type],
     queryFn: async () => {
-      const res = await axios.get(`/api/invity/library/${type}`);
+      const res = await axios.get(`/api/invistimo/library/${type}`);
       return res.data;
     },
   });
@@ -17,11 +17,11 @@ export function useInvityLibrary(type: string) {
   // פונקציה להוספה למאגר
   const addToLibrary = async (item: any) => {
     try {
-      const res = await axios.post(`/api/invity/library/${type}`, item);
+      const res = await axios.post(`/api/invistimo/library/${type}`, item);
       const newItem = res.data;
 
       // מעדכנים את ה-query cache כדי שהטאב יתעדכן אוטומטית
-      queryClient.setQueryData(["invity-library", type], (oldData: any) => [
+      queryClient.setQueryData(["invistimo-library", type], (oldData: any) => [
         ...(oldData || []),
         newItem,
       ]);

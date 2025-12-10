@@ -15,7 +15,7 @@ function ElementsTabComponent() {
   const { data = [], isLoading } = useQuery<ElementItem[]>({
     queryKey: ["library", "elements"],
     queryFn: () =>
-      fetch("/api/invity/library/elements").then((r) => r.json()),
+      fetch("/api/invistimo/library/elements").then((r) => r.json()),
   });
 
   if (isLoading) return <SkeletonGrid />;

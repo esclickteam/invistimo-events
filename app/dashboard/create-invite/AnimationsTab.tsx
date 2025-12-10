@@ -20,7 +20,7 @@ function AnimationsTab() {
   const { data = [], isLoading } = useQuery<AnimationItem[]>({
     queryKey: ["library", "animations"],
     queryFn: () =>
-      fetch("/api/invity/library/animations").then((r) => r.json()),
+      fetch("/api/invistimo/library/animations").then((r) => r.json()),
   });
 
   if (isLoading) return <SkeletonGrid />;

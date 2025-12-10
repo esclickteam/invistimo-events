@@ -16,7 +16,7 @@ function BackgroundsTabComponent() {
   const { data = [], isLoading } = useQuery<BgItem[]>({
     queryKey: ["library", "backgrounds"],
     queryFn: () =>
-      fetch("/api/invity/library/backgrounds").then((r) => r.json()),
+      fetch("/api/invistimo/library/backgrounds").then((r) => r.json()),
   });
 
   if (isLoading) return <SkeletonGrid />;

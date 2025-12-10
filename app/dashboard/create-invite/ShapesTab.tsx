@@ -14,7 +14,7 @@ function ShapesTabComponent() {
 
   const { data = [], isLoading } = useQuery<ShapeItem[]>({
     queryKey: ["library", "shapes"],
-    queryFn: () => fetch("/api/invity/library/shapes").then((r) => r.json()),
+    queryFn: () => fetch("/api/invistimo/library/shapes").then((r) => r.json()),
   });
 
   if (isLoading) return <SkeletonGrid />;
