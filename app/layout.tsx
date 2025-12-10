@@ -15,11 +15,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen font-[Heebo]">
         <Providers>
 
-          {/* HEADER – עם LTR בשביל שמאל/ימין תקינים */}
-          <header dir="ltr" className="header-blur sticky top-0 z-50">
+          {/* HEADER – גרסה ללא טשטוש */}
+          <header
+            dir="ltr"
+            className="
+              fixed top-0 left-0 w-full z-50
+              bg-[#f5eee7] 
+              bg-[url('/noise.png')] bg-repeat
+              border-b border-[#e2d6c8]
+              shadow-sm
+            "
+          >
             <div className="w-full px-6 py-4 flex items-center justify-between">
 
-              {/* לוגו + טקסט – בצד שמאל */}
+              {/* לוגו + טקסט – צד שמאל */}
               <Link href="/" className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white text-lg font-bold shadow-md">
                   in
@@ -34,7 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </div>
               </Link>
 
-              {/* ניווט – צמוד לקצה הימני */}
+              {/* ניווט */}
               <nav className="hidden md:flex items-center gap-10 text-lg text-[var(--brown-soft)]">
                 <a href="#how" className="hover:text-[var(--brown-dark)] transition-colors">
                   איך זה עובד
@@ -54,8 +63,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          {/* MAIN – הרקע קפה + מעלה את כל הטקסט למעלה */}
-          <main className="bg-luxury min-h-screen -mt-10 md:-mt-16">
+          {/* MAIN */}
+          <main className="bg-luxury min-h-screen pt-32">
             {children}
           </main>
 
