@@ -442,7 +442,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                       height={height}
                       image={obj.image}
                       listening={true}
-                      nClick={() => handleSelect(obj.id)}
+                      onClick={() => handleSelect(obj.id)}
                     />
                   );
                 }
