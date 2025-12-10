@@ -22,10 +22,10 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
 
-        {/* ------- צד ימין: תפריט + התחברות ------- */}
+        {/* ====================== תפריט וכניסה — צד ימין ====================== */}
         <div className="flex items-center gap-10">
 
-          {/* תפריט */}
+          {/* תפריט ניווט */}
           <nav className="hidden md:flex gap-8 text-text-dark font-medium">
             <Link href="#how" className="hover:text-gold transition">איך זה עובד</Link>
             <Link href="#features" className="hover:text-gold transition">מה מקבלים</Link>
@@ -41,11 +41,12 @@ export default function Header() {
           </Link>
         </div>
 
-        {/* ------- צד שמאל: לוגו ------- */}
+        {/* ====================== לוגו — צד שמאל ====================== */}
         <Link href="/" className="flex items-center gap-3">
           <span className="text-2xl font-serif font-bold text-[#3a2f28]">
-            Invistimo
+            Invity
           </span>
+
           <div className="w-10 h-10 rounded-full bg-gold text-white flex items-center justify-center font-bold shadow-md">
             in
           </div>
