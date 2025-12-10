@@ -12,7 +12,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="bg-luxury min-h-screen font-[Heebo]">
+      <body className="min-h-screen font-[Heebo] bg-white">
         <Providers>
 
           {/* HEADER – עם LTR בשביל שמאל/ימין תקינים */}
@@ -66,8 +66,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          {/* תוכן הדפים – הורדתי את ה-paddding העליון כדי שהרקע יעלה עד ההדר */}
-          <main>{children}</main>
+          {/* MAIN – כאן מוסיפים את הרקע קפה */}
+          <main className="bg-luxury min-h-screen">
+            {children}
+          </main>
 
           {/* FOOTER */}
           <footer className="mt-24 py-10 text-center text-sm text-[var(--brown-soft)]">
