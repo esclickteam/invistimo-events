@@ -15,11 +15,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-luxury min-h-screen font-[Heebo]">
         <Providers>
 
-          {/* HEADER – עם LTR שפותח את היישור */}
+          {/* HEADER – עם LTR בשביל שמאל/ימין תקינים */}
           <header dir="ltr" className="header-blur sticky top-0 z-50">
-            <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="w-full px-6 py-4 flex items-center justify-between">
 
-              {/* לוגו + טקסט – עכשיו בצד שמאל */}
+              {/* לוגו + טקסט – בצד שמאל */}
               <Link href="/" className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white text-lg font-bold shadow-md">
                   in
@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </div>
               </Link>
 
-              {/* ניווט – עכשיו באמת בצד ימין */}
+              {/* ניווט – צמוד לקצה הימני באמת */}
               <nav className="hidden md:flex items-center gap-8 text-sm text-[var(--brown-soft)]">
                 <a
                   href="#how"
