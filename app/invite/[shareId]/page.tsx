@@ -4,20 +4,18 @@ import { useState, useEffect } from "react";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 
 export default function PublicInvitePage({ params }: any) {
-  console.log("📌 Component Mounted — RAW params:", params);
-
   const [shareId, setShareId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
+  const [sent, setSent] = useState(false);
 
   const [form, setForm] = useState({
     rsvp: "pending",
     guestsCount: 1,
     notes: "",
   });
-
-  const [sent, setSent] = useState(false);
 
   /* ============================================================
      FIX: params הוא Promise
@@ -31,7 +29,32 @@ export default function PublicInvitePage({ params }: any) {
   }, [params]);
 
   /* ============================================================
-     טעינת נתוני הזמנה
+     טוען את האורח לפי guestId מה-URL
+  ============================================================ */
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const guestId = searchParams.get("guest");
+
+    if (!guestId) return;
+
+    async function fetchGuest() {
+      try {
+        const res = await fetch(`/api/invitationGuests/${guestId}`);
+        const data = await res.json();
+
+        if (data.success && data.guest) {
+          setSelectedGuest(data.guest);
+        }
+      } catch (err) {
+        console.error("❌ Guest fetch error:", err);
+      }
+    }
+
+    fetchGuest();
+  }, []);
+
+  /* ============================================================
+     טוען נתוני הזמנה
   ============================================================ */
   useEffect(() => {
     if (!shareId) return;
@@ -39,13 +62,8 @@ export default function PublicInvitePage({ params }: any) {
     async function fetchData() {
       try {
         const res = await fetch(`/api/invite/${shareId}`);
-
-        if (!res.ok) {
-          setInvite(null);
-          return;
-        }
-
         const data = await res.json();
+
         if (data.success && data.invitation) {
           setInvite(data.invitation);
         } else {
@@ -67,8 +85,9 @@ export default function PublicInvitePage({ params }: any) {
   ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedGuest) {
-      alert("נא לבחור שם אורח מהרשימה");
+
+    if (!selectedGuest?._id) {
+      alert("שגיאה: אורח לא מזוהה מהלינק");
       return;
     }
 
@@ -93,11 +112,7 @@ export default function PublicInvitePage({ params }: any) {
      מצבי טעינה / שגיאה
   ============================================================ */
   if (loading)
-    return (
-      <div className="p-10 text-center text-xl text-gray-700">
-        טוען הזמנה...
-      </div>
-    );
+    return <div className="p-10 text-center text-xl">טוען הזמנה...</div>;
 
   if (!invite)
     return (
@@ -117,70 +132,31 @@ export default function PublicInvitePage({ params }: any) {
         {invite?.canvasData ? (
           <PublicInviteRenderer canvasData={invite.canvasData} />
         ) : (
-          <div className="text-gray-400 text-center">אין נתוני עיצוב להצגה</div>
+          <div className="text-gray-400">אין נתוני עיצוב להצגה</div>
         )}
       </div>
 
       {/* ---------------------------------------------------------
-         טופס אורחים - גרסה יוקרתית
+         טופס אורחים – עם זיהוי אוטומטי של אורח
       --------------------------------------------------------- */}
       {!sent ? (
         <form
           onSubmit={handleSubmit}
-          className="
-            w-full max-w-md 
-            bg-white 
-            rounded-2xl 
-            shadow-[0_6px_30px_rgba(0,0,0,0.12)]
-            p-8 
-            flex 
-            flex-col 
-            gap-6
-            border border-[#e8e4d9]
-          "
+          className="w-full max-w-md bg-white rounded-2xl shadow p-8 flex flex-col gap-6 border border-[#e8e4d9]"
         >
-          <h2 className="text-center text-xl font-semibold text-[#6b6046] tracking-wide mb-1">
+          <h2 className="text-center text-xl font-semibold text-[#6b6046]">
             אישור הגעה
           </h2>
 
-          {/* בחירת שם */}
-          <div>
-            <label className="block mb-2 text-[#5a5a5a] font-medium text-sm tracking-wide">
-              בחר את שמך:
-            </label>
+          {/* ⭐ טקסט אישי לפי שם האורח ⭐ */}
+          {selectedGuest && (
+  <div className="text-center text-lg text-[#6b6046] font-medium leading-relaxed">
+    שלום {selectedGuest.name},<br />
+    נשמח לראותך באירוע!<br />
+    אנא עדכנ/י את הגעתך:
+  </div>
+)}
 
-            <select
-              className="
-                rounded-xl 
-                px-4 py-3 
-                w-full 
-                bg-[#faf9f6] 
-                border border-[#d1c7b4]
-                focus:ring-2 focus:ring-[#c3b28b] 
-                focus:border-[#c3b28b]
-                transition 
-                text-gray-700
-              "
-              value={selectedGuest?._id || ""}
-              onChange={(e) =>
-                setSelectedGuest(
-                  invite?.guests?.find((g: any) => g._id === e.target.value)
-                )
-              }
-            >
-              <option value="">בחר מהרשימה</option>
-
-              {invite?.guests?.length ? (
-                invite.guests.map((g: any) => (
-                  <option key={g._id} value={g._id}>
-                    {g.name}
-                  </option>
-                ))
-              ) : (
-                <option disabled>אין אורחים להזמנה זו</option>
-              )}
-            </select>
-          </div>
 
           {/* מגיע / לא מגיע */}
           <div>
@@ -192,14 +168,11 @@ export default function PublicInvitePage({ params }: any) {
               <button
                 type="button"
                 onClick={() => setForm({ ...form, rsvp: "yes" })}
-                className={`
-                  flex-1 py-3 rounded-full font-medium transition border
-                  ${
-                    form.rsvp === "yes"
-                      ? "bg-[#c3b28b] text-white border-[#c3b28b] shadow"
-                      : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
-                  }
-                `}
+                className={`flex-1 py-3 rounded-full font-medium border transition ${
+                  form.rsvp === "yes"
+                    ? "bg-[#c3b28b] text-white border-[#c3b28b]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
               >
                 מגיע
               </button>
@@ -207,14 +180,11 @@ export default function PublicInvitePage({ params }: any) {
               <button
                 type="button"
                 onClick={() => setForm({ ...form, rsvp: "no" })}
-                className={`
-                  flex-1 py-3 rounded-full font-medium transition border
-                  ${
-                    form.rsvp === "no"
-                      ? "bg-[#b88a8a] text-white border-[#b88a8a] shadow"
-                      : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
-                  }
-                `}
+                className={`flex-1 py-3 rounded-full font-medium border transition ${
+                  form.rsvp === "no"
+                    ? "bg-[#b88a8a] text-white border-[#b88a8a]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
               >
                 לא מגיע
               </button>
@@ -235,21 +205,12 @@ export default function PublicInvitePage({ params }: any) {
                 onChange={(e) =>
                   setForm({ ...form, guestsCount: Number(e.target.value) })
                 }
-                className="
-                  w-full 
-                  px-4 py-3 
-                  rounded-xl 
-                  bg-[#faf9f6]
-                  border border-[#d1c7b4]
-                  focus:ring-2 focus:ring-[#c3b28b]
-                  focus:border-[#c3b28b]
-                  text-[#6b6046]
-                "
+                className="w-full px-4 py-3 rounded-xl bg-[#faf9f6] border border-[#d1c7b4] text-[#6b6046]"
               />
             </div>
           )}
 
-          {/* הערות — רק אם מגיע */}
+          {/* הערות */}
           {form.rsvp === "yes" && (
             <div>
               <label className="block mb-2 text-[#5a5a5a] font-medium text-sm">
@@ -259,56 +220,21 @@ export default function PublicInvitePage({ params }: any) {
               <textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="w-full h-28 px-4 py-3 rounded-xl bg-[#faf9f6] border border-[#d1c7b4] text-[#6b6046] resize-none"
                 placeholder="כשר, טבעוני, רגישויות, מושבים מיוחדים..."
-                className="
-                  w-full 
-                  h-28 
-                  px-4 py-3 
-                  rounded-xl 
-                  bg-[#faf9f6] 
-                  border border-[#d1c7b4]
-                  focus:ring-2 focus:ring-[#c3b28b]
-                  focus:border-[#c3b28b]
-                  text-[#6b6046]
-                  resize-none
-                "
               />
             </div>
           )}
 
-          {/* כפתור שליחה */}
           <button
             type="submit"
-            className="
-              w-full 
-              py-3 
-              rounded-full 
-              bg-gradient-to-r from-[#c9b48f] to-[#bda780] 
-              text-white 
-              font-semibold 
-              text-lg 
-              shadow-lg 
-              hover:opacity-90 
-              transition
-            "
+            className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg shadow-lg hover:opacity-90 transition"
           >
             שליחת אישור הגעה
           </button>
         </form>
       ) : (
-        <div
-          className="
-            text-center 
-            text-green-700 
-            text-xl 
-            font-semibold 
-            bg-white 
-            px-6 py-4 
-            rounded-xl 
-            shadow-md
-            border border-[#e8e4d9]
-          "
-        >
+        <div className="text-center text-green-700 text-xl font-semibold bg-white px-6 py-4 rounded-xl shadow-md border border-[#e8e4d9]">
           ✓ תודה! תשובתך התקבלה.
         </div>
       )}
