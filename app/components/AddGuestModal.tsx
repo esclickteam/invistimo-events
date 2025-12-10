@@ -14,22 +14,47 @@ export default function AddGuestModal({ onClose, onSuccess, invitationId }: Prop
   const [loading, setLoading] = useState(false);
 
   const save = async () => {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const res = await fetch(`/api/invitations/${invitationId}/guests`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, phone }),
-    });
+      const res = await fetch(`/api/invitations/${invitationId}/guests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
+      setLoading(false);
 
-    if (data.success) {
+      if (!data.success) {
+        alert(data.error || "שגיאה בשמירת מוזמן");
+        return;
+      }
+
+      const guest = data.guest;
+
+      // ⭐ יצירת קישור אישי למוזמן
+      const inviteLink = `https://invistimo.com/invite/rsvp/${guest.token}`;
+
+      // ⭐ הודעה אישית
+      const message = `היי ${guest.name}! הנה ההזמנה האישית שלך 🎉  
+${inviteLink}`;
+
+      // ⭐ המרה לפורמט WhatsApp
+      const phoneForWhatsapp = `972${guest.phone.replace(/^0/, "")}`;
+
+      // ⭐ פתיחת WhatsApp
+      window.open(
+        `https://wa.me/${phoneForWhatsapp}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+
       onSuccess();
       onClose();
-    } else {
-      alert("שגיאה בשמירת מוזמן");
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בשמירת הנתונים");
+      setLoading(false);
     }
   };
 
