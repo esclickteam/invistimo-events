@@ -6,6 +6,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
   useState,
+  useMemo,
 } from "react";
 
 import {
@@ -86,6 +87,46 @@ const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 720;
 
 /* ============================================================
+   HELPERS
+============================================================ */
+function isBackgroundImage(obj: EditorObject) {
+  return (
+    obj.type === "image" &&
+    (obj.id.includes("bg") || obj.id.startsWith("background"))
+  );
+}
+
+// cover: ממלא את כל הקנבס בלי עיוות, עם חיתוך עדין אם צריך
+function getCoverDims(
+  img: HTMLImageElement | HTMLVideoElement,
+  canvasW: number,
+  canvasH: number
+) {
+  const iw = (img as any).width;
+  const ih = (img as any).height;
+
+  // הגנה אם עדיין אין מידות
+  if (!iw || !ih) {
+    return { x: 0, y: 0, width: canvasW, height: canvasH };
+  }
+
+  const aspect = iw / ih;
+
+  let width = canvasW;
+  let height = canvasW / aspect;
+
+  if (height < canvasH) {
+    height = canvasH;
+    width = canvasH * aspect;
+  }
+
+  const x = (canvasW - width) / 2;
+  const y = (canvasH - height) / 2;
+
+  return { x, y, width, height };
+}
+
+/* ============================================================
    REMOVE WHITE BACKGROUND
 ============================================================ */
 function removeWhiteBackground(img: HTMLImageElement): string {
@@ -133,15 +174,17 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      AUTO SCALE
-============================================================ */
+  ============================================================ */
   useEffect(() => {
     const handleResize = () => {
       const maxHeight = window.innerHeight - 100;
       const maxWidth = window.innerWidth - 450;
+
       const factor = Math.min(
         maxWidth / CANVAS_WIDTH,
         maxHeight / CANVAS_HEIGHT
       );
+
       setScale(factor);
     };
 
@@ -152,7 +195,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      LOAD EXISTING CANVAS FROM SERVER
-============================================================ */
+  ============================================================ */
   useEffect(() => {
     if (initialData?.objects) {
       console.log("📥 Loading canvas from DB:", initialData.objects);
@@ -162,7 +205,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      LOAD IMAGES
-============================================================ */
+  ============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
       if (obj.type !== "image" || !obj.url || obj.image) return;
@@ -187,7 +230,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      SELECTION HANDLING
-============================================================ */
+  ============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
     const obj = objects.find((o) => o.id === id) || null;
@@ -205,7 +248,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      DOUBLE CLICK → TEXT EDIT
-============================================================ */
+  ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
 
@@ -225,7 +268,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      DELETE WITH KEYBOARD
-============================================================ */
+  ============================================================ */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Delete" && selectedId) {
@@ -238,7 +281,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      EXPORT FOR SAVE
-============================================================ */
+  ============================================================ */
   useImperativeHandle(ref, () => ({
     addText: useEditorStore.getState().addText,
     addRect: useEditorStore.getState().addRect,
@@ -259,8 +302,21 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }));
 
   /* ============================================================
+     BACKGROUND FIRST (render order)
+  ============================================================ */
+  const sortedObjects = useMemo(() => {
+    const copy = [...objects];
+    copy.sort((a, b) => {
+      const abg = isBackgroundImage(a) ? 1 : 0;
+      const bbg = isBackgroundImage(b) ? 1 : 0;
+      return bbg - abg; // רקע קודם (כלומר למעלה ב-sort => מוקדם ב-map)
+    });
+    return copy;
+  }, [objects]);
+
+  /* ============================================================
      RENDER CANVAS
-============================================================ */
+  ============================================================ */
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
       <div
@@ -283,7 +339,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
           }}
         >
           <Layer>
-            {objects.map((obj) => {
+            {sortedObjects.map((obj) => {
               /* ---------- TEXT ---------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
@@ -367,6 +423,29 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
               /* ---------- IMAGE ---------- */
               if (obj.type === "image" && obj.image) {
+                const bg = isBackgroundImage(obj);
+
+                if (bg) {
+                  const { x, y, width, height } = getCoverDims(
+                    obj.image,
+                    CANVAS_WIDTH,
+                    CANVAS_HEIGHT
+                  );
+
+                  return (
+                    <KonvaImage
+                      key={obj.id}
+                      name={obj.id}
+                      x={x}
+                      y={y}
+                      width={width}
+                      height={height}
+                      image={obj.image}
+                      listening={false}
+                    />
+                  );
+                }
+
                 return (
                   <KonvaImage
                     key={obj.id}
