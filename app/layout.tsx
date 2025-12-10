@@ -14,11 +14,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="he" dir="rtl">
       <body className="bg-luxury min-h-screen font-[Heebo]">
         <Providers>
-          {/* HEADER – יוקרתי עם Blur */}
-          <header className="header-blur sticky top-0 z-50">
+
+          {/* HEADER – עם LTR שפותח את היישור */}
+          <header dir="ltr" className="header-blur sticky top-0 z-50">
             <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
 
-              {/* לוגו + טקסט */}
+              {/* לוגו + טקסט – עכשיו בצד שמאל */}
               <Link href="/" className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white text-lg font-bold shadow-md">
                   in
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </div>
               </Link>
 
-              {/* ניווט */}
+              {/* ניווט – עכשיו באמת בצד ימין */}
               <nav className="hidden md:flex items-center gap-8 text-sm text-[var(--brown-soft)]">
                 <a
                   href="#how"
@@ -54,7 +55,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   חבילות
                 </a>
 
-                {/* ⭐ כפתור התחברות חדש במקום יצירת הזמנה */}
                 <Link
                   href="/login"
                   className="btn-primary text-sm px-5 py-2"
@@ -73,6 +73,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <footer className="mt-24 py-10 text-center text-sm text-[var(--brown-soft)]">
             Invity · מערכת הזמנות ואישורי הגעה לכל אירוע
           </footer>
+
         </Providers>
       </body>
     </html>
