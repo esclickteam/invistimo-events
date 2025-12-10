@@ -7,9 +7,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -23,24 +21,34 @@ export default function Header() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        
-        {/* לוגו */}
-        <Link href="/" className="text-2xl font-serif font-bold text-[#3a2f28]">
-          Invity
+
+        {/* לוגו בצד שמאל */}
+        <Link href="/" className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gold text-white flex items-center justify-center font-bold shadow-md">
+            in
+          </div>
+          <span className="text-2xl font-serif font-bold text-[#3a2f28]">
+            Invistimo
+          </span>
         </Link>
 
-        {/* תפריט */}
-        <nav className="hidden md:flex gap-8 text-text-dark font-medium">
-          <Link href="#how" className="hover:text-gold transition">איך זה עובד</Link>
-          <Link href="#features" className="hover:text-gold transition">מה המערכת נותנת</Link>
-          <Link href="#pricing" className="hover:text-gold transition">מחירון</Link>
-          <Link href="/login" className="hover:text-gold transition">התחברות</Link>
+        {/* תפריט במרכז */}
+        <nav className="hidden md:flex gap-10 text-text-dark font-medium mx-auto">
+          <Link href="#how" className="hover:text-gold transition">
+            איך זה עובד
+          </Link>
+          <Link href="#features" className="hover:text-gold transition">
+            מה המערכת נותנת
+          </Link>
+          <Link href="#pricing" className="hover:text-gold transition">
+            מחירון
+          </Link>
         </nav>
 
-        {/* כפתור שולחן עבודה */}
+        {/* כפתור התחברות בצד ימין */}
         <Link
           href="/login"
-          className="hidden md:block btn-gold px-6 py-2 text-sm"
+          className="hidden md:block px-6 py-2 rounded-full bg-gold text-white font-semibold shadow-md hover:bg-gold-dark transition"
         >
           התחברות
         </Link>
@@ -49,7 +57,7 @@ export default function Header() {
         <div className="md:hidden">
           <Link
             href="/login"
-            className="px-4 py-2 rounded-full bg-gold text-white text-sm font-semibold"
+            className="px-4 py-2 rounded-full bg-gold text-white text-sm font-semibold shadow"
           >
             התחברות
           </Link>

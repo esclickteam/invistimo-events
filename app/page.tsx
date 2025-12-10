@@ -180,7 +180,7 @@ export default function HomePage() {
 
             <Link
               href="/plans?plan=full"
-              className="block mt-8 text-center px-8 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
+               className="block mt-8 text-center px-8 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
             >
               בחרו חבילה מלאה
             </Link>
