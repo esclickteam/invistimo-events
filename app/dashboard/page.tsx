@@ -208,15 +208,17 @@ ${inviteLink}
         </button>
 
         <button
-          onClick={() => setActiveTab("seating")}
-          className={`pb-2 ${
-            activeTab === "seating"
-              ? "border-b-2 border-black"
-              : "text-gray-500"
-          }`}
-        >
-          סידורי הושבה
-        </button>
+  onClick={() => {
+    if (!invitationId) {
+      alert("לא נמצאה הזמנה.");
+      return;
+    }
+    window.location.href = `/dashboard/seating?invitation=${invitationId}`;
+  }}
+  className={`pb-2 text-gray-700 hover:text-black`}
+>
+  סידורי הושבה
+</button>
 
         <button
           onClick={() => setActiveTab("stats")}
