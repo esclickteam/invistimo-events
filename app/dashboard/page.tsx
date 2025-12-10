@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
 
-/* טיפוס בסיסי למוזמן */
+/* ============================================================
+   טיפוס בסיסי למוזמן
+============================================================ */
 type Guest = {
   _id: string;
   name: string;
@@ -35,7 +37,6 @@ export default function DashboardPage() {
 
       if (data.success) {
         setInvitation(data.invitation || null);
-
         if (data.invitation?._id) {
           setInvitationId(data.invitation._id);
         }
@@ -50,11 +51,9 @@ export default function DashboardPage() {
   ============================================================ */
   async function loadGuests() {
     if (!invitationId) return;
-
     try {
       const res = await fetch(`/api/guests?invitation=${invitationId}`);
       const data = await res.json();
-
       setGuests(data.guests || []);
     } catch (err) {
       console.error("❌ שגיאה בטעינת מוזמנים:", err);
@@ -87,11 +86,10 @@ export default function DashboardPage() {
   };
 
   /* ============================================================
-     שליחת וואטסאפ (מובייל + ווב)
+     פונקציה: שליחת וואטסאפ (בודד)
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
     const inviteLink = `https://invistimo.com/invite/rsvp/${guest.token}`;
-
     const message = `
 היי ${guest.name}! 💛✨
 
@@ -104,27 +102,46 @@ ${inviteLink}
 אנא אשר/י הגעה בלחיצה על הכפתור שבהזמנה 👇
 `;
 
-    console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
-
-    // 📞 ניקוי מספר והפיכתו לתבנית בינלאומית
     const normalizedPhone = guest.phone.replace(/\D/g, "").replace(/^0/, "");
     const phoneForWhatsapp = `972${normalizedPhone}`;
-
-    // ✅ קידוד הודעה (כולל אימוג׳ים ועברית)
     const encodedMessage = encodeURIComponent(message);
 
-    // 🔍 בדיקה אם המשתמש במובייל או דסקטופ
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    // 🌐 בחירת URL לפי סוג מכשיר
     const whatsappBaseUrl = isMobile
       ? "https://wa.me"
       : "https://web.whatsapp.com/send";
 
     const whatsappUrl = `${whatsappBaseUrl}?phone=${phoneForWhatsapp}&text=${encodedMessage}`;
-
-    // 📤 פתיחת הודעה
     window.open(whatsappUrl, "_blank");
+  };
+
+  /* ============================================================
+     פונקציה: שליחה קולקטיבית לכל המוזמנים
+  ============================================================ */
+  const sendAllWhatsApps = async () => {
+    if (!guests.length) {
+      alert("אין מוזמנים לשליחה 📭");
+      return;
+    }
+
+    const confirmSend = confirm(
+      `האם לשלוח הודעה לכל ${guests.length} המוזמנים?`
+    );
+    if (!confirmSend) return;
+
+    console.log("🚀 התחלת שליחה קבוצתית...");
+    alert("שליחה קבוצתית החלה – שימי לב שהדפדפן יפתח לשוניות וואטסאפ 🟢");
+
+    for (let i = 0; i < guests.length; i++) {
+      const g = guests[i];
+      console.log(`📤 נשלחת הודעה אל: ${g.name} (${g.phone})`);
+      sendWhatsApp(g);
+
+      // ⏱ השהייה של 2 שניות בין הודעות
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+
+    alert("✅ כל ההודעות נשלחו בהצלחה!");
   };
 
   /* ============================================================
@@ -216,6 +233,18 @@ ${inviteLink}
             <Box title="לא מגיעים" value={stats.notComing} color="red" />
             <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
           </div>
+
+          {/* כפתור שליחה קולקטיבית */}
+          {guests.length > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={sendAllWhatsApps}
+                className="bg-green-600 text-white px-6 py-3 rounded-full hover:bg-green-700 transition"
+              >
+                📩 שלח הודעה לכולם
+              </button>
+            </div>
+          )}
 
           <table className="w-full text-right border rounded-xl overflow-hidden">
             <thead className="bg-gray-100">
