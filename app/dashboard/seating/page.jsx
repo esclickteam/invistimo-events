@@ -10,13 +10,17 @@ export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
 
   const init = useSeatingStore((s) => s.init);
+  const tables = useSeatingStore((s) => s.tables);
+  const guests = useSeatingStore((s) => s.guests);
+
+  const [invitationId, setInvitationId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
         console.log("🔄 Loading invitation...");
 
-        // 1️⃣ טען הזמנה
+        // 1️⃣ טען הזמנה של המשתמש
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
         console.log("📥 invitation response:", invData);
@@ -26,27 +30,27 @@ export default function SeatingPage() {
           return;
         }
 
-        const invitationId = invData.invitation._id;
+        const id = invData.invitation._id;
+        setInvitationId(id);
 
         // 2️⃣ טען אורחים
         console.log("🔄 Loading guests...");
-        const gRes = await fetch(`/api/seating/guests/${invitationId}`);
+        const gRes = await fetch(`/api/seating/guests/${id}`);
         const gData = await gRes.json();
         console.log("📥 guests loaded:", gData);
 
-        // ⭐⭐⭐ נורמליזציה — חובה כדי שהגרירה תעבוד ⭐⭐⭐
         const normalizedGuests = (gData.guests || []).map((g) => ({
-          id: g._id,                    // ← Zustand דורש id, לא _id
+          id: g._id,
           name: g.name,
-          count: g.guestsCount || 1,    // ← מספר מושבים
-          tableId: g.tableId || null,   // ← שיוך שולחן אם קיים
+          count: g.guestsCount || 1,
+          tableId: g.tableId || null,
         }));
 
-        // 3️⃣ טען טבלאות — מוגן מקריסה
+        // 3️⃣ טען טבלאות
         console.log("🔄 Loading seating tables...");
         let tables = [];
 
-        const tRes = await fetch(`/api/seating/tables/${invitationId}`);
+        const tRes = await fetch(`/api/seating/tables/${id}`);
 
         if (tRes.ok) {
           const tData = await tRes.json();
@@ -56,7 +60,7 @@ export default function SeatingPage() {
           console.warn("⚠ No seating tables found, using empty array.");
         }
 
-        // 4️⃣ העברת הנתונים ל-Zustand
+        // 4️⃣ INIT Zustand
         console.log("🔧 INIT Zustand:", { tables, guests: normalizedGuests });
         init(tables, normalizedGuests);
 
@@ -69,18 +73,66 @@ export default function SeatingPage() {
     load();
   }, [init]);
 
+  // -------------------------------------------------------------------------
+  // ⭐⭐⭐ פונקציית שמירת הושבה ⭐⭐⭐
+  // -------------------------------------------------------------------------
+  async function saveSeating() {
+    if (!invitationId) {
+      alert("לא נמצאה הזמנה.");
+      return;
+    }
+
+    try {
+      console.log("💾 Saving seating...");
+      console.log("📤 Sending tables:", tables);
+      console.log("📤 Sending guests:", guests);
+
+      const res = await fetch(`/api/seating/save/${invitationId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tables, guests }),
+      });
+
+      const data = await res.json();
+      console.log("📥 Save response:", data);
+
+      if (data.success) {
+        alert("🎉 ההושבה נשמרה בהצלחה!");
+      } else {
+        alert("❌ שגיאה בשמירה");
+      }
+    } catch (err) {
+      console.error("❌ Save error:", err);
+      alert("⚠ שמירה נכשלה!");
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // ⭐ COMPONENT RENDER
+  // -------------------------------------------------------------------------
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+
       {/* HEADER */}
       <div className="flex items-center justify-between px-6 py-3 border-b bg-white shadow-sm">
         <h1 className="text-xl font-semibold">הושבה באולם</h1>
 
-        <button
-          onClick={() => setShowUpload(true)}
-          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-        >
-          העלאת תבנית אולם (PDF/תמונה)
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowUpload(true)}
+            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg"
+          >
+            העלאת תבנית אולם
+          </button>
+
+          {/* ⭐ כפתור שמירת הושבה ⭐ */}
+          <button
+            onClick={saveSeating}
+            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg"
+          >
+            💾 שמירת הושבה
+          </button>
+        </div>
       </div>
 
       {/* MAIN */}
