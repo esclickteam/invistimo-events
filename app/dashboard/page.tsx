@@ -6,7 +6,7 @@ import AddGuestModal from "../components/AddGuestModal";
 
 /* ============================================================
    טיפוס בסיסי למוזמן
-============================================================ */
+=========================================================== */
 type Guest = {
   _id: string;
   name: string;
@@ -116,7 +116,7 @@ ${inviteLink}
   };
 
   /* ============================================================
-     פונקציה: שליחה קולקטיבית לכל המוזמנים
+     פונקציה: שליחה קולקטיבית (עם השהייה וסגירת טאב קודם)
   ============================================================ */
   const sendAllWhatsApps = async () => {
     if (!guests.length) {
@@ -130,16 +130,50 @@ ${inviteLink}
     if (!confirmSend) return;
 
     console.log("🚀 התחלת שליחה קבוצתית...");
-    alert("שליחה קבוצתית החלה – שימי לב שהדפדפן יפתח לשוניות וואטסאפ 🟢");
+    alert(
+      "שליחה קבוצתית החלה – אל תסגרי את החלון עד לסיום. וואטסאפ ייפתח לכל מוזמן בהפרשים קצרים 🕊️"
+    );
+
+    let lastWindow: Window | null = null;
 
     for (let i = 0; i < guests.length; i++) {
       const g = guests[i];
-      console.log(`📤 נשלחת הודעה אל: ${g.name} (${g.phone})`);
-      sendWhatsApp(g);
+      if (!g.phone) continue;
 
-      // ⏱ השהייה של 2 שניות בין הודעות
-      await new Promise((res) => setTimeout(res, 2000));
+      const inviteLink = `https://invistimo.com/invite/rsvp/${g.token}`;
+      const message = `
+היי ${g.name}! 💛✨
+
+הזמנה אישית מחכה לך 🎉
+
+📩 קישור להזמנה:
+${inviteLink}
+
+נשמח לראותך! ❤️
+אנא אשר/י הגעה בלחיצה על הכפתור שבהזמנה 👇
+`;
+
+      const normalizedPhone = g.phone.replace(/\D/g, "").replace(/^0/, "");
+      const phoneForWhatsapp = `972${normalizedPhone}`;
+      const encodedMessage = encodeURIComponent(message);
+
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const whatsappBaseUrl = isMobile
+        ? "https://wa.me"
+        : "https://web.whatsapp.com/send";
+
+      const whatsappUrl = `${whatsappBaseUrl}?phone=${phoneForWhatsapp}&text=${encodedMessage}`;
+
+      console.log(`📤 שולח אל ${g.name} (${g.phone})`);
+
+      if (lastWindow && !lastWindow.closed) lastWindow.close();
+      lastWindow = window.open(whatsappUrl, "_blank");
+
+      // השהייה של 3 שניות בין הודעות
+      await new Promise((res) => setTimeout(res, 3000));
     }
+
+    if (lastWindow && !lastWindow.closed) lastWindow.close();
 
     alert("✅ כל ההודעות נשלחו בהצלחה!");
   };
@@ -254,7 +288,6 @@ ${inviteLink}
                 <th className="p-3">סטטוס</th>
                 <th className="p-3">מס׳ מגיעים</th>
                 <th className="p-3">וואטסאפ</th>
-                <th className="p-3">הושבה</th>
                 <th className="p-3">עריכה</th>
               </tr>
             </thead>
@@ -283,12 +316,6 @@ ${inviteLink}
                       className="text-green-600 hover:underline"
                     >
                       שלח 📩
-                    </button>
-                  </td>
-
-                  <td className="p-3">
-                    <button className="text-purple-600 hover:underline">
-                      הושב 🪑
                     </button>
                   </td>
 
