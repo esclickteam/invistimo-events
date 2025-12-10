@@ -6,7 +6,7 @@ import useImage from "use-image";
 import { notFound } from "next/navigation";
 
 /* ============================================================
-   hook מותאם לטעינת תמונה לפי URL (ניתן לקריאה בתוך map)
+   טעינת תמונה עבור Konva
 ============================================================ */
 function LoadedImage({ src, ...rest }: { src: string; [key: string]: any }) {
   const [img] = useImage(src);
@@ -14,21 +14,55 @@ function LoadedImage({ src, ...rest }: { src: string; [key: string]: any }) {
 }
 
 /* ============================================================
-   InviteRsvpPage — עמוד האישור שהאורח רואה
+   InviteRsvpPage — עמוד ציבורי מלא זהה לעמוד המקורי
 ============================================================ */
 export default function InviteRsvpPage({ params }: any) {
   const [invitation, setInvitation] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [guest, setGuest] = useState<any | null>(null);
+  const [sent, setSent] = useState(false);
+
   const [rsvp, setRsvp] = useState<"yes" | "no" | null>(null);
 
   const stageRef = useRef<any>(null);
 
   /* ⭐ Next.js 16 – params הוא Promise */
-  useEffect(() => {
-    async function fetchInvitation() {
-      const resolved = await params;
-      const { shareId } = resolved;
+  const [shareId, setShareId] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function unwrap() {
+      const resolved = await params;
+      setShareId(resolved.shareId);
+    }
+    unwrap();
+  }, [params]);
+
+  /* ============================================================
+     קבלת guestId מה־URL
+============================================================ */
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const guestId = query.get("guest");
+
+    if (!guestId) return;
+
+    async function loadGuest() {
+      const res = await fetch(`/api/invitationGuests/${guestId}`);
+      const data = await res.json();
+      if (data.success) setGuest(data.guest);
+    }
+
+    loadGuest();
+  }, []);
+
+  /* ============================================================
+     טעינת ההזמנה לפי shareId
+============================================================ */
+  useEffect(() => {
+    if (!shareId) return;
+
+    async function loadInvitation() {
       try {
         const res = await fetch(`/api/invite/${shareId}`);
         const data = await res.json();
@@ -47,8 +81,8 @@ export default function InviteRsvpPage({ params }: any) {
       }
     }
 
-    fetchInvitation();
-  }, [params]);
+    loadInvitation();
+  }, [shareId]);
 
   if (loading) {
     return (
@@ -64,31 +98,52 @@ export default function InviteRsvpPage({ params }: any) {
 
   const { title, canvasData } = invitation;
 
-  /* ------------------------------------------------------------
-     שליחת האישור לשרת
-  ------------------------------------------------------------ */
+  /* ============================================================
+     שליחת אישור הגעה לשרת
+============================================================ */
   async function submitRsvp() {
     if (!rsvp) {
-      alert("נא לבחור מגיע או לא מגיע 😊");
+      alert("נא לבחור מגיע / לא מגיע 😊");
       return;
     }
 
-    alert(
-      rsvp === "yes"
-        ? "תודה! ההגעה אושרה 🎉"
-        : "תודה! סימנת שאינך מגיע/ה 🙏"
-    );
+    if (!guest?._id) {
+      alert("שגיאה: האורח לא מזוהה מהקישור");
+      return;
+    }
 
-    // כאן יהיה POST לשרת
+    try {
+      const res = await fetch(`/api/invitationGuests/${guest._id}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rsvp,
+          guestsCount: 1,
+          notes: "",
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSent(true);
+      } else {
+        alert("הייתה שגיאה בשליחת התגובה");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("שגיאת שרת");
+    }
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-gray-50 py-10">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">{title}</h1>
+    <div className="flex flex-col items-center min-h-screen bg-[#faf9f6] py-10">
 
-      {/* ====== כרטיס ההזמנה ====== */}
+      {/* כותרת */}
+      <h1 className="text-3xl font-bold text-[#6b6046] mb-6">{title}</h1>
+
+      {/* ====== כרטיס ההזמנה (Canvas) ====== */}
       <div
-        className="rounded-3xl shadow-2xl overflow-hidden border bg-white"
+        className="rounded-3xl shadow-xl overflow-hidden border bg-white"
         style={{ width: "390px", height: "700px" }}
       >
         <Stage ref={stageRef} width={390} height={700}>
@@ -138,48 +193,68 @@ export default function InviteRsvpPage({ params }: any) {
         </Stage>
       </div>
 
-      {/* ====== כרטיס אישור הגעה ====== */}
-      <div className="mt-8 w-[390px] bg-white shadow-xl rounded-3xl p-6 border text-center">
-        <h2 className="text-xl font-bold mb-4 text-gray-800">אישור הגעה</h2>
+      {/* ====== כרטיס אישור הגעה מעוצב ====== */}
+      <div className="mt-8 w-[390px] bg-white shadow-xl rounded-3xl p-8 border border-[#e8e4d9] text-center">
 
-        <p className="text-gray-700 leading-relaxed mb-4">
-          שלום אורח/ת יקר/ה,  
-          <br />
-          נשמח לראותך באירוע שלנו!
-          <br />
-          אנא עדכנו האם אתם מגיעים:
-        </p>
+        {!sent ? (
+          <>
+            <h2 className="text-xl font-bold text-[#6b6046] mb-4">
+              אישור הגעה
+            </h2>
 
-        <div className="flex justify-center gap-4 mt-4">
-          <button
-            onClick={() => setRsvp("yes")}
-            className={`px-6 py-2 rounded-full border transition ${
-              rsvp === "yes"
-                ? "bg-blue-600 text-white border-blue-600"
-                : "border-gray-300"
-            }`}
-          >
-            מגיע/ה
-          </button>
+            <p className="text-[#6b6046] leading-relaxed mb-6 text-lg">
+              {guest ? (
+                <>
+                  שלום {guest.name},<br />
+                  נשמח לראותך באירוע!<br />
+                  אנא עדכנ/י את הגעתך:
+                </>
+              ) : (
+                <>
+                  שלום אורח יקר,<br />
+                  נשמח לראותך באירוע!<br />
+                  אנא עדכנ/י את הגעתך:
+                </>
+              )}
+            </p>
 
-          <button
-            onClick={() => setRsvp("no")}
-            className={`px-6 py-2 rounded-full border transition ${
-              rsvp === "no"
-                ? "bg-red-500 text-white border-red-500"
-                : "border-gray-300"
-            }`}
-          >
-            לא מגיע/ה
-          </button>
-        </div>
+            {/* כפתורי מגיע / לא מגיע */}
+            <div className="flex gap-4 mb-6">
+              <button
+                onClick={() => setRsvp("yes")}
+                className={`flex-1 py-3 rounded-full font-semibold border transition ${
+                  rsvp === "yes"
+                    ? "bg-[#c3b28b] text-white border-[#c3b28b]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
+              >
+                מגיע
+              </button>
 
-        <button
-          onClick={submitRsvp}
-          className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition active:scale-95"
-        >
-          שליחת אישור הגעה
-        </button>
+              <button
+                onClick={() => setRsvp("no")}
+                className={`flex-1 py-3 rounded-full font-semibold border transition ${
+                  rsvp === "no"
+                    ? "bg-[#b88a8a] text-white border-[#b88a8a]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
+              >
+                לא מגיע
+              </button>
+            </div>
+
+             <button
+              onClick={submitRsvp}
+              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-bold text-lg shadow-lg hover:opacity-90 transition"
+            >
+              שליחת אישור הגעה
+            </button>
+          </>
+        ) : (
+          <div className="text-green-700 text-xl font-semibold">
+             ✓ תודה! תשובתך נקלטה.
+          </div>
+        )}
       </div>
     </div>
   );
