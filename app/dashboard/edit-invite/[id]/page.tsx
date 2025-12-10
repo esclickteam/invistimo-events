@@ -58,7 +58,7 @@ export default function EditInvitePage({ params }: any) {
   }, [inviteId]);
 
   /* ============================================================
-     💾 שמירה — דרך POST (כמו CreateInvitePage)
+     💾 שמירה — עדכון הזמנה קיימת
   ============================================================ */
   const handleSave = async () => {
     if (!inviteId || !invite) {
@@ -76,13 +76,11 @@ export default function EditInvitePage({ params }: any) {
     try {
       setSaving(true);
 
-      // שולחים POST כמו בדף יצירה, אבל עם inviteId בגוף הבקשה
-      const res = await fetch(`/api/invitations`, {
-        method: "POST",
+      // ✅ שליחה אמיתית לעדכון ההזמנה הקיימת
+      const res = await fetch(`/api/invitations/${inviteId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
-          inviteId, // ⭐ מזהה ההזמנה לעדכון
           title: invite.title,
           canvasData,
         }),
@@ -92,6 +90,7 @@ export default function EditInvitePage({ params }: any) {
 
       if (result.success) {
         alert("🎉 ההזמנה נשמרה בהצלחה!");
+        setInvite(result.invitation); // ⭐ נעדכן גם בצד הלקוח
       } else {
         alert("❌ שגיאה: " + result.error);
       }
