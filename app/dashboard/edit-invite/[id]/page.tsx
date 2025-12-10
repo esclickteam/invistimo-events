@@ -9,6 +9,7 @@ export default function EditInvitePage({ params }: any) {
   const [inviteId, setInviteId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const canvasRef = useRef<any>(null);
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
@@ -74,6 +75,8 @@ export default function EditInvitePage({ params }: any) {
     const canvasData = canvasRef.current.getCanvasData();
 
     try {
+      setSaving(true);
+
       const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -93,6 +96,8 @@ export default function EditInvitePage({ params }: any) {
     } catch (err) {
       console.error("❌ Save error:", err);
       alert("שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -111,13 +116,13 @@ export default function EditInvitePage({ params }: any) {
      🎨 עורך הזמנה
   ============================================================ */
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 relative">
       <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Toolbar />
 
-        <div className="flex-1 flex items-center justify-center p-4">
+        <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
           <EditorCanvas
             ref={canvasRef}
             initialData={invite.canvasData || { objects: [] }}
@@ -125,14 +130,18 @@ export default function EditInvitePage({ params }: any) {
           />
         </div>
 
-        <div className="p-4 bg-white border-t text-right">
-          <button
-            onClick={handleSave}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            💾 שמור שינויים
-          </button>
-        </div>
+        {/* 💾 כפתור שמירה קבוע וגלוי תמיד */}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`fixed bottom-6 right-8 z-50 px-6 py-3 rounded-xl text-white font-medium shadow-lg transition-all ${
+            saving
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 active:scale-95"
+          }`}
+        >
+          {saving ? "שומר..." : "💾 שמור שינויים"}
+        </button>
       </div>
     </div>
   );
