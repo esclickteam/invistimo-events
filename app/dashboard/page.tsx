@@ -83,15 +83,16 @@ export default function DashboardPage() {
     const inviteLink = `https://invistimo.com/invite/rsvp/${guest.token}`;
 
     const message = 
-`היי ${guest.name}! 🤍✨
+`היי ${guest.name}! 💛✨
 
 הזמנה אישית מחכה לך 🎉
 
-📨 קישור להזמנה:
+📩 קישור להזמנה:
 ${inviteLink}
 
-נשמח לראותך! 🕊
-אנא אשר/י הגעה בלחיצה על הכפתור שבהזמנה`;
+נשמח לראותך! ❤️
+אנא אשר/י הגעה בלחיצה על הכפתור שבהזמנה 👇`;
+
 
     const normalizedPhone = guest.phone
       .replace(/\D/g, "")
