@@ -15,6 +15,7 @@ import {
   Rect,
   Text,
   Image as KonvaImage,
+  Circle,
   Transformer,
 } from "react-konva";
 
@@ -73,6 +74,7 @@ export type EditorObject =
       url?: string;
       image?: HTMLImageElement | HTMLVideoElement | null;
       removeBackground?: boolean;
+      isBackground?: boolean;
     };
 
 interface EditorCanvasProps {
@@ -90,13 +92,9 @@ const CANVAS_HEIGHT = 720;
    HELPERS
 ============================================================ */
 function isBackgroundImage(obj: EditorObject) {
-  return (
-    obj.type === "image" &&
-    (obj.id.includes("bg") || obj.id.startsWith("background"))
-  );
+  return obj.type === "image" && obj.isBackground === true;
 }
 
-// cover: ממלא את כל הקנבס בלי עיוות, עם חיתוך עדין אם צריך
 function getCoverDims(
   img: HTMLImageElement | HTMLVideoElement,
   canvasW: number,
@@ -105,10 +103,7 @@ function getCoverDims(
   const iw = (img as any).width;
   const ih = (img as any).height;
 
-  // הגנה אם עדיין אין מידות
-  if (!iw || !ih) {
-    return { x: 0, y: 0, width: canvasW, height: canvasH };
-  }
+  if (!iw || !ih) return { x: 0, y: 0, width: canvasW, height: canvasH };
 
   const aspect = iw / ih;
 
@@ -120,10 +115,12 @@ function getCoverDims(
     width = canvasH * aspect;
   }
 
-  const x = (canvasW - width) / 2;
-  const y = (canvasH - height) / 2;
-
-  return { x, y, width, height };
+  return {
+    x: (canvasW - width) / 2,
+    y: (canvasH - height) / 2,
+    width,
+    height,
+  };
 }
 
 /* ============================================================
@@ -134,6 +131,7 @@ function removeWhiteBackground(img: HTMLImageElement): string {
   const ctx = canvas.getContext("2d")!;
   canvas.width = img.width;
   canvas.height = img.height;
+
   ctx.drawImage(img, 0, 0);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
@@ -194,17 +192,16 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [setScale]);
 
   /* ============================================================
-     LOAD EXISTING CANVAS FROM SERVER
+     LOAD EXISTING CANVAS
   ============================================================ */
   useEffect(() => {
     if (initialData?.objects) {
-      console.log("📥 Loading canvas from DB:", initialData.objects);
       setObjects(initialData.objects);
     }
   }, [initialData, setObjects]);
 
   /* ============================================================
-     LOAD IMAGES
+     LOAD IMAGES (RSVP NEEDS THIS!)
   ============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
@@ -237,12 +234,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     onSelect(obj);
 
     if (transformerRef.current) {
-      if (id) {
-        const node = stageRef.current?.findOne(`.${id}`);
-        transformerRef.current.nodes(node ? [node] : []);
-      } else {
-        transformerRef.current.nodes([]);
-      }
+      const node = id ? stageRef.current?.findOne(`.${id}`) : null;
+      transformerRef.current.nodes(node ? [node] : []);
     }
   };
 
@@ -280,7 +273,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [selectedId, removeObject]);
 
   /* ============================================================
-     EXPORT FOR SAVE
+     EXPORT
   ============================================================ */
   useImperativeHandle(ref, () => ({
     addText: useEditorStore.getState().addText,
@@ -288,30 +281,23 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     addCircle: useEditorStore.getState().addCircle,
     addImage: useEditorStore.getState().addImage,
 
-    getCanvasData: () => {
-      const objs = useEditorStore.getState().objects;
-      return {
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
-        objects: objs.map((o) => ({
-          ...o,
-          image: undefined, // DOM לא שמיש לשמירה
-        })),
-      };
-    },
+    getCanvasData: () => ({
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      objects: useEditorStore.getState().objects.map((o: any) => ({
+        ...o,
+        image: undefined, // ❗ חשוב ל-RSVP
+      })),
+    }),
   }));
 
   /* ============================================================
-     BACKGROUND FIRST (render order)
+     SORT — BACKGROUND FIRST
   ============================================================ */
   const sortedObjects = useMemo(() => {
-    const copy = [...objects];
-    copy.sort((a, b) => {
-      const abg = isBackgroundImage(a) ? 1 : 0;
-      const bbg = isBackgroundImage(b) ? 1 : 0;
-      return bbg - abg; // רקע קודם (כלומר למעלה ב-sort => מוקדם ב-map)
+    return [...objects].sort((a, b) => {
+      return isBackgroundImage(a) ? -1 : 1;
     });
-    return copy;
   }, [objects]);
 
   /* ============================================================
@@ -398,17 +384,15 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               }
 
               /* ---------- CIRCLE ---------- */
-              if (obj.type === "circle" && obj.radius != null) {
+              if (obj.type === "circle") {
                 return (
-                  <Rect
+                  <Circle
                     key={obj.id}
                     name={obj.id}
                     draggable
                     x={obj.x}
                     y={obj.y}
-                    width={obj.radius * 2}
-                    height={obj.radius * 2}
-                    cornerRadius={obj.radius}
+                    radius={obj.radius}
                     fill={obj.fill}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
@@ -421,11 +405,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              /* ---------- IMAGE ---------- */
-              if (obj.type === "image" && obj.image) {
+              /* ---------- IMAGE (ALWAYS RENDER) ---------- */
+              if (obj.type === "image") {
                 const bg = isBackgroundImage(obj);
 
-                if (bg) {
+                // Background mode: cover
+                if (bg && obj.image) {
                   const { x, y, width, height } = getCoverDims(
                     obj.image,
                     CANVAS_WIDTH,
@@ -451,12 +436,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                   <KonvaImage
                     key={obj.id}
                     name={obj.id}
-                    draggable
+                    draggable={!bg}
                     x={obj.x}
                     y={obj.y}
                     width={obj.width}
                     height={obj.height}
-                    image={obj.image}
+                    image={obj.image || undefined}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
                       updateObject(obj.id, {
@@ -472,16 +457,15 @@ const EditorCanvas = forwardRef(function EditorCanvas(
             })}
 
             <Transformer
-  ref={transformerRef}
-  anchorSize={0}
-  borderStroke="transparent"
-  borderDash={[0, 0]}
-/>
-</Layer>
-</Stage>
-</div>
+              ref={transformerRef}
+              anchorSize={0}
+              borderStroke="transparent"
+            />
+          </Layer>
+        </Stage>
+      </div>
 
-      {/* TEXT EDITOR OVERLAY */}
+      {/* ---------- TEXT EDITOR OVERLAY ---------- */}
       {editingTextId && (
         <EditableTextOverlay
           obj={

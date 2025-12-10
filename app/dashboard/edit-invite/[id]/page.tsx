@@ -17,7 +17,7 @@ export default function EditInvitePage({ params }: any) {
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* ============================================================
-     ⭐ params ב־Next 16 הוא Promise — חובה לפתור אותו
+     ⭐ params ב־Next 16 הוא Promise
   ============================================================ */
   useEffect(() => {
     async function unwrap() {
@@ -29,7 +29,7 @@ export default function EditInvitePage({ params }: any) {
   }, [params]);
 
   /* ============================================================
-     📌 טען את ההזמנה מהשרת
+     📌 טען הזמנה מהשרת
   ============================================================ */
   useEffect(() => {
     if (!inviteId) return;
@@ -45,7 +45,19 @@ export default function EditInvitePage({ params }: any) {
           return;
         }
 
-        setInvite(data.invitation);
+        // ⭐ התיקון הקריטי: לוודא שיש objects
+        const canvasData = data.invitation.canvasData || { objects: [] };
+
+        // ⭐ ה־image לא מגיע מהשרת, וזה תקין — EditorCanvas יטען לבד
+        canvasData.objects = canvasData.objects.map((o: any) => ({
+          ...o,
+          image: undefined,
+        }));
+
+        setInvite({
+          ...data.invitation,
+          canvasData,
+        });
       } catch (err) {
         console.error("❌ Error loading invitation:", err);
         alert("שגיאה בטעינה");
@@ -71,12 +83,11 @@ export default function EditInvitePage({ params }: any) {
       return;
     }
 
-    const canvasData = canvasRef.current.getCanvasData();
+    const canvasData = canvasRef.current.getCanvasData(); // ⭐ נקי מ-image
 
     try {
       setSaving(true);
 
-      // ✅ שליחה אמיתית לעדכון ההזמנה הקיימת
       const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -90,7 +101,9 @@ export default function EditInvitePage({ params }: any) {
 
       if (result.success) {
         alert("🎉 ההזמנה נשמרה בהצלחה!");
-        setInvite(result.invitation); // ⭐ נעדכן גם בצד הלקוח
+
+        // נעדכן סטייט גם מקומית:
+        setInvite(result.invitation);
       } else {
         alert("❌ שגיאה: " + result.error);
       }
@@ -103,7 +116,7 @@ export default function EditInvitePage({ params }: any) {
   };
 
   /* ============================================================
-     ⏳ טעינה
+     ⏳ מסך טעינה
   ============================================================ */
   if (!inviteId || loading || !invite) {
     return (
@@ -114,10 +127,11 @@ export default function EditInvitePage({ params }: any) {
   }
 
   /* ============================================================
-     🎨 עורך הזמנה
+     🎨 עורך ההזמנה
   ============================================================ */
   return (
     <div className="flex h-screen bg-gray-100 relative">
+      {/* Sidebar */}
       <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -126,12 +140,12 @@ export default function EditInvitePage({ params }: any) {
         <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
           <EditorCanvas
             ref={canvasRef}
-            initialData={invite.canvasData || { objects: [] }}
+            initialData={invite.canvasData}
             onSelect={(obj: any) => setSelectedObject(obj)}
           />
         </div>
 
-        {/* 💾 כפתור שמירה קבוע בתחתית */}
+        {/* 💾 כפתור שמירה */}
         <button
           onClick={handleSave}
           disabled={saving}
