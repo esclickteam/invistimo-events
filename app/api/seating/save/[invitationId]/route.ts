@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 
-/** טיפוס חובה ב־Next.js 16 ל־params */
+/* ⭐ Next.js 16 — params הוא Promise */
 type RouteContext = {
-  params: { invitationId: string };
+  params: Promise<{ invitationId: string }>;
 };
 
-/** POST — שמירת הושבה */
+/* ⭐ POST — שמירת הושבה */
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    const { invitationId } = context.params;
+    // ⭐ חובה לפתור את ה־params:
+    const { invitationId } = await context.params;
+
     const body = await req.json();
     const { tables } = body;
 
@@ -23,14 +25,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    // שמירה או עדכון
+    // ⭐ שמירה / עדכון של שולחנות לפי invitationId
     const saved = await SeatingTable.findOneAndUpdate(
       { invitationId },
       { tables },
       { new: true, upsert: true }
     );
 
-    return NextResponse.json({ success: true, saved });
+    return NextResponse.json({
+      success: true,
+      saved,
+    });
   } catch (err) {
     console.error("❌ Save seating error:", err);
     return NextResponse.json(
