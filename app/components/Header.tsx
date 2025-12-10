@@ -1,42 +1,43 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function Header() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   return (
     <header
-      dir="ltr"  // ⭐⭐⭐ הפתרון הקריטי כדי שהלוגו יהיה שמאלה והתפריט ימינה
-      className={`fixed top-0 left-0 w-full z-50 transition-all ${
-        scrolled
-          ? "bg-cream/95 backdrop-blur border-b border-gold-soft shadow-sm"
-          : "bg-transparent"
-      }`}
+      dir="ltr"
+      className="
+        fixed top-0 left-0 w-full z-50
+        bg-[#f5eee7]
+        bg-[url('/noise.png')] bg-repeat
+        border-b border-[#e2d6c8]
+        shadow-sm
+      "
     >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
 
-        {/* ====================== תפריט וכניסה — צד ימין ====================== */}
+        {/* ====================== תפריט — צד ימין ====================== */}
         <div className="flex items-center gap-10">
-
-          {/* תפריט ניווט */}
           <nav className="hidden md:flex gap-8 text-text-dark font-medium">
-            <Link href="#how" className="hover:text-gold transition">איך זה עובד</Link>
-            <Link href="#features" className="hover:text-gold transition">מה מקבלים</Link>
-            <Link href="#pricing" className="hover:text-gold transition">חבילות</Link>
+            <Link href="#how" className="hover:text-gold transition">
+              איך זה עובד
+            </Link>
+            <Link href="#features" className="hover:text-gold transition">
+              מה מקבלים
+            </Link>
+            <Link href="#pricing" className="hover:text-gold transition">
+              חבילות
+            </Link>
           </nav>
 
           {/* כפתור התחברות */}
           <Link
             href="/login"
-            className="hidden md:block px-6 py-2 rounded-full bg-gold text-white font-semibold shadow-md hover:bg-gold-dark transition"
+            className="
+              hidden md:block px-6 py-2 rounded-full
+              bg-gold text-white font-semibold shadow-md
+              hover:bg-gold-dark transition
+            "
           >
             התחברות
           </Link>
