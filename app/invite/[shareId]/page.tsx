@@ -148,15 +148,22 @@ export default function PublicInvitePage({ params }: any) {
             אישור הגעה
           </h2>
 
-          {/* ⭐ טקסט אישי לפי שם האורח ⭐ */}
-          {selectedGuest && (
-  <div className="text-center text-lg text-[#6b6046] font-medium leading-relaxed">
-    שלום {selectedGuest.name},<br />
-    נשמח לראותך באירוע!<br />
-    אנא עדכנ/י את הגעתך:
-  </div>
-)}
-
+          {/* ⭐ טקסט אישי או טקסט דוגמה ⭐ */}
+          <div className="text-center text-lg text-[#6b6046] font-medium leading-relaxed">
+            {selectedGuest ? (
+              <>
+                שלום {selectedGuest.name},<br />
+                נשמח לראותך באירוע!<br />
+                אנא עדכנ/י את הגעתך:
+              </>
+            ) : (
+              <>
+                שלום (שם האורח),<br />
+                נשמח לראותך באירוע!<br />
+                אנא עדכנ/י את הגעתך:
+              </>
+            )}
+          </div>
 
           {/* מגיע / לא מגיע */}
           <div>
