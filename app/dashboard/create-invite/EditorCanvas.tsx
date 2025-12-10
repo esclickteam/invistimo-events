@@ -471,10 +471,15 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               return null;
             })}
 
-            <Transformer ref={transformerRef} />
-          </Layer>
-        </Stage>
-      </div>
+            <Transformer
+  ref={transformerRef}
+  anchorSize={0}
+  borderStroke="transparent"
+  borderDash={[0, 0]}
+/>
+</Layer>
+</Stage>
+</div>
 
       {/* TEXT EDITOR OVERLAY */}
       {editingTextId && (
