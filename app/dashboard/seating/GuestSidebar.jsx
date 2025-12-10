@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -26,23 +27,23 @@ export default function GuestSidebar({ onDragStart }) {
 
           return (
             <li
-              key={guest.id}
+              key={guest._id}   // ✔ משתמשים ב־Mongo ID אמיתי
               draggable
-              onDragStart={() => onDragStart(guest)}   // ✔ תקין
+              onDragStart={() => onDragStart(guest)} // ✔ שולח את כל האובייקט
               className="cursor-grab p-3 hover:bg-gray-100 border-b"
             >
               {/* שם האורח */}
               <div className="font-medium">{guest.name}</div>
 
-              {/* מספר מקומות */}
+              {/* מספר מושבים שנשמר בהזמנה */}
               <div className="text-xs text-gray-500">
-                {guest.count} מקומות
+                {guest.guestsCount} מקומות
               </div>
 
               {/* שם השולחן אם שובץ */}
               {table && (
                 <div className="mt-1 text-xs text-green-600">
-                  {table.name}
+                  שובץ לשולחן: {table.name}
                 </div>
               )}
             </li>

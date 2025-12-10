@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Stage, Layer, Image } from "react-konva";
+import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
 import { useSeatingStore } from "@/store/seatingStore";
@@ -11,9 +11,7 @@ import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
-
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
-
 
 export default function SeatingEditor({ background }) {
   const [bgImage] = useImage(background || "", "anonymous");
@@ -33,49 +31,34 @@ export default function SeatingEditor({ background }) {
 
   const addTable = useSeatingStore((s) => s.addTable);
 
-  // ⭐ שולחן שאליו רוצים להוסיף אורחים
+  // ⭐ שולחן שאליו מוסיפים ידנית אורחים
   const [addGuestTable, setAddGuestTable] = useState(null);
 
-  /* -------------------- INIT SAMPLE DATA -------------------- */
-  useEffect(() => {
-    init(
-      [
-        {
-          id: "t1",
-          name: "שולחן 1",
-          type: "round",
-          seats: 12,
-          x: 400,
-          y: 300,
-          seatedGuests: [],
-        },
-      ],
-      [
-        { id: "g1", name: "דנה לוי", count: 3, tableId: null },
-        { id: "g2", name: "משפחת כהן", count: 2, tableId: null },
-        { id: "g3", name: "נועם ישראלי", count: 1, tableId: null },
-      ]
-    );
-  }, [init]);
+  /* -------------------- INIT DATA (REMOVED DEMO DATA) -------------------- */
+  // ❗❗ חשוב: לא מטעינים דוגמאות — init חייב לבוא מהדף הראשי
+  // SeatingPage צריך לקרוא:
+  // init(tablesFromDB, guestsFromDB)
+  // אחרת הסנכרון לא יעבוד
 
   /* -------------------- Canvas Size -------------------- */
   const width = typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
   const height =
     typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
-  /* -------------------- ZOOM STATE -------------------- */
+  /* -------------------- ZOOM -------------------- */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
-  /* -------------------- Move Ghost -------------------- */
+  /* -------------------- MOUSE MOVE -------------------- */
   const handleMouseMove = (e) => {
     const pos = e.target.getStage().getPointerPosition();
     if (!pos) return;
+
     updateGhost(pos);
     evalHover(pos);
   };
 
-  /* -------------------- Drop Guest -------------------- */
+  /* -------------------- DROP GUEST -------------------- */
   const handleMouseUp = () => {
     dropGuest();
   };
@@ -85,12 +68,10 @@ export default function SeatingEditor({ background }) {
 
       {/* SIDEBAR */}
       <GuestSidebar
-        guests={guests.filter((g) => !g.tableId)}
-        tables={tables}
         onDragStart={(guest) => startDragGuest(guest)}
       />
 
-      {/* 🔍 ZOOM BUTTONS */}
+      {/* ZOOM + / - */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
         className="absolute top-[70px] left-4 bg-white shadow rounded-full w-12 h-12 text-2xl flex items-center justify-center z-50"
@@ -145,10 +126,10 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
-        {/* TABLES + BACKGROUND */}
+        {/* BACKGROUND + TABLES */}
         <Layer>
           {bgImage && (
-            <Image
+            <KonvaImage
               image={bgImage}
               width={width}
               height={height}
@@ -169,7 +150,7 @@ export default function SeatingEditor({ background }) {
           <GhostPreview />
         </Layer>
 
-        {/* DELETE BUTTONS */}
+        {/* DELETE TABLE BUTTONS */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -188,7 +169,7 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* ⭐ ADD GUESTS TO TABLE MODAL */}
+      {/* ADD GUEST TO TABLE MODAL */}
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
@@ -201,7 +182,7 @@ export default function SeatingEditor({ background }) {
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600 
-                   text-white px-4 py-2 rounded-lg shadow z-50"
+                  text-white px-4 py-2 rounded-lg shadow z-50"
       >
         ➕ הוסף שולחן
       </button>
