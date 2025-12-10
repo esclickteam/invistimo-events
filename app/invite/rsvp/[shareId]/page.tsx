@@ -77,39 +77,49 @@ export default function InviteRsvpPage({ params }: any) {
       >
         <Stage ref={stageRef} width={390} height={700} className="bg-white">
           <Layer>
-            {/* ⭐️ כאן נטען את האובייקטים שנשמרו */}
-            {canvasData?.objects?.map((obj: any, i: number) => {
-              if (obj.type === "image") {
-                const [image] = useImage(obj.src);
-                return (
-                  <KonvaImage
-                    key={i}
-                    image={image}
-                    x={obj.x}
-                    y={obj.y}
-                    width={obj.width}
-                    height={obj.height}
-                  />
-                );
-              }
+            {/* ⭐️ טעינת האובייקטים שנשמרו בבטחה */}
+            {canvasData?.objects?.length ? (
+              canvasData.objects.map((obj: any, i: number) => {
+                if (obj.type === "image") {
+                  const [image] = useImage(obj.src);
+                  return (
+                    <KonvaImage
+                      key={i}
+                      image={image}
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.width}
+                      height={obj.height}
+                    />
+                  );
+                }
 
-              if (obj.type === "text") {
-                return (
-                  <Text
-                    key={i}
-                    x={obj.x}
-                    y={obj.y}
-                    fontSize={obj.fontSize || 24}
-                    fill={obj.color || "black"}
-                    text={obj.text}
-                    fontFamily={obj.fontFamily || "Arial"}
-                    align={obj.align || "center"}
-                  />
-                );
-              }
+                if (obj.type === "text") {
+                  return (
+                    <Text
+                      key={i}
+                      x={obj.x}
+                      y={obj.y}
+                      fontSize={obj.fontSize || 24}
+                      fill={obj.color || "black"}
+                      text={obj.text || ""}
+                      fontFamily={obj.fontFamily || "Arial"}
+                      align={obj.align || "center"}
+                    />
+                  );
+                }
 
-              return null;
-            })}
+                return null;
+              })
+            ) : (
+              <Text
+                x={80}
+                y={200}
+                fontSize={20}
+                fill="gray"
+                text="אין תוכן להצגה עדיין 🎨"
+              />
+            )}
           </Layer>
         </Stage>
       </div>
