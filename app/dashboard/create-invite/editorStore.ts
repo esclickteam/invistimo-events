@@ -11,7 +11,7 @@ const CANVAS_HEIGHT = 1600;
 ============================================================ */
 export interface EditorObject {
   id: string;
-  type: "text" | "rect" | "circle" | "image" | "lottie"; // ❗ אין "video"
+  type: "text" | "rect" | "circle" | "image" | "lottie";
 
   x?: number;
   y?: number;
@@ -65,6 +65,9 @@ interface EditorState {
   setSelected: (id: string | null) => void;
   updateObject: (id: string, data: Partial<EditorObject>) => void;
 
+  /** ⭐ הפונקציה שחסרה לך — טעינת אובייקטים מהדאטהבייס */
+  setObjects: (objs: EditorObject[]) => void;
+
   addText: () => void;
   addRect: () => void;
   addCircle: () => void;
@@ -114,6 +117,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setSelected: (id) => set({ selectedId: id }),
 
+  /** ⭐⭐ הפונקציה החדשה — טעינת כל רשימת האובייקטים (מהשרת) ⭐⭐ */
+  setObjects: (objs) =>
+    set(() => ({
+      objects: objs,
+      selectedId: null,
+    })),
+
   updateObject: (id, data) =>
     set((state) => ({
       objects: state.objects.map((o) =>
@@ -121,6 +131,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ),
     })),
 
+  /* ============================================================
+      ADD TEXT
+  ============================================================ */
   addText: () =>
     set((state) => ({
       objects: [
@@ -148,6 +161,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
+  /* ============================================================
+      ADD RECT
+  ============================================================ */
   addRect: () =>
     set((state) => ({
       objects: [
@@ -164,6 +180,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
     })),
 
+  /* ============================================================
+      ADD CIRCLE
+  ============================================================ */
   addCircle: () =>
     set((state) => ({
       objects: [
@@ -228,7 +247,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   /* ============================================================
-      BASIC addObject
+      ADD OBJECT (GENERIC)
   ============================================================ */
   addObject: (obj) =>
     set((state) => ({
@@ -236,7 +255,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })),
 
   /* ============================================================
-      LOAD JSON AS LOTTIE
+      LOTTIE FROM URL
   ============================================================ */
   addLottieFromUrl: async (url) => {
     const res = await fetch(url);
@@ -245,12 +264,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   /* ============================================================
-      ⭐ ADD ANIMATED FILE (GIF / WEBP / MP4 / JSON)
+      ADD ANIMATED FILE (GIF / WEBP / MP4 / JSON)
   ============================================================ */
   addAnimatedAsset: (item) => {
     const cleanUrl = item.url.split("?")[0];
-    const format =
-      (item.format || cleanUrl.split(".").pop() || "").toLowerCase();
+    const format = (item.format || cleanUrl.split(".").pop() || "").toLowerCase();
     const width = item.width ?? 240;
     const height = item.height ?? 240;
 
@@ -260,7 +278,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return;
     }
 
-    // MP4 / WEBM → HTMLVideoElement אבל עדיין type: "image"
+    // MP4 / WEBM → video element
     if (format === "mp4" || format === "webm") {
       const id = `anim-${Date.now()}`;
       const video = document.createElement("video");
@@ -280,7 +298,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             ...state.objects,
             {
               id,
-              type: "image", // ❗ חשוב — הקנבס מצייר type "image"
+              type: "image",
               x: 100,
               y: 100,
               width,
@@ -298,7 +316,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return;
     }
 
-    // GIF / WEBP / PNG וכו'
+    // GIF / WEBP / PNG etc.
     const id = `anim-${Date.now()}`;
     const img = new Image();
     img.src = item.url;
@@ -326,7 +344,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   /* ============================================================
-      REMOVE
+      REMOVE OBJECT
   ============================================================ */
   removeObject: (id) =>
     set((state) => {
@@ -341,17 +359,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }),
 
   /* ============================================================
-      BRING TO FRONT / BACK
+      BRING TO FRONT
   ============================================================ */
   bringToFront: (id) => {
     const obj = get().objects.find((o) => o.id === id);
-    if (!obj || obj.isBackground) return;
+    if (!obj) return;
 
     set({
       objects: [...get().objects.filter((o) => o.id !== id), obj],
     });
   },
 
+  /* ============================================================
+      SEND TO BACK
+  ============================================================ */
   sendToBack: (id) => {
     const obj = get().objects.find((o) => o.id === id);
     if (!obj) return;

@@ -17,15 +17,13 @@ import {
   Transformer,
 } from "react-konva";
 
-import Lottie from "lottie-react";
 import { useEditorStore } from "./editorStore";
 import EditableTextOverlay from "../../components/editor/EditableTextOverlay";
 import { loadFont } from "../../components/editor/loadFont";
 
 /* ============================================================
-   TYPE DEFINITIONS
+   TYPES
 ============================================================ */
-
 export interface TextObject {
   id: string;
   type: "text";
@@ -74,30 +72,21 @@ export type EditorObject =
       url?: string;
       image?: HTMLImageElement | HTMLVideoElement | null;
       removeBackground?: boolean;
-      isAnimated?: boolean;
-    }
-  | {
-      id: string;
-      type: "lottie";
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      lottieData: any;
     };
 
 interface EditorCanvasProps {
   onSelect: (obj: EditorObject | null) => void;
+  initialData?: { objects: EditorObject[] };
 }
 
 /* ============================================================
-   CANVAS SIZE (טלפון)
+   CANVAS SIZE
 ============================================================ */
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 720;
 
 /* ============================================================
-   REMOVE BACKGROUND (WHITE TO TRANSPARENT)
+   REMOVE WHITE BACKGROUND
 ============================================================ */
 function removeWhiteBackground(img: HTMLImageElement): string {
   const canvas = document.createElement("canvas");
@@ -107,11 +96,13 @@ function removeWhiteBackground(img: HTMLImageElement): string {
   ctx.drawImage(img, 0, 0);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
+
   for (let i = 0; i < data.length; i += 4) {
     if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) {
       data[i + 3] = 0;
     }
   }
+
   ctx.putImageData(imageData, 0, 0);
   return canvas.toDataURL();
 }
@@ -120,7 +111,7 @@ function removeWhiteBackground(img: HTMLImageElement): string {
    MAIN COMPONENT
 ============================================================ */
 const EditorCanvas = forwardRef(function EditorCanvas(
-  { onSelect }: EditorCanvasProps,
+  { onSelect, initialData }: EditorCanvasProps,
   ref
 ) {
   const stageRef = useRef<any>(null);
@@ -128,9 +119,11 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   const objects = useEditorStore((s) => s.objects as EditorObject[]);
   const selectedId = useEditorStore((s) => s.selectedId);
+
   const setSelected = useEditorStore((s) => s.setSelected);
   const updateObject = useEditorStore((s) => s.updateObject);
   const removeObject = useEditorStore((s) => s.removeObject);
+  const setObjects = useEditorStore((s) => s.setObjects);
 
   const scale = useEditorStore((s) => s.scale);
   const setScale = useEditorStore((s) => s.setScale);
@@ -139,8 +132,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const [textInputRect, setTextInputRect] = useState<any>(null);
 
   /* ============================================================
-     AUTO SCALE SCREEN
-  ============================================================ */
+     AUTO SCALE
+============================================================ */
   useEffect(() => {
     const handleResize = () => {
       const maxHeight = window.innerHeight - 100;
@@ -158,77 +151,48 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [setScale]);
 
   /* ============================================================
-     LOAD IMAGE / VIDEO
-  ============================================================ */
+     LOAD EXISTING CANVAS FROM SERVER
+============================================================ */
+  useEffect(() => {
+    if (initialData?.objects) {
+      console.log("📥 Loading canvas from DB:", initialData.objects);
+      setObjects(initialData.objects);
+    }
+  }, [initialData, setObjects]);
+
+  /* ============================================================
+     LOAD IMAGES
+============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
       if (obj.type !== "image" || !obj.url || obj.image) return;
-      const cleanUrl = obj.url.split("?")[0];
-      const format = cleanUrl.split(".").pop()?.toLowerCase();
-
-      if (format === "mp4" || format === "webm") {
-        const video = document.createElement("video");
-        video.src = obj.url;
-        video.crossOrigin = "anonymous";
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.preload = "auto";
-        const onLoaded = () => {
-          video.removeEventListener("loadeddata", onLoaded);
-          video.play().catch(() => {});
-          updateObject(obj.id, { image: video, isAnimated: true });
-        };
-        video.addEventListener("loadeddata", onLoaded);
-        return;
-      }
 
       const img = new Image();
       img.crossOrigin = "anonymous";
+
       img.onload = () => {
-        const isLikelyAnimated =
-          obj.isAnimated || format === "gif" || format === "webp";
-        if (obj.removeBackground && !isLikelyAnimated) {
+        if (obj.removeBackground) {
           const cleared = removeWhiteBackground(img);
           const newImg = new Image();
           newImg.src = cleared;
-          newImg.onload = () => {
-            updateObject(obj.id, { image: newImg });
-          };
+          newImg.onload = () => updateObject(obj.id, { image: newImg });
         } else {
           updateObject(obj.id, { image: img });
         }
       };
+
       img.src = obj.url;
     });
   }, [objects, updateObject]);
 
   /* ============================================================
-     FORCE REDRAW FOR VIDEO
-  ============================================================ */
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      const stage = stageRef.current;
-      if (stage) {
-        const hasVideo = objects.some(
-          (o) => o.type === "image" && o.image instanceof HTMLVideoElement
-        );
-        if (hasVideo) stage.batchDraw();
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [objects]);
-
-  /* ============================================================
-     SELECTION LOGIC
-  ============================================================ */
+     SELECTION HANDLING
+============================================================ */
   const handleSelect = (id: string | null) => {
     setSelected(id);
     const obj = objects.find((o) => o.id === id) || null;
     onSelect(obj);
+
     if (transformerRef.current) {
       if (id) {
         const node = stageRef.current?.findOne(`.${id}`);
@@ -240,12 +204,14 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-     DOUBLE CLICK -> EDIT TEXT
-  ============================================================ */
+     DOUBLE CLICK → TEXT EDIT
+============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
+
     const node = stageRef.current?.findOne(`.${obj.id}`);
     if (!node) return;
+
     const abs = node.getAbsolutePosition();
     setTextInputRect({
       x: abs.x * scale,
@@ -253,51 +219,48 @@ const EditorCanvas = forwardRef(function EditorCanvas(
       width: (obj.width || 200) * scale,
       height: obj.fontSize * 1.4 * scale,
     });
+
     setEditingTextId(obj.id);
   };
 
   /* ============================================================
      DELETE WITH KEYBOARD
-  ============================================================ */
+============================================================ */
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const obj = objects.find((o) => o.id === selectedId);
-      if (!obj) return;
-      if (e.key === "Delete") removeObject(obj.id);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Delete" && selectedId) {
+        removeObject(selectedId);
+      }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [objects, selectedId, removeObject]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId, removeObject]);
 
   /* ============================================================
-     ⭐⭐ EXPORT API → SAVE CANVAS + PREVIEW ⭐⭐
-  ============================================================ */
+     EXPORT FOR SAVE
+============================================================ */
   useImperativeHandle(ref, () => ({
-  addText: useEditorStore.getState().addText,
-  addRect: useEditorStore.getState().addRect,
-  addCircle: useEditorStore.getState().addCircle,
-  addImage: useEditorStore.getState().addImage,
-  addLottie: useEditorStore.getState().addLottie,
+    addText: useEditorStore.getState().addText,
+    addRect: useEditorStore.getState().addRect,
+    addCircle: useEditorStore.getState().addCircle,
+    addImage: useEditorStore.getState().addImage,
 
-  // ⭐ ייצוא הנתונים כפי שצריך לשמירה + תצוגה מקדימה
-  getCanvasData: () => {
-    const objects = useEditorStore.getState().objects;
-
-    return {
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
-      objects: objects.map((o) => ({
-        ...o,
-        image: undefined, // ❌ חובה להסיר — אי אפשר לשמור DOM object
-      })),
-    };
-  },
-}));
-
+    getCanvasData: () => {
+      const objs = useEditorStore.getState().objects;
+      return {
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        objects: objs.map((o) => ({
+          ...o,
+          image: undefined, // DOM לא שמיש לשמירה
+        })),
+      };
+    },
+  }));
 
   /* ============================================================
      RENDER CANVAS
-  ============================================================ */
+============================================================ */
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
       <div
@@ -321,8 +284,10 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         >
           <Layer>
             {objects.map((obj) => {
+              /* ---------- TEXT ---------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
+
                 return (
                   <Text
                     key={obj.id}
@@ -337,7 +302,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     width={obj.width}
                     fill={obj.fill}
                     align={obj.align}
-                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : "normal"} ${
+                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
                       obj.italic ? "italic" : ""
                     }`}
                     textDecoration={obj.underline ? "underline" : ""}
@@ -353,6 +318,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
+              /* ---------- RECT ---------- */
               if (obj.type === "rect") {
                 return (
                   <Rect
@@ -375,7 +341,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              if (obj.type === "circle") {
+              /* ---------- CIRCLE ---------- */
+              if (obj.type === "circle" && obj.radius != null) {
                 return (
                   <Rect
                     key={obj.id}
@@ -388,12 +355,18 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     cornerRadius={obj.radius}
                     fill={obj.fill}
                     onClick={() => handleSelect(obj.id)}
+                    onDragEnd={(e) =>
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
+                    }
                   />
                 );
               }
 
-              if (obj.type === "image") {
-                if (!obj.image) return null;
+              /* ---------- IMAGE ---------- */
+              if (obj.type === "image" && obj.image) {
                 return (
                   <KonvaImage
                     key={obj.id}
@@ -415,30 +388,15 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 );
               }
 
-              if (obj.type === "lottie") {
-                return (
-                  <Lottie
-                    key={obj.id}
-                    animationData={obj.lottieData}
-                    style={{
-                      position: "absolute",
-                      top: obj.y,
-                      left: obj.x,
-                      width: obj.width,
-                      height: obj.height,
-                      pointerEvents: "none",
-                    }}
-                  />
-                );
-              }
-
               return null;
             })}
+
             <Transformer ref={transformerRef} />
           </Layer>
         </Stage>
       </div>
 
+      {/* TEXT EDITOR OVERLAY */}
       {editingTextId && (
         <EditableTextOverlay
           obj={

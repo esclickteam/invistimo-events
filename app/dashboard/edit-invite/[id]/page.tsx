@@ -6,55 +6,48 @@ import Sidebar from "../../create-invite/Sidebar";
 import Toolbar from "../../create-invite/Toolbar";
 
 export default function EditInvitePage({ params }: any) {
-  const [id, setId] = useState<string | null>(null);
-
-  // ⚠️ חובה: params הוא Promise!
-  useEffect(() => {
-    async function unwrapParams() {
-      const resolved = await params;
-      setId(resolved.id);
-      console.log("📌 Resolved invite ID:", resolved.id);
-    }
-    unwrapParams();
-  }, [params]);
-
-  const canvasRef = useRef<any>(null);
+  const [inviteId, setInviteId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const canvasRef = useRef<any>(null);
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
 
   const googleApiKey =
     "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* ============================================================
-     📌 טוען הזמנה אחרי שה-ID באמת קיים
+     ⭐ params ב־Next 16 הוא Promise — חובה לפתור אותו
   ============================================================ */
   useEffect(() => {
-    if (!id) return; // עדיין לא נטען
+    async function unwrap() {
+      const resolved = await params;
+      setInviteId(resolved.id);
+      console.log("📌 Invite ID:", resolved.id);
+    }
+    unwrap();
+  }, [params]);
+
+  /* ============================================================
+     📌 טען את ההזמנה מהשרת
+  ============================================================ */
+  useEffect(() => {
+    if (!inviteId) return;
 
     async function load() {
       try {
-        const res = await fetch(`/api/invitations/${id}`);
+        const res = await fetch(`/api/invitations/${inviteId}`);
         const data = await res.json();
 
         if (!data.success || !data.invitation) {
-          alert("❌ שגיאה בטעינת ההזמנה");
           setLoading(false);
+          alert("❌ שגיאה בטעינת ההזמנה");
           return;
         }
 
         setInvite(data.invitation);
-
-        // המתנה קצרה עד שהקנבס עולה
-        setTimeout(() => {
-          if (canvasRef.current?.loadCanvasData) {
-            canvasRef.current.loadCanvasData(data.invitation.canvasData);
-          } else {
-            console.warn("⚠️ loadCanvasData לא נמצא ב־canvasRef");
-          }
-        }, 150);
       } catch (err) {
-        console.error("❌ Failed loading invitation:", err);
+        console.error("❌ Error loading invitation:", err);
         alert("שגיאה בטעינה");
       }
 
@@ -62,13 +55,13 @@ export default function EditInvitePage({ params }: any) {
     }
 
     load();
-  }, [id]);
+  }, [inviteId]);
 
   /* ============================================================
      💾 שמירה
   ============================================================ */
   const handleSave = async () => {
-    if (!id || !invite) {
+    if (!inviteId || !invite) {
       alert("⏳ ההזמנה עדיין נטענת");
       return;
     }
@@ -78,35 +71,35 @@ export default function EditInvitePage({ params }: any) {
       return;
     }
 
-    try {
-      const newData = canvasRef.current.getCanvasData();
+    const canvasData = canvasRef.current.getCanvasData();
 
-      const res = await fetch(`/api/invitations/${id}`, {
+    try {
+      const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          canvasData: newData,
+          canvasData,
           title: invite.title,
         }),
       });
 
-      const data = await res.json();
+      const result = await res.json();
 
-      if (data.success) {
-        alert("🎉 ההזמנה עודכנה בהצלחה!");
+      if (result.success) {
+        alert("🎉 ההזמנה נשמרה בהצלחה!");
       } else {
-        alert("❌ שגיאה: " + data.error);
+        alert("❌ שגיאה: " + result.error);
       }
     } catch (err) {
-      console.error("❌ Error saving invitation:", err);
+      console.error("❌ Save error:", err);
       alert("שגיאה בשמירה");
     }
   };
 
   /* ============================================================
-     ⏳ מצב טעינה
+     ⏳ טעינה
   ============================================================ */
-  if (!id || loading) {
+  if (!inviteId || loading || !invite) {
     return (
       <div className="p-10 text-center text-xl">
         טוען את ההזמנה...
@@ -115,7 +108,7 @@ export default function EditInvitePage({ params }: any) {
   }
 
   /* ============================================================
-     🎨 רינדור העורך
+     🎨 עורך הזמנה
   ============================================================ */
   return (
     <div className="flex h-screen bg-gray-100">
@@ -127,6 +120,7 @@ export default function EditInvitePage({ params }: any) {
         <div className="flex-1 flex items-center justify-center p-4">
           <EditorCanvas
             ref={canvasRef}
+            initialData={invite.canvasData || { objects: [] }}
             onSelect={(obj: any) => setSelectedObject(obj)}
           />
         </div>
