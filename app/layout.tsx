@@ -35,7 +35,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </Link>
 
               {/* ניווט – צמוד לקצה הימני באמת */}
-              <nav className="hidden md:flex items-center gap-8 text-sm text-[var(--brown-soft)]">
+              <nav className="hidden md:flex items-center gap-10 text-lg text-[var(--brown-soft)]">
+
                 <a
                   href="#how"
                   className="hover:text-[var(--brown-dark)] transition-colors"
