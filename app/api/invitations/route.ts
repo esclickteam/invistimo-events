@@ -4,30 +4,35 @@ import Invitation from "@/models/Invitation";
 import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     await db();
 
-    // ✔️ זיהוי משתמש
+    // ✔️ זיהוי בעל ההזמנה
     const userId = await getUserIdFromRequest();
     console.log("USER ID →", userId);
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     // ✔️ קבלת גוף הבקשה
     const body = await req.json();
-    const { title, canvasData } = body;
+    const { title, canvasData, previewImage } = body;
 
     if (!canvasData) {
       return NextResponse.json(
-        { error: "Missing canvas data" },
+        { success: false, error: "Missing canvas data" },
         { status: 400 }
       );
     }
 
-    // ✔️ יצירת shareId אקראי
+    // ✔️ יצירת מזהה ציבורי להזמנה
     const shareId = nanoid(10);
 
     // ✔️ יצירת מסמך במונגו
@@ -35,11 +40,12 @@ export async function POST(req: Request) {
       ownerId: userId,
       title: title || "Untitled Invitation",
       canvasData,
+      previewImage: previewImage || null,
       shareId,
+      guests: [], // נוצר ריק בתחילת הדרך
     });
 
-    // ⭐⭐ חשוב מאוד:
-    // Mongoose Document → JSON נקי, כדי למנוע undefined בצד לקוח
+    // ⭐ המרת מסמך mongoose ל־JSON נקי
     const cleanInvite = JSON.parse(JSON.stringify(newInvite));
 
     console.log("🔥 NEW INVITATION CREATED:", cleanInvite);
@@ -50,6 +56,9 @@ export async function POST(req: Request) {
     );
   } catch (err) {
     console.error("❌ Error creating invitation:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Server error" },
+      { status: 500 }
+    );
   }
 }
