@@ -93,6 +93,9 @@ ${inviteLink}
 נשמח לראותך! ❤️
 אנא אשר/י הגעה בלחיצה על הכפתור שבהזמנה 👇`;
 
+console.log("📨 MESSAGE SENT TO WHATSAPP:", message);
+
+
 
     const normalizedPhone = guest.phone
       .replace(/\D/g, "")
