@@ -12,7 +12,8 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="min-h-screen font-[Heebo] bg-white">
+      {/* ❗ חשוב: הסרנו bg-white כדי שהרקע קפה יגיע עד ההדר */}
+      <body className="min-h-screen font-[Heebo]">
         <Providers>
 
           {/* HEADER – עם LTR בשביל שמאל/ימין תקינים */}
@@ -34,31 +35,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </div>
               </Link>
 
-              {/* ניווט – צמוד לקצה הימני באמת */}
+              {/* ניווט – צמוד לקצה הימני */}
               <nav className="hidden md:flex items-center gap-10 text-lg text-[var(--brown-soft)]">
-                <a
-                  href="#how"
-                  className="hover:text-[var(--brown-dark)] transition-colors"
-                >
-                  איך זה עובד
-                </a>
-                <a
-                  href="#features"
-                  className="hover:text-[var(--brown-dark)] transition-colors"
-                >
-                  מה מקבלים
-                </a>
-                <a
-                  href="#packages"
-                  className="hover:text-[var(--brown-dark)] transition-colors"
-                >
-                  חבילות
-                </a>
+                <a href="#how" className="hover:text-[var(--brown-dark)] transition-colors">איך זה עובד</a>
+                <a href="#features" className="hover:text-[var(--brown-dark)] transition-colors">מה מקבלים</a>
+                <a href="#packages" className="hover:text-[var(--brown-dark)] transition-colors">חבילות</a>
 
-                <Link
-                  href="/login"
-                  className="btn-primary text-sm px-5 py-2"
-                >
+                <Link href="/login" className="btn-primary text-sm px-5 py-2">
                   התחברות
                 </Link>
               </nav>
@@ -66,7 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          {/* MAIN – כאן מוסיפים את הרקע קפה */}
+          {/* MAIN – הרקע קפה כאן */}
           <main className="bg-luxury min-h-screen">
             {children}
           </main>
