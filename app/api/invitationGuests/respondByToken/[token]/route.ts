@@ -1,30 +1,40 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
-  req: Request,
-  { params }: { params: { token: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
 ) {
-  await db();
+  const { token } = await params; // ⭐ חובה await
 
-  const { token } = params;
-  const body = await req.json();
+  try {
+    await db();
 
-  const guest = await InvitationGuest.findOne({ token });
+    const body = await req.json();
+    const { rsvp, guestsCount, notes } = body;
 
-  if (!guest) {
+    const guest = await InvitationGuest.findOne({ token });
+    if (!guest) {
+      return NextResponse.json(
+        { success: false, error: "Guest not found" },
+        { status: 404 }
+      );
+    }
+
+    guest.rsvp = rsvp;
+    guest.guestsCount = guestsCount;
+    guest.notes = notes || "";
+    await guest.save();
+
+    return NextResponse.json({ success: true, guest });
+  } catch (err) {
+    console.error(err);
     return NextResponse.json(
-      { success: false, error: "Guest not found" },
-      { status: 404 }
+      { success: false, error: "Server error" },
+      { status: 500 }
     );
   }
-
-  guest.rsvp = body.rsvp;
-  guest.guestsCount = body.guestsCount || guest.guestsCount;
-  guest.notes = body.notes || "";
-
-  await guest.save();
-
-  return NextResponse.json({ success: true, guest });
 }

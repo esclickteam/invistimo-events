@@ -1,22 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
-  req: Request,
-  { params }: { params: { token: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
 ) {
-  await db();
-  const { token } = params;
+  const { token } = await params; // ⭐ חובה await
 
-  const guest = await InvitationGuest.findOne({ token });
+  try {
+    await db();
 
-  if (!guest) {
+    const guest = await InvitationGuest.findOne({ token });
+
+    if (!guest) {
+      return NextResponse.json(
+        { success: false, error: "Guest not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, guest });
+  } catch (err) {
     return NextResponse.json(
-      { success: false, error: "Guest not found" },
-      { status: 404 }
+      { success: false, error: "Server error" },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({ success: true, guest });
 }
