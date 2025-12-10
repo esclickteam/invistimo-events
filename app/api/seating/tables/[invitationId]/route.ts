@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 
+/** ⭐ חובה ב־Next.js 16 — params הוא Promise */
 type RouteContext = {
-  params: { invitationId: string };
+  params: Promise<{ invitationId: string }>;
 };
 
-export async function GET(req: NextRequest, { params }: RouteContext) {
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    const record = await SeatingTable.findOne({
-      invitationId: params.invitationId,
-    });
+    // חייבים await אחרת זה יוצר ERROR בבילד
+    const { invitationId } = await context.params;
+
+    const record = await SeatingTable.findOne({ invitationId });
 
     return NextResponse.json({
       success: true,
