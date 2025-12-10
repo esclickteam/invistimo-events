@@ -27,6 +27,23 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
+  /* ---------------- ⭐ FETCH GUESTS FROM DATABASE ---------------- */
+  fetchGuests: async (invitationId) => {
+    try {
+      const res = await fetch(`/api/seating/guests/${invitationId}`);
+      const data = await res.json();
+
+      if (data.success) {
+        console.log("🟩 Loaded guests:", data.guests);
+        set({ guests: data.guests });
+      } else {
+        console.error("⚠ Error loading guests:", data.error);
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch guests:", err);
+    }
+  },
+
   /* ---------------- ADD TABLE ---------------- */
   addTable: (type, seats) => {
     const { tables } = get();
@@ -138,15 +155,12 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    // Valid drop
     let updatedTables = tables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
         (s) => s.guestId !== draggedGuest.id
       ),
     }));
-
-    const targetTable = updatedTables.find((t) => t.id === highlightedTable);
 
     updatedTables = updatedTables.map((t) =>
       t.id === highlightedTable
@@ -176,7 +190,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- REMOVE SEAT ---------------- */
+  /* ---------------- REMOVE FROM SEAT ---------------- */
   removeFromSeat: (tableId, guestId) => {
     const { tables, guests } = get();
 
@@ -198,11 +212,7 @@ export const useSeatingStore = create((set, get) => ({
     set({ tables: updatedTables, guests: updatedGuests });
   },
 
-  /* --------------------------------------------------
-        ⭐⭐⭐  MANUAL ASSIGN (NEW & FIXED!)  ⭐⭐⭐
-     פונקציה תואמת ל־Modal שלך:
-     assignGuestsToTable(tableId, guestId, count)
-  -------------------------------------------------- */
+  /* ---------------- ASSIGN GUESTS MANUALLY ---------------- */
   assignGuestsToTable: (tableId, guestId, count) => {
     const { tables, guests } = get();
 
@@ -212,19 +222,16 @@ export const useSeatingStore = create((set, get) => ({
     if (!table || !guest)
       return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
 
-    // מציאת מקומות פנויים רציפים
     const block = findFreeBlock(table, count);
     if (!block)
       return { ok: false, message: "אין מספיק מקומות פנויים בשולחן" };
 
-    // הסרה משולחן קודם
     tables.forEach((t) => {
       t.seatedGuests = t.seatedGuests.filter(
         (s) => s.guestId !== guestId
       );
     });
 
-    // שיבוץ חדש
     table.seatedGuests.push(
       ...block.map((seatIndex) => ({
         guestId,
