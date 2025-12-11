@@ -149,9 +149,7 @@ export default function RegisterForm() {
         <div className="text-center text-lg font-semibold text-[#5c4632]">
           סכום לתשלום:{" "}
           <span>
-            {plan === "premium"
-              ? "לפי מספר האורחים"
-              : `${price} ₪`}
+            {plan === "premium" ? "לפי מספר האורחים" : `${price} ₪`}
           </span>
         </div>
 
