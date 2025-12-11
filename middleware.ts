@@ -2,10 +2,23 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get("authToken")?.value;
+  const { nextUrl, cookies } = req;
 
-  // כל נתיב שמתחיל ב-/dashboard
-  if (req.nextUrl.pathname.startsWith("/dashboard") && !token) {
+  // --------------------------------------------------------
+  // 1️⃣ כפיית WWW – אם מישהו נכנס ל-invistimo.com → העברה ל-www
+  // --------------------------------------------------------
+  if (nextUrl.hostname === "invistimo.com") {
+    const url = nextUrl.clone();
+    url.hostname = "www.invistimo.com";
+    return NextResponse.redirect(url);
+  }
+
+  // --------------------------------------------------------
+  // 2️⃣ הגנה על /dashboard – משתמש חייב להיות מחובר
+  // --------------------------------------------------------
+  const token = cookies.get("authToken")?.value;
+
+  if (nextUrl.pathname.startsWith("/dashboard") && !token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -13,5 +26,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"], 
+  matcher: [
+    "/:path*",          // חובה כדי לתפוס גם את הבדיקת WWW
+  ],
 };
