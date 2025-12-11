@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -20,7 +21,19 @@ const EVENT_TYPES = [
   "כל אירוע אחר",
 ];
 
+/* ✅ טיפוסי TypeScript כדי למנוע שגיאה */
+type GuestOption = "עד 100 אורחים" | "עד 300 אורחים" | "עד 500 אורחים" | "עד 1000 אורחים";
+
 export default function HomePage() {
+  const [selectedGuests, setSelectedGuests] = useState<GuestOption | "">("");
+
+  const prices: Record<GuestOption, string> = {
+    "עד 100 אורחים": "149 ₪",
+    "עד 300 אורחים": "249 ₪",
+    "עד 500 אורחים": "399 ₪",
+    "עד 1000 אורחים": "699 ₪",
+  };
+
   return (
     <div className="relative space-y-40 pb-40 overflow-hidden">
       {/* ========= רקע ========= */}
@@ -31,50 +44,30 @@ export default function HomePage() {
       <motion.section
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: "easeOut" }}
+        transition={{ duration: 1 }}
         className="max-w-5xl mx-auto pt-24 md:pt-32 px-6 text-center space-y-8"
       >
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.9 }}
-          className="text-5xl md:text-7xl font-bold text-[#5c4632] leading-tight drop-shadow-sm"
-        >
+        <h1 className="text-5xl md:text-7xl font-bold text-[#5c4632] leading-tight drop-shadow-sm">
           הזמנות דיגיטליות יוקרתיות  
           <br /> ואישורי הגעה חכמים לכל אירוע
-        </motion.h1>
+        </h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.9 }}
-          className="text-lg md:text-2xl text-[#7b6754] max-w-3xl mx-auto leading-relaxed"
-        >
+        <p className="text-lg md:text-2xl text-[#7b6754] max-w-3xl mx-auto leading-relaxed">
           פלטפורמה מעוצבת וחדשנית לניהול אירועים ב־<strong>Invistimo</strong>:
           הזמנות, אישורי הגעה, הושבה ותזכורות — הכול במקום אחד חכם ואלגנטי.
-        </motion.p>
+        </p>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.7 }}
-          className="flex justify-center mt-10"
-        >
+        <div className="flex justify-center mt-10">
           <a
             href="#packages"
             className="px-10 py-4 rounded-full text-lg font-semibold border-2 border-[#c7a17a] text-[#6a5440] hover:bg-[#f5e8dd] transition shadow-md hover:shadow-lg active:scale-95"
           >
             צפייה בחבילות
           </a>
-        </motion.div>
+        </div>
 
         {/* תגיות אירועים */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.9 }}
-          className="mt-10 space-y-3"
-        >
+        <div className="mt-10 space-y-3">
           <h3 className="text-base text-[#857766] font-semibold">
             מתאים לכל סוגי האירועים:
           </h3>
@@ -84,21 +77,13 @@ export default function HomePage() {
               <motion.span
                 key={t}
                 whileHover={{ scale: 1.1, y: -3 }}
-                className="
-                  px-5 py-3 
-                  text-sm md:text-base 
-                  rounded-full 
-                  bg-white/90 
-                  border border-[#d8c7b8] 
-                  text-[#6f5b4a] 
-                  shadow-sm
-                "
+                className="px-5 py-3 text-sm md:text-base rounded-full bg-white/90 border border-[#d8c7b8] text-[#6f5b4a] shadow-sm"
               >
                 {t}
               </motion.span>
             ))}
           </div>
-        </motion.div>
+        </div>
       </motion.section>
 
       {/* ========= איך זה עובד ========= */}
@@ -109,18 +94,9 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-3 gap-10">
           {[
-            {
-              t: "נרשמים למערכת",
-              d: "יוצרים חשבון ובוחרים את החבילה המתאימה לכם.",
-            },
-            {
-              t: "יוצרים הזמנה ושולחים",
-              d: "מעצבים הזמנה יוקרתית ושולחים אותה ב־SMS או וואטסאפ.",
-            },
-            {
-              t: "מנהלים הכול במקום אחד",
-              d: "אישורי הגעה, תזכורות והושבה — הכול אוטומטי ומסונכרן.",
-            },
+            { t: "נרשמים למערכת", d: "יוצרים חשבון ובוחרים את החבילה המתאימה לכם." },
+            { t: "יוצרים הזמנה ושולחים", d: "מעצבים הזמנה יוקרתית ושולחים אותה ב־SMS או וואטסאפ." },
+            { t: "מנהלים הכול במקום אחד", d: "אישורי הגעה, תזכורות והושבה — הכול אוטומטי ומסונכרן." },
           ].map((item, i) => (
             <motion.div
               key={i}
@@ -139,12 +115,9 @@ export default function HomePage() {
 
       {/* ========= חבילות ========= */}
       <section id="packages" className="max-w-6xl mx-auto px-6 space-y-16">
-        <h2 className="text-4xl font-bold text-center text-[#5c4632]">
-          החבילות שלנו
-        </h2>
+        <h2 className="text-4xl font-bold text-center text-[#5c4632]">החבילות שלנו</h2>
 
         <div className="grid md:grid-cols-2 gap-14 max-w-5xl mx-auto">
-
           {/* BASIC PACKAGE */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
@@ -160,11 +133,11 @@ export default function HomePage() {
             <p className="text-[#7b6754] text-xl font-semibold mb-6">49₪ בלבד</p>
 
             <ul className="space-y-3 text-[#7b6754] leading-relaxed text-base">
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> גישה מלאה לעורך ההזמנות לעיצוב הזמנה מותאמת אישית</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> יצירת הזמנה דיגיטלית מעוצבת ומוכנה לשליחה</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> שליחה ידנית ב־WhatsApp לכל אורח (מהמספר של השולח, ללא הגבלה)</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> קישור אישי לכל אורח עם כפתור לאישור הגעה</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> עדכון מיידי במערכת מי אישר ומי לא</li>
+              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> גישה לעורך ההזמנות לעיצוב אישי</li>
+              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> הזמנה דיגיטלית מעוצבת ומוכנה לשליחה</li>
+              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> שליחה ידנית ב־WhatsApp לכל אורח</li>
+              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> קישור אישי עם כפתור לאישור הגעה</li>
+              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> עדכון בזמן אמת מי אישר ומי לא</li>
             </ul>
 
             <Link
@@ -187,24 +160,35 @@ export default function HomePage() {
               <Star className="w-8 h-8 text-white" />
               <h3 className="text-3xl font-bold">חבילת פרימיום — אישורי הגעה + הושבה חכמה</h3>
             </div>
-            <p className="text-lg text-white/90 font-medium mb-6">החל מ־149₪ בלבד</p>
 
-            <ul className="space-y-3 text-white/90 leading-relaxed text-base">
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-white mt-1" /> הזמנה דיגיטלית מעוצבת + גישה לעורך ההזמנות</li>
-              <li className="flex items-start gap-2"><MessageCircle className="w-5 h-5 text-white mt-1" /> שליחה אוטומטית ב־SMS לאישור הגעה + תזכורת למי שלא אישר</li>
-              <li className="flex items-start gap-2"><Users className="w-5 h-5 text-white mt-1" /> עדכון בזמן אמת מי אישר הגעה</li>
-              <li className="flex items-start gap-2"><Map className="w-5 h-5 text-white mt-1" /> ניהול הושבה — העלאת מפת אולם ועריכת שולחנות</li>
-              <li className="flex items-start gap-2"><MessageCircle className="w-5 h-5 text-white mt-1" /> תזכורת לפני האירוע + מספר שולחן בהודעה אחת</li>
+            <ul className="space-y-3 text-white/90 leading-relaxed text-base mb-8">
+              <li><CheckCircle2 className="inline w-5 h-5 mr-1 text-white" /> הזמנה דיגיטלית מעוצבת + גישה לעורך ההזמנות</li>
+              <li><MessageCircle className="inline w-5 h-5 mr-1 text-white" /> שליחה אוטומטית ב־SMS לאישור הגעה + תזכורת למי שלא אישר</li>
+              <li><Users className="inline w-5 h-5 mr-1 text-white" /> עדכון בזמן אמת מי אישר הגעה</li>
+              <li><Map className="inline w-5 h-5 mr-1 text-white" /> ניהול הושבה – העלאת מפת אולם ועריכת שולחנות</li>
+              <li><MessageCircle className="inline w-5 h-5 mr-1 text-white" /> תזכורת לפני האירוע + מספר שולחן בהודעה אחת</li>
             </ul>
 
-            <div className="mt-8 bg-white/10 p-5 rounded-2xl text-sm text-center">
-              <p className="font-semibold mb-2 text-white">בחרו לפי כמות אורחים:</p>
-              <div className="grid grid-cols-2 gap-3 text-white/90">
-                <span>עד 100 אורחים – 149₪</span>
-                <span>עד 300 אורחים – 249₪</span>
-                <span>עד 500 אורחים – 399₪</span>
-                <span>עד 1000 אורחים – 699₪</span>
-              </div>
+            {/* בחירה לפי כמות אורחים */}
+            <div className="bg-white/10 p-5 rounded-2xl text-sm text-center">
+              <p className="font-semibold mb-3 text-white">בחרו כמות אורחים:</p>
+              <select
+                className="w-full bg-white/20 text-white px-4 py-3 rounded-xl text-center outline-none backdrop-blur-md border border-white/40 hover:bg-white/30 transition"
+                value={selectedGuests}
+                onChange={(e) => setSelectedGuests(e.target.value as GuestOption)}
+              >
+                <option value="">בחרו...</option>
+                {Object.keys(prices).map((key) => (
+                  <option key={key} value={key}>
+                    {key}
+                  </option>
+                ))}
+              </select>
+              {selectedGuests && (
+                <p className="mt-4 text-white/90 text-lg font-semibold">
+                  מחיר: {prices[selectedGuests]}
+                </p>
+              )}
             </div>
 
             <Link
