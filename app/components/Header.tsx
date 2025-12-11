@@ -89,9 +89,9 @@ export default function Header() {
         <div dir="ltr" className="flex items-center">
           <Link href="/" className="flex items-center">
             <img
-              src="/invistimo-logo.png"  // ← עדכני אם שם הקובץ שונה
+              src="/invistimo-logo.png"
               alt="Invistimo Logo"
-              className="h-10 w-auto object-contain"
+              className="h-10 w-auto object-contain scale-150 origin-left"
             />
           </Link>
         </div>
