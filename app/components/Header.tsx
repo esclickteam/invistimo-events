@@ -24,40 +24,39 @@ export default function Header() {
         {/* ====================== תפריט ניווט — צד ימין ====================== */}
         <div className="flex items-center gap-10">
           <nav className="hidden md:flex gap-8 text-[#4a413a] font-medium">
-            <Link
-              href="#how"
-              className="hover:text-[var(--champagne-dark)] transition"
-            >
+            <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">
               איך זה עובד
             </Link>
 
-            <Link
-              href="#features"
-              className="hover:text-[var(--champagne-dark)] transition"
-            >
+            <Link href="#features" className="hover:text-[var(--champagne-dark)] transition">
               מה מקבלים
             </Link>
 
-            <Link
-              href="#pricing"
-              className="hover:text-[var(--champagne-dark)] transition"
-            >
+            <Link href="#pricing" className="hover:text-[var(--champagne-dark)] transition">
               חבילות
             </Link>
           </nav>
 
-          {/* 🔐 מצב התחברות / התנתקות */}
+          {/* 🔐 מצב התחברות / התנתקות / לוח בקרה */}
           {!loading && (
             <>
               {user ? (
                 <div className="hidden md:flex items-center gap-4">
+
+                  {/* לוח בקרה */}
                   <Link
                     href="/dashboard"
                     className="text-[#4a413a] font-semibold hover:text-[var(--champagne-dark)] transition"
                   >
-                    שלום, {user.name || "משתמש"}
+                    לוח בקרה
                   </Link>
 
+                  {/* שלום שם */}
+                  <span className="text-[#4a413a] font-semibold">
+                    שלום, {user.name || "משתמש"}
+                  </span>
+
+                  {/* כפתור התנתקות */}
                   <button
                     onClick={logout}
                     className="
