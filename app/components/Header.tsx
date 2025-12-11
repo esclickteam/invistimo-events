@@ -16,20 +16,30 @@ export default function Header() {
         shadow-sm
       "
     >
-      {/* ⭐ אותו קונטיינר — אבל LTR כדי לשלוט ביישור כמו שצריך */}
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between" dir="ltr">
-
-        {/* ====================== תפריט — צד ימין ====================== */}
-        <div className="flex items-center gap-10">
+      {/* מיכל ראשי עם Flex RTL כדי שהתפריט יהיה מימין והלוגו משמאל */}
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between" dir="rtl">
+        
+        {/* ====================== תפריט ניווט — צד ימין ====================== */}
+        <div className="flex items-center gap-10" dir="rtl">
           <nav className="hidden md:flex gap-8 text-[#4a413a] font-medium">
-            <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">איך זה עובד</Link>
-            <Link href="#features" className="hover:text-[var(--champagne-dark)] transition">מה מקבלים</Link>
-            <Link href="#pricing" className="hover:text-[var(--champagne-dark)] transition">חבילות</Link>
+            <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">
+              איך זה עובד
+            </Link>
+
+            <Link href="#features" className="hover:text-[var(--champagne-dark)] transition">
+              מה מקבלים
+            </Link>
+
+            <Link href="#pricing" className="hover:text-[var(--champagne-dark)] transition">
+              חבילות
+            </Link>
           </nav>
 
+          {/* 🔐 מצב התחברות */}
           {!loading && (
             <>
               {user ? (
+                /* 🔹 מחובר */
                 <div className="hidden md:flex items-center gap-4">
                   <Link
                     href="/dashboard"
@@ -50,6 +60,7 @@ export default function Header() {
                   </button>
                 </div>
               ) : (
+                /* 🔹 לא מחובר */
                 <Link
                   href="/login"
                   className="
@@ -66,14 +77,16 @@ export default function Header() {
         </div>
 
         {/* ====================== לוגו — צד שמאל ====================== */}
-        <Link href="/" className="flex items-center gap-3" dir="ltr">
-          <div className="w-10 h-10 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white font-bold shadow-md">
-            in
-          </div>
-          <span className="text-2xl font-serif font-bold text-[#3a2f28] tracking-tight">
-            Invity
-          </span>
-        </Link>
+        <div dir="ltr">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white font-bold shadow-md">
+              in
+            </div>
+            <span className="text-2xl font-serif font-bold text-[#3a2f28] tracking-tight">
+              Invity
+            </span>
+          </Link>
+        </div>
 
       </div>
     </header>
