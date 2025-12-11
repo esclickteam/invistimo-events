@@ -58,12 +58,14 @@ export default function RegisterForm() {
   return (
     <div className="max-w-xl mx-auto pt-20 pb-28 px-5">
       <h1 className="text-4xl font-serif font-bold text-[#5c4632] mb-3 text-center">
-        רכישת חבילת {plan === "full" ? "ניהול אירוע" : "בסיס"}
+        עמוד הרשמה לחבילת {plan === "full" ? "פרימיום" : "בסיס"}
       </h1>
 
       <p className="text-center text-[#7b6754] mb-10 leading-relaxed">
-        מלאי את פרטייך כדי לפתוח חשבון ולהשלים את הרכישה.
-        לאחר מכן תועברי לתשלום (כרגע 0 ₪ לצורך בדיקות).
+        הרשמ/י ל־Invistimo כדי להתחיל לנהל את האירוע שלך: יצירת הזמנה דיגיטלית,
+        איסוף אישורי הגעה והמשך להגדרות הושבה – הכול במקום אחד.
+        <br />
+        כרגע התשלום מוגדר על 0 ₪ לצורכי בדיקות בלבד.
       </p>
 
       <form
