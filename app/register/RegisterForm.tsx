@@ -4,6 +4,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 
+/* ============================================================
+   עמוד הרשמה — עם מחיר אוטומטי לפי סוג החבילה
+============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
   const plan = params.get("plan") || "basic";
@@ -18,12 +21,26 @@ export default function RegisterForm() {
 
   const [loading, setLoading] = useState(false);
 
-  const price = plan === "full" ? 0 : 0; // כרגע לצורכי בדיקות
+  /* ============================================================
+     קביעת מחיר אוטומטי לפי סוג החבילה
+  ============================================================ */
+  const price =
+    plan === "premium"
+      ? "בחר לפי מספר האורחים בעמוד הקודם"
+      : plan === "basic"
+      ? 49
+      : 0;
 
+  /* ============================================================
+     שינוי שדות בטופס
+  ============================================================ */
   const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  /* ============================================================
+     שליחת הרשמה לשרת
+  ============================================================ */
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
@@ -35,8 +52,10 @@ export default function RegisterForm() {
         body: JSON.stringify({
           name: form.name,
           email: form.email,
+          phone: form.phone,
           password: form.password,
           plan,
+          price,
         }),
       });
 
@@ -47,7 +66,7 @@ export default function RegisterForm() {
         return;
       }
 
-      router.push("/login");
+      router.push("/payment");
     } catch (error) {
       alert("שגיאה בהתחברות לשרת");
     } finally {
@@ -55,17 +74,18 @@ export default function RegisterForm() {
     }
   };
 
+  /* ============================================================
+     תוכן הדף
+  ============================================================ */
   return (
     <div className="max-w-xl mx-auto pt-20 pb-28 px-5">
       <h1 className="text-4xl font-serif font-bold text-[#5c4632] mb-3 text-center">
-        עמוד הרשמה לחבילת {plan === "full" ? "פרימיום" : "בסיס"}
+        עמוד הרשמה לחבילת {plan === "premium" ? "פרימיום" : "בסיס"}
       </h1>
 
       <p className="text-center text-[#7b6754] mb-10 leading-relaxed">
         הרשמ/י ל־Invistimo כדי להתחיל לנהל את האירוע שלך: יצירת הזמנה דיגיטלית,
         איסוף אישורי הגעה והמשך להגדרות הושבה – הכול במקום אחד.
-        <br />
-        כרגע התשלום מוגדר על 0 ₪ לצורכי בדיקות בלבד.
       </p>
 
       <form
@@ -73,6 +93,7 @@ export default function RegisterForm() {
         className="bg-white rounded-[32px] shadow-[0_12px_32px_rgba(0,0,0,0.07)]
                    border border-[#e6dccd] p-8 space-y-6"
       >
+        {/* שם מלא */}
         <div>
           <label className="block text-sm text-[#5c4632] mb-1">שם מלא</label>
           <input
@@ -85,6 +106,7 @@ export default function RegisterForm() {
           />
         </div>
 
+        {/* אימייל */}
         <div>
           <label className="block text-sm text-[#5c4632] mb-1">אימייל</label>
           <input
@@ -97,6 +119,7 @@ export default function RegisterForm() {
           />
         </div>
 
+        {/* טלפון */}
         <div>
           <label className="block text-sm text-[#5c4632] mb-1">טלפון</label>
           <input
@@ -109,6 +132,7 @@ export default function RegisterForm() {
           />
         </div>
 
+        {/* סיסמה */}
         <div>
           <label className="block text-sm text-[#5c4632] mb-1">סיסמה</label>
           <input
@@ -121,10 +145,17 @@ export default function RegisterForm() {
           />
         </div>
 
+        {/* סכום לתשלום */}
         <div className="text-center text-lg font-semibold text-[#5c4632]">
-          סכום לתשלום: <span>{price} ₪</span>
+          סכום לתשלום:{" "}
+          <span>
+            {plan === "premium"
+              ? "לפי מספר האורחים"
+              : `${price} ₪`}
+          </span>
         </div>
 
+        {/* כפתור המשך */}
         <button
           type="submit"
           className="btn-primary w-full py-3 text-lg rounded-full"
@@ -133,6 +164,7 @@ export default function RegisterForm() {
           {loading ? "מבצעת הרשמה..." : "המשך לתשלום"}
         </button>
 
+        {/* קישור להתחברות */}
         <div className="text-center text-sm text-[#7b6754] mt-2">
           כבר יש לך חשבון?{" "}
           <Link href="/login" className="text-[#5c4632] underline">
