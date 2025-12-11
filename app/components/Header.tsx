@@ -91,7 +91,7 @@ export default function Header() {
             <img
               src="/invistimo-logo.png"
               alt="Invistimo Logo"
-              className="h-10 w-auto object-contain scale-[3] origin-left"
+              className="h-10 w-auto object-contain scale-[4] origin-left"
             />
           </Link>
         </div>
