@@ -135,39 +135,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ADD TEXT
   ============================================================ */
   addText: () =>
-  set((state) => {
-    const centerX = CANVAS_WIDTH / 2;
-    const startY = 300;
+  set((state) => ({
+    objects: [
+      ...state.objects,
+      {
+        id: `text-${Date.now()}`,
+        type: "text",
 
-    return {
-      objects: [
-        ...state.objects,
-        {
-          id: `text-${Date.now()}`,
-          type: "text",
-          x: centerX,
-          y: startY,
-          text: "טקסט חדש",
-          fontSize: 40,
-          fontFamily: "Assistant",
-          fontWeight: "normal",
-          italic: false,
-          underline: false,
-          align: "center",
-          fill: "#000",
-          letterSpacing: 0,
-          lineHeight: 1.1,
-          shadowColor: "transparent",
-          shadowBlur: 0,
-          shadowOffsetX: 0,
-          shadowOffsetY: 0,
+        // ⭐ אמצע הקנבס האמיתי, לא המסך!
+        x: CANVAS_WIDTH / 2,
+        y: CANVAS_HEIGHT / 2 - 200,
 
-          // ⭐ חשוב — שהטקסט יידבק למרכז
-          offsetX: 0,
-        },
-      ],
-    };
-  }),
+        text: "טקסט חדש",
+        fontSize: 40,
+        fontFamily: "Assistant",
+        fontWeight: "normal",
+        align: "center",
+        fill: "#000",
+
+        // ⭐ חשוב מאוד לתמיכה במרכז
+        offsetX: 0,
+      },
+    ],
+  })),
 
 
   /* ============================================================
