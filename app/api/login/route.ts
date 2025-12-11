@@ -31,15 +31,18 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({ success: true });
 
+    // ========== ⚠️ הגדרות Cookie שמתאימות לפרודקשן ==========
     res.cookies.set("authToken", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "none",     // ⬅⬅⬅ חובה ב-Vercel !!!
+      secure: true,              // חובה בפרודקשן
+      sameSite: "none",          // חובה בפרודקשן
+      domain: ".invistimo.com",  // מאפשר שליחה גם מ-www
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7,  // שבוע
     });
 
     return res;
+
   } catch (error) {
     console.error("LOGIN ERROR:", error);
     return NextResponse.json({ error: "שגיאה בשרת" }, { status: 500 });
