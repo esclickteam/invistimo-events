@@ -21,7 +21,6 @@ const EVENT_TYPES = [
   "כל אירוע אחר",
 ];
 
-/* ✅ טיפוסי TypeScript כדי למנוע שגיאה */
 type GuestOption =
   | "עד 100 אורחים"
   | "עד 300 אורחים"
@@ -40,7 +39,6 @@ export default function HomePage() {
 
   return (
     <div className="relative space-y-40 pb-40 overflow-hidden">
-      {/* ========= רקע ========= */}
       <div className="absolute inset-0 -z-20 bg-gradient-to-b from-[#f7f3ee] via-[#efe7dd] to-[#e7d9ca]" />
       <div className="absolute inset-0 -z-10 opacity-[0.15] bg-[url('/noise.png')]" />
 
@@ -70,7 +68,6 @@ export default function HomePage() {
           </a>
         </div>
 
-        {/* תגיות אירועים */}
         <div className="mt-10 space-y-3">
           <h3 className="text-base text-[#857766] font-semibold">
             מתאים לכל סוגי האירועים:
@@ -145,7 +142,7 @@ export default function HomePage() {
             </ul>
 
             <Link
-              href="/register?plan=basic"
+              href="/register?plan=basic&price=49"
               className="block mt-10 text-center px-10 py-4 rounded-full border-2 border-[#c7a17a] text-[#6a5440] font-semibold hover:bg-[#f5e8dd] transition shadow-md hover:shadow-lg"
             >
               הרשמה ותשלום לחבילת בסיס
@@ -173,26 +170,11 @@ export default function HomePage() {
               <li><MessageCircle className="inline w-5 h-5 mr-1 text-white" /> תזכורת לפני האירוע + מספר שולחן בהודעה אחת</li>
             </ul>
 
-            {/* בחירה לפי כמות אורחים */}
             <div className="bg-white/15 p-5 rounded-2xl text-sm text-center">
               <p className="font-semibold mb-3 text-white">בחרו כמות אורחים:</p>
 
               <select
-                className="
-                  w-full
-                  bg-white
-                  text-[#5c4632]
-                  font-medium
-                  px-4 py-3
-                  rounded-xl
-                  text-center
-                  outline-none
-                  border border-[#e9d8c5]
-                  shadow-sm
-                  hover:border-[#d6b98d]
-                  focus:border-[#c19c78]
-                  transition
-                "
+                className="w-full bg-white text-[#5c4632] font-medium px-4 py-3 rounded-xl text-center outline-none border border-[#e9d8c5] shadow-sm hover:border-[#d6b98d] focus:border-[#c19c78] transition"
                 value={selectedGuests}
                 onChange={(e) => setSelectedGuests(e.target.value as GuestOption)}
               >
@@ -212,8 +194,16 @@ export default function HomePage() {
             </div>
 
             <Link
-              href="/register?plan=premium"
-              className="block mt-10 text-center px-10 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
+              href={
+                selectedGuests
+                  ? `/register?plan=premium&guests=${encodeURIComponent(selectedGuests)}&price=${encodeURIComponent(prices[selectedGuests])}`
+                  : "#packages"
+              }
+              className={`block mt-10 text-center px-10 py-4 rounded-full font-bold transition shadow-lg ${
+                selectedGuests
+                  ? "bg-white text-[#6a5440] hover:bg-[#f0e9e4]"
+                  : "bg-white/40 text-white/60 cursor-not-allowed"
+              }`}
             >
               הרשמה ותשלום לחבילת פרימיום
             </Link>
