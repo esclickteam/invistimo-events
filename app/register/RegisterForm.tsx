@@ -156,7 +156,7 @@ export default function RegisterForm() {
         {/* כפתור המשך */}
         <button
           type="submit"
-           className="btn-primary w-full py-3 text-lg rounded-full"
+          className="btn-primary w-full py-3 text-lg rounded-full"
           disabled={loading}
         >
           {loading ? "מבצעת הרשמה..." : "המשך לתשלום"}
