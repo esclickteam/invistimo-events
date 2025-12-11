@@ -9,6 +9,7 @@ export async function POST(req: Request) {
     await connectDB();
     const { email, password } = await req.json();
 
+    // ==== בדיקת משתמש ====
     const user = await User.findOne({ email });
     if (!user)
       return NextResponse.json(
@@ -23,22 +24,26 @@ export async function POST(req: Request) {
         { status: 401 }
       );
 
+    // ==== יצירת טוקן ====
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET!,
       { expiresIn: "7d" }
     );
 
+    // ==== תשובה ללקוח ====
     const res = NextResponse.json({ success: true });
 
-    // ========== ⚠️ הגדרות Cookie שמתאימות לפרודקשן ==========
+    // ======================================================
+    //    ⚠️ הגדרות Cookie מתוקנות — עכשיו זה נשאר מחובר
+    // ======================================================
     res.cookies.set("authToken", token, {
-      httpOnly: true,
-      secure: true,              // חובה בפרודקשן
-      sameSite: "none",          // חובה בפרודקשן
-      domain: ".invistimo.com",  // מאפשר שליחה גם מ-www
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,  // שבוע
+      httpOnly: true,       // לא נגיש לג׳אווהסקריפט בצד הלקוח
+      secure: true,         // חובה בפרודקשן (HTTPS)
+      sameSite: "none",     // חובה לפרודקשן (בייחוד עם fetch)
+      path: "/",            // זמין לכל האתר
+      maxAge: 60 * 60 * 24 * 7, // שבוע
+      // ❌ לא לשים domain — זה מה שגרם לבעיה!
     });
 
     return res;
