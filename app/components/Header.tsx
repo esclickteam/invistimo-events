@@ -39,7 +39,7 @@ export default function Header() {
           {!loading && (
             <>
               {user ? (
-                // 🔹 מחובר
+                /* 🔹 מחובר */
                 <div className="hidden md:flex items-center gap-4">
 
                   <Link
@@ -61,7 +61,7 @@ export default function Header() {
                   </button>
                 </div>
               ) : (
-                // 🔹 לא מחובר
+                /* 🔹 לא מחובר */
                 <Link
                   href="/login"
                   className="

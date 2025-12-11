@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import Providers from "./providers";
 import { useAuth } from "@/context/AuthContext";
 
+/* 👇 הופך רק את Header לקליינט! מותר וזה תקין */
+"use client";
 function Header() {
   const { user, logout } = useAuth();
 
@@ -64,13 +66,15 @@ function Header() {
               {/* התנתקות */}
               <button
                 onClick={logout}
-                className="text-sm px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600 transition"
+                className="
+                  text-sm px-4 py-2 rounded bg-red-500 text-white 
+                  hover:bg-red-600 transition
+                "
               >
                 התנתקות
               </button>
             </div>
           ) : (
-            // 🔹 אם לא מחובר — הצג התחברות
             <Link href="/login" className="btn-primary text-sm px-5 py-2">
               התחברות
             </Link>
@@ -80,6 +84,8 @@ function Header() {
     </header>
   );
 }
+
+/* 🔥 שימי לב: metadata + RootLayout נשארים Server Components — וזה תקין! */
 
 export const metadata = {
   title: "Invity – הזמנות דיגיטליות ואישורי הגעה",
@@ -92,7 +98,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo]">
         <Providers>
-          
+
           {/* HEADER */}
           <Header />
 
