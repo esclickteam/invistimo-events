@@ -2,6 +2,14 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import {
+  CheckCircle2,
+  Star,
+  Smartphone,
+  Users,
+  MessageCircle,
+  Map,
+} from "lucide-react";
 
 const EVENT_TYPES = [
   "ברית / בריתה",
@@ -14,9 +22,8 @@ const EVENT_TYPES = [
 
 export default function HomePage() {
   return (
-    <div className="relative space-y-40 pb-40">
-
-      {/* ========= רקע שכבות יוקרתי ========= */}
+    <div className="relative space-y-40 pb-40 overflow-hidden">
+      {/* ========= רקע ========= */}
       <div className="absolute inset-0 -z-20 bg-gradient-to-b from-[#f7f3ee] via-[#efe7dd] to-[#e7d9ca]" />
       <div className="absolute inset-0 -z-10 opacity-[0.15] bg-[url('/noise.png')]" />
 
@@ -25,9 +32,7 @@ export default function HomePage() {
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, ease: "easeOut" }}
-        className="max-w-5xl mx-auto pt-0 md:pt-0 px-6 text-center space-y-8"
-
-
+        className="max-w-5xl mx-auto pt-24 md:pt-32 px-6 text-center space-y-8"
       >
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
@@ -45,11 +50,10 @@ export default function HomePage() {
           transition={{ delay: 0.35, duration: 0.9 }}
           className="text-lg md:text-2xl text-[#7b6754] max-w-3xl mx-auto leading-relaxed"
         >
-          פלטפורמה מעוצבת וחדשנית לניהול אירוע ב־<strong>invistimo</strong>:
-          הזמנות, אישורי הגעה, הושבה, תזכורות — הכול במקום אחד חכם ויוקרתי.
+          פלטפורמה מעוצבת וחדשנית לניהול אירועים ב־<strong>Invistimo</strong>:
+          הזמנות, אישורי הגעה, הושבה ותזכורות — הכול במקום אחד חכם ואלגנטי.
         </motion.p>
 
-        {/* כפתור צפייה בחבילות */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -64,7 +68,7 @@ export default function HomePage() {
           </a>
         </motion.div>
 
-        {/* תגיות אירועים — עכשיו גדולות ויוקרתיות */}
+        {/* תגיות אירועים */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -107,16 +111,16 @@ export default function HomePage() {
           {[
             {
               t: "נרשמים למערכת",
-              d: "יוצרים חשבון — ובוחרים את החבילה שהכי מתאימה לכם."
+              d: "יוצרים חשבון ובוחרים את החבילה המתאימה לכם.",
             },
             {
               t: "יוצרים הזמנה ושולחים",
-              d: "מעצבים הזמנה יוקרתית ושולחים ב־SMS/וואטסאפ לכל המוזמנים."
+              d: "מעצבים הזמנה יוקרתית ושולחים אותה ב־SMS או וואטסאפ.",
             },
             {
               t: "מנהלים הכול במקום אחד",
-              d: "אישורי הגעה, תזכורות, הושבה — הכול אוטומטי ומסונכרן."
-            }
+              d: "אישורי הגעה, תזכורות והושבה — הכול אוטומטי ומסונכרן.",
+            },
           ].map((item, i) => (
             <motion.div
               key={i}
@@ -141,7 +145,7 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-2 gap-14 max-w-5xl mx-auto">
 
-          {/* BASIC */}
+          {/* BASIC PACKAGE */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -149,26 +153,29 @@ export default function HomePage() {
             transition={{ duration: 0.9 }}
             className="bg-white p-10 rounded-3xl shadow-lg border border-[#eadfce] hover:-translate-y-2 hover:shadow-xl transition-all"
           >
-            <h3 className="text-3xl font-bold text-[#5c4632]">חבילת בסיס</h3>
-            <p className="text-[#7b6754] mt-3 text-lg">
-              הזמנה מעוצבת + ניהול מלא של אישורי הגעה.
-            </p>
+            <div className="flex items-center gap-3 mb-4">
+              <Smartphone className="w-8 h-8 text-[#c7a17a]" />
+              <h3 className="text-3xl font-bold text-[#5c4632]">חבילת בסיס</h3>
+            </div>
+            <p className="text-[#7b6754] text-xl font-semibold mb-6">49₪ בלבד</p>
 
-            <ul className="mt-6 space-y-2 text-[#7b6754]">
-              <li>• הזמנה מעוצבת אחת</li>
-              <li>• אישורי הגעה חכמים</li>
-              <li>• טבלת מוזמנים מלאה</li>
+            <ul className="space-y-3 text-[#7b6754] leading-relaxed text-base">
+              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> גישה מלאה לעורך ההזמנות לעיצוב הזמנה מותאמת אישית</li>
+              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> יצירת הזמנה דיגיטלית מעוצבת ומוכנה לשליחה</li>
+              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> שליחה ידנית ב־WhatsApp לכל אורח (מהמספר של השולח, ללא הגבלה)</li>
+              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> קישור אישי לכל אורח עם כפתור לאישור הגעה</li>
+              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-1" /> עדכון מיידי במערכת מי אישר ומי לא</li>
             </ul>
 
             <Link
               href="/plans?plan=basic"
-              className="block mt-8 text-center px-8 py-4 rounded-full border-2 border-[#c7a17a] text-[#6a5440] font-semibold hover:bg-[#f5e8dd] transition shadow-md hover:shadow-lg"
+              className="block mt-10 text-center px-10 py-4 rounded-full border-2 border-[#c7a17a] text-[#6a5440] font-semibold hover:bg-[#f5e8dd] transition shadow-md hover:shadow-lg"
             >
               בחרו חבילת בסיס
             </Link>
           </motion.div>
 
-          {/* FULL */}
+          {/* PREMIUM PACKAGE */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -176,23 +183,35 @@ export default function HomePage() {
             transition={{ duration: 0.9, delay: 0.15 }}
             className="p-10 rounded-3xl shadow-xl bg-gradient-to-br from-[#d2b08c] to-[#c19c78] text-white hover:-translate-y-2 hover:shadow-2xl transition-all"
           >
-            <h3 className="text-3xl font-bold">חבילת פרימיום מלאה</h3>
-            <p className="mt-3 text-lg text-white/90">
-              הזמנה יוקרתית + הושבה + תזכורות + אפליקציית מוזמנים.
-            </p>
+            <div className="flex items-center gap-3 mb-4">
+              <Star className="w-8 h-8 text-white" />
+              <h3 className="text-3xl font-bold">חבילת פרימיום — אישורי הגעה + הושבה חכמה</h3>
+            </div>
+            <p className="text-lg text-white/90 font-medium mb-6">החל מ־149₪ בלבד</p>
 
-            <ul className="mt-6 space-y-2 text-white/90">
-              <li>• הזמנה פרימיום</li>
-              <li>• ניהול מלא של אישורי הגעה</li>
-              <li>• מערכת הושבה חכמה</li>
-              <li>• תזכורות אוטומטיות</li>
+            <ul className="space-y-3 text-white/90 leading-relaxed text-base">
+              <li className="flex items-start gap-2"><CheckCircle2 className="w-5 h-5 text-white mt-1" /> הזמנה דיגיטלית מעוצבת + גישה לעורך ההזמנות</li>
+              <li className="flex items-start gap-2"><MessageCircle className="w-5 h-5 text-white mt-1" /> שליחה אוטומטית ב־SMS לאישור הגעה + תזכורת למי שלא אישר</li>
+              <li className="flex items-start gap-2"><Users className="w-5 h-5 text-white mt-1" /> עדכון בזמן אמת מי אישר הגעה</li>
+              <li className="flex items-start gap-2"><Map className="w-5 h-5 text-white mt-1" /> ניהול הושבה — העלאת מפת אולם ועריכת שולחנות</li>
+              <li className="flex items-start gap-2"><MessageCircle className="w-5 h-5 text-white mt-1" /> תזכורת לפני האירוע + מספר שולחן בהודעה אחת</li>
             </ul>
 
+            <div className="mt-8 bg-white/10 p-5 rounded-2xl text-sm text-center">
+              <p className="font-semibold mb-2 text-white">בחרו לפי כמות אורחים:</p>
+              <div className="grid grid-cols-2 gap-3 text-white/90">
+                <span>עד 100 אורחים – 149₪</span>
+                <span>עד 300 אורחים – 249₪</span>
+                <span>עד 500 אורחים – 399₪</span>
+                <span>עד 1000 אורחים – 699₪</span>
+              </div>
+            </div>
+
             <Link
-              href="/plans?plan=full"
-              className="block mt-8 text-center px-8 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
+              href="/plans?plan=premium"
+              className="block mt-10 text-center px-10 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
             >
-              בחרו חבילה מלאה
+              בחרו חבילת פרימיום
             </Link>
           </motion.div>
         </div>

@@ -135,35 +135,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ADD TEXT
   ============================================================ */
   addText: () =>
-  set((state) => ({
-    objects: [
-      ...state.objects,
-      {
-        id: `text-${Date.now()}`,
-        type: "text",
-
-        // 🎯 מיקום אוטומטי למרכז הקנבס
-        x: CANVAS_WIDTH / 2,
-        y: CANVAS_HEIGHT / 2,
-
-        text: "טקסט חדש",
-        fontSize: 40,
-        fontFamily: "Assistant",
-        fontWeight: "normal",
-        italic: false,
-        underline: false,
-        align: "center",
-        fill: "#000",
-        letterSpacing: 0,
-        lineHeight: 1.1,
-        shadowColor: "transparent",
-        shadowBlur: 0,
-        shadowOffsetX: 0,
-        shadowOffsetY: 0,
-      },
-    ],
-  })),
-
+    set((state) => ({
+      objects: [
+        ...state.objects,
+        {
+          id: `text-${Date.now()}`,
+          type: "text",
+          x: 150,
+          y: 150,
+          text: "טקסט חדש",
+          fontSize: 40,
+          fontFamily: "Assistant",
+          fontWeight: "normal",
+          italic: false,
+          underline: false,
+          align: "center",
+          fill: "#000",
+          letterSpacing: 0,
+          lineHeight: 1.1,
+          shadowColor: "transparent",
+          shadowBlur: 0,
+          shadowOffsetX: 0,
+          shadowOffsetY: 0,
+        },
+      ],
+    })),
 
   /* ============================================================
       ADD RECT
