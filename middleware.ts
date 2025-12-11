@@ -4,9 +4,8 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const token = req.cookies.get("authToken")?.value;
 
-  const protectedRoutes = ["/dashboard"];
-
-  if (protectedRoutes.includes(req.nextUrl.pathname) && !token) {
+  // כל נתיב שמתחיל ב-/dashboard
+  if (req.nextUrl.pathname.startsWith("/dashboard") && !token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -14,5 +13,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard"]
+  matcher: ["/dashboard/:path*"], 
 };
