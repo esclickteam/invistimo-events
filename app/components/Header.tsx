@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Header() {
+  const { user, logout, loading } = useAuth();
+
   return (
     <header
       dir="ltr"
@@ -30,17 +33,45 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* כפתור התחברות */}
-          <Link
-            href="/login"
-            className="
-              hidden md:block px-6 py-2 rounded-full
-              bg-gold text-white font-semibold shadow-md
-              hover:bg-gold-dark transition
-            "
-          >
-            התחברות
-          </Link>
+          {/* 🔐 מצב התחברות */}
+          {!loading && (
+            <>
+              {/* 🔹 אם המשתמש מחובר */}
+              {user ? (
+                <div className="hidden md:flex items-center gap-4">
+
+                  <Link
+                    href="/dashboard"
+                    className="text-[#4a413a] font-semibold hover:text-gold transition"
+                  >
+                    שלום, {user.name || "משתמש"}
+                  </Link>
+
+                  <button
+                    onClick={logout}
+                    className="
+                      px-5 py-2 rounded-full bg-red-500 text-white 
+                      font-semibold shadow-md hover:bg-red-600 transition
+                    "
+                  >
+                    התנתקות
+                  </button>
+                </div>
+              ) : (
+                /* 🔹 אם לא מחובר — כפתור התחברות */
+                <Link
+                  href="/login"
+                  className="
+                    hidden md:block px-6 py-2 rounded-full
+                    bg-gold text-white font-semibold shadow-md
+                    hover:bg-gold-dark transition
+                  "
+                >
+                  התחברות
+                </Link>
+              )}
+            </>
+          )}
         </div>
 
         {/* ====================== לוגו — צד שמאל ====================== */}
