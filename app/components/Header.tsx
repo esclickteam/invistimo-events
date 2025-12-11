@@ -18,7 +18,7 @@ export default function Header() {
     >
       {/* ⭐ RTL כדי שהתפריט יהיה בצד ימין */}
       <div
-        className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between"
+        className="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between"
         dir="rtl"
       >
         {/* ====================== תפריט ניווט — צד ימין ====================== */}
