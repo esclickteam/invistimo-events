@@ -16,30 +16,40 @@ export default function Header() {
         shadow-sm
       "
     >
-      {/* מיכל ראשי עם Flex RTL כדי שהתפריט יהיה מימין והלוגו משמאל */}
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between" dir="rtl">
-        
+      {/* ⭐ RTL כדי שהתפריט יהיה בצד ימין */}
+      <div
+        className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between"
+        dir="rtl"
+      >
         {/* ====================== תפריט ניווט — צד ימין ====================== */}
-        <div className="flex items-center gap-10" dir="rtl">
+        <div className="flex items-center gap-10">
           <nav className="hidden md:flex gap-8 text-[#4a413a] font-medium">
-            <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">
+            <Link
+              href="#how"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
               איך זה עובד
             </Link>
 
-            <Link href="#features" className="hover:text-[var(--champagne-dark)] transition">
+            <Link
+              href="#features"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
               מה מקבלים
             </Link>
 
-            <Link href="#pricing" className="hover:text-[var(--champagne-dark)] transition">
+            <Link
+              href="#pricing"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
               חבילות
             </Link>
           </nav>
 
-          {/* 🔐 מצב התחברות */}
+          {/* 🔐 מצב התחברות / התנתקות */}
           {!loading && (
             <>
               {user ? (
-                /* 🔹 מחובר */
                 <div className="hidden md:flex items-center gap-4">
                   <Link
                     href="/dashboard"
@@ -51,8 +61,8 @@ export default function Header() {
                   <button
                     onClick={logout}
                     className="
-                      px-5 py-2 rounded-full 
-                      bg-[#e14d4d] text-white font-semibold shadow-md 
+                      px-5 py-2 rounded-full
+                      bg-[#e14d4d] text-white font-semibold shadow-md
                       hover:bg-[#d13b3b] transition
                     "
                   >
@@ -60,7 +70,6 @@ export default function Header() {
                   </button>
                 </div>
               ) : (
-                /* 🔹 לא מחובר */
                 <Link
                   href="/login"
                   className="
@@ -77,17 +86,15 @@ export default function Header() {
         </div>
 
         {/* ====================== לוגו — צד שמאל ====================== */}
-        <div dir="ltr">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white font-bold shadow-md">
-              in
-            </div>
-            <span className="text-2xl font-serif font-bold text-[#3a2f28] tracking-tight">
-              Invity
-            </span>
+        <div dir="ltr" className="flex items-center">
+          <Link href="/" className="flex items-center">
+            <img
+              src="/invistimo-logo.png"  // ← עדכני אם שם הקובץ שונה
+              alt="Invistimo Logo"
+              className="h-10 w-auto object-contain"
+            />
           </Link>
         </div>
-
       </div>
     </header>
   );
