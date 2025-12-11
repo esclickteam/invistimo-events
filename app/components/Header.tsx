@@ -25,9 +25,11 @@ export default function Header() {
             <Link href="#how" className="hover:text-gold transition">
               איך זה עובד
             </Link>
+
             <Link href="#features" className="hover:text-gold transition">
               מה מקבלים
             </Link>
+
             <Link href="#pricing" className="hover:text-gold transition">
               חבילות
             </Link>
@@ -36,8 +38,8 @@ export default function Header() {
           {/* 🔐 מצב התחברות */}
           {!loading && (
             <>
-              {/* 🔹 אם המשתמש מחובר */}
               {user ? (
+                // 🔹 מחובר
                 <div className="hidden md:flex items-center gap-4">
 
                   <Link
@@ -50,15 +52,16 @@ export default function Header() {
                   <button
                     onClick={logout}
                     className="
-                      px-5 py-2 rounded-full bg-red-500 text-white 
-                      font-semibold shadow-md hover:bg-red-600 transition
+                      px-5 py-2 rounded-full 
+                      bg-red-500 text-white font-semibold shadow-md 
+                      hover:bg-red-600 transition
                     "
                   >
                     התנתקות
                   </button>
                 </div>
               ) : (
-                /* 🔹 אם לא מחובר — כפתור התחברות */
+                // 🔹 לא מחובר
                 <Link
                   href="/login"
                   className="
