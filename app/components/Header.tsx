@@ -16,11 +16,11 @@ export default function Header() {
         shadow-sm
       "
     >
-      {/* מיכל ראשי עם Flex RTL כדי שהתפריט יהיה מימין והלוגו משמאל */}
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between" dir="rtl">
+      {/* קונטיינר ראשי */}
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         
-        {/* ====================== תפריט ניווט — צד ימין ====================== */}
-        <div className="flex items-center gap-10" dir="rtl">
+        {/* ====================== תפריט ניווט — ימין ====================== */}
+        <div className="flex items-center gap-10 justify-start">
           <nav className="hidden md:flex gap-8 text-[#4a413a] font-medium">
             <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">
               איך זה עובד
@@ -35,11 +35,9 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* 🔐 מצב התחברות */}
           {!loading && (
             <>
               {user ? (
-                /* 🔹 מחובר */
                 <div className="hidden md:flex items-center gap-4">
                   <Link
                     href="/dashboard"
@@ -60,7 +58,6 @@ export default function Header() {
                   </button>
                 </div>
               ) : (
-                /* 🔹 לא מחובר */
                 <Link
                   href="/login"
                   className="
@@ -76,8 +73,8 @@ export default function Header() {
           )}
         </div>
 
-        {/* ====================== לוגו — צד שמאל ====================== */}
-        <div dir="ltr">
+        {/* ====================== לוגו — שמאל מוחלט ====================== */}
+        <div className="flex items-center gap-3 ml-auto">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[var(--champagne)] flex items-center justify-center text-white font-bold shadow-md">
               in
