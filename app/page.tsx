@@ -145,10 +145,10 @@ export default function HomePage() {
             </ul>
 
             <Link
-              href="/plans?plan=basic"
+              href="/register?plan=basic"
               className="block mt-10 text-center px-10 py-4 rounded-full border-2 border-[#c7a17a] text-[#6a5440] font-semibold hover:bg-[#f5e8dd] transition shadow-md hover:shadow-lg"
             >
-              בחרו חבילת בסיס
+              הרשמה ותשלום לחבילת בסיס
             </Link>
           </motion.div>
 
@@ -212,10 +212,10 @@ export default function HomePage() {
             </div>
 
             <Link
-              href="/plans?plan=premium"
+              href="/register?plan=premium"
               className="block mt-10 text-center px-10 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
             >
-              בחרו חבילת פרימיום
+              הרשמה ותשלום לחבילת פרימיום
             </Link>
           </motion.div>
         </div>
