@@ -22,7 +22,11 @@ const EVENT_TYPES = [
 ];
 
 /* ✅ טיפוסי TypeScript כדי למנוע שגיאה */
-type GuestOption = "עד 100 אורחים" | "עד 300 אורחים" | "עד 500 אורחים" | "עד 1000 אורחים";
+type GuestOption =
+  | "עד 100 אורחים"
+  | "עד 300 אורחים"
+  | "עד 500 אורחים"
+  | "עד 1000 אורחים";
 
 export default function HomePage() {
   const [selectedGuests, setSelectedGuests] = useState<GuestOption | "">("");
@@ -170,10 +174,25 @@ export default function HomePage() {
             </ul>
 
             {/* בחירה לפי כמות אורחים */}
-            <div className="bg-white/10 p-5 rounded-2xl text-sm text-center">
+            <div className="bg-white/15 p-5 rounded-2xl text-sm text-center">
               <p className="font-semibold mb-3 text-white">בחרו כמות אורחים:</p>
+
               <select
-                className="w-full bg-white/20 text-white px-4 py-3 rounded-xl text-center outline-none backdrop-blur-md border border-white/40 hover:bg-white/30 transition"
+                className="
+                  w-full
+                  bg-white
+                  text-[#5c4632]
+                  font-medium
+                  px-4 py-3
+                  rounded-xl
+                  text-center
+                  outline-none
+                  border border-[#e9d8c5]
+                  shadow-sm
+                  hover:border-[#d6b98d]
+                  focus:border-[#c19c78]
+                  transition
+                "
                 value={selectedGuests}
                 onChange={(e) => setSelectedGuests(e.target.value as GuestOption)}
               >
@@ -184,6 +203,7 @@ export default function HomePage() {
                   </option>
                 ))}
               </select>
+
               {selectedGuests && (
                 <p className="mt-4 text-white/90 text-lg font-semibold">
                   מחיר: {prices[selectedGuests]}
