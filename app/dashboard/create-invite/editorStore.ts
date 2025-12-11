@@ -135,14 +135,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ADD TEXT
   ============================================================ */
   addText: () =>
-    set((state) => ({
+  set((state) => {
+    const centerX = CANVAS_WIDTH / 2;
+    const startY = 300;
+
+    return {
       objects: [
         ...state.objects,
         {
           id: `text-${Date.now()}`,
           type: "text",
-          x: 150,
-          y: 150,
+          x: centerX,
+          y: startY,
           text: "טקסט חדש",
           fontSize: 40,
           fontFamily: "Assistant",
@@ -157,9 +161,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           shadowBlur: 0,
           shadowOffsetX: 0,
           shadowOffsetY: 0,
+
+          // ⭐ חשוב — שהטקסט יידבק למרכז
+          offsetX: 0,
         },
       ],
-    })),
+    };
+  }),
+
 
   /* ============================================================
       ADD RECT
