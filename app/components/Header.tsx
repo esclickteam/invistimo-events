@@ -91,7 +91,7 @@ export default function Header() {
             <img
               src="/invistimo-logo.png"  // ← עדכני אם שם הקובץ שונה
               alt="Invistimo Logo"
-              className="h-20 w-auto object-contain"
+              className="h-10 w-auto object-contain"
             />
           </Link>
         </div>
