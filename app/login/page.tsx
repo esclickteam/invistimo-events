@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext"; // ⭐ ייבוא ה־useAuth
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,29 +12,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
+  const { login } = useAuth(); // שימוש בפונקציה מה־Context
 
-  async function handleLogin(e: any) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: pass }),
-      });
+      // קריאה לפונקציית ההתחברות מתוך AuthContext
+      await login(email, pass);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "שגיאה בהתחברות");
-        return;
-      }
-
-      // הצלחה → מפנה לדשבורד
+      // הפניה לדשבורד אחרי התחברות מוצלחת
       router.push("/dashboard");
     } catch (err) {
-      alert("חיבור לשרת נכשל");
+      console.error("❌ Login error:", err);
+      alert("שגיאה בהתחברות");
     } finally {
       setLoading(false);
     }
