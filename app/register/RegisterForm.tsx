@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
@@ -10,6 +10,7 @@ import Link from "next/link";
 export default function RegisterForm() {
   const params = useSearchParams();
   const plan = params.get("plan") || "basic";
+  const guests = params.get("guests"); // 💡 נקלט מה-URL
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -20,16 +21,33 @@ export default function RegisterForm() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [price, setPrice] = useState<number | string>(0);
 
   /* ============================================================
-     קביעת מחיר אוטומטי לפי סוג החבילה
+     חישוב מחיר אוטומטי לפי סוג חבילה ומספר אורחים
   ============================================================ */
-  const price =
-    plan === "premium"
-      ? "בחר לפי מספר האורחים בעמוד הקודם"
-      : plan === "basic"
-      ? 49
-      : 0;
+  useEffect(() => {
+    if (plan === "basic") {
+      setPrice(49);
+    } else if (plan === "premium") {
+      switch (guests) {
+        case "עד 100 אורחים":
+          setPrice(149);
+          break;
+        case "עד 300 אורחים":
+          setPrice(249);
+          break;
+        case "עד 500 אורחים":
+          setPrice(399);
+          break;
+        case "עד 1000 אורחים":
+          setPrice(699);
+          break;
+        default:
+          setPrice("לפי מספר האורחים");
+      }
+    }
+  }, [plan, guests]);
 
   /* ============================================================
      שינוי שדות בטופס
@@ -50,11 +68,9 @@ export default function RegisterForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          password: form.password,
+          ...form,
           plan,
+          guests,
           price,
         }),
       });
@@ -146,11 +162,8 @@ export default function RegisterForm() {
         </div>
 
         {/* סכום לתשלום */}
-         <div className="text-center text-lg font-semibold text-[#5c4632]">
-          סכום לתשלום:{" "}
-          <span>
-            {plan === "premium" ? "לפי מספר האורחים" : `${price} ₪`}
-          </span>
+        <div className="text-center text-lg font-semibold text-[#5c4632]">
+          סכום לתשלום: <span>{price} ₪</span>
         </div>
 
         {/* כפתור המשך */}

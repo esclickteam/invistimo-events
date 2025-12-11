@@ -38,6 +38,11 @@ export default function HomePage() {
     "עד 1000 אורחים": "699 ₪",
   };
 
+  // 💡 אם נבחרה כמות אורחים – נעביר אותה ל־register כ־query param
+  const premiumHref = selectedGuests
+    ? `/register?plan=premium&guests=${encodeURIComponent(selectedGuests)}`
+    : "/register?plan=premium";
+
   return (
     <div className="relative space-y-40 pb-40 overflow-hidden">
       {/* ========= רקע ========= */}
@@ -52,7 +57,7 @@ export default function HomePage() {
         className="max-w-5xl mx-auto pt-24 md:pt-32 px-6 text-center space-y-8"
       >
         <h1 className="text-5xl md:text-7xl font-bold text-[#5c4632] leading-tight drop-shadow-sm">
-          הזמנות דיגיטליות יוקרתיות  
+          הזמנות דיגיטליות יוקרתיות
           <br /> ואישורי הגעה חכמים לכל אירוע
         </h1>
 
@@ -98,9 +103,18 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-3 gap-10">
           {[
-            { t: "נרשמים למערכת", d: "יוצרים חשבון ובוחרים את החבילה המתאימה לכם." },
-            { t: "יוצרים הזמנה ושולחים", d: "מעצבים הזמנה יוקרתית ושולחים אותה ב־SMS או וואטסאפ." },
-            { t: "מנהלים הכול במקום אחד", d: "אישורי הגעה, תזכורות והושבה — הכול אוטומטי ומסונכרן." },
+            {
+              t: "נרשמים למערכת",
+              d: "יוצרים חשבון ובוחרים את החבילה המתאימה לכם.",
+            },
+            {
+              t: "יוצרים הזמנה ושולחים",
+              d: "מעצבים הזמנה יוקרתית ושולחים אותה ב־SMS או וואטסאפ.",
+            },
+            {
+              t: "מנהלים הכול במקום אחד",
+              d: "אישורי הגעה, תזכורות והושבה — הכול אוטומטי ומסונכרן.",
+            },
           ].map((item, i) => (
             <motion.div
               key={i}
@@ -119,7 +133,9 @@ export default function HomePage() {
 
       {/* ========= חבילות ========= */}
       <section id="packages" className="max-w-6xl mx-auto px-6 space-y-16">
-        <h2 className="text-4xl font-bold text-center text-[#5c4632]">החבילות שלנו</h2>
+        <h2 className="text-4xl font-bold text-center text-[#5c4632]">
+          החבילות שלנו
+        </h2>
 
         <div className="grid md:grid-cols-2 gap-14 max-w-5xl mx-auto">
           {/* BASIC PACKAGE */}
@@ -134,14 +150,31 @@ export default function HomePage() {
               <Smartphone className="w-8 h-8 text-[#c7a17a]" />
               <h3 className="text-3xl font-bold text-[#5c4632]">חבילת בסיס</h3>
             </div>
-            <p className="text-[#7b6754] text-xl font-semibold mb-6">49₪ בלבד</p>
+            <p className="text-[#7b6754] text-xl font-semibold mb-6">
+              49₪ בלבד
+            </p>
 
             <ul className="space-y-3 text-[#7b6754] leading-relaxed text-base">
-              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> גישה לעורך ההזמנות לעיצוב אישי</li>
-              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> הזמנה דיגיטלית מעוצבת ומוכנה לשליחה</li>
-              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> שליחה ידנית ב־WhatsApp לכל אורח</li>
-              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> קישור אישי עם כפתור לאישור הגעה</li>
-              <li><CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" /> עדכון בזמן אמת מי אישר ומי לא</li>
+              <li>
+                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />{" "}
+                גישה לעורך ההזמנות לעיצוב אישי
+              </li>
+              <li>
+                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />{" "}
+                הזמנה דיגיטלית מעוצבת ומוכנה לשליחה
+              </li>
+              <li>
+                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />{" "}
+                שליחה ידנית ב־WhatsApp לכל אורח
+              </li>
+              <li>
+                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />{" "}
+                קישור אישי עם כפתור לאישור הגעה
+              </li>
+              <li>
+                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />{" "}
+                עדכון בזמן אמת מי אישר ומי לא
+              </li>
             </ul>
 
             <Link
@@ -162,15 +195,32 @@ export default function HomePage() {
           >
             <div className="flex items-center gap-3 mb-4">
               <Star className="w-8 h-8 text-white" />
-              <h3 className="text-3xl font-bold">חבילת פרימיום — אישורי הגעה + הושבה חכמה</h3>
+              <h3 className="text-3xl font-bold">
+                חבילת פרימיום — אישורי הגעה + הושבה חכמה
+              </h3>
             </div>
 
             <ul className="space-y-3 text-white/90 leading-relaxed text-base mb-8">
-              <li><CheckCircle2 className="inline w-5 h-5 mr-1 text-white" /> הזמנה דיגיטלית מעוצבת + גישה לעורך ההזמנות</li>
-              <li><MessageCircle className="inline w-5 h-5 mr-1 text-white" /> שליחה אוטומטית ב־SMS לאישור הגעה + תזכורת למי שלא אישר</li>
-              <li><Users className="inline w-5 h-5 mr-1 text-white" /> עדכון בזמן אמת מי אישר הגעה</li>
-              <li><Map className="inline w-5 h-5 mr-1 text-white" /> ניהול הושבה – העלאת מפת אולם ועריכת שולחנות</li>
-              <li><MessageCircle className="inline w-5 h-5 mr-1 text-white" /> תזכורת לפני האירוע + מספר שולחן בהודעה אחת</li>
+              <li>
+                <CheckCircle2 className="inline w-5 h-5 mr-1 text-white" />{" "}
+                הזמנה דיגיטלית מעוצבת + גישה לעורך ההזמנות
+              </li>
+              <li>
+                <MessageCircle className="inline w-5 h-5 mr-1 text-white" />{" "}
+                שליחה אוטומטית ב־SMS לאישור הגעה + תזכורת למי שלא אישר
+              </li>
+              <li>
+                <Users className="inline w-5 h-5 mr-1 text-white" /> עדכון בזמן
+                אמת מי אישר הגעה
+              </li>
+              <li>
+                <Map className="inline w-5 h-5 mr-1 text-white" /> ניהול הושבה –
+                העלאת מפת אולם ועריכת שולחנות
+              </li>
+              <li>
+                <MessageCircle className="inline w-5 h-5 mr-1 text-white" />{" "}
+                תזכורת לפני האירוע + מספר שולחן בהודעה אחת
+              </li>
             </ul>
 
             {/* בחירה לפי כמות אורחים */}
@@ -194,7 +244,9 @@ export default function HomePage() {
                   transition
                 "
                 value={selectedGuests}
-                onChange={(e) => setSelectedGuests(e.target.value as GuestOption)}
+                onChange={(e) =>
+                  setSelectedGuests(e.target.value as GuestOption)
+                }
               >
                 <option value="">בחרו...</option>
                 {Object.keys(prices).map((key) => (
@@ -212,7 +264,7 @@ export default function HomePage() {
             </div>
 
             <Link
-              href="/register?plan=premium"
+              href={premiumHref}
               className="block mt-10 text-center px-10 py-4 rounded-full bg-white text-[#6a5440] font-bold hover:bg-[#f0e9e4] transition shadow-lg"
             >
               הרשמה ותשלום לחבילת פרימיום
