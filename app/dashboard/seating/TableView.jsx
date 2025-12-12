@@ -6,7 +6,8 @@ export default function TableView({
   availableGuests,
   onClose,
   onAssignSeat,
-  onRemoveSeat
+  onRemoveSeat,
+  isHighlighted // ⭐ תוספת בלבד
 }) {
   const [selectSeatIndex, setSelectSeatIndex] = useState(null);
 
@@ -31,8 +32,12 @@ export default function TableView({
     <>
       {/* פופאפ המרכזי */}
       <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
-        <div className="bg-white rounded-xl shadow-xl w-[420px] p-6 relative">
-
+        <div
+          className={`
+            bg-white rounded-xl shadow-xl w-[420px] p-6 relative
+            ${isHighlighted ? "ring-4 ring-amber-400 shadow-[0_0_40px_#f59e0b]" : ""}
+          `}
+        >
           <button
             onClick={onClose}
             className="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl"
@@ -40,7 +45,9 @@ export default function TableView({
             ✕
           </button>
 
-          <h2 className="text-xl font-bold text-center mb-4">{table.name}</h2>
+          <h2 className="text-xl font-bold text-center mb-4">
+            {table.name}
+          </h2>
 
           {/* כיסאות */}
           <div className="grid grid-cols-4 gap-3 justify-center mx-auto">
@@ -49,7 +56,6 @@ export default function TableView({
 
               return (
                 <div key={i} className="flex flex-col items-center">
-
                   <button
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-xs ${
                       guestBlock

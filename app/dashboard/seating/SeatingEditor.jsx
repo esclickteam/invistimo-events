@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
+import { useSearchParams } from "next/navigation";
 
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -20,7 +21,6 @@ export default function SeatingEditor({ background }) {
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
 
-  const init = useSeatingStore((s) => s.init);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
@@ -28,17 +28,20 @@ export default function SeatingEditor({ background }) {
 
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
-
   const addTable = useSeatingStore((s) => s.addTable);
 
-  // ⭐ שולחן שאליו מוסיפים ידנית אורחים
-  const [addGuestTable, setAddGuestTable] = useState(null);
+  // ⭐ קריאת guestId מה־URL
+  const searchParams = useSearchParams();
+  const highlightedGuestId = searchParams.get("guestId");
 
-  /* -------------------- INIT DATA (REMOVED DEMO DATA) -------------------- */
-  // ❗❗ חשוב: לא מטעינים דוגמאות — init חייב לבוא מהדף הראשי
-  // SeatingPage צריך לקרוא:
-  // init(tablesFromDB, guestsFromDB)
-  // אחרת הסנכרון לא יעבוד
+  // ⭐ מציאת האורח והשולחן שלו
+  const highlightedGuest = guests.find(
+    (g) => g._id === highlightedGuestId
+  );
+  const highlightedTableId = highlightedGuest?.tableId;
+
+  // ⭐ שולחן להוספת אורחים ידנית
+  const [addGuestTable, setAddGuestTable] = useState(null);
 
   /* -------------------- Canvas Size -------------------- */
   const width = typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
@@ -143,6 +146,8 @@ export default function SeatingEditor({ background }) {
               table={{
                 ...t,
                 openAddGuestModal: () => setAddGuestTable(t),
+                // ⭐ העברת flag להארה
+                isHighlighted: t.id === highlightedTableId,
               }}
             />
           ))}
