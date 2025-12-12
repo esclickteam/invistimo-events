@@ -20,7 +20,10 @@ type Guest = {
 export default function DashboardPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("guest-list");
+
+  const [activeTab, setActiveTab] = useState<
+    "guest-list" | "stats" | "upgrade"
+  >("guest-list");
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -108,6 +111,8 @@ export default function DashboardPage() {
      פונקציה: שליחת וואטסאפ (בודד)
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
+    if (!invitation) return;
+
     const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
 
     const message = `
@@ -139,7 +144,7 @@ ${inviteLink}
      פונקציה: שליחה קולקטיבית
   ============================================================ */
   const sendAllWhatsApps = async () => {
-    if (!guests.length) {
+    if (!invitation || !guests.length) {
       alert("אין מוזמנים לשליחה 📭");
       return;
     }
@@ -201,15 +206,10 @@ ${inviteLink}
     <div className="p-10">
       <h1 className="text-4xl font-semibold mb-6">ניהול האירוע שלך</h1>
 
-      {/* 🔔 שדרוג לפרימיום */}
-      {user?.plan === "basic" && (
-        <div className="mb-10">
-          <UpgradeToPremium paidAmount={user.paidAmount} />
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex gap-4 mb-8 border-b pb-3">
+      {/* ======================
+          TABS
+      ====================== */}
+      <div className="flex gap-6 mb-8 border-b pb-3">
         <button
           onClick={() => setActiveTab("guest-list")}
           className={`pb-2 ${
@@ -244,6 +244,22 @@ ${inviteLink}
         >
           סטטיסטיקות
         </button>
+
+        {user?.plan === "basic" && (
+          <button
+            onClick={() => setActiveTab("upgrade")}
+            className={`pb-2 font-semibold flex items-center gap-2 ${
+              activeTab === "upgrade"
+                ? "border-b-2 border-black"
+                : "text-[#c9a86a]"
+            }`}
+          >
+            שדרוג חבילה
+            <span className="text-xs bg-[#c9a86a] text-white px-2 py-0.5 rounded-full">
+              מומלץ
+            </span>
+          </button>
+        )}
       </div>
 
       {loading && <div>טוען...</div>}
@@ -254,9 +270,9 @@ ${inviteLink}
         </div>
       )}
 
-      {/* ============================
-          GUEST LIST TAB
-      ============================ */}
+      {/* ======================
+          TAB: GUEST LIST
+      ====================== */}
       {invitation && activeTab === "guest-list" && (
         <div>
           <div className="grid grid-cols-4 gap-4 mb-8">
@@ -325,7 +341,27 @@ ${inviteLink}
         </div>
       )}
 
-      {/* Modals */}
+      {/* ======================
+          TAB: STATS
+      ====================== */}
+      {activeTab === "stats" && (
+        <div className="text-center text-xl mt-10">
+          סטטיסטיקות מתקדמות יופיעו כאן 📊
+        </div>
+      )}
+
+      {/* ======================
+          TAB: UPGRADE
+      ====================== */}
+      {activeTab === "upgrade" && user?.plan === "basic" && (
+        <div className="max-w-3xl mx-auto mt-10">
+          <UpgradeToPremium paidAmount={user.paidAmount ?? 0} />
+        </div>
+      )}
+
+      {/* ======================
+          MODALS
+      ====================== */}
       {selectedGuest && (
         <EditGuestModal
           guest={selectedGuest}
@@ -362,6 +398,7 @@ function Box({
     red: "text-red-600",
     orange: "text-orange-500",
   };
+
   return (
     <div className="border p-5 rounded-xl bg-white shadow-sm text-center">
       <div className="text-gray-500 text-sm mb-1">{title}</div>
