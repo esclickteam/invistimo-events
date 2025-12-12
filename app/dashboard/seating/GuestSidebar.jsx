@@ -5,15 +5,21 @@ import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GuestSidebar({ onDragStart }) {
-  // 🟦 Zustand
+  /* ===============================
+     Zustand
+  =============================== */
   const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
 
-  // ⭐ קריאת guestId מה־URL
+  /* ===============================
+     Highlight from URL
+  =============================== */
   const searchParams = useSearchParams();
   const highlightedGuestId = searchParams.get("guestId");
 
-  // 🟨 הגנה נגד טעינה
+  /* ===============================
+     Guards
+  =============================== */
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
     return (
       <div className="w-72 bg-white shadow-xl border-r h-full p-4 text-gray-400">
@@ -22,15 +28,26 @@ export default function GuestSidebar({ onDragStart }) {
     );
   }
 
+  /* ===============================
+     Helper: compute table name
+     ⭐ מקור אמת: tables.seatedGuests
+  =============================== */
+  const getGuestTable = (guestId) => {
+    const table = tables.find((t) =>
+      t.seatedGuests?.some(
+        (sg) => sg.guestId?.toString() === guestId?.toString()
+      )
+    );
+    return table || null;
+  };
+
   return (
     <div className="w-72 bg-white shadow-xl border-r h-full overflow-y-auto">
       <h2 className="text-lg font-bold p-4 border-b">🧾 רשימת אורחים</h2>
 
       <ul>
         {guests.map((guest) => {
-          const table = tables.find((t) => t.id === guest.tableId);
-
-          // ⭐ בדיקה אם זה האורח שהגיעו אליו
+          const table = getGuestTable(guest._id);
           const isHighlighted = guest._id === highlightedGuestId;
 
           return (
@@ -56,14 +73,18 @@ export default function GuestSidebar({ onDragStart }) {
                 {guest.guestsCount} מקומות
               </div>
 
-              {/* שולחן אם שובץ */}
-              {table && (
-                <div className="mt-1 text-xs text-green-600">
-                  שובץ לשולחן: {table.name}
-                </div>
-              )}
+              {/* ⭐ שם שולחן – מתעדכן אוטומטית */}
+              <div className="mt-1 text-xs">
+                {table ? (
+                  <span className="text-green-600">
+                    שובץ לשולחן: {table.name}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">לא משובץ</span>
+                )}
+              </div>
 
-              {/* ⭐ אינדיקציה ויזואלית */}
+              {/* אינדיקציה ויזואלית לאורח שנבחר מהדשבורד */}
               {isHighlighted && (
                 <div className="mt-1 text-xs font-semibold text-yellow-700">
                   ← אורח שנבחר מהדשבורד
