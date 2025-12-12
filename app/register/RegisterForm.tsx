@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה → תשלום Stripe (זיהוי אוטומטי)
+   Register → Stripe Checkout
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
@@ -14,8 +14,7 @@ export default function RegisterForm() {
 
   // guests מגיע כמספר (100 / 300 / 500 / 1000)
   const guestsParam = params.get("guests");
-  const guests =
-    plan === "premium" && guestsParam ? Number(guestsParam) : 0;
+  const guests = plan === "premium" && guestsParam ? Number(guestsParam) : 0;
 
   const [form, setForm] = useState({
     name: "",
@@ -26,7 +25,9 @@ export default function RegisterForm() {
 
   const [loading, setLoading] = useState(false);
   const [price, setPrice] = useState<number>(0);
-  const [priceKey, setPriceKey] = useState<string>("basic");
+
+  // ✅ כאן המפתח האחיד שלך
+  const [priceKey, setPriceKey] = useState<string>("basic_plan");
 
   /* ============================================================
      חישוב מחיר + priceKey אוטומטי
@@ -34,7 +35,7 @@ export default function RegisterForm() {
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
-      setPriceKey("basic");
+      setPriceKey("basic_plan"); // ✅ במקום basic
       return;
     }
 
@@ -75,23 +76,29 @@ export default function RegisterForm() {
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!priceKey) {
+      alert("חבילה לא תקינה — נסי לבחור שוב");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      /* 1️⃣ הרשמה */
+      /* 1️⃣ הרשמה + קבלת Cookie (חשוב: credentials include) */
       const registerRes = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           ...form,
           plan,
           guests,
-          priceKey,
         }),
       });
 
       const registerData = await registerRes.json();
-      if (!registerRes.ok) {
+
+      if (!registerRes.ok || registerData?.success === false) {
         alert(registerData.error || "שגיאה בהרשמה");
         return;
       }
@@ -100,6 +107,7 @@ export default function RegisterForm() {
       const checkoutRes = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           priceKey,
           email: form.email,
@@ -108,12 +116,13 @@ export default function RegisterForm() {
 
       const checkoutData = await checkoutRes.json();
 
-      if (checkoutData.url) {
+      if (checkoutData?.url) {
         window.location.href = checkoutData.url;
       } else {
-        alert("שגיאה ביצירת תשלום");
+        alert(checkoutData?.error || "שגיאה ביצירת תשלום");
       }
     } catch (err) {
+      console.error("❌ handleSubmit error:", err);
       alert("שגיאת שרת");
     } finally {
       setLoading(false);
@@ -200,7 +209,7 @@ export default function RegisterForm() {
         {/* כפתור */}
         <button
           type="submit"
-          disabled={loading || price === 0}
+          disabled={loading || price === 0 || !priceKey}
           className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
         >
           {loading ? "מעבירה לתשלום..." : "המשך לתשלום"}
