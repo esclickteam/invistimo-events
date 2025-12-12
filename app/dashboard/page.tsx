@@ -196,18 +196,32 @@ ${inviteLink}
           GUEST LIST
       ============================ */}
       {invitation && activeTab === "guest-list" && (
-        <div>
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
+  <div>
+    {/* Header */}
+    <div className="flex items-center justify-between mb-6">
+      <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
 
-            <button
-              onClick={() => setOpenAddModal(true)}
-              className="bg-black text-white px-6 py-3 rounded-full"
-            >
-              + הוספת מוזמן
-            </button>
-          </div>
+      <div className="flex gap-3">
+        {/* ✏️ עריכת הזמנה */}
+        <button
+          onClick={() =>
+            router.push(`/dashboard/edit-invite/${invitationId}`)
+          }
+          className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+        >
+          ✏️ עריכת הזמנה
+        </button>
+
+        {/* ➕ הוספת מוזמן */}
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="bg-black text-white px-6 py-3 rounded-full"
+        >
+          + הוספת מוזמן
+        </button>
+      </div>
+    </div>
+
 
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4 mb-10">
