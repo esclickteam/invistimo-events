@@ -18,7 +18,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
        0️⃣ params
     =============================== */
     const { invitationId } = await context.params;
-
     const { tables } = await req.json();
 
     if (!Array.isArray(tables)) {
@@ -29,11 +28,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       1️⃣ UPDATE הושבה (לא CREATE חדש)
-       ✔ מסמך אחד לכל invitationId
+       1️⃣ UPDATE הושבה (מסמך אחד להזמנה)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
-      { invitationId },              // 🔑 מזהה יחיד
+      { invitationId },
       {
         $set: {
           tables,
@@ -42,22 +40,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
       },
       {
         new: true,
-        upsert: true,                // ← נוצר רק אם לא קיים בכלל
+        upsert: true,
       }
     );
 
     /* =================================================
-       ⚠️ חשוב מאוד – הערה עקרונית
-       
-       האמת של ההושבה נמצאת ב־SeatingTable בלבד.
-       אם את משתמשת ב־tableNumber בדשבורד רק לתצוגה –
-       עדיף לחשב אותו בזמן שליפה ולא לשמור כאן.
-       
-       אם בכל זאת את רוצה לשמור snapshot → זה הקוד:
+       ⚠️ snapshot לאורחים (אופציונלי)
+       אם בעתיד תסירי tableNumber מה־InvitationGuest
+       אפשר למחוק את כל החלק הזה
     ================================================= */
 
     /* ===============================
-       2️⃣ איפוס שולחן לאורחים (snapshot בלבד)
+       2️⃣ איפוס tableNumber לכל האורחים
     =============================== */
     await InvitationGuest.updateMany(
       { invitationId },
@@ -66,13 +60,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        3️⃣ סנכרון snapshot: שולחן ← אורח
+       ✅ תיקון הבאג: שימוש ב־seated.guestId
     =============================== */
     for (const table of tables) {
       if (!Array.isArray(table.seatedGuests)) continue;
 
-      for (const guestId of table.seatedGuests) {
+      for (const seated of table.seatedGuests) {
+        if (!seated?.guestId) continue;
+
         await InvitationGuest.findByIdAndUpdate(
-          guestId,
+          seated.guestId, // ⭐ זה ה־ObjectId האמיתי
           {
             tableNumber: table.name ?? table.id,
           },
