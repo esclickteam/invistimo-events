@@ -16,12 +16,17 @@ export type Guest = {
   name: string;
   phone: string;
   token: string;
-
-  /** סטטוס פנימי (DB / API) */
   rsvp: RSVPStatus;
-
-  /** כמות אורחים שמגיעים עם המוזמן */
   guestsCount: number;
+};
+
+/* ===============================
+   RSVP LABELS (עברית ל-UI)
+================================ */
+const RSVP_LABELS: Record<RSVPStatus, string> = {
+  yes: "מגיע",
+  no: "לא מגיע",
+  pending: "בהמתנה",
 };
 
 export default function DashboardPage() {
