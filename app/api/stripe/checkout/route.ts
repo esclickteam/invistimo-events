@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         },
       ],
 
-      locale: "auto",
+       locale: "he" as any,
 
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment/cancel`,
