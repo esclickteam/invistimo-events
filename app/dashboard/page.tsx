@@ -199,28 +199,33 @@ ${inviteLink}
   <div>
     {/* Header */}
     <div className="flex items-center justify-between mb-6">
-      <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
+  {/* כותרת – מימין */}
+  <h2 className="text-2xl font-semibold text-right">
+    רשימת מוזמנים
+  </h2>
 
-      <div className="flex gap-3">
-        {/* ✏️ עריכת הזמנה */}
-        <button
-          onClick={() =>
-            router.push(`/dashboard/edit-invite/${invitationId}`)
-          }
-          className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-        >
-          ✏️ עריכת הזמנה
-        </button>
+  {/* כפתורים – מיושרים לימין */}
+  <div className="flex gap-3 flex-row-reverse">
+    {/* ➕ פעולה ראשית */}
+    <button
+      onClick={() => setOpenAddModal(true)}
+      className="bg-black text-white px-6 py-3 rounded-full"
+    >
+      + הוספת מוזמן
+    </button>
 
-        {/* ➕ הוספת מוזמן */}
-        <button
-          onClick={() => setOpenAddModal(true)}
-          className="bg-black text-white px-6 py-3 rounded-full"
-        >
-          + הוספת מוזמן
-        </button>
-      </div>
-    </div>
+    {/* ✏️ פעולה משנית */}
+    <button
+      onClick={() =>
+        router.push(`/dashboard/edit-invite/${invitationId}`)
+      }
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+    >
+      ✏️ עריכת הזמנה
+    </button>
+  </div>
+</div>
+
 
 
           {/* Stats */}
