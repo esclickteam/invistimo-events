@@ -5,13 +5,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה → תשלום Stripe (FIXED)
+   עמוד הרשמה → תשלום Stripe
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
-
   const plan = params.get("plan") || "basic";
-  const guests = Number(params.get("guests")); // ✅ מספר בלבד
+  const guests = params.get("guests");
 
   const [form, setForm] = useState({
     name: "",
@@ -22,40 +21,35 @@ export default function RegisterForm() {
 
   const [loading, setLoading] = useState(false);
   const [price, setPrice] = useState<number>(0);
-  const [priceKey, setPriceKey] = useState<string>("");
+  const [priceKey, setPriceKey] = useState<string>("basic");
 
   /* ============================================================
-     חישוב מחיר + priceKey (לוגיקה נקייה)
+     חישוב מחיר + priceKey
   ============================================================ */
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
       setPriceKey("basic");
-      return;
     }
 
     if (plan === "premium") {
       switch (guests) {
-        case 100:
+        case "עד 100 אורחים":
           setPrice(149);
           setPriceKey("premium_100");
           break;
-        case 300:
+        case "עד 300 אורחים":
           setPrice(249);
           setPriceKey("premium_300");
           break;
-        case 500:
+        case "עד 500 אורחים":
           setPrice(399);
           setPriceKey("premium_500");
           break;
-        case 1000:
+        case "עד 1000 אורחים":
           setPrice(699);
           setPriceKey("premium_1000");
           break;
-        default:
-          // 🔒 הגנה מבאגים / URL לא תקין
-          setPrice(249);
-          setPriceKey("premium_300");
       }
     }
   }, [plan, guests]);
@@ -72,12 +66,6 @@ export default function RegisterForm() {
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!priceKey) {
-      alert("שגיאה בבחירת חבילה");
-      return;
-    }
-
     setLoading(true);
 
     try {
