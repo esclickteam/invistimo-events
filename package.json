@@ -44,6 +44,7 @@
     "react-intersection-observer": "^10.0.0",
     "react-konva": "^19.2.1",
     "react-svg": "^16.3.0",
+    "stripe": "^20.0.0",
     "unsplash-js": "^7.0.20",
     "use-image": "^1.1.4",
     "xlsx": "^0.18.5",
