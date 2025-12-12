@@ -5,19 +5,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה → תשלום Stripe (FINAL)
+   עמוד הרשמה → תשלום Stripe (חישוב אמיתי לפי החבילה)
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
 
   const plan = params.get("plan") || "basic";
-
-  // ✅ guests עם fallback חכם
-  const guestsParam = params.get("guests");
-  const guests =
-    plan === "premium"
-      ? Number(guestsParam) || 300 // ⭐ ברירת מחדל לפרימיום
-      : 0;
+  const guests = Number(params.get("guests")); // ← מגיע מהכרטיס בלבד
 
   const [form, setForm] = useState({
     name: "",
@@ -31,37 +25,39 @@ export default function RegisterForm() {
   const [priceKey, setPriceKey] = useState<string>("");
 
   /* ============================================================
-     חישוב מחיר + priceKey (יציב ובטוח)
+     חישוב מחיר + priceKey — ללא fallback
   ============================================================ */
   useEffect(() => {
+    // BASIC
     if (plan === "basic") {
       setPrice(49);
       setPriceKey("basic");
       return;
     }
 
+    // PREMIUM
     if (plan === "premium") {
       switch (guests) {
         case 100:
           setPrice(149);
           setPriceKey("premium_100");
-          break;
+          return;
         case 300:
           setPrice(249);
           setPriceKey("premium_300");
-          break;
+          return;
         case 500:
           setPrice(399);
           setPriceKey("premium_500");
-          break;
+          return;
         case 1000:
           setPrice(699);
           setPriceKey("premium_1000");
-          break;
+          return;
         default:
-          // fallback בטיחותי
-          setPrice(249);
-          setPriceKey("premium_300");
+          // אין התאמה → חבילה לא תקינה
+          setPrice(0);
+          setPriceKey("");
       }
     }
   }, [plan, guests]);
@@ -80,7 +76,7 @@ export default function RegisterForm() {
     e.preventDefault();
 
     if (!priceKey) {
-      alert("חבילה לא תקינה");
+      alert("חבילה לא תקינה – אנא בחרי חבילת פרימיום מחדש");
       return;
     }
 
@@ -122,7 +118,7 @@ export default function RegisterForm() {
       } else {
         alert("שגיאה ביצירת תשלום");
       }
-    } catch (error) {
+    } catch {
       alert("שגיאת שרת");
     } finally {
       setLoading(false);
