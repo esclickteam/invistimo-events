@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // 🔑 מיפוי חבילות → priceId מ-Stripe
 const PRICE_MAP: Record<string, string> = {
-  basic: "price_1SdUFcLCgfc20iubYcT0FMCu",           // 49₪
+  basic: "price_1SdUL3LCgfc20iubfKARs6t0",           // 49₪
   premium_100: "price_1SdSGkLCgfc20iubDzINSFfW",  // 149₪
   premium_300: "price_1SdSpILCgfc20iub7y1HQUeR",  // 249₪
   premium_500: "price_1SdSpyLCgfc20iubdw9J8fjq",  // 399₪
