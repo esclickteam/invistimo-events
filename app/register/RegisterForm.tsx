@@ -5,13 +5,19 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה → תשלום Stripe (מתוקן)
+   עמוד הרשמה → תשלום Stripe (FINAL)
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
 
   const plan = params.get("plan") || "basic";
-  const guests = Number(params.get("guests")); // ✅ מספר יציב
+
+  // ✅ guests עם fallback חכם
+  const guestsParam = params.get("guests");
+  const guests =
+    plan === "premium"
+      ? Number(guestsParam) || 300 // ⭐ ברירת מחדל לפרימיום
+      : 0;
 
   const [form, setForm] = useState({
     name: "",
@@ -22,7 +28,7 @@ export default function RegisterForm() {
 
   const [loading, setLoading] = useState(false);
   const [price, setPrice] = useState<number>(0);
-  const [priceKey, setPriceKey] = useState<string>("basic");
+  const [priceKey, setPriceKey] = useState<string>("");
 
   /* ============================================================
      חישוב מחיר + priceKey (יציב ובטוח)
@@ -53,9 +59,9 @@ export default function RegisterForm() {
           setPriceKey("premium_1000");
           break;
         default:
-          // fallback הגנה
-          setPrice(0);
-          setPriceKey("");
+          // fallback בטיחותי
+          setPrice(249);
+          setPriceKey("premium_300");
       }
     }
   }, [plan, guests]);
