@@ -3,12 +3,13 @@ import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
   const { nextUrl, cookies } = req;
+  const pathname = nextUrl.pathname;
 
   /* ========================================================
      0️⃣ חריגה מלאה ל־Stripe Webhook
-     אסור: redirect, auth, cookies
+     ❗ אסור redirect / auth / cookies
   ======================================================== */
-  if (nextUrl.pathname === "/api/stripe/webhook") {
+  if (pathname.startsWith("/api/stripe/webhook")) {
     return NextResponse.next();
   }
 
@@ -26,7 +27,7 @@ export function middleware(req: NextRequest) {
   ======================================================== */
   const token = cookies.get("authToken")?.value;
 
-  if (nextUrl.pathname.startsWith("/dashboard") && !token) {
+  if (pathname.startsWith("/dashboard") && !token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -34,7 +35,7 @@ export function middleware(req: NextRequest) {
 }
 
 /* ========================================================
-   matcher – תופס הכל, החריגה נעשית בקוד עצמו
+   matcher – תופס הכל
 ======================================================== */
 export const config = {
   matcher: ["/:path*"],
