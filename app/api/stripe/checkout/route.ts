@@ -7,9 +7,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const PRICE_MAP: Record<string, string> = {
   basic: "price_1SdQxWLCgfc20iubqaxqB5Ka",           // 49₪
   premium_100: "price_1SdSGkLCgfc20iubDzINSFfW",  // 149₪
-  premium_300: "price_1SdSI8LCgfc20iubW151vxus",  // 249₪
-  premium_500: "price_1SdSISLCgfc20iubdMh5NfB2",  // 399₪
-  premium_1000: "price_1SdSIsLCgfc20iubaRB5L0KH" // 699₪
+  premium_300: "price_1SdSpILCgfc20iub7y1HQUeR",  // 249₪
+  premium_500: "price_1SdSpyLCgfc20iubdw9J8fjq",  // 399₪
+  premium_1000: "price_1SdSqULCgfc20iubjawJsU7h" // 699₪
 };
 
 export async function POST(req: Request) {
