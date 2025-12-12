@@ -35,7 +35,7 @@ export default function RegisterForm() {
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
-      setPriceKey("basic_plan"); // ✅ במקום basic
+      setPriceKey("basic_plan_49"); // ✅ במקום basic
       return;
     }
 
