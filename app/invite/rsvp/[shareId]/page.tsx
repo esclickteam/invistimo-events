@@ -22,10 +22,8 @@ function LoadedImage({
   [key: string]: any;
 }) {
   const [img] = useImage(src, "anonymous");
-
   if (!img) return null;
 
-  // רקע → cover מלא כמו בעורך
   if (isBackground) {
     const iw = img.width;
     const ih = img.height;
@@ -58,7 +56,7 @@ function LoadedImage({
 }
 
 /* ============================================================
-   InviteRsvpPage — גרסה מלאה ומתוקנת
+   InviteRsvpPage — גרסה מלאה
 ============================================================ */
 export default function InviteRsvpPage({ params }: any) {
   const [invitation, setInvitation] = useState<any | null>(null);
@@ -66,7 +64,10 @@ export default function InviteRsvpPage({ params }: any) {
 
   const [guest, setGuest] = useState<any | null>(null);
   const [sent, setSent] = useState(false);
+
   const [rsvp, setRsvp] = useState<"yes" | "no" | null>(null);
+  const [guestsCount, setGuestsCount] = useState<number>(1);
+  const [notes, setNotes] = useState<string[]>([]);
 
   const stageRef = useRef<any>(null);
   const CANVAS_WIDTH = 390;
@@ -74,7 +75,17 @@ export default function InviteRsvpPage({ params }: any) {
 
   const [shareId, setShareId] = useState<string | null>(null);
 
-  /* ⭐ Next.js 16 – params הוא Promise */
+  const NOTES_OPTIONS = [
+    "כשר",
+    "טבעוני",
+    "אלרגיות",
+    "נגישות",
+    "אחר",
+  ];
+
+  /* ============================================================
+     Next.js 16 – unwrap params
+  ============================================================ */
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -84,12 +95,11 @@ export default function InviteRsvpPage({ params }: any) {
   }, [params]);
 
   /* ============================================================
-     קבלת token
+     קבלת אורח לפי token
   ============================================================ */
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const token = query.get("token");
-
     if (!token) return;
 
     async function loadGuest() {
@@ -102,7 +112,7 @@ export default function InviteRsvpPage({ params }: any) {
   }, []);
 
   /* ============================================================
-     טעינת ההזמנה לפי shareId
+     טעינת ההזמנה
   ============================================================ */
   useEffect(() => {
     if (!shareId) return;
@@ -118,7 +128,6 @@ export default function InviteRsvpPage({ params }: any) {
           return;
         }
 
-        // ⭐ להבטיח ש-image לא יישמר (כי זה DOM)
         const fixedObjects =
           data.invitation.canvasData?.objects?.map((o: any) => ({
             ...o,
@@ -139,16 +148,17 @@ export default function InviteRsvpPage({ params }: any) {
     load();
   }, [shareId]);
 
-  if (loading)
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-lg">
         טוען הזמנה...
       </div>
     );
+  }
 
   if (!invitation) return notFound();
 
-  const { title, canvasData } = invitation;
+  const { canvasData } = invitation;
 
   /* ============================================================
      שליחת אישור הגעה
@@ -172,8 +182,8 @@ export default function InviteRsvpPage({ params }: any) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             rsvp,
-            guestsCount: 1,
-            notes: "",
+            guestsCount: rsvp === "yes" ? guestsCount : 0,
+            notes,
           }),
         }
       );
@@ -188,12 +198,10 @@ export default function InviteRsvpPage({ params }: any) {
   }
 
   /* ============================================================
-     Render page
+     Render
   ============================================================ */
   return (
     <div className="flex flex-col items-center min-h-screen bg-[#faf9f6] py-10">
-      <h1 className="text-3xl font-bold text-[#6b6046] mb-6">{title}</h1>
-
       {/* ===== קנבס ההזמנה ===== */}
       <div
         className="rounded-3xl shadow-xl overflow-hidden border bg-white"
@@ -202,7 +210,6 @@ export default function InviteRsvpPage({ params }: any) {
         <Stage width={CANVAS_WIDTH} height={CANVAS_HEIGHT} ref={stageRef}>
           <Layer>
             {(canvasData?.objects || []).map((obj: any, index: number) => {
-              /* ---------- רקע / תמונה ---------- */
               if (obj.type === "image") {
                 return (
                   <LoadedImage
@@ -219,7 +226,6 @@ export default function InviteRsvpPage({ params }: any) {
                 );
               }
 
-              /* ---------- טקסט ---------- */
               if (obj.type === "text") {
                 return (
                   <Text
@@ -231,11 +237,9 @@ export default function InviteRsvpPage({ params }: any) {
                     fill={obj.fill || "#000"}
                     fontFamily={obj.fontFamily || "Arial"}
                     align={obj.align || "center"}
-                    fontStyle={
-                      `${obj.fontWeight === "bold" ? "bold" : ""} ${
-                        obj.italic ? "italic" : ""
-                      }` || ""
-                    }
+                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
+                      obj.italic ? "italic" : ""
+                    }`}
                     textDecoration={obj.underline ? "underline" : ""}
                     width={obj.width}
                   />
@@ -248,23 +252,23 @@ export default function InviteRsvpPage({ params }: any) {
         </Stage>
       </div>
 
-      {/* ===== כרטיס RSVP ===== */}
-      <div className="mt-8 w-[390px] bg-white shadow-xl rounded-3xl p-8 border border-[#e8e4d9] text-center">
+      {/* ===== RSVP ===== */}
+      <div className="mt-8 w-[390px] bg-white shadow-xl rounded-3xl p-8 border border-[#e8e4d9]">
         {!sent ? (
           <>
-            <h2 className="text-xl font-bold text-[#6b6046] mb-4">אישור הגעה</h2>
+            <h2 className="text-xl font-bold text-center mb-4">אישור הגעה</h2>
 
-            <p className="text-[#6b6046] leading-relaxed mb-6 text-lg">
-              שלום {guest?.name || "אורח"}, נשמח לראותך באירוע! אנא עדכנו:
+            <p className="text-center mb-6">
+              שלום {guest?.name || "אורח"}, נשמח לראותך באירוע
             </p>
 
             <div className="flex gap-4 mb-6">
               <button
                 onClick={() => setRsvp("yes")}
-                className={`flex-1 py-3 rounded-full font-semibold border transition ${
+                className={`flex-1 py-3 rounded-full font-semibold border ${
                   rsvp === "yes"
                     ? "bg-[#c3b28b] text-white"
-                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                    : "bg-[#faf9f6]"
                 }`}
               >
                 מגיע
@@ -272,25 +276,58 @@ export default function InviteRsvpPage({ params }: any) {
 
               <button
                 onClick={() => setRsvp("no")}
-                className={`flex-1 py-3 rounded-full font-semibold border transition ${
+                className={`flex-1 py-3 rounded-full font-semibold border ${
                   rsvp === "no"
                     ? "bg-[#b88a8a] text-white"
-                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                    : "bg-[#faf9f6]"
                 }`}
               >
                 לא מגיע
               </button>
             </div>
 
+            {rsvp === "yes" && (
+              <>
+                <label className="block mb-2">כמה אנשים יגיעו?</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={guestsCount}
+                  onChange={(e) => setGuestsCount(Number(e.target.value))}
+                  className="w-full border rounded-xl px-4 py-3 mb-4"
+                />
+
+                <label className="block mb-2">הערות:</label>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {NOTES_OPTIONS.map((opt) => (
+                    <label key={opt} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={notes.includes(opt)}
+                        onChange={() =>
+                          setNotes((prev) =>
+                            prev.includes(opt)
+                              ? prev.filter((n) => n !== opt)
+                              : [...prev, opt]
+                          )
+                        }
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+
             <button
               onClick={submitRsvp}
-              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-bold text-lg shadow-lg hover:opacity-90 transition"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-bold"
             >
               שליחת אישור הגעה
             </button>
           </>
         ) : (
-          <div className="text-green-700 text-xl font-semibold">
+          <div className="text-center text-green-700 font-semibold text-lg">
             ✓ תודה! תשובתך נקלטה.
           </div>
         )}
