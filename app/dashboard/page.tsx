@@ -9,12 +9,18 @@ import UpgradeToPremium from "../components/UpgradeToPremium";
 /* ============================================================
    טיפוס בסיסי למוזמן
 =========================================================== */
-type Guest = {
+export type RSVPStatus = "yes" | "no" | "pending";
+
+export type Guest = {
   _id: string;
   name: string;
   phone: string;
   token: string;
-  rsvp: "yes" | "no" | "pending";
+
+  /** סטטוס פנימי (DB / API) */
+  rsvp: RSVPStatus;
+
+  /** כמות אורחים שמגיעים עם המוזמן */
   guestsCount: number;
 };
 
