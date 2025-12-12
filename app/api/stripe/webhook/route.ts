@@ -23,6 +23,7 @@ const GUESTS_BY_KEY: Record<string, number> = {
   premium_300: 300,
   premium_500: 500,
   premium_1000: 1000,
+  test_5: 1,
 };
 
 /* ============================================================
