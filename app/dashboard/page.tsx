@@ -245,7 +245,9 @@ ${inviteLink}
                   <tr key={g._id} className="border-b">
                     <td className="p-3">{g.name}</td>
                     <td className="p-3">{g.phone}</td>
-                    <td className="p-3">{g.rsvp}</td>
+                    <td className="p-3 font-medium">
+                    {RSVP_LABELS[g.rsvp]}
+                    </td>
                     <td className="p-3">{g.guestsCount}</td>
                     <td className="p-3">
                       <button
