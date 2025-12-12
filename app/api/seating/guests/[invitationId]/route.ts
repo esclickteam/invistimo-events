@@ -18,14 +18,26 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const guests = await InvitationGuest.find({
       invitationId,
-    }).lean();
+    })
+      .select({
+        name: 1,
+        phone: 1,
+        rsvp: 1,
+        guestsCount: 1,
+        tableNumber: 1, // ⭐ חשוב לדשבורד
+        notes: 1,       // ⭐ הערות מה־RSVP
+        token: 1,
+        relation: 1,
+        createdAt: 1,
+      })
+      .lean();
 
     return NextResponse.json({
       success: true,
       guests,
     });
   } catch (err) {
-    console.error("❌ Error loading seating guests:", err);
+    console.error("❌ Error loading invitation guests:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
