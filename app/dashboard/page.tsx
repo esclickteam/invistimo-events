@@ -45,7 +45,7 @@ export default function DashboardPage() {
      Load user
   ============================================================ */
   async function loadUser() {
-    const res = await fetch("/api/auth/me");
+    const res = await fetch("/api/me");
     const data = await res.json();
     if (data.success) setUser(data.user);
   }
