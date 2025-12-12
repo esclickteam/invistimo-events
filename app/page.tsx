@@ -3,13 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import {
-  CheckCircle2,
-  Star,
-  Smartphone,
-} from "lucide-react";
+import { CheckCircle2, Star, Smartphone } from "lucide-react";
 
-/* 🔢 עובדים עם מספרים – לא טקסט */
+/* 🔢 עובדים עם מספרים */
 type GuestOption = 100 | 300 | 500 | 1000;
 
 export default function HomePage() {
@@ -49,6 +45,15 @@ export default function HomePage() {
           פלטפורמה מעוצבת וחדשנית לניהול אירועים ב־<strong>Invistimo</strong>:
           הזמנות, אישורי הגעה והושבה — הכול במקום אחד.
         </p>
+
+        <div className="flex justify-center mt-10">
+          <a
+            href="#packages"
+            className="px-10 py-4 rounded-full text-lg font-semibold border-2 border-[#c7a17a] text-[#6a5440]"
+          >
+            צפייה בחבילות
+          </a>
+        </div>
       </motion.section>
 
       {/* ========= חבילות ========= */}
@@ -59,7 +64,7 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-2 gap-14 max-w-5xl mx-auto">
           {/* ===== BASIC ===== */}
-          <motion.div className="bg-white p-10 rounded-3xl shadow-lg border border-[#eadfce]">
+          <div className="bg-white p-10 rounded-3xl shadow-lg border border-[#eadfce]">
             <div className="flex items-center gap-3 mb-4">
               <Smartphone className="w-8 h-8 text-[#c7a17a]" />
               <h3 className="text-3xl font-bold text-[#5c4632]">חבילת בסיס</h3>
@@ -90,10 +95,10 @@ export default function HomePage() {
             >
               הרשמה ותשלום לחבילת בסיס
             </Link>
-          </motion.div>
+          </div>
 
           {/* ===== PREMIUM ===== */}
-          <motion.div className="p-10 rounded-3xl shadow-xl bg-gradient-to-br from-[#d2b08c] to-[#c19c78] text-white">
+          <div className="p-10 rounded-3xl shadow-xl bg-gradient-to-br from-[#d2b08c] to-[#c19c78] text-white">
             <div className="flex items-center gap-3 mb-4">
               <Star className="w-8 h-8 text-white" />
               <h3 className="text-3xl font-bold">חבילת פרימיום</h3>
@@ -115,7 +120,7 @@ export default function HomePage() {
               ))}
             </ul>
 
-            {/* בחירה לפי כמות אורחים */}
+            {/* בחירת כמות אורחים */}
             <div className="bg-white/15 p-5 rounded-2xl text-center">
               <p className="font-semibold mb-3">בחרו כמות אורחים:</p>
 
@@ -144,26 +149,24 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* כפתור פרימיום חכם */}
             <Link
               href={premiumHref}
+              aria-disabled={selectedGuests === ""}
               className={`block mt-10 text-center px-10 py-4 rounded-full font-bold transition
                 ${
-                  selectedGuests
-                    ? "bg-white text-[#6a5440] hover:bg-[#f0e9e4]"
-                    : "bg-white/40 text-white cursor-not-allowed pointer-events-none"
+                  selectedGuests === ""
+                    ? "bg-white/50 text-[#6a5440]/50 pointer-events-none"
+                    : "bg-white text-[#6a5440]"
                 }
               `}
             >
-              {selectedGuests
-                ? "הרשמה ותשלום לחבילת פרימיום"
-                : "בחרו כמות אורחים כדי להמשיך"}
+              הרשמה ותשלום לחבילת פרימיום
             </Link>
 
             <p className="mt-4 text-center text-white/80 text-sm">
               תשלום חד־פעמי · ללא מנוי
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
     </div>
