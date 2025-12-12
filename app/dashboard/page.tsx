@@ -20,10 +20,9 @@ type Guest = {
   tableNumber?: number;
 
   rsvp: "yes" | "no" | "pending";
-
   guestsCount: number;
 
-  /** ⭐ הערות מה-RSVP (נשמר כ־string ב־DB) */
+  /** ⭐ הערות מה-RSVP (string ב־DB) */
   notes?: string;
 };
 
@@ -104,14 +103,9 @@ export default function DashboardPage() {
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
     const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
-
-    const message = `
-היי ${guest.name}! 💛
-הזמנה אישית מחכה לך 🎉
-${inviteLink}
-`;
-
+    const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
     const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
+
     window.open(
       `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
       "_blank"
@@ -133,100 +127,98 @@ ${inviteLink}
         </div>
       )}
 
-      {invitation && (
-        <>
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() =>
-                  router.push(`/dashboard/seating/${invitationId}`)
-                }
-                className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
-              >
-                🪑 הושבה
-              </button>
+        <div className="flex gap-3">
+          {/* ⭐ יצירת / עריכת הזמנה */}
+          <button
+            onClick={() =>
+              router.push(
+                invitation
+                  ? `/dashboard/edit-invite/${invitationId}`
+                  : "/dashboard/create-invite"
+              )
+            }
+            className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+          >
+            {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+          </button>
 
-              <button
-                onClick={() => setOpenAddModal(true)}
-                className="bg-black text-white px-6 py-3 rounded-full"
-              >
-                + הוספת מוזמן
-              </button>
-            </div>
-          </div>
+          {invitation && (
+            <button
+              onClick={() =>
+                router.push(`/dashboard/seating/${invitationId}`)
+              }
+              className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+            >
+              🪑 הושבה
+            </button>
+          )}
 
-          {/* Stats */}
-          <div className="grid grid-cols-4 gap-4 mb-10">
-            <Box title="סה״כ מוזמנים" value={stats.totalGuests} />
-            <Box title="סה״כ מגיעים" value={stats.comingGuests} color="green" />
-            <Box title="לא מגיעים" value={stats.notComing} color="red" />
-            <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
-          </div>
+          <button
+            onClick={() => setOpenAddModal(true)}
+            className="bg-black text-white px-6 py-3 rounded-full"
+          >
+            + הוספת מוזמן
+          </button>
+        </div>
+      </div>
 
-          {/* Table */}
-          <table className="w-full border rounded-xl overflow-hidden">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-3 text-right">שם</th>
-                <th className="p-3 text-right">טלפון</th>
-                <th className="p-3 text-right">סטטוס</th>
-                <th className="p-3 text-right">מוזמנים</th>
-                <th className="p-3 text-right">מגיעים</th>
-                <th className="p-3 text-right">שולחן</th>
-                <th className="p-3 text-right">הערות</th>
-                <th className="p-3 text-right">פעולות</th>
-              </tr>
-            </thead>
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4 mb-10">
+        <Box title="סה״כ מוזמנים" value={stats.totalGuests} />
+        <Box title="סה״כ מגיעים" value={stats.comingGuests} color="green" />
+        <Box title="לא מגיעים" value={stats.notComing} color="red" />
+        <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
+      </div>
 
-            <tbody>
-              {guests.map((g) => (
-                <tr key={g._id} className="border-b">
-                  <td className="p-3">{g.name}</td>
-                  <td className="p-3">{g.phone}</td>
-                  <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
-                  <td className="p-3">{g.guestsCount}</td>
-                  <td className="p-3 font-semibold">
-                    {g.rsvp === "yes" ? g.guestsCount : 0}
-                  </td>
-                  <td className="p-3">{g.tableNumber ?? "-"}</td>
+      {/* Table */}
+      <table className="w-full border rounded-xl overflow-hidden">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-3 text-right">שם</th>
+            <th className="p-3 text-right">טלפון</th>
+            <th className="p-3 text-right">סטטוס</th>
+            <th className="p-3 text-right">מוזמנים</th>
+            <th className="p-3 text-right">מגיעים</th>
+            <th className="p-3 text-right">שולחן</th>
+            <th className="p-3 text-right">הערות</th>
+            <th className="p-3 text-right">פעולות</th>
+          </tr>
+        </thead>
 
-                  {/* ⭐ הערות – string בטוח */}
-                  <td className="p-3 text-sm text-gray-700">
-                    {typeof g.notes === "string" && g.notes.trim()
-                      ? g.notes
-                      : "-"}
-                  </td>
-
-                  <td className="p-3 flex gap-3">
-                    <button
-                      onClick={() => sendWhatsApp(g)}
-                      title="שליחת הודעה"
-                    >
-                      📩
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/seating/${invitationId}?guestId=${g._id}`
-                        )
-                      }
-                      title="הושבה לאורח"
-                    >
-                      🪑
-                    </button>
-
-                    <button onClick={() => setSelectedGuest(g)}>✏️</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
+        <tbody>
+          {guests.map((g) => (
+            <tr key={g._id} className="border-b">
+              <td className="p-3">{g.name}</td>
+              <td className="p-3">{g.phone}</td>
+              <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
+              <td className="p-3">{g.guestsCount}</td>
+              <td className="p-3 font-semibold">
+                {g.rsvp === "yes" ? g.guestsCount : 0}
+              </td>
+              <td className="p-3">{g.tableNumber ?? "-"}</td>
+              <td className="p-3 text-sm text-gray-700">
+                {g.notes?.trim() || "-"}
+              </td>
+              <td className="p-3 flex gap-3">
+                <button onClick={() => sendWhatsApp(g)}>📩</button>
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/seating/${invitationId}?guestId=${g._id}`
+                    )
+                  }
+                >
+                  🪑
+                </button>
+                <button onClick={() => setSelectedGuest(g)}>✏️</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {selectedGuest && (
         <EditGuestModal
