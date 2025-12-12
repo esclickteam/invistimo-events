@@ -34,7 +34,6 @@ export default function HomePage() {
     1000: "699 ₪",
   };
 
-  // ⬅️ העברה נכונה ל־register
   const premiumHref =
     selectedGuests !== ""
       ? `/register?plan=premium&guests=${selectedGuests}`
@@ -80,7 +79,7 @@ export default function HomePage() {
         </h2>
 
         <div className="grid md:grid-cols-2 gap-14 max-w-5xl mx-auto">
-          {/* BASIC PACKAGE */}
+          {/* ===== BASIC ===== */}
           <motion.div className="bg-white p-10 rounded-3xl shadow-lg border border-[#eadfce]">
             <div className="flex items-center gap-3 mb-4">
               <Smartphone className="w-8 h-8 text-[#c7a17a]" />
@@ -122,25 +121,37 @@ export default function HomePage() {
             </Link>
           </motion.div>
 
-          {/* PREMIUM PACKAGE */}
+          {/* ===== PREMIUM ===== */}
           <motion.div className="p-10 rounded-3xl shadow-xl bg-gradient-to-br from-[#d2b08c] to-[#c19c78] text-white">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-2">
               <Star className="w-8 h-8 text-white" />
               <h3 className="text-3xl font-bold">חבילת פרימיום</h3>
             </div>
 
+            <p className="text-white/90 mb-6">
+              ניהול מלא של אישורי הגעה — ללא הגבלה
+            </p>
+
             <ul className="space-y-3 text-white/90 mb-8">
               <li>
                 <CheckCircle2 className="inline w-5 h-5 mr-1" />
-                ניהול מלא של אישורי הגעה – ללא הגבלה
-              </li>
-              <li>
-                <MessageCircle className="inline w-5 h-5 mr-1" />
                 תזכורות והודעות אוטומטיות
               </li>
               <li>
-                <Map className="inline w-5 h-5 mr-1" />
+                <CheckCircle2 className="inline w-5 h-5 mr-1" />
                 הושבה חכמה וניהול שולחנות
+              </li>
+              <li>
+                <CheckCircle2 className="inline w-5 h-5 mr-1" />
+                עיצוב הזמנה מתקדם ועריכה חופשית
+              </li>
+              <li>
+                <Users className="inline w-5 h-5 mr-1" />
+                שליטה מלאה ברשימת המוזמנים
+              </li>
+              <li>
+                <MessageCircle className="inline w-5 h-5 mr-1" />
+                עדכונים וסטטיסטיקות בזמן אמת
               </li>
             </ul>
 
@@ -179,6 +190,10 @@ export default function HomePage() {
             >
               הרשמה ותשלום לחבילת פרימיום
             </Link>
+
+            <p className="mt-4 text-center text-white/80 text-sm">
+              תשלום חד־פעמי · ללא מנוי
+            </p>
           </motion.div>
         </div>
       </section>
