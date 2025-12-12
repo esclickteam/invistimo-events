@@ -1,17 +1,16 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה — עם מחיר אוטומטי לפי סוג החבילה
+   עמוד הרשמה → תשלום Stripe
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
   const plan = params.get("plan") || "basic";
-  const guests = params.get("guests"); // 💡 נקלט מה-URL
-  const router = useRouter();
+  const guests = params.get("guests");
 
   const [form, setForm] = useState({
     name: "",
@@ -21,164 +20,187 @@ export default function RegisterForm() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [price, setPrice] = useState<number | string>(0);
+  const [price, setPrice] = useState<number>(0);
+  const [priceKey, setPriceKey] = useState<string>("basic");
 
   /* ============================================================
-     חישוב מחיר אוטומטי לפי סוג חבילה ומספר אורחים
+     חישוב מחיר + priceKey
   ============================================================ */
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
-    } else if (plan === "premium") {
+      setPriceKey("basic");
+    }
+
+    if (plan === "premium") {
       switch (guests) {
         case "עד 100 אורחים":
           setPrice(149);
+          setPriceKey("premium_100");
           break;
         case "עד 300 אורחים":
           setPrice(249);
+          setPriceKey("premium_300");
           break;
         case "עד 500 אורחים":
           setPrice(399);
+          setPriceKey("premium_500");
           break;
         case "עד 1000 אורחים":
           setPrice(699);
+          setPriceKey("premium_1000");
           break;
-        default:
-          setPrice("לפי מספר האורחים");
       }
     }
   }, [plan, guests]);
 
   /* ============================================================
-     שינוי שדות בטופס
+     שינוי שדות
   ============================================================ */
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   /* ============================================================
-     שליחת הרשמה לשרת
+     הרשמה → Checkout
   ============================================================ */
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch("/api/register", {
+      /* 1️⃣ הרשמה */
+      const registerRes = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
           plan,
           guests,
-          price,
+          priceKey,
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "שגיאה בהרשמה");
+      const registerData = await registerRes.json();
+      if (!registerRes.ok) {
+        alert(registerData.error || "שגיאה בהרשמה");
         return;
       }
 
-      router.push("/payment");
-    } catch (error) {
-      alert("שגיאה בהתחברות לשרת");
+      /* 2️⃣ יצירת Checkout Session */
+      const checkoutRes = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          priceKey,
+          email: form.email,
+        }),
+      });
+
+      const checkoutData = await checkoutRes.json();
+
+      if (checkoutData.url) {
+        window.location.href = checkoutData.url;
+      } else {
+        alert("שגיאה ביצירת תשלום");
+      }
+    } catch (err) {
+      alert("שגיאת שרת");
     } finally {
       setLoading(false);
     }
   };
 
   /* ============================================================
-     תוכן הדף
+     UI
   ============================================================ */
   return (
     <div className="max-w-xl mx-auto pt-20 pb-28 px-5">
       <h1 className="text-4xl font-serif font-bold text-[#5c4632] mb-3 text-center">
-        עמוד הרשמה לחבילת {plan === "premium" ? "פרימיום" : "בסיס"}
+        הרשמה לחבילת {plan === "premium" ? "פרימיום" : "בסיס"}
       </h1>
-
-      <p className="text-center text-[#7b6754] mb-10 leading-relaxed">
-        הרשמ/י ל־Invistimo כדי להתחיל לנהל את האירוע שלך: יצירת הזמנה דיגיטלית,
-        איסוף אישורי הגעה והמשך להגדרות הושבה – הכול במקום אחד.
-      </p>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-[32px] shadow-[0_12px_32px_rgba(0,0,0,0.07)]
-                   border border-[#e6dccd] p-8 space-y-6"
+        className="
+          bg-white
+          rounded-[32px]
+          shadow-[0_12px_32px_rgba(0,0,0,0.07)]
+          border border-[#e6dccd]
+          p-8
+          flex
+          flex-col
+          space-y-6
+        "
       >
         {/* שם מלא */}
-        <div>
-          <label className="block text-sm text-[#5c4632] mb-1">שם מלא</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-[#5c4632]">שם מלא</label>
           <input
-            type="text"
             name="name"
             value={form.name}
             onChange={handleChange}
-            className="w-full p-3 rounded-xl border border-[#d9c8b5] bg-white focus:ring-2 focus:ring-[#d4b28c]"
+            className="w-full p-3 rounded-xl border border-[#d9c8b5]"
             required
           />
         </div>
 
         {/* אימייל */}
-        <div>
-          <label className="block text-sm text-[#5c4632] mb-1">אימייל</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-[#5c4632]">אימייל</label>
           <input
-            type="email"
             name="email"
+            type="email"
             value={form.email}
             onChange={handleChange}
-            className="w-full p-3 rounded-xl border border-[#d9c8b5] bg-white focus:ring-2 focus:ring-[#d4b28c]"
+            className="w-full p-3 rounded-xl border border-[#d9c8b5]"
             required
           />
         </div>
 
         {/* טלפון */}
-        <div>
-          <label className="block text-sm text-[#5c4632] mb-1">טלפון</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-[#5c4632]">טלפון</label>
           <input
-            type="tel"
             name="phone"
             value={form.phone}
             onChange={handleChange}
-            className="w-full p-3 rounded-xl border border-[#d9c8b5] bg-white focus:ring-2 focus:ring-[#d4b28c]"
+            className="w-full p-3 rounded-xl border border-[#d9c8b5]"
             required
           />
         </div>
 
         {/* סיסמה */}
-        <div>
-          <label className="block text-sm text-[#5c4632] mb-1">סיסמה</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-[#5c4632]">סיסמה</label>
           <input
-            type="password"
             name="password"
+            type="password"
             value={form.password}
             onChange={handleChange}
-            className="w-full p-3 rounded-xl border border-[#d9c8b5] bg-white focus:ring-2 focus:ring-[#d4b28c]"
+            className="w-full p-3 rounded-xl border border-[#d9c8b5]"
             required
           />
         </div>
 
-        {/* סכום לתשלום */}
+        {/* סכום */}
         <div className="text-center text-lg font-semibold text-[#5c4632]">
-          סכום לתשלום: <span>{price} ₪</span>
+          סכום לתשלום: {price} ₪
         </div>
 
-        {/* כפתור המשך */}
+        {/* כפתור */}
         <button
           type="submit"
-          className="btn-primary w-full py-3 text-lg rounded-full"
           disabled={loading}
+          className="btn-primary w-full py-3 text-lg rounded-full"
         >
-          {loading ? "מבצעת הרשמה..." : "המשך לתשלום"}
+          {loading ? "מעבירה לתשלום..." : "המשך לתשלום"}
         </button>
 
-        {/* קישור להתחברות */}
-        <div className="text-center text-sm text-[#7b6754] mt-2">
-          כבר יש לך חשבון?{" "}
-          <Link href="/login" className="text-[#5c4632] underline">
+        {/* התחברות */}
+        <div className="text-center text-sm text-[#7b6754]">
+          כבר רשום?{" "}
+          <Link href="/login" className="underline text-[#5c4632]">
             התחברות
           </Link>
         </div>
