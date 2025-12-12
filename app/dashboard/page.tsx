@@ -23,8 +23,8 @@ type Guest = {
 
   guestsCount: number;
 
-  /** ⭐ הערות מה-RSVP */
-  notes?: string[];
+  /** ⭐ הערות מה-RSVP (נשמר כ־string ב־DB) */
+  notes?: string;
 };
 
 export default function DashboardPage() {
@@ -118,6 +118,8 @@ ${inviteLink}
     );
   };
 
+  if (loading) return null;
+
   /* ============================================================
      Render
   ============================================================ */
@@ -138,7 +140,6 @@ ${inviteLink}
             <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
 
             <div className="flex gap-3">
-              {/* ⭐ כפתור הושבה ראשי */}
               <button
                 onClick={() =>
                   router.push(`/dashboard/seating/${invitationId}`)
@@ -192,9 +193,11 @@ ${inviteLink}
                   </td>
                   <td className="p-3">{g.tableNumber ?? "-"}</td>
 
-                  {/* ⭐ הערות */}
+                  {/* ⭐ הערות – string בטוח */}
                   <td className="p-3 text-sm text-gray-700">
-                    {g.notes?.length ? g.notes.join(", ") : "-"}
+                    {typeof g.notes === "string" && g.notes.trim()
+                      ? g.notes
+                      : "-"}
                   </td>
 
                   <td className="p-3 flex gap-3">
@@ -205,7 +208,6 @@ ${inviteLink}
                       📩
                     </button>
 
-                    {/* ⭐ הושבה אישית */}
                     <button
                       onClick={() =>
                         router.push(
