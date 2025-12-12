@@ -5,12 +5,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה → תשלום Stripe
+   עמוד הרשמה → תשלום Stripe (מתוקן)
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
+
   const plan = params.get("plan") || "basic";
-  const guests = params.get("guests");
+  const guests = Number(params.get("guests")); // ✅ מספר יציב
 
   const [form, setForm] = useState({
     name: "",
@@ -24,32 +25,37 @@ export default function RegisterForm() {
   const [priceKey, setPriceKey] = useState<string>("basic");
 
   /* ============================================================
-     חישוב מחיר + priceKey
+     חישוב מחיר + priceKey (יציב ובטוח)
   ============================================================ */
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
       setPriceKey("basic");
+      return;
     }
 
     if (plan === "premium") {
       switch (guests) {
-        case "עד 100 אורחים":
+        case 100:
           setPrice(149);
           setPriceKey("premium_100");
           break;
-        case "עד 300 אורחים":
+        case 300:
           setPrice(249);
           setPriceKey("premium_300");
           break;
-        case "עד 500 אורחים":
+        case 500:
           setPrice(399);
           setPriceKey("premium_500");
           break;
-        case "עד 1000 אורחים":
+        case 1000:
           setPrice(699);
           setPriceKey("premium_1000");
           break;
+        default:
+          // fallback הגנה
+          setPrice(0);
+          setPriceKey("");
       }
     }
   }, [plan, guests]);
@@ -66,6 +72,12 @@ export default function RegisterForm() {
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!priceKey) {
+      alert("חבילה לא תקינה");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -104,7 +116,7 @@ export default function RegisterForm() {
       } else {
         alert("שגיאה ביצירת תשלום");
       }
-    } catch (err) {
+    } catch (error) {
       alert("שגיאת שרת");
     } finally {
       setLoading(false);
