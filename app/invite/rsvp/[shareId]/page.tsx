@@ -75,7 +75,6 @@ export default function InviteRsvpPage({ params }: any) {
   const CANVAS_HEIGHT = 700;
 
   const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
-
   const [shareId, setShareId] = useState<string | null>(null);
 
   /* unwrap params */
@@ -149,7 +148,7 @@ export default function InviteRsvpPage({ params }: any) {
   const { canvasData } = invitation;
 
   /* ============================================================
-     שליחת RSVP
+     שליחת RSVP – בטוח, הערות אופציונליות
   ============================================================ */
   async function submitRsvp() {
     if (!rsvp) {
@@ -162,10 +161,21 @@ export default function InviteRsvpPage({ params }: any) {
       return;
     }
 
+    // בניית הערות רק אם באמת יש
     const finalNotes =
       notes.includes("אחר") && otherNote
         ? [...notes.filter((n) => n !== "אחר"), `אחר: ${otherNote}`]
         : notes;
+
+    const payload: any = {
+      rsvp,
+      guestsCount: rsvp === "yes" ? guestsCount : 0,
+    };
+
+    // ⬅️ הערות נשלחות רק אם יש
+    if (finalNotes.length > 0) {
+      payload.notes = finalNotes.join(", ");
+    }
 
     try {
       const res = await fetch(
@@ -173,11 +183,7 @@ export default function InviteRsvpPage({ params }: any) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            rsvp,
-            guestsCount: rsvp === "yes" ? guestsCount : 0,
-            notes: finalNotes.join(", "),
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
@@ -294,7 +300,7 @@ export default function InviteRsvpPage({ params }: any) {
                   ))}
                 </select>
 
-                <label className="block mb-2">הערות:</label>
+                <label className="block mb-2">הערות (לא חובה):</label>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   {NOTES_OPTIONS.map((opt) => (
                     <label key={opt} className="flex items-center gap-2">

@@ -8,7 +8,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
-  const { token } = await params; // ⭐ חובה await
+  const { token } = await params;
 
   try {
     await db();
@@ -26,7 +26,16 @@ export async function POST(
 
     guest.rsvp = rsvp;
     guest.guestsCount = guestsCount;
-    guest.notes = notes || "";
+
+    // ✅ תיקון קריטי
+    if (typeof notes === "string") {
+      guest.notes = notes;
+    } else if (Array.isArray(notes)) {
+      guest.notes = notes.join(", ");
+    } else {
+      guest.notes = "";
+    }
+
     await guest.save();
 
     return NextResponse.json({ success: true, guest });
