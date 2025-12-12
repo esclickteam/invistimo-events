@@ -6,7 +6,7 @@ import useImage from "use-image";
 import { notFound } from "next/navigation";
 
 /* ============================================================
-   טעינת תמונה עבור Konva — כולל cache
+   טעינת תמונה ל־Konva
 ============================================================ */
 function LoadedImage({
   src,
@@ -56,36 +56,29 @@ function LoadedImage({
 }
 
 /* ============================================================
-   InviteRsvpPage — גרסה מלאה
+   RSVP Page
 ============================================================ */
 export default function InviteRsvpPage({ params }: any) {
   const [invitation, setInvitation] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-
   const [guest, setGuest] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   const [sent, setSent] = useState(false);
 
   const [rsvp, setRsvp] = useState<"yes" | "no" | null>(null);
   const [guestsCount, setGuestsCount] = useState<number>(1);
+
   const [notes, setNotes] = useState<string[]>([]);
+  const [otherNote, setOtherNote] = useState("");
 
   const stageRef = useRef<any>(null);
   const CANVAS_WIDTH = 390;
   const CANVAS_HEIGHT = 700;
 
+  const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
+
   const [shareId, setShareId] = useState<string | null>(null);
 
-  const NOTES_OPTIONS = [
-    "כשר",
-    "טבעוני",
-    "אלרגיות",
-    "נגישות",
-    "אחר",
-  ];
-
-  /* ============================================================
-     Next.js 16 – unwrap params
-  ============================================================ */
+  /* unwrap params */
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -94,9 +87,7 @@ export default function InviteRsvpPage({ params }: any) {
     unwrap();
   }, [params]);
 
-  /* ============================================================
-     קבלת אורח לפי token
-  ============================================================ */
+  /* load guest by token */
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const token = query.get("token");
@@ -111,9 +102,7 @@ export default function InviteRsvpPage({ params }: any) {
     loadGuest();
   }, []);
 
-  /* ============================================================
-     טעינת ההזמנה
-  ============================================================ */
+  /* load invitation */
   useEffect(() => {
     if (!shareId) return;
 
@@ -148,31 +137,35 @@ export default function InviteRsvpPage({ params }: any) {
     load();
   }, [shareId]);
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="flex min-h-screen items-center justify-center text-lg">
+      <div className="min-h-screen flex items-center justify-center">
         טוען הזמנה...
       </div>
     );
-  }
 
   if (!invitation) return notFound();
 
   const { canvasData } = invitation;
 
   /* ============================================================
-     שליחת אישור הגעה
+     שליחת RSVP
   ============================================================ */
   async function submitRsvp() {
     if (!rsvp) {
-      alert("נא לבחור מגיע / לא מגיע 😊");
+      alert("נא לבחור מגיע / לא מגיע");
       return;
     }
 
     if (!guest?.token) {
-      alert("שגיאה: אורח לא מזוהה");
+      alert("אורח לא מזוהה");
       return;
     }
+
+    const finalNotes =
+      notes.includes("אחר") && otherNote
+        ? [...notes.filter((n) => n !== "אחר"), `אחר: ${otherNote}`]
+        : notes;
 
     try {
       const res = await fetch(
@@ -183,14 +176,14 @@ export default function InviteRsvpPage({ params }: any) {
           body: JSON.stringify({
             rsvp,
             guestsCount: rsvp === "yes" ? guestsCount : 0,
-            notes,
+            notes: finalNotes.join(", "),
           }),
         }
       );
 
       const data = await res.json();
       if (data.success) setSent(true);
-      else alert("שגיאה בשליחת התגובה");
+      else alert("שגיאה בשליחה");
     } catch (err) {
       console.error(err);
       alert("שגיאת שרת");
@@ -201,19 +194,19 @@ export default function InviteRsvpPage({ params }: any) {
      Render
   ============================================================ */
   return (
-    <div className="flex flex-col items-center min-h-screen bg-[#faf9f6] py-10">
-      {/* ===== קנבס ההזמנה ===== */}
+    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10">
+      {/* Canvas */}
       <div
-        className="rounded-3xl shadow-xl overflow-hidden border bg-white"
-        style={{ width: `${CANVAS_WIDTH}px`, height: `${CANVAS_HEIGHT}px` }}
+        className="rounded-3xl overflow-hidden shadow-xl bg-white"
+        style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
       >
         <Stage width={CANVAS_WIDTH} height={CANVAS_HEIGHT} ref={stageRef}>
           <Layer>
-            {(canvasData?.objects || []).map((obj: any, index: number) => {
+            {(canvasData?.objects || []).map((obj: any, i: number) => {
               if (obj.type === "image") {
                 return (
                   <LoadedImage
-                    key={index}
+                    key={i}
                     src={obj.url}
                     x={obj.x}
                     y={obj.y}
@@ -229,7 +222,7 @@ export default function InviteRsvpPage({ params }: any) {
               if (obj.type === "text") {
                 return (
                   <Text
-                    key={index}
+                    key={i}
                     x={obj.x}
                     y={obj.y}
                     text={obj.text}
@@ -252,8 +245,8 @@ export default function InviteRsvpPage({ params }: any) {
         </Stage>
       </div>
 
-      {/* ===== RSVP ===== */}
-      <div className="mt-8 w-[390px] bg-white shadow-xl rounded-3xl p-8 border border-[#e8e4d9]">
+      {/* RSVP */}
+      <div className="mt-8 w-[390px] bg-white rounded-3xl shadow-xl p-8">
         {!sent ? (
           <>
             <h2 className="text-xl font-bold text-center mb-4">אישור הגעה</h2>
@@ -289,16 +282,20 @@ export default function InviteRsvpPage({ params }: any) {
             {rsvp === "yes" && (
               <>
                 <label className="block mb-2">כמה אנשים יגיעו?</label>
-                <input
-                  type="number"
-                  min={1}
+                <select
                   value={guestsCount}
                   onChange={(e) => setGuestsCount(Number(e.target.value))}
                   className="w-full border rounded-xl px-4 py-3 mb-4"
-                />
+                >
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
 
                 <label className="block mb-2">הערות:</label>
-                <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-2 gap-3 mb-4">
                   {NOTES_OPTIONS.map((opt) => (
                     <label key={opt} className="flex items-center gap-2">
                       <input
@@ -316,6 +313,15 @@ export default function InviteRsvpPage({ params }: any) {
                     </label>
                   ))}
                 </div>
+
+                {notes.includes("אחר") && (
+                  <input
+                    placeholder="פרט/י כאן..."
+                    value={otherNote}
+                    onChange={(e) => setOtherNote(e.target.value)}
+                    className="w-full border rounded-xl px-4 py-3 mb-4"
+                  />
+                )}
               </>
             )}
 
