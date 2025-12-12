@@ -1,5 +1,8 @@
 import mongoose, { Schema, Document, models } from "mongoose";
 
+/* ============================================================
+   TYPES
+============================================================ */
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -9,52 +12,69 @@ export interface IUser extends Document {
   plan: "basic" | "premium";
 
   // רמת החבילה בפועל
-  guests: number;        // 50 / 100 / 300 / 500 / 1000
-  paidAmount: number;    // כמה כסף שולם עד כה
+  guests: number | null;     // null = ללא הגבלה
+  paidAmount: number;
 
-  // הגבלות לפי חבילה (נגזר)
+  // הגבלות לפי חבילה
   planLimits: {
-    maxGuests: number;
+    maxGuests: number | null; // null = UNLIMITED
     smsEnabled: boolean;
     seatingEnabled: boolean;
     remindersEnabled: boolean;
   };
 }
 
+/* ============================================================
+   SCHEMA
+============================================================ */
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
 
-    // חבילה
+    /* ================== PLAN ================== */
     plan: {
       type: String,
       enum: ["basic", "premium"],
       default: "basic",
     },
 
-    // ⭐ רמת חבילה בפועל
+    /* ================== PLAN LEVEL ================== */
     guests: {
       type: Number,
-      default: 50, // בסיס
+      default: null, // ⭐ Basic = ללא הגבלה
     },
 
-    // ⭐ כמה שולם בפועל
     paidAmount: {
       type: Number,
-      default: 49, // בסיס
+      default: 49,
     },
 
-    // הגבלות (נגזרות מהחבילה)
+    /* ================== LIMITS ================== */
     planLimits: {
-      maxGuests: { type: Number, default: 50 },
-      smsEnabled: { type: Boolean, default: false },
-      seatingEnabled: { type: Boolean, default: false },
-      remindersEnabled: { type: Boolean, default: false },
+      maxGuests: {
+        type: Number,
+        default: null, // ⭐ null = UNLIMITED
+      },
+      smsEnabled: {
+        type: Boolean,
+        default: true, // ⭐ פתוח בבייסיק
+      },
+      seatingEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      remindersEnabled: {
+        type: Boolean,
+        default: true,
+      },
     },
   },
   { timestamps: true }
 );
 
+/* ============================================================
+   MODEL
+============================================================ */
 export default models.User || mongoose.model<IUser>("User", UserSchema);

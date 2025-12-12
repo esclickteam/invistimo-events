@@ -15,12 +15,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   lookup_key → maxGuests (רכישה רגילה)
+   lookup_key → maxGuests
+   null = UNLIMITED
 ============================================================ */
-const GUESTS_BY_KEY: Record<string, number> = {
-  basic_plan: 50,      // (הישן – אם עדיין קיים)
-  basic_plan_49: 50,   // ✅ החדש של 49₪
+const GUESTS_BY_KEY: Record<string, number | null> = {
+  // BASIC — ללא הגבלה
+  basic_plan: null,
+  basic_plan_49: null,
 
+  // PREMIUM
   premium_100: 100,
   premium_300: 300,
   premium_500: 500,
@@ -37,15 +40,11 @@ export async function POST(req: Request) {
   const body = await req.text();
 
   if (!signature) {
-    console.error("❌ Missing Stripe signature header");
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
   let stripeEvent: Stripe.Event;
 
-  /* ============================================================
-     Verify webhook signature
-  ============================================================ */
   try {
     stripeEvent = stripe.webhooks.constructEvent(
       body,
@@ -57,13 +56,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  console.log("📦 Stripe Event Type:", stripeEvent.type);
-
-  /* ============================================================
-     We only care about successful checkout
-  ============================================================ */
   if (stripeEvent.type !== "checkout.session.completed") {
-    console.log("ℹ️ Ignored event:", stripeEvent.type);
     return NextResponse.json({ received: true });
   }
 
@@ -79,7 +72,6 @@ export async function POST(req: Request) {
   });
 
   if (existingPayment) {
-    console.log("⚠️ Duplicate session, skipping:", session.id);
     return NextResponse.json({ received: true });
   }
 
@@ -88,18 +80,16 @@ export async function POST(req: Request) {
   ============================================================ */
   const email = session.customer_email;
   if (!email) {
-    console.error("❌ Missing customer email in session:", session.id);
     return NextResponse.json({ error: "Missing email" }, { status: 400 });
   }
 
   const user = await User.findOne({ email });
   if (!user) {
-    console.error("❌ User not found:", email);
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   /* ============================================================
-     🛒 REGULAR PURCHASE (priceKey-based)
+     Get priceKey
   ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 1,
@@ -110,18 +100,17 @@ export async function POST(req: Request) {
   const priceKey = price?.lookup_key;
   const priceId = price?.id;
 
-  if (!priceKey || !GUESTS_BY_KEY[priceKey]) {
-    console.error("❌ Unknown priceKey:", priceKey);
+  if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
     return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
   }
 
   const maxGuests = GUESTS_BY_KEY[priceKey];
   const amountPaid = (price.unit_amount ?? 0) / 100;
 
-  console.log("💳 Regular payment received:", { email, priceKey, amountPaid });
+  const isBasic = priceKey.startsWith("basic");
 
   /* ============================================================
-     Create Payment record
+     Create Payment
   ============================================================ */
   const payment = await Payment.create({
     email,
@@ -137,7 +126,7 @@ export async function POST(req: Request) {
   });
 
   /* ============================================================
-     Create Event (only if not exists)
+     Create Event (if not exists)
   ============================================================ */
   let eventDoc = await Event.findOne({ userId: user._id });
 
@@ -153,21 +142,20 @@ export async function POST(req: Request) {
       paymentStatus: "paid",
       status: "active",
     });
-    console.log("🆕 Created new event for user:", email);
   }
 
   /* ============================================================
-     Update user
+     Update User — BASIC ללא הגבלות
   ============================================================ */
   await User.findByIdAndUpdate(user._id, {
-    plan: priceKey === "basic_plan" ? "basic" : "premium",
-    guests: maxGuests,
+    plan: isBasic ? "basic" : "premium",
+    guests: maxGuests, // null = unlimited
     paidAmount: amountPaid,
     planLimits: {
       maxGuests,
-      smsEnabled: priceKey !== "basic_plan",
-      seatingEnabled: priceKey !== "basic_plan",
-      remindersEnabled: priceKey !== "basic_plan",
+      smsEnabled: true,
+      seatingEnabled: true,
+      remindersEnabled: true,
     },
   });
 
