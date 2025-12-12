@@ -141,7 +141,8 @@ ${inviteLink}
      תצוגת דף
   ============================================================ */
   return (
-    <div className="p-10">
+    <div className="p-10" dir="rtl">
+
       <h1 className="text-4xl font-semibold mb-6">ניהול האירוע שלך</h1>
 
       {/* 🔔 שדרוג */}
@@ -199,13 +200,13 @@ ${inviteLink}
   <div>
     {/* Header */}
     <div className="flex items-center justify-between mb-6">
-  {/* כותרת – מימין */}
+  {/* כותרת – ימין */}
   <h2 className="text-2xl font-semibold text-right">
     רשימת מוזמנים
   </h2>
 
-  {/* כפתורים – מיושרים לימין */}
-  <div className="flex gap-3 flex-row-reverse">
+  {/* כפתורים – ימין */}
+  <div className="flex gap-3">
     {/* ➕ פעולה ראשית */}
     <button
       onClick={() => setOpenAddModal(true)}
@@ -225,6 +226,7 @@ ${inviteLink}
     </button>
   </div>
 </div>
+
 
 
 
