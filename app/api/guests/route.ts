@@ -2,37 +2,100 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
+import SeatingTable from "@/models/SeatingTable";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
+
+/* ============================================================
+   טיפוסים מקומיים (כדי למנוע implicit any)
+============================================================ */
+type SeatedGuest = {
+  guestId: Types.ObjectId;
+  seatIndex: number;
+};
+
+type TableItem = {
+  id: string;
+  name?: string;
+  seatedGuests?: SeatedGuest[];
+};
+
+type SeatingDoc = {
+  invitationId: Types.ObjectId;
+  tables?: TableItem[];
+};
 
 export async function GET() {
   try {
     await db();
 
-    // קבלת בעל האירוע מתוך ה־cookie
+    /* ===============================
+       בעל האירוע
+    =============================== */
     const userId = await getUserIdFromRequest();
     if (!userId) {
-      console.log("❌ No userId from cookies");
       return NextResponse.json({ guests: [] });
     }
 
-    // שליפת כל ההזמנות של המשתמש
-    const invitations = await Invitation.find({ ownerId: userId }).select("_id");
+    /* ===============================
+       כל ההזמנות של המשתמש
+    =============================== */
+    const invitations = await Invitation.find({ ownerId: userId })
+      .select("_id")
+      .lean();
 
     if (!invitations.length) {
-      console.log("❌ No invitations found for user", userId);
       return NextResponse.json({ guests: [] });
     }
 
-    const ids = invitations.map((i) => i._id);
+    const invitationIds = invitations.map((i) => i._id);
 
-    // שליפת כל האורחים לפי כל ההזמנות
+    /* ===============================
+       כל האורחים
+    =============================== */
     const guests = await InvitationGuest.find({
-      invitationId: { $in: ids },
-    }).sort({ createdAt: -1 });
+      invitationId: { $in: invitationIds },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    return NextResponse.json({ guests });
+    /* ===============================
+       כל ההושבות
+    =============================== */
+    const seatings = (await SeatingTable.find({
+      invitationId: { $in: invitationIds },
+    }).lean()) as SeatingDoc[];
+
+    /* ===============================
+       חיבור שם שולחן לכל אורח
+    =============================== */
+    const guestsWithTable = guests.map((guest) => {
+      let tableName: string | null = null;
+
+      const seating = seatings.find(
+        (s) => s.invitationId.toString() === guest.invitationId.toString()
+      );
+
+      if (seating?.tables) {
+        const table = seating.tables.find((t: TableItem) =>
+          t.seatedGuests?.some(
+            (sg: SeatedGuest) =>
+              sg.guestId.toString() === guest._id.toString()
+          )
+        );
+
+        tableName = table?.name || null;
+      }
+
+      return {
+        ...guest,
+        tableName, // ⭐ מחושב – תמיד עדכני
+      };
+    });
+
+    return NextResponse.json({ guests: guestsWithTable });
 
   } catch (err) {
     console.error("🔥 ERROR in GET /api/guests:", err);

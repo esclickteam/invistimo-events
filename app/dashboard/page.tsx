@@ -17,12 +17,10 @@ type Guest = {
   token: string;
 
   relation?: string;
-  tableNumber?: number;
+  tableName?: string; // ⭐ מגיע מה־API
 
   rsvp: "yes" | "no" | "pending";
   guestsCount: number;
-
-  /** ⭐ הערות מה-RSVP (string ב־DB) */
   notes?: string;
 };
 
@@ -199,7 +197,7 @@ export default function DashboardPage() {
               <td className="p-3 font-semibold">
                 {g.rsvp === "yes" ? g.guestsCount : 0}
               </td>
-              <td className="p-3">{g.tableNumber ?? "-"}</td>
+              <td className="p-3">{g.tableName ?? "-"}</td>
               <td className="p-3 text-sm text-gray-700">
                 {g.notes?.trim() || "-"}
               </td>
