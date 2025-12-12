@@ -7,9 +7,6 @@ import {
   CheckCircle2,
   Star,
   Smartphone,
-  Users,
-  MessageCircle,
-  Map,
 } from "lucide-react";
 
 /* 🔢 עובדים עם מספרים – לא טקסט */
@@ -28,7 +25,7 @@ export default function HomePage() {
   const premiumHref =
     selectedGuests !== ""
       ? `/register?plan=premium&guests=${selectedGuests}`
-      : "/register?plan=premium";
+      : "#";
 
   return (
     <div className="relative space-y-40 pb-40 overflow-hidden">
@@ -52,15 +49,6 @@ export default function HomePage() {
           פלטפורמה מעוצבת וחדשנית לניהול אירועים ב־<strong>Invistimo</strong>:
           הזמנות, אישורי הגעה והושבה — הכול במקום אחד.
         </p>
-
-        <div className="flex justify-center mt-10">
-          <a
-            href="#packages"
-            className="px-10 py-4 rounded-full text-lg font-semibold border-2 border-[#c7a17a] text-[#6a5440]"
-          >
-            צפייה בחבילות
-          </a>
-        </div>
       </motion.section>
 
       {/* ========= חבילות ========= */}
@@ -156,11 +144,20 @@ export default function HomePage() {
               )}
             </div>
 
+            {/* כפתור פרימיום חכם */}
             <Link
               href={premiumHref}
-              className="block mt-10 text-center px-10 py-4 rounded-full bg-white text-[#6a5440] font-bold"
+              className={`block mt-10 text-center px-10 py-4 rounded-full font-bold transition
+                ${
+                  selectedGuests
+                    ? "bg-white text-[#6a5440] hover:bg-[#f0e9e4]"
+                    : "bg-white/40 text-white cursor-not-allowed pointer-events-none"
+                }
+              `}
             >
-              הרשמה ותשלום לחבילת פרימיום
+              {selectedGuests
+                ? "הרשמה ותשלום לחבילת פרימיום"
+                : "בחרו כמות אורחים כדי להמשיך"}
             </Link>
 
             <p className="mt-4 text-center text-white/80 text-sm">
