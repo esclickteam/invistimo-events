@@ -5,28 +5,19 @@ import { useRouter } from "next/navigation";
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
 import UpgradeToPremium from "../components/UpgradeToPremium";
+import { RSVP_LABELS, RSVPStatus } from "@/lib/rsvp";
+
 
 /* ============================================================
    טיפוס בסיסי למוזמן
 =========================================================== */
-export type RSVPStatus = "yes" | "no" | "pending";
-
-export type Guest = {
+type Guest = {
   _id: string;
   name: string;
   phone: string;
   token: string;
-  rsvp: RSVPStatus;
+  rsvp: "yes" | "no" | "pending";
   guestsCount: number;
-};
-
-/* ===============================
-   RSVP LABELS (עברית ל-UI)
-================================ */
-const RSVP_LABELS: Record<RSVPStatus, string> = {
-  yes: "מגיע",
-  no: "לא מגיע",
-  pending: "בהמתנה",
 };
 
 export default function DashboardPage() {
