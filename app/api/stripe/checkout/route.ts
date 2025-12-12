@@ -14,7 +14,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
    lookup_key (priceKey) → Stripe priceId
 ============================================================ */
 const PRICE_MAP: Record<string, string> = {
-  basic_plan: "price_1SdVK5LCgfc20iubLwRTHMKT", // 49₪
+  basic_plan_49: "price_1SdWP9LCgfc20iubG9OFDPVs", // 49₪
   premium_100: "price_1SdSGkLCgfc20iubDzINSFfW", // 149₪
   premium_300: "price_1SdSpILCgfc20iub7y1HQUeR", // 249₪
   premium_500: "price_1SdSpyLCgfc20iubdw9J8fjq", // 399₪

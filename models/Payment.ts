@@ -35,12 +35,13 @@ const PaymentSchema = new Schema<PaymentDocument>(
     stripePaymentIntentId: { type: String },
     stripeCustomerId: { type: String },
 
-    priceKey: {
+  priceKey: {
   type: String,
   required: true,
   enum: [
-    "basic",       // תאימות לאחור (אם כבר נשמרו תשלומים ישנים)
-    "basic_plan",  // החדש
+    "basic",         // תאימות לאחור
+    "basic_plan",    // הישן/הבסיסי
+    "basic_plan_49", // ✅ החדש של 49₪ (אם זה ה-lookup key שבחרת)
     "premium_100",
     "premium_300",
     "premium_500",

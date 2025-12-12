@@ -18,7 +18,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
    lookup_key → maxGuests (רכישה רגילה)
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number> = {
-  basic_plan: 50,
+  basic_plan: 50,      // (הישן – אם עדיין קיים)
+  basic_plan_49: 50,   // ✅ החדש של 49₪
+
   premium_100: 100,
   premium_300: 300,
   premium_500: 500,
