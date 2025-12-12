@@ -10,16 +10,16 @@ type RouteContext = {
   params: Promise<{ invitationId: string }>;
 };
 
-/* ⭐ POST — שמירת הושבה + סנכרון לאורחים */
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* ⭐ פתרון params */
+    /* ===============================
+       0️⃣ params
+    =============================== */
     const { invitationId } = await context.params;
 
-    const body = await req.json();
-    const { tables } = body;
+    const { tables } = await req.json();
 
     if (!Array.isArray(tables)) {
       return NextResponse.json(
@@ -29,16 +29,35 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       1️⃣ שמירת ההושבה
+       1️⃣ UPDATE הושבה (לא CREATE חדש)
+       ✔ מסמך אחד לכל invitationId
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
-      { invitationId },
-      { tables },
-      { new: true, upsert: true }
+      { invitationId },              // 🔑 מזהה יחיד
+      {
+        $set: {
+          tables,
+          updatedAt: new Date(),
+        },
+      },
+      {
+        new: true,
+        upsert: true,                // ← נוצר רק אם לא קיים בכלל
+      }
     );
 
+    /* =================================================
+       ⚠️ חשוב מאוד – הערה עקרונית
+       
+       האמת של ההושבה נמצאת ב־SeatingTable בלבד.
+       אם את משתמשת ב־tableNumber בדשבורד רק לתצוגה –
+       עדיף לחשב אותו בזמן שליפה ולא לשמור כאן.
+       
+       אם בכל זאת את רוצה לשמור snapshot → זה הקוד:
+    ================================================= */
+
     /* ===============================
-       2️⃣ איפוס שולחן לכל האורחים
+       2️⃣ איפוס שולחן לאורחים (snapshot בלבד)
     =============================== */
     await InvitationGuest.updateMany(
       { invitationId },
@@ -46,21 +65,25 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     /* ===============================
-       3️⃣ סנכרון שולחן ← אורח
+       3️⃣ סנכרון snapshot: שולחן ← אורח
     =============================== */
     for (const table of tables) {
       if (!Array.isArray(table.seatedGuests)) continue;
 
       for (const guestId of table.seatedGuests) {
-        await InvitationGuest.findByIdAndUpdate(guestId, {
-          tableNumber: table.name || table.id,
-        });
+        await InvitationGuest.findByIdAndUpdate(
+          guestId,
+          {
+            tableNumber: table.name ?? table.id,
+          },
+          { new: false }
+        );
       }
     }
 
     return NextResponse.json({
       success: true,
-      saved,
+      seatingId: saved._id,
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);
