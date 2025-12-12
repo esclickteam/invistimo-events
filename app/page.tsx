@@ -106,14 +106,10 @@ export default function HomePage() {
 
           {/* ===== PREMIUM ===== */}
           <motion.div className="p-10 rounded-3xl shadow-xl bg-gradient-to-br from-[#d2b08c] to-[#c19c78] text-white">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-4">
               <Star className="w-8 h-8 text-white" />
               <h3 className="text-3xl font-bold">חבילת פרימיום</h3>
             </div>
-
-            <p className="text-white/90 mb-6">
-              ניהול מלא של אישורי הגעה — ללא הגבלה
-            </p>
 
             <ul className="space-y-3 text-white/90 mb-8">
               {[
@@ -122,6 +118,7 @@ export default function HomePage() {
                 "עיצוב הזמנה מתקדם ועריכה חופשית",
                 "שליטה מלאה ברשימת המוזמנים",
                 "עדכונים וסטטיסטיקות בזמן אמת",
+                "ניהול מלא של אישורי הגעה – ללא הגבלה",
               ].map((text) => (
                 <li key={text} className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-white mt-0.5 shrink-0" />
