@@ -36,16 +36,17 @@ const PaymentSchema = new Schema<PaymentDocument>(
     stripeCustomerId: { type: String },
 
     priceKey: {
-      type: String,
-      required: true,
-      enum: [
-        "basic",
-        "premium_100",
-        "premium_300",
-        "premium_500",
-        "premium_1000",
-      ],
-    },
+  type: String,
+  required: true,
+  enum: [
+    "basic",       // תאימות לאחור (אם כבר נשמרו תשלומים ישנים)
+    "basic_plan",  // החדש
+    "premium_100",
+    "premium_300",
+    "premium_500",
+    "premium_1000",
+  ],
+},
 
     maxGuests: { type: Number, required: true },
 
