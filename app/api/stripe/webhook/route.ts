@@ -1,22 +1,25 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { createEventOnce } from "@/lib/createEventOnce";
-
+import Payment from "@/models/Payment";
+import Event from "@/models/Event";
+import connectDB from "@/lib/mongodb";
 
 export const runtime = "nodejs";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-// 🔑 מיפוי priceId → כמות אורחים
-const GUEST_LIMIT_BY_PRICE: Record<string, number> = {
-  price_1SdQxWLCgfc20iubqaxqB5Ka: 50,
-  price_1SdR0KLCgfc20iub6VaEuose: 100,
-  price_1SdR1ULCgfc20iubCb1yi3wI: 300,
-  price_1SdR2ELCgfc20iubkvBev5gQ: 500,
-  price_1SdR2sLCgfc20iub64gEzODZ: 1000,
+// 🔑 lookup_key → maxGuests
+const GUESTS_BY_KEY: Record<string, number> = {
+  basic: 50,
+  premium_100: 100,
+  premium_300: 300,
+  premium_500: 500,
+  premium_1000: 1000,
 };
 
 export async function POST(req: Request) {
+  await connectDB();
+
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
 
@@ -37,23 +40,51 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-    const priceId = lineItems.data[0]?.price?.id;
-
-    if (!priceId || !GUEST_LIMIT_BY_PRICE[priceId]) {
-      console.error("❌ Unknown priceId:", priceId);
-      return NextResponse.json({ error: "Unknown price" }, { status: 400 });
-    }
-
-    await createEventOnce({
-      email: session.customer_email!,
-      maxGuests: GUEST_LIMIT_BY_PRICE[priceId],
-      stripeSessionId: session.id,
-    });
+  if (event.type !== "checkout.session.completed") {
+    return NextResponse.json({ received: true });
   }
+
+  const session = event.data.object as Stripe.Checkout.Session;
+
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+  const price = lineItems.data[0]?.price;
+
+  const priceKey = price?.lookup_key;
+  if (!priceKey || !GUESTS_BY_KEY[priceKey]) {
+    console.error("❌ Unknown priceKey:", priceKey);
+    return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
+  }
+
+  // 🛑 הגנה מכפילויות
+  const existing = await Payment.findOne({
+    stripeSessionId: session.id,
+  });
+  if (existing) {
+    return NextResponse.json({ received: true });
+  }
+
+  // 💳 יצירת Payment
+  const payment = await Payment.create({
+    email: session.customer_email,
+    stripeSessionId: session.id,
+    stripePaymentIntentId: session.payment_intent,
+    stripeCustomerId: session.customer,
+    priceKey,
+    maxGuests: GUESTS_BY_KEY[priceKey],
+    amount: price.unit_amount! / 100,
+    currency: price.currency,
+    status: "paid",
+  });
+
+  // 🎉 יצירת Event
+  const eventDoc = await Event.create({
+    userEmail: payment.email,
+    title: "האירוע שלי",
+  });
+
+  // 🔗 חיבור Payment → Event
+  payment.eventId = eventDoc._id;
+  await payment.save();
 
   return NextResponse.json({ received: true });
 }
