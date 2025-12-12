@@ -97,6 +97,12 @@ export default function DashboardPage() {
     if (invitationId) loadGuests();
   }, [invitationId]);
 
+  useEffect(() => {
+  if (!loading && user && user.plan !== "basic" && activeTab === "upgrade") {
+    setActiveTab("guest-list");
+  }
+}, [loading, user, activeTab]);
+
   /* ============================================================
      סטטיסטיקות
   ============================================================ */
@@ -246,7 +252,8 @@ ${inviteLink}
           סטטיסטיקות
         </button>
 
-        {user?.plan === "basic" && (
+        {!loading && user && user.plan === "basic" && (
+
           <button
             onClick={() => setActiveTab("upgrade")}
             className={`pb-2 font-semibold flex items-center gap-2 ${
