@@ -25,11 +25,17 @@ const GUESTS_BY_KEY: Record<string, number> = {
   premium_1000: 1000,
 };
 
+/* ============================================================
+   MAIN HANDLER
+============================================================ */
 export async function POST(req: Request) {
+  console.log("✅ Stripe webhook called"); // --- חשוב ללוגים ב־Vercel
+  
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
 
   if (!signature) {
+    console.error("❌ Missing Stripe signature header");
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
@@ -49,10 +55,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  console.log("📦 Stripe Event Type:", stripeEvent.type);
+
   /* ============================================================
      We only care about successful checkout
   ============================================================ */
   if (stripeEvent.type !== "checkout.session.completed") {
+    console.log("ℹ️ Ignored event:", stripeEvent.type);
     return NextResponse.json({ received: true });
   }
 
@@ -68,6 +77,7 @@ export async function POST(req: Request) {
   });
 
   if (existingPayment) {
+    console.log("⚠️ Duplicate session, skipping:", session.id);
     return NextResponse.json({ received: true });
   }
 
@@ -76,13 +86,13 @@ export async function POST(req: Request) {
   ============================================================ */
   const email = session.customer_email;
   if (!email) {
-    console.error("❌ Missing customer email");
+    console.error("❌ Missing customer email in session:", session.id);
     return NextResponse.json({ error: "Missing email" }, { status: 400 });
   }
 
   const user = await User.findOne({ email });
   if (!user) {
-    console.error("❌ User not found for email:", email);
+    console.error("❌ User not found:", email);
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
@@ -98,12 +108,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid upgrade metadata" }, { status: 400 });
     }
 
-    // סכום ששולם עכשיו (הפרש)
     const amountPaidNow = (session.amount_total ?? 0) / 100;
 
-    /* ------------------------------------------------------------
-       Create Payment record (upgrade)
-    ------------------------------------------------------------ */
+    console.log("💳 Upgrade payment received for:", email, "| guests:", targetGuests);
+
     const payment = await Payment.create({
       email,
       stripeSessionId: session.id,
@@ -116,9 +124,6 @@ export async function POST(req: Request) {
       status: "paid",
     });
 
-    /* ------------------------------------------------------------
-       Update user (FINAL truth)
-    ------------------------------------------------------------ */
     await User.findByIdAndUpdate(user._id, {
       plan: "premium",
       guests: targetGuests,
@@ -131,16 +136,14 @@ export async function POST(req: Request) {
       },
     });
 
+    console.log("✅ Upgrade applied successfully for user:", email);
     return NextResponse.json({ received: true });
   }
 
   /* ============================================================
      🛒 CASE 2: REGULAR PURCHASE (priceKey-based)
   ============================================================ */
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    limit: 1,
-  });
-
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
   const price = lineItems.data[0]?.price;
   const priceKey = price?.lookup_key;
 
@@ -152,9 +155,8 @@ export async function POST(req: Request) {
   const maxGuests = GUESTS_BY_KEY[priceKey];
   const amountPaid = (price.unit_amount ?? 0) / 100;
 
-  /* ------------------------------------------------------------
-     Create Payment record (regular)
-  ------------------------------------------------------------ */
+  console.log("💳 Regular payment received:", { email, priceKey, amountPaid });
+
   const payment = await Payment.create({
     email,
     stripeSessionId: session.id,
@@ -167,9 +169,6 @@ export async function POST(req: Request) {
     status: "paid",
   });
 
-  /* ------------------------------------------------------------
-     Create Event (first-time only)
-  ------------------------------------------------------------ */
   let eventDoc = await Event.findOne({ userId: user._id });
 
   if (!eventDoc) {
@@ -178,11 +177,9 @@ export async function POST(req: Request) {
       title: "האירוע שלי",
       eventType: "אירוע",
     });
+    console.log("🆕 Created new event for user:", email);
   }
 
-  /* ------------------------------------------------------------
-     Update user
-  ------------------------------------------------------------ */
   await User.findByIdAndUpdate(user._id, {
     plan: priceKey === "basic" ? "basic" : "premium",
     guests: maxGuests,
@@ -198,5 +195,6 @@ export async function POST(req: Request) {
   payment.eventId = eventDoc._id;
   await payment.save();
 
+  console.log("✅ Payment processed successfully for:", email);
   return NextResponse.json({ received: true });
 }
