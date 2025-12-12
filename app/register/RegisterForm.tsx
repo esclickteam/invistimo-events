@@ -5,12 +5,17 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה → תשלום Stripe
+   עמוד הרשמה → תשלום Stripe (זיהוי אוטומטי)
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
+
   const plan = params.get("plan") || "basic";
-  const guests = params.get("guests");
+
+  // guests מגיע כמספר (100 / 300 / 500 / 1000)
+  const guestsParam = params.get("guests");
+  const guests =
+    plan === "premium" && guestsParam ? Number(guestsParam) : 0;
 
   const [form, setForm] = useState({
     name: "",
@@ -24,32 +29,36 @@ export default function RegisterForm() {
   const [priceKey, setPriceKey] = useState<string>("basic");
 
   /* ============================================================
-     חישוב מחיר + priceKey
+     חישוב מחיר + priceKey אוטומטי
   ============================================================ */
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
       setPriceKey("basic");
+      return;
     }
 
     if (plan === "premium") {
-      switch (guests) {
-        case "עד 100 אורחים":
-          setPrice(149);
-          setPriceKey("premium_100");
-          break;
-        case "עד 300 אורחים":
-          setPrice(249);
-          setPriceKey("premium_300");
-          break;
-        case "עד 500 אורחים":
-          setPrice(399);
-          setPriceKey("premium_500");
-          break;
-        case "עד 1000 אורחים":
-          setPrice(699);
-          setPriceKey("premium_1000");
-          break;
+      const priceMap: Record<number, number> = {
+        100: 149,
+        300: 249,
+        500: 399,
+        1000: 699,
+      };
+
+      const keyMap: Record<number, string> = {
+        100: "premium_100",
+        300: "premium_300",
+        500: "premium_500",
+        1000: "premium_1000",
+      };
+
+      if (guests in priceMap) {
+        setPrice(priceMap[guests]);
+        setPriceKey(keyMap[guests]);
+      } else {
+        setPrice(0);
+        setPriceKey("");
       }
     }
   }, [plan, guests]);
@@ -62,7 +71,7 @@ export default function RegisterForm() {
   };
 
   /* ============================================================
-     הרשמה → Checkout
+     הרשמה → Stripe Checkout
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,8 +200,8 @@ export default function RegisterForm() {
         {/* כפתור */}
         <button
           type="submit"
-          disabled={loading}
-          className="btn-primary w-full py-3 text-lg rounded-full"
+          disabled={loading || price === 0}
+          className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
         >
           {loading ? "מעבירה לתשלום..." : "המשך לתשלום"}
         </button>
