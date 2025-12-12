@@ -4,19 +4,22 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const { nextUrl, cookies } = req;
   const pathname = nextUrl.pathname;
+  const hostname = nextUrl.hostname;
 
   /* ========================================================
-     0️⃣ חריגה מלאה ל־Stripe Webhook
-     ❗ אסור redirect / auth / cookies
+     0️⃣ חריגה מוחלטת ל־Stripe Webhook
   ======================================================== */
-  if (pathname.startsWith("/api/stripe/webhook")) {
+  if (
+    pathname.startsWith("/api/stripe/webhook") ||
+    hostname.includes("stripe") // ביטוח למקרה של redirect חיצוני
+  ) {
     return NextResponse.next();
   }
 
   /* ========================================================
      1️⃣ כפיית WWW – רק לשאר האתר
   ======================================================== */
-  if (nextUrl.hostname === "invistimo.com") {
+  if (hostname === "invistimo.com") {
     const url = nextUrl.clone();
     url.hostname = "www.invistimo.com";
     return NextResponse.redirect(url);
