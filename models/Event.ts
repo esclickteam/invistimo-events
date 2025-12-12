@@ -16,6 +16,8 @@ const EventSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
+      lowercase: true,
+      trim: true,
     },
 
     /* =========================
@@ -55,7 +57,7 @@ const EventSchema = new mongoose.Schema(
     stripeSessionId: {
       type: String,
       required: true,
-      unique: true, // ⛔ מונע יצירה כפולה
+      unique: true,
       index: true,
     },
 
@@ -79,10 +81,7 @@ const EventSchema = new mongoose.Schema(
       default: "active",
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-export default mongoose.models.Event ||
-  mongoose.model("Event", EventSchema);
+export default mongoose.models.Event || mongoose.model("Event", EventSchema);

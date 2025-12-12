@@ -29,8 +29,8 @@ const GUESTS_BY_KEY: Record<string, number> = {
    MAIN HANDLER
 ============================================================ */
 export async function POST(req: Request) {
-  console.log("✅ Stripe webhook called"); // --- חשוב ללוגים ב־Vercel
-  
+  console.log("✅ Stripe webhook called");
+
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
 
@@ -97,55 +97,16 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🔁 CASE 1: UPGRADE (metadata-based)
+     🛒 REGULAR PURCHASE (priceKey-based)
   ============================================================ */
-  if (session.metadata?.type === "upgrade") {
-    const targetGuests = Number(session.metadata.targetGuests);
-    const fullPrice = Number(session.metadata.fullPrice);
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    limit: 1,
+    expand: ["data.price.product"],
+  });
 
-    if (!targetGuests || !fullPrice) {
-      console.error("❌ Invalid upgrade metadata:", session.metadata);
-      return NextResponse.json({ error: "Invalid upgrade metadata" }, { status: 400 });
-    }
-
-    const amountPaidNow = (session.amount_total ?? 0) / 100;
-
-    console.log("💳 Upgrade payment received for:", email, "| guests:", targetGuests);
-
-    const payment = await Payment.create({
-      email,
-      stripeSessionId: session.id,
-      stripePaymentIntentId: session.payment_intent as string,
-      stripeCustomerId: session.customer as string,
-      type: "upgrade",
-      maxGuests: targetGuests,
-      amount: amountPaidNow,
-      currency: session.currency,
-      status: "paid",
-    });
-
-    await User.findByIdAndUpdate(user._id, {
-      plan: "premium",
-      guests: targetGuests,
-      paidAmount: fullPrice,
-      planLimits: {
-        maxGuests: targetGuests,
-        smsEnabled: true,
-        seatingEnabled: true,
-        remindersEnabled: true,
-      },
-    });
-
-    console.log("✅ Upgrade applied successfully for user:", email);
-    return NextResponse.json({ received: true });
-  }
-
-  /* ============================================================
-     🛒 CASE 2: REGULAR PURCHASE (priceKey-based)
-  ============================================================ */
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
   const price = lineItems.data[0]?.price;
   const priceKey = price?.lookup_key;
+  const priceId = price?.id;
 
   if (!priceKey || !GUESTS_BY_KEY[priceKey]) {
     console.error("❌ Unknown priceKey:", priceKey);
@@ -157,11 +118,15 @@ export async function POST(req: Request) {
 
   console.log("💳 Regular payment received:", { email, priceKey, amountPaid });
 
+  /* ============================================================
+     Create Payment record
+  ============================================================ */
   const payment = await Payment.create({
     email,
     stripeSessionId: session.id,
     stripePaymentIntentId: session.payment_intent as string,
     stripeCustomerId: session.customer as string,
+    stripePriceId: priceId,
     priceKey,
     maxGuests,
     amount: amountPaid,
@@ -169,26 +134,38 @@ export async function POST(req: Request) {
     status: "paid",
   });
 
+  /* ============================================================
+     Create Event (only if not exists)
+  ============================================================ */
   let eventDoc = await Event.findOne({ userId: user._id });
 
   if (!eventDoc) {
     eventDoc = await Event.create({
       userId: user._id,
+      email,
       title: "האירוע שלי",
       eventType: "אירוע",
+      maxGuests,
+      stripeSessionId: session.id,
+      stripePriceId: priceId,
+      paymentStatus: "paid",
+      status: "active",
     });
     console.log("🆕 Created new event for user:", email);
   }
 
+  /* ============================================================
+     Update user
+  ============================================================ */
   await User.findByIdAndUpdate(user._id, {
-    plan: priceKey === "basic" ? "basic" : "premium",
+    plan: priceKey === "basic_plan" ? "basic" : "premium",
     guests: maxGuests,
     paidAmount: amountPaid,
     planLimits: {
       maxGuests,
-      smsEnabled: priceKey !== "basic",
-      seatingEnabled: priceKey !== "basic",
-      remindersEnabled: priceKey !== "basic",
+      smsEnabled: priceKey !== "basic_plan",
+      seatingEnabled: priceKey !== "basic_plan",
+      remindersEnabled: priceKey !== "basic_plan",
     },
   });
 
