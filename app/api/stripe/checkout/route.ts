@@ -6,10 +6,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 // 🔑 מיפוי חבילות → priceId מ-Stripe
 const PRICE_MAP: Record<string, string> = {
   basic: "price_1SdQxWLCgfc20iubqaxqB5Ka",           // 49₪
-  premium_100: "price_1SdR0KLCgfc20iub6VaEuose",  // 149₪
-  premium_300: "price_1SdR1ULCgfc20iubCb1yi3wI",  // 249₪
-  premium_500: "price_1SdR2ELCgfc20iubkvBev5gQ",  // 399₪
-  premium_1000: "price_1SdR2sLCgfc20iub64gEzODZ" // 699₪
+  premium_100: "price_1SdSGkLCgfc20iubDzINSFfW",  // 149₪
+  premium_300: "price_1SdSI8LCgfc20iubW151vxus",  // 249₪
+  premium_500: "price_1SdSISLCgfc20iubdMh5NfB2",  // 399₪
+  premium_1000: "price_1SdSIsLCgfc20iubaRB5L0KH" // 699₪
 };
 
 export async function POST(req: Request) {
