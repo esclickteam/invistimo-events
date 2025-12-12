@@ -148,7 +148,8 @@ export default function DashboardPage() {
           {invitation && (
             <button
               onClick={() =>
-                router.push(`/dashboard/seating/${invitationId}`)
+                router.push("/dashboard/seating")
+
               }
               className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
             >
@@ -206,9 +207,7 @@ export default function DashboardPage() {
                 <button onClick={() => sendWhatsApp(g)}>📩</button>
                 <button
                   onClick={() =>
-                    router.push(
-                      `/dashboard/seating/${invitationId}?guestId=${g._id}`
-                    )
+                    router.push(`/dashboard/seating?guestId=${g._id}`)
                   }
                 >
                   🪑
