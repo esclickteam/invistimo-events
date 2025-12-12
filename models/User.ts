@@ -8,7 +8,11 @@ export interface IUser extends Document {
   // חבילה
   plan: "basic" | "premium";
 
-  // הגבלות לפי חבילה
+  // רמת החבילה בפועל
+  guests: number;        // 50 / 100 / 300 / 500 / 1000
+  paidAmount: number;    // כמה כסף שולם עד כה
+
+  // הגבלות לפי חבילה (נגזר)
   planLimits: {
     maxGuests: number;
     smsEnabled: boolean;
@@ -30,9 +34,21 @@ const UserSchema = new Schema<IUser>(
       default: "basic",
     },
 
-    // הגבלות (ברירת מחדל = בסיס)
+    // ⭐ רמת חבילה בפועל
+    guests: {
+      type: Number,
+      default: 50, // בסיס
+    },
+
+    // ⭐ כמה שולם בפועל
+    paidAmount: {
+      type: Number,
+      default: 49, // בסיס
+    },
+
+    // הגבלות (נגזרות מהחבילה)
     planLimits: {
-      maxGuests: { type: Number, default: 50 }, // 👈 בסיס
+      maxGuests: { type: Number, default: 50 },
       smsEnabled: { type: Boolean, default: false },
       seatingEnabled: { type: Boolean, default: false },
       remindersEnabled: { type: Boolean, default: false },

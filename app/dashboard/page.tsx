@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
+import UpgradeToPremium from "../components/UpgradeToPremium";
 
 /* ============================================================
    טיפוס בסיסי למוזמן
@@ -26,6 +27,23 @@ export default function DashboardPage() {
 
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
+
+  const [user, setUser] = useState<any | null>(null);
+
+  /* ============================================================
+     טוען משתמש
+  ============================================================ */
+  async function loadUser() {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (data.success) {
+        setUser(data.user);
+      }
+    } catch (err) {
+      console.error("❌ שגיאה בטעינת משתמש:", err);
+    }
+  }
 
   /* ============================================================
      טוען הזמנה של המשתמש
@@ -65,6 +83,7 @@ export default function DashboardPage() {
   ============================================================ */
   useEffect(() => {
     async function init() {
+      await loadUser();
       await loadInvitation();
       setLoading(false);
     }
@@ -90,10 +109,6 @@ export default function DashboardPage() {
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
     const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
-
-
-
-
 
     const message = `
 היי ${guest.name}! 💛✨
@@ -121,7 +136,7 @@ ${inviteLink}
   };
 
   /* ============================================================
-     פונקציה: שליחה קולקטיבית (עם השהייה וסגירת טאב קודם)
+     פונקציה: שליחה קולקטיבית
   ============================================================ */
   const sendAllWhatsApps = async () => {
     if (!guests.length) {
@@ -134,7 +149,6 @@ ${inviteLink}
     );
     if (!confirmSend) return;
 
-    console.log("🚀 התחלת שליחה קבוצתית...");
     alert(
       "שליחה קבוצתית החלה – אל תסגרי את החלון עד לסיום. וואטסאפ ייפתח לכל מוזמן בהפרשים קצרים 🕊️"
     );
@@ -146,9 +160,6 @@ ${inviteLink}
       if (!g.phone) continue;
 
       const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${g.token}`;
-
-
-
 
       const message = `
 היי ${g.name}! 💛✨
@@ -173,17 +184,13 @@ ${inviteLink}
 
       const whatsappUrl = `${whatsappBaseUrl}?phone=${phoneForWhatsapp}&text=${encodedMessage}`;
 
-      console.log(`📤 שולח אל ${g.name} (${g.phone})`);
-
       if (lastWindow && !lastWindow.closed) lastWindow.close();
       lastWindow = window.open(whatsappUrl, "_blank");
 
-      // השהייה של 3 שניות בין הודעות
       await new Promise((res) => setTimeout(res, 3000));
     }
 
     if (lastWindow && !lastWindow.closed) lastWindow.close();
-
     alert("✅ כל ההודעות נשלחו בהצלחה!");
   };
 
@@ -193,6 +200,13 @@ ${inviteLink}
   return (
     <div className="p-10">
       <h1 className="text-4xl font-semibold mb-6">ניהול האירוע שלך</h1>
+
+      {/* 🔔 שדרוג לפרימיום */}
+      {user?.plan === "basic" && (
+        <div className="mb-10">
+          <UpgradeToPremium paidAmount={user.paidAmount} />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-4 mb-8 border-b pb-3">
@@ -208,17 +222,17 @@ ${inviteLink}
         </button>
 
         <button
-  onClick={() => {
-    if (!invitationId) {
-      alert("לא נמצאה הזמנה.");
-      return;
-    }
-    window.location.href = `/dashboard/seating?invitation=${invitationId}`;
-  }}
-  className={`pb-2 text-gray-700 hover:text-black`}
->
-  סידורי הושבה
-</button>
+          onClick={() => {
+            if (!invitationId) {
+              alert("לא נמצאה הזמנה.");
+              return;
+            }
+            window.location.href = `/dashboard/seating?invitation=${invitationId}`;
+          }}
+          className="pb-2 text-gray-700 hover:text-black"
+        >
+          סידורי הושבה
+        </button>
 
         <button
           onClick={() => setActiveTab("stats")}
@@ -230,40 +244,13 @@ ${inviteLink}
         >
           סטטיסטיקות
         </button>
-
-        {!invitation ? (
-          <button
-            onClick={() => (window.location.href = "/dashboard/create-invite")}
-            className="ml-auto bg-black text-white px-6 py-2 rounded-full"
-          >
-            🎨 יצירת הזמנה
-          </button>
-        ) : (
-          <button
-            onClick={() =>
-              (window.location.href = `/dashboard/edit-invite/${invitation._id}`)
-            }
-            className="ml-auto bg-black text-white px-6 py-2 rounded-full"
-          >
-            ✏️ עריכת הזמנה
-          </button>
-        )}
       </div>
 
-      {/* Loading */}
       {loading && <div>טוען...</div>}
 
-      {/* אין הזמנה */}
       {!invitation && !loading && (
         <div className="text-center text-gray-600 text-xl mt-20">
           עדיין לא יצרת הזמנה 🎉
-          <br />
-          <button
-            onClick={() => (window.location.href = "/dashboard/create-invite")}
-            className="mt-5 bg-black text-white px-6 py-3 rounded-full"
-          >
-            יצירת הזמנה
-          </button>
         </div>
       )}
 
@@ -279,12 +266,11 @@ ${inviteLink}
             <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
           </div>
 
-          {/* כפתור שליחה קולקטיבית */}
           {guests.length > 0 && (
             <div className="mb-6">
               <button
                 onClick={sendAllWhatsApps}
-                className="bg-green-600 text-white px-6 py-3 rounded-full hover:bg-green-700 transition"
+                className="bg-green-600 text-white px-6 py-3 rounded-full"
               >
                 📩 שלח הודעה לכולם
               </button>
@@ -302,38 +288,25 @@ ${inviteLink}
                 <th className="p-3">עריכה</th>
               </tr>
             </thead>
-
             <tbody>
               {guests.map((g) => (
                 <tr key={g._id} className="border-b">
                   <td className="p-3">{g.name}</td>
                   <td className="p-3">{g.phone}</td>
-                  <td className="p-3">
-                    {g.rsvp === "yes" && (
-                      <span className="text-green-600">מגיע</span>
-                    )}
-                    {g.rsvp === "no" && (
-                      <span className="text-red-600">לא מגיע</span>
-                    )}
-                    {g.rsvp === "pending" && (
-                      <span className="text-gray-500">ממתין</span>
-                    )}
-                  </td>
+                  <td className="p-3">{g.rsvp}</td>
                   <td className="p-3">{g.guestsCount}</td>
-
                   <td className="p-3">
                     <button
                       onClick={() => sendWhatsApp(g)}
-                      className="text-green-600 hover:underline"
+                      className="text-green-600"
                     >
                       שלח 📩
                     </button>
                   </td>
-
                   <td className="p-3">
                     <button
                       onClick={() => setSelectedGuest(g)}
-                      className="text-blue-600 hover:underline"
+                      className="text-blue-600"
                     >
                       ערוך
                     </button>
@@ -343,7 +316,6 @@ ${inviteLink}
             </tbody>
           </table>
 
-          {/* כפתור הוספת מוזמן */}
           <button
             onClick={() => setOpenAddModal(true)}
             className="mt-6 bg-black text-white px-6 py-3 rounded-full"
@@ -358,7 +330,7 @@ ${inviteLink}
         <EditGuestModal
           guest={selectedGuest}
           onClose={() => setSelectedGuest(null)}
-          onSuccess={() => loadGuests()}
+          onSuccess={loadGuests}
         />
       )}
 
@@ -366,7 +338,7 @@ ${inviteLink}
         <AddGuestModal
           invitationId={invitationId}
           onClose={() => setOpenAddModal(false)}
-          onSuccess={() => loadGuests()}
+          onSuccess={loadGuests}
         />
       )}
     </div>

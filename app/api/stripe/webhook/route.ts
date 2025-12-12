@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import Event from "@/models/Event";
+import User from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   lookup_key → maxGuests
+   lookup_key → maxGuests (רכישה רגילה)
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number> = {
   basic: 50,
@@ -60,7 +61,81 @@ export async function POST(req: Request) {
   const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
   /* ============================================================
-     Get purchased price
+     Prevent duplicate processing
+  ============================================================ */
+  const existingPayment = await Payment.findOne({
+    stripeSessionId: session.id,
+  });
+
+  if (existingPayment) {
+    return NextResponse.json({ received: true });
+  }
+
+  /* ============================================================
+     Identify user
+  ============================================================ */
+  const email = session.customer_email;
+  if (!email) {
+    console.error("❌ Missing customer email");
+    return NextResponse.json({ error: "Missing email" }, { status: 400 });
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    console.error("❌ User not found for email:", email);
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  /* ============================================================
+     🔁 CASE 1: UPGRADE (metadata-based)
+  ============================================================ */
+  if (session.metadata?.type === "upgrade") {
+    const targetGuests = Number(session.metadata.targetGuests);
+    const fullPrice = Number(session.metadata.fullPrice);
+
+    if (!targetGuests || !fullPrice) {
+      console.error("❌ Invalid upgrade metadata:", session.metadata);
+      return NextResponse.json({ error: "Invalid upgrade metadata" }, { status: 400 });
+    }
+
+    // סכום ששולם עכשיו (הפרש)
+    const amountPaidNow = (session.amount_total ?? 0) / 100;
+
+    /* ------------------------------------------------------------
+       Create Payment record (upgrade)
+    ------------------------------------------------------------ */
+    const payment = await Payment.create({
+      email,
+      stripeSessionId: session.id,
+      stripePaymentIntentId: session.payment_intent as string,
+      stripeCustomerId: session.customer as string,
+      type: "upgrade",
+      maxGuests: targetGuests,
+      amount: amountPaidNow,
+      currency: session.currency,
+      status: "paid",
+    });
+
+    /* ------------------------------------------------------------
+       Update user (FINAL truth)
+    ------------------------------------------------------------ */
+    await User.findByIdAndUpdate(user._id, {
+      plan: "premium",
+      guests: targetGuests,
+      paidAmount: fullPrice,
+      planLimits: {
+        maxGuests: targetGuests,
+        smsEnabled: true,
+        seatingEnabled: true,
+        remindersEnabled: true,
+      },
+    });
+
+    return NextResponse.json({ received: true });
+  }
+
+  /* ============================================================
+     🛒 CASE 2: REGULAR PURCHASE (priceKey-based)
   ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 1,
@@ -74,43 +149,52 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
   }
 
-  /* ============================================================
-     Prevent duplicate processing
-  ============================================================ */
-  const existingPayment = await Payment.findOne({
-    stripeSessionId: session.id,
-  });
+  const maxGuests = GUESTS_BY_KEY[priceKey];
+  const amountPaid = (price.unit_amount ?? 0) / 100;
 
-  if (existingPayment) {
-    return NextResponse.json({ received: true });
-  }
-
-  /* ============================================================
-     Create Payment record
-  ============================================================ */
+  /* ------------------------------------------------------------
+     Create Payment record (regular)
+  ------------------------------------------------------------ */
   const payment = await Payment.create({
-    email: session.customer_email!,
+    email,
     stripeSessionId: session.id,
     stripePaymentIntentId: session.payment_intent as string,
     stripeCustomerId: session.customer as string,
     priceKey,
-    maxGuests: GUESTS_BY_KEY[priceKey],
-    amount: (price.unit_amount ?? 0) / 100,
+    maxGuests,
+    amount: amountPaid,
     currency: price.currency,
     status: "paid",
   });
 
-  /* ============================================================
-     Create Event (first-time)
-  ============================================================ */
-  const eventDoc = await Event.create({
-    title: "האירוע שלי",
-    eventType: "אירוע",
+  /* ------------------------------------------------------------
+     Create Event (first-time only)
+  ------------------------------------------------------------ */
+  let eventDoc = await Event.findOne({ userId: user._id });
+
+  if (!eventDoc) {
+    eventDoc = await Event.create({
+      userId: user._id,
+      title: "האירוע שלי",
+      eventType: "אירוע",
+    });
+  }
+
+  /* ------------------------------------------------------------
+     Update user
+  ------------------------------------------------------------ */
+  await User.findByIdAndUpdate(user._id, {
+    plan: priceKey === "basic" ? "basic" : "premium",
+    guests: maxGuests,
+    paidAmount: amountPaid,
+    planLimits: {
+      maxGuests,
+      smsEnabled: priceKey !== "basic",
+      seatingEnabled: priceKey !== "basic",
+      remindersEnabled: priceKey !== "basic",
+    },
   });
 
-  /* ============================================================
-     Link Payment → Event
-  ============================================================ */
   payment.eventId = eventDoc._id;
   await payment.save();
 
