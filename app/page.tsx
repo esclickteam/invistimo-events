@@ -12,15 +12,6 @@ import {
   Map,
 } from "lucide-react";
 
-const EVENT_TYPES = [
-  "ברית / בריתה",
-  "בר / בת מצווה",
-  "חתונה קטנה וגדולה",
-  "חינה ושבת חתן",
-  "אירועי חברה וכנסים",
-  "כל אירוע אחר",
-];
-
 /* 🔢 עובדים עם מספרים – לא טקסט */
 type GuestOption = 100 | 300 | 500 | 1000;
 
@@ -91,26 +82,18 @@ export default function HomePage() {
             </p>
 
             <ul className="space-y-3 text-[#7b6754]">
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />
-                גישה לעורך ההזמנות לעיצוב אישי
-              </li>
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />
-                הזמנה דיגיטלית מעוצבת ומוכנה לשליחה
-              </li>
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />
-                שליחה ידנית ב־WhatsApp לכל אורח
-              </li>
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />
-                קישור אישי עם טופס לאישור הגעה
-              </li>
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 text-[#c7a17a] mr-1" />
-                ניהול אישורי הגעה – עד <strong>50 אישורים</strong>
-              </li>
+              {[
+                "גישה לעורך ההזמנות לעיצוב אישי",
+                "הזמנה דיגיטלית מעוצבת ומוכנה לשליחה",
+                "שליחה ידנית ב־WhatsApp לכל אורח",
+                "קישור אישי עם טופס לאישור הגעה",
+                "ניהול אישורי הגעה – עד 50 אישורים",
+              ].map((text) => (
+                <li key={text} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-0.5 shrink-0" />
+                  <span>{text}</span>
+                </li>
+              ))}
             </ul>
 
             <Link
@@ -133,26 +116,18 @@ export default function HomePage() {
             </p>
 
             <ul className="space-y-3 text-white/90 mb-8">
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 mr-1" />
-                תזכורות והודעות אוטומטיות
-              </li>
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 mr-1" />
-                הושבה חכמה וניהול שולחנות
-              </li>
-              <li>
-                <CheckCircle2 className="inline w-5 h-5 mr-1" />
-                עיצוב הזמנה מתקדם ועריכה חופשית
-              </li>
-              <li>
-                <Users className="inline w-5 h-5 mr-1" />
-                שליטה מלאה ברשימת המוזמנים
-              </li>
-              <li>
-                <MessageCircle className="inline w-5 h-5 mr-1" />
-                עדכונים וסטטיסטיקות בזמן אמת
-              </li>
+              {[
+                "תזכורות והודעות אוטומטיות",
+                "הושבה חכמה וניהול שולחנות",
+                "עיצוב הזמנה מתקדם ועריכה חופשית",
+                "שליטה מלאה ברשימת המוזמנים",
+                "עדכונים וסטטיסטיקות בזמן אמת",
+              ].map((text) => (
+                <li key={text} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-white mt-0.5 shrink-0" />
+                  <span>{text}</span>
+                </li>
+              ))}
             </ul>
 
             {/* בחירה לפי כמות אורחים */}
