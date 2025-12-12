@@ -5,13 +5,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   עמוד הרשמה → תשלום Stripe (חישוב אמיתי לפי החבילה)
+   עמוד הרשמה → תשלום Stripe
 ============================================================ */
 export default function RegisterForm() {
   const params = useSearchParams();
-
   const plan = params.get("plan") || "basic";
-  const guests = Number(params.get("guests")); // ← מגיע מהכרטיס בלבד
+  const guests = params.get("guests");
 
   const [form, setForm] = useState({
     name: "",
@@ -22,42 +21,35 @@ export default function RegisterForm() {
 
   const [loading, setLoading] = useState(false);
   const [price, setPrice] = useState<number>(0);
-  const [priceKey, setPriceKey] = useState<string>("");
+  const [priceKey, setPriceKey] = useState<string>("basic");
 
   /* ============================================================
-     חישוב מחיר + priceKey — ללא fallback
+     חישוב מחיר + priceKey
   ============================================================ */
   useEffect(() => {
-    // BASIC
     if (plan === "basic") {
       setPrice(49);
       setPriceKey("basic");
-      return;
     }
 
-    // PREMIUM
     if (plan === "premium") {
       switch (guests) {
-        case 100:
+        case "עד 100 אורחים":
           setPrice(149);
           setPriceKey("premium_100");
-          return;
-        case 300:
+          break;
+        case "עד 300 אורחים":
           setPrice(249);
           setPriceKey("premium_300");
-          return;
-        case 500:
+          break;
+        case "עד 500 אורחים":
           setPrice(399);
           setPriceKey("premium_500");
-          return;
-        case 1000:
+          break;
+        case "עד 1000 אורחים":
           setPrice(699);
           setPriceKey("premium_1000");
-          return;
-        default:
-          // אין התאמה → חבילה לא תקינה
-          setPrice(0);
-          setPriceKey("");
+          break;
       }
     }
   }, [plan, guests]);
@@ -74,12 +66,6 @@ export default function RegisterForm() {
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!priceKey) {
-      alert("חבילה לא תקינה – אנא בחרי חבילת פרימיום מחדש");
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -118,7 +104,7 @@ export default function RegisterForm() {
       } else {
         alert("שגיאה ביצירת תשלום");
       }
-    } catch {
+    } catch (err) {
       alert("שגיאת שרת");
     } finally {
       setLoading(false);
