@@ -209,7 +209,8 @@ ${inviteLink}
       {/* ======================
           TABS
       ====================== */}
-      <div className="flex gap-6 mb-8 border-b pb-3">
+      <div className="flex gap-6 mb-8 border-b pb-3 overflow-x-auto">
+
         <button
           onClick={() => setActiveTab("guest-list")}
           className={`pb-2 ${
