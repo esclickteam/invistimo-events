@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -68,6 +68,46 @@ export default function SeatingEditor({ background }) {
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
+  /* ======================================================
+     ⭐ FOCUS + SCROLL TO TABLE (חדש – לא שובר כלום)
+  ====================================================== */
+  useEffect(() => {
+    const handler = (e) => {
+      const { x, y } = e.detail;
+
+      const targetScale = Math.max(scale, 1.2);
+
+      const targetX = width / 2 - x * targetScale;
+      const targetY = height / 2 - y * targetScale;
+
+      const startX = stagePos.x;
+      const startY = stagePos.y;
+      const startScale = scale;
+
+      const duration = 300;
+      const startTime = performance.now();
+
+      const animate = (now) => {
+        const t = Math.min((now - startTime) / duration, 1);
+        const ease = t * (2 - t);
+
+        setStagePos({
+          x: startX + (targetX - startX) * ease,
+          y: startY + (targetY - startY) * ease,
+        });
+
+        setScale(startScale + (targetScale - startScale) * ease);
+
+        if (t < 1) requestAnimationFrame(animate);
+      };
+
+      requestAnimationFrame(animate);
+    };
+
+    window.addEventListener("focus-table", handler);
+    return () => window.removeEventListener("focus-table", handler);
+  }, [stagePos, scale, width, height]);
+
   /* ==================== Mouse ==================== */
   const handleMouseMove = (e) => {
     const pos = e.target.getStage().getPointerPosition();
@@ -85,7 +125,6 @@ export default function SeatingEditor({ background }) {
 
   return (
     <div className="flex relative w-full h-full">
-
       {/* ==================== SIDEBAR ==================== */}
       <GuestSidebar onDragStart={(guest) => startDragGuest(guest)} />
 
@@ -146,8 +185,7 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
-
-        {/* 🖼️ סקיצה – רק אם קיימת */}
+        {/* 🖼️ סקיצה */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -159,7 +197,7 @@ export default function SeatingEditor({ background }) {
           )}
         </Layer>
 
-        {/* 🟦 GRID = תאים אמיתיים */}
+        {/* 🟦 GRID */}
         <Layer listening={false}>
           <GridBackground
             width={width}
@@ -180,11 +218,10 @@ export default function SeatingEditor({ background }) {
               }}
             />
           ))}
-
           <GhostPreview />
         </Layer>
 
-        {/* 🗑️ מחיקת שולחנות */}
+        {/* 🗑️ מחיקה */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -192,7 +229,7 @@ export default function SeatingEditor({ background }) {
         </Layer>
       </Stage>
 
-      {/* ==================== ADD TABLE MODAL ==================== */}
+      {/* MODALS */}
       {showAddModal && (
         <AddTableModal
           onClose={() => setShowAddModal(false)}
@@ -203,7 +240,6 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* ==================== ADD GUEST TO TABLE MODAL ==================== */}
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
@@ -217,7 +253,6 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* ==================== ADD TABLE BUTTON ==================== */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600

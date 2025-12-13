@@ -20,7 +20,7 @@ export default function TableRenderer({ table }) {
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* ==================== SNAP TO CELL (מתוקן) ==================== */
+  /* ==================== SNAP TO CELL ==================== */
   const getCellSizeForTable = () =>
     table.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
 
@@ -52,7 +52,7 @@ export default function TableRenderer({ table }) {
       seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 });
     });
 
-    // RIGHT – קו ישר
+    // RIGHT
     [-1, 1].forEach((i) => {
       seats.push({
         x: size / 2 + 20,
@@ -70,7 +70,7 @@ export default function TableRenderer({ table }) {
       });
     });
 
-    // LEFT – קו ישר
+    // LEFT
     [-1, 1].forEach((i) => {
       seats.push({
         x: -size / 2 - 20,
@@ -83,7 +83,7 @@ export default function TableRenderer({ table }) {
   }
 
   const handleSeatDrag = (guestId) => {
-    const g = guests.find((x) => x.id === guestId);
+    const g = guests.find((x) => x._id === guestId);
     if (g) startDragGuest(g);
   };
 
@@ -97,12 +97,7 @@ export default function TableRenderer({ table }) {
       onDragMove={(e) => (e.cancelBubble = true)}
       onDragEnd={(e) => {
         e.cancelBubble = true;
-
-        const snapped = snapToCell(
-          e.target.x(),
-          e.target.y()
-        );
-
+        const snapped = snapToCell(e.target.x(), e.target.y());
         updateTablePosition(table.id, snapped.x, snapped.y);
       }}
       onMouseDown={(e) => (e.cancelBubble = true)}
@@ -111,19 +106,15 @@ export default function TableRenderer({ table }) {
         if (e.target?.attrs?.isDeleteButton) return;
 
         e.cancelBubble = true;
-
         useSeatingStore.setState({
           highlightedTable: table.id,
           highlightedSeats: [],
         });
 
-        if (table.openAddGuestModal) {
-          table.openAddGuestModal(table);
-        }
+        table.openAddGuestModal?.(table);
       }}
     >
       {/* ==================== TABLE BODY ==================== */}
-
       {table.type === "round" && (
         <>
           <Circle
@@ -200,7 +191,7 @@ export default function TableRenderer({ table }) {
         const isInHighlight = highlightedSeats.includes(i);
 
         const guestName = !isFree
-          ? guests.find((g) => g.id === seatGuest.guestId)?.name
+          ? guests.find((g) => g._id === seatGuest.guestId)?.name
           : null;
 
         return (
@@ -219,7 +210,9 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#3b82f6" : "#d1d5db"}
               stroke="#2563eb"
               strokeWidth={1}
-              onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
+              onClick={() =>
+                !isFree && handleSeatDrag(seatGuest.guestId)
+              }
             />
 
             <Rect

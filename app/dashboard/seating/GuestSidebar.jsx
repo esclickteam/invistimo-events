@@ -5,9 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GuestSidebar({ onDragStart }) {
-  /* ===============================
-     Zustand
-  =============================== */
   const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
 
@@ -15,15 +12,9 @@ export default function GuestSidebar({ onDragStart }) {
   const setSelectedGuest = useSeatingStore((s) => s.setSelectedGuest);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
 
-  /* ===============================
-     Highlight from URL (אופציונלי)
-  =============================== */
   const searchParams = useSearchParams();
   const highlightedGuestIdFromUrl = searchParams.get("guestId");
 
-  /* ===============================
-     Guards
-  =============================== */
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
     return (
       <div className="w-72 bg-white shadow-xl border-r h-full p-4 text-gray-400">
@@ -32,22 +23,14 @@ export default function GuestSidebar({ onDragStart }) {
     );
   }
 
-  /* ===============================
-     ⭐ מקור אמת:
-     tables[].seatedGuests[].guestId
-     ממפה אורח → שולחן
-  =============================== */
+  /* ⭐ מקור אמת: מי יושב איפה */
   const guestTableMap = useMemo(() => {
     const map = new Map();
-
     tables.forEach((table) => {
       table.seatedGuests?.forEach((sg) => {
-        if (sg.guestId) {
-          map.set(sg.guestId.toString(), table);
-        }
+        map.set(sg.guestId?.toString(), table);
       });
     });
-
     return map;
   }, [tables]);
 
@@ -73,13 +56,25 @@ export default function GuestSidebar({ onDragStart }) {
                 setSelectedGuest(guestId);
 
                 if (table) {
+                  // הארה של השולחן
                   useSeatingStore.setState({
                     highlightedTable: table.id,
                   });
+
+                  // ⭐ בקשת focus + scroll לקנבס
+                  window.dispatchEvent(
+                    new CustomEvent("focus-table", {
+                      detail: {
+                        tableId: table.id,
+                        x: table.x,
+                        y: table.y,
+                      },
+                    })
+                  );
                 }
               }}
               className={`
-                cursor-grab p-3 border-b transition
+                cursor-pointer p-3 border-b transition
                 hover:bg-gray-100
                 ${
                   isSelected
@@ -88,7 +83,7 @@ export default function GuestSidebar({ onDragStart }) {
                 }
               `}
             >
-              {/* ================= שם האורח ================= */}
+              {/* שם */}
               <div
                 className={`font-medium ${
                   isSelected ? "text-blue-700" : "text-gray-800"
@@ -97,34 +92,23 @@ export default function GuestSidebar({ onDragStart }) {
                 {guest.name}
               </div>
 
-              {/* כמות מקומות */}
+              {/* כמות */}
               <div className="text-xs text-gray-500">
                 {guest.guestsCount} מקומות
               </div>
 
-              {/* ================= שולחן ================= */}
-              {table && (
-                <div
-                  className={`
-                    mt-1 text-xs font-semibold
-                    ${
-                      isSelected
-                        ? "text-blue-700"
-                        : "text-green-600"
-                    }
-                  `}
-                >
+              {/* שולחן */}
+              {table ? (
+                <div className="mt-1 text-xs font-semibold text-green-600">
                   שולחן: {table.name}
                 </div>
-              )}
-
-              {!table && (
+              ) : (
                 <div className="mt-1 text-xs text-gray-400">
                   לא משובץ
                 </div>
               )}
 
-              {/* ================= ביטול הושבה ================= */}
+              {/* ביטול הושבה */}
               {table && (
                 <button
                   onClick={(e) => {
@@ -142,10 +126,9 @@ export default function GuestSidebar({ onDragStart }) {
                 </button>
               )}
 
-              {/* אינדיקציה אם הגיע מ־URL */}
               {highlightedGuestIdFromUrl === guestId && (
                 <div className="mt-1 text-xs font-semibold text-yellow-700">
-                  ← אורח שנבחר מהדשבורד
+                  ← נבחר מהדשבורד
                 </div>
               )}
             </li>
