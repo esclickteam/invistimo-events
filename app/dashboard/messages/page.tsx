@@ -210,9 +210,8 @@ export default function MessagesPage() {
       </button>
 
       <h1 className="text-3xl font-semibold mb-2">
-        {invitation.eventType} |{" "}
-        {new Date(invitation.eventDate).toLocaleDateString("he-IL")}
-      </h1>
+  {invitation.eventType}
+</h1>
 
       {/* Balance */}
       {balance && (
