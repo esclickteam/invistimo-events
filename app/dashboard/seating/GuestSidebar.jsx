@@ -10,6 +10,7 @@ export default function GuestSidebar({ onDragStart }) {
 
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const setSelectedGuest = useSeatingStore((s) => s.setSelectedGuest);
+  const clearSelectedGuest = useSeatingStore((s) => s.clearSelectedGuest);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
 
   const searchParams = useSearchParams();
@@ -23,12 +24,14 @@ export default function GuestSidebar({ onDragStart }) {
     );
   }
 
-  /* ⭐ מקור אמת: מי יושב איפה */
+  /* ================= מקור אמת: מי יושב איפה ================= */
   const guestTableMap = useMemo(() => {
     const map = new Map();
     tables.forEach((table) => {
       table.seatedGuests?.forEach((sg) => {
-        map.set(sg.guestId?.toString(), table);
+        if (sg.guestId) {
+          map.set(sg.guestId.toString(), table);
+        }
       });
     });
     return map;
@@ -43,9 +46,11 @@ export default function GuestSidebar({ onDragStart }) {
           const guestId = guest._id?.toString();
           const table = guestTableMap.get(guestId) || null;
 
+          /* ⭐ בחירה אחת בלבד */
           const isSelected =
             selectedGuestId === guestId ||
-            highlightedGuestIdFromUrl === guestId;
+            (!selectedGuestId &&
+              highlightedGuestIdFromUrl === guestId);
 
           return (
             <li
@@ -53,15 +58,21 @@ export default function GuestSidebar({ onDragStart }) {
               draggable
               onDragStart={() => onDragStart(guest)}
               onClick={() => {
+                /* 🔁 לחיצה שנייה = ביטול סימון */
+                if (selectedGuestId === guestId) {
+                  clearSelectedGuest();
+                  return;
+                }
+
                 setSelectedGuest(guestId);
 
                 if (table) {
-                  // הארה של השולחן
                   useSeatingStore.setState({
                     highlightedTable: table.id,
+                    highlightedSeats: [],
                   });
 
-                  // ⭐ בקשת focus + scroll לקנבס
+                  /* 🎯 focus + scroll לקנבס */
                   window.dispatchEvent(
                     new CustomEvent("focus-table", {
                       detail: {
@@ -83,7 +94,7 @@ export default function GuestSidebar({ onDragStart }) {
                 }
               `}
             >
-              {/* שם */}
+              {/* ================= שם ================= */}
               <div
                 className={`font-medium ${
                   isSelected ? "text-blue-700" : "text-gray-800"
@@ -92,14 +103,18 @@ export default function GuestSidebar({ onDragStart }) {
                 {guest.name}
               </div>
 
-              {/* כמות */}
+              {/* ================= כמות ================= */}
               <div className="text-xs text-gray-500">
                 {guest.guestsCount} מקומות
               </div>
 
-              {/* שולחן */}
+              {/* ================= שולחן ================= */}
               {table ? (
-                <div className="mt-1 text-xs font-semibold text-green-600">
+                <div
+                  className={`mt-1 text-xs font-semibold ${
+                    isSelected ? "text-blue-700" : "text-green-600"
+                  }`}
+                >
                   שולחן: {table.name}
                 </div>
               ) : (
@@ -108,17 +123,13 @@ export default function GuestSidebar({ onDragStart }) {
                 </div>
               )}
 
-              {/* ביטול הושבה */}
+              {/* ================= ביטול הושבה ================= */}
               {table && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     removeFromSeat(table.id, guestId);
-                    setSelectedGuest(null);
-                    useSeatingStore.setState({
-                      highlightedTable: null,
-                      highlightedSeats: [],
-                    });
+                    clearSelectedGuest();
                   }}
                   className="mt-1 text-xs text-red-500 hover:underline"
                 >
@@ -126,11 +137,13 @@ export default function GuestSidebar({ onDragStart }) {
                 </button>
               )}
 
-              {highlightedGuestIdFromUrl === guestId && (
-                <div className="mt-1 text-xs font-semibold text-yellow-700">
-                  ← נבחר מהדשבורד
-                </div>
-              )}
+              {/* ================= הגיע מ־URL ================= */}
+              {highlightedGuestIdFromUrl === guestId &&
+                !selectedGuestId && (
+                  <div className="mt-1 text-xs font-semibold text-yellow-700">
+                    ← נבחר מהדשבורד
+                  </div>
+                )}
             </li>
           );
         })}

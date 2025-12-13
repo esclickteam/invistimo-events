@@ -27,13 +27,10 @@ export default function TableRenderer({ table }) {
   const snapToCell = (x, y) => {
     const size = getCellSizeForTable();
 
-    const snappedX =
-      Math.round((x - size / 2) / size) * size + size / 2;
-
-    const snappedY =
-      Math.round((y - size / 2) / size) * size + size / 2;
-
-    return { x: snappedX, y: snappedY };
+    return {
+      x: Math.round((x - size / 2) / size) * size + size / 2,
+      y: Math.round((y - size / 2) / size) * size + size / 2,
+    };
   };
 
   /* ==================== SEATS ==================== */
@@ -47,44 +44,42 @@ export default function TableRenderer({ table }) {
     const gap = 36;
     const seats = [];
 
-    // TOP
-    [-1, 0, 1].forEach((i) => {
-      seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 });
-    });
+    [-1, 0, 1].forEach((i) =>
+      seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 })
+    );
 
-    // RIGHT
-    [-1, 1].forEach((i) => {
+    [-1, 1].forEach((i) =>
       seats.push({
         x: size / 2 + 20,
         y: i * gap,
         rotation: Math.PI / 2,
-      });
-    });
+      })
+    );
 
-    // BOTTOM
-    [-1, 0, 1].forEach((i) => {
+    [-1, 0, 1].forEach((i) =>
       seats.push({
         x: i * gap,
         y: size / 2 + 20,
         rotation: Math.PI,
-      });
-    });
+      })
+    );
 
-    // LEFT
-    [-1, 1].forEach((i) => {
+    [-1, 1].forEach((i) =>
       seats.push({
         x: -size / 2 - 20,
         y: i * gap,
         rotation: -Math.PI / 2,
-      });
-    });
+      })
+    );
 
     return seats.slice(0, table.seats);
   }
 
   const handleSeatDrag = (guestId) => {
-    const g = guests.find((x) => x._id === guestId);
-    if (g) startDragGuest(g);
+    const guest = guests.find(
+      (g) => g._id?.toString() === guestId?.toString()
+    );
+    if (guest) startDragGuest(guest);
   };
 
   return (
@@ -104,8 +99,8 @@ export default function TableRenderer({ table }) {
       onTouchStart={(e) => (e.cancelBubble = true)}
       onClick={(e) => {
         if (e.target?.attrs?.isDeleteButton) return;
-
         e.cancelBubble = true;
+
         useSeatingStore.setState({
           highlightedTable: table.id,
           highlightedSeats: [],
@@ -115,6 +110,7 @@ export default function TableRenderer({ table }) {
       }}
     >
       {/* ==================== TABLE BODY ==================== */}
+
       {table.type === "round" && (
         <>
           <Circle
@@ -190,8 +186,10 @@ export default function TableRenderer({ table }) {
         const isFree = !seatGuest;
         const isInHighlight = highlightedSeats.includes(i);
 
-        const guestName = !isFree
-          ? guests.find((g) => g._id === seatGuest.guestId)?.name
+        const guestName = seatGuest
+          ? guests.find(
+              (g) => g._id?.toString() === seatGuest.guestId?.toString()
+            )?.name
           : null;
 
         return (
@@ -224,7 +222,7 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
-            {!isFree && (
+            {!isFree && guestName && (
               <Text
                 text={guestName}
                 offsetY={18}

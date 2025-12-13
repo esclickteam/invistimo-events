@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 export default function TableView({
   table,
   availableGuests,
+  allGuests,
   onClose,
   onAssignSeat,
   onRemoveSeat,
@@ -12,8 +13,7 @@ export default function TableView({
   const [selectSeatIndex, setSelectSeatIndex] = useState(null);
 
   /* ===============================
-     🔎 מיפוי בלוקים של אורחים
-     לפי guestId אמיתי
+     🔎 מיפוי בלוקים לפי guestId
   =============================== */
   const guestBlocks = useMemo(() => {
     const map = new Map();
@@ -35,7 +35,7 @@ export default function TableView({
     if (!seat) return null;
 
     const seats = guestBlocks.get(seat.guestId);
-    const guest = availableGuests.find(
+    const guest = allGuests.find(
       (g) => g._id === seat.guestId
     );
 

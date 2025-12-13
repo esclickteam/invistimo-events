@@ -3,7 +3,7 @@ import { findFreeBlock } from "../logic/seatingEngine";
 
 export const useSeatingStore = create((set, get) => ({
 
-  /* ---------------- STATE ---------------- */
+  /* ================= STATE ================= */
   tables: [],
   guests: [],
 
@@ -13,41 +13,49 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* ⭐ חדש: אורח נבחר (לסיידבר / הדגשות) */
+  /* ⭐ אורח נבחר (לסיידבר / פוקוס) */
   selectedGuestId: null,
-  setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
+  setSelectedGuest: (guestId) =>
+    set({
+      selectedGuestId: guestId,
+      highlightedSeats: [],
+    }),
+
+  clearSelectedGuest: () =>
+    set({
+      selectedGuestId: null,
+      highlightedTable: null,
+      highlightedSeats: [],
+    }),
 
   showAddModal: false,
+  setShowAddModal: (v) => set({ showAddModal: v }),
 
   addGuestTable: null,
   setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
 
-  /* ---------------- INIT ---------------- */
+  /* ================= INIT ================= */
   init: (tables, guests) => {
-    console.log("🟦 INIT — Loading tables & guests:", { tables, guests });
     set({
       tables: tables || [],
       guests: guests || [],
     });
   },
 
-  /* ---------------- FETCH GUESTS ---------------- */
+  /* ================= FETCH GUESTS ================= */
   fetchGuests: async (invitationId) => {
     try {
       const res = await fetch(`/api/seating/guests/${invitationId}`);
       const data = await res.json();
-
       if (data.success) {
         set({ guests: data.guests });
-      } else {
-        console.error("⚠ Error loading guests:", data.error);
       }
     } catch (err) {
       console.error("❌ Failed to fetch guests:", err);
     }
   },
 
-  /* ---------------- ADD TABLE ---------------- */
+  /* ================= ADD TABLE ================= */
   addTable: (type, seats) => {
     const { tables } = get();
 
@@ -64,7 +72,7 @@ export const useSeatingStore = create((set, get) => ({
     set({ tables: [...tables, newTable] });
   },
 
-  /* ---------------- UPDATE TABLE POSITION ---------------- */
+  /* ================= UPDATE TABLE POSITION ================= */
   updateTablePosition: (tableId, x, y) =>
     set((state) => ({
       tables: state.tables.map((t) =>
@@ -72,35 +80,31 @@ export const useSeatingStore = create((set, get) => ({
       ),
     })),
 
-  /* ---------------- DELETE TABLE ---------------- */
+  /* ================= DELETE TABLE ================= */
   deleteTable: (tableId) =>
-    set((state) => {
-      const updatedGuests = state.guests.map((g) =>
+    set((state) => ({
+      tables: state.tables.filter((t) => t.id !== tableId),
+      guests: state.guests.map((g) =>
         g.tableId === tableId ? { ...g, tableId: null } : g
-      );
+      ),
+      highlightedTable: null,
+      highlightedSeats: [],
+      selectedGuestId: null,
+    })),
 
-      return {
-        tables: state.tables.filter((t) => t.id !== tableId),
-        guests: updatedGuests,
-        highlightedTable: null,
-        highlightedSeats: [],
-      };
-    }),
-
-  setShowAddModal: (v) => set({ showAddModal: v }),
-
-  /* ---------------- DRAG GUEST START ---------------- */
+  /* ================= DRAG GUEST ================= */
   startDragGuest: (guest) => {
     set({
       draggedGuest: guest,
-      highlightedSeats: [],
+      selectedGuestId: guest._id,
       highlightedTable: null,
+      highlightedSeats: [],
     });
   },
 
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
-  /* ---------------- HOVER TABLE ---------------- */
+  /* ================= HOVER ================= */
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
@@ -122,7 +126,10 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    const block = findFreeBlock(hoveredTable, draggedGuest.count);
+    const block = findFreeBlock(
+      hoveredTable,
+      draggedGuest.guestsCount
+    );
 
     set({
       highlightedTable: hoveredTable.id,
@@ -130,7 +137,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- DROP GUEST ---------------- */
+  /* ================= DROP ================= */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -140,104 +147,93 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    if (draggedGuest && !highlightedTable) {
-      const cleanedTables = tables.map((t) => ({
-        ...t,
-        seatedGuests: t.seatedGuests.filter(
-          (s) => s.guestId !== draggedGuest.id
-        ),
-      }));
-
-      const cleanedGuests = guests.map((g) =>
-        g.id === draggedGuest.id ? { ...g, tableId: null } : g
-      );
-
+    if (!draggedGuest) {
       return set({
-        tables: cleanedTables,
-        guests: cleanedGuests,
-        draggedGuest: null,
-        highlightedSeats: [],
-      });
-    }
-
-    if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
-      return set({
-        draggedGuest: null,
         highlightedTable: null,
         highlightedSeats: [],
       });
     }
 
-    let updatedTables = tables.map((t) => ({
-      ...t,
-      seatedGuests: t.seatedGuests.filter(
-        (s) => s.guestId !== draggedGuest.id
-      ),
-    }));
+    /* ❌ נזרק מחוץ לשולחן */
+    if (!highlightedTable || highlightedSeats.length === 0) {
+      set({
+        draggedGuest: null,
+        highlightedTable: null,
+        highlightedSeats: [],
+      });
+      return;
+    }
 
-    updatedTables = updatedTables.map((t) =>
-      t.id === highlightedTable
-        ? {
-            ...t,
-            seatedGuests: [
-              ...t.seatedGuests,
+    const newTables = tables.map((t) => ({
+      ...t,
+      seatedGuests:
+        t.id === highlightedTable
+          ? [
+              ...t.seatedGuests.filter(
+                (s) => s.guestId !== draggedGuest._id
+              ),
               ...highlightedSeats.map((seatIndex) => ({
-                guestId: draggedGuest.id,
+                guestId: draggedGuest._id,
                 seatIndex,
               })),
-            ],
-          }
-        : t
-    );
+            ]
+          : t.seatedGuests.filter(
+              (s) => s.guestId !== draggedGuest._id
+            ),
+    }));
 
-    const updatedGuests = guests.map((g) =>
-      g.id === draggedGuest.id ? { ...g, tableId: highlightedTable } : g
+    const newGuests = guests.map((g) =>
+      g._id === draggedGuest._id
+        ? { ...g, tableId: highlightedTable }
+        : g
     );
 
     set({
-      tables: updatedTables,
-      guests: updatedGuests,
+      tables: newTables,
+      guests: newGuests,
       draggedGuest: null,
       highlightedSeats: [],
       highlightedTable: null,
     });
   },
 
-  /* ---------------- REMOVE FROM SEAT ---------------- */
+  /* ================= REMOVE FROM SEAT ================= */
   removeFromSeat: (tableId, guestId) => {
     const { tables, guests } = get();
 
-    const updatedTables = tables.map((t) =>
-      t.id === tableId
-        ? {
-            ...t,
-            seatedGuests: t.seatedGuests.filter(
-              (s) => s.guestId !== guestId
-            ),
-          }
-        : t
-    );
-
-    const updatedGuests = guests.map((g) =>
-      g.id === guestId ? { ...g, tableId: null } : g
-    );
-
-    set({ tables: updatedTables, guests: updatedGuests });
+    set({
+      tables: tables.map((t) =>
+        t.id === tableId
+          ? {
+              ...t,
+              seatedGuests: t.seatedGuests.filter(
+                (s) => s.guestId !== guestId
+              ),
+            }
+          : t
+      ),
+      guests: guests.map((g) =>
+        g._id === guestId ? { ...g, tableId: null } : g
+      ),
+      highlightedTable: null,
+      highlightedSeats: [],
+      selectedGuestId: null,
+    });
   },
 
-  /* ---------------- ASSIGN GUESTS MANUALLY ---------------- */
+  /* ================= MANUAL ASSIGN ================= */
   assignGuestsToTable: (tableId, guestId, count) => {
     const { tables, guests } = get();
 
     const table = tables.find((t) => t.id === tableId);
-    const guest = guests.find((g) => g.id === guestId);
+    const guest = guests.find((g) => g._id === guestId);
 
     if (!table || !guest)
       return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
 
     const block = findFreeBlock(table, count);
     if (!block)
-      return { ok: false, message: "אין מספיק מקומות פנויים בשולחן" };
+      return { ok: false, message: "אין מספיק מקומות פנויים" };
 
     tables.forEach((t) => {
       t.seatedGuests = t.seatedGuests.filter(
@@ -257,6 +253,8 @@ export const useSeatingStore = create((set, get) => ({
     set({
       tables: [...tables],
       guests: [...guests],
+      selectedGuestId: guestId,
+      highlightedTable: tableId,
     });
 
     return { ok: true };
