@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -29,17 +29,23 @@ export default function GuestSidebar({ onDragStart }) {
   }
 
   /* ===============================
-     Helper: compute table name
-     ⭐ מקור אמת: tables.seatedGuests
+     ⭐ מקור אמת:
+     tables[].seatedGuests[].guestId
+     ממפה אורח → שולחן
   =============================== */
-  const getGuestTable = (guestId) => {
-    const table = tables.find((t) =>
-      t.seatedGuests?.some(
-        (sg) => sg.guestId?.toString() === guestId?.toString()
-      )
-    );
-    return table || null;
-  };
+  const guestTableMap = useMemo(() => {
+    const map = new Map();
+
+    tables.forEach((table) => {
+      table.seatedGuests?.forEach((sg) => {
+        if (sg.guestId) {
+          map.set(sg.guestId.toString(), table);
+        }
+      });
+    });
+
+    return map;
+  }, [tables]);
 
   return (
     <div className="w-72 bg-white shadow-xl border-r h-full overflow-y-auto">
@@ -47,12 +53,13 @@ export default function GuestSidebar({ onDragStart }) {
 
       <ul>
         {guests.map((guest) => {
-          const table = getGuestTable(guest._id);
-          const isHighlighted = guest._id === highlightedGuestId;
+          const guestId = guest._id?.toString();
+          const table = guestTableMap.get(guestId) || null;
+          const isHighlighted = guestId === highlightedGuestId;
 
           return (
             <li
-              key={guest._id}
+              key={guestId}
               draggable
               onDragStart={() => onDragStart(guest)}
               className={`
@@ -73,7 +80,7 @@ export default function GuestSidebar({ onDragStart }) {
                 {guest.guestsCount} מקומות
               </div>
 
-              {/* ⭐ שם שולחן – מתעדכן אוטומטית */}
+              {/* ⭐ שולחן – מתעדכן אוטומטית מההושבה */}
               <div className="mt-1 text-xs">
                 {table ? (
                   <span className="text-green-600">
@@ -84,7 +91,7 @@ export default function GuestSidebar({ onDragStart }) {
                 )}
               </div>
 
-              {/* אינדיקציה ויזואלית לאורח שנבחר מהדשבורד */}
+              {/* אינדיקציה לאורח שנבחר מהדשבורד */}
               {isHighlighted && (
                 <div className="mt-1 text-xs font-semibold text-yellow-700">
                   ← אורח שנבחר מהדשבורד
