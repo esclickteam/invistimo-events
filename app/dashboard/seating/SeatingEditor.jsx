@@ -13,7 +13,7 @@ import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
-import GridBackground from "@/components/seating/GridBackground";
+import GridBackground from "@/app/components/seating/GridBackground";
 
 export default function SeatingEditor({ background }) {
   const [bgImage] = useImage(background || "", "anonymous");
