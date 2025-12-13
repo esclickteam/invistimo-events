@@ -34,13 +34,19 @@ export default function GuestSidebar({ onDragStart }) {
   /* ================= מקור אמת: מי יושב איפה ================= */
   const guestTableMap = useMemo(() => {
     const map = new Map();
+
     tables.forEach((table) => {
-      table.seatedGuests?.forEach((sg) => {
-        if (sg.guestId) {
+      const seated = Array.isArray(table.seatedGuests)
+        ? table.seatedGuests
+        : [];
+
+      seated.forEach((sg) => {
+        if (sg?.guestId) {
           map.set(sg.guestId.toString(), table);
         }
       });
     });
+
     return map;
   }, [tables]);
 
@@ -50,9 +56,11 @@ export default function GuestSidebar({ onDragStart }) {
 
       <ul>
         {guests.map((guest) => {
-          const guestId = guest._id?.toString();
-          const table = guestTableMap.get(guestId) || null;
+          const guestId = guest?._id?.toString() ?? "";
 
+          if (!guestId) return null; // ✅ הגנה קריטית
+
+          const table = guestTableMap.get(guestId) || null;
           const isSelected = selectedGuestId === guestId;
 
           return (
@@ -61,7 +69,6 @@ export default function GuestSidebar({ onDragStart }) {
               draggable
               onDragStart={() => onDragStart(guest)}
               onClick={() => {
-                /* 🔁 לחיצה חוזרת = ביטול סימון */
                 if (isSelected) {
                   clearSelectedGuest();
                   useSeatingStore.setState({
@@ -79,7 +86,6 @@ export default function GuestSidebar({ onDragStart }) {
                     highlightedSeats: [],
                   });
 
-                  /* 🎯 focus + scroll לקנבס */
                   window.dispatchEvent(
                     new CustomEvent("focus-table", {
                       detail: {

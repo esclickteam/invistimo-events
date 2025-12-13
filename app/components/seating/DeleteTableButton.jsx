@@ -4,10 +4,18 @@ import { Group, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function DeleteTableButton({ table }) {
-  const highlightedTable = useSeatingStore(s => s.highlightedTable);
-  const deleteTable = useSeatingStore(s => s.deleteTable);
+  const highlightedTable = useSeatingStore((s) => s.highlightedTable);
+  const deleteTable = useSeatingStore((s) => s.deleteTable);
 
-  if (highlightedTable !== table.id) return null;
+  if (!table || highlightedTable !== table.id) return null;
+
+  // ✅ נרמול קריטי ל-Konva
+  const x = Number(table.x);
+  const y = Number(table.y);
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
 
   let offsetY = -180;
   if (table.type === "square") offsetY = -200;
@@ -20,10 +28,10 @@ export default function DeleteTableButton({ table }) {
 
   return (
     <Group
-      x={table.x}
-      y={table.y + offsetY}
+      x={x}
+      y={y + offsetY}
       listening={true}
-      isDeleteButton={true}      // ⭐ קריטי!
+      isDeleteButton={true}
       onClick={handleDelete}
       onTap={handleDelete}
     >
@@ -35,7 +43,7 @@ export default function DeleteTableButton({ table }) {
         cornerRadius={8}
         shadowBlur={8}
         listening={true}
-        isDeleteButton={true}    // ⭐ חשוב מאוד
+        isDeleteButton={true}
         onClick={handleDelete}
         onTap={handleDelete}
       />
@@ -50,7 +58,7 @@ export default function DeleteTableButton({ table }) {
         height={40}
         offsetX={60}
         listening={true}
-        isDeleteButton={true}    // ⭐ גם פה
+        isDeleteButton={true}
         onClick={handleDelete}
         onTap={handleDelete}
       />

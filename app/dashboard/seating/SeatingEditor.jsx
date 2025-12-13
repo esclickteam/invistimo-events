@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -35,11 +35,19 @@ export default function SeatingEditor({ background }) {
   const searchParams = useSearchParams();
   const highlightedGuestId = searchParams.get("guestId");
 
-  const highlightedTableId = tables.find((table) =>
-    table.seatedGuests?.some(
-      (sg) => sg.guestId?.toString() === highlightedGuestId
-    )
-  )?.id;
+  // ✅ FIX: נרמול בטוח של seatedGuests (בלי לשנות לוגיקה)
+  const highlightedTableId = useMemo(() => {
+    if (!highlightedGuestId) return null;
+
+    const table = tables.find((table) =>
+      Array.isArray(table.seatedGuests) &&
+      table.seatedGuests.some(
+        (sg) => sg.guestId?.toString() === highlightedGuestId
+      )
+    );
+
+    return table?.id ?? null;
+  }, [tables, highlightedGuestId]);
 
   /* ==================== Add Guest Modal ==================== */
   const [addGuestTable, setAddGuestTable] = useState(null);
@@ -68,13 +76,12 @@ export default function SeatingEditor({ background }) {
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
-  /* ==================== 🎯 FOCUS TABLE (חדש!) ==================== */
+  /* ==================== 🎯 FOCUS TABLE ==================== */
   useEffect(() => {
     const handler = (e) => {
       const { x, y } = e.detail;
       if (x == null || y == null) return;
 
-      // ממקם את השולחן במרכז המסך
       const centerX = width / 2;
       const centerY = height / 2;
 
@@ -167,7 +174,7 @@ export default function SeatingEditor({ background }) {
         className="flex-1"
       >
 
-        {/* 🖼️ סקיצה */}
+        {/* 🖼️ רקע */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -228,7 +235,8 @@ export default function SeatingEditor({ background }) {
           guests={guests.filter(
             (g) =>
               !tables.some((t) =>
-                t.seatedGuests?.some(
+                Array.isArray(t.seatedGuests) &&
+                t.seatedGuests.some(
                   (sg) => sg.guestId === g._id
                 )
               )

@@ -1,7 +1,5 @@
-// /components/seating/GhostPreview.jsx
-
 "use client";
-import { Circle, Group, Rect, Text } from "react-konva";
+import { Circle, Group, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GhostPreview() {
@@ -10,11 +8,19 @@ export default function GhostPreview() {
 
   if (!draggedGuest) return null;
 
+  // ✅ נרמול בטוח (קריטי ל-Konva)
+  const x = Number(ghost?.x);
+  const y = Number(ghost?.y);
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
+
   return (
-    <Group x={ghost.x} y={ghost.y} opacity={0.5}>
+    <Group x={x} y={y} opacity={0.5}>
       <Circle radius={28} fill="#3b82f6" />
       <Text
-        text={draggedGuest.name}
+        text={String(draggedGuest.name ?? "")}
         offsetY={-40}
         align="center"
         fontSize={14}
