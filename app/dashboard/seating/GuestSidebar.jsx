@@ -31,14 +31,15 @@ export default function GuestSidebar({ onDragStart }) {
 
   /* ===============================
      ⭐ מיפוי אורח → שולחן
+     IMPORTANT: match by guest.id OR guest._id
   =============================== */
   const guestTableMap = useMemo(() => {
     const map = new Map();
 
     tables.forEach((table) => {
       table.seatedGuests?.forEach((sg) => {
-        if (sg.guestId) {
-          map.set(sg.guestId.toString(), table);
+        if (sg?.guestId != null) {
+          map.set(String(sg.guestId), table);
         }
       });
     });
@@ -52,9 +53,14 @@ export default function GuestSidebar({ onDragStart }) {
 
       <ul>
         {guests.map((guest) => {
-          const guestId = guest._id?.toString();
+          // ✅ אצלך השיבוץ נכתב עם guest.id, אז חייבים fallback
+          const guestId = String(guest.id ?? guest._id ?? "");
           const table = guestTableMap.get(guestId) || null;
-          const isHighlighted = guestId === highlightedGuestId;
+
+          // ✅ גם ההיילייט מה-URL יכול להגיע בתור id או _id
+          const isHighlighted =
+            String(highlightedGuestId || "") === guestId ||
+            String(highlightedGuestId || "") === String(guest._id ?? "");
 
           return (
             <li
@@ -80,7 +86,7 @@ export default function GuestSidebar({ onDragStart }) {
                 <div className="mt-1 text-xs">
                   {table ? (
                     <span className="text-green-600">
-                      שובץ לשולחן: {table.name || `#${table.id}`}
+                      שובץ לשולחן: {table.name || `שולחן ${table.id}`}
                     </span>
                   ) : (
                     <span className="text-gray-400">לא משובץ</span>
