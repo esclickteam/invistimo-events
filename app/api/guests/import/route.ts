@@ -41,39 +41,91 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       🧠 המרת ערכים בעברית לאנגלית + תיקון מבנה
+       Helpers
     ============================================================ */
-    const translateRSVP = (value: string) => {
-      if (!value) return "pending";
-      const normalized = value.toString().trim().toLowerCase();
 
-      // תמיכה בעברית ובאנגלית
-      if (["yes", "מגיע", "הגיע", "בא"].includes(normalized)) return "yes";
-      if (["no", "לא", "לא מגיע"].includes(normalized)) return "no";
-      if (["pending", "ממתין", "לא השיב", "טרם"].includes(normalized))
-        return "pending";
+    const translateRSVP = (value: any): "yes" | "no" | "pending" => {
+      if (value === undefined || value === null) return "pending";
+      const normalized = String(value).trim().toLowerCase();
 
-      // ערך לא מזוהה
+      if (["yes", "מגיע", "הגיע", "בא", "נוכח"].includes(normalized)) return "yes";
+      if (["no", "לא", "לא מגיע", "לא נוכח"].includes(normalized)) return "no";
+      if (["pending", "ממתין", "לא השיב", "טרם"].includes(normalized)) return "pending";
+
       return "pending";
     };
 
+    const cleanPhone = (value: any) => {
+      if (value === undefined || value === null) return "";
+      let phone = String(value).replace(/\D/g, ""); // רק ספרות
+      if (!phone) return "";
+      if (!phone.startsWith("0")) phone = "0" + phone; // מחזיר 0 שנעלם באקסל
+      return phone;
+    };
+
+    // ✅ תיקון TS: defaultValue יכול להיות string או number
+    const getField = (
+      obj: any,
+      keys: string[],
+      defaultValue: string | number = ""
+    ) => {
+      for (const key of keys) {
+        const v = obj?.[key];
+        if (v !== undefined && v !== null && v !== "") return v;
+      }
+      return defaultValue;
+    };
+
+    const toSafeNumber = (v: any, fallback = 1) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : fallback;
+    };
+
+    /* ============================================================
+       Build guests
+    ============================================================ */
     const formattedGuests = guests
-      .filter((g: any) => g["שם"] || g.name) // דילוג על שורות ריקות
       .map((g: any) => {
-        const guest = {
+        const name = String(
+          getField(g, ["שם", "שם מלא", "Name", "Full Name"], "")
+        ).trim();
+
+        const phone = cleanPhone(
+          getField(g, ["טלפון", "טל׳", "Phone", "מספר טלפון"], "")
+        );
+
+        const relation = String(
+          getField(g, ["קרבה", "קשר", "Relation"], "")
+        ).trim();
+
+        const rsvp = translateRSVP(
+          getField(g, ["סטטוס", "מענה", "RSVP", "אישור הגעה"], "pending")
+        );
+
+        const guestsCount = toSafeNumber(
+          getField(g, ["מוזמנים", "כמות משתתפים", "Guests Count", "Guests"], 1),
+          1
+        );
+
+        const notes = String(
+          getField(g, ["הערות", "הערה", "Notes"], "")
+        ).trim();
+
+        // דילוג על שורות ריקות באמת
+        if (!name && !phone) return null;
+
+        return {
           invitationId,
-          name: g.name || g["שם מלא"] || g["שם"] || "אורח ללא שם",
-          phone: g.phone || g["טלפון"] || "",
-          relation: g.relation || g["קרבה"] || "",
-          rsvp: translateRSVP(g.rsvp || g["סטטוס"]),
-          guestsCount: Number(
-            g.guestsCount || g["מוזמנים"] || g["כמות משתתפים"] || 1
-          ),
-          notes: g.notes || g["הערות"] || "",
+          name: name || "אורח ללא שם",
+          phone,
+          relation,
+          rsvp,
+          guestsCount,
+          notes,
           token: crypto.randomUUID(),
         };
-        return guest;
-      });
+      })
+      .filter(Boolean);
 
     if (formattedGuests.length === 0) {
       return NextResponse.json({
@@ -82,7 +134,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 🟢 שמירה למסד
     await InvitationGuest.insertMany(formattedGuests);
 
     return NextResponse.json({
