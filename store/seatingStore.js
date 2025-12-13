@@ -27,7 +27,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- ⭐ FETCH GUESTS FROM DATABASE ---------------- */
+  /* ---------------- FETCH GUESTS ---------------- */
   fetchGuests: async (invitationId) => {
     try {
       const res = await fetch(`/api/seating/guests/${invitationId}`);
@@ -65,7 +65,7 @@ export const useSeatingStore = create((set, get) => ({
   deleteTable: (tableId) =>
     set((state) => {
       const updatedGuests = state.guests.map((g) =>
-        g.tableId === tableId ? { ...g, tableId: null } : g
+        g.tableId === tableId ? { ...g, tableId: null, tableName: null } : g
       );
 
       return {
@@ -126,7 +126,6 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    // Released outside → remove assignment
     if (draggedGuest && !highlightedTable) {
       const cleanedTables = tables.map((t) => ({
         ...t,
@@ -136,7 +135,9 @@ export const useSeatingStore = create((set, get) => ({
       }));
 
       const cleanedGuests = guests.map((g) =>
-        g.id === draggedGuest.id ? { ...g, tableId: null } : g
+        g.id === draggedGuest.id
+          ? { ...g, tableId: null, tableName: null }
+          : g
       );
 
       return set({
@@ -155,14 +156,16 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    let updatedTables = tables.map((t) => ({
+    const updatedTables = tables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
         (s) => s.guestId !== draggedGuest.id
       ),
     }));
 
-    updatedTables = updatedTables.map((t) =>
+    const targetTable = tables.find((t) => t.id === highlightedTable);
+
+    const finalTables = updatedTables.map((t) =>
       t.id === highlightedTable
         ? {
             ...t,
@@ -178,11 +181,17 @@ export const useSeatingStore = create((set, get) => ({
     );
 
     const updatedGuests = guests.map((g) =>
-      g.id === draggedGuest.id ? { ...g, tableId: highlightedTable } : g
+      g.id === draggedGuest.id
+        ? {
+            ...g,
+            tableId: highlightedTable,
+            tableName: targetTable?.name || `שולחן ${highlightedTable}`,
+          }
+        : g
     );
 
     set({
-      tables: updatedTables,
+      tables: finalTables,
       guests: updatedGuests,
       draggedGuest: null,
       highlightedSeats: [],
@@ -191,28 +200,22 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   /* ---------------- REMOVE FROM SEAT ---------------- */
-  removeFromSeat: (tableId, guestId) => {
+  removeFromSeat: (guestId) => {
     const { tables, guests } = get();
 
-    const updatedTables = tables.map((t) =>
-      t.id === tableId
-        ? {
-            ...t,
-            seatedGuests: t.seatedGuests.filter(
-              (s) => s.guestId !== guestId
-            ),
-          }
-        : t
-    );
+    const updatedTables = tables.map((t) => ({
+      ...t,
+      seatedGuests: t.seatedGuests.filter((s) => s.guestId !== guestId),
+    }));
 
     const updatedGuests = guests.map((g) =>
-      g.id === guestId ? { ...g, tableId: null } : g
+      g.id === guestId ? { ...g, tableId: null, tableName: null } : g
     );
 
     set({ tables: updatedTables, guests: updatedGuests });
   },
 
-  /* ---------------- ASSIGN GUESTS MANUALLY ---------------- */
+  /* ---------------- ASSIGN MANUALLY ---------------- */
   assignGuestsToTable: (tableId, guestId, count) => {
     const { tables, guests } = get();
 
@@ -240,6 +243,7 @@ export const useSeatingStore = create((set, get) => ({
     );
 
     guest.tableId = tableId;
+    guest.tableName = table.name || `שולחן ${tableId}`;
 
     set({
       tables: [...tables],
@@ -248,5 +252,4 @@ export const useSeatingStore = create((set, get) => ({
 
     return { ok: true };
   },
-
 }));
