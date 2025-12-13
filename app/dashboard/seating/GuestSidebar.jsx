@@ -24,8 +24,9 @@ export default function GuestSidebar({ onDragStart }) {
     ? String(highlightedGuestIdRaw)
     : "";
 
-  // ✅ מציגים את ההודעה רק אם באמת הגענו מהדשבורד
-  const showDashboardHint = from === "dashboard" && !!highlightedGuestId;
+  // ✅ הצגת הדגשה גם מהדשבורד וגם מההושבה האישית
+  const shouldHighlightFromUrl =
+    (from === "dashboard" || from === "personal") && !!highlightedGuestId;
 
   /* ===============================
      Guards
@@ -62,27 +63,25 @@ export default function GuestSidebar({ onDragStart }) {
 
       <ul>
         {guests.map((guest) => {
-          // ✅ מזהה לתצוגה/מפתח
           const guestId = String(guest.id ?? guest._id ?? "");
-
-          // ✅ מקור אמת לשיבוץ
           const table = guestTableMap.get(guestId) || null;
 
-          // ✅ היילייט חד-משמעי: תואם לאחד משני המזהים של אותו אורח
           const guestIdCandidates = [
             guest.id != null ? String(guest.id) : null,
             guest._id != null ? String(guest._id) : null,
           ].filter(Boolean);
 
+          // ⭐️ הדגשה אם זה האורח מה-URL
           const isHighlighted =
-            showDashboardHint && guestIdCandidates.includes(highlightedGuestId);
+            shouldHighlightFromUrl &&
+            guestIdCandidates.includes(highlightedGuestId);
 
           return (
             <li
               key={guestId}
               className={`p-3 border-b transition flex justify-between items-center ${
                 isHighlighted
-                  ? "bg-yellow-100 border-yellow-400 shadow-inner ring-2 ring-yellow-300"
+                  ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400"
                   : "hover:bg-gray-100"
               }`}
               draggable={!table}
@@ -90,14 +89,20 @@ export default function GuestSidebar({ onDragStart }) {
             >
               <div>
                 {/* שם האורח */}
-                <div className="font-medium text-gray-800">{guest.name}</div>
+                <div
+                  className={`font-medium ${
+                    isHighlighted ? "text-yellow-900" : "text-gray-800"
+                  }`}
+                >
+                  {guest.name}
+                </div>
 
                 {/* כמות מקומות */}
                 <div className="text-xs text-gray-500">
                   {guest.guestsCount} מקומות
                 </div>
 
-                {/* ⭐ שולחן – מתעדכן אוטומטית */}
+                {/* שולחן */}
                 <div className="mt-1 text-xs">
                   {table ? (
                     <span className="text-green-600">
@@ -108,10 +113,10 @@ export default function GuestSidebar({ onDragStart }) {
                   )}
                 </div>
 
-                {/* אינדיקציה לאורח שנבחר מהדשבורד */}
+                {/* אינדיקציה מקורית */}
                 {isHighlighted && (
                   <div className="mt-1 text-xs font-semibold text-yellow-700">
-                    ← אורח שנבחר מהדשבורד
+                    ← אורח שנבחר
                   </div>
                 )}
               </div>
