@@ -60,8 +60,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
+    // ✅ עדכון כולל שדה קרבה (relation)
     guest.name = data.name ?? guest.name;
     guest.phone = data.phone ?? guest.phone;
+    guest.relation = data.relation ?? guest.relation; // 👈 חדש
     guest.rsvp = data.rsvp ?? guest.rsvp;
     guest.guestsCount = data.guestsCount ?? guest.guestsCount;
     guest.notes = data.notes ?? guest.notes;

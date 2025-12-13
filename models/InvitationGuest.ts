@@ -19,6 +19,9 @@ const InvitationGuestSchema = new Schema(
     name: { type: String, required: true },
     phone: { type: String, required: true },
 
+    // ✅ קרבה (כמו בטבלה)
+    relation: { type: String, default: "" },
+
     // RSVP - בחירת האורח בקישור האישי
     rsvp: {
       type: String,
@@ -40,8 +43,6 @@ const InvitationGuestSchema = new Schema(
 
 /* ===========================================================
    ⚠️ חובה ב-NEXT.JS
-   שימוש ב-models כדי למנוע שגיאה של
-   OverwriteModelError כשקבצים נטענים פעמיים
 =========================================================== */
 
 export default models.InvitationGuest ||
