@@ -29,7 +29,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
        const result = await res.json();
 
-      console.log("📦 Import result:", result);
+       console.log("📦 Import result:", result);
 
 
       if (result.success) {
