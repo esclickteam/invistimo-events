@@ -50,6 +50,17 @@ export default function SeatingEditor({ background }) {
   const height =
     typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
+  /* ==================== 🔲 GRID SIZE LOGIC ==================== */
+  const maxSeats = Math.max(
+    0,
+    ...tables.map((t) => t.seats || 0)
+  );
+
+  const BASE_GRID = 120;
+
+  const gridSize =
+    maxSeats > 19 ? BASE_GRID * 2 : BASE_GRID;
+
   /* ==================== Zoom & Pan ==================== */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
@@ -131,7 +142,7 @@ export default function SeatingEditor({ background }) {
         className="flex-1"
       >
 
-        {/* 🖼️ סקיצה של הלקוח */}
+        {/* 🖼️ סקיצה – רק אם קיימת */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -143,9 +154,13 @@ export default function SeatingEditor({ background }) {
           )}
         </Layer>
 
-        {/* 🟦 GRID מקצועי */}
+        {/* 🟦 GRID חכם לפי גודל שולחנות */}
         <Layer listening={false}>
-          <GridBackground width={width} height={height} gridSize={60} />
+          <GridBackground
+            width={width}
+            height={height}
+            gridSize={gridSize}
+          />
         </Layer>
 
         {/* 🪑 שולחנות */}
