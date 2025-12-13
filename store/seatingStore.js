@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
 export const useSeatingStore = create((set, get) => ({
-
   /* ---------------- STATE ---------------- */
   tables: [],
   guests: [],
@@ -13,10 +12,17 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  showAddModal: false,
+  /* ⭐ אורח נבחר – מגיע מה־URL */
+  selectedGuestId: null,
 
+  showAddModal: false,
   addGuestTable: null,
+
+  /* ---------------- ACTIONS ---------------- */
   setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
+  setShowAddModal: (v) => set({ showAddModal: v }),
+  setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
+  clearSelectedGuest: () => set({ selectedGuestId: null }),
 
   /* ---------------- INIT ---------------- */
   init: (tables, guests) => {
@@ -75,8 +81,6 @@ export const useSeatingStore = create((set, get) => ({
         highlightedSeats: [],
       };
     }),
-
-  setShowAddModal: (v) => set({ showAddModal: v }),
 
   /* ---------------- DRAG START ---------------- */
   startDragGuest: (guest) => {
