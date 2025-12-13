@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -50,16 +50,19 @@ export default function SeatingEditor({ background }) {
   const height =
     typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
-  /* ==================== 🔲 GRID SIZE LOGIC ==================== */
-  const maxSeats = Math.max(
-    0,
-    ...tables.map((t) => t.seats || 0)
-  );
+  /* ==================== 🔲 CELL LOGIC ==================== */
+  const CELL_SIZE = 320;
 
-  const BASE_GRID = 120;
+  const getCellSizeForTable = (table) =>
+    table.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
 
-  const gridSize =
-    maxSeats > 19 ? BASE_GRID * 2 : BASE_GRID;
+  const snapPositionToCell = (pos, table) => {
+    const size = getCellSizeForTable(table);
+    return {
+      x: Math.round(pos.x / size) * size,
+      y: Math.round(pos.y / size) * size,
+    };
+  };
 
   /* ==================== Zoom & Pan ==================== */
   const [scale, setScale] = useState(1);
@@ -75,7 +78,9 @@ export default function SeatingEditor({ background }) {
   };
 
   const handleMouseUp = () => {
-    dropGuest();
+    dropGuest({
+      snapToCell: snapPositionToCell,
+    });
   };
 
   return (
@@ -154,12 +159,12 @@ export default function SeatingEditor({ background }) {
           )}
         </Layer>
 
-        {/* 🟦 GRID חכם לפי גודל שולחנות */}
+        {/* 🟦 GRID = תאים אמיתיים */}
         <Layer listening={false}>
           <GridBackground
             width={width}
             height={height}
-            gridSize={gridSize}
+            gridSize={CELL_SIZE}
           />
         </Layer>
 

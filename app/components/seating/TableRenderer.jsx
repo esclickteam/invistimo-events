@@ -1,39 +1,70 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { getSeatCoordinates } from "@/logic/seatingEngine";
 
+const CELL_SIZE = 320;
+
 export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
-
-  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const guests = useSeatingStore((s) => s.guests);
+  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
+  const updateTablePosition = useSeatingStore((s) => s.updateTablePosition);
 
   const tableRef = useRef();
-  const seatsCoords = getSeatCoordinates(table);
 
   const isHighlighted = highlightedTable === table.id;
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* -------- UPDATE POSITION IN STORE -------- */
-  const updatePositionInStore = () => {
-    if (!tableRef.current) return;
+  /* ==================== SNAP TO CELL ==================== */
+  const getCellSizeForTable = () =>
+    table.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
 
-    const pos = tableRef.current.getPosition();
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === table.id ? { ...t, x: pos.x, y: pos.y } : t
-      ),
-    }));
+  const snapToCell = (x, y) => {
+    const size = getCellSizeForTable();
+    return {
+      x: Math.round(x / size) * size,
+      y: Math.round(y / size) * size,
+    };
   };
 
-  useEffect(() => {
-    updatePositionInStore();
-  }, []);
+  /* ==================== SEATS ==================== */
+  const seatsCoords =
+    table.type === "square"
+      ? getSquareSeatCoordinates()
+      : getSeatCoordinates(table);
+
+  function getSquareSeatCoordinates() {
+    const size = 160;
+    const gap = 36;
+    const seats = [];
+
+    // TOP – 3
+    [-1, 0, 1].forEach((i) => {
+      seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 });
+    });
+
+    // RIGHT – 2 (קו ישר)
+    [-1, 1].forEach((i) => {
+      seats.push({ x: size / 2 + 20, y: i * gap, rotation: Math.PI / 2 });
+    });
+
+    // BOTTOM – 3
+    [-1, 0, 1].forEach((i) => {
+      seats.push({ x: i * gap, y: size / 2 + 20, rotation: Math.PI });
+    });
+
+    // LEFT – 2 (קו ישר)
+    [-1, 1].forEach((i) => {
+      seats.push({ x: -size / 2 - 20, y: i * gap, rotation: -Math.PI / 2 });
+    });
+
+    return seats.slice(0, table.seats);
+  }
 
   const handleSeatDrag = (guestId) => {
     const g = guests.find((x) => x.id === guestId);
@@ -46,26 +77,24 @@ export default function TableRenderer({ table }) {
       x={table.x}
       y={table.y}
       draggable
-
-      /* ⭐ מונע גרירת Stage במקום שולחן */
-      onDragStart={(e) => {
-        e.cancelBubble = true;
-      }}
-
-      onDragMove={(e) => {
-        e.cancelBubble = true;
-        updatePositionInStore();
-      }}
-
+      onDragStart={(e) => (e.cancelBubble = true)}
+      onDragMove={(e) => (e.cancelBubble = true)}
       onDragEnd={(e) => {
         e.cancelBubble = true;
-        updatePositionInStore();
-      }}
 
+        const snapped = snapToCell(
+          e.target.x(),
+          e.target.y()
+        );
+
+        updateTablePosition(
+          table.id,
+          snapped.x,
+          snapped.y
+        );
+      }}
       onMouseDown={(e) => (e.cancelBubble = true)}
       onTouchStart={(e) => (e.cancelBubble = true)}
-
-      /* ⭐ לחיצה על שולחן — פתיחת חלון הוספת אורחים */
       onClick={(e) => {
         if (e.target?.attrs?.isDeleteButton) return;
 
@@ -76,13 +105,12 @@ export default function TableRenderer({ table }) {
           highlightedSeats: [],
         });
 
-        // ⭐ פותח את חלון הוספת האורחים — אם הורה סיפק פונקציה
         if (table.openAddGuestModal) {
           table.openAddGuestModal(table);
         }
       }}
     >
-      {/* -------------------------------- TABLE SHAPES ------------------------------- */}
+      {/* ==================== TABLE BODY ==================== */}
 
       {table.type === "round" && (
         <>
@@ -91,7 +119,6 @@ export default function TableRenderer({ table }) {
             fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
             shadowBlur={4}
           />
-
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
@@ -154,8 +181,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* -------------------------------- SEATS ------------------------------- */}
-
+      {/* ==================== SEATS ==================== */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
@@ -166,7 +192,12 @@ export default function TableRenderer({ table }) {
           : null;
 
         return (
-          <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
+          <Group
+            key={i}
+            x={c.x}
+            y={c.y}
+            rotation={(c.rotation * 180) / Math.PI}
+          >
             {isInHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}

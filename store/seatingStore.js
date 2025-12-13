@@ -27,14 +27,13 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- ⭐ FETCH GUESTS FROM DATABASE ---------------- */
+  /* ---------------- FETCH GUESTS ---------------- */
   fetchGuests: async (invitationId) => {
     try {
       const res = await fetch(`/api/seating/guests/${invitationId}`);
       const data = await res.json();
 
       if (data.success) {
-        console.log("🟩 Loaded guests:", data.guests);
         set({ guests: data.guests });
       } else {
         console.error("⚠ Error loading guests:", data.error);
@@ -61,6 +60,14 @@ export const useSeatingStore = create((set, get) => ({
     set({ tables: [...tables, newTable] });
   },
 
+  /* ---------------- UPDATE TABLE POSITION (חדש) ---------------- */
+  updateTablePosition: (tableId, x, y) =>
+    set((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === tableId ? { ...t, x, y } : t
+      ),
+    })),
+
   /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
     set((state) => {
@@ -78,7 +85,7 @@ export const useSeatingStore = create((set, get) => ({
 
   setShowAddModal: (v) => set({ showAddModal: v }),
 
-  /* ---------------- DRAG START ---------------- */
+  /* ---------------- DRAG GUEST START ---------------- */
   startDragGuest: (guest) => {
     set({
       draggedGuest: guest,
@@ -97,7 +104,10 @@ export const useSeatingStore = create((set, get) => ({
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-      const radius = t.type === "round" ? 90 : t.type === "square" ? 110 : 140;
+      const radius =
+        t.type === "round" ? 90 :
+        t.type === "square" ? 110 : 140;
+
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
@@ -116,7 +126,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- DROP ---------------- */
+  /* ---------------- DROP GUEST ---------------- */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -126,7 +136,6 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    // Released outside → remove assignment
     if (draggedGuest && !highlightedTable) {
       const cleanedTables = tables.map((t) => ({
         ...t,
