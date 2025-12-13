@@ -67,17 +67,28 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ================= FETCH GUESTS ================= */
   fetchGuests: async (invitationId) => {
-    try {
-      const res = await fetch(`/api/seating/guests/${invitationId}`);
-      const data = await res.json();
-
-      if (data?.success && Array.isArray(data.guests)) {
-        set({ guests: data.guests });
-      }
-    } catch (err) {
-      console.error("❌ Failed to fetch guests:", err);
+  try {
+    if (!invitationId) {
+      set({ guests: [] });
+      return;
     }
-  },
+
+    const res = await fetch(`/api/seating/guests/${invitationId}`);
+    const data = await res.json();
+
+    if (data?.success && Array.isArray(data.guests)) {
+      set({ guests: data.guests });
+    } else {
+      // ⚠️ חשוב: אם הפורמט לא תקין – לא לשמור object
+      set({ guests: [] });
+    }
+  } catch (err) {
+    console.error("❌ Failed to fetch guests:", err);
+    // ⚠️ תמיד להשאיר guests כמערך
+    set({ guests: [] });
+  }
+},
+
 
   /* ================= ADD TABLE ================= */
   addTable: (type, seats) => {
