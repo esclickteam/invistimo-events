@@ -29,6 +29,9 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
       const result = await res.json();
 
+      console.log("📦 Import result:", result);
+
+
       if (result.success) {
         alert(`✅ יובאו ${result.count} מוזמנים בהצלחה`);
         onSuccess();
