@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/system/hourly-sms-check",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
