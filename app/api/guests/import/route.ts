@@ -8,7 +8,7 @@ import crypto from "crypto";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   POST — ייבוא אורחים מאקסל
+   POST — ייבוא אורחים מאקסל (חכם בעברית / אנגלית)
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -40,20 +40,47 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🟢 עיבוד נתוני האורחים
-    const formattedGuests = guests.map((g: any) => ({
-      invitationId,
-      name: g.name || g["שם"] || "אורח ללא שם",
-      phone: g.phone || g["טלפון"] || "",
-      relation: g.relation || g["קרבה"] || "",
-      rsvp:
-        g.rsvp ||
-        g["סטטוס"] ||
-        "pending", // ערכים אפשריים: yes / no / pending
-      guestsCount: Number(g.guestsCount || g["כמות משתתפים"] || 1),
-      notes: g.notes || g["הערות"] || "",
-      token: crypto.randomUUID(),
-    }));
+    /* ============================================================
+       🧠 המרת ערכים בעברית לאנגלית + תיקון מבנה
+    ============================================================ */
+    const translateRSVP = (value: string) => {
+      if (!value) return "pending";
+      const normalized = value.toString().trim().toLowerCase();
+
+      // תמיכה בעברית ובאנגלית
+      if (["yes", "מגיע", "הגיע", "בא"].includes(normalized)) return "yes";
+      if (["no", "לא", "לא מגיע"].includes(normalized)) return "no";
+      if (["pending", "ממתין", "לא השיב", "טרם"].includes(normalized))
+        return "pending";
+
+      // ערך לא מזוהה
+      return "pending";
+    };
+
+    const formattedGuests = guests
+      .filter((g: any) => g["שם"] || g.name) // דילוג על שורות ריקות
+      .map((g: any) => {
+        const guest = {
+          invitationId,
+          name: g.name || g["שם מלא"] || g["שם"] || "אורח ללא שם",
+          phone: g.phone || g["טלפון"] || "",
+          relation: g.relation || g["קרבה"] || "",
+          rsvp: translateRSVP(g.rsvp || g["סטטוס"]),
+          guestsCount: Number(
+            g.guestsCount || g["מוזמנים"] || g["כמות משתתפים"] || 1
+          ),
+          notes: g.notes || g["הערות"] || "",
+          token: crypto.randomUUID(),
+        };
+        return guest;
+      });
+
+    if (formattedGuests.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: "No valid guests found in Excel file",
+      });
+    }
 
     // 🟢 שמירה למסד
     await InvitationGuest.insertMany(formattedGuests);
