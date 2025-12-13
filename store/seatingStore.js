@@ -3,7 +3,7 @@ import { findFreeBlock } from "../logic/seatingEngine";
 
 export const useSeatingStore = create((set, get) => ({
 
-  /* ================= STATE ================= */
+  /* ---------------- STATE ---------------- */
   tables: [],
   guests: [],
 
@@ -13,98 +13,46 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* ⭐ אורח נבחר (סיידבר / פוקוס) */
-  selectedGuestId: null,
-
-  setSelectedGuest: (guestId) =>
-    set({
-      selectedGuestId:
-        guestId !== undefined && guestId !== null
-          ? guestId.toString()
-          : null,
-      highlightedSeats: [],
-    }),
-
-  clearSelectedGuest: () =>
-    set({
-      selectedGuestId: null,
-      highlightedTable: null,
-      highlightedSeats: [],
-    }),
-
-  /* ================= ⭐ HIGHLIGHT ACTION ================= */
-  setHighlight: (tableId = null, seats = []) =>
-    set({
-      highlightedTable: tableId,
-      highlightedSeats: Array.isArray(seats) ? seats : [],
-    }),
-
-  /* ================= MODALS ================= */
   showAddModal: false,
-  setShowAddModal: (v) => set({ showAddModal: !!v }),
 
   addGuestTable: null,
-  setAddGuestTable: (tableId) =>
-    set({
-      addGuestTable:
-        tableId !== undefined && tableId !== null
-          ? tableId.toString()
-          : null,
-    }),
+  setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
 
-  /* ================= INIT ================= */
+  /* ---------------- INIT ---------------- */
   init: (tables, guests) => {
+    console.log("🟦 INIT — Loading tables & guests:", { tables, guests });
     set({
-      tables: Array.isArray(tables)
-        ? tables.map((t) => ({
-            ...t,
-            id: t?.id ?? t?._id ?? "",
-            name: typeof t?.name === "string" ? t.name : "",
-            seats: Number(t?.seats) || 0,
-            x: Number(t?.x) || 0,
-            y: Number(t?.y) || 0,
-            seatedGuests: Array.isArray(t?.seatedGuests)
-              ? t.seatedGuests
-              : [],
-          }))
-        : [],
-      guests: Array.isArray(guests) ? guests : [],
+      tables: tables || [],
+      guests: guests || [],
     });
   },
 
-  /* ================= FETCH GUESTS ================= */
+  /* ---------------- ⭐ FETCH GUESTS FROM DATABASE ---------------- */
   fetchGuests: async (invitationId) => {
     try {
-      if (!invitationId) {
-        set({ guests: [] });
-        return;
-      }
-
       const res = await fetch(`/api/seating/guests/${invitationId}`);
       const data = await res.json();
 
-      if (data?.success && Array.isArray(data.guests)) {
+      if (data.success) {
+        console.log("🟩 Loaded guests:", data.guests);
         set({ guests: data.guests });
       } else {
-        set({ guests: [] });
+        console.error("⚠ Error loading guests:", data.error);
       }
     } catch (err) {
       console.error("❌ Failed to fetch guests:", err);
-      set({ guests: [] });
     }
   },
 
-  /* ================= ADD TABLE ================= */
+  /* ---------------- ADD TABLE ---------------- */
   addTable: (type, seats) => {
     const { tables } = get();
 
-    const id = `t${tables.length + 1}`;
-
     const newTable = {
-      id,
+      id: "t" + (tables.length + 1),
       name: `שולחן ${tables.length + 1}`,
-      type: type === "square" ? "square" : "round",
-      seats: Number(seats) || 0,
+      type,
+      seats,
       x: 300 + tables.length * 40,
       y: 200,
       seatedGuests: [],
@@ -113,60 +61,43 @@ export const useSeatingStore = create((set, get) => ({
     set({ tables: [...tables, newTable] });
   },
 
-  /* ================= UPDATE TABLE POSITION ================= */
-  updateTablePosition: (tableId, x, y) =>
-    set((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === tableId
-          ? { ...t, x: Number(x), y: Number(y) }
-          : t
-      ),
-    })),
-
-  /* ================= DELETE TABLE ================= */
+  /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
-    set((state) => ({
-      tables: state.tables.filter((t) => t.id !== tableId),
-      guests: state.guests.map((g) =>
-        g?.tableId === tableId ? { ...g, tableId: null } : g
-      ),
-      highlightedTable: null,
-      highlightedSeats: [],
-      selectedGuestId: null,
-    })),
+    set((state) => {
+      const updatedGuests = state.guests.map((g) =>
+        g.tableId === tableId ? { ...g, tableId: null } : g
+      );
 
-  /* ================= DRAG GUEST ================= */
+      return {
+        tables: state.tables.filter((t) => t.id !== tableId),
+        guests: updatedGuests,
+        highlightedTable: null,
+        highlightedSeats: [],
+      };
+    }),
+
+  setShowAddModal: (v) => set({ showAddModal: v }),
+
+  /* ---------------- DRAG START ---------------- */
   startDragGuest: (guest) => {
-    if (!guest || !guest._id) return;
-
     set({
       draggedGuest: guest,
-      selectedGuestId: guest._id.toString(),
-      highlightedTable: null,
       highlightedSeats: [],
+      highlightedTable: null,
     });
   },
 
-  updateGhostPosition: (pos) => {
-    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return;
-    set({ ghostPosition: pos });
-  },
+  updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
-  /* ================= HOVER ================= */
+  /* ---------------- HOVER TABLE ---------------- */
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
-    if (!draggedGuest || !pointer) return;
+    if (!draggedGuest) return;
 
     const hoveredTable = tables.find((t) => {
-      if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) return false;
-
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-
-      const radius =
-        t.type === "round" ? 90 :
-        t.type === "square" ? 110 : 140;
-
+      const radius = t.type === "round" ? 90 : t.type === "square" ? 110 : 140;
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
@@ -177,25 +108,15 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    const safeTable = {
-      ...hoveredTable,
-      seatedGuests: Array.isArray(hoveredTable.seatedGuests)
-        ? hoveredTable.seatedGuests
-        : [],
-    };
-
-    const block = findFreeBlock(
-      safeTable,
-      Number(draggedGuest?.guestsCount) || 1
-    );
+    const block = findFreeBlock(hoveredTable, draggedGuest.count);
 
     set({
       highlightedTable: hoveredTable.id,
-      highlightedSeats: Array.isArray(block) ? block : [],
+      highlightedSeats: block || [],
     });
   },
 
-  /* ================= DROP ================= */
+  /* ---------------- DROP ---------------- */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -205,14 +126,28 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    if (!draggedGuest) {
+    // Released outside → remove assignment
+    if (draggedGuest && !highlightedTable) {
+      const cleanedTables = tables.map((t) => ({
+        ...t,
+        seatedGuests: t.seatedGuests.filter(
+          (s) => s.guestId !== draggedGuest.id
+        ),
+      }));
+
+      const cleanedGuests = guests.map((g) =>
+        g.id === draggedGuest.id ? { ...g, tableId: null } : g
+      );
+
       return set({
-        highlightedTable: null,
+        tables: cleanedTables,
+        guests: cleanedGuests,
+        draggedGuest: null,
         highlightedSeats: [],
       });
     }
 
-    if (!highlightedTable || highlightedSeats.length === 0) {
+    if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
       return set({
         draggedGuest: null,
         highlightedTable: null,
@@ -220,142 +155,95 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    const guestId = draggedGuest._id.toString();
+    let updatedTables = tables.map((t) => ({
+      ...t,
+      seatedGuests: t.seatedGuests.filter(
+        (s) => s.guestId !== draggedGuest.id
+      ),
+    }));
 
-    const newTables = tables.map((t) => {
-      const seated = Array.isArray(t.seatedGuests) ? t.seatedGuests : [];
+    updatedTables = updatedTables.map((t) =>
+      t.id === highlightedTable
+        ? {
+            ...t,
+            seatedGuests: [
+              ...t.seatedGuests,
+              ...highlightedSeats.map((seatIndex) => ({
+                guestId: draggedGuest.id,
+                seatIndex,
+              })),
+            ],
+          }
+        : t
+    );
 
-      if (t.id !== highlightedTable) {
-        return {
-          ...t,
-          seatedGuests: seated.filter(
-            (s) => s?.guestId?.toString() !== guestId
-          ),
-        };
-      }
-
-      return {
-        ...t,
-        seatedGuests: [
-          ...seated.filter(
-            (s) => s?.guestId?.toString() !== guestId
-          ),
-          ...highlightedSeats.map((seatIndex) => ({
-            guestId,
-            seatIndex,
-          })),
-        ],
-      };
-    });
-
-    const newGuests = guests.map((g) =>
-      g?._id?.toString() === guestId
-        ? { ...g, tableId: highlightedTable }
-        : g
+    const updatedGuests = guests.map((g) =>
+      g.id === draggedGuest.id ? { ...g, tableId: highlightedTable } : g
     );
 
     set({
-      tables: newTables,
-      guests: newGuests,
+      tables: updatedTables,
+      guests: updatedGuests,
       draggedGuest: null,
       highlightedSeats: [],
       highlightedTable: null,
     });
   },
 
-  /* ================= REMOVE FROM SEAT ================= */
+  /* ---------------- REMOVE FROM SEAT ---------------- */
   removeFromSeat: (tableId, guestId) => {
-    const gid = guestId?.toString();
-    if (!gid) return;
-
     const { tables, guests } = get();
 
-    set({
-      tables: tables.map((t) => ({
-        ...t,
-        seatedGuests:
-          t.id === tableId
-            ? (Array.isArray(t.seatedGuests)
-                ? t.seatedGuests.filter(
-                    (s) => s?.guestId?.toString() !== gid
-                  )
-                : [])
-            : (Array.isArray(t.seatedGuests)
-                ? t.seatedGuests
-                : []),
-      })),
-      guests: guests.map((g) =>
-        g?._id?.toString() === gid
-          ? { ...g, tableId: null }
-          : g
-      ),
-      highlightedTable: null,
-      highlightedSeats: [],
-      selectedGuestId: null,
-    });
+    const updatedTables = tables.map((t) =>
+      t.id === tableId
+        ? {
+            ...t,
+            seatedGuests: t.seatedGuests.filter(
+              (s) => s.guestId !== guestId
+            ),
+          }
+        : t
+    );
+
+    const updatedGuests = guests.map((g) =>
+      g.id === guestId ? { ...g, tableId: null } : g
+    );
+
+    set({ tables: updatedTables, guests: updatedGuests });
   },
 
-  /* ================= MANUAL ASSIGN ================= */
+  /* ---------------- ASSIGN GUESTS MANUALLY ---------------- */
   assignGuestsToTable: (tableId, guestId, count) => {
-    const gid = guestId?.toString();
     const { tables, guests } = get();
 
     const table = tables.find((t) => t.id === tableId);
-    const guest = guests.find((g) => g?._id?.toString() === gid);
+    const guest = guests.find((g) => g.id === guestId);
 
-    if (!table || !guest) {
+    if (!table || !guest)
       return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
-    }
 
-    const safeTable = {
-      ...table,
-      seatedGuests: Array.isArray(table.seatedGuests)
-        ? table.seatedGuests
-        : [],
-    };
+    const block = findFreeBlock(table, count);
+    if (!block)
+      return { ok: false, message: "אין מספיק מקומות פנויים בשולחן" };
 
-    const block = findFreeBlock(safeTable, Number(count) || 1);
-    if (!block) {
-      return { ok: false, message: "אין מספיק מקומות פנויים" };
-    }
-
-    const newTables = tables.map((t) => {
-      const seated = Array.isArray(t.seatedGuests) ? t.seatedGuests : [];
-
-      if (t.id !== tableId) {
-        return {
-          ...t,
-          seatedGuests: seated.filter(
-            (s) => s?.guestId?.toString() !== gid
-          ),
-        };
-      }
-
-      return {
-        ...t,
-        seatedGuests: [
-          ...seated.filter(
-            (s) => s?.guestId?.toString() !== gid
-          ),
-          ...block.map((seatIndex) => ({
-            guestId: gid,
-            seatIndex,
-          })),
-        ],
-      };
+    tables.forEach((t) => {
+      t.seatedGuests = t.seatedGuests.filter(
+        (s) => s.guestId !== guestId
+      );
     });
 
-    const newGuests = guests.map((g) =>
-      g?._id?.toString() === gid
-        ? { ...g, tableId }
-        : g
+    table.seatedGuests.push(
+      ...block.map((seatIndex) => ({
+        guestId,
+        seatIndex,
+      }))
     );
 
+    guest.tableId = tableId;
+
     set({
-      tables: newTables,
-      guests: newGuests,
-      selectedGuestId: gid,
-      highlightedTable: tableId,
+      tables: [...tables],
+      guests: [...guests],
     });
 
     return { ok: true };

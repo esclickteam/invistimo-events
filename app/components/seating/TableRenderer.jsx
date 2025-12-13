@@ -1,145 +1,99 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useEffect } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { getSeatCoordinates } from "@/logic/seatingEngine";
 
-const CELL_SIZE = 320;
-
 export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
-  const guests = useSeatingStore((s) => s.guests);
+
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
-  const updateTablePosition = useSeatingStore((s) => s.updateTablePosition);
+  const guests = useSeatingStore((s) => s.guests);
 
-  const tableRef = useRef(null);
+  const tableRef = useRef();
+  const seatsCoords = getSeatCoordinates(table);
 
-  /* ================= SAFE TABLE ================= */
-  const safeTable = useMemo(() => {
-    return {
-      ...table,
-      id: table?.id ?? table?._id ?? "",
-      name: typeof table?.name === "string" ? table.name : "",
-      type: table?.type === "square" ? "square" : "round",
-      seats: Number(table?.seats) || 0,
-      seatedGuests: Array.isArray(table?.seatedGuests)
-        ? table.seatedGuests
-        : [],
-      x: Number(table?.x),
-      y: Number(table?.y),
-      openAddGuestModal:
-        typeof table?.openAddGuestModal === "function"
-          ? table.openAddGuestModal
-          : null,
-    };
-  }, [table]);
+  const isHighlighted = highlightedTable === table.id;
+  const assigned = table.seatedGuests || [];
+  const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* ================= HARD GUARD ================= */
-  if (
-    !safeTable.id ||
-    !Number.isFinite(safeTable.x) ||
-    !Number.isFinite(safeTable.y)
-  ) {
-    return null;
-  }
+  /* -------- UPDATE POSITION IN STORE -------- */
+  const updatePositionInStore = () => {
+    if (!tableRef.current) return;
 
-  const isHighlighted = highlightedTable === safeTable.id;
-  const assigned = safeTable.seatedGuests;
-
-  const occupiedCount = new Set(
-    assigned.map((s) => s?.seatIndex).filter((v) => Number.isInteger(v))
-  ).size;
-
-  /* ================= SNAP TO CELL ================= */
-  const getCellSizeForTable = () =>
-    safeTable.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
-
-  const snapToCell = (x, y) => {
-    const size = getCellSizeForTable();
-    return {
-      x: Math.round((x - size / 2) / size) * size + size / 2,
-      y: Math.round((y - size / 2) / size) * size + size / 2,
-    };
+    const pos = tableRef.current.getPosition();
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id ? { ...t, x: pos.x, y: pos.y } : t
+      ),
+    }));
   };
 
-  /* ================= SEAT COORDINATES ================= */
-  const seatsCoords = useMemo(() => {
-    if (safeTable.type === "square") {
-      return getSquareSeatCoordinates(safeTable.seats);
-    }
-    return getSeatCoordinates(safeTable) || [];
-  }, [safeTable]);
+  useEffect(() => {
+    updatePositionInStore();
+  }, []);
 
-  function getSquareSeatCoordinates(seatsCount) {
-    const size = 160;
-    const gap = 36;
-    const seats = [];
-
-    [-1, 0, 1].forEach((i) =>
-      seats.push({ x: i * gap, y: -size / 2 - 20 })
-    );
-    [-1, 1].forEach((i) =>
-      seats.push({ x: size / 2 + 20, y: i * gap })
-    );
-    [-1, 0, 1].forEach((i) =>
-      seats.push({ x: i * gap, y: size / 2 + 20 })
-    );
-    [-1, 1].forEach((i) =>
-      seats.push({ x: -size / 2 - 20, y: i * gap })
-    );
-
-    return seats.slice(0, seatsCount);
-  }
-
-  /* ================= DRAG FROM SEAT ================= */
   const handleSeatDrag = (guestId) => {
-    if (!guestId) return;
-
-    const guest = guests.find(
-      (g) => g?._id?.toString() === guestId?.toString()
-    );
-
-    if (guest) {
-      startDragGuest(guest);
-    }
+    const g = guests.find((x) => x.id === guestId);
+    if (g) startDragGuest(g);
   };
 
   return (
     <Group
       ref={tableRef}
-      x={safeTable.x}
-      y={safeTable.y}
+      x={table.x}
+      y={table.y}
       draggable
+
+      /* ⭐ מונע גרירת Stage במקום שולחן */
+      onDragStart={(e) => {
+        e.cancelBubble = true;
+      }}
+
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        updatePositionInStore();
+      }}
+
       onDragEnd={(e) => {
         e.cancelBubble = true;
-        const snapped = snapToCell(e.target.x(), e.target.y());
-        updateTablePosition(safeTable.id, snapped.x, snapped.y);
+        updatePositionInStore();
       }}
+
+      onMouseDown={(e) => (e.cancelBubble = true)}
+      onTouchStart={(e) => (e.cancelBubble = true)}
+
+      /* ⭐ לחיצה על שולחן — פתיחת חלון הוספת אורחים */
       onClick={(e) => {
+        if (e.target?.attrs?.isDeleteButton) return;
+
         e.cancelBubble = true;
 
         useSeatingStore.setState({
-          highlightedTable: safeTable.id,
+          highlightedTable: table.id,
           highlightedSeats: [],
         });
 
-        if (safeTable.openAddGuestModal) {
-          safeTable.openAddGuestModal(safeTable);
+        // ⭐ פותח את חלון הוספת האורחים — אם הורה סיפק פונקציה
+        if (table.openAddGuestModal) {
+          table.openAddGuestModal(table);
         }
       }}
     >
-      {/* ================= TABLE BODY ================= */}
-      {safeTable.type === "round" && (
+      {/* -------------------------------- TABLE SHAPES ------------------------------- */}
+
+      {table.type === "round" && (
         <>
           <Circle
             radius={60}
             fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
             shadowBlur={4}
           />
+
           <Text
-            text={`${safeTable.name}\n${occupiedCount}/${safeTable.seats}`}
+            text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
             fill="white"
             align="center"
@@ -152,7 +106,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {safeTable.type === "square" && (
+      {table.type === "square" && (
         <>
           <Rect
             width={160}
@@ -163,7 +117,7 @@ export default function TableRenderer({ table }) {
             shadowBlur={4}
           />
           <Text
-            text={`${safeTable.name}\n${occupiedCount}/${safeTable.seats}`}
+            text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
             fill="white"
             align="center"
@@ -176,23 +130,43 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ================= SEATS ================= */}
+      {table.type === "banquet" && (
+        <>
+          <Rect
+            width={240}
+            height={90}
+            offsetX={120}
+            offsetY={45}
+            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
+            shadowBlur={4}
+          />
+          <Text
+            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            fontSize={18}
+            fill="white"
+            align="center"
+            verticalAlign="middle"
+            width={240}
+            height={90}
+            offsetX={120}
+            offsetY={45}
+          />
+        </>
+      )}
+
+      {/* -------------------------------- SEATS ------------------------------- */}
+
       {seatsCoords.map((c, i) => {
-        const seatGuest = assigned.find((s) => s?.seatIndex === i);
+        const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
         const isInHighlight = highlightedSeats.includes(i);
 
-        const guestName =
-          seatGuest
-            ? guests.find(
-                (g) =>
-                  g?._id?.toString() ===
-                  seatGuest?.guestId?.toString()
-              )?.name ?? ""
-            : "";
+        const guestName = !isFree
+          ? guests.find((g) => g.id === seatGuest.guestId)?.name
+          : null;
 
         return (
-          <Group key={i} x={c.x} y={c.y}>
+          <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
             {isInHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}
@@ -202,9 +176,7 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#3b82f6" : "#d1d5db"}
               stroke="#2563eb"
               strokeWidth={1}
-              onClick={() =>
-                !isFree && handleSeatDrag(seatGuest?.guestId)
-              }
+              onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
             />
 
             <Rect
@@ -216,7 +188,7 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
-            {guestName !== "" && (
+            {!isFree && (
               <Text
                 text={guestName}
                 offsetY={18}

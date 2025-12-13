@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -13,16 +13,11 @@ import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
-import GridBackground from "@/app/components/seating/GridBackground";
 
 export default function SeatingEditor({ background }) {
-  /* ==================== BACKGROUND ==================== */
-  const [bgImage] = useImage(
-    typeof background === "string" ? background : "",
-    "anonymous"
-  );
+  const [bgImage] = useImage(background || "", "anonymous");
 
-  /* ==================== ZUSTAND ==================== */
+  /* ==================== Zustand ==================== */
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
 
@@ -35,82 +30,33 @@ export default function SeatingEditor({ background }) {
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
 
-  /* ==================== URL HIGHLIGHT ==================== */
+  /* ==================== Highlight from URL ==================== */
   const searchParams = useSearchParams();
   const highlightedGuestId = searchParams.get("guestId");
 
-  const highlightedTableId = useMemo(() => {
-    if (!highlightedGuestId || !Array.isArray(tables)) return null;
+  // ⭐ מציאת השולחן של האורח לפי seatedGuests (האמת היחידה)
+  const highlightedTableId = tables.find((table) =>
+    table.seatedGuests?.some(
+      (gid) => gid.toString() === highlightedGuestId
+    )
+  )?.id;
 
-    const table = tables.find(
-      (t) =>
-        Array.isArray(t?.seatedGuests) &&
-        t.seatedGuests.some(
-          (sg) =>
-            sg?.guestId?.toString() === highlightedGuestId.toString()
-        )
-    );
-
-    return table?.id ?? null;
-  }, [tables, highlightedGuestId]);
-
-  /* ==================== ADD GUEST MODAL ==================== */
+  /* ==================== Add Guest Modal ==================== */
   const [addGuestTable, setAddGuestTable] = useState(null);
 
-  /* ==================== CANVAS SIZE ==================== */
+  /* ==================== Canvas Size ==================== */
   const width =
-    typeof window !== "undefined"
-      ? Math.max(window.innerWidth - 260, 600)
-      : 1200;
-
+    typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
   const height =
-    typeof window !== "undefined"
-      ? Math.max(window.innerHeight - 100, 600)
-      : 800;
+    typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
-  /* ==================== GRID / CELL ==================== */
-  const CELL_SIZE = 320;
-
-  const getCellSizeForTable = (table) =>
-    table?.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
-
-  const snapPositionToCell = (pos, table) => {
-    const size = getCellSizeForTable(table);
-    return {
-      x: Math.round(pos.x / size) * size,
-      y: Math.round(pos.y / size) * size,
-    };
-  };
-
-  /* ==================== ZOOM & PAN ==================== */
+  /* ==================== Zoom & Pan ==================== */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
-  /* ==================== 🎯 FOCUS TABLE ==================== */
-  useEffect(() => {
-    const handler = (e) => {
-      const { x, y } = e.detail || {};
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-
-      const centerX = width / 2;
-      const centerY = height / 2;
-
-      setStagePos({
-        x: centerX - x * scale,
-        y: centerY - y * scale,
-      });
-    };
-
-    window.addEventListener("focus-table", handler);
-    return () => window.removeEventListener("focus-table", handler);
-  }, [width, height, scale]);
-
-  /* ==================== MOUSE ==================== */
+  /* ==================== Mouse ==================== */
   const handleMouseMove = (e) => {
-    const stage = e.target.getStage();
-    if (!stage) return;
-
-    const pos = stage.getPointerPosition();
+    const pos = e.target.getStage().getPointerPosition();
     if (!pos) return;
 
     updateGhost(pos);
@@ -118,27 +64,15 @@ export default function SeatingEditor({ background }) {
   };
 
   const handleMouseUp = () => {
-    dropGuest({
-      snapToCell: snapPositionToCell,
-    });
+    dropGuest();
   };
-
-  /* ==================== HARD GUARD ==================== */
-  if (!Array.isArray(tables) || !Array.isArray(guests)) {
-    return (
-      <div className="flex items-center justify-center w-full h-full text-gray-400">
-        טוען סידור הושבה…
-      </div>
-    );
-  }
 
   return (
     <div className="flex relative w-full h-full">
+
       {/* ==================== SIDEBAR ==================== */}
       <GuestSidebar
-        onDragStart={(guest) => {
-          if (guest) startDragGuest(guest);
-        }}
+        onDragStart={(guest) => startDragGuest(guest)}
       />
 
       {/* ==================== ZOOM CONTROLS ==================== */}
@@ -172,8 +106,6 @@ export default function SeatingEditor({ background }) {
           e.evt.preventDefault();
 
           const stage = e.target.getStage();
-          if (!stage) return;
-
           const oldScale = stage.scaleX();
           const scaleBy = 1.04;
 
@@ -200,8 +132,8 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
-        {/* 🖼️ BACKGROUND */}
-        <Layer listening={false}>
+        {/* ==================== BACKGROUND + TABLES ==================== */}
+        <Layer>
           {bgImage && (
             <KonvaImage
               image={bgImage}
@@ -210,46 +142,30 @@ export default function SeatingEditor({ background }) {
               opacity={0.28}
             />
           )}
-        </Layer>
 
-        {/* 🟦 GRID */}
-        <Layer listening={false}>
-          <GridBackground
-            width={width}
-            height={height}
-            gridSize={CELL_SIZE}
-          />
-        </Layer>
-
-        {/* 🪑 TABLES */}
-        <Layer>
-          {tables.map((t) => {
-            if (!t?.id) return null;
-
-            return (
-              <TableRenderer
-                key={t.id}
-                table={{
-                  ...t,
-                  openAddGuestModal: () => setAddGuestTable(t),
-                  isHighlighted: t.id === highlightedTableId,
-                }}
-              />
-            );
-          })}
+          {tables.map((t) => (
+            <TableRenderer
+              key={t.id}
+              table={{
+                ...t,
+                openAddGuestModal: () => setAddGuestTable(t),
+                isHighlighted: t.id === highlightedTableId,
+              }}
+            />
+          ))}
 
           <GhostPreview />
         </Layer>
 
-        {/* 🗑️ DELETE TABLE */}
+        {/* ==================== DELETE BUTTONS ==================== */}
         <Layer>
-          {tables.map((t) =>
-            t?.id ? <DeleteTableButton key={t.id} table={t} /> : null
-          )}
+          {tables.map((t) => (
+            <DeleteTableButton key={t.id} table={t} />
+          ))}
         </Layer>
       </Stage>
 
-      {/* ==================== MODALS ==================== */}
+      {/* ==================== ADD TABLE MODAL ==================== */}
       {showAddModal && (
         <AddTableModal
           onClose={() => setShowAddModal(false)}
@@ -260,24 +176,21 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
+      {/* ==================== ADD GUEST TO TABLE MODAL ==================== */}
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
           guests={guests.filter(
             (g) =>
-              !tables.some(
-                (t) =>
-                  Array.isArray(t?.seatedGuests) &&
-                  t.seatedGuests.some(
-                    (sg) => sg?.guestId === g?._id
-                  )
+              !tables.some((t) =>
+                t.seatedGuests?.includes(g._id)
               )
           )}
           onClose={() => setAddGuestTable(null)}
         />
       )}
 
-      {/* ==================== ADD TABLE ==================== */}
+      {/* ==================== ADD TABLE BUTTON ==================== */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600
