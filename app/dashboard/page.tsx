@@ -6,6 +6,9 @@ import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
 import UpgradeToPremium from "../components/UpgradeToPremium";
 import { RSVP_LABELS } from "@/lib/rsvp";
+import ImportExcelModal from "../components/ImportExcelModal"; 
+
+
 
 /* ============================================================
    טיפוס מוזמן
@@ -36,6 +39,8 @@ export default function DashboardPage() {
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+
 
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
@@ -208,53 +213,63 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
 
         <div className="flex gap-3">
-          <button
-            onClick={() =>
-              router.push(
-                invitation
-                  ? `/dashboard/edit-invite/${invitationId}`
-                  : "/dashboard/create-invite"
-              )
-            }
-            className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-          >
-            {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-          </button>
+  <button
+    onClick={() =>
+      router.push(
+        invitation
+          ? `/dashboard/edit-invite/${invitationId}`
+          : "/dashboard/create-invite"
+      )
+    }
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+  >
+    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+  </button>
 
-          {invitation && (
-            <button
-              onClick={() => router.push("/dashboard/seating")}
-              className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
-            >
-              🪑 הושבה
-            </button>
-          )}
+  {invitation && (
+    <button
+      onClick={() => router.push("/dashboard/seating")}
+      className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+    >
+      🪑 הושבה
+    </button>
+  )}
 
-          {invitation && (
-            <button
-              onClick={() => router.push("/dashboard/messages")}
-              className="
-                flex items-center gap-2
-                bg-green-600 text-white
-                px-6 py-3
-                rounded-full
-                font-semibold
-                hover:bg-green-700
-                transition
-              "
-            >
-              💬 שליחת הודעות
-            </button>
-          )}
+  {invitation && (
+    <button
+      onClick={() => router.push("/dashboard/messages")}
+      className="
+        flex items-center gap-2
+        bg-green-600 text-white
+        px-6 py-3
+        rounded-full
+        font-semibold
+        hover:bg-green-700
+        transition
+      "
+    >
+      💬 שליחת הודעות
+    </button>
+  )}
 
-          <button
-            onClick={() => setOpenAddModal(true)}
-            className="bg-black text-white px-6 py-3 rounded-full"
-          >
-            + הוספת מוזמן
-          </button>
-        </div>
-      </div>
+  <button
+    onClick={() => setOpenAddModal(true)}
+    className="bg-black text-white px-6 py-3 rounded-full"
+  >
+    + הוספת מוזמן
+  </button>
+
+  {/* ✅ חדש: ייבוא מאקסל */}
+  <button
+    onClick={() => setShowImportModal(true)}
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition flex items-center gap-2"
+    title="ייבוא רשימת מוזמנים מאקסל"
+  >
+    📥 ייבוא מאקסל
+  </button>
+</div>
+</div>
+
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-10">
