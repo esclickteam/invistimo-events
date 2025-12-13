@@ -18,16 +18,32 @@ export async function GET() {
     return NextResponse.json({ error: "INV_NOT_FOUND" }, { status: 404 });
   }
 
+  /* =====================================================
+     ❌ חבילת בסיס – אין SMS בכלל
+  ===================================================== */
+  if (invitation.plan === "basic") {
+    return NextResponse.json({
+      success: true,
+      maxMessages: 0,
+      sentSmsCount: 0,
+      remainingMessages: 0,
+    });
+  }
+
+  /* =====================================================
+     ✅ חבילות מתקדמות – חישוב רגיל
+  ===================================================== */
   const maxMessages = invitation.maxGuests * 3;
+  const sentSmsCount = invitation.sentSmsCount || 0;
   const remainingMessages = Math.max(
-    maxMessages - invitation.sentSmsCount,
+    maxMessages - sentSmsCount,
     0
   );
 
   return NextResponse.json({
     success: true,
     maxMessages,
-    sentSmsCount: invitation.sentSmsCount,
+    sentSmsCount,
     remainingMessages,
   });
 }
