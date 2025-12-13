@@ -15,7 +15,8 @@ function PurchaseSMSInner() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/stripe/create-checkout-session", {
+      const res = await fetch("/api/stripe/create-sms-session", {
+
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
