@@ -16,7 +16,16 @@ export default function GuestSidebar({ onDragStart }) {
      Highlight from URL
   =============================== */
   const searchParams = useSearchParams();
-  const highlightedGuestId = searchParams.get("guestId");
+  const highlightedGuestIdRaw = searchParams.get("guestId");
+  const from = searchParams.get("from");
+
+  // ✅ נרמול חד ערכי
+  const highlightedGuestId = highlightedGuestIdRaw
+    ? String(highlightedGuestIdRaw)
+    : "";
+
+  // ✅ מציגים את ההודעה רק אם באמת הגענו מהדשבורד
+  const showDashboardHint = from === "dashboard" && !!highlightedGuestId;
 
   /* ===============================
      Guards
@@ -31,7 +40,7 @@ export default function GuestSidebar({ onDragStart }) {
 
   /* ===============================
      ⭐ מיפוי אורח → שולחן
-     IMPORTANT: match by guest.id OR guest._id
+     (מקור אמת: tables[].seatedGuests[].guestId)
   =============================== */
   const guestTableMap = useMemo(() => {
     const map = new Map();
@@ -53,14 +62,20 @@ export default function GuestSidebar({ onDragStart }) {
 
       <ul>
         {guests.map((guest) => {
-          // ✅ אצלך השיבוץ נכתב עם guest.id, אז חייבים fallback
+          // ✅ מזהה לתצוגה/מפתח
           const guestId = String(guest.id ?? guest._id ?? "");
+
+          // ✅ מקור אמת לשיבוץ
           const table = guestTableMap.get(guestId) || null;
 
-          // ✅ גם ההיילייט מה-URL יכול להגיע בתור id או _id
+          // ✅ היילייט חד-משמעי: תואם לאחד משני המזהים של אותו אורח
+          const guestIdCandidates = [
+            guest.id != null ? String(guest.id) : null,
+            guest._id != null ? String(guest._id) : null,
+          ].filter(Boolean);
+
           const isHighlighted =
-            String(highlightedGuestId || "") === guestId ||
-            String(highlightedGuestId || "") === String(guest._id ?? "");
+            showDashboardHint && guestIdCandidates.includes(highlightedGuestId);
 
           return (
             <li
