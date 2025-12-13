@@ -18,7 +18,10 @@ export const useSeatingStore = create((set, get) => ({
 
   setSelectedGuest: (guestId) =>
     set({
-      selectedGuestId: guestId,
+      selectedGuestId:
+        guestId !== undefined && guestId !== null
+          ? guestId.toString()
+          : null,
       highlightedSeats: [],
     }),
 
@@ -29,20 +32,36 @@ export const useSeatingStore = create((set, get) => ({
       highlightedSeats: [],
     }),
 
+  /* ================= MODALS ================= */
   showAddModal: false,
-  setShowAddModal: (v) => set({ showAddModal: v }),
+  setShowAddModal: (v) => set({ showAddModal: !!v }),
 
   addGuestTable: null,
-  setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
+  setAddGuestTable: (tableId) =>
+    set({
+      addGuestTable:
+        tableId !== undefined && tableId !== null
+          ? tableId.toString()
+          : null,
+    }),
 
   /* ================= INIT ================= */
   init: (tables, guests) => {
     set({
-      tables: (tables || []).map((t) => ({
-        ...t,
-        seatedGuests: Array.isArray(t.seatedGuests) ? t.seatedGuests : [],
-      })),
-      guests: guests || [],
+      tables: Array.isArray(tables)
+        ? tables.map((t) => ({
+            ...t,
+            id: t?.id ?? t?._id ?? "",
+            name: typeof t?.name === "string" ? t.name : "",
+            seats: Number(t?.seats) || 0,
+            x: Number(t?.x) || 0,
+            y: Number(t?.y) || 0,
+            seatedGuests: Array.isArray(t?.seatedGuests)
+              ? t.seatedGuests
+              : [],
+          }))
+        : [],
+      guests: Array.isArray(guests) ? guests : [],
     });
   },
 
@@ -51,7 +70,8 @@ export const useSeatingStore = create((set, get) => ({
     try {
       const res = await fetch(`/api/seating/guests/${invitationId}`);
       const data = await res.json();
-      if (data.success) {
+
+      if (data?.success && Array.isArray(data.guests)) {
         set({ guests: data.guests });
       }
     } catch (err) {
@@ -63,11 +83,13 @@ export const useSeatingStore = create((set, get) => ({
   addTable: (type, seats) => {
     const { tables } = get();
 
+    const id = `t${tables.length + 1}`;
+
     const newTable = {
-      id: "t" + (tables.length + 1),
+      id,
       name: `שולחן ${tables.length + 1}`,
-      type,
-      seats,
+      type: type === "square" ? "square" : "round",
+      seats: Number(seats) || 0,
       x: 300 + tables.length * 40,
       y: 200,
       seatedGuests: [],
@@ -80,7 +102,9 @@ export const useSeatingStore = create((set, get) => ({
   updateTablePosition: (tableId, x, y) =>
     set((state) => ({
       tables: state.tables.map((t) =>
-        t.id === tableId ? { ...t, x, y } : t
+        t.id === tableId
+          ? { ...t, x: Number(x), y: Number(y) }
+          : t
       ),
     })),
 
@@ -89,7 +113,7 @@ export const useSeatingStore = create((set, get) => ({
     set((state) => ({
       tables: state.tables.filter((t) => t.id !== tableId),
       guests: state.guests.map((g) =>
-        g.tableId === tableId ? { ...g, tableId: null } : g
+        g?.tableId === tableId ? { ...g, tableId: null } : g
       ),
       highlightedTable: null,
       highlightedSeats: [],
@@ -98,24 +122,32 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ================= DRAG GUEST ================= */
   startDragGuest: (guest) => {
+    if (!guest || !guest._id) return;
+
     set({
       draggedGuest: guest,
-      selectedGuestId: guest._id?.toString(),
+      selectedGuestId: guest._id.toString(),
       highlightedTable: null,
       highlightedSeats: [],
     });
   },
 
-  updateGhostPosition: (pos) => set({ ghostPosition: pos }),
+  updateGhostPosition: (pos) => {
+    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return;
+    set({ ghostPosition: pos });
+  },
 
   /* ================= HOVER ================= */
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
-    if (!draggedGuest) return;
+    if (!draggedGuest || !pointer) return;
 
     const hoveredTable = tables.find((t) => {
+      if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) return false;
+
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
+
       const radius =
         t.type === "round" ? 90 :
         t.type === "square" ? 110 : 140;
@@ -130,19 +162,21 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
+    const safeTable = {
+      ...hoveredTable,
+      seatedGuests: Array.isArray(hoveredTable.seatedGuests)
+        ? hoveredTable.seatedGuests
+        : [],
+    };
+
     const block = findFreeBlock(
-      {
-        ...hoveredTable,
-        seatedGuests: Array.isArray(hoveredTable.seatedGuests)
-          ? hoveredTable.seatedGuests
-          : [],
-      },
-      draggedGuest.guestsCount
+      safeTable,
+      Number(draggedGuest?.guestsCount) || 1
     );
 
     set({
       highlightedTable: hoveredTable.id,
-      highlightedSeats: block || [],
+      highlightedSeats: Array.isArray(block) ? block : [],
     });
   },
 
@@ -171,32 +205,36 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    const guestId = draggedGuest._id?.toString();
+    const guestId = draggedGuest._id.toString();
 
     const newTables = tables.map((t) => {
       const seated = Array.isArray(t.seatedGuests) ? t.seatedGuests : [];
 
+      if (t.id !== highlightedTable) {
+        return {
+          ...t,
+          seatedGuests: seated.filter(
+            (s) => s?.guestId?.toString() !== guestId
+          ),
+        };
+      }
+
       return {
         ...t,
-        seatedGuests:
-          t.id === highlightedTable
-            ? [
-                ...seated.filter(
-                  (s) => s.guestId?.toString() !== guestId
-                ),
-                ...highlightedSeats.map((seatIndex) => ({
-                  guestId,
-                  seatIndex,
-                })),
-              ]
-            : seated.filter(
-                (s) => s.guestId?.toString() !== guestId
-              ),
+        seatedGuests: [
+          ...seated.filter(
+            (s) => s?.guestId?.toString() !== guestId
+          ),
+          ...highlightedSeats.map((seatIndex) => ({
+            guestId,
+            seatIndex,
+          })),
+        ],
       };
     });
 
     const newGuests = guests.map((g) =>
-      g._id?.toString() === guestId
+      g?._id?.toString() === guestId
         ? { ...g, tableId: highlightedTable }
         : g
     );
@@ -213,6 +251,8 @@ export const useSeatingStore = create((set, get) => ({
   /* ================= REMOVE FROM SEAT ================= */
   removeFromSeat: (tableId, guestId) => {
     const gid = guestId?.toString();
+    if (!gid) return;
+
     const { tables, guests } = get();
 
     set({
@@ -222,7 +262,7 @@ export const useSeatingStore = create((set, get) => ({
           t.id === tableId
             ? (Array.isArray(t.seatedGuests)
                 ? t.seatedGuests.filter(
-                    (s) => s.guestId?.toString() !== gid
+                    (s) => s?.guestId?.toString() !== gid
                   )
                 : [])
             : (Array.isArray(t.seatedGuests)
@@ -230,7 +270,9 @@ export const useSeatingStore = create((set, get) => ({
                 : []),
       })),
       guests: guests.map((g) =>
-        g._id?.toString() === gid ? { ...g, tableId: null } : g
+        g?._id?.toString() === gid
+          ? { ...g, tableId: null }
+          : g
       ),
       highlightedTable: null,
       highlightedSeats: [],
@@ -244,10 +286,11 @@ export const useSeatingStore = create((set, get) => ({
     const { tables, guests } = get();
 
     const table = tables.find((t) => t.id === tableId);
-    const guest = guests.find((g) => g._id?.toString() === gid);
+    const guest = guests.find((g) => g?._id?.toString() === gid);
 
-    if (!table || !guest)
+    if (!table || !guest) {
       return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
+    }
 
     const safeTable = {
       ...table,
@@ -256,9 +299,10 @@ export const useSeatingStore = create((set, get) => ({
         : [],
     };
 
-    const block = findFreeBlock(safeTable, count);
-    if (!block)
+    const block = findFreeBlock(safeTable, Number(count) || 1);
+    if (!block) {
       return { ok: false, message: "אין מספיק מקומות פנויים" };
+    }
 
     const newTables = tables.map((t) => {
       const seated = Array.isArray(t.seatedGuests) ? t.seatedGuests : [];
@@ -267,7 +311,7 @@ export const useSeatingStore = create((set, get) => ({
         return {
           ...t,
           seatedGuests: seated.filter(
-            (s) => s.guestId?.toString() !== gid
+            (s) => s?.guestId?.toString() !== gid
           ),
         };
       }
@@ -276,7 +320,7 @@ export const useSeatingStore = create((set, get) => ({
         ...t,
         seatedGuests: [
           ...seated.filter(
-            (s) => s.guestId?.toString() !== gid
+            (s) => s?.guestId?.toString() !== gid
           ),
           ...block.map((seatIndex) => ({
             guestId: gid,
@@ -287,7 +331,7 @@ export const useSeatingStore = create((set, get) => ({
     });
 
     const newGuests = guests.map((g) =>
-      g._id?.toString() === gid
+      g?._id?.toString() === gid
         ? { ...g, tableId }
         : g
     );

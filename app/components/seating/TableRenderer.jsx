@@ -17,17 +17,31 @@ export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
   /* ================= SAFE TABLE ================= */
-  const safeTable = useMemo(() => ({
-    ...table,
-    seatedGuests: Array.isArray(table.seatedGuests)
-      ? table.seatedGuests
-      : [],
-    seats: Number(table.seats) || 0,
-    x: Number(table.x),
-    y: Number(table.y),
-  }), [table]);
+  const safeTable = useMemo(() => {
+    return {
+      ...table,
+      id: table?.id ?? table?._id ?? "",
+      name: typeof table?.name === "string" ? table.name : "",
+      type: table?.type === "square" ? "square" : "round",
+      seats: Number(table?.seats) || 0,
+      seatedGuests: Array.isArray(table?.seatedGuests)
+        ? table.seatedGuests
+        : [],
+      x: Number(table?.x),
+      y: Number(table?.y),
+      openAddGuestModal:
+        typeof table?.openAddGuestModal === "function"
+          ? table.openAddGuestModal
+          : null,
+    };
+  }, [table]);
 
-  if (!Number.isFinite(safeTable.x) || !Number.isFinite(safeTable.y)) {
+  /* ================= HARD GUARD ================= */
+  if (
+    !safeTable.id ||
+    !Number.isFinite(safeTable.x) ||
+    !Number.isFinite(safeTable.y)
+  ) {
     return null;
   }
 
@@ -35,7 +49,7 @@ export default function TableRenderer({ table }) {
   const assigned = safeTable.seatedGuests;
 
   const occupiedCount = new Set(
-    assigned.map((s) => s.seatIndex)
+    assigned.map((s) => s?.seatIndex).filter((v) => Number.isInteger(v))
   ).size;
 
   /* ================= SNAP TO CELL ================= */
@@ -81,10 +95,15 @@ export default function TableRenderer({ table }) {
 
   /* ================= DRAG FROM SEAT ================= */
   const handleSeatDrag = (guestId) => {
+    if (!guestId) return;
+
     const guest = guests.find(
-      (g) => g._id?.toString() === guestId?.toString()
+      (g) => g?._id?.toString() === guestId?.toString()
     );
-    if (guest) startDragGuest(guest);
+
+    if (guest) {
+      startDragGuest(guest);
+    }
   };
 
   return (
@@ -106,8 +125,9 @@ export default function TableRenderer({ table }) {
           highlightedSeats: [],
         });
 
-        // ✅ מחזיר פתיחת הושבה
-        safeTable.openAddGuestModal?.(safeTable);
+        if (safeTable.openAddGuestModal) {
+          safeTable.openAddGuestModal(safeTable);
+        }
       }}
     >
       {/* ================= TABLE BODY ================= */}
@@ -158,17 +178,18 @@ export default function TableRenderer({ table }) {
 
       {/* ================= SEATS ================= */}
       {seatsCoords.map((c, i) => {
-        const seatGuest = assigned.find((s) => s.seatIndex === i);
+        const seatGuest = assigned.find((s) => s?.seatIndex === i);
         const isFree = !seatGuest;
         const isInHighlight = highlightedSeats.includes(i);
 
-        const guestName = seatGuest
-          ? guests.find(
-              (g) =>
-                g._id?.toString() ===
-                seatGuest.guestId?.toString()
-            )?.name
-          : null;
+        const guestName =
+          seatGuest
+            ? guests.find(
+                (g) =>
+                  g?._id?.toString() ===
+                  seatGuest?.guestId?.toString()
+              )?.name ?? ""
+            : "";
 
         return (
           <Group key={i} x={c.x} y={c.y}>
@@ -195,7 +216,7 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
-            {guestName && (
+            {guestName !== "" && (
               <Text
                 text={guestName}
                 offsetY={18}

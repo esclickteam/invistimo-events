@@ -16,9 +16,13 @@ import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import GridBackground from "@/app/components/seating/GridBackground";
 
 export default function SeatingEditor({ background }) {
-  const [bgImage] = useImage(background || "", "anonymous");
+  /* ==================== BACKGROUND ==================== */
+  const [bgImage] = useImage(
+    typeof background === "string" ? background : "",
+    "anonymous"
+  );
 
-  /* ==================== Zustand ==================== */
+  /* ==================== ZUSTAND ==================== */
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
 
@@ -31,38 +35,44 @@ export default function SeatingEditor({ background }) {
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
 
-  /* ==================== Highlight from URL ==================== */
+  /* ==================== URL HIGHLIGHT ==================== */
   const searchParams = useSearchParams();
   const highlightedGuestId = searchParams.get("guestId");
 
-  // ✅ FIX: נרמול בטוח של seatedGuests (בלי לשנות לוגיקה)
   const highlightedTableId = useMemo(() => {
-    if (!highlightedGuestId) return null;
+    if (!highlightedGuestId || !Array.isArray(tables)) return null;
 
-    const table = tables.find((table) =>
-      Array.isArray(table.seatedGuests) &&
-      table.seatedGuests.some(
-        (sg) => sg.guestId?.toString() === highlightedGuestId
-      )
+    const table = tables.find(
+      (t) =>
+        Array.isArray(t?.seatedGuests) &&
+        t.seatedGuests.some(
+          (sg) =>
+            sg?.guestId?.toString() === highlightedGuestId.toString()
+        )
     );
 
     return table?.id ?? null;
   }, [tables, highlightedGuestId]);
 
-  /* ==================== Add Guest Modal ==================== */
+  /* ==================== ADD GUEST MODAL ==================== */
   const [addGuestTable, setAddGuestTable] = useState(null);
 
-  /* ==================== Canvas Size ==================== */
+  /* ==================== CANVAS SIZE ==================== */
   const width =
-    typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
-  const height =
-    typeof window !== "undefined" ? window.innerHeight - 100 : 800;
+    typeof window !== "undefined"
+      ? Math.max(window.innerWidth - 260, 600)
+      : 1200;
 
-  /* ==================== 🔲 CELL LOGIC ==================== */
+  const height =
+    typeof window !== "undefined"
+      ? Math.max(window.innerHeight - 100, 600)
+      : 800;
+
+  /* ==================== GRID / CELL ==================== */
   const CELL_SIZE = 320;
 
   const getCellSizeForTable = (table) =>
-    table.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
+    table?.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
 
   const snapPositionToCell = (pos, table) => {
     const size = getCellSizeForTable(table);
@@ -72,15 +82,15 @@ export default function SeatingEditor({ background }) {
     };
   };
 
-  /* ==================== Zoom & Pan ==================== */
+  /* ==================== ZOOM & PAN ==================== */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
   /* ==================== 🎯 FOCUS TABLE ==================== */
   useEffect(() => {
     const handler = (e) => {
-      const { x, y } = e.detail;
-      if (x == null || y == null) return;
+      const { x, y } = e.detail || {};
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
       const centerX = width / 2;
       const centerY = height / 2;
@@ -95,9 +105,12 @@ export default function SeatingEditor({ background }) {
     return () => window.removeEventListener("focus-table", handler);
   }, [width, height, scale]);
 
-  /* ==================== Mouse ==================== */
+  /* ==================== MOUSE ==================== */
   const handleMouseMove = (e) => {
-    const pos = e.target.getStage().getPointerPosition();
+    const stage = e.target.getStage();
+    if (!stage) return;
+
+    const pos = stage.getPointerPosition();
     if (!pos) return;
 
     updateGhost(pos);
@@ -110,11 +123,23 @@ export default function SeatingEditor({ background }) {
     });
   };
 
+  /* ==================== HARD GUARD ==================== */
+  if (!Array.isArray(tables) || !Array.isArray(guests)) {
+    return (
+      <div className="flex items-center justify-center w-full h-full text-gray-400">
+        טוען סידור הושבה…
+      </div>
+    );
+  }
+
   return (
     <div className="flex relative w-full h-full">
-
       {/* ==================== SIDEBAR ==================== */}
-      <GuestSidebar onDragStart={(guest) => startDragGuest(guest)} />
+      <GuestSidebar
+        onDragStart={(guest) => {
+          if (guest) startDragGuest(guest);
+        }}
+      />
 
       {/* ==================== ZOOM CONTROLS ==================== */}
       <button
@@ -147,6 +172,8 @@ export default function SeatingEditor({ background }) {
           e.evt.preventDefault();
 
           const stage = e.target.getStage();
+          if (!stage) return;
+
           const oldScale = stage.scaleX();
           const scaleBy = 1.04;
 
@@ -173,8 +200,7 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
-
-        {/* 🖼️ רקע */}
+        {/* 🖼️ BACKGROUND */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -195,26 +221,31 @@ export default function SeatingEditor({ background }) {
           />
         </Layer>
 
-        {/* 🪑 שולחנות */}
+        {/* 🪑 TABLES */}
         <Layer>
-          {tables.map((t) => (
-            <TableRenderer
-              key={t.id}
-              table={{
-                ...t,
-                openAddGuestModal: () => setAddGuestTable(t),
-                isHighlighted: t.id === highlightedTableId,
-              }}
-            />
-          ))}
+          {tables.map((t) => {
+            if (!t?.id) return null;
+
+            return (
+              <TableRenderer
+                key={t.id}
+                table={{
+                  ...t,
+                  openAddGuestModal: () => setAddGuestTable(t),
+                  isHighlighted: t.id === highlightedTableId,
+                }}
+              />
+            );
+          })}
+
           <GhostPreview />
         </Layer>
 
-        {/* 🗑️ מחיקת שולחנות */}
+        {/* 🗑️ DELETE TABLE */}
         <Layer>
-          {tables.map((t) => (
-            <DeleteTableButton key={t.id} table={t} />
-          ))}
+          {tables.map((t) =>
+            t?.id ? <DeleteTableButton key={t.id} table={t} /> : null
+          )}
         </Layer>
       </Stage>
 
@@ -234,11 +265,12 @@ export default function SeatingEditor({ background }) {
           table={addGuestTable}
           guests={guests.filter(
             (g) =>
-              !tables.some((t) =>
-                Array.isArray(t.seatedGuests) &&
-                t.seatedGuests.some(
-                  (sg) => sg.guestId === g._id
-                )
+              !tables.some(
+                (t) =>
+                  Array.isArray(t?.seatedGuests) &&
+                  t.seatedGuests.some(
+                    (sg) => sg?.guestId === g?._id
+                  )
               )
           )}
           onClose={() => setAddGuestTable(null)}
