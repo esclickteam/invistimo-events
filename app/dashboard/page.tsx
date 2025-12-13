@@ -143,7 +143,7 @@ export default function DashboardPage() {
             {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
           </button>
 
-          {/* 🪑 הושבה – הוחזר כמו שהיה */}
+          {/* 🪑 הושבה כללית */}
           {invitation && (
             <button
               onClick={() => router.push("/dashboard/seating")}
@@ -217,6 +217,7 @@ export default function DashboardPage() {
               <td className="p-3 text-sm text-gray-700">
                 {g.notes?.trim() || "-"}
               </td>
+
               <td className="p-3 flex gap-3">
                 <button
                   onClick={() => sendWhatsApp(g)}
@@ -226,15 +227,21 @@ export default function DashboardPage() {
                   💬
                 </button>
 
+                {/* ✅ הושבה אישית: מסמן אורח ספציפי בעמוד ההושבה */}
                 <button
                   onClick={() =>
-                    router.push(`/dashboard/seating?guestId=${g._id}`)
+                    router.push(
+                      `/dashboard/seating?from=personal&guestId=${g._id}`
+                    )
                   }
+                  title="הושבה אישית לאורח"
                 >
                   🪑
                 </button>
 
-                <button onClick={() => setSelectedGuest(g)}>✏️</button>
+                <button onClick={() => setSelectedGuest(g)} title="עריכה">
+                  ✏️
+                </button>
               </td>
             </tr>
           ))}
