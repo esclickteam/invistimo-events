@@ -23,6 +23,22 @@ type Balance = {
   remainingMessages: number;
 };
 
+/* ================= SMS PACKAGES ================= */
+
+const SMS_PACKAGES = [
+  { count: 500, price: 50 },
+  { count: 750, price: 75 },
+  { count: 1000, price: 100 },
+  { count: 1250, price: 125 },
+  { count: 1500, price: 150 },
+  { count: 1750, price: 175 },
+  { count: 2000, price: 200 },
+  { count: 2500, price: 250 },
+  { count: 3000, price: 300 },
+  { count: 4000, price: 400 },
+  { count: 5000, price: 500 },
+];
+
 /* ================= TEMPLATES ================= */
 
 const MESSAGE_TEMPLATES: Record<
@@ -62,6 +78,8 @@ export default function MessagesPage() {
   const [filter, setFilter] = useState<FilterType>("pending");
   const [channel, setChannel] = useState<Channel>("whatsapp");
 
+  const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
+
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
@@ -81,9 +99,7 @@ export default function MessagesPage() {
 
         const balanceRes = await fetch("/api/messages/balance");
         const balanceData = await balanceRes.json();
-        if (balanceData.success) {
-          setBalance(balanceData);
-        }
+        if (balanceData.success) setBalance(balanceData);
       } finally {
         setLoading(false);
       }
@@ -92,29 +108,9 @@ export default function MessagesPage() {
     loadData();
   }, []);
 
-  /* ================= PLAN LOGIC ================= */
+  /* ================= LOGIC ================= */
 
   const isBasicPlan = invitation?.plan === "basic";
-
-  useEffect(() => {
-    if (isBasicPlan && channel === "sms") {
-      setChannel("whatsapp");
-    }
-  }, [isBasicPlan, channel]);
-
-  /* ================= TEMPLATE CHANGE ================= */
-
-  useEffect(() => {
-    setMessage(MESSAGE_TEMPLATES[templateKey].content);
-    if (
-      MESSAGE_TEMPLATES[templateKey].requiresTable &&
-      filter !== "withTable"
-    ) {
-      setFilter("withTable");
-    }
-  }, [templateKey]);
-
-  /* ================= FILTERED GUESTS ================= */
 
   const guestsToSend = useMemo(() => {
     return guests.filter((g) => {
@@ -124,14 +120,12 @@ export default function MessagesPage() {
     });
   }, [guests, filter]);
 
-  const disableSend =
+  const disableSend: boolean =
     guestsToSend.length === 0 ||
     (channel === "sms" && isBasicPlan) ||
     (channel === "sms" &&
       !!balance &&
       balance.remainingMessages < guestsToSend.length);
-
-  /* ================= MESSAGE BUILD ================= */
 
   const buildMessage = (guest: Guest) => {
     if (!invitation) return "";
@@ -172,93 +166,107 @@ export default function MessagesPage() {
     const data = await res.json();
 
     if (!res.ok) {
-      alert(
-        data.error === "NO_SMS_BALANCE"
-          ? "❌ אין יתרת הודעות מספקת"
-          : "❌ שליחת SMS נכשלה"
-      );
+      alert("❌ שליחת SMS נכשלה");
       return;
     }
 
     const balanceRes = await fetch("/api/messages/balance");
     const balanceData = await balanceRes.json();
-    if (balanceData.success) {
-      setBalance(balanceData);
-    }
+    if (balanceData.success) setBalance(balanceData);
 
     alert(`✅ נשלחו ${data.sent} הודעות`);
   };
 
   const sendToAll = () => {
     if (channel === "whatsapp") {
-      guestsToSend.forEach((guest, index) => {
-        setTimeout(() => sendWhatsApp(guest), index * 600);
-      });
-    } else {
-      sendSMS();
-    }
+      guestsToSend.forEach((guest, i) =>
+        setTimeout(() => sendWhatsApp(guest), i * 600)
+      );
+    } else sendSMS();
   };
+
+  const handlePurchase = () => {
+    if (!selectedPackage) return;
+    alert(
+      `🛍️ נבחרה חבילה של ${selectedPackage.toLocaleString()} הודעות. בקרוב ייפתח תשלום מאובטח`
+    );
+  };
+
+  /* ================= RENDER ================= */
 
   if (loading) return null;
   if (!invitation) return <div>לא נמצאה הזמנה</div>;
 
-  /* ================= RENDER ================= */
+  const remaining = balance?.remainingMessages ?? 0;
+  const max = balance?.maxMessages ?? 0;
+  const progress = max > 0 ? (remaining / max) * 100 : 0;
 
   return (
-    <div className="p-10 max-w-4xl mx-auto" dir="rtl">
+    <div className="p-10 flex flex-col items-center" dir="rtl">
       <button
         onClick={() => router.back()}
-        className="text-sm text-gray-500 mb-3 hover:underline"
+        className="text-sm text-gray-500 mb-3 hover:underline self-start"
       >
         ← חזרה
       </button>
 
-      <h1 className="text-3xl font-semibold mb-6">{invitation.eventType}</h1>
+      <h1 className="text-3xl font-semibold mb-8 text-[#4a413a] text-center">
+        שליחת הודעות לאורחים 💌
+      </h1>
 
-      {/* Balance */}
+      {/* BALANCE CARD */}
       {balance && (
-        <div className="bg-gradient-to-r from-[#fffaf5] to-[#f5eee7] border border-[#e2d6c8] rounded-2xl shadow-md p-6 mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-lg font-semibold text-[#4a413a]">
-              💬 יתרת הודעות SMS
-            </span>
-            <span
-              className={`text-lg font-bold ${
-                balance.remainingMessages === 0
-                  ? "text-red-600"
-                  : "text-green-600"
-              }`}
-            >
-              {balance.remainingMessages} / {balance.maxMessages}
-            </span>
-          </div>
+        <div className="bg-gradient-to-r from-[#fff7f0] to-[#f7ede2] border border-[#e2d6c8] rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
+          <h2 className="text-lg font-semibold text-[#4a413a] mb-2 flex justify-center items-center gap-2">
+            💬 יתרת הודעות SMS
+          </h2>
 
-          <div className="w-full bg-[#e2d6c8]/40 h-3 rounded-full overflow-hidden">
+          <div className="w-full bg-[#e2d6c8]/40 h-3 rounded-full overflow-hidden mb-3">
             <div
               className={`h-full transition-all duration-500 ${
-                balance.remainingMessages === 0
-                  ? "bg-red-500"
-                  : "bg-green-500"
+                remaining === 0 ? "bg-red-500" : "bg-green-500"
               }`}
-              style={{
-                width: `${
-                  balance.maxMessages > 0
-                    ? (balance.remainingMessages / balance.maxMessages) * 100
-                    : 0
-                }%`,
-              }}
+              style={{ width: `${progress}%` }}
             />
           </div>
 
-          <p className="text-sm text-[#6b5e52] mt-3">
-            {invitation.plan === "basic"
-              ? "חבילת בסיס – אין אפשרות לשליחת SMS (0/0)"
-              : `נותרו ${balance.remainingMessages} הודעות מתוך ${balance.maxMessages} בחבילה.`}
+          <p className="text-lg font-bold text-[#4a413a] mb-1">
+            {remaining} / {max}
           </p>
+
+          <p className="text-sm text-[#6b5e52]">
+            {max === 0
+              ? "חבילת בסיס – אין אפשרות לשליחת SMS (0/0)"
+              : `נותרו ${remaining} הודעות מתוך ${max} בהקצאה.`}
+          </p>
+
+          {/* רכישת חבילה */}
+          <div className="mt-5">
+            <select
+              className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-3 bg-white text-[#4a413a]"
+              value={selectedPackage ?? ""}
+              onChange={(e) => setSelectedPackage(Number(e.target.value))}
+            >
+              <option value="">בחרו חבילת הודעות לרכישה</option>
+              {SMS_PACKAGES.map((pkg) => (
+                <option key={pkg.count} value={pkg.count}>
+                  {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handlePurchase}
+              disabled={!selectedPackage}
+              className="w-full py-3 bg-[#c9a46a] hover:bg-[#b99255] text-white rounded-xl font-semibold transition disabled:opacity-50"
+            >
+              🛍️ רכישת הודעות נוספות
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Channel */}
+      {/* CHANNEL */}
       <div className="flex gap-4 mb-6">
         <button
           onClick={() => setChannel("whatsapp")}
@@ -280,8 +288,8 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* Filter - למי לשלוח */}
-      <div className="mb-6">
+      {/* FILTER */}
+      <div className="mb-6 w-[90%] md:w-[600px]">
         <label className="block text-[#4a413a] font-medium mb-2">
           למי לשלוח:
         </label>
@@ -296,11 +304,11 @@ export default function MessagesPage() {
         </select>
       </div>
 
-      {/* Template */}
+      {/* TEMPLATE */}
       <select
         value={templateKey}
         onChange={(e) => setTemplateKey(e.target.value as MessageType)}
-        className="w-full border rounded-xl p-3 mb-4"
+        className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4 bg-white"
       >
         {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
           <option key={key} value={key}>
@@ -309,19 +317,19 @@ export default function MessagesPage() {
         ))}
       </select>
 
-      {/* Message */}
+      {/* MESSAGE */}
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         rows={6}
-        className="w-full border rounded-xl p-4 mb-4"
+        className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6 bg-white shadow-sm"
       />
 
-      {/* Send */}
+      {/* SEND */}
       <button
         onClick={sendToAll}
-        disabled={disableSend}
-        className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
+        disabled={!!disableSend}
+        className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
         📩 שליחה ({guestsToSend.length})
       </button>
