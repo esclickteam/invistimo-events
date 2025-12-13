@@ -13,6 +13,7 @@ import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
+import GridBackground from "@/components/seating/GridBackground";
 
 export default function SeatingEditor({ background }) {
   const [bgImage] = useImage(background || "", "anonymous");
@@ -34,7 +35,6 @@ export default function SeatingEditor({ background }) {
   const searchParams = useSearchParams();
   const highlightedGuestId = searchParams.get("guestId");
 
-  // ⭐ מציאת השולחן של האורח לפי seatedGuests (האמת היחידה)
   const highlightedTableId = tables.find((table) =>
     table.seatedGuests?.some(
       (gid) => gid.toString() === highlightedGuestId
@@ -71,9 +71,7 @@ export default function SeatingEditor({ background }) {
     <div className="flex relative w-full h-full">
 
       {/* ==================== SIDEBAR ==================== */}
-      <GuestSidebar
-        onDragStart={(guest) => startDragGuest(guest)}
-      />
+      <GuestSidebar onDragStart={(guest) => startDragGuest(guest)} />
 
       {/* ==================== ZOOM CONTROLS ==================== */}
       <button
@@ -132,8 +130,9 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
-        {/* ==================== BACKGROUND + TABLES ==================== */}
-        <Layer>
+
+        {/* 🖼️ סקיצה של הלקוח */}
+        <Layer listening={false}>
           {bgImage && (
             <KonvaImage
               image={bgImage}
@@ -142,7 +141,15 @@ export default function SeatingEditor({ background }) {
               opacity={0.28}
             />
           )}
+        </Layer>
 
+        {/* 🟦 GRID מקצועי */}
+        <Layer listening={false}>
+          <GridBackground width={width} height={height} gridSize={60} />
+        </Layer>
+
+        {/* 🪑 שולחנות */}
+        <Layer>
           {tables.map((t) => (
             <TableRenderer
               key={t.id}
@@ -157,7 +164,7 @@ export default function SeatingEditor({ background }) {
           <GhostPreview />
         </Layer>
 
-        {/* ==================== DELETE BUTTONS ==================== */}
+        {/* 🗑️ מחיקת שולחנות */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
