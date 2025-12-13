@@ -445,20 +445,28 @@ export default function DashboardPage() {
       </table>
 
       {selectedGuest && (
-        <EditGuestModal
-          guest={selectedGuest}
-          onClose={() => setSelectedGuest(null)}
-          onSuccess={loadGuests}
-        />
-      )}
+  <EditGuestModal
+    guest={selectedGuest}
+    onClose={() => setSelectedGuest(null)}
+    onSuccess={loadGuests}
+  />
+)}
 
-      {openAddModal && (
-        <AddGuestModal
-          invitationId={invitationId}
-          onClose={() => setOpenAddModal(false)}
-          onSuccess={loadGuests}
-        />
-      )}
+{openAddModal && (
+  <AddGuestModal
+    invitationId={invitationId}
+    onClose={() => setOpenAddModal(false)}
+    onSuccess={loadGuests}
+  />
+)}
+
+{showImportModal && (
+  <ImportExcelModal
+    invitationId={invitationId}
+    onClose={() => setShowImportModal(false)}
+    onSuccess={loadGuests}
+  />
+)}
     </div>
   );
 }
