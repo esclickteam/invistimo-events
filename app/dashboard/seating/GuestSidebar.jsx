@@ -14,6 +14,8 @@ export default function GuestSidebar({ onDragStart }) {
   const clearSelectedGuest = useSeatingStore((s) => s.clearSelectedGuest);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
 
+  const setHighlight = useSeatingStore((s) => s.setHighlight);
+
   /* ================= URL PARAM ================= */
   const searchParams = useSearchParams();
   const highlightedGuestIdFromUrl = searchParams.get("guestId");
@@ -70,12 +72,14 @@ export default function GuestSidebar({ onDragStart }) {
           if (!guestId) return null;
 
           const guestName =
-            typeof guest?.name === "string" ? guest.name : "";
+            typeof guest?.name === "string" && guest.name.trim()
+              ? guest.name
+              : "אורח ללא שם";
 
           const guestsCount =
             Number.isFinite(guest?.guestsCount)
               ? guest.guestsCount
-              : 0;
+              : 1;
 
           const table = guestTableMap.get(guestId) || null;
           const isSelected = selectedGuestId === guestId;
@@ -93,20 +97,14 @@ export default function GuestSidebar({ onDragStart }) {
                 /* ====== TOGGLE SELECTION ====== */
                 if (isSelected) {
                   clearSelectedGuest();
-                  useSeatingStore.setState({
-                    highlightedTable: null,
-                    highlightedSeats: [],
-                  });
+                  setHighlight(null, []);
                   return;
                 }
 
                 setSelectedGuest(guestId);
 
                 if (table?.id) {
-                  useSeatingStore.setState({
-                    highlightedTable: table.id,
-                    highlightedSeats: [],
-                  });
+                  setHighlight(table.id, []);
 
                   /* ====== FOCUS TABLE ON CANVAS ====== */
                   if (
@@ -140,7 +138,7 @@ export default function GuestSidebar({ onDragStart }) {
                   isSelected ? "text-blue-700" : "text-gray-800"
                 }`}
               >
-                {guestName || "אורח ללא שם"}
+                {guestName}
               </div>
 
               {/* ================= COUNT ================= */}
@@ -170,10 +168,7 @@ export default function GuestSidebar({ onDragStart }) {
                     e.stopPropagation();
                     removeFromSeat(table.id, guestId);
                     clearSelectedGuest();
-                    useSeatingStore.setState({
-                      highlightedTable: null,
-                      highlightedSeats: [],
-                    });
+                    setHighlight(null, []);
                   }}
                   className="mt-1 text-xs text-red-500 hover:underline"
                 >

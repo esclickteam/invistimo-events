@@ -32,6 +32,13 @@ export const useSeatingStore = create((set, get) => ({
       highlightedSeats: [],
     }),
 
+  /* ================= ⭐ HIGHLIGHT ACTION ================= */
+  setHighlight: (tableId = null, seats = []) =>
+    set({
+      highlightedTable: tableId,
+      highlightedSeats: Array.isArray(seats) ? seats : [],
+    }),
+
   /* ================= MODALS ================= */
   showAddModal: false,
   setShowAddModal: (v) => set({ showAddModal: !!v }),
@@ -67,28 +74,25 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ================= FETCH GUESTS ================= */
   fetchGuests: async (invitationId) => {
-  try {
-    if (!invitationId) {
+    try {
+      if (!invitationId) {
+        set({ guests: [] });
+        return;
+      }
+
+      const res = await fetch(`/api/seating/guests/${invitationId}`);
+      const data = await res.json();
+
+      if (data?.success && Array.isArray(data.guests)) {
+        set({ guests: data.guests });
+      } else {
+        set({ guests: [] });
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch guests:", err);
       set({ guests: [] });
-      return;
     }
-
-    const res = await fetch(`/api/seating/guests/${invitationId}`);
-    const data = await res.json();
-
-    if (data?.success && Array.isArray(data.guests)) {
-      set({ guests: data.guests });
-    } else {
-      // ⚠️ חשוב: אם הפורמט לא תקין – לא לשמור object
-      set({ guests: [] });
-    }
-  } catch (err) {
-    console.error("❌ Failed to fetch guests:", err);
-    // ⚠️ תמיד להשאיר guests כמערך
-    set({ guests: [] });
-  }
-},
-
+  },
 
   /* ================= ADD TABLE ================= */
   addTable: (type, seats) => {
