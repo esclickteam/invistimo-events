@@ -27,7 +27,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
         body: JSON.stringify({ invitationId, guests: json }),
       });
 
-      const result = await res.json();
+       const result = await res.json();
 
       console.log("📦 Import result:", result);
 
