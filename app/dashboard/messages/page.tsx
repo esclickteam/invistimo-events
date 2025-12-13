@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
+/* ================= TYPES ================= */
 
 type Guest = {
   _id: string;
@@ -12,7 +14,16 @@ type Guest = {
   tableName?: string;
 };
 
-const MESSAGE_TEMPLATES = {
+type MessageType = "rsvp" | "table" | "custom";
+type FilterType = "all" | "pending" | "withTable";
+type SendMode = "now" | "scheduled";
+
+/* ================= TEMPLATES ================= */
+
+const MESSAGE_TEMPLATES: Record<
+  MessageType,
+  { label: string; content: string; requiresTable?: boolean }
+> = {
   rsvp: {
     label: "אישור הגעה",
     content:
@@ -20,8 +31,9 @@ const MESSAGE_TEMPLATES = {
   },
   table: {
     label: "מספר שולחן",
+    requiresTable: true,
     content:
-      "שלום {{name}} 🌸\nביום האירוע שובצת לשולחן:\n🪑 {{tableName}}\nמחכים לך!",
+      "שלום {{name}} 🌸\nשמחים לעדכן שמספר השולחן שלך:\n🪑 {{tableName}}\nמחכים לך!",
   },
   custom: {
     label: "הודעה חופשית",
@@ -37,18 +49,17 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
 
   const [templateKey, setTemplateKey] =
-    useState<keyof typeof MESSAGE_TEMPLATES>("rsvp");
-
+    useState<MessageType>("rsvp");
   const [message, setMessage] = useState(
     MESSAGE_TEMPLATES.rsvp.content
   );
 
-  const [filter, setFilter] =
-    useState<"all" | "pending" | "withTable">("pending");
+  const [filter, setFilter] = useState<FilterType>("pending");
+  const [sendMode, setSendMode] = useState<SendMode>("now");
+  const [scheduledAt, setScheduledAt] = useState("");
 
-  /* ============================================================
-     Load data
-  ============================================================ */
+  /* ================= LOAD DATA ================= */
+
   useEffect(() => {
     async function loadData() {
       const invRes = await fetch("/api/invitations/my");
@@ -61,35 +72,48 @@ export default function MessagesPage() {
         `/api/guests?invitation=${invData.invitation._id}`
       );
       const guestsData = await guestsRes.json();
-
       setGuests(guestsData.guests || []);
+
       setLoading(false);
     }
 
     loadData();
   }, []);
 
-  /* ============================================================
-     Template change
-  ============================================================ */
+  /* ================= TEMPLATE CHANGE ================= */
+
   useEffect(() => {
     setMessage(MESSAGE_TEMPLATES[templateKey].content);
+    if (
+      MESSAGE_TEMPLATES[templateKey].requiresTable &&
+      filter !== "withTable"
+    ) {
+      setFilter("withTable");
+    }
   }, [templateKey]);
 
-  if (loading) return null;
+  /* ================= FILTERED GUESTS ================= */
 
-  /* ============================================================
-     Guests to send
-  ============================================================ */
-  const guestsToSend = guests.filter((g) => {
-    if (filter === "pending") return g.rsvp === "pending";
-    if (filter === "withTable") return !!g.tableName;
-    return true;
-  });
+  const guestsToSend = useMemo(() => {
+    return guests.filter((g) => {
+      if (filter === "pending") return g.rsvp === "pending";
+      if (filter === "withTable") return !!g.tableName;
+      return true;
+    });
+  }, [guests, filter]);
 
-  /* ============================================================
-     WhatsApp send
-  ============================================================ */
+  /* ================= BALANCE (FRONT MOCK) ================= */
+
+  const maxGuests = invitation?.maxGuests || 300; // מהחבילה
+  const maxMessages = maxGuests * 3;
+  const usedMessages = guestsToSend.length;
+  const remainingMessages = Math.max(
+    maxMessages - usedMessages,
+    0
+  );
+
+  /* ================= SEND (WHATSAPP MOCK) ================= */
+
   const sendWhatsApp = (guest: Guest) => {
     const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
@@ -109,76 +133,70 @@ export default function MessagesPage() {
 
   const sendToAll = () => {
     guestsToSend.forEach((guest, index) => {
-      setTimeout(() => sendWhatsApp(guest), index * 500);
+      setTimeout(() => sendWhatsApp(guest), index * 600);
     });
   };
 
-  /* ============================================================
-     Render
-  ============================================================ */
+  if (loading) return null;
+
+  /* ================= RENDER ================= */
+
   return (
     <div className="p-10 max-w-4xl mx-auto" dir="rtl">
-      <button
-        onClick={() => router.back()}
-        className="text-sm text-gray-500 mb-4 hover:underline"
-      >
-        ← חזרה לדשבורד
-      </button>
-
-      <h1 className="text-3xl font-semibold mb-6">שליחת הודעות</h1>
-
-      {/* Template */}
+      {/* Header */}
       <div className="mb-6">
-        <label className="block mb-2 font-medium">סוג הודעה</label>
-        <select
-          value={templateKey}
-          onChange={(e) =>
-            setTemplateKey(e.target.value as any)
-          }
-          className="w-full border rounded-xl p-3"
+        <button
+          onClick={() => router.back()}
+          className="text-sm text-gray-500 hover:underline"
         >
-          {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
-            <option key={key} value={key}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+          ← חזרה
+        </button>
+
+        <h1 className="text-3xl font-semibold mt-2">
+          {invitation?.eventType} |{" "}
+          {new Date(invitation?.eventDate).toLocaleDateString("he-IL")}
+        </h1>
+
+        <div className="mt-2 text-sm text-gray-600">
+          יתרת הודעות:{" "}
+          <strong>
+            {remainingMessages} / {maxMessages}
+          </strong>
+        </div>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-3 mb-6">
-        <button
-          onClick={() => setFilter("pending")}
-          className={`px-4 py-2 rounded-full border ${
-            filter === "pending"
-              ? "bg-green-600 text-white"
-              : ""
-          }`}
-        >
-          טרם השיבו
-        </button>
+      {/* Message type */}
+      <select
+        value={templateKey}
+        onChange={(e) => setTemplateKey(e.target.value as MessageType)}
+        className="w-full border rounded-xl p-3 mb-4"
+      >
+        {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
+          <option key={key} value={key}>
+            {t.label}
+          </option>
+        ))}
+      </select>
 
-        <button
-          onClick={() => setFilter("withTable")}
-          className={`px-4 py-2 rounded-full border ${
-            filter === "withTable"
-              ? "bg-green-600 text-white"
-              : ""
-          }`}
-        >
-          עם מספר שולחן
-        </button>
-
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-4 py-2 rounded-full border ${
-            filter === "all"
-              ? "bg-green-600 text-white"
-              : ""
-          }`}
-        >
-          כולם
-        </button>
+      {/* Filters */}
+      <div className="flex gap-3 mb-4">
+        {[
+          { key: "pending", label: "טרם השיבו" },
+          { key: "withTable", label: "עם שולחן" },
+          { key: "all", label: "כולם" },
+        ].map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key as FilterType)}
+            className={`px-4 py-2 rounded-full border ${
+              filter === f.key
+                ? "bg-green-600 text-white"
+                : ""
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {/* Message */}
@@ -189,23 +207,43 @@ export default function MessagesPage() {
         className="w-full border rounded-xl p-4 mb-6"
       />
 
+      {/* Timing */}
+      <div className="flex gap-4 mb-6">
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            checked={sendMode === "now"}
+            onChange={() => setSendMode("now")}
+          />
+          שליחה מיידית
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            checked={sendMode === "scheduled"}
+            onChange={() => setSendMode("scheduled")}
+          />
+          שליחה מתוזמנת
+        </label>
+
+        {sendMode === "scheduled" && (
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            className="border rounded-lg px-3 py-1"
+          />
+        )}
+      </div>
+
       {/* Send */}
       <button
         onClick={sendToAll}
         disabled={guestsToSend.length === 0}
-        className="
-          w-full
-          bg-green-600
-          text-white
-          py-4
-          rounded-xl
-          font-semibold
-          text-lg
-          hover:bg-green-700
-          disabled:opacity-50
-        "
+        className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
-        💬 שליחה ב-WhatsApp ({guestsToSend.length})
+        💬 שליחה ({guestsToSend.length})
       </button>
 
       {/* Manual */}
@@ -216,7 +254,7 @@ export default function MessagesPage() {
             <button
               key={g._id}
               onClick={() => sendWhatsApp(g)}
-              className="block w-full text-right border px-4 py-2 rounded hover:bg-gray-50"
+              className="w-full border px-4 py-2 rounded text-right hover:bg-gray-50"
             >
               💬 {g.name} ({g.phone})
             </button>
