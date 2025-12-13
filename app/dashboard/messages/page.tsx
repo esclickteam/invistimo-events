@@ -255,12 +255,17 @@ export default function MessagesPage() {
               ))}
             </select>
 
+            {/* ✅ כפתור מעביר לעמוד תשלום (אפשר בכל חבילה) */}
             <button
-              onClick={handlePurchase}
+              onClick={() =>
+                router.push(
+                  `/dashboard/purchase-sms?count=${selectedPackage || ""}`
+                )
+              }
               disabled={!selectedPackage}
               className="w-full py-3 bg-[#c9a46a] hover:bg-[#b99255] text-white rounded-xl font-semibold transition disabled:opacity-50"
             >
-              🛍️ רכישת הודעות נוספות
+              💳 מעבר לתשלום ורכישת הודעות
             </button>
           </div>
         </div>
