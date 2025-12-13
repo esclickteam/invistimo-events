@@ -1,4 +1,4 @@
-import Stripe from "stripe"; 
+import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 
@@ -89,65 +89,50 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     Extract priceKey
+     Extract line item + price
   ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 1,
     expand: ["data.price.product"],
   });
 
-  const price = lineItems.data[0]?.price;
+  const lineItem = lineItems.data[0];
+  const price = lineItem?.price;
   const priceKey = price?.lookup_key;
   const priceId = price?.id;
 
   /* ============================================================
-     🟢 אם מדובר ברכישת חבילת SMS נוספות
-     נזהה לפי שם המוצר או ה-metadata ונעדכן יתרת הודעות
+     🟢 CASE 1: ADD-ON (SMS Top-up)
+     זיהוי חד-משמעי לפי metadata
   ============================================================ */
-  try {
-    const productName =
-      lineItems.data[0]?.description ||
-      typeof lineItems.data[0]?.price?.product === "object"
-  ? (lineItems.data[0]?.price?.product as Stripe.Product)?.name
-  :
-      "";
-    const metadata = session.metadata || {};
-    const description = (
-      metadata.description ||
-      productName ||
-      ""
-    ).toLowerCase();
+  if (session.metadata?.type === "addon") {
+    console.log("💬 Detected SMS add-on purchase for:", email);
 
-    if (description.includes("הודעות") || description.includes("sms")) {
-      console.log("💬 Detected SMS package purchase for:", email);
+    const messagesToAdd = Number(session.metadata.messages || 0);
 
+    if (messagesToAdd > 0) {
       const invitation = await Invitation.findOne({ ownerId: user._id });
 
       if (invitation) {
-        // חילוץ כמות ההודעות מתוך שם המוצר (למשל "500 הודעות נוספות")
-        const match = productName.match(/\d+/);
-        const count = match ? parseInt(match[0]) : 0;
+        invitation.maxMessages =
+          (invitation.maxMessages || 0) + messagesToAdd;
 
-        if (count > 0) {
-          invitation.maxMessages = (invitation.maxMessages || 0) + count;
-          invitation.remainingMessages =
-            (invitation.remainingMessages || 0) + count;
-          await invitation.save();
+        invitation.remainingMessages =
+          (invitation.remainingMessages || 0) + messagesToAdd;
 
-          console.log(
-            `✅ עודכנה יתרת הודעות SMS (${count}) למשתמש ${email}`
-          );
-        }
+        await invitation.save();
+
+        console.log(
+          `✅ Added ${messagesToAdd} SMS messages to user ${email}`
+        );
       }
-
-      return NextResponse.json({ received: true });
     }
-  } catch (err) {
-    console.error("⚠️ שגיאה בעדכון יתרת הודעות:", err);
+
+    return NextResponse.json({ received: true });
   }
 
   /* ============================================================
-     המשך רגיל – רכישת חבילות רגילות
+     CASE 2: REGULAR PACKAGE PURCHASE
   ============================================================ */
   if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
     return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
@@ -196,7 +181,7 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🔑 UPDATE INVITATION — SOURCE OF TRUTH FOR SMS
+     UPDATE INVITATION — SOURCE OF TRUTH FOR SMS
   ============================================================ */
   let invitation = await Invitation.findOne({ ownerId: user._id });
 
@@ -211,7 +196,7 @@ export async function POST(req: Request) {
     });
   } else {
     invitation.maxGuests = maxGuests;
-    invitation.sentSmsCount = 0; // איפוס בעת רכישת חבילה רגילה
+    invitation.sentSmsCount = 0; // reset on package purchase
     await invitation.save();
   }
 
@@ -220,7 +205,7 @@ export async function POST(req: Request) {
   ============================================================ */
   await User.findByIdAndUpdate(user._id, {
     plan: isBasic ? "basic" : "premium",
-    guests: maxGuests, // null = unlimited
+    guests: maxGuests,
     paidAmount: amountPaid,
     planLimits: {
       maxGuests,
