@@ -23,7 +23,7 @@ function PurchaseSMSInner() {
           quantity,                       // 1 = 500 הודעות
           // שדות שה-API שלך כבר יודע לקרוא:
           email: params.get("email"),
-          invitationId: params.get("invitationId"),
+           invitationId: params.get("invitationId"),
         }),
       });
 
