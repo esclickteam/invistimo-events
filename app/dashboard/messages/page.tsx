@@ -55,40 +55,40 @@ export default function MessagesPage() {
   const [balance, setBalance] = useState<Balance | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [templateKey, setTemplateKey] =
-    useState<MessageType>("rsvp");
+  const [templateKey, setTemplateKey] = useState<MessageType>("rsvp");
   const [message, setMessage] = useState(
     MESSAGE_TEMPLATES.rsvp.content
   );
 
   const [filter, setFilter] = useState<FilterType>("pending");
   const [sendMode, setSendMode] = useState<SendMode>("now");
-  const [scheduledAt, setScheduledAt] = useState("");
   const [channel, setChannel] = useState<Channel>("whatsapp");
 
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
     async function loadData() {
-      const invRes = await fetch("/api/invitations/my");
-      const invData = await invRes.json();
-      if (!invData.success) return;
+      try {
+        const invRes = await fetch("/api/invitations/my");
+        const invData = await invRes.json();
+        if (!invData.success) return;
 
-      setInvitation(invData.invitation);
+        setInvitation(invData.invitation);
 
-      const guestsRes = await fetch(
-        `/api/guests?invitation=${invData.invitation._id}`
-      );
-      const guestsData = await guestsRes.json();
-      setGuests(guestsData.guests || []);
+        const guestsRes = await fetch(
+          `/api/guests?invitation=${invData.invitation._id}`
+        );
+        const guestsData = await guestsRes.json();
+        setGuests(guestsData.guests || []);
 
-      const balanceRes = await fetch("/api/messages/balance");
-      const balanceData = await balanceRes.json();
-      if (balanceData.success) {
-        setBalance(balanceData);
+        const balanceRes = await fetch("/api/messages/balance");
+        const balanceData = await balanceRes.json();
+        if (balanceData.success) {
+          setBalance(balanceData);
+        }
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     loadData();
@@ -121,14 +121,17 @@ export default function MessagesPage() {
 
   /* ================= MESSAGE BUILD ================= */
 
-  const buildMessage = (guest: Guest) =>
-    message
+  const buildMessage = (guest: Guest) => {
+    if (!invitation) return "";
+
+    return message
       .replace("{{name}}", guest.name)
       .replace(
         "{{rsvpLink}}",
         `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`
       )
       .replace("{{tableName}}", guest.tableName || "");
+  };
 
   /* ================= SEND ================= */
 
@@ -143,6 +146,8 @@ export default function MessagesPage() {
   };
 
   const sendSMS = async () => {
+    if (!invitation) return;
+
     const res = await fetch("/api/messages/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -150,8 +155,7 @@ export default function MessagesPage() {
         invitationId: invitation._id,
         template: templateKey,
         filter,
-        customText:
-          templateKey === "custom" ? message : undefined,
+        customText: templateKey === "custom" ? message : undefined,
       }),
     });
 
@@ -178,7 +182,7 @@ export default function MessagesPage() {
 
   const sendToAll = () => {
     if (sendMode === "scheduled") {
-      alert("תזמון יתווסף בשלב הבא (Cron)");
+      alert("שליחה מתוזמנת תתווסף בשלב הבא");
       return;
     }
 
@@ -192,6 +196,7 @@ export default function MessagesPage() {
   };
 
   if (loading) return null;
+  if (!invitation) return <div>לא נמצאה הזמנה</div>;
 
   /* ================= RENDER ================= */
 
@@ -205,8 +210,8 @@ export default function MessagesPage() {
       </button>
 
       <h1 className="text-3xl font-semibold mb-2">
-        {invitation?.eventType} |{" "}
-        {new Date(invitation?.eventDate).toLocaleDateString("he-IL")}
+        {invitation.eventType} |{" "}
+        {new Date(invitation.eventDate).toLocaleDateString("he-IL")}
       </h1>
 
       {/* Balance */}
