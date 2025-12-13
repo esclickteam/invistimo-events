@@ -24,6 +24,10 @@ type Guest = {
   notes?: string;
 };
 
+type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
+type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
+type SortDir = "asc" | "desc";
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -40,6 +44,13 @@ export default function DashboardPage() {
 
   // ✅ חיפוש
   const [search, setSearch] = useState("");
+
+  // ✅ סינון מהיר
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+
+  // ✅ מיון
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   /* ============================================================
      Load user
@@ -100,26 +111,6 @@ export default function DashboardPage() {
   };
 
   /* ============================================================
-     ✅ פילטר חיפוש (שם/טלפון)
-  ============================================================ */
-  const displayGuests = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return guests;
-
-    const qDigits = q.replace(/\D/g, "");
-
-    return guests.filter((g) => {
-      const name = (g.name || "").toLowerCase();
-      const phoneDigits = (g.phone || "").replace(/\D/g, "");
-
-      const nameMatch = name.includes(q);
-      const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
-
-      return nameMatch || phoneMatch;
-    });
-  }, [guests, search]);
-
-  /* ============================================================
      WhatsApp (אישי – אישור הגעה בלבד)
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
@@ -132,6 +123,71 @@ export default function DashboardPage() {
       "_blank"
     );
   };
+
+  /* ============================================================
+     ✅ פילטר + מיון + חיפוש
+  ============================================================ */
+  const displayGuests = useMemo(() => {
+    let list = [...guests];
+
+    // 1) Quick filter
+    if (quickFilter === "yes") list = list.filter((g) => g.rsvp === "yes");
+    if (quickFilter === "no") list = list.filter((g) => g.rsvp === "no");
+    if (quickFilter === "pending") list = list.filter((g) => g.rsvp === "pending");
+    if (quickFilter === "noTable")
+      list = list.filter((g) => !(g.tableName && g.tableName.trim()));
+
+    // 2) Search (name / phone)
+    const q = search.trim().toLowerCase();
+    if (q) {
+      const qDigits = q.replace(/\D/g, "");
+      list = list.filter((g) => {
+        const name = (g.name || "").toLowerCase();
+        const phoneDigits = (g.phone || "").replace(/\D/g, "");
+        const nameMatch = name.includes(q);
+        const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
+        return nameMatch || phoneMatch;
+      });
+    }
+
+    // 3) Sort
+    const rsvpOrder: Record<Guest["rsvp"], number> = { yes: 0, pending: 1, no: 2 };
+
+    const getValue = (g: Guest) => {
+      if (sortKey === "name") return (g.name || "").toLowerCase();
+      if (sortKey === "table") return (g.tableName || "").toLowerCase();
+      if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
+      if (sortKey === "invited") return g.guestsCount || 0;
+      // coming
+      return g.rsvp === "yes" ? g.guestsCount || 0 : 0;
+    };
+
+    list.sort((a, b) => {
+      const va = getValue(a) as any;
+      const vb = getValue(b) as any;
+
+      if (typeof va === "number" && typeof vb === "number") {
+        return sortDir === "asc" ? va - vb : vb - va;
+      }
+      return sortDir === "asc"
+        ? String(va).localeCompare(String(vb), "he")
+        : String(vb).localeCompare(String(va), "he");
+    });
+
+    return list;
+  }, [guests, quickFilter, search, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+      return;
+    }
+    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+  };
+
+  const sortArrow = (key: SortKey) =>
+    sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   if (loading) return null;
 
@@ -152,7 +208,6 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
 
         <div className="flex gap-3">
-          {/* יצירת / עריכת הזמנה */}
           <button
             onClick={() =>
               router.push(
@@ -166,7 +221,6 @@ export default function DashboardPage() {
             {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
           </button>
 
-          {/* 🪑 הושבה כללית */}
           {invitation && (
             <button
               onClick={() => router.push("/dashboard/seating")}
@@ -176,7 +230,6 @@ export default function DashboardPage() {
             </button>
           )}
 
-          {/* 💬 שליחת הודעות */}
           {invitation && (
             <button
               onClick={() => router.push("/dashboard/messages")}
@@ -211,9 +264,10 @@ export default function DashboardPage() {
         <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
       </div>
 
-      {/* ✅ Search bar */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex-1 relative">
+      {/* ✅ Controls row (search + filters) */}
+      <div className="flex items-center justify-between gap-6 mb-4">
+        {/* Search (not full width) */}
+        <div className="w-full max-w-[520px] relative">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -236,9 +290,38 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Quick filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <FilterPill
+            active={quickFilter === "all"}
+            onClick={() => setQuickFilter("all")}
+            label="הכל"
+          />
+          <FilterPill
+            active={quickFilter === "yes"}
+            onClick={() => setQuickFilter("yes")}
+            label="מגיעים"
+          />
+          <FilterPill
+            active={quickFilter === "pending"}
+            onClick={() => setQuickFilter("pending")}
+            label="ממתינים"
+          />
+          <FilterPill
+            active={quickFilter === "no"}
+            onClick={() => setQuickFilter("no")}
+            label="לא מגיעים"
+          />
+          <FilterPill
+            active={quickFilter === "noTable"}
+            onClick={() => setQuickFilter("noTable")}
+            label="בלי שולחן"
+          />
+        </div>
+
+        {/* Count */}
         <div className="text-sm text-gray-500 min-w-[140px] text-left">
-          מציג: <span className="font-semibold">{displayGuests.length}</span> /
-          {guests.length}
+          מציג: <span className="font-semibold">{displayGuests.length}</span> / {guests.length}
         </div>
       </div>
 
@@ -246,13 +329,50 @@ export default function DashboardPage() {
       <table className="w-full border rounded-xl overflow-hidden">
         <thead className="bg-gray-100">
           <tr>
-            <th className="p-3 text-right">שם מלא</th>
+            <th
+              className="p-3 text-right cursor-pointer select-none"
+              onClick={() => toggleSort("name")}
+              title="מיון לפי שם"
+            >
+              שם מלא{sortArrow("name")}
+            </th>
+
             <th className="p-3 text-right">טלפון</th>
+
             <th className="p-3 text-right">קרבה</th>
-            <th className="p-3 text-right">סטטוס</th>
-            <th className="p-3 text-right">מוזמנים</th>
-            <th className="p-3 text-right">מגיעים</th>
-            <th className="p-3 text-right">מס' שולחן</th>
+
+            <th
+              className="p-3 text-right cursor-pointer select-none"
+              onClick={() => toggleSort("rsvp")}
+              title="מיון לפי סטטוס"
+            >
+              סטטוס{sortArrow("rsvp")}
+            </th>
+
+            <th
+              className="p-3 text-right cursor-pointer select-none"
+              onClick={() => toggleSort("invited")}
+              title="מיון לפי מוזמנים"
+            >
+              מוזמנים{sortArrow("invited")}
+            </th>
+
+            <th
+              className="p-3 text-right cursor-pointer select-none"
+              onClick={() => toggleSort("coming")}
+              title="מיון לפי מגיעים"
+            >
+              מגיעים{sortArrow("coming")}
+            </th>
+
+            <th
+              className="p-3 text-right cursor-pointer select-none"
+              onClick={() => toggleSort("table")}
+              title="מיון לפי שולחן"
+            >
+              מס' שולחן{sortArrow("table")}
+            </th>
+
             <th className="p-3 text-right">הערות</th>
             <th className="p-3 text-right">פעולות</th>
           </tr>
@@ -283,7 +403,6 @@ export default function DashboardPage() {
                   💬
                 </button>
 
-                {/* ✅ הושבה אישית */}
                 <button
                   onClick={() =>
                     router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
@@ -303,7 +422,7 @@ export default function DashboardPage() {
           {displayGuests.length === 0 && (
             <tr>
               <td colSpan={9} className="p-8 text-center text-gray-500">
-                לא נמצאו תוצאות לחיפוש.
+                לא נמצאו תוצאות.
               </td>
             </tr>
           )}
@@ -326,6 +445,32 @@ export default function DashboardPage() {
         />
       )}
     </div>
+  );
+}
+
+/* ============================================================
+   UI helpers
+============================================================ */
+function FilterPill({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 rounded-full border text-sm transition ${
+        active
+          ? "bg-[#c9b48f] text-white border-[#c9b48f]"
+          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
