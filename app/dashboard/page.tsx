@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
@@ -37,6 +37,9 @@ export default function DashboardPage() {
   const [invitationId, setInvitationId] = useState<string>("");
 
   const [user, setUser] = useState<any | null>(null);
+
+  // ✅ חיפוש
+  const [search, setSearch] = useState("");
 
   /* ============================================================
      Load user
@@ -84,7 +87,7 @@ export default function DashboardPage() {
   }, [invitationId]);
 
   /* ============================================================
-     Stats
+     Stats (על כל האורחים)
   ============================================================ */
   const stats = {
     totalGuests: guests.reduce((s, g) => s + g.guestsCount, 0),
@@ -95,6 +98,26 @@ export default function DashboardPage() {
     notComing: guests.filter((g) => g.rsvp === "no").length,
     noResponse: guests.filter((g) => g.rsvp === "pending").length,
   };
+
+  /* ============================================================
+     ✅ פילטר חיפוש (שם/טלפון)
+  ============================================================ */
+  const displayGuests = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return guests;
+
+    const qDigits = q.replace(/\D/g, "");
+
+    return guests.filter((g) => {
+      const name = (g.name || "").toLowerCase();
+      const phoneDigits = (g.phone || "").replace(/\D/g, "");
+
+      const nameMatch = name.includes(q);
+      const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
+
+      return nameMatch || phoneMatch;
+    });
+  }, [guests, search]);
 
   /* ============================================================
      WhatsApp (אישי – אישור הגעה בלבד)
@@ -188,12 +211,44 @@ export default function DashboardPage() {
         <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
       </div>
 
+      {/* ✅ Search bar */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1 relative">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="חיפוש לפי שם או טלפון…"
+            className="
+              w-full border border-gray-300 rounded-full
+              px-5 py-3 outline-none
+              focus:ring-2 focus:ring-[#c9b48f]
+              bg-white
+            "
+          />
+          {search.trim() && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              title="נקה חיפוש"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        <div className="text-sm text-gray-500 min-w-[140px] text-left">
+          מציג: <span className="font-semibold">{displayGuests.length}</span> /
+          {guests.length}
+        </div>
+      </div>
+
       {/* Table */}
       <table className="w-full border rounded-xl overflow-hidden">
         <thead className="bg-gray-100">
           <tr>
             <th className="p-3 text-right">שם מלא</th>
             <th className="p-3 text-right">טלפון</th>
+            <th className="p-3 text-right">קרבה</th>
             <th className="p-3 text-right">סטטוס</th>
             <th className="p-3 text-right">מוזמנים</th>
             <th className="p-3 text-right">מגיעים</th>
@@ -204,10 +259,11 @@ export default function DashboardPage() {
         </thead>
 
         <tbody>
-          {guests.map((g) => (
+          {displayGuests.map((g) => (
             <tr key={g._id} className="border-b">
               <td className="p-3">{g.name}</td>
               <td className="p-3">{g.phone}</td>
+              <td className="p-3">{g.relation?.trim() || "-"}</td>
               <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
               <td className="p-3">{g.guestsCount}</td>
               <td className="p-3 font-semibold">
@@ -227,12 +283,10 @@ export default function DashboardPage() {
                   💬
                 </button>
 
-                {/* ✅ הושבה אישית: מסמן אורח ספציפי בעמוד ההושבה */}
+                {/* ✅ הושבה אישית */}
                 <button
                   onClick={() =>
-                    router.push(
-                      `/dashboard/seating?from=personal&guestId=${g._id}`
-                    )
+                    router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
                   }
                   title="הושבה אישית לאורח"
                 >
@@ -245,6 +299,14 @@ export default function DashboardPage() {
               </td>
             </tr>
           ))}
+
+          {displayGuests.length === 0 && (
+            <tr>
+              <td colSpan={9} className="p-8 text-center text-gray-500">
+                לא נמצאו תוצאות לחיפוש.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 
