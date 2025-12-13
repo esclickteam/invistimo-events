@@ -46,6 +46,8 @@ const MESSAGE_TEMPLATES: Record<
   },
 };
 
+/* ================= COMPONENT ================= */
+
 export default function MessagesPage() {
   const router = useRouter();
 
@@ -55,9 +57,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
 
   const [templateKey, setTemplateKey] = useState<MessageType>("rsvp");
-  const [message, setMessage] = useState(
-    MESSAGE_TEMPLATES.rsvp.content
-  );
+  const [message, setMessage] = useState(MESSAGE_TEMPLATES.rsvp.content);
 
   const [filter, setFilter] = useState<FilterType>("pending");
   const [channel, setChannel] = useState<Channel>("whatsapp");
@@ -96,7 +96,6 @@ export default function MessagesPage() {
 
   const isBasicPlan = invitation?.plan === "basic";
 
-  // אם זו חבילת בסיס – לא לאפשר SMS בכלל
   useEffect(() => {
     if (isBasicPlan && channel === "sms") {
       setChannel("whatsapp");
@@ -126,11 +125,11 @@ export default function MessagesPage() {
   }, [guests, filter]);
 
   const disableSend =
-  guestsToSend.length === 0 ||
-  (channel === "sms" && isBasicPlan) ||
-  (channel === "sms" &&
-    !!balance &&
-    balance.remainingMessages < guestsToSend.length);
+    guestsToSend.length === 0 ||
+    (channel === "sms" && isBasicPlan) ||
+    (channel === "sms" &&
+      !!balance &&
+      balance.remainingMessages < guestsToSend.length);
 
   /* ================= MESSAGE BUILD ================= */
 
@@ -151,9 +150,7 @@ export default function MessagesPage() {
   const sendWhatsApp = (guest: Guest) => {
     const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
     window.open(
-      `https://wa.me/${phone}?text=${encodeURIComponent(
-        buildMessage(guest)
-      )}`,
+      `https://wa.me/${phone}?text=${encodeURIComponent(buildMessage(guest))}`,
       "_blank"
     );
   };
@@ -216,28 +213,53 @@ export default function MessagesPage() {
         ← חזרה
       </button>
 
-      <h1 className="text-3xl font-semibold mb-2">
-        {invitation.eventType}
-      </h1>
+      <h1 className="text-3xl font-semibold mb-6">{invitation.eventType}</h1>
 
       {/* Balance */}
       {balance && (
-        <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm flex justify-between">
-          <span className="font-medium">יתרת הודעות SMS</span>
-          <span
-            className={`font-bold ${
-              balance.remainingMessages === 0
-                ? "text-red-600"
-                : "text-green-600"
-            }`}
-          >
-            {balance.remainingMessages} / {balance.maxMessages}
-          </span>
+        <div className="bg-gradient-to-r from-[#fffaf5] to-[#f5eee7] border border-[#e2d6c8] rounded-2xl shadow-md p-6 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-lg font-semibold text-[#4a413a]">
+              💬 יתרת הודעות SMS
+            </span>
+            <span
+              className={`text-lg font-bold ${
+                balance.remainingMessages === 0
+                  ? "text-red-600"
+                  : "text-green-600"
+              }`}
+            >
+              {balance.remainingMessages} / {balance.maxMessages}
+            </span>
+          </div>
+
+          <div className="w-full bg-[#e2d6c8]/40 h-3 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 ${
+                balance.remainingMessages === 0
+                  ? "bg-red-500"
+                  : "bg-green-500"
+              }`}
+              style={{
+                width: `${
+                  balance.maxMessages > 0
+                    ? (balance.remainingMessages / balance.maxMessages) * 100
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+
+          <p className="text-sm text-[#6b5e52] mt-3">
+            {invitation.plan === "basic"
+              ? "חבילת בסיס – אין אפשרות לשליחת SMS (0/0)"
+              : `נותרו ${balance.remainingMessages} הודעות מתוך ${balance.maxMessages} בחבילה.`}
+          </p>
         </div>
       )}
 
       {/* Channel */}
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 mb-6">
         <button
           onClick={() => setChannel("whatsapp")}
           className={`px-4 py-2 rounded-full border ${
@@ -258,12 +280,26 @@ export default function MessagesPage() {
         </button>
       </div>
 
+      {/* Filter - למי לשלוח */}
+      <div className="mb-6">
+        <label className="block text-[#4a413a] font-medium mb-2">
+          למי לשלוח:
+        </label>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as FilterType)}
+          className="w-full border border-[#e2d6c8] rounded-xl p-3 bg-white shadow-sm"
+        >
+          <option value="all">לכל המוזמנים</option>
+          <option value="pending">למי שטרם ענה</option>
+          <option value="withTable">למי שיש מספר שולחן</option>
+        </select>
+      </div>
+
       {/* Template */}
       <select
         value={templateKey}
-        onChange={(e) =>
-          setTemplateKey(e.target.value as MessageType)
-        }
+        onChange={(e) => setTemplateKey(e.target.value as MessageType)}
         className="w-full border rounded-xl p-3 mb-4"
       >
         {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
