@@ -11,11 +11,15 @@ export default function GuestSidebar({ onDragStart }) {
   const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
 
+  const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
+  const setSelectedGuest = useSeatingStore((s) => s.setSelectedGuest);
+  const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
+
   /* ===============================
-     Highlight from URL
+     Highlight from URL (אופציונלי)
   =============================== */
   const searchParams = useSearchParams();
-  const highlightedGuestId = searchParams.get("guestId");
+  const highlightedGuestIdFromUrl = searchParams.get("guestId");
 
   /* ===============================
      Guards
@@ -55,44 +59,91 @@ export default function GuestSidebar({ onDragStart }) {
         {guests.map((guest) => {
           const guestId = guest._id?.toString();
           const table = guestTableMap.get(guestId) || null;
-          const isHighlighted = guestId === highlightedGuestId;
+
+          const isSelected =
+            selectedGuestId === guestId ||
+            highlightedGuestIdFromUrl === guestId;
 
           return (
             <li
               key={guestId}
               draggable
               onDragStart={() => onDragStart(guest)}
+              onClick={() => {
+                setSelectedGuest(guestId);
+
+                if (table) {
+                  useSeatingStore.setState({
+                    highlightedTable: table.id,
+                  });
+                }
+              }}
               className={`
                 cursor-grab p-3 border-b transition
                 hover:bg-gray-100
                 ${
-                  isHighlighted
-                    ? "bg-yellow-100 border-yellow-400 shadow-inner ring-2 ring-yellow-300"
+                  isSelected
+                    ? "bg-blue-50 border-blue-300 ring-2 ring-blue-300"
                     : ""
                 }
               `}
             >
-              {/* שם האורח */}
-              <div className="font-medium">{guest.name}</div>
+              {/* ================= שם האורח ================= */}
+              <div
+                className={`font-medium ${
+                  isSelected ? "text-blue-700" : "text-gray-800"
+                }`}
+              >
+                {guest.name}
+              </div>
 
               {/* כמות מקומות */}
               <div className="text-xs text-gray-500">
                 {guest.guestsCount} מקומות
               </div>
 
-              {/* ⭐ שולחן – מתעדכן אוטומטית מההושבה */}
-              <div className="mt-1 text-xs">
-                {table ? (
-                  <span className="text-green-600">
-                    שובץ לשולחן: {table.name}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">לא משובץ</span>
-                )}
-              </div>
+              {/* ================= שולחן ================= */}
+              {table && (
+                <div
+                  className={`
+                    mt-1 text-xs font-semibold
+                    ${
+                      isSelected
+                        ? "text-blue-700"
+                        : "text-green-600"
+                    }
+                  `}
+                >
+                  שולחן: {table.name}
+                </div>
+              )}
 
-              {/* אינדיקציה לאורח שנבחר מהדשבורד */}
-              {isHighlighted && (
+              {!table && (
+                <div className="mt-1 text-xs text-gray-400">
+                  לא משובץ
+                </div>
+              )}
+
+              {/* ================= ביטול הושבה ================= */}
+              {table && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFromSeat(table.id, guestId);
+                    setSelectedGuest(null);
+                    useSeatingStore.setState({
+                      highlightedTable: null,
+                      highlightedSeats: [],
+                    });
+                  }}
+                  className="mt-1 text-xs text-red-500 hover:underline"
+                >
+                  בטל הושבה
+                </button>
+              )}
+
+              {/* אינדיקציה אם הגיע מ־URL */}
+              {highlightedGuestIdFromUrl === guestId && (
                 <div className="mt-1 text-xs font-semibold text-yellow-700">
                   ← אורח שנבחר מהדשבורד
                 </div>

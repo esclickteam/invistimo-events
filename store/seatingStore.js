@@ -13,6 +13,10 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
+  /* ⭐ חדש: אורח נבחר (לסיידבר / הדגשות) */
+  selectedGuestId: null,
+  setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
+
   showAddModal: false,
 
   addGuestTable: null,
@@ -60,7 +64,7 @@ export const useSeatingStore = create((set, get) => ({
     set({ tables: [...tables, newTable] });
   },
 
-  /* ---------------- UPDATE TABLE POSITION (חדש) ---------------- */
+  /* ---------------- UPDATE TABLE POSITION ---------------- */
   updateTablePosition: (tableId, x, y) =>
     set((state) => ({
       tables: state.tables.map((t) =>
