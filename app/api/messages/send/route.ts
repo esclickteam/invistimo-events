@@ -65,15 +65,16 @@ export async function POST(req: Request) {
       return true;
     });
 
-    /* ================= BALANCE CHECK ================= */
+    /* ================= BALANCE CHECK (SOURCE OF TRUTH) ================= */
 
-    const maxMessages = invitation.maxGuests * 3;
-    const remainingMessages =
-      maxMessages - invitation.sentSmsCount;
+    const remainingMessages = invitation.remainingMessages ?? 0;
 
     if (remainingMessages <= 0) {
       return NextResponse.json(
-        { error: "NO_SMS_BALANCE" },
+        {
+          error: "NO_SMS_BALANCE",
+          remainingMessages: 0,
+        },
         { status: 403 }
       );
     }
@@ -124,11 +125,14 @@ export async function POST(req: Request) {
       actuallySent++;
     }
 
-    /* ================= UPDATE SMS COUNTER ================= */
+    /* ================= UPDATE SMS BALANCE ================= */
 
     if (actuallySent > 0) {
       await Invitation.findByIdAndUpdate(invitation._id, {
-        $inc: { sentSmsCount: actuallySent },
+        $inc: {
+          sentSmsCount: actuallySent,
+          remainingMessages: -actuallySent,
+        },
       });
     }
 
@@ -136,7 +140,7 @@ export async function POST(req: Request) {
       success: true,
       sent: actuallySent,
       remainingMessages:
-        maxMessages - (invitation.sentSmsCount + actuallySent),
+        (invitation.remainingMessages ?? 0) - actuallySent,
     });
   } catch (err) {
     console.error("❌ SMS SEND ERROR:", err);

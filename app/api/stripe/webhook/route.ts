@@ -17,8 +17,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   lookup_key → maxGuests
-   null = UNLIMITED (basic)
+   lookup_key → maxGuests (packages)
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number | null> = {
   basic_plan: null,
@@ -89,7 +88,7 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     Extract line item + price
+     Extract line item
   ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 1,
@@ -102,38 +101,49 @@ export async function POST(req: Request) {
   const priceId = price?.id;
 
   /* ============================================================
-     🟢 CASE 1: ADD-ON (SMS Top-up)
-     זיהוי חד-משמעי לפי metadata
-  ============================================================ */
+     🟢 CASE 1: SMS ADD-ON
+============================================================ */
   if (session.metadata?.type === "addon") {
     console.log("💬 Detected SMS add-on purchase for:", email);
 
     const messagesToAdd = Number(session.metadata.messages || 0);
-
-    if (messagesToAdd > 0) {
-      const invitation = await Invitation.findOne({ ownerId: user._id });
-
-      if (invitation) {
-        invitation.maxMessages =
-          (invitation.maxMessages || 0) + messagesToAdd;
-
-        invitation.remainingMessages =
-          (invitation.remainingMessages || 0) + messagesToAdd;
-
-        await invitation.save();
-
-        console.log(
-          `✅ Added ${messagesToAdd} SMS messages to user ${email}`
-        );
-      }
+    if (messagesToAdd <= 0) {
+      return NextResponse.json({ received: true });
     }
+
+    let invitation = await Invitation.findOne({ ownerId: user._id });
+
+    // ✅ אם אין הזמנה – יוצרים אחת
+    if (!invitation) {
+      invitation = await Invitation.create({
+        ownerId: user._id,
+        title: "ההזמנה שלי",
+        canvasData: {},
+        shareId: crypto.randomUUID(),
+        sentSmsCount: 0,
+        maxMessages: messagesToAdd,
+        remainingMessages: messagesToAdd,
+      });
+    } else {
+      invitation.maxMessages =
+        (invitation.maxMessages || 0) + messagesToAdd;
+
+      invitation.remainingMessages =
+        (invitation.remainingMessages || 0) + messagesToAdd;
+
+      await invitation.save();
+    }
+
+    console.log(
+      `✅ Added ${messagesToAdd} SMS messages to user ${email}`
+    );
 
     return NextResponse.json({ received: true });
   }
 
   /* ============================================================
      CASE 2: REGULAR PACKAGE PURCHASE
-  ============================================================ */
+============================================================ */
   if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
     return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
   }
@@ -181,7 +191,7 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     UPDATE INVITATION — SOURCE OF TRUTH FOR SMS
+     UPDATE INVITATION (package purchase resets SMS)
   ============================================================ */
   let invitation = await Invitation.findOne({ ownerId: user._id });
 
@@ -193,10 +203,14 @@ export async function POST(req: Request) {
       shareId: crypto.randomUUID(),
       maxGuests,
       sentSmsCount: 0,
+      maxMessages: 0,
+      remainingMessages: 0,
     });
   } else {
     invitation.maxGuests = maxGuests;
-    invitation.sentSmsCount = 0; // reset on package purchase
+    invitation.sentSmsCount = 0;
+    invitation.maxMessages = 0;
+    invitation.remainingMessages = 0;
     await invitation.save();
   }
 

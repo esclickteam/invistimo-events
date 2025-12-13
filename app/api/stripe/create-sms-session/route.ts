@@ -11,16 +11,24 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   SMS Add-ons config (NO priceId)
+   SMS Add-ons config (lookup_key בלבד)
+   ⚠️ חייב להתאים בדיוק ל-Stripe
 ============================================================ */
 const SMS_ADDON_CONFIG: Record<
   string,
   { lookupKey: string; messages: number }
 > = {
-  extra_messages_500: {
-    lookupKey: "extra_messages_500",
-    messages: 500,
-  },
+  extra_messages_500: { lookupKey: "extra_messages_500", messages: 500 },
+  extra_messages_750: { lookupKey: "extra_messages_750", messages: 750 },
+  extra_messages_1000: { lookupKey: "extra_messages_1000", messages: 1000 },
+  extra_messages_1250: { lookupKey: "extra_messages_1250", messages: 1250 },
+  extra_messages_1500: { lookupKey: "extra_messages_1500", messages: 1500 },
+  extra_messages_1750: { lookupKey: "extra_messages_1750", messages: 1750 },
+  extra_messages_2000: { lookupKey: "extra_messages_2000", messages: 2000 },
+  extra_messages_2500: { lookupKey: "extra_messages_2500", messages: 2500 },
+  extra_messages_3000: { lookupKey: "extra_messages_3000", messages: 3000 },
+  extra_messages_4000: { lookupKey: "extra_messages_4000", messages: 4000 },
+  extra_messages_5000: { lookupKey: "extra_messages_5000", messages: 5000 },
 };
 
 /* ============================================================
@@ -48,7 +56,7 @@ export async function POST(req: Request) {
     const addon = SMS_ADDON_CONFIG[priceKey];
 
     /* ============================================================
-       Fetch price by lookup_key
+       Fetch price by lookup_key from Stripe
     ============================================================ */
     const prices = await stripe.prices.list({
       lookup_keys: [addon.lookupKey],
@@ -58,7 +66,7 @@ export async function POST(req: Request) {
     const price = prices.data[0];
     if (!price) {
       return NextResponse.json(
-        { error: "Price not found for lookup_key" },
+        { error: `Price not found for ${addon.lookupKey}` },
         { status: 400 }
       );
     }
