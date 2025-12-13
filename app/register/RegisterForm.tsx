@@ -1,13 +1,14 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 
 /* ============================================================
    Register → Stripe Checkout
 ============================================================ */
-export default function RegisterForm() {
+
+function RegisterFormInner() {
   const params = useSearchParams();
 
   const plan = params.get("plan") || "basic";
@@ -26,16 +27,16 @@ export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [price, setPrice] = useState<number>(0);
 
-  // ✅ כאן המפתח האחיד שלך
-  const [priceKey, setPriceKey] = useState<string>("basic_plan");
+  // 🔑 priceKey אחיד ל-Stripe
+  const [priceKey, setPriceKey] = useState<string>("");
 
   /* ============================================================
-     חישוב מחיר + priceKey אוטומטי
+     חישוב מחיר + priceKey
   ============================================================ */
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
-      setPriceKey("basic_plan_49"); // ✅ במקום basic
+      setPriceKey("basic_plan_49");
       return;
     }
 
@@ -76,6 +77,7 @@ export default function RegisterForm() {
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!priceKey) {
       alert("חבילה לא תקינה — נסי לבחור שוב");
       return;
@@ -84,7 +86,7 @@ export default function RegisterForm() {
     setLoading(true);
 
     try {
-      /* 1️⃣ הרשמה + קבלת Cookie (חשוב: credentials include) */
+      /* 1️⃣ הרשמה (יוצרת משתמש + Cookie) */
       const registerRes = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,20 +101,22 @@ export default function RegisterForm() {
       const registerData = await registerRes.json();
 
       if (!registerRes.ok || registerData?.success === false) {
-        alert(registerData.error || "שגיאה בהרשמה");
+        alert(registerData?.error || "שגיאה בהרשמה");
         return;
       }
 
-      /* 2️⃣ יצירת Checkout Session */
-      const checkoutRes = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          priceKey,
-          email: form.email,
-        }),
-      });
+      /* 2️⃣ יצירת Checkout Session (תשלום ראשון) */
+      const checkoutRes = await fetch(
+        "/api/stripe/create-checkout-session",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            priceKey,
+          }),
+        }
+      );
 
       const checkoutData = await checkoutRes.json();
 
@@ -224,5 +228,16 @@ export default function RegisterForm() {
         </div>
       </form>
     </div>
+  );
+}
+
+/* ============================================================
+   Suspense wrapper (חובה ל-useSearchParams)
+============================================================ */
+export default function RegisterForm() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterFormInner />
+    </Suspense>
   );
 }

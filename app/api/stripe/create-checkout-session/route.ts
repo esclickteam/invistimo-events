@@ -11,23 +11,38 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   Add-ons config (NO priceId)
+   Packages config – תשלום ראשון
 ============================================================ */
-const ADDON_CONFIG: Record<
+const PACKAGE_CONFIG: Record<
   string,
-  { lookupKey: string; messages: number }
+  { priceId: string }
 > = {
-  extra_messages_500: {
-    lookupKey: "extra_messages_500",
-    messages: 500,
+  basic_plan_49: {
+    priceId: "price_1SdWP9LCgfc20iubG9OFDPVs",
+  },
+
+  premium_100: {
+    priceId: "price_1SdSGkLCgfc20iubDzINSFfW",
+  },
+
+  premium_300: {
+    priceId: "price_1SdSpILCgfc20iub7y1HQUeR",
+  },
+
+  premium_500: {
+    priceId: "price_1SdSpyLCgfc20iubdw9J8fjq",
+  },
+
+  premium_1000: {
+    priceId: "price_1SdSqULCgfc20iubjawJsU7h",
   },
 };
 
 export async function POST(req: Request) {
   try {
-    const { priceKey, quantity = 1 } = await req.json();
+    const { priceKey } = await req.json();
 
-    if (!priceKey || !ADDON_CONFIG[priceKey]) {
+    if (!priceKey || !PACKAGE_CONFIG[priceKey]) {
       return NextResponse.json(
         { error: "Missing or invalid priceKey" },
         { status: 400 }
@@ -42,26 +57,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const addon = ADDON_CONFIG[priceKey];
+    const pkg = PACKAGE_CONFIG[priceKey];
 
     /* ============================================================
-       Fetch price by lookup_key
-    ============================================================ */
-    const prices = await stripe.prices.list({
-      lookup_keys: [addon.lookupKey],
-      limit: 1,
-    });
-
-    const price = prices.data[0];
-    if (!price) {
-      return NextResponse.json(
-        { error: "Price not found for lookup_key" },
-        { status: 400 }
-      );
-    }
-
-    /* ============================================================
-       Create Checkout Session
+       Create Checkout Session – תשלום ראשון
     ============================================================ */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -69,18 +68,17 @@ export async function POST(req: Request) {
 
       line_items: [
         {
-          price: price.id,
-          quantity,
+          price: pkg.priceId,
+          quantity: 1,
         },
       ],
 
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/dashboard/messages`,
+      cancel_url: `${baseUrl}/register?canceled=1`,
 
       metadata: {
-        type: "addon",
+        type: "package",
         priceKey,
-        messages: String(addon.messages * quantity),
       },
     });
 
