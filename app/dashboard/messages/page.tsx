@@ -108,9 +108,23 @@ export default function MessagesPage() {
     loadData();
   }, []);
 
-  /* ================= LOGIC ================= */
+  /* ================= REFRESH AFTER PAYMENT ================= */
 
-  const isBasicPlan = invitation?.plan === "basic";
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("success") === "true") {
+      fetch("/api/messages/balance")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) setBalance(data);
+        });
+
+      url.searchParams.delete("success");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
+
+  /* ================= LOGIC ================= */
 
   const guestsToSend = useMemo(() => {
     return guests.filter((g) => {
@@ -120,12 +134,14 @@ export default function MessagesPage() {
     });
   }, [guests, filter]);
 
-  const disableSend: boolean =
+  const hasSmsBalance =
+    balance !== null && balance.remainingMessages > 0;
+
+  const disableSend =
     guestsToSend.length === 0 ||
-    (channel === "sms" && isBasicPlan) ||
     (channel === "sms" &&
-      !!balance &&
-      balance.remainingMessages < guestsToSend.length);
+      (!balance ||
+        balance.remainingMessages < guestsToSend.length));
 
   const buildMessage = (guest: Guest) => {
     if (!invitation) return "";
@@ -150,7 +166,7 @@ export default function MessagesPage() {
   };
 
   const sendSMS = async () => {
-    if (!invitation || isBasicPlan) return;
+    if (!invitation || !hasSmsBalance) return;
 
     const res = await fetch("/api/messages/send", {
       method: "POST",
@@ -182,14 +198,9 @@ export default function MessagesPage() {
       guestsToSend.forEach((guest, i) =>
         setTimeout(() => sendWhatsApp(guest), i * 600)
       );
-    } else sendSMS();
-  };
-
-  const handlePurchase = () => {
-    if (!selectedPackage) return;
-    alert(
-      `🛍️ נבחרה חבילה של ${selectedPackage.toLocaleString()} הודעות. בקרוב ייפתח תשלום מאובטח`
-    );
+    } else {
+      sendSMS();
+    }
   };
 
   /* ================= RENDER ================= */
@@ -217,7 +228,7 @@ export default function MessagesPage() {
       {/* BALANCE CARD */}
       {balance && (
         <div className="bg-gradient-to-r from-[#fff7f0] to-[#f7ede2] border border-[#e2d6c8] rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
-          <h2 className="text-lg font-semibold text-[#4a413a] mb-2 flex justify-center items-center gap-2">
+          <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
             💬 יתרת הודעות SMS
           </h2>
 
@@ -236,14 +247,13 @@ export default function MessagesPage() {
 
           <p className="text-sm text-[#6b5e52]">
             {max === 0
-              ? "חבילת בסיס – אין אפשרות לשליחת SMS (0/0)"
-              : `נותרו ${remaining} הודעות מתוך ${max} בהקצאה.`}
+              ? "אין חבילת SMS פעילה"
+              : `נותרו ${remaining} הודעות מתוך ${max}`}
           </p>
 
-          {/* רכישת חבילה */}
           <div className="mt-5">
             <select
-              className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-3 bg-white text-[#4a413a]"
+              className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-3"
               value={selectedPackage ?? ""}
               onChange={(e) => setSelectedPackage(Number(e.target.value))}
             >
@@ -255,7 +265,6 @@ export default function MessagesPage() {
               ))}
             </select>
 
-            {/* ✅ כפתור מעביר לעמוד תשלום (אפשר בכל חבילה) */}
             <button
               onClick={() =>
                 router.push(
@@ -263,7 +272,7 @@ export default function MessagesPage() {
                 )
               }
               disabled={!selectedPackage}
-              className="w-full py-3 bg-[#c9a46a] hover:bg-[#b99255] text-white rounded-xl font-semibold transition disabled:opacity-50"
+              className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
             >
               💳 מעבר לתשלום ורכישת הודעות
             </button>
@@ -283,11 +292,11 @@ export default function MessagesPage() {
         </button>
 
         <button
-          disabled={isBasicPlan}
+          disabled={!hasSmsBalance}
           onClick={() => setChannel("sms")}
           className={`px-4 py-2 rounded-full border ${
             channel === "sms" ? "bg-blue-600 text-white" : ""
-          } ${isBasicPlan ? "opacity-40 cursor-not-allowed" : ""}`}
+          } ${!hasSmsBalance ? "opacity-40 cursor-not-allowed" : ""}`}
         >
           SMS
         </button>
@@ -295,13 +304,11 @@ export default function MessagesPage() {
 
       {/* FILTER */}
       <div className="mb-6 w-[90%] md:w-[600px]">
-        <label className="block text-[#4a413a] font-medium mb-2">
-          למי לשלוח:
-        </label>
+        <label className="block mb-2">למי לשלוח:</label>
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value as FilterType)}
-          className="w-full border border-[#e2d6c8] rounded-xl p-3 bg-white shadow-sm"
+          className="w-full border rounded-xl p-3"
         >
           <option value="all">לכל המוזמנים</option>
           <option value="pending">למי שטרם ענה</option>
@@ -312,8 +319,12 @@ export default function MessagesPage() {
       {/* TEMPLATE */}
       <select
         value={templateKey}
-        onChange={(e) => setTemplateKey(e.target.value as MessageType)}
-        className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4 bg-white"
+        onChange={(e) => {
+          const key = e.target.value as MessageType;
+          setTemplateKey(key);
+          setMessage(MESSAGE_TEMPLATES[key].content);
+        }}
+        className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
       >
         {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
           <option key={key} value={key}>
@@ -327,13 +338,13 @@ export default function MessagesPage() {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         rows={6}
-        className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6 bg-white shadow-sm"
+        className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
       />
 
       {/* SEND */}
       <button
         onClick={sendToAll}
-        disabled={!!disableSend}
+        disabled={disableSend}
         className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
         📩 שליחה ({guestsToSend.length})
