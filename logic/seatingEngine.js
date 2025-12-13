@@ -27,6 +27,7 @@ export function getSeatCoordinates(table) {
   const coords = [];
   const seats = table.seats;
 
+  /* -------- עגול -------- */
   if (table.type === "round") {
     const radius = 100;
 
@@ -40,44 +41,52 @@ export function getSeatCoordinates(table) {
     }
   }
 
+  /* -------- ריבועי — סימטרי ומדויק -------- */
   if (table.type === "square") {
     const width = 160;
     const height = 160;
-    const perSide = Math.ceil(seats / 4);
-    const margin = 30;
-    const spacingX = width / (perSide + 1);
-    const spacingY = height / (perSide + 1);
+    const offset = 100;
 
+    // חלוקה סימטרית של הכיסאות בין 4 הצדדים
+    const sideDistribution = [0, 0, 0, 0];
     for (let i = 0; i < seats; i++) {
-      const side = Math.floor((i * 4) / seats);
-      const pos = i % perSide;
+      sideDistribution[i % 4]++;
+    }
 
-      let x = 0,
-        y = 0,
-        rotation = 0;
+    // למעלה
+    for (let i = 0; i < sideDistribution[0]; i++) {
+      const step = width / (sideDistribution[0] + 1);
+      const x = -width / 2 + (i + 1) * step;
+      const y = -offset;
+      coords.push({ x, y, rotation: Math.PI });
+    }
 
-      if (side === 0) {
-        x = -width / 2 + spacingX * (pos + 1);
-        y = -height / 2 - margin;
-        rotation = Math.PI;
-      } else if (side === 1) {
-        x = width / 2 + margin;
-        y = -height / 2 + spacingY * (pos + 1);
-        rotation = -Math.PI / 2;
-      } else if (side === 2) {
-        x = width / 2 - spacingX * (pos + 1);
-        y = height / 2 + margin;
-        rotation = 0;
-      } else {
-        x = -width / 2 - margin;
-        y = -height / 2 + spacingY * (pos + 1);
-        rotation = Math.PI / 2;
-      }
+    // ימין
+    for (let i = 0; i < sideDistribution[1]; i++) {
+      const step = height / (sideDistribution[1] + 1);
+      const y = -height / 2 + (i + 1) * step;
+      const x = offset;
+      coords.push({ x, y, rotation: Math.PI / 2 });
+    }
 
-      coords.push({ x, y, rotation });
+    // למטה
+    for (let i = 0; i < sideDistribution[2]; i++) {
+      const step = width / (sideDistribution[2] + 1);
+      const x = width / 2 - (i + 1) * step;
+      const y = offset;
+      coords.push({ x, y, rotation: 0 });
+    }
+
+    // שמאל
+    for (let i = 0; i < sideDistribution[3]; i++) {
+      const step = height / (sideDistribution[3] + 1);
+      const y = height / 2 - (i + 1) * step;
+      const x = -offset;
+      coords.push({ x, y, rotation: -Math.PI / 2 });
     }
   }
 
+  /* -------- בנקט (מלבני) -------- */
   if (table.type === "banquet") {
     const width = 240;
     const height = 90;
