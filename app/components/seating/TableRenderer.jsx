@@ -20,16 +20,20 @@ export default function TableRenderer({ table }) {
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  /* ==================== SNAP TO CELL ==================== */
+  /* ==================== SNAP TO CELL (מתוקן) ==================== */
   const getCellSizeForTable = () =>
     table.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
 
   const snapToCell = (x, y) => {
     const size = getCellSizeForTable();
-    return {
-      x: Math.round(x / size) * size,
-      y: Math.round(y / size) * size,
-    };
+
+    const snappedX =
+      Math.round((x - size / 2) / size) * size + size / 2;
+
+    const snappedY =
+      Math.round((y - size / 2) / size) * size + size / 2;
+
+    return { x: snappedX, y: snappedY };
   };
 
   /* ==================== SEATS ==================== */
@@ -43,24 +47,36 @@ export default function TableRenderer({ table }) {
     const gap = 36;
     const seats = [];
 
-    // TOP – 3
+    // TOP
     [-1, 0, 1].forEach((i) => {
       seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 });
     });
 
-    // RIGHT – 2 (קו ישר)
+    // RIGHT – קו ישר
     [-1, 1].forEach((i) => {
-      seats.push({ x: size / 2 + 20, y: i * gap, rotation: Math.PI / 2 });
+      seats.push({
+        x: size / 2 + 20,
+        y: i * gap,
+        rotation: Math.PI / 2,
+      });
     });
 
-    // BOTTOM – 3
+    // BOTTOM
     [-1, 0, 1].forEach((i) => {
-      seats.push({ x: i * gap, y: size / 2 + 20, rotation: Math.PI });
+      seats.push({
+        x: i * gap,
+        y: size / 2 + 20,
+        rotation: Math.PI,
+      });
     });
 
-    // LEFT – 2 (קו ישר)
+    // LEFT – קו ישר
     [-1, 1].forEach((i) => {
-      seats.push({ x: -size / 2 - 20, y: i * gap, rotation: -Math.PI / 2 });
+      seats.push({
+        x: -size / 2 - 20,
+        y: i * gap,
+        rotation: -Math.PI / 2,
+      });
     });
 
     return seats.slice(0, table.seats);
@@ -87,11 +103,7 @@ export default function TableRenderer({ table }) {
           e.target.y()
         );
 
-        updateTablePosition(
-          table.id,
-          snapped.x,
-          snapped.y
-        );
+        updateTablePosition(table.id, snapped.x, snapped.y);
       }}
       onMouseDown={(e) => (e.cancelBubble = true)}
       onTouchStart={(e) => (e.cancelBubble = true)}
