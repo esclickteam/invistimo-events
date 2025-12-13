@@ -23,7 +23,13 @@ export default function TableRenderer({ table }) {
       ? table.seatedGuests
       : [],
     seats: Number(table.seats) || 0,
+    x: Number(table.x),
+    y: Number(table.y),
   }), [table]);
+
+  if (!Number.isFinite(safeTable.x) || !Number.isFinite(safeTable.y)) {
+    return null;
+  }
 
   const isHighlighted = highlightedTable === safeTable.id;
   const assigned = safeTable.seatedGuests;
@@ -49,7 +55,6 @@ export default function TableRenderer({ table }) {
     if (safeTable.type === "square") {
       return getSquareSeatCoordinates(safeTable.seats);
     }
-
     return getSeatCoordinates(safeTable) || [];
   }, [safeTable]);
 
@@ -59,31 +64,16 @@ export default function TableRenderer({ table }) {
     const seats = [];
 
     [-1, 0, 1].forEach((i) =>
-      seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 })
+      seats.push({ x: i * gap, y: -size / 2 - 20 })
     );
-
     [-1, 1].forEach((i) =>
-      seats.push({
-        x: size / 2 + 20,
-        y: i * gap,
-        rotation: Math.PI / 2,
-      })
+      seats.push({ x: size / 2 + 20, y: i * gap })
     );
-
     [-1, 0, 1].forEach((i) =>
-      seats.push({
-        x: i * gap,
-        y: size / 2 + 20,
-        rotation: Math.PI,
-      })
+      seats.push({ x: i * gap, y: size / 2 + 20 })
     );
-
     [-1, 1].forEach((i) =>
-      seats.push({
-        x: -size / 2 - 20,
-        y: i * gap,
-        rotation: -Math.PI / 2,
-      })
+      seats.push({ x: -size / 2 - 20, y: i * gap })
     );
 
     return seats.slice(0, seatsCount);
@@ -94,9 +84,7 @@ export default function TableRenderer({ table }) {
     const guest = guests.find(
       (g) => g._id?.toString() === guestId?.toString()
     );
-    if (guest) {
-      startDragGuest(guest);
-    }
+    if (guest) startDragGuest(guest);
   };
 
   return (
@@ -112,10 +100,14 @@ export default function TableRenderer({ table }) {
       }}
       onClick={(e) => {
         e.cancelBubble = true;
+
         useSeatingStore.setState({
           highlightedTable: safeTable.id,
           highlightedSeats: [],
         });
+
+        // ✅ מחזיר פתיחת הושבה
+        safeTable.openAddGuestModal?.(safeTable);
       }}
     >
       {/* ================= TABLE BODY ================= */}
@@ -175,8 +167,8 @@ export default function TableRenderer({ table }) {
               (g) =>
                 g._id?.toString() ===
                 seatGuest.guestId?.toString()
-            )?.name ?? ""
-          : "";
+            )?.name
+          : null;
 
         return (
           <Group key={i} x={c.x} y={c.y}>
@@ -190,8 +182,7 @@ export default function TableRenderer({ table }) {
               stroke="#2563eb"
               strokeWidth={1}
               onClick={() =>
-                !isFree &&
-                handleSeatDrag(seatGuest?.guestId)
+                !isFree && handleSeatDrag(seatGuest?.guestId)
               }
             />
 
@@ -204,7 +195,7 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
-            {!isFree && guestName && (
+            {guestName && (
               <Text
                 text={guestName}
                 offsetY={18}

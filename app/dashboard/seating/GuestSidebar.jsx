@@ -23,6 +23,7 @@ export default function GuestSidebar({ onDragStart }) {
     }
   }, [highlightedGuestIdFromUrl, selectedGuestId, setSelectedGuest]);
 
+  // הגנה אם guests או tables לא מוגדרים
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
     return (
       <div className="w-72 bg-white shadow-xl border-r h-full p-4 text-gray-400">
@@ -35,6 +36,7 @@ export default function GuestSidebar({ onDragStart }) {
   const guestTableMap = useMemo(() => {
     const map = new Map();
 
+    // נרמל את seatedGuests כדי למנוע קריאות לא חוקיות
     tables.forEach((table) => {
       const seated = Array.isArray(table.seatedGuests)
         ? table.seatedGuests
@@ -56,9 +58,9 @@ export default function GuestSidebar({ onDragStart }) {
 
       <ul>
         {guests.map((guest) => {
-          const guestId = guest?._id?.toString() ?? "";
+          const guestId = guest?._id?.toString() ?? ""; // הגנה כאן
 
-          if (!guestId) return null; // ✅ הגנה קריטית
+          if (!guestId) return null; // אם guestId לא תקין, דלג על האורח
 
           const table = guestTableMap.get(guestId) || null;
           const isSelected = selectedGuestId === guestId;
@@ -97,14 +99,9 @@ export default function GuestSidebar({ onDragStart }) {
                   );
                 }
               }}
-              className={`
-                cursor-pointer p-3 border-b transition
+              className={`cursor-pointer p-3 border-b transition
                 hover:bg-gray-100
-                ${
-                  isSelected
-                    ? "bg-blue-50 border-blue-300 ring-2 ring-blue-300"
-                    : ""
-                }
+                ${isSelected ? "bg-blue-50 border-blue-300 ring-2 ring-blue-300" : ""}
               `}
             >
               {/* ================= שם ================= */}
@@ -131,9 +128,7 @@ export default function GuestSidebar({ onDragStart }) {
                   שולחן: {table.name}
                 </div>
               ) : (
-                <div className="mt-1 text-xs text-gray-400">
-                  לא משובץ
-                </div>
+                <div className="mt-1 text-xs text-gray-400">לא משובץ</div>
               )}
 
               {/* ================= ביטול הושבה ================= */}
