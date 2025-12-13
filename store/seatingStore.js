@@ -13,8 +13,9 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* ⭐ אורח נבחר (לסיידבר / פוקוס) */
+  /* ⭐ אורח נבחר (סיידבר / פוקוס) */
   selectedGuestId: null,
+
   setSelectedGuest: (guestId) =>
     set({
       selectedGuestId: guestId,
@@ -96,7 +97,7 @@ export const useSeatingStore = create((set, get) => ({
   startDragGuest: (guest) => {
     set({
       draggedGuest: guest,
-      selectedGuestId: guest._id,
+      selectedGuestId: guest._id?.toString(),
       highlightedTable: null,
       highlightedSeats: [],
     });
@@ -164,26 +165,28 @@ export const useSeatingStore = create((set, get) => ({
       return;
     }
 
+    const guestId = draggedGuest._id?.toString();
+
     const newTables = tables.map((t) => ({
       ...t,
       seatedGuests:
         t.id === highlightedTable
           ? [
               ...t.seatedGuests.filter(
-                (s) => s.guestId !== draggedGuest._id
+                (s) => s.guestId?.toString() !== guestId
               ),
               ...highlightedSeats.map((seatIndex) => ({
-                guestId: draggedGuest._id,
+                guestId,
                 seatIndex,
               })),
             ]
           : t.seatedGuests.filter(
-              (s) => s.guestId !== draggedGuest._id
+              (s) => s.guestId?.toString() !== guestId
             ),
     }));
 
     const newGuests = guests.map((g) =>
-      g._id === draggedGuest._id
+      g._id?.toString() === guestId
         ? { ...g, tableId: highlightedTable }
         : g
     );
@@ -199,6 +202,8 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ================= REMOVE FROM SEAT ================= */
   removeFromSeat: (tableId, guestId) => {
+    const gid = guestId?.toString();
+
     const { tables, guests } = get();
 
     set({
@@ -207,13 +212,13 @@ export const useSeatingStore = create((set, get) => ({
           ? {
               ...t,
               seatedGuests: t.seatedGuests.filter(
-                (s) => s.guestId !== guestId
+                (s) => s.guestId?.toString() !== gid
               ),
             }
           : t
       ),
       guests: guests.map((g) =>
-        g._id === guestId ? { ...g, tableId: null } : g
+        g._id?.toString() === gid ? { ...g, tableId: null } : g
       ),
       highlightedTable: null,
       highlightedSeats: [],
@@ -223,10 +228,13 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ================= MANUAL ASSIGN ================= */
   assignGuestsToTable: (tableId, guestId, count) => {
+    const gid = guestId?.toString();
     const { tables, guests } = get();
 
     const table = tables.find((t) => t.id === tableId);
-    const guest = guests.find((g) => g._id === guestId);
+    const guest = guests.find(
+      (g) => g._id?.toString() === gid
+    );
 
     if (!table || !guest)
       return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
@@ -237,13 +245,13 @@ export const useSeatingStore = create((set, get) => ({
 
     tables.forEach((t) => {
       t.seatedGuests = t.seatedGuests.filter(
-        (s) => s.guestId !== guestId
+        (s) => s.guestId?.toString() !== gid
       );
     });
 
     table.seatedGuests.push(
       ...block.map((seatIndex) => ({
-        guestId,
+        guestId: gid,
         seatIndex,
       }))
     );
@@ -253,7 +261,7 @@ export const useSeatingStore = create((set, get) => ({
     set({
       tables: [...tables],
       guests: [...guests],
-      selectedGuestId: guestId,
+      selectedGuestId: gid,
       highlightedTable: tableId,
     });
 

@@ -8,21 +8,24 @@ export default function TableView({
   onClose,
   onAssignSeat,
   onRemoveSeat,
-  isHighlighted
+  isHighlighted,
 }) {
   const [selectSeatIndex, setSelectSeatIndex] = useState(null);
 
   /* ===============================
-     🔎 מיפוי בלוקים לפי guestId
+     🔎 מיפוי בלוקים לפי guestId (STRING)
   =============================== */
   const guestBlocks = useMemo(() => {
     const map = new Map();
 
     table.seatedGuests.forEach((sg) => {
-      if (!map.has(sg.guestId)) {
-        map.set(sg.guestId, []);
+      const guestId = sg.guestId?.toString();
+      if (!guestId) return;
+
+      if (!map.has(guestId)) {
+        map.set(guestId, []);
       }
-      map.get(sg.guestId).push(sg.seatIndex);
+      map.get(guestId).push(sg.seatIndex);
     });
 
     return map;
@@ -34,16 +37,18 @@ export default function TableView({
     );
     if (!seat) return null;
 
-    const seats = guestBlocks.get(seat.guestId);
+    const guestId = seat.guestId?.toString();
+    const seats = guestBlocks.get(guestId) || [];
+
     const guest = allGuests.find(
-      (g) => g._id === seat.guestId
+      (g) => g._id?.toString() === guestId
     );
 
     return {
-      guestId: seat.guestId,
+      guestId,
       name: guest?.name || "אורח",
       count: seats.length,
-      seats
+      seats,
     };
   };
 
@@ -54,7 +59,11 @@ export default function TableView({
         <div
           className={`
             bg-white rounded-xl shadow-xl w-[420px] p-6 relative
-            ${isHighlighted ? "ring-4 ring-amber-400 shadow-[0_0_40px_#f59e0b]" : ""}
+            ${
+              isHighlighted
+                ? "ring-4 ring-amber-400 shadow-[0_0_40px_#f59e0b]"
+                : ""
+            }
           `}
         >
           <button

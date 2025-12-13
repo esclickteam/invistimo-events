@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -15,6 +15,13 @@ export default function GuestSidebar({ onDragStart }) {
 
   const searchParams = useSearchParams();
   const highlightedGuestIdFromUrl = searchParams.get("guestId");
+
+  /* ================= INIT מה־URL (פעם אחת בלבד) ================= */
+  useEffect(() => {
+    if (highlightedGuestIdFromUrl && !selectedGuestId) {
+      setSelectedGuest(highlightedGuestIdFromUrl);
+    }
+  }, [highlightedGuestIdFromUrl, selectedGuestId, setSelectedGuest]);
 
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
     return (
@@ -46,11 +53,7 @@ export default function GuestSidebar({ onDragStart }) {
           const guestId = guest._id?.toString();
           const table = guestTableMap.get(guestId) || null;
 
-          /* ⭐ בחירה אחת בלבד */
-          const isSelected =
-            selectedGuestId === guestId ||
-            (!selectedGuestId &&
-              highlightedGuestIdFromUrl === guestId);
+          const isSelected = selectedGuestId === guestId;
 
           return (
             <li
@@ -58,9 +61,13 @@ export default function GuestSidebar({ onDragStart }) {
               draggable
               onDragStart={() => onDragStart(guest)}
               onClick={() => {
-                /* 🔁 לחיצה שנייה = ביטול סימון */
-                if (selectedGuestId === guestId) {
+                /* 🔁 לחיצה חוזרת = ביטול סימון */
+                if (isSelected) {
                   clearSelectedGuest();
+                  useSeatingStore.setState({
+                    highlightedTable: null,
+                    highlightedSeats: [],
+                  });
                   return;
                 }
 
@@ -130,20 +137,16 @@ export default function GuestSidebar({ onDragStart }) {
                     e.stopPropagation();
                     removeFromSeat(table.id, guestId);
                     clearSelectedGuest();
+                    useSeatingStore.setState({
+                      highlightedTable: null,
+                      highlightedSeats: [],
+                    });
                   }}
                   className="mt-1 text-xs text-red-500 hover:underline"
                 >
                   בטל הושבה
                 </button>
               )}
-
-              {/* ================= הגיע מ־URL ================= */}
-              {highlightedGuestIdFromUrl === guestId &&
-                !selectedGuestId && (
-                  <div className="mt-1 text-xs font-semibold text-yellow-700">
-                    ← נבחר מהדשבורד
-                  </div>
-                )}
             </li>
           );
         })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -37,7 +37,7 @@ export default function SeatingEditor({ background }) {
 
   const highlightedTableId = tables.find((table) =>
     table.seatedGuests?.some(
-      (gid) => gid.toString() === highlightedGuestId
+      (sg) => sg.guestId?.toString() === highlightedGuestId
     )
   )?.id;
 
@@ -67,6 +67,26 @@ export default function SeatingEditor({ background }) {
   /* ==================== Zoom & Pan ==================== */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+
+  /* ==================== 🎯 FOCUS TABLE (חדש!) ==================== */
+  useEffect(() => {
+    const handler = (e) => {
+      const { x, y } = e.detail;
+      if (x == null || y == null) return;
+
+      // ממקם את השולחן במרכז המסך
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      setStagePos({
+        x: centerX - x * scale,
+        y: centerY - y * scale,
+      });
+    };
+
+    window.addEventListener("focus-table", handler);
+    return () => window.removeEventListener("focus-table", handler);
+  }, [width, height, scale]);
 
   /* ==================== Mouse ==================== */
   const handleMouseMove = (e) => {
@@ -147,7 +167,7 @@ export default function SeatingEditor({ background }) {
         className="flex-1"
       >
 
-        {/* 🖼️ סקיצה – רק אם קיימת */}
+        {/* 🖼️ סקיצה */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -159,7 +179,7 @@ export default function SeatingEditor({ background }) {
           )}
         </Layer>
 
-        {/* 🟦 GRID = תאים אמיתיים */}
+        {/* 🟦 GRID */}
         <Layer listening={false}>
           <GridBackground
             width={width}
@@ -180,7 +200,6 @@ export default function SeatingEditor({ background }) {
               }}
             />
           ))}
-
           <GhostPreview />
         </Layer>
 
@@ -192,7 +211,7 @@ export default function SeatingEditor({ background }) {
         </Layer>
       </Stage>
 
-      {/* ==================== ADD TABLE MODAL ==================== */}
+      {/* ==================== MODALS ==================== */}
       {showAddModal && (
         <AddTableModal
           onClose={() => setShowAddModal(false)}
@@ -203,21 +222,22 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* ==================== ADD GUEST TO TABLE MODAL ==================== */}
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
           guests={guests.filter(
             (g) =>
               !tables.some((t) =>
-                t.seatedGuests?.includes(g._id)
+                t.seatedGuests?.some(
+                  (sg) => sg.guestId === g._id
+                )
               )
           )}
           onClose={() => setAddGuestTable(null)}
         />
       )}
 
-      {/* ==================== ADD TABLE BUTTON ==================== */}
+      {/* ==================== ADD TABLE ==================== */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600

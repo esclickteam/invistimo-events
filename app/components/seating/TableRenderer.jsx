@@ -14,10 +14,13 @@ export default function TableRenderer({ table }) {
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateTablePosition = useSeatingStore((s) => s.updateTablePosition);
 
-  const tableRef = useRef();
+  const tableRef = useRef(null);
 
   const isHighlighted = highlightedTable === table.id;
-  const assigned = table.seatedGuests || [];
+  const assigned = Array.isArray(table.seatedGuests)
+    ? table.seatedGuests
+    : [];
+
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
   /* ==================== SNAP TO CELL ==================== */
@@ -26,14 +29,13 @@ export default function TableRenderer({ table }) {
 
   const snapToCell = (x, y) => {
     const size = getCellSizeForTable();
-
     return {
       x: Math.round((x - size / 2) / size) * size + size / 2,
       y: Math.round((y - size / 2) / size) * size + size / 2,
     };
   };
 
-  /* ==================== SEATS ==================== */
+  /* ==================== SEAT COORDINATES ==================== */
   const seatsCoords =
     table.type === "square"
       ? getSquareSeatCoordinates()
@@ -44,10 +46,12 @@ export default function TableRenderer({ table }) {
     const gap = 36;
     const seats = [];
 
+    // TOP
     [-1, 0, 1].forEach((i) =>
       seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 })
     );
 
+    // RIGHT
     [-1, 1].forEach((i) =>
       seats.push({
         x: size / 2 + 20,
@@ -56,6 +60,7 @@ export default function TableRenderer({ table }) {
       })
     );
 
+    // BOTTOM
     [-1, 0, 1].forEach((i) =>
       seats.push({
         x: i * gap,
@@ -64,6 +69,7 @@ export default function TableRenderer({ table }) {
       })
     );
 
+    // LEFT
     [-1, 1].forEach((i) =>
       seats.push({
         x: -size / 2 - 20,
@@ -75,11 +81,14 @@ export default function TableRenderer({ table }) {
     return seats.slice(0, table.seats);
   }
 
+  /* ==================== DRAG FROM SEAT ==================== */
   const handleSeatDrag = (guestId) => {
     const guest = guests.find(
       (g) => g._id?.toString() === guestId?.toString()
     );
-    if (guest) startDragGuest(guest);
+    if (guest) {
+      startDragGuest(guest);
+    }
   };
 
   return (
@@ -188,9 +197,11 @@ export default function TableRenderer({ table }) {
 
         const guestName = seatGuest
           ? guests.find(
-              (g) => g._id?.toString() === seatGuest.guestId?.toString()
-            )?.name
-          : null;
+              (g) =>
+                g._id?.toString() ===
+                seatGuest.guestId?.toString()
+            )?.name ?? ""
+          : "";
 
         return (
           <Group
@@ -209,7 +220,8 @@ export default function TableRenderer({ table }) {
               stroke="#2563eb"
               strokeWidth={1}
               onClick={() =>
-                !isFree && handleSeatDrag(seatGuest.guestId)
+                !isFree &&
+                handleSeatDrag(seatGuest?.guestId)
               }
             />
 
@@ -222,9 +234,9 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
-            {!isFree && guestName && (
+            {!isFree && guestName !== "" && (
               <Text
-                text={guestName}
+                text={String(guestName)}
                 offsetY={18}
                 align="center"
                 fontSize={12}
