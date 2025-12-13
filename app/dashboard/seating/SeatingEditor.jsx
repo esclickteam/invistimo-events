@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -21,6 +21,7 @@ export default function SeatingEditor({ background }) {
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
 
+  const draggedGuest = useSeatingStore((s) => s.draggedGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
@@ -32,14 +33,55 @@ export default function SeatingEditor({ background }) {
 
   /* ==================== Highlight from URL ==================== */
   const searchParams = useSearchParams();
-  const highlightedGuestId = searchParams.get("guestId");
+  const from = searchParams.get("from");
+  const highlightedGuestIdRaw = searchParams.get("guestId");
 
-  // ⭐ מציאת השולחן של האורח לפי seatedGuests (האמת היחידה)
-  const highlightedTableId = tables.find((table) =>
-    table.seatedGuests?.some(
-      (gid) => gid.toString() === highlightedGuestId
-    )
-  )?.id;
+  const isPersonalMode = from === "personal" && !!highlightedGuestIdRaw;
+
+  // ✅ מנרמלים את ה-guestId מה-URL למה שקיים אצלך ב-guests (id או _id)
+  const canonicalGuestId = useMemo(() => {
+    if (!highlightedGuestIdRaw) return null;
+    const raw = String(highlightedGuestIdRaw);
+
+    const found = (guests || []).find(
+      (g) => String(g?._id ?? "") === raw || String(g?.id ?? "") === raw
+    );
+
+    // מחזירים את ה-id שהמערכת שלך משתמשת בו בפועל לשיבוץ (עדיפות ל-id, אם קיים)
+    return found ? String(found.id ?? found._id ?? raw) : raw;
+  }, [highlightedGuestIdRaw, guests]);
+
+  // ✅ מציאת השולחן של האורח לפי seatedGuests (האמת היחידה)
+  const highlightedTableId = useMemo(() => {
+    if (!isPersonalMode || !canonicalGuestId) return null;
+
+    const table = (tables || []).find((t) =>
+      t.seatedGuests?.some((s) => String(s.guestId) === String(canonicalGuestId))
+    );
+
+    return table?.id || null;
+  }, [tables, canonicalGuestId, isPersonalMode]);
+
+  // ✅ כדי ש-TableRenderer יואר באמת (כי הוא קורא highlightedTable מה-store),
+  //    אנחנו מעדכנים את highlightedTable ב-store במצב אישי (רק כשלא גוררים)
+  useEffect(() => {
+    if (!isPersonalMode) {
+      // יציאה ממצב אישי -> לא משאירים highlight "תקוע"
+      useSeatingStore.setState({ highlightedTable: null });
+      return;
+    }
+
+    // בזמן גרירה לא מפריעים להיילייט של ההובר
+    if (draggedGuest) return;
+
+    // אם יש שולחן לאורח -> מאירים אותו
+    if (highlightedTableId) {
+      useSeatingStore.setState({ highlightedTable: highlightedTableId });
+    } else {
+      // אין שולחן -> לא מאירים שולחן
+      useSeatingStore.setState({ highlightedTable: null });
+    }
+  }, [isPersonalMode, highlightedTableId, draggedGuest]);
 
   /* ==================== Add Guest Modal ==================== */
   const [addGuestTable, setAddGuestTable] = useState(null);
@@ -67,13 +109,25 @@ export default function SeatingEditor({ background }) {
     dropGuest();
   };
 
+  // ✅ אורחים שלא משובצים (לתוך מודאל הוספה לשולחן) — תיקון לוגיקה לפי seatedGuests אובייקטים
+  const unseatedGuests = useMemo(() => {
+    const seatedSet = new Set();
+    (tables || []).forEach((t) => {
+      t.seatedGuests?.forEach((s) => {
+        if (s?.guestId != null) seatedSet.add(String(s.guestId));
+      });
+    });
+
+    return (guests || []).filter((g) => {
+      const gid = String(g?.id ?? g?._id ?? "");
+      return gid && !seatedSet.has(gid);
+    });
+  }, [tables, guests]);
+
   return (
     <div className="flex relative w-full h-full">
-
       {/* ==================== SIDEBAR ==================== */}
-      <GuestSidebar
-        onDragStart={(guest) => startDragGuest(guest)}
-      />
+      <GuestSidebar onDragStart={(guest) => startDragGuest(guest)} />
 
       {/* ==================== ZOOM CONTROLS ==================== */}
       <button
@@ -149,7 +203,6 @@ export default function SeatingEditor({ background }) {
               table={{
                 ...t,
                 openAddGuestModal: () => setAddGuestTable(t),
-                isHighlighted: t.id === highlightedTableId,
               }}
             />
           ))}
@@ -180,12 +233,7 @@ export default function SeatingEditor({ background }) {
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
-          guests={guests.filter(
-            (g) =>
-              !tables.some((t) =>
-                t.seatedGuests?.includes(g._id)
-              )
-          )}
+          guests={unseatedGuests}
           onClose={() => setAddGuestTable(null)}
         />
       )}
