@@ -4,40 +4,63 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 /* ============================================================
-   Stripe instance — match your dashboard API version
+   Stripe instance — MUST match dashboard API version
 ============================================================ */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-11-17.clover",
 });
 
 /* ============================================================
-   lookup_key (priceKey) → Stripe priceId
+   Price config:
+   priceKey → { priceId, maxGuests }
 ============================================================ */
-const PRICE_MAP: Record<string, string> = {
-  basic_plan_49: "price_1SdWP9LCgfc20iubG9OFDPVs", // 49₪
-  premium_100: "price_1SdSGkLCgfc20iubDzINSFfW", // 149₪
-  premium_300: "price_1SdSpILCgfc20iub7y1HQUeR", // 249₪
-  premium_500: "price_1SdSpyLCgfc20iubdw9J8fjq", // 399₪
-  premium_1000: "price_1SdSqULCgfc20iubjawJsU7h", // 699₪
+const PRICE_CONFIG: Record<
+  string,
+  { priceId: string; maxGuests: number }
+> = {
+  basic_plan_49: {
+    priceId: "price_1SdWP9LCgfc20iubG9OFDPVs",
+    maxGuests: 100, // בסיסי
+  },
+
+  premium_100: {
+    priceId: "price_1SdSGkLCgfc20iubDzINSFfW",
+    maxGuests: 100,
+  },
+
+  premium_300: {
+    priceId: "price_1SdSpILCgfc20iub7y1HQUeR",
+    maxGuests: 300,
+  },
+
+  premium_500: {
+    priceId: "price_1SdSpyLCgfc20iubdw9J8fjq",
+    maxGuests: 500,
+  },
+
+  premium_1000: {
+    priceId: "price_1SdSqULCgfc20iubjawJsU7h",
+    maxGuests: 1000,
+  },
 };
 
 export async function POST(req: Request) {
   try {
-    const { priceKey, email } = (await req.json()) as {
-      priceKey?: string;
-      email?: string;
-    };
+    const { priceKey, email, invitationId } = await req.json();
 
-    if (!priceKey || !email) {
+    if (!priceKey || !email || !invitationId) {
       return NextResponse.json(
-        { error: "Missing priceKey or email" },
+        { error: "Missing priceKey, email or invitationId" },
         { status: 400 }
       );
     }
 
-    const priceId = PRICE_MAP[priceKey];
-    if (!priceId) {
-      return NextResponse.json({ error: "Invalid price key" }, { status: 400 });
+    const config = PRICE_CONFIG[priceKey];
+    if (!config) {
+      return NextResponse.json(
+        { error: "Invalid priceKey" },
+        { status: 400 }
+      );
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -48,22 +71,35 @@ export async function POST(req: Request) {
       );
     }
 
+    /* ============================================================
+       Create Checkout Session
+    ============================================================ */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
 
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [
+        {
+          price: config.priceId,
+          quantity: 1,
+        },
+      ],
 
-      // ✅ אחרי תשלום: חוזרים לדשבורד (כולל session_id למעקב/דיבאג)
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/payment/cancel`,
 
-      metadata: { priceKey },
+      /* 🔑 קריטי: metadata ל־Webhook */
+      metadata: {
+        invitationId,
+        priceKey,
+        maxGuests: String(config.maxGuests),
+        packageType: "sms",
+      },
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error) {
-    console.error("Stripe checkout error:", error);
+  } catch (err) {
+    console.error("❌ Stripe checkout error:", err);
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }

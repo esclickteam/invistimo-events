@@ -1,9 +1,11 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
+
 import Payment from "@/models/Payment";
 import Event from "@/models/Event";
 import User from "@/models/User";
+import Invitation from "@/models/Invitation";
 
 export const runtime = "nodejs";
 
@@ -16,14 +18,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 /* ============================================================
    lookup_key → maxGuests
-   null = UNLIMITED
+   null = UNLIMITED (basic)
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number | null> = {
-  // BASIC — ללא הגבלה
   basic_plan: null,
   basic_plan_49: null,
 
-  // PREMIUM
   premium_100: 100,
   premium_300: 300,
   premium_500: 500,
@@ -40,7 +40,10 @@ export async function POST(req: Request) {
   const body = await req.text();
 
   if (!signature) {
-    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing signature" },
+      { status: 400 }
+    );
   }
 
   let stripeEvent: Stripe.Event;
@@ -53,7 +56,10 @@ export async function POST(req: Request) {
     );
   } catch (err: any) {
     console.error("❌ Invalid webhook signature:", err.message);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid signature" },
+      { status: 400 }
+    );
   }
 
   if (stripeEvent.type !== "checkout.session.completed") {
@@ -66,7 +72,7 @@ export async function POST(req: Request) {
 
   /* ============================================================
      Prevent duplicate processing
-  ============================================================ */
+============================================================ */
   const existingPayment = await Payment.findOne({
     stripeSessionId: session.id,
   });
@@ -77,41 +83,52 @@ export async function POST(req: Request) {
 
   /* ============================================================
      Identify user
-  ============================================================ */
+============================================================ */
   const email = session.customer_email;
   if (!email) {
-    return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing email" },
+      { status: 400 }
+    );
   }
 
   const user = await User.findOne({ email });
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "User not found" },
+      { status: 404 }
+    );
   }
 
   /* ============================================================
-     Get priceKey
-  ============================================================ */
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    limit: 1,
-    expand: ["data.price.product"],
-  });
+     Extract priceKey
+============================================================ */
+  const lineItems = await stripe.checkout.sessions.listLineItems(
+    session.id,
+    {
+      limit: 1,
+      expand: ["data.price.product"],
+    }
+  );
 
   const price = lineItems.data[0]?.price;
   const priceKey = price?.lookup_key;
   const priceId = price?.id;
 
   if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
-    return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Unknown priceKey" },
+      { status: 400 }
+    );
   }
 
   const maxGuests = GUESTS_BY_KEY[priceKey];
-  const amountPaid = (price.unit_amount ?? 0) / 100;
-
+  const amountPaid = (price?.unit_amount ?? 0) / 100;
   const isBasic = priceKey.startsWith("basic");
 
   /* ============================================================
      Create Payment
-  ============================================================ */
+============================================================ */
   const payment = await Payment.create({
     email,
     stripeSessionId: session.id,
@@ -121,13 +138,13 @@ export async function POST(req: Request) {
     priceKey,
     maxGuests,
     amount: amountPaid,
-    currency: price.currency,
+    currency: price?.currency,
     status: "paid",
   });
 
   /* ============================================================
-     Create Event (if not exists)
-  ============================================================ */
+     Create / Update Event
+============================================================ */
   let eventDoc = await Event.findOne({ userId: user._id });
 
   if (!eventDoc) {
@@ -142,11 +159,36 @@ export async function POST(req: Request) {
       paymentStatus: "paid",
       status: "active",
     });
+  } else {
+    eventDoc.maxGuests = maxGuests;
+    await eventDoc.save();
   }
 
   /* ============================================================
-     Update User — BASIC ללא הגבלות
-  ============================================================ */
+     🔑 UPDATE INVITATION — SOURCE OF TRUTH FOR SMS
+============================================================ */
+  let invitation = await Invitation.findOne({
+    ownerId: user._id,
+  });
+
+  if (!invitation) {
+    invitation = await Invitation.create({
+      ownerId: user._id,
+      title: "ההזמנה שלי",
+      canvasData: {},
+      shareId: crypto.randomUUID(),
+      maxGuests,
+      sentSmsCount: 0,
+    });
+  } else {
+    invitation.maxGuests = maxGuests;
+    invitation.sentSmsCount = 0; // איפוס בעת רכישת חבילה
+    await invitation.save();
+  }
+
+  /* ============================================================
+     Update User
+============================================================ */
   await User.findByIdAndUpdate(user._id, {
     plan: isBasic ? "basic" : "premium",
     guests: maxGuests, // null = unlimited
@@ -163,5 +205,6 @@ export async function POST(req: Request) {
   await payment.save();
 
   console.log("✅ Payment processed successfully for:", email);
+
   return NextResponse.json({ received: true });
 }

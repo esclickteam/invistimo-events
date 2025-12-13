@@ -19,6 +19,11 @@ type FilterType = "all" | "pending" | "withTable";
 type SendMode = "now" | "scheduled";
 type Channel = "whatsapp" | "sms";
 
+type Balance = {
+  maxMessages: number;
+  remainingMessages: number;
+};
+
 /* ================= TEMPLATES ================= */
 
 const MESSAGE_TEMPLATES: Record<
@@ -47,10 +52,14 @@ export default function MessagesPage() {
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [invitation, setInvitation] = useState<any>(null);
+  const [balance, setBalance] = useState<Balance | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [templateKey, setTemplateKey] = useState<MessageType>("rsvp");
-  const [message, setMessage] = useState(MESSAGE_TEMPLATES.rsvp.content);
+  const [templateKey, setTemplateKey] =
+    useState<MessageType>("rsvp");
+  const [message, setMessage] = useState(
+    MESSAGE_TEMPLATES.rsvp.content
+  );
 
   const [filter, setFilter] = useState<FilterType>("pending");
   const [sendMode, setSendMode] = useState<SendMode>("now");
@@ -72,6 +81,12 @@ export default function MessagesPage() {
       );
       const guestsData = await guestsRes.json();
       setGuests(guestsData.guests || []);
+
+      const balanceRes = await fetch("/api/messages/balance");
+      const balanceData = await balanceRes.json();
+      if (balanceData.success) {
+        setBalance(balanceData);
+      }
 
       setLoading(false);
     }
@@ -101,13 +116,8 @@ export default function MessagesPage() {
     });
   }, [guests, filter]);
 
-  /* ================= BALANCE (CLIENT SIDE) ================= */
-
-  const maxGuests = invitation?.maxGuests || 300;
-  const maxMessages = maxGuests * 3;
-  const usedMessages = guestsToSend.length;
-  const remainingMessages = Math.max(maxMessages - usedMessages, 0);
-  const noBalance = remainingMessages <= 0;
+  const noBalance =
+    !balance || balance.remainingMessages < guestsToSend.length;
 
   /* ================= MESSAGE BUILD ================= */
 
@@ -132,23 +142,53 @@ export default function MessagesPage() {
     );
   };
 
-  const sendSMSMock = (guest: Guest) => {
-    alert(`SMS יישלח ל־${guest.phone}\n\n${buildMessage(guest)}`);
-  };
+  const sendSMS = async () => {
+    const res = await fetch("/api/messages/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invitationId: invitation._id,
+        template: templateKey,
+        filter,
+        customText:
+          templateKey === "custom" ? message : undefined,
+      }),
+    });
 
-  const sendToAll = () => {
-    if (sendMode === "scheduled" && !scheduledAt) {
-      alert("יש לבחור תאריך ושעה");
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(
+        data.error === "NO_SMS_BALANCE"
+          ? "❌ אין יתרת הודעות מספקת"
+          : "❌ שליחת SMS נכשלה"
+      );
       return;
     }
 
-    guestsToSend.forEach((guest, index) => {
-      setTimeout(() => {
-        channel === "whatsapp"
-          ? sendWhatsApp(guest)
-          : sendSMSMock(guest);
-      }, index * 600);
-    });
+    // רענון יתרה
+    const balanceRes = await fetch("/api/messages/balance");
+    const balanceData = await balanceRes.json();
+    if (balanceData.success) {
+      setBalance(balanceData);
+    }
+
+    alert(`✅ נשלחו ${data.sent} הודעות`);
+  };
+
+  const sendToAll = () => {
+    if (sendMode === "scheduled") {
+      alert("תזמון יתווסף בשלב הבא (Cron)");
+      return;
+    }
+
+    if (channel === "whatsapp") {
+      guestsToSend.forEach((guest, index) => {
+        setTimeout(() => sendWhatsApp(guest), index * 600);
+      });
+    } else {
+      sendSMS();
+    }
   };
 
   if (loading) return null;
@@ -157,7 +197,6 @@ export default function MessagesPage() {
 
   return (
     <div className="p-10 max-w-4xl mx-auto" dir="rtl">
-      {/* Header */}
       <button
         onClick={() => router.back()}
         className="text-sm text-gray-500 mb-3 hover:underline"
@@ -165,22 +204,26 @@ export default function MessagesPage() {
         ← חזרה
       </button>
 
-      <h1 className="text-3xl font-semibold mb-1">
+      <h1 className="text-3xl font-semibold mb-2">
         {invitation?.eventType} |{" "}
         {new Date(invitation?.eventDate).toLocaleDateString("he-IL")}
       </h1>
 
-      {/* Balance Card */}
-      <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm flex justify-between">
-        <span className="font-medium">יתרת הודעות</span>
-        <span
-          className={`font-bold ${
-            noBalance ? "text-red-600" : "text-green-600"
-          }`}
-        >
-          {remainingMessages} / {maxMessages}
-        </span>
-      </div>
+      {/* Balance */}
+      {balance && (
+        <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm flex justify-between">
+          <span className="font-medium">יתרת הודעות SMS</span>
+          <span
+            className={`font-bold ${
+              balance.remainingMessages === 0
+                ? "text-red-600"
+                : "text-green-600"
+            }`}
+          >
+            {balance.remainingMessages} / {balance.maxMessages}
+          </span>
+        </div>
+      )}
 
       {/* Channel */}
       <div className="flex gap-4 mb-4">
@@ -189,9 +232,7 @@ export default function MessagesPage() {
             key={c}
             onClick={() => setChannel(c as Channel)}
             className={`px-4 py-2 rounded-full border ${
-              channel === c
-                ? "bg-blue-600 text-white"
-                : ""
+              channel === c ? "bg-blue-600 text-white" : ""
             }`}
           >
             {c === "whatsapp" ? "WhatsApp" : "SMS"}
@@ -221,36 +262,6 @@ export default function MessagesPage() {
         rows={6}
         className="w-full border rounded-xl p-4 mb-4"
       />
-
-      {/* Timing */}
-      <div className="flex gap-4 mb-6 items-center">
-        <label>
-          <input
-            type="radio"
-            checked={sendMode === "now"}
-            onChange={() => setSendMode("now")}
-          />{" "}
-          מיידי
-        </label>
-
-        <label>
-          <input
-            type="radio"
-            checked={sendMode === "scheduled"}
-            onChange={() => setSendMode("scheduled")}
-          />{" "}
-          מתוזמן
-        </label>
-
-        {sendMode === "scheduled" && (
-          <input
-            type="datetime-local"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="border rounded-lg px-3 py-1"
-          />
-        )}
-      </div>
 
       {/* Send */}
       <button

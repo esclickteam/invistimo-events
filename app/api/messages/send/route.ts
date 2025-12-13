@@ -41,6 +41,8 @@ export async function POST(req: Request) {
       customText?: string;
     } = await req.json();
 
+    /* ================= LOAD INVITATION ================= */
+
     const invitation = await Invitation.findById(invitationId);
     if (!invitation) {
       return NextResponse.json(
@@ -49,33 +51,44 @@ export async function POST(req: Request) {
       );
     }
 
-    const guests: GuestDoc[] = await Guest.find({ invitationId }).lean();
+    /* ================= LOAD GUESTS ================= */
 
-    /* ================= FILTER ================= */
+    const guests: GuestDoc[] = await Guest.find({
+      invitationId,
+    }).lean();
 
-    const targets = guests.filter((g) => {
+    /* ================= FILTER TARGETS ================= */
+
+    const targets: GuestDoc[] = guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
       if (filter === "withTable") return Boolean(g.tableName);
       return true;
     });
 
-    /* ================= BALANCE ================= */
-
-    const sentCount = await MessageLog.countDocuments({
-      invitationId,
-      channel: "sms",
-    });
+    /* ================= BALANCE CHECK ================= */
 
     const maxMessages = invitation.maxGuests * 3;
+    const remainingMessages =
+      maxMessages - invitation.sentSmsCount;
 
-    if (sentCount + targets.length > maxMessages) {
+    if (remainingMessages <= 0) {
       return NextResponse.json(
         { error: "NO_SMS_BALANCE" },
         { status: 403 }
       );
     }
 
-    /* ================= SEND ================= */
+    if (targets.length > remainingMessages) {
+      return NextResponse.json(
+        {
+          error: "NO_SMS_BALANCE",
+          remainingMessages,
+        },
+        { status: 403 }
+      );
+    }
+
+    /* ================= SEND SMS ================= */
 
     let actuallySent = 0;
 
@@ -93,7 +106,10 @@ export async function POST(req: Request) {
         ? guest.phone
         : `972${guest.phone.replace(/^0/, "")}`;
 
-      await sendSMS({ to: phone, message: text });
+      await sendSMS({
+        to: phone,
+        message: text,
+      });
 
       await MessageLog.create({
         invitationId,
@@ -102,14 +118,25 @@ export async function POST(req: Request) {
         channel: "sms",
         template,
         text,
+        sentAt: new Date(),
       });
 
       actuallySent++;
     }
 
+    /* ================= UPDATE SMS COUNTER ================= */
+
+    if (actuallySent > 0) {
+      await Invitation.findByIdAndUpdate(invitation._id, {
+        $inc: { sentSmsCount: actuallySent },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       sent: actuallySent,
+      remainingMessages:
+        maxMessages - (invitation.sentSmsCount + actuallySent),
     });
   } catch (err) {
     console.error("❌ SMS SEND ERROR:", err);
