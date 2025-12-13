@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
           {/* FOOTER */}
           <footer className="mt-24 py-10 text-center text-sm text-[var(--brown-soft)]">
-            Invity · מערכת הזמנות ואישורי הגעה לכל אירוע
+            Invistimo · מערכת הזמנות ואישורי הגעה לכל אירוע
           </footer>
 
         </Providers>
