@@ -10,6 +10,7 @@ export default function GuestSidebar({ onDragStart }) {
   =============================== */
   const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
+  const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
 
   /* ===============================
      Highlight from URL
@@ -29,9 +30,7 @@ export default function GuestSidebar({ onDragStart }) {
   }
 
   /* ===============================
-     ⭐ מקור אמת:
-     tables[].seatedGuests[].guestId
-     ממפה אורח → שולחן
+     ⭐ מיפוי אורח → שולחן
   =============================== */
   const guestTableMap = useMemo(() => {
     const map = new Map();
@@ -60,42 +59,51 @@ export default function GuestSidebar({ onDragStart }) {
           return (
             <li
               key={guestId}
-              draggable
-              onDragStart={() => onDragStart(guest)}
-              className={`
-                cursor-grab p-3 border-b transition
-                hover:bg-gray-100
-                ${
-                  isHighlighted
-                    ? "bg-yellow-100 border-yellow-400 shadow-inner ring-2 ring-yellow-300"
-                    : ""
-                }
-              `}
+              className={`p-3 border-b transition flex justify-between items-center ${
+                isHighlighted
+                  ? "bg-yellow-100 border-yellow-400 shadow-inner ring-2 ring-yellow-300"
+                  : "hover:bg-gray-100"
+              }`}
+              draggable={!table}
+              onDragStart={() => !table && onDragStart(guest)}
             >
-              {/* שם האורח */}
-              <div className="font-medium">{guest.name}</div>
+              <div>
+                {/* שם האורח */}
+                <div className="font-medium text-gray-800">{guest.name}</div>
 
-              {/* כמות מקומות */}
-              <div className="text-xs text-gray-500">
-                {guest.guestsCount} מקומות
-              </div>
+                {/* כמות מקומות */}
+                <div className="text-xs text-gray-500">
+                  {guest.guestsCount} מקומות
+                </div>
 
-              {/* ⭐ שולחן – מתעדכן אוטומטית מההושבה */}
-              <div className="mt-1 text-xs">
-                {table ? (
-                  <span className="text-green-600">
-                    שובץ לשולחן: {table.name}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">לא משובץ</span>
+                {/* ⭐ שולחן – מתעדכן אוטומטית */}
+                <div className="mt-1 text-xs">
+                  {table ? (
+                    <span className="text-green-600">
+                      שובץ לשולחן: {table.name || `#${table.id}`}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">לא משובץ</span>
+                  )}
+                </div>
+
+                {/* אינדיקציה לאורח שנבחר מהדשבורד */}
+                {isHighlighted && (
+                  <div className="mt-1 text-xs font-semibold text-yellow-700">
+                    ← אורח שנבחר מהדשבורד
+                  </div>
                 )}
               </div>
 
-              {/* אינדיקציה לאורח שנבחר מהדשבורד */}
-              {isHighlighted && (
-                <div className="mt-1 text-xs font-semibold text-yellow-700">
-                  ← אורח שנבחר מהדשבורד
-                </div>
+              {/* כפתור הסרת שיבוץ */}
+              {table && (
+                <button
+                  onClick={() => removeFromSeat(guestId)}
+                  className="text-red-500 text-sm hover:text-red-700 ml-2"
+                  title="הסר שיבוץ"
+                >
+                  ❌
+                </button>
               )}
             </li>
           );
