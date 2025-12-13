@@ -176,12 +176,12 @@ export default function DashboardPage() {
       <table className="w-full border rounded-xl overflow-hidden">
         <thead className="bg-gray-100">
           <tr>
-            <th className="p-3 text-right">שם</th>
+            <th className="p-3 text-right">שם מלא</th>
             <th className="p-3 text-right">טלפון</th>
             <th className="p-3 text-right">סטטוס</th>
             <th className="p-3 text-right">מוזמנים</th>
             <th className="p-3 text-right">מגיעים</th>
-            <th className="p-3 text-right">שולחן</th>
+            <th className="p-3 text-right">מס' שולחן</th> 
             <th className="p-3 text-right">הערות</th>
             <th className="p-3 text-right">פעולות</th>
           </tr>
