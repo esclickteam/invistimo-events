@@ -143,7 +143,17 @@ export default function DashboardPage() {
             {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
           </button>
 
-          {/* 🆕 שליחת הודעות כוללת */}
+          {/* 🪑 הושבה – הוחזר כמו שהיה */}
+          {invitation && (
+            <button
+              onClick={() => router.push("/dashboard/seating")}
+              className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+            >
+              🪑 הושבה
+            </button>
+          )}
+
+          {/* 💬 שליחת הודעות */}
           {invitation && (
             <button
               onClick={() => router.push("/dashboard/messages")}
@@ -208,7 +218,6 @@ export default function DashboardPage() {
                 {g.notes?.trim() || "-"}
               </td>
               <td className="p-3 flex gap-3">
-                {/* WhatsApp אישי – רק אייקון */}
                 <button
                   onClick={() => sendWhatsApp(g)}
                   title="שליחת אישור הגעה ב-WhatsApp"
