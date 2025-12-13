@@ -17,7 +17,7 @@ type Guest = {
   token: string;
 
   relation?: string;
-  tableName?: string; // ⭐ מגיע מה־API
+  tableName?: string;
 
   rsvp: "yes" | "no" | "pending";
   guestsCount: number;
@@ -97,7 +97,7 @@ export default function DashboardPage() {
   };
 
   /* ============================================================
-     WhatsApp
+     WhatsApp (אישי – אישור הגעה בלבד)
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
     const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
@@ -129,7 +129,7 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
 
         <div className="flex gap-3">
-          {/* ⭐ יצירת / עריכת הזמנה */}
+          {/* יצירת / עריכת הזמנה */}
           <button
             onClick={() =>
               router.push(
@@ -143,15 +143,21 @@ export default function DashboardPage() {
             {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
           </button>
 
+          {/* 🆕 שליחת הודעות כוללת */}
           {invitation && (
             <button
-              onClick={() =>
-                router.push("/dashboard/seating")
-
-              }
-              className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+              onClick={() => router.push("/dashboard/messages")}
+              className="
+                flex items-center gap-2
+                bg-green-600 text-white
+                px-6 py-3
+                rounded-full
+                font-semibold
+                hover:bg-green-700
+                transition
+              "
             >
-              🪑 הושבה
+              💬 שליחת הודעות
             </button>
           )}
 
@@ -181,7 +187,7 @@ export default function DashboardPage() {
             <th className="p-3 text-right">סטטוס</th>
             <th className="p-3 text-right">מוזמנים</th>
             <th className="p-3 text-right">מגיעים</th>
-            <th className="p-3 text-right">מס' שולחן</th> 
+            <th className="p-3 text-right">מס' שולחן</th>
             <th className="p-3 text-right">הערות</th>
             <th className="p-3 text-right">פעולות</th>
           </tr>
@@ -202,7 +208,15 @@ export default function DashboardPage() {
                 {g.notes?.trim() || "-"}
               </td>
               <td className="p-3 flex gap-3">
-                <button onClick={() => sendWhatsApp(g)}>📩</button>
+                {/* WhatsApp אישי – רק אייקון */}
+                <button
+                  onClick={() => sendWhatsApp(g)}
+                  title="שליחת אישור הגעה ב-WhatsApp"
+                  className="text-green-600 hover:text-green-700 transition"
+                >
+                  💬
+                </button>
+
                 <button
                   onClick={() =>
                     router.push(`/dashboard/seating?guestId=${g._id}`)
@@ -210,6 +224,7 @@ export default function DashboardPage() {
                 >
                   🪑
                 </button>
+
                 <button onClick={() => setSelectedGuest(g)}>✏️</button>
               </td>
             </tr>
