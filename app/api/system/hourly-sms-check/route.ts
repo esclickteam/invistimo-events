@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // 1️⃣ בדיקת יתרת SMS מ-SMS4Free
+    // בדיקת יתרה מ-SMS4Free
     const res = await fetch(
       "https://api.sms4free.co.il/ApiSMS/AvailableSMS",
       {
@@ -26,7 +26,7 @@ export async function GET() {
 
     const balance = Number(data.message);
 
-    // 2️⃣ אם נמוך – שליחת מייל
+    // אם נמוך – שליחת מייל
     if (balance < 3000) {
       await fetch(
         "https://www.invistimo.com/api/system/send-alert-email",
