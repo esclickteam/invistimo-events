@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { getSeatCoordinates } from "@/logic/seatingEngine";
@@ -16,16 +16,25 @@ export default function TableRenderer({ table }) {
 
   const tableRef = useRef(null);
 
-  const isHighlighted = highlightedTable === table.id;
-  const assigned = Array.isArray(table.seatedGuests)
-    ? table.seatedGuests
-    : [];
+  /* ================= SAFE TABLE ================= */
+  const safeTable = useMemo(() => ({
+    ...table,
+    seatedGuests: Array.isArray(table.seatedGuests)
+      ? table.seatedGuests
+      : [],
+    seats: Number(table.seats) || 0,
+  }), [table]);
 
-  const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
+  const isHighlighted = highlightedTable === safeTable.id;
+  const assigned = safeTable.seatedGuests;
 
-  /* ==================== SNAP TO CELL ==================== */
+  const occupiedCount = new Set(
+    assigned.map((s) => s.seatIndex)
+  ).size;
+
+  /* ================= SNAP TO CELL ================= */
   const getCellSizeForTable = () =>
-    table.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
+    safeTable.seats > 19 ? CELL_SIZE * 2 : CELL_SIZE;
 
   const snapToCell = (x, y) => {
     const size = getCellSizeForTable();
@@ -35,23 +44,24 @@ export default function TableRenderer({ table }) {
     };
   };
 
-  /* ==================== SEAT COORDINATES ==================== */
-  const seatsCoords =
-    table.type === "square"
-      ? getSquareSeatCoordinates()
-      : getSeatCoordinates(table);
+  /* ================= SEAT COORDINATES ================= */
+  const seatsCoords = useMemo(() => {
+    if (safeTable.type === "square") {
+      return getSquareSeatCoordinates(safeTable.seats);
+    }
 
-  function getSquareSeatCoordinates() {
+    return getSeatCoordinates(safeTable) || [];
+  }, [safeTable]);
+
+  function getSquareSeatCoordinates(seatsCount) {
     const size = 160;
     const gap = 36;
     const seats = [];
 
-    // TOP
     [-1, 0, 1].forEach((i) =>
       seats.push({ x: i * gap, y: -size / 2 - 20, rotation: 0 })
     );
 
-    // RIGHT
     [-1, 1].forEach((i) =>
       seats.push({
         x: size / 2 + 20,
@@ -60,7 +70,6 @@ export default function TableRenderer({ table }) {
       })
     );
 
-    // BOTTOM
     [-1, 0, 1].forEach((i) =>
       seats.push({
         x: i * gap,
@@ -69,7 +78,6 @@ export default function TableRenderer({ table }) {
       })
     );
 
-    // LEFT
     [-1, 1].forEach((i) =>
       seats.push({
         x: -size / 2 - 20,
@@ -78,10 +86,10 @@ export default function TableRenderer({ table }) {
       })
     );
 
-    return seats.slice(0, table.seats);
+    return seats.slice(0, seatsCount);
   }
 
-  /* ==================== DRAG FROM SEAT ==================== */
+  /* ================= DRAG FROM SEAT ================= */
   const handleSeatDrag = (guestId) => {
     const guest = guests.find(
       (g) => g._id?.toString() === guestId?.toString()
@@ -94,33 +102,24 @@ export default function TableRenderer({ table }) {
   return (
     <Group
       ref={tableRef}
-      x={table.x}
-      y={table.y}
+      x={safeTable.x}
+      y={safeTable.y}
       draggable
-      onDragStart={(e) => (e.cancelBubble = true)}
-      onDragMove={(e) => (e.cancelBubble = true)}
       onDragEnd={(e) => {
         e.cancelBubble = true;
         const snapped = snapToCell(e.target.x(), e.target.y());
-        updateTablePosition(table.id, snapped.x, snapped.y);
+        updateTablePosition(safeTable.id, snapped.x, snapped.y);
       }}
-      onMouseDown={(e) => (e.cancelBubble = true)}
-      onTouchStart={(e) => (e.cancelBubble = true)}
       onClick={(e) => {
-        if (e.target?.attrs?.isDeleteButton) return;
         e.cancelBubble = true;
-
         useSeatingStore.setState({
-          highlightedTable: table.id,
+          highlightedTable: safeTable.id,
           highlightedSeats: [],
         });
-
-        table.openAddGuestModal?.(table);
       }}
     >
-      {/* ==================== TABLE BODY ==================== */}
-
-      {table.type === "round" && (
+      {/* ================= TABLE BODY ================= */}
+      {safeTable.type === "round" && (
         <>
           <Circle
             radius={60}
@@ -128,7 +127,7 @@ export default function TableRenderer({ table }) {
             shadowBlur={4}
           />
           <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            text={`${safeTable.name}\n${occupiedCount}/${safeTable.seats}`}
             fontSize={18}
             fill="white"
             align="center"
@@ -141,7 +140,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {table.type === "square" && (
+      {safeTable.type === "square" && (
         <>
           <Rect
             width={160}
@@ -152,7 +151,7 @@ export default function TableRenderer({ table }) {
             shadowBlur={4}
           />
           <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            text={`${safeTable.name}\n${occupiedCount}/${safeTable.seats}`}
             fontSize={18}
             fill="white"
             align="center"
@@ -165,31 +164,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {table.type === "banquet" && (
-        <>
-          <Rect
-            width={240}
-            height={90}
-            offsetX={120}
-            offsetY={45}
-            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-            shadowBlur={4}
-          />
-          <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={18}
-            fill="white"
-            align="center"
-            verticalAlign="middle"
-            width={240}
-            height={90}
-            offsetX={120}
-            offsetY={45}
-          />
-        </>
-      )}
-
-      {/* ==================== SEATS ==================== */}
+      {/* ================= SEATS ================= */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
@@ -204,12 +179,7 @@ export default function TableRenderer({ table }) {
           : "";
 
         return (
-          <Group
-            key={i}
-            x={c.x}
-            y={c.y}
-            rotation={(c.rotation * 180) / Math.PI}
-          >
+          <Group key={i} x={c.x} y={c.y}>
             {isInHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}
@@ -234,9 +204,9 @@ export default function TableRenderer({ table }) {
               fill={isFree ? "#2563eb" : "#9ca3af"}
             />
 
-            {!isFree && guestName !== "" && (
+            {!isFree && guestName && (
               <Text
-                text={String(guestName)}
+                text={guestName}
                 offsetY={18}
                 align="center"
                 fontSize={12}
