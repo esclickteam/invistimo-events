@@ -17,6 +17,7 @@ type Guest = {
 type MessageType = "rsvp" | "table" | "custom";
 type FilterType = "all" | "pending" | "withTable";
 type SendMode = "now" | "scheduled";
+type Channel = "whatsapp" | "sms";
 
 /* ================= TEMPLATES ================= */
 
@@ -33,7 +34,7 @@ const MESSAGE_TEMPLATES: Record<
     label: "מספר שולחן",
     requiresTable: true,
     content:
-      "שלום {{name}} 🌸\nשמחים לעדכן שמספר השולחן שלך:\n🪑 {{tableName}}\nמחכים לך!",
+      "שלום {{name}} 🌸\nמספר השולחן שלך:\n🪑 {{tableName}}\nמחכים לך!",
   },
   custom: {
     label: "הודעה חופשית",
@@ -48,15 +49,13 @@ export default function MessagesPage() {
   const [invitation, setInvitation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [templateKey, setTemplateKey] =
-    useState<MessageType>("rsvp");
-  const [message, setMessage] = useState(
-    MESSAGE_TEMPLATES.rsvp.content
-  );
+  const [templateKey, setTemplateKey] = useState<MessageType>("rsvp");
+  const [message, setMessage] = useState(MESSAGE_TEMPLATES.rsvp.content);
 
   const [filter, setFilter] = useState<FilterType>("pending");
   const [sendMode, setSendMode] = useState<SendMode>("now");
   const [scheduledAt, setScheduledAt] = useState("");
+  const [channel, setChannel] = useState<Channel>("whatsapp");
 
   /* ================= LOAD DATA ================= */
 
@@ -102,22 +101,18 @@ export default function MessagesPage() {
     });
   }, [guests, filter]);
 
-  /* ================= BALANCE (FRONT MOCK) ================= */
+  /* ================= BALANCE (CLIENT SIDE) ================= */
 
-  const maxGuests = invitation?.maxGuests || 300; // מהחבילה
+  const maxGuests = invitation?.maxGuests || 300;
   const maxMessages = maxGuests * 3;
   const usedMessages = guestsToSend.length;
-  const remainingMessages = Math.max(
-    maxMessages - usedMessages,
-    0
-  );
+  const remainingMessages = Math.max(maxMessages - usedMessages, 0);
+  const noBalance = remainingMessages <= 0;
 
-  /* ================= SEND (WHATSAPP MOCK) ================= */
+  /* ================= MESSAGE BUILD ================= */
 
-  const sendWhatsApp = (guest: Guest) => {
-    const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
-
-    const finalMessage = message
+  const buildMessage = (guest: Guest) =>
+    message
       .replace("{{name}}", guest.name)
       .replace(
         "{{rsvpLink}}",
@@ -125,15 +120,34 @@ export default function MessagesPage() {
       )
       .replace("{{tableName}}", guest.tableName || "");
 
+  /* ================= SEND ================= */
+
+  const sendWhatsApp = (guest: Guest) => {
+    const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
     window.open(
-      `https://wa.me/${phone}?text=${encodeURIComponent(finalMessage)}`,
+      `https://wa.me/${phone}?text=${encodeURIComponent(
+        buildMessage(guest)
+      )}`,
       "_blank"
     );
   };
 
+  const sendSMSMock = (guest: Guest) => {
+    alert(`SMS יישלח ל־${guest.phone}\n\n${buildMessage(guest)}`);
+  };
+
   const sendToAll = () => {
+    if (sendMode === "scheduled" && !scheduledAt) {
+      alert("יש לבחור תאריך ושעה");
+      return;
+    }
+
     guestsToSend.forEach((guest, index) => {
-      setTimeout(() => sendWhatsApp(guest), index * 600);
+      setTimeout(() => {
+        channel === "whatsapp"
+          ? sendWhatsApp(guest)
+          : sendSMSMock(guest);
+      }, index * 600);
     });
   };
 
@@ -144,31 +158,53 @@ export default function MessagesPage() {
   return (
     <div className="p-10 max-w-4xl mx-auto" dir="rtl">
       {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => router.back()}
-          className="text-sm text-gray-500 hover:underline"
+      <button
+        onClick={() => router.back()}
+        className="text-sm text-gray-500 mb-3 hover:underline"
+      >
+        ← חזרה
+      </button>
+
+      <h1 className="text-3xl font-semibold mb-1">
+        {invitation?.eventType} |{" "}
+        {new Date(invitation?.eventDate).toLocaleDateString("he-IL")}
+      </h1>
+
+      {/* Balance Card */}
+      <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm flex justify-between">
+        <span className="font-medium">יתרת הודעות</span>
+        <span
+          className={`font-bold ${
+            noBalance ? "text-red-600" : "text-green-600"
+          }`}
         >
-          ← חזרה
-        </button>
-
-        <h1 className="text-3xl font-semibold mt-2">
-          {invitation?.eventType} |{" "}
-          {new Date(invitation?.eventDate).toLocaleDateString("he-IL")}
-        </h1>
-
-        <div className="mt-2 text-sm text-gray-600">
-          יתרת הודעות:{" "}
-          <strong>
-            {remainingMessages} / {maxMessages}
-          </strong>
-        </div>
+          {remainingMessages} / {maxMessages}
+        </span>
       </div>
 
-      {/* Message type */}
+      {/* Channel */}
+      <div className="flex gap-4 mb-4">
+        {["whatsapp", "sms"].map((c) => (
+          <button
+            key={c}
+            onClick={() => setChannel(c as Channel)}
+            className={`px-4 py-2 rounded-full border ${
+              channel === c
+                ? "bg-blue-600 text-white"
+                : ""
+            }`}
+          >
+            {c === "whatsapp" ? "WhatsApp" : "SMS"}
+          </button>
+        ))}
+      </div>
+
+      {/* Template */}
       <select
         value={templateKey}
-        onChange={(e) => setTemplateKey(e.target.value as MessageType)}
+        onChange={(e) =>
+          setTemplateKey(e.target.value as MessageType)
+        }
         className="w-full border rounded-xl p-3 mb-4"
       >
         {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
@@ -178,53 +214,32 @@ export default function MessagesPage() {
         ))}
       </select>
 
-      {/* Filters */}
-      <div className="flex gap-3 mb-4">
-        {[
-          { key: "pending", label: "טרם השיבו" },
-          { key: "withTable", label: "עם שולחן" },
-          { key: "all", label: "כולם" },
-        ].map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key as FilterType)}
-            className={`px-4 py-2 rounded-full border ${
-              filter === f.key
-                ? "bg-green-600 text-white"
-                : ""
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
       {/* Message */}
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         rows={6}
-        className="w-full border rounded-xl p-4 mb-6"
+        className="w-full border rounded-xl p-4 mb-4"
       />
 
       {/* Timing */}
-      <div className="flex gap-4 mb-6">
-        <label className="flex items-center gap-2">
+      <div className="flex gap-4 mb-6 items-center">
+        <label>
           <input
             type="radio"
             checked={sendMode === "now"}
             onChange={() => setSendMode("now")}
-          />
-          שליחה מיידית
+          />{" "}
+          מיידי
         </label>
 
-        <label className="flex items-center gap-2">
+        <label>
           <input
             type="radio"
             checked={sendMode === "scheduled"}
             onChange={() => setSendMode("scheduled")}
-          />
-          שליחה מתוזמנת
+          />{" "}
+          מתוזמן
         </label>
 
         {sendMode === "scheduled" && (
@@ -240,27 +255,11 @@ export default function MessagesPage() {
       {/* Send */}
       <button
         onClick={sendToAll}
-        disabled={guestsToSend.length === 0}
+        disabled={noBalance || guestsToSend.length === 0}
         className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
-        💬 שליחה ({guestsToSend.length})
+        📩 שליחה ({guestsToSend.length})
       </button>
-
-      {/* Manual */}
-      <div className="mt-10">
-        <h3 className="font-semibold mb-3">שליחה ידנית</h3>
-        <div className="space-y-2">
-          {guestsToSend.map((g) => (
-            <button
-              key={g._id}
-              onClick={() => sendWhatsApp(g)}
-              className="w-full border px-4 py-2 rounded text-right hover:bg-gray-50"
-            >
-              💬 {g.name} ({g.phone})
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
