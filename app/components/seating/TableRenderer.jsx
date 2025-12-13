@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { getSeatCoordinates } from "@/logic/seatingEngine";
@@ -9,15 +9,28 @@ export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
 
-  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
+  const selectedGuestId = useSeatingStore((s) => s.selectedGuestId); // ✅ חדש
   const guests = useSeatingStore((s) => s.guests);
+  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
 
   const tableRef = useRef();
   const seatsCoords = getSeatCoordinates(table);
 
-  const isHighlighted = highlightedTable === table.id;
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
+
+  // ✅ נרמול: לפעמים guest.id, לפעמים guest._id
+  const normalizeGuestId = (g) => String(g?.id ?? g?._id ?? "");
+
+  // ✅ בודקים אם האורח הנבחר יושב בשולחן הזה
+  const hasSelectedGuestInThisTable = useMemo(() => {
+    if (!selectedGuestId) return false;
+    return assigned.some((s) => String(s?.guestId) === String(selectedGuestId));
+  }, [assigned, selectedGuestId]);
+
+  // ✅ אם השולחן מסומן רגיל (hover/drop) או אם האורח הנבחר יושב בו → צהוב מרקר
+  const isHighlighted =
+    highlightedTable === table.id || hasSelectedGuestInThisTable;
 
   /* -------- UPDATE POSITION IN STORE -------- */
   const updatePositionInStore = () => {
@@ -36,9 +49,15 @@ export default function TableRenderer({ table }) {
   }, []);
 
   const handleSeatDrag = (guestId) => {
-    const g = guests.find((x) => x.id === guestId);
+    const g = (guests || []).find(
+      (x) => normalizeGuestId(x) === String(guestId)
+    );
     if (g) startDragGuest(g);
   };
+
+  // 🎨 צבעים
+  const tableFill = isHighlighted ? "#fde047" : "#3b82f6"; // 🟡 צהוב זוהר
+  const tableText = isHighlighted ? "#713f12" : "white"; // טקסט כהה על צהוב
 
   return (
     <Group
@@ -46,25 +65,20 @@ export default function TableRenderer({ table }) {
       x={table.x}
       y={table.y}
       draggable
-
       /* ⭐ מונע גרירת Stage במקום שולחן */
       onDragStart={(e) => {
         e.cancelBubble = true;
       }}
-
       onDragMove={(e) => {
         e.cancelBubble = true;
         updatePositionInStore();
       }}
-
       onDragEnd={(e) => {
         e.cancelBubble = true;
         updatePositionInStore();
       }}
-
       onMouseDown={(e) => (e.cancelBubble = true)}
       onTouchStart={(e) => (e.cancelBubble = true)}
-
       /* ⭐ לחיצה על שולחן — פתיחת חלון הוספת אורחים */
       onClick={(e) => {
         if (e.target?.attrs?.isDeleteButton) return;
@@ -76,26 +90,19 @@ export default function TableRenderer({ table }) {
           highlightedSeats: [],
         });
 
-        // ⭐ פותח את חלון הוספת האורחים — אם הורה סיפק פונקציה
         if (table.openAddGuestModal) {
           table.openAddGuestModal(table);
         }
       }}
     >
       {/* -------------------------------- TABLE SHAPES ------------------------------- */}
-
       {table.type === "round" && (
         <>
-          <Circle
-            radius={60}
-            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-            shadowBlur={4}
-          />
-
+          <Circle radius={60} fill={tableFill} shadowBlur={8} />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
-            fill="white"
+            fill={tableText}
             align="center"
             verticalAlign="middle"
             width={120}
@@ -113,13 +120,14 @@ export default function TableRenderer({ table }) {
             height={160}
             offsetX={80}
             offsetY={80}
-            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-            shadowBlur={4}
+            fill={tableFill}
+            shadowBlur={8}
+            cornerRadius={10}
           />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
-            fill="white"
+            fill={tableText}
             align="center"
             verticalAlign="middle"
             width={160}
@@ -137,13 +145,14 @@ export default function TableRenderer({ table }) {
             height={90}
             offsetX={120}
             offsetY={45}
-            fill={isHighlighted ? "#60A5FA" : "#3b82f6"}
-            shadowBlur={4}
+            fill={tableFill}
+            shadowBlur={8}
+            cornerRadius={10}
           />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
-            fill="white"
+            fill={tableText}
             align="center"
             verticalAlign="middle"
             width={240}
@@ -155,27 +164,47 @@ export default function TableRenderer({ table }) {
       )}
 
       {/* -------------------------------- SEATS ------------------------------- */}
-
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
-        const isInHighlight = highlightedSeats.includes(i);
+
+        const isInHoverHighlight = highlightedSeats.includes(i);
+
+        // ✅ האם זה המקום של האורח הנבחר
+        const isSelectedSeat =
+          !!seatGuest &&
+          !!selectedGuestId &&
+          String(seatGuest.guestId) === String(selectedGuestId);
 
         const guestName = !isFree
-          ? guests.find((g) => g.id === seatGuest.guestId)?.name
+          ? (guests || []).find(
+              (g) => normalizeGuestId(g) === String(seatGuest.guestId)
+            )?.name
           : null;
 
         return (
           <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
-            {isInHighlight && (
+            {/* היילייט ירוק של hover (נשאר כמו שהיה) */}
+            {isInHoverHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
+            )}
+
+            {/* 🟡 היילייט צהוב זוהר של האורח הנבחר */}
+            {isSelectedSeat && (
+              <Circle radius={16} fill="#fde047" opacity={0.9} />
             )}
 
             <Circle
               radius={10}
-              fill={isFree ? "#3b82f6" : "#d1d5db"}
-              stroke="#2563eb"
-              strokeWidth={1}
+              fill={
+                isSelectedSeat
+                  ? "#facc15" // 🟡 כיסא נבחר
+                  : isFree
+                  ? "#3b82f6"
+                  : "#d1d5db"
+              }
+              stroke={isSelectedSeat ? "#eab308" : "#2563eb"}
+              strokeWidth={isSelectedSeat ? 2 : 1}
               onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
             />
 
@@ -185,7 +214,13 @@ export default function TableRenderer({ table }) {
               y={-14}
               offsetX={6}
               cornerRadius={2}
-              fill={isFree ? "#2563eb" : "#9ca3af"}
+              fill={
+                isSelectedSeat
+                  ? "#eab308"
+                  : isFree
+                  ? "#2563eb"
+                  : "#9ca3af"
+              }
             />
 
             {!isFree && (
