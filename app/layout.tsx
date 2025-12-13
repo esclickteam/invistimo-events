@@ -9,9 +9,9 @@ import Providers from "./providers";
 import Header from "./components/Header"; // ← התקנה היחידה שנדרשת
 
 export const metadata = {
-  title: "Invity – הזמנות דיגיטליות ואישורי הגעה",
+  title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
   description:
-    "Invity – הזמנות דיגיטליות מעוצבות עם אישורי הגעה והושבה חכמה לכל סוגי האירועים.",
+    "Invistimo – הזמנות דיגיטליות מעוצבות עם אישורי הגעה והושבה חכמה לכל סוגי האירועים.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
