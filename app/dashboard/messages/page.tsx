@@ -16,7 +16,6 @@ type Guest = {
 
 type MessageType = "rsvp" | "table" | "custom";
 type FilterType = "all" | "pending" | "withTable";
-type SendMode = "now" | "scheduled";
 type Channel = "whatsapp" | "sms";
 
 type Balance = {
@@ -61,7 +60,6 @@ export default function MessagesPage() {
   );
 
   const [filter, setFilter] = useState<FilterType>("pending");
-  const [sendMode, setSendMode] = useState<SendMode>("now");
   const [channel, setChannel] = useState<Channel>("whatsapp");
 
   /* ================= LOAD DATA ================= */
@@ -94,6 +92,17 @@ export default function MessagesPage() {
     loadData();
   }, []);
 
+  /* ================= PLAN LOGIC ================= */
+
+  const isBasicPlan = invitation?.plan === "basic";
+
+  // אם זו חבילת בסיס – לא לאפשר SMS בכלל
+  useEffect(() => {
+    if (isBasicPlan && channel === "sms") {
+      setChannel("whatsapp");
+    }
+  }, [isBasicPlan, channel]);
+
   /* ================= TEMPLATE CHANGE ================= */
 
   useEffect(() => {
@@ -116,8 +125,12 @@ export default function MessagesPage() {
     });
   }, [guests, filter]);
 
-  const noBalance =
-    !balance || balance.remainingMessages < guestsToSend.length;
+  const disableSend =
+  guestsToSend.length === 0 ||
+  (channel === "sms" && isBasicPlan) ||
+  (channel === "sms" &&
+    !!balance &&
+    balance.remainingMessages < guestsToSend.length);
 
   /* ================= MESSAGE BUILD ================= */
 
@@ -146,7 +159,7 @@ export default function MessagesPage() {
   };
 
   const sendSMS = async () => {
-    if (!invitation) return;
+    if (!invitation || isBasicPlan) return;
 
     const res = await fetch("/api/messages/send", {
       method: "POST",
@@ -170,7 +183,6 @@ export default function MessagesPage() {
       return;
     }
 
-    // רענון יתרה
     const balanceRes = await fetch("/api/messages/balance");
     const balanceData = await balanceRes.json();
     if (balanceData.success) {
@@ -181,11 +193,6 @@ export default function MessagesPage() {
   };
 
   const sendToAll = () => {
-    if (sendMode === "scheduled") {
-      alert("שליחה מתוזמנת תתווסף בשלב הבא");
-      return;
-    }
-
     if (channel === "whatsapp") {
       guestsToSend.forEach((guest, index) => {
         setTimeout(() => sendWhatsApp(guest), index * 600);
@@ -210,8 +217,8 @@ export default function MessagesPage() {
       </button>
 
       <h1 className="text-3xl font-semibold mb-2">
-  {invitation.eventType}
-</h1>
+        {invitation.eventType}
+      </h1>
 
       {/* Balance */}
       {balance && (
@@ -231,17 +238,24 @@ export default function MessagesPage() {
 
       {/* Channel */}
       <div className="flex gap-4 mb-4">
-        {["whatsapp", "sms"].map((c) => (
-          <button
-            key={c}
-            onClick={() => setChannel(c as Channel)}
-            className={`px-4 py-2 rounded-full border ${
-              channel === c ? "bg-blue-600 text-white" : ""
-            }`}
-          >
-            {c === "whatsapp" ? "WhatsApp" : "SMS"}
-          </button>
-        ))}
+        <button
+          onClick={() => setChannel("whatsapp")}
+          className={`px-4 py-2 rounded-full border ${
+            channel === "whatsapp" ? "bg-blue-600 text-white" : ""
+          }`}
+        >
+          WhatsApp
+        </button>
+
+        <button
+          disabled={isBasicPlan}
+          onClick={() => setChannel("sms")}
+          className={`px-4 py-2 rounded-full border ${
+            channel === "sms" ? "bg-blue-600 text-white" : ""
+          } ${isBasicPlan ? "opacity-40 cursor-not-allowed" : ""}`}
+        >
+          SMS
+        </button>
       </div>
 
       {/* Template */}
@@ -270,7 +284,7 @@ export default function MessagesPage() {
       {/* Send */}
       <button
         onClick={sendToAll}
-        disabled={noBalance || guestsToSend.length === 0}
+        disabled={disableSend}
         className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
         📩 שליחה ({guestsToSend.length})
