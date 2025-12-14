@@ -10,7 +10,6 @@ interface OverlayRect {
   height: number;
 }
 
-/** טיפוס תקין ובטוח — אובייקט טקסט */
 type TextObject = EditorObject & { type: "text" };
 
 interface EditableTextOverlayProps {
@@ -22,7 +21,7 @@ interface EditableTextOverlayProps {
 
 /**
  * EditableTextOverlay
- * עריכת טקסט על הקנבס — כמו קאנבה
+ * תיבת עריכה חיה לטקסט — מיושרת בדיוק על Konva.Text (בלי קפיצה)
  */
 export default function EditableTextOverlay({
   obj,
@@ -33,31 +32,32 @@ export default function EditableTextOverlay({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [value, setValue] = useState(obj?.text ?? "");
 
-  /* בכל פעם שנבחר אובייקט טקסט חדש */
+  /* בכל פעם שנבחר טקסט חדש */
   useEffect(() => {
-    if (obj) {
-      setValue(obj.text ?? "");
-    }
+    if (obj) setValue(obj.text ?? "");
   }, [obj]);
 
-  /* פוקוס אוטומטי */
+  /* פוקוס מיידי + סמן בסוף */
   useEffect(() => {
     if (inputRef.current && rect) {
-      inputRef.current.focus();
-      inputRef.current.select();
+      const el = inputRef.current;
+      el.focus();
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
     }
   }, [rect]);
 
-  /* התאמת גובה לתוכן */
+  /* גובה דינמי */
   useEffect(() => {
     if (!inputRef.current) return;
     const el = inputRef.current;
-
     el.style.height = "auto";
     el.style.height = el.scrollHeight + "px";
   }, [value]);
 
   if (!rect || !obj) return null;
+
+  const fontStyle = `${obj.italic ? "italic " : ""}${obj.fontWeight === "bold" ? "bold" : "normal"}`;
 
   return (
     <textarea
@@ -66,7 +66,7 @@ export default function EditableTextOverlay({
       onChange={(e) => {
         const newVal = e.target.value;
         setValue(newVal);
-        onLiveChange?.(newVal); // עדכון חי לקנבס
+        onLiveChange?.(newVal);
       }}
       onBlur={() => onFinish(value)}
       onKeyDown={(e) => {
@@ -75,36 +75,47 @@ export default function EditableTextOverlay({
           onFinish(value);
         }
         if (e.key === "Escape") {
+          e.preventDefault();
           onFinish(obj.text ?? "");
         }
       }}
       style={{
-        position: "absolute",
+        position: "fixed",
         top: rect.y,
         left: rect.x,
         width: rect.width,
-        minHeight: rect.height,
+        height: rect.height,
 
-        /* עיצוב מלא — כמו קאנבה */
-        background: "transparent",
-        padding: 0,
+        /* ✅ חשובים למיקום מושלם */
         margin: 0,
+        padding: 0,
         border: "none",
         outline: "none",
+        background: "transparent",
         resize: "none",
-
-        fontSize: obj.fontSize ?? 16,
-        fontFamily: obj.fontFamily ?? "Inter",
-        fontWeight: obj.fontWeight ?? "normal",
-        fontStyle: obj.italic ? "italic" : "normal",
-        textDecoration: obj.underline ? "underline" : "none",
-        color: obj.fill ?? "#000",
-        lineHeight: obj.lineHeight ? `${obj.lineHeight}` : "1.2",
-        letterSpacing: obj.letterSpacing ?? 0,
-
-        whiteSpace: "pre-wrap",
         overflow: "hidden",
+        boxSizing: "border-box",
+        transform: "translateZ(0)", // מניעת anti-alias blur בדפדפנים
+
+        /* ✅ סגנון זהה ל-Konva.Text */
+        fontFamily: obj.fontFamily,
+        fontSize: obj.fontSize,
+        fontStyle,
+        fontWeight: obj.fontWeight ?? "normal",
+        lineHeight: String(obj.lineHeight || 1.1),
+        letterSpacing: obj.letterSpacing ? `${obj.letterSpacing}px` : "0px",
+        color: obj.fill ?? "#000",
+        textAlign: obj.align || "center",
+        textDecoration: obj.underline ? "underline" : "none",
+
+        /* עברית ותמיכה מלאה */
+        direction: "rtl",
+        unicodeBidi: "plaintext",
+
+        /* ממש כמו קאנבה */
+        whiteSpace: "pre-wrap",
         zIndex: 99999,
+        cursor: "text",
       }}
     />
   );
