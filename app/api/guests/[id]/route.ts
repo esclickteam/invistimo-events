@@ -6,9 +6,6 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
-/* ============================================
-   טיפוס קונטקסט לגרסאות Next.js 16+
-============================================ */
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
@@ -17,7 +14,7 @@ type RouteContext = {
    GET — שליפת אורח יחיד
 ============================================ */
 export async function GET(req: NextRequest, { params }: RouteContext) {
-  const { id } = await params; // ✅ חובה await
+  const { id } = await params;
 
   try {
     await db();
@@ -49,7 +46,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const invitation = await Invitation.findById(guest.invitationId);
     if (!invitation) {
-      return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Invitation not found" },
+        { status: 404 }
+      );
     }
 
     const userId = await getUserIdFromRequest();
@@ -60,13 +60,34 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // ✅ עדכון כולל שדה קרבה (relation)
+    /* ============================================
+       עדכונים מותרים בלבד
+    ============================================ */
+
     guest.name = data.name ?? guest.name;
     guest.phone = data.phone ?? guest.phone;
-    guest.relation = data.relation ?? guest.relation; // 👈 חדש
-    guest.rsvp = data.rsvp ?? guest.rsvp;
-    guest.guestsCount = data.guestsCount ?? guest.guestsCount;
+    guest.relation = data.relation ?? guest.relation;
     guest.notes = data.notes ?? guest.notes;
+
+    // ✅ RSVP – רק ערכים חוקיים, אחרת pending
+    if (["yes", "no", "pending"].includes(data.rsvp)) {
+      guest.rsvp = data.rsvp;
+    } else if (!guest.rsvp) {
+      guest.rsvp = "pending";
+    }
+
+    // ✅ מוזמנים – מותר לעדכן
+    if (typeof data.guestsCount === "number") {
+      guest.guestsCount = data.guestsCount;
+    }
+
+    // 🛑 מגיעים – לא מתעדכן כאן לעולם
+    // guest.arrivedCount נשאר כמו שהוא (ובברירת מחדל = 0)
+
+    // 🛡️ הגנה כפולה
+    if (guest.arrivedCount == null) {
+      guest.arrivedCount = 0;
+    }
 
     await guest.save();
     return NextResponse.json({ success: true, guest });
@@ -91,7 +112,10 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
     const invitation = await Invitation.findById(guest.invitationId);
     if (!invitation) {
-      return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Invitation not found" },
+        { status: 404 }
+      );
     }
 
     const userId = await getUserIdFromRequest();
