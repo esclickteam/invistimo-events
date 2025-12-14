@@ -17,41 +17,53 @@ export async function POST(
   try {
     await db();
 
-    const { name, phone } = await req.json();
+    const {
+      name,
+      phone,
+      relation,
+      rsvp,
+      guestsCount,
+      tableNumber,
+    } = await req.json();
 
     if (!name || !phone) {
       return NextResponse.json(
-        { error: "Missing name or phone" },
+        { success: false, error: "Missing name or phone" },
         { status: 400 }
       );
     }
 
     // בדיקה אם כבר קיים מוזמן עם אותו מספר
     const existing = await InvitationGuest.findOne({ invitationId, phone });
-
     if (existing) {
       return NextResponse.json(
-        { error: "Guest already exists", guest: existing },
+        { success: false, error: "Guest already exists", guest: existing },
         { status: 409 }
       );
     }
 
     const token = nanoid(12);
 
+    // ✅ שמירת כל הערכים החדשים כולל relation ו־rsvp
     const guest = await InvitationGuest.create({
       invitationId,
       name,
       phone,
-      token,
-      rsvp: "pending",
-      guestsCount: 1,
+      relation: relation || "",
+      rsvp: rsvp || "pending",
+      guestsCount: guestsCount || 1,
+      tableName: tableNumber ? `שולחן ${tableNumber}` : undefined,
       notes: "",
+      token,
     });
 
     return NextResponse.json({ success: true, guest }, { status: 201 });
   } catch (err) {
     console.error("❌ POST error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -74,7 +86,10 @@ export async function GET(
     return NextResponse.json({ success: true, guests });
   } catch (err) {
     console.error("❌ GET error:", err);
-    return NextResponse.json({ error: "Failed loading guests" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Failed loading guests" },
+      { status: 500 }
+    );
   }
 }
 
@@ -92,7 +107,10 @@ export async function PUT(
     await db();
 
     if (!guestId) {
-      return NextResponse.json({ error: "Missing guestId" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Missing guestId" },
+        { status: 400 }
+      );
     }
 
     const updated = await InvitationGuest.findOneAndUpdate(
@@ -103,7 +121,7 @@ export async function PUT(
 
     if (!updated) {
       return NextResponse.json(
-        { error: "Guest not found" },
+        { success: false, error: "Guest not found" },
         { status: 404 }
       );
     }
@@ -111,7 +129,10 @@ export async function PUT(
     return NextResponse.json({ success: true, guest: updated });
   } catch (err) {
     console.error("❌ PUT error:", err);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Update failed" },
+      { status: 500 }
+    );
   }
 }
 
@@ -123,7 +144,6 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id: invitationId } = await context.params;
-
   const { guestId } = await req.json();
 
   try {
@@ -131,7 +151,7 @@ export async function DELETE(
 
     if (!guestId) {
       return NextResponse.json(
-        { error: "Missing guestId" },
+        { success: false, error: "Missing guestId" },
         { status: 400 }
       );
     }
@@ -143,7 +163,7 @@ export async function DELETE(
 
     if (!deleted) {
       return NextResponse.json(
-        { error: "Guest not found" },
+        { success: false, error: "Guest not found" },
         { status: 404 }
       );
     }
@@ -151,6 +171,9 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("❌ DELETE error:", err);
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Delete failed" },
+      { status: 500 }
+    );
   }
 }
