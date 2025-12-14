@@ -80,6 +80,13 @@ export default function MessagesPage() {
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
 
+  /* ================= WhatsApp בלבד – חדש ================= */
+
+  const [selectedWhatsAppGuestId, setSelectedWhatsAppGuestId] =
+    useState<string>("");
+
+  const [whatsAppSearch, setWhatsAppSearch] = useState("");
+
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
@@ -138,10 +145,10 @@ export default function MessagesPage() {
     balance !== null && balance.remainingMessages > 0;
 
   const disableSend =
-    guestsToSend.length === 0 ||
-    (channel === "sms" &&
-      (!balance ||
-        balance.remainingMessages < guestsToSend.length));
+    channel === "sms"
+      ? guestsToSend.length === 0 ||
+        (!balance || balance.remainingMessages < guestsToSend.length)
+      : false;
 
   const buildMessage = (guest: Guest) => {
     if (!invitation) return "";
@@ -195,9 +202,16 @@ export default function MessagesPage() {
 
   const sendToAll = () => {
     if (channel === "whatsapp") {
-      guestsToSend.forEach((guest, i) =>
-        setTimeout(() => sendWhatsApp(guest), i * 600)
+      const guest = guests.find(
+        (g) => g._id === selectedWhatsAppGuestId
       );
+
+      if (!guest) {
+        alert("❗ יש לבחור אורח לשליחה ב-WhatsApp");
+        return;
+      }
+
+      sendWhatsApp(guest);
     } else {
       sendSMS();
     }
@@ -212,6 +226,14 @@ export default function MessagesPage() {
   const max = balance?.maxMessages ?? 0;
   const progress = max > 0 ? (remaining / max) * 100 : 0;
 
+  const filteredWhatsAppGuests = guests.filter((g) => {
+    const q = whatsAppSearch.toLowerCase();
+    return (
+      g.name.toLowerCase().includes(q) ||
+      g.phone.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
+    );
+  });
+
   return (
     <div className="p-10 flex flex-col items-center" dir="rtl">
       <button
@@ -224,61 +246,6 @@ export default function MessagesPage() {
       <h1 className="text-3xl font-semibold mb-8 text-[#4a413a] text-center">
         שליחת הודעות לאורחים 💌
       </h1>
-
-      {/* BALANCE CARD */}
-      {balance && (
-        <div className="bg-gradient-to-r from-[#fff7f0] to-[#f7ede2] border border-[#e2d6c8] rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
-          <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
-            💬 יתרת הודעות SMS
-          </h2>
-
-          <div className="w-full bg-[#e2d6c8]/40 h-3 rounded-full overflow-hidden mb-3">
-            <div
-              className={`h-full transition-all duration-500 ${
-                remaining === 0 ? "bg-red-500" : "bg-green-500"
-              }`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-
-          <p className="text-lg font-bold text-[#4a413a] mb-1">
-            {remaining} / {max}
-          </p>
-
-          <p className="text-sm text-[#6b5e52]">
-            {max === 0
-              ? "אין חבילת SMS פעילה"
-              : `נותרו ${remaining} הודעות מתוך ${max}`}
-          </p>
-
-          <div className="mt-5">
-            <select
-              className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-3"
-              value={selectedPackage ?? ""}
-              onChange={(e) => setSelectedPackage(Number(e.target.value))}
-            >
-              <option value="">בחרו חבילת הודעות לרכישה</option>
-              {SMS_PACKAGES.map((pkg) => (
-                <option key={pkg.count} value={pkg.count}>
-                  {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={() =>
-                router.push(
-                  `/dashboard/purchase-sms?count=${selectedPackage || ""}`
-                )
-              }
-              disabled={!selectedPackage}
-              className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
-            >
-              💳 מעבר לתשלום ורכישת הודעות
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* CHANNEL */}
       <div className="flex gap-4 mb-6">
@@ -301,6 +268,35 @@ export default function MessagesPage() {
           SMS
         </button>
       </div>
+
+      {/* WhatsApp – בחירת אורח */}
+      {channel === "whatsapp" && (
+        <div className="mb-6 w-[90%] md:w-[600px]">
+          <label className="block mb-2 font-medium">
+            בחר/י אורח לשליחת WhatsApp
+          </label>
+
+          <input
+            value={whatsAppSearch}
+            onChange={(e) => setWhatsAppSearch(e.target.value)}
+            placeholder="חיפוש לפי שם או טלפון…"
+            className="w-full border rounded-xl p-3 mb-2"
+          />
+
+          <select
+            value={selectedWhatsAppGuestId}
+            onChange={(e) => setSelectedWhatsAppGuestId(e.target.value)}
+            className="w-full border rounded-xl p-3"
+          >
+            <option value="">— בחר אורח —</option>
+            {filteredWhatsAppGuests.map((g) => (
+              <option key={g._id} value={g._id}>
+                {g.name} ({g.phone})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* FILTER */}
       <div className="mb-6 w-[90%] md:w-[600px]">
@@ -347,7 +343,7 @@ export default function MessagesPage() {
         disabled={disableSend}
         className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
-        📩 שליחה ({guestsToSend.length})
+        📩 שליחה
       </button>
     </div>
   );
