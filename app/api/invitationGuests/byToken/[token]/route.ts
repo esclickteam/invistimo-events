@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  context: { params: Promise<{ token: string }> }
 ) {
-  const { token } = params; // ✅ לא Promise!
+  const { token } = await context.params; // ✅ נשתמש ב־await לפי הציפייה של Next
 
   try {
     await db();
