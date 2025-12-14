@@ -403,7 +403,7 @@ export default function DashboardPage() {
               <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
               <td className="p-3">{g.guestsCount}</td>
               <td className="p-3 font-semibold">
-              {g.arrivedCount || 0}
+              {g.rsvp === "yes" ? g.guestsCount : 0}
                </td>
               <td className="p-3">{g.tableName ?? "-"}</td>
               <td className="p-3 text-sm text-gray-700">
