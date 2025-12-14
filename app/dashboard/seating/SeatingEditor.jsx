@@ -15,11 +15,25 @@ import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 
 export default function SeatingEditor({ background }) {
+  /* ==================== DEBUG: PROP ==================== */
+  useEffect(() => {
+    console.log("🖼 [SeatingEditor] background prop:", background);
+  }, [background]);
+
   const [bgImage] = useImage(background || "", "anonymous");
+
+  /* ==================== DEBUG: IMAGE LOAD ==================== */
+  useEffect(() => {
+    console.log("🎨 [SeatingEditor] bgImage loaded:", bgImage);
+  }, [bgImage]);
 
   /* ==================== Zustand ==================== */
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
+
+  useEffect(() => {
+    console.log("📦 [SeatingEditor] tables from store:", tables);
+  }, [tables]);
 
   const draggedGuest = useSeatingStore((s) => s.draggedGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
@@ -38,7 +52,6 @@ export default function SeatingEditor({ background }) {
 
   const isPersonalMode = from === "personal" && !!highlightedGuestIdRaw;
 
-  // ✅ מנרמלים את ה-guestId מה-URL למה שקיים אצלך ב-guests (id או _id)
   const canonicalGuestId = useMemo(() => {
     if (!highlightedGuestIdRaw) return null;
     const raw = String(highlightedGuestIdRaw);
@@ -47,11 +60,9 @@ export default function SeatingEditor({ background }) {
       (g) => String(g?._id ?? "") === raw || String(g?.id ?? "") === raw
     );
 
-    // מחזירים את ה-id שהמערכת שלך משתמשת בו בפועל לשיבוץ (עדיפות ל-id, אם קיים)
     return found ? String(found.id ?? found._id ?? raw) : raw;
   }, [highlightedGuestIdRaw, guests]);
 
-  // ✅ מציאת השולחן של האורח לפי seatedGuests (האמת היחידה)
   const highlightedTableId = useMemo(() => {
     if (!isPersonalMode || !canonicalGuestId) return null;
 
@@ -62,23 +73,16 @@ export default function SeatingEditor({ background }) {
     return table?.id || null;
   }, [tables, canonicalGuestId, isPersonalMode]);
 
-  // ✅ כדי ש-TableRenderer יואר באמת (כי הוא קורא highlightedTable מה-store),
-  //    אנחנו מעדכנים את highlightedTable ב-store במצב אישי (רק כשלא גוררים)
   useEffect(() => {
     if (!isPersonalMode) {
-      // יציאה ממצב אישי -> לא משאירים highlight "תקוע"
       useSeatingStore.setState({ highlightedTable: null });
       return;
     }
-
-    // בזמן גרירה לא מפריעים להיילייט של ההובר
     if (draggedGuest) return;
 
-    // אם יש שולחן לאורח -> מאירים אותו
     if (highlightedTableId) {
       useSeatingStore.setState({ highlightedTable: highlightedTableId });
     } else {
-      // אין שולחן -> לא מאירים שולחן
       useSeatingStore.setState({ highlightedTable: null });
     }
   }, [isPersonalMode, highlightedTableId, draggedGuest]);
@@ -109,7 +113,7 @@ export default function SeatingEditor({ background }) {
     dropGuest();
   };
 
-  // ✅ אורחים שלא משובצים (לתוך מודאל הוספה לשולחן) — תיקון לוגיקה לפי seatedGuests אובייקטים
+  /* ==================== Unseated Guests ==================== */
   const unseatedGuests = useMemo(() => {
     const seatedSet = new Set();
     (tables || []).forEach((t) => {
@@ -126,10 +130,10 @@ export default function SeatingEditor({ background }) {
 
   return (
     <div className="flex relative w-full h-full">
-      {/* ==================== SIDEBAR ==================== */}
+      {/* SIDEBAR */}
       <GuestSidebar onDragStart={(guest) => startDragGuest(guest)} />
 
-      {/* ==================== ZOOM CONTROLS ==================== */}
+      {/* ZOOM CONTROLS */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
         className="absolute top-[70px] left-4 bg-white shadow rounded-full
@@ -146,7 +150,7 @@ export default function SeatingEditor({ background }) {
         −
       </button>
 
-      {/* ==================== STAGE ==================== */}
+      {/* STAGE */}
       <Stage
         width={width}
         height={height}
@@ -186,7 +190,7 @@ export default function SeatingEditor({ background }) {
         onMouseUp={handleMouseUp}
         className="flex-1"
       >
-        {/* ==================== BACKGROUND + TABLES ==================== */}
+        {/* BACKGROUND + TABLES */}
         <Layer>
           {bgImage && (
             <KonvaImage
@@ -194,6 +198,7 @@ export default function SeatingEditor({ background }) {
               width={width}
               height={height}
               opacity={0.28}
+              listening={false}
             />
           )}
 
@@ -210,7 +215,7 @@ export default function SeatingEditor({ background }) {
           <GhostPreview />
         </Layer>
 
-        {/* ==================== DELETE BUTTONS ==================== */}
+        {/* DELETE BUTTONS */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -218,7 +223,15 @@ export default function SeatingEditor({ background }) {
         </Layer>
       </Stage>
 
-      {/* ==================== ADD TABLE MODAL ==================== */}
+      {/* ADD TABLE */}
+      <button
+        onClick={() => setShowAddModal(true)}
+        className="absolute top-4 left-4 bg-green-600
+                   text-white px-4 py-2 rounded-lg shadow z-50"
+      >
+        ➕ הוסף שולחן
+      </button>
+
       {showAddModal && (
         <AddTableModal
           onClose={() => setShowAddModal(false)}
@@ -229,7 +242,6 @@ export default function SeatingEditor({ background }) {
         />
       )}
 
-      {/* ==================== ADD GUEST TO TABLE MODAL ==================== */}
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
@@ -237,15 +249,6 @@ export default function SeatingEditor({ background }) {
           onClose={() => setAddGuestTable(null)}
         />
       )}
-
-      {/* ==================== ADD TABLE BUTTON ==================== */}
-      <button
-        onClick={() => setShowAddModal(true)}
-        className="absolute top-4 left-4 bg-green-600
-                   text-white px-4 py-2 rounded-lg shadow z-50"
-      >
-        ➕ הוסף שולחן
-      </button>
     </div>
   );
 }
