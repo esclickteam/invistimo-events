@@ -80,6 +80,10 @@ export default function MessagesPage() {
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
 
+  // 🟢 חדש — בחירה ידנית למוזמן ב־WhatsApp
+  const [selectedGuestId, setSelectedGuestId] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
+
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
@@ -195,9 +199,9 @@ export default function MessagesPage() {
 
   const sendToAll = () => {
     if (channel === "whatsapp") {
-      guestsToSend.forEach((guest, i) =>
-        setTimeout(() => sendWhatsApp(guest), i * 600)
-      );
+      const guest = guests.find((g) => g._id === selectedGuestId);
+      if (!guest) return alert("בחר/י מוזמן לשליחה");
+      sendWhatsApp(guest);
     } else {
       sendSMS();
     }
@@ -302,19 +306,53 @@ export default function MessagesPage() {
         </button>
       </div>
 
+      {/* אם הערוץ הוא וואטסאפ → בחירה ידנית */}
+      {channel === "whatsapp" && (
+        <div className="w-[90%] md:w-[600px] mb-6">
+          <label className="block mb-2 font-semibold text-[#4a413a]">
+            בחר/י מוזמן לשליחה:
+          </label>
+          <input
+            type="text"
+            placeholder="חיפוש לפי שם..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border rounded-xl p-3 mb-3"
+          />
+          <select
+            value={selectedGuestId}
+            onChange={(e) => setSelectedGuestId(e.target.value)}
+            className="w-full border rounded-xl p-3"
+          >
+            <option value="">בחר/י מוזמן</option>
+            {guests
+              .filter((g) =>
+                g.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map((g) => (
+                <option key={g._id} value={g._id}>
+                  {g.name} ({g.phone})
+                </option>
+              ))}
+          </select>
+        </div>
+      )}
+
       {/* FILTER */}
-      <div className="mb-6 w-[90%] md:w-[600px]">
-        <label className="block mb-2">למי לשלוח:</label>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as FilterType)}
-          className="w-full border rounded-xl p-3"
-        >
-          <option value="all">לכל המוזמנים</option>
-          <option value="pending">למי שטרם ענה</option>
-          <option value="withTable">למי שיש מספר שולחן</option>
-        </select>
-      </div>
+      {channel === "sms" && (
+        <div className="mb-6 w-[90%] md:w-[600px]">
+          <label className="block mb-2">למי לשלוח:</label>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as FilterType)}
+            className="w-full border rounded-xl p-3"
+          >
+            <option value="all">לכל המוזמנים</option>
+            <option value="pending">למי שטרם ענה</option>
+            <option value="withTable">למי שיש מספר שולחן</option>
+          </select>
+        </div>
+      )}
 
       {/* TEMPLATE */}
       <select
@@ -344,10 +382,14 @@ export default function MessagesPage() {
       {/* SEND */}
       <button
         onClick={sendToAll}
-        disabled={disableSend}
+        disabled={
+          channel === "whatsapp" ? !selectedGuestId : disableSend
+        }
         className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
-        📩 שליחה ({guestsToSend.length})
+        {channel === "whatsapp"
+          ? "💬 שלח ב־WhatsApp"
+          : `📩 שליחה (${guestsToSend.length})`}
       </button>
     </div>
   );
