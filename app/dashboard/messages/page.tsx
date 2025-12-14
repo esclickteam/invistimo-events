@@ -147,17 +147,16 @@ export default function MessagesPage() {
         balance.remainingMessages < guestsToSend.length));
 
   const buildMessage = (guest: Guest) => {
-    if (!invitation) return "";
+  if (!invitation) return "";
 
-    return message
-      .replace("{{name}}", guest.name)
-      .replace(
-        "{{rsvpLink}}",
-        `https://www.invistimo.com/invite/${invitation.shareId}`
-
-      )
-      .replace("{{tableName}}", guest.tableName || "");
-  };
+  return message
+    .replace("{{name}}", guest.name)
+    .replace(
+      "{{rsvpLink}}",
+      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
+    )
+    .replace("{{tableName}}", guest.tableName || "");
+};
 
   /* ================= SEND ================= */
 
