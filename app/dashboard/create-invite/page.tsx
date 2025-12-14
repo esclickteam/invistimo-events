@@ -65,25 +65,45 @@ export default function CreateInvitePage() {
 
         {/* Editor Section */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Toolbar />
-
-          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
-            <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
-          </div>
-
-          {/* כפתור שמירה קבוע בתחתית */}
-          <div className="absolute bottom-4 right-8 z-50">
+          
+          {/* ✅ Sticky Save Bar (TOP) */}
+          <div
+            className="
+              sticky top-0 z-40
+              bg-white
+              border-b
+              px-6 py-3
+              flex items-center justify-end
+            "
+          >
             <button
               onClick={handleSave}
               disabled={saving}
-              className={`px-6 py-3 rounded-xl text-white font-medium shadow-lg transition-all ${
-                saving
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 active:scale-95"
-              }`}
+              className={`
+                px-6 py-3
+                rounded-full
+                text-white
+                font-semibold
+                shadow
+                transition
+                flex items-center gap-2
+                ${
+                  saving
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }
+              `}
             >
               {saving ? "שומר..." : "💾 שמור הזמנה"}
             </button>
+          </div>
+
+          {/* Toolbar */}
+          <Toolbar />
+
+          {/* Canvas */}
+          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+            <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
           </div>
         </div>
       </div>
