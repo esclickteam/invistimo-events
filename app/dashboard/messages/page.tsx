@@ -161,12 +161,14 @@ export default function MessagesPage() {
   /* ================= SEND ================= */
 
   const sendWhatsApp = (guest: Guest) => {
-    const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
-    window.open(
-      `https://wa.me/${phone}?text=${encodeURIComponent(buildMessage(guest))}`,
-      "_blank"
-    );
-  };
+  const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
+  const text = buildMessage(guest);
+
+  window.open(
+    `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURI(text)}`,
+    "_blank"
+  );
+};
 
   const sendSMS = async () => {
     if (!invitation || !hasSmsBalance) return;
