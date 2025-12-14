@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Invitation from "@/models/Invitation";
+import Payment from "@/models/Payment";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -25,46 +26,59 @@ export async function GET() {
   }
 
   /* =====================================================
-     🟤 חבילת BASIC – אין SMS בכלל
+     1️⃣ SMS כלולים לפי חבילה
   ===================================================== */
-  if (invitation.plan === "basic") {
-    return NextResponse.json({
-      success: true,
-      plan: "basic",
-      smsEnabled: false,
 
-      maxMessages: 0,
-      sentSmsCount: 0,
-      remainingMessages: 0,
-    });
+  let smsFromPlan = 0;
+
+  if (invitation.plan === "premium") {
+    const guestsInPlan =
+      typeof invitation.maxGuests === "number"
+        ? invitation.maxGuests
+        : 0;
+
+    // 3 הודעות לכל אורח
+    smsFromPlan = guestsInPlan * 3;
   }
 
   /* =====================================================
-     🟢 חבילת PREMIUM – SMS לפי החבילה + הרחבות
+     2️⃣ הרחבות SMS שנרכשו בפועל
+     (נספר רק תשלומים ששולמו)
   ===================================================== */
 
-  // כמות SMS בסיסית לפי החבילה (לדוגמה: 3 הודעות לכל אורח)
-  const baseSmsFromPlan =
-    typeof invitation.maxGuests === "number"
-      ? invitation.maxGuests * 3
+  const smsAddons = await Payment.find({
+    invitationId: invitation._id,
+    type: "sms",
+    status: "paid",
+  });
+
+  const smsFromAddons = smsAddons.reduce((sum, p) => {
+    return sum + (typeof p.count === "number" ? p.count : 0);
+  }, 0);
+
+  /* =====================================================
+     3️⃣ חישוב סופי
+  ===================================================== */
+
+  const maxMessages = smsFromPlan + smsFromAddons;
+  const sentSmsCount =
+    typeof invitation.sentSmsCount === "number"
+      ? invitation.sentSmsCount
       : 0;
 
-  // הרחבות שנרכשו (Add-on)
-  const extraSms =
-    typeof invitation.extraSms === "number"
-      ? invitation.extraSms
-      : 0;
-
-  const maxMessages = baseSmsFromPlan + extraSms;
-  const sentSmsCount = invitation.sentSmsCount || 0;
   const remainingMessages = Math.max(
     maxMessages - sentSmsCount,
     0
   );
 
+  /* =====================================================
+     4️⃣ Response אחיד (גם אם 0/0)
+  ===================================================== */
+
   return NextResponse.json({
     success: true,
-    plan: "premium",
+
+    plan: invitation.plan,
     smsEnabled: true,
 
     maxMessages,
@@ -72,8 +86,8 @@ export async function GET() {
     remainingMessages,
 
     breakdown: {
-      fromPlan: baseSmsFromPlan,
-      fromAddons: extraSms,
+      fromPlan: smsFromPlan,
+      fromAddons: smsFromAddons,
     },
   });
 }
