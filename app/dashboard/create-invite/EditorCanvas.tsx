@@ -99,6 +99,33 @@ function isBackgroundImage(obj: EditorObject) {
   return obj.type === "image" && obj.isBackground === true;
 }
 
+function getCoverDims(
+  img: HTMLImageElement | HTMLVideoElement,
+  canvasW: number,
+  canvasH: number
+) {
+  const iw = (img as any).width;
+  const ih = (img as any).height;
+
+  if (!iw || !ih) return { x: 0, y: 0, width: canvasW, height: canvasH };
+
+  const aspect = iw / ih;
+  let width = canvasW;
+  let height = canvasW / aspect;
+
+  if (height < canvasH) {
+    height = canvasH;
+    width = canvasH * aspect;
+  }
+
+  return {
+    x: (canvasW - width) / 2,
+    y: (canvasH - height) / 2,
+    width,
+    height,
+  };
+}
+
 /* ============================================================
    REMOVE WHITE BACKGROUND
 ============================================================ */
@@ -131,6 +158,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 ) {
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const objects = useEditorStore((s) => s.objects as EditorObject[]);
   const selectedId = useEditorStore((s) => s.selectedId);
@@ -145,37 +173,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [textInputRect, setTextInputRect] = useState<any>(null);
-
-  /* ============================================================
-     ✅ העלאת רקע אישי (הזמנה שלי)
-  ============================================================ */
-  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const newBg: EditorObject = {
-          id: `bg_${Date.now()}`,
-          type: "image",
-          x: 0,
-          y: 0,
-          width: CANVAS_WIDTH,
-          height: CANVAS_HEIGHT,
-          image: img,
-          isBackground: true,
-        };
-
-        // 🩵 תיקון TypeScript — פשוט מחליפים רקע ישירות
-        const filtered = objects.filter((o) => !isBackgroundImage(o));
-        setObjects([...filtered, newBg]);
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  };
 
   /* ============================================================
      AUTO SCALE
@@ -223,6 +220,40 @@ const EditorCanvas = forwardRef(function EditorCanvas(
       img.src = obj.url;
     });
   }, [objects, updateObject]);
+
+  /* ============================================================
+     UPLOAD CUSTOM INVITATION AS BACKGROUND (תוספת בלבד)
+  ============================================================ */
+  const handleUploadBackground = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const dims = getCoverDims(img, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        const withoutOldBg = useEditorStore
+          .getState()
+          .objects.filter((o: any) => !isBackgroundImage(o));
+
+        setObjects([
+          {
+            id: `bg-${Date.now()}`,
+            type: "image",
+            x: dims.x,
+            y: dims.y,
+            width: dims.width,
+            height: dims.height,
+            image: img,
+            isBackground: true,
+          },
+          ...withoutOldBg,
+        ]);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   /* ============================================================
      SELECTION HANDLING
@@ -301,17 +332,27 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      RENDER
   ============================================================ */
   return (
-    <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-100 overflow-auto relative gap-4">
-      {/* ✅ כפתור העלאת הזמנה */}
-      <label className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg cursor-pointer">
-        העלה הזמנה שלי
+    <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
+      {/* ---------- UPLOAD BUTTON (תוספת בלבד) ---------- */}
+      <div className="absolute top-6 right-6 z-50">
+        <button
+          onClick={() => uploadInputRef.current?.click()}
+          className="px-4 py-2 rounded-xl bg-violet-600 text-white text-sm shadow-lg hover:bg-violet-700 transition"
+        >
+          העלאת ההזמנה שלי
+        </button>
         <input
+          ref={uploadInputRef}
           type="file"
           accept="image/*"
-          onChange={handleBackgroundUpload}
-          className="hidden"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleUploadBackground(file);
+            e.currentTarget.value = "";
+          }}
         />
-      </label>
+      </div>
 
       <div
         className="shadow-2xl rounded-3xl bg-white overflow-hidden relative"
@@ -334,6 +375,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
           <Layer>
             {sortedObjects.map((obj) => {
               const isEditingThis = editingTextId === obj.id;
+
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
                 return (
@@ -359,7 +401,10 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     onClick={() => handleSelect(obj.id)}
                     onDblClick={() => handleDblClick(obj)}
                     onDragEnd={(e) =>
-                      updateObject(obj.id, { x: e.target.x(), y: e.target.y() })
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
                     }
                     onTransformEnd={(e) => {
                       const node = e.target;
@@ -387,6 +432,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 return (
                   <Rect
                     key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
                     x={obj.x}
                     y={obj.y}
                     width={obj.width}
@@ -395,6 +442,26 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     rotation={obj.rotation || 0}
                     draggable
                     onClick={() => handleSelect(obj.id)}
+                    onDragEnd={(e) =>
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
+                    }
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scaleX = node.scaleX();
+                      const scaleY = node.scaleY();
+                      updateObject(obj.id, {
+                        x: node.x(),
+                        y: node.y(),
+                        width: Math.max(5, obj.width * scaleX),
+                        height: Math.max(5, obj.height * scaleY),
+                        rotation: node.rotation(),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                   />
                 );
               }
@@ -403,6 +470,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 return (
                   <Circle
                     key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
                     x={obj.x}
                     y={obj.y}
                     radius={obj.radius}
@@ -410,23 +479,69 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     draggable
                     rotation={obj.rotation || 0}
                     onClick={() => handleSelect(obj.id)}
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scale = node.scaleX();
+                      updateObject(obj.id, {
+                        x: node.x(),
+                        y: node.y(),
+                        radius: obj.radius * scale,
+                        rotation: node.rotation(),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                   />
                 );
               }
 
               if (obj.type === "image") {
                 const bg = isBackgroundImage(obj);
+
+                if (bg) {
+                  return (
+                    <KonvaImage
+                      key={obj.id}
+                      name={obj.id}
+                      className={obj.id}
+                      x={0}
+                      y={0}
+                      width={CANVAS_WIDTH}
+                      height={CANVAS_HEIGHT}
+                      image={obj.image || undefined}
+                      draggable={false}
+                      onClick={() => handleSelect(obj.id)}
+                    />
+                  );
+                }
+
                 return (
                   <KonvaImage
                     key={obj.id}
-                    x={bg ? 0 : obj.x}
-                    y={bg ? 0 : obj.y}
-                    width={bg ? CANVAS_WIDTH : obj.width}
-                    height={bg ? CANVAS_HEIGHT : obj.height}
+                    name={obj.id}
+                    className={obj.id}
+                    x={obj.x}
+                    y={obj.y}
+                    width={obj.width}
+                    height={obj.height}
                     image={obj.image || undefined}
                     rotation={obj.rotation || 0}
-                    draggable={!bg}
+                    draggable
                     onClick={() => handleSelect(obj.id)}
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scaleX = node.scaleX();
+                      const scaleY = node.scaleY();
+                      updateObject(obj.id, {
+                        x: node.x(),
+                        y: node.y(),
+                        width: obj.width * scaleX,
+                        height: obj.height * scaleY,
+                        rotation: node.rotation(),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                   />
                 );
               }
