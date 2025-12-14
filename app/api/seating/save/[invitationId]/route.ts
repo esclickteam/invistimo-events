@@ -5,7 +5,6 @@ import InvitationGuest from "@/models/InvitationGuest";
 
 export const dynamic = "force-dynamic";
 
-/* ⭐ Next.js 16 — params הוא Promise */
 type RouteContext = {
   params: Promise<{ invitationId: string }>;
 };
@@ -14,35 +13,39 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* ===============================
-       0️⃣ params + body
-    =============================== */
     const { invitationId } = await context.params;
     const body = await req.json();
 
     const tables = Array.isArray(body.tables) ? body.tables : [];
 
-    const background =
-      body.background && typeof body.background.url === "string"
-        ? {
-            url: body.background.url,
-            opacity:
-              typeof body.background.opacity === "number"
-                ? body.background.opacity
-                : 0.28,
-          }
-        : null;
+    // ⭐⭐⭐ FIX קריטי – תמיכה גם ב־string וגם באובייקט
+    let background = null;
 
-    /* ===============================
-       1️⃣ UPDATE הושבה (+ רקע אם קיים)
-       מסמך אחד להזמנה (upsert)
-    =============================== */
+    if (typeof body.background === "string") {
+      background = {
+        url: body.background,
+        opacity: 0.28,
+      };
+    } else if (
+      body.background &&
+      typeof body.background.url === "string"
+    ) {
+      background = {
+        url: body.background.url,
+        opacity:
+          typeof body.background.opacity === "number"
+            ? body.background.opacity
+            : 0.28,
+      };
+    }
+
     const saved = await SeatingTable.findOneAndUpdate(
       { invitationId },
       {
         $set: {
           tables,
-          background, // אופציונלי לחלוטין
+          background, // ⭐ עכשיו תמיד בפורמט נכון או null
+          updatedAt: new Date(),
         },
       },
       {
@@ -52,17 +55,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
-    /* ===============================
-       2️⃣ איפוס tableNumber לכל האורחים
-    =============================== */
+    // איפוס snapshot
     await InvitationGuest.updateMany(
       { invitationId },
       { $set: { tableNumber: null } }
     );
 
-    /* ===============================
-       3️⃣ סנכרון snapshot: שולחן ← אורח
-    =============================== */
     for (const table of tables) {
       if (!Array.isArray(table.seatedGuests)) continue;
 
@@ -78,7 +76,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       seatingId: saved._id,
-      hasBackground: Boolean(background),
+      hasBackground: !!background,
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);
