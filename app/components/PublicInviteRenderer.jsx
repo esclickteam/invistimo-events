@@ -3,6 +3,7 @@
 import { Stage, Layer, Text, Rect, Image as KonvaImage } from "react-konva";
 import Lottie from "lottie-react";
 import useImage from "use-image";
+import { useEffect, useRef, useState } from "react";
 
 export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
@@ -15,115 +16,137 @@ export default function PublicInviteRenderer({ canvasData }) {
   const width = data.width || 400;
   const height = data.height || 720;
 
-  // 📌 Auto-scale — preview width = 400px
-  const scale = 400 / width;
+  /* ================= RESPONSIVE SCALE ================= */
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    function updateScale() {
+      if (!containerRef.current) return;
+
+      const containerWidth = containerRef.current.offsetWidth;
+      const nextScale = containerWidth / width;
+
+      setScale(nextScale);
+    }
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [width]);
 
   return (
     <div className="w-full flex justify-center">
       <div
-        style={{
-          width: width * scale,
-          height: height * scale,
-          position: "relative",
-        }}
+        ref={containerRef}
+        className="w-full flex justify-center"
+        style={{ overflow: "visible" }}
       >
-        <Stage
-          width={width * scale}
-          height={height * scale}
-          scaleX={scale}
-          scaleY={scale}
+        <div
+          style={{
+            width: width * scale,
+            height: height * scale,
+            position: "relative",
+          }}
         >
-          <Layer>
-            {data.objects.map((obj) => {
-              /* -------------------------------------------------------
-                  🔵 RECTANGLE
-              ------------------------------------------------------- */
-              if (obj.type === "rect") {
-                return (
-                  <Rect
-                    key={obj.id}
-                    x={obj.x}
-                    y={obj.y}
-                    width={obj.width}
-                    height={obj.height}
-                    fill={obj.fill || "#ffffff"}
-                    opacity={obj.opacity ?? 1}
-                    cornerRadius={obj.cornerRadius || 0}
-                    rotation={obj.rotation || 0}
-                  />
-                );
-              }
+          <Stage
+            width={width * scale}
+            height={height * scale}
+            scaleX={scale}
+            scaleY={scale}
+          >
+            <Layer>
+              {data.objects.map((obj) => {
+                /* -------------------------------------------------------
+                    🔵 RECTANGLE
+                ------------------------------------------------------- */
+                if (obj.type === "rect") {
+                  return (
+                    <Rect
+                      key={obj.id}
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.width}
+                      height={obj.height}
+                      fill={obj.fill || "#ffffff"}
+                      opacity={obj.opacity ?? 1}
+                      cornerRadius={obj.cornerRadius || 0}
+                      rotation={obj.rotation || 0}
+                    />
+                  );
+                }
 
-              /* -------------------------------------------------------
-                  🟣 CIRCLE
-              ------------------------------------------------------- */
-              if (obj.type === "circle") {
-                return (
-                  <Rect
-                    key={obj.id}
-                    x={obj.x}
-                    y={obj.y}
-                    width={obj.radius * 2}
-                    height={obj.radius * 2}
-                    cornerRadius={obj.radius}
-                    fill={obj.fill}
-                  />
-                );
-              }
+                /* -------------------------------------------------------
+                    🟣 CIRCLE
+                ------------------------------------------------------- */
+                if (obj.type === "circle") {
+                  return (
+                    <Rect
+                      key={obj.id}
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.radius * 2}
+                      height={obj.radius * 2}
+                      cornerRadius={obj.radius}
+                      fill={obj.fill}
+                    />
+                  );
+                }
 
-              /* -------------------------------------------------------
-                  🖼 IMAGE
-              ------------------------------------------------------- */
-              if (obj.type === "image") {
-                return <PreviewImage key={obj.id} obj={obj} />;
-              }
+                /* -------------------------------------------------------
+                    🖼 IMAGE
+                ------------------------------------------------------- */
+                if (obj.type === "image") {
+                  return <PreviewImage key={obj.id} obj={obj} />;
+                }
 
-              /* -------------------------------------------------------
-                  ✏ TEXT
-              ------------------------------------------------------- */
-              if (obj.type === "text") {
-                return (
-                  <Text
-                    key={obj.id}
-                    x={obj.x}
-                    y={obj.y}
-                    text={obj.text || ""}
-                    fontSize={obj.fontSize || 40}
-                    fontFamily={obj.fontFamily || "Arial"}
-                    fill={obj.fill || "#000"}
-                    width={obj.width}
-                    align={obj.align || "center"}
-                    opacity={obj.opacity ?? 1}
-                    rotation={obj.rotation || 0}
-                  />
-                );
-              }
+                /* -------------------------------------------------------
+                    ✏ TEXT
+                ------------------------------------------------------- */
+                if (obj.type === "text") {
+                  return (
+                    <Text
+                      key={obj.id}
+                      x={obj.x}
+                      y={obj.y}
+                      text={obj.text || ""}
+                      fontSize={obj.fontSize || 40}
+                      fontFamily={obj.fontFamily || "Arial"}
+                      fill={obj.fill || "#000"}
+                      width={obj.width}
+                      align={obj.align || "center"}
+                      opacity={obj.opacity ?? 1}
+                      rotation={obj.rotation || 0}
+                    />
+                  );
+                }
 
-              return null;
-            })}
-          </Layer>
-        </Stage>
+                return null;
+              })}
+            </Layer>
+          </Stage>
 
-        {/* -------------------------------------------------------
-            🟠 LOTTIE — must be rendered OUTSIDE KONVA
-        ------------------------------------------------------- */}
-        {data.objects
-          .filter((o) => o.type === "lottie")
-          .map((obj) => (
-            <div
-              key={obj.id}
-              style={{
-                position: "absolute",
-                top: obj.y * scale,
-                left: obj.x * scale,
-                width: obj.width * scale,
-                height: obj.height * scale,
-                pointerEvents: "none",
-              }}
-            >
-              <Lottie animationData={obj.lottieData} />
-            </div>
-          ))}
+          {/* -------------------------------------------------------
+              🟠 LOTTIE — rendered OUTSIDE Konva
+          ------------------------------------------------------- */}
+          {data.objects
+            .filter((o) => o.type === "lottie")
+            .map((obj) => (
+              <div
+                key={obj.id}
+                style={{
+                  position: "absolute",
+                  top: obj.y * scale,
+                  left: obj.x * scale,
+                  width: obj.width * scale,
+                  height: obj.height * scale,
+                  pointerEvents: "none",
+                }}
+              >
+                <Lottie animationData={obj.lottieData} />
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   );
