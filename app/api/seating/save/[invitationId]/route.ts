@@ -15,10 +15,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
     await dbConnect();
 
     /* ===============================
-       0️⃣ params
+       0️⃣ params + body
     =============================== */
     const { invitationId } = await context.params;
-    const { tables } = await req.json();
+    const { tables, background } = await req.json();
 
     if (!Array.isArray(tables)) {
       return NextResponse.json(
@@ -28,13 +28,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       1️⃣ UPDATE הושבה (מסמך אחד להזמנה)
+       1️⃣ UPDATE הושבה + רקע אולם
+       מסמך אחד להזמנה (upsert)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
       { invitationId },
       {
         $set: {
           tables,
+          background: background || null, // ⭐ חדש – שמירת רקע אולם
           updatedAt: new Date(),
         },
       },
@@ -46,8 +48,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* =================================================
        ⚠️ snapshot לאורחים (אופציונלי)
-       אם בעתיד תסירי tableNumber מה־InvitationGuest
-       אפשר למחוק את כל החלק הזה
+       נשאר כמו שהוא – לא נוגעים
     ================================================= */
 
     /* ===============================
@@ -60,7 +61,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        3️⃣ סנכרון snapshot: שולחן ← אורח
-       ✅ תיקון הבאג: שימוש ב־seated.guestId
     =============================== */
     for (const table of tables) {
       if (!Array.isArray(table.seatedGuests)) continue;
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         if (!seated?.guestId) continue;
 
         await InvitationGuest.findByIdAndUpdate(
-          seated.guestId, // ⭐ זה ה־ObjectId האמיתי
+          seated.guestId,
           {
             tableNumber: table.name ?? table.id,
           },

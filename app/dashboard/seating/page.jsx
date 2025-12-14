@@ -10,18 +10,20 @@ export default function SeatingPage() {
 
   const [showUpload, setShowUpload] = useState(false);
   const [invitationId, setInvitationId] = useState(null);
+  const [background, setBackground] = useState(null);
 
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
-  const setTables = useSeatingStore((s) => s.setTables);
 
+  /* ===============================
+     LOAD INITIAL DATA
+  =============================== */
   useEffect(() => {
     async function load() {
       try {
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
-
         if (!invData.success || !invData.invitation) return;
 
         const id = invData.invitation._id;
@@ -37,14 +39,15 @@ export default function SeatingPage() {
           tableId: g.tableId || null,
         }));
 
-        let loadedTables = [];
         const tRes = await fetch(`/api/seating/tables/${id}`);
-        if (tRes.ok) {
-          const tData = await tRes.json();
-          loadedTables = tData.tables || [];
-        }
+        const tData = await tRes.json();
 
-        init(loadedTables, normalizedGuests);
+        init(tData.tables || [], normalizedGuests);
+
+        // ⭐ טעינת רקע אולם
+        if (tData.background) {
+          setBackground(tData.background);
+        }
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       }
@@ -53,31 +56,21 @@ export default function SeatingPage() {
     load();
   }, [init]);
 
-  /* =========================================================
-     ⭐ הוספת / החלפת תבנית אולם ⭐
-  ========================================================= */
-  const handleBackgroundSelect = ({ image, url }) => {
-    const currentTables = useSeatingStore.getState().tables || [];
+  /* ===============================
+     SELECT BACKGROUND
+  =============================== */
+  const handleBackgroundSelect = (data) => {
+    if (!data?.url) return;
 
-    // הסרת תבנית אולם קודמת
-    const withoutHallTemplate = currentTables.filter(
-      (t) => !t.isHallTemplate
-    );
-
-    const hallTemplate = {
-      id: `hall-bg-${Date.now()}`,
-      type: "image",
-      image, // להצגה מיידית
-      url,   // ⭐ לשמירה
-      isHallTemplate: true,
-    };
-
-    setTables([hallTemplate, ...withoutHallTemplate]);
+    setBackground({
+      url: data.url,
+      opacity: 0.28,
+    });
   };
 
-  /* =========================================================
-     💾 שמירת הושבה
-  ========================================================= */
+  /* ===============================
+     SAVE SEATING + BACKGROUND
+  =============================== */
   async function saveSeating() {
     if (!invitationId) {
       alert("לא נמצאה הזמנה.");
@@ -88,7 +81,10 @@ export default function SeatingPage() {
       const res = await fetch(`/api/seating/save/${invitationId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tables, guests }),
+        body: JSON.stringify({
+          tables,
+          background, // ⭐ קריטי
+        }),
       });
 
       const data = await res.json();
@@ -129,7 +125,7 @@ export default function SeatingPage() {
 
       {/* MAIN */}
       <div className="flex-1 overflow-hidden">
-        <SeatingEditor />
+        <SeatingEditor background={background?.url} />
       </div>
 
       {/* UPLOAD MODAL */}

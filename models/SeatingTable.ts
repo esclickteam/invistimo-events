@@ -35,6 +35,23 @@ const TableSchema = new Schema(
 );
 
 /* ===============================
+   רקע אולם ⭐ חדש
+=============================== */
+const BackgroundSchema = new Schema(
+  {
+    url: {
+      type: String, // base64 או URL
+      required: true,
+    },
+    opacity: {
+      type: Number,
+      default: 0.28,
+    },
+  },
+  { _id: false }
+);
+
+/* ===============================
    סידור הושבה (מסמך אחד להזמנה)
 =============================== */
 const SeatingTableSchema = new Schema(
@@ -43,9 +60,16 @@ const SeatingTableSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Invitation",
       required: true,
-      unique: true, // ⭐ קריטי – מונע כפילויות
+      unique: true, // ⭐ קריטי – מסמך אחד להזמנה
       index: true,
     },
+
+    /** ⭐⭐ רקע אולם נשמר ב־DB */
+    background: {
+      type: BackgroundSchema,
+      default: null,
+    },
+
     tables: [TableSchema],
   },
   { timestamps: true }
