@@ -18,8 +18,8 @@ export default function SeatingPage() {
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
 
-  const background = useSeatingStore((s) => s.background); // ⭐ מה־store
-  const setBackground = useSeatingStore((s) => s.setBackground); // ⭐ מה־store
+  const background = useSeatingStore((s) => s.background);
+  const setBackground = useSeatingStore((s) => s.setBackground);
 
   /* ===============================
      LOAD INITIAL DATA
@@ -47,11 +47,15 @@ export default function SeatingPage() {
         const tRes = await fetch(`/api/seating/tables/${id}`);
         const tData = await tRes.json();
 
-        // ⭐ init כולל רקע
+        // ⭐⭐ תיקון קריטי:
+        // אם כבר יש background ב־store – לא דורסים אותו
+        const currentBackground =
+          useSeatingStore.getState().background;
+
         init(
           tData.tables || [],
           normalizedGuests,
-          tData.background ?? null
+          currentBackground ?? tData.background ?? null
         );
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
@@ -89,7 +93,7 @@ export default function SeatingPage() {
         body: JSON.stringify({
           tables,
           guests,
-          background, // ⭐ מגיע מה־store
+          background,
         }),
       });
 
