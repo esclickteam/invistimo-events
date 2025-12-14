@@ -80,11 +80,6 @@ export default function MessagesPage() {
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
 
-  /* ================= WhatsApp בלבד – חדש ================= */
-  const [selectedWhatsAppGuestId, setSelectedWhatsAppGuestId] =
-    useState<string>("");
-  const [whatsAppSearch, setWhatsAppSearch] = useState("");
-
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
@@ -145,8 +140,8 @@ export default function MessagesPage() {
   const disableSend =
     guestsToSend.length === 0 ||
     (channel === "sms" &&
-      (!balance || balance.remainingMessages < guestsToSend.length)) ||
-    (channel === "whatsapp" && !selectedWhatsAppGuestId);
+      (!balance ||
+        balance.remainingMessages < guestsToSend.length));
 
   const buildMessage = (guest: Guest) => {
     if (!invitation) return "";
@@ -164,8 +159,10 @@ export default function MessagesPage() {
 
   const sendWhatsApp = (guest: Guest) => {
     const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
-    const encodedMessage = encodeURIComponent(buildMessage(guest));
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, "_blank");
+    window.open(
+      `https://wa.me/${phone}?text=${encodeURIComponent(buildMessage(guest))}`,
+      "_blank"
+    );
   };
 
   const sendSMS = async () => {
@@ -198,12 +195,9 @@ export default function MessagesPage() {
 
   const sendToAll = () => {
     if (channel === "whatsapp") {
-      const guest = guests.find((g) => g._id === selectedWhatsAppGuestId);
-      if (!guest) {
-        alert("❗ יש לבחור אורח לשליחה ב-WhatsApp");
-        return;
-      }
-      sendWhatsApp(guest);
+      guestsToSend.forEach((guest, i) =>
+        setTimeout(() => sendWhatsApp(guest), i * 600)
+      );
     } else {
       sendSMS();
     }
@@ -217,14 +211,6 @@ export default function MessagesPage() {
   const remaining = balance?.remainingMessages ?? 0;
   const max = balance?.maxMessages ?? 0;
   const progress = max > 0 ? (remaining / max) * 100 : 0;
-
-  const filteredWhatsAppGuests = guests.filter((g) => {
-    const q = whatsAppSearch.toLowerCase();
-    return (
-      g.name.toLowerCase().includes(q) ||
-      g.phone.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
-    );
-  });
 
   return (
     <div className="p-10 flex flex-col items-center" dir="rtl">
@@ -316,37 +302,8 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* WhatsApp – בחירת אורח עם חיפוש */}
-      {channel === "whatsapp" && (
-        <div className="mb-6 w-[90%] md:w-[600px]">
-          <label className="block mb-2 font-medium">
-            בחר/י אורח לשליחת WhatsApp
-          </label>
-
-          <input
-            value={whatsAppSearch}
-            onChange={(e) => setWhatsAppSearch(e.target.value)}
-            placeholder="חיפוש לפי שם או טלפון…"
-            className="w-full border rounded-xl p-3 mb-2"
-          />
-
-          <select
-            value={selectedWhatsAppGuestId}
-            onChange={(e) => setSelectedWhatsAppGuestId(e.target.value)}
-            className="w-full border rounded-xl p-3"
-          >
-            <option value="">— בחר אורח —</option>
-            {filteredWhatsAppGuests.map((g) => (
-              <option key={g._id} value={g._id}>
-                {g.name} ({g.phone})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       {/* FILTER */}
-      <div className="mb-6 w-[90%] md:w/[600px]">
+      <div className="mb-6 w-[90%] md:w-[600px]">
         <label className="block mb-2">למי לשלוח:</label>
         <select
           value={filter}
@@ -367,7 +324,7 @@ export default function MessagesPage() {
           setTemplateKey(key);
           setMessage(MESSAGE_TEMPLATES[key].content);
         }}
-        className="w/[90%] md:w/[600px] border rounded-xl p-3 mb-4"
+        className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
       >
         {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
           <option key={key} value={key}>
@@ -381,14 +338,14 @@ export default function MessagesPage() {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         rows={6}
-        className="w/[90%] md:w/[600px] border rounded-xl p-4 mb-6"
+        className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
       />
 
       {/* SEND */}
       <button
         onClick={sendToAll}
         disabled={disableSend}
-        className="w/[90%] md:w/[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
+        className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
         📩 שליחה ({guestsToSend.length})
       </button>
