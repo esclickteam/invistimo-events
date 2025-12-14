@@ -10,7 +10,7 @@ export default function SeatingPage() {
 
   const [showUpload, setShowUpload] = useState(false);
   const [invitationId, setInvitationId] = useState(null);
-  const [background, setBackground] = useState(null);
+  const [background, setBackground] = useState(null); // ⭐ string בלבד
 
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
@@ -44,9 +44,9 @@ export default function SeatingPage() {
 
         init(tData.tables || [], normalizedGuests);
 
-        // ⭐ טעינת רקע אולם
+        // ⭐ אם שמור רקע – נטען אותו
         if (tData.background) {
-          setBackground(tData.background);
+          setBackground(tData.background); // string
         }
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
@@ -59,13 +59,9 @@ export default function SeatingPage() {
   /* ===============================
      SELECT BACKGROUND
   =============================== */
-  const handleBackgroundSelect = (data) => {
-    if (!data?.url) return;
-
-    setBackground({
-      url: data.url,
-      opacity: 0.28,
-    });
+  const handleBackgroundSelect = (bgUrl) => {
+    if (!bgUrl) return;
+    setBackground(bgUrl); // ⭐ string בלבד
   };
 
   /* ===============================
@@ -83,7 +79,8 @@ export default function SeatingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tables,
-          background, // ⭐ קריטי
+          guests,
+          background, // ⭐ string
         }),
       });
 
@@ -125,15 +122,15 @@ export default function SeatingPage() {
 
       {/* MAIN */}
       <div className="flex-1 overflow-hidden">
-        <SeatingEditor background={background?.url} />
+        <SeatingEditor background={background} />
       </div>
 
       {/* UPLOAD MODAL */}
       {showUpload && (
         <UploadBackgroundModal
           onClose={() => setShowUpload(false)}
-          onBackgroundSelect={(data) => {
-            handleBackgroundSelect(data);
+          onBackgroundSelect={(bgUrl) => {
+            handleBackgroundSelect(bgUrl);
             setShowUpload(false);
           }}
         />

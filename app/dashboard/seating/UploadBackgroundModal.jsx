@@ -9,14 +9,15 @@ export default function UploadBackgroundModal({ onClose, onBackgroundSelect }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type === "application/pdf") {
-      alert("נמיר PDF לתמונה בהמשך, כרגע תעלה תמונה בלבד 🙂");
+    // כרגע תומכים בתמונה בלבד
+    if (!file.type.startsWith("image/")) {
+      alert("כרגע ניתן להעלות תמונה בלבד");
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
-      setPreview(reader.result);
+      setPreview(reader.result); // ⭐ base64 string
     };
     reader.readAsDataURL(file);
   };
@@ -24,16 +25,9 @@ export default function UploadBackgroundModal({ onClose, onBackgroundSelect }) {
   const handleSave = () => {
     if (!preview) return;
 
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      onBackgroundSelect({
-        image: img,   // שימוש מיידי
-        url: preview, // ⭐ קריטי לשמירה
-      });
-      onClose();
-    };
-    img.src = preview;
+    // ⭐ מחזירים STRING בלבד
+    onBackgroundSelect(preview);
+    onClose();
   };
 
   return (
@@ -45,7 +39,7 @@ export default function UploadBackgroundModal({ onClose, onBackgroundSelect }) {
 
         <input
           type="file"
-          accept="image/*,.pdf"
+          accept="image/*"
           onChange={handleFile}
           className="w-full mb-4"
         />
