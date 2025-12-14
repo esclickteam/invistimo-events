@@ -89,6 +89,9 @@ export default function SeatingEditor() {
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
+  const [addGuestTable, setAddGuestTable] = useState(null);
+
+
   /* ==================== Mouse ==================== */
   const handleMouseMove = (e) => {
     const pos = e.target.getStage().getPointerPosition();
