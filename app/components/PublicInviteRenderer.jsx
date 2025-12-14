@@ -17,7 +17,8 @@ export default function PublicInviteRenderer({ canvasData }) {
   const originalHeight = data.height || 720;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState<number | null>(null);
+  const [scale, setScale] = useState(null);
+
 
   /* ============================================================
      📱 Responsive auto-scale (safe for mobile)
