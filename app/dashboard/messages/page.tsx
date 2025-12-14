@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
 
 /* ================= TYPES ================= */
@@ -67,6 +67,7 @@ const MESSAGE_TEMPLATES: Record<
 
 export default function MessagesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // ⭐ נוסף
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [invitation, setInvitation] = useState<any>(null);
@@ -80,7 +81,6 @@ export default function MessagesPage() {
   const [channel, setChannel] = useState<Channel>("whatsapp");
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
-
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
 
   /* ================= LOAD DATA ================= */
@@ -111,21 +111,21 @@ export default function MessagesPage() {
     loadData();
   }, []);
 
-  /* ================= REFRESH AFTER PAYMENT ================= */
+  /* =====================================================
+     ⭐ PRESELECT GUEST FROM URL (כפתור אישי)
+     אם הגיע guestId:
+     - מעבירים ל־WhatsApp
+     - בוחרים את האורח אוטומטית
+  ===================================================== */
 
   useEffect(() => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("success") === "true") {
-      fetch("/api/messages/balance")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success) setBalance(data);
-        });
+    const guestIdFromUrl = searchParams.get("guestId");
 
-      url.searchParams.delete("success");
-      window.history.replaceState({}, "", url.toString());
+    if (guestIdFromUrl) {
+      setChannel("whatsapp");
+      setSelectedGuestId(guestIdFromUrl);
     }
-  }, []);
+  }, [searchParams]);
 
   /* ================= LOGIC ================= */
 

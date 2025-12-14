@@ -455,13 +455,15 @@ async function deleteGuest(guest: Guest) {
               </td>
 
               <td className="p-3 flex gap-3">
-                <button
-                  onClick={() => sendWhatsApp(g)}
-                  title="שליחת אישור הגעה ב-WhatsApp"
-                  className="text-green-600 hover:text-green-700 transition"
-                >
-                  💬
-                </button>
+  <button
+    onClick={() =>
+      router.push(`/dashboard/messages?guestId=${g._id}`)
+    }
+    title="שליחת הודעה אישית ב-WhatsApp"
+    className="text-green-600 hover:text-green-700 transition"
+  >
+    💬
+  </button>
 
                 <button
                   onClick={() =>
