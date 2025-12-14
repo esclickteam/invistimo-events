@@ -337,6 +337,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     width={obj.width}
                     fill={obj.fill}
                     align={obj.align}
+                    wrap="none" // ✅ רק יורד שורה אם לחצו אנטר
                     fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
                       obj.italic ? "italic" : ""
                     }`}
@@ -354,11 +355,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                       const node = e.target;
                       const scaleX = node.scaleX();
                       const scaleY = node.scaleY();
-
-                      // ✅ תיקון: width לא יכול להיות undefined → לוקחים מה-node בפועל
                       const baseWidth =
                         typeof obj.width === "number" ? obj.width : node.width();
-
                       updateObject(obj.id, {
                         x: node.x(),
                         y: node.y(),
@@ -366,7 +364,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                         width: Math.max(20, baseWidth * scaleX),
                         fontSize: Math.max(5, obj.fontSize * scaleY),
                       });
-
                       node.scaleX(1);
                       node.scaleY(1);
                     }}
@@ -449,7 +446,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               if (obj.type === "image") {
                 const bg = isBackgroundImage(obj);
 
-                // ✅ תיקון שביקשת: רקע נפרס על כל הקנבס (בלי cover ובלי חיתוך)
                 if (bg) {
                   return (
                     <KonvaImage
@@ -501,14 +497,18 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               return null;
             })}
 
-            {/* ✅ תומך בהגדלה/סיבוב */}
+            {/* ✅ תומך בהגדלה/סיבוב מכל הצדדים */}
             <Transformer
               ref={transformerRef}
               rotateEnabled={true}
               enabledAnchors={[
                 "top-left",
+                "top-center",
                 "top-right",
+                "middle-left",
+                "middle-right",
                 "bottom-left",
+                "bottom-center",
                 "bottom-right",
               ]}
               anchorSize={8}
