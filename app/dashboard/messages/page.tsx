@@ -82,6 +82,8 @@ export default function MessagesPage() {
 
   // 🟢 חדש — בחירה ידנית למוזמן ב־WhatsApp
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
+  const [guestQuery, setGuestQuery] = useState("");
+
 
   /* ================= LOAD DATA ================= */
 
@@ -314,6 +316,16 @@ export default function MessagesPage() {
       בחר/י מוזמן לשליחה:
     </label>
 
+    {/* חיפוש */}
+    <input
+      type="text"
+      placeholder="הקלד/י שם או טלפון לחיפוש…"
+      className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-2 bg-white"
+      value={guestQuery}
+      onChange={(e) => setGuestQuery(e.target.value)}
+    />
+
+    {/* רשימת מוזמנים */}
     <select
       value={selectedGuestId}
       onChange={(e) => setSelectedGuestId(e.target.value)}
@@ -321,14 +333,29 @@ export default function MessagesPage() {
     >
       <option value="">— בחר/י מוזמן —</option>
 
-      {guests.map((g) => (
-        <option key={g._id} value={g._id}>
-          {g.name} ({g.phone})
-        </option>
-      ))}
+      {guests
+        .filter((g) => {
+          const q = guestQuery.trim().toLowerCase();
+          if (!q) return true;
+
+          const name = (g.name || "").toLowerCase();
+          const phoneDigits = (g.phone || "").replace(/\D/g, "");
+          const qDigits = q.replace(/\D/g, "");
+
+          return (
+            name.includes(q) ||
+            (qDigits ? phoneDigits.includes(qDigits) : false)
+          );
+        })
+        .map((g) => (
+          <option key={g._id} value={g._id}>
+            {g.name} ({g.phone})
+          </option>
+        ))}
     </select>
   </div>
 )}
+
 
 
       {/* FILTER */}
