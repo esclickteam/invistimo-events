@@ -6,7 +6,7 @@ export default function UploadBackgroundModal({ onClose, onBackgroundSelect }) {
   const [preview, setPreview] = useState(null);
 
   const handleFile = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.type === "application/pdf") {
@@ -22,7 +22,18 @@ export default function UploadBackgroundModal({ onClose, onBackgroundSelect }) {
   };
 
   const handleSave = () => {
-    if (preview) onBackgroundSelect(preview);
+    if (!preview) return;
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      onBackgroundSelect({
+        image: img,   // שימוש מיידי
+        url: preview, // ⭐ קריטי לשמירה
+      });
+      onClose();
+    };
+    img.src = preview;
   };
 
   return (
@@ -31,6 +42,7 @@ export default function UploadBackgroundModal({ onClose, onBackgroundSelect }) {
         <h2 className="text-lg font-semibold mb-3">
           העלאת תבנית אולם כרקע
         </h2>
+
         <input
           type="file"
           accept="image/*,.pdf"
@@ -53,9 +65,11 @@ export default function UploadBackgroundModal({ onClose, onBackgroundSelect }) {
           >
             ביטול
           </button>
+
           <button
             onClick={handleSave}
-            className="px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            disabled={!preview}
+            className="px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
           >
             שמירה
           </button>
