@@ -80,6 +80,8 @@ export default function MessagesPage() {
   const [channel, setChannel] = useState<Channel>("whatsapp");
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
+
+  // 🟢 חדש — בחירה ידנית למוזמן ב־WhatsApp
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [query, setQuery] = useState("");
 
@@ -150,7 +152,8 @@ export default function MessagesPage() {
   const disableSend =
     guestsToSend.length === 0 ||
     (channel === "sms" &&
-      (!balance || balance.remainingMessages < guestsToSend.length));
+      (!balance ||
+        balance.remainingMessages < guestsToSend.length));
 
   const buildMessage = (guest: Guest) => {
     if (!invitation) return "";
@@ -202,7 +205,7 @@ export default function MessagesPage() {
     alert(`✅ נשלחו ${data.sent} הודעות`);
   };
 
-  const handleSend = () => {
+  const sendToAll = () => {
     if (channel === "whatsapp") {
       if (!selectedGuest) return alert("בחר/י מוזמן לשליחה");
       sendWhatsApp(selectedGuest);
@@ -222,9 +225,71 @@ export default function MessagesPage() {
 
   return (
     <div className="p-10 flex flex-col items-center" dir="rtl">
+      <button
+        onClick={() => router.back()}
+        className="text-sm text-gray-500 mb-3 hover:underline self-start"
+      >
+        ← חזרה
+      </button>
+
       <h1 className="text-3xl font-semibold mb-8 text-[#4a413a] text-center">
         שליחת הודעות לאורחים 💌
       </h1>
+
+      {/* BALANCE CARD */}
+      {balance && (
+        <div className="bg-gradient-to-r from-[#fff7f0] to-[#f7ede2] border border-[#e2d6c8] rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
+          <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
+            💬 יתרת הודעות SMS
+          </h2>
+
+          <div className="w-full bg-[#e2d6c8]/40 h-3 rounded-full overflow-hidden mb-3">
+            <div
+              className={`h-full transition-all duration-500 ${
+                remaining === 0 ? "bg-red-500" : "bg-green-500"
+              }`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <p className="text-lg font-bold text-[#4a413a] mb-1">
+            {remaining} / {max}
+          </p>
+
+          <p className="text-sm text-[#6b5e52]">
+            {max === 0
+              ? "אין חבילת SMS פעילה"
+              : `נותרו ${remaining} הודעות מתוך ${max}`}
+          </p>
+
+          <div className="mt-5">
+            <select
+              className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-3"
+              value={selectedPackage ?? ""}
+              onChange={(e) => setSelectedPackage(Number(e.target.value))}
+            >
+              <option value="">בחרו חבילת הודעות לרכישה</option>
+              {SMS_PACKAGES.map((pkg) => (
+                <option key={pkg.count} value={pkg.count}>
+                  {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() =>
+                router.push(
+                  `/dashboard/purchase-sms?count=${selectedPackage || ""}`
+                )
+              }
+              disabled={!selectedPackage}
+              className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
+            >
+              💳 מעבר לתשלום ורכישת הודעות
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CHANNEL */}
       <div className="flex gap-4 mb-6">
@@ -248,7 +313,7 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* COMBOBOX לוואטסאפ */}
+      {/* אם הערוץ הוא וואטסאפ → Combobox אמיתי */}
       {channel === "whatsapp" && (
         <div className="w-[90%] md:w-[600px] mb-6">
           <label className="block mb-2 font-semibold text-[#4a413a]">
@@ -283,7 +348,7 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* FILTER (רק ב־SMS) */}
+      {/* FILTER */}
       {channel === "sms" && (
         <div className="mb-6 w-[90%] md:w-[600px]">
           <label className="block mb-2">למי לשלוח:</label>
@@ -326,7 +391,7 @@ export default function MessagesPage() {
 
       {/* SEND */}
       <button
-        onClick={handleSend}
+        onClick={sendToAll}
         disabled={channel === "whatsapp" ? !selectedGuest : disableSend}
         className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
