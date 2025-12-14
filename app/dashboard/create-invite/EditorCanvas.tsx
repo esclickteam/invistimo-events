@@ -307,19 +307,23 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      EXPORT
   ============================================================ */
   useImperativeHandle(ref, () => ({
-    addText: useEditorStore.getState().addText,
-    addRect: useEditorStore.getState().addRect,
-    addCircle: useEditorStore.getState().addCircle,
-    addImage: useEditorStore.getState().addImage,
-    getCanvasData: () => ({
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
-      objects: useEditorStore.getState().objects.map((o: any) => ({
-        ...o,
-        image: undefined,
-      })),
-    }),
-  }));
+  addText: useEditorStore.getState().addText,
+  addRect: useEditorStore.getState().addRect,
+  addCircle: useEditorStore.getState().addCircle,
+  addImage: useEditorStore.getState().addImage,
+
+  // ✅ חדש — העלאת הזמנה כרקע
+  uploadBackground: handleUploadBackground,
+
+  getCanvasData: () => ({
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    objects: useEditorStore.getState().objects.map((o: any) => ({
+      ...o,
+      image: undefined,
+    })),
+  }),
+}));
 
   /* ============================================================
      SORT — BACKGROUND FIRST

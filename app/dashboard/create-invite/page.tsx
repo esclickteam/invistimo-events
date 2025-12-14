@@ -11,6 +11,8 @@ const queryClient = new QueryClient();
 
 export default function CreateInvitePage() {
   const canvasRef = useRef<any>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
@@ -28,7 +30,6 @@ export default function CreateInvitePage() {
       }
 
       const canvasJSON = canvasRef.current.getCanvasData();
-      console.log("🎨 EXPORTED CANVAS JSON:", canvasJSON);
 
       const res = await fetch("/api/invitations", {
         method: "POST",
@@ -55,6 +56,18 @@ export default function CreateInvitePage() {
     }
   };
 
+  /* ===========================================================
+      UPLOAD INVITATION IMAGE → CANVAS
+  ============================================================ */
+  const handleUploadInvitation = (file: File) => {
+    if (!canvasRef.current?.uploadBackground) {
+      alert("❌ הקנבס לא מוכן להעלאת רקע");
+      return;
+    }
+
+    canvasRef.current.uploadBackground(file);
+  };
+
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   return (
@@ -66,16 +79,49 @@ export default function CreateInvitePage() {
         {/* Editor Section */}
         <div className="flex-1 flex flex-col overflow-hidden">
           
-          {/* ✅ Sticky Save Bar (TOP) */}
+          {/* ✅ Sticky Top Bar */}
           <div
             className="
               sticky top-0 z-40
               bg-white
               border-b
               px-6 py-3
-              flex items-center justify-end
+              flex items-center justify-between
+              gap-4
             "
           >
+            {/* Upload invitation */}
+            <div>
+              <button
+                onClick={() => uploadInputRef.current?.click()}
+                className="
+                  px-5 py-2.5
+                  rounded-full
+                  bg-violet-600
+                  text-white
+                  font-medium
+                  shadow
+                  hover:bg-violet-700
+                  transition
+                "
+              >
+                ⬆️ העלאת ההזמנה שלי
+              </button>
+
+              <input
+                ref={uploadInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadInvitation(file);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </div>
+
+            {/* Save */}
             <button
               onClick={handleSave}
               disabled={saving}
