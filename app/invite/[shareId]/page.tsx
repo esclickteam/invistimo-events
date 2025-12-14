@@ -139,7 +139,8 @@ export default function PublicInvitePage({ params }: any) {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10">
+    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10 pb-32 overflow-y-auto">
+
       {/* הזמנה מעוצבת */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
         {invite.canvasData ? (
