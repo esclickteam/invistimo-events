@@ -91,6 +91,31 @@ export default function DashboardPage() {
     setGuests(data.guests || []);
   }
 
+async function deleteGuest(guest: Guest) {
+  const ok = window.confirm(
+    `האם למחוק את המוזמן "${guest.name}"?\nהפעולה אינה ניתנת לביטול.`
+  );
+  if (!ok) return;
+
+  try {
+    const res = await fetch(`/api/guests/${guest._id}`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      alert("❌ שגיאה במחיקת המוזמן");
+      return;
+    }
+
+    await loadGuests();
+  } catch (err) {
+    console.error("Delete guest error:", err);
+    alert("❌ שגיאת שרת");
+  }
+}
+
   useEffect(() => {
     async function init() {
       await loadUser();
@@ -430,7 +455,17 @@ export default function DashboardPage() {
 
                 <button onClick={() => setSelectedGuest(g)} title="עריכה">
                   ✏️
+            
                 </button>
+                
+                 <button
+                  onClick={() => deleteGuest(g)}
+                  title="מחיקת מוזמן"
+                  className="text-red-600 hover:text-red-700 transition"
+                  >
+                  🗑️
+                   </button>
+
               </td>
             </tr>
           ))}
