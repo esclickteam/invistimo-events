@@ -69,25 +69,21 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     guest.relation = data.relation ?? guest.relation;
     guest.notes = data.notes ?? guest.notes;
 
-    // ✅ RSVP – רק ערכים חוקיים, אחרת pending
+    // ✅ RSVP – ערכים חוקיים בלבד
     if (["yes", "no", "pending"].includes(data.rsvp)) {
       guest.rsvp = data.rsvp;
     } else if (!guest.rsvp) {
       guest.rsvp = "pending";
     }
 
-    // ✅ מוזמנים – מותר לעדכן
+    // ✅ מוזמנים (כמה הוזמנו)
     if (typeof data.guestsCount === "number") {
       guest.guestsCount = data.guestsCount;
     }
 
-    // 🛑 מגיעים – לא מתעדכן כאן לעולם
-    // guest.arrivedCount נשאר כמו שהוא (ובברירת מחדל = 0)
-
-    // 🛡️ הגנה כפולה
-    if (guest.arrivedCount == null) {
-      guest.arrivedCount = 0;
-    }
+    // 🚨 קריטי: מגיעים תמיד 0 כאן
+    // RSVP ≠ הגעה בפועל
+    guest.arrivedCount = 0;
 
     await guest.save();
     return NextResponse.json({ success: true, guest });
