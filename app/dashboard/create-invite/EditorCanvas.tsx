@@ -239,31 +239,32 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     }
   };
 
- /* ============================================================
-   DOUBLE CLICK → TEXT EDIT
-============================================================ */
-const handleDblClick = (obj: EditorObject) => {
-  if (obj.type !== "text") return;
+  /* ============================================================
+     DOUBLE CLICK → TEXT EDIT (✅ ללא קפיצה במיקום)
+  ============================================================ */
+  const handleDblClick = (obj: EditorObject) => {
+    if (obj.type !== "text") return;
 
-  const node = stageRef.current?.findOne(`.${obj.id}`);
-  if (!node) return;
+    const node = stageRef.current?.findOne(`.${obj.id}`);
+    if (!node) return;
 
-  const abs = node.getAbsolutePosition();
-  const stageBox = stageRef.current.container().getBoundingClientRect();
+    const stageBox = stageRef.current.container().getBoundingClientRect();
 
-  // ✅ חישוב גובה הפונט ויישור לפי baseline כדי שהמיקום לא יזוז בכלל
-  const fontHeight = obj.fontSize * (obj.lineHeight || 1.1);
-  const baselineFix = obj.fontSize * 0.25; // תיקון גובה קטן שמתאים ל-Konva
+    // ✅ לוקחים את המיקום/גודל האמיתיים של הטקסט כפי שהוא מצויר (לא baseline)
+    const r = node.getClientRect({
+      skipShadow: true,
+      skipStroke: true,
+    });
 
-  setTextInputRect({
-    x: stageBox.left + abs.x * scale,
-    y: stageBox.top + abs.y * scale - baselineFix, // ← כאן התיקון!
-    width: (obj.width || node.width() || 200) * scale,
-    height: fontHeight * scale,
-  });
+    setTextInputRect({
+      x: stageBox.left + r.x * scale,
+      y: stageBox.top + r.y * scale,
+      width: r.width * scale,
+      height: r.height * scale,
+    });
 
-  setEditingTextId(obj.id);
-};
+    setEditingTextId(obj.id);
+  };
 
   /* ============================================================
      DELETE WITH KEYBOARD
@@ -301,7 +302,9 @@ const handleDblClick = (obj: EditorObject) => {
      SORT — BACKGROUND FIRST
   ============================================================ */
   const sortedObjects = useMemo(() => {
-    return [...objects].sort((a, b) => (isBackgroundImage(a) ? -1 : 1));
+    return [...objects].sort((a, b) => {
+      return isBackgroundImage(a) ? -1 : 1;
+    });
   }, [objects]);
 
   /* ============================================================
@@ -330,8 +333,10 @@ const handleDblClick = (obj: EditorObject) => {
         >
           <Layer>
             {sortedObjects.map((obj) => {
+              /* ---------- TEXT ---------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
+
                 const isEditingThis = editingTextId === obj.id;
 
                 return (
@@ -366,6 +371,7 @@ const handleDblClick = (obj: EditorObject) => {
                 );
               }
 
+              /* ---------- RECT ---------- */
               if (obj.type === "rect") {
                 return (
                   <Rect
@@ -379,12 +385,16 @@ const handleDblClick = (obj: EditorObject) => {
                     fill={obj.fill}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
-                      updateObject(obj.id, { x: e.target.x(), y: e.target.y() })
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
                     }
                   />
                 );
               }
 
+              /* ---------- CIRCLE ---------- */
               if (obj.type === "circle") {
                 return (
                   <Circle
@@ -397,14 +407,19 @@ const handleDblClick = (obj: EditorObject) => {
                     fill={obj.fill}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
-                      updateObject(obj.id, { x: e.target.x(), y: e.target.y() })
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
                     }
                   />
                 );
               }
 
+              /* ---------- IMAGE (ALWAYS RENDER) ---------- */
               if (obj.type === "image") {
                 const bg = isBackgroundImage(obj);
+
                 if (bg && obj.image) {
                   const { x, y, width, height } = getCoverDims(
                     obj.image,
@@ -439,7 +454,10 @@ const handleDblClick = (obj: EditorObject) => {
                     image={obj.image || undefined}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
-                      updateObject(obj.id, { x: e.target.x(), y: e.target.y() })
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
                     }
                   />
                 );
@@ -457,6 +475,7 @@ const handleDblClick = (obj: EditorObject) => {
         </Stage>
       </div>
 
+      {/* ---------- TEXT EDITOR OVERLAY ---------- */}
       {editingTextId && (
         <EditableTextOverlay
           obj={
