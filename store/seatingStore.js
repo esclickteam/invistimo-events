@@ -6,6 +6,8 @@ export const useSeatingStore = create((set, get) => ({
   tables: [],
   guests: [],
 
+  background: null, // ⭐⭐ הוספה קריטית ⭐⭐
+
   draggedGuest: null,
   ghostPosition: { x: 0, y: 0 },
 
@@ -24,18 +26,20 @@ export const useSeatingStore = create((set, get) => ({
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
-setTables: (tables) =>
-  set(() => ({
-    tables: tables || [],
-  })),
+  setBackground: (background) => set({ background }), // ⭐⭐ הוספה ⭐⭐
 
+  setTables: (tables) =>
+    set(() => ({
+      tables: tables || [],
+    })),
 
   /* ---------------- INIT ---------------- */
-  init: (tables, guests) => {
-    console.log("🟦 INIT — Loading tables & guests:", { tables, guests });
+  init: (tables, guests, background = null) => {
+    console.log("🟦 INIT — Loading tables & guests:", { tables, guests, background });
     set({
       tables: tables || [],
       guests: guests || [],
+      background, // ⭐⭐ נטען מהשרת אם קיים
     });
   },
 

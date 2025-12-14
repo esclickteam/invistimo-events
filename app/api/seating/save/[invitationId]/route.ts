@@ -16,6 +16,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const { invitationId } = await context.params;
     const body = await req.json();
 
+    // 🔎 בדיקה קריטית
+    console.log("📥 SAVE SEATING BODY:", body);
+
     /* ===============================
        TABLES
     =============================== */
@@ -23,8 +26,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        BACKGROUND (OPTIONAL)
-       ✔ string (base64)
-       ✔ object { url, opacity }
     =============================== */
     let background: { url: string; opacity: number } | null = null;
 
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       {
         $set: {
           tables,
-          background, // ⭐ null או אובייקט תקני
+          background,
           updatedAt: new Date(),
         },
       },

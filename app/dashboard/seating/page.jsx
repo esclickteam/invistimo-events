@@ -11,12 +11,15 @@ export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [invitationId, setInvitationId] = useState(null);
 
-  // ⭐ רקע אופציונלי – אובייקט או null (בלי טיפוסים!)
-  const [background, setBackground] = useState(null);
-
+  /* ===============================
+     STORE
+  =============================== */
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
+
+  const background = useSeatingStore((s) => s.background); // ⭐ מה־store
+  const setBackground = useSeatingStore((s) => s.setBackground); // ⭐ מה־store
 
   /* ===============================
      LOAD INITIAL DATA
@@ -44,17 +47,12 @@ export default function SeatingPage() {
         const tRes = await fetch(`/api/seating/tables/${id}`);
         const tData = await tRes.json();
 
-        init(tData.tables || [], normalizedGuests);
-
-        // ⭐ טעינת רקע אם קיים
-        if (tData.background && tData.background.url) {
-          setBackground({
-            url: tData.background.url,
-            opacity: tData.background.opacity ?? 0.28,
-          });
-        } else {
-          setBackground(null);
-        }
+        // ⭐ init כולל רקע
+        init(
+          tData.tables || [],
+          normalizedGuests,
+          tData.background ?? null
+        );
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       }
@@ -91,7 +89,7 @@ export default function SeatingPage() {
         body: JSON.stringify({
           tables,
           guests,
-          background, // ⭐ null או אובייקט
+          background, // ⭐ מגיע מה־store
         }),
       });
 
