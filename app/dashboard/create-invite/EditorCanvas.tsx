@@ -337,27 +337,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   ============================================================ */
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
-      {/* ---------- UPLOAD BUTTON (תוספת בלבד) ---------- */}
-      <div className="absolute top-6 right-6 z-50">
-        <button
-          onClick={() => uploadInputRef.current?.click()}
-          className="px-4 py-2 rounded-xl bg-violet-600 text-white text-sm shadow-lg hover:bg-violet-700 transition"
-        >
-          העלאת ההזמנה שלי
-        </button>
-        <input
-          ref={uploadInputRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleUploadBackground(file);
-            e.currentTarget.value = "";
-          }}
-        />
-      </div>
-
+      
       <div
         className="shadow-2xl rounded-3xl bg-white overflow-hidden relative"
         style={{
