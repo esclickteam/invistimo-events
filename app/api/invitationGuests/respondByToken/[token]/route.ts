@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  context: { params: Promise<{ token: string }> }
 ) {
-  const { token } = params;
+  const { token } = await context.params; // ✅ לפי הטיפוס ש-Next מצפה לו אצלך
 
   try {
     await db();
@@ -26,13 +26,9 @@ export async function POST(
 
     // ✅ guestsCount תקין
     let validatedGuestsCount = guestsCount;
-    if (rsvp === "no") {
-      validatedGuestsCount = 0;
-    } else {
-      if (!validatedGuestsCount || validatedGuestsCount < 1) {
-        validatedGuestsCount = 1;
-      }
-    }
+    if (rsvp === "no") validatedGuestsCount = 0;
+    else if (!validatedGuestsCount || validatedGuestsCount < 1)
+      validatedGuestsCount = 1;
 
     const guest = await InvitationGuest.findOne({ token });
     if (!guest) {
@@ -46,17 +42,13 @@ export async function POST(
     guest.guestsCount = validatedGuestsCount;
 
     // ✅ notes: תומך גם במערך וגם במחרוזת
-    if (typeof notes === "string") {
-      guest.notes = notes;
-    } else if (Array.isArray(notes)) {
-      guest.notes = notes.join(", ");
-    } else {
-      guest.notes = "";
-    }
+    if (typeof notes === "string") guest.notes = notes;
+    else if (Array.isArray(notes)) guest.notes = notes.join(", ");
+    else guest.notes = "";
 
     await guest.save();
 
-    return NextResponse.json({ success: true, guest });
+    return NextResponse.json({ success: true, guest }, { status: 200 });
   } catch (err) {
     console.error("❌ respondByToken error:", err);
     return NextResponse.json(
