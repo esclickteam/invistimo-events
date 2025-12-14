@@ -82,7 +82,6 @@ export default function MessagesPage() {
 
   // 🟢 חדש — בחירה ידנית למוזמן ב־WhatsApp
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
-  const [searchTerm, setSearchTerm] = useState("");
 
   /* ================= LOAD DATA ================= */
 
@@ -306,35 +305,34 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* אם הערוץ הוא וואטסאפ → בחירה ידנית */}
+      {/* אם הערוץ הוא וואטסאפ → בחירה עם חיפוש מובנה */}
       {channel === "whatsapp" && (
         <div className="w-[90%] md:w-[600px] mb-6">
           <label className="block mb-2 font-semibold text-[#4a413a]">
             בחר/י מוזמן לשליחה:
           </label>
           <input
-            type="text"
-            placeholder="חיפוש לפי שם..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full border rounded-xl p-3 mb-3"
-          />
-          <select
-            value={selectedGuestId}
-            onChange={(e) => setSelectedGuestId(e.target.value)}
+            list="guestList"
+            placeholder="התחל/י להקליד שם או טלפון..."
             className="w-full border rounded-xl p-3"
-          >
-            <option value="">בחר/י מוזמן</option>
-            {guests
-              .filter((g) =>
-                g.name.toLowerCase().includes(searchTerm.toLowerCase())
-              )
-              .map((g) => (
-                <option key={g._id} value={g._id}>
-                  {g.name} ({g.phone})
-                </option>
-              ))}
-          </select>
+            onChange={(e) => {
+              const val = e.target.value.toLowerCase();
+              const found = guests.find(
+                (g) =>
+                  g.name.toLowerCase().includes(val) ||
+                  g.phone.replace(/\D/g, "").includes(val)
+              );
+              setSelectedGuestId(found?._id || "");
+            }}
+          />
+          <datalist id="guestList">
+            {guests.map((g) => (
+              <option
+                key={g._id}
+                value={`${g.name} (${g.phone})`}
+              />
+            ))}
+          </datalist>
         </div>
       )}
 
