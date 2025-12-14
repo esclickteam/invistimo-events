@@ -354,13 +354,19 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                       const node = e.target;
                       const scaleX = node.scaleX();
                       const scaleY = node.scaleY();
+
+                      // ✅ תיקון: width לא יכול להיות undefined → לוקחים מה-node בפועל
+                      const baseWidth =
+                        typeof obj.width === "number" ? obj.width : node.width();
+
                       updateObject(obj.id, {
                         x: node.x(),
                         y: node.y(),
                         rotation: node.rotation(),
-                        width: Math.max(20, obj.width! * scaleX),
-                        fontSize: obj.fontSize * scaleY,
+                        width: Math.max(20, baseWidth * scaleX),
+                        fontSize: Math.max(5, obj.fontSize * scaleY),
                       });
+
                       node.scaleX(1);
                       node.scaleY(1);
                     }}
@@ -442,6 +448,25 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               /* ---------- IMAGE ---------- */
               if (obj.type === "image") {
                 const bg = isBackgroundImage(obj);
+
+                // ✅ תיקון שביקשת: רקע נפרס על כל הקנבס (בלי cover ובלי חיתוך)
+                if (bg) {
+                  return (
+                    <KonvaImage
+                      key={obj.id}
+                      name={obj.id}
+                      className={obj.id}
+                      x={0}
+                      y={0}
+                      width={CANVAS_WIDTH}
+                      height={CANVAS_HEIGHT}
+                      image={obj.image || undefined}
+                      draggable={false}
+                      onClick={() => handleSelect(obj.id)}
+                    />
+                  );
+                }
+
                 return (
                   <KonvaImage
                     key={obj.id}
