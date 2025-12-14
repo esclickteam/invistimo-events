@@ -51,7 +51,8 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
           relation: String(row["קרבה"] || "").trim(),
 
           // 🟢 RSVP תקני בלבד
-          rsvp: RSVP_MAP[rawStatus] || "pending",
+          rsvp: "pending",
+
 
           // 🟢 מוזמנים (כמה הוזמנו)
           guestsCount: Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 0),
