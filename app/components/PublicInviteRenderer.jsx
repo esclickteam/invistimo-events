@@ -17,10 +17,10 @@ export default function PublicInviteRenderer({ canvasData }) {
   const originalHeight = data.height || 720;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState<number | null>(null);
 
   /* ============================================================
-     📱 Responsive auto-scale (especially for mobile)
+     📱 Responsive auto-scale (safe for mobile)
   ============================================================ */
   useEffect(() => {
     function updateScale() {
@@ -28,10 +28,14 @@ export default function PublicInviteRenderer({ canvasData }) {
 
       const containerWidth = containerRef.current.offsetWidth;
 
-      // סקייל לפי רוחב בלבד (לא לפי גובה!)
+      if (!containerWidth || containerWidth <= 0) return;
+
       const nextScale = containerWidth / originalWidth;
 
-      setScale(nextScale);
+      // ⛑️ guard — never allow 0 or NaN
+      if (nextScale > 0 && Number.isFinite(nextScale)) {
+        setScale(nextScale);
+      }
     }
 
     updateScale();
@@ -40,14 +44,24 @@ export default function PublicInviteRenderer({ canvasData }) {
     return () => window.removeEventListener("resize", updateScale);
   }, [originalWidth]);
 
+  // ⛔️ אל תצייר Konva עד שיש scale חוקי
+  if (!scale) {
+    return (
+      <div className="w-full flex justify-center">
+        <div
+          ref={containerRef}
+          className="w-full max-w-md h-[300px] bg-white rounded-xl"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex justify-center">
       <div
         ref={containerRef}
         className="w-full max-w-md"
-        style={{
-          position: "relative",
-        }}
+        style={{ position: "relative" }}
       >
         <div
           style={{
