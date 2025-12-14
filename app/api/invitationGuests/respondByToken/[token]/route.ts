@@ -6,15 +6,33 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: { token: string } }
 ) {
-  const { token } = await params;
+  const { token } = params;
 
   try {
     await db();
 
     const body = await req.json();
     const { rsvp, guestsCount, notes } = body;
+
+    // ✅ ולידציה בסיסית
+    if (!rsvp || !["yes", "no", "pending"].includes(rsvp)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid RSVP value" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ guestsCount תקין
+    let validatedGuestsCount = guestsCount;
+    if (rsvp === "no") {
+      validatedGuestsCount = 0;
+    } else {
+      if (!validatedGuestsCount || validatedGuestsCount < 1) {
+        validatedGuestsCount = 1;
+      }
+    }
 
     const guest = await InvitationGuest.findOne({ token });
     if (!guest) {
@@ -25,9 +43,9 @@ export async function POST(
     }
 
     guest.rsvp = rsvp;
-    guest.guestsCount = guestsCount;
+    guest.guestsCount = validatedGuestsCount;
 
-    // ✅ תיקון קריטי
+    // ✅ notes: תומך גם במערך וגם במחרוזת
     if (typeof notes === "string") {
       guest.notes = notes;
     } else if (Array.isArray(notes)) {
@@ -40,7 +58,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, guest });
   } catch (err) {
-    console.error(err);
+    console.error("❌ respondByToken error:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }

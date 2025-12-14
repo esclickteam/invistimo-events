@@ -108,14 +108,15 @@ useEffect(() => {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!selectedGuest?._id) {
+    if (!selectedGuest?.token) {
       alert("שגיאה בזיהוי האורח");
       return;
     }
 
     try {
       const res = await fetch(
-        `/api/invitationGuests/${selectedGuest._id}/respond`,
+          `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
+
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
