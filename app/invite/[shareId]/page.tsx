@@ -43,31 +43,37 @@ export default function PublicInvitePage({ params }: any) {
   /* ============================================================
      זיהוי אורח מה-URL (?guest=)
   ============================================================ */
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const guestId = searchParams.get("guest");
+  /* ============================================================
+   זיהוי אורח לפי token (?token=)
+============================================================ */
+useEffect(() => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const token = searchParams.get("token");
 
-    if (!guestId) return;
+  if (!token) return;
 
-    async function fetchGuest() {
-      try {
-        const res = await fetch(`/api/invitationGuests/${guestId}`);
-        const data = await res.json();
+  async function fetchGuest() {
+    try {
+      const res = await fetch(`/api/invitationGuests/byToken/${token}`);
+      const data = await res.json();
 
-        if (data.success && data.guest) {
-          setSelectedGuest(data.guest);
-          setForm((prev) => ({
-            ...prev,
-            guestsCount: data.guest.guestsCount || 1,
-          }));
-        }
-      } catch (err) {
-        console.error("❌ Guest fetch error:", err);
+      if (data.success && data.guest) {
+        setSelectedGuest(data.guest);
+        setForm((prev) => ({
+          ...prev,
+          guestsCount: data.guest.guestsCount || 1,
+        }));
+      } else {
+        alert("שגיאה בזיהוי האורח");
       }
+    } catch (err) {
+      console.error("❌ Guest fetch error:", err);
     }
+  }
 
-    fetchGuest();
-  }, []);
+  fetchGuest();
+}, []);
+
 
   /* ============================================================
      טעינת ההזמנה
