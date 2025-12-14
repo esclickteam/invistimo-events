@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Combobox } from "@headlessui/react";
 
 /* ================= TYPES ================= */
 
@@ -79,9 +80,8 @@ export default function MessagesPage() {
   const [channel, setChannel] = useState<Channel>("whatsapp");
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
-
-  // 🟢 חדש — בחירה ידנית למוזמן ב־WhatsApp
-  const [selectedGuestId, setSelectedGuestId] = useState<string>("");
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [query, setQuery] = useState("");
 
   /* ================= LOAD DATA ================= */
 
@@ -129,6 +129,16 @@ export default function MessagesPage() {
 
   /* ================= LOGIC ================= */
 
+  const filteredGuests =
+    query === ""
+      ? guests
+      : guests.filter((g) =>
+          `${g.name} ${g.phone}`.toLowerCase().includes(query.toLowerCase())
+        );
+
+  const hasSmsBalance =
+    balance !== null && balance.remainingMessages > 0;
+
   const guestsToSend = useMemo(() => {
     return guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
@@ -137,14 +147,10 @@ export default function MessagesPage() {
     });
   }, [guests, filter]);
 
-  const hasSmsBalance =
-    balance !== null && balance.remainingMessages > 0;
-
   const disableSend =
     guestsToSend.length === 0 ||
     (channel === "sms" &&
-      (!balance ||
-        balance.remainingMessages < guestsToSend.length));
+      (!balance || balance.remainingMessages < guestsToSend.length));
 
   const buildMessage = (guest: Guest) => {
     if (!invitation) return "";
@@ -196,11 +202,10 @@ export default function MessagesPage() {
     alert(`✅ נשלחו ${data.sent} הודעות`);
   };
 
-  const sendToAll = () => {
+  const handleSend = () => {
     if (channel === "whatsapp") {
-      const guest = guests.find((g) => g._id === selectedGuestId);
-      if (!guest) return alert("בחר/י מוזמן לשליחה");
-      sendWhatsApp(guest);
+      if (!selectedGuest) return alert("בחר/י מוזמן לשליחה");
+      sendWhatsApp(selectedGuest);
     } else {
       sendSMS();
     }
@@ -217,71 +222,9 @@ export default function MessagesPage() {
 
   return (
     <div className="p-10 flex flex-col items-center" dir="rtl">
-      <button
-        onClick={() => router.back()}
-        className="text-sm text-gray-500 mb-3 hover:underline self-start"
-      >
-        ← חזרה
-      </button>
-
       <h1 className="text-3xl font-semibold mb-8 text-[#4a413a] text-center">
         שליחת הודעות לאורחים 💌
       </h1>
-
-      {/* BALANCE CARD */}
-      {balance && (
-        <div className="bg-gradient-to-r from-[#fff7f0] to-[#f7ede2] border border-[#e2d6c8] rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
-          <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
-            💬 יתרת הודעות SMS
-          </h2>
-
-          <div className="w-full bg-[#e2d6c8]/40 h-3 rounded-full overflow-hidden mb-3">
-            <div
-              className={`h-full transition-all duration-500 ${
-                remaining === 0 ? "bg-red-500" : "bg-green-500"
-              }`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-
-          <p className="text-lg font-bold text-[#4a413a] mb-1">
-            {remaining} / {max}
-          </p>
-
-          <p className="text-sm text-[#6b5e52]">
-            {max === 0
-              ? "אין חבילת SMS פעילה"
-              : `נותרו ${remaining} הודעות מתוך ${max}`}
-          </p>
-
-          <div className="mt-5">
-            <select
-              className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-3"
-              value={selectedPackage ?? ""}
-              onChange={(e) => setSelectedPackage(Number(e.target.value))}
-            >
-              <option value="">בחרו חבילת הודעות לרכישה</option>
-              {SMS_PACKAGES.map((pkg) => (
-                <option key={pkg.count} value={pkg.count}>
-                  {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={() =>
-                router.push(
-                  `/dashboard/purchase-sms?count=${selectedPackage || ""}`
-                )
-              }
-              disabled={!selectedPackage}
-              className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
-            >
-              💳 מעבר לתשלום ורכישת הודעות
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* CHANNEL */}
       <div className="flex gap-4 mb-6">
@@ -305,38 +248,42 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* אם הערוץ הוא וואטסאפ → בחירה עם חיפוש מובנה */}
+      {/* COMBOBOX לוואטסאפ */}
       {channel === "whatsapp" && (
         <div className="w-[90%] md:w-[600px] mb-6">
           <label className="block mb-2 font-semibold text-[#4a413a]">
             בחר/י מוזמן לשליחה:
           </label>
-          <input
-            list="guestList"
-            placeholder="התחל/י להקליד שם או טלפון..."
-            className="w-full border rounded-xl p-3"
-            onChange={(e) => {
-              const val = e.target.value.toLowerCase();
-              const found = guests.find(
-                (g) =>
-                  g.name.toLowerCase().includes(val) ||
-                  g.phone.replace(/\D/g, "").includes(val)
-              );
-              setSelectedGuestId(found?._id || "");
-            }}
-          />
-          <datalist id="guestList">
-            {guests.map((g) => (
-              <option
-                key={g._id}
-                value={`${g.name} (${g.phone})`}
+          <Combobox value={selectedGuest} onChange={setSelectedGuest}>
+            <div className="relative">
+              <Combobox.Input
+                className="w-full border rounded-xl p-3"
+                placeholder="הקלד/י שם או טלפון..."
+                displayValue={(guest: Guest) =>
+                  guest ? `${guest.name} (${guest.phone})` : ""
+                }
+                onChange={(e) => setQuery(e.target.value)}
               />
-            ))}
-          </datalist>
+              <Combobox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border bg-white shadow-md">
+                {filteredGuests.length === 0 && (
+                  <div className="p-3 text-gray-500">לא נמצאו תוצאות</div>
+                )}
+                {filteredGuests.map((guest) => (
+                  <Combobox.Option
+                    key={guest._id}
+                    value={guest}
+                    className="cursor-pointer p-3 hover:bg-[#f2ece5]"
+                  >
+                    {guest.name} ({guest.phone})
+                  </Combobox.Option>
+                ))}
+              </Combobox.Options>
+            </div>
+          </Combobox>
         </div>
       )}
 
-      {/* FILTER */}
+      {/* FILTER (רק ב־SMS) */}
       {channel === "sms" && (
         <div className="mb-6 w-[90%] md:w-[600px]">
           <label className="block mb-2">למי לשלוח:</label>
@@ -379,10 +326,8 @@ export default function MessagesPage() {
 
       {/* SEND */}
       <button
-        onClick={sendToAll}
-        disabled={
-          channel === "whatsapp" ? !selectedGuestId : disableSend
-        }
+        onClick={handleSend}
+        disabled={channel === "whatsapp" ? !selectedGuest : disableSend}
         className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
         {channel === "whatsapp"
