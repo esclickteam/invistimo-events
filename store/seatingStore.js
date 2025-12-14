@@ -24,6 +24,12 @@ export const useSeatingStore = create((set, get) => ({
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
+setTables: (tables) =>
+  set(() => ({
+    tables: tables || [],
+  })),
+
+
   /* ---------------- INIT ---------------- */
   init: (tables, guests) => {
     console.log("🟦 INIT — Loading tables & guests:", { tables, guests });
