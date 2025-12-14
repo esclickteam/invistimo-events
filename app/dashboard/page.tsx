@@ -109,7 +109,9 @@ export default function DashboardPage() {
   ============================================================ */
   const stats = {
   totalGuests: guests.reduce((s, g) => s + g.guestsCount, 0),
-  comingGuests: guests.reduce((s, g) => s + (g.arrivedCount || 0), 0),
+  comingGuests: guests
+    .filter((g) => g.rsvp === "yes")
+    .reduce((s, g) => s + g.guestsCount, 0),
   notComing: guests.filter((g) => g.rsvp === "no").length,
   noResponse: guests.filter((g) => g.rsvp === "pending").length,
 };
