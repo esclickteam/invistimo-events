@@ -21,6 +21,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const body = await req.json();
 
     const tables = Array.isArray(body.tables) ? body.tables : [];
+
     const background =
       body.background && typeof body.background.url === "string"
         ? {
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         : null;
 
     /* ===============================
-       1️⃣ UPDATE הושבה + רקע אולם
+       1️⃣ UPDATE הושבה (+ רקע אם קיים)
        מסמך אחד להזמנה (upsert)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
@@ -41,8 +42,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       {
         $set: {
           tables,
-          background, // ⭐ נשמר רק אם תקין
-          updatedAt: new Date(),
+          background, // אופציונלי לחלוטין
         },
       },
       {
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       seatingId: saved._id,
-      hasBackground: !!background,
+      hasBackground: Boolean(background),
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);
