@@ -11,7 +11,6 @@ import BackgroundsTab from "./BackgroundsTab";
 // ⭐ טאב חדש לאנימציות
 import AnimationsTab from "./AnimationsTab";
 
-
 interface SidebarProps {
   canvasRef: any;
   googleApiKey: string;
@@ -46,6 +45,12 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
     };
     fetchFonts();
   }, [googleApiKey]);
+
+  // 🟣 עדכון ישיר של טקסט על הקנבס (בלי שכפול)
+  const handleChange = (field: string, value: any) => {
+    if (!selectedId) return;
+    updateObject(selectedId, { [field]: value });
+  };
 
   return (
     <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
@@ -85,9 +90,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   <label>פונט</label>
                   <select
                     value={selectedObject.fontFamily}
-                    onChange={(e) =>
-                      updateObject(selectedId!, { fontFamily: e.target.value })
-                    }
+                    onChange={(e) => handleChange("fontFamily", e.target.value)}
                     className="w-full border p-2 rounded"
                   >
                     {fonts.map((font) => (
@@ -102,9 +105,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                     type="number"
                     value={selectedObject.fontSize}
                     onChange={(e) =>
-                      updateObject(selectedId!, {
-                        fontSize: Number(e.target.value),
-                      })
+                      handleChange("fontSize", Number(e.target.value))
                     }
                     className="w-full border p-2 rounded"
                   />
@@ -115,9 +116,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   <input
                     type="color"
                     value={selectedObject.fill}
-                    onChange={(e) =>
-                      updateObject(selectedId!, { fill: e.target.value })
-                    }
+                    onChange={(e) => handleChange("fill", e.target.value)}
                     className="w-full h-10 border rounded"
                   />
                 </div>
@@ -151,7 +150,6 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
         {/* ⭐ ---- ANIMATIONS ---- */}
         {tab === "animations" && <AnimationsTab />}
-
       </div>
     </aside>
   );

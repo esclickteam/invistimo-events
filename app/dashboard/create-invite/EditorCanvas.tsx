@@ -241,6 +241,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      DOUBLE CLICK → TEXT EDIT
+     ✅ FIX: position overlay exactly on the text (screen coords + scale)
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
@@ -249,10 +250,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     if (!node) return;
 
     const abs = node.getAbsolutePosition();
+    const stageBox = stageRef.current.container().getBoundingClientRect();
+
     setTextInputRect({
-      x: abs.x * scale,
-      y: abs.y * scale,
-      width: (obj.width || 200) * scale,
+      x: stageBox.left + abs.x * scale,
+      y: stageBox.top + abs.y * scale,
+      width: (obj.width || node.width() || 200) * scale,
       height: obj.fontSize * 1.4 * scale,
     });
 
