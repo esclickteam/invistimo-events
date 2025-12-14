@@ -239,31 +239,31 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     }
   };
 
-  /* ============================================================
-     DOUBLE CLICK → TEXT EDIT (ללא תזוזה בזמן עריכה)
-  ============================================================ */
-  const handleDblClick = (obj: EditorObject) => {
-    if (obj.type !== "text") return;
+ /* ============================================================
+   DOUBLE CLICK → TEXT EDIT
+============================================================ */
+const handleDblClick = (obj: EditorObject) => {
+  if (obj.type !== "text") return;
 
-    const node = stageRef.current?.findOne(`.${obj.id}`);
-    if (!node) return;
+  const node = stageRef.current?.findOne(`.${obj.id}`);
+  if (!node) return;
 
-    const abs = node.getAbsolutePosition();
-    const stageBox = stageRef.current.container().getBoundingClientRect();
+  const abs = node.getAbsolutePosition();
+  const stageBox = stageRef.current.container().getBoundingClientRect();
 
-    // ✅ תיקון מיקום מדויק (בלי תזוזה בכלל)
-    const fontHeight = obj.fontSize * (obj.lineHeight || 1.1);
-    const offsetY = (fontHeight * 0.15); // תיקון קטן לפי baseline
+  // ✅ חישוב גובה הפונט ויישור לפי baseline כדי שהמיקום לא יזוז בכלל
+  const fontHeight = obj.fontSize * (obj.lineHeight || 1.1);
+  const baselineFix = obj.fontSize * 0.25; // תיקון גובה קטן שמתאים ל-Konva
 
-    setTextInputRect({
-      x: stageBox.left + abs.x * scale,
-      y: stageBox.top + (abs.y * scale) - offsetY,
-      width: (obj.width || node.width() || 200) * scale,
-      height: fontHeight * scale,
-    });
+  setTextInputRect({
+    x: stageBox.left + abs.x * scale,
+    y: stageBox.top + abs.y * scale - baselineFix, // ← כאן התיקון!
+    width: (obj.width || node.width() || 200) * scale,
+    height: fontHeight * scale,
+  });
 
-    setEditingTextId(obj.id);
-  };
+  setEditingTextId(obj.id);
+};
 
   /* ============================================================
      DELETE WITH KEYBOARD
