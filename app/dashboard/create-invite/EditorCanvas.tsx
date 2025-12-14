@@ -240,7 +240,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   };
 
   /* ============================================================
-     DOUBLE CLICK → TEXT EDIT
+     DOUBLE CLICK → TEXT EDIT (ללא תזוזה בזמן עריכה)
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
@@ -251,11 +251,15 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     const abs = node.getAbsolutePosition();
     const stageBox = stageRef.current.container().getBoundingClientRect();
 
+    // ✅ תיקון מיקום מדויק (בלי תזוזה בכלל)
+    const fontHeight = obj.fontSize * (obj.lineHeight || 1.1);
+    const offsetY = (fontHeight * 0.15); // תיקון קטן לפי baseline
+
     setTextInputRect({
       x: stageBox.left + abs.x * scale,
-      y: stageBox.top + abs.y * scale,
+      y: stageBox.top + (abs.y * scale) - offsetY,
       width: (obj.width || node.width() || 200) * scale,
-      height: obj.fontSize * 1.4 * scale,
+      height: fontHeight * scale,
     });
 
     setEditingTextId(obj.id);
@@ -297,9 +301,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      SORT — BACKGROUND FIRST
   ============================================================ */
   const sortedObjects = useMemo(() => {
-    return [...objects].sort((a, b) => {
-      return isBackgroundImage(a) ? -1 : 1;
-    });
+    return [...objects].sort((a, b) => (isBackgroundImage(a) ? -1 : 1));
   }, [objects]);
 
   /* ============================================================
@@ -328,10 +330,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         >
           <Layer>
             {sortedObjects.map((obj) => {
-              /* ---------- TEXT ---------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
-
                 const isEditingThis = editingTextId === obj.id;
 
                 return (
@@ -360,14 +360,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                         y: e.target.y(),
                       })
                     }
-                    // ✅ זה התיקון: בזמן עריכה מסתירים את הטקסט המקורי כדי שלא ייראה "כפול"
                     opacity={isEditingThis ? 0 : 1}
                     listening={!isEditingThis}
                   />
                 );
               }
 
-              /* ---------- RECT ---------- */
               if (obj.type === "rect") {
                 return (
                   <Rect
@@ -381,16 +379,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     fill={obj.fill}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
-                      updateObject(obj.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      })
+                      updateObject(obj.id, { x: e.target.x(), y: e.target.y() })
                     }
                   />
                 );
               }
 
-              /* ---------- CIRCLE ---------- */
               if (obj.type === "circle") {
                 return (
                   <Circle
@@ -403,20 +397,14 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     fill={obj.fill}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
-                      updateObject(obj.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      })
+                      updateObject(obj.id, { x: e.target.x(), y: e.target.y() })
                     }
                   />
                 );
               }
 
-              /* ---------- IMAGE (ALWAYS RENDER) ---------- */
               if (obj.type === "image") {
                 const bg = isBackgroundImage(obj);
-
-                // Background mode: cover
                 if (bg && obj.image) {
                   const { x, y, width, height } = getCoverDims(
                     obj.image,
@@ -451,10 +439,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                     image={obj.image || undefined}
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
-                      updateObject(obj.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      })
+                      updateObject(obj.id, { x: e.target.x(), y: e.target.y() })
                     }
                   />
                 );
@@ -472,7 +457,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
         </Stage>
       </div>
 
-      {/* ---------- TEXT EDITOR OVERLAY ---------- */}
       {editingTextId && (
         <EditableTextOverlay
           obj={
