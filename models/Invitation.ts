@@ -55,8 +55,9 @@ const InvitationSchema = new Schema(
     // 🔐 החבילה שנרכשה: 100 / 300 / 500 / 1000
     maxGuests: {
       type: Number,
-      required: true,
       enum: [100, 300, 500, 1000],
+      default: 100, // ⭐ חשוב – ברירת מחדל
+      required: true,
     },
 
     // 📩 כמה הודעות SMS כבר נשלחו
