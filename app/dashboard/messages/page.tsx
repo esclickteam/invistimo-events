@@ -154,6 +154,7 @@ export default function MessagesPage() {
       .replace(
         "{{rsvpLink}}",
         `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`
+
       )
       .replace("{{tableName}}", guest.tableName || "");
   };
