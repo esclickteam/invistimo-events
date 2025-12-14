@@ -18,14 +18,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
        0️⃣ params + body
     =============================== */
     const { invitationId } = await context.params;
-    const { tables, background } = await req.json();
+    const body = await req.json();
 
-    if (!Array.isArray(tables)) {
-      return NextResponse.json(
-        { success: false, error: "No tables provided" },
-        { status: 400 }
-      );
-    }
+    const tables = Array.isArray(body.tables) ? body.tables : [];
+    const background =
+      body.background && typeof body.background.url === "string"
+        ? {
+            url: body.background.url,
+            opacity:
+              typeof body.background.opacity === "number"
+                ? body.background.opacity
+                : 0.28,
+          }
+        : null;
 
     /* ===============================
        1️⃣ UPDATE הושבה + רקע אולם
@@ -36,20 +41,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
       {
         $set: {
           tables,
-          background: background || null, // ⭐ חדש – שמירת רקע אולם
+          background, // ⭐ נשמר רק אם תקין
           updatedAt: new Date(),
         },
       },
       {
         new: true,
         upsert: true,
+        setDefaultsOnInsert: true,
       }
     );
-
-    /* =================================================
-       ⚠️ snapshot לאורחים (אופציונלי)
-       נשאר כמו שהוא – לא נוגעים
-    ================================================= */
 
     /* ===============================
        2️⃣ איפוס tableNumber לכל האורחים
@@ -68,19 +69,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
       for (const seated of table.seatedGuests) {
         if (!seated?.guestId) continue;
 
-        await InvitationGuest.findByIdAndUpdate(
-          seated.guestId,
-          {
-            tableNumber: table.name ?? table.id,
-          },
-          { new: false }
-        );
+        await InvitationGuest.findByIdAndUpdate(seated.guestId, {
+          tableNumber: table.name ?? table.id,
+        });
       }
     }
 
     return NextResponse.json({
       success: true,
       seatingId: saved._id,
+      hasBackground: !!background,
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);

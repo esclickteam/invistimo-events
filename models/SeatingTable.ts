@@ -23,29 +23,52 @@ const SeatedGuestSchema = new Schema(
 =============================== */
 const TableSchema = new Schema(
   {
-    id: { type: String, required: true }, // מזהה פנימי לקנבס
-    name: String,
-    type: String,
-    seats: Number,
-    x: Number,
-    y: Number,
-    seatedGuests: [SeatedGuestSchema],
+    id: {
+      type: String,
+      required: true, // מזהה פנימי לקנבס
+    },
+    name: {
+      type: String,
+      default: "",
+    },
+    type: {
+      type: String,
+      default: "round",
+    },
+    seats: {
+      type: Number,
+      default: 0,
+    },
+    x: {
+      type: Number,
+      default: 0,
+    },
+    y: {
+      type: Number,
+      default: 0,
+    },
+    seatedGuests: {
+      type: [SeatedGuestSchema],
+      default: [],
+    },
   },
   { _id: false }
 );
 
 /* ===============================
-   רקע אולם ⭐ חדש
+   ⭐ רקע אולם
 =============================== */
 const BackgroundSchema = new Schema(
   {
     url: {
-      type: String, // base64 או URL
+      type: String, // ⭐ URL / base64 (בשלב זה)
       required: true,
     },
     opacity: {
       type: Number,
       default: 0.28,
+      min: 0,
+      max: 1,
     },
   },
   { _id: false }
@@ -60,19 +83,26 @@ const SeatingTableSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Invitation",
       required: true,
-      unique: true, // ⭐ קריטי – מסמך אחד להזמנה
+      unique: true, // ⭐ מסמך אחד לכל הזמנה
       index: true,
     },
 
-    /** ⭐⭐ רקע אולם נשמר ב־DB */
+    /** ⭐ רקע אולם */
     background: {
       type: BackgroundSchema,
       default: null,
     },
 
-    tables: [TableSchema],
+    /** ⭐ שולחנות */
+    tables: {
+      type: [TableSchema],
+      default: [],
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    strict: true, // ⭐ חשוב – מונע שדות זבל
+  }
 );
 
 export default mongoose.models.SeatingTable ||
