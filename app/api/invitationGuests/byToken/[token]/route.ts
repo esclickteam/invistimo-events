@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: { token: string } }
 ) {
-  const { token } = await params; // ⭐ חובה await
+  const { token } = params; // ✅ לא Promise!
 
   try {
     await db();
@@ -24,6 +24,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, guest });
   } catch (err) {
+    console.error("❌ Error loading guest by token:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
