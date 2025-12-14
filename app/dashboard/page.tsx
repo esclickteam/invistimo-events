@@ -24,9 +24,11 @@ type Guest = {
 
   rsvp: "yes" | "no" | "pending";
   guestsCount: number;
+
+  arrivedCount?: number; // ✅ נוכחות בפועל
+
   notes?: string;
 };
-
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
@@ -106,14 +108,11 @@ export default function DashboardPage() {
      Stats (על כל האורחים)
   ============================================================ */
   const stats = {
-    totalGuests: guests.reduce((s, g) => s + g.guestsCount, 0),
-    comingGuests: guests.reduce(
-      (s, g) => s + (g.rsvp === "yes" ? g.guestsCount : 0),
-      0
-    ),
-    notComing: guests.filter((g) => g.rsvp === "no").length,
-    noResponse: guests.filter((g) => g.rsvp === "pending").length,
-  };
+  totalGuests: guests.reduce((s, g) => s + g.guestsCount, 0),
+  comingGuests: guests.reduce((s, g) => s + (g.arrivedCount || 0), 0),
+  notComing: guests.filter((g) => g.rsvp === "no").length,
+  noResponse: guests.filter((g) => g.rsvp === "pending").length,
+};
 
   /* ============================================================
      WhatsApp (אישי – אישור הגעה בלבד)
@@ -159,13 +158,13 @@ export default function DashboardPage() {
     const rsvpOrder: Record<Guest["rsvp"], number> = { yes: 0, pending: 1, no: 2 };
 
     const getValue = (g: Guest) => {
-      if (sortKey === "name") return (g.name || "").toLowerCase();
-      if (sortKey === "table") return (g.tableName || "").toLowerCase();
-      if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
-      if (sortKey === "invited") return g.guestsCount || 0;
-      // coming
-      return g.rsvp === "yes" ? g.guestsCount || 0 : 0;
-    };
+  if (sortKey === "name") return (g.name || "").toLowerCase();
+  if (sortKey === "table") return (g.tableName || "").toLowerCase();
+  if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
+  if (sortKey === "invited") return g.guestsCount || 0;
+  // coming = נוכחות אמיתית
+  return g.arrivedCount || 0;
+};
 
     list.sort((a, b) => {
       const va = getValue(a) as any;
@@ -402,8 +401,8 @@ export default function DashboardPage() {
               <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
               <td className="p-3">{g.guestsCount}</td>
               <td className="p-3 font-semibold">
-                {g.rsvp === "yes" ? g.guestsCount : 0}
-              </td>
+              {g.arrivedCount || 0}
+               </td>
               <td className="p-3">{g.tableName ?? "-"}</td>
               <td className="p-3 text-sm text-gray-700">
                 {g.notes?.trim() || "-"}
