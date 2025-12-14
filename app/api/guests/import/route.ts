@@ -8,7 +8,7 @@ import crypto from "crypto";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   POST — ייבוא אורחים מאקסל (חכם בעברית / אנגלית)
+   POST — ייבוא אורחים (נתונים מנורמלים מה־Client)
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     await db();
 
-    // 🟢 אימות בעל האירוע
+    // 🟢 אימות משתמש
     const userId = await getUserIdFromRequest();
     if (!userId) {
       return NextResponse.json(
@@ -40,105 +40,67 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ============================================================
-       Helpers
-    ============================================================ */
+    let importedCount = 0;
 
-    const translateRSVP = (value: any): "yes" | "no" | "pending" => {
-      if (value === undefined || value === null) return "pending";
-      const normalized = String(value).trim().toLowerCase();
+    for (const g of guests) {
+      // 🛑 ולידציה בסיסית
+      if (!g?.name || !g?.phone) continue;
 
-      if (["yes", "מגיע", "הגיע", "בא", "נוכח"].includes(normalized)) return "yes";
-      if (["no", "לא", "לא מגיע", "לא נוכח"].includes(normalized)) return "no";
-      if (["pending", "ממתין", "לא השיב", "טרם"].includes(normalized)) return "pending";
+      const phone = String(g.phone).replace(/\D/g, "");
 
-      return "pending";
-    };
+      const payload = {
+        invitationId,
+        name: String(g.name).trim(),
+        phone,
+        relation: String(g.relation || "").trim(),
 
-    const cleanPhone = (value: any) => {
-      if (value === undefined || value === null) return "";
-      let phone = String(value).replace(/\D/g, ""); // רק ספרות
-      if (!phone) return "";
-      if (!phone.startsWith("0")) phone = "0" + phone; // מחזיר 0 שנעלם באקסל
-      return phone;
-    };
+        // ✅ RSVP תקני בלבד
+        rsvp: ["yes", "no", "pending"].includes(g.rsvp)
+          ? g.rsvp
+          : "pending",
 
-    // ✅ תיקון TS: defaultValue יכול להיות string או number
-    const getField = (
-      obj: any,
-      keys: string[],
-      defaultValue: string | number = ""
-    ) => {
-      for (const key of keys) {
-        const v = obj?.[key];
-        if (v !== undefined && v !== null && v !== "") return v;
+        // ✅ מוזמנים (לא ממציאים ערכים)
+        guestsCount: Number.isFinite(Number(g.guestsCount))
+          ? Number(g.guestsCount)
+          : 0,
+
+        // 🚨 קריטי: מגיעים תמיד 0 בייבוא
+        arrivedCount: 0,
+
+        notes: String(g.notes || "").trim(),
+        tableName: String(g.tableName || "").trim(),
+
+        token: g.token || crypto.randomUUID(),
+      };
+
+      // 🔎 אם קיים אורח עם אותו טלפון — עדכון, אחרת יצירה
+      const existing = await InvitationGuest.findOne({
+        invitationId,
+        phone,
+      });
+
+      if (existing) {
+        await InvitationGuest.updateOne(
+          { _id: existing._id },
+          { $set: payload }
+        );
+      } else {
+        await InvitationGuest.create(payload);
       }
-      return defaultValue;
-    };
 
-    const toSafeNumber = (v: any, fallback = 1) => {
-      const n = Number(v);
-      return Number.isFinite(n) && n > 0 ? n : fallback;
-    };
+      importedCount++;
+    }
 
-    /* ============================================================
-       Build guests
-    ============================================================ */
-    const formattedGuests = guests
-      .map((g: any) => {
-        const name = String(
-          getField(g, ["שם", "שם מלא", "Name", "Full Name"], "")
-        ).trim();
-
-        const phone = cleanPhone(
-          getField(g, ["טלפון", "טל׳", "Phone", "מספר טלפון"], "")
-        );
-
-        const relation = String(
-          getField(g, ["קרבה", "קשר", "Relation"], "")
-        ).trim();
-
-        const rsvp = translateRSVP(
-          getField(g, ["סטטוס", "מענה", "RSVP", "אישור הגעה"], "pending")
-        );
-
-        const guestsCount = toSafeNumber(
-          getField(g, ["מוזמנים", "כמות משתתפים", "Guests Count", "Guests"], 1),
-          1
-        );
-
-        const notes = String(
-          getField(g, ["הערות", "הערה", "Notes"], "")
-        ).trim();
-
-        // דילוג על שורות ריקות באמת
-        if (!name && !phone) return null;
-
-        return {
-          invitationId,
-          name: name || "אורח ללא שם",
-          phone,
-          relation,
-          rsvp,
-          guestsCount,
-          notes,
-          token: crypto.randomUUID(),
-        };
-      })
-      .filter(Boolean);
-
-    if (formattedGuests.length === 0) {
+    if (importedCount === 0) {
       return NextResponse.json({
         success: false,
         error: "No valid guests found in Excel file",
       });
     }
 
-    await InvitationGuest.insertMany(formattedGuests);
-
     return NextResponse.json({
       success: true,
-      count: formattedGuests.length,
+      count: importedCount,
     });
   } catch (err) {
     console.error("❌ Import Excel error:", err);
