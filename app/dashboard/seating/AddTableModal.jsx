@@ -3,7 +3,7 @@ import { useState } from "react";
 
 export default function AddTableModal({ onClose, onAdd }) {
   const [type, setType] = useState("round");
-  const [seats, setSeats] = useState(10);
+  const [seats, setSeats] = useState(12); // ✅ ברירת מחדל 12 אורחים
 
   const handleAdd = () => {
     if (typeof onAdd !== "function") {
