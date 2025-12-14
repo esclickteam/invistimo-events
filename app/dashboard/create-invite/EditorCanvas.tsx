@@ -241,7 +241,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* ============================================================
      DOUBLE CLICK → TEXT EDIT
-     ✅ FIX: position overlay exactly on the text (screen coords + scale)
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
@@ -333,12 +332,14 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
 
+                const isEditingThis = editingTextId === obj.id;
+
                 return (
                   <Text
                     key={obj.id}
                     name={obj.id}
                     className={obj.id}
-                    draggable
+                    draggable={!isEditingThis}
                     x={obj.x}
                     y={obj.y}
                     text={obj.text}
@@ -359,6 +360,9 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                         y: e.target.y(),
                       })
                     }
+                    // ✅ זה התיקון: בזמן עריכה מסתירים את הטקסט המקורי כדי שלא ייראה "כפול"
+                    opacity={isEditingThis ? 0 : 1}
+                    listening={!isEditingThis}
                   />
                 );
               }
