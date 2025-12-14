@@ -43,6 +43,7 @@ export interface TextObject {
   letterSpacing?: number;
   lineHeight?: number;
   fill?: string;
+  rotation?: number;
 }
 
 export type EditorObject =
@@ -55,6 +56,7 @@ export type EditorObject =
       width: number;
       height: number;
       fill?: string;
+      rotation?: number;
     }
   | {
       id: string;
@@ -63,6 +65,7 @@ export type EditorObject =
       y: number;
       radius: number;
       fill?: string;
+      rotation?: number;
     }
   | {
       id: string;
@@ -75,6 +78,7 @@ export type EditorObject =
       image?: HTMLImageElement | HTMLVideoElement | null;
       removeBackground?: boolean;
       isBackground?: boolean;
+      rotation?: number;
     };
 
 interface EditorCanvasProps {
@@ -106,7 +110,6 @@ function getCoverDims(
   if (!iw || !ih) return { x: 0, y: 0, width: canvasW, height: canvasH };
 
   const aspect = iw / ih;
-
   let width = canvasW;
   let height = canvasW / aspect;
 
@@ -177,15 +180,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     const handleResize = () => {
       const maxHeight = window.innerHeight - 100;
       const maxWidth = window.innerWidth - 450;
-
       const factor = Math.min(
         maxWidth / CANVAS_WIDTH,
         maxHeight / CANVAS_HEIGHT
       );
-
       setScale(factor);
     };
-
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -201,26 +201,21 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [initialData, setObjects]);
 
   /* ============================================================
-     LOAD IMAGES (RSVP NEEDS THIS!)
+     LOAD IMAGES
   ============================================================ */
   useEffect(() => {
     objects.forEach((obj) => {
       if (obj.type !== "image" || !obj.url || obj.image) return;
-
       const img = new Image();
       img.crossOrigin = "anonymous";
-
       img.onload = () => {
         if (obj.removeBackground) {
           const cleared = removeWhiteBackground(img);
           const newImg = new Image();
           newImg.src = cleared;
           newImg.onload = () => updateObject(obj.id, { image: newImg });
-        } else {
-          updateObject(obj.id, { image: img });
-        }
+        } else updateObject(obj.id, { image: img });
       };
-
       img.src = obj.url;
     });
   }, [objects, updateObject]);
@@ -233,28 +228,22 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     const obj = objects.find((o) => o.id === id) || null;
     onSelect(obj);
 
+    const node = id ? stageRef.current?.findOne(`.${id}`) : null;
     if (transformerRef.current) {
-      const node = id ? stageRef.current?.findOne(`.${id}`) : null;
       transformerRef.current.nodes(node ? [node] : []);
     }
   };
 
   /* ============================================================
-     DOUBLE CLICK → TEXT EDIT (✅ ללא קפיצה במיקום)
+     DOUBLE CLICK → TEXT EDIT (בלי קפיצה)
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
     if (obj.type !== "text") return;
-
     const node = stageRef.current?.findOne(`.${obj.id}`);
     if (!node) return;
 
     const stageBox = stageRef.current.container().getBoundingClientRect();
-
-    // ✅ לוקחים את המיקום/גודל האמיתיים של הטקסט כפי שהוא מצויר (לא baseline)
-    const r = node.getClientRect({
-      skipShadow: true,
-      skipStroke: true,
-    });
+    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
 
     setTextInputRect({
       x: stageBox.left + r.x * scale,
@@ -262,22 +251,22 @@ const EditorCanvas = forwardRef(function EditorCanvas(
       width: r.width * scale,
       height: r.height * scale,
     });
-
     setEditingTextId(obj.id);
   };
 
   /* ============================================================
-     DELETE WITH KEYBOARD
+     DELETE / BACKSPACE מהקלדת
   ============================================================ */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Delete" && selectedId) {
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
         removeObject(selectedId);
+        setSelected(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, removeObject]);
+  }, [selectedId, removeObject, setSelected]);
 
   /* ============================================================
      EXPORT
@@ -287,13 +276,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     addRect: useEditorStore.getState().addRect,
     addCircle: useEditorStore.getState().addCircle,
     addImage: useEditorStore.getState().addImage,
-
     getCanvasData: () => ({
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
       objects: useEditorStore.getState().objects.map((o: any) => ({
         ...o,
-        image: undefined, // ❗ חשוב ל-RSVP
+        image: undefined,
       })),
     }),
   }));
@@ -302,13 +290,11 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      SORT — BACKGROUND FIRST
   ============================================================ */
   const sortedObjects = useMemo(() => {
-    return [...objects].sort((a, b) => {
-      return isBackgroundImage(a) ? -1 : 1;
-    });
+    return [...objects].sort((a, b) => (isBackgroundImage(a) ? -1 : 1));
   }, [objects]);
 
   /* ============================================================
-     RENDER CANVAS
+     RENDER
   ============================================================ */
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
@@ -326,27 +312,25 @@ const EditorCanvas = forwardRef(function EditorCanvas(
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
           ref={stageRef}
-          className="bg-white"
           onMouseDown={(e) => {
             if (e.target === e.target.getStage()) handleSelect(null);
           }}
         >
           <Layer>
             {sortedObjects.map((obj) => {
+              const isEditingThis = editingTextId === obj.id;
+
               /* ---------- TEXT ---------- */
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
-
-                const isEditingThis = editingTextId === obj.id;
-
                 return (
                   <Text
                     key={obj.id}
                     name={obj.id}
                     className={obj.id}
-                    draggable={!isEditingThis}
                     x={obj.x}
                     y={obj.y}
+                    rotation={obj.rotation || 0}
                     text={obj.text}
                     fontFamily={obj.fontFamily}
                     fontSize={obj.fontSize}
@@ -357,14 +341,29 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                       obj.italic ? "italic" : ""
                     }`}
                     textDecoration={obj.underline ? "underline" : ""}
-                    onDblClick={() => handleDblClick(obj)}
+                    draggable={!isEditingThis}
                     onClick={() => handleSelect(obj.id)}
+                    onDblClick={() => handleDblClick(obj)}
                     onDragEnd={(e) =>
                       updateObject(obj.id, {
                         x: e.target.x(),
                         y: e.target.y(),
                       })
                     }
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scaleX = node.scaleX();
+                      const scaleY = node.scaleY();
+                      updateObject(obj.id, {
+                        x: node.x(),
+                        y: node.y(),
+                        rotation: node.rotation(),
+                        width: Math.max(20, obj.width! * scaleX),
+                        fontSize: obj.fontSize * scaleY,
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                     opacity={isEditingThis ? 0 : 1}
                     listening={!isEditingThis}
                   />
@@ -377,12 +376,14 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                   <Rect
                     key={obj.id}
                     name={obj.id}
-                    draggable
+                    className={obj.id}
                     x={obj.x}
                     y={obj.y}
                     width={obj.width}
                     height={obj.height}
                     fill={obj.fill}
+                    rotation={obj.rotation || 0}
+                    draggable
                     onClick={() => handleSelect(obj.id)}
                     onDragEnd={(e) =>
                       updateObject(obj.id, {
@@ -390,6 +391,20 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                         y: e.target.y(),
                       })
                     }
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scaleX = node.scaleX();
+                      const scaleY = node.scaleY();
+                      updateObject(obj.id, {
+                        x: node.x(),
+                        y: node.y(),
+                        width: Math.max(5, obj.width * scaleX),
+                        height: Math.max(5, obj.height * scaleY),
+                        rotation: node.rotation(),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                   />
                 );
               }
@@ -400,65 +415,60 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                   <Circle
                     key={obj.id}
                     name={obj.id}
-                    draggable
+                    className={obj.id}
                     x={obj.x}
                     y={obj.y}
                     radius={obj.radius}
                     fill={obj.fill}
+                    draggable
+                    rotation={obj.rotation || 0}
                     onClick={() => handleSelect(obj.id)}
-                    onDragEnd={(e) =>
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scale = node.scaleX();
                       updateObject(obj.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      })
-                    }
+                        x: node.x(),
+                        y: node.y(),
+                        radius: obj.radius * scale,
+                        rotation: node.rotation(),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                   />
                 );
               }
 
-              /* ---------- IMAGE (ALWAYS RENDER) ---------- */
+              /* ---------- IMAGE ---------- */
               if (obj.type === "image") {
                 const bg = isBackgroundImage(obj);
-
-                if (bg && obj.image) {
-                  const { x, y, width, height } = getCoverDims(
-                    obj.image,
-                    CANVAS_WIDTH,
-                    CANVAS_HEIGHT
-                  );
-
-                  return (
-                    <KonvaImage
-                      key={obj.id}
-                      name={obj.id}
-                      x={x}
-                      y={y}
-                      width={width}
-                      height={height}
-                      image={obj.image}
-                      listening={true}
-                      onClick={() => handleSelect(obj.id)}
-                    />
-                  );
-                }
-
                 return (
                   <KonvaImage
                     key={obj.id}
                     name={obj.id}
-                    draggable={!bg}
+                    className={obj.id}
                     x={obj.x}
                     y={obj.y}
                     width={obj.width}
                     height={obj.height}
                     image={obj.image || undefined}
+                    rotation={obj.rotation || 0}
+                    draggable={!bg}
                     onClick={() => handleSelect(obj.id)}
-                    onDragEnd={(e) =>
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scaleX = node.scaleX();
+                      const scaleY = node.scaleY();
                       updateObject(obj.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      })
-                    }
+                        x: node.x(),
+                        y: node.y(),
+                        width: obj.width * scaleX,
+                        height: obj.height * scaleY,
+                        rotation: node.rotation(),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
                   />
                 );
               }
@@ -466,10 +476,19 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               return null;
             })}
 
+            {/* ✅ תומך בהגדלה/סיבוב */}
             <Transformer
               ref={transformerRef}
-              anchorSize={0}
-              borderStroke="transparent"
+              rotateEnabled={true}
+              enabledAnchors={[
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right",
+              ]}
+              anchorSize={8}
+              borderStroke="#7c3aed"
+              anchorFill="#7c3aed"
             />
           </Layer>
         </Stage>
