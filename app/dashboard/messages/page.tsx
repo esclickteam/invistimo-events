@@ -81,7 +81,6 @@ export default function MessagesPage() {
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
 
-  // 🟢 חדש — בחירה ידנית למוזמן ב־WhatsApp
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
 
   /* ================= LOAD DATA ================= */
@@ -148,28 +147,28 @@ export default function MessagesPage() {
         balance.remainingMessages < guestsToSend.length));
 
   const buildMessage = (guest: Guest) => {
-  if (!invitation) return "";
+    if (!invitation) return "";
 
-  return message
-    .replace("{{name}}", guest.name)
-    .replace(
-      "{{rsvpLink}}",
-      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
-    )
-    .replace("{{tableName}}", guest.tableName || "");
-};
+    return message
+      .replace("{{name}}", guest.name)
+      .replace(
+        "{{rsvpLink}}",
+        `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
+      )
+      .replace("{{tableName}}", guest.tableName || "");
+  };
 
   /* ================= SEND ================= */
 
   const sendWhatsApp = (guest: Guest) => {
-  const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
-  const text = buildMessage(guest);
+    const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
+    const text = buildMessage(guest);
 
-  window.open(
-    `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURI(text)}`,
-    "_blank"
-  );
-};
+    window.open(
+      `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURI(text)}`,
+      "_blank"
+    );
+  };
 
   const sendSMS = async () => {
     if (!invitation || !hasSmsBalance) return;
@@ -308,24 +307,19 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* אם הערוץ הוא וואטסאפ → בחירה עם חיפוש מובנה */}
       {channel === "whatsapp" && (
-  <div className="w-[90%] md:w-[600px] mb-6">
-    <label className="block mb-2 font-semibold text-[#4a413a]">
-      בחר/י מוזמן לשליחה:
-    </label>
+        <div className="w-[90%] md:w-[600px] mb-6">
+          <label className="block mb-2 font-semibold text-[#4a413a]">
+            בחר/י מוזמן לשליחה:
+          </label>
 
-    <GuestAutocomplete
-      guests={guests}
-      onSelect={(id: string) => setSelectedGuestId(id)}
+          <GuestAutocomplete
+            guests={guests}
+            onSelect={(id: string) => setSelectedGuestId(id)}
+          />
+        </div>
+      )}
 
-    />
-  </div>
-)}
-
-
-
-      {/* FILTER */}
       {channel === "sms" && (
         <div className="mb-6 w-[90%] md:w-[600px]">
           <label className="block mb-2">למי לשלוח:</label>
@@ -341,7 +335,6 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* TEMPLATE */}
       <select
         value={templateKey}
         onChange={(e) => {
@@ -358,7 +351,6 @@ export default function MessagesPage() {
         ))}
       </select>
 
-      {/* MESSAGE */}
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
@@ -366,12 +358,9 @@ export default function MessagesPage() {
         className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
       />
 
-      {/* SEND */}
       <button
         onClick={sendToAll}
-        disabled={
-          channel === "whatsapp" ? !selectedGuestId : disableSend
-        }
+        disabled={channel === "whatsapp" ? !selectedGuestId : disableSend}
         className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
       >
         {channel === "whatsapp"
