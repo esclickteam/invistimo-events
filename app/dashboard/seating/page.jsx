@@ -10,7 +10,9 @@ export default function SeatingPage() {
 
   const [showUpload, setShowUpload] = useState(false);
   const [invitationId, setInvitationId] = useState(null);
-  const [background, setBackground] = useState(null); // ⭐ string בלבד
+
+  // ⭐ רקע אופציונלי – אובייקט או null (בלי טיפוסים!)
+  const [background, setBackground] = useState(null);
 
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
@@ -44,9 +46,14 @@ export default function SeatingPage() {
 
         init(tData.tables || [], normalizedGuests);
 
-        // ⭐ אם שמור רקע – נטען אותו
-        if (tData.background) {
-          setBackground(tData.background); // string
+        // ⭐ טעינת רקע אם קיים
+        if (tData.background && tData.background.url) {
+          setBackground({
+            url: tData.background.url,
+            opacity: tData.background.opacity ?? 0.28,
+          });
+        } else {
+          setBackground(null);
         }
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
@@ -57,15 +64,19 @@ export default function SeatingPage() {
   }, [init]);
 
   /* ===============================
-     SELECT BACKGROUND
+     SELECT BACKGROUND (אופציונלי)
   =============================== */
   const handleBackgroundSelect = (bgUrl) => {
     if (!bgUrl) return;
-    setBackground(bgUrl); // ⭐ string בלבד
+
+    setBackground({
+      url: bgUrl,
+      opacity: 0.28,
+    });
   };
 
   /* ===============================
-     SAVE SEATING + BACKGROUND
+     SAVE SEATING (+ רקע אם יש)
   =============================== */
   async function saveSeating() {
     if (!invitationId) {
@@ -80,7 +91,7 @@ export default function SeatingPage() {
         body: JSON.stringify({
           tables,
           guests,
-          background, // ⭐ string
+          background, // ⭐ null או אובייקט
         }),
       });
 
@@ -122,7 +133,7 @@ export default function SeatingPage() {
 
       {/* MAIN */}
       <div className="flex-1 overflow-hidden">
-        <SeatingEditor background={background} />
+        <SeatingEditor background={background?.url || null} />
       </div>
 
       {/* UPLOAD MODAL */}
