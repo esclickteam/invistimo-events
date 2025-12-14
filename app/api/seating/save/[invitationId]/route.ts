@@ -16,10 +16,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const { invitationId } = await context.params;
     const body = await req.json();
 
+    /* ===============================
+       TABLES
+    =============================== */
     const tables = Array.isArray(body.tables) ? body.tables : [];
 
-    // ⭐⭐⭐ FIX קריטי – תמיכה גם ב־string וגם באובייקט
-    let background = null;
+    /* ===============================
+       BACKGROUND (OPTIONAL)
+       ✔ string (base64)
+       ✔ object { url, opacity }
+    =============================== */
+    let background: { url: string; opacity: number } | null = null;
 
     if (typeof body.background === "string") {
       background = {
@@ -39,12 +46,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
       };
     }
 
+    /* ===============================
+       SAVE / UPSERT
+    =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
       { invitationId },
       {
         $set: {
           tables,
-          background, // ⭐ עכשיו תמיד בפורמט נכון או null
+          background, // ⭐ null או אובייקט תקני
           updatedAt: new Date(),
         },
       },
@@ -55,7 +65,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
-    // איפוס snapshot
+    /* ===============================
+       SNAPSHOT – RESET
+    =============================== */
     await InvitationGuest.updateMany(
       { invitationId },
       { $set: { tableNumber: null } }
