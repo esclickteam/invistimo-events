@@ -8,10 +8,22 @@ import { useEffect, useRef, useState } from "react";
 export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
-  const data =
-    typeof canvasData === "string" ? JSON.parse(canvasData) : canvasData;
+  let data;
 
-  if (!data.objects) return null;
+try {
+  data =
+    typeof canvasData === "string"
+      ? JSON.parse(canvasData)
+      : canvasData;
+} catch (err) {
+  console.error("❌ Invalid canvasData:", canvasData);
+  return null;
+}
+
+if (!data || !Array.isArray(data.objects)) {
+  console.warn("⚠️ canvasData has no objects:", data);
+  return null;
+}
 
   const width = data.width || 400;
   const height = data.height || 720;
@@ -22,13 +34,14 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   useEffect(() => {
     function updateScale() {
-      if (!containerRef.current) return;
+  if (!containerRef.current) return;
 
-      const containerWidth = containerRef.current.offsetWidth;
-      const nextScale = containerWidth / width;
+  const containerWidth = containerRef.current.offsetWidth;
+  if (!containerWidth) return;
 
-      setScale(nextScale);
-    }
+  const nextScale = containerWidth / width;
+  setScale(nextScale);
+}
 
     updateScale();
     window.addEventListener("resize", updateScale);
