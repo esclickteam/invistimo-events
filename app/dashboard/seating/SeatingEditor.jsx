@@ -14,6 +14,10 @@ import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 
+/* ==================== STAGE SIZE (קבוע!) ==================== */
+const STAGE_WIDTH = 2000;
+const STAGE_HEIGHT = 1200;
+
 export default function SeatingEditor() {
   /* ==================== Zustand ==================== */
   const tables = useSeatingStore((s) => s.tables);
@@ -59,7 +63,9 @@ export default function SeatingEditor() {
     if (!isPersonalMode || !canonicalGuestId) return null;
 
     const table = (tables || []).find((t) =>
-      t.seatedGuests?.some((s) => String(s.guestId) === String(canonicalGuestId))
+      t.seatedGuests?.some(
+        (s) => String(s.guestId) === String(canonicalGuestId)
+      )
     );
 
     return table?.id || null;
@@ -70,27 +76,19 @@ export default function SeatingEditor() {
       useSeatingStore.setState({ highlightedTable: null });
       return;
     }
+
     if (draggedGuest) return;
 
-    if (highlightedTableId) {
-      useSeatingStore.setState({ highlightedTable: highlightedTableId });
-    } else {
-      useSeatingStore.setState({ highlightedTable: null });
-    }
+    useSeatingStore.setState({
+      highlightedTable: highlightedTableId || null,
+    });
   }, [isPersonalMode, highlightedTableId, draggedGuest]);
 
-  /* ==================== Canvas Size ==================== */
-  const width =
-    typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
-  const height =
-    typeof window !== "undefined" ? window.innerHeight - 100 : 800;
-
   /* ==================== Zoom & Pan ==================== */
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.7);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
   const [addGuestTable, setAddGuestTable] = useState(null);
-
 
   /* ==================== Mouse ==================== */
   const handleMouseMove = (e) => {
@@ -108,9 +106,10 @@ export default function SeatingEditor() {
   /* ==================== Unseated Guests ==================== */
   const unseatedGuests = useMemo(() => {
     const seatedSet = new Set();
+
     (tables || []).forEach((t) => {
       t.seatedGuests?.forEach((s) => {
-        if (s?.guestId != null) seatedSet.add(String(s.guestId));
+        if (s?.guestId) seatedSet.add(String(s.guestId));
       });
     });
 
@@ -121,7 +120,8 @@ export default function SeatingEditor() {
   }, [tables, guests]);
 
   return (
-    <div className="flex relative w-full h-full">
+    <div className="flex relative w-full h-full overflow-hidden">
+      {/* SIDEBAR */}
       <GuestSidebar onDragStart={(guest) => startDragGuest(guest)} />
 
       {/* ZOOM CONTROLS */}
@@ -134,7 +134,7 @@ export default function SeatingEditor() {
       </button>
 
       <button
-        onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
+        onClick={() => setScale((s) => Math.max(s - 0.1, 0.3))}
         className="absolute top-[130px] left-4 bg-white shadow rounded-full
                    w-12 h-12 text-2xl flex items-center justify-center z-50"
       >
@@ -143,8 +143,8 @@ export default function SeatingEditor() {
 
       {/* STAGE */}
       <Stage
-        width={width}
-        height={height}
+        width={STAGE_WIDTH}
+        height={STAGE_HEIGHT}
         scaleX={scale}
         scaleY={scale}
         x={stagePos.x}
@@ -179,15 +179,17 @@ export default function SeatingEditor() {
         }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        className="flex-1"
       >
+        {/* MAIN LAYER */}
         <Layer>
           {/* ⭐ תבנית אולם */}
           {hallImage && (
             <KonvaImage
               image={hallImage}
-              width={width}
-              height={height}
+              x={0}
+              y={0}
+              width={STAGE_WIDTH}
+              height={STAGE_HEIGHT}
               opacity={0.28}
               listening={false}
             />
@@ -208,6 +210,7 @@ export default function SeatingEditor() {
           <GhostPreview />
         </Layer>
 
+        {/* DELETE BUTTONS */}
         <Layer>
           {tables
             .filter((t) => !t.isHallTemplate)
