@@ -245,6 +245,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
             width: dims.width,
             height: dims.height,
             image: img,
+            url: reader.result as string,
             isBackground: true,
           },
           ...withoutOldBg,
