@@ -1,18 +1,27 @@
 "use client";
 
 import { Combobox } from "@headlessui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function GuestAutocomplete({ guests, onSelect }) {
+export default function GuestAutocomplete({ guests, onSelect, value }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
+
+  /* ⭐ סנכרון אורח חיצוני (כפתור אישי) */
+  useEffect(() => {
+    if (value) {
+      setSelected(value);
+      setQuery("");
+    }
+  }, [value]);
 
   const filtered =
     query === ""
       ? guests
-      : guests.filter((g) =>
-          g.name.toLowerCase().includes(query.toLowerCase()) ||
-          g.phone.replace(/\D/g, "").includes(query.replace(/\D/g, ""))
+      : guests.filter(
+          (g) =>
+            g.name.toLowerCase().includes(query.toLowerCase()) ||
+            g.phone.replace(/\D/g, "").includes(query.replace(/\D/g, ""))
         );
 
   return (

@@ -67,7 +67,7 @@ const MESSAGE_TEMPLATES: Record<
 
 export default function MessagesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // ⭐ נוסף
+  const searchParams = useSearchParams();
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [invitation, setInvitation] = useState<any>(null);
@@ -113,9 +113,6 @@ export default function MessagesPage() {
 
   /* =====================================================
      ⭐ PRESELECT GUEST FROM URL (כפתור אישי)
-     אם הגיע guestId:
-     - מעבירים ל־WhatsApp
-     - בוחרים את האורח אוטומטית
   ===================================================== */
 
   useEffect(() => {
@@ -207,6 +204,11 @@ export default function MessagesPage() {
       sendSMS();
     }
   };
+
+  /* ================= ⭐ תוספת מינימלית בלבד ================= */
+
+  const selectedGuest =
+    guests.find((g) => g._id === selectedGuestId) || null;
 
   /* ================= RENDER ================= */
 
@@ -314,9 +316,10 @@ export default function MessagesPage() {
           </label>
 
           <GuestAutocomplete
-            guests={guests}
-            onSelect={(id: string) => setSelectedGuestId(id)}
-          />
+  guests={guests}
+  value={selectedGuest}
+  onSelect={(id: string) => setSelectedGuestId(id)}
+/>
         </div>
       )}
 
