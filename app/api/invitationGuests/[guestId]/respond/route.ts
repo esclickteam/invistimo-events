@@ -8,7 +8,8 @@ export async function POST(request: Request, context: any) {
   try {
     await db();
 
-    const guestId = context?.params?.guestId;
+    // ✅ שינוי כאן — השם חייב להתאים לשם התיקייה ([id])
+    const guestId = context?.params?.id;
 
     if (!guestId) {
       return NextResponse.json(
@@ -70,7 +71,6 @@ export async function POST(request: Request, context: any) {
       },
       { status: 200 }
     );
-
   } catch (err) {
     console.error("❌ Error updating RSVP:", err);
     return NextResponse.json(
