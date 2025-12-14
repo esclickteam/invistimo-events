@@ -126,6 +126,6 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /guests/[id] error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

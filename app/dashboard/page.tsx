@@ -262,6 +262,25 @@ async function deleteGuest(guest: Guest) {
   )}
 
   {invitation && (
+  <a
+    href={`https://www.invistimo.com/invite/${invitation.shareId}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="
+      border border-gray-300
+      px-6 py-3
+      rounded-full
+      hover:bg-gray-100
+      transition
+      flex items-center gap-2
+    "
+    title="צפייה בהזמנה כפי שהאורחים רואים"
+  >
+    👁️ צפייה בהזמנה
+  </a>
+)}
+
+  {invitation && (
     <button
       onClick={() => router.push("/dashboard/messages")}
       className="
