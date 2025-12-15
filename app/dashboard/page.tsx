@@ -222,6 +222,7 @@ async function deleteGuest(guest: Guest) {
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   if (loading) return null;
+console.log("INVITATION:", invitation);
 
   /* ============================================================
      Render
@@ -240,17 +241,17 @@ async function deleteGuest(guest: Guest) {
 
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
     {invitation && (
-      <div className="flex items-center justify-between mb-10">
-        <EventCountdown invitation={invitation} />
+  <div className="flex items-center justify-between mb-10">
+    <EventCountdown invitation={invitation} />
 
-        <button
-          onClick={() => setShowEventModal(true)}
-          className="text-sm text-[#8f7a67] hover:underline"
-        >
-          ✏️ עריכת פרטי האירוע
-        </button>
-      </div>
-    )}
+    <button
+      onClick={() => setShowEventModal(true)}
+      className="text-sm text-[#8f7a67] hover:underline"
+    >
+      ✏️ עריכת פרטי האירוע
+    </button>
+  </div>
+)}
     {/* ⬆⬆⬆ עד כאן ⬆⬆⬆ */}
 
 {/* ⬇⬇⬇ רק עכשיו – שורת רשימת מוזמנים ⬇⬇⬇ */}
