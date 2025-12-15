@@ -1,16 +1,13 @@
+"use client";
+
 import "./globals.css";
 import type { ReactNode } from "react";
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 
 import Providers from "./providers";
-
-/* ❌ אין hooks */
-/* ❌ אין "use client" בלייאאוט */
-
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-
-/* ✅ קומפוננטת client – מותר לייבא */
 import SupportBotButton from "./components/SupportBotButton";
 
 export const metadata = {
@@ -20,31 +17,40 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
+  // 👇 עמוד לינק אישי לאורח (RSVP / Invite)
+  const isGuestInvitePage =
+    pathname.startsWith("/invite/") ||
+    pathname.startsWith("/invite/rsvp");
+
   return (
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
         <Providers>
           {/* HEADER */}
-          <Header />
+          {!isGuestInvitePage && <Header />}
 
           {/* MAIN CONTENT */}
-          <main className="min-h-screen pt-[64px]">
+          <main className={!isGuestInvitePage ? "min-h-screen pt-[64px]" : ""}>
             {children}
           </main>
 
-          {/* FOOTER – מופיע פעם אחת בלבד */}
-          <Footer />
+          {/* FOOTER */}
+          {!isGuestInvitePage && <Footer />}
 
-          {/* 💬 בוט תמיכה – צף בכל האתר */}
-          <SupportBotButton />
+          {/* 💬 בוט תמיכה */}
+          {!isGuestInvitePage && <SupportBotButton />}
         </Providers>
 
-        {/* ♿ UserWay – נגישות חינמית */}
-        <Script
-          src="https://cdn.userway.org/widget.js"
-          data-account="HnP2BQ1axC"
-          strategy="afterInteractive"
-        />
+        {/* ♿ נגישות */}
+        {!isGuestInvitePage && (
+          <Script
+            src="https://cdn.userway.org/widget.js"
+            data-account="HnP2BQ1axC"
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );
