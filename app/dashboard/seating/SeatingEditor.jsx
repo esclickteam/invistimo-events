@@ -45,6 +45,9 @@ export default function SeatingEditor({ background }) {
   /* 🧱 ZONES */
   const zones = useZoneStore((s) => s.zones);
   const loadPreset = useZoneStore((s) => s.loadPreset);
+  const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
+  const removeZone = useZoneStore((s) => s.removeZone);
+  const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
   /* ==================== Highlight from URL ==================== */
   const searchParams = useSearchParams();
@@ -100,6 +103,21 @@ export default function SeatingEditor({ background }) {
   };
 
   const handleMouseUp = () => dropGuest();
+
+  /* ==================== DELETE ZONE (Keyboard) ==================== */
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (!selectedZoneId) return;
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        removeZone(selectedZoneId);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedZoneId, removeZone]);
 
   /* ==================== Unseated Guests ==================== */
   const unseatedGuests = useMemo(() => {
@@ -166,6 +184,12 @@ export default function SeatingEditor({ background }) {
         onDragEnd={(e) => setStagePos(e.target.position())}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onMouseDown={(e) => {
+          // 👇 לחיצה על הרקע מבטלת בחירת Zone
+          if (e.target === e.target.getStage()) {
+            setSelectedZone(null);
+          }
+        }}
         className="flex-1"
       >
         {/* BACKGROUND */}
@@ -202,7 +226,7 @@ export default function SeatingEditor({ background }) {
           <GhostPreview />
         </Layer>
 
-        {/* DELETE */}
+        {/* DELETE TABLE BUTTONS */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />

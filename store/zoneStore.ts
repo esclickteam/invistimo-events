@@ -33,6 +33,10 @@ export type Zone = {
 type ZoneStore = {
   zones: Zone[];
 
+  /* ===== SELECTION ===== */
+  selectedZoneId: string | null;
+  setSelectedZone: (id: string | null) => void;
+
   /* ===== BASIC ===== */
   setZones: (zones: Zone[]) => void;
   addZone: (zone: Zone) => void;
@@ -54,12 +58,24 @@ type ZoneStore = {
 export const useZoneStore = create<ZoneStore>((set) => ({
   zones: [],
 
+  /* ================= SELECTION ================= */
+  selectedZoneId: null,
+
+  setSelectedZone: (id) =>
+    set({
+      selectedZoneId: id,
+    }),
+
   /* ================= BASIC ================= */
-  setZones: (zones) => set({ zones }),
+  setZones: (zones) =>
+    set({
+      zones,
+    }),
 
   addZone: (zone) =>
     set((state) => ({
       zones: [...state.zones, zone],
+      selectedZoneId: zone.id, // ⭐ בוחרים את החדש אוטומטית
     })),
 
   updateZone: (id, data) =>
@@ -72,6 +88,8 @@ export const useZoneStore = create<ZoneStore>((set) => ({
   removeZone: (id) =>
     set((state) => ({
       zones: state.zones.filter((z) => z.id !== id),
+      selectedZoneId:
+        state.selectedZoneId === id ? null : state.selectedZoneId,
     })),
 
   /* ================= TRANSFORM ================= */
@@ -122,6 +140,9 @@ export const useZoneStore = create<ZoneStore>((set) => ({
       };
     });
 
-    set({ zones });
+    set({
+      zones,
+      selectedZoneId: null, // ⭐ אין בחירה אחרי טעינת preset
+    });
   },
 }));

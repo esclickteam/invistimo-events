@@ -13,14 +13,18 @@ export default function ZoneRenderer({ zone }: Props) {
   const trRef = useRef<any>(null);
 
   const updateZone = useZoneStore((s) => s.updateZone);
+  const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
+  const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
-  /* ================= Attach Transformer ================= */
+  const isSelected = selectedZoneId === zone.id;
+
+  /* ================= Attach Transformer ONLY if selected ================= */
   useEffect(() => {
-    if (!shapeRef.current || !trRef.current) return;
+    if (!isSelected || !shapeRef.current || !trRef.current) return;
 
     trRef.current.nodes([shapeRef.current]);
     trRef.current.getLayer()?.batchDraw();
-  }, [zone.id]);
+  }, [isSelected]);
 
   return (
     <>
@@ -29,18 +33,15 @@ export default function ZoneRenderer({ zone }: Props) {
         y={zone.y}
         rotation={zone.rotation}
         draggable={!zone.locked}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          setSelectedZone(zone.id);
+        }}
         onDragEnd={(e) => {
           updateZone(zone.id, {
             x: e.target.x(),
             y: e.target.y(),
           });
-        }}
-        onClick={(e) => {
-          e.cancelBubble = true;
-
-          if (!shapeRef.current || !trRef.current) return;
-          trRef.current.nodes([shapeRef.current]);
-          trRef.current.getLayer()?.batchDraw();
         }}
       >
         <Rect
@@ -50,8 +51,8 @@ export default function ZoneRenderer({ zone }: Props) {
           fill={zone.color}
           opacity={zone.opacity}
           cornerRadius={16}
-          stroke="#374151"
-          strokeWidth={1}
+          stroke={isSelected ? "#2563eb" : "#374151"}
+          strokeWidth={isSelected ? 2 : 1}
           draggable={false}
           onTransformEnd={() => {
             const node = shapeRef.current;
@@ -83,22 +84,24 @@ export default function ZoneRenderer({ zone }: Props) {
         />
       </Group>
 
-      <Transformer
-        ref={trRef}
-        rotateEnabled
-        enabledAnchors={[
-          "top-left",
-          "top-right",
-          "bottom-left",
-          "bottom-right",
-        ]}
-        boundBoxFunc={(oldBox, newBox) => {
-          if (newBox.width < 80 || newBox.height < 60) {
-            return oldBox;
-          }
-          return newBox;
-        }}
-      />
+      {isSelected && (
+        <Transformer
+          ref={trRef}
+          rotateEnabled
+          enabledAnchors={[
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right",
+          ]}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (newBox.width < 80 || newBox.height < 60) {
+              return oldBox;
+            }
+            return newBox;
+          }}
+        />
+      )}
     </>
   );
 }
