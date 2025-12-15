@@ -14,19 +14,35 @@ export default function EventDetailsModal({
   const [form, setForm] = useState({
     title: invitation.title || "",
     type: invitation.type || "",
-    date: invitation.date?.slice(0, 10) || "",
-    time: invitation.time || "",
+    date: invitation.date ? invitation.date.slice(0, 10) : "",
+    time: invitation.date
+      ? new Date(invitation.date).toISOString().slice(11, 16)
+      : "",
     location: invitation.location || "",
   });
 
   async function save() {
+    // ⏰ חיבור date + time לתאריך אחד אמיתי
+    let fullDate: string | null = null;
+
+    if (form.date) {
+      const time = form.time || "00:00";
+      fullDate = new Date(`${form.date}T${time}`).toISOString();
+    }
+
     await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        title: form.title,
+        type: form.type,
+        location: form.location,
+        date: fullDate, // ✅ זה מה שמפעיל את הספירה לאחור
+      }),
     });
-    onSaved();
-    onClose();
+
+    onSaved(); // רענון נתונים בדשבורד
+    onClose(); // סגירת פופאפ
   }
 
   return (
@@ -38,28 +54,45 @@ export default function EventDetailsModal({
           <input
             placeholder="שם האירוע"
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, title: e.target.value })
+            }
+            className="border rounded-full px-4 py-3"
+          />
+
+          <input
+            placeholder="סוג האירוע"
+            value={form.type}
+            onChange={(e) =>
+              setForm({ ...form, type: e.target.value })
+            }
             className="border rounded-full px-4 py-3"
           />
 
           <input
             type="date"
             value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, date: e.target.value })
+            }
             className="border rounded-full px-4 py-3"
           />
 
           <input
             type="time"
             value={form.time}
-            onChange={(e) => setForm({ ...form, time: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, time: e.target.value })
+            }
             className="border rounded-full px-4 py-3"
           />
 
           <input
             placeholder="מיקום האירוע"
             value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, location: e.target.value })
+            }
             className="border rounded-full px-4 py-3"
           />
         </div>
