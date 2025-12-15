@@ -5,61 +5,29 @@ import { nanoid } from "nanoid";
 
 import { EVENT_PRESETS } from "@/config/eventPresets";
 import { ZONE_META } from "@/config/zonesMeta";
-
-/* ============================================================
-   TYPES
-============================================================ */
-
-export type Zone = {
-  id: string;
-  zoneType: string; // stage | chuppah | danceFloor | ...
-  label: string;
-  icon: string;
-  color: string;
-  opacity: number;
-
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-
-  locked?: boolean;
-};
+import type { Zone, ZoneType } from "@/types/zones";
 
 type ZoneStore = {
   zones: Zone[];
 
-  /* ===== BASIC ===== */
   setZones: (zones: Zone[]) => void;
   addZone: (zone: Zone) => void;
-
   updateZone: (id: string, data: Partial<Zone>) => void;
   removeZone: (id: string) => void;
 
-  /* ===== TRANSFORM ===== */
   rotateZone: (id: string, delta?: number) => void;
   resizeZone: (id: string, width: number, height: number) => void;
 
-  /* ===== PRESET ===== */
-  loadPreset: (eventType: string) => void;
+  loadPreset: (eventType: keyof typeof EVENT_PRESETS) => void;
 };
-
-/* ============================================================
-   STORE
-============================================================ */
 
 export const useZoneStore = create<ZoneStore>((set) => ({
   zones: [],
 
-  /* ================= BASIC ================= */
-
   setZones: (zones) => set({ zones }),
 
   addZone: (zone) =>
-    set((state) => ({
-      zones: [...state.zones, zone],
-    })),
+    set((state) => ({ zones: [...state.zones, zone] })),
 
   updateZone: (id, data) =>
     set((state) => ({
@@ -73,16 +41,11 @@ export const useZoneStore = create<ZoneStore>((set) => ({
       zones: state.zones.filter((z) => z.id !== id),
     })),
 
-  /* ================= TRANSFORM ================= */
-
   rotateZone: (id, delta = 90) =>
     set((state) => ({
       zones: state.zones.map((z) =>
         z.id === id
-          ? {
-              ...z,
-              rotation: ((z.rotation || 0) + delta) % 360,
-            }
+          ? { ...z, rotation: (z.rotation + delta) % 360 }
           : z
       ),
     })),
@@ -100,27 +63,23 @@ export const useZoneStore = create<ZoneStore>((set) => ({
       ),
     })),
 
-  /* ================= PRESET ================= */
-
   loadPreset: (eventType) => {
     const preset = EVENT_PRESETS[eventType];
     if (!preset) return;
 
-    const zones: Zone[] = preset.map((zoneType, index) => {
-      const meta = ZONE_META[zoneType];
+    const zones: Zone[] = preset.map((type: ZoneType, index) => {
+      const meta = ZONE_META[type];
 
       return {
         id: nanoid(),
-        zoneType,
-        label: meta.label,
+        type,
+        name: meta.label,
         icon: meta.icon,
         color: meta.color,
         opacity: 0.35,
 
-        // מיקום אוטומטי – אפשר לשפר בהמשך
-        x: 200 + index * 80,
-        y: 200 + index * 60,
-
+        x: 200 + index * 90,
+        y: 200 + index * 70,
         width: meta.defaultSize.width,
         height: meta.defaultSize.height,
         rotation: 0,

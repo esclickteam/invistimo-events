@@ -4,19 +4,29 @@ export type ZoneType =
   | "danceFloor"
   | "reception"
   | "bar"
-  | "buffet"      // ✅ הוספה
+  | "buffet"
   | "kidsArea";
 
 export interface Zone {
   id: string;
+
+  /** סוג לוגי */
   type: ZoneType;
+
+  /** שם לתצוגה */
   name: string;
 
+  /** UI */
+  icon: string;
+  color: string;
+  opacity: number;
+
+  /** מיקום וגודל */
   x: number;
   y: number;
   width: number;
   height: number;
 
-  rotation?: number;
+  rotation: number;
   locked?: boolean;
 }
