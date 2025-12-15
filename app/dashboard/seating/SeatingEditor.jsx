@@ -14,7 +14,7 @@ import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 
-import GridLayer from "./GridLayer";
+import GridLayer from "@/app/components/seating/GridLayer";
 import ElementsToolbar from "@/app/components/seating/ElementsToolbar";
 
 /* ============================================================
