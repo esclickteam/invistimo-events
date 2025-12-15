@@ -116,9 +116,7 @@ export default function SeatingEditor({ background }) {
     <div className="flex relative w-full h-full">
       {/* SIDEBAR */}
       <GuestSidebar onDragStart={startDragGuest} />
-
-      {/* ELEMENTS TOOLBAR – כפתורים בלבד */}
-      <ElementsToolbar />
+      
 
       {/* ZOOM CONTROLS */}
       <button
