@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Group, Rect, Text, Transformer } from "react-konva";
-import { Zone } from "@/store/zoneStore";
-import { useZoneStore } from "@/store/zoneStore";
+import { Zone, useZoneStore } from "@/store/zoneStore";
 
 type Props = {
   zone: Zone;
@@ -15,22 +14,33 @@ export default function ZoneRenderer({ zone }: Props) {
 
   const updateZone = useZoneStore((s) => s.updateZone);
 
+  /* ================= Attach Transformer ================= */
+  useEffect(() => {
+    if (!shapeRef.current || !trRef.current) return;
+
+    trRef.current.nodes([shapeRef.current]);
+    trRef.current.getLayer()?.batchDraw();
+  }, [zone.id]);
+
   return (
     <>
       <Group
         x={zone.x}
         y={zone.y}
         rotation={zone.rotation}
-        draggable
+        draggable={!zone.locked}
         onDragEnd={(e) => {
           updateZone(zone.id, {
             x: e.target.x(),
             y: e.target.y(),
           });
         }}
-        onClick={() => {
+        onClick={(e) => {
+          e.cancelBubble = true;
+
+          if (!shapeRef.current || !trRef.current) return;
           trRef.current.nodes([shapeRef.current]);
-          trRef.current.getLayer().batchDraw();
+          trRef.current.getLayer()?.batchDraw();
         }}
       >
         <Rect
@@ -42,8 +52,11 @@ export default function ZoneRenderer({ zone }: Props) {
           cornerRadius={16}
           stroke="#374151"
           strokeWidth={1}
+          draggable={false}
           onTransformEnd={() => {
             const node = shapeRef.current;
+            if (!node) return;
+
             const scaleX = node.scaleX();
             const scaleY = node.scaleY();
 
@@ -66,6 +79,7 @@ export default function ZoneRenderer({ zone }: Props) {
           height={zone.height}
           align="center"
           verticalAlign="middle"
+          listening={false}
         />
       </Group>
 
@@ -78,6 +92,12 @@ export default function ZoneRenderer({ zone }: Props) {
           "bottom-left",
           "bottom-right",
         ]}
+        boundBoxFunc={(oldBox, newBox) => {
+          if (newBox.width < 80 || newBox.height < 60) {
+            return oldBox;
+          }
+          return newBox;
+        }}
       />
     </>
   );
