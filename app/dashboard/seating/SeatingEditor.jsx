@@ -49,8 +49,8 @@ export default function SeatingEditor({ background }) {
 
   const canonicalGuestId = useMemo(() => {
     if (!highlightedGuestIdRaw) return null;
-    const raw = String(highlightedGuestIdRaw);
 
+    const raw = String(highlightedGuestIdRaw);
     const found = (guests || []).find(
       (g) => String(g?._id ?? g?.id ?? "") === raw
     );
@@ -98,23 +98,6 @@ export default function SeatingEditor({ background }) {
 
   const handleMouseUp = () => dropGuest();
 
-  /* ==================== Drop Elements ==================== */
-  const handleDrop = (e) => {
-    e.preventDefault();
-
-    const type = e.evt.dataTransfer?.getData("element-type");
-    if (!type) return;
-
-    const stage = stageRef.current;
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-
-    addTable(type, 0, {
-      x: pointer.x,
-      y: pointer.y,
-    });
-  };
-
   /* ==================== Unseated Guests ==================== */
   const unseatedGuests = useMemo(() => {
     const seatedSet = new Set();
@@ -134,7 +117,7 @@ export default function SeatingEditor({ background }) {
       {/* SIDEBAR */}
       <GuestSidebar onDragStart={startDragGuest} />
 
-      {/* ELEMENTS TOOLBAR */}
+      {/* ELEMENTS TOOLBAR – כפתורים בלבד */}
       <ElementsToolbar />
 
       {/* ZOOM CONTROLS */}
@@ -192,8 +175,6 @@ export default function SeatingEditor({ background }) {
         }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.evt.preventDefault()}
         className="flex-1"
       >
         {/* GRID */}
