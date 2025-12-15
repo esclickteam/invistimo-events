@@ -243,7 +243,7 @@ console.log("INVITATION:", invitation);
     {invitation && (
   <div className="flex items-center justify-between mb-10">
     <div className="text-lg font-semibold">
-      {invitation.date ? (
+      {invitation.eventDate ? (
         <EventCountdown invitation={invitation} />
       ) : (
         <span className="text-gray-500">
