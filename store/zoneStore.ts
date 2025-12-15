@@ -55,7 +55,6 @@ export const useZoneStore = create<ZoneStore>((set) => ({
   zones: [],
 
   /* ================= BASIC ================= */
-
   setZones: (zones) => set({ zones }),
 
   addZone: (zone) =>
@@ -76,7 +75,6 @@ export const useZoneStore = create<ZoneStore>((set) => ({
     })),
 
   /* ================= TRANSFORM ================= */
-
   rotateZone: (id, delta = 90) =>
     set((state) => ({
       zones: state.zones.map((z) =>
@@ -100,7 +98,6 @@ export const useZoneStore = create<ZoneStore>((set) => ({
     })),
 
   /* ================= PRESET ================= */
-
   loadPreset: (eventType) => {
     const preset = EVENT_PRESETS[eventType];
     if (!preset) return;
