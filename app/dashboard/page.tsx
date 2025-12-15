@@ -7,7 +7,7 @@ import AddGuestModal from "../components/AddGuestModal";
 import UpgradeToPremium from "../components/UpgradeToPremium";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import ImportExcelModal from "../components/ImportExcelModal"; 
-
+import EventDetailsCard from "../components/EventDetailsCard";
 
 
 /* ============================================================
@@ -227,16 +227,31 @@ async function deleteGuest(guest: Guest) {
   ============================================================ */
   return (
     <div className="p-10" dir="rtl">
-      <h1 className="text-4xl font-semibold mb-6">ניהול האירוע שלך</h1>
+      <h1 className="text-4xl font-semibold mb-6">
+  ניהול האירוע שלך
+</h1>
 
-      {user?.plan === "basic" && (
-        <div className="mb-10">
-          <UpgradeToPremium paidAmount={user.paidAmount} />
-        </div>
-      )}
+{user?.plan === "basic" && (
+  <div className="mb-10">
+    <UpgradeToPremium paidAmount={user.paidAmount} />
+  </div>
+)}
 
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold">רשימת מוזמנים</h2>
+{/* ⬇⬇⬇ כאן – פרטי האירוע (בלוק עצמאי) ⬇⬇⬇ */}
+{invitation && (
+  <EventDetailsCard
+    invitation={invitation}
+    onSaved={loadInvitation}
+  />
+)}
+
+{/* ⬆⬆⬆ עד כאן ⬆⬆⬆ */}
+
+{/* ⬇⬇⬇ רק עכשיו – שורת רשימת מוזמנים ⬇⬇⬇ */}
+<div className="flex items-center justify-between mb-6">
+  <h2 className="text-2xl font-semibold">
+    רשימת מוזמנים
+  </h2>
 
         <div className="flex gap-3">
   <button
