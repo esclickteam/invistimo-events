@@ -9,6 +9,7 @@ export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
   let data;
+
   try {
     data =
       typeof canvasData === "string"
@@ -53,7 +54,7 @@ export default function PublicInviteRenderer({ canvasData }) {
         className="w-full flex justify-center"
         style={{
           overflow: "visible",
-          touchAction: "auto", // ⭐ זה כל הפתרון לגלילה באייפון
+          touchAction: "auto", // ⭐ זה כל הפתרון לגלילה רגילה באייפון
         }}
       >
         <div
@@ -157,6 +158,7 @@ export default function PublicInviteRenderer({ canvasData }) {
 ============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
+
   if (!image) return null;
 
   return (
