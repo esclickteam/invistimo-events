@@ -1,11 +1,9 @@
 "use client";
-
 import { useState } from "react";
 
 export default function AddTableModal({ onClose, onAdd }) {
   const [type, setType] = useState("round");
-  const [seats, setSeats] = useState(12); // ברירת מחדל
-  const [orientation, setOrientation] = useState("horizontal"); // ⭐ חדש – רק לאבירים
+  const [seats, setSeats] = useState(12); // ✅ ברירת מחדל 12 אורחים
 
   const handleAdd = () => {
     if (typeof onAdd !== "function") {
@@ -13,26 +11,14 @@ export default function AddTableModal({ onClose, onAdd }) {
       return;
     }
 
-    // שולחן אבירים → מוסיפים orientation
-    if (type === "banquet") {
-      onAdd({
-        type: "knights", // 👈 אחיד מול TableRenderer / store
-        seats,
-        orientation,
-      });
-      return;
-    }
-
-    // עגול / מרובע – בלי שינוי
     onAdd({ type, seats });
   };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow-xl w-[420px]">
+      <div className="bg-white p-6 rounded-xl shadow-xl w-[400px]">
         <h2 className="text-lg font-bold mb-4">הוספת שולחן חדש</h2>
 
-        {/* סוג שולחן */}
         <label className="block mb-2 text-sm font-medium">צורת שולחן</label>
         <select
           value={type}
@@ -44,7 +30,6 @@ export default function AddTableModal({ onClose, onAdd }) {
           <option value="banquet">שולחן אבירים (מלבני)</option>
         </select>
 
-        {/* כמות אורחים */}
         <label className="block mb-2 text-sm font-medium">כמות אורחים</label>
         <input
           type="number"
@@ -52,28 +37,10 @@ export default function AddTableModal({ onClose, onAdd }) {
           max={50}
           value={seats}
           onChange={(e) => setSeats(Number(e.target.value))}
-          className="w-full border rounded-lg p-2 mb-4"
+          className="w-full border rounded-lg p-2 mb-6"
         />
 
-        {/* ⭐ כיוון – מופיע רק לשולחן אבירים */}
-        {type === "banquet" && (
-          <>
-            <label className="block mb-2 text-sm font-medium">
-              כיוון שולחן אבירים
-            </label>
-            <select
-              value={orientation}
-              onChange={(e) => setOrientation(e.target.value)}
-              className="w-full border rounded-lg p-2 mb-6"
-            >
-              <option value="horizontal">אופקי (לאורך)</option>
-              <option value="vertical">אנכי (לרוחב)</option>
-            </select>
-          </>
-        )}
-
-        {/* כפתורים */}
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
             className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300"

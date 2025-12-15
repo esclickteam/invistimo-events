@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
-import ElementsToolbar from "@/app/components/seating/ElementsToolbar";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function SeatingPage() {
@@ -48,6 +47,8 @@ export default function SeatingPage() {
         const tRes = await fetch(`/api/seating/tables/${id}`);
         const tData = await tRes.json();
 
+        // ⭐⭐ תיקון קריטי:
+        // אם כבר יש background ב־store – לא דורסים אותו
         const currentBackground =
           useSeatingStore.getState().background;
 
@@ -65,7 +66,7 @@ export default function SeatingPage() {
   }, [init]);
 
   /* ===============================
-     SELECT BACKGROUND
+     SELECT BACKGROUND (אופציונלי)
   =============================== */
   const handleBackgroundSelect = (bgUrl) => {
     if (!bgUrl) return;
@@ -77,7 +78,7 @@ export default function SeatingPage() {
   };
 
   /* ===============================
-     SAVE SEATING
+     SAVE SEATING (+ רקע אם יש)
   =============================== */
   async function saveSeating() {
     if (!invitationId) {
@@ -115,12 +116,7 @@ export default function SeatingPage() {
       <div className="flex items-center justify-between px-6 py-3 border-b bg-white shadow-sm">
         <h1 className="text-xl font-semibold">הושבה באולם</h1>
 
-        {/* ACTIONS */}
-        <div className="flex items-center gap-3">
-          {/* ➕ אלמנטים / שולחנות */}
-          <ElementsToolbar />
-
-          {/* העלאת תבנית */}
+        <div className="flex gap-3">
           <button
             onClick={() => setShowUpload(true)}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg"
@@ -128,7 +124,6 @@ export default function SeatingPage() {
             העלאת תבנית אולם
           </button>
 
-          {/* שמירה */}
           <button
             onClick={saveSeating}
             className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg"

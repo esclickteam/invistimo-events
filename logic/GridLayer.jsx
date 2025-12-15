@@ -1,8 +1,6 @@
 "use client";
 import { Line } from "react-konva";
-import { GRID_SIZE, snapToGrid, snapPosition } from "@/logic/gridSnap";
-
-
+import { GRID_SIZE } from "@/logic/grid";
 
 export default function GridLayer({ width, height }) {
   const lines = [];
@@ -26,7 +24,7 @@ export default function GridLayer({ width, height }) {
         points={[0, i * GRID_SIZE, width, i * GRID_SIZE]}
         stroke="#e5e7eb"
         strokeWidth={1}
-         listening={false}
+        listening={false}
       />
     );
   }
