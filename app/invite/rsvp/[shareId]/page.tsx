@@ -138,7 +138,7 @@ export default function InviteRsvpPage({ params }: any) {
 
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         טוען הזמנה...
       </div>
     );
@@ -199,7 +199,7 @@ export default function InviteRsvpPage({ params }: any) {
   ============================================================ */
   return (
     <div
-      className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10 overflow-y-auto"
+      className="min-h-screen flex flex-col items-center py-10 overflow-y-auto bg-white"
       style={{
         WebkitOverflowScrolling: "touch",
         scrollBehavior: "smooth",
@@ -256,7 +256,7 @@ export default function InviteRsvpPage({ params }: any) {
       </div>
 
       {/* RSVP */}
-      <div className="mt-8 w-[390px] bg-white rounded-3xl shadow-xl p-8 mb-16">
+      <div className="mt-8 w-[390px] bg-white rounded-3xl shadow-xl p-8 mb-16 border border-[#eee]">
         {!sent ? (
           <>
             <h2 className="text-xl font-bold text-center mb-4">אישור הגעה</h2>
