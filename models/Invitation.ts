@@ -25,6 +25,16 @@ const InvitationSchema = new Schema(
       type: Date,
     },
 
+    // ✅ חדש – שעה (לספירה לאחור מדויקת)
+    eventTime: {
+      type: String, // "19:30"
+    },
+
+    // ✅ חדש – מיקום האירוע
+    eventLocation: {
+      type: String,
+    },
+
     /* ================= DESIGN ================= */
 
     canvasData: {
