@@ -559,6 +559,15 @@ console.log("INVITATION:", invitation);
     onSuccess={loadGuests}
   />
 )}
+
+{showEventModal && invitation && (
+  <EventDetailsModal
+    invitation={invitation}
+    onClose={() => setShowEventModal(false)}
+    onSaved={loadInvitation}
+  />
+)}
+
     </div>
   );
 }
