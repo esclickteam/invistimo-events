@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Star, Smartphone } from "lucide-react";
+import Footer from "./components/Footer";
 
 /* 🔢 עובדים עם מספרים */
 type GuestOption = 100 | 300 | 500 | 1000;
@@ -169,6 +170,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ========= FOOTER ========= */}
+      <Footer />
     </div>
   );
 }
