@@ -199,7 +199,7 @@ export default function InviteRsvpPage({ params }: any) {
   ============================================================ */
   return (
     <div
-      className="min-h-screen flex flex-col items-center py-10 overflow-y-auto bg-white"
+      className="min-h-screen flex flex-col items-center py-10 bg-white"
       style={{
         WebkitOverflowScrolling: "touch",
         scrollBehavior: "smooth",
@@ -208,51 +208,63 @@ export default function InviteRsvpPage({ params }: any) {
       {/* Canvas */}
       <div
         className="rounded-3xl overflow-hidden shadow-xl bg-white"
-        style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
+        style={{
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+          touchAction: "pan-y", // ✅ מאפשר גלילה מהאמצע במובייל
+        }}
       >
-        <Stage width={CANVAS_WIDTH} height={CANVAS_HEIGHT} ref={stageRef}>
-          <Layer>
-            {(canvasData?.objects || []).map((obj: any, i: number) => {
-              if (obj.type === "image") {
-                return (
-                  <LoadedImage
-                    key={i}
-                    src={obj.url}
-                    x={obj.x}
-                    y={obj.y}
-                    width={obj.width}
-                    height={obj.height}
-                    isBackground={obj.isBackground}
-                    canvasW={CANVAS_WIDTH}
-                    canvasH={CANVAS_HEIGHT}
-                  />
-                );
-              }
+        {/* ✅ מונע מהקנבס “לתפוס” טאצ׳ */}
+        <div style={{ width: "100%", height: "100%", pointerEvents: "none" }}>
+          <Stage
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            ref={stageRef}
+            listening={false} // ✅ מבטל האזנה לאירועים בקנבס
+          >
+            <Layer>
+              {(canvasData?.objects || []).map((obj: any, i: number) => {
+                if (obj.type === "image") {
+                  return (
+                    <LoadedImage
+                      key={i}
+                      src={obj.url}
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.width}
+                      height={obj.height}
+                      isBackground={obj.isBackground}
+                      canvasW={CANVAS_WIDTH}
+                      canvasH={CANVAS_HEIGHT}
+                    />
+                  );
+                }
 
-              if (obj.type === "text") {
-                return (
-                  <Text
-                    key={i}
-                    x={obj.x}
-                    y={obj.y}
-                    text={obj.text}
-                    fontSize={obj.fontSize || 32}
-                    fill={obj.fill || "#000"}
-                    fontFamily={obj.fontFamily || "Arial"}
-                    align={obj.align || "center"}
-                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
-                      obj.italic ? "italic" : ""
-                    }`}
-                    textDecoration={obj.underline ? "underline" : ""}
-                    width={obj.width}
-                  />
-                );
-              }
+                if (obj.type === "text") {
+                  return (
+                    <Text
+                      key={i}
+                      x={obj.x}
+                      y={obj.y}
+                      text={obj.text}
+                      fontSize={obj.fontSize || 32}
+                      fill={obj.fill || "#000"}
+                      fontFamily={obj.fontFamily || "Arial"}
+                      align={obj.align || "center"}
+                      fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
+                        obj.italic ? "italic" : ""
+                      }`}
+                      textDecoration={obj.underline ? "underline" : ""}
+                      width={obj.width}
+                    />
+                  );
+                }
 
-              return null;
-            })}
-          </Layer>
-        </Stage>
+                return null;
+              })}
+            </Layer>
+          </Stage>
+        </div>
       </div>
 
       {/* RSVP */}
