@@ -5,11 +5,13 @@ import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
 import { useSeatingStore } from "@/store/seatingStore";
 
-export default function SeatingPage() {
-  if (typeof window === "undefined") return null;
+/* ⭐ קומפוננטות עליונות */
+import EventTypeSelector from "@/app/components/zones/EventTypeSelector";
+import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 
+export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
-  const [invitationId, setInvitationId] = useState(null);
+  const [invitationId, setInvitationId] = useState<string | null>(null);
 
   /* ===============================
      STORE
@@ -37,7 +39,7 @@ export default function SeatingPage() {
         const gRes = await fetch(`/api/seating/guests/${id}`);
         const gData = await gRes.json();
 
-        const normalizedGuests = (gData.guests || []).map((g) => ({
+        const normalizedGuests = (gData.guests || []).map((g: any) => ({
           id: g._id,
           name: g.name,
           count: g.guestsCount || 1,
@@ -47,8 +49,7 @@ export default function SeatingPage() {
         const tRes = await fetch(`/api/seating/tables/${id}`);
         const tData = await tRes.json();
 
-        // ⭐⭐ תיקון קריטי:
-        // אם כבר יש background ב־store – לא דורסים אותו
+        /* ⭐ לא לדרוס רקע שכבר נטען */
         const currentBackground =
           useSeatingStore.getState().background;
 
@@ -66,9 +67,9 @@ export default function SeatingPage() {
   }, [init]);
 
   /* ===============================
-     SELECT BACKGROUND (אופציונלי)
+     SELECT BACKGROUND
   =============================== */
-  const handleBackgroundSelect = (bgUrl) => {
+  const handleBackgroundSelect = (bgUrl: string) => {
     if (!bgUrl) return;
 
     setBackground({
@@ -78,7 +79,7 @@ export default function SeatingPage() {
   };
 
   /* ===============================
-     SAVE SEATING (+ רקע אם יש)
+     SAVE SEATING
   =============================== */
   async function saveSeating() {
     if (!invitationId) {
@@ -112,37 +113,49 @@ export default function SeatingPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-6 py-3 border-b bg-white shadow-sm">
-        <h1 className="text-xl font-semibold">הושבה באולם</h1>
+      {/* ================= HEADER ================= */}
+      <div className="border-b bg-white shadow-sm">
+        <div className="flex items-center justify-between px-6 py-3">
+          <h1 className="text-xl font-semibold">
+            הושבה באולם
+          </h1>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowUpload(true)}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg"
-          >
-            העלאת תבנית אולם
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowUpload(true)}
+              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg"
+            >
+              העלאת תבנית אולם
+            </button>
 
-          <button
-            onClick={saveSeating}
-            className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg"
-          >
-            💾 שמירת הושבה
-          </button>
+            <button
+              onClick={saveSeating}
+              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg"
+            >
+              💾 שמירת הושבה
+            </button>
+          </div>
         </div>
+
+        {/* ⭐ בחירת סוג אירוע (Presets) */}
+        <div className="px-6 py-2">
+          <EventTypeSelector />
+        </div>
+
+        {/* ⭐ סיידבר אלמנטים */}
+        <ZonesToolbar />
       </div>
 
-      {/* MAIN */}
+      {/* ================= MAIN ================= */}
       <div className="flex-1 overflow-hidden">
         <SeatingEditor background={background?.url || null} />
       </div>
 
-      {/* UPLOAD MODAL */}
+      {/* ================= UPLOAD MODAL ================= */}
       {showUpload && (
         <UploadBackgroundModal
           onClose={() => setShowUpload(false)}
-          onBackgroundSelect={(bgUrl) => {
+          onBackgroundSelect={(bgUrl: string) => {
             handleBackgroundSelect(bgUrl);
             setShowUpload(false);
           }}
