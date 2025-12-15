@@ -1,34 +1,54 @@
-import { ZoneMeta, ZoneType } from "@/types/zones";
+import { ZoneType } from "@/types/zones";
 
-export const ZONE_META: Record<ZoneType, ZoneMeta> = {
+export const ZONE_META: Record<
+  ZoneType,
+  {
+    label: string;
+    defaultSize: { width: number; height: number };
+    color: string;
+    icon: string;
+  }
+> = {
   stage: {
     label: "במה",
+    defaultSize: { width: 280, height: 120 },
+    color: "#fca5a5",
     icon: "🎤",
-    color: "#fecaca",
   },
   chuppah: {
     label: "חופה",
+    defaultSize: { width: 200, height: 200 },
+    color: "#fde68a",
     icon: "💍",
-    color: "#ddd6fe",
   },
   danceFloor: {
     label: "רחבת ריקודים",
+    defaultSize: { width: 360, height: 360 },
+    color: "#bfdbfe",
     icon: "💃",
-    color: "#bbf7d0",
   },
-  buffet: {
-    label: "אוכל",
-    icon: "🍽️",
-    color: "#fde68a",
+  reception: {
+    label: "קבלת פנים",
+    defaultSize: { width: 300, height: 160 },
+    color: "#bbf7d0",
+    icon: "🥂",
   },
   bar: {
     label: "בר",
+    defaultSize: { width: 220, height: 100 },
+    color: "#ddd6fe",
     icon: "🍸",
-    color: "#bae6fd",
+  },
+  buffet: {
+    label: "בופה",                 // ✅ חדש
+    defaultSize: { width: 300, height: 120 },
+    color: "#fed7aa",
+    icon: "🍽️",
   },
   kidsArea: {
     label: "אזור ילדים",
+    defaultSize: { width: 260, height: 160 },
+    color: "#fecaca",
     icon: "🧸",
-    color: "#fbcfe8",
   },
 };

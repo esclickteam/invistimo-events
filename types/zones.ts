@@ -4,6 +4,7 @@ export type ZoneType =
   | "danceFloor"
   | "reception"
   | "bar"
+  | "buffet"      // ✅ הוספה
   | "kidsArea";
 
 export interface Zone {
@@ -15,7 +16,7 @@ export interface Zone {
   y: number;
   width: number;
   height: number;
-  rotation?: number;
 
+  rotation?: number;
   locked?: boolean;
 }
