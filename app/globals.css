@@ -159,3 +159,20 @@ h1, h2, h3 {
   color: white;
 }
 
+@keyframes goldGlow {
+  0% {
+    box-shadow:
+      0 0 0 2px rgba(201,180,143,0.55),
+      0 10px 24px rgba(201,180,143,0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(201,180,143,0.85),
+      0 14px 34px rgba(201,180,143,0.55);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(201,180,143,0.55),
+      0 10px 24px rgba(201,180,143,0.35);
+  }
+}

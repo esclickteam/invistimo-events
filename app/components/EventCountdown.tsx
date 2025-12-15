@@ -65,9 +65,23 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
         px-6 py-4
         shadow-lg
 
-        /* ✨ מסגרת זהב */
-        border border-[#c9b48f]/70
-        shadow-[0_0_0_1px_rgba(201,180,143,0.35)]
+        /* ✨ מסגרת זהב יוקרתית – כפולה + glow איטי */
+relative
+border-2 border-[#c9b48f]
+rounded-2xl
+
+before:absolute
+before:inset-1
+before:rounded-xl
+before:border
+before:border-[#f3e7c9]
+before:opacity-70
+before:pointer-events-none
+
+shadow-[0_0_0_2px_rgba(201,180,143,0.65),_0_10px_28px_rgba(201,180,143,0.45)]
+
+animate-[goldGlow_6s_ease-in-out_infinite]
+
       "
     >
       {/* כותרת */}
