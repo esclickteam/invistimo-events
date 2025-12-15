@@ -10,20 +10,20 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   let data;
 
-try {
-  data =
-    typeof canvasData === "string"
-      ? JSON.parse(canvasData)
-      : canvasData;
-} catch (err) {
-  console.error("❌ Invalid canvasData:", canvasData);
-  return null;
-}
+  try {
+    data =
+      typeof canvasData === "string"
+        ? JSON.parse(canvasData)
+        : canvasData;
+  } catch (err) {
+    console.error("❌ Invalid canvasData:", canvasData);
+    return null;
+  }
 
-if (!data || !Array.isArray(data.objects)) {
-  console.warn("⚠️ canvasData has no objects:", data);
-  return null;
-}
+  if (!data || !Array.isArray(data.objects)) {
+    console.warn("⚠️ canvasData has no objects:", data);
+    return null;
+  }
 
   const width = data.width || 400;
   const height = data.height || 720;
@@ -34,14 +34,14 @@ if (!data || !Array.isArray(data.objects)) {
 
   useEffect(() => {
     function updateScale() {
-  if (!containerRef.current) return;
+      if (!containerRef.current) return;
 
-  const containerWidth = containerRef.current.offsetWidth;
-  if (!containerWidth) return;
+      const containerWidth = containerRef.current.offsetWidth;
+      if (!containerWidth) return;
 
-  const nextScale = containerWidth / width;
-  setScale(nextScale);
-}
+      const nextScale = containerWidth / width;
+      setScale(nextScale);
+    }
 
     updateScale();
     window.addEventListener("resize", updateScale);
@@ -53,7 +53,11 @@ if (!data || !Array.isArray(data.objects)) {
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{ overflow: "visible" }}
+        style={{
+          overflow: "visible",
+          touchAction: "pan-y",                 // ✅ מאפשר גלילה בכל טלפון
+          WebkitOverflowScrolling: "touch",     // ✅ iOS Safari
+        }}
       >
         <div
           style={{
@@ -67,6 +71,7 @@ if (!data || !Array.isArray(data.objects)) {
             height={height * scale}
             scaleX={scale}
             scaleY={scale}
+            listening={false} // ✅ Konva לא לוכד touch → גלילה חופשית
           >
             <Layer>
               {data.objects.map((obj) => {
@@ -153,7 +158,7 @@ if (!data || !Array.isArray(data.objects)) {
                   left: obj.x * scale,
                   width: obj.width * scale,
                   height: obj.height * scale,
-                  pointerEvents: "none",
+                  pointerEvents: "none", // ✅ לא חוסם גלילה
                 }}
               >
                 <Lottie animationData={obj.lottieData} />

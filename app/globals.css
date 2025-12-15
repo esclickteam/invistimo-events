@@ -176,3 +176,12 @@ h1, h2, h3 {
       0 10px 24px rgba(201,180,143,0.35);
   }
 }
+canvas {
+  touch-action: pan-y !important;
+  pointer-events: none !important;
+}
+
+html,
+body {
+  -webkit-overflow-scrolling: touch;
+}
