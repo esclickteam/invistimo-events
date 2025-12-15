@@ -7,7 +7,8 @@ import AddGuestModal from "../components/AddGuestModal";
 import UpgradeToPremium from "../components/UpgradeToPremium";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import ImportExcelModal from "../components/ImportExcelModal"; 
-import EventDetailsCard from "../components/EventDetailsCard";
+import EventCountdown from "../components/EventCountdown";
+import EventDetailsModal from "../components/EventDetailsModal";
 
 
 /* ============================================================
@@ -48,7 +49,7 @@ export default function DashboardPage() {
   const [invitationId, setInvitationId] = useState<string>("");
 
   const [user, setUser] = useState<any | null>(null);
-
+const [showEventModal, setShowEventModal] = useState(false);
   // ✅ חיפוש
   const [search, setSearch] = useState("");
 
@@ -227,25 +228,30 @@ async function deleteGuest(guest: Guest) {
   ============================================================ */
   return (
     <div className="p-10" dir="rtl">
-      <h1 className="text-4xl font-semibold mb-6">
-  ניהול האירוע שלך
-</h1>
+       <h1 className="text-4xl font-semibold mb-6">
+      ניהול האירוע שלך
+    </h1>
 
-{user?.plan === "basic" && (
-  <div className="mb-10">
-    <UpgradeToPremium paidAmount={user.paidAmount} />
-  </div>
-)}
+    {user?.plan === "basic" && (
+      <div className="mb-10">
+        <UpgradeToPremium paidAmount={user.paidAmount} />
+      </div>
+    )}
 
-{/* ⬇⬇⬇ כאן – פרטי האירוע (בלוק עצמאי) ⬇⬇⬇ */}
-{invitation && (
-  <EventDetailsCard
-    invitation={invitation}
-    onSaved={loadInvitation}
-  />
-)}
+    {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
+    {invitation && (
+      <div className="flex items-center justify-between mb-10">
+        <EventCountdown invitation={invitation} />
 
-{/* ⬆⬆⬆ עד כאן ⬆⬆⬆ */}
+        <button
+          onClick={() => setShowEventModal(true)}
+          className="text-sm text-[#8f7a67] hover:underline"
+        >
+          ✏️ עריכת פרטי האירוע
+        </button>
+      </div>
+    )}
+    {/* ⬆⬆⬆ עד כאן ⬆⬆⬆ */}
 
 {/* ⬇⬇⬇ רק עכשיו – שורת רשימת מוזמנים ⬇⬇⬇ */}
 <div className="flex items-center justify-between mb-6">
