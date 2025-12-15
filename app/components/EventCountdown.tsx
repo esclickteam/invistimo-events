@@ -64,6 +64,10 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
         rounded-2xl
         px-6 py-4
         shadow-lg
+
+        /* ✨ מסגרת זהב */
+        border border-[#c9b48f]/70
+        shadow-[0_0_0_1px_rgba(201,180,143,0.35)]
       "
     >
       {/* כותרת */}
@@ -75,8 +79,8 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
         יתחיל בעוד:
       </div>
 
-      {/* ספירה לאחור */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* ⏳ ספירה לאחור – סדר הפוך */}
+      <div className="flex items-center gap-2 flex-wrap flex-row-reverse">
         {timeLeft.months > 0 && (
           <TimeBox label="חודשים" value={timeLeft.months} />
         )}
