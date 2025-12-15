@@ -35,12 +35,12 @@ body {
 ----------------------------------------------------------- */
 .bg-luxury {
   background: radial-gradient(
-      circle at top left,
-      #ffffff 0%,
-      var(--cream) 40%,
-      var(--cream-soft) 70%,
-      var(--sand) 100%
-    );
+    circle at top left,
+    #ffffff 0%,
+    var(--cream) 40%,
+    var(--cream-soft) 70%,
+    var(--sand) 100%
+  );
 }
 
 /* גריין – רעש עדין לאפקט יוקרה */
@@ -125,6 +125,10 @@ body {
 h1, h2, h3 {
   color: var(--brown-dark);
 }
+
+/* -----------------------------------------------------------
+   מצבי נגישות (לתוסף פנימי / כללי)
+----------------------------------------------------------- */
 .high-contrast {
   background: black !important;
   color: white !important;
@@ -141,14 +145,25 @@ h1, h2, h3 {
   border-radius: 4px;
 }
 
+/* -----------------------------------------------------------
+   כפתור נגישות פנימי (אם יחזור בעתיד)
+----------------------------------------------------------- */
 .access-btn {
   border: 1px solid #c7a17a;
   border-radius: 12px;
   padding: 8px;
   transition: 0.2s;
 }
-
 .access-btn:hover {
   background: #c7a17a;
   color: white;
+}
+
+/* -----------------------------------------------------------
+   ♿ UserWay – מיקום הכפתור באמצע המסך
+----------------------------------------------------------- */
+#userwayAccessibilityIcon {
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%);
 }
