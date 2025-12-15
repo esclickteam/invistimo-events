@@ -92,7 +92,6 @@ export default function TableRenderer({ table }) {
       x={table.x}
       y={table.y}
       draggable
-      onDragStart={(e) => (e.cancelBubble = true)}
       onDragMove={(e) => {
         e.cancelBubble = true;
         updatePositionInStore();
@@ -101,23 +100,18 @@ export default function TableRenderer({ table }) {
         e.cancelBubble = true;
         updatePositionInStore();
       }}
-      onMouseDown={(e) => (e.cancelBubble = true)}
-      onTouchStart={(e) => (e.cancelBubble = true)}
       onClick={(e) => {
-        if (e.target?.attrs?.isRotateButton) return;
-
         e.cancelBubble = true;
+
+        // ✅ רק סימון שולחן – בלי לפתוח שום תפריט
         useSeatingStore.setState({
           highlightedTable: table.id,
           highlightedSeats: [],
         });
-
-        table.openAddGuestModal?.(table);
       }}
     >
       {/* ================= TABLE SHAPE ================= */}
 
-      {/* ROUND */}
       {table.type === "round" && (
         <>
           <Circle radius={60} fill={tableFill} shadowBlur={8} />
@@ -135,7 +129,6 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* SQUARE */}
       {table.type === "square" && (
         <>
           <Rect
@@ -161,7 +154,6 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* BANQUET / KNIGHTS */}
       {isBanquet && (
         <>
           <Rect
@@ -185,7 +177,7 @@ export default function TableRenderer({ table }) {
             offsetY={banquetHeight / 2}
           />
 
-          {/* 🔁 ROTATE BUTTON */}
+          {/* 🔁 ROTATE */}
           <Group
             x={banquetWidth / 2 - 12}
             y={-banquetHeight / 2 - 26}
@@ -205,13 +197,12 @@ export default function TableRenderer({ table }) {
               height={28}
               offsetX={14}
               offsetY={14}
-              isRotateButton
             />
           </Group>
         </>
       )}
 
-      {/* ================= SEATS (לא נוגעים) ================= */}
+      {/* ================= SEATS ================= */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
@@ -229,47 +220,15 @@ export default function TableRenderer({ table }) {
           : null;
 
         return (
-          <Group
-            key={i}
-            x={c.x}
-            y={c.y}
-            rotation={(c.rotation * 180) / Math.PI}
-          >
+          <Group key={i} x={c.x} y={c.y}>
             {isInHoverHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}
 
-            {isSelectedSeat && (
-              <Circle radius={16} fill="#fde047" opacity={0.9} />
-            )}
-
             <Circle
               radius={10}
-              fill={
-                isSelectedSeat
-                  ? "#facc15"
-                  : isFree
-                  ? "#3b82f6"
-                  : "#d1d5db"
-              }
-              stroke={isSelectedSeat ? "#eab308" : "#2563eb"}
-              strokeWidth={isSelectedSeat ? 2 : 1}
+              fill={isFree ? "#3b82f6" : "#d1d5db"}
               onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
-            />
-
-            <Rect
-              width={12}
-              height={6}
-              y={-14}
-              offsetX={6}
-              cornerRadius={2}
-              fill={
-                isSelectedSeat
-                  ? "#eab308"
-                  : isFree
-                  ? "#2563eb"
-                  : "#9ca3af"
-              }
             />
 
             {!isFree && (
