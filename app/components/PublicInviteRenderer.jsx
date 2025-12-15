@@ -24,19 +24,28 @@ export default function PublicInviteRenderer({ canvasData }) {
     return null;
   }
 
-  const width = data.width || 400;
-  const height = data.height || 720;
+  const width = Number(data.width) || 400;
+  const height = Number(data.height) || 720;
 
   /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState<number>(1);
 
   useEffect(() => {
     function updateScale() {
       if (!containerRef.current) return;
+
       const containerWidth = containerRef.current.offsetWidth;
-      if (!containerWidth) return;
-      setScale(containerWidth / width);
+
+      // ✅ הגנות קריטיות
+      if (!containerWidth || containerWidth <= 0) return;
+      if (!width || width <= 0) return;
+
+      const nextScale = containerWidth / width;
+
+      if (!Number.isFinite(nextScale) || nextScale <= 0) return;
+
+      setScale(nextScale);
     }
 
     updateScale();
@@ -44,15 +53,20 @@ export default function PublicInviteRenderer({ canvasData }) {
     return () => window.removeEventListener("resize", updateScale);
   }, [width]);
 
+  // ✅ Fail-safe נוסף נגד NaN ברינדור
+  if (!Number.isFinite(scale) || scale <= 0) {
+    return null;
+  }
+
   return (
     <div className="w-full flex justify-center">
-      {/* ⭐ פה הפתרון – ה-wrapper שקוף למגע */}
+      {/* ⭐ wrapper שקוף למגע – מאפשר גלילה */}
       <div
         ref={containerRef}
         className="w-full flex justify-center"
         style={{
           overflow: "visible",
-          pointerEvents: "none", // ✅ מאפשר גלילה מעל הקנבס
+          pointerEvents: "none",
         }}
       >
         <div
@@ -134,7 +148,7 @@ export default function PublicInviteRenderer({ canvasData }) {
 
           {/* 🟠 LOTTIE – מחוץ ל־Konva */}
           {data.objects
-            .filter((o) => o.type === "lottie")
+            .filter((o) => o.type === "lottie" && o.lottieData)
             .map((obj) => (
               <div
                 key={obj.id}
