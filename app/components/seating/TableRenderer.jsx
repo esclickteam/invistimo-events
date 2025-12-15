@@ -166,7 +166,7 @@ export default function TableRenderer({ table }) {
             offsetY={45}
           />
 
-          {/* 🔁 ROTATE BUTTON – מסתובב יחד עם השולחן */}
+          {/* 🔁 ROTATE BUTTON */}
           <Group
             x={0}
             y={-70}
@@ -191,7 +191,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ================= SEATS ================= */}
+      {/* ================= SEATS (עיצוב מלא – כמו קודם) ================= */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
@@ -237,6 +237,22 @@ export default function TableRenderer({ table }) {
               strokeWidth={isSelectedSeat ? 2 : 1}
               onClick={() =>
                 !isFree && handleSeatDrag(seatGuest.guestId)
+              }
+            />
+
+            {/* 🪑 משענת הכיסא – הוחזרה */}
+            <Rect
+              width={12}
+              height={6}
+              y={-14}
+              offsetX={6}
+              cornerRadius={2}
+              fill={
+                isSelectedSeat
+                  ? "#eab308"
+                  : isFree
+                  ? "#2563eb"
+                  : "#9ca3af"
               }
             />
 
