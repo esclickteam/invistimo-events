@@ -242,17 +242,30 @@ console.log("INVITATION:", invitation);
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
     {invitation && (
   <div className="flex items-center justify-between mb-10">
-    <EventCountdown invitation={invitation} />
+    <div className="text-lg font-semibold">
+      {invitation.date ? (
+        <EventCountdown invitation={invitation} />
+      ) : (
+        <span className="text-gray-500">
+          📅 טרם הוגדר תאריך לאירוע
+        </span>
+      )}
+    </div>
 
     <button
       onClick={() => setShowEventModal(true)}
-      className="text-sm text-[#8f7a67] hover:underline"
+      className="
+        text-sm font-semibold
+        text-[#8f7a67]
+        hover:underline
+        whitespace-nowrap
+      "
     >
       ✏️ עריכת פרטי האירוע
     </button>
   </div>
 )}
-    {/* ⬆⬆⬆ עד כאן ⬆⬆⬆ */}
+
 
 {/* ⬇⬇⬇ רק עכשיו – שורת רשימת מוזמנים ⬇⬇⬇ */}
 <div className="flex items-center justify-between mb-6">
