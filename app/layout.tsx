@@ -1,14 +1,16 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import Script from "next/script";
+
 import Providers from "./providers";
+
+/* ❌ אין hooks */
+/* ❌ אין "use client" בלייאאוט */
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 
-/* ✅ next/script */
-import Script from "next/script";
-
-/* ✅ בוט תמיכה */
+/* ✅ קומפוננטת client – מותר לייבא */
 import SupportBotButton from "./components/SupportBotButton";
 
 export const metadata = {
@@ -25,29 +27,24 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {/* HEADER */}
           <Header />
 
-          {/* MAIN */}
+          {/* MAIN CONTENT */}
           <main className="min-h-screen pt-[64px]">
             {children}
           </main>
 
-          {/* FOOTER */}
+          {/* FOOTER – מופיע פעם אחת בלבד */}
           <Footer />
 
-          {/* 💬 בוט תמיכה */}
+          {/* 💬 בוט תמיכה – צף בכל האתר */}
           <SupportBotButton />
-
-          {/* ♿ נגישות – Nagishli */}
-          <Script id="nagishli-config" strategy="beforeInteractive">
-            {`
-              var nl_link = "https://invistimo.com/accessibility";
-            `}
-          </Script>
-
-          <Script
-            src="https://cdn.nagishli.co.il/nagishli.js?v=2.3"
-            strategy="afterInteractive"
-          />
         </Providers>
+
+        {/* ♿ UserWay – נגישות חינמית */}
+        <Script
+          src="https://cdn.userway.org/widget.js"
+          data-account="HnP2BQ1axC"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
