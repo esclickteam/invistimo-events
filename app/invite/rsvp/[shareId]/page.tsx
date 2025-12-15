@@ -148,7 +148,7 @@ export default function InviteRsvpPage({ params }: any) {
   const { canvasData } = invitation;
 
   /* ============================================================
-     שליחת RSVP – בטוח, הערות אופציונליות
+     שליחת RSVP
   ============================================================ */
   async function submitRsvp() {
     if (!rsvp) {
@@ -161,7 +161,6 @@ export default function InviteRsvpPage({ params }: any) {
       return;
     }
 
-    // בניית הערות רק אם באמת יש
     const finalNotes =
       notes.includes("אחר") && otherNote
         ? [...notes.filter((n) => n !== "אחר"), `אחר: ${otherNote}`]
@@ -172,7 +171,6 @@ export default function InviteRsvpPage({ params }: any) {
       guestsCount: rsvp === "yes" ? guestsCount : 0,
     };
 
-    // ⬅️ הערות נשלחות רק אם יש
     if (finalNotes.length > 0) {
       payload.notes = finalNotes.join(", ");
     }
@@ -200,7 +198,13 @@ export default function InviteRsvpPage({ params }: any) {
      Render
   ============================================================ */
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10">
+    <div
+      className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10 overflow-y-auto"
+      style={{
+        WebkitOverflowScrolling: "touch",
+        scrollBehavior: "smooth",
+      }}
+    >
       {/* Canvas */}
       <div
         className="rounded-3xl overflow-hidden shadow-xl bg-white"
@@ -252,7 +256,7 @@ export default function InviteRsvpPage({ params }: any) {
       </div>
 
       {/* RSVP */}
-      <div className="mt-8 w-[390px] bg-white rounded-3xl shadow-xl p-8">
+      <div className="mt-8 w-[390px] bg-white rounded-3xl shadow-xl p-8 mb-16">
         {!sent ? (
           <>
             <h2 className="text-xl font-bold text-center mb-4">אישור הגעה</h2>
