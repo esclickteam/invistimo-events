@@ -2,8 +2,8 @@ import "./globals.css";
 import type { ReactNode } from "react";
 import Providers from "./providers";
 
-/* ❌ אסור להשתמש ב-hooks כאן */
-/* ❌ אין "use client" ב-layout */
+/* ❌ אין hooks */
+/* ❌ אין "use client" */
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -19,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
         <Providers>
+
           {/* HEADER */}
           <Header />
 
@@ -27,8 +28,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
 
-          {/* FOOTER – מופיע בכל הדפים */}
+          {/* 
+            FOOTER – מופיע בכל הדפים  
+            כולל ניווט משפטי + FAQ לפני יצירת קשר
+          */}
           <Footer />
+
         </Providers>
       </body>
     </html>
