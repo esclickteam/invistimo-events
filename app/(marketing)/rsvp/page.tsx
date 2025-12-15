@@ -49,9 +49,11 @@ export default function RSVPPage() {
           <Link
             href="/create-invite"
             className="
-              inline-flex px-10 py-4 rounded-full
+              inline-flex px-12 py-5 rounded-full
               bg-[#4a413a] text-white text-lg font-semibold
-              shadow-lg hover:shadow-xl hover:scale-[1.04]
+              shadow-[0_18px_45px_rgba(0,0,0,0.25)]
+              hover:shadow-[0_26px_60px_rgba(0,0,0,0.35)]
+              hover:scale-[1.05]
               transition
             "
           >
@@ -94,7 +96,7 @@ export default function RSVPPage() {
             </p>
           </motion.div>
 
-          {/* VIDEO – RSVP 1 (PORTRAIT, FIXED) */}
+          {/* VIDEO – RSVP 1 */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -108,14 +110,7 @@ export default function RSVPPage() {
               shadow-[0_25px_60px_rgba(0,0,0,0.15)]
             "
           >
-            <div
-              className="
-                rounded-[26px]
-                overflow-hidden
-                aspect-[9/16]
-                bg-[#111]
-              "
-            >
+            <div className="rounded-[26px] overflow-hidden aspect-[9/16] bg-black">
               <video
                 src="/videos/rsvp1.mp4"
                 autoPlay
@@ -184,7 +179,7 @@ export default function RSVPPage() {
             className="
               rounded-[28px]
               overflow-hidden
-              bg-[#111]
+              bg-black
               shadow-[0_20px_50px_rgba(0,0,0,0.18)]
             "
           >
@@ -231,7 +226,7 @@ export default function RSVPPage() {
         </div>
       </section>
 
-      {/* ================= BLOCK 4 – WHY ================= */}
+      {/* ================= BLOCK 4 – WHY + CTA ================= */}
       <section className="py-28 px-6 bg-[#faf8f4] text-center">
         <motion.h2
           initial="hidden"
@@ -255,6 +250,31 @@ export default function RSVPPage() {
           אישורי הגעה שעובדים בשבילך —
           לא כאלה שצריך לרדוף אחריהם.
         </p>
+
+        {/* FINAL CTA */}
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeUp}
+          transition={{ delay: 0.25 }}
+          className="mt-16"
+        >
+          <Link
+            href="/create-invite"
+            className="
+              inline-flex px-14 py-6 rounded-full
+              bg-gradient-to-br from-[#4a413a] to-[#3f3730]
+              text-white text-xl font-semibold
+              shadow-[0_22px_60px_rgba(0,0,0,0.35)]
+              hover:shadow-[0_30px_75px_rgba(0,0,0,0.45)]
+              hover:scale-[1.06]
+              transition
+            "
+          >
+            התחילו לנהל אישורי הגעה
+          </Link>
+        </motion.div>
       </section>
     </div>
   );
