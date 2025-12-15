@@ -22,7 +22,7 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
 
     const interval = setInterval(() => {
       const now = Date.now();
-      let diff = target - now;
+      const diff = target - now;
 
       if (diff <= 0) {
         setTimeLeft(null);
@@ -55,31 +55,63 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
   if (!timeLeft) return null;
 
   return (
-    <div className="flex items-center gap-2 text-lg font-semibold flex-wrap">
-      <span>{invitation.title || "האירוע"}</span>
-      <span className="text-gray-500">יתחיל בעוד:</span>
+    <div
+      dir="rtl"
+      className="
+        flex flex-col gap-3
+        bg-gradient-to-l from-black to-zinc-800
+        text-white
+        rounded-2xl
+        px-6 py-4
+        shadow-lg
+      "
+    >
+      {/* כותרת */}
+      <div className="text-lg font-semibold">
+        האירוע{" "}
+        <span className="text-[#c9b48f] font-bold">
+          {invitation.title || "שלך"}
+        </span>{" "}
+        יתחיל בעוד:
+      </div>
 
-      {timeLeft.months > 0 && (
-        <TimeBox label="חודשים" value={timeLeft.months} />
-      )}
-      {timeLeft.weeks > 0 && (
-        <TimeBox label="שבועות" value={timeLeft.weeks} />
-      )}
-      {timeLeft.days > 0 && (
-        <TimeBox label="ימים" value={timeLeft.days} />
-      )}
+      {/* ספירה לאחור */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {timeLeft.months > 0 && (
+          <TimeBox label="חודשים" value={timeLeft.months} />
+        )}
+        {timeLeft.weeks > 0 && (
+          <TimeBox label="שבועות" value={timeLeft.weeks} />
+        )}
+        {timeLeft.days > 0 && (
+          <TimeBox label="ימים" value={timeLeft.days} />
+        )}
 
-      <TimeBox label="שעות" value={timeLeft.hours} />
-      <TimeBox label="דקות" value={timeLeft.minutes} />
-      <TimeBox label="שניות" value={timeLeft.seconds} />
+        <TimeBox label="שעות" value={timeLeft.hours} />
+        <TimeBox label="דקות" value={timeLeft.minutes} />
+        <TimeBox label="שניות" value={timeLeft.seconds} />
+      </div>
     </div>
   );
 }
 
 function TimeBox({ value, label }: { value: number; label: string }) {
   return (
-    <div className="flex flex-col items-center bg-black text-white rounded-md px-3 py-2 min-w-[56px]">
-      <span className="text-xl">{String(value).padStart(2, "0")}</span>
+    <div
+      className="
+        flex flex-col items-center
+        bg-white/10
+        backdrop-blur
+        border border-white/20
+        rounded-xl
+        px-4 py-3
+        min-w-[72px]
+        text-center
+      "
+    >
+      <span className="text-2xl font-bold tabular-nums">
+        {String(value).padStart(2, "0")}
+      </span>
       <span className="text-xs opacity-80">{label}</span>
     </div>
   );
