@@ -7,7 +7,7 @@ export default function InviteRsvpLayout({
 }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="min-h-screen bg-[#f7f3ee] text-[#5c4632]">
+      <body className="min-h-screen bg-[#faf9f6] text-[#5c4632]">
         {children}
       </body>
     </html>
