@@ -139,9 +139,7 @@ export default function PublicInvitePage({ params }: any) {
      Render
   ============================================================ */
   return (
-    /* 🔹 זה ה-SCROLL CONTAINER – רוחב מלא */
     <div className="min-h-screen w-full overflow-y-auto bg-[#faf9f6]">
-      {/* 🔹 עטיפה פנימית שמרכזת תוכן */}
       <div className="flex flex-col items-center py-10 pb-32">
         {/* הזמנה מעוצבת */}
         <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
@@ -204,9 +202,7 @@ export default function PublicInvitePage({ params }: any) {
                   <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
                     כמה אנשים יגיעו?
                   </label>
-                  <input
-                    type="number"
-                    min={1}
+                  <select
                     value={form.guestsCount}
                     onChange={(e) =>
                       setForm({
@@ -214,8 +210,14 @@ export default function PublicInvitePage({ params }: any) {
                         guestsCount: Number(e.target.value),
                       })
                     }
-                    className="w-full px-4 py-3 rounded-xl border border-[#d1c7b4]"
-                  />
+                    className="w-full px-4 py-3 rounded-xl border border-[#d1c7b4] bg-white"
+                  >
+                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                      <option key={num} value={num}>
+                        {num}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

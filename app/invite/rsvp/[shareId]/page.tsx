@@ -294,10 +294,12 @@ export default function InviteRsvpPage({ params }: any) {
                 <label className="block mb-2">כמה אנשים יגיעו?</label>
                 <select
                   value={guestsCount}
-                  onChange={(e) => setGuestsCount(Number(e.target.value))}
+                  onChange={(e) =>
+                    setGuestsCount(Number(e.target.value))
+                  }
                   className="w-full border rounded-xl px-4 py-3 mb-4"
                 >
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n}>
                       {n}
                     </option>
