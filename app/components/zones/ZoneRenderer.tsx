@@ -72,7 +72,7 @@ export default function ZoneRenderer({ zone }: Props) {
         />
 
         <Text
-          text={`${zone.icon} ${zone.label}`}
+          text={`${zone.icon} ${zone.name}`}
           fontSize={18}
           fill="#111827"
           width={zone.width}
