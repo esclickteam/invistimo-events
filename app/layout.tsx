@@ -13,6 +13,7 @@ import Footer from "./components/Footer";
 /* ✅ קומפוננטת client – מותר לייבא */
 import SupportBotButton from "./components/SupportBotButton";
 import LayoutShell from "./components/LayoutShell";
+import SupportBotGate from "./components/SupportBotGate";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -29,8 +30,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </LayoutShell>
 
-          {/* 💬 בוט תמיכה – צף בכל האתר (לא בדפים חיצוניים, מטופל בתוך LayoutShell) */}
-          <SupportBotButton />
+          {/* 💬 בוט תמיכה – לא מופיע בדפי הזמנה */}
+          <SupportBotGate>
+            <SupportBotButton />
+          </SupportBotGate>
         </Providers>
 
         {/* ♿ UserWay – נגישות חינמית */}
