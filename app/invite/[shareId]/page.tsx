@@ -29,6 +29,8 @@ export default function PublicInvitePage({ params }: any) {
     notes: [],
   });
 
+  const [guestsOpen, setGuestsOpen] = useState(false);
+
   /* ============================================================
      unwrap params
   ============================================================ */
@@ -198,26 +200,48 @@ export default function PublicInvitePage({ params }: any) {
 
             {form.rsvp === "yes" && (
               <>
+                {/* 🔽 Dropdown מקצועי */}
                 <div>
                   <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
                     כמה אנשים יגיעו?
                   </label>
-                  <select
-                    value={form.guestsCount}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        guestsCount: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-4 py-3 rounded-xl border border-[#d1c7b4] bg-white"
-                  >
-                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
-                      <option key={num} value={num}>
-                        {num}
-                      </option>
-                    ))}
-                  </select>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setGuestsOpen((v) => !v)}
+                      className="w-full flex justify-between items-center px-4 py-3 rounded-full border border-[#d1c7b4] bg-white"
+                    >
+                      <span>{form.guestsCount}</span>
+                      <span className="text-gray-400">▾</span>
+                    </button>
+
+                    {guestsOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-2xl border border-[#d1c7b4] bg-white shadow-lg max-h-48 overflow-y-auto">
+                        {Array.from({ length: 15 }, (_, i) => i + 1).map(
+                          (num) => (
+                            <div
+                              key={num}
+                              onClick={() => {
+                                setForm({
+                                  ...form,
+                                  guestsCount: num,
+                                });
+                                setGuestsOpen(false);
+                              }}
+                              className={`px-4 py-3 cursor-pointer hover:bg-[#faf9f6] ${
+                                form.guestsCount === num
+                                  ? "bg-[#f3eee7] font-semibold"
+                                  : ""
+                              }`}
+                            >
+                              {num}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>

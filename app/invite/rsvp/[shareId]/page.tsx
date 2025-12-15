@@ -66,6 +66,7 @@ export default function InviteRsvpPage({ params }: any) {
 
   const [rsvp, setRsvp] = useState<"yes" | "no" | null>(null);
   const [guestsCount, setGuestsCount] = useState<number>(1);
+  const [guestsOpen, setGuestsOpen] = useState(false);
 
   const [notes, setNotes] = useState<string[]>([]);
   const [otherNote, setOtherNote] = useState("");
@@ -198,13 +199,7 @@ export default function InviteRsvpPage({ params }: any) {
      Render
   ============================================================ */
   return (
-    <div
-      className="min-h-screen flex flex-col items-center py-10 overflow-y-auto bg-white"
-      style={{
-        WebkitOverflowScrolling: "touch",
-        scrollBehavior: "smooth",
-      }}
-    >
+    <div className="min-h-screen flex flex-col items-center py-10 overflow-y-auto bg-white">
       {/* Canvas */}
       <div
         className="rounded-3xl overflow-hidden shadow-xl bg-white"
@@ -240,10 +235,6 @@ export default function InviteRsvpPage({ params }: any) {
                     fill={obj.fill || "#000"}
                     fontFamily={obj.fontFamily || "Arial"}
                     align={obj.align || "center"}
-                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
-                      obj.italic ? "italic" : ""
-                    }`}
-                    textDecoration={obj.underline ? "underline" : ""}
                     width={obj.width}
                   />
                 );
@@ -292,19 +283,39 @@ export default function InviteRsvpPage({ params }: any) {
             {rsvp === "yes" && (
               <>
                 <label className="block mb-2">כמה אנשים יגיעו?</label>
-                <select
-                  value={guestsCount}
-                  onChange={(e) =>
-                    setGuestsCount(Number(e.target.value))
-                  }
-                  className="w-full border rounded-xl px-4 py-3 mb-4"
-                >
-                  {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
+
+                {/* 🔽 DROPDOWN מקצועי */}
+                <div className="relative mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setGuestsOpen((v) => !v)}
+                    className="w-full flex justify-between items-center px-4 py-3 rounded-full border border-[#d1c7b4]"
+                  >
+                    <span>{guestsCount}</span>
+                    <span>▾</span>
+                  </button>
+
+                  {guestsOpen && (
+                    <div className="absolute z-20 mt-2 w-full rounded-2xl border border-[#d1c7b4] bg-white shadow-lg max-h-48 overflow-y-auto">
+                      {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
+                        <div
+                          key={n}
+                          onClick={() => {
+                            setGuestsCount(n);
+                            setGuestsOpen(false);
+                          }}
+                          className={`px-4 py-3 cursor-pointer hover:bg-[#faf9f6] ${
+                            guestsCount === n
+                              ? "bg-[#f3eee7] font-semibold"
+                              : ""
+                          }`}
+                        >
+                          {n}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <label className="block mb-2">הערות (לא חובה):</label>
                 <div className="grid grid-cols-2 gap-3 mb-4">
