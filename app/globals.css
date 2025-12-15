@@ -163,7 +163,14 @@ h1, h2, h3 {
    ♿ UserWay – מיקום הכפתור באמצע המסך
 ----------------------------------------------------------- */
 #userwayAccessibilityIcon {
+  position: fixed !important;
   top: 50% !important;
+  right: 16px !important;   /* בצד ימין */
+  left: auto !important;
   bottom: auto !important;
-  transform: translateY(-50%);
+
+  transform: translateY(-50%) !important;
+
+  margin: 0 !important;
+  z-index: 9999 !important;
 }
