@@ -24,8 +24,8 @@ export default function PublicInviteRenderer({ canvasData }) {
     return null;
   }
 
-  const width = Number(data.width) || 400;
-  const height = Number(data.height) || 720;
+  const width = data.width || 400;
+  const height = data.height || 720;
 
   /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -36,13 +36,9 @@ export default function PublicInviteRenderer({ canvasData }) {
       if (!containerRef.current) return;
 
       const containerWidth = containerRef.current.offsetWidth;
-      if (!containerWidth || containerWidth <= 0) return;
-      if (!width || width <= 0) return;
+      if (!containerWidth) return;
 
-      const nextScale = containerWidth / width;
-      if (!Number.isFinite(nextScale) || nextScale <= 0) return;
-
-      setScale(nextScale);
+      setScale(containerWidth / width);
     }
 
     updateScale();
@@ -50,17 +46,14 @@ export default function PublicInviteRenderer({ canvasData }) {
     return () => window.removeEventListener("resize", updateScale);
   }, [width]);
 
-  if (!Number.isFinite(scale) || scale <= 0) return null;
-
   return (
     <div className="w-full flex justify-center">
-      {/* ⭐ זה מה שגורם לגלילה רגילה באייפון */}
       <div
         ref={containerRef}
         className="w-full flex justify-center"
         style={{
           overflow: "visible",
-          touchAction: "auto", // ✅ גלילה חופשית מכל מקום במסך
+          touchAction: "auto", // ⭐ זה כל הפתרון לגלילה באייפון
         }}
       >
         <div
@@ -135,9 +128,9 @@ export default function PublicInviteRenderer({ canvasData }) {
             </Layer>
           </Stage>
 
-          {/* 🟠 LOTTIE – מחוץ ל־Konva */}
+          {/* 🟠 LOTTIE */}
           {data.objects
-            .filter((o) => o.type === "lottie" && o.lottieData)
+            .filter((o) => o.type === "lottie")
             .map((obj) => (
               <div
                 key={obj.id}
