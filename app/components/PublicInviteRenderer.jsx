@@ -39,8 +39,7 @@ export default function PublicInviteRenderer({ canvasData }) {
       const containerWidth = containerRef.current.offsetWidth;
       if (!containerWidth) return;
 
-      const nextScale = containerWidth / width;
-      setScale(nextScale);
+      setScale(containerWidth / width);
     }
 
     updateScale();
@@ -55,8 +54,6 @@ export default function PublicInviteRenderer({ canvasData }) {
         className="w-full flex justify-center"
         style={{
           overflow: "visible",
-          touchAction: "pan-y",                 // ✅ מאפשר גלילה בכל טלפון
-          WebkitOverflowScrolling: "touch",     // ✅ iOS Safari
         }}
       >
         <div
@@ -66,18 +63,16 @@ export default function PublicInviteRenderer({ canvasData }) {
             position: "relative",
           }}
         >
+          {/* ================= K O N V A  ================= */}
           <Stage
             width={width * scale}
             height={height * scale}
             scaleX={scale}
             scaleY={scale}
-            listening={false} // ✅ Konva לא לוכד touch → גלילה חופשית
+            listening={false} // ❌ לא מאזין למגעים
           >
             <Layer>
               {data.objects.map((obj) => {
-                /* -------------------------------------------------------
-                    🔵 RECTANGLE
-                ------------------------------------------------------- */
                 if (obj.type === "rect") {
                   return (
                     <Rect
@@ -94,9 +89,6 @@ export default function PublicInviteRenderer({ canvasData }) {
                   );
                 }
 
-                /* -------------------------------------------------------
-                    🟣 CIRCLE
-                ------------------------------------------------------- */
                 if (obj.type === "circle") {
                   return (
                     <Rect
@@ -111,16 +103,10 @@ export default function PublicInviteRenderer({ canvasData }) {
                   );
                 }
 
-                /* -------------------------------------------------------
-                    🖼 IMAGE
-                ------------------------------------------------------- */
                 if (obj.type === "image") {
                   return <PreviewImage key={obj.id} obj={obj} />;
                 }
 
-                /* -------------------------------------------------------
-                    ✏ TEXT
-                ------------------------------------------------------- */
                 if (obj.type === "text") {
                   return (
                     <Text
@@ -144,9 +130,7 @@ export default function PublicInviteRenderer({ canvasData }) {
             </Layer>
           </Stage>
 
-          {/* -------------------------------------------------------
-              🟠 LOTTIE — rendered OUTSIDE Konva
-          ------------------------------------------------------- */}
+          {/* ================= LOTTIE ================= */}
           {data.objects
             .filter((o) => o.type === "lottie")
             .map((obj) => (
@@ -158,12 +142,24 @@ export default function PublicInviteRenderer({ canvasData }) {
                   left: obj.x * scale,
                   width: obj.width * scale,
                   height: obj.height * scale,
-                  pointerEvents: "none", // ✅ לא חוסם גלילה
+                  pointerEvents: "none",
                 }}
               >
                 <Lottie animationData={obj.lottieData} />
               </div>
             ))}
+
+          {/* ================= GLASS LAYER ================= */}
+          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 10,
+              background: "transparent",
+              touchAction: "pan-y",
+            }}
+          />
         </div>
       </div>
     </div>
@@ -171,11 +167,10 @@ export default function PublicInviteRenderer({ canvasData }) {
 }
 
 /* ============================================================
-   🖼 IMAGE LOADER — loads real image for preview
+   🖼 IMAGE LOADER
 ============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
-
   if (!image) return null;
 
   return (
