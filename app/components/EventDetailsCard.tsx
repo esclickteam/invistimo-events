@@ -14,19 +14,30 @@ export default function EventDetailsCard({
 
   const [form, setForm] = useState({
     title: invitation.title || "",
-    type: invitation.type || "",
-    date: invitation.date?.slice(0, 10) || "",
-    location: invitation.location || "",
+    eventType: invitation.eventType || "",
+    date: invitation.eventDate
+      ? invitation.eventDate.slice(0, 10)
+      : "",
   });
 
   async function save() {
     try {
       setSaving(true);
 
+      // מחברים date לשדה האמיתי במודל
+      const payload: any = {
+        title: form.title,
+        eventType: form.eventType,
+      };
+
+      if (form.date) {
+        payload.eventDate = new Date(form.date).toISOString();
+      }
+
       const res = await fetch(`/api/invitations/${invitation._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -36,7 +47,7 @@ export default function EventDetailsCard({
       }
 
       setEditing(false);
-      onSaved();
+      onSaved(); // 🔄 רענון הזמנה → מפעיל EventCountdown
     } catch (err) {
       console.error(err);
       alert("❌ שגיאת שרת");
@@ -64,9 +75,10 @@ export default function EventDetailsCard({
                 setEditing(false);
                 setForm({
                   title: invitation.title || "",
-                  type: invitation.type || "",
-                  date: invitation.date?.slice(0, 10) || "",
-                  location: invitation.location || "",
+                  eventType: invitation.eventType || "",
+                  date: invitation.eventDate
+                    ? invitation.eventDate.slice(0, 10)
+                    : "",
                 });
               }}
               className="text-sm text-gray-500 hover:underline"
@@ -85,11 +97,13 @@ export default function EventDetailsCard({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* שם האירוע */}
         <input
           value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, title: e.target.value })
+          }
           placeholder="שם האירוע"
           readOnly={!editing}
           className={`border rounded-full px-4 py-3 ${
@@ -100,8 +114,10 @@ export default function EventDetailsCard({
         {/* סוג אירוע */}
         {editing ? (
           <select
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
+            value={form.eventType}
+            onChange={(e) =>
+              setForm({ ...form, eventType: e.target.value })
+            }
             className="border rounded-full px-4 py-3 bg-white"
           >
             <option value="">סוג אירוע</option>
@@ -113,7 +129,7 @@ export default function EventDetailsCard({
           </select>
         ) : (
           <input
-            value={form.type}
+            value={form.eventType}
             readOnly
             placeholder="סוג אירוע"
             className="border rounded-full px-4 py-3 bg-gray-50"
@@ -124,18 +140,9 @@ export default function EventDetailsCard({
         <input
           type="date"
           value={form.date}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
-          readOnly={!editing}
-          className={`border rounded-full px-4 py-3 ${
-            editing ? "bg-white" : "bg-gray-50"
-          }`}
-        />
-
-        {/* מיקום */}
-        <input
-          value={form.location}
-          onChange={(e) => setForm({ ...form, location: e.target.value })}
-          placeholder="מיקום האירוע"
+          onChange={(e) =>
+            setForm({ ...form, date: e.target.value })
+          }
           readOnly={!editing}
           className={`border rounded-full px-4 py-3 ${
             editing ? "bg-white" : "bg-gray-50"

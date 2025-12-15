@@ -17,7 +17,7 @@ export async function GET(req: Request, context: any) {
     const params = await context.params;
     const id = params?.id;
 
-    if (!id || id === "undefined" || typeof id !== "string") {
+    if (!id || typeof id !== "string") {
       return NextResponse.json(
         { error: "Invalid invitation id" },
         { status: 400 }
@@ -47,7 +47,9 @@ export async function GET(req: Request, context: any) {
 }
 
 /* ============================================================
-   💾 PUT — עדכון הזמנה קיימת (פרטי אירוע / קנבס)
+   💾 PUT — עדכון הזמנה קיימת
+   ✔ פרטי אירוע
+   ✔ קנבס (לא חובה)
 ============================================================ */
 export async function PUT(req: Request, context: any) {
   try {
@@ -65,35 +67,27 @@ export async function PUT(req: Request, context: any) {
 
     const body = await req.json();
 
-    // ✅ פרטי אירוע + קנבס (אופציונלי)
+    // 🔥 התאמה מלאה למודל
     const {
       title,
-      type,
-      date,
-      time,        // ⭐ נוסף – חשוב לספירה לאחור
-      location,
+      eventType,
+      eventDate,
       canvasData,
     } = body;
-
-    // ❗ canvasData חובה רק אם מנסים לעדכן אותו
-    if ("canvasData" in body && !canvasData) {
-      return NextResponse.json(
-        { success: false, error: "Missing canvas data" },
-        { status: 400 }
-      );
-    }
 
     const updatePayload: any = {
       updatedAt: new Date(),
     };
 
-    // 🧠 מעדכן רק מה שנשלח בפועל
+    // 🧠 מעדכן רק מה שנשלח
     if (title !== undefined) updatePayload.title = title;
-    if (type !== undefined) updatePayload.type = type;
-    if (date !== undefined) updatePayload.date = date;
-    if (time !== undefined) updatePayload.time = time; // ⭐ חדש
-    if (location !== undefined) updatePayload.location = location;
-    if (canvasData !== undefined) updatePayload.canvasData = canvasData;
+    if (eventType !== undefined) updatePayload.eventType = eventType;
+    if (eventDate !== undefined) updatePayload.eventDate = eventDate;
+
+    // ❗ canvasData — רק אם באמת נשלח
+    if (canvasData !== undefined) {
+      updatePayload.canvasData = canvasData;
+    }
 
     const updated = await Invitation.findByIdAndUpdate(
       id,

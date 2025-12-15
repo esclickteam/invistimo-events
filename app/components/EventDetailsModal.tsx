@@ -13,12 +13,13 @@ export default function EventDetailsModal({
 }) {
   const [form, setForm] = useState({
     title: invitation.title || "",
-    type: invitation.type || "",
-    date: invitation.date ? invitation.date.slice(0, 10) : "",
-    time: invitation.date
-      ? new Date(invitation.date).toISOString().slice(11, 16)
+    eventType: invitation.eventType || "",
+    date: invitation.eventDate
+      ? invitation.eventDate.slice(0, 10)
       : "",
-    location: invitation.location || "",
+    time: invitation.eventDate
+      ? new Date(invitation.eventDate).toISOString().slice(11, 16)
+      : "",
   });
 
   async function save() {
@@ -30,25 +31,32 @@ export default function EventDetailsModal({
       fullDate = new Date(`${form.date}T${time}`).toISOString();
     }
 
-    await fetch(`/api/invitations/${invitation._id}`, {
+    const res = await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: form.title,
-        type: form.type,
-        location: form.location,
-        date: fullDate, // ✅ זה מה שמפעיל את הספירה לאחור
+        eventType: form.eventType,
+        eventDate: fullDate, // ⭐ זה השדה שמפעיל את הספירה לאחור
       }),
     });
 
-    onSaved(); // רענון נתונים בדשבורד
-    onClose(); // סגירת פופאפ
+    const data = await res.json();
+    if (!data.success) {
+      alert("שגיאה בשמירת פרטי האירוע");
+      return;
+    }
+
+    onSaved(); // רענון ההזמנה בדשבורד
+    onClose(); // סגירת המודאל
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-        <h2 className="text-xl font-semibold mb-4">✏️ עריכת פרטי האירוע</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          ✏️ עריכת פרטי האירוע
+        </h2>
 
         <div className="grid grid-cols-1 gap-3">
           <input
@@ -61,10 +69,10 @@ export default function EventDetailsModal({
           />
 
           <input
-            placeholder="סוג האירוע"
-            value={form.type}
+            placeholder="סוג האירוע (חתונה / בר מצווה וכו׳)"
+            value={form.eventType}
             onChange={(e) =>
-              setForm({ ...form, type: e.target.value })
+              setForm({ ...form, eventType: e.target.value })
             }
             className="border rounded-full px-4 py-3"
           />
@@ -83,15 +91,6 @@ export default function EventDetailsModal({
             value={form.time}
             onChange={(e) =>
               setForm({ ...form, time: e.target.value })
-            }
-            className="border rounded-full px-4 py-3"
-          />
-
-          <input
-            placeholder="מיקום האירוע"
-            value={form.location}
-            onChange={(e) =>
-              setForm({ ...form, location: e.target.value })
             }
             className="border rounded-full px-4 py-3"
           />

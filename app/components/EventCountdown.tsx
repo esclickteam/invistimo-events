@@ -15,14 +15,9 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
 
   useEffect(() => {
-    if (!invitation?.date) return;
+    if (!invitation?.eventDate) return;
 
-    // 🧠 בניית תאריך יעד (date + time אם קיים)
-    const targetDateTime = invitation.time
-      ? new Date(`${invitation.date}T${invitation.time}`)
-      : new Date(invitation.date);
-
-    const target = targetDateTime.getTime();
+    const target = new Date(invitation.eventDate).getTime();
     if (isNaN(target)) return;
 
     const interval = setInterval(() => {
@@ -35,28 +30,27 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
         return;
       }
 
-      const seconds = Math.floor(diff / 1000);
-      const minutes = Math.floor(seconds / 60);
-      const hours = Math.floor(minutes / 60);
-      const days = Math.floor(hours / 24);
+      const totalSeconds = Math.floor(diff / 1000);
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const totalHours = Math.floor(totalMinutes / 60);
+      const totalDays = Math.floor(totalHours / 24);
 
-      // ✨ חישוב חכם
-      const months = Math.floor(days / 30);
-      const weeks = Math.floor((days % 30) / 7);
-      const remDays = days % 7;
+      const months = Math.floor(totalDays / 30);
+      const weeks = Math.floor((totalDays % 30) / 7);
+      const days = totalDays % 7;
 
       setTimeLeft({
         months,
         weeks,
-        days: remDays,
-        hours: hours % 24,
-        minutes: minutes % 60,
-        seconds: seconds % 60,
+        days,
+        hours: totalHours % 24,
+        minutes: totalMinutes % 60,
+        seconds: totalSeconds % 60,
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [invitation?.date, invitation?.time]);
+  }, [invitation?.eventDate]);
 
   if (!timeLeft) return null;
 
