@@ -34,7 +34,10 @@ export async function GET(req: Request, context: any) {
     }
 
     return NextResponse.json(
-      { success: true, invitation: JSON.parse(JSON.stringify(invitation)) },
+      {
+        success: true,
+        invitation: JSON.parse(JSON.stringify(invitation)),
+      },
       { status: 200 }
     );
   } catch (err) {
@@ -44,7 +47,7 @@ export async function GET(req: Request, context: any) {
 }
 
 /* ============================================================
-   💾 PUT — עדכון הזמנה קיימת
+   💾 PUT — עדכון הזמנה קיימת (פרטי אירוע / קנבס)
 ============================================================ */
 export async function PUT(req: Request, context: any) {
   try {
@@ -62,11 +65,12 @@ export async function PUT(req: Request, context: any) {
 
     const body = await req.json();
 
-    // ✅ חדש – פרטי אירוע
+    // ✅ פרטי אירוע + קנבס (אופציונלי)
     const {
       title,
       type,
       date,
+      time,        // ⭐ נוסף – חשוב לספירה לאחור
       location,
       canvasData,
     } = body;
@@ -83,10 +87,11 @@ export async function PUT(req: Request, context: any) {
       updatedAt: new Date(),
     };
 
-    // 🧠 מעדכן רק מה שנשלח
+    // 🧠 מעדכן רק מה שנשלח בפועל
     if (title !== undefined) updatePayload.title = title;
     if (type !== undefined) updatePayload.type = type;
     if (date !== undefined) updatePayload.date = date;
+    if (time !== undefined) updatePayload.time = time; // ⭐ חדש
     if (location !== undefined) updatePayload.location = location;
     if (canvasData !== undefined) updatePayload.canvasData = canvasData;
 
