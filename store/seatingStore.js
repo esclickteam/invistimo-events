@@ -2,11 +2,11 @@ import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
 export const useSeatingStore = create((set, get) => ({
-  /* ---------------- STATE ---------------- */
+  /* ======================= STATE ======================= */
   tables: [],
   guests: [],
 
-  background: null, // ⭐⭐ הוספה קריטית ⭐⭐
+  background: null,
 
   draggedGuest: null,
   ghostPosition: { x: 0, y: 0 },
@@ -14,74 +14,98 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* ⭐ אורח נבחר – מגיע מה־URL */
+  /* ⭐ אורח נבחר – מה־URL */
   selectedGuestId: null,
 
   showAddModal: false,
   addGuestTable: null,
 
-  /* ---------------- ACTIONS ---------------- */
+  /* ======================= BASIC ACTIONS ======================= */
   setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
   setShowAddModal: (v) => set({ showAddModal: v }),
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
-  setBackground: (background) => set({ background }), // ⭐⭐ הוספה ⭐⭐
+  setBackground: (background) => set({ background }),
 
   setTables: (tables) =>
-    set(() => ({
+    set({
       tables: tables || [],
-    })),
+    }),
 
-  /* ---------------- INIT ---------------- */
+  /* ======================= INIT ======================= */
   init: (tables, guests, background = null) => {
-    console.log("🟦 INIT — Loading tables & guests:", { tables, guests, background });
+    console.log("🟦 INIT Seating:", { tables, guests, background });
     set({
       tables: tables || [],
       guests: guests || [],
-      background, // ⭐⭐ נטען מהשרת אם קיים
+      background,
     });
   },
 
-  /* ---------------- FETCH GUESTS ---------------- */
+  /* ======================= FETCH GUESTS ======================= */
   fetchGuests: async (invitationId) => {
     try {
       const res = await fetch(`/api/seating/guests/${invitationId}`);
       const data = await res.json();
 
       if (data.success) {
-        console.log("🟩 Loaded guests:", data.guests);
         set({ guests: data.guests });
-      } else {
-        console.error("⚠ Error loading guests:", data.error);
       }
     } catch (err) {
-      console.error("❌ Failed to fetch guests:", err);
+      console.error("❌ fetchGuests error:", err);
     }
   },
 
-  /* ---------------- ADD TABLE ---------------- */
-  addTable: (type, seats) => {
+  /* ======================= ADD TABLE ======================= */
+  addTable: (type, seats, extra = {}) => {
     const { tables } = get();
 
     const newTable = {
-      id: "t" + (tables.length + 1),
+      id: "t" + Date.now(),
       name: `שולחן ${tables.length + 1}`,
       type,
       seats,
+
       x: 300 + tables.length * 40,
       y: 200,
+
+      /* ⭐⭐ חדש – לשולחן אבירים בלבד */
+      orientation: type === "banquet" ? "horizontal" : undefined,
+
+      /* ⭐⭐ עתידי – אובייקטים מיוחדים */
+      elementType: extra.elementType || null, // stage | chuppah | exit
+
       seatedGuests: [],
     };
 
     set({ tables: [...tables, newTable] });
   },
 
-  /* ---------------- DELETE TABLE ---------------- */
+  /* ======================= UPDATE ORIENTATION ======================= */
+  rotateBanquet: (tableId) => {
+    const { tables } = get();
+
+    set({
+      tables: tables.map((t) =>
+        t.id === tableId && t.type === "banquet"
+          ? {
+              ...t,
+              orientation:
+                t.orientation === "horizontal" ? "vertical" : "horizontal",
+            }
+          : t
+      ),
+    });
+  },
+
+  /* ======================= DELETE TABLE ======================= */
   deleteTable: (tableId) =>
     set((state) => {
       const updatedGuests = state.guests.map((g) =>
-        g.tableId === tableId ? { ...g, tableId: null, tableName: null } : g
+        g.tableId === tableId
+          ? { ...g, tableId: null, tableName: null }
+          : g
       );
 
       return {
@@ -92,7 +116,7 @@ export const useSeatingStore = create((set, get) => ({
       };
     }),
 
-  /* ---------------- DRAG START ---------------- */
+  /* ======================= DRAG START ======================= */
   startDragGuest: (guest) => {
     set({
       draggedGuest: guest,
@@ -103,7 +127,7 @@ export const useSeatingStore = create((set, get) => ({
 
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
-  /* ---------------- HOVER TABLE ---------------- */
+  /* ======================= HOVER ======================= */
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
@@ -111,7 +135,12 @@ export const useSeatingStore = create((set, get) => ({
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-      const radius = t.type === "round" ? 90 : t.type === "square" ? 110 : 140;
+
+      let radius = 110;
+      if (t.type === "round") radius = 90;
+      if (t.type === "square") radius = 120;
+      if (t.type === "banquet") radius = 160;
+
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
@@ -130,7 +159,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- DROP ---------------- */
+  /* ======================= DROP ======================= */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -140,7 +169,16 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    if (draggedGuest && !highlightedTable) {
+    if (!draggedGuest) {
+      return set({
+        draggedGuest: null,
+        highlightedSeats: [],
+        highlightedTable: null,
+      });
+    }
+
+    /* ❌ dropped outside */
+    if (!highlightedTable || highlightedSeats.length === 0) {
       const cleanedTables = tables.map((t) => ({
         ...t,
         seatedGuests: t.seatedGuests.filter(
@@ -159,14 +197,7 @@ export const useSeatingStore = create((set, get) => ({
         guests: cleanedGuests,
         draggedGuest: null,
         highlightedSeats: [],
-      });
-    }
-
-    if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
-      return set({
-        draggedGuest: null,
         highlightedTable: null,
-        highlightedSeats: [],
       });
     }
 
@@ -199,7 +230,7 @@ export const useSeatingStore = create((set, get) => ({
         ? {
             ...g,
             tableId: highlightedTable,
-            tableName: targetTable?.name || `שולחן ${highlightedTable}`,
+            tableName: targetTable?.name || "שולחן",
           }
         : g
     );
@@ -213,23 +244,22 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- REMOVE FROM SEAT ---------------- */
+  /* ======================= REMOVE FROM SEAT ======================= */
   removeFromSeat: (guestId) => {
     const { tables, guests } = get();
 
-    const updatedTables = tables.map((t) => ({
-      ...t,
-      seatedGuests: t.seatedGuests.filter((s) => s.guestId !== guestId),
-    }));
-
-    const updatedGuests = guests.map((g) =>
-      g.id === guestId ? { ...g, tableId: null, tableName: null } : g
-    );
-
-    set({ tables: updatedTables, guests: updatedGuests });
+    set({
+      tables: tables.map((t) => ({
+        ...t,
+        seatedGuests: t.seatedGuests.filter((s) => s.guestId !== guestId),
+      })),
+      guests: guests.map((g) =>
+        g.id === guestId ? { ...g, tableId: null, tableName: null } : g
+      ),
+    });
   },
 
-  /* ---------------- ASSIGN MANUALLY ---------------- */
+  /* ======================= MANUAL ASSIGN ======================= */
   assignGuestsToTable: (tableId, guestId, count) => {
     const { tables, guests } = get();
 
@@ -237,11 +267,11 @@ export const useSeatingStore = create((set, get) => ({
     const guest = guests.find((g) => g.id === guestId);
 
     if (!table || !guest)
-      return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
+      return { ok: false, message: "שגיאה בזיהוי" };
 
     const block = findFreeBlock(table, count);
     if (!block)
-      return { ok: false, message: "אין מספיק מקומות פנויים בשולחן" };
+      return { ok: false, message: "אין מספיק מקומות" };
 
     tables.forEach((t) => {
       t.seatedGuests = t.seatedGuests.filter(
@@ -257,7 +287,7 @@ export const useSeatingStore = create((set, get) => ({
     );
 
     guest.tableId = tableId;
-    guest.tableName = table.name || `שולחן ${tableId}`;
+    guest.tableName = table.name;
 
     set({
       tables: [...tables],
