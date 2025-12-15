@@ -9,34 +9,33 @@ export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
 
-  const selectedGuestId = useSeatingStore((s) => s.selectedGuestId); // ✅ חדש
+  const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const guests = useSeatingStore((s) => s.guests);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
 
-  const tableRef = useRef();
-  const seatsCoords = getSeatCoordinates(table);
+  const tableRef = useRef(null);
 
+  /* ================= DATA ================= */
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
-  // ✅ נרמול: לפעמים guest.id, לפעמים guest._id
   const normalizeGuestId = (g) => String(g?.id ?? g?._id ?? "");
 
-  // ✅ בודקים אם האורח הנבחר יושב בשולחן הזה
   const hasSelectedGuestInThisTable = useMemo(() => {
     if (!selectedGuestId) return false;
-    return assigned.some((s) => String(s?.guestId) === String(selectedGuestId));
+    return assigned.some(
+      (s) => String(s?.guestId) === String(selectedGuestId)
+    );
   }, [assigned, selectedGuestId]);
 
-  // ✅ אם השולחן מסומן רגיל (hover/drop) או אם האורח הנבחר יושב בו → צהוב מרקר
   const isHighlighted =
     highlightedTable === table.id || hasSelectedGuestInThisTable;
 
-  /* -------- UPDATE POSITION IN STORE -------- */
+  /* ================= POSITION ================= */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
-
     const pos = tableRef.current.getPosition();
+
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
         t.id === table.id ? { ...t, x: pos.x, y: pos.y } : t
@@ -55,9 +54,37 @@ export default function TableRenderer({ table }) {
     if (g) startDragGuest(g);
   };
 
-  // 🎨 צבעים
-  const tableFill = isHighlighted ? "#fde047" : "#3b82f6"; // 🟡 צהוב זוהר
-  const tableText = isHighlighted ? "#713f12" : "white"; // טקסט כהה על צהוב
+  /* ================= COLORS ================= */
+  const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
+  const tableText = isHighlighted ? "#713f12" : "white";
+
+  /* ================= BANQUET ROTATION ================= */
+  const isBanquet = table.type === "banquet";
+  const orientation = table.orientation || "horizontal";
+
+  const width = orientation === "horizontal" ? 240 : 90;
+  const height = orientation === "horizontal" ? 90 : 240;
+
+  const rotateBanquet = () => {
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id
+          ? {
+              ...t,
+              orientation:
+                (t.orientation || "horizontal") === "horizontal"
+                  ? "vertical"
+                  : "horizontal",
+            }
+          : t
+      ),
+    }));
+  };
+
+  const seatsCoords = getSeatCoordinates({
+    ...table,
+    orientation,
+  });
 
   return (
     <Group
@@ -65,10 +92,6 @@ export default function TableRenderer({ table }) {
       x={table.x}
       y={table.y}
       draggable
-      /* ⭐ מונע גרירת Stage במקום שולחן */
-      onDragStart={(e) => {
-        e.cancelBubble = true;
-      }}
       onDragMove={(e) => {
         e.cancelBubble = true;
         updatePositionInStore();
@@ -77,25 +100,16 @@ export default function TableRenderer({ table }) {
         e.cancelBubble = true;
         updatePositionInStore();
       }}
-      onMouseDown={(e) => (e.cancelBubble = true)}
-      onTouchStart={(e) => (e.cancelBubble = true)}
-      /* ⭐ לחיצה על שולחן — פתיחת חלון הוספת אורחים */
       onClick={(e) => {
-        if (e.target?.attrs?.isDeleteButton) return;
-
         e.cancelBubble = true;
-
         useSeatingStore.setState({
           highlightedTable: table.id,
           highlightedSeats: [],
         });
-
-        if (table.openAddGuestModal) {
-          table.openAddGuestModal(table);
-        }
       }}
     >
-      {/* -------------------------------- TABLE SHAPES ------------------------------- */}
+      {/* ================= TABLE SHAPE ================= */}
+
       {table.type === "round" && (
         <>
           <Circle radius={60} fill={tableFill} shadowBlur={8} />
@@ -138,58 +152,78 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {table.type === "banquet" && (
+      {isBanquet && (
         <>
           <Rect
-            width={240}
-            height={90}
-            offsetX={120}
-            offsetY={45}
+            width={width}
+            height={height}
+            offsetX={width / 2}
+            offsetY={height / 2}
             fill={tableFill}
             shadowBlur={8}
             cornerRadius={10}
           />
+
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
             fill={tableText}
             align="center"
             verticalAlign="middle"
-            width={240}
-            height={90}
-            offsetX={120}
-            offsetY={45}
+            width={width}
+            height={height}
+            offsetX={width / 2}
+            offsetY={height / 2}
           />
+
+          {/* 🔁 ROTATE BUTTON */}
+          <Group
+            x={width / 2 - 10}
+            y={-height / 2 - 22}
+            onClick={(e) => {
+              e.cancelBubble = true;
+              rotateBanquet();
+            }}
+          >
+            <Circle radius={12} fill="#111827" opacity={0.9} />
+            <Text
+              text="⟳"
+              fontSize={14}
+              fill="white"
+              align="center"
+              verticalAlign="middle"
+              width={24}
+              height={24}
+              offsetX={12}
+              offsetY={12}
+            />
+          </Group>
         </>
       )}
 
-      {/* -------------------------------- SEATS ------------------------------- */}
+      {/* ================= SEATS ================= */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
 
         const isInHoverHighlight = highlightedSeats.includes(i);
-
-        // ✅ האם זה המקום של האורח הנבחר
         const isSelectedSeat =
           !!seatGuest &&
           !!selectedGuestId &&
           String(seatGuest.guestId) === String(selectedGuestId);
 
         const guestName = !isFree
-          ? (guests || []).find(
+          ? guests.find(
               (g) => normalizeGuestId(g) === String(seatGuest.guestId)
             )?.name
           : null;
 
         return (
           <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
-            {/* היילייט ירוק של hover (נשאר כמו שהיה) */}
             {isInHoverHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}
 
-            {/* 🟡 היילייט צהוב זוהר של האורח הנבחר */}
             {isSelectedSeat && (
               <Circle radius={16} fill="#fde047" opacity={0.9} />
             )}
@@ -198,7 +232,7 @@ export default function TableRenderer({ table }) {
               radius={10}
               fill={
                 isSelectedSeat
-                  ? "#facc15" // 🟡 כיסא נבחר
+                  ? "#facc15"
                   : isFree
                   ? "#3b82f6"
                   : "#d1d5db"
@@ -206,21 +240,6 @@ export default function TableRenderer({ table }) {
               stroke={isSelectedSeat ? "#eab308" : "#2563eb"}
               strokeWidth={isSelectedSeat ? 2 : 1}
               onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
-            />
-
-            <Rect
-              width={12}
-              height={6}
-              y={-14}
-              offsetX={6}
-              cornerRadius={2}
-              fill={
-                isSelectedSeat
-                  ? "#eab308"
-                  : isFree
-                  ? "#2563eb"
-                  : "#9ca3af"
-              }
             />
 
             {!isFree && (
