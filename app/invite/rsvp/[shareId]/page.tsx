@@ -48,7 +48,6 @@ function LoadedImage({
         width={width}
         height={height}
         listening={false}
-        preventDefault={false} 
       />
     );
   }

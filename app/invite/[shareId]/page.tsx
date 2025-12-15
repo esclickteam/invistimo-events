@@ -30,7 +30,7 @@ export default function PublicInvitePage({ params }: any) {
   });
 
   /* ============================================================
-     unwrap params (Next 14)
+     unwrap params
   ============================================================ */
   useEffect(() => {
     async function unwrap() {
@@ -41,39 +41,32 @@ export default function PublicInvitePage({ params }: any) {
   }, [params]);
 
   /* ============================================================
-     זיהוי אורח מה-URL (?guest=)
+     זיהוי אורח לפי token (?token=)
   ============================================================ */
-  /* ============================================================
-   זיהוי אורח לפי token (?token=)
-============================================================ */
-useEffect(() => {
-  const searchParams = new URLSearchParams(window.location.search);
-  const token = searchParams.get("token");
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get("token");
+    if (!token) return;
 
-  if (!token) return;
+    async function fetchGuest() {
+      try {
+        const res = await fetch(`/api/invitationGuests/byToken/${token}`);
+        const data = await res.json();
 
-  async function fetchGuest() {
-    try {
-      const res = await fetch(`/api/invitationGuests/byToken/${token}`);
-      const data = await res.json();
-
-      if (data.success && data.guest) {
-        setSelectedGuest(data.guest);
-        setForm((prev) => ({
-          ...prev,
-          guestsCount: data.guest.guestsCount || 1,
-        }));
-      } else {
-        alert("שגיאה בזיהוי האורח");
+        if (data.success && data.guest) {
+          setSelectedGuest(data.guest);
+          setForm((prev) => ({
+            ...prev,
+            guestsCount: data.guest.guestsCount || 1,
+          }));
+        }
+      } catch (err) {
+        console.error("❌ Guest fetch error:", err);
       }
-    } catch (err) {
-      console.error("❌ Guest fetch error:", err);
     }
-  }
 
-  fetchGuest();
-}, []);
-
+    fetchGuest();
+  }, []);
 
   /* ============================================================
      טעינת ההזמנה
@@ -115,8 +108,7 @@ useEffect(() => {
 
     try {
       const res = await fetch(
-          `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
-
+        `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -125,9 +117,7 @@ useEffect(() => {
       );
 
       const data = await res.json();
-      if (data.success) {
-        setSent(true);
-      }
+      if (data.success) setSent(true);
     } catch (err) {
       console.error("❌ RSVP error:", err);
     }
@@ -145,135 +135,133 @@ useEffect(() => {
     );
   }
 
+  /* ============================================================
+     Render
+  ============================================================ */
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10 pb-32 overflow-y-auto">
+    /* 🔹 זה ה-SCROLL CONTAINER – רוחב מלא */
+    <div className="min-h-screen w-full overflow-y-auto bg-[#faf9f6]">
+      {/* 🔹 עטיפה פנימית שמרכזת תוכן */}
+      <div className="flex flex-col items-center py-10 pb-32">
+        {/* הזמנה מעוצבת */}
+        <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
+          {invite.canvasData ? (
+            <PublicInviteRenderer canvasData={invite.canvasData} />
+          ) : (
+            <div className="text-gray-400 text-center">
+              אין נתוני עיצוב להצגה
+            </div>
+          )}
+        </div>
 
-      {/* הזמנה מעוצבת */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
-        {invite.canvasData ? (
-          <PublicInviteRenderer canvasData={invite.canvasData} />
+        {/* טופס אישור הגעה */}
+        {!sent ? (
+          <form
+            onSubmit={handleSubmit}
+            className="w-full max-w-md bg-white rounded-2xl shadow p-8 flex flex-col gap-6"
+          >
+            <div className="text-center text-lg font-medium text-[#6b6046]">
+              {selectedGuest ? (
+                <>
+                  שלום {selectedGuest.name},<br />
+                  נשמח לראותך באירוע!
+                </>
+              ) : (
+                <>נשמח לראותך באירוע!</>
+              )}
+            </div>
+
+            {/* מגיע / לא מגיע */}
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, rsvp: "yes" })}
+                className={`flex-1 py-3 rounded-full font-medium border ${
+                  form.rsvp === "yes"
+                    ? "bg-[#c3b28b] text-white border-[#c3b28b]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
+              >
+                מגיע
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, rsvp: "no" })}
+                className={`flex-1 py-3 rounded-full font-medium border ${
+                  form.rsvp === "no"
+                    ? "bg-[#b88a8a] text-white border-[#b88a8a]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
+              >
+                לא מגיע
+              </button>
+            </div>
+
+            {form.rsvp === "yes" && (
+              <>
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
+                    כמה אנשים יגיעו?
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.guestsCount}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        guestsCount: Number(e.target.value),
+                      })
+                    }
+                    className="w-full px-4 py-3 rounded-xl border border-[#d1c7b4]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
+                    הערות:
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {NOTES_OPTIONS.map((opt) => (
+                      <label
+                        key={opt}
+                        className="flex items-center gap-2 text-sm text-[#6b6046]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.notes.includes(opt)}
+                          onChange={(e) => {
+                            setForm({
+                              ...form,
+                              notes: e.target.checked
+                                ? [...form.notes, opt]
+                                : form.notes.filter((n) => n !== opt),
+                            });
+                          }}
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
+            >
+              שליחת אישור הגעה
+            </button>
+          </form>
         ) : (
-          <div className="text-gray-400 text-center">
-            אין נתוני עיצוב להצגה
+          <div className="bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold">
+            ✓ תודה! תשובתך התקבלה
           </div>
         )}
       </div>
-
-      {/* טופס אישור הגעה */}
-      {!sent ? (
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-md bg-white rounded-2xl shadow p-8 flex flex-col gap-6"
-        >
-          <div className="text-center text-lg font-medium text-[#6b6046]">
-            {selectedGuest ? (
-              <>
-                שלום {selectedGuest.name},<br />
-                נשמח לראותך באירוע!
-              </>
-            ) : (
-              <>נשמח לראותך באירוע!</>
-            )}
-          </div>
-
-          {/* מגיע / לא מגיע */}
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, rsvp: "yes" })}
-              className={`flex-1 py-3 rounded-full font-medium border ${
-                form.rsvp === "yes"
-                  ? "bg-[#c3b28b] text-white border-[#c3b28b]"
-                  : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
-              }`}
-            >
-              מגיע
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, rsvp: "no" })}
-              className={`flex-1 py-3 rounded-full font-medium border ${
-                form.rsvp === "no"
-                  ? "bg-[#b88a8a] text-white border-[#b88a8a]"
-                  : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
-              }`}
-            >
-              לא מגיע
-            </button>
-          </div>
-
-          {/* המשך – רק אם מגיע */}
-          {form.rsvp === "yes" && (
-            <>
-              {/* כמות מגיעים */}
-              <div>
-                <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
-                  כמה אנשים יגיעו?
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.guestsCount}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      guestsCount: Number(e.target.value),
-                    })
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-[#d1c7b4]"
-                />
-              </div>
-
-              {/* הערות – צ׳קבוקסים */}
-              <div>
-                <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
-                  הערות:
-                </label>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {NOTES_OPTIONS.map((opt) => (
-                    <label
-                      key={opt}
-                      className="flex items-center gap-2 text-sm text-[#6b6046]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.notes.includes(opt)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setForm({
-                              ...form,
-                              notes: [...form.notes, opt],
-                            });
-                          } else {
-                            setForm({
-                              ...form,
-                              notes: form.notes.filter((n) => n !== opt),
-                            });
-                          }
-                        }}
-                      />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          <button
-            type="submit"
-            className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
-          >
-            שליחת אישור הגעה
-          </button>
-        </form>
-      ) : (
-        <div className="bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold">
-          ✓ תודה! תשובתך התקבלה
-        </div>
-      )}
     </div>
   );
 }
