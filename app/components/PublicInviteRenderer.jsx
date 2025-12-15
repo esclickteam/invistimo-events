@@ -10,38 +10,35 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   let data;
 
-try {
-  data =
-    typeof canvasData === "string"
-      ? JSON.parse(canvasData)
-      : canvasData;
-} catch (err) {
-  console.error("❌ Invalid canvasData:", canvasData);
-  return null;
-}
+  try {
+    data =
+      typeof canvasData === "string"
+        ? JSON.parse(canvasData)
+        : canvasData;
+  } catch (err) {
+    console.error("❌ Invalid canvasData:", canvasData);
+    return null;
+  }
 
-if (!data || !Array.isArray(data.objects)) {
-  console.warn("⚠️ canvasData has no objects:", data);
-  return null;
-}
+  if (!data || !Array.isArray(data.objects)) {
+    console.warn("⚠️ canvasData has no objects:", data);
+    return null;
+  }
 
   const width = data.width || 400;
   const height = data.height || 720;
 
   /* ================= RESPONSIVE SCALE ================= */
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     function updateScale() {
-  if (!containerRef.current) return;
-
-  const containerWidth = containerRef.current.offsetWidth;
-  if (!containerWidth) return;
-
-  const nextScale = containerWidth / width;
-  setScale(nextScale);
-}
+      if (!containerRef.current) return;
+      const containerWidth = containerRef.current.offsetWidth;
+      if (!containerWidth) return;
+      setScale(containerWidth / width);
+    }
 
     updateScale();
     window.addEventListener("resize", updateScale);
@@ -53,13 +50,17 @@ if (!data || !Array.isArray(data.objects)) {
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{ overflow: "visible" }}
+        style={{
+          overflow: "visible",
+          pointerEvents: "none", // ⭐⭐⭐ קריטי – מאפשר גלילה מעל הקנבס
+        }}
       >
         <div
           style={{
             width: width * scale,
             height: height * scale,
             position: "relative",
+            pointerEvents: "none", // ⭐ גם כאן
           }}
         >
           <Stage
@@ -67,8 +68,13 @@ if (!data || !Array.isArray(data.objects)) {
             height={height * scale}
             scaleX={scale}
             scaleY={scale}
+            listening={false}
+            preventDefault={false}
+            style={{
+              pointerEvents: "none", // ⭐ והכי חשוב – על ה-canvas עצמו
+            }}
           >
-            <Layer>
+            <Layer listening={false}>
               {data.objects.map((obj) => {
                 /* -------------------------------------------------------
                     🔵 RECTANGLE
@@ -85,6 +91,7 @@ if (!data || !Array.isArray(data.objects)) {
                       opacity={obj.opacity ?? 1}
                       cornerRadius={obj.cornerRadius || 0}
                       rotation={obj.rotation || 0}
+                      listening={false}
                     />
                   );
                 }
@@ -102,6 +109,7 @@ if (!data || !Array.isArray(data.objects)) {
                       height={obj.radius * 2}
                       cornerRadius={obj.radius}
                       fill={obj.fill}
+                      listening={false}
                     />
                   );
                 }
@@ -130,6 +138,7 @@ if (!data || !Array.isArray(data.objects)) {
                       align={obj.align || "center"}
                       opacity={obj.opacity ?? 1}
                       rotation={obj.rotation || 0}
+                      listening={false}
                     />
                   );
                 }
@@ -153,7 +162,7 @@ if (!data || !Array.isArray(data.objects)) {
                   left: obj.x * scale,
                   width: obj.width * scale,
                   height: obj.height * scale,
-                  pointerEvents: "none",
+                  pointerEvents: "none", // כבר היה – מצוין
                 }}
               >
                 <Lottie animationData={obj.lottieData} />
@@ -182,6 +191,7 @@ function PreviewImage({ obj }) {
       image={image}
       opacity={obj.opacity ?? 1}
       rotation={obj.rotation || 0}
+      listening={false}
     />
   );
 }
