@@ -28,11 +28,8 @@ export default function Footer() {
             מדיניות פרטיות
           </Link>
 
-          <Link
-            href="/accessibility">הצהרת נגישות
-            className="hover:underline hover:text-[#5c4632] transition"
-            נגישות
-          </Link>
+          <Link href="/accessibility">הצהרת נגישות</Link>
+
         </nav>
 
       </div>

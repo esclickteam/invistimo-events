@@ -64,64 +64,111 @@ export default function AccessibilityPage() {
         </section>
 
         {/* סעיף 4 */}
-        <section className="relative pr-6">
-          <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
-          <h2 className="text-2xl font-bold mb-4">שימוש בשירותי צד ג’</h2>
-          <p>
-            האתר עושה שימוש בשירותים, מערכות ורכיבים של צדדים שלישיים, לרבות
-            שירותי סליקה ותשלומים, שירותי הודעות, שירותי ענן, אחסון ו־API.
-          </p>
-          <p className="mt-3">
-            רמת הנגישות של רכיבים אלו תלויה במדיניות וביישום של ספקי צד ג’
-            ואינה נמצאת בשליטתה המלאה של מפעילת האתר.
-          </p>
-        </section>
+<section className="relative pr-6">
+  <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
+  <h2 className="text-2xl font-bold mb-4">שימוש בשירותי צד ג’</h2>
 
-        {/* סעיף 5 */}
-        <section className="relative pr-6">
-          <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
-          <h2 className="text-2xl font-bold mb-4">מגבלות נגישות אפשריות</h2>
-          <p>
-            על אף מאמצינו להשיג נגישות מיטבית, ייתכן שחלקים מסוימים באתר טרם
-            הונגשו במלואם, או שקיימות מגבלות הנובעות משימוש ברכיבי צד ג’.
-          </p>
-          <p className="mt-3">
-            אנו פועלים באופן שוטף לזיהוי, טיפול ושיפור של רכיבי נגישות,
-            בהתאם לצרכים, לטכנולוגיה המתפתחת ולמשוב המתקבל.
-          </p>
-        </section>
+  <p>
+    האתר עושה שימוש, בין היתר, בשירותים, מערכות ורכיבים של צדדים שלישיים,
+    כגון:
+  </p>
+
+  <ul className="list-disc pr-6 mt-3 space-y-2">
+    <li>שירותי סליקה ותשלומים</li>
+    <li>שירותי הודעות (SMS, WhatsApp)</li>
+    <li>שירותי ענן, אחסון ו־API</li>
+    <li>רכיבי תוכנה וספריות חיצוניות</li>
+  </ul>
+
+  <p className="mt-3">
+    רמת הנגישות של רכיבים ושירותים אלו תלויה, בין היתר, במדיניות וביישום של
+    ספקי צד ג’, ואינה נמצאת בשליטתה המלאה של מפעילת האתר.
+  </p>
+
+  <p className="mt-3">
+    יחד עם זאת, מפעילת האתר עושה מאמץ לבחור ספקים העומדים בסטנדרטים מקובלים
+    של נגישות, ולשלבם באתר באופן מיטבי.
+  </p>
+</section>
+
+
+      {/* סעיף 5 */}
+<section className="relative pr-6">
+  <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
+  <h2 className="text-2xl font-bold mb-4">מגבלות נגישות אפשריות</h2>
+
+  <p>
+    על אף מאמצינו להשיג נגישות מיטבית לכלל חלקי האתר, ייתכן כי:
+  </p>
+
+  <ul className="list-disc pr-6 mt-3 space-y-2">
+    <li>חלקים מסוימים באתר טרם הונגשו במלואם</li>
+    <li>קיימות מגבלות נגישות הנובעות משימוש ברכיבי צד ג’</li>
+    <li>
+      תכנים מסוימים, בעיקר תכנים דינמיים או עתידיים, עשויים לדרוש התאמות
+      נוספות
+    </li>
+  </ul>
+
+  <p className="mt-3">
+    מפעילת האתר פועלת באופן שוטף לזיהוי, טיפול ושיפור של רכיבי נגישות,
+    בהתאם לצרכים, לטכנולוגיה המתפתחת ולמשוב המתקבל מהמשתמשים.
+  </p>
+</section>
+
 
         {/* סעיף 6 */}
-        <section className="relative pr-6">
-          <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
-          <h2 className="text-2xl font-bold mb-4">אחריות ושימוש באתר</h2>
-          <p>
-            האתר והשירותים מוצעים כמות שהם (AS IS), ומפעילת האתר אינה יכולה
-            להבטיח נגישות מלאה ומוחלטת בכל עת ובכל רכיב.
-          </p>
-          <p className="mt-3">
-            יחד עם זאת, נעשה מאמץ סביר ומתמשך לשיפור רמת הנגישות ולהסרת
-            חסמים ככל שיתגלו.
-          </p>
-        </section>
+<section className="relative pr-6">
+  <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
+  <h2 className="text-2xl font-bold mb-4">אחריות ושימוש באתר</h2>
+
+  <p>
+    מובהר כי האתר והשירותים מוצעים כמות שהם (AS IS), וכי מפעילת האתר אינה
+    יכולה להבטיח נגישות מלאה ומוחלטת בכל עת ובכל רכיב.
+  </p>
+
+  <p className="mt-3">
+    יחד עם זאת, מפעילת האתר מחויבת לעשות מאמץ סביר ומתמשך לשיפור רמת
+    הנגישות ולהסרת חסמים ככל שיתגלו.
+  </p>
+</section>
+
 
         {/* סעיף 7 */}
-        <section className="relative pr-6">
-          <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
-          <h2 className="text-2xl font-bold mb-4">פנייה בנושא נגישות</h2>
-          <p>
-            אם נתקלתם בקושי, בעיית נגישות, תקלה טכנית או חסם כלשהו בעת השימוש
-            באתר, נשמח לקבל פנייה ולטפל בה בהקדם האפשרי.
-          </p>
-          <p className="mt-3">
-            ניתן לפנות אלינו בדוא״ל:&nbsp;
-            <strong>support@invistimo.com</strong>
-          </p>
-          <p className="mt-3">
-            לצורך טיפול יעיל, מומלץ לציין תיאור הבעיה, כתובת העמוד,
-            סוג הדפדפן והמכשיר ואמצעי נגישות שבו נעשה שימוש (ככל שרלוונטי).
-          </p>
-        </section>
+<section className="relative pr-6">
+  <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
+
+  <h2 className="text-2xl font-bold mb-4">פנייה בנושא נגישות</h2>
+
+  <p>
+    אם נתקלתם בקושי, בעיית נגישות, תקלה טכנית או חסם כלשהו בעת השימוש
+    באתר, נשמח לקבל פנייה ולטפל בה בהקדם האפשרי.
+  </p>
+
+  <p className="mt-3">
+    ניתן לפנות אלינו באמצעות:
+  </p>
+
+  <ul className="list-disc pr-6 mt-2 space-y-1">
+    <li>טופס יצירת קשר באתר</li>
+    <li>
+      דוא״ל:&nbsp;
+      <strong>support@invistimo.com</strong>
+    </li>
+  </ul>
+
+  <p className="mt-3">
+    לצורך טיפול יעיל, מומלץ לציין:
+  </p>
+
+  <ul className="list-disc pr-6 mt-2 space-y-1">
+    <li>תיאור הבעיה</li>
+    <li>כתובת העמוד שבו התרחשה</li>
+    <li>סוג הדפדפן והמכשיר</li>
+    <li>אמצעי נגישות שבו נעשה שימוש (ככל שרלוונטי)</li>
+  </ul>
+</section>
+
 
         {/* סעיף 8 */}
         <section className="relative pr-6">
