@@ -16,83 +16,92 @@ export default function Header() {
         shadow-sm
       "
     >
-      {/* ⭐ RTL כדי שהתפריט יהיה בצד ימין */}
+      {/* RTL כללי */}
       <div
-        className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between"
+        className="max-w-7xl mx-auto px-6"
         dir="rtl"
       >
-        {/* ====================== תפריט ניווט — צד ימין ====================== */}
-        <div className="flex items-center gap-10">
-          <nav className="hidden md:flex gap-8 text-[#4a413a] font-medium">
+        {/* GRID כדי שהלוגו יהיה באמת באמצע */}
+        <div className="grid grid-cols-3 items-center h-16">
+
+          {/* ====================== צד ימין – תפריט ניווט ====================== */}
+          <nav className="hidden md:flex items-center gap-8 text-[#4a413a] font-medium justify-start">
             <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">
-              איך זה עובד
+              איך זה עובד?
             </Link>
-
-            <Link href="#features" className="hover:text-[var(--champagne-dark)] transition">
-              מה מקבלים
+            <Link href="#rsvp" className="hover:text-[var(--champagne-dark)] transition">
+              אישורי הגעה
             </Link>
-
+            <Link href="#seating" className="hover:text-[var(--champagne-dark)] transition">
+              סידורי הושבה
+            </Link>
             <Link href="#pricing" className="hover:text-[var(--champagne-dark)] transition">
-              חבילות
+              חבילות ומחירים
+            </Link>
+            <Link href="#contact" className="hover:text-[var(--champagne-dark)] transition">
+              צור קשר
             </Link>
           </nav>
 
-          {/* 🔐 מצב התחברות / התנתקות / לוח בקרה */}
-          {!loading && (
-            <>
-              {user ? (
-                <div className="hidden md:flex items-center gap-4">
+          {/* ====================== מרכז – לוגו ====================== */}
+          <div className="flex justify-center" dir="ltr">
+            <Link href="/" className="flex items-center">
+              <img
+                src="/invistimo-logo.png"
+                alt="Invistimo Logo"
+                className="h-8 w-auto object-contain"
+              />
+            </Link>
+          </div>
 
-                  {/* לוח בקרה */}
+          {/* ====================== צד שמאל – התחברות / משתמש ====================== */}
+          <div className="flex justify-end items-center gap-4">
+            {!loading && (
+              <>
+                {user ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
+                    >
+                      לוח בקרה
+                    </Link>
+
+                    <span className="text-[#4a413a] text-sm">
+                      שלום, {user.name || "משתמש"}
+                    </span>
+
+                    <button
+                      onClick={logout}
+                      className="
+                        px-4 py-2 rounded-full
+                        border border-[#cbb59d]
+                        text-[#4a413a] text-sm
+                        hover:bg-[#efe6db]
+                        transition
+                      "
+                    >
+                      התנתקות
+                    </button>
+                  </>
+                ) : (
                   <Link
-                    href="/dashboard"
-                    className="text-[#4a413a] font-semibold hover:text-[var(--champagne-dark)] transition"
-                  >
-                    לוח בקרה
-                  </Link>
-
-                  {/* שלום שם */}
-                  <span className="text-[#4a413a] font-semibold">
-                    שלום, {user.name || "משתמש"}
-                  </span>
-
-                  {/* כפתור התנתקות */}
-                  <button
-                    onClick={logout}
+                    href="/login"
                     className="
                       px-5 py-2 rounded-full
-                      bg-[#e14d4d] text-white font-semibold shadow-md
-                      hover:bg-[#d13b3b] transition
+                      border border-[#cbb59d]
+                      text-[#4a413a] text-sm font-medium
+                      hover:bg-[#efe6db]
+                      transition
                     "
                   >
-                    התנתקות
-                  </button>
-                </div>
-              ) : (
-                <Link
-                  href="/login"
-                  className="
-                    hidden md:block px-6 py-2 rounded-full
-                    bg-[var(--champagne)] text-white font-semibold shadow-md
-                    hover:bg-[var(--champagne-dark)] transition
-                  "
-                >
-                  התחברות
-                </Link>
-              )}
-            </>
-          )}
-        </div>
+                    התחברות
+                  </Link>
+                )}
+              </>
+            )}
+          </div>
 
-        {/* ====================== לוגו — צד שמאל ====================== */}
-        <div dir="ltr" className="flex items-center">
-          <Link href="/" className="flex items-center">
-            <img
-              src="/invistimo-logo.png"
-              alt="Invistimo Logo"
-              className="h-10 w-auto object-contain scale-[4] origin-left"
-            />
-          </Link>
         </div>
       </div>
     </header>
