@@ -93,22 +93,41 @@ export default function RSVPPage() {
             </p>
           </motion.div>
 
-          {/* VIDEO – RSVP 1 */}
+          {/* VIDEO – RSVP 1 (PORTRAIT) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="rounded-3xl overflow-hidden shadow-2xl bg-black"
+            className="
+              relative
+              flex items-center justify-center
+              rounded-3xl
+              bg-gradient-to-br from-[#0f0f0f] to-[#1e1e1e]
+              shadow-2xl
+              p-8
+            "
           >
-            <video
-              src="/videos/rsvp1.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="w-full h-full object-cover"
-            />
+            <div
+              className="
+                w-[260px]
+                md:w-[300px]
+                aspect-[9/16]
+                bg-black
+                rounded-2xl
+                overflow-hidden
+                shadow-xl
+              "
+            >
+              <video
+                src="/videos/rsvp1.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-full object-contain"
+              />
+            </div>
           </motion.div>
         </div>
       </section>
@@ -158,7 +177,7 @@ export default function RSVPPage() {
       <section className="py-28 px-6 bg-white">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
 
-          {/* VIDEO – RSVP 2 */}
+          {/* VIDEO – RSVP 2 (LANDSCAPE) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
