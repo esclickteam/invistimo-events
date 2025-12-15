@@ -2,11 +2,11 @@ import "./globals.css";
 import type { ReactNode } from "react";
 import Providers from "./providers";
 
-/* ❌ אסור: import { useAuth } from "@/context/AuthContext"; */
-/* ❌ אסור: "use client"; */
-/* ❗ Header חייב להיות בקובץ נפרד */
+/* ❌ אסור להשתמש ב-hooks כאן */
+/* ❌ אין "use client" ב-layout */
 
-import Header from "./components/Header"; // ← התקנה היחידה שנדרשת
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -17,22 +17,18 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="min-h-screen font-[Heebo]">
+      <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
         <Providers>
-
           {/* HEADER */}
           <Header />
 
-          {/* MAIN */}
-          <main className="bg-luxury min-h-screen pt-[64px]">
+          {/* MAIN CONTENT */}
+          <main className="min-h-screen pt-[64px]">
             {children}
           </main>
 
-          {/* FOOTER */}
-          <footer className="mt-24 py-10 text-center text-sm text-[var(--brown-soft)]">
-            Invistimo · מערכת הזמנות ואישורי הגעה לכל אירוע
-          </footer>
-
+          {/* FOOTER – מופיע בכל הדפים */}
+          <Footer />
         </Providers>
       </body>
     </html>
