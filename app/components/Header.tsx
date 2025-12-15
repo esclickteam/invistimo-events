@@ -47,10 +47,10 @@ export default function Header() {
           <div className="flex justify-center" dir="ltr">
             <Link href="/" className="flex items-center">
               <img
-                src="/invistimo-logo.png"
-                alt="Invistimo Logo"
-                className="h-12 w-auto object-contain"
-              />
+  src="/invistimo-logo.png"
+  alt="Invistimo Logo"
+  className="h-10 w-auto object-contain scale-[4] origin-center"
+/>
             </Link>
           </div>
 
