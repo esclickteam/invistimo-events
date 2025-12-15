@@ -93,6 +93,7 @@ export default function SeatingEditor({ background }) {
   /* ==================== Zoom & Pan ==================== */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
 
   /* ==================== Mouse ==================== */
   const handleMouseMove = (e) => {
@@ -134,43 +135,7 @@ export default function SeatingEditor({ background }) {
 
   return (
     <div className="flex relative w-full h-full">
-      {/* SIDEBAR */}
       <GuestSidebar onDragStart={startDragGuest} />
-
-      {/* EVENT TYPE PRESET */}
-      <div className="absolute top-4 right-4 z-50 bg-white rounded-xl shadow p-3">
-        <div className="text-sm font-semibold mb-2">
-          סוג אירוע
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {EVENT_TYPES.map((e) => (
-            <button
-              key={e.key}
-              onClick={() => loadPreset(e.key)}
-              className="px-3 py-1.5 text-sm rounded-lg
-                         bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              {e.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ZOOM CONTROLS */}
-      <button
-        onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-        className="absolute top-[70px] left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
-      >
-        +
-      </button>
-      <button
-        onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-        className="absolute top-[130px] left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
-      >
-        −
-      </button>
 
       {/* STAGE */}
       <Stage
@@ -180,16 +145,25 @@ export default function SeatingEditor({ background }) {
         scaleY={scale}
         x={stagePos.x}
         y={stagePos.y}
-        draggable
-        onDragEnd={(e) => setStagePos(e.target.position())}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseDown={(e) => {
-          // 👇 לחיצה על הרקע מבטלת בחירת Zone
-          if (e.target === e.target.getStage()) {
-            setSelectedZone(null);
+        draggable={isPanning}
+        onDragEnd={(e) => {
+          if (isPanning) {
+            setStagePos(e.target.position());
           }
         }}
+        onMouseDown={(e) => {
+          const stage = e.target.getStage();
+
+          // לחיצה על רקע ריק → pan
+          if (e.target === stage) {
+            setSelectedZone(null);
+            setIsPanning(true);
+          }
+        }}
+        onMouseUp={() => {
+          setIsPanning(false);
+        }}
+        onMouseMove={handleMouseMove}
         className="flex-1"
       >
         {/* BACKGROUND */}

@@ -37,7 +37,17 @@ export default function ZoneRenderer({ zone }: Props) {
           e.cancelBubble = true;
           setSelectedZone(zone.id);
         }}
+        onDragStart={(e) => {
+          // ❗ קריטי: מונע מה־Stage לזוז
+          e.cancelBubble = true;
+        }}
+        onDragMove={(e) => {
+          // ❗ מונע bubbling גם בזמן גרירה
+          e.cancelBubble = true;
+        }}
         onDragEnd={(e) => {
+          e.cancelBubble = true;
+
           updateZone(zone.id, {
             x: e.target.x(),
             y: e.target.y(),
