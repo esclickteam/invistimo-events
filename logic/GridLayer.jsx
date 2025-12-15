@@ -24,7 +24,7 @@ export default function GridLayer({ width, height }) {
         points={[0, i * GRID_SIZE, width, i * GRID_SIZE]}
         stroke="#e5e7eb"
         strokeWidth={1}
-        listening={false}
+         listening={false}
       />
     );
   }
