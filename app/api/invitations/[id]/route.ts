@@ -14,13 +14,9 @@ export async function GET(req: Request, context: any) {
   try {
     await db();
 
-    // ⭐ params יכול להיות Promise
     const params = await context.params;
     const id = params?.id;
 
-    console.log("📌 GET INVITATION BY ID:", id);
-
-    // ⭐ בדיקת תקינות ID
     if (!id || id === "undefined" || typeof id !== "string") {
       return NextResponse.json(
         { error: "Invalid invitation id" },
@@ -28,7 +24,6 @@ export async function GET(req: Request, context: any) {
       );
     }
 
-    // ✅ כעת populate עובד — כי InvitationGuest נטען
     const invitation = await Invitation.findById(id).populate("guests");
 
     if (!invitation) {
@@ -38,11 +33,8 @@ export async function GET(req: Request, context: any) {
       );
     }
 
-    // ⭐ מנקה את האובייקט לפני שליחה
-    const cleanInvite = JSON.parse(JSON.stringify(invitation));
-
     return NextResponse.json(
-      { success: true, invitation: cleanInvite },
+      { success: true, invitation: JSON.parse(JSON.stringify(invitation)) },
       { status: 200 }
     );
   } catch (err) {
@@ -52,17 +44,14 @@ export async function GET(req: Request, context: any) {
 }
 
 /* ============================================================
-   💾 PUT — עדכון הזמנה קיימת לפי מזהה
+   💾 PUT — עדכון הזמנה קיימת
 ============================================================ */
 export async function PUT(req: Request, context: any) {
   try {
     await db();
 
-    // ⭐ params יכול להיות Promise
     const params = await context.params;
     const id = params?.id;
-
-    console.log("📝 PUT INVITATION UPDATE ID:", id);
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -72,22 +61,38 @@ export async function PUT(req: Request, context: any) {
     }
 
     const body = await req.json();
-    const { title, canvasData } = body;
 
-    if (!canvasData) {
+    // ✅ חדש – פרטי אירוע
+    const {
+      title,
+      type,
+      date,
+      location,
+      canvasData,
+    } = body;
+
+    // ❗ canvasData חובה רק אם מנסים לעדכן אותו
+    if ("canvasData" in body && !canvasData) {
       return NextResponse.json(
         { success: false, error: "Missing canvas data" },
         { status: 400 }
       );
     }
 
+    const updatePayload: any = {
+      updatedAt: new Date(),
+    };
+
+    // 🧠 מעדכן רק מה שנשלח
+    if (title !== undefined) updatePayload.title = title;
+    if (type !== undefined) updatePayload.type = type;
+    if (date !== undefined) updatePayload.date = date;
+    if (location !== undefined) updatePayload.location = location;
+    if (canvasData !== undefined) updatePayload.canvasData = canvasData;
+
     const updated = await Invitation.findByIdAndUpdate(
       id,
-      {
-        ...(title && { title }),
-        canvasData,
-        updatedAt: new Date(),
-      },
+      updatePayload,
       { new: true }
     ).populate("guests");
 
@@ -97,8 +102,6 @@ export async function PUT(req: Request, context: any) {
         { status: 404 }
       );
     }
-
-    console.log("✅ Invitation updated:", updated._id);
 
     return NextResponse.json({
       success: true,
