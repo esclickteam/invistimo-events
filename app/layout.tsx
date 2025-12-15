@@ -12,6 +12,7 @@ import Footer from "./components/Footer";
 
 /* ✅ קומפוננטת client – מותר לייבא */
 import SupportBotButton from "./components/SupportBotButton";
+import LayoutShell from "./components/LayoutShell";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -24,18 +25,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
         <Providers>
-          {/* HEADER */}
-          <Header />
-
-          {/* MAIN CONTENT */}
-          <main className="min-h-screen pt-[64px]">
+          <LayoutShell Header={Header} Footer={Footer}>
             {children}
-          </main>
+          </LayoutShell>
 
-          {/* FOOTER – מופיע פעם אחת בלבד */}
-          <Footer />
-
-          {/* 💬 בוט תמיכה – צף בכל האתר */}
+          {/* 💬 בוט תמיכה – צף בכל האתר (לא בדפים חיצוניים, מטופל בתוך LayoutShell) */}
           <SupportBotButton />
         </Providers>
 
