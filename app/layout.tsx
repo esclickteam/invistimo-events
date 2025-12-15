@@ -3,10 +3,13 @@ import type { ReactNode } from "react";
 import Providers from "./providers";
 
 /* ❌ אין hooks */
-/* ❌ אין "use client" */
+/* ❌ אין "use client" בלייאאוט */
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+
+/* ✅ קומפוננטת client – מותר לייבא */
+import SupportBotButton from "./components/SupportBotButton";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -19,7 +22,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
         <Providers>
-
           {/* HEADER */}
           <Header />
 
@@ -28,12 +30,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
 
-          {/* 
-            FOOTER – מופיע בכל הדפים  
-            כולל ניווט משפטי + FAQ לפני יצירת קשר
-          */}
+          {/* FOOTER – מופיע פעם אחת בלבד */}
           <Footer />
 
+          {/* 💬 בוט תמיכה – צף בכל האתר */}
+          <SupportBotButton />
         </Providers>
       </body>
     </html>
