@@ -47,12 +47,13 @@ function LoadedImage({
         y={y}
         width={width}
         height={height}
-        listening={false} // ✅ לא לוכד מגע
+        listening={false}
+        preventDefault={false} 
       />
     );
   }
 
-  return <KonvaImage image={img} {...rest} listening={false} />;
+  return <KonvaImage image={img} {...rest} />;
 }
 
 /* ============================================================
@@ -71,16 +72,13 @@ export default function InviteRsvpPage({ params }: any) {
   const [otherNote, setOtherNote] = useState("");
 
   const stageRef = useRef<any>(null);
-
   const CANVAS_WIDTH = 390;
   const CANVAS_HEIGHT = 700;
 
   const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
   const [shareId, setShareId] = useState<string | null>(null);
 
-  /* ============================================================
-     unwrap params
-  ============================================================ */
+  /* unwrap params */
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -89,9 +87,7 @@ export default function InviteRsvpPage({ params }: any) {
     unwrap();
   }, [params]);
 
-  /* ============================================================
-     load guest by token
-  ============================================================ */
+  /* load guest by token */
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const token = query.get("token");
@@ -106,9 +102,7 @@ export default function InviteRsvpPage({ params }: any) {
     loadGuest();
   }, []);
 
-  /* ============================================================
-     load invitation
-  ============================================================ */
+  /* load invitation */
   useEffect(() => {
     if (!shareId) return;
 
@@ -143,16 +137,12 @@ export default function InviteRsvpPage({ params }: any) {
     load();
   }, [shareId]);
 
-  /* ============================================================
-     states
-  ============================================================ */
-  if (loading) {
+  if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         טוען הזמנה...
       </div>
     );
-  }
 
   if (!invitation) return notFound();
 
@@ -210,27 +200,19 @@ export default function InviteRsvpPage({ params }: any) {
   ============================================================ */
   return (
     <div
-      className="min-h-screen flex flex-col items-center py-10 bg-white overflow-y-auto"
+      className="min-h-screen flex flex-col items-center py-10 overflow-y-auto bg-white"
       style={{
         WebkitOverflowScrolling: "touch",
+        scrollBehavior: "smooth",
       }}
     >
-      {/* ================= CANVAS ================= */}
+      {/* Canvas */}
       <div
         className="rounded-3xl overflow-hidden shadow-xl bg-white"
-        style={{
-          width: CANVAS_WIDTH,
-          height: CANVAS_HEIGHT,
-          touchAction: "pan-y", // ✅ מאפשר גלילה מעל הקנבס
-        }}
+        style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
       >
-        <Stage
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          ref={stageRef}
-          listening={false} // ✅ Konva לא תופס touch
-        >
-          <Layer listening={false}>
+        <Stage width={CANVAS_WIDTH} height={CANVAS_HEIGHT} ref={stageRef}>
+          <Layer>
             {(canvasData?.objects || []).map((obj: any, i: number) => {
               if (obj.type === "image") {
                 return (
@@ -264,7 +246,6 @@ export default function InviteRsvpPage({ params }: any) {
                     }`}
                     textDecoration={obj.underline ? "underline" : ""}
                     width={obj.width}
-                    listening={false}
                   />
                 );
               }
@@ -275,13 +256,11 @@ export default function InviteRsvpPage({ params }: any) {
         </Stage>
       </div>
 
-      {/* ================= RSVP ================= */}
+      {/* RSVP */}
       <div className="mt-8 w-[390px] bg-white rounded-3xl shadow-xl p-8 mb-16 border border-[#eee]">
         {!sent ? (
           <>
-            <h2 className="text-xl font-bold text-center mb-4">
-              אישור הגעה
-            </h2>
+            <h2 className="text-xl font-bold text-center mb-4">אישור הגעה</h2>
 
             <p className="text-center mb-6">
               שלום {guest?.name || "אורח"}, נשמח לראותך באירוע
@@ -316,29 +295,20 @@ export default function InviteRsvpPage({ params }: any) {
                 <label className="block mb-2">כמה אנשים יגיעו?</label>
                 <select
                   value={guestsCount}
-                  onChange={(e) =>
-                    setGuestsCount(Number(e.target.value))
-                  }
+                  onChange={(e) => setGuestsCount(Number(e.target.value))}
                   className="w-full border rounded-xl px-4 py-3 mb-4"
                 >
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map(
-                    (n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    )
-                  )}
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
                 </select>
 
-                <label className="block mb-2">
-                  הערות (לא חובה):
-                </label>
+                <label className="block mb-2">הערות (לא חובה):</label>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   {NOTES_OPTIONS.map((opt) => (
-                    <label
-                      key={opt}
-                      className="flex items-center gap-2"
-                    >
+                    <label key={opt} className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={notes.includes(opt)}
@@ -359,9 +329,7 @@ export default function InviteRsvpPage({ params }: any) {
                   <input
                     placeholder="פרט/י כאן..."
                     value={otherNote}
-                    onChange={(e) =>
-                      setOtherNote(e.target.value)
-                    }
+                    onChange={(e) => setOtherNote(e.target.value)}
                     className="w-full border rounded-xl px-4 py-3 mb-4"
                   />
                 )}
