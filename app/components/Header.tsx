@@ -26,25 +26,42 @@ export default function Header() {
 
           {/* ====================== ימין – תפריט ====================== */}
           <nav className="flex items-center gap-10 justify-start text-[#4a413a] font-medium">
-            <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">
-              איך זה עובד?
-            </Link>
-            <Link href="#rsvp" className="hover:text-[var(--champagne-dark)] transition">
-              אישורי הגעה
-            </Link>
-            <Link href="#seating" className="hover:text-[var(--champagne-dark)] transition">
-              סידורי הושבה
-            </Link>
-            <Link href="#pricing" className="hover:text-[var(--champagne-dark)] transition">
-              חבילות ומחירים
-            </Link>
-            <Link
-  href="/contact"
-  className="hover:text-[var(--champagne-dark)] transition"
->
-  צור קשר
-</Link>
-          </nav>
+  <Link
+    href="/#how"
+    className="hover:text-[var(--champagne-dark)] transition"
+  >
+    איך זה עובד?
+  </Link>
+
+  <Link
+    href="/rsvp"
+    className="hover:text-[var(--champagne-dark)] transition"
+  >
+    אישורי הגעה
+  </Link>
+
+  <Link
+    href="/#seating"
+    className="hover:text-[var(--champagne-dark)] transition"
+  >
+    סידורי הושבה
+  </Link>
+
+  <Link
+    href="/#pricing"
+    className="hover:text-[var(--champagne-dark)] transition"
+  >
+    חבילות ומחירים
+  </Link>
+
+  <Link
+    href="/contact"
+    className="hover:text-[var(--champagne-dark)] transition"
+  >
+    צור קשר
+  </Link>
+</nav>
+
 
           {/* ====================== מרכז – לוגו ====================== */}
           <div className="flex justify-center" dir="ltr">
