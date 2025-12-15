@@ -9,51 +9,59 @@ export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
   let data;
+  try {
+    data =
+      typeof canvasData === "string"
+        ? JSON.parse(canvasData)
+        : canvasData;
+  } catch (err) {
+    console.error("❌ Invalid canvasData:", canvasData);
+    return null;
+  }
 
-try {
-  data =
-    typeof canvasData === "string"
-      ? JSON.parse(canvasData)
-      : canvasData;
-} catch (err) {
-  console.error("❌ Invalid canvasData:", canvasData);
-  return null;
-}
+  if (!data || !Array.isArray(data.objects)) {
+    console.warn("⚠️ canvasData has no objects:", data);
+    return null;
+  }
 
-if (!data || !Array.isArray(data.objects)) {
-  console.warn("⚠️ canvasData has no objects:", data);
-  return null;
-}
-
-  const width = data.width || 400;
-  const height = data.height || 720;
+  const width = Number(data.width) || 400;
+  const height = Number(data.height) || 720;
 
   /* ================= RESPONSIVE SCALE ================= */
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     function updateScale() {
-  if (!containerRef.current) return;
+      if (!containerRef.current) return;
 
-  const containerWidth = containerRef.current.offsetWidth;
-  if (!containerWidth) return;
+      const containerWidth = containerRef.current.offsetWidth;
+      if (!containerWidth || containerWidth <= 0) return;
+      if (!width || width <= 0) return;
 
-  const nextScale = containerWidth / width;
-  setScale(nextScale);
-}
+      const nextScale = containerWidth / width;
+      if (!Number.isFinite(nextScale) || nextScale <= 0) return;
+
+      setScale(nextScale);
+    }
 
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
   }, [width]);
 
+  if (!Number.isFinite(scale) || scale <= 0) return null;
+
   return (
     <div className="w-full flex justify-center">
+      {/* ⭐ זה מה שגורם לגלילה רגילה באייפון */}
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{ overflow: "visible" }}
+        style={{
+          overflow: "visible",
+          touchAction: "auto", // ✅ גלילה חופשית מכל מקום במסך
+        }}
       >
         <div
           style={{
@@ -70,9 +78,6 @@ if (!data || !Array.isArray(data.objects)) {
           >
             <Layer>
               {data.objects.map((obj) => {
-                /* -------------------------------------------------------
-                    🔵 RECTANGLE
-                ------------------------------------------------------- */
                 if (obj.type === "rect") {
                   return (
                     <Rect
@@ -89,9 +94,6 @@ if (!data || !Array.isArray(data.objects)) {
                   );
                 }
 
-                /* -------------------------------------------------------
-                    🟣 CIRCLE
-                ------------------------------------------------------- */
                 if (obj.type === "circle") {
                   return (
                     <Rect
@@ -106,16 +108,10 @@ if (!data || !Array.isArray(data.objects)) {
                   );
                 }
 
-                /* -------------------------------------------------------
-                    🖼 IMAGE
-                ------------------------------------------------------- */
                 if (obj.type === "image") {
                   return <PreviewImage key={obj.id} obj={obj} />;
                 }
 
-                /* -------------------------------------------------------
-                    ✏ TEXT
-                ------------------------------------------------------- */
                 if (obj.type === "text") {
                   return (
                     <Text
@@ -139,11 +135,9 @@ if (!data || !Array.isArray(data.objects)) {
             </Layer>
           </Stage>
 
-          {/* -------------------------------------------------------
-              🟠 LOTTIE — rendered OUTSIDE Konva
-          ------------------------------------------------------- */}
+          {/* 🟠 LOTTIE – מחוץ ל־Konva */}
           {data.objects
-            .filter((o) => o.type === "lottie")
+            .filter((o) => o.type === "lottie" && o.lottieData)
             .map((obj) => (
               <div
                 key={obj.id}
@@ -166,11 +160,10 @@ if (!data || !Array.isArray(data.objects)) {
 }
 
 /* ============================================================
-   🖼 IMAGE LOADER — loads real image for preview
+   🖼 IMAGE LOADER
 ============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
-
   if (!image) return null;
 
   return (
