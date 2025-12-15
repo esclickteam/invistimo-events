@@ -8,12 +8,12 @@ export default function SupportBotButton() {
 
   return (
     <>
-      {/* כפתור צף */}
+      {/* כפתור צף – ימין למטה */}
       <button
         onClick={() => setOpen(true)}
         aria-label="פתיחת בוט תמיכה"
         className="
-          fixed bottom-6 left-6
+          fixed bottom-6 right-6
           z-[9999]
           bg-[#c7a17a] text-white
           rounded-full px-5 py-3
@@ -26,7 +26,7 @@ export default function SupportBotButton() {
         💬 צריכים עזרה?
       </button>
 
-      {/* חלון הבוט */}
+      {/* חלון הבוט – נפתח מאותו צד */}
       {open && <SupportBot onClose={() => setOpen(false)} />}
     </>
   );
