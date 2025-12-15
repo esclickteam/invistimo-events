@@ -64,6 +64,7 @@ export default function RSVPPage() {
       <section className="py-28 px-6 bg-white">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
 
+          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -93,30 +94,26 @@ export default function RSVPPage() {
             </p>
           </motion.div>
 
-          {/* VIDEO – RSVP 1 (PORTRAIT) */}
+          {/* VIDEO – RSVP 1 (PORTRAIT, FIXED) */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
             className="
               relative
-              flex items-center justify-center
-              rounded-3xl
-              bg-gradient-to-br from-[#0f0f0f] to-[#1e1e1e]
-              shadow-2xl
-              p-8
+              rounded-[36px]
+              p-[12px]
+              bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef]
+              shadow-[0_25px_60px_rgba(0,0,0,0.15)]
             "
           >
             <div
               className="
-                w-[260px]
-                md:w-[300px]
-                aspect-[9/16]
-                bg-black
-                rounded-2xl
+                rounded-[26px]
                 overflow-hidden
-                shadow-xl
+                aspect-[9/16]
+                bg-[#111]
               "
             >
               <video
@@ -125,6 +122,7 @@ export default function RSVPPage() {
                 muted
                 loop
                 playsInline
+                preload="metadata"
                 className="w-full h-full object-contain"
               />
             </div>
@@ -177,13 +175,18 @@ export default function RSVPPage() {
       <section className="py-28 px-6 bg-white">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
 
-          {/* VIDEO – RSVP 2 (LANDSCAPE) */}
+          {/* VIDEO – RSVP 2 */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="rounded-3xl overflow-hidden shadow-2xl bg-black"
+            className="
+              rounded-[28px]
+              overflow-hidden
+              bg-[#111]
+              shadow-[0_20px_50px_rgba(0,0,0,0.18)]
+            "
           >
             <video
               src="/videos/rsvp2.mp4"
@@ -195,6 +198,7 @@ export default function RSVPPage() {
             />
           </motion.div>
 
+          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
