@@ -21,8 +21,8 @@ export default function RSVPPage() {
           transition={{ duration: 0.8 }}
           className="text-5xl md:text-6xl font-bold mb-6"
         >
-          אישורי הגעה חכמים  
-          <span className="block text-[#c9b48f] mt-3">
+          אישורי הגעה חכמים
+          <span className="block text-[#c9b48f] mt-4">
             שליטה מלאה באירוע שלך
           </span>
         </motion.h1>
@@ -35,7 +35,7 @@ export default function RSVPPage() {
           className="max-w-3xl mx-auto text-xl leading-relaxed text-[#6b5f55]"
         >
           מערכת אישורי ההגעה של Invistimo מחוברת להזמנה הדיגיטלית,
-          מעדכנת את לוח הבקרה בזמן אמת
+          מעדכנת את לוח הבקרה בזמן אמת,
           ונותנת לך תמונת מצב מדויקת — בלי מאמץ.
         </motion.p>
 
@@ -44,64 +44,24 @@ export default function RSVPPage() {
           animate="visible"
           variants={fadeUp}
           transition={{ delay: 0.4 }}
-          className="mt-10"
+          className="mt-12"
         >
           <Link
             href="/create-invite"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-full
-            bg-[#4a413a] text-white text-lg font-semibold
-            shadow-lg hover:shadow-xl hover:scale-[1.03] transition"
+            className="
+              inline-flex px-10 py-4 rounded-full
+              bg-[#4a413a] text-white text-lg font-semibold
+              shadow-lg hover:shadow-xl hover:scale-[1.04]
+              transition
+            "
           >
             התחילו לנהל אישורי הגעה
           </Link>
         </motion.div>
       </section>
 
-      {/* ================= HOW IT WORKS ================= */}
-      <section className="py-24 bg-white px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10">
-
-          {[
-            {
-              title: "שליחת הזמנה דיגיטלית",
-              text: "כל מוזמן מקבל קישור אישי להזמנה – דרך WhatsApp או SMS.",
-              icon: "📩",
-            },
-            {
-              title: "אישור הגעה בלחיצה",
-              text: "בחירת סטטוס הגעה ומספר משתתפים – פשוט, מהיר וברור.",
-              icon: "✅",
-            },
-            {
-              title: "עדכון מיידי בדשבורד",
-              text: "כל שינוי מתעדכן אוטומטית בלוח הבקרה שלך.",
-              icon: "📊",
-            },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeUp}
-              transition={{ delay: i * 0.15 }}
-              className="
-                bg-[#faf8f4]
-                rounded-3xl p-8
-                shadow-sm hover:shadow-xl
-                transition
-              "
-            >
-              <div className="text-4xl mb-5">{item.icon}</div>
-              <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
-              <p className="text-[#6b5f55] leading-relaxed">{item.text}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ================= LIVE DASHBOARD ================= */}
-      <section className="py-28 px-6 relative overflow-hidden">
+      {/* ================= BLOCK 1 – GUEST RSVP ================= */}
+      <section className="py-28 px-6 bg-white">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
 
           <motion.div
@@ -111,121 +71,167 @@ export default function RSVPPage() {
             variants={fadeUp}
           >
             <h2 className="text-4xl font-bold mb-6">
-              הכל מתעדכן בזמן אמת
+              אישור הגעה עצמאי לאורח
             </h2>
 
-            <p className="text-lg text-[#6b5f55] leading-relaxed mb-6">
-              לוח הבקרה של Invistimo מציג בכל רגע נתון
-              את מצב אישורי ההגעה,
-              בצורה ברורה, מדויקת ונוחה לעבודה.
+            <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
+              כל אורח מאשר את הגעתו דרך קישור אישי,
+              בצורה פשוטה, ברורה וללא צורך בהרשמה.
             </p>
 
             <ul className="space-y-4 text-lg">
-              <li>✔ סטטוס הגעה לכל מוזמן</li>
-              <li>✔ חישוב אוטומטי של סך המשתתפים</li>
-              <li>✔ זיהוי מוזמנים שעדיין לא השיבו</li>
-              <li>✔ חיבור ישיר לסידורי הושבה</li>
+              <li>קישור אישי ייחודי לכל אורח</li>
+              <li>שליחה ידנית ב־WhatsApp או ב־SMS</li>
+              <li>בחירת מגיע / לא מגיע</li>
+              <li>בחירת מספר מוזמנים</li>
+              <li>הוספת הערות (כשרות, נגישות, אלרגיות ועוד)</li>
             </ul>
+
+            <p className="mt-8 text-lg text-[#6b5f55] leading-relaxed">
+              האורח לא צריך להירשם, לא להוריד אפליקציה
+              ולא ליצור קשר — הכל מתבצע ישירות מהקישור.
+            </p>
           </motion.div>
 
-          {/* Fake dashboard card */}
+          {/* VIDEO – RSVP 1 */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6 }}
-            className="
-              relative
-              bg-gradient-to-br from-[#1c1c1c] to-[#2b2b2b]
-              rounded-3xl p-8 text-white
-              shadow-2xl
-            "
+            viewport={{ once: true }}
+            className="rounded-3xl overflow-hidden shadow-2xl bg-black"
           >
-            <div className="grid grid-cols-2 gap-6">
-              {[
-                { label: "מגיעים", value: "128" },
-                { label: "לא מגיעים", value: "34" },
-                { label: "ממתינים", value: "19" },
-                { label: "סה״כ משתתפים", value: "287" },
-              ].map((stat, i) => (
-                <div
-                  key={i}
-                  className="
-                    bg-white/10 rounded-xl p-5
-                    text-center backdrop-blur
-                  "
-                >
-                  <div className="text-3xl font-bold mb-1">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm opacity-80">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <video
+              src="/videos/rsvp1.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full h-full object-cover"
+            />
           </motion.div>
         </div>
       </section>
 
-      {/* ================= WHY IT MATTERS ================= */}
-      <section className="py-24 bg-white px-6 text-center">
-        <motion.h2
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          className="text-4xl font-bold mb-6"
-        >
-          למה זה משנה באמת?
-        </motion.h2>
+      {/* ================= BLOCK 2 – LIVE DASHBOARD ================= */}
+      <section className="py-28 px-6 bg-[#faf8f4]">
+        <div className="max-w-5xl mx-auto text-center">
 
-        <motion.p
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          transition={{ delay: 0.15 }}
-          className="max-w-3xl mx-auto text-xl text-[#6b5f55]"
-        >
-          כי אירוע טוב מנוהל על בסיס נתונים מדויקים,
-          לא לפי תחושת בטן.
-          Invistimo מרכז עבורך את כל המידע
-          למקום אחד ברור ונוח.
-        </motion.p>
+          <motion.h2
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            className="text-4xl font-bold mb-6"
+          >
+            עדכון בזמן אמת בדשבורד
+          </motion.h2>
+
+          <motion.p
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            transition={{ delay: 0.15 }}
+            className="text-xl text-[#6b5f55] mb-12"
+          >
+            כל פעולה של אורח מתעדכנת מיידית במערכת —
+            בלי רענון, בלי המתנה.
+          </motion.p>
+
+          <ul className="space-y-4 text-lg max-w-2xl mx-auto">
+            <li>סטטוס הגעה מתעדכן אוטומטית</li>
+            <li>מספר מוזמנים מתעדכן מייד</li>
+            <li>סיכום משתתפים תמיד מדויק</li>
+            <li>אין צורך לרענן או להמתין</li>
+          </ul>
+
+          <p className="mt-10 text-lg text-[#6b5f55]">
+            בעל השמחה רואה בכל רגע
+            מי מגיע, כמה מגיעים,
+            ומי עדיין לא ענה.
+          </p>
+        </div>
       </section>
 
-      {/* ================= CTA ================= */}
-      <section className="py-24 px-6 text-center bg-[#4a413a] text-white">
+      {/* ================= BLOCK 3 – OWNER MANAGE ================= */}
+      <section className="py-28 px-6 bg-white">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+
+          {/* VIDEO – RSVP 2 */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="rounded-3xl overflow-hidden shadow-2xl bg-black"
+          >
+            <video
+              src="/videos/rsvp2.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+          >
+            <h2 className="text-4xl font-bold mb-6">
+              ניהול מלא גם מצד בעל השמחה
+            </h2>
+
+            <p className="text-lg text-[#6b5f55] mb-8">
+              לא תלויים רק באורחים —
+              כל הנתונים ניתנים לעריכה ידנית.
+            </p>
+
+            <ul className="space-y-4 text-lg">
+              <li>הוספת אורחים ידנית</li>
+              <li>עריכת סטטוס הגעה</li>
+              <li>שינוי מספר מוזמנים</li>
+              <li>הוספת הערות משיחה טלפונית או וואטסאפ</li>
+              <li>הכל מתעדכן מייד בדשבורד</li>
+            </ul>
+
+            <p className="mt-8 text-lg text-[#6b5f55]">
+              גם אם אורח התקשר, שלח הודעה
+              או ביקש לעדכן דרך צד שלישי —
+              השליטה נשארת אצלך.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ================= BLOCK 4 – WHY ================= */}
+      <section className="py-28 px-6 bg-[#faf8f4] text-center">
         <motion.h2
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={fadeUp}
-          className="text-4xl font-bold mb-6"
+          className="text-4xl font-bold mb-10"
         >
-          מוכנים לנהל אישורי הגעה בצורה חכמה?
+          למה אישורי ההגעה של Invistimo עובדים באמת
         </motion.h2>
 
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          transition={{ delay: 0.2 }}
-        >
-          <Link
-            href="/create-invite"
-            className="
-              inline-flex px-10 py-4 rounded-full
-              bg-[#c9b48f] text-[#4a413a]
-              text-lg font-semibold
-              hover:scale-[1.05]
-              transition shadow-xl
-            "
-          >
-            התחילו עכשיו עם Invistimo
-          </Link>
-        </motion.div>
+        <ul className="space-y-4 text-xl max-w-xl mx-auto">
+          <li>אין טלפונים חוזרים</li>
+          <li>אין הודעות מפוזרות</li>
+          <li>אין נתונים סותרים</li>
+          <li>אין ניחושים</li>
+          <li>הכל מרוכז במקום אחד</li>
+        </ul>
+
+        <p className="mt-12 text-xl text-[#6b5f55]">
+          אישורי הגעה שעובדים בשבילך —
+          לא כאלה שצריך לרדוף אחריהם.
+        </p>
       </section>
     </div>
   );
