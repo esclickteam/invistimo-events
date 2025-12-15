@@ -1,6 +1,7 @@
 "use client";
 import { Line } from "react-konva";
-import { GRID_SIZE } from "@/logic/gridSnap";
+import { GRID_SIZE, snapToGrid, snapPosition } from "@/logic/gridSnap";
+
 
 
 export default function GridLayer({ width, height }) {
