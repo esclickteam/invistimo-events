@@ -9,23 +9,23 @@ export default function Header() {
   return (
     <header
       className="
-        fixed top-0 left-0 w-full z-50
+        fixed top-0 inset-x-0 z-50
         bg-[#f5eee7]
         bg-[url('/noise.png')] bg-repeat
         border-b border-[#e2d6c8]
         shadow-sm
       "
     >
-      {/* RTL כללי */}
+      {/* FULL WIDTH HEADER */}
       <div
-        className="max-w-7xl mx-auto px-6"
+        className="w-full px-10"
         dir="rtl"
       >
-        {/* GRID כדי שהלוגו יהיה באמת באמצע */}
-        <div className="grid grid-cols-3 items-center h-16">
+        {/* 3 אזורים – ימין | מרכז | שמאל */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center h-16">
 
-          {/* ====================== צד ימין – תפריט ניווט ====================== */}
-          <nav className="hidden md:flex items-center gap-8 text-[#4a413a] font-medium justify-start">
+          {/* ====================== ימין – תפריט ====================== */}
+          <nav className="flex items-center gap-10 justify-start text-[#4a413a] font-medium">
             <Link href="#how" className="hover:text-[var(--champagne-dark)] transition">
               איך זה עובד?
             </Link>
@@ -49,56 +49,50 @@ export default function Header() {
               <img
                 src="/invistimo-logo.png"
                 alt="Invistimo Logo"
-                className="h-8 w-auto object-contain"
+                className="h-12 w-auto object-contain"
               />
             </Link>
           </div>
 
-          {/* ====================== צד שמאל – התחברות / משתמש ====================== */}
+          {/* ====================== שמאל – התחברות ====================== */}
           <div className="flex justify-end items-center gap-4">
             {!loading && (
-              <>
-                {user ? (
-                  <>
-                    <Link
-                      href="/dashboard"
-                      className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
-                    >
-                      לוח בקרה
-                    </Link>
-
-                    <span className="text-[#4a413a] text-sm">
-                      שלום, {user.name || "משתמש"}
-                    </span>
-
-                    <button
-                      onClick={logout}
-                      className="
-                        px-4 py-2 rounded-full
-                        border border-[#cbb59d]
-                        text-[#4a413a] text-sm
-                        hover:bg-[#efe6db]
-                        transition
-                      "
-                    >
-                      התנתקות
-                    </button>
-                  </>
-                ) : (
+              user ? (
+                <>
                   <Link
-                    href="/login"
+                    href="/dashboard"
+                    className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
+                  >
+                    לוח בקרה
+                  </Link>
+
+                  <button
+                    onClick={logout}
                     className="
                       px-5 py-2 rounded-full
                       border border-[#cbb59d]
-                      text-[#4a413a] text-sm font-medium
+                      text-[#4a413a] text-sm
                       hover:bg-[#efe6db]
                       transition
                     "
                   >
-                    התחברות
-                  </Link>
-                )}
-              </>
+                    התנתקות
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className="
+                    px-6 py-2 rounded-full
+                    border border-[#cbb59d]
+                    text-[#4a413a] font-medium
+                    hover:bg-[#efe6db]
+                    transition
+                  "
+                >
+                  התחברות
+                </Link>
+              )
             )}
           </div>
 
