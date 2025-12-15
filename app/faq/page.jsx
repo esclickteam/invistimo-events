@@ -17,13 +17,20 @@ export default function FAQPage() {
       {/* פתיח */}
       <section className="relative pr-6 mb-14">
         <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
-        <p className="text-lg">
+        <p className="text-lg leading-relaxed">
           ריכזנו עבורכם את השאלות הנפוצות ביותר בנוגע לשימוש במערכת{" "}
-          <strong>Invistimo</strong>, לתהליכי עבודה, לחבילות ולפיצ’רים.
+          <strong>Invistimo</strong>, לרבות תהליכי עבודה, יצירת אירועים,
+          ניהול הזמנות, אישורי הגעה, חבילות, תשלומים ופיצ’רים מתקדמים.
         </p>
-        <p className="mt-3">
-          לא מצאתם תשובה? ניתן לפנות אלינו דרך עמוד{" "}
-          <strong>יצירת קשר</strong> ונשמח לעזור.
+        <p className="mt-3 text-[#7b6754]">
+          לא מצאתם תשובה לשאלה שלכם? ניתן לפנות אלינו דרך עמוד{" "}
+          <a
+            href="/contact"
+            className="underline font-semibold hover:text-[#5c4632]"
+          >
+            יצירת קשר
+          </a>{" "}
+          ונשמח לעזור.
         </p>
       </section>
 
