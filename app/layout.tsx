@@ -2,15 +2,14 @@ import "./globals.css";
 import type { ReactNode } from "react";
 import Providers from "./providers";
 
-/* ❌ אין hooks */
-/* ❌ אין "use client" בלייאאוט */
-
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import AccessibilityButton from "./components/AccessibilityButton";
 
-/* ✅ קומפוננטת client – מותר לייבא */
+/* ✅ בוט תמיכה – קומפוננטת client */
 import SupportBotButton from "./components/SupportBotButton";
+
+/* ✅ טעינת סקריפטים */
+import Script from "next/script";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -27,17 +26,24 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Header />
 
           {/* MAIN CONTENT */}
-          <main className="min-h-screen pt-[64px]">
-            {children}
-          </main>
+          <main className="min-h-screen pt-[64px]">{children}</main>
 
-          {/* FOOTER – מופיע פעם אחת בלבד */}
+          {/* FOOTER – פעם אחת בלבד */}
           <Footer />
-
-<AccessibilityButton />
 
           {/* 💬 בוט תמיכה – צף בכל האתר */}
           <SupportBotButton />
+
+          {/* ♿ נגישות – Nagish / נגיש לי */}
+          <Script id="nagish-config" strategy="afterInteractive">
+            {`var nl_link = "https://invistimo.com/accessibility";`}
+          </Script>
+
+          <Script
+            src="https://cdn.nagish.co.il/nagishli.js?v=2.3"
+            strategy="afterInteractive"
+            charSet="utf-8"
+          />
         </Providers>
       </body>
     </html>

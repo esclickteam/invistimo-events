@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import AccessibilityPanel from "./AccessibilityPanel";
 
 export default function AccessibilityButton() {
   const [open, setOpen] = useState(false);
