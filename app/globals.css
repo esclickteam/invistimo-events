@@ -176,13 +176,3 @@ h1, h2, h3 {
       0 10px 24px rgba(201,180,143,0.35);
   }
 }
-
-html, body {
-  height: auto !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-
-main {
-  overflow-y: visible !important;
-}
