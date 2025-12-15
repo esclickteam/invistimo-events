@@ -1,5 +1,67 @@
 import mongoose from "mongoose";
 
+/* =========================
+   ZONE SUB-SCHEMA
+========================= */
+const ZoneSchema = new mongoose.Schema(
+  {
+    zoneType: {
+      type: String,
+      required: true,
+      enum: [
+        "chuppah",
+        "stage",
+        "dancefloor",
+        "reception",
+        "photo-area",
+        "brit-area",
+        "henna-stage",
+        "bride-groom-seat",
+      ],
+    },
+
+    label: {
+      type: String,
+      required: true,
+    },
+
+    icon: {
+      type: String,
+      required: true,
+    },
+
+    color: {
+      type: String,
+      required: true,
+    },
+
+    opacity: {
+      type: Number,
+      default: 0.25,
+    },
+
+    x: { type: Number, required: true },
+    y: { type: Number, required: true },
+
+    width: { type: Number, required: true },
+    height: { type: Number, required: true },
+
+    rotation: {
+      type: Number,
+      default: 0,
+    },
+
+    locked: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: true }
+);
+
+/* =========================
+   EVENT SCHEMA
+========================= */
 const EventSchema = new mongoose.Schema(
   {
     /* =========================
@@ -25,7 +87,16 @@ const EventSchema = new mongoose.Schema(
     ========================= */
     eventType: {
       type: String,
-      default: "Event",
+      enum: [
+        "wedding",
+        "bar-mitzvah",
+        "bat-mitzvah",
+        "brit",
+        "brita",
+        "henna",
+      ],
+      required: true,
+      index: true,
     },
 
     title: {
@@ -41,6 +112,14 @@ const EventSchema = new mongoose.Schema(
     location: {
       type: String,
       default: "",
+    },
+
+    /* =========================
+       אזורים (במה / חופה / רחבה)
+    ========================= */
+    zones: {
+      type: [ZoneSchema],
+      default: [],
     },
 
     /* =========================
@@ -81,7 +160,10 @@ const EventSchema = new mongoose.Schema(
       default: "active",
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export default mongoose.models.Event || mongoose.model("Event", EventSchema);
+export default mongoose.models.Event ||
+  mongoose.model("Event", EventSchema);
