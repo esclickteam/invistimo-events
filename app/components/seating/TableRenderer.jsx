@@ -4,6 +4,7 @@ import { useRef, useEffect, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { getSeatCoordinates } from "@/logic/seatingEngine";
+import { snapPosition } from "@/logic/gridSnap";
 
 export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
@@ -33,14 +34,18 @@ export default function TableRenderer({ table }) {
   const isHighlighted =
     highlightedTable === table.id || hasSelectedGuestInThisTable;
 
-  /* ================= UPDATE POSITION ================= */
+  /* ================= GRID SNAP POSITION ================= */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
-    const pos = tableRef.current.getPosition();
+
+    const raw = tableRef.current.getPosition();
+    const snapped = snapPosition(raw);
+
+    tableRef.current.position(snapped);
 
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
-        t.id === table.id ? { ...t, x: pos.x, y: pos.y } : t
+        t.id === table.id ? { ...t, x: snapped.x, y: snapped.y } : t
       ),
     }));
   };
@@ -60,12 +65,26 @@ export default function TableRenderer({ table }) {
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
 
-  /* ================= BANQUET SIZE ================= */
+  /* ================= BANQUET ================= */
   const isBanquet = table.type === "banquet" || table.type === "knights";
   const orientation = table.orientation || "horizontal";
 
   const banquetWidth = orientation === "horizontal" ? 260 : 100;
   const banquetHeight = orientation === "horizontal" ? 100 : 260;
+
+  const rotateBanquet = () => {
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id
+          ? {
+              ...t,
+              orientation:
+                t.orientation === "vertical" ? "horizontal" : "vertical",
+            }
+          : t
+      ),
+    }));
+  };
 
   return (
     <Group
@@ -85,17 +104,15 @@ export default function TableRenderer({ table }) {
       onMouseDown={(e) => (e.cancelBubble = true)}
       onTouchStart={(e) => (e.cancelBubble = true)}
       onClick={(e) => {
-        if (e.target?.attrs?.isDeleteButton) return;
-        e.cancelBubble = true;
+        if (e.target?.attrs?.isRotateButton) return;
 
+        e.cancelBubble = true;
         useSeatingStore.setState({
           highlightedTable: table.id,
           highlightedSeats: [],
         });
 
-        if (table.openAddGuestModal) {
-          table.openAddGuestModal(table);
-        }
+        table.openAddGuestModal?.(table);
       }}
     >
       {/* ================= TABLE SHAPE ================= */}
@@ -167,23 +184,46 @@ export default function TableRenderer({ table }) {
             offsetX={banquetWidth / 2}
             offsetY={banquetHeight / 2}
           />
+
+          {/* 🔁 ROTATE BUTTON */}
+          <Group
+            x={banquetWidth / 2 - 12}
+            y={-banquetHeight / 2 - 26}
+            onClick={(e) => {
+              e.cancelBubble = true;
+              rotateBanquet();
+            }}
+          >
+            <Circle radius={14} fill="#111827" opacity={0.9} />
+            <Text
+              text="⟳"
+              fontSize={16}
+              fill="white"
+              align="center"
+              verticalAlign="middle"
+              width={28}
+              height={28}
+              offsetX={14}
+              offsetY={14}
+              isRotateButton
+            />
+          </Group>
         </>
       )}
 
-      {/* ================= SEATS ================= */}
+      {/* ================= SEATS (לא נוגעים) ================= */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
 
         const isInHoverHighlight = highlightedSeats.includes(i);
-
         const isSelectedSeat =
           !!seatGuest &&
           !!selectedGuestId &&
           String(seatGuest.guestId) === String(selectedGuestId);
 
         const guestName = !isFree
-          ? (guests || []).find(
+          ? guests.find(
               (g) => normalizeGuestId(g) === String(seatGuest.guestId)
             )?.name
           : null;

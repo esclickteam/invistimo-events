@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
+/* ============================================================
+   Seating Store
+============================================================ */
 export const useSeatingStore = create((set, get) => ({
   /* ======================= STATE ======================= */
   tables: [],
@@ -14,7 +17,7 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* ⭐ אורח נבחר – מה־URL */
+  /* ⭐ אורח נבחר – מגיע מה־URL */
   selectedGuestId: null,
 
   showAddModal: false,
@@ -23,6 +26,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ======================= BASIC ACTIONS ======================= */
   setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
   setShowAddModal: (v) => set({ showAddModal: v }),
+
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
@@ -57,24 +61,34 @@ export const useSeatingStore = create((set, get) => ({
     }
   },
 
-  /* ======================= ADD TABLE ======================= */
-  addTable: (type, seats, extra = {}) => {
+  /* ======================= ADD TABLE / ELEMENT ======================= */
+  addTable: (type, seats = 0, extra = {}) => {
     const { tables } = get();
+
+    const index = tables.length + 1;
 
     const newTable = {
       id: "t" + Date.now(),
-      name: `שולחן ${tables.length + 1}`,
-      type,
+      name:
+        extra.elementType === "stage"
+          ? "במה"
+          : extra.elementType === "chuppah"
+          ? "חופה"
+          : extra.elementType === "exit"
+          ? "יציאה"
+          : `שולחן ${index}`,
+
+      type, // round | square | banquet | element
       seats,
 
-      x: 300 + tables.length * 40,
-      y: 200,
+      x: extra.x ?? 300 + index * 40,
+      y: extra.y ?? 200,
 
-      /* ⭐⭐ חדש – לשולחן אבירים בלבד */
+      /* ⭐ שולחן אבירים */
       orientation: type === "banquet" ? "horizontal" : undefined,
 
-      /* ⭐⭐ עתידי – אובייקטים מיוחדים */
-      elementType: extra.elementType || null, // stage | chuppah | exit
+      /* ⭐ אלמנטים */
+      elementType: extra.elementType || null, // stage | chuppah | exit | null
 
       seatedGuests: [],
     };
@@ -82,7 +96,7 @@ export const useSeatingStore = create((set, get) => ({
     set({ tables: [...tables, newTable] });
   },
 
-  /* ======================= UPDATE ORIENTATION ======================= */
+  /* ======================= ROTATE BANQUET ======================= */
   rotateBanquet: (tableId) => {
     const { tables } = get();
 
@@ -116,7 +130,7 @@ export const useSeatingStore = create((set, get) => ({
       };
     }),
 
-  /* ======================= DRAG START ======================= */
+  /* ======================= DRAG GUEST ======================= */
   startDragGuest: (guest) => {
     set({
       draggedGuest: guest,
@@ -127,7 +141,7 @@ export const useSeatingStore = create((set, get) => ({
 
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
-  /* ======================= HOVER ======================= */
+  /* ======================= HOVER TABLE ======================= */
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
@@ -136,7 +150,7 @@ export const useSeatingStore = create((set, get) => ({
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
 
-      let radius = 110;
+      let radius = 120;
       if (t.type === "round") radius = 90;
       if (t.type === "square") radius = 120;
       if (t.type === "banquet") radius = 160;
@@ -159,7 +173,7 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ======================= DROP ======================= */
+  /* ======================= DROP GUEST ======================= */
   dropGuest: () => {
     const {
       draggedGuest,
@@ -267,11 +281,11 @@ export const useSeatingStore = create((set, get) => ({
     const guest = guests.find((g) => g.id === guestId);
 
     if (!table || !guest)
-      return { ok: false, message: "שגיאה בזיהוי" };
+      return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
 
     const block = findFreeBlock(table, count);
     if (!block)
-      return { ok: false, message: "אין מספיק מקומות" };
+      return { ok: false, message: "אין מספיק מקומות פנויים" };
 
     tables.forEach((t) => {
       t.seatedGuests = t.seatedGuests.filter(
