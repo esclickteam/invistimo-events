@@ -38,7 +38,10 @@ export default function Header() {
             <Link href="#pricing" className="hover:text-[var(--champagne-dark)] transition">
               חבילות ומחירים
             </Link>
-            <Link href="https://www.invistimo.com/contact" target="_blank">
+            <Link
+  href="/contact"
+  className="hover:text-[var(--champagne-dark)] transition"
+>
   צור קשר
 </Link>
           </nav>
