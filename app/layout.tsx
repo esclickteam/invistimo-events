@@ -5,11 +5,11 @@ import Providers from "./providers";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 
-/* ✅ בוט תמיכה – קומפוננטת client */
-import SupportBotButton from "./components/SupportBotButton";
-
-/* ✅ טעינת סקריפטים */
+/* ✅ next/script */
 import Script from "next/script";
+
+/* ✅ בוט תמיכה */
+import SupportBotButton from "./components/SupportBotButton";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -25,24 +25,27 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {/* HEADER */}
           <Header />
 
-          {/* MAIN CONTENT */}
-          <main className="min-h-screen pt-[64px]">{children}</main>
+          {/* MAIN */}
+          <main className="min-h-screen pt-[64px]">
+            {children}
+          </main>
 
-          {/* FOOTER – פעם אחת בלבד */}
+          {/* FOOTER */}
           <Footer />
 
-          {/* 💬 בוט תמיכה – צף בכל האתר */}
+          {/* 💬 בוט תמיכה */}
           <SupportBotButton />
 
-          {/* ♿ נגישות – Nagish / נגיש לי */}
-          <Script id="nagish-config" strategy="afterInteractive">
-            {`var nl_link = "https://invistimo.com/accessibility";`}
+          {/* ♿ נגישות – Nagishli */}
+          <Script id="nagishli-config" strategy="beforeInteractive">
+            {`
+              var nl_link = "https://invistimo.com/accessibility";
+            `}
           </Script>
 
           <Script
-            src="https://cdn.nagish.co.il/nagishli.js?v=2.3"
+            src="https://cdn.nagishli.co.il/nagishli.js?v=2.3"
             strategy="afterInteractive"
-            charSet="utf-8"
           />
         </Providers>
       </body>
