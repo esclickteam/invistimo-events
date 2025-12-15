@@ -9,7 +9,6 @@ export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
   let data;
-
   try {
     data =
       typeof canvasData === "string"
@@ -47,12 +46,13 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   return (
     <div className="w-full flex justify-center">
+      {/* ⭐ פה הפתרון – ה-wrapper שקוף למגע */}
       <div
         ref={containerRef}
         className="w-full flex justify-center"
         style={{
           overflow: "visible",
-          pointerEvents: "none", // ⭐⭐⭐ קריטי – מאפשר גלילה מעל הקנבס
+          pointerEvents: "none", // ✅ מאפשר גלילה מעל הקנבס
         }}
       >
         <div
@@ -60,7 +60,6 @@ export default function PublicInviteRenderer({ canvasData }) {
             width: width * scale,
             height: height * scale,
             position: "relative",
-            pointerEvents: "none", // ⭐ גם כאן
           }}
         >
           <Stage
@@ -70,15 +69,9 @@ export default function PublicInviteRenderer({ canvasData }) {
             scaleY={scale}
             listening={false}
             preventDefault={false}
-            style={{
-              pointerEvents: "none", // ⭐ והכי חשוב – על ה-canvas עצמו
-            }}
           >
             <Layer listening={false}>
               {data.objects.map((obj) => {
-                /* -------------------------------------------------------
-                    🔵 RECTANGLE
-                ------------------------------------------------------- */
                 if (obj.type === "rect") {
                   return (
                     <Rect
@@ -96,9 +89,6 @@ export default function PublicInviteRenderer({ canvasData }) {
                   );
                 }
 
-                /* -------------------------------------------------------
-                    🟣 CIRCLE
-                ------------------------------------------------------- */
                 if (obj.type === "circle") {
                   return (
                     <Rect
@@ -114,16 +104,10 @@ export default function PublicInviteRenderer({ canvasData }) {
                   );
                 }
 
-                /* -------------------------------------------------------
-                    🖼 IMAGE
-                ------------------------------------------------------- */
                 if (obj.type === "image") {
                   return <PreviewImage key={obj.id} obj={obj} />;
                 }
 
-                /* -------------------------------------------------------
-                    ✏ TEXT
-                ------------------------------------------------------- */
                 if (obj.type === "text") {
                   return (
                     <Text
@@ -148,9 +132,7 @@ export default function PublicInviteRenderer({ canvasData }) {
             </Layer>
           </Stage>
 
-          {/* -------------------------------------------------------
-              🟠 LOTTIE — rendered OUTSIDE Konva
-          ------------------------------------------------------- */}
+          {/* 🟠 LOTTIE – מחוץ ל־Konva */}
           {data.objects
             .filter((o) => o.type === "lottie")
             .map((obj) => (
@@ -162,7 +144,7 @@ export default function PublicInviteRenderer({ canvasData }) {
                   left: obj.x * scale,
                   width: obj.width * scale,
                   height: obj.height * scale,
-                  pointerEvents: "none", // כבר היה – מצוין
+                  pointerEvents: "none",
                 }}
               >
                 <Lottie animationData={obj.lottieData} />
@@ -175,11 +157,10 @@ export default function PublicInviteRenderer({ canvasData }) {
 }
 
 /* ============================================================
-   🖼 IMAGE LOADER — loads real image for preview
+   🖼 IMAGE LOADER
 ============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
-
   if (!image) return null;
 
   return (
