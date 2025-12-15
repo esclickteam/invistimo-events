@@ -6,14 +6,14 @@ import { useSeatingStore } from "@/store/seatingStore";
 import { getSeatCoordinates } from "@/logic/seatingEngine";
 
 export default function TableRenderer({ table }) {
+  const tableRef = useRef(null);
+
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
 
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const guests = useSeatingStore((s) => s.guests);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
-
-  const tableRef = useRef(null);
 
   /* ================= DATA ================= */
   const assigned = table.seatedGuests || [];
@@ -24,7 +24,7 @@ export default function TableRenderer({ table }) {
   const hasSelectedGuestInThisTable = useMemo(() => {
     if (!selectedGuestId) return false;
     return assigned.some(
-      (s) => String(s?.guestId) === String(selectedGuestId)
+      (s) => String(s.guestId) === String(selectedGuestId)
     );
   }, [assigned, selectedGuestId]);
 
@@ -47,50 +47,40 @@ export default function TableRenderer({ table }) {
     updatePositionInStore();
   }, []);
 
-  const handleSeatDrag = (guestId) => {
-    const g = (guests || []).find(
-      (x) => normalizeGuestId(x) === String(guestId)
-    );
-    if (g) startDragGuest(g);
-  };
-
-  /* ================= COLORS ================= */
-  const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
-  const tableText = isHighlighted ? "#713f12" : "white";
-
-  /* ================= BANQUET ROTATION ================= */
-  const isBanquet = table.type === "banquet";
-  const orientation = table.orientation || "horizontal";
-
-  const width = orientation === "horizontal" ? 240 : 90;
-  const height = orientation === "horizontal" ? 90 : 240;
-
-  const rotateBanquet = () => {
+  /* ================= ROTATION ================= */
+  const rotateTable = () => {
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
         t.id === table.id
           ? {
               ...t,
-              orientation:
-                (t.orientation || "horizontal") === "horizontal"
-                  ? "vertical"
-                  : "horizontal",
+              rotation: ((t.rotation || 0) + 90) % 360,
             }
           : t
       ),
     }));
   };
 
-  const seatsCoords = getSeatCoordinates({
-    ...table,
-    orientation,
-  });
+  /* ================= COLORS ================= */
+  const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
+  const tableText = isHighlighted ? "#713f12" : "white";
+
+  /* ================= SEATS ================= */
+  const seatsCoords = getSeatCoordinates(table);
+
+  const handleSeatDrag = (guestId) => {
+    const g = guests.find(
+      (x) => normalizeGuestId(x) === String(guestId)
+    );
+    if (g) startDragGuest(g);
+  };
 
   return (
     <Group
       ref={tableRef}
       x={table.x}
       y={table.y}
+      rotation={table.rotation || 0}
       draggable
       onDragMove={(e) => {
         e.cancelBubble = true;
@@ -108,7 +98,7 @@ export default function TableRenderer({ table }) {
         });
       }}
     >
-      {/* ================= TABLE SHAPE ================= */}
+      {/* ================= TABLE BODY ================= */}
 
       {table.type === "round" && (
         <>
@@ -152,13 +142,13 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {isBanquet && (
+      {table.type === "banquet" && (
         <>
           <Rect
-            width={width}
-            height={height}
-            offsetX={width / 2}
-            offsetY={height / 2}
+            width={240}
+            height={90}
+            offsetX={120}
+            offsetY={45}
             fill={tableFill}
             shadowBlur={8}
             cornerRadius={10}
@@ -170,32 +160,32 @@ export default function TableRenderer({ table }) {
             fill={tableText}
             align="center"
             verticalAlign="middle"
-            width={width}
-            height={height}
-            offsetX={width / 2}
-            offsetY={height / 2}
+            width={240}
+            height={90}
+            offsetX={120}
+            offsetY={45}
           />
 
-          {/* 🔁 ROTATE BUTTON */}
+          {/* 🔁 ROTATE BUTTON – מסתובב יחד עם השולחן */}
           <Group
-            x={width / 2 - 10}
-            y={-height / 2 - 22}
+            x={0}
+            y={-70}
             onClick={(e) => {
               e.cancelBubble = true;
-              rotateBanquet();
+              rotateTable();
             }}
           >
-            <Circle radius={12} fill="#111827" opacity={0.9} />
+            <Circle radius={14} fill="#111827" opacity={0.9} />
             <Text
               text="⟳"
-              fontSize={14}
+              fontSize={16}
               fill="white"
               align="center"
               verticalAlign="middle"
-              width={24}
-              height={24}
-              offsetX={12}
-              offsetY={12}
+              width={28}
+              height={28}
+              offsetX={14}
+              offsetY={14}
             />
           </Group>
         </>
@@ -208,18 +198,24 @@ export default function TableRenderer({ table }) {
 
         const isInHoverHighlight = highlightedSeats.includes(i);
         const isSelectedSeat =
-          !!seatGuest &&
-          !!selectedGuestId &&
+          seatGuest &&
+          selectedGuestId &&
           String(seatGuest.guestId) === String(selectedGuestId);
 
         const guestName = !isFree
           ? guests.find(
-              (g) => normalizeGuestId(g) === String(seatGuest.guestId)
+              (g) =>
+                normalizeGuestId(g) === String(seatGuest.guestId)
             )?.name
           : null;
 
         return (
-          <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
+          <Group
+            key={i}
+            x={c.x}
+            y={c.y}
+            rotation={(c.rotation * 180) / Math.PI}
+          >
             {isInHoverHighlight && (
               <Circle radius={14} fill="#34d399" opacity={0.5} />
             )}
@@ -239,7 +235,9 @@ export default function TableRenderer({ table }) {
               }
               stroke={isSelectedSeat ? "#eab308" : "#2563eb"}
               strokeWidth={isSelectedSeat ? 2 : 1}
-              onClick={() => !isFree && handleSeatDrag(seatGuest.guestId)}
+              onClick={() =>
+                !isFree && handleSeatDrag(seatGuest.guestId)
+              }
             />
 
             {!isFree && (
