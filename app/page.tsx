@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Star, Smartphone } from "lucide-react";
-import Footer from "./components/Footer";
 
 /* 🔢 עובדים עם מספרים */
 type GuestOption = 100 | 300 | 500 | 1000;
@@ -25,7 +24,7 @@ export default function HomePage() {
       : "#";
 
   return (
-    <div className="relative space-y-40 pb-40 overflow-hidden">
+    <div className="relative space-y-40 pb-40">
       {/* ========= רקע ========= */}
       <div className="absolute inset-0 -z-20 bg-gradient-to-b from-[#f7f3ee] via-[#efe7dd] to-[#e7d9ca]" />
       <div className="absolute inset-0 -z-10 opacity-[0.15] bg-[url('/noise.png')]" />
@@ -121,7 +120,6 @@ export default function HomePage() {
               ))}
             </ul>
 
-            {/* בחירת כמות אורחים */}
             <div className="bg-white/15 p-5 rounded-2xl text-center">
               <p className="font-semibold mb-3">בחרו כמות אורחים:</p>
 
@@ -170,9 +168,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ========= FOOTER ========= */}
-      <Footer />
     </div>
   );
 }
