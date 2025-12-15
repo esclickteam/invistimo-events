@@ -29,9 +29,8 @@ export default function Footer() {
           </Link>
 
           <Link
-            href="/accessibility"
+            href="/accessibility">הצהרת נגישות
             className="hover:underline hover:text-[#5c4632] transition"
-          >
             נגישות
           </Link>
         </nav>
