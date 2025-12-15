@@ -14,21 +14,12 @@ export default function Footer() {
 
         {/* קישורים משפטיים */}
         <nav className="flex items-center gap-6 text-sm">
-          <Link
-            href="/terms"
-            className="hover:underline hover:text-[#5c4632] transition"
-          >
-            תקנון שימוש
-          </Link>
-
-          <Link
-            href="/privacy"
-            className="hover:underline hover:text-[#5c4632] transition"
-          >
-            מדיניות פרטיות
-          </Link>
-
-          <Link href="/accessibility">הצהרת נגישות</Link>
+          <div className="flex items-center gap-6 text-sm">
+  <Link href="/terms">תקנון שימוש</Link>
+  <Link href="/privacy">מדיניות פרטיות</Link>
+  <Link href="/accessibility">הצהרת נגישות</Link>
+  <Link href="/contact">יצירת קשר</Link>
+</div>
 
         </nav>
 
