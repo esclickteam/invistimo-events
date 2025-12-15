@@ -7,6 +7,7 @@ import Providers from "./providers";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import AccessibilityButton from "./components/AccessibilityButton";
 
 /* ✅ קומפוננטת client – מותר לייבא */
 import SupportBotButton from "./components/SupportBotButton";
@@ -32,6 +33,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
           {/* FOOTER – מופיע פעם אחת בלבד */}
           <Footer />
+
+<AccessibilityButton />
 
           {/* 💬 בוט תמיכה – צף בכל האתר */}
           <SupportBotButton />

@@ -125,3 +125,30 @@ body {
 h1, h2, h3 {
   color: var(--brown-dark);
 }
+.high-contrast {
+  background: black !important;
+  color: white !important;
+}
+
+.grayscale {
+  filter: grayscale(100%);
+}
+
+.highlight-links a {
+  background: yellow;
+  color: black !important;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.access-btn {
+  border: 1px solid #c7a17a;
+  border-radius: 12px;
+  padding: 8px;
+  transition: 0.2s;
+}
+
+.access-btn:hover {
+  background: #c7a17a;
+  color: white;
+}
