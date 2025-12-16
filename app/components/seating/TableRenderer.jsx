@@ -191,23 +191,22 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  // ==================== 🌀 סיבוב טבעי כמו בקאנבה ====================
-  const handleMouseDown = (e) => {
-    if (e.evt.altKey || e.evt.metaKey) {
-      e.cancelBubble = true;
-      const stage = e.target.getStage();
-      const pointer = stage.getPointerPosition();
-      const center = tableRef.current.getAbsolutePosition();
-      const dx = pointer.x - center.x;
-      const dy = pointer.y - center.y;
-      setStartAngle(Math.atan2(dy, dx));
-      setStartRotation((table.rotation || 0) * (Math.PI / 180));
-      setIsRotating(true);
-    }
+  // ==================== 🌀 סיבוב עם עיגול כמו בקאנבה ====================
+  const [rotating, setRotating] = useState(false);
+  const handleRotationStart = (e) => {
+    e.cancelBubble = true;
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    const center = tableRef.current.getAbsolutePosition();
+    const dx = pointer.x - center.x;
+    const dy = pointer.y - center.y;
+    setStartAngle(Math.atan2(dy, dx));
+    setStartRotation((table.rotation || 0) * (Math.PI / 180));
+    setRotating(true);
   };
 
-  const handleMouseMove = (e) => {
-    if (!isRotating) return;
+  const handleRotationMove = (e) => {
+    if (!rotating) return;
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
     const center = tableRef.current.getAbsolutePosition();
@@ -222,8 +221,8 @@ export default function TableRenderer({ table }) {
     }));
   };
 
-  const handleMouseUp = () => {
-    if (isRotating) setIsRotating(false);
+  const handleRotationEnd = () => {
+    setRotating(false);
   };
   // ===============================================================
 
@@ -236,22 +235,26 @@ export default function TableRenderer({ table }) {
       : { x: width / 2 - 12, y: -height / 2 - 12 };
   const showDeleteButton = selectedTableId === table.id;
 
+  const rotationHandleY =
+    layout.type === "round"
+      ? -layout.radius - 35
+      : layout.type === "square"
+      ? -layout.size / 2 - 35
+      : -layout.height / 2 - 35;
+
   return (
     <Group
       ref={tableRef}
       x={table.x}
       y={table.y}
       rotation={table.rotation || 0}
-      draggable={!isRotating}
+      draggable={!rotating}
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
-      onMouseUp={(e) => {
-        handleMouseUp();
-        handleDrop(e);
-      }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
+      onMouseUp={handleDrop}
       onClick={handleClick}
+      onMouseMove={handleRotationMove}
+      onMouseUpCapture={handleRotationEnd}
     >
       {/* שולחנות */}
       {layout.type === "round" && (
@@ -317,6 +320,30 @@ export default function TableRenderer({ table }) {
             offsetY={height / 2}
           />
         </>
+      )}
+
+      {/* 🔄 כפתור סיבוב ויזואלי */}
+      {showDeleteButton && (
+        <Group
+          x={0}
+          y={rotationHandleY}
+          onMouseDown={handleRotationStart}
+          onMouseMove={handleRotationMove}
+          onMouseUp={handleRotationEnd}
+        >
+          <Circle radius={12} fill="#94a3b8" shadowBlur={4} />
+          <Text
+            text="↻"
+            fontSize={14}
+            align="center"
+            verticalAlign="middle"
+            width={24}
+            height={24}
+            offsetX={12}
+            offsetY={12}
+            fill="white"
+          />
+        </Group>
       )}
 
       {/* כפתור מחיקה */}
