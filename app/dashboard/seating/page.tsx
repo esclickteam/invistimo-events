@@ -32,27 +32,25 @@ export default function SeatingPage() {
   useEffect(() => {
     async function load() {
       try {
-        /* ================= הזמנה ================= */
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
-
         if (!invData.success || !invData.invitation) return;
 
         const id = invData.invitation._id;
         setInvitationId(id);
 
-        /* ================= אורחים ================= */
+        /* ===== אורחים ===== */
         const gRes = await fetch(`/api/seating/guests/${id}`);
         const gData = await gRes.json();
 
         const normalizedGuests = (gData.guests || []).map((g: any) => ({
           id: g._id,
           name: g.name,
-          count: g.guestsCount || 1,
+          guestsCount: g.guestsCount || 1, // ⭐ חשוב לגרירה
           tableId: g.tableId || null,
         }));
 
-        /* ================= הושבה + רקע + zones ================= */
+        /* ===== שולחנות + רקע + אזורים ===== */
         const tRes = await fetch(`/api/seating/tables/${id}`);
         const tData = await tRes.json();
 
@@ -65,7 +63,6 @@ export default function SeatingPage() {
           currentBackground ?? tData.background ?? null
         );
 
-        /* ⭐⭐ טעינת zones ל־store */
         setZones(tData.zones || []);
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
@@ -80,21 +77,14 @@ export default function SeatingPage() {
   =============================== */
   const handleBackgroundSelect = (bgUrl: string) => {
     if (!bgUrl) return;
-
-    setBackground({
-      url: bgUrl,
-      opacity: 0.28,
-    });
+    setBackground({ url: bgUrl, opacity: 0.28 });
   };
 
   /* ===============================
-     SAVE SEATING (כולל ZONES)
+     SAVE SEATING
   =============================== */
   async function saveSeating() {
-    if (!invitationId) {
-      alert("לא נמצאה הזמנה.");
-      return;
-    }
+    if (!invitationId) return alert("לא נמצאה הזמנה.");
 
     const zones = useZoneStore.getState().zones;
 
@@ -106,17 +96,13 @@ export default function SeatingPage() {
           tables,
           guests,
           background,
-          zones, // ⭐⭐ כאן האלמנטים נשמרים באמת
+          zones,
         }),
       });
 
       const data = await res.json();
-
-      if (data.success) {
-        alert("🎉 ההושבה והאלמנטים נשמרו בהצלחה!");
-      } else {
-        alert("❌ שגיאה בשמירה");
-      }
+      if (data.success) alert("🎉 ההושבה נשמרה!");
+      else alert("❌ שגיאה בשמירה");
     } catch (err) {
       console.error("❌ Save error:", err);
       alert("⚠ שמירה נכשלה!");
@@ -128,9 +114,7 @@ export default function SeatingPage() {
       {/* ================= HEADER ================= */}
       <div className="border-b bg-white shadow-sm">
         <div className="flex items-center justify-between px-6 py-3">
-          <h1 className="text-xl font-semibold">
-            הושבה באולם
-          </h1>
+          <h1 className="text-xl font-semibold">הושבה באולם</h1>
 
           <div className="flex gap-3">
             <button
@@ -149,12 +133,12 @@ export default function SeatingPage() {
           </div>
         </div>
 
-        {/* ⭐ סיידבר אלמנטים */}
         <ZonesToolbar />
       </div>
 
       {/* ================= MAIN ================= */}
       <div className="flex-1 overflow-hidden">
+        {/* ⭐ כאן כל הקסם קורה */}
         <SeatingEditor background={background?.url || null} />
       </div>
 

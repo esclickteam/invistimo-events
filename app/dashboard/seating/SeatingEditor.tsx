@@ -36,7 +36,7 @@ type Table = {
 };
 
 /* ============================================================
-   INNER COMPONENT — uses useSearchParams
+   INNER COMPONENT
 ============================================================ */
 function SeatingEditorInner({ background }: { background: string | null }) {
   /* ==================== Background ==================== */
@@ -45,16 +45,15 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   /* ==================== STORES ==================== */
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
-  const draggedGuest = useSeatingStore((s) => s.draggedGuest);
-  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
-  const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
-  const evalHover = useSeatingStore((s) => s.evaluateHover);
+  const draggingGuest = useSeatingStore((s) => s.draggingGuest);
+  const updateGhostPosition = useSeatingStore((s) => s.updateGhostPosition);
+  const evaluateHover = useSeatingStore((s) => s.evaluateHover);
 
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
 
-  /* 🧱 ZONES */
+  /* ==================== ZONES ==================== */
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
@@ -90,12 +89,12 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   }, [tables, canonicalGuestId, isPersonalMode]);
 
   useEffect(() => {
-    if (!isPersonalMode || draggedGuest) return;
+    if (!isPersonalMode || draggingGuest) return;
 
     useSeatingStore.setState({
       highlightedTable: highlightedTableId ?? null,
     });
-  }, [highlightedTableId, draggedGuest, isPersonalMode]);
+  }, [highlightedTableId, draggingGuest, isPersonalMode]);
 
   /* ==================== Add Guest Modal ==================== */
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
@@ -115,11 +114,12 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const handleMouseMove = (e: any) => {
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
-    updateGhost(pos);
-    evalHover(pos);
+
+    updateGhostPosition(pos);
+    evaluateHover(pos);
   };
 
-  /* ==================== DELETE ZONE (Keyboard) ==================== */
+  /* ==================== DELETE ZONE ==================== */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
@@ -151,24 +151,8 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
   return (
     <div className="flex relative w-full h-full">
-      <GuestSidebar onDragStart={startDragGuest} />
-
-      {/* ZOOM BUTTONS */}
-      <button
-        onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-        className="absolute top-20 left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
-      >
-        +
-      </button>
-
-      <button
-        onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-        className="absolute top-36 left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
-      >
-        −
-      </button>
+      {/* ❗ בלי props – GuestSidebar מחובר ל־store */}
+      <GuestSidebar />
 
       <Stage
         width={width}
@@ -178,43 +162,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         x={stagePos.x}
         y={stagePos.y}
         draggable={isPanning}
-        onWheel={(e) => {
-          e.evt.preventDefault();
-
-          const scaleBy = 1.05;
-          const stage = e.target.getStage();
-          if (!stage) return;
-
-          const oldScale = scale;
-          const pointer = stage.getPointerPosition();
-          if (!pointer) return;
-
-          const mousePointTo = {
-            x: (pointer.x - stagePos.x) / oldScale,
-            y: (pointer.y - stagePos.y) / oldScale,
-          };
-
-          const direction = e.evt.deltaY > 0 ? -1 : 1;
-          const newScale =
-            direction > 0
-              ? oldScale * scaleBy
-              : oldScale / scaleBy;
-
-          const clampedScale = Math.min(
-            Math.max(newScale, 0.4),
-            3
-          );
-
-          setScale(clampedScale);
-
-          setStagePos({
-            x: pointer.x - mousePointTo.x * clampedScale,
-            y: pointer.y - mousePointTo.y * clampedScale,
-          });
-        }}
-        onDragEnd={(e) => {
-          if (isPanning) setStagePos(e.target.position());
-        }}
+        onMouseMove={handleMouseMove}
         onMouseDown={(e) => {
           const stage = e.target.getStage();
           if (e.target === stage) {
@@ -223,15 +171,15 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           }
         }}
         onMouseUp={() => setIsPanning(false)}
-        onMouseMove={handleMouseMove}
+        onDragEnd={(e) => {
+          if (isPanning) setStagePos(e.target.position());
+        }}
         className="flex-1"
       >
-        {/* GRID */}
         <Layer listening={false}>
           <GridLayer width={width} height={height} />
         </Layer>
 
-        {/* BACKGROUND */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -243,14 +191,12 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           )}
         </Layer>
 
-        {/* ZONES */}
         <Layer>
           {zones.map((zone) => (
             <ZoneRenderer key={zone.id} zone={zone} />
           ))}
         </Layer>
 
-        {/* TABLES */}
         <Layer>
           {tables.map((t) => (
             <TableRenderer
@@ -264,7 +210,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           <GhostPreview />
         </Layer>
 
-        {/* DELETE TABLE */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -302,7 +247,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 }
 
 /* ============================================================
-   EXPORT — wrapped with Suspense
+   EXPORT
 ============================================================ */
 export default function SeatingEditor({
   background,

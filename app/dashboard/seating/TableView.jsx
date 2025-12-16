@@ -1,42 +1,64 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useState, useMemo } from "react";
 
 export default function TableView({
   table,
+  guests,
   availableGuests,
   onClose,
   onAssignSeat,
-  onRemoveSeat,
-  isHighlighted // ⭐ תוספת בלבד
+  onRemoveGuestBlock,
+  isHighlighted,
 }) {
   const [selectSeatIndex, setSelectSeatIndex] = useState(null);
 
-  // 🔥 מוצא את כל הבלוק של האורח לפי שיטת A
+  /* ===============================
+     guestId → guest map
+  =============================== */
+  const guestMap = useMemo(() => {
+    const map = new Map();
+    (guests || []).forEach((g) => {
+      map.set(String(g.id), g);
+    });
+    return map;
+  }, [guests]);
+
+  /* ===============================
+     בלוק אורח לפי מושב
+  =============================== */
   const getGuestBlock = (seatIndex) => {
-    const seat = table.seatedGuests.find((g) => g.seatIndex === seatIndex);
+    const seat = table.seatedGuests.find(
+      (s) => s.seatIndex === seatIndex
+    );
     if (!seat) return null;
 
-    const guestId = seat.id;
+    const guestId = String(seat.guestId);
 
-    const allSeats = table.seatedGuests.filter((g) => g.id === guestId);
+    const allSeats = table.seatedGuests.filter(
+      (s) => String(s.guestId) === guestId
+    );
+
+    const guest = guestMap.get(guestId);
 
     return {
       guestId,
-      name: seat.name,
+      name: guest?.name || "אורח",
       count: allSeats.length,
-      seats: allSeats.map((g) => g.seatIndex)
+      seats: allSeats.map((s) => s.seatIndex),
     };
   };
 
   return (
     <>
-      {/* פופאפ המרכזי */}
+      {/* ================= MODAL ================= */}
       <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
         <div
-          className={`
-            bg-white rounded-xl shadow-xl w-[420px] p-6 relative
-            ${isHighlighted ? "ring-4 ring-amber-400 shadow-[0_0_40px_#f59e0b]" : ""}
-          `}
+          className={`bg-white rounded-xl shadow-xl w-[420px] p-6 relative ${
+            isHighlighted
+              ? "ring-4 ring-amber-400 shadow-[0_0_40px_#f59e0b]"
+              : ""
+          }`}
         >
           <button
             onClick={onClose}
@@ -49,7 +71,7 @@ export default function TableView({
             {table.name}
           </h2>
 
-          {/* כיסאות */}
+          {/* ================= SEATS ================= */}
           <div className="grid grid-cols-4 gap-3 justify-center mx-auto">
             {Array.from({ length: table.seats }).map((_, i) => {
               const guestBlock = getGuestBlock(i);
@@ -57,15 +79,17 @@ export default function TableView({
               return (
                 <div key={i} className="flex flex-col items-center">
                   <button
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-xs ${
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-xs transition ${
                       guestBlock
                         ? "bg-blue-600 text-white"
                         : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                     }`}
                     onClick={() => {
                       if (guestBlock) {
-                        // מוחק בלוק שלם
-                        onRemoveSeat(table.id, i);
+                        onRemoveGuestBlock(
+                          table.id,
+                          guestBlock.guestId
+                        );
                       } else {
                         setSelectSeatIndex(i);
                       }
@@ -75,7 +99,7 @@ export default function TableView({
                   </button>
 
                   {guestBlock && (
-                    <span className="text-xs mt-1">
+                    <span className="text-xs mt-1 text-center">
                       {guestBlock.name} × {guestBlock.count}
                     </span>
                   )}
@@ -86,11 +110,13 @@ export default function TableView({
         </div>
       </div>
 
-      {/* פופאפ בחירת אורח */}
+      {/* ================= SELECT GUEST ================= */}
       {selectSeatIndex !== null && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-[60]">
           <div className="bg-white p-4 rounded-lg shadow-lg w-80">
-            <h3 className="font-bold text-center mb-3">בחר אורח</h3>
+            <h3 className="font-bold text-center mb-3">
+              בחר אורח
+            </h3>
 
             <ul className="max-h-60 overflow-y-auto space-y-2">
               {availableGuests.length === 0 && (
@@ -104,7 +130,12 @@ export default function TableView({
                   <button
                     className="w-full text-left p-2 rounded bg-gray-100 hover:bg-gray-200"
                     onClick={() => {
-                      onAssignSeat(table.id, selectSeatIndex, guest.id);
+                      onAssignSeat(
+                        table.id,
+                        selectSeatIndex,
+                        guest.id,
+                        guest.count
+                      );
                       setSelectSeatIndex(null);
                     }}
                   >
