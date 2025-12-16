@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -16,27 +16,38 @@ import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 
-/* ==================== EVENT TYPES ==================== */
-const EVENT_TYPES = [
-  { key: "wedding", label: "💍 חתונה" },
-  { key: "bar_mitzvah", label: "🎤 בר מצווה" },
-  { key: "bat_mitzvah", label: "🎤 בת מצווה" },
-  { key: "brit", label: "👶 ברית / בריתה" },
-  { key: "henna", label: "🪔 חינה" },
-];
+/* ============================================================
+   טיפוסים מקומיים (מינימליים, לא שוברים כלום)
+============================================================ */
+type Guest = {
+  id?: string;
+  _id?: string;
+  name?: string;
+};
 
-export default function SeatingEditor({ background }) {
+type SeatedGuest = {
+  guestId: string;
+};
+
+type Table = {
+  id: string;
+  seatedGuests?: SeatedGuest[];
+};
+
+/* ============================================================
+   INNER COMPONENT — uses useSearchParams
+============================================================ */
+function SeatingEditorInner({ background }: { background: string | null }) {
   /* ==================== Background ==================== */
   const [bgImage] = useImage(background || "", "anonymous");
 
   /* ==================== STORES ==================== */
-  const tables = useSeatingStore((s) => s.tables);
-  const guests = useSeatingStore((s) => s.guests);
+  const tables = useSeatingStore((s) => s.tables) as Table[];
+  const guests = useSeatingStore((s) => s.guests) as Guest[];
   const draggedGuest = useSeatingStore((s) => s.draggedGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
-  const dropGuest = useSeatingStore((s) => s.dropGuest);
 
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
@@ -44,7 +55,6 @@ export default function SeatingEditor({ background }) {
 
   /* 🧱 ZONES */
   const zones = useZoneStore((s) => s.zones);
-  const loadPreset = useZoneStore((s) => s.loadPreset);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
@@ -57,32 +67,39 @@ export default function SeatingEditor({ background }) {
 
   const canonicalGuestId = useMemo(() => {
     if (!highlightedGuestIdRaw) return null;
+
     const raw = String(highlightedGuestIdRaw);
     const found = guests.find(
-      (g) => String(g?._id ?? g?.id ?? "") === raw
+      (g: Guest) =>
+        String(g?._id ?? g?.id ?? "") === raw
     );
+
     return found ? String(found.id ?? found._id) : raw;
   }, [highlightedGuestIdRaw, guests]);
 
   const highlightedTableId = useMemo(() => {
     if (!isPersonalMode || !canonicalGuestId) return null;
-    const table = tables.find((t) =>
+
+    const table = tables.find((t: Table) =>
       t.seatedGuests?.some(
-        (s) => String(s.guestId) === String(canonicalGuestId)
+        (s: SeatedGuest) =>
+          String(s.guestId) === String(canonicalGuestId)
       )
     );
+
     return table?.id || null;
   }, [tables, canonicalGuestId, isPersonalMode]);
 
   useEffect(() => {
     if (!isPersonalMode || draggedGuest) return;
+
     useSeatingStore.setState({
       highlightedTable: highlightedTableId ?? null,
     });
   }, [highlightedTableId, draggedGuest, isPersonalMode]);
 
   /* ==================== Add Guest Modal ==================== */
-  const [addGuestTable, setAddGuestTable] = useState(null);
+  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
   /* ==================== Canvas Size ==================== */
   const width =
@@ -96,18 +113,16 @@ export default function SeatingEditor({ background }) {
   const [isPanning, setIsPanning] = useState(false);
 
   /* ==================== Mouse ==================== */
-  const handleMouseMove = (e) => {
-    const pos = e.target.getStage().getPointerPosition();
+  const handleMouseMove = (e: any) => {
+    const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
     updateGhost(pos);
     evalHover(pos);
   };
 
-  const handleMouseUp = () => dropGuest();
-
   /* ==================== DELETE ZONE (Keyboard) ==================== */
   useEffect(() => {
-    function onKeyDown(e) {
+    function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -122,14 +137,17 @@ export default function SeatingEditor({ background }) {
 
   /* ==================== Unseated Guests ==================== */
   const unseatedGuests = useMemo(() => {
-    const seated = new Set();
-    tables.forEach((t) =>
-      t.seatedGuests?.forEach((s) =>
+    const seated = new Set<string>();
+
+    tables.forEach((t: Table) =>
+      t.seatedGuests?.forEach((s: SeatedGuest) =>
         seated.add(String(s.guestId))
       )
     );
+
     return guests.filter(
-      (g) => !seated.has(String(g.id ?? g._id))
+      (g: Guest) =>
+        !seated.has(String(g.id ?? g._id))
     );
   }, [tables, guests]);
 
@@ -137,7 +155,6 @@ export default function SeatingEditor({ background }) {
     <div className="flex relative w-full h-full">
       <GuestSidebar onDragStart={startDragGuest} />
 
-      {/* STAGE */}
       <Stage
         width={width}
         height={height}
@@ -147,26 +164,19 @@ export default function SeatingEditor({ background }) {
         y={stagePos.y}
         draggable={isPanning}
         onDragEnd={(e) => {
-          if (isPanning) {
-            setStagePos(e.target.position());
-          }
+          if (isPanning) setStagePos(e.target.position());
         }}
         onMouseDown={(e) => {
           const stage = e.target.getStage();
-
-          // לחיצה על רקע ריק → pan
           if (e.target === stage) {
             setSelectedZone(null);
             setIsPanning(true);
           }
         }}
-        onMouseUp={() => {
-          setIsPanning(false);
-        }}
+        onMouseUp={() => setIsPanning(false)}
         onMouseMove={handleMouseMove}
         className="flex-1"
       >
-        {/* BACKGROUND */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -178,16 +188,14 @@ export default function SeatingEditor({ background }) {
           )}
         </Layer>
 
-        {/* ZONES */}
         <Layer>
           {zones.map((zone) => (
             <ZoneRenderer key={zone.id} zone={zone} />
           ))}
         </Layer>
 
-        {/* TABLES */}
         <Layer>
-          {tables.map((t) => (
+          {tables.map((t: Table) => (
             <TableRenderer
               key={t.id}
               table={{
@@ -200,15 +208,13 @@ export default function SeatingEditor({ background }) {
           <GhostPreview />
         </Layer>
 
-        {/* DELETE TABLE BUTTONS */}
         <Layer>
-          {tables.map((t) => (
+          {tables.map((t: Table) => (
             <DeleteTableButton key={t.id} table={t} />
           ))}
         </Layer>
       </Stage>
 
-      {/* ADD TABLE */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600
@@ -220,7 +226,7 @@ export default function SeatingEditor({ background }) {
       {showAddModal && (
         <AddTableModal
           onClose={() => setShowAddModal(false)}
-          onAdd={({ type, seats }) => {
+          onAdd={({ type, seats }: { type: string; seats: number }) => {
             addTable(type, seats);
             setShowAddModal(false);
           }}
@@ -235,5 +241,20 @@ export default function SeatingEditor({ background }) {
         />
       )}
     </div>
+  );
+}
+
+/* ============================================================
+   EXPORT — wrapped with Suspense
+============================================================ */
+export default function SeatingEditor({
+  background,
+}: {
+  background: string | null;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <SeatingEditorInner background={background} />
+    </Suspense>
   );
 }
