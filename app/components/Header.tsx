@@ -60,6 +60,9 @@ export default function Header() {
   >
     צור קשר
   </Link>
+
+  <Link href="/pricing">מחירים</Link>
+
 </nav>
 
 
