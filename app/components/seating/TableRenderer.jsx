@@ -15,13 +15,10 @@ function getTightSeatCoordinates(table) {
   if (table.type === "round") {
     const tableRadius = 60;
     const seatRadius = 10;
-
-    // 🔑 צמידות אמיתית
     const radius = tableRadius + seatRadius + 6;
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-
       result.push({
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
@@ -35,45 +32,28 @@ function getTightSeatCoordinates(table) {
     const size = 160;
     const seatGap = 22;
     const half = size / 2 + 12;
-
     const perSide = Math.ceil(seats / 4);
     let i = 0;
 
-    // top
-    for (; i < perSide && i < seats; i++) {
-      result.push({
-        x: -half + i * seatGap,
-        y: -half,
-        rotation: -Math.PI / 2,
-      });
-    }
+    for (; i < perSide && i < seats; i++)
+      result.push({ x: -half + i * seatGap, y: -half, rotation: -Math.PI / 2 });
 
-    // right
-    for (; i < perSide * 2 && i < seats; i++) {
-      result.push({
-        x: half,
-        y: -half + (i - perSide) * seatGap,
-        rotation: 0,
-      });
-    }
+    for (; i < perSide * 2 && i < seats; i++)
+      result.push({ x: half, y: -half + (i - perSide) * seatGap, rotation: 0 });
 
-    // bottom
-    for (; i < perSide * 3 && i < seats; i++) {
+    for (; i < perSide * 3 && i < seats; i++)
       result.push({
         x: half - (i - perSide * 2) * seatGap,
         y: half,
         rotation: Math.PI / 2,
       });
-    }
 
-    // left
-    for (; i < seats; i++) {
+    for (; i < seats; i++)
       result.push({
         x: -half,
         y: half - (i - perSide * 3) * seatGap,
         rotation: Math.PI,
       });
-    }
   }
 
   /* ========= BANQUET ========= */
@@ -81,24 +61,21 @@ function getTightSeatCoordinates(table) {
     const width = 240;
     const seatGap = 22;
     const sideY = 45 + 14;
-
     const perSide = Math.floor(seats / 2);
 
-    for (let i = 0; i < perSide; i++) {
+    for (let i = 0; i < perSide; i++)
       result.push({
         x: -width / 2 + 20 + i * seatGap,
         y: -sideY,
         rotation: -Math.PI / 2,
       });
-    }
 
-    for (let i = 0; i < seats - perSide; i++) {
+    for (let i = 0; i < seats - perSide; i++)
       result.push({
         x: -width / 2 + 20 + i * seatGap,
         y: sideY,
         rotation: Math.PI / 2,
       });
-    }
   }
 
   return result;
@@ -110,11 +87,13 @@ function getTightSeatCoordinates(table) {
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
-  const highlightedTable = useSeatingStore((s) => s.highlightedTable);
-  const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
-  const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
-  const guests = useSeatingStore((s) => s.guests);
-  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
+  const {
+    highlightedTable,
+    highlightedSeats,
+    selectedGuestId,
+    guests,
+    startDragGuest,
+  } = useSeatingStore.getState();
 
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
@@ -134,9 +113,28 @@ export default function TableRenderer({ table }) {
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
 
-  /* 🔑 כאן השינוי */
   const seatsCoords = getTightSeatCoordinates(table);
 
+  /* ================= SAVE POSITION ================= */
+  const updatePositionInStore = () => {
+    if (!tableRef.current) return;
+    const pos = tableRef.current.position();
+
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id
+          ? {
+              ...t,
+              x: pos.x,
+              y: pos.y,
+              rotation: tableRef.current.rotation(),
+            }
+          : t
+      ),
+    }));
+  };
+
+  /* ================= DRAG ================= */
   const handleSeatDrag = (guestId) => {
     const g = guests.find(
       (x) => normalizeGuestId(x) === String(guestId)
@@ -151,6 +149,8 @@ export default function TableRenderer({ table }) {
       y={table.y}
       rotation={table.rotation || 0}
       draggable
+      onDragMove={updatePositionInStore}
+      onDragEnd={updatePositionInStore}
       onClick={(e) => {
         e.cancelBubble = true;
         useSeatingStore.setState({
@@ -233,7 +233,12 @@ export default function TableRenderer({ table }) {
         const isFree = !seatGuest;
 
         return (
-          <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
+          <Group
+            key={i}
+            x={c.x}
+            y={c.y}
+            rotation={(c.rotation * 180) / Math.PI}
+          >
             <Circle
               radius={10}
               fill={isFree ? "#3b82f6" : "#d1d5db"}
