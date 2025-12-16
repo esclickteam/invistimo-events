@@ -15,42 +15,29 @@ import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
-import GridLayer from "@/app/components/seating/GridLayer";
+import GridLayer, { GRID_SIZE } from "@/app/components/seating/GridLayer";
+import { snapPosition } from "@/app/components/seating/TableRenderer";
 
 /* ============================================================
    TYPES
 ============================================================ */
-type Guest = {
-  id?: string;
-  _id?: string;
-  name?: string;
-};
-
-type SeatedGuest = {
-  guestId: string;
-};
-
-type Table = {
-  id: string;
-  seatedGuests?: SeatedGuest[];
-};
+type Guest = { id?: string; _id?: string; name?: string };
+type SeatedGuest = { guestId: string };
+type Table = { id: string; seatedGuests?: SeatedGuest[] };
 
 /* ============================================================
-   INNER COMPONENT
+   MAIN EDITOR
 ============================================================ */
 function SeatingEditorInner({ background }: { background: string | null }) {
-  /* ================= Background ================= */
   const [bgImage] = useImage(background || "", "anonymous");
 
   /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
-
   const draggedGuest = useSeatingStore((s) => s.draggedGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
-
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
@@ -69,33 +56,24 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
   const canonicalGuestId = useMemo(() => {
     if (!highlightedGuestIdRaw) return null;
-
     const raw = String(highlightedGuestIdRaw);
-    const found = guests.find(
-      (g) => String(g?._id ?? g?.id ?? "") === raw
-    );
-
+    const found = guests.find((g) => String(g?._id ?? g?.id ?? "") === raw);
     return found ? String(found.id ?? found._id) : raw;
   }, [highlightedGuestIdRaw, guests]);
 
   const highlightedTableId = useMemo(() => {
     if (!isPersonalMode || !canonicalGuestId) return null;
-
     const table = tables.find((t) =>
       t.seatedGuests?.some(
         (s) => String(s.guestId) === String(canonicalGuestId)
       )
     );
-
     return table?.id || null;
   }, [tables, canonicalGuestId, isPersonalMode]);
 
   useEffect(() => {
     if (!isPersonalMode || draggedGuest) return;
-
-    useSeatingStore.setState({
-      highlightedTable: highlightedTableId ?? null,
-    });
+    useSeatingStore.setState({ highlightedTable: highlightedTableId ?? null });
   }, [highlightedTableId, draggedGuest, isPersonalMode]);
 
   /* ================= Add Guest Modal ================= */
@@ -116,7 +94,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const handleMouseMove = (e: any) => {
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
-
     updateGhost(pos);
     evalHover(pos);
   };
@@ -125,13 +102,11 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
-
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         removeZone(selectedZoneId);
       }
     }
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone]);
@@ -139,35 +114,35 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   /* ================= Unseated Guests ================= */
   const unseatedGuests = useMemo(() => {
     const seated = new Set<string>();
-
     tables.forEach((t) =>
-      t.seatedGuests?.forEach((s) =>
-        seated.add(String(s.guestId))
-      )
+      t.seatedGuests?.forEach((s) => seated.add(String(s.guestId)))
     );
-
-    return guests.filter(
-      (g) => !seated.has(String(g.id ?? g._id))
-    );
+    return guests.filter((g) => !seated.has(String(g.id ?? g._id)));
   }, [tables, guests]);
+
+  /* ============================================================
+     DRAG SNAP LOGIC
+  ============================================================ */
+  const handleDragMove = (e: any) => {
+    const pos = e.target.position();
+    const snapped = snapPosition(pos);
+    e.target.position(snapped);
+  };
 
   return (
     <div className="flex relative w-full h-full">
       <GuestSidebar onDragStart={startDragGuest} />
 
-      {/* ZOOM BUTTONS */}
+      {/* ✅ ZOOM BUTTONS */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-        className="absolute top-20 left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
+        className="absolute top-20 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
       >
         +
       </button>
-
       <button
         onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-        className="absolute top-36 left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
+        className="absolute top-36 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
       >
         −
       </button>
@@ -191,49 +166,50 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         onMouseUp={() => setIsPanning(false)}
         className="flex-1"
       >
-        {/* GRID */}
+        {/* GRID אמיתי עם Snap */}
         <Layer listening={false}>
           <GridLayer width={width} height={height} />
         </Layer>
 
-        {/* BACKGROUND */}
+        {/* רקע אולם */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
               image={bgImage}
               width={width}
               height={height}
-              opacity={0.28}
+              opacity={0.25}
             />
           )}
         </Layer>
 
-        {/* ZONES */}
+        {/* אזורי אולם */}
         <Layer>
           {zones.map((zone) => (
             <ZoneRenderer key={zone.id} zone={zone} />
           ))}
         </Layer>
 
-        {/* TABLES */}
+        {/* שולחנות */}
         <Layer>
           {tables.map((t) => (
             <TableRenderer
               key={t.id}
               table={{
                 ...t,
+                onDragMove: handleDragMove,
                 openAddGuestModal: () => setAddGuestTable(t),
               }}
             />
           ))}
         </Layer>
 
-        {/* 🔥 GHOST – תמיד מעל הכל */}
+        {/* GHOST תמיד מעל */}
         <Layer listening={false}>
           <GhostPreview />
         </Layer>
 
-        {/* DELETE TABLE */}
+        {/* כפתורי מחיקה */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -241,10 +217,10 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         </Layer>
       </Stage>
 
+      {/* כפתור הוספת שולחן */}
       <button
         onClick={() => setShowAddModal(true)}
-        className="absolute top-4 left-4 bg-green-600
-                   text-white px-4 py-2 rounded-lg z-50"
+        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
       >
         ➕ הוסף שולחן
       </button>

@@ -5,19 +5,35 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   חישוב כיסאות סביב השולחן
+   הגדרת גריד אמיתי
+============================================================ */
+export const GRID_SIZE = 30;
+
+export function snapToGrid(value) {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+export function snapPosition(pos) {
+  return {
+    x: snapToGrid(pos.x),
+    y: snapToGrid(pos.y),
+  };
+}
+
+/* ============================================================
+   חישוב כיסאות סביב השולחן (פרופורציונלי)
 ============================================================ */
 function getTightSeatCoordinates(table) {
   const seats = table.seats || 0;
   const result = [];
+  const seatGap = 18; // מרווח כסאות קטן וצמוד
 
   /* ========= ROUND ========= */
   if (table.type === "round") {
-    const baseRadius = 50;
-    const maxRadius = 90;
-    const radius = Math.min(baseRadius + seats * 2, maxRadius);
+    const baseRadius = 45;
+    const radius = baseRadius + (seats / 2); // גדל מעט לפי כמות הכיסאות
     const seatRadius = 10;
-    const seatDistance = radius + seatRadius + 6;
+    const seatDistance = radius + seatRadius + 4;
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
@@ -32,45 +48,31 @@ function getTightSeatCoordinates(table) {
 
   /* ========= SQUARE ========= */
   if (table.type === "square") {
-    const baseSize = 120;
-    const maxSize = 200;
-    const size = Math.min(baseSize + Math.max(seats - 4, 0) * 5, maxSize);
+    const baseSize = 100;
+    const size = baseSize + seats * 3; // גודל פרופורציונלי אמיתי
+    const half = size / 2 + 10;
 
-    const seatGap = 22;
-    const half = size / 2 + 12;
-
-    const base = Math.floor(seats / 4);
+    const perSide = Math.floor(seats / 4);
     const remainder = seats % 4;
-    const sides = [base, base, base, base];
+    const sides = [perSide, perSide, perSide, perSide];
 
-    if (remainder === 1) sides[0]++;
-    else if (remainder === 2) {
-      sides[0]++;
-      sides[2]++;
-    } else if (remainder === 3) {
-      sides[0]++;
-      sides[1]++;
-      sides[2]++;
-    }
+    for (let i = 0; i < remainder; i++) sides[i]++;
 
     // עליון
     for (let i = 0; i < sides[0]; i++) {
       const offset = -((sides[0] - 1) * seatGap) / 2 + i * seatGap;
       result.push({ x: offset, y: -half });
     }
-
     // ימין
     for (let i = 0; i < sides[1]; i++) {
       const offset = -((sides[1] - 1) * seatGap) / 2 + i * seatGap;
       result.push({ x: half, y: offset });
     }
-
     // תחתון
     for (let i = 0; i < sides[2]; i++) {
       const offset = -((sides[2] - 1) * seatGap) / 2 + i * seatGap;
       result.push({ x: offset, y: half });
     }
-
     // שמאל
     for (let i = 0; i < sides[3]; i++) {
       const offset = -((sides[3] - 1) * seatGap) / 2 + i * seatGap;
@@ -82,23 +84,21 @@ function getTightSeatCoordinates(table) {
 
   /* ========= BANQUET ========= */
   if (table.type === "banquet") {
-    const baseWidth = 200;
-    const maxWidth = 320;
-    const width = Math.min(baseWidth + Math.max(seats - 10, 0) * 4, maxWidth);
-
-    const seatGap = 22;
-    const sideY = 59;
+    const baseWidth = 160;
+    const width = baseWidth + seats * 3;
+    const height = 70;
+    const sideY = height / 2 + 8;
     const perSide = Math.floor(seats / 2);
 
     for (let i = 0; i < perSide; i++)
       result.push({
-        x: -width / 2 + 20 + i * seatGap,
+        x: -width / 2 + 18 + i * seatGap,
         y: -sideY,
       });
 
     for (let i = 0; i < seats - perSide; i++)
       result.push({
-        x: -width / 2 + 20 + i * seatGap,
+        x: -width / 2 + 18 + i * seatGap,
         y: sideY,
       });
 
@@ -145,6 +145,13 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getTightSeatCoordinates(table);
 
+  /* ================= SNAP TO GRID ================= */
+  const handleDragMove = (e) => {
+    const pos = e.target.position();
+    const snapped = snapPosition(pos);
+    e.target.position(snapped);
+  };
+
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -186,7 +193,7 @@ export default function TableRenderer({ table }) {
       y={table.y}
       rotation={table.rotation || 0}
       draggable
-      onDragMove={updatePositionInStore}
+      onDragMove={handleDragMove}
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
@@ -240,9 +247,9 @@ export default function TableRenderer({ table }) {
         <>
           <Rect
             width={width}
-            height={90}
+            height={70}
             offsetX={width / 2}
-            offsetY={45}
+            offsetY={35}
             fill={tableFill}
             shadowBlur={8}
             cornerRadius={10}
@@ -254,9 +261,9 @@ export default function TableRenderer({ table }) {
             align="center"
             verticalAlign="middle"
             width={width}
-            height={90}
+            height={70}
             offsetX={width / 2}
-            offsetY={45}
+            offsetY={35}
           />
         </>
       )}
@@ -267,7 +274,7 @@ export default function TableRenderer({ table }) {
         return (
           <Group key={i} x={c.x} y={c.y}>
             <Circle
-              radius={10}
+              radius={9}
               fill={guest ? "#d1d5db" : "#3b82f6"}
               stroke="#2563eb"
             />
