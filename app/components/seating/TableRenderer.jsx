@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -119,6 +119,8 @@ function getTableLayout(rawTable) {
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
+  const [isRotating, setIsRotating] = useState(false);
+
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
@@ -132,13 +134,11 @@ export default function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
-  // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
     const indices = new Set(assigned.map((s) => s.seatIndex));
     return indices.size;
   }, [assigned]);
 
-  // guest info per seat
   const seatInfoMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -196,7 +196,40 @@ export default function TableRenderer({ table }) {
       : layout.type === "square"
       ? { x: size / 2 - 12, y: -size / 2 - 12 }
       : { x: width / 2 - 12, y: -height / 2 - 12 };
+
+  const rotateBtnPos =
+    layout.type === "round"
+      ? { x: -radius + 12, y: -radius - 12 }
+      : layout.type === "square"
+      ? { x: -size / 2 + 12, y: -size / 2 - 12 }
+      : { x: -width / 2 + 12, y: -height / 2 - 12 };
+
   const showDeleteButton = selectedTableId === table.id;
+
+  /* ============================================================
+     ✅ מצב סיבוב חי בלחיצה וגרירה
+  ============================================================ */
+  const handleRotateStart = (e) => {
+    e.cancelBubble = true;
+    setIsRotating(true);
+  };
+
+  const handleRotateMove = (e) => {
+    if (!isRotating || !tableRef.current) return;
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+    const dx = pointer.x - tableRef.current.x();
+    const dy = pointer.y - tableRef.current.y();
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    tableRef.current.rotation(angle);
+    updatePositionInStore();
+  };
+
+  const handleRotateEnd = () => {
+    if (isRotating) setIsRotating(false);
+    updatePositionInStore();
+  };
 
   return (
     <Group
@@ -204,11 +237,15 @@ export default function TableRenderer({ table }) {
       x={table.x}
       y={table.y}
       rotation={table.rotation || 0}
-      draggable
+      draggable={!isRotating}
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
+      onMouseMove={handleRotateMove}
+      onTouchMove={handleRotateMove}
+      onMouseUpCapture={handleRotateEnd}
+      onTouchEnd={handleRotateEnd}
     >
       {/* שולחנות */}
       {layout.type === "round" && (
@@ -276,30 +313,53 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* כפתור מחיקה */}
+      {/* כפתור מחיקה + סיבוב */}
       {showDeleteButton && !draggingGuest && (
-        <Group
-          x={deleteBtnPos.x}
-          y={deleteBtnPos.y}
-          onClick={(e) => {
-            e.cancelBubble = true;
-            deleteTable(table.id);
-            useSeatingStore.setState({ selectedTableId: null });
-          }}
-        >
-          <Circle radius={12} fill="#ef4444" shadowBlur={6} />
-          <Text
-            text="🗑"
-            fontSize={14}
-            align="center"
-            verticalAlign="middle"
-            width={24}
-            height={24}
-            offsetX={12}
-            offsetY={12}
-            fill="white"
-          />
-        </Group>
+        <>
+          <Group
+            x={deleteBtnPos.x}
+            y={deleteBtnPos.y}
+            onClick={(e) => {
+              e.cancelBubble = true;
+              deleteTable(table.id);
+              useSeatingStore.setState({ selectedTableId: null });
+            }}
+          >
+            <Circle radius={12} fill="#ef4444" shadowBlur={6} />
+            <Text
+              text="🗑"
+              fontSize={14}
+              align="center"
+              verticalAlign="middle"
+              width={24}
+              height={24}
+              offsetX={12}
+              offsetY={12}
+              fill="white"
+            />
+          </Group>
+
+          {/* ✅ כפתור סיבוב חי */}
+          <Group
+            x={rotateBtnPos.x}
+            y={rotateBtnPos.y}
+            onMouseDown={handleRotateStart}
+            onTouchStart={handleRotateStart}
+          >
+            <Circle radius={12} fill="#22c55e" shadowBlur={6} />
+            <Text
+              text="↻"
+              fontSize={14}
+              align="center"
+              verticalAlign="middle"
+              width={24}
+              height={24}
+              offsetX={12}
+              offsetY={12}
+              fill="white"
+            />
+          </Group>
+        </>
       )}
 
       {/* כסאות */}
