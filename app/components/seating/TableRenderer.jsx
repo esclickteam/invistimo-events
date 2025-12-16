@@ -13,24 +13,29 @@ function getTightSeatCoordinates(table) {
 
   /* ========= ROUND ========= */
   if (table.type === "round") {
-    const baseRadius = 60;
+    const baseRadius = 50;
+    const maxRadius = 90;
+    const radius = Math.min(baseRadius + seats * 2, maxRadius);
     const seatRadius = 10;
-    const radius = baseRadius + seatRadius + 6 + (seats > 10 ? (seats - 10) * 2 : 0);
+    const seatDistance = radius + seatRadius + 6;
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
       result.push({
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
+        x: Math.cos(angle) * seatDistance,
+        y: Math.sin(angle) * seatDistance,
       });
     }
+
+    table._dynamicRadius = radius;
   }
 
   /* ========= SQUARE ========= */
   if (table.type === "square") {
-    // שינוי גודל בהתאם לכמות אורחים
-    const baseSize = 160;
-    const size = baseSize + Math.max(0, seats - 8) * 8; // כל כיסא מעבר ל-8 מגדיל
+    const baseSize = 120;
+    const maxSize = 200;
+    const size = Math.min(baseSize + Math.max(seats - 4, 0) * 5, maxSize);
+
     const seatGap = 22;
     const half = size / 2 + 12;
 
@@ -72,13 +77,15 @@ function getTightSeatCoordinates(table) {
       result.push({ x: -half, y: offset });
     }
 
-    table._dynamicSize = size; // נשמור לשימוש בציור
+    table._dynamicSize = size;
   }
 
   /* ========= BANQUET ========= */
   if (table.type === "banquet") {
-    const baseWidth = 240;
-    const width = baseWidth + Math.max(0, seats - 12) * 10;
+    const baseWidth = 200;
+    const maxWidth = 320;
+    const width = Math.min(baseWidth + Math.max(seats - 10, 0) * 4, maxWidth);
+
     const seatGap = 22;
     const sideY = 59;
     const perSide = Math.floor(seats / 2);
@@ -170,6 +177,7 @@ export default function TableRenderer({ table }) {
 
   const size = table._dynamicSize || 160;
   const width = table._dynamicWidth || 240;
+  const radius = table._dynamicRadius || 60;
 
   return (
     <Group
@@ -186,17 +194,17 @@ export default function TableRenderer({ table }) {
       {/* ROUND */}
       {table.type === "round" && (
         <>
-          <Circle radius={60 + Math.max(0, table.seats - 10) * 2} fill={tableFill} shadowBlur={8} />
+          <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
             fill={tableText}
             align="center"
             verticalAlign="middle"
-            width={140}
-            height={140}
-            offsetX={70}
-            offsetY={70}
+            width={radius * 2}
+            height={radius * 2}
+            offsetX={radius}
+            offsetY={radius}
           />
         </>
       )}
