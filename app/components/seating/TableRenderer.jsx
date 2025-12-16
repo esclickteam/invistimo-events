@@ -87,7 +87,7 @@ function getTightSeatCoordinates(table) {
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
-  /* ===== Zustand state (HOOKS בלבד!) ===== */
+  /* ===== Zustand state ===== */
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
@@ -141,10 +141,30 @@ export default function TableRenderer({ table }) {
       draggable
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
+
+      /* ✅ DROP על גוף השולחן (fallback) */
+      onMouseUp={(e) => {
+        e.cancelBubble = true;
+        if (!draggingGuest) return;
+
+        const occupied = new Set(assigned.map((s) => s.seatIndex));
+        const freeSeat = seatsCoords.findIndex(
+          (_, i) => !occupied.has(i)
+        );
+
+        if (freeSeat !== -1) {
+          assignGuestToSeat({
+            guestId: draggingGuest.id, // ✅ תיקון קריטי
+            tableId: table.id,
+            seatIndex: freeSeat,
+          });
+        }
+      }}
+
       onClick={(e) => {
         e.cancelBubble = true;
 
-        /* ❗ אם גוררים אורח – לא פותחים מודל */
+        /* ❗ לא לפתוח מודל בזמן גרירה */
         if (draggingGuest) return;
 
         openSeatingModal(table.id);
@@ -218,7 +238,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ===== SEATS (Drop Target) ===== */}
+      {/* ===== SEATS (Drop מדויק) ===== */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
@@ -234,7 +254,7 @@ export default function TableRenderer({ table }) {
               if (!draggingGuest) return;
 
               assignGuestToSeat({
-                guestId: draggingGuest._id,
+                guestId: draggingGuest.id, // ✅ תיקון קריטי
                 tableId: table.id,
                 seatIndex: i,
               });
