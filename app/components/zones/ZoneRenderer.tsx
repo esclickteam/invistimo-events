@@ -20,11 +20,20 @@ export default function ZoneRenderer({ zone }: Props) {
 
   /* ================= Attach Transformer ONLY if selected ================= */
   useEffect(() => {
-    if (!isSelected || !shapeRef.current || !trRef.current) return;
+    if (!isSelected) return;
+    if (!shapeRef.current || !trRef.current) return;
 
-    trRef.current.nodes([shapeRef.current]);
-    trRef.current.getLayer()?.batchDraw();
+    try {
+      trRef.current.nodes([shapeRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    } catch (err) {
+      console.warn("⚠️ Transformer attach skipped:", err);
+    }
   }, [isSelected]);
+
+  /* ================= Safe text rendering ================= */
+  const labelText =
+    (zone?.icon ? String(zone.icon) + " " : "") + String(zone?.name ?? "");
 
   return (
     <>
@@ -58,8 +67,8 @@ export default function ZoneRenderer({ zone }: Props) {
           ref={shapeRef}
           width={zone.width}
           height={zone.height}
-          fill={zone.color}
-          opacity={zone.opacity}
+          fill={zone.color || "#d1d5db"}
+          opacity={typeof zone.opacity === "number" ? zone.opacity : 1}
           cornerRadius={16}
           stroke={isSelected ? "#2563eb" : "#374151"}
           strokeWidth={isSelected ? 2 : 1}
@@ -83,7 +92,7 @@ export default function ZoneRenderer({ zone }: Props) {
         />
 
         <Text
-          text={`${zone.icon} ${zone.name}`}
+          text={labelText}
           fontSize={18}
           fill="#111827"
           width={zone.width}
