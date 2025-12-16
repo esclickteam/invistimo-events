@@ -3,20 +3,29 @@
 import { Line } from "react-konva";
 
 /**
- * גודל גריד מומלץ:
- * 20 – תזוזה עדינה
- * 30 – מאוזן (מומלץ)
- * 40 – גריד גס
+ * UX Grid:
+ * קטן, עדין, לא משתלט
  */
 export const GRID_SIZE = 30;
 
 type GridLayerProps = {
   width: number;
   height: number;
+  visible?: boolean; // ✨ חדש
 };
 
-export default function GridLayer({ width, height }: GridLayerProps) {
+export default function GridLayer({
+  width,
+  height,
+  visible = true,
+}: GridLayerProps) {
+  if (!visible) return null;
+
   const lines = [];
+
+  const strokeColor = "#e9e9e9"; // עדין יותר
+  const strokeWidth = 0.5;
+  const opacity = 0.6; // ✨ UX רך
 
   /* ================================
      Vertical lines
@@ -26,8 +35,9 @@ export default function GridLayer({ width, height }: GridLayerProps) {
       <Line
         key={`v-${x}`}
         points={[x, 0, x, height]}
-        stroke="#e5e5e5"
-        strokeWidth={0.5}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
         listening={false}
       />
     );
@@ -41,8 +51,9 @@ export default function GridLayer({ width, height }: GridLayerProps) {
       <Line
         key={`h-${y}`}
         points={[0, y, width, y]}
-        stroke="#e5e5e5"
-        strokeWidth={0.5}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
         listening={false}
       />
     );
