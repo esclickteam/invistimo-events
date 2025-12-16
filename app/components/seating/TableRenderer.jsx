@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -119,6 +119,10 @@ function getTableLayout(rawTable) {
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
+  const [isRotating, setIsRotating] = useState(false);
+  const [startAngle, setStartAngle] = useState(0);
+  const [startRotation, setStartRotation] = useState(0);
+
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
@@ -132,13 +136,11 @@ export default function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
-  // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
     const indices = new Set(assigned.map((s) => s.seatIndex));
     return indices.size;
   }, [assigned]);
 
-  // guest info per seat
   const seatInfoMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -189,6 +191,42 @@ export default function TableRenderer({ table }) {
     }
   };
 
+  // ==================== 🌀 סיבוב טבעי כמו בקאנבה ====================
+  const handleMouseDown = (e) => {
+    if (e.evt.altKey || e.evt.metaKey) {
+      e.cancelBubble = true;
+      const stage = e.target.getStage();
+      const pointer = stage.getPointerPosition();
+      const center = tableRef.current.getAbsolutePosition();
+      const dx = pointer.x - center.x;
+      const dy = pointer.y - center.y;
+      setStartAngle(Math.atan2(dy, dx));
+      setStartRotation((table.rotation || 0) * (Math.PI / 180));
+      setIsRotating(true);
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isRotating) return;
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    const center = tableRef.current.getAbsolutePosition();
+    const dx = pointer.x - center.x;
+    const dy = pointer.y - center.y;
+    const angle = Math.atan2(dy, dx);
+    const newRotation = ((angle - startAngle + startRotation) * 180) / Math.PI;
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id ? { ...t, rotation: newRotation } : t
+      ),
+    }));
+  };
+
+  const handleMouseUp = () => {
+    if (isRotating) setIsRotating(false);
+  };
+  // ===============================================================
+
   const { size, width, height, radius } = layout;
   const deleteBtnPos =
     layout.type === "round"
@@ -204,10 +242,15 @@ export default function TableRenderer({ table }) {
       x={table.x}
       y={table.y}
       rotation={table.rotation || 0}
-      draggable
+      draggable={!isRotating}
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
-      onMouseUp={handleDrop}
+      onMouseUp={(e) => {
+        handleMouseUp();
+        handleDrop(e);
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
       onClick={handleClick}
     >
       {/* שולחנות */}
