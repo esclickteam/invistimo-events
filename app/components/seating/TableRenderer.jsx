@@ -3,19 +3,119 @@
 import { useRef, useEffect, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
-import { getSeatCoordinates } from "@/logic/seatingEngine";
 
+/* ============================================================
+   חישוב כיסאות צמודים לשולחן
+============================================================ */
+function getTightSeatCoordinates(table) {
+  const seats = table.seats || 0;
+  const result = [];
+
+  /* ========= ROUND ========= */
+  if (table.type === "round") {
+    const tableRadius = 60;
+    const seatRadius = 10;
+
+    // 🔑 צמידות אמיתית
+    const radius = tableRadius + seatRadius + 6;
+
+    for (let i = 0; i < seats; i++) {
+      const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
+
+      result.push({
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+        rotation: angle,
+      });
+    }
+  }
+
+  /* ========= SQUARE ========= */
+  if (table.type === "square") {
+    const size = 160;
+    const seatGap = 22;
+    const half = size / 2 + 12;
+
+    const perSide = Math.ceil(seats / 4);
+    let i = 0;
+
+    // top
+    for (; i < perSide && i < seats; i++) {
+      result.push({
+        x: -half + i * seatGap,
+        y: -half,
+        rotation: -Math.PI / 2,
+      });
+    }
+
+    // right
+    for (; i < perSide * 2 && i < seats; i++) {
+      result.push({
+        x: half,
+        y: -half + (i - perSide) * seatGap,
+        rotation: 0,
+      });
+    }
+
+    // bottom
+    for (; i < perSide * 3 && i < seats; i++) {
+      result.push({
+        x: half - (i - perSide * 2) * seatGap,
+        y: half,
+        rotation: Math.PI / 2,
+      });
+    }
+
+    // left
+    for (; i < seats; i++) {
+      result.push({
+        x: -half,
+        y: half - (i - perSide * 3) * seatGap,
+        rotation: Math.PI,
+      });
+    }
+  }
+
+  /* ========= BANQUET ========= */
+  if (table.type === "banquet") {
+    const width = 240;
+    const seatGap = 22;
+    const sideY = 45 + 14;
+
+    const perSide = Math.floor(seats / 2);
+
+    for (let i = 0; i < perSide; i++) {
+      result.push({
+        x: -width / 2 + 20 + i * seatGap,
+        y: -sideY,
+        rotation: -Math.PI / 2,
+      });
+    }
+
+    for (let i = 0; i < seats - perSide; i++) {
+      result.push({
+        x: -width / 2 + 20 + i * seatGap,
+        y: sideY,
+        rotation: Math.PI / 2,
+      });
+    }
+  }
+
+  return result;
+}
+
+/* ============================================================
+   TableRenderer
+============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const highlightedSeats = useSeatingStore((s) => s.highlightedSeats);
-
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const guests = useSeatingStore((s) => s.guests);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
 
-  /* ================= DATA ================= */
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
@@ -31,42 +131,11 @@ export default function TableRenderer({ table }) {
   const isHighlighted =
     highlightedTable === table.id || hasSelectedGuestInThisTable;
 
-  /* ================= POSITION ================= */
-  const updatePositionInStore = () => {
-    if (!tableRef.current) return;
-    const pos = tableRef.current.getPosition();
-
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === table.id ? { ...t, x: pos.x, y: pos.y } : t
-      ),
-    }));
-  };
-
-  useEffect(() => {
-    updatePositionInStore();
-  }, []);
-
-  /* ================= ROTATION ================= */
-  const rotateTable = () => {
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === table.id
-          ? {
-              ...t,
-              rotation: ((t.rotation || 0) + 90) % 360,
-            }
-          : t
-      ),
-    }));
-  };
-
-  /* ================= COLORS ================= */
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
 
-  /* ================= SEATS ================= */
-  const seatsCoords = getSeatCoordinates(table);
+  /* 🔑 כאן השינוי */
+  const seatsCoords = getTightSeatCoordinates(table);
 
   const handleSeatDrag = (guestId) => {
     const g = guests.find(
@@ -82,14 +151,6 @@ export default function TableRenderer({ table }) {
       y={table.y}
       rotation={table.rotation || 0}
       draggable
-      onDragMove={(e) => {
-        e.cancelBubble = true;
-        updatePositionInStore();
-      }}
-      onDragEnd={(e) => {
-        e.cancelBubble = true;
-        updatePositionInStore();
-      }}
       onClick={(e) => {
         e.cancelBubble = true;
         useSeatingStore.setState({
@@ -98,8 +159,7 @@ export default function TableRenderer({ table }) {
         });
       }}
     >
-      {/* ================= TABLE BODY ================= */}
-
+      {/* ===== TABLE BODY ===== */}
       {table.type === "round" && (
         <>
           <Circle radius={60} fill={tableFill} shadowBlur={8} />
@@ -153,7 +213,6 @@ export default function TableRenderer({ table }) {
             shadowBlur={8}
             cornerRadius={10}
           />
-
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={18}
@@ -165,108 +224,32 @@ export default function TableRenderer({ table }) {
             offsetX={120}
             offsetY={45}
           />
-
-          {/* 🔁 ROTATE BUTTON */}
-          <Group
-            x={0}
-            y={-70}
-            onClick={(e) => {
-              e.cancelBubble = true;
-              rotateTable();
-            }}
-          >
-            <Circle radius={14} fill="#111827" opacity={0.9} />
-            <Text
-              text="⟳"
-              fontSize={16}
-              fill="white"
-              align="center"
-              verticalAlign="middle"
-              width={28}
-              height={28}
-              offsetX={14}
-              offsetY={14}
-            />
-          </Group>
         </>
       )}
 
-      {/* ================= SEATS (עיצוב מלא – כמו קודם) ================= */}
+      {/* ===== SEATS ===== */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
 
-        const isInHoverHighlight = highlightedSeats.includes(i);
-        const isSelectedSeat =
-          seatGuest &&
-          selectedGuestId &&
-          String(seatGuest.guestId) === String(selectedGuestId);
-
-        const guestName = !isFree
-          ? guests.find(
-              (g) =>
-                normalizeGuestId(g) === String(seatGuest.guestId)
-            )?.name
-          : null;
-
         return (
-          <Group
-            key={i}
-            x={c.x}
-            y={c.y}
-            rotation={(c.rotation * 180) / Math.PI}
-          >
-            {isInHoverHighlight && (
-              <Circle radius={14} fill="#34d399" opacity={0.5} />
-            )}
-
-            {isSelectedSeat && (
-              <Circle radius={16} fill="#fde047" opacity={0.9} />
-            )}
-
+          <Group key={i} x={c.x} y={c.y} rotation={(c.rotation * 180) / Math.PI}>
             <Circle
               radius={10}
-              fill={
-                isSelectedSeat
-                  ? "#facc15"
-                  : isFree
-                  ? "#3b82f6"
-                  : "#d1d5db"
-              }
-              stroke={isSelectedSeat ? "#eab308" : "#2563eb"}
-              strokeWidth={isSelectedSeat ? 2 : 1}
+              fill={isFree ? "#3b82f6" : "#d1d5db"}
+              stroke="#2563eb"
               onClick={() =>
                 !isFree && handleSeatDrag(seatGuest.guestId)
               }
             />
-
-            {/* 🪑 משענת הכיסא – הוחזרה */}
             <Rect
               width={12}
               height={6}
               y={-14}
               offsetX={6}
               cornerRadius={2}
-              fill={
-                isSelectedSeat
-                  ? "#eab308"
-                  : isFree
-                  ? "#2563eb"
-                  : "#9ca3af"
-              }
+              fill={isFree ? "#2563eb" : "#9ca3af"}
             />
-
-            {!isFree && (
-              <Text
-                text={guestName}
-                offsetY={18}
-                align="center"
-                fontSize={12}
-                fill="#374151"
-                width={80}
-                offsetX={40}
-              />
-            )}
           </Group>
         );
       })}
