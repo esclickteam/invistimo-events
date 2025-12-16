@@ -8,7 +8,6 @@ export const useSeatingStore = create((set, get) => ({
 
   background: null,
 
-  /* ⭐ יישור שם */
   draggingGuest: null,
   ghostPosition: { x: 0, y: 0 },
 
@@ -17,7 +16,6 @@ export const useSeatingStore = create((set, get) => ({
 
   selectedGuestId: null,
 
-  /* ⭐ מודל הושבה */
   seatingModalTableId: null,
   showSeatingModal: false,
 
@@ -81,7 +79,10 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- DRAG START / END ---------------- */
   startDragGuest: (guest) =>
     set({
-      draggingGuest: guest,
+      draggingGuest: {
+        ...guest,
+        __isDragging: true, // ⭐ מבדיל בין קליק לגרירה
+      },
       highlightedSeats: [],
       highlightedTable: null,
     }),
@@ -117,7 +118,12 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    const block = findFreeBlock(hoveredTable, draggingGuest.count);
+    const count =
+      draggingGuest.guestsCount ||
+      draggingGuest.count ||
+      1;
+
+    const block = findFreeBlock(hoveredTable, count);
 
     set({
       highlightedTable: hoveredTable.id,
@@ -174,6 +180,48 @@ export const useSeatingStore = create((set, get) => ({
             }
           : g
       ),
+      draggingGuest: null,
+      highlightedSeats: [],
+      highlightedTable: null,
+    });
+  },
+
+  /* ---------------- ⭐ ASSIGN BLOCK (CANVAS DRAG) ---------------- */
+  assignGuestBlock: ({ guestId, tableId }) => {
+    const { tables, guests } = get();
+
+    const guest = guests.find((g) => g.id === guestId);
+    const table = tables.find((t) => t.id === tableId);
+
+    if (!guest || !table) return;
+
+    const count =
+      guest.guestsCount ||
+      guest.count ||
+      1;
+
+    const block = findFreeBlock(table, count);
+    if (!block) return;
+
+    tables.forEach((t) => {
+      t.seatedGuests = t.seatedGuests.filter(
+        (s) => s.guestId !== guestId
+      );
+    });
+
+    table.seatedGuests.push(
+      ...block.map((seatIndex) => ({
+        guestId,
+        seatIndex,
+      }))
+    );
+
+    guest.tableId = tableId;
+    guest.tableName = table.name;
+
+    set({
+      tables: [...tables],
+      guests: [...guests],
       draggingGuest: null,
       highlightedSeats: [],
       highlightedTable: null,

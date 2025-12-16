@@ -22,7 +22,6 @@ function getTightSeatCoordinates(table) {
       result.push({
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
-        rotation: angle,
       });
     }
   }
@@ -36,23 +35,21 @@ function getTightSeatCoordinates(table) {
     let i = 0;
 
     for (; i < perSide && i < seats; i++)
-      result.push({ x: -half + i * seatGap, y: -half, rotation: -Math.PI / 2 });
+      result.push({ x: -half + i * seatGap, y: -half });
 
     for (; i < perSide * 2 && i < seats; i++)
-      result.push({ x: half, y: -half + (i - perSide) * seatGap, rotation: 0 });
+      result.push({ x: half, y: -half + (i - perSide) * seatGap });
 
     for (; i < perSide * 3 && i < seats; i++)
       result.push({
         x: half - (i - perSide * 2) * seatGap,
         y: half,
-        rotation: Math.PI / 2,
       });
 
     for (; i < seats; i++)
       result.push({
         x: -half,
         y: half - (i - perSide * 3) * seatGap,
-        rotation: Math.PI,
       });
   }
 
@@ -60,21 +57,19 @@ function getTightSeatCoordinates(table) {
   if (table.type === "banquet") {
     const width = 240;
     const seatGap = 22;
-    const sideY = 45 + 14;
+    const sideY = 59;
     const perSide = Math.floor(seats / 2);
 
     for (let i = 0; i < perSide; i++)
       result.push({
         x: -width / 2 + 20 + i * seatGap,
         y: -sideY,
-        rotation: -Math.PI / 2,
       });
 
     for (let i = 0; i < seats - perSide; i++)
       result.push({
         x: -width / 2 + 20 + i * seatGap,
         y: sideY,
-        rotation: Math.PI / 2,
       });
   }
 
@@ -87,12 +82,12 @@ function getTightSeatCoordinates(table) {
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
-  /* ===== Zustand state ===== */
+  /* ===== Zustand ===== */
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
 
-  const assignGuestToSeat = useSeatingStore((s) => s.assignGuestToSeat);
+  const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const openSeatingModal = useSeatingStore((s) => s.openSeatingModal);
 
   const assigned = table.seatedGuests || [];
@@ -132,6 +127,17 @@ export default function TableRenderer({ table }) {
     }));
   };
 
+  /* ================= DROP HANDLER (BLOCK) ================= */
+  const handleDrop = (e) => {
+    e.cancelBubble = true;
+    if (!draggingGuest) return;
+
+    assignGuestBlock({
+      guestId: draggingGuest.id,
+      tableId: table.id,
+    });
+  };
+
   return (
     <Group
       ref={tableRef}
@@ -141,30 +147,11 @@ export default function TableRenderer({ table }) {
       draggable
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
-
-      /* ✅ DROP על גוף השולחן (fallback) */
-      onMouseUp={(e) => {
-        e.cancelBubble = true;
-        if (!draggingGuest) return;
-
-        const occupied = new Set(assigned.map((s) => s.seatIndex));
-        const freeSeat = seatsCoords.findIndex(
-          (_, i) => !occupied.has(i)
-        );
-
-        if (freeSeat !== -1) {
-          assignGuestToSeat({
-            guestId: draggingGuest.id, // ✅ תיקון קריטי
-            tableId: table.id,
-            seatIndex: freeSeat,
-          });
-        }
-      }}
-
+      onMouseUp={handleDrop}
       onClick={(e) => {
         e.cancelBubble = true;
 
-        /* ❗ לא לפתוח מודל בזמן גרירה */
+        // פתיחת מודל רק אם זה קליק אמיתי
         if (draggingGuest) return;
 
         openSeatingModal(table.id);
@@ -238,28 +225,12 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ===== SEATS (Drop מדויק) ===== */}
+      {/* ===== SEATS (ויזואלי בלבד) ===== */}
       {seatsCoords.map((c, i) => {
-        const seatGuest = assigned.find((s) => s.seatIndex === i);
-        const isFree = !seatGuest;
+        const isFree = !assigned.some((s) => s.seatIndex === i);
 
         return (
-          <Group
-            key={i}
-            x={c.x}
-            y={c.y}
-            rotation={(c.rotation * 180) / Math.PI}
-            onMouseUp={(e) => {
-              e.cancelBubble = true;
-              if (!draggingGuest) return;
-
-              assignGuestToSeat({
-                guestId: draggingGuest.id, // ✅ תיקון קריטי
-                tableId: table.id,
-                seatIndex: i,
-              });
-            }}
-          >
+          <Group key={i} x={c.x} y={c.y}>
             <Circle
               radius={10}
               fill={isFree ? "#3b82f6" : "#d1d5db"}
