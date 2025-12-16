@@ -3,19 +3,14 @@
 import { useState, useMemo } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 
-/**
- * AddGuestToTableModal – גרסה מלאה
- * ניהול הושבה מבוסס כרטיסיות בלבד
- */
 export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
   const seated = table.seatedGuests || [];
-  const [openSeat, setOpenSeat] = useState(null); // index פתוח לבחירת אורח
+  const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
 
-  // כמה מקומות אורח תופס בפועל
   const getPartySize = (guest) => {
     const raw =
       guest?.confirmedGuestsCount ??
@@ -60,32 +55,28 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return arr;
   }, [seated, guests, table.seats]);
 
-  // הושבת אורח
   const handleSeatGuest = (seatIndex, guest) => {
     const count = getPartySize(guest);
     if (count > freeSeats) {
       setError("אין מספיק מקומות פנויים");
       return;
     }
-
     assignGuestsToTable(table.id, guest.id, count, seatIndex);
     setOpenSeat(null);
     setError("");
   };
 
-  // הסרת אורח
   const handleRemoveGuest = (guestId) => {
     removeGuestFromTable(table.id, guestId);
   };
 
-  // אורחים שעדיין לא הושבו
   const availableGuests = guests.filter(
     (g) => !seated.find((s) => String(s.guestId) === String(g.id ?? g._id))
   );
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl shadow-xl w-[520px] p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-[540px] p-6 max-h-[90vh] overflow-y-auto transition-all">
         <h2 className="text-lg font-bold mb-3 text-center">
           הושבה לשולחן {table.name}
         </h2>
@@ -100,7 +91,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           </div>
         )}
 
-        {/* רשת הכיסאות */}
+        {/* גריד של כרטיסיות */}
         <div className="grid grid-cols-6 gap-3 justify-items-center">
           {seatsArray.map((seat, i) => {
             const g = seat.guest;
@@ -111,13 +102,13 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                 key={i}
                 className={`relative w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition ${
                   g
-                    ? "bg-gray-100 border-gray-400"
-                    : "bg-white border-gray-200 hover:bg-blue-50"
+                    ? "bg-blue-50 border-blue-400"
+                    : "bg-white border-gray-200 hover:bg-blue-100"
                 }`}
               >
                 {g ? (
                   <>
-                    <span className="font-medium text-gray-800 truncate w-[90%]">
+                    <span className="font-semibold text-gray-700 truncate w-[90%]">
                       {g.name}
                     </span>
                     <span className="text-xs text-gray-500">
@@ -134,14 +125,14 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                   <>
                     <span
                       onClick={() => setOpenSeat(isOpen ? null : i)}
-                      className="text-gray-400 text-xs"
+                      className="text-gray-500 text-xs font-medium"
                     >
                       הושב<br />אורח
                     </span>
 
-                    {/* תפריט בחירה קטן שמופיע רק כשנבחר */}
+                    {/* תפריט קטן */}
                     {isOpen && (
-                      <div className="absolute top-full mt-2 bg-white border shadow-lg rounded-md w-40 z-50 max-h-56 overflow-y-auto">
+                      <div className="absolute top-full mt-2 bg-white border shadow-xl rounded-md w-44 z-50 max-h-56 overflow-y-auto text-right">
                         {availableGuests.length === 0 && (
                           <div className="p-2 text-xs text-gray-400 text-center">
                             אין אורחים זמינים
@@ -153,7 +144,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                             onClick={() => handleSeatGuest(i, g2)}
                             className="p-2 hover:bg-blue-50 cursor-pointer text-xs text-gray-700"
                           >
-                            {g2.name} – {getPartySize(g2)} מקומות
+                            {g2.name} — {getPartySize(g2)} מקומות
                           </div>
                         ))}
                       </div>
