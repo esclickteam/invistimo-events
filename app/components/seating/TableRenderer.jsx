@@ -5,7 +5,7 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   חישוב כיסאות סימטריים מול צדדים (לא צמודים)
+   חישוב כיסאות סימטריים סביב שולחן – צדדים נגדיים
 ============================================================ */
 function getTightSeatCoordinates(table) {
   const seats = table.seats || 0;
@@ -32,36 +32,43 @@ function getTightSeatCoordinates(table) {
     const gap = 26;
     const half = size / 2 + 16;
 
-    // חלוקה סימטרית: צדדים נגדיים זהים
-    const topBottom = Math.ceil(seats / 2);
-    const perTop = Math.floor(topBottom / 2);
-    const perSide = seats - topBottom;
+    // חישוב סימטרי אמיתי: זוגות צדדים נגדיים
+    const pairs = Math.floor(seats / 2);
+    const remainder = seats % 2;
 
-    const leftSide = Math.ceil(perSide / 2);
-    const rightSide = Math.floor(perSide / 2);
+    // כמות לכל צד
+    const top = Math.ceil(pairs / 2);
+    const bottom = Math.floor(pairs / 2);
+    const left = remainder > 0 ? Math.ceil(remainder / 2) : 0;
+    const right = remainder > 0 ? Math.floor(remainder / 2) : 0;
 
     // עליון
-    for (let i = 0; i < perTop; i++) {
-      const offset = -((perTop - 1) * gap) / 2 + i * gap;
+    for (let i = 0; i < top; i++) {
+      const offset = -((top - 1) * gap) / 2 + i * gap;
       result.push({ x: offset, y: -half });
     }
 
     // תחתון
-    for (let i = 0; i < perTop; i++) {
-      const offset = -((perTop - 1) * gap) / 2 + i * gap;
+    for (let i = 0; i < bottom; i++) {
+      const offset = -((bottom - 1) * gap) / 2 + i * gap;
       result.push({ x: offset, y: half });
     }
 
     // שמאל
-    for (let i = 0; i < leftSide; i++) {
-      const offset = -((leftSide - 1) * gap) / 2 + i * gap;
+    for (let i = 0; i < left; i++) {
+      const offset = -((left - 1) * gap) / 2 + i * gap;
       result.push({ x: -half, y: offset });
     }
 
     // ימין
-    for (let i = 0; i < rightSide; i++) {
-      const offset = -((rightSide - 1) * gap) / 2 + i * gap;
+    for (let i = 0; i < right; i++) {
+      const offset = -((right - 1) * gap) / 2 + i * gap;
       result.push({ x: half, y: offset });
+    }
+
+    // אם יש עדיין כיסאות חסרים – נשלים סימטרית
+    while (result.length < seats) {
+      result.push({ x: 0, y: half + 20 * (result.length - seats / 2) });
     }
   }
 
@@ -101,7 +108,6 @@ export default function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
-  /* ===== Map seatIndex → guest ===== */
   const seatToGuestMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -115,7 +121,6 @@ export default function TableRenderer({ table }) {
   }, [assigned, guests]);
 
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
-
   const isHighlighted =
     highlightedTable === table.id ||
     assigned.some((s) => String(s.guestId) === String(selectedGuestId));
@@ -125,11 +130,9 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getTightSeatCoordinates(table);
 
-  /* ================= SAVE POSITION ================= */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
-
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
         t.id === table.id
@@ -144,7 +147,15 @@ export default function TableRenderer({ table }) {
     }));
   };
 
-  /* ================= מחיקה באמצעות גרירה מעל פח (HTML) ================= */
+  const handleDrop = (e) => {
+    e.cancelBubble = true;
+    if (!draggingGuest) return;
+    assignGuestBlock({
+      guestId: draggingGuest.id,
+      tableId: table.id,
+    });
+  };
+
   const handleDragEnd = (e) => {
     updatePositionInStore();
     const pos = e.target.getClientRect();
@@ -162,22 +173,9 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  /* ================= הצגה ================= */
   return (
     <>
-      {/* כפתור מחיקה אמיתי מחוץ לקנבס */}
-      <div
-        id="trash-drop"
-        className="fixed top-4 right-40 z-50 bg-white border border-gray-300 shadow-md rounded-xl w-12 h-12 flex items-center justify-center hover:bg-red-50 transition"
-      >
-        <img
-          src="/icons/trash.svg"
-          alt="delete"
-          className="w-6 h-6 opacity-70 hover:opacity-100 transition"
-        />
-      </div>
-
-      {/* השולחן עצמו */}
+      {/* ===== שולחן ===== */}
       <Group
         ref={tableRef}
         x={table.x}
@@ -186,6 +184,7 @@ export default function TableRenderer({ table }) {
         draggable
         onDragMove={updatePositionInStore}
         onDragEnd={handleDragEnd}
+        onMouseUp={handleDrop}
         onClick={(e) => {
           e.cancelBubble = true;
           if (!draggingGuest && typeof table.openAddGuestModal === "function")
@@ -259,7 +258,7 @@ export default function TableRenderer({ table }) {
           </>
         )}
 
-        {/* הכיסאות */}
+        {/* ===== כיסאות ===== */}
         {seatsCoords.map((c, i) => {
           const guest = seatToGuestMap.get(i);
           return (
@@ -284,6 +283,18 @@ export default function TableRenderer({ table }) {
           );
         })}
       </Group>
+
+      {/* ===== כפתור מחיקה קבוע (למעלה) ===== */}
+      <div
+        id="trash-drop"
+        className="fixed top-4 right-40 z-50 bg-white border border-gray-300 shadow-md rounded-xl w-12 h-12 flex items-center justify-center hover:bg-red-50 transition"
+      >
+        <img
+          src="/icons/trash.svg"
+          alt="delete"
+          className="w-6 h-6 opacity-70 hover:opacity-100 transition"
+        />
+      </div>
     </>
   );
 }
