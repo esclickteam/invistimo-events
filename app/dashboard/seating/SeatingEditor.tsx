@@ -15,6 +15,7 @@ import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
+import GridLayer from "@/app/components/seating/GridLayer";
 
 /* ============================================================
    טיפוסים מקומיים
@@ -177,8 +178,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         x={stagePos.x}
         y={stagePos.y}
         draggable={isPanning}
-
-        /* ===== WHEEL ZOOM ===== */
         onWheel={(e) => {
           e.evt.preventDefault();
 
@@ -213,7 +212,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
             y: pointer.y - mousePointTo.y * clampedScale,
           });
         }}
-
         onDragEnd={(e) => {
           if (isPanning) setStagePos(e.target.position());
         }}
@@ -228,6 +226,11 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         onMouseMove={handleMouseMove}
         className="flex-1"
       >
+        {/* GRID */}
+        <Layer listening={false}>
+          <GridLayer width={width} height={height} />
+        </Layer>
+
         {/* BACKGROUND */}
         <Layer listening={false}>
           {bgImage && (
@@ -254,8 +257,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
               key={t.id}
               table={{
                 ...t,
-                openAddGuestModal: () =>
-                  setAddGuestTable(t),
+                openAddGuestModal: () => setAddGuestTable(t),
               }}
             />
           ))}
