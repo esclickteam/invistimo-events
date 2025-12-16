@@ -6,12 +6,18 @@ import { X } from "lucide-react";
 import Image from "next/image";
 import { useSeatingStore } from "@/store/seatingStore";
 
+/* ============================================================
+   סוגי שולחנות עם תמונות תקינות
+============================================================ */
 const tableTypes = [
-  { id: "banquet", name: "אבירים", img: "/tables/banquet.png" },
-  { id: "square", name: "מרובע", img: "/tables/square.png" },
-  { id: "round", name: "עגול", img: "/tables/round.png" },
+  { id: "round", name: "עגול", img: "/images/tables/round.png" },
+  { id: "square", name: "מרובע", img: "/images/tables/square.png" },
+  { id: "banquet", name: "אבירים", img: "/images/tables/banquet.png" },
 ];
 
+/* ============================================================
+   רכיב AddTableDrawer
+============================================================ */
 export default function AddTableDrawer({
   open,
   onClose,
@@ -23,6 +29,7 @@ export default function AddTableDrawer({
 }) {
   const [type, setType] = useState("banquet");
   const [seats, setSeats] = useState(12);
+  const [color, setColor] = useState("#ffffff");
 
   const addTable = useSeatingStore((s) => s.addTable);
 
@@ -57,28 +64,31 @@ export default function AddTableDrawer({
 
         {/* CONTENT */}
         <div className="p-5 flex-1 overflow-y-auto">
+          {/* סוג שולחן */}
           <p className="text-sm font-medium mb-2">בחר סוג שולחן:</p>
 
-          <div className="flex justify-between mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-6">
             {tableTypes.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setType(t.id)}
-                className={`flex flex-col items-center gap-2 border rounded-lg p-2 w-[90px] hover:bg-gray-50 transition ${
+                className={`flex flex-col items-center gap-2 border rounded-lg p-2 hover:bg-gray-50 transition ${
                   type === t.id
                     ? "border-blue-500 bg-blue-50"
                     : "border-gray-300"
                 }`}
               >
-                <Image
-                  src={t.img}
-                  alt={t.name}
-                  width={70}
-                  height={70}
-                  className="object-contain"
-                />
+                <div className="relative w-[70px] h-[70px]">
+                  <Image
+                    src={t.img}
+                    alt={t.name}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                  />
+                </div>
                 <span
-                  className={`text-sm ${
+                  className={`text-sm font-medium ${
                     type === t.id ? "text-blue-600" : "text-gray-700"
                   }`}
                 >
@@ -108,7 +118,8 @@ export default function AddTableDrawer({
           <input
             type="color"
             className="w-full h-10 border rounded mb-6"
-            defaultValue="#ffffff"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
           />
 
           {/* כפתור הוספה */}
@@ -124,7 +135,7 @@ export default function AddTableDrawer({
       {/* OVERLAY */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.5 }}
+        animate={{ opacity: 0.4 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
         className="fixed inset-0 bg-black z-[9998]"
