@@ -1,173 +1,254 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Star, Smartphone } from "lucide-react";
+import {
+  CheckCircle2,
+  PhoneOff,
+  Sparkles,
+  LayoutDashboard,
+  Users,
+  Armchair,
+  MessageCircle,
+  Star,
+} from "lucide-react";
 
-/* 🔢 עובדים עם מספרים */
-type GuestOption = 100 | 300 | 500 | 1000;
+/* אנימציה אחידה */
+const fadeUp = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function HomePage() {
-  const [selectedGuests, setSelectedGuests] = useState<GuestOption | "">("");
-
-  const prices: Record<GuestOption, string> = {
-    100: "149 ₪",
-    300: "249 ₪",
-    500: "399 ₪",
-    1000: "699 ₪",
-  };
-
-  const premiumHref =
-    selectedGuests !== ""
-      ? `/register?plan=premium&guests=${selectedGuests}`
-      : "#";
-
   return (
-    <div className="relative space-y-40 pb-40">
-      {/* ========= רקע ========= */}
-      <div className="absolute inset-0 -z-20 bg-gradient-to-b from-[#f7f3ee] via-[#efe7dd] to-[#e7d9ca]" />
-      <div className="absolute inset-0 -z-10 opacity-[0.15] bg-[url('/noise.png')]" />
+    <div className="space-y-0 overflow-hidden">
 
-      {/* ========= HERO ========= */}
-      <motion.section
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1 }}
-        className="max-w-5xl mx-auto pt-24 md:pt-32 px-6 text-center space-y-8"
-      >
-        <h1 className="text-5xl md:text-7xl font-bold text-[#5c4632] leading-tight">
-          הזמנות דיגיטליות יוקרתיות
-          <br /> ואישורי הגעה חכמים לכל אירוע
-        </h1>
+      {/* ================= HERO ================= */}
+      <section className="bg-[#f7f3ee]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 1 }}
+          className="max-w-6xl mx-auto px-6 pt-32 pb-40 text-center space-y-10"
+        >
+          <h1 className="text-5xl md:text-7xl font-bold text-[#5c4632] leading-tight">
+            האירוע שלכם,
+            <br />
+            <span className="text-[#b08a5a]">כמו שהעולם עובד היום</span>
+          </h1>
 
-        <p className="text-lg md:text-2xl text-[#7b6754] max-w-3xl mx-auto">
-          פלטפורמה מעוצבת וחדשנית לניהול אירועים ב־<strong>Invistimo</strong>:
-          הזמנות, אישורי הגעה והושבה — הכול במקום אחד.
-        </p>
+          <p className="text-xl md:text-2xl text-[#7b6754] max-w-3xl mx-auto">
+            Invistimo היא מערכת לניהול אירועים בצורה חכמה:
+            הזמנות דיגיטליות, אישורי הגעה והושבה —
+            בלי טלפונים, בלי בלגן, ובלי לבזבז אנרגיה.
+          </p>
 
-        <div className="flex justify-center mt-10">
-          <a
-            href="#packages"
-            className="px-10 py-4 rounded-full text-lg font-semibold border-2 border-[#c7a17a] text-[#6a5440]"
+          <Link
+            href="/packages"
+            className="inline-block px-14 py-4 rounded-full text-lg font-bold bg-[#5c4632] text-white hover:opacity-90 transition"
           >
-            צפייה בחבילות
-          </a>
-        </div>
-      </motion.section>
-
-      {/* ========= חבילות ========= */}
-      <section id="packages" className="max-w-6xl mx-auto px-6 space-y-16">
-        <h2 className="text-4xl font-bold text-center text-[#5c4632]">
-          החבילות שלנו
-        </h2>
-
-        <div className="grid md:grid-cols-2 gap-14 max-w-5xl mx-auto">
-          {/* ===== BASIC ===== */}
-          <div className="bg-white p-10 rounded-3xl shadow-lg border border-[#eadfce]">
-            <div className="flex items-center gap-3 mb-4">
-              <Smartphone className="w-8 h-8 text-[#c7a17a]" />
-              <h3 className="text-3xl font-bold text-[#5c4632]">חבילת בסיס</h3>
-            </div>
-
-            <p className="text-[#7b6754] text-xl font-semibold mb-6">
-              49₪ בלבד
-            </p>
-
-            <ul className="space-y-3 text-[#7b6754]">
-              {[
-                "גישה לעורך ההזמנות לעיצוב אישי",
-                "הזמנה דיגיטלית מעוצבת ומוכנה לשליחה",
-                "שליחה ידנית ב־WhatsApp לכל אורח",
-                "קישור אישי עם טופס לאישור הגעה",
-                "ניהול אישורי הגעה – עד 50 אישורים",
-              ].map((text) => (
-                <li key={text} className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-[#c7a17a] mt-0.5 shrink-0" />
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              href="/register?plan=basic"
-              className="block mt-10 text-center px-10 py-4 rounded-full border-2 border-[#c7a17a] text-[#6a5440] font-semibold"
-            >
-              הרשמה ותשלום לחבילת בסיס
-            </Link>
-          </div>
-
-          {/* ===== PREMIUM ===== */}
-          <div className="p-10 rounded-3xl shadow-xl bg-gradient-to-br from-[#d2b08c] to-[#c19c78] text-white">
-            <div className="flex items-center gap-3 mb-4">
-              <Star className="w-8 h-8 text-white" />
-              <h3 className="text-3xl font-bold">חבילת פרימיום</h3>
-            </div>
-
-            <ul className="space-y-3 text-white/90 mb-8">
-              {[
-                "תזכורות והודעות אוטומטיות",
-                "הושבה חכמה וניהול שולחנות",
-                "עיצוב הזמנה מתקדם ועריכה חופשית",
-                "שליטה מלאה ברשימת המוזמנים",
-                "עדכונים וסטטיסטיקות בזמן אמת",
-                "ניהול מלא של אישורי הגעה – ללא הגבלה",
-              ].map((text) => (
-                <li key={text} className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-white mt-0.5 shrink-0" />
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="bg-white/15 p-5 rounded-2xl text-center">
-              <p className="font-semibold mb-3">בחרו כמות אורחים:</p>
-
-              <select
-                className="w-full bg-white text-[#5c4632] px-4 py-3 rounded-xl text-center"
-                value={selectedGuests}
-                onChange={(e) =>
-                  setSelectedGuests(
-                    e.target.value
-                      ? (Number(e.target.value) as GuestOption)
-                      : ""
-                  )
-                }
-              >
-                <option value="">בחרו...</option>
-                <option value="100">עד 100 אורחים</option>
-                <option value="300">עד 300 אורחים</option>
-                <option value="500">עד 500 אורחים</option>
-                <option value="1000">עד 1000 אורחים</option>
-              </select>
-
-              {selectedGuests && (
-                <p className="mt-4 text-lg font-semibold">
-                  מחיר: {prices[selectedGuests]}
-                </p>
-              )}
-            </div>
-
-            <Link
-              href={premiumHref}
-              aria-disabled={selectedGuests === ""}
-              className={`block mt-10 text-center px-10 py-4 rounded-full font-bold transition
-                ${
-                  selectedGuests === ""
-                    ? "bg-white/50 text-[#6a5440]/50 pointer-events-none"
-                    : "bg-white text-[#6a5440]"
-                }
-              `}
-            >
-              הרשמה ותשלום לחבילת פרימיום
-            </Link>
-
-            <p className="mt-4 text-center text-white/80 text-sm">
-              תשלום חד־פעמי · ללא מנוי
-            </p>
-          </div>
-        </div>
+            לצפייה בחבילות
+          </Link>
+        </motion.div>
       </section>
+
+      {/* ================= PROBLEM ================= */}
+      <section className="bg-[#efe7dd]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-5xl mx-auto px-6 py-32 space-y-12 text-center"
+        >
+          <h2 className="text-4xl font-bold text-[#5c4632]">
+            ניהול אירוע לא אמור להרגיש כמו עבודה במשרה מלאה
+          </h2>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              "רשימות אורחים שמתפזרות בין הודעות",
+              "אישורי הגעה שלא מעודכנים",
+              "טלפונים, חזרות, ורדיפה אחרי אנשים",
+            ].map((text) => (
+              <div
+                key={text}
+                className="bg-white p-8 rounded-2xl shadow border border-[#eadfce]"
+              >
+                <p className="text-lg text-[#6a5440]">{text}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ================= SOLUTION ================= */}
+      <section className="bg-[#e7d9ca]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-6xl mx-auto px-6 py-32 space-y-16 text-center"
+        >
+          <h2 className="text-4xl font-bold text-[#5c4632]">
+            Invistimo עושה סדר – מההזמנה ועד האירוע
+          </h2>
+
+          <div className="grid md:grid-cols-4 gap-10">
+            <Feature icon={<LayoutDashboard />} text="דשבורד אחד ברור" />
+            <Feature icon={<Users />} text="ניהול אורחים חכם" />
+            <Feature icon={<MessageCircle />} text="אישורי הגעה דיגיטליים" />
+            <Feature icon={<Armchair />} text="סידורי הושבה מתקדמים" />
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ================= HOW IT WORKS ================= */}
+      <section className="bg-[#f3eee7]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-5xl mx-auto px-6 py-32 text-center space-y-16"
+        >
+          <h2 className="text-4xl font-bold text-[#5c4632]">
+            איך זה עובד?
+          </h2>
+
+          <div className="grid md:grid-cols-3 gap-10">
+            <Step number="1" text="יוצרים הזמנה דיגיטלית" />
+            <Step number="2" text="שולחים קישור לאורחים" />
+            <Step number="3" text="הכול מתעדכן אוטומטית" />
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ================= NO PHONE CALLS ================= */}
+      <section className="bg-[#e8dfd4]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-5xl mx-auto px-6 py-32 text-center space-y-12"
+        >
+          <PhoneOff className="w-14 h-14 mx-auto text-[#b08a5a]" />
+
+          <h2 className="text-4xl font-bold text-[#5c4632]">
+            למה אנחנו לא עושים סבבי טלפונים?
+          </h2>
+
+          <p className="text-xl text-[#7b6754] max-w-3xl mx-auto">
+            כי זה בזבוז כסף, זמן ואנרגיה.
+            היום מי שרוצה להגיע – מאשר בלחיצה.
+            אין טעם להציק לאורחים, ואין סיבה שתשלמו על זה.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* ================= SEATING ================= */}
+      <section className="bg-[#f7f3ee]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-6xl mx-auto px-6 py-32 text-center space-y-14"
+        >
+          <h2 className="text-4xl font-bold text-[#5c4632]">
+            סידורי הושבה בלי כאבי ראש
+          </h2>
+
+          <p className="text-xl text-[#7b6754] max-w-3xl mx-auto">
+            גרירה חופשית של שולחנות, הצמדת אורחים,
+            ושינויים גם ברגע האחרון – בלי למחוק הכול מחדש.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* ================= WHO ITS FOR ================= */}
+      <section className="bg-[#efe7dd]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-6xl mx-auto px-6 py-32 text-center space-y-16"
+        >
+          <h2 className="text-4xl font-bold text-[#5c4632]">
+            למי זה מתאים?
+          </h2>
+
+          <div className="grid md:grid-cols-4 gap-8">
+            {["חתונות", "בר / בת מצווה", "אירועים פרטיים", "אירועים עסקיים"].map(
+              (t) => (
+                <div
+                  key={t}
+                  className="bg-white p-8 rounded-2xl shadow border border-[#eadfce]"
+                >
+                  <p className="text-lg font-semibold text-[#6a5440]">{t}</p>
+                </div>
+              )
+            )}
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ================= CTA ================= */}
+      <section className="bg-[#e7d9ca]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-5xl mx-auto px-6 py-32 text-center space-y-10"
+        >
+          <h2 className="text-4xl font-bold text-[#5c4632]">
+            מוכנים לנהל אירוע חכם ורגוע?
+          </h2>
+
+          <Link
+            href="/packages"
+            className="inline-block px-16 py-5 rounded-full text-lg font-bold bg-[#5c4632] text-white hover:opacity-90 transition"
+          >
+            לצפייה בחבילות
+          </Link>
+
+          <p className="text-[#7b6754] text-sm">
+            תשלום חד־פעמי · בלי מנויים · בלי אותיות קטנות
+          </p>
+        </motion.div>
+      </section>
+    </div>
+  );
+}
+
+/* ================= COMPONENTS ================= */
+
+function Feature({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return (
+    <div className="bg-white p-8 rounded-2xl shadow border border-[#eadfce] space-y-4">
+      <div className="text-[#b08a5a]">{icon}</div>
+      <p className="text-[#6a5440] font-semibold">{text}</p>
+    </div>
+  );
+}
+
+function Step({ number, text }: { number: string; text: string }) {
+  return (
+    <div className="bg-white p-10 rounded-2xl shadow border border-[#eadfce] space-y-4">
+      <div className="text-4xl font-bold text-[#b08a5a]">{number}</div>
+      <p className="text-lg text-[#6a5440]">{text}</p>
     </div>
   );
 }
