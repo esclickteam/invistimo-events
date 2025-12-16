@@ -16,6 +16,9 @@ import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 
+/* ⭐ תוספת חדשה – גריד */
+import GridLayer from "@/app/components/seating/GridLayer";
+
 /* ============================================================
    טיפוסים מקומיים
 ============================================================ */
@@ -228,8 +231,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         onMouseMove={handleMouseMove}
         className="flex-1"
       >
-        {/* BACKGROUND */}
+        {/* GRID + BACKGROUND */}
         <Layer listening={false}>
+          <GridLayer width={width} height={height} /> {/* ⭐ שכבת הגריד החדשה */}
           {bgImage && (
             <KonvaImage
               image={bgImage}
