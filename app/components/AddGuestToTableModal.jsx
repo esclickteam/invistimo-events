@@ -1,24 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { Stage, Layer, Group, Circle, Text, Rect } from "react-konva";
+import { useState, useMemo } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /**
  * AddGuestToTableModal
- * מודאל הושבה אינטראקטיבי: מציג שולחן קטן עם כיסאות
- * מאפשר הוספה/הסרה של אורחים ישירות מהמודאל
+ * ממשק הושבה מבוסס כרטיסיות — בלי שולחן גרפי
  */
 export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
+  const seated = table.seatedGuests || [];
   const [selectedGuest, setSelectedGuest] = useState(null);
   const [error, setError] = useState("");
 
-  const seated = table.seatedGuests || [];
-
-  // פונקציה שמחזירה כמה מקומות כל אורח תופס לפי אישור הגעה
+  // חישוב כמה אורח תופס לפי אישורי הגעה
   const getPartySize = (guest, assignedItem) => {
     const raw =
       assignedItem?.confirmedGuestsCount ??
@@ -31,36 +28,45 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   };
 
   // ספירה מדויקת של מקומות תפוסים
-  const occupied = seated.reduce((sum, s) => {
-    const g = guests.find(
-      (guest) => String(guest.id ?? guest._id) === String(s.guestId)
-    );
-    return sum + (g ? getPartySize(g, s) : 1);
-  }, 0);
+  const occupied = useMemo(() => {
+    return seated.reduce((sum, s) => {
+      const g = guests.find(
+        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
+      );
+      return sum + (g ? getPartySize(g, s) : 1);
+    }, 0);
+  }, [seated, guests]);
 
   const freeSeats = Math.max(0, table.seats - occupied);
 
-  // חישוב מיקום הכיסאות סביב השולחן
-  const getSeatPositions = (seats) => {
-    const coords = [];
-    const radius = 90;
-    for (let i = 0; i < seats; i++) {
-      const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-      coords.push({
-        x: 150 + Math.cos(angle) * radius,
-        y: 150 + Math.sin(angle) * radius,
-      });
-    }
-    return coords;
-  };
+  // בניית מערך מקומות ישיבה (כיסאות)
+  const seatsArray = useMemo(() => {
+    const arr = Array.from({ length: table.seats }, (_, i) => ({
+      index: i,
+      guest: null,
+    }));
 
-  const seatsCoords = getSeatPositions(table.seats);
+    seated.forEach((s) => {
+      const g = guests.find(
+        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
+      );
+      if (!g) return;
+      const count = getPartySize(g, s);
+      for (let j = 0; j < count; j++) {
+        const idx = s.seatIndex + j;
+        if (idx < arr.length) arr[idx].guest = g;
+      }
+    });
+
+    return arr;
+  }, [seated, guests, table.seats]);
 
   const handleAddGuest = (seatIndex) => {
     if (!selectedGuest) {
       setError("יש לבחור אורח מהרשימה");
       return;
     }
+
     const guest = selectedGuest;
     const count = getPartySize(guest);
     if (count > freeSeats) {
@@ -79,18 +85,18 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl shadow-xl w-[480px] p-5 relative">
+      <div className="bg-white rounded-xl shadow-xl w-[500px] p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold mb-3 text-center">
           הושבה לשולחן {table.name}
         </h2>
 
-        <p className="text-sm text-center text-gray-600 mb-3">
+        <p className="text-sm text-gray-600 text-center mb-4">
           {occupied}/{table.seats} מקומות תפוסים
         </p>
 
-        {/* תיבת בחירה */}
+        {/* בחירת אורח */}
         <select
-          className="w-full border rounded-lg p-2 mb-3"
+          className="w-full border rounded-lg p-2 mb-4"
           value={selectedGuest?.id || ""}
           onChange={(e) =>
             setSelectedGuest(
@@ -119,71 +125,48 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           </div>
         )}
 
-        {/* שולחן עם כיסאות */}
-        <div className="flex justify-center">
-          <Stage width={300} height={300}>
-            <Layer>
-              <Rect
-                x={100}
-                y={100}
-                width={100}
-                height={100}
-                fill="#3b82f6"
-                shadowBlur={6}
-                cornerRadius={10}
-              />
-              <Text
-                x={100}
-                y={140}
-                width={100}
-                align="center"
-                text={table.name}
-                fill="white"
-                fontSize={14}
-              />
-
-              {seatsCoords.map((pos, i) => {
-                const assigned = seated.find((s) => s.seatIndex === i);
-                const guest = assigned
-                  ? guests.find(
-                      (g) =>
-                        String(g.id ?? g._id) === String(assigned.guestId)
-                    )
-                  : null;
-                return (
-                  <Group key={i}>
-                    <Circle
-                      x={pos.x}
-                      y={pos.y}
-                      radius={10}
-                      fill={guest ? "#d1d5db" : "#3b82f6"}
-                      stroke="#2563eb"
-                      onClick={() =>
-                        guest
-                          ? handleRemoveGuest(guest.id)
-                          : handleAddGuest(i)
-                      }
-                    />
-                    {guest && (
-                      <Text
-                        x={pos.x - 40}
-                        y={pos.y + 14}
-                        width={80}
-                        align="center"
-                        text={`${guest.name}`}
-                        fontSize={10}
-                        fill="#111827"
-                      />
-                    )}
-                  </Group>
-                );
-              })}
-            </Layer>
-          </Stage>
+        {/* כרטיסיות ישיבה */}
+        <div className="grid grid-cols-6 gap-2 justify-items-center">
+          {seatsArray.map((seat, i) => {
+            const g = seat.guest;
+            return (
+              <div
+                key={i}
+                onClick={() =>
+                  g
+                    ? handleRemoveGuest(g.id)
+                    : selectedGuest && handleAddGuest(i)
+                }
+                className={`w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition ${
+                  g
+                    ? "bg-gray-100 border-gray-300 hover:bg-red-100"
+                    : selectedGuest
+                    ? "bg-blue-50 border-blue-300 hover:bg-blue-100"
+                    : "bg-white border-gray-200"
+                }`}
+              >
+                {g ? (
+                  <>
+                    <span className="font-medium text-gray-800 truncate w-[90%]">
+                      {g.name}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      ({getPartySize(g)} מקומות)
+                    </span>
+                    <span className="text-xs text-red-500 mt-1">הסר</span>
+                  </>
+                ) : (
+                  <span className="text-gray-400 text-xs">
+                    הוסף<br />אורח
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* כפתורי פעולה */}
-        <div className="flex justify-center mt-4">
+        {/* כפתור סגירה */}
+        <div className="flex justify-center mt-6">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg bg-gray-300 hover:bg-gray-400"
