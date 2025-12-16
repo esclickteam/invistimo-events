@@ -15,8 +15,7 @@ import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
-import GridLayer, { GRID_SIZE } from "@/app/components/seating/GridLayer";
-import { snapPosition } from "@/app/components/seating/TableRenderer";
+import GridLayer, { GRID_SIZE, snapPosition } from "@/app/components/seating/GridLayer";
 
 /* ============================================================
    TYPES
@@ -121,7 +120,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   }, [tables, guests]);
 
   /* ============================================================
-     DRAG SNAP LOGIC
+     SNAP DRAG LOGIC (גרירה לפי משבצות)
   ============================================================ */
   const handleDragMove = (e: any) => {
     const pos = e.target.position();
@@ -129,6 +128,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     e.target.position(snapped);
   };
 
+  /* ============================================================
+     RENDER
+  ============================================================ */
   return (
     <div className="flex relative w-full h-full">
       <GuestSidebar onDragStart={startDragGuest} />

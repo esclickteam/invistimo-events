@@ -8,6 +8,18 @@ import { Line } from "react-konva";
  */
 export const GRID_SIZE = 30;
 
+/* ✅ Snap helpers (הגריד "אמיתי") */
+export function snapToGrid(value: number) {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+export function snapPosition(pos: { x: number; y: number }) {
+  return {
+    x: snapToGrid(pos.x),
+    y: snapToGrid(pos.y),
+  };
+}
+
 type GridLayerProps = {
   width: number;
   height: number;
