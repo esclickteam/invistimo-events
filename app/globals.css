@@ -254,3 +254,13 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* מבטל גרירה דפדפנית על הקנבס */
+canvas,
+.konvajs-content {
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  cursor: default;
+}
