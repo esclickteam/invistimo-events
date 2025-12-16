@@ -151,10 +151,7 @@ export default function SeatingPage() {
           </div>
         </div>
 
-        {/* ⭐ בחירת סוג אירוע (Presets) */}
-        <div className="px-6 py-2">
-          <EventTypeSelector />
-        </div>
+        
 
         {/* ⭐ סיידבר אלמנטים */}
         <ZonesToolbar />
