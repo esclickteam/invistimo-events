@@ -119,7 +119,7 @@ function getTableLayout(rawTable) {
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
-  const [isRotating, setIsRotating] = useState(false);
+  const [rotating, setRotating] = useState(false);
   const [startAngle, setStartAngle] = useState(0);
   const [startRotation, setStartRotation] = useState(0);
 
@@ -191,9 +191,8 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  // ==================== 🌀 סיבוב עם עיגול כמו בקאנבה ====================
-  const [rotating, setRotating] = useState(false);
-  const handleRotationStart = (e) => {
+  /* 🌀 סיבוב חלק כמו בקאנבה */
+  const startRotate = (e) => {
     e.cancelBubble = true;
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
@@ -205,7 +204,7 @@ export default function TableRenderer({ table }) {
     setRotating(true);
   };
 
-  const handleRotationMove = (e) => {
+  const moveRotate = (e) => {
     if (!rotating) return;
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
@@ -221,26 +220,24 @@ export default function TableRenderer({ table }) {
     }));
   };
 
-  const handleRotationEnd = () => {
-    setRotating(false);
-  };
-  // ===============================================================
+  const endRotate = () => setRotating(false);
 
   const { size, width, height, radius } = layout;
-  const deleteBtnPos =
-    layout.type === "round"
-      ? { x: radius - 12, y: -radius - 12 }
-      : layout.type === "square"
-      ? { x: size / 2 - 12, y: -size / 2 - 12 }
-      : { x: width / 2 - 12, y: -height / 2 - 12 };
-  const showDeleteButton = selectedTableId === table.id;
-
   const rotationHandleY =
     layout.type === "round"
       ? -layout.radius - 35
       : layout.type === "square"
       ? -layout.size / 2 - 35
       : -layout.height / 2 - 35;
+
+  const deleteBtnPos =
+    layout.type === "round"
+      ? { x: radius - 12, y: -radius - 12 }
+      : layout.type === "square"
+      ? { x: size / 2 - 12, y: -size / 2 - 12 }
+      : { x: width / 2 - 12, y: -height / 2 - 12 };
+
+  const showDeleteButton = selectedTableId === table.id;
 
   return (
     <Group
@@ -253,8 +250,8 @@ export default function TableRenderer({ table }) {
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
-      onMouseMove={handleRotationMove}
-      onMouseUpCapture={handleRotationEnd}
+      onMouseMove={moveRotate}
+      onMouseUpCapture={endRotate}
     >
       {/* שולחנות */}
       {layout.type === "round" && (
@@ -322,29 +319,28 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* 🔄 כפתור סיבוב ויזואלי */}
-      {showDeleteButton && (
-        <Group
-          x={0}
-          y={rotationHandleY}
-          onMouseDown={handleRotationStart}
-          onMouseMove={handleRotationMove}
-          onMouseUp={handleRotationEnd}
-        >
-          <Circle radius={12} fill="#94a3b8" shadowBlur={4} />
-          <Text
-            text="↻"
-            fontSize={14}
-            align="center"
-            verticalAlign="middle"
-            width={24}
-            height={24}
-            offsetX={12}
-            offsetY={12}
-            fill="white"
-          />
-        </Group>
-      )}
+      {/* 🔄 כפתור סיבוב קבוע */}
+      <Group
+        x={0}
+        y={rotationHandleY}
+        onMouseDown={startRotate}
+        onMouseMove={moveRotate}
+        onMouseUp={endRotate}
+        listening={true}
+      >
+        <Circle radius={12} fill="#64748b" shadowBlur={4} />
+        <Text
+          text="↻"
+          fontSize={14}
+          align="center"
+          verticalAlign="middle"
+          width={24}
+          height={24}
+          offsetX={12}
+          offsetY={12}
+          fill="white"
+        />
+      </Group>
 
       {/* כפתור מחיקה */}
       {showDeleteButton && !draggingGuest && (
