@@ -5,27 +5,37 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   חישוב כיסאות סימטרי ודינמי לכל סוג שולחן
+   חישוב דינמי: גם מידות שולחן וגם מיקומי כיסאות (בלי לשנות את table!)
 ============================================================ */
-function getDynamicSeatCoordinates(table) {
-  const seats = Math.max(0, Number(table.seats || 0));
+function getTableLayout(rawTable) {
+  const seats = Math.max(0, Number(rawTable.seats || 0));
   const result = [];
+
+  // תמיכה בשמות type נוספים אם קיימים אצלך
+  const type =
+    rawTable.type === "rectangle" || rawTable.type === "rect"
+      ? "banquet"
+      : rawTable.type;
+
+  // קבועים
+  const SEAT_R = 9;
+  const SEAT_GAP = 16; // רווח בין כיסאות
+  const OUTSIDE = 14; // כמה הכיסא בחוץ מהשולחן
+  const STEP = SEAT_R * 2 + SEAT_GAP;
+
+  // ברירות מחדל
+  const dims = {
+    size: 160,
+    width: 240,
+    height: 80,
+    radius: 60,
+  };
+
   if (!seats) {
-    // ערכי ברירת מחדל כדי לא לשבור גדלים
-    if (table.type === "round") table._radius = table._radius || 60;
-    if (table.type === "square") table._size = table._size || 160;
-    if (table.type === "banquet") {
-      table._width = table._width || 240;
-      table._height = table._height || 80;
-    }
-    return result;
+    return { coords: result, ...dims, type };
   }
 
-  const SEAT_R = 9;
-  const SEAT_GAP = 16; // מרחק "נעים" בין מרכזי כיסאות
-  const SEAT_OFFSET = 14; // כמה הכיסא בחוץ מהשולחן
-
-  // חלוקה מאוזנת של כיסאות לכל צד (למרובע)
+  // חלוקה מאוזנת למרובע
   const splitToSides = (n) => {
     const base = Math.floor(n / 4);
     let rem = n % 4;
@@ -34,101 +44,96 @@ function getDynamicSeatCoordinates(table) {
     return sides;
   };
 
-  // ⭕ ROUND — כיסאות במעגל סימטרי + רדיוס שולחן לפי היקף דרוש
-  if (table.type === "round") {
-    // היקף דרוש כדי שהכיסאות לא ידחסו
-    const requiredCirc = seats * (SEAT_R * 2 + SEAT_GAP);
-    const ringRadius = Math.max(46, requiredCirc / (2 * Math.PI)); // רדיוס למרכזי הכיסאות
-    const tableRadius = Math.max(40, ringRadius - (SEAT_R + SEAT_OFFSET));
+  const placeLineCentered = (count, fixed, axis) => {
+    if (count <= 0) return;
+    if (count === 1) {
+      result.push(axis === "x" ? { x: 0, y: fixed } : { x: fixed, y: 0 });
+      return;
+    }
+    const span = (count - 1) * STEP;
+    const start = -span / 2;
+    for (let i = 0; i < count; i++) {
+      const v = start + i * STEP;
+      result.push(axis === "x" ? { x: v, y: fixed } : { x: fixed, y: v });
+    }
+  };
 
-    const finalRing = tableRadius + SEAT_R + SEAT_OFFSET;
+  // ⭕ ROUND
+  if (type === "round") {
+    // רדיוס מושבי הכיסאות לפי היקף, כדי שלא יזוזו “לא קשור”
+    const requiredCirc = seats * STEP;
+    const seatRing = Math.max(55, requiredCirc / (2 * Math.PI));
+    const tableRadius = Math.max(40, seatRing - (SEAT_R + OUTSIDE));
+    const ring = tableRadius + SEAT_R + OUTSIDE;
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-      result.push({
-        x: Math.cos(angle) * finalRing,
-        y: Math.sin(angle) * finalRing,
-      });
+      result.push({ x: Math.cos(angle) * ring, y: Math.sin(angle) * ring });
     }
 
-    table._radius = tableRadius;
+    dims.radius = tableRadius;
+    return { coords: result, ...dims, type };
   }
 
-  // ⬜ SQUARE — כיסאות סביב 4 צדדים, כל צד ממורכז, גודל שולחן לפי הצד הארוך
-  if (table.type === "square") {
+  // ⬜ SQUARE
+  if (type === "square") {
     const [topC, rightC, bottomC, leftC] = splitToSides(seats);
     const maxSide = Math.max(topC, rightC, bottomC, leftC);
 
-    // אורך צד לפי כמות מקסימלית על צד (כדי שזה באמת יגדל)
-    const minSize = 120;
-    const innerPadding = 40; // שטח "נשימה" לשם/טקסט
-    const size = Math.max(minSize, innerPadding + (maxSide - 1) * (SEAT_R * 2 + SEAT_GAP) + 40);
+    // גודל שולחן אמיתי לפי הצד העמוס ביותר
+    const minSize = 140;
+    const size = Math.max(minSize, 110 + (maxSide - 1) * STEP); // <- זה יגדל מורגש
     const half = size / 2;
 
-    const placeLine = (count, fixed, axis) => {
-      if (count <= 0) return;
-      if (count === 1) {
-        result.push(axis === "x" ? { x: 0, y: fixed } : { x: fixed, y: 0 });
-        return;
-      }
-      const step = (SEAT_R * 2 + SEAT_GAP);
-      const span = (count - 1) * step;
-      const start = -span / 2;
+    const fixed = half + SEAT_R + OUTSIDE; // כדי שהכיסא יהיה מחוץ לשולחן אבל צמוד וסימטרי
 
-      for (let i = 0; i < count; i++) {
-        const v = start + i * step;
-        result.push(axis === "x" ? { x: v, y: fixed } : { x: fixed, y: v });
-      }
-    };
+    // top/bottom
+    placeLineCentered(topC, -fixed, "x");
+    placeLineCentered(bottomC, +fixed, "x");
+    // right/left
+    placeLineCentered(rightC, +fixed, "y");
+    placeLineCentered(leftC, -fixed, "y");
 
-    // למעלה/למטה: x משתנה, y קבוע
-    placeLine(topC, -(half + SEAT_OFFSET), "x");
-    placeLine(bottomC, +(half + SEAT_OFFSET), "x");
-
-    // ימין/שמאל: y משתנה, x קבוע
-    placeLine(rightC, +(half + SEAT_OFFSET), "y");
-    placeLine(leftC, -(half + SEAT_OFFSET), "y");
-
-    table._size = size;
+    dims.size = size;
+    return { coords: result, ...dims, type };
   }
 
-  // 🍽️ BANQUET (אבירים) — כיסאות רק בשני צדדים (עליון/תחתון), סימטריים וממורכזים
-  if (table.type === "banquet") {
+  // 🍽️ BANQUET
+  if (type === "banquet") {
     const topCount = Math.ceil(seats / 2);
     const bottomCount = seats - topCount;
     const maxRow = Math.max(topCount, bottomCount);
 
-    const minW = 180;
-    const step = (SEAT_R * 2 + SEAT_GAP);
-    const width = Math.max(minW, 80 + (maxRow - 1) * step + 60);
+    // רוחב שולחן אמיתי לפי מקסימום כיסאות בשורה
+    const minW = 220;
+    const width = Math.max(minW, 140 + (maxRow - 1) * STEP); // <- יגדל ברור
+    const height = 75; // שומר על מראה אבירים
+    const yFixed = height / 2 + SEAT_R + OUTSIDE;
 
-    // גובה יכול לגדול טיפה לפי כמות (אסתטי), אבל נשאר יציב
-    const height = Math.max(70, 60 + Math.min(60, seats * 1.2));
-    const halfW = width / 2;
-    const halfH = height / 2;
-
-    const placeRow = (count, yFixed) => {
+    // שורות ממורכזות סביב 0
+    const placeRow = (count, y) => {
       if (count <= 0) return;
       if (count === 1) {
-        result.push({ x: 0, y: yFixed });
+        result.push({ x: 0, y });
         return;
       }
-      const span = (count - 1) * step;
+      const span = (count - 1) * STEP;
       const start = -span / 2;
       for (let i = 0; i < count; i++) {
-        result.push({ x: start + i * step, y: yFixed });
+        result.push({ x: start + i * STEP, y });
       }
     };
 
-    // יושבים מעל ומתחת לשולחן (כמו אבירים)
-    placeRow(topCount, -(halfH + SEAT_OFFSET));
-    placeRow(bottomCount, +(halfH + SEAT_OFFSET));
+    placeRow(topCount, -yFixed);
+    placeRow(bottomCount, +yFixed);
 
-    table._width = width;
-    table._height = height;
+    dims.width = width;
+    dims.height = height;
+    return { coords: result, ...dims, type };
   }
 
-  return result;
+  // אם type לא מזוהה – אל תשבור
+  return { coords: result, ...dims, type };
 }
 
 /* ============================================================
@@ -164,7 +169,13 @@ export default function TableRenderer({ table }) {
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
 
-  const seatsCoords = getDynamicSeatCoordinates(table);
+  // ✅ מחשבים layout בצורה “טהורה” — ככה זה תמיד יעבוד
+  const layout = useMemo(
+    () => getTableLayout(table),
+    [table.type, table.seats]
+  );
+
+  const seatsCoords = layout.coords;
 
   /* עדכון מיקום */
   const updatePositionInStore = () => {
@@ -195,11 +206,10 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  /* גדלים דינמיים */
-  const size = table._size || 160;
-  const width = table._width || 240;
-  const height = table._height || 80;
-  const radius = table._radius || 60;
+  const size = layout.size;
+  const width = layout.width;
+  const height = layout.height;
+  const radius = layout.radius;
 
   return (
     <Group
@@ -214,7 +224,7 @@ export default function TableRenderer({ table }) {
       onClick={handleClick}
     >
       {/* שולחן עגול */}
-      {table.type === "round" && (
+      {layout.type === "round" && (
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
@@ -232,7 +242,7 @@ export default function TableRenderer({ table }) {
       )}
 
       {/* שולחן מרובע */}
-      {table.type === "square" && (
+      {layout.type === "square" && (
         <>
           <Rect
             width={size}
@@ -258,7 +268,7 @@ export default function TableRenderer({ table }) {
       )}
 
       {/* שולחן אבירים */}
-      {table.type === "banquet" && (
+      {layout.type === "banquet" && (
         <>
           <Rect
             width={width}
