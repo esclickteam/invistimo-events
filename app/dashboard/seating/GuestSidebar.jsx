@@ -110,7 +110,8 @@ export default function GuestSidebar({ onDragStart }) {
 
                 {/* כמות מקומות */}
                 <div className="text-xs text-gray-500">
-                  {guest.guestsCount} מקומות
+                  {(guest.confirmedGuestsCount ?? guest.guestsCount ?? guest.count ?? 1)}{" "}
+                  מקומות
                 </div>
 
                 {/* שולחן */}
