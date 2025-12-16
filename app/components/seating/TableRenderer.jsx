@@ -131,16 +131,17 @@ export default function TableRenderer({ table }) {
     (() => {});
 
   const assigned = table.seatedGuests || [];
-
   const [isRotating, setIsRotating] = useState(false);
   const [startAngle, setStartAngle] = useState(0);
   const [startRotation, setStartRotation] = useState(0);
 
+  // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
     const indices = new Set(assigned.map((s) => s.seatIndex));
     return indices.size;
   }, [assigned]);
 
+  // guest info per seat
   const seatInfoMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -174,9 +175,10 @@ export default function TableRenderer({ table }) {
     }));
   };
 
+  // ✅ סיבוב טבעי עם שמירה
   const handleRotateStart = (e) => {
     e.cancelBubble = true;
-    e.evt.stopPropagation(); // לא חוסם גרירה מהסיידבר
+    e.evt.stopPropagation();
     if (!tableRef.current) return;
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
@@ -198,7 +200,7 @@ export default function TableRenderer({ table }) {
     const dy = pointer.y - tableRef.current.y();
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
     const delta = angle - startAngle;
-    tableRef.current.rotation(startRotation + delta);
+    tableRef.current.rotation(startRotation + delta * 0.5); // סיבוב רך ואיטי
   };
 
   const handleRotateEnd = () => {
@@ -233,13 +235,13 @@ export default function TableRenderer({ table }) {
       : { x: width / 2 - 12, y: -height / 2 - 12 };
   const showDeleteButton = selectedTableId === table.id;
 
-  // 🟢 מיקום חדש לכפתור סיבוב מחוץ לשולחן
+  // מיקום חדש לכפתור סיבוב – צמוד מבחוץ
   const rotateBtnPos =
     layout.type === "round"
-      ? { x: radius + 45, y: -radius - 45 }
+      ? { x: radius + 42, y: -radius - 42 }
       : layout.type === "square"
-      ? { x: size / 2 + 45, y: -size / 2 - 45 }
-      : { x: width / 2 + 45, y: -height / 2 - 45 };
+      ? { x: size / 2 + 42, y: -size / 2 - 42 }
+      : { x: width / 2 + 42, y: -height / 2 - 42 };
 
   return (
     <Group
@@ -323,7 +325,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* 🔄 כפתור סיבוב מחוץ לשולחן */}
+      {/* 🔄 כפתור סיבוב */}
       <Group
         x={rotateBtnPos.x}
         y={rotateBtnPos.y}
