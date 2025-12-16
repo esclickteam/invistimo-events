@@ -6,7 +6,7 @@ export const useSeatingStore = create((set, get) => ({
   tables: [],
   guests: [],
 
-  background: null, // ⭐⭐ הוספה קריטית ⭐⭐
+  background: null,
 
   draggedGuest: null,
   ghostPosition: { x: 0, y: 0 },
@@ -14,7 +14,6 @@ export const useSeatingStore = create((set, get) => ({
   highlightedTable: null,
   highlightedSeats: [],
 
-  /* ⭐ אורח נבחר – מגיע מה־URL */
   selectedGuestId: null,
 
   showAddModal: false,
@@ -26,7 +25,7 @@ export const useSeatingStore = create((set, get) => ({
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
-  setBackground: (background) => set({ background }), // ⭐⭐ הוספה ⭐⭐
+  setBackground: (background) => set({ background }),
 
   setTables: (tables) =>
     set(() => ({
@@ -35,53 +34,49 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ---------------- INIT ---------------- */
   init: (tables, guests, background = null) => {
-    console.log("🟦 INIT — Loading tables & guests:", { tables, guests, background });
+    console.log("🟦 INIT seating:", { tables, guests, background });
+
     set({
       tables: tables || [],
       guests: guests || [],
-      background, // ⭐⭐ נטען מהשרת אם קיים
+      background,
     });
   },
 
-  /* ---------------- FETCH GUESTS ---------------- */
-  fetchGuests: async (invitationId) => {
-    try {
-      const res = await fetch(`/api/seating/guests/${invitationId}`);
-      const data = await res.json();
-
-      if (data.success) {
-        console.log("🟩 Loaded guests:", data.guests);
-        set({ guests: data.guests });
-      } else {
-        console.error("⚠ Error loading guests:", data.error);
-      }
-    } catch (err) {
-      console.error("❌ Failed to fetch guests:", err);
-    }
-  },
-
-  /* ---------------- ADD TABLE ---------------- */
+  /* ---------------- ADD TABLE (FIXED) ---------------- */
   addTable: (type, seats) => {
     const { tables } = get();
 
+    const index = tables.length;
+
+    // ⭐ פיזור חכם – שלא יפלו אחד על השני
+    const START_X = 300;
+    const START_Y = 200;
+    const GAP_X = 200;
+
     const newTable = {
-      id: "t" + (tables.length + 1),
-      name: `שולחן ${tables.length + 1}`,
+      id: "t" + (index + 1),
+      name: `שולחן ${index + 1}`,
       type,
       seats,
-      x: 300 + tables.length * 40,
-      y: 200,
+      x: START_X + index * GAP_X,
+      y: START_Y,
+      rotation: 0,
       seatedGuests: [],
     };
 
-    set({ tables: [...tables, newTable] });
+    set({
+      tables: [...tables, newTable],
+    });
   },
 
   /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
     set((state) => {
       const updatedGuests = state.guests.map((g) =>
-        g.tableId === tableId ? { ...g, tableId: null, tableName: null } : g
+        g.tableId === tableId
+          ? { ...g, tableId: null, tableName: null }
+          : g
       );
 
       return {
@@ -103,7 +98,7 @@ export const useSeatingStore = create((set, get) => ({
 
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
-  /* ---------------- HOVER TABLE ---------------- */
+  /* ---------------- HOVER ---------------- */
   evaluateHover: (pointer) => {
     const { tables, draggedGuest } = get();
     if (!draggedGuest) return;
@@ -111,7 +106,14 @@ export const useSeatingStore = create((set, get) => ({
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-      const radius = t.type === "round" ? 90 : t.type === "square" ? 110 : 140;
+
+      const radius =
+        t.type === "round"
+          ? 90
+          : t.type === "square"
+          ? 110
+          : 160;
+
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
@@ -140,29 +142,34 @@ export const useSeatingStore = create((set, get) => ({
       guests,
     } = get();
 
-    if (draggedGuest && !highlightedTable) {
-      const cleanedTables = tables.map((t) => ({
-        ...t,
-        seatedGuests: t.seatedGuests.filter(
-          (s) => s.guestId !== draggedGuest.id
-        ),
-      }));
-
-      const cleanedGuests = guests.map((g) =>
-        g.id === draggedGuest.id
-          ? { ...g, tableId: null, tableName: null }
-          : g
-      );
-
+    if (!draggedGuest) {
       return set({
-        tables: cleanedTables,
-        guests: cleanedGuests,
-        draggedGuest: null,
+        highlightedTable: null,
         highlightedSeats: [],
       });
     }
 
-    if (!draggedGuest || !highlightedTable || highlightedSeats.length === 0) {
+    // הסרה מוחלטת אם לא הופל על שולחן
+    if (!highlightedTable) {
+      set({
+        tables: tables.map((t) => ({
+          ...t,
+          seatedGuests: t.seatedGuests.filter(
+            (s) => s.guestId !== draggedGuest.id
+          ),
+        })),
+        guests: guests.map((g) =>
+          g.id === draggedGuest.id
+            ? { ...g, tableId: null, tableName: null }
+            : g
+        ),
+        draggedGuest: null,
+        highlightedSeats: [],
+      });
+      return;
+    }
+
+    if (highlightedSeats.length === 0) {
       return set({
         draggedGuest: null,
         highlightedTable: null,
@@ -170,7 +177,7 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    const updatedTables = tables.map((t) => ({
+    const cleanedTables = tables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
         (s) => s.guestId !== draggedGuest.id
@@ -179,7 +186,7 @@ export const useSeatingStore = create((set, get) => ({
 
     const targetTable = tables.find((t) => t.id === highlightedTable);
 
-    const finalTables = updatedTables.map((t) =>
+    const finalTables = cleanedTables.map((t) =>
       t.id === highlightedTable
         ? {
             ...t,
@@ -217,19 +224,22 @@ export const useSeatingStore = create((set, get) => ({
   removeFromSeat: (guestId) => {
     const { tables, guests } = get();
 
-    const updatedTables = tables.map((t) => ({
-      ...t,
-      seatedGuests: t.seatedGuests.filter((s) => s.guestId !== guestId),
-    }));
-
-    const updatedGuests = guests.map((g) =>
-      g.id === guestId ? { ...g, tableId: null, tableName: null } : g
-    );
-
-    set({ tables: updatedTables, guests: updatedGuests });
+    set({
+      tables: tables.map((t) => ({
+        ...t,
+        seatedGuests: t.seatedGuests.filter(
+          (s) => s.guestId !== guestId
+        ),
+      })),
+      guests: guests.map((g) =>
+        g.id === guestId
+          ? { ...g, tableId: null, tableName: null }
+          : g
+      ),
+    });
   },
 
-  /* ---------------- ASSIGN MANUALLY ---------------- */
+  /* ---------------- MANUAL ASSIGN ---------------- */
   assignGuestsToTable: (tableId, guestId, count) => {
     const { tables, guests } = get();
 
@@ -237,11 +247,11 @@ export const useSeatingStore = create((set, get) => ({
     const guest = guests.find((g) => g.id === guestId);
 
     if (!table || !guest)
-      return { ok: false, message: "שגיאה בזיהוי אורח / שולחן" };
+      return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
 
     const block = findFreeBlock(table, count);
     if (!block)
-      return { ok: false, message: "אין מספיק מקומות פנויים בשולחן" };
+      return { ok: false, message: "אין מספיק מקומות פנויים" };
 
     tables.forEach((t) => {
       t.seatedGuests = t.seatedGuests.filter(
@@ -257,7 +267,7 @@ export const useSeatingStore = create((set, get) => ({
     );
 
     guest.tableId = tableId;
-    guest.tableName = table.name || `שולחן ${tableId}`;
+    guest.tableName = table.name;
 
     set({
       tables: [...tables],
