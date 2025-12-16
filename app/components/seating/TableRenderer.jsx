@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -132,15 +132,13 @@ export default function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
-  const [isRotating, setIsRotating] = useState(false);
-  const [startAngle, setStartAngle] = useState(0);
-  const [startRotation, setStartRotation] = useState(0);
-
+  // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
     const indices = new Set(assigned.map((s) => s.seatIndex));
     return indices.size;
   }, [assigned]);
 
+  // guest info per seat
   const seatInfoMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -172,38 +170,6 @@ export default function TableRenderer({ table }) {
           : t
       ),
     }));
-  };
-
-  const handleRotateStart = (e) => {
-    e.cancelBubble = true;
-    if (!tableRef.current) return;
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-    const dx = pointer.x - tableRef.current.x();
-    const dy = pointer.y - tableRef.current.y();
-    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    setStartAngle(angle);
-    setStartRotation(tableRef.current.rotation());
-    setIsRotating(true);
-  };
-
-  const handleRotateMove = (e) => {
-    if (!isRotating || !tableRef.current) return;
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-    const dx = pointer.x - tableRef.current.x();
-    const dy = pointer.y - tableRef.current.y();
-    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    const delta = angle - startAngle;
-    tableRef.current.rotation(startRotation + delta);
-  };
-
-  const handleRotateEnd = () => {
-    if (!isRotating) return;
-    setIsRotating(false);
-    updatePositionInStore();
   };
 
   const handleDrop = (e) => {
@@ -241,11 +207,7 @@ export default function TableRenderer({ table }) {
       draggable
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
-      onMouseMove={handleRotateMove}
-      onTouchMove={handleRotateMove}
-      onMouseUp={handleRotateEnd}
-      onTouchEnd={handleRotateEnd}
-      onMouseUpCapture={handleDrop}
+      onMouseUp={handleDrop}
       onClick={handleClick}
     >
       {/* שולחנות */}
@@ -313,27 +275,6 @@ export default function TableRenderer({ table }) {
           />
         </>
       )}
-
-      {/* כפתור סיבוב */}
-      <Group
-        x={-30}
-        y={-30}
-        onMouseDown={handleRotateStart}
-        onTouchStart={handleRotateStart}
-      >
-        <Circle radius={12} fill="#22c55e" shadowBlur={6} />
-        <Text
-          text="↻"
-          fontSize={14}
-          align="center"
-          verticalAlign="middle"
-          width={24}
-          height={24}
-          offsetX={12}
-          offsetY={12}
-          fill="white"
-        />
-      </Group>
 
       {/* כפתור מחיקה */}
       {showDeleteButton && !draggingGuest && (
