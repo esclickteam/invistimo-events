@@ -89,7 +89,6 @@ export default function TableRenderer({ table }) {
   const guests = useSeatingStore((s) => s.guests);
 
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
-  const openSeatingModal = useSeatingStore((s) => s.openSeatingModal);
 
   const assigned = table.seatedGuests || [];
 
@@ -155,6 +154,18 @@ export default function TableRenderer({ table }) {
     });
   };
 
+  /* ============================================================
+     ✅ CLICK HANDLER – פתיחת מודאל הוספת אורחים
+  ============================================================ */
+  const handleClick = (e) => {
+    e.cancelBubble = true;
+    if (draggingGuest) return;
+
+    if (typeof table.openAddGuestModal === "function") {
+      table.openAddGuestModal();
+    }
+  };
+
   return (
     <Group
       ref={tableRef}
@@ -165,11 +176,7 @@ export default function TableRenderer({ table }) {
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
-      onClick={(e) => {
-        e.cancelBubble = true;
-        if (draggingGuest) return;
-        openSeatingModal(table.id);
-      }}
+      onClick={handleClick}
     >
       {/* ===== TABLE BODY ===== */}
       {table.type === "round" && (
