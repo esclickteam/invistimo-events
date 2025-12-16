@@ -18,7 +18,7 @@ import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import GridLayer from "@/app/components/seating/GridLayer";
 
 /* ============================================================
-   טיפוסים מקומיים
+   TYPES
 ============================================================ */
 type Guest = {
   id?: string;
@@ -36,15 +36,16 @@ type Table = {
 };
 
 /* ============================================================
-   INNER COMPONENT — uses useSearchParams
+   INNER COMPONENT
 ============================================================ */
 function SeatingEditorInner({ background }: { background: string | null }) {
-  /* ==================== Background ==================== */
+  /* ================= Background ================= */
   const [bgImage] = useImage(background || "", "anonymous");
 
-  /* ==================== STORES ==================== */
+  /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
+
   const draggedGuest = useSeatingStore((s) => s.draggedGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
@@ -54,13 +55,13 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
 
-  /* 🧱 ZONES */
+  /* ================= ZONES ================= */
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
-  /* ==================== Highlight from URL ==================== */
+  /* ================= Highlight from URL ================= */
   const searchParams = useSearchParams();
   const from = searchParams.get("from");
   const highlightedGuestIdRaw = searchParams.get("guestId");
@@ -97,29 +98,30 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     });
   }, [highlightedTableId, draggedGuest, isPersonalMode]);
 
-  /* ==================== Add Guest Modal ==================== */
+  /* ================= Add Guest Modal ================= */
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
-  /* ==================== Canvas Size ==================== */
+  /* ================= Canvas Size ================= */
   const width =
     typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
   const height =
     typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
-  /* ==================== Zoom & Pan ==================== */
+  /* ================= Zoom & Pan ================= */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
 
-  /* ==================== Mouse Move ==================== */
+  /* ================= Mouse Move ================= */
   const handleMouseMove = (e: any) => {
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
+
     updateGhost(pos);
     evalHover(pos);
   };
 
-  /* ==================== DELETE ZONE (Keyboard) ==================== */
+  /* ================= DELETE ZONE ================= */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
@@ -134,7 +136,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone]);
 
-  /* ==================== Unseated Guests ==================== */
+  /* ================= Unseated Guests ================= */
   const unseatedGuests = useMemo(() => {
     const seated = new Set<string>();
 
@@ -178,43 +180,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         x={stagePos.x}
         y={stagePos.y}
         draggable={isPanning}
-        onWheel={(e) => {
-          e.evt.preventDefault();
-
-          const scaleBy = 1.05;
-          const stage = e.target.getStage();
-          if (!stage) return;
-
-          const oldScale = scale;
-          const pointer = stage.getPointerPosition();
-          if (!pointer) return;
-
-          const mousePointTo = {
-            x: (pointer.x - stagePos.x) / oldScale,
-            y: (pointer.y - stagePos.y) / oldScale,
-          };
-
-          const direction = e.evt.deltaY > 0 ? -1 : 1;
-          const newScale =
-            direction > 0
-              ? oldScale * scaleBy
-              : oldScale / scaleBy;
-
-          const clampedScale = Math.min(
-            Math.max(newScale, 0.4),
-            3
-          );
-
-          setScale(clampedScale);
-
-          setStagePos({
-            x: pointer.x - mousePointTo.x * clampedScale,
-            y: pointer.y - mousePointTo.y * clampedScale,
-          });
-        }}
-        onDragEnd={(e) => {
-          if (isPanning) setStagePos(e.target.position());
-        }}
+        onMouseMove={handleMouseMove}
         onMouseDown={(e) => {
           const stage = e.target.getStage();
           if (e.target === stage) {
@@ -223,7 +189,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           }
         }}
         onMouseUp={() => setIsPanning(false)}
-        onMouseMove={handleMouseMove}
         className="flex-1"
       >
         {/* GRID */}
@@ -261,6 +226,10 @@ function SeatingEditorInner({ background }: { background: string | null }) {
               }}
             />
           ))}
+        </Layer>
+
+        {/* 🔥 GHOST – תמיד מעל הכל */}
+        <Layer listening={false}>
           <GhostPreview />
         </Layer>
 
@@ -302,7 +271,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 }
 
 /* ============================================================
-   EXPORT — wrapped with Suspense
+   EXPORT
 ============================================================ */
 export default function SeatingEditor({
   background,

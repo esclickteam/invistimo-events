@@ -86,11 +86,28 @@ export default function TableRenderer({ table }) {
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
+  const guests = useSeatingStore((s) => s.guests);
 
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const openSeatingModal = useSeatingStore((s) => s.openSeatingModal);
 
   const assigned = table.seatedGuests || [];
+
+  /* ===== Map seatIndex → guest ===== */
+  const seatToGuestMap = useMemo(() => {
+    const map = new Map();
+
+    assigned.forEach((s) => {
+      const g = guests.find(
+        (guest) =>
+          String(guest.id ?? guest._id) === String(s.guestId)
+      );
+      if (g) map.set(s.seatIndex, g);
+    });
+
+    return map;
+  }, [assigned, guests]);
+
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
 
   const hasSelectedGuestInThisTable = useMemo(() => {
@@ -108,7 +125,7 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getTightSeatCoordinates(table);
 
-  /* ================= SAVE POSITION (גרירת שולחן) ================= */
+  /* ================= SAVE POSITION ================= */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -127,7 +144,7 @@ export default function TableRenderer({ table }) {
     }));
   };
 
-  /* ================= DROP HANDLER (BLOCK) ================= */
+  /* ================= DROP HANDLER ================= */
   const handleDrop = (e) => {
     e.cancelBubble = true;
     if (!draggingGuest) return;
@@ -150,10 +167,7 @@ export default function TableRenderer({ table }) {
       onMouseUp={handleDrop}
       onClick={(e) => {
         e.cancelBubble = true;
-
-        // פתיחת מודל רק אם זה קליק אמיתי
         if (draggingGuest) return;
-
         openSeatingModal(table.id);
       }}
     >
@@ -225,25 +239,29 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ===== SEATS (ויזואלי בלבד) ===== */}
+      {/* ===== SEATS + NAMES ===== */}
       {seatsCoords.map((c, i) => {
-        const isFree = !assigned.some((s) => s.seatIndex === i);
+        const guest = seatToGuestMap.get(i);
 
         return (
           <Group key={i} x={c.x} y={c.y}>
             <Circle
               radius={10}
-              fill={isFree ? "#3b82f6" : "#d1d5db"}
+              fill={guest ? "#d1d5db" : "#3b82f6"}
               stroke="#2563eb"
             />
-            <Rect
-              width={12}
-              height={6}
-              y={-14}
-              offsetX={6}
-              cornerRadius={2}
-              fill={isFree ? "#2563eb" : "#9ca3af"}
-            />
+
+            {guest && (
+              <Text
+                text={guest.name}
+                fontSize={11}
+                y={14}
+                width={90}
+                offsetX={45}
+                align="center"
+                fill="#111827"
+              />
+            )}
           </Group>
         );
       })}
