@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -97,7 +97,6 @@ export default function TableRenderer({ table }) {
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
-  const removeTable = useSeatingStore((s) => s.removeTable);
 
   const assigned = table.seatedGuests || [];
 
@@ -148,34 +147,6 @@ export default function TableRenderer({ table }) {
     });
   };
 
-  const handleDragEnd = (e) => {
-    updatePositionInStore();
-    const pos = e.target.getClientRect();
-    const trash = document.getElementById("trash-drop");
-    if (trash) {
-      const rect = trash.getBoundingClientRect();
-      if (
-        pos.x + pos.width / 2 > rect.left &&
-        pos.x < rect.right &&
-        pos.y + pos.height / 2 > rect.top &&
-        pos.y < rect.bottom
-      ) {
-        removeTable(table.id);
-      }
-    }
-  };
-
-  /* ===== פח למחיקה אמיתי (HTML קבוע למעלה) ===== */
-  useEffect(() => {
-    if (document.getElementById("trash-drop")) return;
-    const div = document.createElement("div");
-    div.id = "trash-drop";
-    div.className =
-      "fixed top-4 left-[160px] z-50 bg-white border border-gray-300 shadow-md rounded-xl w-12 h-12 flex items-center justify-center hover:bg-red-50 transition";
-    div.innerHTML = `<img src="/icons/trash.svg" alt="delete" class="w-6 h-6 opacity-70 hover:opacity-100 transition" />`;
-    document.body.appendChild(div);
-  }, []);
-
   return (
     <Group
       ref={tableRef}
@@ -184,7 +155,7 @@ export default function TableRenderer({ table }) {
       rotation={table.rotation || 0}
       draggable
       onDragMove={updatePositionInStore}
-      onDragEnd={handleDragEnd}
+      onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={(e) => {
         e.cancelBubble = true;
