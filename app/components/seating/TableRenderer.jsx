@@ -4,8 +4,10 @@ import { useRef, useMemo, useState } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
+/* ============================================================
+   GRID SNAP
+============================================================ */
 export const GRID_SIZE = 30;
-
 export function snapToGrid(value) {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
@@ -17,19 +19,20 @@ export function snapPosition(pos) {
 }
 
 /* ============================================================
-   חישוב כסאות סביב שולחן — פרופורציונלי מדויק
+   כיסאות סביב השולחן
 ============================================================ */
 function getTightSeatCoordinates(table) {
   const seats = table.seats || 0;
   const result = [];
-  const seatGap = 26;
   const seatRadius = 10;
+  const seatGap = 26;
 
-  // ROUND
+  /* ===== ROUND ===== */
   if (table.type === "round") {
     const baseRadius = 40;
-    const radius = baseRadius + Math.sqrt(seats) * 7; // יחס טבעי
+    const radius = baseRadius + Math.sqrt(seats) * 7;
     const seatDistance = radius + seatRadius + 10;
+
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
       result.push({
@@ -37,13 +40,14 @@ function getTightSeatCoordinates(table) {
         y: Math.sin(angle) * seatDistance,
       });
     }
+
     table._dynamicRadius = radius;
   }
 
-  // SQUARE
+  /* ===== SQUARE ===== */
   if (table.type === "square") {
     const baseSize = 80;
-    const growthPerSeat = 1.5; // עדין יותר
+    const growthPerSeat = 1.5;
     const size = baseSize + seats * growthPerSeat;
     const half = size / 2 + seatRadius + 6;
 
@@ -76,32 +80,31 @@ function getTightSeatCoordinates(table) {
     table._dynamicSize = size;
   }
 
-  // BANQUET
+  /* ===== BANQUET (אבירים) ===== */
   if (table.type === "banquet") {
     const baseWidth = 140;
     const height = 90;
-    const width = baseWidth + seats * 6; // יחס רוחב טבעי
-    const sideY = height / 2 + seatRadius + 6;
-    const perSide = Math.floor(seats / 2);
 
-    // למעלה
-    for (let i = 0; i < perSide; i++) {
-      const x = -width / 2 + 40 + i * seatGap;
+    const topCount = Math.ceil(seats / 2);
+    const bottomCount = Math.floor(seats / 2);
+    const maxSide = Math.max(topCount, bottomCount);
+    const totalWidth = baseWidth + (maxSide - 2) * seatGap;
+
+    const sideY = height / 2 + seatRadius + 6;
+
+    // עליון
+    for (let i = 0; i < topCount; i++) {
+      const x = -totalWidth / 2 + (i + 0.5) * seatGap;
       result.push({ x, y: -sideY });
     }
-    // למטה
-    for (let i = 0; i < seats - perSide; i++) {
-      const x = -width / 2 + 40 + i * seatGap;
+
+    // תחתון
+    for (let i = 0; i < bottomCount; i++) {
+      const x = -totalWidth / 2 + (i + 0.5) * seatGap;
       result.push({ x, y: sideY });
     }
 
-    // כסאות בקצוות אם יש עודף
-    if (seats > 8) {
-      result.push({ x: -width / 2 - seatRadius * 2, y: 0 });
-      result.push({ x: width / 2 + seatRadius * 2, y: 0 });
-    }
-
-    table._dynamicWidth = width;
+    table._dynamicWidth = totalWidth;
     table._dynamicHeight = height;
   }
 
@@ -109,7 +112,7 @@ function getTightSeatCoordinates(table) {
 }
 
 /* ============================================================
-   TableRenderer
+   TABLE RENDERER
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
@@ -122,6 +125,7 @@ export default function TableRenderer({ table }) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
 
   const assigned = table.seatedGuests || [];
+
   const seatToGuestMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -146,26 +150,33 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getTightSeatCoordinates(table);
 
-  /* SNAP DRAG + ROTATE */
+  /* SNAP & ROTATE */
   const handleDragMove = (e) => {
     if (isRotating) return;
     const pos = e.target.position();
     e.target.position(snapPosition(pos));
   };
+
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
-    useSeatingStore.setState((s) => ({
-      tables: s.tables.map((t) =>
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
         t.id === table.id
-          ? { ...t, x: pos.x, y: pos.y, rotation: tableRef.current.rotation() }
+          ? {
+              ...t,
+              x: pos.x,
+              y: pos.y,
+              rotation: tableRef.current.rotation(),
+            }
           : t
       ),
     }));
   };
 
-  /* ROTATE (Shift + גרירה) */
-  const handleMouseDown = (e) => e.evt.shiftKey && setIsRotating(true);
+  const handleMouseDown = (e) => {
+    if (e.evt.shiftKey) setIsRotating(true);
+  };
   const handleMouseUp = () => {
     if (isRotating) {
       setIsRotating(false);
@@ -175,22 +186,22 @@ export default function TableRenderer({ table }) {
   const handleMouseMove = (e) => {
     if (!isRotating) return;
     const stage = e.target.getStage();
-    const p = stage.getPointerPosition();
-    if (!p || !tableRef.current) return;
-    const dx = p.x - table.x;
-    const dy = p.y - table.y;
+    const pointer = stage.getPointerPosition();
+    if (!pointer || !tableRef.current) return;
+    const dx = pointer.x - table.x;
+    const dy = pointer.y - table.y;
     let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
     angle = Math.round(angle / 15) * 15;
     tableRef.current.rotation(angle);
     tableRef.current.getLayer().batchDraw();
   };
 
-  /* CLICK & DROP */
   const handleDrop = (e) => {
     e.cancelBubble = true;
     if (draggingGuest)
       assignGuestBlock({ guestId: draggingGuest.id, tableId: table.id });
   };
+
   const handleClick = (e) => {
     e.cancelBubble = true;
     if (!draggingGuest && typeof table.openAddGuestModal === "function")
@@ -202,7 +213,6 @@ export default function TableRenderer({ table }) {
   const height = table._dynamicHeight || 90;
   const radius = table._dynamicRadius || 60;
 
-  /* RENDER */
   return (
     <Group
       ref={tableRef}
