@@ -5,8 +5,16 @@ import InvitationGuest from "@/models/InvitationGuest";
 
 export const dynamic = "force-dynamic";
 
+/* ===============================
+   TYPES
+=============================== */
 type RouteContext = {
   params: Promise<{ invitationId: string }>;
+};
+
+type BackgroundPayload = {
+  url: string;
+  opacity?: number;
 };
 
 export async function POST(req: NextRequest, context: RouteContext) {
@@ -25,9 +33,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const tables = Array.isArray(body.tables) ? body.tables : [];
 
     /* ===============================
+       ZONES (חדש!)
+    =============================== */
+    const zones = Array.isArray(body.zones) ? body.zones : [];
+
+    /* ===============================
        BACKGROUND (OPTIONAL)
     =============================== */
-    let background: { url: string; opacity: number } | null = null;
+    let background: BackgroundPayload | null = null;
 
     if (typeof body.background === "string") {
       background = {
@@ -55,6 +68,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       {
         $set: {
           tables,
+          zones,          // ⭐⭐ שמירה של האלמנטים
           background,
           updatedAt: new Date(),
         },
@@ -67,7 +81,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     /* ===============================
-       SNAPSHOT – RESET
+       SNAPSHOT – RESET TABLE NUMBER
+       (לא נוגעים בלוגיקה הקיימת)
     =============================== */
     await InvitationGuest.updateMany(
       { invitationId },
@@ -90,9 +105,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       success: true,
       seatingId: saved._id,
       hasBackground: !!background,
+      zonesCount: zones.length,
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);
+
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }

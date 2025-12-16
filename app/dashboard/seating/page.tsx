@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
+
 import { useSeatingStore } from "@/store/seatingStore";
+import { useZoneStore } from "@/store/zoneStore";
 
 /* ⭐ קומפוננטות עליונות */
 import EventTypeSelector from "@/app/components/zones/EventTypeSelector";
@@ -14,7 +16,7 @@ export default function SeatingPage() {
   const [invitationId, setInvitationId] = useState<string | null>(null);
 
   /* ===============================
-     STORE
+     STORES
   =============================== */
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
@@ -23,19 +25,24 @@ export default function SeatingPage() {
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
 
+  const setZones = useZoneStore((s) => s.setZones);
+
   /* ===============================
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
     async function load() {
       try {
+        /* ================= הזמנה ================= */
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
+
         if (!invData.success || !invData.invitation) return;
 
         const id = invData.invitation._id;
         setInvitationId(id);
 
+        /* ================= אורחים ================= */
         const gRes = await fetch(`/api/seating/guests/${id}`);
         const gData = await gRes.json();
 
@@ -46,6 +53,7 @@ export default function SeatingPage() {
           tableId: g.tableId || null,
         }));
 
+        /* ================= הושבה + רקע + zones ================= */
         const tRes = await fetch(`/api/seating/tables/${id}`);
         const tData = await tRes.json();
 
@@ -58,13 +66,16 @@ export default function SeatingPage() {
           normalizedGuests,
           currentBackground ?? tData.background ?? null
         );
+
+        /* ⭐⭐ טעינת zones ל־store */
+        setZones(tData.zones || []);
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       }
     }
 
     load();
-  }, [init]);
+  }, [init, setZones]);
 
   /* ===============================
      SELECT BACKGROUND
@@ -79,13 +90,15 @@ export default function SeatingPage() {
   };
 
   /* ===============================
-     SAVE SEATING
+     SAVE SEATING (כולל ZONES)
   =============================== */
   async function saveSeating() {
     if (!invitationId) {
       alert("לא נמצאה הזמנה.");
       return;
     }
+
+    const zones = useZoneStore.getState().zones;
 
     try {
       const res = await fetch(`/api/seating/save/${invitationId}`, {
@@ -95,13 +108,14 @@ export default function SeatingPage() {
           tables,
           guests,
           background,
+          zones, // ⭐⭐ שמירה אמיתית של האלמנטים
         }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        alert("🎉 ההושבה נשמרה בהצלחה!");
+        alert("🎉 ההושבה והאלמנטים נשמרו בהצלחה!");
       } else {
         alert("❌ שגיאה בשמירה");
       }

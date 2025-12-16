@@ -47,6 +47,10 @@ const TableSchema = new Schema(
       type: Number,
       default: 0,
     },
+    rotation: {
+      type: Number,
+      default: 0,
+    },
     seatedGuests: {
       type: [SeatedGuestSchema],
       default: [],
@@ -61,7 +65,7 @@ const TableSchema = new Schema(
 const BackgroundSchema = new Schema(
   {
     url: {
-      type: String, // ⭐ URL / base64 (בשלב זה)
+      type: String, // URL / base64
       required: true,
     },
     opacity: {
@@ -69,6 +73,68 @@ const BackgroundSchema = new Schema(
       default: 0.28,
       min: 0,
       max: 1,
+    },
+  },
+  { _id: false }
+);
+
+/* ===============================
+   ⭐ אזור (Zone)
+=============================== */
+const ZoneSchema = new Schema(
+  {
+    id: {
+      type: String,
+      required: true, // מזהה פנימי לקנבס
+    },
+    type: {
+      type: String,
+      required: true, // stage / bar / chuppah וכו'
+    },
+
+    name: {
+      type: String,
+      default: "",
+    },
+    icon: {
+      type: String,
+      default: "",
+    },
+    color: {
+      type: String,
+      default: "#e5e7eb",
+    },
+    opacity: {
+      type: Number,
+      default: 0.35,
+      min: 0,
+      max: 1,
+    },
+
+    x: {
+      type: Number,
+      default: 0,
+    },
+    y: {
+      type: Number,
+      default: 0,
+    },
+    width: {
+      type: Number,
+      default: 100,
+    },
+    height: {
+      type: Number,
+      default: 100,
+    },
+    rotation: {
+      type: Number,
+      default: 0,
+    },
+
+    locked: {
+      type: Boolean,
+      default: false,
     },
   },
   { _id: false }
@@ -98,10 +164,16 @@ const SeatingTableSchema = new Schema(
       type: [TableSchema],
       default: [],
     },
+
+    /** ⭐ אזורים (Zones) */
+    zones: {
+      type: [ZoneSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
-    strict: true, // ⭐ חשוב – מונע שדות זבל
+    strict: true, // ⭐ עכשיו בטוח – zones מוגדרים
   }
 );
 
