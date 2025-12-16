@@ -3,17 +3,130 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import Image from "next/image";
-import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   סוגי שולחנות עם תמונות תקינות
+   SVG ציור שולחנות (עגול / מרובע / אבירים)
 ============================================================ */
-const tableTypes = [
-  { id: "round", name: "עגול", img: "/images/tables/round.png" },
-  { id: "square", name: "מרובע", img: "/images/tables/square.png" },
-  { id: "banquet", name: "אבירים", img: "/images/tables/banquet.png" },
-];
+const TableIcons = {
+  round: ({ active }: { active: boolean }) => {
+    const table = active ? "#2563eb" : "#3b82f6";
+    const seat = active ? "#60a5fa" : "#93c5fd";
+    const stroke = active ? "#1d4ed8" : "#2563eb";
+    const circles = Array.from({ length: 10 }).map((_, i) => {
+      const angle = (2 * Math.PI * i) / 10 - Math.PI / 2;
+      const x = 40 + Math.cos(angle) * 26;
+      const y = 40 + Math.sin(angle) * 26;
+      return (
+        <circle
+          key={i}
+          cx={x}
+          cy={y}
+          r="4"
+          fill={seat}
+          stroke={stroke}
+          strokeWidth="1"
+        />
+      );
+    });
+    return (
+      <svg viewBox="0 0 80 80" className="w-[64px] h-[64px]">
+        {circles}
+        <circle cx="40" cy="40" r="18" fill={table} />
+      </svg>
+    );
+  },
+
+  square: ({ active }: { active: boolean }) => {
+    const table = active ? "#2563eb" : "#3b82f6";
+    const seat = active ? "#60a5fa" : "#93c5fd";
+    const stroke = active ? "#1d4ed8" : "#2563eb";
+    const seats = [
+      // top
+      [28, 10],
+      [40, 10],
+      [52, 10],
+      // bottom
+      [28, 70],
+      [40, 70],
+      [52, 70],
+      // left
+      [10, 28],
+      [10, 40],
+      [10, 52],
+      // right
+      [70, 28],
+      [70, 40],
+      [70, 52],
+    ];
+    return (
+      <svg viewBox="0 0 80 80" className="w-[64px] h-[64px]">
+        {seats.map(([x, y], i) => (
+          <circle
+            key={i}
+            cx={x}
+            cy={y}
+            r="4"
+            fill={seat}
+            stroke={stroke}
+            strokeWidth="1"
+          />
+        ))}
+        <rect
+          x="22"
+          y="22"
+          width="36"
+          height="36"
+          rx="6"
+          fill={table}
+          opacity="0.95"
+        />
+      </svg>
+    );
+  },
+
+  banquet: ({ active }: { active: boolean }) => {
+    const table = active ? "#2563eb" : "#3b82f6";
+    const seat = active ? "#60a5fa" : "#93c5fd";
+    const stroke = active ? "#1d4ed8" : "#2563eb";
+    const rowTop = [20, 30, 40, 50, 60];
+    const rowBottom = [20, 30, 40, 50, 60];
+    return (
+      <svg viewBox="0 0 80 80" className="w-[64px] h-[64px]">
+        {rowTop.map((x, i) => (
+          <circle
+            key={`t-${i}`}
+            cx={x}
+            cy={14}
+            r="4"
+            fill={seat}
+            stroke={stroke}
+            strokeWidth="1"
+          />
+        ))}
+        {rowBottom.map((x, i) => (
+          <circle
+            key={`b-${i}`}
+            cx={x}
+            cy={66}
+            r="4"
+            fill={seat}
+            stroke={stroke}
+            strokeWidth="1"
+          />
+        ))}
+        <rect
+          x="14"
+          y="26"
+          width="52"
+          height="28"
+          rx="10"
+          fill={table}
+          opacity="0.95"
+        />
+      </svg>
+    );
+  },
+};
 
 /* ============================================================
    רכיב AddTableDrawer
@@ -29,9 +142,6 @@ export default function AddTableDrawer({
 }) {
   const [type, setType] = useState("banquet");
   const [seats, setSeats] = useState(12);
-  const [color, setColor] = useState("#ffffff");
-
-  const addTable = useSeatingStore((s) => s.addTable);
 
   if (!open) return null;
 
@@ -64,38 +174,37 @@ export default function AddTableDrawer({
 
         {/* CONTENT */}
         <div className="p-5 flex-1 overflow-y-auto">
-          {/* סוג שולחן */}
           <p className="text-sm font-medium mb-2">בחר סוג שולחן:</p>
 
           <div className="grid grid-cols-3 gap-3 mb-6">
-            {tableTypes.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setType(t.id)}
-                className={`flex flex-col items-center gap-2 border rounded-lg p-2 hover:bg-gray-50 transition ${
-                  type === t.id
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-300"
-                }`}
-              >
-                <div className="relative w-[70px] h-[70px]">
-                  <Image
-                    src={t.img}
-                    alt={t.name}
-                    fill
-                    className="object-contain"
-                    unoptimized
-                  />
-                </div>
-                <span
-                  className={`text-sm font-medium ${
-                    type === t.id ? "text-blue-600" : "text-gray-700"
+            {[
+              { id: "banquet", name: "אבירים" },
+              { id: "square", name: "מרובע" },
+              { id: "round", name: "עגול" },
+            ].map((t) => {
+              const Icon = TableIcons[t.id as keyof typeof TableIcons];
+              const active = type === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setType(t.id)}
+                  className={`flex flex-col items-center gap-2 border rounded-lg p-2 hover:bg-gray-50 transition ${
+                    active
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300"
                   }`}
                 >
-                  {t.name}
-                </span>
-              </button>
-            ))}
+                  <Icon active={active} />
+                  <span
+                    className={`text-sm font-medium ${
+                      active ? "text-blue-600" : "text-gray-700"
+                    }`}
+                  >
+                    {t.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* כמות כסאות */}
@@ -109,17 +218,6 @@ export default function AddTableDrawer({
             value={seats}
             onChange={(e) => setSeats(Number(e.target.value))}
             className="w-full border rounded-md px-3 py-2 mb-6 text-center"
-          />
-
-          {/* צבע רקע */}
-          <label className="block text-sm font-medium mb-1">
-            צבע רקע (אופציונלי):
-          </label>
-          <input
-            type="color"
-            className="w-full h-10 border rounded mb-6"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
           />
 
           {/* כפתור הוספה */}
