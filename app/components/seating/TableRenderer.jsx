@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   חישוב כיסאות צמודים לשולחן
+   חישוב כיסאות סימטריים סביב השולחן
 ============================================================ */
 function getTightSeatCoordinates(table) {
   const seats = table.seats || 0;
@@ -29,48 +29,59 @@ function getTightSeatCoordinates(table) {
   /* ========= SQUARE ========= */
   if (table.type === "square") {
     const size = 160;
-    const seatGap = 22;
-    const half = size / 2 + 12;
-    const perSide = Math.ceil(seats / 4);
-    let i = 0;
+    const gap = 26;
+    const half = size / 2 + 16;
 
-    for (; i < perSide && i < seats; i++)
-      result.push({ x: -half + i * seatGap, y: -half });
+    const base = Math.floor(seats / 4);
+    const remainder = seats % 4;
+    const sides = [base, base, base, base];
+    for (let i = 0; i < remainder; i++) sides[i]++;
 
-    for (; i < perSide * 2 && i < seats; i++)
-      result.push({ x: half, y: -half + (i - perSide) * seatGap });
+    // עליון
+    for (let i = 0; i < sides[0]; i++) {
+      const offset = -((sides[0] - 1) * gap) / 2 + i * gap;
+      result.push({ x: offset, y: -half });
+    }
 
-    for (; i < perSide * 3 && i < seats; i++)
-      result.push({
-        x: half - (i - perSide * 2) * seatGap,
-        y: half,
-      });
+    // ימין
+    for (let i = 0; i < sides[1]; i++) {
+      const offset = -((sides[1] - 1) * gap) / 2 + i * gap;
+      result.push({ x: half, y: offset });
+    }
 
-    for (; i < seats; i++)
-      result.push({
-        x: -half,
-        y: half - (i - perSide * 3) * seatGap,
-      });
+    // תחתון
+    for (let i = 0; i < sides[2]; i++) {
+      const offset = ((sides[2] - 1) * gap) / 2 - i * gap;
+      result.push({ x: offset, y: half });
+    }
+
+    // שמאל
+    for (let i = 0; i < sides[3]; i++) {
+      const offset = ((sides[3] - 1) * gap) / 2 - i * gap;
+      result.push({ x: -half, y: offset });
+    }
   }
 
   /* ========= BANQUET ========= */
   if (table.type === "banquet") {
     const width = 240;
-    const seatGap = 22;
+    const gap = 24;
     const sideY = 59;
-    const perSide = Math.floor(seats / 2);
+    const base = Math.floor(seats / 2);
+    const remainder = seats % 2;
 
-    for (let i = 0; i < perSide; i++)
-      result.push({
-        x: -width / 2 + 20 + i * seatGap,
-        y: -sideY,
-      });
+    const topCount = base + (remainder > 0 ? 1 : 0);
+    const bottomCount = base;
 
-    for (let i = 0; i < seats - perSide; i++)
-      result.push({
-        x: -width / 2 + 20 + i * seatGap,
-        y: sideY,
-      });
+    for (let i = 0; i < topCount; i++) {
+      const offset = -((topCount - 1) * gap) / 2 + i * gap;
+      result.push({ x: offset, y: -sideY });
+    }
+
+    for (let i = 0; i < bottomCount; i++) {
+      const offset = -((bottomCount - 1) * gap) / 2 + i * gap;
+      result.push({ x: offset, y: sideY });
+    }
   }
 
   return result;
@@ -81,14 +92,15 @@ function getTightSeatCoordinates(table) {
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
+  const [isOverTrash, setIsOverTrash] = useState(false);
 
   /* ===== Zustand ===== */
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
-
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
+  const removeTable = useSeatingStore((s) => s.removeTable);
 
   const assigned = table.seatedGuests || [];
 
@@ -166,112 +178,157 @@ export default function TableRenderer({ table }) {
     }
   };
 
+  /* ============================================================
+     🗑️ זיהוי גרירה מעל פח
+  ============================================================ */
+  const handleDragMove = (e) => {
+    updatePositionInStore();
+    const pos = e.target.position();
+
+    // אזור הפח בצד ימין תחתון
+    if (pos.x > 800 && pos.y > 450) {
+      setIsOverTrash(true);
+    } else {
+      setIsOverTrash(false);
+    }
+  };
+
+  const handleDragEnd = (e) => {
+    updatePositionInStore();
+    if (isOverTrash) {
+      removeTable(table.id);
+    }
+    setIsOverTrash(false);
+  };
+
   return (
-    <Group
-      ref={tableRef}
-      x={table.x}
-      y={table.y}
-      rotation={table.rotation || 0}
-      draggable
-      onDragMove={updatePositionInStore}
-      onDragEnd={updatePositionInStore}
-      onMouseUp={handleDrop}
-      onClick={handleClick}
-    >
-      {/* ===== TABLE BODY ===== */}
-      {table.type === "round" && (
-        <>
-          <Circle radius={60} fill={tableFill} shadowBlur={8} />
-          <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={18}
-            fill={tableText}
-            align="center"
-            verticalAlign="middle"
-            width={120}
-            height={120}
-            offsetX={60}
-            offsetY={60}
-          />
-        </>
-      )}
+    <>
+      {/* ===== פח למחיקה ===== */}
+      <Group x={820} y={470}>
+        <Rect
+          width={80}
+          height={80}
+          fill={isOverTrash ? "#ef4444" : "#f3f4f6"}
+          cornerRadius={10}
+          shadowBlur={4}
+        />
+        <Text
+          text="🗑️"
+          fontSize={36}
+          align="center"
+          verticalAlign="middle"
+          width={80}
+          height={80}
+        />
+      </Group>
 
-      {table.type === "square" && (
-        <>
-          <Rect
-            width={160}
-            height={160}
-            offsetX={80}
-            offsetY={80}
-            fill={tableFill}
-            shadowBlur={8}
-            cornerRadius={10}
-          />
-          <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={18}
-            fill={tableText}
-            align="center"
-            verticalAlign="middle"
-            width={160}
-            height={160}
-            offsetX={80}
-            offsetY={80}
-          />
-        </>
-      )}
-
-      {table.type === "banquet" && (
-        <>
-          <Rect
-            width={240}
-            height={90}
-            offsetX={120}
-            offsetY={45}
-            fill={tableFill}
-            shadowBlur={8}
-            cornerRadius={10}
-          />
-          <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={18}
-            fill={tableText}
-            align="center"
-            verticalAlign="middle"
-            width={240}
-            height={90}
-            offsetX={120}
-            offsetY={45}
-          />
-        </>
-      )}
-
-      {/* ===== SEATS + NAMES ===== */}
-      {seatsCoords.map((c, i) => {
-        const guest = seatToGuestMap.get(i);
-
-        return (
-          <Group key={i} x={c.x} y={c.y}>
-            <Circle
-              radius={10}
-              fill={guest ? "#d1d5db" : "#3b82f6"}
-              stroke="#2563eb"
+      {/* ===== שולחן ===== */}
+      <Group
+        ref={tableRef}
+        x={table.x}
+        y={table.y}
+        rotation={table.rotation || 0}
+        draggable
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onMouseUp={handleDrop}
+        onClick={handleClick}
+      >
+        {/* ===== גוף השולחן ===== */}
+        {table.type === "round" && (
+          <>
+            <Circle radius={60} fill={tableFill} shadowBlur={8} />
+            <Text
+              text={`${table.name}\n${occupiedCount}/${table.seats}`}
+              fontSize={18}
+              fill={tableText}
+              align="center"
+              verticalAlign="middle"
+              width={120}
+              height={120}
+              offsetX={60}
+              offsetY={60}
             />
+          </>
+        )}
 
-            {guest && (
-              <Text
-                text={guest.name}
-                fontSize={11}
-                y={14}
-                width={90}
-                offsetX={45}
-                align="center"
-                fill="#111827"
+        {table.type === "square" && (
+          <>
+            <Rect
+              width={160}
+              height={160}
+              offsetX={80}
+              offsetY={80}
+              fill={tableFill}
+              shadowBlur={8}
+              cornerRadius={10}
+            />
+            <Text
+              text={`${table.name}\n${occupiedCount}/${table.seats}`}
+              fontSize={18}
+              fill={tableText}
+              align="center"
+              verticalAlign="middle"
+              width={160}
+              height={160}
+              offsetX={80}
+              offsetY={80}
+            />
+          </>
+        )}
+
+        {table.type === "banquet" && (
+          <>
+            <Rect
+              width={240}
+              height={90}
+              offsetX={120}
+              offsetY={45}
+              fill={tableFill}
+              shadowBlur={8}
+              cornerRadius={10}
+            />
+            <Text
+              text={`${table.name}\n${occupiedCount}/${table.seats}`}
+              fontSize={18}
+              fill={tableText}
+              align="center"
+              verticalAlign="middle"
+              width={240}
+              height={90}
+              offsetX={120}
+              offsetY={45}
+            />
+          </>
+        )}
+
+        {/* ===== כיסאות ===== */}
+        {seatsCoords.map((c, i) => {
+          const guest = seatToGuestMap.get(i);
+
+          return (
+            <Group key={i} x={c.x} y={c.y}>
+              <Circle
+                radius={10}
+                fill={guest ? "#d1d5db" : "#3b82f6"}
+                stroke="#2563eb"
               />
-            )}
-          </Group>
-        );
-      })}
-    </Group>
+
+              {guest && (
+                <Text
+                  text={guest.name}
+                  fontSize={11}
+                  y={14}
+                  width={90}
+                  offsetX={45}
+                  align="center"
+                  fill="#111827"
+                />
+              )}
+            </Group>
+          );
+        })}
+      </Group>
+    </>
   );
 }
