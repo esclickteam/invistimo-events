@@ -6,20 +6,26 @@ import { useSeatingStore } from "@/store/seatingStore";
 export default function GhostGuest() {
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const ghostPosition = useSeatingStore((s) => s.ghostPosition);
+  const stageScale = useSeatingStore((s) => s.stageScale);
+  const stagePosition = useSeatingStore((s) => s.stagePosition);
 
-  if (!draggingGuest) return null;
+  if (!draggingGuest || !ghostPosition) return null;
 
   const count =
     draggingGuest.guestsCount ||
     draggingGuest.count ||
     1;
 
+  // 🔥 תיקון קריטי – התאמה ל־zoom + pan
+  const x = (ghostPosition.x - stagePosition.x) / stageScale;
+  const y = (ghostPosition.y - stagePosition.y) / stageScale;
+
   return (
     <Group
-      x={ghostPosition.x}
-      y={ghostPosition.y}
+      x={x}
+      y={y}
       opacity={0.85}
-      listening={false} // ❗ לא חוסם events
+      listening={false}
     >
       <Circle radius={16} fill="#2563eb" />
       <Text
