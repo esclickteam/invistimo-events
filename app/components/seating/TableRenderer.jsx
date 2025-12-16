@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -87,18 +87,16 @@ function getTightSeatCoordinates(table) {
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
-  const {
-    highlightedTable,
-    highlightedSeats,
-    selectedGuestId,
-    guests,
-    startDragGuest,
-  } = useSeatingStore.getState();
+  /* ===== Zustand state (HOOKS בלבד!) ===== */
+  const highlightedTable = useSeatingStore((s) => s.highlightedTable);
+  const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
+  const draggingGuest = useSeatingStore((s) => s.draggingGuest);
+
+  const assignGuestToSeat = useSeatingStore((s) => s.assignGuestToSeat);
+  const openSeatingModal = useSeatingStore((s) => s.openSeatingModal);
 
   const assigned = table.seatedGuests || [];
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
-
-  const normalizeGuestId = (g) => String(g?.id ?? g?._id ?? "");
 
   const hasSelectedGuestInThisTable = useMemo(() => {
     if (!selectedGuestId) return false;
@@ -115,7 +113,7 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getTightSeatCoordinates(table);
 
-  /* ================= SAVE POSITION ================= */
+  /* ================= SAVE POSITION (גרירת שולחן) ================= */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -134,14 +132,6 @@ export default function TableRenderer({ table }) {
     }));
   };
 
-  /* ================= DRAG ================= */
-  const handleSeatDrag = (guestId) => {
-    const g = guests.find(
-      (x) => normalizeGuestId(x) === String(guestId)
-    );
-    if (g) startDragGuest(g);
-  };
-
   return (
     <Group
       ref={tableRef}
@@ -153,10 +143,11 @@ export default function TableRenderer({ table }) {
       onDragEnd={updatePositionInStore}
       onClick={(e) => {
         e.cancelBubble = true;
-        useSeatingStore.setState({
-          highlightedTable: table.id,
-          highlightedSeats: [],
-        });
+
+        /* ❗ אם גוררים אורח – לא פותחים מודל */
+        if (draggingGuest) return;
+
+        openSeatingModal(table.id);
       }}
     >
       {/* ===== TABLE BODY ===== */}
@@ -227,7 +218,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ===== SEATS ===== */}
+      {/* ===== SEATS (Drop Target) ===== */}
       {seatsCoords.map((c, i) => {
         const seatGuest = assigned.find((s) => s.seatIndex === i);
         const isFree = !seatGuest;
@@ -238,14 +229,21 @@ export default function TableRenderer({ table }) {
             x={c.x}
             y={c.y}
             rotation={(c.rotation * 180) / Math.PI}
+            onMouseUp={(e) => {
+              e.cancelBubble = true;
+              if (!draggingGuest) return;
+
+              assignGuestToSeat({
+                guestId: draggingGuest._id,
+                tableId: table.id,
+                seatIndex: i,
+              });
+            }}
           >
             <Circle
               radius={10}
               fill={isFree ? "#3b82f6" : "#d1d5db"}
               stroke="#2563eb"
-              onClick={() =>
-                !isFree && handleSeatDrag(seatGuest.guestId)
-              }
             />
             <Rect
               width={12}

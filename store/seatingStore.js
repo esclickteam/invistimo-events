@@ -8,13 +8,18 @@ export const useSeatingStore = create((set, get) => ({
 
   background: null,
 
-  draggedGuest: null,
+  /* ⭐ יישור שם */
+  draggingGuest: null,
   ghostPosition: { x: 0, y: 0 },
 
   highlightedTable: null,
   highlightedSeats: [],
 
   selectedGuestId: null,
+
+  /* ⭐ מודל הושבה */
+  seatingModalTableId: null,
+  showSeatingModal: false,
 
   showAddModal: false,
   addGuestTable: null,
@@ -34,8 +39,6 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ---------------- INIT ---------------- */
   init: (tables, guests, background = null) => {
-    console.log("🟦 INIT seating:", { tables, guests, background });
-
     set({
       tables: tables || [],
       guests: guests || [],
@@ -43,76 +46,66 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- ADD TABLE (FIXED) ---------------- */
+  /* ---------------- ADD TABLE ---------------- */
   addTable: (type, seats) => {
     const { tables } = get();
-
     const index = tables.length;
-
-    // ⭐ פיזור חכם – שלא יפלו אחד על השני
-    const START_X = 300;
-    const START_Y = 200;
-    const GAP_X = 200;
 
     const newTable = {
       id: "t" + (index + 1),
       name: `שולחן ${index + 1}`,
       type,
       seats,
-      x: START_X + index * GAP_X,
-      y: START_Y,
+      x: 300 + index * 200,
+      y: 200,
       rotation: 0,
       seatedGuests: [],
     };
 
-    set({
-      tables: [...tables, newTable],
-    });
+    set({ tables: [...tables, newTable] });
   },
 
   /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
-    set((state) => {
-      const updatedGuests = state.guests.map((g) =>
+    set((state) => ({
+      tables: state.tables.filter((t) => t.id !== tableId),
+      guests: state.guests.map((g) =>
         g.tableId === tableId
           ? { ...g, tableId: null, tableName: null }
           : g
-      );
+      ),
+      highlightedTable: null,
+      highlightedSeats: [],
+    })),
 
-      return {
-        tables: state.tables.filter((t) => t.id !== tableId),
-        guests: updatedGuests,
-        highlightedTable: null,
-        highlightedSeats: [],
-      };
-    }),
-
-  /* ---------------- DRAG START ---------------- */
-  startDragGuest: (guest) => {
+  /* ---------------- DRAG START / END ---------------- */
+  startDragGuest: (guest) =>
     set({
-      draggedGuest: guest,
+      draggingGuest: guest,
       highlightedSeats: [],
       highlightedTable: null,
-    });
-  },
+    }),
+
+  endDragGuest: () =>
+    set({
+      draggingGuest: null,
+      highlightedSeats: [],
+      highlightedTable: null,
+    }),
 
   updateGhostPosition: (pos) => set({ ghostPosition: pos }),
 
   /* ---------------- HOVER ---------------- */
   evaluateHover: (pointer) => {
-    const { tables, draggedGuest } = get();
-    if (!draggedGuest) return;
+    const { tables, draggingGuest } = get();
+    if (!draggingGuest) return;
 
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
 
       const radius =
-        t.type === "round"
-          ? 90
-          : t.type === "square"
-          ? 110
-          : 160;
+        t.type === "round" ? 90 : t.type === "square" ? 110 : 160;
 
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
@@ -124,7 +117,7 @@ export const useSeatingStore = create((set, get) => ({
       });
     }
 
-    const block = findFreeBlock(hoveredTable, draggedGuest.count);
+    const block = findFreeBlock(hoveredTable, draggingGuest.count);
 
     set({
       highlightedTable: hoveredTable.id,
@@ -132,46 +125,21 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- DROP ---------------- */
+  /* ---------------- DROP (SIDEBAR → TABLE) ---------------- */
   dropGuest: () => {
     const {
-      draggedGuest,
+      draggingGuest,
       highlightedTable,
       highlightedSeats,
       tables,
       guests,
     } = get();
 
-    if (!draggedGuest) {
-      return set({
-        highlightedTable: null,
-        highlightedSeats: [],
-      });
-    }
+    if (!draggingGuest) return;
 
-    // הסרה מוחלטת אם לא הופל על שולחן
-    if (!highlightedTable) {
-      set({
-        tables: tables.map((t) => ({
-          ...t,
-          seatedGuests: t.seatedGuests.filter(
-            (s) => s.guestId !== draggedGuest.id
-          ),
-        })),
-        guests: guests.map((g) =>
-          g.id === draggedGuest.id
-            ? { ...g, tableId: null, tableName: null }
-            : g
-        ),
-        draggedGuest: null,
-        highlightedSeats: [],
-      });
-      return;
-    }
-
-    if (highlightedSeats.length === 0) {
+    if (!highlightedTable || highlightedSeats.length === 0) {
       return set({
-        draggedGuest: null,
+        draggingGuest: null,
         highlightedTable: null,
         highlightedSeats: [],
       });
@@ -180,41 +148,62 @@ export const useSeatingStore = create((set, get) => ({
     const cleanedTables = tables.map((t) => ({
       ...t,
       seatedGuests: t.seatedGuests.filter(
-        (s) => s.guestId !== draggedGuest.id
+        (s) => s.guestId !== draggingGuest.id
       ),
     }));
 
-    const targetTable = tables.find((t) => t.id === highlightedTable);
-
-    const finalTables = cleanedTables.map((t) =>
-      t.id === highlightedTable
-        ? {
-            ...t,
-            seatedGuests: [
-              ...t.seatedGuests,
-              ...highlightedSeats.map((seatIndex) => ({
-                guestId: draggedGuest.id,
-                seatIndex,
-              })),
-            ],
-          }
-        : t
+    const targetTable = cleanedTables.find(
+      (t) => t.id === highlightedTable
     );
 
-    const updatedGuests = guests.map((g) =>
-      g.id === draggedGuest.id
-        ? {
-            ...g,
-            tableId: highlightedTable,
-            tableName: targetTable?.name || `שולחן ${highlightedTable}`,
-          }
-        : g
+    targetTable.seatedGuests.push(
+      ...highlightedSeats.map((seatIndex) => ({
+        guestId: draggingGuest.id,
+        seatIndex,
+      }))
     );
 
     set({
-      tables: finalTables,
-      guests: updatedGuests,
-      draggedGuest: null,
+      tables: cleanedTables,
+      guests: guests.map((g) =>
+        g.id === draggingGuest.id
+          ? {
+              ...g,
+              tableId: highlightedTable,
+              tableName: targetTable.name,
+            }
+          : g
+      ),
+      draggingGuest: null,
+      highlightedSeats: [],
+      highlightedTable: null,
+    });
+  },
+
+  /* ---------------- ⭐ DROP ישיר על מושב ---------------- */
+  assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
+    const { tables, guests } = get();
+
+    const cleanedTables = tables.map((t) => ({
+      ...t,
+      seatedGuests: t.seatedGuests.filter(
+        (s) => s.guestId !== guestId
+      ),
+    }));
+
+    const targetTable = cleanedTables.find((t) => t.id === tableId);
+    if (!targetTable) return;
+
+    targetTable.seatedGuests.push({ guestId, seatIndex });
+
+    set({
+      tables: cleanedTables,
+      guests: guests.map((g) =>
+        g.id === guestId
+          ? { ...g, tableId, tableName: targetTable.name }
+          : g
+      ),
+      draggingGuest: null,
       highlightedSeats: [],
       highlightedTable: null,
     });
@@ -239,7 +228,20 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
-  /* ---------------- MANUAL ASSIGN ---------------- */
+  /* ---------------- ⭐ MODAL ---------------- */
+  openSeatingModal: (tableId) =>
+    set({
+      seatingModalTableId: tableId,
+      showSeatingModal: true,
+    }),
+
+  closeSeatingModal: () =>
+    set({
+      seatingModalTableId: null,
+      showSeatingModal: false,
+    }),
+
+  /* ---------------- MANUAL ASSIGN (MODAL) ---------------- */
   assignGuestsToTable: (tableId, guestId, count) => {
     const { tables, guests } = get();
 
