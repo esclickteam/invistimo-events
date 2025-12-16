@@ -176,6 +176,7 @@ export default function TableRenderer({ table }) {
 
   const handleRotateStart = (e) => {
     e.cancelBubble = true;
+    e.evt.stopPropagation(); // לא חוסם גרירה מהסיידבר
     if (!tableRef.current) return;
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
@@ -231,6 +232,14 @@ export default function TableRenderer({ table }) {
       ? { x: size / 2 - 12, y: -size / 2 - 12 }
       : { x: width / 2 - 12, y: -height / 2 - 12 };
   const showDeleteButton = selectedTableId === table.id;
+
+  // 🟢 מיקום חדש לכפתור סיבוב מחוץ לשולחן
+  const rotateBtnPos =
+    layout.type === "round"
+      ? { x: radius + 45, y: -radius - 45 }
+      : layout.type === "square"
+      ? { x: size / 2 + 45, y: -size / 2 - 45 }
+      : { x: width / 2 + 45, y: -height / 2 - 45 };
 
   return (
     <Group
@@ -314,18 +323,14 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* כפתור סיבוב */}
+      {/* 🔄 כפתור סיבוב מחוץ לשולחן */}
       <Group
-        x={
-          layout.type === "round"
-            ? radius + 40
-            : layout.type === "square"
-            ? size / 2 + 40
-            : width / 2 + 40
-        }
-        y={0}
+        x={rotateBtnPos.x}
+        y={rotateBtnPos.y}
         onMouseDown={handleRotateStart}
         onTouchStart={handleRotateStart}
+        onClick={(e) => e.cancelBubble = true}
+        onTap={(e) => e.cancelBubble = true}
       >
         <Circle radius={12} fill="#22c55e" shadowBlur={6} />
         <Text
