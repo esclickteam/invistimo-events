@@ -17,7 +17,7 @@ import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 
 /* ============================================================
-   טיפוסים מקומיים (מינימליים, לא שוברים כלום)
+   טיפוסים מקומיים
 ============================================================ */
 type Guest = {
   id?: string;
@@ -70,8 +70,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
     const raw = String(highlightedGuestIdRaw);
     const found = guests.find(
-      (g: Guest) =>
-        String(g?._id ?? g?.id ?? "") === raw
+      (g) => String(g?._id ?? g?.id ?? "") === raw
     );
 
     return found ? String(found.id ?? found._id) : raw;
@@ -80,10 +79,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const highlightedTableId = useMemo(() => {
     if (!isPersonalMode || !canonicalGuestId) return null;
 
-    const table = tables.find((t: Table) =>
+    const table = tables.find((t) =>
       t.seatedGuests?.some(
-        (s: SeatedGuest) =>
-          String(s.guestId) === String(canonicalGuestId)
+        (s) => String(s.guestId) === String(canonicalGuestId)
       )
     );
 
@@ -112,7 +110,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
 
-  /* ==================== Mouse ==================== */
+  /* ==================== Mouse Move ==================== */
   const handleMouseMove = (e: any) => {
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
@@ -139,21 +137,37 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const unseatedGuests = useMemo(() => {
     const seated = new Set<string>();
 
-    tables.forEach((t: Table) =>
-      t.seatedGuests?.forEach((s: SeatedGuest) =>
+    tables.forEach((t) =>
+      t.seatedGuests?.forEach((s) =>
         seated.add(String(s.guestId))
       )
     );
 
     return guests.filter(
-      (g: Guest) =>
-        !seated.has(String(g.id ?? g._id))
+      (g) => !seated.has(String(g.id ?? g._id))
     );
   }, [tables, guests]);
 
   return (
     <div className="flex relative w-full h-full">
       <GuestSidebar onDragStart={startDragGuest} />
+
+      {/* ZOOM BUTTONS */}
+      <button
+        onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
+        className="absolute top-20 left-4 bg-white shadow rounded-full
+                   w-12 h-12 text-2xl z-50"
+      >
+        +
+      </button>
+
+      <button
+        onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
+        className="absolute top-36 left-4 bg-white shadow rounded-full
+                   w-12 h-12 text-2xl z-50"
+      >
+        −
+      </button>
 
       <Stage
         width={width}
@@ -163,6 +177,43 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         x={stagePos.x}
         y={stagePos.y}
         draggable={isPanning}
+
+        /* ===== WHEEL ZOOM ===== */
+        onWheel={(e) => {
+          e.evt.preventDefault();
+
+          const scaleBy = 1.05;
+          const stage = e.target.getStage();
+          if (!stage) return;
+
+          const oldScale = scale;
+          const pointer = stage.getPointerPosition();
+          if (!pointer) return;
+
+          const mousePointTo = {
+            x: (pointer.x - stagePos.x) / oldScale,
+            y: (pointer.y - stagePos.y) / oldScale,
+          };
+
+          const direction = e.evt.deltaY > 0 ? -1 : 1;
+          const newScale =
+            direction > 0
+              ? oldScale * scaleBy
+              : oldScale / scaleBy;
+
+          const clampedScale = Math.min(
+            Math.max(newScale, 0.4),
+            3
+          );
+
+          setScale(clampedScale);
+
+          setStagePos({
+            x: pointer.x - mousePointTo.x * clampedScale,
+            y: pointer.y - mousePointTo.y * clampedScale,
+          });
+        }}
+
         onDragEnd={(e) => {
           if (isPanning) setStagePos(e.target.position());
         }}
@@ -177,6 +228,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         onMouseMove={handleMouseMove}
         className="flex-1"
       >
+        {/* BACKGROUND */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -188,14 +240,16 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           )}
         </Layer>
 
+        {/* ZONES */}
         <Layer>
           {zones.map((zone) => (
             <ZoneRenderer key={zone.id} zone={zone} />
           ))}
         </Layer>
 
+        {/* TABLES */}
         <Layer>
-          {tables.map((t: Table) => (
+          {tables.map((t) => (
             <TableRenderer
               key={t.id}
               table={{
@@ -208,8 +262,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           <GhostPreview />
         </Layer>
 
+        {/* DELETE TABLE */}
         <Layer>
-          {tables.map((t: Table) => (
+          {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
           ))}
         </Layer>
