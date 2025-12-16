@@ -5,29 +5,26 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   GRID SNAP
+   GRID + SNAP
 ============================================================ */
 export const GRID_SIZE = 30;
 export function snapToGrid(value) {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 export function snapPosition(pos) {
-  return {
-    x: snapToGrid(pos.x),
-    y: snapToGrid(pos.y),
-  };
+  return { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
 }
 
 /* ============================================================
-   כיסאות סביב השולחן
+   חישוב כיסאות סביב השולחן (פרופורציונלי)
 ============================================================ */
-function getTightSeatCoordinates(table) {
+function getSeatCoordinates(table) {
   const seats = table.seats || 0;
   const result = [];
   const seatRadius = 10;
   const seatGap = 26;
 
-  /* ===== ROUND ===== */
+  // ROUND
   if (table.type === "round") {
     const baseRadius = 40;
     const radius = baseRadius + Math.sqrt(seats) * 7;
@@ -44,11 +41,11 @@ function getTightSeatCoordinates(table) {
     table._dynamicRadius = radius;
   }
 
-  /* ===== SQUARE ===== */
+  // SQUARE
   if (table.type === "square") {
     const baseSize = 80;
-    const growthPerSeat = 1.5;
-    const size = baseSize + seats * growthPerSeat;
+    const growth = 1.8;
+    const size = baseSize + seats * growth;
     const half = size / 2 + seatRadius + 6;
 
     const perSide = Math.floor(seats / 4);
@@ -80,31 +77,28 @@ function getTightSeatCoordinates(table) {
     table._dynamicSize = size;
   }
 
-  /* ===== BANQUET (אבירים) ===== */
+  // BANQUET (אבירים)
   if (table.type === "banquet") {
-    const baseWidth = 140;
-    const height = 90;
+    const baseWidth = 120;
+    const height = 60;
+    const seatDensity = 15; // כמה השולחן מתארך לכל אורח נוסף
+    const width = baseWidth + Math.max(0, seats - 4) * seatDensity;
 
-    const topCount = Math.ceil(seats / 2);
-    const bottomCount = Math.floor(seats / 2);
-    const maxSide = Math.max(topCount, bottomCount);
-    const totalWidth = baseWidth + (maxSide - 2) * seatGap;
-
+    const perSide = Math.ceil(seats / 2);
     const sideY = height / 2 + seatRadius + 6;
 
-    // עליון
-    for (let i = 0; i < topCount; i++) {
-      const x = -totalWidth / 2 + (i + 0.5) * seatGap;
+    // צד עליון
+    for (let i = 0; i < perSide; i++) {
+      const x = -width / 2 + (i + 0.5) * seatGap;
       result.push({ x, y: -sideY });
     }
-
-    // תחתון
-    for (let i = 0; i < bottomCount; i++) {
-      const x = -totalWidth / 2 + (i + 0.5) * seatGap;
+    // צד תחתון
+    for (let i = 0; i < seats - perSide; i++) {
+      const x = -width / 2 + (i + 0.5) * seatGap;
       result.push({ x, y: sideY });
     }
 
-    table._dynamicWidth = totalWidth;
+    table._dynamicWidth = width;
     table._dynamicHeight = height;
   }
 
@@ -123,6 +117,7 @@ export default function TableRenderer({ table }) {
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
+  const removeTable = useSeatingStore((s) => s.removeTable);
 
   const assigned = table.seatedGuests || [];
 
@@ -138,26 +133,23 @@ export default function TableRenderer({ table }) {
   }, [assigned, guests]);
 
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
-  const hasSelectedGuestInThisTable = assigned.some(
-    (s) => String(s.guestId) === String(selectedGuestId)
-  );
-
   const isHighlighted =
-    highlightedTable === table.id || hasSelectedGuestInThisTable;
+    highlightedTable === table.id ||
+    assigned.some((s) => String(s.guestId) === String(selectedGuestId));
 
-  const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
-  const tableText = isHighlighted ? "#713f12" : "white";
+  const fill = isHighlighted ? "#fde047" : "#3b82f6";
+  const textColor = isHighlighted ? "#713f12" : "#fff";
 
-  const seatsCoords = getTightSeatCoordinates(table);
+  const seatsCoords = getSeatCoordinates(table);
 
-  /* SNAP & ROTATE */
+  /* DRAG / SNAP / ROTATE */
   const handleDragMove = (e) => {
     if (isRotating) return;
-    const pos = e.target.position();
-    e.target.position(snapPosition(pos));
+    const pos = snapPosition(e.target.position());
+    e.target.position(pos);
   };
 
-  const updatePositionInStore = () => {
+  const updateInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
     useSeatingStore.setState((state) => ({
@@ -177,23 +169,24 @@ export default function TableRenderer({ table }) {
   const handleMouseDown = (e) => {
     if (e.evt.shiftKey) setIsRotating(true);
   };
-  const handleMouseUp = () => {
-    if (isRotating) {
-      setIsRotating(false);
-      updatePositionInStore();
-    }
-  };
+
   const handleMouseMove = (e) => {
     if (!isRotating) return;
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
-    if (!pointer || !tableRef.current) return;
+    if (!pointer) return;
     const dx = pointer.x - table.x;
     const dy = pointer.y - table.y;
-    let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    angle = Math.round(angle / 15) * 15;
+    const angle = Math.round((Math.atan2(dy, dx) * 180) / Math.PI / 15) * 15;
     tableRef.current.rotation(angle);
     tableRef.current.getLayer().batchDraw();
+  };
+
+  const handleMouseUp = () => {
+    if (isRotating) {
+      setIsRotating(false);
+      updateInStore();
+    }
   };
 
   const handleDrop = (e) => {
@@ -208,10 +201,20 @@ export default function TableRenderer({ table }) {
       table.openAddGuestModal();
   };
 
-  const size = table._dynamicSize || 160;
-  const width = table._dynamicWidth || 240;
-  const height = table._dynamicHeight || 90;
+  const handleDelete = (e) => {
+    e.cancelBubble = true;
+    removeTable(table.id);
+  };
+
+  /* DYNAMIC SIZES */
+  const size = table._dynamicSize || 150;
+  const width = table._dynamicWidth || 220;
+  const height = table._dynamicHeight || 60;
   const radius = table._dynamicRadius || 60;
+
+  /* DELETE BUTTON POSITION */
+  const deleteButtonY =
+    table.type === "round" ? -radius - 25 : -height / 2 - 25;
 
   return (
     <Group
@@ -221,21 +224,21 @@ export default function TableRenderer({ table }) {
       rotation={table.rotation || 0}
       draggable
       onDragMove={handleDragMove}
-      onDragEnd={updatePositionInStore}
+      onDragEnd={updateInStore}
       onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
       onClick={handleClick}
       onMouseUpCapture={handleDrop}
     >
       {/* ROUND */}
       {table.type === "round" && (
         <>
-          <Circle radius={radius} fill={tableFill} shadowBlur={8} />
+          <Circle radius={radius} fill={fill} shadowBlur={8} />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={18}
-            fill={tableText}
+            fontSize={16}
+            fill={textColor}
             align="center"
             verticalAlign="middle"
             width={radius * 2}
@@ -254,14 +257,14 @@ export default function TableRenderer({ table }) {
             height={size}
             offsetX={size / 2}
             offsetY={size / 2}
-            fill={tableFill}
+            fill={fill}
             shadowBlur={8}
             cornerRadius={10}
           />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={18}
-            fill={tableText}
+            fontSize={16}
+            fill={textColor}
             align="center"
             verticalAlign="middle"
             width={size}
@@ -280,14 +283,14 @@ export default function TableRenderer({ table }) {
             height={height}
             offsetX={width / 2}
             offsetY={height / 2}
-            fill={tableFill}
+            fill={fill}
             shadowBlur={8}
             cornerRadius={12}
           />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
-            fontSize={18}
-            fill={tableText}
+            fontSize={16}
+            fill={textColor}
             align="center"
             verticalAlign="middle"
             width={width}
@@ -311,7 +314,7 @@ export default function TableRenderer({ table }) {
             {guest && (
               <Text
                 text={guest.name}
-                fontSize={11}
+                fontSize={10}
                 y={14}
                 width={90}
                 offsetX={45}
@@ -322,6 +325,28 @@ export default function TableRenderer({ table }) {
           </Group>
         );
       })}
+
+      {/* DELETE BUTTON (קרוב לשולחן) */}
+      <Group x={0} y={deleteButtonY} onClick={handleDelete}>
+        <Rect
+          width={22}
+          height={22}
+          offsetX={11}
+          offsetY={11}
+          fill="#ef4444"
+          cornerRadius={6}
+          shadowBlur={3}
+        />
+        <Text
+          text="🗑️"
+          fontSize={12}
+          align="center"
+          width={22}
+          height={22}
+          offsetX={11}
+          offsetY={9}
+        />
+      </Group>
     </Group>
   );
 }

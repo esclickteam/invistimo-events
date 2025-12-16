@@ -13,7 +13,6 @@ import ZoneRenderer from "@/app/components/zones/ZoneRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
 import AddTableDrawer from "./AddTableDrawer";
-import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import GridLayer, { snapPosition } from "@/app/components/seating/GridLayer";
 
@@ -25,7 +24,7 @@ type SeatedGuest = { guestId: string };
 type Table = { id: string; seatedGuests?: SeatedGuest[] };
 
 /* ============================================================
-   MAIN EDITOR
+   MAIN EDITOR COMPONENT
 ============================================================ */
 function SeatingEditorInner({ background }: { background: string | null }) {
   const [bgImage] = useImage(background || "", "anonymous");
@@ -33,7 +32,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
-  const draggedGuest = useSeatingStore((s) => s.draggedGuest);
+  const draggedGuest = useSeatingStore((s) => s.draggedGuest ?? s.draggingGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
@@ -43,8 +42,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
   /* ================= ZONES ================= */
   const zones = useZoneStore((s) => s.zones);
-  const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
-  const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
   /* ================= Highlight ================= */
@@ -76,7 +73,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   /* ================= Add Guest Modal ================= */
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
-  /* ================= Canvas ================= */
+  /* ================= Canvas Config ================= */
   const width = typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
   const height = typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
@@ -97,11 +94,23 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     e.target.position(snapped);
   };
 
+  /* ================= Guests without Seats ================= */
+  const unseatedGuests = useMemo(() => {
+    const seatedIds = new Set(
+      tables.flatMap((t) => t.seatedGuests?.map((s) => String(s.guestId)) || [])
+    );
+    return guests.filter((g) => !seatedIds.has(String(g.id ?? g._id)));
+  }, [tables, guests]);
+
+  /* ============================================================
+     RENDER
+  ============================================================ */
   return (
-    <div className="flex relative w-full h-full">
+    <div className="flex relative w-full h-full overflow-hidden">
+      {/* === Sidebar (לא נוגעים) === */}
       <GuestSidebar onDragStart={startDragGuest} />
 
-      {/* ✅ Zoom */}
+      {/* === Zoom Controls === */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
         className="absolute top-20 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
@@ -115,6 +124,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         −
       </button>
 
+      {/* === Stage Canvas === */}
       <Stage
         width={width}
         height={height}
@@ -132,28 +142,33 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           }
         }}
         onMouseUp={() => setIsPanning(false)}
-        className="flex-1"
+        className="flex-1 cursor-default bg-[#f8f8f8]"
       >
-        {/* GRID */}
+        {/* === Grid === */}
         <Layer listening={false}>
           <GridLayer width={width} height={height} />
         </Layer>
 
-        {/* BACKGROUND */}
+        {/* === Background === */}
         <Layer listening={false}>
           {bgImage && (
-            <KonvaImage image={bgImage} width={width} height={height} opacity={0.25} />
+            <KonvaImage
+              image={bgImage}
+              width={width}
+              height={height}
+              opacity={0.25}
+            />
           )}
         </Layer>
 
-        {/* ZONES */}
+        {/* === Zones === */}
         <Layer>
           {zones.map((zone) => (
             <ZoneRenderer key={zone.id} zone={zone} />
           ))}
         </Layer>
 
-        {/* TABLES */}
+        {/* === Tables === */}
         <Layer>
           {tables.map((t) => (
             <TableRenderer
@@ -167,28 +182,21 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           ))}
         </Layer>
 
-        {/* GHOST */}
+        {/* === Ghost (Dragged Guest) === */}
         <Layer listening={false}>
           <GhostPreview />
         </Layer>
-
-        {/* DELETE BUTTONS */}
-        <Layer>
-          {tables.map((t) => (
-            <DeleteTableButton key={t.id} table={t} />
-          ))}
-        </Layer>
       </Stage>
 
-      {/* ➕ כפתור הוספת שולחן */}
+      {/* === Add Table Button === */}
       <button
         onClick={() => setShowAddModal(true)}
-        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
+        className="absolute top-4 left-4 bg-green-600 hover:bg-green-700 transition text-white px-4 py-2 rounded-lg shadow z-50"
       >
         ➕ הוסף שולחן
       </button>
 
-      {/* ✅ Drawer חדש */}
+      {/* === Drawer: Add Table === */}
       <AddTableDrawer
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -198,17 +206,11 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         }}
       />
 
+      {/* === Modal: Assign Guest to Table === */}
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
-          guests={guests.filter(
-            (g) =>
-              !tables.some((t) =>
-                t.seatedGuests?.some(
-                  (s) => String(s.guestId) === String(g.id ?? g._id)
-                )
-              )
-          )}
+          guests={unseatedGuests}
           onClose={() => setAddGuestTable(null)}
         />
       )}
@@ -216,6 +218,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   );
 }
 
+/* ============================================================
+   WRAPPER
+============================================================ */
 export default function SeatingEditor({ background }: { background: string | null }) {
   return (
     <Suspense fallback={null}>
