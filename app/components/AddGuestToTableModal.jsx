@@ -1,17 +1,24 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
 
+/**
+ * AddGuestToTableModal
+ * - כל כיסא = כרטיסיה אינטראקטיבית
+ * - בחירה מתוך אורחים שטרם הושבו
+ * - הושבה לפי מספר המקומות של האורח
+ * - שם האורח מופיע על כל הכיסאות שתפס
+ * - אפשרות הסרה בלחיצה
+ */
 export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
-
   const tableState = useSeatingStore(
     (s) => s.tables.find((t) => t.id === table.id)
   );
+
   const tableData = tableState || table;
   const seated = tableData.seatedGuests || [];
 
@@ -25,19 +32,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
   };
 
-  // סופרים כמה מקומות תפוסים
-  const occupied = useMemo(() => {
-    return seated.reduce((sum, s) => {
-      const g = guests.find(
-        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
-      );
-      return sum + (g ? getPartySize(g) : 1);
-    }, 0);
-  }, [seated, guests]);
-
-  const freeSeats = Math.max(0, tableData.seats - occupied);
-
-  // נבנה מערך מושבים אמיתי כולל סימון תפוסים
+  // בניית מצב הכיסאות
   const seatsArray = useMemo(() => {
     const arr = Array.from({ length: tableData.seats }, (_, i) => ({
       index: i,
@@ -55,27 +50,25 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         if (idx < arr.length) arr[idx].guest = g;
       }
     });
+
     return arr;
   }, [tableData.seats, seated, guests]);
 
+  const occupied = seatsArray.filter((s) => s.guest).length;
+
   const availableGuests = guests.filter(
-    (g) =>
-      !seated.find(
-        (s) => String(s.guestId) === String(g.id ?? g._id)
-      )
+    (g) => !seated.find((s) => String(s.guestId) === String(g.id ?? g._id))
   );
 
   const handleSeatGuest = (seatIndex, guest) => {
     const count = getPartySize(guest);
     if (seatIndex + count > tableData.seats) {
-      setError("אין מספיק מקומות רצופים מהכיסא הזה.");
+      setError("אין מספיק מקומות פנויים ברצף מהכיסא הזה");
       return;
     }
-
-    // בדיקה שאין כיסאות תפוסים בטווח
     for (let i = seatIndex; i < seatIndex + count; i++) {
       if (seatsArray[i]?.guest) {
-        setError("יש כיסא תפוס בטווח המבוקש.");
+        setError("יש כיסא תפוס בטווח הזה");
         return;
       }
     }
@@ -91,13 +84,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.25 }}
-        className="relative bg-white rounded-2xl shadow-2xl w-[640px] p-7 max-h-[90vh] overflow-y-auto border border-gray-100"
-      >
+      <div className="relative bg-white rounded-2xl shadow-2xl w-[650px] p-7 max-h-[90vh] overflow-y-auto border border-gray-100">
         <button
           onClick={onClose}
           className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
@@ -118,72 +105,64 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           </div>
         )}
 
-        <div className="rounded-2xl bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200 shadow-inner">
+        <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 border border-gray-200 shadow-inner">
           <div className="grid grid-cols-6 gap-3 justify-items-center">
             {seatsArray.map((seat, i) => {
               const g = seat.guest;
               const isOpen = openSeat === i;
 
               return (
-                <motion.div
-                  key={i}
-                  whileHover={{ scale: 1.05 }}
-                  className={`relative w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm transition-all duration-200 cursor-pointer ${
-                    g
-                      ? "bg-blue-100 border-blue-400 shadow-sm hover:shadow-md"
-                      : "bg-white border-gray-200 hover:bg-blue-50"
-                  }`}
-                  onClick={() => {
-                    if (g) handleRemoveGuest(g.id);
-                    else setOpenSeat(isOpen ? null : i);
-                  }}
-                >
-                  {g ? (
-                    <>
-                      <span className="font-semibold text-gray-700 truncate w-[90%]">
-                        {g.name}
+                <div key={i} className="relative">
+                  <div
+                    className={`w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition-all duration-200 ${
+                      g
+                        ? "bg-blue-100 border-blue-400 shadow-sm hover:shadow-md"
+                        : "bg-white border-gray-200 hover:bg-blue-50"
+                    }`}
+                    onClick={() => {
+                      if (g) handleRemoveGuest(g.id);
+                      else setOpenSeat(isOpen ? null : i);
+                    }}
+                  >
+                    {g ? (
+                      <>
+                        <span className="font-semibold text-gray-700 truncate w-[90%]">
+                          {g.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          ({getPartySize(g)} מושבים)
+                        </span>
+                        <span className="text-[10px] text-red-600 mt-1">
+                          לחצי להסרה
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-500 font-medium">
+                        הושב<br />אורח
                       </span>
-                      <span className="text-xs text-gray-500">
-                        ({getPartySize(g)} מושבים)
-                      </span>
-                      <span className="text-[10px] text-red-600 mt-1">
-                        לחצי להסרה
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-xs text-gray-500 font-medium">
-                      הושב<br />אורח
-                    </span>
-                  )}
-
-                  <AnimatePresence>
-                    {isOpen && !g && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute top-[95%] mt-2 bg-white border shadow-lg rounded-lg w-44 z-50 max-h-56 overflow-y-auto text-right"
-                      >
-                        {availableGuests.length === 0 ? (
-                          <div className="p-2 text-xs text-gray-400 text-center">
-                            אין אורחים זמינים
-                          </div>
-                        ) : (
-                          availableGuests.map((g2) => (
-                            <div
-                              key={g2.id}
-                              onClick={() => handleSeatGuest(i, g2)}
-                              className="p-2 hover:bg-blue-50 cursor-pointer text-xs text-gray-700"
-                            >
-                              {g2.name} — {getPartySize(g2)} מושבים
-                            </div>
-                          ))
-                        )}
-                      </motion.div>
                     )}
-                  </AnimatePresence>
-                </motion.div>
+                  </div>
+
+                  {isOpen && !g && (
+                    <div className="absolute top-[95%] mt-2 bg-white border shadow-lg rounded-lg w-44 z-50 max-h-56 overflow-y-auto text-right">
+                      {availableGuests.length === 0 ? (
+                        <div className="p-2 text-xs text-gray-400 text-center">
+                          אין אורחים זמינים
+                        </div>
+                      ) : (
+                        availableGuests.map((g2) => (
+                          <div
+                            key={g2.id}
+                            onClick={() => handleSeatGuest(i, g2)}
+                            className="p-2 hover:bg-blue-50 cursor-pointer text-xs text-gray-700"
+                          >
+                            {g2.name} — {getPartySize(g2)} מושבים
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -197,7 +176,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
             סגור
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
