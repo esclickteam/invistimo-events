@@ -119,9 +119,14 @@ function getTableLayout(rawTable) {
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
+
+  // ✅ רק זה נשאר state כדי לנעול drag בזמן סיבוב
   const [rotating, setRotating] = useState(false);
-  const [startAngle, setStartAngle] = useState(0);
-  const [startRotation, setStartRotation] = useState(0);
+
+  // ✅ refs כדי שלא יהיה סטאטר/תקיעות (לא מרנדר כל פיקסל)
+  const rotateActiveRef = useRef(false);
+  const startAngleRef = useRef(0);
+  const startRotationRadRef = useRef(0);
 
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
@@ -136,11 +141,13 @@ export default function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
+  // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
     const indices = new Set(assigned.map((s) => s.seatIndex));
     return indices.size;
   }, [assigned]);
 
+  // guest info per seat
   const seatInfoMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -191,36 +198,69 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  /* 🌀 סיבוב חלק כמו בקאנבה */
+  /* 🌀 סיבוב חלק כמו בקאנבה (לא עושה setState תוך כדי תנועה) */
   const startRotate = (e) => {
     e.cancelBubble = true;
+    if (!tableRef.current) return;
+
     const stage = e.target.getStage();
+    if (!stage) return;
+
     const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
     const center = tableRef.current.getAbsolutePosition();
     const dx = pointer.x - center.x;
     const dy = pointer.y - center.y;
-    setStartAngle(Math.atan2(dy, dx));
-    setStartRotation((table.rotation || 0) * (Math.PI / 180));
+
+    startAngleRef.current = Math.atan2(dy, dx);
+    startRotationRadRef.current = (tableRef.current.rotation() * Math.PI) / 180;
+
+    rotateActiveRef.current = true;
     setRotating(true);
-  };
 
-  const moveRotate = (e) => {
-    if (!rotating) return;
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    const center = tableRef.current.getAbsolutePosition();
-    const dx = pointer.x - center.x;
-    const dy = pointer.y - center.y;
-    const angle = Math.atan2(dy, dx);
-    const newRotation = ((angle - startAngle + startRotation) * 180) / Math.PI;
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === table.id ? { ...t, rotation: newRotation } : t
-      ),
-    }));
-  };
+    const move = () => {
+      if (!rotateActiveRef.current || !tableRef.current) return;
+      const p = stage.getPointerPosition();
+      if (!p) return;
 
-  const endRotate = () => setRotating(false);
+      const c = tableRef.current.getAbsolutePosition();
+      const ddx = p.x - c.x;
+      const ddy = p.y - c.y;
+
+      const ang = Math.atan2(ddy, ddx);
+      const newRotRad = ang - startAngleRef.current + startRotationRadRef.current;
+      const newRotDeg = (newRotRad * 180) / Math.PI;
+
+      // ✅ סיבוב ישיר של Konva (סופר חלק)
+      tableRef.current.rotation(newRotDeg);
+      tableRef.current.getLayer()?.batchDraw();
+    };
+
+    const end = () => {
+      if (!rotateActiveRef.current) return;
+      rotateActiveRef.current = false;
+      setRotating(false);
+
+      // ✅ שמירה פעם אחת בסוף (לא נתקע + כן נשמר)
+      updatePositionInStore();
+
+      stage.off("mousemove.tableRotate", move);
+      stage.off("mouseup.tableRotate", end);
+      stage.off("mouseleave.tableRotate", end);
+      stage.off("touchmove.tableRotate", move);
+      stage.off("touchend.tableRotate", end);
+      stage.off("touchcancel.tableRotate", end);
+    };
+
+    // ✅ מאזינים לסטייג' כדי שלא "יתנתק" אם יצאת מהכפתור בזמן גרירה
+    stage.on("mousemove.tableRotate", move);
+    stage.on("mouseup.tableRotate", end);
+    stage.on("mouseleave.tableRotate", end);
+    stage.on("touchmove.tableRotate", move);
+    stage.on("touchend.tableRotate", end);
+    stage.on("touchcancel.tableRotate", end);
+  };
 
   const { size, width, height, radius } = layout;
   const rotationHandleY =
@@ -250,8 +290,6 @@ export default function TableRenderer({ table }) {
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
-      onMouseMove={moveRotate}
-      onMouseUpCapture={endRotate}
     >
       {/* שולחנות */}
       {layout.type === "round" && (
@@ -319,15 +357,8 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* 🔄 כפתור סיבוב קבוע */}
-      <Group
-        x={0}
-        y={rotationHandleY}
-        onMouseDown={startRotate}
-        onMouseMove={moveRotate}
-        onMouseUp={endRotate}
-        listening={true}
-      >
+      {/* 🔄 כפתור סיבוב קבוע (חלק + נשמר תמיד בשחרור) */}
+      <Group x={0} y={rotationHandleY} onMouseDown={startRotate} listening={true}>
         <Circle radius={12} fill="#64748b" shadowBlur={4} />
         <Text
           text="↻"
