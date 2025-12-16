@@ -8,79 +8,121 @@ import { useSeatingStore } from "@/store/seatingStore";
    חישוב כיסאות סימטרי ודינמי לכל סוג שולחן
 ============================================================ */
 function getDynamicSeatCoordinates(table) {
-  const seats = table.seats || 0;
+  const seats = Math.max(0, Number(table.seats || 0));
   const result = [];
+  if (!seats) {
+    // ערכי ברירת מחדל כדי לא לשבור גדלים
+    if (table.type === "round") table._radius = table._radius || 60;
+    if (table.type === "square") table._size = table._size || 160;
+    if (table.type === "banquet") {
+      table._width = table._width || 240;
+      table._height = table._height || 80;
+    }
+    return result;
+  }
 
-  // ⭕ ROUND
+  const SEAT_R = 9;
+  const SEAT_GAP = 16; // מרחק "נעים" בין מרכזי כיסאות
+  const SEAT_OFFSET = 14; // כמה הכיסא בחוץ מהשולחן
+
+  // חלוקה מאוזנת של כיסאות לכל צד (למרובע)
+  const splitToSides = (n) => {
+    const base = Math.floor(n / 4);
+    let rem = n % 4;
+    const sides = [base, base, base, base]; // top,right,bottom,left
+    for (let i = 0; i < 4 && rem > 0; i++, rem--) sides[i] += 1;
+    return sides;
+  };
+
+  // ⭕ ROUND — כיסאות במעגל סימטרי + רדיוס שולחן לפי היקף דרוש
   if (table.type === "round") {
-    // רדיוס משתנה לפי מספר האורחים
-    const tableRadius = Math.max(40, 35 + seats * 2.2);
-    const seatRadius = 10;
-    const radius = tableRadius + seatRadius + 10;
+    // היקף דרוש כדי שהכיסאות לא ידחסו
+    const requiredCirc = seats * (SEAT_R * 2 + SEAT_GAP);
+    const ringRadius = Math.max(46, requiredCirc / (2 * Math.PI)); // רדיוס למרכזי הכיסאות
+    const tableRadius = Math.max(40, ringRadius - (SEAT_R + SEAT_OFFSET));
+
+    const finalRing = tableRadius + SEAT_R + SEAT_OFFSET;
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
       result.push({
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
+        x: Math.cos(angle) * finalRing,
+        y: Math.sin(angle) * finalRing,
       });
     }
 
     table._radius = tableRadius;
   }
 
-  // ⬜ SQUARE
+  // ⬜ SQUARE — כיסאות סביב 4 צדדים, כל צד ממורכז, גודל שולחן לפי הצד הארוך
   if (table.type === "square") {
-    // הגודל משתנה לפי כמות האורחים
-    const perSide = Math.max(1, Math.ceil(seats / 4));
-    const seatGap = 26;
-    const size = Math.max(80, perSide * seatGap + 60);
-    const half = size / 2 + 16;
-    let i = 0;
+    const [topC, rightC, bottomC, leftC] = splitToSides(seats);
+    const maxSide = Math.max(topC, rightC, bottomC, leftC);
 
-    // למעלה
-    for (; i < perSide && i < seats; i++)
-      result.push({ x: -half + i * seatGap, y: -half });
+    // אורך צד לפי כמות מקסימלית על צד (כדי שזה באמת יגדל)
+    const minSize = 120;
+    const innerPadding = 40; // שטח "נשימה" לשם/טקסט
+    const size = Math.max(minSize, innerPadding + (maxSide - 1) * (SEAT_R * 2 + SEAT_GAP) + 40);
+    const half = size / 2;
 
-    // ימין
-    for (; i < perSide * 2 && i < seats; i++)
-      result.push({ x: half, y: -half + (i - perSide) * seatGap });
+    const placeLine = (count, fixed, axis) => {
+      if (count <= 0) return;
+      if (count === 1) {
+        result.push(axis === "x" ? { x: 0, y: fixed } : { x: fixed, y: 0 });
+        return;
+      }
+      const step = (SEAT_R * 2 + SEAT_GAP);
+      const span = (count - 1) * step;
+      const start = -span / 2;
 
-    // למטה
-    for (; i < perSide * 3 && i < seats; i++)
-      result.push({
-        x: half - (i - perSide * 2) * seatGap,
-        y: half,
-      });
+      for (let i = 0; i < count; i++) {
+        const v = start + i * step;
+        result.push(axis === "x" ? { x: v, y: fixed } : { x: fixed, y: v });
+      }
+    };
 
-    // שמאל
-    for (; i < seats; i++)
-      result.push({
-        x: -half,
-        y: half - (i - perSide * 3) * seatGap,
-      });
+    // למעלה/למטה: x משתנה, y קבוע
+    placeLine(topC, -(half + SEAT_OFFSET), "x");
+    placeLine(bottomC, +(half + SEAT_OFFSET), "x");
+
+    // ימין/שמאל: y משתנה, x קבוע
+    placeLine(rightC, +(half + SEAT_OFFSET), "y");
+    placeLine(leftC, -(half + SEAT_OFFSET), "y");
 
     table._size = size;
   }
 
-  // 🍽️ BANQUET (אבירים)
+  // 🍽️ BANQUET (אבירים) — כיסאות רק בשני צדדים (עליון/תחתון), סימטריים וממורכזים
   if (table.type === "banquet") {
-    const perSide = Math.ceil(seats / 2);
-    const seatGap = 26;
-    const width = Math.max(140, perSide * seatGap + 80);
-    const height = 70;
-    const offsetX = -width / 2 + seatGap / 2;
-    const sideY = height / 2 + 16;
+    const topCount = Math.ceil(seats / 2);
+    const bottomCount = seats - topCount;
+    const maxRow = Math.max(topCount, bottomCount);
 
-    // עליון
-    for (let i = 0; i < perSide; i++) {
-      result.push({ x: offsetX + i * seatGap, y: -sideY });
-    }
+    const minW = 180;
+    const step = (SEAT_R * 2 + SEAT_GAP);
+    const width = Math.max(minW, 80 + (maxRow - 1) * step + 60);
 
-    // תחתון
-    for (let i = 0; i < seats - perSide; i++) {
-      result.push({ x: offsetX + i * seatGap, y: sideY });
-    }
+    // גובה יכול לגדול טיפה לפי כמות (אסתטי), אבל נשאר יציב
+    const height = Math.max(70, 60 + Math.min(60, seats * 1.2));
+    const halfW = width / 2;
+    const halfH = height / 2;
+
+    const placeRow = (count, yFixed) => {
+      if (count <= 0) return;
+      if (count === 1) {
+        result.push({ x: 0, y: yFixed });
+        return;
+      }
+      const span = (count - 1) * step;
+      const start = -span / 2;
+      for (let i = 0; i < count; i++) {
+        result.push({ x: start + i * step, y: yFixed });
+      }
+    };
+
+    // יושבים מעל ומתחת לשולחן (כמו אבירים)
+    placeRow(topCount, -(halfH + SEAT_OFFSET));
+    placeRow(bottomCount, +(halfH + SEAT_OFFSET));
 
     table._width = width;
     table._height = height;
@@ -107,8 +149,7 @@ export default function TableRenderer({ table }) {
     const map = new Map();
     assigned.forEach((s) => {
       const g = guests.find(
-        (guest) =>
-          String(guest.id ?? guest._id) === String(s.guestId)
+        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
       );
       if (g) map.set(s.seatIndex, g);
     });
@@ -125,6 +166,7 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getDynamicSeatCoordinates(table);
 
+  /* עדכון מיקום */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -153,9 +195,9 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  // גדלים דינמיים לפי סוג שולחן
-  const size = table._size || 140;
-  const width = table._width || 200;
+  /* גדלים דינמיים */
+  const size = table._size || 160;
+  const width = table._width || 240;
   const height = table._height || 80;
   const radius = table._radius || 60;
 
