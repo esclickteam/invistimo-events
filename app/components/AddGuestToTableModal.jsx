@@ -59,9 +59,16 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   // ✅ פופאפ: רק אורחים שלא הושבו לשום שולחן (זה מה שביקשת)
   const availableGuests = useMemo(() => {
+    const seatedIds = new Set(
+      (useSeatingStore.getState().tables || []).flatMap((t) =>
+        (t.seatedGuests || []).map((sg) => String(sg.guestId ?? sg._id ?? sg.id))
+      )
+    );
+
     return (tableGuests || []).filter((g) => {
+      const id = getGuestId(g);
       const hasTable = Boolean(g?.tableId);
-      return !hasTable;
+      return !hasTable && !seatedIds.has(id);
     });
   }, [tableGuests]);
 
