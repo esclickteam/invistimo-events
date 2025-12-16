@@ -6,7 +6,6 @@ import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
    חישוב דינמי: מידות שולחן + מיקומי כיסאות (פרופורציונלי וסימטרי)
-   (לא נוגע בגדלים כאן — נשאר בדיוק כמו שנתת)
 ============================================================ */
 function getTableLayout(rawTable) {
   const seats = Math.max(0, Number(rawTable.seats || 0));
@@ -20,7 +19,6 @@ function getTableLayout(rawTable) {
   const SEAT_GAP = 8;
   const OUTSIDE = 10;
   const STEP = SEAT_R * 2 + SEAT_GAP;
-
   const PAD = SEAT_R + OUTSIDE + 10;
 
   const coords = [];
@@ -36,17 +34,14 @@ function getTableLayout(rawTable) {
   const splitSquareOpposite = (n) => {
     const hasExtra = n % 2 === 1;
     const even = hasExtra ? n - 1 : n;
-
     const pairs = even / 2;
     const horizontalPairs = Math.ceil(pairs / 2);
     const verticalPairs = Math.floor(pairs / 2);
-
     const top = horizontalPairs + (hasExtra ? 1 : 0);
     const bottom = horizontalPairs;
     const left = verticalPairs;
     const right = verticalPairs;
-
-    return { top, right, bottom, left, hasExtra };
+    return { top, right, bottom, left };
   };
 
   const placeLineCentered = (count, fixed, axis) => {
@@ -68,12 +63,10 @@ function getTableLayout(rawTable) {
     const seatRing = Math.max(42, requiredCirc / (2 * Math.PI));
     const tableRadius = Math.max(38, seatRing - (SEAT_R + OUTSIDE));
     const ring = tableRadius + SEAT_R + OUTSIDE;
-
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
       coords.push({ x: Math.cos(angle) * ring, y: Math.sin(angle) * ring });
     }
-
     dims.radius = tableRadius;
     return { coords, ...dims, type };
   }
@@ -81,17 +74,14 @@ function getTableLayout(rawTable) {
   if (type === "square") {
     const { top, right, bottom, left } = splitSquareOpposite(seats);
     const maxSide = Math.max(top, right, bottom, left);
-
     const span = maxSide <= 1 ? 0 : (maxSide - 1) * STEP;
     const minSize = 120;
     const size = Math.max(minSize, span + PAD * 2);
-
     const half = size / 2;
     const fixed = half + SEAT_R + OUTSIDE;
 
     placeLineCentered(top, -fixed, "x");
     placeLineCentered(bottom, +fixed, "x");
-
     placeLineCentered(right, +fixed, "y");
     placeLineCentered(left, -fixed, "y");
 
@@ -103,13 +93,10 @@ function getTableLayout(rawTable) {
     const topCount = Math.ceil(seats / 2);
     const bottomCount = seats - topCount;
     const maxRow = Math.max(topCount, bottomCount);
-
     const span = maxRow <= 1 ? 0 : (maxRow - 1) * STEP;
-
     const minW = 200;
     const width = Math.max(minW, span + PAD * 2);
     const height = 70;
-
     const yFixed = height / 2 + SEAT_R + OUTSIDE;
 
     const placeRow = (count, y) => {
@@ -137,20 +124,18 @@ function getTableLayout(rawTable) {
 }
 
 /* ============================================================
-   helpers: כמה "מקומות" אורח תופס
+   פונקציה שמחזירה כמה מקומות אורח תופס לפי אישורי ההגעה
 ============================================================ */
 function getPartySize(guest, assignedItem) {
   const raw =
-    assignedItem?.spots ??
-    assignedItem?.places ??
+    assignedItem?.confirmedGuestsCount ??
     assignedItem?.guestsCount ??
     assignedItem?.count ??
-    assignedItem?.people ??
-    guest?.spots ??
-    guest?.places ??
+    assignedItem?.spots ??
+    guest?.confirmedGuestsCount ??
     guest?.guestsCount ??
     guest?.count ??
-    guest?.people ??
+    guest?.spots ??
     1;
 
   const n = Number(raw);
@@ -162,60 +147,41 @@ function getPartySize(guest, assignedItem) {
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
-
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
-
-  // ✅ UI קטן: איזה שולחן "נבחר" כדי להציג עליו כפתור מחיקה
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
-
-  // ✅ מחיקה מהסטור (תומך בשמות נפוצים)
   const deleteTable =
     useSeatingStore((s) => s.deleteTable) ||
     useSeatingStore((s) => s.removeTable) ||
-    useSeatingStore((s) => s.deleteTableById) ||
     (() => {});
 
   const assigned = table.seatedGuests || [];
 
-  // Map של seatIndex -> { guest, partySize }
+  // כל כיסא תפוס נספר לפי מספר אישורי הגעה בפועל
+  const occupiedSeatsCount = useMemo(() => {
+    return assigned.reduce((sum, s) => {
+      const g = guests.find(
+        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
+      );
+      if (!g) return sum;
+      const n = getPartySize(g, s);
+      return sum + n;
+    }, 0);
+  }, [assigned, guests]);
+
   const seatInfoMap = useMemo(() => {
     const map = new Map();
-
     assigned.forEach((s) => {
       const g = guests.find(
         (guest) => String(guest.id ?? guest._id) === String(s.guestId)
       );
-      if (!g) return;
-
-      const idx = Number(s.seatIndex);
-      const partySize = getPartySize(g, s);
-
-      map.set(idx, { guest: g, partySize });
+      if (g) map.set(s.seatIndex, { guest: g });
     });
-
     return map;
   }, [assigned, guests]);
-
-  // ✅ ספירה נכונה: כמה מקומות תפוסים בפועל (לפי partySize)
-  const occupiedSeatsCount = useMemo(() => {
-    const seen = new Set();
-    let sum = 0;
-
-    assigned.forEach((s) => {
-      const idx = Number(s.seatIndex);
-      if (seen.has(idx)) return;
-      seen.add(idx);
-
-      const info = seatInfoMap.get(idx);
-      sum += info?.partySize ?? 1;
-    });
-
-    return sum;
-  }, [assigned, seatInfoMap]);
 
   const isHighlighted =
     highlightedTable === table.id ||
@@ -227,7 +193,6 @@ export default function TableRenderer({ table }) {
   const layout = useMemo(() => getTableLayout(table), [table.type, table.seats]);
   const seatsCoords = layout.coords;
 
-  /* עדכון מיקום */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -249,13 +214,9 @@ export default function TableRenderer({ table }) {
       });
   };
 
-  // ✅ לחיצה: ממשיך כמו עכשיו (פותח הושבה),
-  // ובנוסף "מסמן" את השולחן כדי להציג כפתור מחיקה.
   const handleClick = (e) => {
     e.cancelBubble = true;
-
     useSeatingStore.setState({ selectedTableId: table.id });
-
     if (!draggingGuest && typeof table.openAddGuestModal === "function") {
       table.openAddGuestModal();
     }
@@ -265,14 +226,12 @@ export default function TableRenderer({ table }) {
   const width = layout.width;
   const height = layout.height;
   const radius = layout.radius;
-
-  // מיקום כפתור מחיקה (פינה עליונה-ימנית יחסית לשולחן)
-  const deleteBtnPos = (() => {
-    if (layout.type === "round") return { x: radius - 12, y: -radius - 12 };
-    if (layout.type === "square") return { x: size / 2 - 12, y: -size / 2 - 12 };
-    return { x: width / 2 - 12, y: -height / 2 - 12 };
-  })();
-
+  const deleteBtnPos =
+    layout.type === "round"
+      ? { x: radius - 12, y: -radius - 12 }
+      : layout.type === "square"
+      ? { x: size / 2 - 12, y: -size / 2 - 12 }
+      : { x: width / 2 - 12, y: -height / 2 - 12 };
   const showDeleteButton = selectedTableId === table.id;
 
   return (
@@ -287,7 +246,7 @@ export default function TableRenderer({ table }) {
       onMouseUp={handleDrop}
       onClick={handleClick}
     >
-      {/* שולחן עגול */}
+      {/* שולחנות */}
       {layout.type === "round" && (
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
@@ -304,8 +263,6 @@ export default function TableRenderer({ table }) {
           />
         </>
       )}
-
-      {/* שולחן מרובע */}
       {layout.type === "square" && (
         <>
           <Rect
@@ -314,8 +271,8 @@ export default function TableRenderer({ table }) {
             offsetX={size / 2}
             offsetY={size / 2}
             fill={tableFill}
-            shadowBlur={8}
             cornerRadius={10}
+            shadowBlur={8}
           />
           <Text
             text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
@@ -330,8 +287,6 @@ export default function TableRenderer({ table }) {
           />
         </>
       )}
-
-      {/* שולחן אבירים */}
       {layout.type === "banquet" && (
         <>
           <Rect
@@ -340,8 +295,8 @@ export default function TableRenderer({ table }) {
             offsetX={width / 2}
             offsetY={height / 2}
             fill={tableFill}
-            shadowBlur={8}
             cornerRadius={12}
+            shadowBlur={8}
           />
           <Text
             text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
@@ -357,7 +312,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ✅ כפתור מחיקה שמופיע אחרי שלוחצים על השולחן */}
+      {/* כפתור מחיקה */}
       {showDeleteButton && !draggingGuest && (
         <Group
           x={deleteBtnPos.x}
@@ -385,10 +340,7 @@ export default function TableRenderer({ table }) {
 
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
-        const info = seatInfoMap.get(i);
-        const guest = info?.guest;
-        const partySize = info?.partySize ?? 1;
-
+        const guest = seatInfoMap.get(i)?.guest;
         return (
           <Group key={i} x={c.x} y={c.y}>
             <Circle
@@ -398,11 +350,11 @@ export default function TableRenderer({ table }) {
             />
             {guest && (
               <Text
-                text={partySize > 1 ? `${guest.name} (${partySize})` : guest.name}
+                text={guest.name}
                 fontSize={10}
                 y={14}
-                width={110}
-                offsetX={55}
+                width={90}
+                offsetX={45}
                 align="center"
                 fill="#111827"
               />
