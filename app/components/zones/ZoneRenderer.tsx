@@ -38,17 +38,30 @@ export default function ZoneRenderer({ zone }: Props) {
           setSelectedZone(zone.id);
         }}
         onDragStart={(e) => {
+          // ❗ מונע מה־Stage להיגרר
           e.cancelBubble = true;
         }}
         onDragMove={(e) => {
+          // ❗ מונע bubbling גם בזמן גרירה
           e.cancelBubble = true;
         }}
         onDragEnd={(e) => {
           e.cancelBubble = true;
 
+          const node = e.target;
+          const stage = node.getStage();
+          if (!stage) return;
+
+          const scale = stage.scaleX(); // זהה ל־scaleY
+          const stagePos = stage.position();
+
+          // ✅ נרמול לקואורדינטות עולם (כמו שולחנות)
+          const realX = (node.x() - stagePos.x) / scale;
+          const realY = (node.y() - stagePos.y) / scale;
+
           updateZone(zone.id, {
-            x: e.target.x(),
-            y: e.target.y(),
+            x: realX,
+            y: realY,
           });
         }}
       >
@@ -69,23 +82,14 @@ export default function ZoneRenderer({ zone }: Props) {
             const scaleX = node.scaleX();
             const scaleY = node.scaleY();
 
-            const nextWidth = Math.max(80, node.width() * scaleX);
-            const nextHeight = Math.max(60, node.height() * scaleY);
-
-            const nextX = node.x();
-            const nextY = node.y();
-            const nextRotation = node.rotation();
-
-            // 🔑 חובה – לנקות scale
+            // 🔒 מחזירים סקייל ל־1 (כמו Konva best practice)
             node.scaleX(1);
             node.scaleY(1);
 
             updateZone(zone.id, {
-              x: nextX,
-              y: nextY,
-              width: nextWidth,
-              height: nextHeight,
-              rotation: nextRotation,
+              width: Math.max(80, node.width() * scaleX),
+              height: Math.max(60, node.height() * scaleY),
+              rotation: node.rotation(),
             });
           }}
         />
