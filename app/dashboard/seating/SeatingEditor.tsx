@@ -10,7 +10,7 @@ import { useZoneStore } from "@/store/zoneStore";
 
 import TableRenderer from "@/app/components/seating/TableRenderer";
 import ZoneRenderer from "@/app/components/zones/ZoneRenderer";
-import GhostGuest from "@/app/components/GhostGuest";
+import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
 import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
@@ -46,11 +46,10 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
 
-  const draggedGuest = useSeatingStore((s) => s.draggingGuest);
+  const draggedGuest = useSeatingStore((s) => s.draggedGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
-  const setStageTransform = useSeatingStore((s) => s.setStageTransform);
 
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
@@ -113,17 +112,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
 
-  /* ⭐ קריטי – סנכרון Stage → Store (ל-Ghost) */
-  useEffect(() => {
-    setStageTransform(scale, stagePos);
-  }, [scale, stagePos, setStageTransform]);
-
   /* ================= Mouse Move ================= */
   const handleMouseMove = (e: any) => {
-    const stage = e.target.getStage();
-    if (!stage) return;
-
-    const pos = stage.getPointerPosition();
+    const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
 
     updateGhost(pos);
@@ -239,7 +230,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
         {/* 🔥 GHOST – תמיד מעל הכל */}
         <Layer listening={false}>
-          <GhostGuest />
+          <GhostPreview />
         </Layer>
 
         {/* DELETE TABLE */}
