@@ -24,7 +24,7 @@ type SeatedGuest = { guestId: string };
 type Table = { id: string; seatedGuests?: SeatedGuest[] };
 
 /* ============================================================
-   MAIN EDITOR COMPONENT
+   MAIN EDITOR
 ============================================================ */
 function SeatingEditorInner({ background }: { background: string | null }) {
   const [bgImage] = useImage(background || "", "anonymous");
@@ -73,7 +73,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   /* ================= Add Guest Modal ================= */
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
-  /* ================= Canvas Config ================= */
+  /* ================= CANVAS CONFIG ================= */
   const width = typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
   const height = typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
@@ -94,7 +94,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     e.target.position(snapped);
   };
 
-  /* ================= Guests without Seats ================= */
+  /* ================= Unseated Guests ================= */
   const unseatedGuests = useMemo(() => {
     const seatedIds = new Set(
       tables.flatMap((t) => t.seatedGuests?.map((s) => String(s.guestId)) || [])
@@ -106,7 +106,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
      RENDER
   ============================================================ */
   return (
-    <div className="flex relative w-full h-full overflow-hidden">
+    <div className="flex relative w-full h-full overflow-hidden bg-[#f8f8f8]">
       {/* === Sidebar (לא נוגעים) === */}
       <GuestSidebar onDragStart={startDragGuest} />
 
@@ -124,7 +124,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         −
       </button>
 
-      {/* === Stage Canvas === */}
+      {/* === Stage === */}
       <Stage
         width={width}
         height={height}
@@ -142,7 +142,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           }
         }}
         onMouseUp={() => setIsPanning(false)}
-        className="flex-1 cursor-default bg-[#f8f8f8]"
+        className="flex-1 cursor-default"
       >
         {/* === Grid === */}
         <Layer listening={false}>
@@ -206,7 +206,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         }}
       />
 
-      {/* === Modal: Assign Guest to Table === */}
+      {/* === Modal: Assign Guest === */}
       {addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
@@ -219,7 +219,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 }
 
 /* ============================================================
-   WRAPPER
+   EXPORT WRAPPER
 ============================================================ */
 export default function SeatingEditor({ background }: { background: string | null }) {
   return (
