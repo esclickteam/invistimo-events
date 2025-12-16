@@ -48,11 +48,11 @@ export default function Header() {
   </Link>
 
   <Link
-    href="/#pricing"
-    className="hover:text-[var(--champagne-dark)] transition"
-  >
-    חבילות ומחירים
-  </Link>
+  href="/pricing"
+  className="hover:text-[var(--champagne-dark)] transition"
+>
+  חבילות ומחירים
+</Link>
 
   <Link
     href="/contact"
@@ -60,8 +60,6 @@ export default function Header() {
   >
     צור קשר
   </Link>
-
-  <Link href="/pricing">מחירים</Link>
 
 </nav>
 
