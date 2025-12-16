@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -131,9 +131,6 @@ export default function TableRenderer({ table }) {
     (() => {});
 
   const assigned = table.seatedGuests || [];
-  const [isRotating, setIsRotating] = useState(false);
-  const [startAngle, setStartAngle] = useState(0);
-  const [startRotation, setStartRotation] = useState(0);
 
   // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
@@ -175,40 +172,6 @@ export default function TableRenderer({ table }) {
     }));
   };
 
-  // ✅ סיבוב טבעי עם שמירה
-  const handleRotateStart = (e) => {
-    e.cancelBubble = true;
-    e.evt.stopPropagation();
-    if (!tableRef.current) return;
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-    const dx = pointer.x - tableRef.current.x();
-    const dy = pointer.y - tableRef.current.y();
-    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    setStartAngle(angle);
-    setStartRotation(tableRef.current.rotation());
-    setIsRotating(true);
-  };
-
-  const handleRotateMove = (e) => {
-    if (!isRotating || !tableRef.current) return;
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-    const dx = pointer.x - tableRef.current.x();
-    const dy = pointer.y - tableRef.current.y();
-    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    const delta = angle - startAngle;
-    tableRef.current.rotation(startRotation + delta * 0.5); // סיבוב רך ואיטי
-  };
-
-  const handleRotateEnd = () => {
-    if (!isRotating) return;
-    setIsRotating(false);
-    updatePositionInStore();
-  };
-
   const handleDrop = (e) => {
     e.cancelBubble = true;
     if (draggingGuest)
@@ -235,14 +198,6 @@ export default function TableRenderer({ table }) {
       : { x: width / 2 - 12, y: -height / 2 - 12 };
   const showDeleteButton = selectedTableId === table.id;
 
-  // מיקום חדש לכפתור סיבוב – צמוד מבחוץ
-  const rotateBtnPos =
-    layout.type === "round"
-      ? { x: radius + 42, y: -radius - 42 }
-      : layout.type === "square"
-      ? { x: size / 2 + 42, y: -size / 2 - 42 }
-      : { x: width / 2 + 42, y: -height / 2 - 42 };
-
   return (
     <Group
       ref={tableRef}
@@ -252,11 +207,7 @@ export default function TableRenderer({ table }) {
       draggable
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
-      onMouseMove={handleRotateMove}
-      onTouchMove={handleRotateMove}
-      onMouseUp={handleRotateEnd}
-      onTouchEnd={handleRotateEnd}
-      onMouseUpCapture={handleDrop}
+      onMouseUp={handleDrop}
       onClick={handleClick}
     >
       {/* שולחנות */}
@@ -324,29 +275,6 @@ export default function TableRenderer({ table }) {
           />
         </>
       )}
-
-      {/* 🔄 כפתור סיבוב */}
-      <Group
-        x={rotateBtnPos.x}
-        y={rotateBtnPos.y}
-        onMouseDown={handleRotateStart}
-        onTouchStart={handleRotateStart}
-        onClick={(e) => e.cancelBubble = true}
-        onTap={(e) => e.cancelBubble = true}
-      >
-        <Circle radius={12} fill="#22c55e" shadowBlur={6} />
-        <Text
-          text="↻"
-          fontSize={14}
-          align="center"
-          verticalAlign="middle"
-          width={24}
-          height={24}
-          offsetX={12}
-          offsetY={12}
-          fill="white"
-        />
-      </Group>
 
       {/* כפתור מחיקה */}
       {showDeleteButton && !draggingGuest && (
