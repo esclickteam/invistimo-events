@@ -4,17 +4,13 @@ import React, { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
-export default function GuestSidebar() {
+export default function GuestSidebar({ onDragStart }) {
   /* ===============================
      Zustand
   =============================== */
   const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
-
-  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
-  const endDragGuest = useSeatingStore((s) => s.endDragGuest);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
-  const draggingGuest = useSeatingStore((s) => s.draggingGuest);
 
   /* ===============================
      Highlight from URL
@@ -23,10 +19,12 @@ export default function GuestSidebar() {
   const highlightedGuestIdRaw = searchParams.get("guestId");
   const from = searchParams.get("from");
 
+  // ✅ נרמול חד ערכי
   const highlightedGuestId = highlightedGuestIdRaw
     ? String(highlightedGuestIdRaw)
     : "";
 
+  // ✅ הצגת הדגשה גם מהדשבורד וגם מההושבה האישית
   const shouldHighlightFromUrl =
     (from === "dashboard" || from === "personal") && !!highlightedGuestId;
 
@@ -43,6 +41,7 @@ export default function GuestSidebar() {
 
   /* ===============================
      ⭐ מיפוי אורח → שולחן
+     (מקור אמת: tables[].seatedGuests[].guestId)
   =============================== */
   const guestTableMap = useMemo(() => {
     const map = new Map();
@@ -72,32 +71,21 @@ export default function GuestSidebar() {
             guest._id != null ? String(guest._id) : null,
           ].filter(Boolean);
 
+          // ⭐️ הדגשה אם זה האורח מה-URL
           const isHighlighted =
             shouldHighlightFromUrl &&
             guestIdCandidates.includes(highlightedGuestId);
 
-          const isDraggingThis =
-            draggingGuest &&
-            String(draggingGuest.id ?? draggingGuest._id) === guestId;
-
           return (
             <li
               key={guestId}
-              className={`p-3 border-b transition flex justify-between items-center cursor-grab ${
-                isDraggingThis
-                  ? "opacity-40 bg-blue-50"
-                  : isHighlighted
+              className={`p-3 border-b transition flex justify-between items-center ${
+                isHighlighted
                   ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400"
                   : "hover:bg-gray-100"
               }`}
               draggable={!table}
-              onDragStart={() => {
-                if (table) return;
-                startDragGuest(guest);
-              }}
-              onDragEnd={() => {
-                endDragGuest();
-              }}
+              onDragStart={() => !table && onDragStart(guest)}
             >
               <div>
                 {/* שם האורח */}
@@ -111,7 +99,7 @@ export default function GuestSidebar() {
 
                 {/* כמות מקומות */}
                 <div className="text-xs text-gray-500">
-                  {guest.guestsCount || guest.count || 1} מקומות
+                  {guest.guestsCount} מקומות
                 </div>
 
                 {/* שולחן */}
@@ -125,6 +113,7 @@ export default function GuestSidebar() {
                   )}
                 </div>
 
+                {/* אינדיקציה מקורית */}
                 {isHighlighted && (
                   <div className="mt-1 text-xs font-semibold text-yellow-700">
                     ← אורח שנבחר
