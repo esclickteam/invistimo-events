@@ -35,12 +35,14 @@ export async function GET(req: NextRequest, context: RouteContext) {
        3️⃣ החזרה מלאה לפרונט
        כולל:
        - שולחנות
-       - seatedGuests
-       - תבנית אולם (type:image, isHallTemplate, url)
+       - רקע
+       - zones (אלמנטים)
     =============================== */
     return NextResponse.json({
       success: true,
       tables: record?.tables || [],
+      background: record?.background ?? null, // ✅ כדי ש-init יקבל background מה־DB
+      zones: record?.zones || [], // ✅ זה מה שחסר לך בפועל
     });
   } catch (err) {
     console.error("❌ Load seating tables error:", err);

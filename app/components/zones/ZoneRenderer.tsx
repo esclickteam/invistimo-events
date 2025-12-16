@@ -38,7 +38,7 @@ export default function ZoneRenderer({ zone }: Props) {
           setSelectedZone(zone.id);
         }}
         onDragStart={(e) => {
-          // ❗ מונע מה־Stage להיגרר
+          // ❗ קריטי: מונע מה־Stage לזוז
           e.cancelBubble = true;
         }}
         onDragMove={(e) => {
@@ -48,20 +48,9 @@ export default function ZoneRenderer({ zone }: Props) {
         onDragEnd={(e) => {
           e.cancelBubble = true;
 
-          const node = e.target;
-          const stage = node.getStage();
-          if (!stage) return;
-
-          const scale = stage.scaleX(); // זהה ל־scaleY
-          const stagePos = stage.position();
-
-          // ✅ נרמול לקואורדינטות עולם (כמו שולחנות)
-          const realX = (node.x() - stagePos.x) / scale;
-          const realY = (node.y() - stagePos.y) / scale;
-
           updateZone(zone.id, {
-            x: realX,
-            y: realY,
+            x: e.target.x(),
+            y: e.target.y(),
           });
         }}
       >
@@ -82,7 +71,6 @@ export default function ZoneRenderer({ zone }: Props) {
             const scaleX = node.scaleX();
             const scaleY = node.scaleY();
 
-            // 🔒 מחזירים סקייל ל־1 (כמו Konva best practice)
             node.scaleX(1);
             node.scaleY(1);
 
