@@ -13,9 +13,10 @@ function getDynamicSeatCoordinates(table) {
 
   // ⭕ ROUND
   if (table.type === "round") {
-    const tableRadius = 50 + seats * 1.2;
+    // רדיוס משתנה לפי מספר האורחים
+    const tableRadius = Math.max(40, 35 + seats * 2.2);
     const seatRadius = 10;
-    const radius = tableRadius + seatRadius + 8;
+    const radius = tableRadius + seatRadius + 10;
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
@@ -30,24 +31,29 @@ function getDynamicSeatCoordinates(table) {
 
   // ⬜ SQUARE
   if (table.type === "square") {
-    const seatGap = 24;
-    const perSide = Math.max(1, Math.floor(seats / 4));
-    const size = 100 + perSide * seatGap * 0.9;
-    const half = size / 2 + 14;
+    // הגודל משתנה לפי כמות האורחים
+    const perSide = Math.max(1, Math.ceil(seats / 4));
+    const seatGap = 26;
+    const size = Math.max(80, perSide * seatGap + 60);
+    const half = size / 2 + 16;
     let i = 0;
 
+    // למעלה
     for (; i < perSide && i < seats; i++)
       result.push({ x: -half + i * seatGap, y: -half });
 
+    // ימין
     for (; i < perSide * 2 && i < seats; i++)
       result.push({ x: half, y: -half + (i - perSide) * seatGap });
 
+    // למטה
     for (; i < perSide * 3 && i < seats; i++)
       result.push({
         x: half - (i - perSide * 2) * seatGap,
         y: half,
       });
 
+    // שמאל
     for (; i < seats; i++)
       result.push({
         x: -half,
@@ -59,12 +65,12 @@ function getDynamicSeatCoordinates(table) {
 
   // 🍽️ BANQUET (אבירים)
   if (table.type === "banquet") {
-    const seatGap = 24;
-    const sideY = 55;
     const perSide = Math.ceil(seats / 2);
-    const width = Math.max(160, perSide * seatGap + 60);
+    const seatGap = 26;
+    const width = Math.max(140, perSide * seatGap + 80);
     const height = 70;
     const offsetX = -width / 2 + seatGap / 2;
+    const sideY = height / 2 + 16;
 
     // עליון
     for (let i = 0; i < perSide; i++) {
@@ -119,7 +125,6 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getDynamicSeatCoordinates(table);
 
-  /* עדכון מיקום */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -148,9 +153,9 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  /* גדלים דינמיים */
-  const size = table._size || 160;
-  const width = table._width || 240;
+  // גדלים דינמיים לפי סוג שולחן
+  const size = table._size || 140;
+  const width = table._width || 200;
   const height = table._height || 80;
   const radius = table._radius || 60;
 
