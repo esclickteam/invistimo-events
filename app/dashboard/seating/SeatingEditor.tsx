@@ -12,7 +12,7 @@ import TableRenderer from "@/app/components/seating/TableRenderer";
 import ZoneRenderer from "@/app/components/zones/ZoneRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import GuestSidebar from "./GuestSidebar";
-import AddTableModal from "./AddTableModal";
+import AddTableDrawer from "./AddTableDrawer";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import GridLayer from "@/app/components/seating/GridLayer";
@@ -39,10 +39,9 @@ type Table = {
    INNER COMPONENT
 ============================================================ */
 function SeatingEditorInner({ background }: { background: string | null }) {
-  /* ================= Background ================= */
   const [bgImage] = useImage(background || "", "anonymous");
 
-  /* ================= STORES ================= */
+  /* STORES */
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
 
@@ -55,13 +54,12 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
 
-  /* ================= ZONES ================= */
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
-  /* ================= Highlight from URL ================= */
+  /* HIGHLIGHT */
   const searchParams = useSearchParams();
   const from = searchParams.get("from");
   const highlightedGuestIdRaw = searchParams.get("guestId");
@@ -69,83 +67,70 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
   const canonicalGuestId = useMemo(() => {
     if (!highlightedGuestIdRaw) return null;
-
     const raw = String(highlightedGuestIdRaw);
     const found = guests.find(
       (g) => String(g?._id ?? g?.id ?? "") === raw
     );
-
     return found ? String(found.id ?? found._id) : raw;
   }, [highlightedGuestIdRaw, guests]);
 
   const highlightedTableId = useMemo(() => {
     if (!isPersonalMode || !canonicalGuestId) return null;
-
     const table = tables.find((t) =>
       t.seatedGuests?.some(
         (s) => String(s.guestId) === String(canonicalGuestId)
       )
     );
-
     return table?.id || null;
   }, [tables, canonicalGuestId, isPersonalMode]);
 
   useEffect(() => {
     if (!isPersonalMode || draggedGuest) return;
-
     useSeatingStore.setState({
       highlightedTable: highlightedTableId ?? null,
     });
   }, [highlightedTableId, draggedGuest, isPersonalMode]);
 
-  /* ================= Add Guest Modal ================= */
+  /* Add Guest Modal */
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
-  /* ================= Canvas Size ================= */
+  /* Canvas Size */
   const width =
     typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
   const height =
     typeof window !== "undefined" ? window.innerHeight - 100 : 800;
 
-  /* ================= Zoom & Pan ================= */
+  /* Zoom & Pan */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
 
-  /* ================= Mouse Move ================= */
   const handleMouseMove = (e: any) => {
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
-
     updateGhost(pos);
     evalHover(pos);
   };
 
-  /* ================= DELETE ZONE ================= */
+  /* DELETE ZONE */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
-
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         removeZone(selectedZoneId);
       }
     }
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone]);
 
-  /* ================= Unseated Guests ================= */
+  /* Unseated Guests */
   const unseatedGuests = useMemo(() => {
     const seated = new Set<string>();
-
     tables.forEach((t) =>
-      t.seatedGuests?.forEach((s) =>
-        seated.add(String(s.guestId))
-      )
+      t.seatedGuests?.forEach((s) => seated.add(String(s.guestId)))
     );
-
     return guests.filter(
       (g) => !seated.has(String(g.id ?? g._id))
     );
@@ -155,23 +140,21 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     <div className="flex relative w-full h-full">
       <GuestSidebar onDragStart={startDragGuest} />
 
-      {/* ZOOM BUTTONS */}
+      {/* זום */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-        className="absolute top-20 left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
+        className="absolute top-20 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
       >
         +
       </button>
-
       <button
         onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-        className="absolute top-36 left-4 bg-white shadow rounded-full
-                   w-12 h-12 text-2xl z-50"
+        className="absolute top-36 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
       >
         −
       </button>
 
+      {/* STAGE */}
       <Stage
         width={width}
         height={height}
@@ -228,12 +211,12 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           ))}
         </Layer>
 
-        {/* 🔥 GHOST – תמיד מעל הכל */}
+        {/* GHOST */}
         <Layer listening={false}>
           <GhostPreview />
         </Layer>
 
-        {/* DELETE TABLE */}
+        {/* DELETE BUTTONS */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -241,16 +224,18 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         </Layer>
       </Stage>
 
+      {/* ADD TABLE BUTTON */}
       <button
         onClick={() => setShowAddModal(true)}
-        className="absolute top-4 left-4 bg-green-600
-                   text-white px-4 py-2 rounded-lg z-50"
+        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
       >
         ➕ הוסף שולחן
       </button>
 
+      {/* DRAWER החדש */}
       {showAddModal && (
-        <AddTableModal
+        <AddTableDrawer
+          open={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={({ type, seats }: { type: string; seats: number }) => {
             addTable(type, seats);
