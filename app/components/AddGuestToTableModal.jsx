@@ -20,7 +20,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
   };
 
-  // ספירת מקומות תפוסים בפועל
+  // סופרים כמה מקומות תפוסים בפועל
   const occupied = useMemo(() => {
     return seated.reduce((sum, s) => {
       const g = guests.find(
@@ -32,7 +32,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   const freeSeats = Math.max(0, table.seats - occupied);
 
-  // בניית מערך כרטיסיות
+  // בניית מערך הכיסאות
   const seatsArray = useMemo(() => {
     const arr = Array.from({ length: table.seats }, (_, i) => ({
       index: i,
@@ -74,22 +74,23 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.25 }}
-        className="bg-white rounded-2xl shadow-2xl w-[600px] p-6 max-h-[90vh] overflow-y-auto relative"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="relative bg-white rounded-2xl shadow-2xl w-[640px] p-6 max-h-[90vh] overflow-y-auto border border-gray-100"
       >
+        {/* כפתור סגירה */}
         <button
           onClick={onClose}
-          className="absolute top-3 left-3 text-gray-400 hover:text-gray-600"
+          className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 transition"
         >
           <X size={20} />
         </button>
 
-        <h2 className="text-xl font-bold text-center text-gray-800 mb-1">
+        <h2 className="text-xl font-semibold text-center text-gray-800 mb-1">
           הושבה לשולחן {table.name}
         </h2>
         <p className="text-sm text-gray-500 text-center mb-4">
@@ -97,28 +98,30 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         </p>
 
         {error && (
-          <div className="text-red-600 bg-red-50 text-center py-2 rounded mb-3">
+          <div className="text-red-600 bg-red-50 text-center py-2 rounded-lg mb-3 font-medium">
             {error}
           </div>
         )}
 
+        {/* גריד של מושבים */}
         <div className="grid grid-cols-6 gap-3 justify-items-center">
           {seatsArray.map((seat, i) => {
             const g = seat.guest;
             const isOpen = openSeat === i;
 
             return (
-              <div
+              <motion.div
                 key={i}
+                whileHover={{ scale: 1.05 }}
                 className={`relative w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition-all duration-200 ${
                   g
-                    ? "bg-blue-50 border-blue-400 shadow-sm hover:shadow-md"
-                    : "bg-white border-gray-200 hover:bg-blue-100"
+                    ? "bg-gradient-to-br from-blue-100 to-blue-200 border-blue-400 shadow-sm hover:shadow-md"
+                    : "bg-white border-gray-200 hover:bg-blue-50"
                 }`}
               >
                 {g ? (
                   <>
-                    <span className="font-semibold text-gray-700 truncate w-[90%]">
+                    <span className="font-semibold text-gray-800 truncate w-[90%]">
                       {g.name}
                     </span>
                     <span className="text-xs text-gray-500">
@@ -140,14 +143,15 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                       הושב<br />אורח
                     </span>
 
+                    {/* תפריט בחירה */}
                     <AnimatePresence>
                       {isOpen && (
                         <motion.div
-                          initial={{ opacity: 0, y: -6 }}
+                          initial={{ opacity: 0, y: -8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -6 }}
+                          exit={{ opacity: 0, y: -8 }}
                           transition={{ duration: 0.15 }}
-                          className="absolute top-[90%] mt-1 bg-white border shadow-xl rounded-md w-44 z-50 max-h-56 overflow-y-auto text-right"
+                          className="absolute top-[90%] mt-2 bg-white border shadow-xl rounded-lg w-44 z-50 max-h-56 overflow-y-auto text-right"
                         >
                           {availableGuests.length === 0 && (
                             <div className="p-2 text-xs text-gray-400 text-center">
@@ -168,7 +172,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                     </AnimatePresence>
                   </>
                 )}
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -176,7 +180,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         <div className="flex justify-center mt-6">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-lg bg-gray-300 hover:bg-gray-400 font-medium text-gray-800"
+            className="px-5 py-2.5 rounded-lg bg-gray-200 hover:bg-gray-300 font-medium text-gray-800 transition"
           >
             סגור
           </button>
