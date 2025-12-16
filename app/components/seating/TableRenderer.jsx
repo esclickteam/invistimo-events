@@ -5,11 +5,10 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   חישוב דינמי: מידות שולחן + מיקומי כיסאות (פרופורציונלי וסימטרי)
+   חישוב דינמי של צורת השולחן + כסאות (כמו קודם)
 ============================================================ */
 function getTableLayout(rawTable) {
   const seats = Math.max(0, Number(rawTable.seats || 0));
-
   const type =
     rawTable.type === "rectangle" || rawTable.type === "rect"
       ? "banquet"
@@ -20,7 +19,6 @@ function getTableLayout(rawTable) {
   const OUTSIDE = 10;
   const STEP = SEAT_R * 2 + SEAT_GAP;
   const PAD = SEAT_R + OUTSIDE + 10;
-
   const coords = [];
   const dims = {
     size: 150,
@@ -75,16 +73,13 @@ function getTableLayout(rawTable) {
     const { top, right, bottom, left } = splitSquareOpposite(seats);
     const maxSide = Math.max(top, right, bottom, left);
     const span = maxSide <= 1 ? 0 : (maxSide - 1) * STEP;
-    const minSize = 120;
-    const size = Math.max(minSize, span + PAD * 2);
+    const size = Math.max(120, span + PAD * 2);
     const half = size / 2;
     const fixed = half + SEAT_R + OUTSIDE;
-
     placeLineCentered(top, -fixed, "x");
     placeLineCentered(bottom, +fixed, "x");
     placeLineCentered(right, +fixed, "y");
     placeLineCentered(left, -fixed, "y");
-
     dims.size = size;
     return { coords, ...dims, type };
   }
@@ -94,11 +89,9 @@ function getTableLayout(rawTable) {
     const bottomCount = seats - topCount;
     const maxRow = Math.max(topCount, bottomCount);
     const span = maxRow <= 1 ? 0 : (maxRow - 1) * STEP;
-    const minW = 200;
-    const width = Math.max(minW, span + PAD * 2);
+    const width = Math.max(200, span + PAD * 2);
     const height = 70;
     const yFixed = height / 2 + SEAT_R + OUTSIDE;
-
     const placeRow = (count, y) => {
       if (count <= 0) return;
       if (count === 1) {
@@ -111,35 +104,14 @@ function getTableLayout(rawTable) {
         coords.push({ x: start + i * STEP, y });
       }
     };
-
     placeRow(topCount, -yFixed);
     placeRow(bottomCount, +yFixed);
-
     dims.width = width;
     dims.height = height;
     return { coords, ...dims, type };
   }
 
   return { coords, ...dims, type };
-}
-
-/* ============================================================
-   פונקציה שמחזירה כמה מקומות אורח תופס לפי אישורי ההגעה
-============================================================ */
-function getPartySize(guest, assignedItem) {
-  const raw =
-    assignedItem?.confirmedGuestsCount ??
-    assignedItem?.guestsCount ??
-    assignedItem?.count ??
-    assignedItem?.spots ??
-    guest?.confirmedGuestsCount ??
-    guest?.guestsCount ??
-    guest?.count ??
-    guest?.spots ??
-    1;
-
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
 }
 
 /* ============================================================
@@ -160,18 +132,13 @@ export default function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
-  // כל כיסא תפוס נספר לפי מספר אישורי הגעה בפועל
+  // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
-    return assigned.reduce((sum, s) => {
-      const g = guests.find(
-        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
-      );
-      if (!g) return sum;
-      const n = getPartySize(g, s);
-      return sum + n;
-    }, 0);
-  }, [assigned, guests]);
+    const indices = new Set(assigned.map((s) => s.seatIndex));
+    return indices.size;
+  }, [assigned]);
 
+  // guest info per seat
   const seatInfoMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -222,10 +189,7 @@ export default function TableRenderer({ table }) {
     }
   };
 
-  const size = layout.size;
-  const width = layout.width;
-  const height = layout.height;
-  const radius = layout.radius;
+  const { size, width, height, radius } = layout;
   const deleteBtnPos =
     layout.type === "round"
       ? { x: radius - 12, y: -radius - 12 }
@@ -341,6 +305,12 @@ export default function TableRenderer({ table }) {
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
         const guest = seatInfoMap.get(i)?.guest;
+        const count =
+          guest?.confirmedGuestsCount ??
+          guest?.guestsCount ??
+          guest?.count ??
+          guest?.spots ??
+          1;
         return (
           <Group key={i} x={c.x} y={c.y}>
             <Circle
@@ -350,11 +320,11 @@ export default function TableRenderer({ table }) {
             />
             {guest && (
               <Text
-                text={guest.name}
+                text={count > 1 ? `${guest.name} (${count})` : guest.name}
                 fontSize={10}
                 y={14}
-                width={90}
-                offsetX={45}
+                width={100}
+                offsetX={50}
                 align="center"
                 fill="#111827"
               />
