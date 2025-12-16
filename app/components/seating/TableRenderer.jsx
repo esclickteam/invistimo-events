@@ -227,10 +227,13 @@ export default function TableRenderer({ table }) {
   };
 
   const handleRotateEnd = () => {
-    if (isRotating) setIsRotating(false);
-    updatePositionInStore();
-  };
+  if (isRotating) {
+    setIsRotating(false);
 
+    // ✅ תיקון חשוב: נעילת מצב סיבוב ושמירה סופית
+    requestAnimationFrame(() => updatePositionInStore());
+  }
+};
   return (
     <Group
       ref={tableRef}
