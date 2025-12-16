@@ -1,72 +1,60 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
-/* ===================== GRID SNAP ===================== */
-export const GRID_SIZE = 30;
-export function snapToGrid(value) {
-  return Math.round(value / GRID_SIZE) * GRID_SIZE;
-}
-export function snapPosition(pos) {
-  return { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
-}
-
-/* ===================== SEATS ===================== */
+/* ============================================================
+   חישוב כיסאות צמודים לשולחן (כולל BANQUET גמיש)
+============================================================ */
 function getSeatCoordinates(table) {
   const seats = table.seats || 0;
-  const seatGap = 26;
-  const seatRadius = 10;
   const result = [];
 
+  // ROUND
   if (table.type === "round") {
-    const radius = 50 + Math.sqrt(seats) * 7;
+    const tableRadius = 60;
+    const seatRadius = 10;
+    const radius = tableRadius + seatRadius + 6;
+
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-      result.push({
-        x: Math.cos(angle) * (radius + seatRadius + 6),
-        y: Math.sin(angle) * (radius + seatRadius + 6),
-      });
+      result.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
     }
-    table._dynamicRadius = radius;
   }
 
+  // SQUARE
   if (table.type === "square") {
-    const base = 80 + seats * 1.5;
-    const half = base / 2 + seatRadius + 6;
-    const perSide = Math.floor(seats / 4);
-    const remainder = seats % 4;
-    const sides = [perSide, perSide, perSide, perSide];
-    for (let i = 0; i < remainder; i++) sides[i]++;
+    const size = 160;
+    const seatGap = 22;
+    const half = size / 2 + 12;
+    const perSide = Math.ceil(seats / 4);
+    let i = 0;
 
-    for (let i = 0; i < sides[0]; i++)
-      result.push({ x: -((sides[0] - 1) * seatGap) / 2 + i * seatGap, y: -half });
-    for (let i = 0; i < sides[1]; i++)
-      result.push({ x: half, y: -((sides[1] - 1) * seatGap) / 2 + i * seatGap });
-    for (let i = 0; i < sides[2]; i++)
-      result.push({ x: -((sides[2] - 1) * seatGap) / 2 + i * seatGap, y: half });
-    for (let i = 0; i < sides[3]; i++)
-      result.push({ x: -half, y: -((sides[3] - 1) * seatGap) / 2 + i * seatGap });
-
-    table._dynamicSize = base;
+    for (; i < perSide && i < seats; i++)
+      result.push({ x: -half + i * seatGap, y: -half });
+    for (; i < perSide * 2 && i < seats; i++)
+      result.push({ x: half, y: -half + (i - perSide) * seatGap });
+    for (; i < perSide * 3 && i < seats; i++)
+      result.push({ x: half - (i - perSide * 2) * seatGap, y: half });
+    for (; i < seats; i++)
+      result.push({ x: -half, y: half - (i - perSide * 3) * seatGap });
   }
 
+  // BANQUET (אבירים) — מתארך לפי כמות האנשים
   if (table.type === "banquet") {
-    const baseWidth = 160;
-    const height = 60;
-    const extra = Math.max(0, seats - 8) * 10;
-    const width = baseWidth + extra;
+    const minWidth = 180;
+    const height = 80;
+    const seatGap = 24;
     const perSide = Math.ceil(seats / 2);
-    const sideY = height / 2 + seatRadius + 6;
+    const width = Math.max(minWidth, (seats / 2) * seatGap + 60);
+    const sideY = height / 2 + 18;
 
     for (let i = 0; i < perSide; i++) {
-      const x = -width / 2 + (i + 0.5) * seatGap;
-      result.push({ x, y: -sideY });
+      result.push({ x: -width / 2 + 30 + i * seatGap, y: -sideY });
     }
     for (let i = 0; i < seats - perSide; i++) {
-      const x = -width / 2 + (i + 0.5) * seatGap;
-      result.push({ x, y: sideY });
+      result.push({ x: -width / 2 + 30 + i * seatGap, y: sideY });
     }
 
     table._dynamicWidth = width;
@@ -76,15 +64,23 @@ function getSeatCoordinates(table) {
   return result;
 }
 
-/* ===================== TABLE ===================== */
+/* ============================================================
+   TableRenderer Component
+============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
-  const guests = useSeatingStore((s) => s.guests);
+  const [isRotating, setIsRotating] = useState(false);
+
+  /* Zustand Store */
+  const highlightedTable = useSeatingStore((s) => s.highlightedTable);
+  const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
+  const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const removeTable = useSeatingStore((s) => s.removeTable);
 
   const assigned = table.seatedGuests || [];
+
   const seatToGuestMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -96,59 +92,88 @@ export default function TableRenderer({ table }) {
     return map;
   }, [assigned, guests]);
 
+  const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
+  const hasSelectedGuestInThisTable = assigned.some(
+    (s) => String(s.guestId) === String(selectedGuestId)
+  );
+
+  const isHighlighted =
+    highlightedTable === table.id || hasSelectedGuestInThisTable;
+
+  const fill = isHighlighted ? "#fde047" : "#3b82f6";
+  const textColor = isHighlighted ? "#713f12" : "#fff";
+
   const seatsCoords = getSeatCoordinates(table);
 
-  const handleDragMove = (e) => {
-    const pos = snapPosition(e.target.position());
-    e.target.position(pos);
-  };
-
-  const updateInStore = () => {
+  /* === שמירת מיקום === */
+  const updatePositionInStore = () => {
+    if (!tableRef.current) return;
     const pos = tableRef.current.position();
-    const rotation = tableRef.current.rotation();
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
-        t.id === table.id ? { ...t, x: pos.x, y: pos.y, rotation } : t
+        t.id === table.id
+          ? {
+              ...t,
+              x: pos.x,
+              y: pos.y,
+              rotation: tableRef.current.rotation(),
+            }
+          : t
       ),
     }));
   };
 
-  const handleDrop = (e) => {
-    e.cancelBubble = true;
-    if (draggingGuest)
-      assignGuestBlock({ guestId: draggingGuest.id, tableId: table.id });
+  /* === גרירה עם SHIFT לסיבוב === */
+  const handleMouseDown = (e) => {
+    if (e.evt.shiftKey) setIsRotating(true);
   };
 
+  const handleMouseMove = (e) => {
+    if (!isRotating) return;
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+    const dx = pointer.x - table.x;
+    const dy = pointer.y - table.y;
+    const angle = Math.round((Math.atan2(dy, dx) * 180) / Math.PI / 15) * 15;
+    tableRef.current.rotation(angle);
+    tableRef.current.getLayer().batchDraw();
+  };
+
+  const handleMouseUp = () => {
+    if (isRotating) {
+      setIsRotating(false);
+      updatePositionInStore();
+    }
+  };
+
+  /* === מחיקת שולחן === */
   const handleDelete = (e) => {
     e.cancelBubble = true;
     removeTable(table.id);
   };
 
-  const handleRotate = (e) => {
+  /* === גרירת אורח לשולחן === */
+  const handleDrop = (e) => {
     e.cancelBubble = true;
-    if (tableRef.current) {
-      const newRotation = (tableRef.current.rotation() + 15) % 360;
-      tableRef.current.rotation(newRotation);
-      updateInStore();
-    }
+    if (!draggingGuest) return;
+    assignGuestBlock({ guestId: draggingGuest.id, tableId: table.id });
   };
 
+  /* === פתיחת מודאל הוספת אורחים === */
   const handleClick = (e) => {
     e.cancelBubble = true;
-    if (!draggingGuest && typeof table.openAddGuestModal === "function")
+    if (draggingGuest) return;
+    if (typeof table.openAddGuestModal === "function")
       table.openAddGuestModal();
   };
 
-  const size = table._dynamicSize || 150;
-  const width = table._dynamicWidth || 200;
-  const height = table._dynamicHeight || 60;
-  const radius = table._dynamicRadius || 60;
-  const occupiedCount = assigned.length;
+  const width = table._dynamicWidth || 240;
+  const height = table._dynamicHeight || 90;
 
-  const deleteX = (table.type === "round" ? radius : width / 2) - 10;
-  const deleteY = (table.type === "round" ? -radius : -height / 2) - 10;
-  const rotateX = deleteX - 30;
-
+  /* ============================================================
+     Render
+  ============================================================ */
   return (
     <Group
       ref={tableRef}
@@ -156,25 +181,27 @@ export default function TableRenderer({ table }) {
       y={table.y}
       rotation={table.rotation || 0}
       draggable
-      onDragMove={handleDragMove}
-      onDragEnd={updateInStore}
+      onDragEnd={updatePositionInStore}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
       onClick={handleClick}
       onMouseUpCapture={handleDrop}
     >
       {/* ROUND */}
       {table.type === "round" && (
         <>
-          <Circle radius={radius} fill="#3b82f6" shadowBlur={8} />
+          <Circle radius={60} fill={fill} shadowBlur={8} />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={16}
-            fill="#fff"
+            fill={textColor}
             align="center"
             verticalAlign="middle"
-            width={radius * 2}
-            height={radius * 2}
-            offsetX={radius}
-            offsetY={radius}
+            width={120}
+            height={120}
+            offsetX={60}
+            offsetY={60}
           />
         </>
       )}
@@ -183,24 +210,24 @@ export default function TableRenderer({ table }) {
       {table.type === "square" && (
         <>
           <Rect
-            width={size}
-            height={size}
-            offsetX={size / 2}
-            offsetY={size / 2}
-            fill="#3b82f6"
-            cornerRadius={10}
+            width={160}
+            height={160}
+            offsetX={80}
+            offsetY={80}
+            fill={fill}
             shadowBlur={8}
+            cornerRadius={10}
           />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={16}
-            fill="#fff"
+            fill={textColor}
             align="center"
             verticalAlign="middle"
-            width={size}
-            height={size}
-            offsetX={size / 2}
-            offsetY={size / 2}
+            width={160}
+            height={160}
+            offsetX={80}
+            offsetY={80}
           />
         </>
       )}
@@ -213,14 +240,14 @@ export default function TableRenderer({ table }) {
             height={height}
             offsetX={width / 2}
             offsetY={height / 2}
-            fill="#3b82f6"
-            cornerRadius={12}
+            fill={fill}
             shadowBlur={8}
+            cornerRadius={12}
           />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
             fontSize={16}
-            fill="#fff"
+            fill={textColor}
             align="center"
             verticalAlign="middle"
             width={width}
@@ -236,7 +263,11 @@ export default function TableRenderer({ table }) {
         const guest = seatToGuestMap.get(i);
         return (
           <Group key={i} x={c.x} y={c.y}>
-            <Circle radius={9} fill={guest ? "#d1d5db" : "#3b82f6"} />
+            <Circle
+              radius={9}
+              fill={guest ? "#d1d5db" : "#3b82f6"}
+              stroke="#2563eb"
+            />
             {guest && (
               <Text
                 text={guest.name}
@@ -252,31 +283,26 @@ export default function TableRenderer({ table }) {
         );
       })}
 
-      {/* 🔘 כפתורי מחיקה וסיבוב */}
-      <Group>
-        <Group x={deleteX} y={deleteY} onClick={handleDelete}>
-          <Rect width={22} height={22} fill="#ef4444" cornerRadius={5} />
-          <Text
-            text="🗑️"
-            fontSize={12}
-            width={22}
-            height={22}
-            align="center"
-            verticalAlign="middle"
-          />
-        </Group>
-
-        <Group x={rotateX} y={deleteY} onClick={handleRotate}>
-          <Rect width={22} height={22} fill="#eab308" cornerRadius={5} />
-          <Text
-            text="⟳"
-            fontSize={12}
-            width={22}
-            height={22}
-            align="center"
-            verticalAlign="middle"
-          />
-        </Group>
+      {/* DELETE BUTTON (קרוב לשולחן) */}
+      <Group x={0} y={-(height / 2) - 22} onClick={handleDelete}>
+        <Rect
+          width={24}
+          height={24}
+          offsetX={12}
+          offsetY={12}
+          fill="#ef4444"
+          cornerRadius={6}
+          shadowBlur={3}
+        />
+        <Text
+          text="🗑️"
+          fontSize={13}
+          align="center"
+          width={24}
+          height={24}
+          offsetX={12}
+          offsetY={10}
+        />
       </Group>
     </Group>
   );
