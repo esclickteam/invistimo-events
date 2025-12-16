@@ -16,7 +16,6 @@ import AddTableModal from "./AddTableModal";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import GridLayer from "@/app/components/seating/GridLayer";
-import type { KonvaEventObject } from "konva/lib/Node";
 
 /* ============================================================
    TYPES
@@ -190,9 +189,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           }
         }}
         onMouseUp={() => setIsPanning(false)}
-        /* ✅ מוסיף ביטול גרירה של הדפדפן כדי להעלים את סמן האיסור */
-        onContentMousedown={(e: KonvaEventObject<MouseEvent>) => e.evt.preventDefault()}
-       onContentTouchstart={(e: KonvaEventObject<TouchEvent>) => e.evt.preventDefault()}
         className="flex-1"
       >
         {/* GRID */}

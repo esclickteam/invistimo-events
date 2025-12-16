@@ -79,13 +79,24 @@ export default function GuestSidebar({ onDragStart }) {
           return (
             <li
               key={guestId}
-              className={`p-3 border-b transition flex justify-between items-center ${
+              className={`p-3 border-b transition flex justify-between items-center select-none ${
                 isHighlighted
                   ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400"
                   : "hover:bg-gray-100"
-              }`}
-              draggable={!table}
-              onDragStart={() => !table && onDragStart(guest)}
+              } ${!table ? "cursor-grab active:cursor-grabbing" : ""}`}
+              // 🧩 גרירה ידנית – לא HTML drag
+              onMouseDown={(e) => {
+                if (!table) {
+                  e.preventDefault();
+                  onDragStart(guest);
+                }
+              }}
+              onTouchStart={(e) => {
+                if (!table) {
+                  e.preventDefault();
+                  onDragStart(guest);
+                }
+              }}
             >
               <div>
                 {/* שם האורח */}
