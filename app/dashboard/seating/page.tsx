@@ -8,7 +8,6 @@ import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
 /* ⭐ קומפוננטות עליונות */
-import EventTypeSelector from "@/app/components/zones/EventTypeSelector";
 import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 
 export default function SeatingPage() {
@@ -57,7 +56,6 @@ export default function SeatingPage() {
         const tRes = await fetch(`/api/seating/tables/${id}`);
         const tData = await tRes.json();
 
-        /* ⭐ לא לדרוס רקע שכבר נטען */
         const currentBackground =
           useSeatingStore.getState().background;
 
@@ -108,7 +106,7 @@ export default function SeatingPage() {
           tables,
           guests,
           background,
-          zones, // ⭐⭐ שמירה אמיתית של האלמנטים
+          zones, // ⭐⭐ כאן האלמנטים נשמרים באמת
         }),
       });
 
@@ -150,8 +148,6 @@ export default function SeatingPage() {
             </button>
           </div>
         </div>
-
-        
 
         {/* ⭐ סיידבר אלמנטים */}
         <ZonesToolbar />

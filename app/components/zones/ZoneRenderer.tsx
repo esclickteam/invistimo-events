@@ -38,11 +38,9 @@ export default function ZoneRenderer({ zone }: Props) {
           setSelectedZone(zone.id);
         }}
         onDragStart={(e) => {
-          // ❗ קריטי: מונע מה־Stage לזוז
           e.cancelBubble = true;
         }}
         onDragMove={(e) => {
-          // ❗ מונע bubbling גם בזמן גרירה
           e.cancelBubble = true;
         }}
         onDragEnd={(e) => {
@@ -71,13 +69,23 @@ export default function ZoneRenderer({ zone }: Props) {
             const scaleX = node.scaleX();
             const scaleY = node.scaleY();
 
+            const nextWidth = Math.max(80, node.width() * scaleX);
+            const nextHeight = Math.max(60, node.height() * scaleY);
+
+            const nextX = node.x();
+            const nextY = node.y();
+            const nextRotation = node.rotation();
+
+            // 🔑 חובה – לנקות scale
             node.scaleX(1);
             node.scaleY(1);
 
             updateZone(zone.id, {
-              width: Math.max(80, node.width() * scaleX),
-              height: Math.max(60, node.height() * scaleY),
-              rotation: node.rotation(),
+              x: nextX,
+              y: nextY,
+              width: nextWidth,
+              height: nextHeight,
+              rotation: nextRotation,
             });
           }}
         />
