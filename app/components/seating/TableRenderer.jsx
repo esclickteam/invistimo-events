@@ -4,15 +4,11 @@ import { useRef, useMemo, useState } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
-/* ============================================================
-   GRIDS + SNAP
-============================================================ */
 export const GRID_SIZE = 30;
 
 export function snapToGrid(value) {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
-
 export function snapPosition(pos) {
   return {
     x: snapToGrid(pos.x),
@@ -21,21 +17,19 @@ export function snapPosition(pos) {
 }
 
 /* ============================================================
-   חישוב כיסאות סביב השולחן – פרופורציונלי ואסתטי
+   חישוב כסאות סביב שולחן — פרופורציונלי מדויק
 ============================================================ */
 function getTightSeatCoordinates(table) {
   const seats = table.seats || 0;
   const result = [];
-
-  const seatGap = 24; // מרווח נוח בין כיסאות
+  const seatGap = 26;
   const seatRadius = 10;
 
-  /* ========= ROUND ========= */
+  // ROUND
   if (table.type === "round") {
     const baseRadius = 40;
-    const radius = baseRadius + seats * 1.6; // גדל בהדרגה
+    const radius = baseRadius + Math.sqrt(seats) * 7; // יחס טבעי
     const seatDistance = radius + seatRadius + 10;
-
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
       result.push({
@@ -43,14 +37,13 @@ function getTightSeatCoordinates(table) {
         y: Math.sin(angle) * seatDistance,
       });
     }
-
     table._dynamicRadius = radius;
   }
 
-  /* ========= SQUARE ========= */
+  // SQUARE
   if (table.type === "square") {
-    const baseSize = 100;
-    const growthPerSeat = 2.2; // גידול עדין
+    const baseSize = 80;
+    const growthPerSeat = 1.5; // עדין יותר
     const size = baseSize + seats * growthPerSeat;
     const half = size / 2 + seatRadius + 6;
 
@@ -83,31 +76,40 @@ function getTightSeatCoordinates(table) {
     table._dynamicSize = size;
   }
 
-  /* ========= BANQUET ========= */
+  // BANQUET
   if (table.type === "banquet") {
-    const baseWidth = 160;
-    const height = 70;
-    const width = baseWidth + seats * 4;
+    const baseWidth = 140;
+    const height = 90;
+    const width = baseWidth + seats * 6; // יחס רוחב טבעי
+    const sideY = height / 2 + seatRadius + 6;
     const perSide = Math.floor(seats / 2);
-    const sideY = height / 2 + seatRadius + 4;
 
+    // למעלה
     for (let i = 0; i < perSide; i++) {
-      const x = -width / 2 + 30 + i * seatGap;
+      const x = -width / 2 + 40 + i * seatGap;
       result.push({ x, y: -sideY });
     }
+    // למטה
     for (let i = 0; i < seats - perSide; i++) {
-      const x = -width / 2 + 30 + i * seatGap;
+      const x = -width / 2 + 40 + i * seatGap;
       result.push({ x, y: sideY });
     }
 
+    // כסאות בקצוות אם יש עודף
+    if (seats > 8) {
+      result.push({ x: -width / 2 - seatRadius * 2, y: 0 });
+      result.push({ x: width / 2 + seatRadius * 2, y: 0 });
+    }
+
     table._dynamicWidth = width;
+    table._dynamicHeight = height;
   }
 
   return result;
 }
 
 /* ============================================================
-   TABLE RENDERER
+   TableRenderer
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
@@ -120,7 +122,6 @@ export default function TableRenderer({ table }) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
 
   const assigned = table.seatedGuests || [];
-
   const seatToGuestMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -145,86 +146,63 @@ export default function TableRenderer({ table }) {
 
   const seatsCoords = getTightSeatCoordinates(table);
 
-  /* ============================================================
-     SNAP DRAG & ROTATE
-  ============================================================ */
+  /* SNAP DRAG + ROTATE */
   const handleDragMove = (e) => {
     if (isRotating) return;
     const pos = e.target.position();
-    const snapped = snapPosition(pos);
-    e.target.position(snapped);
+    e.target.position(snapPosition(pos));
   };
-
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
+    useSeatingStore.setState((s) => ({
+      tables: s.tables.map((t) =>
         t.id === table.id
-          ? {
-              ...t,
-              x: pos.x,
-              y: pos.y,
-              rotation: tableRef.current.rotation(),
-            }
+          ? { ...t, x: pos.x, y: pos.y, rotation: tableRef.current.rotation() }
           : t
       ),
     }));
   };
 
-  /* ============================================================
-     ROTATE WITH SHIFT + DRAG
-  ============================================================ */
-  const handleMouseDown = (e) => {
-    if (e.evt.shiftKey) {
-      setIsRotating(true);
-    }
-  };
-
-  const handleMouseUp = (e) => {
+  /* ROTATE (Shift + גרירה) */
+  const handleMouseDown = (e) => e.evt.shiftKey && setIsRotating(true);
+  const handleMouseUp = () => {
     if (isRotating) {
       setIsRotating(false);
       updatePositionInStore();
     }
   };
-
   const handleMouseMove = (e) => {
     if (!isRotating) return;
     const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    if (!pointer || !tableRef.current) return;
-
-    const dx = pointer.x - table.x;
-    const dy = pointer.y - table.y;
+    const p = stage.getPointerPosition();
+    if (!p || !tableRef.current) return;
+    const dx = p.x - table.x;
+    const dy = p.y - table.y;
     let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    angle = Math.round(angle / 15) * 15; // Snap כל 15 מעלות
+    angle = Math.round(angle / 15) * 15;
     tableRef.current.rotation(angle);
     tableRef.current.getLayer().batchDraw();
   };
 
-  /* ============================================================
-     CLICK / DROP HANDLERS
-  ============================================================ */
+  /* CLICK & DROP */
   const handleDrop = (e) => {
     e.cancelBubble = true;
-    if (!draggingGuest) return;
-    assignGuestBlock({ guestId: draggingGuest.id, tableId: table.id });
+    if (draggingGuest)
+      assignGuestBlock({ guestId: draggingGuest.id, tableId: table.id });
   };
-
   const handleClick = (e) => {
     e.cancelBubble = true;
-    if (draggingGuest) return;
-    if (typeof table.openAddGuestModal === "function")
+    if (!draggingGuest && typeof table.openAddGuestModal === "function")
       table.openAddGuestModal();
   };
 
   const size = table._dynamicSize || 160;
   const width = table._dynamicWidth || 240;
+  const height = table._dynamicHeight || 90;
   const radius = table._dynamicRadius || 60;
 
-  /* ============================================================
-     RENDER
-  ============================================================ */
+  /* RENDER */
   return (
     <Group
       ref={tableRef}
@@ -238,7 +216,6 @@ export default function TableRenderer({ table }) {
       onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}
       onClick={handleClick}
-      onMouseLeave={() => setIsRotating(false)}
       onMouseUpCapture={handleDrop}
     >
       {/* ROUND */}
@@ -290,12 +267,12 @@ export default function TableRenderer({ table }) {
         <>
           <Rect
             width={width}
-            height={70}
+            height={height}
             offsetX={width / 2}
-            offsetY={35}
+            offsetY={height / 2}
             fill={tableFill}
             shadowBlur={8}
-            cornerRadius={10}
+            cornerRadius={12}
           />
           <Text
             text={`${table.name}\n${occupiedCount}/${table.seats}`}
@@ -304,9 +281,9 @@ export default function TableRenderer({ table }) {
             align="center"
             verticalAlign="middle"
             width={width}
-            height={70}
+            height={height}
             offsetX={width / 2}
-            offsetY={35}
+            offsetY={height / 2}
           />
         </>
       )}
