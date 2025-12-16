@@ -5,16 +5,18 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   חישוב כיסאות סימטריים סביב השולחן (צדדים נגדיים זהים)
+   חישוב כיסאות סימטריים סביב השולחן
 ============================================================ */
 function getTightSeatCoordinates(table) {
   const seats = table.seats || 0;
   const result = [];
 
+  /* ========= ROUND ========= */
   if (table.type === "round") {
     const tableRadius = 60;
     const seatRadius = 10;
     const radius = tableRadius + seatRadius + 6;
+
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
       result.push({
@@ -24,64 +26,71 @@ function getTightSeatCoordinates(table) {
     }
   }
 
+  /* ========= SQUARE ========= */
   if (table.type === "square") {
     const size = 160;
-    const gap = 26;
-    const half = size / 2 + 16;
+    const seatGap = 22;
+    const half = size / 2 + 12;
 
-    // חלוקה מדויקת סימטרית לצדדים נגדיים
-    const perSide = Math.floor(seats / 4);
+    // חלוקה סימטרית בין צדדים נגדיים (לדוגמה 10 → 3+2+3+2)
+    const base = Math.floor(seats / 4);
     const remainder = seats % 4;
+    const sides = [base, base, base, base];
 
-    // 4 צדדים: [עליון, ימין, תחתון, שמאל]
-    const sides = [perSide, perSide, perSide, perSide];
-    for (let i = 0; i < remainder; i++) {
-      // מפזרים את השאריות כדי לשמור סימטריה: למעלה-למטה, אחר כך ימין-שמאל
-      if (i % 2 === 0) sides[0]++;
-      else sides[2]++;
+    if (remainder === 1) {
+      sides[0]++; // כיסא נוסף למעלה
+    } else if (remainder === 2) {
+      sides[0]++;
+      sides[2]++; // אחד למעלה ואחד למטה
+    } else if (remainder === 3) {
+      sides[0]++;
+      sides[1]++;
+      sides[2]++; // שלושה צדדים
     }
 
     // עליון
     for (let i = 0; i < sides[0]; i++) {
-      const offset = -((sides[0] - 1) * gap) / 2 + i * gap;
+      const offset = -((sides[0] - 1) * seatGap) / 2 + i * seatGap;
       result.push({ x: offset, y: -half });
-    }
-
-    // תחתון
-    for (let i = 0; i < sides[2]; i++) {
-      const offset = -((sides[2] - 1) * gap) / 2 + i * gap;
-      result.push({ x: offset, y: half });
     }
 
     // ימין
     for (let i = 0; i < sides[1]; i++) {
-      const offset = -((sides[1] - 1) * gap) / 2 + i * gap;
+      const offset = -((sides[1] - 1) * seatGap) / 2 + i * seatGap;
       result.push({ x: half, y: offset });
+    }
+
+    // תחתון
+    for (let i = 0; i < sides[2]; i++) {
+      const offset = -((sides[2] - 1) * seatGap) / 2 + i * seatGap;
+      result.push({ x: offset, y: half });
     }
 
     // שמאל
     for (let i = 0; i < sides[3]; i++) {
-      const offset = -((sides[3] - 1) * gap) / 2 + i * gap;
+      const offset = -((sides[3] - 1) * seatGap) / 2 + i * seatGap;
       result.push({ x: -half, y: offset });
     }
   }
 
+  /* ========= BANQUET ========= */
   if (table.type === "banquet") {
     const width = 240;
-    const gap = 24;
+    const seatGap = 22;
     const sideY = 59;
-    const topCount = Math.ceil(seats / 2);
-    const bottomCount = Math.floor(seats / 2);
+    const perSide = Math.floor(seats / 2);
 
-    for (let i = 0; i < topCount; i++) {
-      const offset = -((topCount - 1) * gap) / 2 + i * gap;
-      result.push({ x: offset, y: -sideY });
-    }
+    for (let i = 0; i < perSide; i++)
+      result.push({
+        x: -width / 2 + 20 + i * seatGap,
+        y: -sideY,
+      });
 
-    for (let i = 0; i < bottomCount; i++) {
-      const offset = -((bottomCount - 1) * gap) / 2 + i * gap;
-      result.push({ x: offset, y: sideY });
-    }
+    for (let i = 0; i < seats - perSide; i++)
+      result.push({
+        x: -width / 2 + 20 + i * seatGap,
+        y: sideY,
+      });
   }
 
   return result;
@@ -92,6 +101,8 @@ function getTightSeatCoordinates(table) {
 ============================================================ */
 export default function TableRenderer({ table }) {
   const tableRef = useRef(null);
+
+  /* ===== Zustand ===== */
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
@@ -100,12 +111,12 @@ export default function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
+  /* ===== Map seatIndex → guest ===== */
   const seatToGuestMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
       const g = guests.find(
-        (guest) =>
-          String(guest.id ?? guest._id) === String(s.guestId)
+        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
       );
       if (g) map.set(s.seatIndex, g);
     });
@@ -113,14 +124,21 @@ export default function TableRenderer({ table }) {
   }, [assigned, guests]);
 
   const occupiedCount = new Set(assigned.map((s) => s.seatIndex)).size;
+
+  const hasSelectedGuestInThisTable = useMemo(() => {
+    if (!selectedGuestId) return false;
+    return assigned.some((s) => String(s.guestId) === String(selectedGuestId));
+  }, [assigned, selectedGuestId]);
+
   const isHighlighted =
-    highlightedTable === table.id ||
-    assigned.some((s) => String(s.guestId) === String(selectedGuestId));
+    highlightedTable === table.id || hasSelectedGuestInThisTable;
 
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
+
   const seatsCoords = getTightSeatCoordinates(table);
 
+  /* ================= SAVE POSITION ================= */
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -138,6 +156,7 @@ export default function TableRenderer({ table }) {
     }));
   };
 
+  /* ================= DROP HANDLER ================= */
   const handleDrop = (e) => {
     e.cancelBubble = true;
     if (!draggingGuest) return;
@@ -145,6 +164,17 @@ export default function TableRenderer({ table }) {
       guestId: draggingGuest.id,
       tableId: table.id,
     });
+  };
+
+  /* ============================================================
+     ✅ CLICK HANDLER – פתיחת מודאל הוספת אורחים
+  ============================================================ */
+  const handleClick = (e) => {
+    e.cancelBubble = true;
+    if (draggingGuest) return;
+    if (typeof table.openAddGuestModal === "function") {
+      table.openAddGuestModal();
+    }
   };
 
   return (
@@ -157,13 +187,9 @@ export default function TableRenderer({ table }) {
       onDragMove={updatePositionInStore}
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
-      onClick={(e) => {
-        e.cancelBubble = true;
-        if (!draggingGuest && typeof table.openAddGuestModal === "function")
-          table.openAddGuestModal();
-      }}
+      onClick={handleClick}
     >
-      {/* ===== גוף השולחן ===== */}
+      {/* ===== TABLE BODY ===== */}
       {table.type === "round" && (
         <>
           <Circle radius={60} fill={tableFill} shadowBlur={8} />
@@ -231,7 +257,7 @@ export default function TableRenderer({ table }) {
         </>
       )}
 
-      {/* ===== כיסאות ===== */}
+      {/* ===== SEATS + NAMES ===== */}
       {seatsCoords.map((c, i) => {
         const guest = seatToGuestMap.get(i);
         return (
