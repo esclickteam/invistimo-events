@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -89,7 +89,6 @@ export default function TableRenderer({ table }) {
 
   const {
     highlightedTable,
-    highlightedSeats,
     selectedGuestId,
     guests,
     startDragGuest,
@@ -134,13 +133,16 @@ export default function TableRenderer({ table }) {
     }));
   };
 
-  /* ================= DRAG ================= */
+  /* ================= DRAG SEAT ================= */
   const handleSeatDrag = (guestId) => {
-    const g = guests.find(
-      (x) => normalizeGuestId(x) === String(guestId)
-    );
+    const g = guests.find((x) => normalizeGuestId(x) === String(guestId));
     if (g) startDragGuest(g);
   };
+
+  /* 🧩 טקסט בטוח */
+  const safeName = String(table?.name ?? "שולחן");
+  const safeSeats = String(table?.seats ?? 0);
+  const safeText = `${safeName}\n${occupiedCount}/${safeSeats}`;
 
   return (
     <Group
@@ -164,7 +166,7 @@ export default function TableRenderer({ table }) {
         <>
           <Circle radius={60} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            text={safeText}
             fontSize={18}
             fill={tableText}
             align="center"
@@ -173,6 +175,7 @@ export default function TableRenderer({ table }) {
             height={120}
             offsetX={60}
             offsetY={60}
+            listening={false}
           />
         </>
       )}
@@ -189,7 +192,7 @@ export default function TableRenderer({ table }) {
             cornerRadius={10}
           />
           <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            text={safeText}
             fontSize={18}
             fill={tableText}
             align="center"
@@ -198,6 +201,7 @@ export default function TableRenderer({ table }) {
             height={160}
             offsetX={80}
             offsetY={80}
+            listening={false}
           />
         </>
       )}
@@ -214,7 +218,7 @@ export default function TableRenderer({ table }) {
             cornerRadius={10}
           />
           <Text
-            text={`${table.name}\n${occupiedCount}/${table.seats}`}
+            text={safeText}
             fontSize={18}
             fill={tableText}
             align="center"
@@ -223,6 +227,7 @@ export default function TableRenderer({ table }) {
             height={90}
             offsetX={120}
             offsetY={45}
+            listening={false}
           />
         </>
       )}
