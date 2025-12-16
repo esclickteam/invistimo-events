@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function AddGuestToTableModal({ table, guests, onClose }) {
@@ -13,10 +15,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   const getPartySize = (guest) => {
     const raw =
-      guest?.confirmedGuestsCount ??
-      guest?.guestsCount ??
-      guest?.count ??
-      1;
+      guest?.confirmedGuestsCount ?? guest?.guestsCount ?? guest?.count ?? 1;
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
   };
@@ -75,23 +74,34 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl shadow-xl w-[540px] p-6 max-h-[90vh] overflow-y-auto transition-all">
-        <h2 className="text-lg font-bold mb-3 text-center">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.25 }}
+        className="bg-white rounded-2xl shadow-2xl w-[600px] p-6 max-h-[90vh] overflow-y-auto relative"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 left-3 text-gray-400 hover:text-gray-600"
+        >
+          <X size={20} />
+        </button>
+
+        <h2 className="text-xl font-bold text-center text-gray-800 mb-1">
           הושבה לשולחן {table.name}
         </h2>
-
-        <p className="text-sm text-gray-600 text-center mb-4">
+        <p className="text-sm text-gray-500 text-center mb-4">
           {occupied}/{table.seats} מקומות תפוסים
         </p>
 
         {error && (
-          <div className="text-red-600 bg-red-50 text-center py-1 rounded mb-3">
+          <div className="text-red-600 bg-red-50 text-center py-2 rounded mb-3">
             {error}
           </div>
         )}
 
-        {/* גריד של כרטיסיות */}
         <div className="grid grid-cols-6 gap-3 justify-items-center">
           {seatsArray.map((seat, i) => {
             const g = seat.guest;
@@ -100,9 +110,9 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
             return (
               <div
                 key={i}
-                className={`relative w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition ${
+                className={`relative w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition-all duration-200 ${
                   g
-                    ? "bg-blue-50 border-blue-400"
+                    ? "bg-blue-50 border-blue-400 shadow-sm hover:shadow-md"
                     : "bg-white border-gray-200 hover:bg-blue-100"
                 }`}
               >
@@ -112,7 +122,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                       {g.name}
                     </span>
                     <span className="text-xs text-gray-500">
-                      ({getPartySize(g)} מקומות)
+                      ({getPartySize(g)} מושבים)
                     </span>
                     <button
                       onClick={() => handleRemoveGuest(g.id)}
@@ -130,25 +140,32 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                       הושב<br />אורח
                     </span>
 
-                    {/* תפריט קטן */}
-                    {isOpen && (
-                      <div className="absolute top-full mt-2 bg-white border shadow-xl rounded-md w-44 z-50 max-h-56 overflow-y-auto text-right">
-                        {availableGuests.length === 0 && (
-                          <div className="p-2 text-xs text-gray-400 text-center">
-                            אין אורחים זמינים
-                          </div>
-                        )}
-                        {availableGuests.map((g2) => (
-                          <div
-                            key={g2.id}
-                            onClick={() => handleSeatGuest(i, g2)}
-                            className="p-2 hover:bg-blue-50 cursor-pointer text-xs text-gray-700"
-                          >
-                            {g2.name} — {getPartySize(g2)} מקומות
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <AnimatePresence>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute top-[90%] mt-1 bg-white border shadow-xl rounded-md w-44 z-50 max-h-56 overflow-y-auto text-right"
+                        >
+                          {availableGuests.length === 0 && (
+                            <div className="p-2 text-xs text-gray-400 text-center">
+                              אין אורחים זמינים
+                            </div>
+                          )}
+                          {availableGuests.map((g2) => (
+                            <div
+                              key={g2.id}
+                              onClick={() => handleSeatGuest(i, g2)}
+                              className="p-2 hover:bg-blue-50 cursor-pointer text-xs text-gray-700"
+                            >
+                              {g2.name} — {getPartySize(g2)} מושבים
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </>
                 )}
               </div>
@@ -156,16 +173,15 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           })}
         </div>
 
-        {/* כפתור סגירה */}
         <div className="flex justify-center mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-300 hover:bg-gray-400"
+            className="px-5 py-2.5 rounded-lg bg-gray-300 hover:bg-gray-400 font-medium text-gray-800"
           >
             סגור
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
