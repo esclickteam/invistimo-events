@@ -18,17 +18,17 @@ export default function ZoneRenderer({ zone }: Props) {
 
   const isSelected = selectedZoneId === zone.id;
 
+  /* ================= Attach Transformer ONLY if selected ================= */
   useEffect(() => {
-    if (isSelected && shapeRef.current && trRef.current) {
-      trRef.current.nodes([shapeRef.current]);
-      trRef.current.getLayer()?.batchDraw();
-    }
+    if (!isSelected || !shapeRef.current || !trRef.current) return;
+
+    trRef.current.nodes([shapeRef.current]);
+    trRef.current.getLayer()?.batchDraw();
   }, [isSelected]);
 
   return (
     <>
       <Group
-        ref={shapeRef}
         x={zone.x}
         y={zone.y}
         rotation={zone.rotation || 0}
@@ -37,33 +37,25 @@ export default function ZoneRenderer({ zone }: Props) {
           e.cancelBubble = true;
           setSelectedZone(zone.id);
         }}
-        onDragStart={(e) => (e.cancelBubble = true)}
-        onDragMove={(e) => (e.cancelBubble = true)}
+        onDragStart={(e) => {
+          // ❗ קריטי: מונע מה־Stage לזוז
+          e.cancelBubble = true;
+        }}
+        onDragMove={(e) => {
+          // ❗ מונע bubbling גם בזמן גרירה
+          e.cancelBubble = true;
+        }}
         onDragEnd={(e) => {
           e.cancelBubble = true;
+
           updateZone(zone.id, {
             x: e.target.x(),
             y: e.target.y(),
           });
         }}
-        onTransformEnd={() => {
-          const node = shapeRef.current;
-          if (!node) return;
-
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
-
-          node.scaleX(1);
-          node.scaleY(1);
-
-          updateZone(zone.id, {
-            width: Math.max(80, node.width() * scaleX),
-            height: Math.max(60, node.height() * scaleY),
-            rotation: node.rotation(), // ✅ נשמרת הזווית בפועל
-          });
-        }}
       >
         <Rect
+          ref={shapeRef}
           width={zone.width}
           height={zone.height}
           fill={zone.color}
@@ -90,18 +82,16 @@ export default function ZoneRenderer({ zone }: Props) {
         <Transformer
           ref={trRef}
           rotateEnabled
-          rotationSnaps={[]} // 🌀 מאפשר סיבוב חופשי כמו בקאנבה
-          enabledAnchors={[
-            "top-left",
-            "top-right",
-            "bottom-left",
-            "bottom-right",
-          ]}
-          boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 80 || newBox.height < 60) {
-              return oldBox;
-            }
-            return newBox;
+          rotationSnaps={[]} // ✅ סיבוב חופשי בלי "קפיצות"
+          enabledAnchors={[]} // ✅ מבטל שינוי גודל לגמרי (רק סיבוב)
+          onTransformEnd={() => {
+            const node = shapeRef.current;
+            if (!node) return;
+
+            // ✅ שומרים רק זווית (לא נוגעים ברוחב/גובה בכלל)
+            updateZone(zone.id, {
+              rotation: node.rotation(),
+            });
           }}
         />
       )}
