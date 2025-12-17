@@ -139,7 +139,7 @@ export default function ThankYouPage() {
           transition={{ delay: 0.35, duration: 0.6 }}
           className="mt-10 text-sm md:text-base text-[#6b6046]"
         >
-          אפשר לסגור את הדף — העדכון נשמר בהצלחה.
+        העדכון נשמר בהצלחה
         </motion.div>
       </motion.div>
     </div>
