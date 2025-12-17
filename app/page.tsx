@@ -85,6 +85,58 @@ function RingingPhoneBig() {
 }
 
 /* =====================================================
+   זיקוקים אלגנטיים – BLOCK 4 (כמו HERO אבל עדין יותר)
+===================================================== */
+function SoftFireworks() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+      {[...Array(10)].map((_, i) => {
+        const x = Math.random() * 100;
+        const y = Math.random() * 100;
+
+        return (
+          <motion.div
+            key={i}
+            className="absolute"
+            style={{ left: `${x}%`, top: `${y}%` }}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{
+              opacity: [0, 0.4, 0],
+              scale: [0.6, 1.4],
+            }}
+            transition={{
+              duration: 4.5,
+              delay: i * 0.8,
+              repeat: Infinity,
+              ease: "easeOut",
+            }}
+          >
+            {[...Array(12)].map((_, j) => (
+              <span
+                key={j}
+                className="
+                  absolute left-1/2 top-1/2
+                  w-[2px] h-[42px]
+                  bg-gradient-to-t
+                  from-transparent
+                  via-[#cbb38a]
+                  to-transparent
+                "
+                style={{
+                  transform: `rotate(${j * 30}deg) translateY(-28px)`,
+                  transformOrigin: "center",
+                }}
+              />
+            ))}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+
+/* =====================================================
    בלוק 3 – קרוסלת פיצ'רים (RTL, איטית, תמונות גדולות)
 ===================================================== */
 const features = [
@@ -245,33 +297,11 @@ export default function HomePage() {
 </section>
 
 
-
-    {/* ================= בלוק 4 ================= */}
+{/* ================= בלוק 4 ================= */}
 <section className="relative py-32 px-6 bg-[#faf8f4] overflow-hidden text-center">
 
-  {/* אפקט אור עדין – כמו ב-HERO */}
-  <div className="absolute inset-0 pointer-events-none">
-    {[...Array(6)].map((_, i) => (
-      <motion.div
-        key={i}
-        className="absolute rounded-full"
-        style={{
-          width: 420,
-          height: 420,
-          left: `${15 + i * 14}%`,
-          top: `${20 + (i % 2) * 30}%`,
-          background:
-            "radial-gradient(circle, rgba(203,179,138,0.18) 0%, transparent 65%)",
-        }}
-        animate={{ opacity: [0.35, 0.6, 0.35] }}
-        transition={{
-          duration: 10 + i * 2,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-    ))}
-  </div>
+  {/* אפקט זיקוקים – כמו בלוק 1 */}
+  <SoftFireworks />
 
   {/* תוכן */}
   <div className="relative z-10 max-w-3xl mx-auto">
@@ -286,6 +316,7 @@ export default function HomePage() {
     </p>
   </div>
 </section>
+
 
 
       {/* ================= CTA ================= */}
