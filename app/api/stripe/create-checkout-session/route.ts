@@ -30,7 +30,7 @@ const PRICE_CONFIG: Record<
   },
 
   premium_200: {
-    priceId: "price_1SdSGkLCgfc20iubDzINSFfW", 
+    priceId: "price_1SfT32LCgfc20iubjKfjv3ZQ", 
     maxGuests: 200,
     plan: "premium",
   },
