@@ -115,6 +115,34 @@ function getTableLayout(rawTable) {
 }
 
 /* ============================================================
+   חישוב סיבוב כיסא לפי סוג שולחן
+============================================================ */
+function getSeatRotation(table, c) {
+  // ⭕ שולחן עגול – רדיאלי
+  if (table.type === "round") {
+    return (Math.atan2(c.y, c.x) * 180) / Math.PI + 180;
+  }
+
+  // ⬜ שולחן מרובע / מלבני / אבירים
+  if (
+    table.type === "square" ||
+    table.type === "rectangle" ||
+    table.type === "banquet"
+  ) {
+    if (Math.abs(c.x) > Math.abs(c.y)) {
+      // ימין / שמאל
+      return c.x > 0 ? -90 : 90;
+    } else {
+      // למעלה / למטה
+      return c.y > 0 ? 180 : 0;
+    }
+  }
+
+  return 0;
+}
+
+
+/* ============================================================
    TableRenderer
 ============================================================ */
 export default function TableRenderer({ table }) {
@@ -406,8 +434,9 @@ export default function TableRenderer({ table }) {
   const guest = seatInfoMap.get(i)?.guest;
 
   // זווית מהמרכז אל הכיסא
-  const rotation =
-    (Math.atan2(c.y, c.x) * 180) / Math.PI + 180;
+  const rotation = getSeatRotation(layout, c);
+
+    
 
   return (
     <Group
