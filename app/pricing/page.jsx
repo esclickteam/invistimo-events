@@ -228,7 +228,7 @@ export default function PricingPage() {
                       "כל מה שכלול בחבילת הבסיס",
                       "מערכת מתקדמת לסידורי הושבה",
                       "שליחת SMS חכמה לפי מספר הרשומות",
-                      "3 הודעות SMS לכל רשומה",
+                      "3 הודעות SMS לכל אורח",
                       "שליטה מלאה ברשימת האורחים",
                       "סטטיסטיקות וניהול בזמן אמת",
                     ].map((item) => (
@@ -249,7 +249,7 @@ export default function PricingPage() {
                       <option value={100}>עד 100 אורחים</option>
                       <option value={300}>עד 300 אורחים</option>
                       <option value={500}>עד 500 אורחים</option>
-                      <option value={1000}>1000+ אורחים</option>
+                      <option value={1000}>עד 1,000 אורחים</option>
                     </select>
 
                     {/* ✅ טקסט קטן שמסביר מה נבחר */}
