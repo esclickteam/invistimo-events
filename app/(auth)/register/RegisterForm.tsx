@@ -43,9 +43,9 @@ function RegisterFormInner() {
     if (plan === "premium") {
       const priceMap: Record<number, number> = {
         100: 149,
-        300: 249,
-        500: 399,
-        1000: 699,
+        300: 299,
+        500: 449,
+        1000: 649,
       };
 
       const keyMap: Record<number, string> = {
