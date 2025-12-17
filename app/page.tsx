@@ -3,59 +3,57 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const fadeIn = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-};
-
-/* אפקט חלקיקים רך – חגיגי ועדין */
-function SoftParticles() {
+/* ================= אפקט חגיגי קבוע =================
+   רץ כל הזמן על כל העמוד (לא זיקוקים)
+==================================================== */
+function AmbientParticles() {
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {[...Array(14)].map((_, i) => (
-        <motion.span
-          key={i}
-          className="absolute w-2 h-2 rounded-full bg-[#cbb38a]/40"
-          initial={{
-            x: Math.random() * 100 + "%",
-            y: "110%",
-            opacity: 0,
-          }}
-          animate={{
-            y: "-10%",
-            opacity: [0, 0.8, 0],
-          }}
-          transition={{
-            duration: 16 + Math.random() * 6,
-            delay: Math.random() * 6,
-            repeat: Infinity,
-            ease: "easeOut",
-          }}
-        />
-      ))}
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      {[...Array(22)].map((_, i) => {
+        const size = Math.random() > 0.7 ? 4 : 2;
+        return (
+          <motion.span
+            key={i}
+            className="absolute rounded-full bg-[#cbb38a]/40"
+            style={{
+              width: size,
+              height: size,
+              left: Math.random() * 100 + "%",
+              bottom: "-10%",
+            }}
+            initial={{ opacity: 0, y: 0 }}
+            animate={{
+              opacity: [0, 0.6, 0],
+              y: [-20, -600],
+            }}
+            transition={{
+              duration: 14 + Math.random() * 10,
+              delay: Math.random() * 6,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
 
 export default function HomePage() {
   return (
-    <main className="bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
+    <main className="relative bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
+      {/* אפקט קבוע לכל העמוד */}
+      <AmbientParticles />
 
       {/* ================= בלוק 1 – HERO ================= */}
-      <section className="relative min-h-screen flex items-center px-6">
-        <SoftParticles />
+      <section className="relative min-h-screen flex items-center px-6 z-10">
+        <div className="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
+          {/* טקסט – כניסה אחת */}
           <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 0.9 }}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: "easeOut" }}
           >
             <h1 className="text-5xl md:text-6xl font-semibold leading-tight mb-6">
               ניהול אירוע חכם
@@ -79,14 +77,22 @@ export default function HomePage() {
             </Link>
           </motion.div>
 
+          {/* טלפון – תנועה עדינה קבועה */}
           <motion.div
-            variants={fadeIn}
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 1.2 }}
+            initial={{ opacity: 0, y: 60 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
             className="flex justify-center lg:justify-end"
           >
-            <div className="relative w-[320px] aspect-[9/19] rounded-[42px] bg-black shadow-[0_50px_100px_rgba(0,0,0,0.35)] p-[10px]">
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{
+                duration: 6,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="relative w-[320px] aspect-[9/19] rounded-[42px] bg-black shadow-[0_50px_100px_rgba(0,0,0,0.35)] p-[10px]"
+            >
               <div className="w-full h-full rounded-[32px] overflow-hidden">
                 <video
                   src="/videos/home1.mp4"
@@ -97,20 +103,14 @@ export default function HomePage() {
                   className="w-full h-full object-cover"
                 />
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
 
-      {/* ================= בלוק 2 – הגישה שלנו ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4]">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="max-w-5xl mx-auto"
-        >
+      {/* ================= בלוק 2 ================= */}
+      <section className="py-32 px-6 bg-[#faf8f4] relative z-10">
+        <div className="max-w-5xl mx-auto">
           <h2 className="text-4xl font-semibold mb-12">
             הגישה שלנו לניהול אירועים
           </h2>
@@ -123,18 +123,13 @@ export default function HomePage() {
             מי שלא — לא צריך שיציקו לו.<br /><br />
             הכול מתעדכן אוטומטית במערכת אחת ברורה.
           </p>
-        </motion.div>
+        </div>
       </section>
 
-      {/* ================= בלוק 3 – הכל במקום אחד ================= */}
-      <section className="py-32 px-6 bg-white">
+      {/* ================= בלוק 3 ================= */}
+      <section className="py-32 px-6 bg-white relative z-10">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
-          <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
+          <div>
             <h2 className="text-4xl font-semibold mb-10">
               כל האירוע במקום אחד
             </h2>
@@ -155,53 +150,34 @@ export default function HomePage() {
             <p className="mt-6 font-medium">
               שקט נפשי, במקום כאוס.
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            variants={fadeIn}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="aspect-video rounded-3xl bg-[#e9e2d8] flex items-center justify-center"
-          >
+          <div className="aspect-video rounded-3xl bg-[#e9e2d8] flex items-center justify-center">
             כאן נכנס וידאו / הדמיה של המערכת
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ================= בלוק 4 ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4] text-center">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-        >
-          <h2 className="text-4xl font-semibold mb-10">
-            פשוט, ברור, עובד
-          </h2>
+      <section className="py-32 px-6 bg-[#faf8f4] text-center relative z-10">
+        <h2 className="text-4xl font-semibold mb-10">
+          פשוט, ברור, עובד
+        </h2>
 
-          <p className="text-xl leading-relaxed">
-            שולחים הזמנה דיגיטלית.<br />
-            האורחים מאשרים לבד.<br />
-            המערכת מתעדכנת בזמן אמת.<br /><br />
-            אין צורך לעקוב.<br />
-            אין צורך לתזכר.<br />
-            אין צורך לבדוק שוב ושוב.<br /><br />
-            המערכת עובדת בשבילך.
-          </p>
-        </motion.div>
+        <p className="text-xl leading-relaxed">
+          שולחים הזמנה דיגיטלית.<br />
+          האורחים מאשרים לבד.<br />
+          המערכת מתעדכנת בזמן אמת.<br /><br />
+          אין צורך לעקוב.<br />
+          אין צורך לתזכר.<br />
+          אין צורך לבדוק שוב ושוב.<br /><br />
+          המערכת עובדת בשבילך.
+        </p>
       </section>
 
       {/* ================= בלוק 5 ================= */}
-      <section className="py-32 px-6 bg-white">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="max-w-5xl mx-auto"
-        >
+      <section className="py-32 px-6 bg-white relative z-10">
+        <div className="max-w-5xl mx-auto">
           <h2 className="text-4xl font-semibold mb-12">
             למה Invistimo
           </h2>
@@ -220,68 +196,29 @@ export default function HomePage() {
             רק מערכת אחת שעושה סדר —
             ומשאירה לך להיות באירוע עצמו.
           </p>
-        </motion.div>
+        </div>
       </section>
 
       {/* ================= בלוק 6 ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4] text-center">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-        >
-          <h2 className="text-4xl font-semibold mb-12">
-            מערכת שמתאימה למציאות של היום
-          </h2>
+      <section className="py-32 px-6 bg-[#faf8f4] text-center relative z-10">
+        <h2 className="text-4xl font-semibold mb-12">
+          מערכת שמתאימה למציאות של היום
+        </h2>
 
-          <p className="text-xl leading-relaxed">
-            אין טלפונים חוזרים<br /><br />
-            אין הודעות אבודות<br /><br />
-            אין בלבול בין רשימות<br /><br />
-            אין חוסר ודאות<br /><br />
-            יש שליטה.<br />
-            יש סדר.<br />
-            ויש שקט.
-          </p>
-        </motion.div>
-      </section>
-
-      {/* ================= בלוק 7 ================= */}
-      <section className="py-32 px-6 bg-white">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-        >
-          <h2 className="text-4xl font-semibold mb-12">
-            מתאים לכל סוגי האירועים
-          </h2>
-
-          <div className="grid md:grid-cols-4 gap-6 text-lg">
-            <div>חתונות</div>
-            <div>אירועים משפחתיים</div>
-            <div>בר/בת מצווה</div>
-            <div>כנסים ואירועים עסקיים</div>
-          </div>
-
-          <p className="mt-8 text-lg">
-            כל אירוע עם אורחים —<br />
-            צריך ניהול חכם.
-          </p>
-        </motion.div>
+        <p className="text-xl leading-relaxed">
+          אין טלפונים חוזרים<br /><br />
+          אין הודעות אבודות<br /><br />
+          אין בלבול בין רשימות<br /><br />
+          אין חוסר ודאות<br /><br />
+          יש שליטה.<br />
+          יש סדר.<br />
+          ויש שקט.
+        </p>
       </section>
 
       {/* ================= בלוק 8 ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4]">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="max-w-5xl mx-auto"
-        >
+      <section className="py-32 px-6 bg-[#faf8f4] relative z-10">
+        <div className="max-w-5xl mx-auto">
           <h2 className="text-4xl font-semibold mb-12">
             פחות התעסקות, יותר נוכחות
           </h2>
@@ -294,37 +231,27 @@ export default function HomePage() {
             Invistimo מורידה ממך עומס,<br />
             ולא מוסיפה עוד מערכת להתעסק בה.
           </p>
-        </motion.div>
+        </div>
       </section>
 
       {/* ================= בלוק 9 – CTA ================= */}
-      <section className="py-32 px-6 bg-[#3f3a34] text-[#faf8f4] text-center relative">
-        <SoftParticles />
+      <section className="py-32 px-6 bg-[#3f3a34] text-[#faf8f4] text-center relative z-10">
+        <h2 className="text-4xl font-semibold mb-8">
+          מוכנים לנהל אירוע רגוע באמת?
+        </h2>
 
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+        <p className="text-lg mb-10">
+          כל מה שצריך —<br />
+          במקום אחד.
+        </p>
+
+        <Link
+          href="/pricing"
+          className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full text-sm tracking-wide hover:opacity-90 transition"
         >
-          <h2 className="text-4xl font-semibold mb-8">
-            מוכנים לנהל אירוע רגוע באמת?
-          </h2>
-
-          <p className="text-lg mb-10">
-            כל מה שצריך —<br />
-            במקום אחד.
-          </p>
-
-          <Link
-            href="/pricing"
-            className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full text-sm tracking-wide hover:opacity-90 transition"
-          >
-            לצפייה בחבילות
-          </Link>
-        </motion.div>
+          לצפייה בחבילות
+        </Link>
       </section>
-
     </main>
   );
 }
