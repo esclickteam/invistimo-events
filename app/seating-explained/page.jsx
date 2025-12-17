@@ -1,18 +1,18 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
-const fade = {
+const fadeUp = {
   hidden: { opacity: 0, y: 26 },
   visible: { opacity: 1, y: 0 },
 };
 
-const fast = { duration: 0.65, ease: "easeOut" };
+const transition = { duration: 0.65, ease: "easeOut" };
 
-function Section({ children }) {
+function Section({ children, className = "" }) {
   return (
-    <section className="w-full max-w-6xl mx-auto px-6 md:px-10">
+    <section className={`w-full max-w-6xl mx-auto px-6 md:px-10 ${className}`}>
       {children}
     </section>
   );
@@ -49,48 +49,82 @@ function MediaFrame({ children }) {
   );
 }
 
+function Block({ id, tone = "champagne", children }) {
+  const base =
+    "rounded-[32px] border border-[#e2d6c8] shadow-[0_20px_70px_rgba(0,0,0,0.08)] p-8 md:p-12";
+
+  const champagne = "bg-[#f5eee7] bg-[url('/noise.png')] bg-repeat";
+  const white = "bg-white";
+
+  return (
+    <motion.div
+      id={id}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-10% 0px" }}
+      variants={fadeUp}
+      transition={transition}
+      className={`${base} ${tone === "white" ? white : champagne}`}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export default function SeatingExplainedPage() {
   return (
-    <div className="relative overflow-hidden">
-      {/* רקע עדין קבוע */}
+    <div dir="rtl" className="relative overflow-hidden">
+      {/* רקע כללי עדין כמו באתר */}
       <div className="pointer-events-none absolute inset-0 bg-[#fbf7f2]" />
-      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.35]" />
+      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.25]" />
 
-      {/* ======== בלוק פתיח ======== */}
-      <Section>
+      {/* ===================== BLOCK 1: HERO (פתיח מכירתי) ===================== */}
+      <Section className="pt-28 md:pt-32 pb-10">
         <motion.div
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          variants={fade}
-          transition={fast}
-          className="pt-28 md:pt-32 pb-16 md:pb-20 text-center"
+          variants={fadeUp}
+          transition={transition}
+          className="text-center"
         >
           <div className="flex justify-center mb-6">
             <Pill>סידורי הושבה • פרימיום • בזמן אמת</Pill>
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-extrabold text-[#4a2e15]">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-[#4a2e15]">
             סידור הושבה שמרגיש כמו אולם אמיתי
           </h1>
 
           <p className="mt-6 text-lg md:text-xl text-[#4a413a] max-w-3xl mx-auto leading-relaxed">
-            עורך סידורי ההושבה של Invistimo מאפשר לכם לבנות מפת אולם אמיתית,
-            לשבץ אורחים בגרירה פשוטה ולשלוח הודעות עם מספר השולחן שלהם — הכול
-            בזמן אמת.
+            בונים מפה מדויקת, משבצים אורחים בגרירה פשוטה, מנהלים הכל מהדשבורד —
+            ובסוף שולחים הודעה לאורחים עם מספר השולחן שלהם. נקי, מדויק, ווואו.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/pricing"
-              className="inline-flex items-center justify-center px-8 py-3 rounded-full bg-[#1d3f78] text-white font-semibold shadow-[0_12px_30px_rgba(29,63,120,0.25)] hover:bg-[#162c5a] transition"
+              className="
+                inline-flex items-center justify-center
+                px-9 py-3.5 rounded-full
+                bg-[#1d3f78] text-white font-semibold
+                shadow-[0_12px_30px_rgba(29,63,120,0.25)]
+                hover:bg-[#162c5a] transition
+              "
             >
               התחילו לבנות הושבה
             </Link>
 
             <a
               href="#seat-block-2"
-              className="inline-flex items-center justify-center px-8 py-3 rounded-full border border-[#cbb59d] text-[#4a413a] font-semibold bg-[#f5eee7] bg-[url('/noise.png')] bg-repeat hover:bg-[#efe6db] transition"
+              className="
+                inline-flex items-center justify-center
+                px-9 py-3.5 rounded-full
+                border border-[#cbb59d]
+                text-[#4a413a] font-semibold
+                bg-[#f5eee7] bg-[url('/noise.png')] bg-repeat
+                hover:bg-[#efe6db] transition
+              "
             >
               לראות איך זה עובד
             </a>
@@ -98,50 +132,55 @@ export default function SeatingExplainedPage() {
         </motion.div>
       </Section>
 
-      {/* ======== בלוק 2 – הוספת שולחן + סקיצה ======== */}
-      <Section>
-        <motion.div
-          id="seat-block-2"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fade}
-          transition={fast}
-          className="rounded-[32px] border border-[#e2d6c8] bg-[#f5eee7] bg-[url('/noise.png')] bg-repeat shadow-[0_20px_70px_rgba(0,0,0,0.08)] p-8 md:p-12 my-20"
-        >
+      {/* ===================== BLOCK 2: sit1 (הוספת שולחן + סקיצה) ===================== */}
+      <Section className="py-10 md:py-12">
+        <Block id="seat-block-2" tone="champagne">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div className="text-right">
-              <Pill>בלוק 1 • הקמת אולם</Pill>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15] mt-4">
-                מתחילים נכון: שולחנות + סקיצה אמיתית של האולם
+              <div className="mb-4">
+                <Pill>בניית אולם מדויקת</Pill>
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
+                מעלים סקיצה מהאולם — ובונים עליה הושבה מושלמת
               </h2>
+
               <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                מעלים את הסקיצה מהאולם, מוסיפים מעליה שולחנות ואלמנטים —
-                ויוצרים מפת הושבה שמרגישה אמיתית, מדויקת ונוחה לשינויים.
+                יש לכם סקיצה שקיבלתם מהאולם? מעלים אותה כרקע ומניחים מעליה שולחנות ואלמנטים.
+                זה נותן תכנון “אחד על אחד” עם השטח — ומקפיץ את הסדר והמקצועיות.
               </p>
+
+              <div className="mt-7 space-y-3 text-[#4a413a]">
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>בחירת סוג שולחן + מספר כסאות — בשניות</span>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>גרירה ומיקום טבעיים על המפה</span>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>נוח לשינויים לאורך הדרך</span>
+                </div>
+              </div>
             </div>
+
             <MediaFrame>
               <img
                 src="/sit1.png"
-                alt="הוספת שולחן וסקיצת אולם"
+                alt="הוספת שולחן ובניית מפת אולם"
                 className="w-full h-auto object-contain"
                 loading="lazy"
               />
             </MediaFrame>
           </div>
-        </motion.div>
+        </Block>
       </Section>
 
-      {/* ======== בלוק 3 – וידאו שיבוץ אורחים ======== */}
-      <Section>
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fade}
-          transition={fast}
-          className="rounded-[32px] border border-[#e2d6c8] bg-white shadow-[0_20px_70px_rgba(0,0,0,0.08)] p-8 md:p-12 my-20"
-        >
+      {/* ===================== BLOCK 3: sit2 (שיבוץ בזמן אמת - וידאו) ===================== */}
+      <Section className="py-10 md:py-12">
+        <Block tone="white">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <MediaFrame>
               <video
@@ -152,63 +191,87 @@ export default function SeatingExplainedPage() {
                 className="w-full h-auto aspect-video object-cover"
               />
             </MediaFrame>
+
             <div className="text-right">
-              <Pill>בלוק 2 • שיבוץ בזמן אמת</Pill>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15] mt-4">
-                גוררים אורח — מושיבים. הכל מתעדכן מיד.
+              <div className="mb-4">
+                <Pill>שיבוץ חכם בזמן אמת</Pill>
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
+                גוררים אורח לשולחן — והכל מסתנכרן אוטומטית
               </h2>
+
               <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                גוררים את האורח מהתפריט הצדדי אל השולחן הרצוי, או משייכים ישירות
-                מתוך השולחן עצמו. כל שינוי נשמר ומסתנכרן בזמן אמת.
+                מתוך תפריט האורחים בצד, <strong>גוררים את האורח לשולחן הרצוי</strong>.
+                אפשר גם לשבץ דרך השולחן עצמו. וכל שינוי מתעדכן בזמן אמת —
+                גם ליד שם האורח בתפריט הצד וגם בדשבורד.
               </p>
+
+              <div className="mt-7 space-y-3 text-[#4a413a]">
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>אין כפילויות, אין בלבול, הכל ברור</span>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>מהיר בטירוף גם באירועים גדולים</span>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>נבנה כדי לעבוד חלק — כמו מוצר פרימיום</span>
+                </div>
+              </div>
             </div>
           </div>
-        </motion.div>
+        </Block>
       </Section>
 
-      {/* ======== בלוק 4 – דשבורד ======== */}
-      <Section>
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fade}
-          transition={fast}
-          className="rounded-[32px] border border-[#e2d6c8] bg-[#f5eee7] bg-[url('/noise.png')] bg-repeat shadow-[0_20px_70px_rgba(0,0,0,0.08)] p-8 md:p-12 my-20"
-        >
+      {/* ===================== BLOCK 4: sit3 (דשבורד - תמונה) ===================== */}
+      <Section className="py-10 md:py-12">
+        <Block tone="champagne">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div className="text-right">
-              <Pill>בלוק 3 • שליטה מהדשבורד</Pill>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15] mt-4">
-                “הושבה אישית” – מיקום מדויק בלחיצה אחת
+              <div className="mb-4">
+                <Pill>שליטה מהדשבורד</Pill>
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
+                “הושבה אישית” לכל אורח — למצוא, לסמן, ולשנות בשנייה
               </h2>
+
               <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                מהדשבורד ניתן לנהל הושבה של כל אורח. בלחיצה על “הושבה אישית”
-                תראו בדיוק איפה הוא יושב ותוכלו להזיז אותו במהירות.
+                בדשבורד יש לכל אורח כפתור <strong>הושבה אישית</strong> —
+                בלחיצה אחת המערכת מסמנת את השולחן והמיקום שלו, ומאפשרת לעדכן במהירות.
+                מושלם לשינויים של הרגע האחרון בלי לשבור את כל ההושבה.
               </p>
+
+              <div className="mt-7 space-y-3 text-[#4a413a]">
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>סימון מיקום ברור ומיידי</span>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>עדכון מהיר בלי לחפש “איפה הוא?”</span>
+                </div>
+              </div>
             </div>
+
             <MediaFrame>
               <img
                 src="/sit3.png"
-                alt="הושבה אישית מדשבורד"
+                alt="הושבה אישית מהדשבורד"
                 className="w-full h-auto object-contain"
                 loading="lazy"
               />
             </MediaFrame>
           </div>
-        </motion.div>
+        </Block>
       </Section>
 
-      {/* ======== בלוק 5 – וידאו הודעות ======== */}
-      <Section>
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fade}
-          transition={fast}
-          className="rounded-[32px] border border-[#e2d6c8] bg-white shadow-[0_20px_70px_rgba(0,0,0,0.08)] p-8 md:p-12 my-20"
-        >
+      {/* ===================== BLOCK 5: sit4 (וידאו הודעות) ===================== */}
+      <Section className="py-10 md:py-12">
+        <Block tone="white">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <MediaFrame>
               <video
@@ -219,52 +282,77 @@ export default function SeatingExplainedPage() {
                 className="w-full h-auto aspect-video object-cover"
               />
             </MediaFrame>
+
             <div className="text-right">
-              <Pill>בלוק 4 • הודעות לאורחים</Pill>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15] mt-4">
-                שולחים הודעה עם מספר השולחן שלהם – ישירות מהמערכת.
+              <div className="mb-4">
+                <Pill>הודעה לאורחים</Pill>
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
+                מסיימים הושבה — ושולחים הודעות עם מספר השולחן
               </h2>
+
               <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                אחרי שכל ההושבה מסודרת, שלחו הודעה אישית לכל אורח עם מספר
-                השולחן שלו. הכל אוטומטי, מסודר ומרגיש פרימיום.
+                אחרי שההושבה מסודרת, שולחים לאורחים הודעה שמציגה את מספר השולחן שלהם.
+                זה חוסך המון שאלות ביום האירוע ומרים את החוויה לרמה מקצועית.
               </p>
+
+              <div className="mt-7 space-y-3 text-[#4a413a]">
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>שליחה ישירות מתוך המערכת</span>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <span className="font-semibold">•</span>
+                  <span>כל אורח מקבל את המידע שלו — מסודר וברור</span>
+                </div>
+              </div>
             </div>
           </div>
-        </motion.div>
+        </Block>
       </Section>
 
-      {/* ======== בלוק סיום ======== */}
-      <Section>
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fade}
-          transition={fast}
-          className="mb-24 md:mb-28 rounded-[32px] border border-[#e2d6c8] bg-[#f5eee7] bg-[url('/noise.png')] bg-repeat shadow-[0_20px_70px_rgba(0,0,0,0.08)] p-10 md:p-14 text-center"
-        >
-          <h3 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
-            רוצים את זה גם באירוע שלכם?
-          </h3>
-          <p className="mt-4 text-lg text-[#4a413a] max-w-2xl mx-auto leading-relaxed">
-            תכנון אולם, שיבוץ בזמן אמת, שליטה מלאה מהדשבורד והודעות חכמות לאורחים —
-            הכל במערכת אחת שמרגישה מושלמת.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/pricing"
-              className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-[#1d3f78] text-white font-semibold text-lg shadow-[0_12px_30px_rgba(29,63,120,0.25)] hover:bg-[#162c5a] transition"
-            >
-              התחילו לבנות הושבה
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center justify-center px-10 py-4 rounded-full border border-[#cbb59d] text-[#4a413a] font-semibold text-lg bg-transparent hover:bg-[#efe6db] transition"
-            >
-              לראות חבילות
-            </Link>
+      {/* ===================== BLOCK 6: CTA ===================== */}
+      <Section className="pt-10 pb-24 md:pb-28">
+        <Block tone="champagne">
+          <div className="text-center">
+            <h3 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
+              מוכנים להושבה שמרגישה פרימיום?
+            </h3>
+            <p className="mt-4 text-lg text-[#4a413a] max-w-2xl mx-auto leading-relaxed">
+              אם חשוב לכם סדר, דיוק וחוויה חלקה — זו המערכת שתעשה לכם שקט.
+            </p>
+
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href="/pricing"
+                className="
+                  inline-flex items-center justify-center
+                  px-10 py-4 rounded-full
+                  bg-[#1d3f78] text-white font-semibold text-lg
+                  shadow-[0_12px_30px_rgba(29,63,120,0.25)]
+                  hover:bg-[#162c5a] transition
+                "
+              >
+                התחילו לבנות הושבה
+              </Link>
+
+              <Link
+                href="/pricing"
+                className="
+                  inline-flex items-center justify-center
+                  px-10 py-4 rounded-full
+                  border border-[#cbb59d]
+                  text-[#4a413a] font-semibold text-lg
+                  bg-transparent
+                  hover:bg-[#efe6db] transition
+                "
+              >
+                לראות חבילות
+              </Link>
+            </div>
           </div>
-        </motion.div>
+        </Block>
       </Section>
     </div>
   );
