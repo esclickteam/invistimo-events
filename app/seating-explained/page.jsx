@@ -17,10 +17,6 @@ export default function SeatingExplainedPage() {
   const tallLastMedia =
     "w-full h-[760px] md:h-[980px] object-contain bg-transparent";
 
-  // צמוד למדיה: עיגול + חיתוך אמיתי + צל עדין (בלי פדינג/רקע/מסגרת)
-  const mediaWrap =
-    "rounded-[36px] overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.12)]";
-
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
       {/* ================= HERO ================= */}
@@ -56,8 +52,7 @@ export default function SeatingExplainedPage() {
           transition={{ delay: 0.28, duration: 0.8 }}
           className="max-w-3xl mx-auto text-lg leading-relaxed text-[#6b5f55] mt-4"
         >
-          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע לדיוק
-          מושלם.
+          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע לדיוק מושלם.
         </motion.p>
 
         <motion.div
@@ -114,18 +109,17 @@ export default function SeatingExplainedPage() {
             </p>
           </motion.div>
 
-          {/* IMAGE – צמוד + עיגול פינות אמיתי */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
           >
             <img
               src="/sit1.png"
               alt="בניית מפת אולם והוספת שולחנות"
-              className={`${wideMedia} block`}
+              className={wideMedia}
               loading="lazy"
             />
           </motion.div>
@@ -135,13 +129,12 @@ export default function SeatingExplainedPage() {
       {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – צמוד + עיגול פינות אמיתי */}
+          {/* VIDEO – גדול, בלי שום מסגרת/שחור */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
           >
             <video
               src="/videos/sit2.mp4"
@@ -211,18 +204,17 @@ export default function SeatingExplainedPage() {
             </ul>
           </motion.div>
 
-          {/* IMAGE – צמוד + עיגול פינות אמיתי */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
           >
             <img
               src="/sit3.png"
               alt="הושבה אישית מהדשבורד"
-              className={`${wideMedia} block`}
+              className={wideMedia}
               loading="lazy"
             />
           </motion.div>
@@ -232,13 +224,12 @@ export default function SeatingExplainedPage() {
       {/* ================= SECTION 4 – הודעות לאורחים (sit4.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – צמוד + עיגול פינות אמיתי */}
+          {/* VIDEO – אחרון, יותר גבוה */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
           >
             <video
               src="/videos/sit4.mp4"
