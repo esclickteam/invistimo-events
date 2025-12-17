@@ -252,8 +252,13 @@ export default function PricingPage() {
                       className="w-full rounded-xl p-3 text-[#4a413a] bg-white"
                     >
                       <option value={100}>עד 100 אורחים</option>
+                      <option value={200}>עד 200 אורחים</option>
                       <option value={300}>עד 300 אורחים</option>
+                      <option value={400}>עד 400 אורחים</option>
                       <option value={500}>עד 500 אורחים</option>
+                      <option value={600}>עד 600 אורחים</option>
+                      <option value={700}>עד 700 אורחים</option>
+                      <option value={800}>עד 800 אורחים</option>
                       <option value={1000}>עד 1,000 אורחים</option>
                     </select>
 
