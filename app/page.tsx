@@ -177,28 +177,21 @@ type FeatureItem = {
 
 function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
   const x = useMotionValue(0);
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-
-    const halfWidth = ref.current.scrollWidth / 2;
-    // נתחיל בדיוק מההתחלה
-    x.set(0);
-  }, []);
+  const ref = useRef<HTMLDivElement>(null);
 
   useAnimationFrame((_, delta) => {
     if (!ref.current) return;
 
-    const speed = 40; // מהירות אחידה
+    const speed = 30; // ניתן לשנות למהירות הרצויה
     const moveBy = (delta / 1000) * speed;
-    const totalWidth = ref.current.scrollWidth / 2;
+
+    const width = ref.current.scrollWidth / 2;
 
     let next = x.get() - moveBy;
 
-    // ברגע שכל התוכן הוזז חצי מרוחבו – מאפס
-    if (Math.abs(next) >= totalWidth) {
-      next = 0;
+    // פעולה רציפה: wrap בלי לקפוץ
+    if (next <= -width) {
+      next += width;
     }
 
     x.set(next);
@@ -211,16 +204,11 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
         className="flex gap-6 flex-nowrap will-change-transform"
         style={{ x }}
       >
-        {/* שכפול כפול – כדי לוודא רציפות */}
         {[...items, ...items].map((item, i) => (
           <motion.div
             key={i}
-            animate={{ y: [0, -10, 0] }}
-            transition={{
-              duration: 6 + (i % 4),
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
+            animate={{ y: [0, -8, 0] }}
+            transition={{ duration: 5 + (i % 4), repeat: Infinity }}
             className="w-[420px] flex-shrink-0 bg-[#faf8f4] rounded-[24px] border border-[#e5ddd2] p-5 shadow-[0_6px_18px_rgba(0,0,0,0.06)] flex flex-col"
           >
             <img
@@ -238,6 +226,7 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
     </div>
   );
 }
+
 
 
 
