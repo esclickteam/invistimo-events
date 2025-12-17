@@ -10,7 +10,7 @@ import Providers from "./providers";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 
-/* ✅ קומפוננטת client – מותר לייבא */
+/* ✅ קומפוננטות client */
 import SupportBotButton from "./components/SupportBotButton";
 import LayoutShell from "./components/LayoutShell";
 import SupportBotGate from "./components/SupportBotGate";
@@ -30,13 +30,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </LayoutShell>
 
-          {/* 💬 בוט תמיכה – לא מופיע בדפי הזמנה */}
-          <SupportBotGate>
+          {/* 💬 בוט תמיכה – מוסתר בעמודי invite ו־thank-you */}
+          <SupportBotGate
+            disabledPaths={[
+              "/thank-you",
+            ]}
+            disabledPathPrefixes={[
+              "/invite",
+            ]}
+          >
             <SupportBotButton />
           </SupportBotGate>
         </Providers>
 
-        {/* ♿ UserWay – נגישות חינמית */}
+        {/* ♿ UserWay – נגישות */}
         <Script
           src="https://cdn.userway.org/widget.js"
           data-account="HnP2BQ1axC"

@@ -3,15 +3,20 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
-export default function SupportBotGate({ children }: { children: ReactNode }) {
+type SupportBotGateProps = {
+  children: ReactNode;
+};
+
+export default function SupportBotGate({ children }: SupportBotGateProps) {
   const pathname = usePathname();
 
-  const isExternalPage =
+  const isBlocked =
+    pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/rsvp/") ||
     pathname.startsWith("/invitation/");
 
-  if (isExternalPage) return null;
+  if (isBlocked) return null;
 
   return <>{children}</>;
 }
