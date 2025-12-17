@@ -329,8 +329,7 @@ export default function HomePage() {
 
 
       {/* ================= CTA ================= */}
-      <section className="py-32 px-6 bg-[#3f3a34] text-[#7A5C49] text-center">
-
+      <section className="py-32 px-6 bg-[#ececec] text-[#faf8f4] text-center">
         <h2 className="text-4xl font-semibold mb-8">
           מוכנים לנהל אירוע רגוע באמת?
         </h2>
