@@ -176,44 +176,42 @@ type FeatureItem = {
 };
 
 function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
-  const x = useMotionValue(0); // נשאר
-
+  const x = useMotionValue(0);
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-  if (!ref.current) return;
+    if (!ref.current) return;
 
-  const halfWidth = ref.current.scrollWidth / 2;
-x.set(-halfWidth + 1);
-}, []);
-
+    const halfWidth = ref.current.scrollWidth / 2;
+    // נתחיל בדיוק מההתחלה
+    x.set(0);
+  }, []);
 
   useAnimationFrame((_, delta) => {
-  if (!ref.current) return;
+    if (!ref.current) return;
 
-  const speed = 40; // פיקסלים לשנייה (שני = יוקרתי)
-  const moveBy = (delta / 1000) * speed;
+    const speed = 40; // מהירות אחידה
+    const moveBy = (delta / 1000) * speed;
+    const totalWidth = ref.current.scrollWidth / 2;
 
-  const contentWidth = ref.current.scrollWidth / 2;
+    let next = x.get() - moveBy;
 
-  let next = x.get() - moveBy;
+    // ברגע שכל התוכן הוזז חצי מרוחבו – מאפס
+    if (Math.abs(next) >= totalWidth) {
+      next = 0;
+    }
 
-  // wrap תקין (בלי ערכים שליליים)
-  if (next <= -contentWidth) {
-    next += contentWidth;
-  }
-
-  x.set(next);
-});
+    x.set(next);
+  });
 
   return (
     <div className="overflow-hidden w-full relative">
-
       <motion.div
-  ref={ref}
-  className="flex gap-6 flex-nowrap will-change-transform"
-  style={{ x }}
->
+        ref={ref}
+        className="flex gap-6 flex-nowrap will-change-transform"
+        style={{ x }}
+      >
+        {/* שכפול כפול – כדי לוודא רציפות */}
         {[...items, ...items].map((item, i) => (
           <motion.div
             key={i}
@@ -223,27 +221,14 @@ x.set(-halfWidth + 1);
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            className="
-              w-[420px]
-              flex-shrink-0
-              bg-[#faf8f4]
-              rounded-[24px]
-              border border-[#e5ddd2]
-              p-5
-              shadow-[0_6px_18px_rgba(0,0,0,0.06)]
-              flex flex-col
-            "
+            className="w-[420px] flex-shrink-0 bg-[#faf8f4] rounded-[24px] border border-[#e5ddd2] p-5 shadow-[0_6px_18px_rgba(0,0,0,0.06)] flex flex-col"
           >
             <img
               src={item.image}
               alt={item.title}
               className="w-full h-[360px] object-contain mb-4"
             />
-
-            <h3 className="text-lg font-semibold mb-2">
-              {item.title}
-            </h3>
-
+            <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
             <p className="text-sm text-[#6b5f55] leading-relaxed">
               {item.text}
             </p>
@@ -253,6 +238,7 @@ x.set(-halfWidth + 1);
     </div>
   );
 }
+
 
 
 export default function HomePage() {
