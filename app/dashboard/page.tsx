@@ -86,11 +86,11 @@ const [showEventModal, setShowEventModal] = useState(false);
      Load guests
   ============================================================ */
   async function loadGuests() {
-  if (!invitationId) return;
-  const res = await fetch(`/api/invitations/${invitationId}/guests`);
-  const data = await res.json();
-  setGuests(data.guests || []);
-}
+    if (!invitationId) return;
+    const res = await fetch(`/api/guests?invitation=${invitationId}`);
+    const data = await res.json();
+    setGuests(data.guests || []);
+  }
 
 async function deleteGuest(guest: Guest) {
   const ok = window.confirm(
@@ -99,11 +99,9 @@ async function deleteGuest(guest: Guest) {
   if (!ok) return;
 
   try {
-    const res = await fetch(`/api/invitations/${invitationId}/guests`, {
-  method: "DELETE",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ guestId: guest._id }),
-});
+    const res = await fetch(`/api/guests/${guest._id}`, {
+      method: "DELETE",
+    });
 
     const data = await res.json();
 

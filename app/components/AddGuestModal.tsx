@@ -6,7 +6,7 @@ import { RSVP_LABELS } from "@/lib/rsvp";
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
-  invitationId: string;
+  invitationId?: string; // ✅ מאפשר גם ריק (לפני יצירת הזמנה)
 }
 
 export default function AddGuestModal({
@@ -23,6 +23,27 @@ export default function AddGuestModal({
 
   const [loading, setLoading] = useState(false);
 
+  // ✅ יוצר הזמנה אם אין עדיין
+  const ensureInvitation = async (): Promise<string> => {
+    // אם כבר יש id — מחזירים אותו
+    if (invitationId && invitationId.trim()) return invitationId;
+
+    // אחרת: יוצרים הזמנה חדשה דרך ה-API הקיים אצלך (/api/invitations/my)
+    const res = await fetch("/api/invitations/my", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({}), // לא חייבים לשלוח כלום — השרת צריך ליצור "טיוטה"
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data?.success || !data?.invitation?._id) {
+      throw new Error(data?.error || "Failed to create invitation");
+    }
+
+    return data.invitation._id as string;
+  };
+
   const save = async () => {
     if (!name || !phone) {
       alert("יש למלא שם מלא וטלפון");
@@ -32,13 +53,18 @@ export default function AddGuestModal({
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/invitations/${invitationId}/guests`, {
+      // ✅ קודם כל נוודא שיש invitationId (אם אין — ניצור)
+      const finalInvitationId = await ensureInvitation();
+
+      // ✅ ואז מוסיפים מוזמן
+      const res = await fetch(`/api/invitations/${finalInvitationId}/guests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name,
           phone,
-          relation: relation || undefined,
+          relation: relation || "",
           rsvp,
           guestsCount: Number(guestsCount) || 1,
           tableNumber: tableNumber ? Number(tableNumber) : undefined,
@@ -46,19 +72,19 @@ export default function AddGuestModal({
       });
 
       const data = await res.json();
-      setLoading(false);
 
-      if (!data.success) {
-        alert(data.error || "שגיאה בשמירת מוזמן");
+      if (!res.ok || !data?.success) {
+        alert(data?.error || "שגיאה בשמירת מוזמן");
         return;
       }
 
-      // ⭐ שמירה והחזרה לדשבורד
+      // ⭐ הצלחה
       onSuccess();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("שגיאה בשמירת הנתונים");
+      alert(err?.message || "שגיאה בשמירת הנתונים");
+    } finally {
       setLoading(false);
     }
   };
@@ -98,9 +124,7 @@ export default function AddGuestModal({
         <select
           className="border w-full rounded px-3 py-2 mb-3"
           value={rsvp}
-          onChange={(e) =>
-            setRsvp(e.target.value as "yes" | "no" | "pending")
-          }
+          onChange={(e) => setRsvp(e.target.value as "yes" | "no" | "pending")}
         >
           <option value="yes">{RSVP_LABELS.yes}</option>
           <option value="no">{RSVP_LABELS.no}</option>
@@ -128,10 +152,7 @@ export default function AddGuestModal({
 
         {/* פעולות */}
         <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-200 rounded"
-          >
+          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">
             ביטול
           </button>
 
