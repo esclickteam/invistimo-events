@@ -36,7 +36,7 @@ function RegisterFormInner() {
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
-      setPriceKey("basic_plan_49");
+      setPriceKey("basic_plan");
       return;
     }
 

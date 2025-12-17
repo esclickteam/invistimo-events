@@ -18,7 +18,7 @@ const PRICE_CONFIG: Record<
   { priceId: string; maxGuests: number }
 > = {
   basic_plan_49: {
-    priceId: "price_1SdWP9LCgfc20iubG9OFDPVs",
+    priceId: "price_1SdVK5LCgfc20iubLwRTHMKT",
     maxGuests: 100,
   },
 
