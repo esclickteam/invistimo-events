@@ -193,7 +193,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= בלוק 3 – קרוסלה ================= */}
+      {/* ================= בלוק 3 – קרוסלה אינסופית ================= */}
 <section className="py-32 px-6 bg-white overflow-hidden">
   <div className="max-w-7xl mx-auto mb-20 text-center">
     <h2 className="text-4xl font-semibold">
@@ -201,45 +201,49 @@ export default function HomePage() {
     </h2>
   </div>
 
-  {/* קרוסלה אינסופית מימין לשמאל */}
-  <motion.div
-    className="flex gap-12"
-    animate={{ x: ["-50%", "0%"] }}
-    transition={{
-      duration: 45, // איטי וחלק
-      repeat: Infinity,
-      ease: "linear",
-    }}
-  >
-    {[...features, ...features].map((item, i) => (
-      <div
-        key={i}
-        className="
-          min-w-[420px] md:min-w-[520px]
-          bg-[#faf8f4]
-          rounded-3xl
-          p-8
-          shadow-xl
-          flex flex-col
-        "
-      >
-        <img
-          src={item.image}
-          alt={item.title}
-          className="w-full h-[360px] object-contain mb-8"
-        />
+  {/* מסגרת הקרוסלה */}
+  <div className="relative w-full overflow-hidden">
+    <motion.div
+      className="flex gap-10"
+      style={{ width: "max-content" }}
+      animate={{ x: ["0px", "-2400px"] }} // ← ערך גדול = לופ חלק
+      transition={{
+        duration: 22,          // קצת יותר מהר כמו שביקשת
+        ease: "linear",
+        repeat: Infinity,
+      }}
+    >
+      {[...features, ...features].map((item, i) => (
+        <div
+          key={i}
+          className="
+            w-[520px]
+            bg-[#faf8f4]
+            rounded-[32px]
+            p-10
+            shadow-xl
+            flex-shrink-0
+          "
+        >
+          <img
+            src={item.image}
+            alt={item.title}
+            className="w-full h-[360px] object-contain mb-10"
+          />
 
-        <h3 className="text-2xl font-semibold mb-4">
-          {item.title}
-        </h3>
+          <h3 className="text-2xl font-semibold mb-4">
+            {item.title}
+          </h3>
 
-        <p className="text-lg text-[#6b5f55] leading-relaxed">
-          {item.text}
-        </p>
-      </div>
-    ))}
-  </motion.div>
+          <p className="text-lg text-[#6b5f55] leading-relaxed">
+            {item.text}
+          </p>
+        </div>
+      ))}
+    </motion.div>
+  </div>
 </section>
+
 
 
       {/* ================= בלוק 4 ================= */}
