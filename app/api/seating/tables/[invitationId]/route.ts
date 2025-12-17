@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
+import User from "@/models/User";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,28 @@ type RouteContext = {
 export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
+
+    /* 🔐 זיהוי משתמש */
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    /* 🔐 בדיקת חבילה – הושבה */
+    const user = await User.findById(userId).lean();
+    if (!user?.planLimits?.seatingEnabled) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Seating is not included in your plan",
+          code: "SEATING_NOT_ALLOWED",
+        },
+        { status: 403 }
+      );
+    }
 
     /* ===============================
        1️⃣ params (חובה await)
@@ -27,22 +51,18 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        2️⃣ שליפת הושבה מה־DB
-       ⚠️ בלי סינון, בלי map, בלי filter
+       בלי סינון, בלי map, בלי filter
     =============================== */
     const record = await SeatingTable.findOne({ invitationId });
 
     /* ===============================
        3️⃣ החזרה מלאה לפרונט
-       כולל:
-       - שולחנות
-       - רקע
-       - zones (אלמנטים)
     =============================== */
     return NextResponse.json({
       success: true,
       tables: record?.tables || [],
-      background: record?.background ?? null, // ✅ כדי ש-init יקבל background מה־DB
-      zones: record?.zones || [], // ✅ זה מה שחסר לך בפועל
+      background: record?.background ?? null,
+      zones: record?.zones || [],
     });
   } catch (err) {
     console.error("❌ Load seating tables error:", err);

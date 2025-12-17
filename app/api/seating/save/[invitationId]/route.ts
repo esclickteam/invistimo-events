@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
+import User from "@/models/User";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +23,32 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
+    /* 🔐 זיהוי משתמש */
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    /* 🔐 בדיקת חבילה – הושבה */
+    const user = await User.findById(userId).lean();
+    if (!user?.planLimits?.seatingEnabled) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Seating is not included in your plan",
+          code: "SEATING_NOT_ALLOWED",
+        },
+        { status: 403 }
+      );
+    }
+
     const { invitationId } = await context.params;
     const body = await req.json();
 
-    // 🔎 בדיקה קריטית
+    // 🔎 בדיקה קריטית (אפשר למחוק בפרודקשן)
     console.log("📥 SAVE SEATING BODY:", body);
 
     /* ===============================
@@ -33,7 +57,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const tables = Array.isArray(body.tables) ? body.tables : [];
 
     /* ===============================
-       ZONES (חדש!)
+       ZONES
     =============================== */
     const zones = Array.isArray(body.zones) ? body.zones : [];
 
@@ -43,10 +67,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     let background: BackgroundPayload | null = null;
 
     if (typeof body.background === "string") {
-      background = {
-        url: body.background,
-        opacity: 0.28,
-      };
+      background = { url: body.background, opacity: 0.28 };
     } else if (
       body.background &&
       typeof body.background.url === "string"
@@ -68,7 +89,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       {
         $set: {
           tables,
-          zones,          // ⭐⭐ שמירה של האלמנטים
+          zones,
           background,
           updatedAt: new Date(),
         },

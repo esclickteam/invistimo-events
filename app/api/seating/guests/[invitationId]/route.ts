@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
+import User from "@/models/User";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   GET – Load guests by invitationId
-   Next.js 16 (params is Promise)
+   GET – Load seating guests (PRO ONLY)
 ============================================================ */
 type RouteContext = {
   params: Promise<{
@@ -21,6 +22,28 @@ export async function GET(
   try {
     await dbConnect();
 
+    /* 🔐 זיהוי משתמש */
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    /* 🔐 בדיקת חבילה */
+    const user = await User.findById(userId).lean();
+    if (!user?.planLimits?.seatingEnabled) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Seating is not included in your plan",
+          code: "SEATING_NOT_ALLOWED",
+        },
+        { status: 403 }
+      );
+    }
+
     /* ⭐ params הוא Promise ב־Next 16 */
     const { invitationId } = await context.params;
 
@@ -31,9 +54,8 @@ export async function GET(
       );
     }
 
-    const guests = await InvitationGuest.find({
-      invitationId,
-    })
+    /* ✅ שליפה – רק למורשים */
+    const guests = await InvitationGuest.find({ invitationId })
       .lean()
       .exec();
 
