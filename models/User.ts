@@ -67,9 +67,13 @@ const UserSchema = new Schema<IUser>(
       trim: true,
     },
     password: { type: String, required: true },
+
     plan: { type: String, enum: ["basic", "premium"], default: "basic" },
+
     guests: { type: Number, default: 100 },
+
     paidAmount: { type: Number, default: 49 },
+
     planLimits: {
       maxGuests: { type: Number, default: 100 },
       smsEnabled: { type: Boolean, default: true },
@@ -81,37 +85,41 @@ const UserSchema = new Schema<IUser>(
 );
 
 /* ============================================================
-   AUTO LOGIC: לפני שמירה ראשונית (create / save)
+   AUTO LOGIC: לפני שמירה (create / save)
+   ✅ בלי next בכלל (מונע את: e is not a function)
 ============================================================ */
-(UserSchema.pre as any)("save", function (this: IUser, next: any) {
-  applyPlanRules(this);
-  next();
+UserSchema.pre("save", function () {
+  applyPlanRules(this as unknown as IUser);
 });
 
 /* ============================================================
    AUTO LOGIC: לפני עדכון (findOneAndUpdate)
-   — כשמשתמש משדרג / משנה חבילה, נעדכן אוטומטית את ההגבלות
+   ✅ בלי next בכלל
+   ✅ תומך גם במבנה { $set: {...} }
 ============================================================ */
-(UserSchema.pre as any)("findOneAndUpdate", function (this: any, next: any) {
-  const update = this.getUpdate();
-  if (!update) return next();
+UserSchema.pre("findOneAndUpdate", function () {
+  const rawUpdate = (this as any).getUpdate() || {};
+  const isUsingSet = !!rawUpdate.$set;
+  const update = isUsingSet ? rawUpdate.$set : rawUpdate;
 
   const plan = update.plan;
   const guests = update.guests;
 
   if (plan || guests) {
-    // נוודא הגדרות תקינות לפי plan
     const level = safeLevel(guests);
+
     if (plan === "basic") {
+      update.plan = "basic";
       update.guests = 100;
+      update.paidAmount = 49;
       update.planLimits = {
         maxGuests: 100,
         smsEnabled: true,
         seatingEnabled: false,
         remindersEnabled: true,
       };
-      update.paidAmount = 49;
     } else if (plan === "premium") {
+      update.plan = "premium";
       update.guests = level;
       update.planLimits = {
         maxGuests: level,
@@ -120,10 +128,10 @@ const UserSchema = new Schema<IUser>(
         remindersEnabled: true,
       };
     }
-    this.setUpdate(update);
-  }
 
-  next();
+    if (isUsingSet) rawUpdate.$set = update;
+    (this as any).setUpdate(rawUpdate);
+  }
 });
 
 /* ============================================================
