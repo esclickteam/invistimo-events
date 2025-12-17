@@ -17,68 +17,63 @@ export default function Header() {
       "
     >
       {/* FULL WIDTH HEADER */}
-      <div
-        className="w-full px-10"
-        dir="rtl"
-      >
+      <div className="w-full px-10" dir="rtl">
         {/* 3 אזורים – ימין | מרכז | שמאל */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center h-16">
-
           {/* ====================== ימין – תפריט ====================== */}
           <nav className="flex items-center gap-10 justify-start text-[#4a413a] font-medium">
-  <Link
-    href="/#how"
-    className="hover:text-[var(--champagne-dark)] transition"
-  >
-    איך זה עובד?
-  </Link>
+            <Link
+              href="/#how"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
+              איך זה עובד?
+            </Link>
 
-  <Link
-    href="/rsvp"
-    className="hover:text-[var(--champagne-dark)] transition"
-  >
-    אישורי הגעה
-  </Link>
+            <Link
+              href="/rsvp"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
+              אישורי הגעה
+            </Link>
 
-  <Link
-    href="/#seating"
-    className="hover:text-[var(--champagne-dark)] transition"
-  >
-    סידורי הושבה
-  </Link>
+            {/* ✅ שינוי כאן */}
+            <Link
+              href="/seating-explained"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
+              סידורי הושבה
+            </Link>
 
-  <Link
-  href="/pricing"
-  className="hover:text-[var(--champagne-dark)] transition"
->
-  חבילות ומחירים
-</Link>
+            <Link
+              href="/pricing"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
+              חבילות ומחירים
+            </Link>
 
-  <Link
-    href="/contact"
-    className="hover:text-[var(--champagne-dark)] transition"
-  >
-    צור קשר
-  </Link>
-
-</nav>
-
+            <Link
+              href="/contact"
+              className="hover:text-[var(--champagne-dark)] transition"
+            >
+              צור קשר
+            </Link>
+          </nav>
 
           {/* ====================== מרכז – לוגו ====================== */}
           <div className="flex justify-center" dir="ltr">
             <Link href="/" className="flex items-center">
               <img
-  src="/invistimo-logo.png"
-  alt="Invistimo Logo"
-  className="h-10 w-auto object-contain scale-[4] origin-center"
-/>
+                src="/invistimo-logo.png"
+                alt="Invistimo Logo"
+                className="h-10 w-auto object-contain scale-[4] origin-center"
+              />
             </Link>
           </div>
 
           {/* ====================== שמאל – התחברות ====================== */}
           <div className="flex justify-end items-center gap-4">
-            {!loading && (
-              user ? (
+            {!loading &&
+              (user ? (
                 <>
                   <Link
                     href="/dashboard"
@@ -113,10 +108,8 @@ export default function Header() {
                 >
                   התחברות
                 </Link>
-              )
-            )}
+              ))}
           </div>
-
         </div>
       </div>
     </header>
