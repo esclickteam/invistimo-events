@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   /* ============================================================
      🟢 CASE 1: PREMIUM UPGRADE
      ➕ אורחים
-     ➕ SMS = אורחים × 3
+     ➕ SMS = (אורחים ששודרגו × 3)
      ➕ הושבה
   ============================================================ */
   if (session.metadata?.type === "upgrade") {
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     const currentGuests = user.guests || 0;
     const newTotalGuests = currentGuests + targetGuests;
 
-    // ⭐ SMS רק על ההרחבה
+    // ⭐ SMS רק על השדרוג (3 הודעות לכל אורח)
     const smsToAdd = targetGuests * 3;
 
     const priceKey = `premium_${targetGuests}`;
@@ -134,7 +134,8 @@ export async function POST(req: Request) {
       },
     });
 
-    /* ✉️ Update Invitation + SMS */
+    /* ✉️ Update Invitation + SMS
+       ❗ SMS ניתן רק אם עדיין לא הייתה חבילת SMS */
     let invitation = await Invitation.findOne({ ownerId: user._id });
 
     if (!invitation) {
@@ -151,11 +152,11 @@ export async function POST(req: Request) {
     } else {
       invitation.maxGuests = newTotalGuests;
 
-      invitation.maxMessages =
-        (invitation.maxMessages || 0) + smsToAdd;
-
-      invitation.remainingMessages =
-        (invitation.remainingMessages || 0) + smsToAdd;
+      // ✅ חשוב: לא להוסיף SMS שוב אם כבר קיים
+      if (!invitation.maxMessages || invitation.maxMessages === 0) {
+        invitation.maxMessages = smsToAdd;
+        invitation.remainingMessages = smsToAdd;
+      }
 
       await invitation.save();
     }
