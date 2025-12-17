@@ -15,9 +15,10 @@ function getTableLayout(rawTable) {
       : rawTable.type;
 
   const SEAT_R = 9;
-  const SEAT_OFFSET = 2; // 🔥 צמוד באמת
-  const STEP = SEAT_R * 2; // 🔥 בלי GAP
-
+  const SEAT_GAP = 8;
+  const OUTSIDE = 10;
+  const STEP = SEAT_R * 2 + SEAT_GAP;
+  const PAD = SEAT_R + OUTSIDE + 10;
   const coords = [];
   const dims = {
     size: 150,
@@ -28,74 +29,83 @@ function getTableLayout(rawTable) {
 
   if (!seats) return { coords, ...dims, type };
 
-  /* ================= ROUND ================= */
-  if (type === "round") {
-    const tableRadius = Math.max(42, seats * 4);
-    const ring = tableRadius + SEAT_R + SEAT_OFFSET;
+  const splitSquareOpposite = (n) => {
+    const hasExtra = n % 2 === 1;
+    const even = hasExtra ? n - 1 : n;
+    const pairs = even / 2;
+    const horizontalPairs = Math.ceil(pairs / 2);
+    const verticalPairs = Math.floor(pairs / 2);
+    const top = horizontalPairs + (hasExtra ? 1 : 0);
+    const bottom = horizontalPairs;
+    const left = verticalPairs;
+    const right = verticalPairs;
+    return { top, right, bottom, left };
+  };
 
+  const placeLineCentered = (count, fixed, axis) => {
+    if (count <= 0) return;
+    if (count === 1) {
+      coords.push(axis === "x" ? { x: 0, y: fixed } : { x: fixed, y: 0 });
+      return;
+    }
+    const span = (count - 1) * STEP;
+    const start = -span / 2;
+    for (let i = 0; i < count; i++) {
+      const v = start + i * STEP;
+      coords.push(axis === "x" ? { x: v, y: fixed } : { x: fixed, y: v });
+    }
+  };
+
+  if (type === "round") {
+    const requiredCirc = seats * STEP;
+    const seatRing = Math.max(42, requiredCirc / (2 * Math.PI));
+    const tableRadius = Math.max(38, seatRing - (SEAT_R + OUTSIDE));
+    const ring = tableRadius + SEAT_R + OUTSIDE;
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-      coords.push({
-        x: Math.cos(angle) * ring,
-        y: Math.sin(angle) * ring,
-      });
+      coords.push({ x: Math.cos(angle) * ring, y: Math.sin(angle) * ring });
     }
-
     dims.radius = tableRadius;
     return { coords, ...dims, type };
   }
 
-  /* ================= SQUARE ================= */
   if (type === "square") {
-    const perSide = Math.ceil(seats / 4);
-    const span = (perSide - 1) * STEP;
-    const size = Math.max(110, span + 40);
+    const { top, right, bottom, left } = splitSquareOpposite(seats);
+    const maxSide = Math.max(top, right, bottom, left);
+    const span = maxSide <= 1 ? 0 : (maxSide - 1) * STEP;
+    const size = Math.max(120, span + PAD * 2);
     const half = size / 2;
-    const fixed = half + SEAT_R + SEAT_OFFSET;
-
-    const place = (count, fixed, axis) => {
-      if (!count) return;
-      const start = -((count - 1) * STEP) / 2;
-      for (let i = 0; i < count; i++) {
-        const v = start + i * STEP;
-        coords.push(axis === "x" ? { x: v, y: fixed } : { x: fixed, y: v });
-      }
-    };
-
-    const top = Math.ceil(seats / 4);
-    const right = Math.floor(seats / 4);
-    const bottom = Math.floor(seats / 4);
-    const left = seats - top - right - bottom;
-
-    place(top, -fixed, "x");
-    place(bottom, fixed, "x");
-    place(right, fixed, "y");
-    place(left, -fixed, "y");
-
+    const fixed = half + SEAT_R + OUTSIDE;
+    placeLineCentered(top, -fixed, "x");
+    placeLineCentered(bottom, +fixed, "x");
+    placeLineCentered(right, +fixed, "y");
+    placeLineCentered(left, -fixed, "y");
     dims.size = size;
     return { coords, ...dims, type };
   }
 
-  /* ================= BANQUET ================= */
   if (type === "banquet") {
     const topCount = Math.ceil(seats / 2);
     const bottomCount = seats - topCount;
-
-    const span = (Math.max(topCount, bottomCount) - 1) * STEP;
-    const width = Math.max(180, span + 40);
+    const maxRow = Math.max(topCount, bottomCount);
+    const span = maxRow <= 1 ? 0 : (maxRow - 1) * STEP;
+    const width = Math.max(200, span + PAD * 2);
     const height = 70;
-    const yFixed = height / 2 + SEAT_R + SEAT_OFFSET;
-
+    const yFixed = height / 2 + SEAT_R + OUTSIDE;
     const placeRow = (count, y) => {
-      const start = -((count - 1) * STEP) / 2;
+      if (count <= 0) return;
+      if (count === 1) {
+        coords.push({ x: 0, y });
+        return;
+      }
+      const rowSpan = (count - 1) * STEP;
+      const start = -rowSpan / 2;
       for (let i = 0; i < count; i++) {
         coords.push({ x: start + i * STEP, y });
       }
     };
-
     placeRow(topCount, -yFixed);
-    placeRow(bottomCount, yFixed);
-
+    placeRow(bottomCount, +yFixed);
     dims.width = width;
     dims.height = height;
     return { coords, ...dims, type };
@@ -103,7 +113,6 @@ function getTableLayout(rawTable) {
 
   return { coords, ...dims, type };
 }
-
 
 /* ============================================================
    TableRenderer
