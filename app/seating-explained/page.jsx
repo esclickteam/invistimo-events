@@ -52,8 +52,7 @@ export default function SeatingExplainedPage() {
           transition={{ delay: 0.28, duration: 0.8 }}
           className="max-w-3xl mx-auto text-lg leading-relaxed text-[#6b5f55] mt-4"
         >
-          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע
-          לדיוק מושלם.
+          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע לדיוק מושלם.
         </motion.p>
 
         <motion.div
@@ -94,9 +93,8 @@ export default function SeatingExplainedPage() {
             </h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
-              אפשר להתחיל לבנות הושבה גם בלי שום דבר — פשוט מוסיפים שולחנות
-              וממקמים אותם. ואם יש לכם סקיצה מהאולם, אפשר להעלות אותה כרקע ולעבוד
-              עליה בשביל דיוק מקסימלי.
+              אפשר להתחיל לבנות הושבה גם בלי שום דבר — פשוט מוסיפים שולחנות וממקמים אותם.
+              ואם יש לכם סקיצה מהאולם, אפשר להעלות אותה כרקע ולעבוד עליה בשביל דיוק מקסימלי.
             </p>
 
             <ul className="space-y-4 text-lg">
@@ -111,7 +109,7 @@ export default function SeatingExplainedPage() {
             </p>
           </motion.div>
 
-          {/* IMAGE – גדול, בלי שום מסגרת/צל, רק פינות מעוגלות */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -121,7 +119,7 @@ export default function SeatingExplainedPage() {
             <img
               src="/sit1.png"
               alt="בניית מפת אולם והוספת שולחנות"
-              className={`${wideMedia} rounded-[28px]`}
+              className={wideMedia}
               loading="lazy"
             />
           </motion.div>
@@ -131,7 +129,7 @@ export default function SeatingExplainedPage() {
       {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – גדול, בלי שום מסגרת/שחור, רק פינות מעוגלות */}
+          {/* VIDEO – גדול, בלי שום מסגרת/שחור */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -145,7 +143,7 @@ export default function SeatingExplainedPage() {
               loop
               playsInline
               preload="metadata"
-              className={`${wideMedia} rounded-[28px]`}
+              className={wideMedia}
             />
           </motion.div>
 
@@ -161,8 +159,8 @@ export default function SeatingExplainedPage() {
             </h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
-              מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי, או משבצים דרך
-              השולחן עצמו — וכל שינוי מתעדכן מיד בכל המערכת.
+              מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי,
+              או משבצים דרך השולחן עצמו — וכל שינוי מתעדכן מיד בכל המערכת.
             </p>
 
             <ul className="space-y-4 text-lg">
@@ -195,8 +193,7 @@ export default function SeatingExplainedPage() {
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               בדשבורד אפשר לערוך הושבה של אורח ספציפי דרך כפתור “הושבה אישית”.
-              המערכת מסמנת את השולחן והמיקום שלו — כדי שתוכלו לתקן או להעביר
-              במהירות.
+              המערכת מסמנת את השולחן והמיקום שלו — כדי שתוכלו לתקן או להעביר במהירות.
             </p>
 
             <ul className="space-y-4 text-lg">
@@ -207,7 +204,7 @@ export default function SeatingExplainedPage() {
             </ul>
           </motion.div>
 
-          {/* IMAGE – גדול, בלי שום מסגרת/צל, רק פינות מעוגלות */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -217,7 +214,7 @@ export default function SeatingExplainedPage() {
             <img
               src="/sit3.png"
               alt="הושבה אישית מהדשבורד"
-              className={`${wideMedia} rounded-[28px]`}
+              className={wideMedia}
               loading="lazy"
             />
           </motion.div>
@@ -227,7 +224,7 @@ export default function SeatingExplainedPage() {
       {/* ================= SECTION 4 – הודעות לאורחים (sit4.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – אחרון, יותר גבוה, רק פינות מעוגלות */}
+          {/* VIDEO – אחרון, יותר גבוה */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -241,7 +238,7 @@ export default function SeatingExplainedPage() {
               loop
               playsInline
               preload="metadata"
-              className={`${tallLastMedia} rounded-[28px]`}
+              className={tallLastMedia}
             />
           </motion.div>
 
