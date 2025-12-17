@@ -10,16 +10,16 @@ import Invitation from "@/models/Invitation";
 export const runtime = "nodejs";
 
 /* ============================================================
-   Stripe instance — MUST match Dashboard API version
+   Stripe instance
 ============================================================ */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-11-17.clover",
 });
 
 /* ============================================================
-   lookup_key → maxGuests (ONLY for full package purchases)
+   lookup_key → maxGuests
 ============================================================ */
-const GUESTS_BY_KEY: Record<string, number | null> = {
+const GUESTS_BY_KEY: Record<string, number> = {
   basic_plan: 100,
   basic_plan_49: 100,
   premium_100: 100,
@@ -102,15 +102,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    // 💾 Payment record
+    const priceKey = `premium_${targetGuests}`; // ✅ FIX
+
     await Payment.create({
       email,
       stripeSessionId: session.id,
       stripePaymentIntentId: session.payment_intent as string,
       stripeCustomerId: session.customer as string,
-      priceKey: "premium_upgrade",
+      priceKey,                 // ✅ enum חוקי
       maxGuests: targetGuests,
-      amount: amountCharged,
+      amount: fullPrice,        // 💡 שומרים מחיר מלא, לא 10₪
       currency: "ils",
       status: "paid",
     });
@@ -127,7 +128,7 @@ export async function POST(req: Request) {
     };
     await user.save();
 
-    // ✉️ Update invitation (do NOT reset SMS)
+    // ✉️ Update invitation
     const invitation = await Invitation.findOne({ ownerId: user._id });
     if (invitation) {
       invitation.maxGuests = targetGuests;
@@ -174,7 +175,7 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🟢 CASE 3: FULL PACKAGE PURCHASE (BASIC / PREMIUM)
+     🟢 CASE 3: FULL PACKAGE PURCHASE
   ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 1,
