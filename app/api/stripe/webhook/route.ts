@@ -17,7 +17,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   lookup_key → maxGuests (packages)
+   lookup_key → maxGuests (ONLY for full package purchases)
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number | null> = {
   basic_plan: 100,
@@ -73,7 +73,6 @@ export async function POST(req: Request) {
   const existingPayment = await Payment.findOne({
     stripeSessionId: session.id,
   });
-
   if (existingPayment) {
     return NextResponse.json({ received: true });
   }
@@ -92,32 +91,66 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     Extract line item
+     🟢 CASE 1: PREMIUM UPGRADE (DIFFERENTIAL)
   ============================================================ */
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    limit: 1,
-    expand: ["data.price.product"],
-  });
+  if (session.metadata?.type === "upgrade") {
+    const targetGuests = Number(session.metadata.targetGuests);
+    const fullPrice = Number(session.metadata.fullPrice);
+    const amountCharged = Number(session.metadata.amountCharged);
 
-  const lineItem = lineItems.data[0];
-  const price = lineItem?.price;
-  const priceKey = price?.lookup_key;
-  const priceId = price?.id;
+    if (!targetGuests || !fullPrice || !amountCharged) {
+      return NextResponse.json({ received: true });
+    }
+
+    // 💾 Payment record
+    await Payment.create({
+      email,
+      stripeSessionId: session.id,
+      stripePaymentIntentId: session.payment_intent as string,
+      stripeCustomerId: session.customer as string,
+      priceKey: "premium_upgrade",
+      maxGuests: targetGuests,
+      amount: amountCharged,
+      currency: "ils",
+      status: "paid",
+    });
+
+    // 🧑 Update user
+    user.plan = "premium";
+    user.guests = targetGuests;
+    user.paidAmount = fullPrice;
+    user.planLimits = {
+      maxGuests: targetGuests,
+      smsEnabled: true,
+      seatingEnabled: true,
+      remindersEnabled: true,
+    };
+    await user.save();
+
+    // ✉️ Update invitation (do NOT reset SMS)
+    const invitation = await Invitation.findOne({ ownerId: user._id });
+    if (invitation) {
+      invitation.maxGuests = targetGuests;
+      await invitation.save();
+    }
+
+    console.log(
+      `✅ Premium upgraded for ${email} → ${targetGuests} guests`
+    );
+
+    return NextResponse.json({ received: true });
+  }
 
   /* ============================================================
-     🟢 CASE 1: SMS ADD-ON
-============================================================ */
+     🟢 CASE 2: SMS ADD-ON
+  ============================================================ */
   if (session.metadata?.type === "addon") {
-    console.log("💬 Detected SMS add-on purchase for:", email);
-
     const messagesToAdd = Number(session.metadata.messages || 0);
     if (messagesToAdd <= 0) {
       return NextResponse.json({ received: true });
     }
 
     let invitation = await Invitation.findOne({ ownerId: user._id });
-
-    // ✅ אם אין הזמנה – יוצרים אחת
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: user._id,
@@ -131,23 +164,27 @@ export async function POST(req: Request) {
     } else {
       invitation.maxMessages =
         (invitation.maxMessages || 0) + messagesToAdd;
-
       invitation.remainingMessages =
         (invitation.remainingMessages || 0) + messagesToAdd;
-
       await invitation.save();
     }
 
-    console.log(
-      `✅ Added ${messagesToAdd} SMS messages to user ${email}`
-    );
-
+    console.log(`✅ Added ${messagesToAdd} SMS to ${email}`);
     return NextResponse.json({ received: true });
   }
 
   /* ============================================================
-     CASE 2: REGULAR PACKAGE PURCHASE
-============================================================ */
+     🟢 CASE 3: FULL PACKAGE PURCHASE (BASIC / PREMIUM)
+  ============================================================ */
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    limit: 1,
+    expand: ["data.price.product"],
+  });
+
+  const lineItem = lineItems.data[0];
+  const price = lineItem?.price;
+  const priceKey = price?.lookup_key;
+
   if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
     return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
   }
@@ -156,15 +193,12 @@ export async function POST(req: Request) {
   const amountPaid = (price?.unit_amount ?? 0) / 100;
   const isBasic = priceKey.startsWith("basic");
 
-  /* ============================================================
-     Create Payment
-  ============================================================ */
-  const payment = await Payment.create({
+  await Payment.create({
     email,
     stripeSessionId: session.id,
     stripePaymentIntentId: session.payment_intent as string,
     stripeCustomerId: session.customer as string,
-    stripePriceId: priceId,
+    stripePriceId: price?.id,
     priceKey,
     maxGuests,
     amount: amountPaid,
@@ -172,55 +206,6 @@ export async function POST(req: Request) {
     status: "paid",
   });
 
-  /* ============================================================
-     Create / Update Event
-  ============================================================ */
-  let eventDoc = await Event.findOne({ userId: user._id });
-
-  if (!eventDoc) {
-    eventDoc = await Event.create({
-      userId: user._id,
-      email,
-      title: "האירוע שלי",
-      eventType: "אירוע",
-      maxGuests,
-      stripeSessionId: session.id,
-      stripePriceId: priceId,
-      paymentStatus: "paid",
-      status: "active",
-    });
-  } else {
-    eventDoc.maxGuests = maxGuests;
-    await eventDoc.save();
-  }
-
-  /* ============================================================
-     UPDATE INVITATION (package purchase resets SMS)
-  ============================================================ */
-  let invitation = await Invitation.findOne({ ownerId: user._id });
-
-  if (!invitation) {
-    invitation = await Invitation.create({
-      ownerId: user._id,
-      title: "ההזמנה שלי",
-      canvasData: {},
-      shareId: crypto.randomUUID(),
-      maxGuests,
-      sentSmsCount: 0,
-      maxMessages: 0,
-      remainingMessages: 0,
-    });
-  } else {
-    invitation.maxGuests = maxGuests;
-    invitation.sentSmsCount = 0;
-    invitation.maxMessages = 0;
-    invitation.remainingMessages = 0;
-    await invitation.save();
-  }
-
-  /* ============================================================
-     Update User
-  ============================================================ */
   await User.findByIdAndUpdate(user._id, {
     plan: isBasic ? "basic" : "premium",
     guests: maxGuests,
@@ -228,15 +213,11 @@ export async function POST(req: Request) {
     planLimits: {
       maxGuests,
       smsEnabled: true,
-      seatingEnabled: true,
+      seatingEnabled: !isBasic,
       remindersEnabled: true,
     },
   });
 
-  payment.eventId = eventDoc._id;
-  await payment.save();
-
-  console.log("✅ Payment processed successfully for:", email);
-
+  console.log("✅ Full package purchase processed for:", email);
   return NextResponse.json({ received: true });
 }
