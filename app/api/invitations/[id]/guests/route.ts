@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 ============================================================ */
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id?: string }> }
 ) {
   const { id: invitationId } = await context.params;
 
@@ -38,16 +38,21 @@ export async function POST(
     }
 
     /* ================= מציאת ההזמנה או יצירת חדשה ================= */
-    let invitation = await Invitation.findById(invitationId);
+    let invitation =
+      (invitationId && (await Invitation.findById(invitationId))) ||
+      (await Invitation.findOne({ ownerId: userId }));
 
-    // אם אין הזמנה קיימת, ניצור אחת חדשה ריקה
+    // אם אין בכלל הזמנה קיימת — ניצור אחת ריקה
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: userId,
         title: "הזמנה חדשה",
         eventType: "",
         eventDate: null,
+        eventTime: "",
+        eventLocation: "",
         canvasData: {},
+        previewImage: "",
         shareId: nanoid(10),
         maxGuests: 100,
         sentSmsCount: 0,
@@ -56,7 +61,7 @@ export async function POST(
       console.log("✨ Invitation created automatically:", invitation._id);
     }
 
-    // בדיקה אם כבר קיים מוזמן עם אותו מספר
+    // בדיקה אם כבר קיים מוזמן עם אותו טלפון
     const existing = await InvitationGuest.findOne({
       invitationId: invitation._id,
       phone,
@@ -68,7 +73,7 @@ export async function POST(
       );
     }
 
-    // בדיקה אם חרגנו מהמגבלה
+    // בדיקה אם לא עבר את מכסת האורחים
     const totalGuests = await InvitationGuest.countDocuments({
       invitationId: invitation._id,
     });
@@ -94,11 +99,14 @@ export async function POST(
       token,
     });
 
-    // עדכון ההזמנה
+    // עדכון רשימת האורחים בהזמנה
     invitation.guests.push(guest._id);
     await invitation.save();
 
-    return NextResponse.json({ success: true, guest }, { status: 201 });
+    return NextResponse.json(
+      { success: true, guest, invitationId: invitation._id },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("❌ POST error:", err);
     return NextResponse.json(
@@ -209,7 +217,7 @@ export async function DELETE(
       );
     }
 
-    // עדכון גם בהזמנה
+    // הסרה גם ממערך ההזמנה
     await Invitation.findByIdAndUpdate(invitationId, {
       $pull: { guests: deleted._id },
     });
