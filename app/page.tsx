@@ -246,22 +246,47 @@ export default function HomePage() {
 
 
 
-      {/* ================= בלוק 4 ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4] text-center">
-        <h2 className="text-4xl font-semibold mb-10">
-          פשוט, ברור, עובד
-        </h2>
+    {/* ================= בלוק 4 ================= */}
+<section className="relative py-32 px-6 bg-[#faf8f4] overflow-hidden text-center">
 
-        <p className="text-xl leading-relaxed">
-          שולחים הזמנה דיגיטלית.<br />
-          האורחים מאשרים לבד.<br />
-          המערכת מתעדכנת בזמן אמת.<br /><br />
-          אין צורך לעקוב.<br />
-          אין צורך לתזכר.<br />
-          אין צורך לבדוק שוב ושוב.<br /><br />
-          המערכת עובדת בשבילך.
-        </p>
-      </section>
+  {/* אפקט אור עדין – כמו ב-HERO */}
+  <div className="absolute inset-0 pointer-events-none">
+    {[...Array(6)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute rounded-full"
+        style={{
+          width: 420,
+          height: 420,
+          left: `${15 + i * 14}%`,
+          top: `${20 + (i % 2) * 30}%`,
+          background:
+            "radial-gradient(circle, rgba(203,179,138,0.18) 0%, transparent 65%)",
+        }}
+        animate={{ opacity: [0.35, 0.6, 0.35] }}
+        transition={{
+          duration: 10 + i * 2,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+    ))}
+  </div>
+
+  {/* תוכן */}
+  <div className="relative z-10 max-w-3xl mx-auto">
+    <p className="text-xl leading-relaxed text-[#5f554c]">
+      בסופו של דבר, ניהול אירוע הוא הרבה החלטות קטנות.
+      <br />
+      כשכל המידע מרוכז במקום אחד, קל יותר לקבל אותן.
+      <br />
+      Invistimo נותנת לכם כלי מסודר, ברור ונוח —
+      <br />
+      כדי שתוכלו לנהל את האירוע בדרך שלכם, בלי רעשי רקע.
+    </p>
+  </div>
+</section>
+
 
       {/* ================= CTA ================= */}
       <section className="py-32 px-6 bg-[#3f3a34] text-[#faf8f4] text-center">
