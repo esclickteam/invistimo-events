@@ -3,11 +3,12 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import { nanoid } from "nanoid";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   POST — יצירת מוזמן חדש + עדכון ההזמנה
+   POST — יצירת מוזמן חדש (גם אם אין הזמנה קיימת)
 ============================================================ */
 export async function POST(
   req: NextRequest,
@@ -18,14 +19,16 @@ export async function POST(
   try {
     await db();
 
-    const {
-      name,
-      phone,
-      relation,
-      rsvp,
-      guestsCount,
-      tableNumber,
-    } = await req.json();
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { name, phone, relation, rsvp, guestsCount, tableNumber } =
+      await req.json();
 
     if (!name || !phone) {
       return NextResponse.json(
@@ -34,18 +37,40 @@ export async function POST(
       );
     }
 
-    // בדיקה אם ההזמנה קיימת
-    const invitation = await Invitation.findById(invitationId);
+    /* ================= מציאת ההזמנה או יצירת חדשה ================= */
+    let invitation = await Invitation.findById(invitationId);
+
+    // אם אין הזמנה קיימת, ניצור אחת חדשה ריקה
     if (!invitation) {
+      invitation = await Invitation.create({
+        ownerId: userId,
+        title: "הזמנה חדשה",
+        eventType: "",
+        eventDate: null,
+        canvasData: {},
+        shareId: nanoid(10),
+        maxGuests: 100,
+        sentSmsCount: 0,
+        guests: [],
+      });
+      console.log("✨ Invitation created automatically:", invitation._id);
+    }
+
+    // בדיקה אם כבר קיים מוזמן עם אותו מספר
+    const existing = await InvitationGuest.findOne({
+      invitationId: invitation._id,
+      phone,
+    });
+    if (existing) {
       return NextResponse.json(
-        { success: false, error: "Invitation not found" },
-        { status: 404 }
+        { success: false, error: "Guest already exists", guest: existing },
+        { status: 409 }
       );
     }
 
-    // בדיקת מגבלת כמות אורחים
+    // בדיקה אם חרגנו מהמגבלה
     const totalGuests = await InvitationGuest.countDocuments({
-      invitationId,
+      invitationId: invitation._id,
     });
     if (totalGuests >= invitation.maxGuests) {
       return NextResponse.json(
@@ -54,20 +79,11 @@ export async function POST(
       );
     }
 
-    // בדיקה אם כבר קיים מוזמן עם אותו מספר
-    const existing = await InvitationGuest.findOne({ invitationId, phone });
-    if (existing) {
-      return NextResponse.json(
-        { success: false, error: "Guest already exists", guest: existing },
-        { status: 409 }
-      );
-    }
-
     const token = nanoid(12);
 
-    // ✅ יצירת מוזמן חדש
+    /* ================= יצירת המוזמן ================= */
     const guest = await InvitationGuest.create({
-      invitationId,
+      invitationId: invitation._id,
       name,
       phone,
       relation: relation || "",
@@ -78,7 +94,7 @@ export async function POST(
       token,
     });
 
-    // ✅ הוספה למערך ההזמנה
+    // עדכון ההזמנה
     invitation.guests.push(guest._id);
     await invitation.save();
 
@@ -193,7 +209,7 @@ export async function DELETE(
       );
     }
 
-    // הסרה גם ממערך ההזמנה
+    // עדכון גם בהזמנה
     await Invitation.findByIdAndUpdate(invitationId, {
       $pull: { guests: deleted._id },
     });
