@@ -28,34 +28,56 @@ export async function POST(req: Request) {
     /* ============================================================
        הגדרות חבילה לפי סוג
     ============================================================ */
-    let maxGuests = 100;
-    let seatingEnabled = false;
+    let planLimits = {
+      maxGuests: 100,
+      smsEnabled: true,
+      seatingEnabled: false,
+      remindersEnabled: true,
+    };
+
+    let paidAmount = 49;
+    let guestsLevel = 100;
 
     if (plan === "premium") {
-      seatingEnabled = true;
+      const allowed = [100, 200, 300, 400, 500, 600, 700, 800, 1000];
+      const safeGuests = allowed.includes(Number(guests))
+        ? Number(guests)
+        : 100;
 
-      // ✅ הגדרה לפי הכמות שהועברה
-      const allowedGuestCounts = [
-        100, 200, 300, 400, 500, 600, 700, 800, 1000,
-      ];
+      guestsLevel = safeGuests;
+      planLimits = {
+        maxGuests: safeGuests,
+        smsEnabled: true,
+        seatingEnabled: true,
+        remindersEnabled: true,
+      };
 
-      if (allowedGuestCounts.includes(Number(guests))) {
-        maxGuests = Number(guests);
-      } else {
-        maxGuests = 100; // ברירת מחדל
-      }
+      // לדוגמה — תמחור בסיסי לפי גודל
+      const priceMap: Record<number, number> = {
+        100: 149,
+        200: 199,
+        300: 249,
+        400: 299,
+        500: 349,
+        600: 399,
+        700: 449,
+        800: 499,
+        1000: 699,
+      };
+      paidAmount = priceMap[safeGuests] ?? 149;
     }
 
     /* ============================================================
-       יצירת המשתמש במסד הנתונים
+       יצירת המשתמש במסד הנתונים (תואם למודל)
     ============================================================ */
     const user = await User.create({
       name,
       email,
       password: hashed,
       plan: plan || "basic",
-      maxGuests,
-      seatingEnabled,
+      guests: guestsLevel,
+      paidAmount,
+      planLimits,
     });
 
     return NextResponse.json({ success: true, user });
