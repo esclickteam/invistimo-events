@@ -3,49 +3,46 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-/* ================= אפקט WOW – כמה זיקוקי אור מפוזרים ================= */
-function SparklesLayer({ count = 6 }: { count?: number }) {
+/* =====================================================
+   זיקוקים אלגנטיים – ONLY HERO
+===================================================== */
+function HeroFireworks() {
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {[...Array(count)].map((_, i) => {
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+      {[...Array(6)].map((_, i) => {
         const x = Math.random() * 100;
         const y = Math.random() * 100;
-        const size = 28 + Math.random() * 20;
 
         return (
           <motion.div
             key={i}
             className="absolute"
-            style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              width: size,
-              height: size,
-            }}
+            style={{ left: `${x}%`, top: `${y}%` }}
+            initial={{ opacity: 0, scale: 0.6 }}
             animate={{
-              opacity: [0.2, 0.8, 0.2],
-              scale: [0.8, 1.15, 0.8],
+              opacity: [0, 0.6, 0],
+              scale: [0.6, 1.4],
             }}
             transition={{
-              duration: 6 + Math.random() * 4,
-              delay: Math.random() * 3,
+              duration: 3.5,
+              delay: i * 1.2,
               repeat: Infinity,
-              ease: "easeInOut",
+              ease: "easeOut",
             }}
           >
-            {[...Array(8)].map((_, j) => (
+            {[...Array(12)].map((_, j) => (
               <span
                 key={j}
                 className="
                   absolute left-1/2 top-1/2
-                  w-[2px] h-[16px]
+                  w-[3px] h-[40px]
                   bg-gradient-to-t
                   from-transparent
                   via-[#cbb38a]
                   to-transparent
                 "
                 style={{
-                  transform: `rotate(${j * 45}deg) translateY(-10px)`,
+                  transform: `rotate(${j * 30}deg) translateY(-26px)`,
                   transformOrigin: "center",
                 }}
               />
@@ -57,32 +54,77 @@ function SparklesLayer({ count = 6 }: { count?: number }) {
   );
 }
 
+/* =====================================================
+   טלפון מצלצל – לא עונים (בלוק 2)
+===================================================== */
+function RingingPhone() {
+  return (
+    <div className="relative w-14 h-14 ml-4">
+      {/* גלי צלצול */}
+      {[...Array(2)].map((_, i) => (
+        <motion.span
+          key={i}
+          className="absolute inset-0 rounded-full border border-[#cbb38a]/40"
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1.7, opacity: 0 }}
+          transition={{
+            duration: 2.2,
+            delay: i * 1.1,
+            repeat: Infinity,
+            ease: "easeOut",
+          }}
+        />
+      ))}
+
+      {/* טלפון רוטט */}
+      <motion.div
+        animate={{ rotate: [0, -8, 8, -8, 0] }}
+        transition={{
+          duration: 1.6,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="
+          w-full h-full rounded-xl
+          bg-[#faf8f4]
+          border border-[#cbb38a]
+          flex items-center justify-center
+          text-xl text-[#cbb38a]
+        "
+      >
+        📞
+      </motion.div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
-    <main className="relative bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
+    <main className="bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
 
       {/* ================= בלוק 1 – HERO ================= */}
       <section className="relative min-h-screen flex items-center px-6 overflow-hidden">
-        <SparklesLayer count={7} />
+        <HeroFireworks />
 
         <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
+          {/* טקסט */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: "easeOut" }}
+            transition={{ duration: 1 }}
           >
             <h1 className="text-5xl md:text-6xl font-semibold mb-6">
               ניהול אירוע חכם
             </h1>
 
-            <h2 className="text-3xl md:text-4xl font-medium mb-8">
+            <h2 className="text-3xl md:text-4xl mb-8">
               בלי לרדוף אחרי אף אחד
             </h2>
 
             <p className="text-xl text-[#6b5f55] max-w-xl mb-10">
               Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה
               וניהול אורחים למערכת אחת —
-              רגועה, מדויקת, ומעודכנת בזמן אמת.
+              רגועה, מדויקת ומעודכנת בזמן אמת.
             </p>
 
             <Link
@@ -93,6 +135,7 @@ export default function HomePage() {
             </Link>
           </motion.div>
 
+          {/* טלפון */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
@@ -102,7 +145,7 @@ export default function HomePage() {
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 6, repeat: Infinity }}
-              className="relative w-[320px] aspect-[9/19] rounded-[42px] bg-black p-[10px] shadow-xl"
+              className="w-[320px] aspect-[9/19] rounded-[42px] bg-black p-[10px] shadow-2xl"
             >
               <div className="w-full h-full rounded-[32px] overflow-hidden">
                 <video
@@ -120,13 +163,14 @@ export default function HomePage() {
       </section>
 
       {/* ================= בלוק 2 ================= */}
-      <section className="relative py-32 px-6 bg-[#faf8f4] overflow-hidden">
-        <SparklesLayer count={5} />
-
-        <div className="relative z-10 max-w-5xl mx-auto">
-          <h2 className="text-4xl font-semibold mb-12">
-            הגישה שלנו לניהול אירועים
-          </h2>
+      <section className="py-32 px-6 bg-[#faf8f4]">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center mb-12">
+            <h2 className="text-4xl font-semibold">
+              הגישה שלנו לניהול אירועים
+            </h2>
+            <RingingPhone />
+          </div>
 
           <p className="text-xl leading-relaxed">
             אנחנו לא עובדים עם סבבי טלפונים.<br />
@@ -140,10 +184,8 @@ export default function HomePage() {
       </section>
 
       {/* ================= בלוק 3 ================= */}
-      <section className="relative py-32 px-6 bg-white overflow-hidden">
-        <SparklesLayer count={4} />
-
-        <div className="relative z-10 max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
+      <section className="py-32 px-6 bg-white">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
           <div>
             <h2 className="text-4xl font-semibold mb-10">
               כל האירוע במקום אחד
@@ -173,29 +215,62 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= CTA ================= */}
-      <section className="relative py-32 px-6 bg-[#3f3a34] text-[#faf8f4] text-center overflow-hidden">
-        <SparklesLayer count={6} />
+      {/* ================= בלוק 4 ================= */}
+      <section className="py-32 px-6 bg-[#faf8f4] text-center">
+        <h2 className="text-4xl font-semibold mb-10">
+          פשוט, ברור, עובד
+        </h2>
 
-        <div className="relative z-10">
-          <h2 className="text-4xl font-semibold mb-8">
-            מוכנים לנהל אירוע רגוע באמת?
+        <p className="text-xl leading-relaxed">
+          שולחים הזמנה דיגיטלית.<br />
+          האורחים מאשרים לבד.<br />
+          המערכת מתעדכנת בזמן אמת.<br /><br />
+          אין צורך לעקוב.<br />
+          אין צורך לתזכר.<br />
+          אין צורך לבדוק שוב ושוב.<br /><br />
+          המערכת עובדת בשבילך.
+        </p>
+      </section>
+
+      {/* ================= בלוק 5 ================= */}
+      <section className="py-32 px-6 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-4xl font-semibold mb-12">
+            למה Invistimo
           </h2>
 
-          <p className="text-lg mb-10">
-            כל מה שצריך —<br />
-            במקום אחד.
+          <p className="text-xl leading-relaxed">
+            Invistimo נבנתה מתוך הבנה פשוטה:
+            ניהול אירוע לא אמור להיות עבודה במשרה מלאה.<br /><br />
+            לא עוד קבצים מפוזרים.<br />
+            לא עוד הודעות שלא חוזרים אליהן.<br />
+            לא עוד לחץ מיותר לפני האירוע.<br /><br />
+            מי שרוצה להגיע מאשר לבד —
+            ואין סיבה להוציא על זה כסף מיותר.<br /><br />
+            רק מערכת אחת שעושה סדר —
+            ומשאירה לך להיות באירוע עצמו.
           </p>
-
-          <Link
-            href="/pricing"
-            className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full"
-          >
-            לצפייה בחבילות
-          </Link>
         </div>
       </section>
 
+      {/* ================= CTA ================= */}
+      <section className="py-32 px-6 bg-[#3f3a34] text-[#faf8f4] text-center">
+        <h2 className="text-4xl font-semibold mb-8">
+          מוכנים לנהל אירוע רגוע באמת?
+        </h2>
+
+        <p className="text-lg mb-10">
+          כל מה שצריך —<br />
+          במקום אחד.
+        </p>
+
+        <Link
+          href="/pricing"
+          className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full"
+        >
+          לצפייה בחבילות
+        </Link>
+      </section>
     </main>
   );
 }
