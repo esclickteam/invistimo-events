@@ -5,11 +5,12 @@ import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
 import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   POST — יצירת מוזמן חדש (גם אם אין הזמנה קיימת)
+   POST — יצירת מוזמן חדש
 ============================================================ */
 export async function POST(
   req: NextRequest,
@@ -38,18 +39,14 @@ export async function POST(
       );
     }
 
-    /* ================= מציאת ההזמנה או יצירת חדשה ================= */
+    /* ================= מציאת הזמנה או יצירת חדשה ================= */
     let invitation =
       (invitationId && (await Invitation.findById(invitationId))) ||
       (await Invitation.findOne({ ownerId: userId }));
 
-    // אם אין בכלל הזמנה קיימת — ניצור אחת ריקה
     if (!invitation) {
-      // שליפת פרטי המשתמש כדי לדעת את המגבלות מהמנוי שלו
       const user = await User.findById(userId).lean();
       const planLimit = user?.planLimits?.maxGuests || 100;
-
-      console.log(`👤 יוצר הזמנה למשתמש ${user?.name || "לא מזוהה"} עם מגבלת ${planLimit} אורחים`);
 
       invitation = await Invitation.create({
         ownerId: userId,
@@ -61,15 +58,13 @@ export async function POST(
         canvasData: {},
         previewImage: "",
         shareId: nanoid(10),
-        maxGuests: planLimit, // ✅ נקבע מהמנוי של המשתמש
+        maxGuests: planLimit,
         sentSmsCount: 0,
         guests: [],
       });
-
-      console.log("✨ Invitation created automatically:", invitation._id);
     }
 
-    // בדיקה אם כבר קיים מוזמן עם אותו טלפון
+    /* ================= בדיקת כפילות ================= */
     const existing = await InvitationGuest.findOne({
       invitationId: invitation._id,
       phone,
@@ -81,18 +76,38 @@ export async function POST(
       );
     }
 
-    // בדיקה אם לא עבר את מכסת האורחים
-    const totalGuests = await InvitationGuest.countDocuments({
-      invitationId: invitation._id,
-    });
-    if (totalGuests >= invitation.maxGuests) {
+    /* ================= בדיקת מכסת אורחים ================= */
+    const guestsAgg = await InvitationGuest.aggregate([
+      {
+        $match: {
+          invitationId: new mongoose.Types.ObjectId(invitation._id),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$guestsCount" },
+        },
+      },
+    ]);
+
+    const totalGuests = guestsAgg[0]?.total || 0;
+    const incomingGuests =
+      typeof guestsCount === "number" && guestsCount > 0
+        ? guestsCount
+        : 1;
+
+    if (totalGuests + incomingGuests > invitation.maxGuests) {
       return NextResponse.json(
-        { success: false, error: "הגעת למכסת המוזמנים המרבית שלך" },
+        {
+          success: false,
+          error: "הגעת למכסת האורחים המרבית בחבילה שלך",
+          code: "MAX_GUESTS_REACHED",
+          remaining: invitation.maxGuests - totalGuests,
+        },
         { status: 403 }
       );
     }
-
-    const token = nanoid(12);
 
     /* ================= יצירת המוזמן ================= */
     const guest = await InvitationGuest.create({
@@ -101,13 +116,12 @@ export async function POST(
       phone,
       relation: relation || "",
       rsvp: rsvp || "pending",
-      guestsCount: guestsCount || 1,
+      guestsCount: incomingGuests,
       tableName: tableNumber ? `שולחן ${tableNumber}` : undefined,
       notes: "",
-      token,
+      token: nanoid(12),
     });
 
-    // עדכון רשימת האורחים בהזמנה
     invitation.guests.push(guest._id);
     await invitation.save();
 
@@ -151,14 +165,14 @@ export async function GET(
 }
 
 /* ============================================================
-   PUT — עדכון מוזמן
+   PUT — עדכון מוזמן (עם חסימת חריגה)
 ============================================================ */
 export async function PUT(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id: invitationId } = await context.params;
-  const { guestId, ...updates } = await req.json();
+  const { guestId, guestsCount, ...updates } = await req.json();
 
   try {
     await db();
@@ -170,18 +184,55 @@ export async function PUT(
       );
     }
 
-    const updated = await InvitationGuest.findOneAndUpdate(
-      { _id: guestId, invitationId },
-      updates,
-      { new: true }
-    );
+    const guest = await InvitationGuest.findOne({
+      _id: guestId,
+      invitationId,
+    });
 
-    if (!updated) {
+    if (!guest) {
       return NextResponse.json(
         { success: false, error: "Guest not found" },
         { status: 404 }
       );
     }
+
+    if (typeof guestsCount === "number" && guestsCount > 0) {
+      const guestsAgg = await InvitationGuest.aggregate([
+        {
+          $match: {
+            invitationId: new mongoose.Types.ObjectId(invitationId),
+            _id: { $ne: new mongoose.Types.ObjectId(guestId) },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$guestsCount" },
+          },
+        },
+      ]);
+
+      const totalGuests = guestsAgg[0]?.total || 0;
+      const invitation = await Invitation.findById(invitationId);
+
+      if (totalGuests + guestsCount > invitation.maxGuests) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "חרגת ממכסת האורחים בחבילה שלך",
+          },
+          { status: 403 }
+        );
+      }
+
+      updates.guestsCount = guestsCount;
+    }
+
+    const updated = await InvitationGuest.findByIdAndUpdate(
+      guestId,
+      updates,
+      { new: true }
+    );
 
     return NextResponse.json({ success: true, guest: updated });
   } catch (err) {
