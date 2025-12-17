@@ -7,6 +7,8 @@ import {
 } from "framer-motion";
 import { useRef } from "react";
 import Link from "next/link";
+import { useEffect } from "react";
+
 
 /* =====================================================
    זיקוקים אלגנטיים – ONLY HERO (לא לגעת)
@@ -174,30 +176,44 @@ type FeatureItem = {
 };
 
 function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
-  const x = useMotionValue(0);
+  const x = useMotionValue(0); // נשאר
+
   const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+  if (!ref.current) return;
+
+  const halfWidth = ref.current.scrollWidth / 2;
+x.set(-halfWidth + 1);
+}, []);
 
 
   useAnimationFrame((_, delta) => {
   if (!ref.current) return;
 
-  const speed = 0.04;
-  const moveBy = delta * speed;
-  const width = ref.current.scrollWidth / 2;
+  const speed = 40; // פיקסלים לשנייה (שני = יוקרתי)
+  const moveBy = (delta / 1000) * speed;
 
-  // ⬅️ לולאה אינסופית אמיתית
-  const next = (x.get() - moveBy) % width;
+  const contentWidth = ref.current.scrollWidth / 2;
+
+  let next = x.get() - moveBy;
+
+  // wrap תקין (בלי ערכים שליליים)
+  if (next <= -contentWidth) {
+    next += contentWidth;
+  }
 
   x.set(next);
 });
 
   return (
-    <div className="overflow-hidden w-full">
+    <div className="overflow-hidden w-full relative">
+
       <motion.div
-        ref={ref}
-        className="flex gap-6 flex-nowrap"
-        style={{ x }}
-      >
+  ref={ref}
+  className="flex gap-6 flex-nowrap will-change-transform"
+  style={{ x }}
+>
         {[...items, ...items].map((item, i) => (
           <motion.div
             key={i}
@@ -323,7 +339,7 @@ export default function HomePage() {
       </section>
 
 {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
-<section className="py-28 bg-white overflow-hidden">
+<section className="py-28 bg-white overflow-hidden w-full">
   <h2 className="text-4xl font-semibold text-center mb-20">
     כל האירוע במקום אחד
   </h2>
