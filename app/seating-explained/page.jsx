@@ -9,10 +9,16 @@ const fadeUp = {
 };
 
 export default function SeatingExplainedPage() {
+  // גדול יותר (רוחב-דומיננטי) – בלי תוספות
   const wideMedia =
-    "w-full h-[680px] md:h-[880px] object-contain bg-transparent";
+    "w-full h-[560px] md:h-[760px] object-contain bg-transparent";
+
+  // האחרון יותר גבוה
   const tallLastMedia =
-    "w-full h-[880px] md:h-[1080px] object-contain bg-transparent";
+    "w-full h-[760px] md:h-[980px] object-contain bg-transparent";
+
+  // כמו בקוד של RSVP: עטיפה עם rounded + overflow-hidden (בלי רקע/פדינג/מסגרת)
+  const mediaWrap = "rounded-[28px] overflow-hidden";
 
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
@@ -49,7 +55,8 @@ export default function SeatingExplainedPage() {
           transition={{ delay: 0.28, duration: 0.8 }}
           className="max-w-3xl mx-auto text-lg leading-relaxed text-[#6b5f55] mt-4"
         >
-          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע לדיוק מושלם.
+          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע לדיוק
+          מושלם.
         </motion.p>
 
         <motion.div
@@ -75,9 +82,10 @@ export default function SeatingExplainedPage() {
         </motion.div>
       </section>
 
-      {/* ================= SECTION 1 ================= */}
+      {/* ================= SECTION 1 – בניית מפת אולם (עם/בלי סקיצה) ================= */}
       <section className="py-28 px-6 bg-white">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
+          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -105,13 +113,13 @@ export default function SeatingExplainedPage() {
             </p>
           </motion.div>
 
-          {/* תמונה עם עיגול עדין אמיתי */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className="rounded-xl overflow-hidden"
+            className={mediaWrap}
           >
             <img
               src="/sit1.png"
@@ -123,15 +131,16 @@ export default function SeatingExplainedPage() {
         </div>
       </section>
 
-      {/* ================= SECTION 2 ================= */}
+      {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
+          {/* VIDEO – גדול, בלי שום מסגרת/שחור */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className="rounded-xl overflow-hidden"
+            className={mediaWrap}
           >
             <video
               src="/videos/sit2.mp4"
@@ -144,13 +153,16 @@ export default function SeatingExplainedPage() {
             />
           </motion.div>
 
+          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">שיבוץ אורחים בגרירה — בזמן אמת</h2>
+            <h2 className="text-4xl font-bold mb-6">
+              שיבוץ אורחים בגרירה — בזמן אמת
+            </h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי,
@@ -171,16 +183,19 @@ export default function SeatingExplainedPage() {
         </div>
       </section>
 
-      {/* ================= SECTION 3 ================= */}
+      {/* ================= SECTION 3 – הושבה אישית מהדשבורד (sit3.png) ================= */}
       <section className="py-28 px-6 bg-white">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
+          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">הושבה אישית מהדשבורד — כשצריך דיוק</h2>
+            <h2 className="text-4xl font-bold mb-6">
+              הושבה אישית מהדשבורד — כשצריך דיוק
+            </h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               בדשבורד אפשר לערוך הושבה של אורח ספציפי דרך כפתור “הושבה אישית”.
@@ -195,13 +210,13 @@ export default function SeatingExplainedPage() {
             </ul>
           </motion.div>
 
-          {/* עיגול פינות גם כאן */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className="rounded-xl overflow-hidden"
+            className={mediaWrap}
           >
             <img
               src="/sit3.png"
@@ -213,16 +228,16 @@ export default function SeatingExplainedPage() {
         </div>
       </section>
 
-      {/* ================= SECTION 4 ================= */}
+      {/* ================= SECTION 4 – הודעות לאורחים (sit4.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* וידאו עם עיגול עדין */}
+          {/* VIDEO – אחרון, יותר גבוה */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className="rounded-xl overflow-hidden"
+            className={mediaWrap}
           >
             <video
               src="/videos/sit4.mp4"
@@ -235,13 +250,16 @@ export default function SeatingExplainedPage() {
             />
           </motion.div>
 
+          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">שולחים לאורחים הודעה עם מספר השולחן</h2>
+            <h2 className="text-4xl font-bold mb-6">
+              שולחים לאורחים הודעה עם מספר השולחן
+            </h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               אחרי שההושבה מסודרת — שולחים הודעה חכמה לכל אורח עם מספר השולחן שלו.
@@ -283,7 +301,15 @@ export default function SeatingExplainedPage() {
         >
           <Link
             href="/pricing"
-            className="inline-flex px-14 py-6 rounded-full bg-gradient-to-br from-[#4a413a] to-[#3f3730] text-white text-xl font-semibold shadow-[0_22px_60px_rgba(0,0,0,0.35)] hover:shadow-[0_30px_75px_rgba(0,0,0,0.45)] hover:scale-[1.06] transition"
+            className="
+              inline-flex px-14 py-6 rounded-full
+              bg-gradient-to-br from-[#4a413a] to-[#3f3730]
+              text-white text-xl font-semibold
+              shadow-[0_22px_60px_rgba(0,0,0,0.35)]
+              hover:shadow-[0_30px_75px_rgba(0,0,0,0.45)]
+              hover:scale-[1.06]
+              transition
+            "
           >
             התחילו לבנות הושבה
           </Link>
