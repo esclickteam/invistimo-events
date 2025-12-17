@@ -204,26 +204,27 @@ export default function HomePage() {
   <div className="relative w-full overflow-hidden">
     <motion.div
       className="flex gap-10"
-      style={{ width: "max-content" }}
-      animate={{ x: ["-2160px", "0px"] }}   // ⬅️ כיוון הפוך
+      initial={{ x: 0 }}
+      animate={{ x: "-50%" }}   // זז רק חצי – אין ריק
       transition={{
-        duration: 22,                     // קצת יותר מהר
+        duration: 20,          // קצת יותר מהר כמו שביקשת
         ease: "linear",
         repeat: Infinity,
       }}
+      style={{ width: "max-content" }}
     >
-      {/* שכפול כפול – חובה */}
+      {/* חובה: שכפול כפול */}
       {[...features, ...features].map((item, i) => (
         <div
           key={i}
           className="
             w-[680px]
+            flex-shrink-0
             bg-[#faf8f4]
             rounded-[32px]
             p-10
             shadow-xl
             flex flex-col
-            flex-shrink-0
           "
         >
           <img
@@ -244,6 +245,7 @@ export default function HomePage() {
     </motion.div>
   </div>
 </section>
+
 
 
       {/* ================= בלוק 4 ================= */}
