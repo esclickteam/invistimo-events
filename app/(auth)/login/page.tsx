@@ -95,7 +95,7 @@ export default function LoginPage() {
         <p className="text-center text-[var(--brown-soft)] mt-6 text-sm">
           אין לך חשבון?
           <Link
-            href="/register"
+            href="/pricing"
             className="text-[var(--champagne-dark)] font-semibold hover:underline mr-1"
           >
             הרשמה
