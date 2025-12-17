@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import { nanoid } from "nanoid";
 
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   POST — יצירת מוזמן חדש
+   POST — יצירת מוזמן חדש + עדכון ההזמנה
 ============================================================ */
 export async function POST(
   req: NextRequest,
@@ -33,6 +34,26 @@ export async function POST(
       );
     }
 
+    // בדיקה אם ההזמנה קיימת
+    const invitation = await Invitation.findById(invitationId);
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, error: "Invitation not found" },
+        { status: 404 }
+      );
+    }
+
+    // בדיקת מגבלת כמות אורחים
+    const totalGuests = await InvitationGuest.countDocuments({
+      invitationId,
+    });
+    if (totalGuests >= invitation.maxGuests) {
+      return NextResponse.json(
+        { success: false, error: "הגעת למכסת המוזמנים המרבית שלך" },
+        { status: 403 }
+      );
+    }
+
     // בדיקה אם כבר קיים מוזמן עם אותו מספר
     const existing = await InvitationGuest.findOne({ invitationId, phone });
     if (existing) {
@@ -44,7 +65,7 @@ export async function POST(
 
     const token = nanoid(12);
 
-    // ✅ שמירת כל הערכים החדשים כולל relation ו־rsvp
+    // ✅ יצירת מוזמן חדש
     const guest = await InvitationGuest.create({
       invitationId,
       name,
@@ -56,6 +77,10 @@ export async function POST(
       notes: "",
       token,
     });
+
+    // ✅ הוספה למערך ההזמנה
+    invitation.guests.push(guest._id);
+    await invitation.save();
 
     return NextResponse.json({ success: true, guest }, { status: 201 });
   } catch (err) {
@@ -167,6 +192,11 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    // הסרה גם ממערך ההזמנה
+    await Invitation.findByIdAndUpdate(invitationId, {
+      $pull: { guests: deleted._id },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {
