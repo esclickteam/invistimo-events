@@ -90,7 +90,7 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🟢 CASE 1: PREMIUM UPGRADE (DIFFERENTIAL)
+     🟢 CASE 1: PREMIUM UPGRADE (INCLUDES SMS + SEATING)
   ============================================================ */
   if (session.metadata?.type === "upgrade") {
     const targetGuests = Number(session.metadata.targetGuests);
@@ -101,7 +101,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const priceKey = `premium_${targetGuests}`; // ✅ enum חוקי
+    const priceKey = `premium_${targetGuests}`;
+    const smsAmount = targetGuests; // ⭐ יחס 1:1
 
     // 💾 Payment – מה שנגבה בפועל
     await Payment.create({
@@ -111,12 +112,12 @@ export async function POST(req: Request) {
       stripeCustomerId: session.customer as string,
       priceKey,
       maxGuests: targetGuests,
-      amount: amountCharged, // ✅ חשוב!
+      amount: amountCharged,
       currency: "ils",
       status: "paid",
     });
 
-    // 🧑 Update user – מחיר מלא
+    // 🧑 Update user
     await User.findByIdAndUpdate(user._id, {
       plan: "premium",
       guests: targetGuests,
@@ -129,14 +130,34 @@ export async function POST(req: Request) {
       },
     });
 
-    // ✉️ Update invitation (בלי לאפס SMS)
-    await Invitation.findOneAndUpdate(
-      { ownerId: user._id },
-      { maxGuests: targetGuests }
-    );
+    // ✉️ Update invitation + SMS
+    let invitation = await Invitation.findOne({ ownerId: user._id });
+
+    if (!invitation) {
+      invitation = await Invitation.create({
+        ownerId: user._id,
+        title: "ההזמנה שלי",
+        canvasData: {},
+        shareId: crypto.randomUUID(),
+        maxGuests: targetGuests,
+        sentSmsCount: 0,
+        maxMessages: smsAmount,
+        remainingMessages: smsAmount,
+      });
+    } else {
+      invitation.maxGuests = targetGuests;
+
+      // הקצאת SMS רק אם עדיין אין
+      if (!invitation.maxMessages || invitation.maxMessages === 0) {
+        invitation.maxMessages = smsAmount;
+        invitation.remainingMessages = smsAmount;
+      }
+
+      await invitation.save();
+    }
 
     console.log(
-      `✅ Premium upgraded for ${email} → ${targetGuests} guests`
+      `✅ Premium upgraded for ${email} → ${targetGuests} guests + ${smsAmount} SMS`
     );
 
     return NextResponse.json({ received: true });
