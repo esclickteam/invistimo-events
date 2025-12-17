@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 
 import Payment from "@/models/Payment";
-import Event from "@/models/Event";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 
@@ -17,7 +16,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   lookup_key → maxGuests
+   lookup_key → maxGuests (FULL PACKAGES ONLY)
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number> = {
   basic_plan: 100,
@@ -102,38 +101,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const priceKey = `premium_${targetGuests}`; // ✅ FIX
+    const priceKey = `premium_${targetGuests}`; // ✅ enum חוקי
 
+    // 💾 Payment – מה שנגבה בפועל
     await Payment.create({
       email,
       stripeSessionId: session.id,
       stripePaymentIntentId: session.payment_intent as string,
       stripeCustomerId: session.customer as string,
-      priceKey,                 // ✅ enum חוקי
+      priceKey,
       maxGuests: targetGuests,
-      amount: fullPrice,        // 💡 שומרים מחיר מלא, לא 10₪
+      amount: amountCharged, // ✅ חשוב!
       currency: "ils",
       status: "paid",
     });
 
-    // 🧑 Update user
-    user.plan = "premium";
-    user.guests = targetGuests;
-    user.paidAmount = fullPrice;
-    user.planLimits = {
-      maxGuests: targetGuests,
-      smsEnabled: true,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-    await user.save();
+    // 🧑 Update user – מחיר מלא
+    await User.findByIdAndUpdate(user._id, {
+      plan: "premium",
+      guests: targetGuests,
+      paidAmount: fullPrice,
+      planLimits: {
+        maxGuests: targetGuests,
+        smsEnabled: true,
+        seatingEnabled: true,
+        remindersEnabled: true,
+      },
+    });
 
-    // ✉️ Update invitation
-    const invitation = await Invitation.findOne({ ownerId: user._id });
-    if (invitation) {
-      invitation.maxGuests = targetGuests;
-      await invitation.save();
-    }
+    // ✉️ Update invitation (בלי לאפס SMS)
+    await Invitation.findOneAndUpdate(
+      { ownerId: user._id },
+      { maxGuests: targetGuests }
+    );
 
     console.log(
       `✅ Premium upgraded for ${email} → ${targetGuests} guests`

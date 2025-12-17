@@ -130,8 +130,9 @@ export async function POST(req: Request) {
         },
       ],
 
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/upgrade/success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/upgrade/cancel`,
+      /* ✅ חזרה ישירה להושבה */
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/seating?upgraded=1`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/seating`,
     });
 
     return NextResponse.json({ url: session.url });
