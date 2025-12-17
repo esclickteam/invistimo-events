@@ -179,20 +179,17 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
 
 
   useAnimationFrame((_, delta) => {
-    if (!ref.current) return;
+  if (!ref.current) return;
 
-    const speed = 0.04; // ⬅️ מהירות (קטן = עדין)
-    const moveBy = delta * speed;
-    const width = ref.current.scrollWidth / 2;
+  const speed = 0.04;
+  const moveBy = delta * speed;
+  const width = ref.current.scrollWidth / 2;
 
-    let current = x.get() - moveBy;
+  // ⬅️ לולאה אינסופית אמיתית
+  const next = (x.get() - moveBy) % width;
 
-    if (current <= -width) {
-      current = 0;
-    }
-
-    x.set(current);
-  });
+  x.set(next);
+});
 
   return (
     <div className="overflow-hidden w-full">
