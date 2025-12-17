@@ -3,38 +3,49 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-/* ================= אפקט חגיגי קבוע =================
-   רץ כל הזמן על כל העמוד (לא זיקוקים)
-==================================================== */
-function AmbientParticles() {
+/* ================= WOW EFFECT – זיקוקים אלגנטיים =================
+   רץ כל הזמן, ברור לעין, יוקרתי (כמו עמוד תודה)
+================================================================== */
+function ElegantFireworks() {
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {[...Array(22)].map((_, i) => {
-        const size = Math.random() > 0.7 ? 4 : 2;
-        return (
-          <motion.span
-            key={i}
-            className="absolute rounded-full bg-[#cbb38a]/40"
-            style={{
-              width: size,
-              height: size,
-              left: Math.random() * 100 + "%",
-              bottom: "-10%",
-            }}
-            initial={{ opacity: 0, y: 0 }}
-            animate={{
-              opacity: [0, 0.6, 0],
-              y: [-20, -600],
-            }}
-            transition={{
-              duration: 14 + Math.random() * 10,
-              delay: Math.random() * 6,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          />
-        );
-      })}
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      {[...Array(8)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute left-1/2 top-1/2"
+          initial={{ opacity: 0, scale: 0.4 }}
+          animate={{
+            opacity: [0, 1, 0],
+            scale: [0.4, 1.5],
+          }}
+          transition={{
+            duration: 3,
+            delay: i * 1.4,
+            repeat: Infinity,
+            ease: "easeOut",
+          }}
+        >
+          {[...Array(10)].map((_, j) => (
+            <motion.span
+              key={j}
+              className="absolute w-[2px] h-[34px]
+                         bg-gradient-to-t
+                         from-transparent
+                         via-[#cbb38a]
+                         to-transparent"
+              style={{
+                transform: `rotate(${j * 36}deg) translateY(-50px)`,
+              }}
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{
+                duration: 3,
+                delay: i * 1.4,
+                repeat: Infinity,
+              }}
+            />
+          ))}
+        </motion.div>
+      ))}
     </div>
   );
 }
@@ -42,8 +53,8 @@ function AmbientParticles() {
 export default function HomePage() {
   return (
     <main className="relative bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
-      {/* אפקט קבוע לכל העמוד */}
-      <AmbientParticles />
+      {/* אפקט WOW קבוע לכל העמוד */}
+      <ElegantFireworks />
 
       {/* ================= בלוק 1 – HERO ================= */}
       <section className="relative min-h-screen flex items-center px-6 z-10">
@@ -91,7 +102,10 @@ export default function HomePage() {
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="relative w-[320px] aspect-[9/19] rounded-[42px] bg-black shadow-[0_50px_100px_rgba(0,0,0,0.35)] p-[10px]"
+              className="relative w-[320px] aspect-[9/19]
+                         rounded-[42px] bg-black
+                         shadow-[0_50px_100px_rgba(0,0,0,0.35)]
+                         p-[10px]"
             >
               <div className="w-full h-full rounded-[32px] overflow-hidden">
                 <video
@@ -199,41 +213,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= בלוק 6 ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4] text-center relative z-10">
-        <h2 className="text-4xl font-semibold mb-12">
-          מערכת שמתאימה למציאות של היום
-        </h2>
-
-        <p className="text-xl leading-relaxed">
-          אין טלפונים חוזרים<br /><br />
-          אין הודעות אבודות<br /><br />
-          אין בלבול בין רשימות<br /><br />
-          אין חוסר ודאות<br /><br />
-          יש שליטה.<br />
-          יש סדר.<br />
-          ויש שקט.
-        </p>
-      </section>
-
-      {/* ================= בלוק 8 ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4] relative z-10">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-4xl font-semibold mb-12">
-            פחות התעסקות, יותר נוכחות
-          </h2>
-
-          <p className="text-xl leading-relaxed">
-            במקום לנהל את האירוע —<br />
-            את נמצאת בו.<br /><br />
-            במקום לרדוף אחרי אישורים —<br />
-            את יודעת בדיוק איפה את עומדת.<br /><br />
-            Invistimo מורידה ממך עומס,<br />
-            ולא מוסיפה עוד מערכת להתעסק בה.
-          </p>
-        </div>
-      </section>
-
       {/* ================= בלוק 9 – CTA ================= */}
       <section className="py-32 px-6 bg-[#3f3a34] text-[#faf8f4] text-center relative z-10">
         <h2 className="text-4xl font-semibold mb-8">
@@ -247,7 +226,9 @@ export default function HomePage() {
 
         <Link
           href="/pricing"
-          className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full text-sm tracking-wide hover:opacity-90 transition"
+          className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34]
+                     rounded-full text-sm tracking-wide
+                     hover:opacity-90 transition"
         >
           לצפייה בחבילות
         </Link>
