@@ -254,7 +254,7 @@ export default function HomePage() {
   <div className="relative w-full overflow-hidden">
     <motion.div
       className="flex gap-6 justify-center"
-      style={{ width: "200%" }}   // רק בשביל הלולאה
+      style={{ width: "200%" }} // רק בשביל הלולאה
       animate={{ x: "-50%" }}
       transition={{
         duration: 28,
@@ -263,10 +263,16 @@ export default function HomePage() {
       }}
     >
       {[...features, ...features].map((item, i) => (
-        <div
+        <motion.div
           key={i}
+          animate={{ y: [0, -10, 0] }}
+          transition={{
+            duration: 6 + (i % 4), // כל כרטיס בקצב אחר
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
           className="
-            w-[420px]            /* ⬅️ 4 נכנסות בלי לצאת */
+            w-[420px]
             flex-shrink-0
             bg-[#faf8f4]
             rounded-[24px]
@@ -290,11 +296,12 @@ export default function HomePage() {
           <p className="text-sm text-[#6b5f55] leading-relaxed">
             {item.text}
           </p>
-        </div>
+        </motion.div>
       ))}
     </motion.div>
   </div>
 </section>
+
 
 
 {/* ================= בלוק 4 ================= */}
