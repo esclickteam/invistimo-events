@@ -10,7 +10,6 @@ import Footer from "./components/Footer";
 import SupportBotButton from "./components/SupportBotButton";
 import LayoutShell from "./components/LayoutShell";
 import SupportBotGate from "./components/SupportBotGate";
-import HeaderGate from "./components/HeaderGate";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -24,12 +23,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
         <Providers>
           <LayoutShell
-            Header={() => (
-              <HeaderGate>
-                <Header />
-              </HeaderGate>
-            )}
-            Footer={Footer}
+            header={<Header />}
+            footer={<Footer />}
           >
             {children}
           </LayoutShell>

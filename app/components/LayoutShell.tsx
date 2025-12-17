@@ -1,18 +1,18 @@
 "use client";
 
-import type { ReactNode, ComponentType } from "react";
+import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 type LayoutShellProps = {
   children: ReactNode;
-  Header: ComponentType;
-  Footer: ComponentType;
+  header: ReactNode;
+  footer: ReactNode;
 };
 
 export default function LayoutShell({
   children,
-  Header,
-  Footer,
+  header,
+  footer,
 }: LayoutShellProps) {
   const pathname = usePathname();
 
@@ -25,17 +25,13 @@ export default function LayoutShell({
 
   return (
     <>
-      {!hideLayout && <Header />}
+      {!hideLayout && header}
 
-      <main
-        className={`min-h-screen ${
-          !hideLayout ? "pt-[64px]" : ""
-        }`}
-      >
+      <main className={`min-h-screen ${!hideLayout ? "pt-[64px]" : ""}`}>
         {children}
       </main>
 
-      {!hideLayout && <Footer />}
+      {!hideLayout && footer}
     </>
   );
 }
