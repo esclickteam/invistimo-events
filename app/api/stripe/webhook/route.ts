@@ -20,8 +20,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
    lookup_key → maxGuests (packages)
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number | null> = {
-  basic_plan: null,
-  basic_plan_49: null,
+  basic_plan: 100,
+  basic_plan_49: 100,
   premium_100: 100,
   premium_200: 200,
   premium_300: 300,
