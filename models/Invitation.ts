@@ -14,11 +14,11 @@ const InvitationSchema = new Schema(
     title: {
       type: String,
       required: true,
-      default: "הזמנה חדשה", // ✅ ברירת מחדל כדי לא לחסום יצירת טיוטה
+      default: "הזמנה חדשה",
     },
 
     eventType: {
-      type: String, // חתונה / בר מצווה / וכו'
+      type: String,
       default: "",
     },
 
@@ -27,13 +27,11 @@ const InvitationSchema = new Schema(
       default: null,
     },
 
-    // ✅ שעה מדויקת
     eventTime: {
-      type: String, // "19:30"
+      type: String,
       default: "",
     },
 
-    // ✅ מיקום האירוע
     eventLocation: {
       type: String,
       default: "",
@@ -43,7 +41,7 @@ const InvitationSchema = new Schema(
     canvasData: {
       type: Object,
       required: true,
-      default: {}, // ✅ מאפשר ליצור גם בלי עיצוב עדיין
+      default: {},
     },
 
     previewImage: {
@@ -54,7 +52,7 @@ const InvitationSchema = new Schema(
     shareId: {
       type: String,
       unique: true,
-      default: () => nanoid(10), // ✅ קישור ציבורי להזמנה
+      default: () => nanoid(10),
     },
 
     /* ================= GUESTS ================= */
@@ -65,20 +63,43 @@ const InvitationSchema = new Schema(
       },
     ],
 
-    /* ================= SMS PACKAGE ================= */
+    /* ================= LIMITS ================= */
+
+    // כמות אורחים מותרת
     maxGuests: {
       type: Number,
-      enum: [100, 300, 500, 1000],
       default: 100,
       required: true,
     },
 
+    /* ================= SMS ================= */
+
+    // כמה SMS נשלחו בפועל
     sentSmsCount: {
       type: Number,
       default: 0,
     },
+
+    // 💬 מקסימום הודעות SMS (3 לכל אורח)
+    maxMessages: {
+      type: Number,
+      default: function () {
+        return (this.maxGuests || 100) * 3;
+      },
+    },
+
+    // 💬 יתרת הודעות SMS
+    remainingMessages: {
+      type: Number,
+      default: function () {
+        return (this.maxGuests || 100) * 3;
+      },
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export default models.Invitation || model("Invitation", InvitationSchema);
+export default models.Invitation ||
+  model("Invitation", InvitationSchema);

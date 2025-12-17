@@ -86,10 +86,13 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🟢 CASE 1: PREMIUM UPGRADE (ADD guests + SMS + seating)
+     🟢 CASE 1: PREMIUM UPGRADE
+     ➕ אורחים
+     ➕ SMS = אורחים × 3
+     ➕ הושבה
   ============================================================ */
   if (session.metadata?.type === "upgrade") {
-    const targetGuests = Number(session.metadata.targetGuests);
+    const targetGuests = Number(session.metadata.targetGuests); // כמה נוספו
     const fullPrice = Number(session.metadata.fullPrice);
     const amountCharged = Number(session.metadata.amountCharged);
 
@@ -99,6 +102,10 @@ export async function POST(req: Request) {
 
     const currentGuests = user.guests || 0;
     const newTotalGuests = currentGuests + targetGuests;
+
+    // ⭐ SMS רק על ההרחבה
+    const smsToAdd = targetGuests * 3;
+
     const priceKey = `premium_${targetGuests}`;
 
     /* 💾 Payment */
@@ -127,7 +134,7 @@ export async function POST(req: Request) {
       },
     });
 
-    /* ✉️ Update Invitation + SMS (מצטבר) */
+    /* ✉️ Update Invitation + SMS */
     let invitation = await Invitation.findOne({ ownerId: user._id });
 
     if (!invitation) {
@@ -138,20 +145,23 @@ export async function POST(req: Request) {
         shareId: crypto.randomUUID(),
         maxGuests: newTotalGuests,
         sentSmsCount: 0,
-        maxMessages: targetGuests,
-        remainingMessages: targetGuests,
+        maxMessages: smsToAdd,
+        remainingMessages: smsToAdd,
       });
     } else {
       invitation.maxGuests = newTotalGuests;
+
       invitation.maxMessages =
-        (invitation.maxMessages || 0) + targetGuests;
+        (invitation.maxMessages || 0) + smsToAdd;
+
       invitation.remainingMessages =
-        (invitation.remainingMessages || 0) + targetGuests;
+        (invitation.remainingMessages || 0) + smsToAdd;
+
       await invitation.save();
     }
 
     console.log(
-      `✅ Upgrade OK: ${email} | +${targetGuests} guests → ${newTotalGuests}`
+      `✅ Upgrade OK: ${email} | +${targetGuests} guests | +${smsToAdd} SMS`
     );
 
     return NextResponse.json({ received: true });
@@ -167,6 +177,7 @@ export async function POST(req: Request) {
     }
 
     let invitation = await Invitation.findOne({ ownerId: user._id });
+
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: user._id,
@@ -180,8 +191,10 @@ export async function POST(req: Request) {
     } else {
       invitation.maxMessages =
         (invitation.maxMessages || 0) + messagesToAdd;
+
       invitation.remainingMessages =
         (invitation.remainingMessages || 0) + messagesToAdd;
+
       await invitation.save();
     }
 
@@ -228,7 +241,7 @@ export async function POST(req: Request) {
     paidAmount: amountPaid,
     planLimits: {
       maxGuests,
-      smsEnabled: true,
+      smsEnabled: !isBasic,
       seatingEnabled: !isBasic,
       remindersEnabled: true,
     },
