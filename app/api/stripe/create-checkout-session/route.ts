@@ -22,12 +22,7 @@ const PRICE_CONFIG: Record<
     maxGuests: 100,
     plan: "basic",
   },
-  basic_plan_49: {
-    priceId: "price_1SdVK5LCgfc20iubLwRTHMKT",
-    maxGuests: 100,
-    plan: "basic",
-  },
-
+ 
   premium_100: {
     priceId: "price_1SdSGkLCgfc20iubDzINSFfW",
     maxGuests: 100,
