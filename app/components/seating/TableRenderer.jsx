@@ -399,36 +399,48 @@ export default function TableRenderer({ table }) {
         </Group>
       )}
 
+      
+
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
-        const guest = seatInfoMap.get(i)?.guest;
-        const count =
-          guest?.confirmedGuestsCount ??
-          guest?.guestsCount ??
-          guest?.count ??
-          guest?.spots ??
-          1;
-        return (
-          <Group key={i} x={c.x} y={c.y}>
-            <Circle
-              radius={9}
-              fill={guest ? "#d1d5db" : "#3b82f6"}
-              stroke="#2563eb"
-            />
-            {guest && (
-              <Text
-                text={count > 1 ? `${guest.name} (${count})` : guest.name}
-                fontSize={10}
-                y={14}
-                width={100}
-                offsetX={50}
-                align="center"
-                fill="#111827"
-              />
-            )}
-          </Group>
-        );
-      })}
+  const guest = seatInfoMap.get(i)?.guest;
+
+  // סיבוב הכיסא לכיוון מרכז השולחן
+  const rotation = (Math.atan2(c.y, c.x) * 180) / Math.PI + 180;
+
+  return (
+    <Group
+      key={i}
+      x={c.x}
+      y={c.y}
+      rotation={rotation}
+    >
+      {/* גב הכיסא */}
+      <Rect
+        x={-5}
+        y={-14}
+        width={10}
+        height={6}
+        cornerRadius={3}
+        fill={guest ? "#cbd5e1" : "#93c5fd"}
+      />
+
+      {/* מושב */}
+      <Rect
+        x={-7}
+        y={-7}
+        width={14}
+        height={10}
+        cornerRadius={4}
+        fill={guest ? "#94a3b8" : "#3b82f6"}
+        stroke="#2563eb"
+        strokeWidth={1}
+        shadowBlur={2}
+      />
+    </Group>
+  );
+})}
+
     </Group>
   );
 }
