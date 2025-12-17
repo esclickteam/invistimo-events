@@ -9,7 +9,7 @@ const fadeUp = {
 };
 
 export default function SeatingExplainedPage() {
-  // גדול יותר (רוחב-דומיננטי) – בלי תוספות
+  // גדול יותר (רוחב-דומיננטי)
   const wideMedia =
     "w-full h-[560px] md:h-[760px] object-contain bg-transparent";
 
@@ -17,8 +17,10 @@ export default function SeatingExplainedPage() {
   const tallLastMedia =
     "w-full h-[760px] md:h-[980px] object-contain bg-transparent";
 
-  // כמו בקוד של RSVP: עטיפה עם rounded + overflow-hidden (בלי רקע/פדינג/מסגרת)
-  const mediaWrap = "rounded-[28px] overflow-hidden";
+  // בדיוק כמו בדוגמה (כמו RSVP): מסגרת “פרימיום” עם עיגול + צל עדין
+  const mediaOuter =
+    "relative rounded-[36px] p-[12px] bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef] shadow-[0_25px_60px_rgba(0,0,0,0.15)]";
+  const mediaInner = "rounded-[28px] overflow-hidden bg-[#fdfbf8]";
 
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
@@ -113,20 +115,22 @@ export default function SeatingExplainedPage() {
             </p>
           </motion.div>
 
-          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
+          {/* IMAGE – בדיוק כמו בתמונה (Rounded + Shadow + מסגרת עדינה) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
+            className={mediaOuter}
           >
-            <img
-              src="/sit1.png"
-              alt="בניית מפת אולם והוספת שולחנות"
-              className={wideMedia}
-              loading="lazy"
-            />
+            <div className={mediaInner}>
+              <img
+                src="/sit1.png"
+                alt="בניית מפת אולם והוספת שולחנות"
+                className={wideMedia}
+                loading="lazy"
+              />
+            </div>
           </motion.div>
         </div>
       </section>
@@ -134,23 +138,25 @@ export default function SeatingExplainedPage() {
       {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – גדול, בלי שום מסגרת/שחור */}
+          {/* VIDEO – בדיוק כמו בתמונה */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
+            className={mediaOuter}
           >
-            <video
-              src="/videos/sit2.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              className={wideMedia}
-            />
+            <div className={mediaInner}>
+              <video
+                src="/videos/sit2.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className={wideMedia}
+              />
+            </div>
           </motion.div>
 
           {/* TEXT */}
@@ -210,20 +216,22 @@ export default function SeatingExplainedPage() {
             </ul>
           </motion.div>
 
-          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
+          {/* IMAGE – בדיוק כמו בתמונה */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
+            className={mediaOuter}
           >
-            <img
-              src="/sit3.png"
-              alt="הושבה אישית מהדשבורד"
-              className={wideMedia}
-              loading="lazy"
-            />
+            <div className={mediaInner}>
+              <img
+                src="/sit3.png"
+                alt="הושבה אישית מהדשבורד"
+                className={wideMedia}
+                loading="lazy"
+              />
+            </div>
           </motion.div>
         </div>
       </section>
@@ -231,23 +239,25 @@ export default function SeatingExplainedPage() {
       {/* ================= SECTION 4 – הודעות לאורחים (sit4.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – אחרון, יותר גבוה */}
+          {/* VIDEO – אחרון, יותר גבוה – בדיוק כמו בתמונה */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaWrap}
+            className={mediaOuter}
           >
-            <video
-              src="/videos/sit4.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              className={tallLastMedia}
-            />
+            <div className={mediaInner}>
+              <video
+                src="/videos/sit4.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className={tallLastMedia}
+              />
+            </div>
           </motion.div>
 
           {/* TEXT */}
