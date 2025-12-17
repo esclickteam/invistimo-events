@@ -24,8 +24,13 @@ const GUESTS_BY_KEY: Record<string, number | null> = {
   basic_plan_49: null,
 
   premium_100: 100,
+  premium_200: 200,
   premium_300: 300,
+  premium_400: 400,
   premium_500: 500,
+  premium_600: 600,
+  premium_700: 700,
+  premium_800: 800,
   premium_1000: 1000,
 };
 

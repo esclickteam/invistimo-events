@@ -27,15 +27,42 @@ const PRICE_CONFIG: Record<
     maxGuests: 100,
   },
 
+  premium_200: {
+    priceId: "price_1SdSGkLCgfc20iubDzINSFfW",
+    maxGuests: 200,
+  },
+  
+
   premium_300: {
     priceId: "price_1SdSpILCgfc20iub7y1HQUeR",
     maxGuests: 300,
   },
 
+  premium_400: {
+    priceId: "price_1SfPeALCgfc20iubmO93vP6z",
+    maxGuests: 400,
+  },
+
   premium_500: {
-    priceId: "price_1SdSpyLCgfc20iubdw9J8fjq",
+    priceId: "price_1SdvFcLCgfc20iub0Pg9c2Su",
     maxGuests: 500,
   },
+
+  premium_600: {
+    priceId: "price_1SfPhlLCgfc20iubcsRvxp3H",
+    maxGuests: 600,
+  },
+
+  premium_700: {
+    priceId: "price_1SfPijLCgfc20iubU3bGUyHc",
+    maxGuests: 700,
+  },
+
+  premium_800: {
+    priceId: "price_1SfPjNLCgfc20iub4OuAyn1Y",
+    maxGuests: 800,
+  },
+
 
   premium_1000: {
     priceId: "price_1SdSqULCgfc20iubjawJsU7h",
