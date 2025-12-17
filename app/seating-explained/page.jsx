@@ -61,13 +61,30 @@ function Block({ id, tone = "champagne", children }) {
       id={id}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-10% 0px" }}
+      viewport={{
+        once: true,
+        amount: 0.25, // חשוב: מונע “כניסה/יציאה” שמעלימה
+      }}
       variants={fadeUp}
       transition={transition}
       className={`${base} ${tone === "white" ? white : champagne}`}
     >
       {children}
     </motion.div>
+  );
+}
+
+/** מדיה גדולה: הרבה מקום, לא “קטן” */
+function BigMedia({ children }) {
+  return (
+    <div className="mx-auto w-full max-w-5xl">
+      <MediaFrame>
+        <div className="w-full">
+          {/* גובה גדול במדיה, נשאר פרימיום ומאוזן */}
+          <div className="w-full h-[520px] md:h-[640px]">{children}</div>
+        </div>
+      </MediaFrame>
+    </div>
   );
 }
 
@@ -79,11 +96,11 @@ export default function SeatingExplainedPage() {
       <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.25]" />
 
       {/* ===================== BLOCK 1: HERO (פתיח מכירתי) ===================== */}
-      <Section className="pt-28 md:pt-32 pb-10">
+      <Section className="pt-28 md:pt-32 pb-14">
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, amount: 0.6 }}
           variants={fadeUp}
           transition={transition}
           className="text-center"
@@ -133,197 +150,142 @@ export default function SeatingExplainedPage() {
       </Section>
 
       {/* ===================== BLOCK 2: sit1 (הוספת שולחן + סקיצה) ===================== */}
-      <Section className="py-10 md:py-12">
+      <Section className="py-12 md:py-14">
         <Block id="seat-block-2" tone="champagne">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <div className="text-right">
-              <div className="mb-4">
-                <Pill>בניית אולם מדויקת</Pill>
-              </div>
-
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
-                מעלים סקיצה מהאולם — ובונים עליה הושבה מושלמת
-              </h2>
-
-              <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                יש לכם סקיצה שקיבלתם מהאולם? מעלים אותה כרקע ומניחים מעליה שולחנות ואלמנטים.
-                זה נותן תכנון “אחד על אחד” עם השטח — ומקפיץ את הסדר והמקצועיות.
-              </p>
-
-              <div className="mt-7 space-y-3 text-[#4a413a]">
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>בחירת סוג שולחן + מספר כסאות — בשניות</span>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>גרירה ומיקום טבעיים על המפה</span>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>נוח לשינויים לאורך הדרך</span>
-                </div>
-              </div>
+          <div className="text-center mb-10 md:mb-12">
+            <div className="flex justify-center mb-4">
+              <Pill>בניית אולם מדויקת</Pill>
             </div>
 
-            <MediaFrame>
-              <img
-                src="/sit1.png"
-                alt="הוספת שולחן ובניית מפת אולם"
-                className="w-full h-auto object-contain"
-                loading="lazy"
-              />
-            </MediaFrame>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-[#4a2e15]">
+              מעלים סקיצה מהאולם — ובונים עליה הושבה מושלמת
+            </h2>
+
+            <p className="mt-5 text-lg md:text-xl text-[#4a413a] max-w-4xl mx-auto leading-relaxed">
+              יש לכם סקיצה שקיבלתם מהאולם? מעלים אותה כרקע ומניחים מעליה שולחנות ואלמנטים.
+              זה נותן תכנון “אחד על אחד” עם השטח — ומקפיץ את הסדר והמקצועיות.
+            </p>
           </div>
+
+          <BigMedia>
+            <img
+              src="/sit1.png"
+              alt="הוספת שולחן ובניית מפת אולם"
+              className="w-full h-full object-contain"
+              loading="lazy"
+            />
+          </BigMedia>
         </Block>
       </Section>
 
       {/* ===================== BLOCK 3: sit2 (שיבוץ בזמן אמת - וידאו) ===================== */}
-      <Section className="py-10 md:py-12">
+      <Section className="py-12 md:py-14">
         <Block tone="white">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <MediaFrame>
-              <video
-                src="/videos/sit2.mp4"
-                controls
-                playsInline
-                preload="metadata"
-                className="w-full h-auto aspect-video object-cover"
-              />
-            </MediaFrame>
-
-            <div className="text-right">
-              <div className="mb-4">
-                <Pill>שיבוץ חכם בזמן אמת</Pill>
-              </div>
-
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
-                גוררים אורח לשולחן — והכל מסתנכרן אוטומטית
-              </h2>
-
-              <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                מתוך תפריט האורחים בצד, <strong>גוררים את האורח לשולחן הרצוי</strong>.
-                אפשר גם לשבץ דרך השולחן עצמו. וכל שינוי מתעדכן בזמן אמת —
-                גם ליד שם האורח בתפריט הצד וגם בדשבורד.
-              </p>
-
-              <div className="mt-7 space-y-3 text-[#4a413a]">
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>אין כפילויות, אין בלבול, הכל ברור</span>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>מהיר בטירוף גם באירועים גדולים</span>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>נבנה כדי לעבוד חלק — כמו מוצר פרימיום</span>
-                </div>
-              </div>
+          <div className="text-center mb-10 md:mb-12">
+            <div className="flex justify-center mb-4">
+              <Pill>שיבוץ חכם בזמן אמת</Pill>
             </div>
+
+            <h2 className="text-3xl md:text-5xl font-extrabold text-[#4a2e15]">
+              גוררים אורח לשולחן — והכל מסתנכרן אוטומטית
+            </h2>
+
+            <p className="mt-5 text-lg md:text-xl text-[#4a413a] max-w-4xl mx-auto leading-relaxed">
+              מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי (או משבצים דרך השולחן) —
+              וכל שינוי מתעדכן בזמן אמת גם בתפריט הצד וגם בדשבורד.
+            </p>
           </div>
+
+          <BigMedia>
+            <video
+              src="/videos/sit2.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls={false}
+              preload="metadata"
+              className="w-full h-full object-cover"
+            />
+          </BigMedia>
         </Block>
       </Section>
 
       {/* ===================== BLOCK 4: sit3 (דשבורד - תמונה) ===================== */}
-      <Section className="py-10 md:py-12">
+      <Section className="py-12 md:py-14">
         <Block tone="champagne">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <div className="text-right">
-              <div className="mb-4">
-                <Pill>שליטה מהדשבורד</Pill>
-              </div>
-
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
-                “הושבה אישית” לכל אורח — למצוא, לסמן, ולשנות בשנייה
-              </h2>
-
-              <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                בדשבורד יש לכל אורח כפתור <strong>הושבה אישית</strong> —
-                בלחיצה אחת המערכת מסמנת את השולחן והמיקום שלו, ומאפשרת לעדכן במהירות.
-                מושלם לשינויים של הרגע האחרון בלי לשבור את כל ההושבה.
-              </p>
-
-              <div className="mt-7 space-y-3 text-[#4a413a]">
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>סימון מיקום ברור ומיידי</span>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>עדכון מהיר בלי לחפש “איפה הוא?”</span>
-                </div>
-              </div>
+          <div className="text-center mb-10 md:mb-12">
+            <div className="flex justify-center mb-4">
+              <Pill>שליטה מהדשבורד</Pill>
             </div>
 
-            <MediaFrame>
-              <img
-                src="/sit3.png"
-                alt="הושבה אישית מהדשבורד"
-                className="w-full h-auto object-contain"
-                loading="lazy"
-              />
-            </MediaFrame>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-[#4a2e15]">
+              “הושבה אישית” לכל אורח — למצוא, לסמן, ולשנות בשנייה
+            </h2>
+
+            <p className="mt-5 text-lg md:text-xl text-[#4a413a] max-w-4xl mx-auto leading-relaxed">
+              בדשבורד לכל אורח יש כפתור הושבה אישית — בלחיצה אחת המערכת מסמנת את השולחן והמיקום שלו,
+              ומאפשרת לעדכן במהירות. מושלם לשינויים של הרגע האחרון בלי לשבור את כל ההושבה.
+            </p>
           </div>
+
+          <BigMedia>
+            <img
+              src="/sit3.png"
+              alt="הושבה אישית מהדשבורד"
+              className="w-full h-full object-contain"
+              loading="lazy"
+            />
+          </BigMedia>
         </Block>
       </Section>
 
       {/* ===================== BLOCK 5: sit4 (וידאו הודעות) ===================== */}
-      <Section className="py-10 md:py-12">
+      <Section className="py-12 md:py-14">
         <Block tone="white">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <MediaFrame>
-              <video
-                src="/videos/sit4.mp4"
-                controls
-                playsInline
-                preload="metadata"
-                className="w-full h-auto aspect-video object-cover"
-              />
-            </MediaFrame>
-
-            <div className="text-right">
-              <div className="mb-4">
-                <Pill>הודעה לאורחים</Pill>
-              </div>
-
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
-                מסיימים הושבה — ושולחים הודעות עם מספר השולחן
-              </h2>
-
-              <p className="mt-5 text-lg text-[#4a413a] leading-relaxed">
-                אחרי שההושבה מסודרת, שולחים לאורחים הודעה שמציגה את מספר השולחן שלהם.
-                זה חוסך המון שאלות ביום האירוע ומרים את החוויה לרמה מקצועית.
-              </p>
-
-              <div className="mt-7 space-y-3 text-[#4a413a]">
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>שליחה ישירות מתוך המערכת</span>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <span className="font-semibold">•</span>
-                  <span>כל אורח מקבל את המידע שלו — מסודר וברור</span>
-                </div>
-              </div>
+          <div className="text-center mb-10 md:mb-12">
+            <div className="flex justify-center mb-4">
+              <Pill>הודעה לאורחים</Pill>
             </div>
+
+            <h2 className="text-3xl md:text-5xl font-extrabold text-[#4a2e15]">
+              מסיימים הושבה — ושולחים הודעות עם מספר השולחן
+            </h2>
+
+            <p className="mt-5 text-lg md:text-xl text-[#4a413a] max-w-4xl mx-auto leading-relaxed">
+              אחרי שההושבה מסודרת, שולחים לאורחים הודעה שמציגה את מספר השולחן שלהם —
+              וזה חוסך המון שאלות ביום האירוע ומרים את החוויה לרמה מקצועית.
+            </p>
           </div>
+
+          <BigMedia>
+            <video
+              src="/videos/sit4.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls={false}
+              preload="metadata"
+              className="w-full h-full object-cover"
+            />
+          </BigMedia>
         </Block>
       </Section>
 
       {/* ===================== BLOCK 6: CTA ===================== */}
-      <Section className="pt-10 pb-24 md:pb-28">
+      <Section className="pt-12 pb-24 md:pb-28">
         <Block tone="champagne">
           <div className="text-center">
-            <h3 className="text-3xl md:text-4xl font-extrabold text-[#4a2e15]">
+            <h3 className="text-3xl md:text-5xl font-extrabold text-[#4a2e15]">
               מוכנים להושבה שמרגישה פרימיום?
             </h3>
-            <p className="mt-4 text-lg text-[#4a413a] max-w-2xl mx-auto leading-relaxed">
+
+            <p className="mt-5 text-lg md:text-xl text-[#4a413a] max-w-2xl mx-auto leading-relaxed">
               אם חשוב לכם סדר, דיוק וחוויה חלקה — זו המערכת שתעשה לכם שקט.
             </p>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/pricing"
                 className="
