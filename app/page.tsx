@@ -4,12 +4,12 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 
 /* =====================================================
-   זיקוקים אלגנטיים – ONLY HERO
+   זיקוקים אלגנטיים – ONLY HERO (יותר צפוף ויותר וואו)
 ===================================================== */
 function HeroFireworks() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-      {[...Array(6)].map((_, i) => {
+      {[...Array(14)].map((_, i) => {
         const x = Math.random() * 100;
         const y = Math.random() * 100;
 
@@ -18,31 +18,31 @@ function HeroFireworks() {
             key={i}
             className="absolute"
             style={{ left: `${x}%`, top: `${y}%` }}
-            initial={{ opacity: 0, scale: 0.6 }}
+            initial={{ opacity: 0, scale: 0.4 }}
             animate={{
-              opacity: [0, 0.6, 0],
-              scale: [0.6, 1.4],
+              opacity: [0, 0.55, 0],
+              scale: [0.5, 1.6],
             }}
             transition={{
-              duration: 3.5,
-              delay: i * 1.2,
+              duration: 3.2,
+              delay: i * 0.6,
               repeat: Infinity,
               ease: "easeOut",
             }}
           >
-            {[...Array(12)].map((_, j) => (
+            {[...Array(14)].map((_, j) => (
               <span
                 key={j}
                 className="
                   absolute left-1/2 top-1/2
-                  w-[3px] h-[40px]
+                  w-[3px] h-[46px]
                   bg-gradient-to-t
                   from-transparent
                   via-[#cbb38a]
                   to-transparent
                 "
                 style={{
-                  transform: `rotate(${j * 30}deg) translateY(-26px)`,
+                  transform: `rotate(${j * 26}deg) translateY(-30px)`,
                   transformOrigin: "center",
                 }}
               />
@@ -55,45 +55,39 @@ function HeroFireworks() {
 }
 
 /* =====================================================
-   טלפון מצלצל – לא עונים (בלוק 2)
+   טלפון מצלצל – תמונה home2.png (בלוק 2)
 ===================================================== */
-function RingingPhone() {
+function RingingPhoneImage() {
   return (
-    <div className="relative w-14 h-14 ml-4">
+    <div className="relative w-16 h-16 ml-6 flex items-center justify-center">
       {/* גלי צלצול */}
       {[...Array(2)].map((_, i) => (
         <motion.span
           key={i}
-          className="absolute inset-0 rounded-full border border-[#cbb38a]/40"
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={{ scale: 1.7, opacity: 0 }}
+          className="absolute inset-0 rounded-full border border-[#cbb38a]/30"
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1.8, opacity: 0 }}
           transition={{
-            duration: 2.2,
-            delay: i * 1.1,
+            duration: 2.4,
+            delay: i * 1.2,
             repeat: Infinity,
             ease: "easeOut",
           }}
         />
       ))}
 
-      {/* טלפון רוטט */}
-      <motion.div
-        animate={{ rotate: [0, -8, 8, -8, 0] }}
+      {/* תמונת טלפון רוטטת */}
+      <motion.img
+        src="/images/home2.png"
+        alt="Ringing phone"
+        animate={{ rotate: [0, -6, 6, -6, 0] }}
         transition={{
           duration: 1.6,
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="
-          w-full h-full rounded-xl
-          bg-[#faf8f4]
-          border border-[#cbb38a]
-          flex items-center justify-center
-          text-xl text-[#cbb38a]
-        "
-      >
-        📞
-      </motion.div>
+        className="w-10 h-10 object-contain"
+      />
     </div>
   );
 }
@@ -135,7 +129,7 @@ export default function HomePage() {
             </Link>
           </motion.div>
 
-          {/* טלפון */}
+          {/* טלפון וידאו */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
@@ -169,7 +163,7 @@ export default function HomePage() {
             <h2 className="text-4xl font-semibold">
               הגישה שלנו לניהול אירועים
             </h2>
-            <RingingPhone />
+            <RingingPhoneImage />
           </div>
 
           <p className="text-xl leading-relaxed">
