@@ -187,7 +187,7 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
 
     let current = x.get() - moveBy;
 
-    if (Math.abs(current) >= width) {
+    if (current <= -width) {
       current = 0;
     }
 
