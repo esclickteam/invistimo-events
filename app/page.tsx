@@ -193,7 +193,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
+{/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
 <section className="py-32 px-6 bg-white overflow-hidden">
   <div className="max-w-7xl mx-auto mb-16 text-center">
     <h2 className="text-4xl font-semibold">
@@ -204,16 +204,14 @@ export default function HomePage() {
   <div className="relative w-full overflow-hidden">
     <motion.div
       className="flex gap-10"
-      initial={{ x: 0 }}
-      animate={{ x: "-50%" }}   // זז רק חצי – אין ריק
+      style={{ width: "200%" }} // 🔴 חובה – רוחב כפול
+      animate={{ x: "-50%" }}   // 🔴 זז חצי בדיוק
       transition={{
-        duration: 20,          // קצת יותר מהר כמו שביקשת
+        duration: 18,           // מהירות (אפשר לשחק)
         ease: "linear",
         repeat: Infinity,
       }}
-      style={{ width: "max-content" }}
     >
-      {/* חובה: שכפול כפול */}
       {[...features, ...features].map((item, i) => (
         <div
           key={i}
@@ -245,7 +243,6 @@ export default function HomePage() {
     </motion.div>
   </div>
 </section>
-
 
 
       {/* ================= בלוק 4 ================= */}
