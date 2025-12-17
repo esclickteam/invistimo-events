@@ -9,13 +9,15 @@ const fadeUp = {
 };
 
 export default function SeatingExplainedPage() {
-  // גדול יותר (רוחב-דומיננטי) – בלי תוספות
-  const wideMedia =
-    "w-full h-[560px] md:h-[760px] object-contain bg-transparent";
+  // מסגרת עדינה ממש + פינות מעוגלות (בלי צל/בלי רקע/בלי padding)
+  const mediaFrame = "rounded-[26px] overflow-hidden border border-[#e2d6c8]";
+
+  // גדול יותר (רוחב-דומיננטי) – בלי חיתוך
+  const wideMedia = "w-full h-[640px] md:h-[900px] object-contain bg-transparent";
 
   // האחרון יותר גבוה
   const tallLastMedia =
-    "w-full h-[760px] md:h-[980px] object-contain bg-transparent";
+    "w-full h-[860px] md:h-[1100px] object-contain bg-transparent";
 
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
@@ -80,7 +82,7 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 1 – בניית מפת אולם (עם/בלי סקיצה) ================= */}
       <section className="py-28 px-6 bg-white">
-        <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
+        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
           {/* TEXT */}
           <motion.div
             initial="hidden"
@@ -109,12 +111,13 @@ export default function SeatingExplainedPage() {
             </p>
           </motion.div>
 
-          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
+          {/* IMAGE */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
+            className={mediaFrame}
           >
             <img
               src="/sit1.png"
@@ -128,13 +131,14 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
-        <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – גדול, בלי שום מסגרת/שחור */}
+        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
+          {/* VIDEO */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
+            className={mediaFrame}
           >
             <video
               src="/videos/sit2.mp4"
@@ -179,7 +183,7 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 3 – הושבה אישית מהדשבורד (sit3.png) ================= */}
       <section className="py-28 px-6 bg-white">
-        <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
+        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
           {/* TEXT */}
           <motion.div
             initial="hidden"
@@ -204,12 +208,13 @@ export default function SeatingExplainedPage() {
             </ul>
           </motion.div>
 
-          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
+          {/* IMAGE */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
+            className={mediaFrame}
           >
             <img
               src="/sit3.png"
@@ -223,13 +228,14 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 4 – הודעות לאורחים (sit4.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
-        <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
+        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
           {/* VIDEO – אחרון, יותר גבוה */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
+            className={mediaFrame}
           >
             <video
               src="/videos/sit4.mp4"
