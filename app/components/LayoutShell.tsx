@@ -3,30 +3,39 @@
 import type { ReactNode, ComponentType } from "react";
 import { usePathname } from "next/navigation";
 
+type LayoutShellProps = {
+  children: ReactNode;
+  Header: ComponentType;
+  Footer: ComponentType;
+};
+
 export default function LayoutShell({
   children,
   Header,
   Footer,
-}: {
-  children: ReactNode;
-  Header: ComponentType;
-  Footer: ComponentType;
-}) {
+}: LayoutShellProps) {
   const pathname = usePathname();
 
-  // ✅ דפים חיצוניים (הזמנה / RSVP) – בלי Header/Footer
-  const isExternalPage =
+  // ❌ דפים ללא Header / Footer
+  const hideLayout =
+    pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/rsvp/") ||
     pathname.startsWith("/invitation/");
 
   return (
     <>
-      {!isExternalPage && <Header />}
-      <main className={`min-h-screen ${!isExternalPage ? "pt-[64px]" : ""}`}>
+      {!hideLayout && <Header />}
+
+      <main
+        className={`min-h-screen ${
+          !hideLayout ? "pt-[64px]" : ""
+        }`}
+      >
         {children}
       </main>
-      {!isExternalPage && <Footer />}
+
+      {!hideLayout && <Footer />}
     </>
   );
 }
