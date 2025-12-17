@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
+import User from "@/models/User";
 import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
@@ -44,6 +45,12 @@ export async function POST(
 
     // אם אין בכלל הזמנה קיימת — ניצור אחת ריקה
     if (!invitation) {
+      // שליפת פרטי המשתמש כדי לדעת את המגבלות מהמנוי שלו
+      const user = await User.findById(userId).lean();
+      const planLimit = user?.planLimits?.maxGuests || 100;
+
+      console.log(`👤 יוצר הזמנה למשתמש ${user?.name || "לא מזוהה"} עם מגבלת ${planLimit} אורחים`);
+
       invitation = await Invitation.create({
         ownerId: userId,
         title: "הזמנה חדשה",
@@ -54,10 +61,11 @@ export async function POST(
         canvasData: {},
         previewImage: "",
         shareId: nanoid(10),
-        maxGuests: 100,
+        maxGuests: planLimit, // ✅ נקבע מהמנוי של המשתמש
         sentSmsCount: 0,
         guests: [],
       });
+
       console.log("✨ Invitation created automatically:", invitation._id);
     }
 
@@ -217,7 +225,6 @@ export async function DELETE(
       );
     }
 
-    // הסרה גם ממערך ההזמנה
     await Invitation.findByIdAndUpdate(invitationId, {
       $pull: { guests: deleted._id },
     });
