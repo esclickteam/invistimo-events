@@ -66,9 +66,7 @@ export async function POST(req: Request) {
 
   const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
-  /* ============================================================
-     Prevent duplicate processing
-  ============================================================ */
+  /* ================= Prevent duplicate ================= */
   const existingPayment = await Payment.findOne({
     stripeSessionId: session.id,
   });
@@ -76,9 +74,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true });
   }
 
-  /* ============================================================
-     Identify user
-  ============================================================ */
+  /* ================= Identify user ================= */
   const email = session.customer_email;
   if (!email) {
     return NextResponse.json({ error: "Missing email" }, { status: 400 });
@@ -90,7 +86,7 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🟢 CASE 1: PREMIUM UPGRADE (INCLUDES SMS + SEATING)
+     🟢 CASE 1: PREMIUM UPGRADE (ADD guests + SMS + seating)
   ============================================================ */
   if (session.metadata?.type === "upgrade") {
     const targetGuests = Number(session.metadata.targetGuests);
@@ -101,36 +97,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
+    const currentGuests = user.guests || 0;
+    const newTotalGuests = currentGuests + targetGuests;
     const priceKey = `premium_${targetGuests}`;
-    const smsAmount = targetGuests; // ⭐ יחס 1:1
 
-    // 💾 Payment – מה שנגבה בפועל
+    /* 💾 Payment */
     await Payment.create({
       email,
       stripeSessionId: session.id,
       stripePaymentIntentId: session.payment_intent as string,
       stripeCustomerId: session.customer as string,
       priceKey,
-      maxGuests: targetGuests,
+      maxGuests: newTotalGuests,
       amount: amountCharged,
       currency: "ils",
       status: "paid",
     });
 
-    // 🧑 Update user
+    /* 🧑 Update User */
     await User.findByIdAndUpdate(user._id, {
       plan: "premium",
-      guests: targetGuests,
+      guests: newTotalGuests,
       paidAmount: fullPrice,
       planLimits: {
-        maxGuests: targetGuests,
+        maxGuests: newTotalGuests,
         smsEnabled: true,
         seatingEnabled: true,
         remindersEnabled: true,
       },
     });
 
-    // ✉️ Update invitation + SMS
+    /* ✉️ Update Invitation + SMS (מצטבר) */
     let invitation = await Invitation.findOne({ ownerId: user._id });
 
     if (!invitation) {
@@ -139,25 +136,22 @@ export async function POST(req: Request) {
         title: "ההזמנה שלי",
         canvasData: {},
         shareId: crypto.randomUUID(),
-        maxGuests: targetGuests,
+        maxGuests: newTotalGuests,
         sentSmsCount: 0,
-        maxMessages: smsAmount,
-        remainingMessages: smsAmount,
+        maxMessages: targetGuests,
+        remainingMessages: targetGuests,
       });
     } else {
-      invitation.maxGuests = targetGuests;
-
-      // הקצאת SMS רק אם עדיין אין
-      if (!invitation.maxMessages || invitation.maxMessages === 0) {
-        invitation.maxMessages = smsAmount;
-        invitation.remainingMessages = smsAmount;
-      }
-
+      invitation.maxGuests = newTotalGuests;
+      invitation.maxMessages =
+        (invitation.maxMessages || 0) + targetGuests;
+      invitation.remainingMessages =
+        (invitation.remainingMessages || 0) + targetGuests;
       await invitation.save();
     }
 
     console.log(
-      `✅ Premium upgraded for ${email} → ${targetGuests} guests + ${smsAmount} SMS`
+      `✅ Upgrade OK: ${email} | +${targetGuests} guests → ${newTotalGuests}`
     );
 
     return NextResponse.json({ received: true });

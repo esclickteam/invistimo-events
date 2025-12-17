@@ -111,13 +111,25 @@ export default function MessagesPage() {
     loadData();
   }, []);
 
-  /* =====================================================
-     ⭐ PRESELECT GUEST FROM URL (כפתור אישי)
-  ===================================================== */
+  /* ================= 🔄 REFRESH AFTER UPGRADE ================= */
+
+  useEffect(() => {
+    const upgraded = searchParams.get("upgraded");
+    if (!upgraded) return;
+
+    async function refreshBalance() {
+      const balanceRes = await fetch("/api/messages/balance");
+      const balanceData = await balanceRes.json();
+      if (balanceData.success) setBalance(balanceData);
+    }
+
+    refreshBalance();
+  }, [searchParams]);
+
+  /* ================= PRESELECT GUEST ================= */
 
   useEffect(() => {
     const guestIdFromUrl = searchParams.get("guestId");
-
     if (guestIdFromUrl) {
       setChannel("whatsapp");
       setSelectedGuestId(guestIdFromUrl);
@@ -204,8 +216,6 @@ export default function MessagesPage() {
       sendSMS();
     }
   };
-
-  /* ================= ⭐ תוספת מינימלית בלבד ================= */
 
   const selectedGuest =
     guests.find((g) => g._id === selectedGuestId) || null;
@@ -316,10 +326,10 @@ export default function MessagesPage() {
           </label>
 
           <GuestAutocomplete
-  guests={guests}
-  value={selectedGuest}
-  onSelect={(id: string) => setSelectedGuestId(id)}
-/>
+            guests={guests}
+            value={selectedGuest}
+            onSelect={(id: string) => setSelectedGuestId(id)}
+          />
         </div>
       )}
 
