@@ -405,9 +405,9 @@ export default function TableRenderer({ table }) {
       {seatsCoords.map((c, i) => {
   const guest = seatInfoMap.get(i)?.guest;
 
-  // כיוון מהכיסא אל מרכז השולחן (0,0)
+  // כיוון מהכיסא אל מרכז השולחן (0,0) + תיקון כיוון לציור
   const rotation =
-    (Math.atan2(-c.y, -c.x) * 180) / Math.PI;
+    (Math.atan2(-c.y, -c.x) * 180) / Math.PI + 90;
 
   return (
     <Group
@@ -441,6 +441,7 @@ export default function TableRenderer({ table }) {
     </Group>
   );
 })}
+
 
     </Group>
   );
