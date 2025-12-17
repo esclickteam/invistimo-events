@@ -194,54 +194,48 @@ export default function HomePage() {
       </section>
 
 {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
-<section className="py-32 px-6 bg-white overflow-hidden relative">
-  <div className="max-w-7xl mx-auto mb-16 text-center">
-    <h2 className="text-4xl font-semibold">
-      כל האירוע במקום אחד
-    </h2>
-  </div>
-
-  {/* Fade בקצוות – התחלה / כניסה */}
-  <div className="pointer-events-none absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-white to-transparent z-10" />
-  <div className="pointer-events-none absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-white to-transparent z-10" />
+<section className="py-28 bg-white overflow-hidden">
+  <h2 className="text-4xl font-semibold text-center mb-20">
+    כל האירוע במקום אחד
+  </h2>
 
   <div className="relative w-full overflow-hidden">
     <motion.div
-      className="flex gap-8"
+      className="flex gap-6 justify-center"
+      style={{ width: "200%" }}   // רק בשביל הלולאה
       animate={{ x: "-50%" }}
       transition={{
-        duration: 26,      // חלק, רגוע, פרימיום
+        duration: 28,
         ease: "linear",
         repeat: Infinity,
       }}
-      style={{ width: "200%" }}
     >
       {[...features, ...features].map((item, i) => (
         <div
           key={i}
           className="
-            w-[520px]          /* 🔽 הקטנה משמעותית */
+            w-[420px]            /* ⬅️ 4 נכנסות בלי לצאת */
             flex-shrink-0
             bg-[#faf8f4]
-            rounded-[28px]
-            p-6               /* 🔽 פחות נפח */
-            border border-[#e7dfd4]  /* ✅ מסגרת */
-            shadow-[0_10px_30px_rgba(0,0,0,0.08)]
+            rounded-[24px]
+            border border-[#e5ddd2]
+            p-5
+            shadow-[0_6px_18px_rgba(0,0,0,0.06)]
             flex flex-col
           "
         >
-          {/* ⛔ לא נוגעים בתמונה */}
+          {/* לא נוגעים בתמונה */}
           <img
             src={item.image}
             alt={item.title}
-            className="w-full h-[360px] object-contain mb-6"
+            className="w-full h-[360px] object-contain mb-4"
           />
 
-          <h3 className="text-xl font-semibold mb-3">
+          <h3 className="text-lg font-semibold mb-2">
             {item.title}
           </h3>
 
-          <p className="text-base text-[#6b5f55] leading-relaxed">
+          <p className="text-sm text-[#6b5f55] leading-relaxed">
             {item.text}
           </p>
         </div>
@@ -249,6 +243,7 @@ export default function HomePage() {
     </motion.div>
   </div>
 </section>
+
 
 
       {/* ================= בלוק 4 ================= */}
