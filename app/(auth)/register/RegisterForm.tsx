@@ -13,7 +13,7 @@ function RegisterFormInner() {
 
   const plan = params.get("plan") || "basic";
 
-  // guests מגיע כמספר (100 / 300 / 500 / 1000)
+  // guests מגיע כמספר (100 / 200 / ... / 1000)
   const guestsParam = params.get("guests");
   const guests = plan === "premium" && guestsParam ? Number(guestsParam) : 0;
 
@@ -36,7 +36,7 @@ function RegisterFormInner() {
   useEffect(() => {
     if (plan === "basic") {
       setPrice(49);
-      setPriceKey("basic_plan");
+      setPriceKey("basic_plan"); // ✅ תואם לשרת שלך
       return;
     }
 
@@ -116,21 +116,21 @@ function RegisterFormInner() {
       }
 
       /* 2️⃣ יצירת Checkout Session (תשלום ראשון) */
-      const checkoutRes = await fetch(
-        "/api/stripe/create-checkout-session",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            priceKey,
-          }),
-        }
-      );
+      const checkoutRes = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          priceKey,          // ✅ חובה
+          email: form.email, // ✅ חשוב (ראית שהיה חסר)
+          invitationId: "",  // ✅ אופציונלי אצלך כרגע
+          quantity: 1,
+        }),
+      });
 
       const checkoutData = await checkoutRes.json();
 
-      if (checkoutData?.url) {
+      if (checkoutRes.ok && checkoutData?.url) {
         window.location.href = checkoutData.url;
       } else {
         alert(checkoutData?.error || "שגיאה ביצירת תשלום");
