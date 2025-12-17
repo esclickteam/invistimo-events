@@ -204,13 +204,13 @@ export default function HomePage() {
   <div className="relative w-full overflow-hidden">
     <motion.div
       className="flex gap-10"
-      style={{ width: "200%" }} // 🔴 חובה – רוחב כפול
-      animate={{ x: "-50%" }}   // 🔴 זז חצי בדיוק
+      animate={{ x: "-50%" }} // 🔥 תזוזה מדויקת
       transition={{
-        duration: 18,           // מהירות (אפשר לשחק)
+        duration: 22,         // מהירות חלקה כמו Eshet
         ease: "linear",
         repeat: Infinity,
       }}
+      style={{ width: "200%" }} // 🔴 חובה! מונע חור לבן
     >
       {[...features, ...features].map((item, i) => (
         <div
