@@ -4,13 +4,9 @@ import Script from "next/script";
 
 import Providers from "./providers";
 
-/* ❌ אין hooks */
-/* ❌ אין "use client" בלייאאוט */
-
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 
-/* ✅ קומפוננטות client */
 import SupportBotButton from "./components/SupportBotButton";
 import LayoutShell from "./components/LayoutShell";
 import SupportBotGate from "./components/SupportBotGate";
@@ -30,15 +26,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {children}
           </LayoutShell>
 
-          {/* 💬 בוט תמיכה – מוסתר בעמודי invite ו־thank-you */}
-          <SupportBotGate
-            disabledPaths={[
-              "/thank-you",
-            ]}
-            disabledPathPrefixes={[
-              "/invite",
-            ]}
-          >
+          {/* 💬 בוט תמיכה – מוסתר אוטומטית בעמודי invite / thank-you */}
+          <SupportBotGate>
             <SupportBotButton />
           </SupportBotGate>
         </Providers>
