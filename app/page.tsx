@@ -194,48 +194,54 @@ export default function HomePage() {
       </section>
 
 {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
-<section className="py-32 px-6 bg-white overflow-hidden">
+<section className="py-32 px-6 bg-white overflow-hidden relative">
   <div className="max-w-7xl mx-auto mb-16 text-center">
     <h2 className="text-4xl font-semibold">
       כל האירוע במקום אחד
     </h2>
   </div>
 
+  {/* Fade בקצוות – התחלה / כניסה */}
+  <div className="pointer-events-none absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-white to-transparent z-10" />
+  <div className="pointer-events-none absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-white to-transparent z-10" />
+
   <div className="relative w-full overflow-hidden">
     <motion.div
-      className="flex gap-10"
-      animate={{ x: "-50%" }} // 🔥 תזוזה מדויקת
+      className="flex gap-8"
+      animate={{ x: "-50%" }}
       transition={{
-        duration: 22,         // מהירות חלקה כמו Eshet
+        duration: 26,      // חלק, רגוע, פרימיום
         ease: "linear",
         repeat: Infinity,
       }}
-      style={{ width: "200%" }} // 🔴 חובה! מונע חור לבן
+      style={{ width: "200%" }}
     >
       {[...features, ...features].map((item, i) => (
         <div
           key={i}
           className="
-            w-[680px]
+            w-[520px]          /* 🔽 הקטנה משמעותית */
             flex-shrink-0
             bg-[#faf8f4]
-            rounded-[32px]
-            p-10
-            shadow-xl
+            rounded-[28px]
+            p-6               /* 🔽 פחות נפח */
+            border border-[#e7dfd4]  /* ✅ מסגרת */
+            shadow-[0_10px_30px_rgba(0,0,0,0.08)]
             flex flex-col
           "
         >
+          {/* ⛔ לא נוגעים בתמונה */}
           <img
             src={item.image}
             alt={item.title}
-            className="w-full h-[360px] object-contain mb-8"
+            className="w-full h-[360px] object-contain mb-6"
           />
 
-          <h3 className="text-2xl font-semibold mb-4">
+          <h3 className="text-xl font-semibold mb-3">
             {item.title}
           </h3>
 
-          <p className="text-lg text-[#6b5f55] leading-relaxed">
+          <p className="text-base text-[#6b5f55] leading-relaxed">
             {item.text}
           </p>
         </div>
