@@ -14,54 +14,95 @@ export default function HomePage() {
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
 
-      {/* ================= HERO ================= */}
-      <section className="relative py-28 px-6 text-center">
-        <motion.h1
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ duration: 0.8 }}
-          className="text-5xl md:text-6xl font-bold mb-6"
-        >
-          ניהול אירוע חכם
-          <span className="block text-[#c9b48f] mt-4">
-            בלי לרדוף אחרי אף אחד
-          </span>
-        </motion.h1>
+      {/* ================= HERO – WOW INVITATION ================= */}
+      <section className="relative min-h-screen px-6 flex items-center">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center w-full">
 
-        <motion.p
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ delay: 0.2, duration: 0.8 }}
-          className="max-w-3xl mx-auto text-xl leading-relaxed text-[#6b5f55]"
-        >
-          Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה
-          וניהול אורחים למערכת אחת —
-          רגועה, מדויקת, ומעודכנת בזמן אמת.
-        </motion.p>
+          {/* TEXT */}
+          <div className="text-center md:text-right">
+            <motion.h1
+              initial="hidden"
+              animate="visible"
+              variants={fadeUp}
+              transition={{ duration: 0.8 }}
+              className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+            >
+              ניהול אירוע חכם
+              <span className="block text-[#c9b48f] mt-4">
+                בלי לרדוף אחרי אף אחד
+              </span>
+            </motion.h1>
 
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ delay: 0.4 }}
-          className="mt-14"
-        >
-          <Link
-            href={PRICING_URL}
+            <motion.p
+              initial="hidden"
+              animate="visible"
+              variants={fadeUp}
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="text-xl leading-relaxed text-[#6b5f55] max-w-xl mx-auto md:mx-0"
+            >
+              הזמנה דיגיטלית, אישורי הגעה וניהול אורחים —
+              הכל מתרחש במקום אחד, רגוע, מדויק,
+              ומעודכן בזמן אמת.
+            </motion.p>
+
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={fadeUp}
+              transition={{ delay: 0.4 }}
+              className="mt-12"
+            >
+              <Link
+                href={PRICING_URL}
+                className="
+                  inline-flex px-14 py-6 rounded-full
+                  bg-[#4a413a] text-white text-xl font-semibold
+                  shadow-[0_22px_60px_rgba(0,0,0,0.35)]
+                  hover:shadow-[0_30px_75px_rgba(0,0,0,0.45)]
+                  hover:scale-[1.06]
+                  transition
+                "
+              >
+                לצפייה בחבילות
+              </Link>
+            </motion.div>
+          </div>
+
+          {/* INVITATION VIDEO CARD */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            whileHover={{ rotateX: 2, rotateY: -2 }}
             className="
-              inline-flex px-14 py-6 rounded-full
-              bg-[#4a413a] text-white text-xl font-semibold
-              shadow-[0_20px_55px_rgba(0,0,0,0.28)]
-              hover:shadow-[0_28px_70px_rgba(0,0,0,0.38)]
-              hover:scale-[1.05]
-              transition
+              mx-auto
+              w-[320px] sm:w-[360px]
+              rounded-[40px]
+              p-[14px]
+              bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef]
+              shadow-[0_60px_140px_rgba(0,0,0,0.25)]
             "
           >
-            לצפייה בחבילות
-          </Link>
-        </motion.div>
+            <div className="rounded-[30px] overflow-hidden bg-white">
+
+              {/* VIDEO PLACEHOLDER */}
+              <div className="aspect-[9/16] bg-[#e6ddd2] flex items-center justify-center text-[#9a8f82] text-sm">
+                כאן ייכנס וידאו הזמנה
+              </div>
+
+              {/* INVITE FOOTER */}
+              <div className="p-6 text-center space-y-3">
+                <div className="text-xs tracking-[0.3em] text-[#b89b6d]">
+                  INVISTIMO
+                </div>
+                <p className="text-sm text-[#6b5f55]">
+                  הזמנה דיגיטלית חיה · אישורי הגעה חכמים
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+        </div>
       </section>
 
       {/* ================= BLOCK 1 – PHILOSOPHY ================= */}
@@ -103,7 +144,6 @@ export default function HomePage() {
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
 
-          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -116,66 +156,37 @@ export default function HomePage() {
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               מרגע שליחת ההזמנה ועד יום האירוע —
-              הכל מנוהל דרך מערכת אחת ברורה:
-              רשימת אורחים, סטטוסי הגעה,
-              נתונים מעודכנים ושקט נפשי.
+              הכל מנוהל דרך מערכת אחת ברורה,
+              בלי ניחושים ובלי חוסר ודאות.
             </p>
 
             <ul className="space-y-4 text-lg">
               <li>שליטה מלאה ברשימת האורחים</li>
               <li>אישורי הגעה בזמן אמת</li>
-              <li>אין נתונים סותרים</li>
+              <li>נתונים תמיד מדויקים</li>
               <li>אין צורך לרדוף אחרי אף אחד</li>
             </ul>
           </motion.div>
 
-          {/* VISUAL PLACEHOLDER */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
             className="
-              relative
               rounded-[36px]
               p-[14px]
               bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef]
               shadow-[0_25px_60px_rgba(0,0,0,0.15)]
             "
           >
-            <div className="rounded-[26px] overflow-hidden aspect-[16/10] bg-[#e6ddd2]" />
+            <div className="rounded-[26px] aspect-[16/10] bg-[#e6ddd2]" />
           </motion.div>
         </div>
       </section>
 
-      {/* ================= BLOCK 3 – STATEMENT ================= */}
-      <section className="py-28 px-6 bg-white text-center">
-        <motion.h2
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          className="text-4xl font-bold mb-8"
-        >
-          למה זה פשוט עובד
-        </motion.h2>
-
-        <ul className="space-y-4 text-xl max-w-xl mx-auto">
-          <li>אין טלפונים חוזרים</li>
-          <li>אין הודעות מפוזרות</li>
-          <li>אין ניחושים</li>
-          <li>אין חוסר ודאות</li>
-          <li>יש שליטה מלאה</li>
-        </ul>
-
-        <p className="mt-10 text-xl text-[#6b5f55]">
-          מערכת שעובדת בשבילך —
-          לא כזו שצריך לנהל אותה.
-        </p>
-      </section>
-
       {/* ================= FINAL CTA ================= */}
-      <section className="py-28 px-6 bg-[#faf8f4] text-center">
+      <section className="py-28 px-6 bg-white text-center">
         <motion.h2
           initial="hidden"
           whileInView="visible"
