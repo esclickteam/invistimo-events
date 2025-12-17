@@ -55,12 +55,11 @@ function HeroFireworks() {
 }
 
 /* =====================================================
-   טלפון מצלצל – תמונה גדולה בצד ימין (בלוק 2)
+   טלפון מצלצל – בלוק 2 (לא לגעת)
 ===================================================== */
 function RingingPhoneBig() {
   return (
     <div className="relative flex items-center justify-center">
-      {/* גלי צלצול */}
       {[...Array(2)].map((_, i) => (
         <motion.span
           key={i}
@@ -76,7 +75,6 @@ function RingingPhoneBig() {
         />
       ))}
 
-      {/* תמונת טלפון */}
       <motion.img
         src="/home2.png"
         alt="Incoming call"
@@ -91,6 +89,32 @@ function RingingPhoneBig() {
     </div>
   );
 }
+
+/* =====================================================
+   בלוק 3 – קרוסלת פיצ'רים (חדש)
+===================================================== */
+const features = [
+  {
+    title: "עיצוב הזמנה",
+    text: "עורך הזמנות מובנה לעיצוב הזמנה אישית או העלאת הזמנה שכבר עיצבתם.",
+    image: "/home3.png",
+  },
+  {
+    title: "שליחת הזמנה ואישורי הגעה",
+    text: "שליחה לכל אורח עם קישור אישי, אישורי הגעה שמתעדכנים בזמן אמת בדשבורד.",
+    image: "/home4.png",
+  },
+  {
+    title: "סידורי הושבה",
+    text: "בניית סידורי הושבה, שיוך אורחים לשולחנות ושליחת מספר שולחן אוטומטית.",
+    image: "/home5.png",
+  },
+  {
+    title: "שליחת הודעות",
+    text: "הודעות לאישור הגעה, מספר שולחן והודעות אישיות – הכול מהמערכת.",
+    image: "/home6.png",
+  },
+];
 
 export default function HomePage() {
   return (
@@ -116,8 +140,7 @@ export default function HomePage() {
 
             <p className="text-xl text-[#6b5f55] max-w-xl mb-10">
               Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה
-              וניהול אורחים למערכת אחת —
-              רגועה, מדויקת ומעודכנת בזמן אמת.
+              וניהול אורחים למערכת אחת — רגועה, מדויקת ומעודכנת בזמן אמת.
             </p>
 
             <Link
@@ -176,36 +199,51 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= בלוק 3 ================= */}
-      <section className="py-32 px-6 bg-white">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
-          <div>
-            <h2 className="text-4xl font-semibold mb-10">
-              כל האירוע במקום אחד
-            </h2>
-
-            <p className="text-xl mb-6">
-              מרגע שליחת ההזמנה ועד יום האירוע —
-              הכול מנוהל דרך מערכת אחת מסודרת:
-            </p>
-
-            <ul className="space-y-3 text-lg">
-              <li>רשימת אורחים ברורה</li>
-              <li>אישורי הגעה בזמן אמת</li>
-              <li>נתונים מדויקים בלי ניחושים</li>
-              <li>בלי הודעות מפוזרות</li>
-              <li>בלי קבצים כפולים</li>
-            </ul>
-
-            <p className="mt-6 font-medium">
-              שקט נפשי, במקום כאוס.
-            </p>
-          </div>
-
-          <div className="aspect-video rounded-3xl bg-[#e9e2d8] flex items-center justify-center">
-            כאן נכנס וידאו / הדמיה של המערכת
-          </div>
+      {/* ================= בלוק 3 – קרוסלה ================= */}
+      <section className="py-32 px-6 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto mb-16 text-center">
+          <h2 className="text-4xl font-semibold">
+            כל האירוע במקום אחד
+          </h2>
         </div>
+
+        <motion.div
+          className="flex gap-8"
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{
+            duration: 28,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+        >
+          {[...features, ...features].map((item, i) => (
+            <div
+              key={i}
+              className="
+                min-w-[300px] md:min-w-[360px]
+                bg-[#faf8f4]
+                rounded-3xl
+                p-6
+                shadow-lg
+                flex flex-col
+              "
+            >
+              <img
+                src={item.image}
+                alt={item.title}
+                className="w-full h-[180px] object-contain mb-6"
+              />
+
+              <h3 className="text-xl font-semibold mb-3">
+                {item.title}
+              </h3>
+
+              <p className="text-[#6b5f55] leading-relaxed">
+                {item.text}
+              </p>
+            </div>
+          ))}
+        </motion.div>
       </section>
 
       {/* ================= בלוק 4 ================= */}
@@ -234,14 +272,7 @@ export default function HomePage() {
 
           <p className="text-xl leading-relaxed">
             Invistimo נבנתה מתוך הבנה פשוטה:
-            ניהול אירוע לא אמור להיות עבודה במשרה מלאה.<br /><br />
-            לא עוד קבצים מפוזרים.<br />
-            לא עוד הודעות שלא חוזרים אליהן.<br />
-            לא עוד לחץ מיותר לפני האירוע.<br /><br />
-            מי שרוצה להגיע מאשר לבד —
-            ואין סיבה להוציא על זה כסף מיותר.<br /><br />
-            רק מערכת אחת שעושה סדר —
-            ומשאירה לך להיות באירוע עצמו.
+            ניהול אירוע לא אמור להיות עבודה במשרה מלאה.
           </p>
         </div>
       </section>
@@ -251,11 +282,6 @@ export default function HomePage() {
         <h2 className="text-4xl font-semibold mb-8">
           מוכנים לנהל אירוע רגוע באמת?
         </h2>
-
-        <p className="text-lg mb-10">
-          כל מה שצריך —<br />
-          במקום אחד.
-        </p>
 
         <Link
           href="/pricing"
