@@ -1,13 +1,8 @@
 "use client";
 
-import {
-  motion,
-  useMotionValue,
-  useAnimationFrame,
-} from "framer-motion";
-import { useRef } from "react";
+import { motion, useMotionValue, useAnimationFrame } from "framer-motion";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 
 /* =====================================================
@@ -178,18 +173,24 @@ type FeatureItem = {
 function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
   const x = useMotionValue(0);
   const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  // ✅ למדוד את הרוחב האמיתי רק אחרי שה-DOM נטען
+  useEffect(() => {
+    if (ref.current) {
+      const total = ref.current.scrollWidth / 2;
+      setWidth(total);
+    }
+  }, [items.length]);
 
   useAnimationFrame((_, delta) => {
-    if (!ref.current) return;
-
-    const speed = 30; // ניתן לשנות למהירות הרצויה
+    if (!width) return; // אם עוד לא נמדד
+    const speed = 30;
     const moveBy = (delta / 1000) * speed;
-
-    const width = ref.current.scrollWidth / 2;
 
     let next = x.get() - moveBy;
 
-    // פעולה רציפה: wrap בלי לקפוץ
+    // ✅ החזרת תוכן חלקה בלי היעלמות
     if (next <= -width) {
       next += width;
     }
@@ -226,6 +227,7 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
     </div>
   );
 }
+
 
 
 
