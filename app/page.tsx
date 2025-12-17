@@ -193,42 +193,44 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= בלוק 3 – קרוסלה אינסופית ================= */}
+      {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
 <section className="py-32 px-6 bg-white overflow-hidden">
-  <div className="max-w-7xl mx-auto mb-20 text-center">
+  <div className="max-w-7xl mx-auto mb-16 text-center">
     <h2 className="text-4xl font-semibold">
       כל האירוע במקום אחד
     </h2>
   </div>
 
-  {/* מסגרת הקרוסלה */}
+  {/* מסגרת קרוסלה */}
   <div className="relative w-full overflow-hidden">
     <motion.div
       className="flex gap-10"
       style={{ width: "max-content" }}
-      animate={{ x: ["0px", "-2400px"] }} // ← ערך גדול = לופ חלק
+      animate={{ x: ["0px", "-2160px"] }} 
       transition={{
         duration: 22,          // קצת יותר מהר כמו שביקשת
         ease: "linear",
         repeat: Infinity,
       }}
     >
+      {/* שכפול כפול כדי שלא יהיה ריק */}
       {[...features, ...features].map((item, i) => (
         <div
           key={i}
           className="
-            w-[520px]
+            w-[680px]            /* גודל גדול – לא לשנות */
             bg-[#faf8f4]
             rounded-[32px]
             p-10
             shadow-xl
+            flex flex-col
             flex-shrink-0
           "
         >
           <img
             src={item.image}
             alt={item.title}
-            className="w-full h-[360px] object-contain mb-10"
+            className="w-full h-[360px] object-contain mb-8"
           />
 
           <h3 className="text-2xl font-semibold mb-4">
@@ -243,6 +245,7 @@ export default function HomePage() {
     </motion.div>
   </div>
 </section>
+
 
 
 
