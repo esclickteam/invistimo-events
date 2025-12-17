@@ -405,8 +405,9 @@ export default function TableRenderer({ table }) {
       {seatsCoords.map((c, i) => {
   const guest = seatInfoMap.get(i)?.guest;
 
-  // סיבוב הכיסא לכיוון מרכז השולחן
-  const rotation = (Math.atan2(c.y, c.x) * 180) / Math.PI + 180;
+  // כיוון מהכיסא אל מרכז השולחן (0,0)
+  const rotation =
+    (Math.atan2(-c.y, -c.x) * 180) / Math.PI;
 
   return (
     <Group
@@ -418,17 +419,17 @@ export default function TableRenderer({ table }) {
       {/* גב הכיסא */}
       <Rect
         x={-5}
-        y={-14}
+        y={-16}
         width={10}
         height={6}
         cornerRadius={3}
-        fill={guest ? "#cbd5e1" : "#93c5fd"}
+        fill={guest ? "#cbd5e1" : "#bfdbfe"}
       />
 
       {/* מושב */}
       <Rect
         x={-7}
-        y={-7}
+        y={-10}
         width={14}
         height={10}
         cornerRadius={4}
