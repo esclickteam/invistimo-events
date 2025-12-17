@@ -9,17 +9,13 @@ const fadeUp = {
 };
 
 export default function SeatingExplainedPage() {
-  // מסגרת עדינה מאוד (רק דק דק)
-  const mediaFrame =
-    "rounded-[22px] overflow-hidden border border-[#e2d6c8] shadow-[0_10px_30px_rgba(0,0,0,0.08)] bg-transparent";
-
-  // רוחב יותר (לא אורך) – בלי חיתוך
+  // גדול יותר (רוחב-דומיננטי) – בלי תוספות
   const wideMedia =
-    "w-full h-[460px] md:h-[620px] object-contain bg-transparent";
+    "w-full h-[560px] md:h-[760px] object-contain bg-transparent";
 
-  // רק האחרון יותר גבוה
+  // האחרון יותר גבוה
   const tallLastMedia =
-    "w-full h-[680px] md:h-[820px] object-contain bg-transparent";
+    "w-full h-[760px] md:h-[980px] object-contain bg-transparent";
 
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
@@ -113,13 +109,12 @@ export default function SeatingExplainedPage() {
             </p>
           </motion.div>
 
-          {/* IMAGE – גדול לרוחב, בלי תוספות */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaFrame}
           >
             <img
               src="/sit1.png"
@@ -134,13 +129,12 @@ export default function SeatingExplainedPage() {
       {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – גדול לרוחב, בלי שחור */}
+          {/* VIDEO – גדול, בלי שום מסגרת/שחור */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaFrame}
           >
             <video
               src="/videos/sit2.mp4"
@@ -210,13 +204,12 @@ export default function SeatingExplainedPage() {
             </ul>
           </motion.div>
 
-          {/* IMAGE – גדול לרוחב, בלי תוספות */}
+          {/* IMAGE – גדול, בלי שום מסגרת/צל */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaFrame}
           >
             <img
               src="/sit3.png"
@@ -237,7 +230,6 @@ export default function SeatingExplainedPage() {
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             viewport={{ once: true }}
-            className={mediaFrame}
           >
             <video
               src="/videos/sit4.mp4"
