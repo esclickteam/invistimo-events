@@ -392,34 +392,66 @@ export default function TableRenderer({ table }) {
 
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
-        const guest = seatInfoMap.get(i)?.guest;
-        const count =
-          guest?.confirmedGuestsCount ??
-          guest?.guestsCount ??
-          guest?.count ??
-          guest?.spots ??
-          1;
-        return (
-          <Group key={i} x={c.x} y={c.y}>
-            <Circle
-              radius={9}
-              fill={guest ? "#d1d5db" : "#3b82f6"}
-              stroke="#2563eb"
-            />
-            {guest && (
-              <Text
-                text={count > 1 ? `${guest.name} (${count})` : guest.name}
-                fontSize={10}
-                y={14}
-                width={100}
-                offsetX={50}
-                align="center"
-                fill="#111827"
-              />
-            )}
-          </Group>
-        );
-      })}
+  const guest = seatInfoMap.get(i)?.guest;
+  const count =
+    guest?.confirmedGuestsCount ??
+    guest?.guestsCount ??
+    guest?.count ??
+    guest?.spots ??
+    1;
+
+  return (
+    <Group key={i} x={c.x} y={c.y}>
+      {/* כיסא */}
+      <Circle
+        radius={9}
+        fill={guest ? "#d1d5db" : "#3b82f6"}
+        stroke="#2563eb"
+        strokeWidth={1.5}
+      />
+
+      {/* מספר אורחים קטן */}
+      {guest && count > 1 && (
+        <Text
+          text={`${count}`}
+          fontSize={9}
+          fill="#1e3a8a"
+          align="center"
+          verticalAlign="middle"
+          width={18}
+          height={18}
+          offsetX={9}
+          offsetY={9}
+        />
+      )}
+
+      {/* שם אורח */}
+      {guest && (
+        <Group y={-26}>
+          <Rect
+            width={110}
+            height={20}
+            offsetX={55}
+            cornerRadius={6}
+            fill="white"
+            shadowBlur={6}
+          />
+          <Text
+            text={count > 1 ? `${guest.name} (${count})` : guest.name}
+            fontSize={10}
+            fill="#111827"
+            width={110}
+            height={20}
+            offsetX={55}
+            align="center"
+            verticalAlign="middle"
+          />
+        </Group>
+      )}
+    </Group>
+  );
+})}
+
     </Group>
   );
 }
