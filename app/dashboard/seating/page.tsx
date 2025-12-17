@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
 
@@ -10,9 +12,22 @@ import { useZoneStore } from "@/store/zoneStore";
 /* ⭐ קומפוננטות עליונות */
 import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 
+/* ===============================
+   TYPES
+=============================== */
+type GuestDTO = {
+  _id: string;
+  name: string;
+  guestsCount?: number;
+  tableId?: string | null;
+};
+
 export default function SeatingPage() {
-  const [showUpload, setShowUpload] = useState(false);
+  const router = useRouter();
+
+  const [showUpload, setShowUpload] = useState<boolean>(false);
   const [invitationId, setInvitationId] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<boolean>(false);
 
   /* ===============================
      STORES
@@ -36,36 +51,44 @@ export default function SeatingPage() {
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
 
-        if (!invData.success || !invData.invitation) return;
+        if (!invData?.success || !invData.invitation) return;
 
-        const id = invData.invitation._id;
+        const id: string = invData.invitation._id;
         setInvitationId(id);
 
         /* ================= אורחים ================= */
         const gRes = await fetch(`/api/seating/guests/${id}`);
+        if (gRes.status === 403) {
+          setBlocked(true);
+          return;
+        }
+
         const gData = await gRes.json();
 
-        const normalizedGuests = (gData.guests || []).map((g: any) => ({
-          id: g._id,
-          name: g.name,
-          count: g.guestsCount || 1,
-          tableId: g.tableId || null,
-        }));
+        const normalizedGuests = (gData.guests || []).map(
+          (g: GuestDTO) => ({
+            id: g._id,
+            name: g.name,
+            count: g.guestsCount || 1,
+            tableId: g.tableId || null,
+          })
+        );
 
         /* ================= הושבה + רקע + zones ================= */
         const tRes = await fetch(`/api/seating/tables/${id}`);
-        const tData = await tRes.json();
+        if (tRes.status === 403) {
+          setBlocked(true);
+          return;
+        }
 
-        const currentBackground =
-          useSeatingStore.getState().background;
+        const tData = await tRes.json();
 
         init(
           tData.tables || [],
           normalizedGuests,
-          currentBackground ?? tData.background ?? null
+          tData.background ?? null
         );
 
-        /* ⭐⭐ טעינת zones ל־store */
         setZones(tData.zones || []);
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
@@ -74,6 +97,32 @@ export default function SeatingPage() {
 
     load();
   }, [init, setZones]);
+
+  /* ===============================
+     BLOCKED (NO SEATING PLAN)
+  =============================== */
+  if (blocked) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
+          <h2 className="text-2xl font-semibold mb-3">
+            הושבה אינה כלולה בחבילה שלך
+          </h2>
+          <p className="text-gray-600 mb-6">
+            כדי להשתמש במערכת ההושבה והאלמנטים החכמים,
+            יש לשדרג לחבילת Pro.
+          </p>
+
+          <button
+            onClick={() => router.push("/pricing?upgrade=seating")}
+            className="px-5 py-2 bg-black text-white rounded-lg"
+          >
+            שדרוג חבילה
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   /* ===============================
      SELECT BACKGROUND
@@ -106,9 +155,15 @@ export default function SeatingPage() {
           tables,
           guests,
           background,
-          zones, // ⭐⭐ כאן האלמנטים נשמרים באמת
+          zones,
         }),
       });
+
+      if (res.status === 403) {
+        alert("❌ ההושבה אינה כלולה בחבילה שלך");
+        router.push("/pricing?upgrade=seating");
+        return;
+      }
 
       const data = await res.json();
 
@@ -128,9 +183,7 @@ export default function SeatingPage() {
       {/* ================= HEADER ================= */}
       <div className="border-b bg-white shadow-sm">
         <div className="flex items-center justify-between px-6 py-3">
-          <h1 className="text-xl font-semibold">
-            הושבה באולם
-          </h1>
+          <h1 className="text-xl font-semibold">הושבה באולם</h1>
 
           <div className="flex gap-3">
             <button
