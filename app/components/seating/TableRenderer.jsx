@@ -120,7 +120,7 @@ function getTableLayout(rawTable) {
 function getSeatRotation(table, c) {
   // ⭕ שולחן עגול – תמיד לכיוון המרכז
   if (table.type === "round") {
-    return (Math.atan2(-c.y, -c.x) * 180) / Math.PI + 180;
+    return (Math.atan2(-c.y, -c.x) * 180) / Math.PI + 90;
   }
 
   // ⬜ שולחן מרובע / מלבני / אבירים
