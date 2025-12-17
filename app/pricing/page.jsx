@@ -254,7 +254,7 @@ export default function PricingPage() {
 
                     {/* ✅ טקסט קטן שמסביר מה נבחר */}
                     <p className="mt-3 text-sm opacity-90">
-                      נבחר: עד {premiumGuests === 1000 ? "1000+" : premiumGuests} אורחים · סה״כ ₪
+                      נבחר: עד {premiumGuests === 1000 ? "1000" : premiumGuests} אורחים · סה״כ ₪
                       {premiumPrice}
                     </p>
                   </div>
