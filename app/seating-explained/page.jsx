@@ -9,13 +9,19 @@ const fadeUp = {
 };
 
 export default function SeatingExplainedPage() {
-  // גדול יותר (רוחב-דומיננטי) – בלי תוספות
+  /**
+   * ✅ הגדלה של המדיה
+   * ✅ עיגול עדין לפינות של המדיה עצמה
+   * ✅ בלי רקע/מסגרת/פדינג/תוספת חיצונית
+   *
+   * חשוב: כדי שה-rounded באמת “יחתוך” את התמונה/וידאו בלי wrapper,
+   * שמים overflow-hidden על המדיה עצמה.
+   */
   const wideMedia =
-    "w-full h-[560px] md:h-[760px] object-contain bg-transparent";
+    "w-full h-[680px] md:h-[880px] object-contain bg-transparent rounded-xl overflow-hidden";
 
-  // האחרון יותר גבוה
   const tallLastMedia =
-    "w-full h-[760px] md:h-[980px] object-contain bg-transparent";
+    "w-full h-[880px] md:h-[1080px] object-contain bg-transparent rounded-xl overflow-hidden";
 
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
@@ -52,7 +58,8 @@ export default function SeatingExplainedPage() {
           transition={{ delay: 0.28, duration: 0.8 }}
           className="max-w-3xl mx-auto text-lg leading-relaxed text-[#6b5f55] mt-4"
         >
-          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע לדיוק מושלם.
+          אפשר לעבוד חופשי בלי סקיצה — ואם יש סקיצה מהאולם, פשוט מעלים אותה כרקע לדיוק
+          מושלם.
         </motion.p>
 
         <motion.div
@@ -154,9 +161,7 @@ export default function SeatingExplainedPage() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">
-              שיבוץ אורחים בגרירה — בזמן אמת
-            </h2>
+            <h2 className="text-4xl font-bold mb-6">שיבוץ אורחים בגרירה — בזמן אמת</h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי,
@@ -187,9 +192,7 @@ export default function SeatingExplainedPage() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">
-              הושבה אישית מהדשבורד — כשצריך דיוק
-            </h2>
+            <h2 className="text-4xl font-bold mb-6">הושבה אישית מהדשבורד — כשצריך דיוק</h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               בדשבורד אפשר לערוך הושבה של אורח ספציפי דרך כפתור “הושבה אישית”.
@@ -249,9 +252,7 @@ export default function SeatingExplainedPage() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">
-              שולחים לאורחים הודעה עם מספר השולחן
-            </h2>
+            <h2 className="text-4xl font-bold mb-6">שולחים לאורחים הודעה עם מספר השולחן</h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               אחרי שההושבה מסודרת — שולחים הודעה חכמה לכל אורח עם מספר השולחן שלו.
