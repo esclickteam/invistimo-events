@@ -171,45 +171,24 @@ type FeatureItem = {
 };
 
 function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
-  const x = useMotionValue(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-
-  // ✅ למדוד את הרוחב האמיתי רק אחרי שה-DOM נטען
-  useEffect(() => {
-    if (ref.current) {
-      const total = ref.current.scrollWidth / 2;
-      setWidth(total);
-    }
-  }, [items.length]);
-
-  useAnimationFrame((_, delta) => {
-    if (!width) return; // אם עוד לא נמדד
-    const speed = 30;
-    const moveBy = (delta / 1000) * speed;
-
-    let next = x.get() - moveBy;
-
-    // ✅ החזרת תוכן חלקה בלי היעלמות
-    if (next <= -width) {
-      next += width;
-    }
-
-    x.set(next);
-  });
+  const speed = 40; // פיקסלים לשנייה (תוכלי להוריד ל־25 אם רוצה תנועה עדינה)
+  const totalItems = [...items, ...items]; // שכפול כפול
 
   return (
-    <div className="overflow-hidden w-full relative">
+    <div className="relative w-full overflow-hidden">
       <motion.div
-        ref={ref}
-        className="flex gap-6 flex-nowrap will-change-transform"
-        style={{ x }}
+        className="flex gap-6 flex-nowrap"
+        animate={{ x: ["0%", "-50%"] }}
+        transition={{
+          duration: 50, // ככל שיותר גדול — יותר איטי
+          ease: "linear",
+          repeat: Infinity,
+        }}
+        style={{ width: "max-content" }}
       >
-        {[...items, ...items].map((item, i) => (
-          <motion.div
+        {totalItems.map((item, i) => (
+          <div
             key={i}
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 5 + (i % 4), repeat: Infinity }}
             className="w-[420px] flex-shrink-0 bg-[#faf8f4] rounded-[24px] border border-[#e5ddd2] p-5 shadow-[0_6px_18px_rgba(0,0,0,0.06)] flex flex-col"
           >
             <img
@@ -221,12 +200,13 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
             <p className="text-sm text-[#6b5f55] leading-relaxed">
               {item.text}
             </p>
-          </motion.div>
+          </div>
         ))}
       </motion.div>
     </div>
   );
 }
+
 
 
 
