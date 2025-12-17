@@ -26,9 +26,6 @@ export default function HomePage() {
             variants={fadeUp}
             transition={{ duration: 0.8 }}
           >
-            <div className="text-xs tracking-[0.4em] text-[#b29a72] mb-6">
-              INVISTIMO
-            </div>
 
             <h1 className="text-5xl md:text-6xl xl:text-7xl font-semibold leading-tight mb-8">
               ניהול אירוע
