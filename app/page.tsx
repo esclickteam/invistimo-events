@@ -1,6 +1,11 @@
 "use client";
 
-import { motion } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useAnimationFrame,
+} from "framer-motion";
+import { useRef } from "react";
 import Link from "next/link";
 
 /* =====================================================
@@ -162,6 +167,81 @@ const features = [
   },
 ];
 
+type FeatureItem = {
+  title: string;
+  text: string;
+  image: string;
+};
+
+function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
+  const x = useMotionValue(0);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+
+  useAnimationFrame((_, delta) => {
+    if (!ref.current) return;
+
+    const speed = 0.04; // ⬅️ מהירות (קטן = עדין)
+    const moveBy = delta * speed;
+    const width = ref.current.scrollWidth / 2;
+
+    let current = x.get() - moveBy;
+
+    if (Math.abs(current) >= width) {
+      current = 0;
+    }
+
+    x.set(current);
+  });
+
+  return (
+    <div className="overflow-hidden w-full">
+      <motion.div
+        ref={ref}
+        className="flex gap-6 flex-nowrap"
+        style={{ x }}
+      >
+        {[...items, ...items].map((item, i) => (
+          <motion.div
+            key={i}
+            animate={{ y: [0, -10, 0] }}
+            transition={{
+              duration: 6 + (i % 4),
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="
+              w-[420px]
+              flex-shrink-0
+              bg-[#faf8f4]
+              rounded-[24px]
+              border border-[#e5ddd2]
+              p-5
+              shadow-[0_6px_18px_rgba(0,0,0,0.06)]
+              flex flex-col
+            "
+          >
+            <img
+              src={item.image}
+              alt={item.title}
+              className="w-full h-[360px] object-contain mb-4"
+            />
+
+            <h3 className="text-lg font-semibold mb-2">
+              {item.title}
+            </h3>
+
+            <p className="text-sm text-[#6b5f55] leading-relaxed">
+              {item.text}
+            </p>
+          </motion.div>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+
 export default function HomePage() {
   return (
     <main className="bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
@@ -251,56 +331,9 @@ export default function HomePage() {
     כל האירוע במקום אחד
   </h2>
 
-  <div className="relative w-full overflow-hidden">
-    <motion.div
-      className="flex gap-6 justify-center"
-      style={{ width: "200%" }} // רק בשביל הלולאה
-      animate={{ x: "-50%" }}
-      transition={{
-        duration: 28,
-        ease: "linear",
-        repeat: Infinity,
-      }}
-    >
-      {[...features, ...features].map((item, i) => (
-        <motion.div
-          key={i}
-          animate={{ y: [0, -10, 0] }}
-          transition={{
-            duration: 6 + (i % 4), // כל כרטיס בקצב אחר
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="
-            w-[420px]
-            flex-shrink-0
-            bg-[#faf8f4]
-            rounded-[24px]
-            border border-[#e5ddd2]
-            p-5
-            shadow-[0_6px_18px_rgba(0,0,0,0.06)]
-            flex flex-col
-          "
-        >
-          {/* לא נוגעים בתמונה */}
-          <img
-            src={item.image}
-            alt={item.title}
-            className="w-full h-[360px] object-contain mb-4"
-          />
-
-          <h3 className="text-lg font-semibold mb-2">
-            {item.title}
-          </h3>
-
-          <p className="text-sm text-[#6b5f55] leading-relaxed">
-            {item.text}
-          </p>
-        </motion.div>
-      ))}
-    </motion.div>
-  </div>
+  <InfiniteCarousel items={features} />
 </section>
+
 
 
 
