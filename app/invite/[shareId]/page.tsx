@@ -1,17 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 
-const NOTES_OPTIONS = [
-  "כשר",
-  "טבעוני",
-  "אלרגיות",
-  "נגישות",
-  "אחר",
-];
+const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
 
 export default function PublicInvitePage({ params }: any) {
+  const router = useRouter();
   const [shareId, setShareId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -119,7 +115,14 @@ export default function PublicInvitePage({ params }: any) {
       );
 
       const data = await res.json();
-      if (data.success) setSent(true);
+      if (data.success) {
+        // ✅ שינוי יחיד: אם האורח מגיע → מעבר לעמוד תודה
+        if (form.rsvp === "yes") {
+          router.push("/thank-you");
+        } else {
+          setSent(true);
+        }
+      }
     } catch (err) {
       console.error("❌ RSVP error:", err);
     }
