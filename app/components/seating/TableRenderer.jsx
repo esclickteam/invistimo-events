@@ -125,7 +125,8 @@ function getSeatRotation(table, c) {
 
   // 🟦 שולחן אבירים – רק למעלה / למטה
   if (table.type === "banquet") {
-    return c.y > 0 ? 180 : 0;
+      return c.y > 0 ? 0 : 180;
+
   }
 
   // ⬜ שולחן מרובע / מלבני
