@@ -9,15 +9,17 @@ const fadeUp = {
 };
 
 export default function SeatingExplainedPage() {
-  // מסגרת עדינה ממש + פינות מעוגלות (בלי צל/בלי רקע/בלי padding)
-  const mediaFrame = "rounded-[26px] overflow-hidden border border-[#e2d6c8]";
+  // פינות מעוגלות ומסגרת עדינה בלבד
+  const mediaFrame =
+    "rounded-[30px] overflow-hidden border border-[#d7c6aa]";
 
-  // גדול יותר (רוחב-דומיננטי) – בלי חיתוך
-  const wideMedia = "w-full h-[640px] md:h-[900px] object-contain bg-transparent";
+  // מדיה גדולה מאוד לרוחב (בלי חיתוך)
+  const wideMedia =
+    "w-full h-[760px] md:h-[980px] object-contain bg-transparent";
 
-  // האחרון יותר גבוה
+  // האחרון מעט גבוה יותר
   const tallLastMedia =
-    "w-full h-[860px] md:h-[1100px] object-contain bg-transparent";
+    "w-full h-[860px] md:h-[1120px] object-contain bg-transparent";
 
   return (
     <div className="bg-[#faf8f4] text-[#4a413a] overflow-hidden">
@@ -80,10 +82,9 @@ export default function SeatingExplainedPage() {
         </motion.div>
       </section>
 
-      {/* ================= SECTION 1 – בניית מפת אולם (עם/בלי סקיצה) ================= */}
+      {/* ================= SECTION 1 ================= */}
       <section className="py-28 px-6 bg-white">
-        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* TEXT */}
+        <div className="max-w-[1700px] mx-auto grid md:grid-cols-2 gap-16 items-center">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -93,50 +94,40 @@ export default function SeatingExplainedPage() {
             <h2 className="text-4xl font-bold mb-6">
               בונים את מפת האולם בדרך שנוחה לכם
             </h2>
-
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               אפשר להתחיל לבנות הושבה גם בלי שום דבר — פשוט מוסיפים שולחנות וממקמים אותם.
               ואם יש לכם סקיצה מהאולם, אפשר להעלות אותה כרקע ולעבוד עליה בשביל דיוק מקסימלי.
             </p>
-
             <ul className="space-y-4 text-lg">
               <li>עבודה חופשית בלי סקיצה — מפת אולם “נקייה”</li>
               <li>או העלאת סקיצה כרקע ועבודה עליה</li>
               <li>הוספת שולחנות לפי סוג וצורה</li>
               <li>בחירת מספר כיסאות לכל שולחן</li>
             </ul>
-
             <p className="mt-8 text-lg text-[#6b5f55] leading-relaxed">
               כך או כך — אתם בשליטה מלאה, וההושבה נשארת מסודרת וקלה לשינויים.
             </p>
           </motion.div>
 
-          {/* IMAGE */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
             className={mediaFrame}
           >
-            <img
-              src="/sit1.png"
-              alt="בניית מפת אולם והוספת שולחנות"
-              className={wideMedia}
-              loading="lazy"
-            />
+            <img src="/sit1.png" alt="בניית מפת אולם" className={wideMedia} />
           </motion.div>
         </div>
       </section>
 
-      {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
+      {/* ================= SECTION 2 ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
-        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO */}
+        <div className="max-w-[1700px] mx-auto grid md:grid-cols-2 gap-16 items-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
             className={mediaFrame}
           >
@@ -151,7 +142,6 @@ export default function SeatingExplainedPage() {
             />
           </motion.div>
 
-          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -161,30 +151,22 @@ export default function SeatingExplainedPage() {
             <h2 className="text-4xl font-bold mb-6">
               שיבוץ אורחים בגרירה — בזמן אמת
             </h2>
-
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
-              מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי,
-              או משבצים דרך השולחן עצמו — וכל שינוי מתעדכן מיד בכל המערכת.
+              גוררים אורח מהתפריט לשולחן הרצוי או משבצים ישירות מתוך השולחן עצמו —
+              וכל שינוי מתעדכן מיד בזמן אמת.
             </p>
-
             <ul className="space-y-4 text-lg">
               <li>גרירה פשוטה מרשימת האורחים לשולחן</li>
-              <li>אפשר גם שיבוץ דרך השולחן עצמו</li>
-              <li>עדכון בזמן אמת בתפריט הצד ליד שם האורח</li>
-              <li>עדכון מיידי גם בדשבורד</li>
+              <li>עדכון אוטומטי בתצוגה ובדשבורד</li>
+              <li>עובד חלק בכל שלב</li>
             </ul>
-
-            <p className="mt-8 text-lg text-[#6b5f55] leading-relaxed">
-              לא מתבלבלים, לא מפספסים — פשוט רואים תמונה ברורה בכל רגע.
-            </p>
           </motion.div>
         </div>
       </section>
 
-      {/* ================= SECTION 3 – הושבה אישית מהדשבורד (sit3.png) ================= */}
+      {/* ================= SECTION 3 ================= */}
       <section className="py-28 px-6 bg-white">
-        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* TEXT */}
+        <div className="max-w-[1700px] mx-auto grid md:grid-cols-2 gap-16 items-center">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -194,46 +176,31 @@ export default function SeatingExplainedPage() {
             <h2 className="text-4xl font-bold mb-6">
               הושבה אישית מהדשבורד — כשצריך דיוק
             </h2>
-
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               בדשבורד אפשר לערוך הושבה של אורח ספציפי דרך כפתור “הושבה אישית”.
-              המערכת מסמנת את השולחן והמיקום שלו — כדי שתוכלו לתקן או להעביר במהירות.
+              המערכת מסמנת את השולחן והמיקום שלו — כדי שתוכלו לתקן או להעביר בקלות.
             </p>
-
-            <ul className="space-y-4 text-lg">
-              <li>איתור אורח תוך שנייה</li>
-              <li>סימון ברור של השולחן והמיקום</li>
-              <li>מעולה לשינויים של הרגע האחרון</li>
-              <li>הכל נשאר מסונכרן</li>
-            </ul>
           </motion.div>
 
-          {/* IMAGE */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
             className={mediaFrame}
           >
-            <img
-              src="/sit3.png"
-              alt="הושבה אישית מהדשבורד"
-              className={wideMedia}
-              loading="lazy"
-            />
+            <img src="/sit3.png" alt="הושבה אישית מהדשבורד" className={wideMedia} />
           </motion.div>
         </div>
       </section>
 
-      {/* ================= SECTION 4 – הודעות לאורחים (sit4.mp4) ================= */}
+      {/* ================= SECTION 4 ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
-        <div className="max-w-[1600px] mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO – אחרון, יותר גבוה */}
+        <div className="max-w-[1700px] mx-auto grid md:grid-cols-2 gap-16 items-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
             className={mediaFrame}
           >
@@ -248,7 +215,6 @@ export default function SeatingExplainedPage() {
             />
           </motion.div>
 
-          {/* TEXT */}
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -258,60 +224,12 @@ export default function SeatingExplainedPage() {
             <h2 className="text-4xl font-bold mb-6">
               שולחים לאורחים הודעה עם מספר השולחן
             </h2>
-
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
               אחרי שההושבה מסודרת — שולחים הודעה חכמה לכל אורח עם מספר השולחן שלו.
               זה עושה סדר, נראה מקצועי, וחוסך הודעות ביום האירוע.
             </p>
-
-            <ul className="space-y-4 text-lg">
-              <li>שליחה ישירות מתוך המערכת</li>
-              <li>כל אורח מקבל את מספר השולחן שלו</li>
-              <li>בלי שאלות “איפה אנחנו יושבים?”</li>
-            </ul>
           </motion.div>
         </div>
-      </section>
-
-      {/* ================= FINAL CTA ================= */}
-      <section className="py-28 px-6 bg-white text-center">
-        <motion.h2
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          className="text-4xl font-bold mb-10"
-        >
-          מוכנים לבנות הושבה ברמה של אירוע?
-        </motion.h2>
-
-        <p className="text-xl text-[#6b5f55] max-w-2xl mx-auto">
-          תכנון, שיבוץ, ניהול והודעות — במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
-        </p>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          transition={{ delay: 0.25 }}
-          className="mt-16"
-        >
-          <Link
-            href="/pricing"
-            className="
-              inline-flex px-14 py-6 rounded-full
-              bg-gradient-to-br from-[#4a413a] to-[#3f3730]
-              text-white text-xl font-semibold
-              shadow-[0_22px_60px_rgba(0,0,0,0.35)]
-              hover:shadow-[0_30px_75px_rgba(0,0,0,0.45)]
-              hover:scale-[1.06]
-              transition
-            "
-          >
-            התחילו לבנות הושבה
-          </Link>
-        </motion.div>
       </section>
     </div>
   );
