@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
+import UpgradePlanModal from "./UpgradePlanModal";
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -23,11 +23,10 @@ type GuestDTO = {
 };
 
 export default function SeatingPage() {
-  const router = useRouter();
-
-  const [showUpload, setShowUpload] = useState<boolean>(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [invitationId, setInvitationId] = useState<string | null>(null);
-  const [blocked, setBlocked] = useState<boolean>(false);
+  const [blocked, setBlocked] = useState(false);
 
   /* ===============================
      STORES
@@ -60,6 +59,7 @@ export default function SeatingPage() {
         const gRes = await fetch(`/api/seating/guests/${id}`);
         if (gRes.status === 403) {
           setBlocked(true);
+          setShowUpgrade(true);
           return;
         }
 
@@ -78,6 +78,7 @@ export default function SeatingPage() {
         const tRes = await fetch(`/api/seating/tables/${id}`);
         if (tRes.status === 403) {
           setBlocked(true);
+          setShowUpgrade(true);
           return;
         }
 
@@ -97,32 +98,6 @@ export default function SeatingPage() {
 
     load();
   }, [init, setZones]);
-
-  /* ===============================
-     BLOCKED (NO SEATING PLAN)
-  =============================== */
-  if (blocked) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
-        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
-          <h2 className="text-2xl font-semibold mb-3">
-            הושבה אינה כלולה בחבילה שלך
-          </h2>
-          <p className="text-gray-600 mb-6">
-            כדי להשתמש במערכת ההושבה והאלמנטים החכמים,
-            יש לשדרג לחבילת Pro.
-          </p>
-
-          <button
-            onClick={() => router.push("/pricing?upgrade=seating")}
-            className="px-5 py-2 bg-black text-white rounded-lg"
-          >
-            שדרוג חבילה
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   /* ===============================
      SELECT BACKGROUND
@@ -160,8 +135,8 @@ export default function SeatingPage() {
       });
 
       if (res.status === 403) {
-        alert("❌ ההושבה אינה כלולה בחבילה שלך");
-        router.push("/pricing?upgrade=seating");
+        setBlocked(true);
+        setShowUpgrade(true);
         return;
       }
 
@@ -176,6 +151,40 @@ export default function SeatingPage() {
       console.error("❌ Save error:", err);
       alert("⚠ שמירה נכשלה!");
     }
+  }
+
+  /* ===============================
+     BLOCKED VIEW (UPSOLD VIA MODAL)
+  =============================== */
+  if (blocked) {
+    return (
+      <>
+        <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
+          <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
+            <h2 className="text-2xl font-semibold mb-3">
+              הושבה אינה כלולה בחבילה שלך
+            </h2>
+            <p className="text-gray-600 mb-6">
+              כדי להשתמש במערכת ההושבה והאלמנטים החכמים,
+              יש לשדרג לחבילת פרימיום.
+            </p>
+
+            <button
+              onClick={() => setShowUpgrade(true)}
+              className="px-5 py-2 bg-black text-white rounded-lg"
+            >
+              שדרוג חבילה
+            </button>
+          </div>
+        </div>
+
+        <UpgradePlanModal
+          isOpen={showUpgrade}
+          onClose={() => setShowUpgrade(false)}
+          currentPaid={49}
+        />
+      </>
+    );
   }
 
   return (
