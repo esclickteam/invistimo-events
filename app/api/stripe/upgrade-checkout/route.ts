@@ -5,12 +5,22 @@ import jwt from "jsonwebtoken";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 
+/* ============================================================
+   Stripe
+============================================================ */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-// 💡 מחיר חבילת בסיס
+/* ============================================================
+   🔴 FLAG לבדיקה ב-LIVE
+   ❗❗ אחרי הבדיקה להחזיר ל-false ❗❗
+============================================================ */
+const IS_LIVE_TEST = true;
+
+/* ============================================================
+   מחירי מקור אמת
+============================================================ */
 const BASE_PRICE = 49;
 
-// ⭐ מחירון פרימיום – מקור אמת
 const PREMIUM_PRICES: Record<number, number> = {
   100: 149,
   200: 239,
@@ -23,21 +33,21 @@ const PREMIUM_PRICES: Record<number, number> = {
   1000: 699,
 };
 
+/* ============================================================
+   HANDLER
+============================================================ */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
     /* ===============================
-       🔐 אימות משתמש (Next 15/16)
+       🔐 AUTH
     =============================== */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     let decoded: { userId: string };
@@ -47,22 +57,16 @@ export async function POST(req: Request) {
         process.env.JWT_SECRET!
       ) as { userId: string };
     } catch {
-      return NextResponse.json(
-        { error: "Invalid token" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const user = await User.findById(decoded.userId);
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     /* ===============================
-       📦 בקשת שדרוג
+       📦 REQUEST
     =============================== */
     const { guests } = await req.json();
 
@@ -74,18 +78,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ חישוב הפרש מהבסיס
-    const amountToPay = Math.max(fullPrice - BASE_PRICE, 0);
+    /* ===============================
+       💰 חישוב סכומים
+    =============================== */
+    const realAmountToPay = Math.max(fullPrice - BASE_PRICE, 0);
 
-    if (amountToPay === 0) {
+    if (realAmountToPay <= 0) {
       return NextResponse.json(
         { error: "No payment required" },
         { status: 400 }
       );
     }
 
+    // 🧪 בדיקת LIVE – גבייה של 10 ₪ בלבד
+    const amountToPay = IS_LIVE_TEST ? 10 : realAmountToPay;
+
     /* ===============================
-       💳 Stripe Checkout
+       💳 STRIPE CHECKOUT
     =============================== */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -94,10 +103,15 @@ export async function POST(req: Request) {
       metadata: {
         type: "upgrade",
         userId: user._id.toString(),
-        basePrice: String(BASE_PRICE),
+
         targetGuests: String(guests),
+        basePrice: String(BASE_PRICE),
+
         fullPrice: String(fullPrice),
+        realAmountToPay: String(realAmountToPay),
         amountCharged: String(amountToPay),
+
+        liveTest: IS_LIVE_TEST ? "true" : "false",
       },
 
       line_items: [
@@ -107,7 +121,9 @@ export async function POST(req: Request) {
             unit_amount: amountToPay * 100,
             product_data: {
               name: `שדרוג ל־Premium (עד ${guests} אורחים)`,
-              description: `כבר שולם ${BASE_PRICE}₪ · תשלום הפרש`,
+              description: IS_LIVE_TEST
+                ? "בדיקת מערכת – חיוב בדיקה"
+                : `כבר שולם ${BASE_PRICE}₪ · תשלום הפרש`,
             },
           },
           quantity: 1,
