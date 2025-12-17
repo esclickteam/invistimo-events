@@ -39,12 +39,17 @@ const PaymentSchema = new Schema<PaymentDocument>(
   type: String,
   required: true,
   enum: [
-    "basic",         // תאימות לאחור
-    "basic_plan",    // הישן/הבסיסי
-    "basic_plan_49", // ✅ החדש של 49₪ (אם זה ה-lookup key שבחרת)
+    "basic",         // 
+    "basic_plan",    // 
+    "basic_plan_49", // 
     "premium_100",
+    "premium_200",
     "premium_300",
+    "premium_400",
     "premium_500",
+    "premium_600",
+    "premium_700",
+    "premium_800",
     "premium_1000",
   ],
 },
