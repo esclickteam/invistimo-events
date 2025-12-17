@@ -171,16 +171,15 @@ type FeatureItem = {
 };
 
 function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
-  const speed = 40; // פיקסלים לשנייה (תוכלי להוריד ל־25 אם רוצה תנועה עדינה)
   const totalItems = [...items, ...items]; // שכפול כפול
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div dir="rtl" className="relative w-full overflow-hidden">
       <motion.div
         className="flex gap-6 flex-nowrap"
-        animate={{ x: ["0%", "-50%"] }}
+        animate={{ x: ["0%", "50%"] }} // ← תנועה מימין לשמאל
         transition={{
-          duration: 50, // ככל שיותר גדול — יותר איטי
+          duration: 50, // ככל שיותר גבוה = תנועה איטית יותר
           ease: "linear",
           repeat: Infinity,
         }}
@@ -189,7 +188,7 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
         {totalItems.map((item, i) => (
           <div
             key={i}
-            className="w-[420px] flex-shrink-0 bg-[#faf8f4] rounded-[24px] border border-[#e5ddd2] p-5 shadow-[0_6px_18px_rgba(0,0,0,0.06)] flex flex-col"
+            className="w-[420px] flex-shrink-0 bg-[#faf8f4] rounded-[24px] border border-[#e5ddd2] p-5 shadow-[0_6px_18px_rgba(0,0,0,0.06)] flex flex-col text-right"
           >
             <img
               src={item.image}
