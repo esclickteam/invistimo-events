@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 
 /* =====================================================
-   זיקוקים אלגנטיים – ONLY HERO (יותר צפוף ויותר וואו)
+   זיקוקים אלגנטיים – ONLY HERO (לא לגעת)
 ===================================================== */
 function HeroFireworks() {
   return (
@@ -55,38 +55,38 @@ function HeroFireworks() {
 }
 
 /* =====================================================
-   טלפון מצלצל – תמונה home2.png (בלוק 2)
+   טלפון מצלצל – תמונה גדולה בצד ימין (בלוק 2)
 ===================================================== */
-function RingingPhoneImage() {
+function RingingPhoneBig() {
   return (
-    <div className="relative w-16 h-16 ml-6 flex items-center justify-center">
+    <div className="relative flex items-center justify-center">
       {/* גלי צלצול */}
       {[...Array(2)].map((_, i) => (
         <motion.span
           key={i}
-          className="absolute inset-0 rounded-full border border-[#cbb38a]/30"
+          className="absolute w-[280px] h-[280px] rounded-full border border-[#cbb38a]/25"
           initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1.8, opacity: 0 }}
+          animate={{ scale: 1.5, opacity: 0 }}
           transition={{
-            duration: 2.4,
-            delay: i * 1.2,
+            duration: 2.6,
+            delay: i * 1.3,
             repeat: Infinity,
             ease: "easeOut",
           }}
         />
       ))}
 
-      {/* תמונת טלפון רוטטת */}
+      {/* תמונת טלפון */}
       <motion.img
-        src="/images/home2.png"
-        alt="Ringing phone"
-        animate={{ rotate: [0, -6, 6, -6, 0] }}
+        src="/home2.png"
+        alt="Incoming call"
+        animate={{ rotate: [0, -4, 4, -4, 0] }}
         transition={{
           duration: 1.6,
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="w-10 h-10 object-contain"
+        className="w-[200px] md:w-[240px] object-contain relative z-10"
       />
     </div>
   );
@@ -101,7 +101,6 @@ export default function HomePage() {
         <HeroFireworks />
 
         <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
-          {/* טקסט */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -129,7 +128,6 @@ export default function HomePage() {
             </Link>
           </motion.div>
 
-          {/* טלפון וידאו */}
           <motion.div
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
@@ -158,22 +156,23 @@ export default function HomePage() {
 
       {/* ================= בלוק 2 ================= */}
       <section className="py-32 px-6 bg-[#faf8f4]">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center mb-12">
-            <h2 className="text-4xl font-semibold">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-24 items-center">
+          <div>
+            <h2 className="text-4xl font-semibold mb-12">
               הגישה שלנו לניהול אירועים
             </h2>
-            <RingingPhoneImage />
+
+            <p className="text-xl leading-relaxed">
+              אנחנו לא עובדים עם סבבי טלפונים.<br />
+              לא רודפים אחרי אורחים.<br />
+              ולא מבזבזים זמן וכסף מיותרים.<br /><br />
+              מי שרוצה להגיע — מאשר לבד.<br />
+              מי שלא — לא צריך שיציקו לו.<br /><br />
+              הכול מתעדכן אוטומטית במערכת אחת ברורה.
+            </p>
           </div>
 
-          <p className="text-xl leading-relaxed">
-            אנחנו לא עובדים עם סבבי טלפונים.<br />
-            לא רודפים אחרי אורחים.<br />
-            ולא מבזבזים זמן וכסף מיותרים.<br /><br />
-            מי שרוצה להגיע — מאשר לבד.<br />
-            מי שלא — לא צריך שיציקו לו.<br /><br />
-            הכול מתעדכן אוטומטית במערכת אחת ברורה.
-          </p>
+          <RingingPhoneBig />
         </div>
       </section>
 
