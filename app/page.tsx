@@ -201,24 +201,23 @@ export default function HomePage() {
     </h2>
   </div>
 
-  {/* מסגרת קרוסלה */}
   <div className="relative w-full overflow-hidden">
     <motion.div
       className="flex gap-10"
       style={{ width: "max-content" }}
-      animate={{ x: ["0px", "-2160px"] }} 
+      animate={{ x: ["-2160px", "0px"] }}   // ⬅️ כיוון הפוך
       transition={{
-        duration: 22,          // קצת יותר מהר כמו שביקשת
+        duration: 22,                     // קצת יותר מהר
         ease: "linear",
         repeat: Infinity,
       }}
     >
-      {/* שכפול כפול כדי שלא יהיה ריק */}
+      {/* שכפול כפול – חובה */}
       {[...features, ...features].map((item, i) => (
         <div
           key={i}
           className="
-            w-[680px]            /* גודל גדול – לא לשנות */
+            w-[680px]
             bg-[#faf8f4]
             rounded-[32px]
             p-10
@@ -245,8 +244,6 @@ export default function HomePage() {
     </motion.div>
   </div>
 </section>
-
-
 
 
       {/* ================= בלוק 4 ================= */}
