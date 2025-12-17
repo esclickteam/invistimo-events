@@ -131,7 +131,7 @@ function getSeatRotation(table, c) {
   ) {
     if (Math.abs(c.x) > Math.abs(c.y)) {
       // ימין / שמאל
-      return c.x > 0 ? 90 : -90;
+      return c.x > 0 ? 180 : 0;
     } else {
       // למעלה / למטה
       return c.y > 0 ? 0 : 180;
