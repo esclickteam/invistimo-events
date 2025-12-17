@@ -33,8 +33,8 @@ export default function SeatingExplainedPage() {
           transition={{ delay: 0.2, duration: 0.8 }}
           className="max-w-3xl mx-auto text-xl leading-relaxed text-[#6b5f55]"
         >
-          בונים מפת אולם, משבצים אורחים בגרירה בזמן אמת, מנהלים הושבה מהדשבורד —
-          ומסיימים בשליחת הודעה עם מספר השולחן לכל אורח.
+          בונים מפת אולם עם או בלי סקיצה, משבצים אורחים בגרירה בזמן אמת,
+          מנהלים הכל מהדשבורד – ובסוף שולחים הודעה אישית לכל אורח עם מספר השולחן.
         </motion.p>
 
         <motion.div
@@ -50,7 +50,6 @@ export default function SeatingExplainedPage() {
               inline-flex px-12 py-5 rounded-full
               bg-[#4a413a] text-white text-lg font-semibold
               shadow-[0_18px_45px_rgba(0,0,0,0.25)]
-              hover:shadow-[0_26px_60px_rgba(0,0,0,0.35)]
               hover:scale-[1.05]
               transition
             "
@@ -60,9 +59,9 @@ export default function SeatingExplainedPage() {
         </motion.div>
       </section>
 
-      {/* ================= SECTION 1 – בניית מפת אולם (עם/בלי סקיצה) ================= */}
+      {/* ================= סקיצה / הוספת שולחן ================= */}
       <section className="py-28 px-6 bg-white">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           {/* TEXT */}
           <motion.div
             initial="hidden"
@@ -70,83 +69,61 @@ export default function SeatingExplainedPage() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">בונים את מפת האולם בדרך שנוחה לכם</h2>
+            <h2 className="text-4xl font-bold mb-6">
+              בונים את מפת האולם בדרך שלכם
+            </h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
-              אפשר להתחיל לבנות הושבה גם בלי שום דבר — פשוט מוסיפים שולחנות וממקמים אותם.
-              ואם יש לכם סקיצה מהאולם, אפשר להעלות אותה כרקע ולעבוד עליה בשביל דיוק מקסימלי.
+              אפשר להתחיל בלי כלום – פשוט מוסיפים שולחנות וממקמים.
+              ואם יש לכם סקיצה מהאולם, מעלים אותה כרקע ועובדים עליה בדיוק מושלם.
             </p>
 
             <ul className="space-y-4 text-lg">
-              <li>עבודה חופשית בלי סקיצה — מפת אולם “נקייה”</li>
-              <li>או העלאת סקיצה כרקע ועבודה עליה</li>
               <li>הוספת שולחנות לפי סוג וצורה</li>
-              <li>בחירת מספר כיסאות לכל שולחן</li>
+              <li>בחירת מספר כסאות לכל שולחן</li>
+              <li>גרירה ומיקום חופשי או לפי סקיצה</li>
+              <li>בנייה מדויקת ונוחה לשינויים</li>
             </ul>
-
-            <p className="mt-8 text-lg text-[#6b5f55] leading-relaxed">
-              כך או כך — אתם בשליטה מלאה, וההושבה נשארת מסודרת וקלה לשינויים.
-            </p>
           </motion.div>
 
-          {/* IMAGE FRAME — מוגדל, בלי חיתוך */}
+          {/* IMAGE – רחב יותר, בלי מסגרת שחורה */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="
-              relative
-              rounded-[36px]
-              p-[12px]
-              bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef]
-              shadow-[0_25px_60px_rgba(0,0,0,0.15)]
-            "
+            className="rounded-[28px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.12)]"
           >
-            <div className="rounded-[26px] overflow-hidden bg-white">
-              <div className="w-full h-[740px] md:h-[860px]">
-                <img
-                  src="/sit1.png"
-                  alt="בניית מפת אולם והוספת שולחנות"
-                  className="w-full h-full object-contain"
-                  loading="lazy"
-                />
-              </div>
-            </div>
+            <img
+              src="/sit1.png"
+              alt="בניית מפת אולם והוספת שולחנות"
+              className="w-full h-[520px] md:h-[580px] object-contain"
+              loading="lazy"
+            />
           </motion.div>
         </div>
       </section>
 
-      {/* ================= SECTION 2 – שיבוץ בזמן אמת (sit2.mp4) ================= */}
+      {/* ================= שיבוץ בזמן אמת ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO FRAME — מוגדל, בלי חיתוך */}
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+          {/* VIDEO – רחב יותר */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="
-              relative
-              rounded-[36px]
-              p-[12px]
-              bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef]
-              shadow-[0_25px_60px_rgba(0,0,0,0.15)]
-            "
+            className="rounded-[28px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.12)]"
           >
-            <div className="rounded-[26px] overflow-hidden bg-black">
-              <div className="w-full h-[740px] md:h-[860px]">
-                <video
-                  src="/videos/sit2.mp4"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            </div>
+            <video
+              src="/videos/sit2.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="w-full h-[520px] md:h-[580px] object-contain"
+            />
           </motion.div>
 
           {/* TEXT */}
@@ -156,30 +133,27 @@ export default function SeatingExplainedPage() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">שיבוץ אורחים בגרירה — בזמן אמת</h2>
+            <h2 className="text-4xl font-bold mb-6">
+              שיבוץ אורחים בגרירה – בזמן אמת
+            </h2>
 
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
-              מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי,
-              או משבצים דרך השולחן עצמו — וכל שינוי מתעדכן מיד בכל המערכת.
+              גוררים את האורח מהצד לשולחן הרצוי או משבצים ישירות.
+              כל שינוי מתעדכן מיידית בתפריט ובדשבורד.
             </p>
 
             <ul className="space-y-4 text-lg">
-              <li>גרירה פשוטה מרשימת האורחים לשולחן</li>
-              <li>אפשר גם שיבוץ דרך השולחן עצמו</li>
-              <li>עדכון בזמן אמת בתפריט הצד ליד שם האורח</li>
-              <li>עדכון מיידי גם בדשבורד</li>
+              <li>גרירה פשוטה ואינטואיטיבית</li>
+              <li>עדכון בזמן אמת בכל המערכת</li>
+              <li>עובד בצורה חלקה גם באירועים גדולים</li>
             </ul>
-
-            <p className="mt-8 text-lg text-[#6b5f55] leading-relaxed">
-              לא מתבלבלים, לא מפספסים — פשוט רואים תמונה ברורה בכל רגע.
-            </p>
           </motion.div>
         </div>
       </section>
 
-      {/* ================= SECTION 3 – הושבה אישית מהדשבורד (sit3.png) ================= */}
+      {/* ================= הושבה אישית מהדשבורד ================= */}
       <section className="py-28 px-6 bg-white">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           {/* TEXT */}
           <motion.div
             initial="hidden"
@@ -187,79 +161,53 @@ export default function SeatingExplainedPage() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">הושבה אישית מהדשבורד — כשצריך דיוק</h2>
-
+            <h2 className="text-4xl font-bold mb-6">
+              הושבה אישית מהדשבורד
+            </h2>
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
-              בדשבורד אפשר לערוך הושבה של אורח ספציפי דרך כפתור “הושבה אישית”.
-              המערכת מסמנת את השולחן והמיקום שלו — כדי שתוכלו לתקן או להעביר במהירות.
+              לכל אורח יש כפתור "הושבה אישית" – בלחיצה אחת רואים בדיוק היכן הוא יושב,
+              וניתן להזיז אותו בקלות במידת הצורך.
             </p>
-
-            <ul className="space-y-4 text-lg">
-              <li>איתור אורח תוך שנייה</li>
-              <li>סימון ברור של השולחן והמיקום</li>
-              <li>מעולה לשינויים של הרגע האחרון</li>
-              <li>הכל נשאר מסונכרן</li>
-            </ul>
           </motion.div>
 
-          {/* IMAGE FRAME — מוגדל, בלי חיתוך */}
+          {/* IMAGE – רחבה יותר */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="
-              relative
-              rounded-[36px]
-              p-[12px]
-              bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef]
-              shadow-[0_25px_60px_rgba(0,0,0,0.15)]
-            "
+            className="rounded-[28px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.12)]"
           >
-            <div className="rounded-[26px] overflow-hidden bg-white">
-              <div className="w-full h-[740px] md:h-[860px]">
-                <img
-                  src="/sit3.png"
-                  alt="הושבה אישית מהדשבורד"
-                  className="w-full h-full object-contain"
-                  loading="lazy"
-                />
-              </div>
-            </div>
+            <img
+              src="/sit3.png"
+              alt="הושבה אישית מדשבורד"
+              className="w-full h-[520px] md:h-[580px] object-contain"
+              loading="lazy"
+            />
           </motion.div>
         </div>
       </section>
 
-      {/* ================= SECTION 4 – הודעות לאורחים (sit4.mp4) ================= */}
+      {/* ================= הודעות לאורחים ================= */}
       <section className="py-28 px-6 bg-[#faf8f4]">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          {/* VIDEO FRAME — מוגדל, בלי חיתוך (כבר ביקשת), נשאר contain */}
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+          {/* VIDEO – אחרון, יותר ארוך */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="
-              relative
-              rounded-[36px]
-              p-[12px]
-              bg-gradient-to-br from-[#efe8dc] to-[#f8f5ef]
-              shadow-[0_25px_60px_rgba(0,0,0,0.15)]
-            "
+            className="rounded-[28px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.12)]"
           >
-            <div className="rounded-[26px] overflow-hidden bg-black">
-              <div className="w-full h-[740px] md:h-[860px]">
-                <video
-                  src="/videos/sit4.mp4"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            </div>
+            <video
+              src="/videos/sit4.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="w-full h-[700px] md:h-[760px] object-contain"
+            />
           </motion.div>
 
           {/* TEXT */}
@@ -269,23 +217,18 @@ export default function SeatingExplainedPage() {
             viewport={{ once: true }}
             variants={fadeUp}
           >
-            <h2 className="text-4xl font-bold mb-6">שולחים לאורחים הודעה עם מספר השולחן</h2>
-
+            <h2 className="text-4xl font-bold mb-6">
+              שולחים לכל אורח הודעה אישית עם מספר השולחן
+            </h2>
             <p className="text-lg text-[#6b5f55] mb-8 leading-relaxed">
-              אחרי שההושבה מסודרת — שולחים הודעה חכמה לכל אורח עם מספר השולחן שלו.
-              זה עושה סדר, נראה מקצועי, וחוסך הודעות ביום האירוע.
+              לאחר שההושבה מוכנה, שולחים הודעות אוטומטיות עם מספר השולחן –
+              חוסך שאלות, עושה סדר ומוסיף טאץ’ מקצועי.
             </p>
-
-            <ul className="space-y-4 text-lg">
-              <li>שליחה ישירות מתוך המערכת</li>
-              <li>כל אורח מקבל את מספר השולחן שלו</li>
-              <li>בלי שאלות “איפה אנחנו יושבים?”</li>
-            </ul>
           </motion.div>
         </div>
       </section>
 
-      {/* ================= FINAL CTA ================= */}
+      {/* ================= CTA ================= */}
       <section className="py-28 px-6 bg-white text-center">
         <motion.h2
           initial="hidden"
@@ -296,11 +239,9 @@ export default function SeatingExplainedPage() {
         >
           מוכנים לבנות הושבה ברמה של אירוע?
         </motion.h2>
-
         <p className="text-xl text-[#6b5f55] max-w-2xl mx-auto">
-          תכנון, שיבוץ, ניהול והודעות — במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
+          תכנון, שיבוץ, ניהול והודעות – הכל במערכת אחת שעובדת בשבילכם.
         </p>
-
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -316,7 +257,6 @@ export default function SeatingExplainedPage() {
               bg-gradient-to-br from-[#4a413a] to-[#3f3730]
               text-white text-xl font-semibold
               shadow-[0_22px_60px_rgba(0,0,0,0.35)]
-              hover:shadow-[0_30px_75px_rgba(0,0,0,0.45)]
               hover:scale-[1.06]
               transition
             "
