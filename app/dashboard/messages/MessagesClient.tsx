@@ -260,15 +260,26 @@ const progress = max > 0 ? (used / max) * 100 : 0;
             />
           </div>
 
-          <p className="text-lg font-bold text-[#4a413a] mb-1">
-            {remaining} / {max}
-          </p>
+          <p className="text-4xl font-bold text-[#4a413a] mb-1">
+  {remaining}
+</p>
 
-          <p className="text-sm text-[#6b5e52]">
-            {max === 0
-              ? "אין חבילת SMS פעילה"
-              : `נותרו ${remaining} הודעות מתוך ${max}`}
-          </p>
+<p className="text-sm text-[#6b5e52] mb-1">
+  הודעות SMS זמינות
+</p>
+
+{remaining <= 20 && remaining > 0 && (
+  <p className="text-xs text-orange-600">
+    ⚠️ נותרו מעט הודעות – מומלץ לרכוש חבילה
+  </p>
+)}
+
+{remaining === 0 && (
+  <p className="text-xs text-red-600">
+    ❌ אין יתרת הודעות – יש לרכוש חבילה
+  </p>
+)}
+
 
           <div className="mt-5">
             <select
