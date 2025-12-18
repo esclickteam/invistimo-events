@@ -394,7 +394,8 @@ function TableRenderer({ table }) {
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
         const guest = seatInfoMap.get(i)?.guest;
-        const rotation = getSeatRotation(layout, c);
+        const rotation =
+          getSeatRotation(layout, c) - (table.rotation || 0);
 
         return (
           <Group key={i} x={c.x} y={c.y} rotation={rotation}>
