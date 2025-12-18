@@ -23,10 +23,10 @@ export default function Header() {
           {/* ====================== ימין – תפריט ====================== */}
           <nav className="flex items-center gap-10 justify-start text-[#4a413a] font-medium">
             <Link
-              href="/#how"
+               href="/"
               className="hover:text-[var(--champagne-dark)] transition"
             >
-             
+             ראשי
             </Link>
 
             <Link
