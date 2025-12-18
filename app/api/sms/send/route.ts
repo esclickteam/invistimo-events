@@ -32,6 +32,14 @@ export async function POST(req: Request) {
 
   const guests = await InvitationGuest.find(query).lean();
 
+  if (!guests.length) {
+    return NextResponse.json({
+      success: true,
+      sent: 0,
+      total: 0,
+    });
+  }
+
   let sent = 0;
 
   /* ================= שליחה ================= */
@@ -59,13 +67,13 @@ export async function POST(req: Request) {
 
     if (!text.trim()) continue;
 
-    /* ---------- payload לספק ---------- */
+    /* ---------- payload לפי תיעוד רשמי ---------- */
     const payload = {
       key: process.env.SMS4FREE_KEY,
       user: process.env.SMS4FREE_USER,
       pass: process.env.SMS4FREE_PASS,
-      sender: process.env.SMS4FREE_SENDER, // מספר או Invistimo (מאושר)
-      msisdn: phone,
+      sender: process.env.SMS4FREE_SENDER, // מספר או שם מאושר
+      recipient: phone,                   // 👈 השם הנכון לפי התיעוד
       msg: text,
     };
 
