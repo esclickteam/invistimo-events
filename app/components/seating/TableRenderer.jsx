@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import { useRef, useMemo, useState, useEffect } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
+
 
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
