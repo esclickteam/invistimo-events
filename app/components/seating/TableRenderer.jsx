@@ -142,8 +142,7 @@ function getSeatRotation(table, c) {
 
   if (table.type === "square" || table.type === "rectangle") {
     if (Math.abs(c.x) > Math.abs(c.y)) {
-      return c.x > 0 ? 90 : -90;
-
+      return c.x > 0 ? -90 : 90;
     }
     return c.y > 0 ? 0 : 180;
   }
@@ -336,7 +335,7 @@ function TableRenderer({ table }) {
             offsetY={size / 2}
             fill={tableFill}
             cornerRadius={10}
-            shadowBlur={8}
+            
           />
           <Text
             text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
@@ -361,7 +360,7 @@ function TableRenderer({ table }) {
             offsetY={height / 2}
             fill={tableFill}
             cornerRadius={12}
-            shadowBlur={8}
+            
           />
           <Text
             text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
@@ -417,7 +416,7 @@ function TableRenderer({ table }) {
               fill={guest ? "#94a3b8" : "#3b82f6"}
               stroke="#2563eb"
               strokeWidth={1}
-              shadowBlur={2}
+              
             />
           </Group>
         );
