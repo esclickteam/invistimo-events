@@ -8,7 +8,7 @@ import crypto from "crypto";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   POST — ייבוא אורחים (נתונים מנורמלים מה־Client)
+   POST — ייבוא אורחים (Excel / CSV / Client)
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -16,18 +16,19 @@ export async function POST(req: Request) {
 
     if (!invitationId || !Array.isArray(guests)) {
       return NextResponse.json(
-        { success: false, error: "Invalid request" },
+        { success: false, error: "INVALID_REQUEST" },
         { status: 400 }
       );
     }
 
     await db();
 
-    // 🟢 אימות משתמש
+    /* ================= אימות משתמש ================= */
+
     const userId = await getUserIdFromRequest();
     if (!userId) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
+        { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
@@ -35,45 +36,57 @@ export async function POST(req: Request) {
     const invitation = await Invitation.findById(invitationId);
     if (!invitation || invitation.ownerId.toString() !== userId.toString()) {
       return NextResponse.json(
-        { success: false, error: "Not authorized for this invitation" },
+        { success: false, error: "FORBIDDEN" },
         { status: 403 }
       );
     }
 
     let importedCount = 0;
 
+    /* ================= לולאת ייבוא ================= */
+
     for (const g of guests) {
-      // 🛑 ולידציה בסיסית
       if (!g?.name || !g?.phone) continue;
 
       const phone = String(g.phone).replace(/\D/g, "");
+      if (!phone) continue;
 
-      const payload = {
+      /* ---------- נרמול מספר שולחן ---------- */
+      const rawTable =
+        g.tableNumber ?? g.table ?? g.tableName ?? null;
+
+      const tableNumber =
+        rawTable !== null && rawTable !== ""
+          ? Number(rawTable)
+          : null;
+
+      const payload: any = {
         invitationId,
+
         name: String(g.name).trim(),
         phone,
+
         relation: String(g.relation || "").trim(),
 
-        // ✅ RSVP תקני בלבד
         rsvp: ["yes", "no", "pending"].includes(g.rsvp)
           ? g.rsvp
           : "pending",
 
-        // ✅ מוזמנים (לא ממציאים ערכים)
         guestsCount: Number.isFinite(Number(g.guestsCount))
           ? Number(g.guestsCount)
-          : 0,
-
-        // 🚨 קריטי: מגיעים תמיד 0 בייבוא
-        arrivedCount: 0,
+          : 1,
 
         notes: String(g.notes || "").trim(),
-        tableName: String(g.tableName || "").trim(),
+
+        /* 🪑 הושבה */
+        tableNumber,
+        tableName:
+          tableNumber !== null ? `שולחן ${tableNumber}` : "",
 
         token: g.token || crypto.randomUUID(),
       };
 
-      // 🔎 אם קיים אורח עם אותו טלפון — עדכון, אחרת יצירה
+      /* ---------- upsert לפי טלפון ---------- */
       const existing = await InvitationGuest.findOne({
         invitationId,
         phone,
@@ -92,10 +105,10 @@ export async function POST(req: Request) {
     }
 
     if (importedCount === 0) {
-      return NextResponse.json({
-        success: false,
-        error: "No valid guests found in Excel file",
-      });
+      return NextResponse.json(
+        { success: false, error: "NO_VALID_GUESTS" },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
@@ -103,9 +116,9 @@ export async function POST(req: Request) {
       count: importedCount,
     });
   } catch (err) {
-    console.error("❌ Import Excel error:", err);
+    console.error("❌ Import guests error:", err);
     return NextResponse.json(
-      { success: false, error: "Server error" },
+      { success: false, error: "SERVER_ERROR" },
       { status: 500 }
     );
   }

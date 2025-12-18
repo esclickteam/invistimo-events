@@ -4,28 +4,20 @@ import { useState, useMemo } from "react";
 import { X } from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
 
-/**
- * מודאל הושבה מעוצב ומסונכרן לחלוטין
- * ✅ כל כרטיסיה = כיסא
- * ✅ שם האורח מופיע על כל הכיסאות שתפס (לפי seatedGuests שמגיע מה-store)
- * ✅ בחירה מאורחים שלא הושבו לשום שולחן (tableId ריק)
- * ✅ הסרה בלחיצה על כיסא תפוס
- * ✅ ספירה מדויקת לפי מספר כיסאות תפוסים בפועל
- */
 export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
-  // מאזין לשולחן המעודכן בזמן אמת
+  // שולחן מעודכן מה־store
   const tableData = useSeatingStore((s) =>
     s.tables.find((t) => t.id === table.id)
   );
 
-  // תמיד עדיף לקחת אורחים מה-store לסנכרון מלא
+  // אורחים מה־store (אם קיים) אחרת מה־props
   const storeGuests = useSeatingStore((s) => s.guests);
   const tableGuests = storeGuests?.length ? storeGuests : guests;
 
-  const [openSeat, setOpenSeat] = useState(null);
+  const [openSeat, setOpenSeat] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
@@ -34,8 +26,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
   };
 
-  // ✅ מושבים: ה-store שלך כבר שומר seatIndex לכל כיסא (block)
-  // לכן אנחנו ממפים seatIndex אחד-לאחד, בלי להכפיל לפי party size.
+  /* ================= מושבים ================= */
+
   const seatsArray = useMemo(() => {
     if (!tableData) return [];
 
@@ -45,9 +37,16 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }));
 
     for (const s of tableData.seatedGuests || []) {
-      const g = tableGuests.find((gg) => getGuestId(gg) === String(s.guestId));
+      const g = tableGuests.find(
+        (gg) => getGuestId(gg) === String(s.guestId)
+      );
       if (!g) continue;
-      if (typeof s.seatIndex === "number" && s.seatIndex >= 0 && s.seatIndex < arr.length) {
+
+      if (
+        typeof s.seatIndex === "number" &&
+        s.seatIndex >= 0 &&
+        s.seatIndex < arr.length
+      ) {
         arr[s.seatIndex].guest = g;
       }
     }
@@ -55,13 +54,17 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = seatsArray.reduce((sum, s) => sum + (s.guest ? 1 : 0), 0);
+  const occupied = seatsArray.reduce(
+    (sum, s) => sum + (s.guest ? 1 : 0),
+    0
+  );
 
-  // ✅ פופאפ: רק אורחים שלא הושבו לשום שולחן (זה מה שביקשת)
+  /* ================= אורחים זמינים ================= */
+
   const availableGuests = useMemo(() => {
     const seatedIds = new Set(
       (useSeatingStore.getState().tables || []).flatMap((t) =>
-        (t.seatedGuests || []).map((sg) => String(sg.guestId ?? sg._id ?? sg.id))
+        (t.seatedGuests || []).map((sg) => String(sg.guestId))
       )
     );
 
@@ -72,31 +75,64 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     });
   }, [tableGuests]);
 
-  const handleSeatGuest = (seatIndex, guest) => {
+  /* ================= הושבה ================= */
+
+  const handleSeatGuest = async (seatIndex, guest) => {
     if (!tableData) return;
 
     const count = getPartySize(guest);
-    const res = assignGuestsToTable(tableData.id, guest.id, count, seatIndex);
+    const res = assignGuestsToTable(
+      tableData.id,
+      guest.id,
+      count,
+      seatIndex
+    );
 
-    if (!res?.ok) setError(res?.message || "לא ניתן להושיב כאן");
-    else setError("");
+    if (!res?.ok) {
+      setError(res?.message || "לא ניתן להושיב כאן");
+      return;
+    }
 
+    // 🔥 סנכרון מונגו
+    await fetch("/api/guests/assign-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestId: guest.id,
+        tableId: tableData.id,
+        tableName: tableData.name,
+        seatIndex,
+      }),
+    });
+
+    setError("");
     setOpenSeat(null);
   };
 
-  const handleRemoveGuest = (guest) => {
+  /* ================= הסרה ================= */
+
+  const handleRemoveGuest = async (guest) => {
     if (!tableData || !guest) return;
+
     removeGuestFromTable(tableData.id, guest.id);
+
+    await fetch("/api/guests/remove-from-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guestId: guest.id }),
+    });
   };
 
   if (!tableData) return null;
+
+  /* ================= UI ================= */
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="relative bg-white rounded-2xl shadow-2xl w-[700px] p-8 max-h-[90vh] overflow-y-auto border border-gray-100">
         <button
           onClick={onClose}
-          className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 transition"
+          className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
           aria-label="סגור"
         >
           <X size={22} />
@@ -125,22 +161,19 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
               return (
                 <div key={i} className="relative">
                   <div
-                    className={`w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition-all duration-200 ${
+                    className={`w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition ${
                       g
-                        ? "bg-blue-100 border-blue-400 text-gray-800 shadow-md"
-                        : "bg-white border-gray-200 hover:bg-blue-50 text-gray-500"
+                        ? "bg-blue-100 border-blue-400 shadow-md"
+                        : "bg-white border-gray-200 hover:bg-blue-50"
                     }`}
                     onClick={() => {
-                      if (g) {
-                        handleRemoveGuest(g);
-                      } else {
+                      if (g) handleRemoveGuest(g);
+                      else {
                         setOpenSeat(isOpen ? null : i);
                         setError("");
                       }
                     }}
-                    title={g ? "לחצי להסרה" : "לחצי להושבה"}
                   >
-                    {/* מספר כיסא קטן */}
                     <div className="absolute top-1 right-2 text-[10px] text-gray-400">
                       {i + 1}
                     </div>
@@ -167,7 +200,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                   </div>
 
                   {isOpen && !g && (
-                    <div className="absolute top-[95%] mt-2 bg-white border shadow-xl rounded-lg w-52 z-50 max-h-64 overflow-y-auto text-right">
+                    <div className="absolute top-[95%] mt-2 bg-white border shadow-xl rounded-lg w-52 z-50 max-h-64 overflow-y-auto">
                       <div className="sticky top-0 bg-white border-b p-2 text-[11px] text-gray-500">
                         לבחור אורח (לא משובץ)
                       </div>
@@ -181,7 +214,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                           <div
                             key={getGuestId(g2)}
                             onClick={() => handleSeatGuest(i, g2)}
-                            className="p-2 hover:bg-blue-50 cursor-pointer text-xs text-gray-700 flex items-center justify-between gap-2"
+                            className="p-2 hover:bg-blue-50 cursor-pointer text-xs flex justify-between"
                           >
                             <span className="truncate">{g2.name}</span>
                             <span className="text-gray-500">
@@ -201,7 +234,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         <div className="flex justify-center mt-7">
           <button
             onClick={onClose}
-            className="px-7 py-2.5 rounded-lg bg-gray-200 hover:bg-gray-300 font-medium text-gray-800 transition"
+            className="px-7 py-2.5 rounded-lg bg-gray-200 hover:bg-gray-300 font-medium"
           >
             סגור
           </button>

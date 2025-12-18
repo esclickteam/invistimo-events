@@ -8,35 +8,63 @@ import mongoose, { Schema, models } from "mongoose";
 
 const InvitationGuestSchema = new Schema(
   {
-    // ID של ההזמנה שהאורח שייך אליה
+    /* ================= קשר להזמנה ================= */
+
     invitationId: {
       type: Schema.Types.ObjectId,
       ref: "Invitation",
       required: true,
+      index: true,
     },
 
-    // פרטי האורח
+    /* ================= פרטי אורח ================= */
+
     name: { type: String, required: true },
     phone: { type: String, required: true },
 
-    // ✅ קרבה (כמו בטבלה)
     relation: { type: String, default: "" },
 
-    // RSVP - בחירת האורח בקישור האישי
+    /* ================= RSVP ================= */
+
     rsvp: {
       type: String,
       enum: ["yes", "no", "pending"],
       default: "pending",
     },
 
-    // כמה מוזמנים הוא מביא
     guestsCount: { type: Number, default: 1 },
 
-    // הערות של בעל האירוע
     notes: { type: String, default: "" },
 
-    // טוקן ייחודי לקישור אישי (example: /invite/rsvp/:token)
-    token: { type: String, required: true, unique: true },
+    /* ================= טוקן אישי ================= */
+
+    token: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    /* ================= 🪑 הושבה ================= */
+
+    // מספר שולחן (ל־SMS / WhatsApp / תצוגה)
+    tableNumber: {
+      type: Number,
+      default: null,
+    },
+
+    // שם שולחן (אם בעתיד יהיו אזורים / שמות)
+    tableName: {
+      type: String,
+      default: "",
+    },
+
+    // קישור לשולחן בקנבס (לא חובה)
+    tableId: {
+      type: Schema.Types.ObjectId,
+      ref: "SeatingTable",
+      default: null,
+    },
   },
   { timestamps: true }
 );
