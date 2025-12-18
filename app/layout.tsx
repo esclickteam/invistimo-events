@@ -15,6 +15,17 @@ export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
   description:
     "Invistimo – הזמנות דיגיטליות מעוצבות עם אישורי הגעה והושבה חכמה לכל סוגי האירועים.",
+
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -22,10 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
         <Providers>
-          <LayoutShell
-            header={<Header />}
-            footer={<Footer />}
-          >
+          <LayoutShell header={<Header />} footer={<Footer />}>
             {children}
           </LayoutShell>
 
