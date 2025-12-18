@@ -141,6 +141,27 @@ const ZoneSchema = new Schema(
 );
 
 /* ===============================
+   ⭐ תצוגת קנבס (ZOOM + PAN)
+=============================== */
+const CanvasViewSchema = new Schema(
+  {
+    scale: {
+      type: Number,
+      default: 1,
+    },
+    x: {
+      type: Number,
+      default: 0,
+    },
+    y: {
+      type: Number,
+      default: 0,
+    },
+  },
+  { _id: false }
+);
+
+/* ===============================
    סידור הושבה (מסמך אחד להזמנה)
 =============================== */
 const SeatingTableSchema = new Schema(
@@ -170,10 +191,16 @@ const SeatingTableSchema = new Schema(
       type: [ZoneSchema],
       default: [],
     },
+
+    /** ⭐ תצוגת קנבס */
+    canvasView: {
+      type: CanvasViewSchema,
+      default: null,
+    },
   },
   {
     timestamps: true,
-    strict: true, // ⭐ עכשיו בטוח – zones מוגדרים
+    strict: true, // ⭐ עכשיו בטוח – canvasView מוגדר
   }
 );
 
