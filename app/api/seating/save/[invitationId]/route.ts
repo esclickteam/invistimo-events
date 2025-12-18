@@ -82,6 +82,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
+       CANVAS VIEW (ZOOM + PAN)
+       ⭐ תוספת בלבד
+    =============================== */
+    const canvasView =
+      body.canvasView &&
+      typeof body.canvasView.scale === "number" &&
+      typeof body.canvasView.x === "number" &&
+      typeof body.canvasView.y === "number"
+        ? {
+            scale: body.canvasView.scale,
+            x: body.canvasView.x,
+            y: body.canvasView.y,
+          }
+        : null;
+
+    /* ===============================
        SAVE / UPSERT
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
@@ -91,6 +107,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           tables,
           zones,
           background,
+          canvasView, // ✅ שמירת מצב קנבס
           updatedAt: new Date(),
         },
       },
