@@ -18,7 +18,7 @@ const PRICE_CONFIG: Record<
 > = {
   // ✅ תומך בשני המפתחות כדי שלא תתקעי
   basic_plan: {
-    priceId: "price_1SdVK5LCgfc20iubLwRTHMKT",
+    priceId: "price_1SdWP9LCgfc20iubG9OFDPVs",
     maxGuests: 100,
     plan: "basic",
   },

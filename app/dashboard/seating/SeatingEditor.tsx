@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useState, Suspense, useRef } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -54,6 +54,8 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
 
+  const setCanvasView = useSeatingStore((s) => s.setCanvasView);
+
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
@@ -105,11 +107,59 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
 
+  const panStart = useRef<{ x: number; y: number } | null>(null);
+  const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
   const handleMouseMove = (e: any) => {
-    const pos = e.target.getStage()?.getPointerPosition();
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
     if (!pos) return;
+
     updateGhost(pos);
     evalHover(pos);
+
+    if (isPanning && panStart.current) {
+      setStagePos({
+        x: stageStart.current.x + (pos.x - panStart.current.x),
+        y: stageStart.current.y + (pos.y - panStart.current.y),
+      });
+    }
+  };
+
+  const handleWheel = (e: any) => {
+    e.evt.preventDefault();
+
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    const scaleBy = 1.05;
+    const direction = e.evt.deltaY > 0 ? -1 : 1;
+
+    const newScale =
+      direction > 0
+        ? Math.min(scale * scaleBy, 3)
+        : Math.max(scale / scaleBy, 0.4);
+
+    const mousePointTo = {
+      x: (pointer.x - stagePos.x) / scale,
+      y: (pointer.y - stagePos.y) / scale,
+    };
+
+    setScale(newScale);
+    setStagePos({
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    });
+  };
+
+  /* SAVE VIEW — יזום בלבד */
+  const handleSaveCanvasView = () => {
+    setCanvasView({
+      scale,
+      x: stagePos.x,
+      y: stagePos.y,
+    });
   };
 
   /* DELETE ZONE */
@@ -154,6 +204,14 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         −
       </button>
 
+      {/* SAVE VIEW */}
+      <button
+        onClick={handleSaveCanvasView}
+        className="absolute top-52 left-4 bg-blue-600 text-white px-4 py-2 rounded-lg z-50"
+      >
+        💾 שמור תצוגה
+      </button>
+
       {/* STAGE */}
       <Stage
         width={width}
@@ -162,24 +220,30 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         scaleY={scale}
         x={stagePos.x}
         y={stagePos.y}
-        draggable={isPanning}
+        onWheel={handleWheel}
         onMouseMove={handleMouseMove}
         onMouseDown={(e) => {
           const stage = e.target.getStage();
           if (e.target === stage) {
             setSelectedZone(null);
             setIsPanning(true);
+            const pos = stage.getPointerPosition();
+            if (pos) {
+              panStart.current = pos;
+              stageStart.current = stagePos;
+            }
           }
         }}
-        onMouseUp={() => setIsPanning(false)}
+        onMouseUp={() => {
+          setIsPanning(false);
+          panStart.current = null;
+        }}
         className="flex-1"
       >
-        {/* GRID */}
         <Layer listening={false}>
           <GridLayer width={width} height={height} />
         </Layer>
 
-        {/* BACKGROUND */}
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
@@ -191,14 +255,12 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           )}
         </Layer>
 
-        {/* ZONES */}
         <Layer>
           {zones.map((zone) => (
             <ZoneRenderer key={zone.id} zone={zone} />
           ))}
         </Layer>
 
-        {/* TABLES */}
         <Layer>
           {tables.map((t) => (
             <TableRenderer
@@ -211,12 +273,10 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           ))}
         </Layer>
 
-        {/* GHOST */}
         <Layer listening={false}>
           <GhostPreview />
         </Layer>
 
-        {/* DELETE BUTTONS */}
         <Layer>
           {tables.map((t) => (
             <DeleteTableButton key={t.id} table={t} />
@@ -224,7 +284,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         </Layer>
       </Stage>
 
-      {/* ADD TABLE BUTTON */}
       <button
         onClick={() => setShowAddModal(true)}
         className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
@@ -232,7 +291,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         ➕ הוסף שולחן
       </button>
 
-      {/* DRAWER החדש */}
       {showAddModal && (
         <AddTableDrawer
           open={showAddModal}

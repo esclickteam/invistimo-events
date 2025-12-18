@@ -22,6 +22,13 @@ export const useSeatingStore = create((set, get) => ({
   showAddModal: false,
   addGuestTable: null,
 
+  /* ================= ⭐ CANVAS VIEW (ADDED) ================= */
+  canvasView: {
+    scale: 1,
+    x: 0,
+    y: 0,
+  },
+
   /* ---------------- ACTIONS ---------------- */
   setAddGuestTable: (tableId) => set({ addGuestTable: tableId }),
   setShowAddModal: (v) => set({ showAddModal: v }),
@@ -29,6 +36,12 @@ export const useSeatingStore = create((set, get) => ({
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
   setBackground: (background) => set({ background }),
+
+  /* ================= ⭐ SET CANVAS VIEW (ADDED) ================= */
+  setCanvasView: (view) =>
+    set({
+      canvasView: view,
+    }),
 
   setTables: (tables) =>
     set(() => ({
