@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ============================================================
-   חישוב דינמי של צורת השולחן + כסאות (כמו קודם)
+   חישוב דינמי של צורת השולחן + כסאות
 ============================================================ */
 function getTableLayout(rawTable) {
   const seats = Math.max(0, Number(rawTable.seats || 0));
@@ -19,6 +19,7 @@ function getTableLayout(rawTable) {
   const OUTSIDE = 10;
   const STEP = SEAT_R * 2 + SEAT_GAP;
   const PAD = SEAT_R + OUTSIDE + 10;
+
   const coords = [];
   const dims = {
     size: 150,
@@ -35,11 +36,12 @@ function getTableLayout(rawTable) {
     const pairs = even / 2;
     const horizontalPairs = Math.ceil(pairs / 2);
     const verticalPairs = Math.floor(pairs / 2);
-    const top = horizontalPairs + (hasExtra ? 1 : 0);
-    const bottom = horizontalPairs;
-    const left = verticalPairs;
-    const right = verticalPairs;
-    return { top, right, bottom, left };
+    return {
+      top: horizontalPairs + (hasExtra ? 1 : 0),
+      bottom: horizontalPairs,
+      left: verticalPairs,
+      right: verticalPairs,
+    };
   };
 
   const placeLineCentered = (count, fixed, axis) => {
@@ -61,10 +63,15 @@ function getTableLayout(rawTable) {
     const seatRing = Math.max(42, requiredCirc / (2 * Math.PI));
     const tableRadius = Math.max(38, seatRing - (SEAT_R + OUTSIDE));
     const ring = tableRadius + SEAT_R + OUTSIDE;
+
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-      coords.push({ x: Math.cos(angle) * ring, y: Math.sin(angle) * ring });
+      coords.push({
+        x: Math.cos(angle) * ring,
+        y: Math.sin(angle) * ring,
+      });
     }
+
     dims.radius = tableRadius;
     return { coords, ...dims, type };
   }
@@ -76,10 +83,12 @@ function getTableLayout(rawTable) {
     const size = Math.max(120, span + PAD * 2);
     const half = size / 2;
     const fixed = half + SEAT_R + OUTSIDE;
+
     placeLineCentered(top, -fixed, "x");
-    placeLineCentered(bottom, +fixed, "x");
-    placeLineCentered(right, +fixed, "y");
+    placeLineCentered(bottom, fixed, "x");
+    placeLineCentered(right, fixed, "y");
     placeLineCentered(left, -fixed, "y");
+
     dims.size = size;
     return { coords, ...dims, type };
   }
@@ -92,6 +101,7 @@ function getTableLayout(rawTable) {
     const width = Math.max(200, span + PAD * 2);
     const height = 70;
     const yFixed = height / 2 + SEAT_R + OUTSIDE;
+
     const placeRow = (count, y) => {
       if (count <= 0) return;
       if (count === 1) {
@@ -104,8 +114,10 @@ function getTableLayout(rawTable) {
         coords.push({ x: start + i * STEP, y });
       }
     };
+
     placeRow(topCount, -yFixed);
-    placeRow(bottomCount, +yFixed);
+    placeRow(bottomCount, yFixed);
+
     dims.width = width;
     dims.height = height;
     return { coords, ...dims, type };
@@ -115,20 +127,17 @@ function getTableLayout(rawTable) {
 }
 
 /* ============================================================
-   חישוב סיבוב כיסא לפי סוג שולחן
+   סיבוב כיסאות
 ============================================================ */
 function getSeatRotation(table, c) {
-  // ⭕ שולחן עגול – פנימה למרכז
   if (table.type === "round") {
     return (Math.atan2(-c.y, -c.x) * 180) / Math.PI + 90;
   }
 
-  // 🟦 שולחן אבירים – רק למעלה / למטה
   if (table.type === "banquet") {
     return c.y > 0 ? 0 : 180;
   }
 
-  // ⬜ שולחן מרובע / מלבני
   if (table.type === "square" || table.type === "rectangle") {
     if (Math.abs(c.x) > Math.abs(c.y)) {
       return c.x > 0 ? -90 : 90;
@@ -145,10 +154,8 @@ function getSeatRotation(table, c) {
 function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
-  // ✅ רק זה נשאר state כדי לנעול drag בזמן סיבוב
   const [rotating, setRotating] = useState(false);
 
-  // ✅ refs כדי שלא יהיה סטאטר/תקיעות (לא מרנדר כל פיקסל)
   const rotateActiveRef = useRef(false);
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
@@ -159,6 +166,7 @@ function TableRenderer({ table }) {
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
+
   const deleteTable =
     useSeatingStore((s) => s.deleteTable) ||
     useSeatingStore((s) => s.removeTable) ||
@@ -166,13 +174,11 @@ function TableRenderer({ table }) {
 
   const assigned = table.seatedGuests || [];
 
-  // ✅ סופרים רק כיסאות שתפוסים בפועל (לא מכפילים לפי אישורי הגעה)
   const occupiedSeatsCount = useMemo(() => {
     const indices = new Set(assigned.map((s) => s.seatIndex));
     return indices.size;
   }, [assigned]);
 
-  // guest info per seat
   const seatInfoMap = useMemo(() => {
     const map = new Map();
     assigned.forEach((s) => {
@@ -191,20 +197,34 @@ function TableRenderer({ table }) {
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
 
-  const layout = useMemo(() => getTableLayout(table), [
-    table.id,
-    table.type,
-    table.seats,
-  ]);
+  const layout = useMemo(
+    () => getTableLayout(table),
+    [table.type, table.seats]
+  );
+
   const seatsCoords = layout.coords;
+
+  /* ====== CACHE כמו Canva ====== */
+  useEffect(() => {
+    if (tableRef.current) {
+      tableRef.current.cache();
+      tableRef.current.getLayer()?.batchDraw();
+    }
+  }, [layout.type, table.seats]);
 
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
+
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
         t.id === table.id
-          ? { ...t, x: pos.x, y: pos.y, rotation: tableRef.current.rotation() }
+          ? {
+              ...t,
+              x: pos.x,
+              y: pos.y,
+              rotation: tableRef.current.rotation(),
+            }
           : t
       ),
     }));
@@ -212,11 +232,12 @@ function TableRenderer({ table }) {
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
-    if (draggingGuest)
+    if (draggingGuest) {
       assignGuestBlock({
         guestId: draggingGuest.id,
         tableId: table.id,
       });
+    }
   };
 
   const handleClick = (e) => {
@@ -227,23 +248,21 @@ function TableRenderer({ table }) {
     }
   };
 
-  /* 🌀 סיבוב חלק כמו בקאנבה (לא עושה setState תוך כדי תנועה) */
+  /* ====== סיבוב ====== */
   const startRotate = (e) => {
     e.cancelBubble = true;
     if (!tableRef.current) return;
 
     const stage = e.target.getStage();
-    if (!stage) return;
-
     const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-
     const center = tableRef.current.getAbsolutePosition();
+
     const dx = pointer.x - center.x;
     const dy = pointer.y - center.y;
 
     startAngleRef.current = Math.atan2(dy, dx);
-    startRotationRadRef.current = (tableRef.current.rotation() * Math.PI) / 180;
+    startRotationRadRef.current =
+      (tableRef.current.rotation() * Math.PI) / 180;
 
     rotateActiveRef.current = true;
     setRotating(true);
@@ -251,63 +270,29 @@ function TableRenderer({ table }) {
     const move = () => {
       if (!rotateActiveRef.current || !tableRef.current) return;
       const p = stage.getPointerPosition();
-      if (!p) return;
-
       const c = tableRef.current.getAbsolutePosition();
-      const ddx = p.x - c.x;
-      const ddy = p.y - c.y;
 
-      const ang = Math.atan2(ddy, ddx);
-      const newRotRad =
+      const ang = Math.atan2(p.y - c.y, p.x - c.x);
+      const newRot =
         ang - startAngleRef.current + startRotationRadRef.current;
-      const newRotDeg = (newRotRad * 180) / Math.PI;
 
-      // ✅ סיבוב ישיר של Konva (סופר חלק)
-      tableRef.current.rotation(newRotDeg);
+      tableRef.current.rotation((newRot * 180) / Math.PI);
       tableRef.current.getLayer()?.batchDraw();
     };
 
     const end = () => {
-      if (!rotateActiveRef.current) return;
       rotateActiveRef.current = false;
       setRotating(false);
-
-      // ✅ שמירה פעם אחת בסוף (לא נתקע + כן נשמר)
       updatePositionInStore();
-
       stage.off("mousemove.tableRotate", move);
       stage.off("mouseup.tableRotate", end);
-      stage.off("mouseleave.tableRotate", end);
-      stage.off("touchmove.tableRotate", move);
-      stage.off("touchend.tableRotate", end);
-      stage.off("touchcancel.tableRotate", end);
     };
 
-    // ✅ מאזינים לסטייג' כדי שלא "יתנתק" אם יצאת מהכפתור בזמן גרירה
     stage.on("mousemove.tableRotate", move);
     stage.on("mouseup.tableRotate", end);
-    stage.on("mouseleave.tableRotate", end);
-    stage.on("touchmove.tableRotate", move);
-    stage.on("touchend.tableRotate", end);
-    stage.on("touchcancel.tableRotate", end);
   };
 
   const { size, width, height, radius } = layout;
-  const rotationHandleY =
-    layout.type === "round"
-      ? -layout.radius - 35
-      : layout.type === "square"
-      ? -layout.size / 2 - 35
-      : -layout.height / 2 - 35;
-
-  const deleteBtnPos =
-    layout.type === "round"
-      ? { x: radius - 12, y: -radius - 12 }
-      : layout.type === "square"
-      ? { x: size / 2 - 12, y: -size / 2 - 12 }
-      : { x: width / 2 - 12, y: -height / 2 - 12 };
-
-  const showDeleteButton = selectedTableId === table.id;
 
   return (
     <Group
@@ -316,37 +301,29 @@ function TableRenderer({ table }) {
       y={table.y}
       rotation={table.rotation || 0}
       draggable={!rotating}
-      onDragStart={() => {
-        // ✅ מוריד עומס בזמן גרירה (צללים כבדים)
-        tableRef.current?.find("Rect").forEach((r) => r.shadowBlur(0));
-        tableRef.current?.find("Circle").forEach((c) => c.shadowBlur(0));
-      }}
-      onDragEnd={() => {
-        // ✅ מחזיר צללים ושומר פעם אחת בלבד
-        tableRef.current?.find("Rect").forEach((r) => r.shadowBlur(8));
-        tableRef.current?.find("Circle").forEach((c) => c.shadowBlur(8));
-        updatePositionInStore();
-      }}
+      onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
+      listening={!rotating}
     >
-      {/* שולחנות */}
+      {/* שולחן */}
       {layout.type === "round" && (
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
             text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
-            fontSize={16}
-            fill={tableText}
-            align="center"
-            verticalAlign="middle"
             width={radius * 2}
             height={radius * 2}
             offsetX={radius}
             offsetY={radius}
+            align="center"
+            verticalAlign="middle"
+            fill={tableText}
+            fontSize={16}
           />
         </>
       )}
+
       {layout.type === "square" && (
         <>
           <Rect
@@ -360,17 +337,18 @@ function TableRenderer({ table }) {
           />
           <Text
             text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
-            fontSize={16}
-            fill={tableText}
-            align="center"
-            verticalAlign="middle"
             width={size}
             height={size}
             offsetX={size / 2}
             offsetY={size / 2}
+            align="center"
+            verticalAlign="middle"
+            fill={tableText}
+            fontSize={16}
           />
         </>
       )}
+
       {layout.type === "banquet" && (
         <>
           <Rect
@@ -384,75 +362,41 @@ function TableRenderer({ table }) {
           />
           <Text
             text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
-            fontSize={16}
-            fill={tableText}
-            align="center"
-            verticalAlign="middle"
             width={width}
             height={height}
             offsetX={width / 2}
             offsetY={height / 2}
+            align="center"
+            verticalAlign="middle"
+            fill={tableText}
+            fontSize={16}
           />
         </>
       )}
 
-      {/* 🔄 כפתור סיבוב קבוע (חלק + נשמר תמיד בשחרור) */}
-      <Group
-        x={0}
-        y={rotationHandleY}
-        onMouseDown={startRotate}
-        listening={true}
-      >
-        <Circle radius={12} fill="#64748b" shadowBlur={4} />
+      {/* כפתור סיבוב */}
+      <Group y={-radius - 35} onMouseDown={startRotate}>
+        <Circle radius={12} fill="#64748b" />
         <Text
           text="↻"
-          fontSize={14}
-          align="center"
-          verticalAlign="middle"
           width={24}
           height={24}
           offsetX={12}
           offsetY={12}
+          align="center"
+          verticalAlign="middle"
           fill="white"
         />
       </Group>
 
-      {/* כפתור מחיקה */}
-      {showDeleteButton && !draggingGuest && (
-        <Group
-          x={deleteBtnPos.x}
-          y={deleteBtnPos.y}
-          onClick={(e) => {
-            e.cancelBubble = true;
-            deleteTable(table.id);
-            useSeatingStore.setState({ selectedTableId: null });
-          }}
-        >
-          <Circle radius={12} fill="#ef4444" shadowBlur={6} />
-          <Text
-            text="🗑"
-            fontSize={14}
-            align="center"
-            verticalAlign="middle"
-            width={24}
-            height={24}
-            offsetX={12}
-            offsetY={12}
-            fill="white"
-          />
-        </Group>
-      )}
-
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
         const guest = seatInfoMap.get(i)?.guest;
-
-        // זווית מהמרכז אל הכיסא
-        const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+        const rotation =
+          getSeatRotation(layout, c) - (table.rotation || 0);
 
         return (
           <Group key={i} x={c.x} y={c.y} rotation={rotation}>
-            {/* גב הכיסא */}
             <Rect
               x={-5}
               y={-16}
@@ -461,8 +405,6 @@ function TableRenderer({ table }) {
               cornerRadius={3}
               fill={guest ? "#cbd5e1" : "#bfdbfe"}
             />
-
-            {/* מושב */}
             <Rect
               x={-7}
               y={-10}
