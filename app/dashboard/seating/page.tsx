@@ -87,7 +87,8 @@ export default function SeatingPage() {
         init(
           tData.tables || [],
           normalizedGuests,
-          tData.background ?? null
+          tData.background ?? null,
+          tData.canvasView ?? null // ✅ תוספת בלבד
         );
 
         setZones(tData.zones || []);
@@ -121,6 +122,7 @@ export default function SeatingPage() {
     }
 
     const zones = useZoneStore.getState().zones;
+    const canvasView = useSeatingStore.getState().canvasView; // ✅ תוספת בלבד
 
     try {
       const res = await fetch(`/api/seating/save/${invitationId}`, {
@@ -131,6 +133,7 @@ export default function SeatingPage() {
           guests,
           background,
           zones,
+          canvasView, // ✅ תוספת בלבד
         }),
       });
 
