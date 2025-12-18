@@ -7,9 +7,10 @@ export async function POST(req: Request) {
     key: process.env.SMS4FREE_KEY,
     user: process.env.SMS4FREE_USER,
     pass: process.env.SMS4FREE_PASS,
-    sender: process.env.SMS4FREE_SENDER,
-    recipient: to,        // "97252xxxxxx"
+    sender: process.env.SMS4FREE_SENDER, // חייב להיות זהה לשליחה הידנית
+    destinations: to,                   // ❗️זה השם הנכון
     msg: message,
+    msgType: "text",                    // ❗️חובה
   };
 
   const res = await fetch(
@@ -25,5 +26,11 @@ export async function POST(req: Request) {
 
   const data = await res.json();
 
-  return NextResponse.json(data);
+  // 🔍 לוג חובה בזמן בדיקות
+  console.log("SMS4FREE RESPONSE:", data);
+
+  return NextResponse.json({
+    success: data?.status === 0 || data?.success === true,
+    providerResponse: data,
+  });
 }
