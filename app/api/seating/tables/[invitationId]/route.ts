@@ -63,6 +63,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       tables: record?.tables || [],
       background: record?.background ?? null,
       zones: record?.zones || [],
+      canvasView: record?.canvasView ?? null, // ✅ תוספת בלבד
     });
   } catch (err) {
     console.error("❌ Load seating tables error:", err);
