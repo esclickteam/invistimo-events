@@ -39,11 +39,11 @@ function getTableLayout(rawTable) {
     const horizontalPairs = Math.ceil(pairs / 2);
     const verticalPairs = Math.floor(pairs / 2);
     return {
-  top: horizontalPairs + (hasExtra ? 1 : 0),
-  right: verticalPairs,
-  bottom: horizontalPairs,
-  left: verticalPairs,
-};
+      top: horizontalPairs + (hasExtra ? 1 : 0),
+      bottom: horizontalPairs,
+      left: verticalPairs,
+      right: verticalPairs,
+    };
   };
 
   const placeLineCentered = (count, fixed, axis) => {
@@ -394,8 +394,9 @@ function TableRenderer({ table }) {
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
         const guest = seatInfoMap.get(i)?.guest;
-        const rotation =
-          getSeatRotation(layout, c) - (table.rotation || 0);
+        const rotation = getSeatRotation(layout, c);
+
+          
 
         return (
           <Group key={i} x={c.x} y={c.y} rotation={rotation}>
