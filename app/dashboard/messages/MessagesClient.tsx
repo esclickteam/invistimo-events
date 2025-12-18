@@ -226,8 +226,10 @@ export default function MessagesPage() {
   if (!invitation) return <div>לא נמצאה הזמנה</div>;
 
   const remaining = balance?.remainingMessages ?? 0;
-  const max = balance?.maxMessages ?? 0;
-  const progress = max > 0 ? (remaining / max) * 100 : 0;
+const max = balance?.maxMessages ?? 0;
+const used = max - remaining;
+
+const progress = max > 0 ? (used / max) * 100 : 0;
 
   return (
     <div className="p-10 flex flex-col items-center" dir="rtl">
