@@ -83,7 +83,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        CANVAS VIEW (ZOOM + PAN)
-       ⭐ תוספת בלבד
     =============================== */
     const canvasView =
       body.canvasView &&
@@ -107,7 +106,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
           tables,
           zones,
           background,
-          canvasView, // ✅ שמירת מצב קנבס
+          canvasView,
           updatedAt: new Date(),
         },
       },
@@ -127,14 +126,25 @@ export async function POST(req: NextRequest, context: RouteContext) {
       { $set: { tableNumber: null } }
     );
 
+    /* ===============================
+       ASSIGN TABLES TO GUESTS
+       ✅ תיקון CAST ERROR
+    =============================== */
     for (const table of tables) {
       if (!Array.isArray(table.seatedGuests)) continue;
+
+      // חילוץ מספר שולחן מהשם (אם קיים)
+      const tableNumber =
+        typeof table.name === "string"
+          ? Number(table.name.replace(/\D/g, "")) || null
+          : null;
 
       for (const seated of table.seatedGuests) {
         if (!seated?.guestId) continue;
 
         await InvitationGuest.findByIdAndUpdate(seated.guestId, {
-          tableNumber: table.name ?? table.id,
+          tableNumber,                 // ✅ מספר בלבד
+          tableName: table.name ?? "", // ✅ שם לתצוגה
         });
       }
     }

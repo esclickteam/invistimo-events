@@ -72,7 +72,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     return (tableGuests || []).filter((g) => {
       const id = getGuestId(g);
-      const hasTable = Boolean(g?.tableId);
+        const hasTable = Boolean(g?.tableName);
       return !hasTable && !seatedIds.has(id);
     });
   }, [tableGuests]);
@@ -101,7 +101,6 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         guestId: guest.id,
-        tableId: tableData.id,
         tableName: tableData.name,
         seatIndex,
       }),
