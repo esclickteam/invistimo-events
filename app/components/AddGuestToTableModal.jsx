@@ -17,7 +17,9 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const storeGuests = useSeatingStore((s) => s.guests);
   const tableGuests = storeGuests?.length ? storeGuests : guests;
 
-  const [openSeat, setOpenSeat] = useState<number | null>(null);
+  // ❌ היה: useState<number | null>(null)
+  // ✅ מתוקן:
+  const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
 
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
