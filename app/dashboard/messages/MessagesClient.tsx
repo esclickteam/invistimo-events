@@ -182,7 +182,7 @@ export default function MessagesPage() {
   const sendSMS = async () => {
     if (!invitation || !hasSmsBalance) return;
 
-    const res = await fetch("/api/messages/send", {
+    const res = await fetch("/api/sms/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
