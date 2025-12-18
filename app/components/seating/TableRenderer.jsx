@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useState } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -125,8 +125,7 @@ function getSeatRotation(table, c) {
 
   // 🟦 שולחן אבירים – רק למעלה / למטה
   if (table.type === "banquet") {
-      return c.y > 0 ? 0 : 180;
-
+    return c.y > 0 ? 0 : 180;
   }
 
   // ⬜ שולחן מרובע / מלבני
@@ -140,11 +139,10 @@ function getSeatRotation(table, c) {
   return 0;
 }
 
-
 /* ============================================================
    TableRenderer
 ============================================================ */
-export default function TableRenderer({ table }) {
+function TableRenderer({ table }) {
   const tableRef = useRef(null);
 
   // ✅ רק זה נשאר state כדי לנעול drag בזמן סיבוב
@@ -193,34 +191,24 @@ export default function TableRenderer({ table }) {
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
 
-  const layout = useMemo(() => getTableLayout(table), [table.type, table.seats]);
+  const layout = useMemo(() => getTableLayout(table), [
+    table.id,
+    table.type,
+    table.seats,
+  ]);
   const seatsCoords = layout.coords;
 
   const updatePositionInStore = () => {
-  if (!tableRef.current) return;
-
-  const stage = tableRef.current.getStage();
-  const scale = stage?.scaleX() || 1;
-
-  const pos = tableRef.current.position();
-
-  const normalizedX = pos.x / scale;
-  const normalizedY = pos.y / scale;
-
-  useSeatingStore.setState((state) => ({
-    tables: state.tables.map((t) =>
-      t.id === table.id
-        ? {
-            ...t,
-            x: normalizedX,
-            y: normalizedY,
-            rotation: tableRef.current.rotation(),
-          }
-        : t
-    ),
-  }));
-};
-
+    if (!tableRef.current) return;
+    const pos = tableRef.current.position();
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id
+          ? { ...t, x: pos.x, y: pos.y, rotation: tableRef.current.rotation() }
+          : t
+      ),
+    }));
+  };
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
@@ -270,7 +258,8 @@ export default function TableRenderer({ table }) {
       const ddy = p.y - c.y;
 
       const ang = Math.atan2(ddy, ddx);
-      const newRotRad = ang - startAngleRef.current + startRotationRadRef.current;
+      const newRotRad =
+        ang - startAngleRef.current + startRotationRadRef.current;
       const newRotDeg = (newRotRad * 180) / Math.PI;
 
       // ✅ סיבוב ישיר של Konva (סופר חלק)
@@ -327,8 +316,17 @@ export default function TableRenderer({ table }) {
       y={table.y}
       rotation={table.rotation || 0}
       draggable={!rotating}
-      onDragMove={updatePositionInStore}
-      onDragEnd={updatePositionInStore}
+      onDragStart={() => {
+        // ✅ מוריד עומס בזמן גרירה (צללים כבדים)
+        tableRef.current?.find("Rect").forEach((r) => r.shadowBlur(0));
+        tableRef.current?.find("Circle").forEach((c) => c.shadowBlur(0));
+      }}
+      onDragEnd={() => {
+        // ✅ מחזיר צללים ושומר פעם אחת בלבד
+        tableRef.current?.find("Rect").forEach((r) => r.shadowBlur(8));
+        tableRef.current?.find("Circle").forEach((c) => c.shadowBlur(8));
+        updatePositionInStore();
+      }}
       onMouseUp={handleDrop}
       onClick={handleClick}
     >
@@ -399,7 +397,12 @@ export default function TableRenderer({ table }) {
       )}
 
       {/* 🔄 כפתור סיבוב קבוע (חלק + נשמר תמיד בשחרור) */}
-      <Group x={0} y={rotationHandleY} onMouseDown={startRotate} listening={true}>
+      <Group
+        x={0}
+        y={rotationHandleY}
+        onMouseDown={startRotate}
+        listening={true}
+      >
         <Circle radius={12} fill="#64748b" shadowBlur={4} />
         <Text
           text="↻"
@@ -440,52 +443,42 @@ export default function TableRenderer({ table }) {
         </Group>
       )}
 
-      
-
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
-  const guest = seatInfoMap.get(i)?.guest;
+        const guest = seatInfoMap.get(i)?.guest;
 
-  // זווית מהמרכז אל הכיסא
-  const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+        // זווית מהמרכז אל הכיסא
+        const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-    
+        return (
+          <Group key={i} x={c.x} y={c.y} rotation={rotation}>
+            {/* גב הכיסא */}
+            <Rect
+              x={-5}
+              y={-16}
+              width={10}
+              height={6}
+              cornerRadius={3}
+              fill={guest ? "#cbd5e1" : "#bfdbfe"}
+            />
 
-  return (
-    <Group
-      key={i}
-      x={c.x}
-      y={c.y}
-      rotation={rotation}
-    >
-      {/* גב הכיסא */}
-      <Rect
-        x={-5}
-        y={-16}
-        width={10}
-        height={6}
-        cornerRadius={3}
-        fill={guest ? "#cbd5e1" : "#bfdbfe"}
-      />
-
-      {/* מושב */}
-      <Rect
-        x={-7}
-        y={-10}
-        width={14}
-        height={10}
-        cornerRadius={4}
-        fill={guest ? "#94a3b8" : "#3b82f6"}
-        stroke="#2563eb"
-        strokeWidth={1}
-        shadowBlur={2}
-      />
-    </Group>
-  );
-})}
-
-
-
+            {/* מושב */}
+            <Rect
+              x={-7}
+              y={-10}
+              width={14}
+              height={10}
+              cornerRadius={4}
+              fill={guest ? "#94a3b8" : "#3b82f6"}
+              stroke="#2563eb"
+              strokeWidth={1}
+              shadowBlur={2}
+            />
+          </Group>
+        );
+      })}
     </Group>
   );
 }
+
+export default React.memo(TableRenderer);
