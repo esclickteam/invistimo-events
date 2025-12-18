@@ -153,15 +153,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     });
   };
 
-  /* SAVE VIEW — יזום בלבד */
-  const handleSaveCanvasView = () => {
-    setCanvasView({
-      scale,
-      x: stagePos.x,
-      y: stagePos.y,
-    });
-  };
-
   /* DELETE ZONE */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -202,14 +193,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         className="absolute top-36 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
       >
         −
-      </button>
-
-      {/* SAVE VIEW */}
-      <button
-        onClick={handleSaveCanvasView}
-        className="absolute top-52 left-4 bg-blue-600 text-white px-4 py-2 rounded-lg z-50"
-      >
-        💾 שמור תצוגה
       </button>
 
       {/* STAGE */}
