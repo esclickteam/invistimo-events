@@ -26,7 +26,7 @@ export default function Header() {
               href="/#how"
               className="hover:text-[var(--champagne-dark)] transition"
             >
-              איך זה עובד?
+             
             </Link>
 
             <Link
