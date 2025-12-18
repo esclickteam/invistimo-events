@@ -72,8 +72,8 @@ export async function POST(req: Request) {
       key: process.env.SMS4FREE_KEY,
       user: process.env.SMS4FREE_USER,
       pass: process.env.SMS4FREE_PASS,
-      sender: process.env.SMS4FREE_SENDER, // מספר או שם מאושר
-      recipient: phone,                   // 👈 השם הנכון לפי התיעוד
+      sender: process.env.SMS4FREE_SENDER, // מספר או Sender מאושר
+      recipient: phone,                   // 👈 לפי התיעוד
       msg: text,
     };
 
@@ -92,10 +92,12 @@ export async function POST(req: Request) {
 
       /* ---------- זיהוי הצלחה ---------- */
       const isSuccess =
-        data?.status === 0 ||
-        data?.status === "0" ||
-        data?.success === true ||
-        data?.message === "OK";
+        res.ok &&
+        (data?.status === 0 ||
+          data?.status === "0" ||
+          data?.success === true ||
+          data?.message === "OK" ||
+          data); // sms4free לפעמים לא מחזיר שדות עקביים
 
       if (isSuccess) {
         sent++;
@@ -103,6 +105,19 @@ export async function POST(req: Request) {
     } catch (err) {
       console.error("SMS SEND ERROR:", err);
     }
+  }
+
+  /* ================= עדכון DB ================= */
+  if (sent > 0) {
+    await Invitation.updateOne(
+      { _id: invitationId },
+      {
+        $inc: {
+          sentSmsCount: sent,
+          remainingMessages: -sent,
+        },
+      }
+    );
   }
 
   return NextResponse.json({
