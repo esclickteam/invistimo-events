@@ -55,6 +55,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const addTable = useSeatingStore((s) => s.addTable);
 
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
+  const canvasView = useSeatingStore((s) => s.canvasView); // ✅ תוספת
 
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
@@ -106,6 +107,20 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+
+  /* ✅ תוספת – טעינת מצב קנבס שמור */
+  useEffect(() => {
+    if (!canvasView) return;
+
+    if (
+      typeof canvasView.scale === "number" &&
+      typeof canvasView.x === "number" &&
+      typeof canvasView.y === "number"
+    ) {
+      setScale(canvasView.scale);
+      setStagePos({ x: canvasView.x, y: canvasView.y });
+    }
+  }, [canvasView]);
 
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
