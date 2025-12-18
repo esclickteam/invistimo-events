@@ -142,7 +142,8 @@ function getSeatRotation(table, c) {
 
   if (table.type === "square" || table.type === "rectangle") {
     if (Math.abs(c.x) > Math.abs(c.y)) {
-      return c.x > 0 ? -90 : 90;
+      return c.x > 0 ? 90 : -90;
+
     }
     return c.y > 0 ? 0 : 180;
   }
@@ -394,9 +395,8 @@ function TableRenderer({ table }) {
       {/* כסאות */}
       {seatsCoords.map((c, i) => {
         const guest = seatInfoMap.get(i)?.guest;
-        const rotation = getSeatRotation(layout, c);
-
-          
+        const rotation =
+          getSeatRotation(layout, c) - (table.rotation || 0);
 
         return (
           <Group key={i} x={c.x} y={c.y} rotation={rotation}>
