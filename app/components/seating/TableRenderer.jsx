@@ -39,11 +39,11 @@ function getTableLayout(rawTable) {
     const horizontalPairs = Math.ceil(pairs / 2);
     const verticalPairs = Math.floor(pairs / 2);
     return {
-      top: horizontalPairs + (hasExtra ? 1 : 0),
-      bottom: horizontalPairs,
-      left: verticalPairs,
-      right: verticalPairs,
-    };
+  top: horizontalPairs + (hasExtra ? 1 : 0),
+  right: verticalPairs,
+  bottom: horizontalPairs,
+  left: verticalPairs,
+};
   };
 
   const placeLineCentered = (count, fixed, axis) => {
