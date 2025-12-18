@@ -197,16 +197,30 @@ export default function TableRenderer({ table }) {
   const seatsCoords = layout.coords;
 
   const updatePositionInStore = () => {
-    if (!tableRef.current) return;
-    const pos = tableRef.current.position();
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === table.id
-          ? { ...t, x: pos.x, y: pos.y, rotation: tableRef.current.rotation() }
-          : t
-      ),
-    }));
-  };
+  if (!tableRef.current) return;
+
+  const stage = tableRef.current.getStage();
+  const scale = stage?.scaleX() || 1;
+
+  const pos = tableRef.current.position();
+
+  const normalizedX = pos.x / scale;
+  const normalizedY = pos.y / scale;
+
+  useSeatingStore.setState((state) => ({
+    tables: state.tables.map((t) =>
+      t.id === table.id
+        ? {
+            ...t,
+            x: normalizedX,
+            y: normalizedY,
+            rotation: tableRef.current.rotation(),
+          }
+        : t
+    ),
+  }));
+};
+
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
