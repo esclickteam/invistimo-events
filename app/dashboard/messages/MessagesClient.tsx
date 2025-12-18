@@ -180,8 +180,18 @@ export default function MessagesPage() {
   };
 
   const sendSMS = async () => {
-    if (!invitation || !hasSmsBalance) return;
+  if (!invitation || !hasSmsBalance) {
+    console.warn("❌ No invitation or no SMS balance");
+    return;
+  }
 
+  console.log("📤 Sending SMS", {
+    invitationId: invitation._id,
+    template: templateKey,
+    filter,
+  });
+
+  try {
     const res = await fetch("/api/sms/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -193,19 +203,30 @@ export default function MessagesPage() {
       }),
     });
 
-    const data = await res.json();
+    console.log("📬 SMS API status:", res.status);
 
-    if (!res.ok) {
+    const data = await res.json();
+    console.log("📦 SMS API response:", data);
+
+    if (!res.ok || !data?.success) {
       alert("❌ שליחת SMS נכשלה");
       return;
     }
 
+    alert(`✅ נשלחו ${data.sent} הודעות`);
+
+    // 🔄 ריענון יתרה אחרי שליחה
     const balanceRes = await fetch("/api/messages/balance");
     const balanceData = await balanceRes.json();
-    if (balanceData.success) setBalance(balanceData);
+    if (balanceData.success) {
+      setBalance(balanceData);
+    }
+  } catch (err) {
+    console.error("💥 SMS SEND ERROR:", err);
+    alert("❌ שגיאה בשליחת SMS");
+  }
+};
 
-    alert(`✅ נשלחו ${data.sent} הודעות`);
-  };
 
   const sendToAll = () => {
     if (channel === "whatsapp") {
