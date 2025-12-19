@@ -1,19 +1,25 @@
 "use client";
 
+import { MapPin, Navigation } from "lucide-react";
 import {
   getGoogleMapsLink,
   getWazeLink,
 } from "@/lib/navigationLinks";
 
-export default function EventNavigationButtons({
-  location,
-}: {
-  location?: {
-    address?: string;
-    lat?: number | null;
-    lng?: number | null;
-  };
-}) {
+/* ======================
+   Types
+====================== */
+type Location = {
+  address?: string;
+  lat?: number | null;
+  lng?: number | null;
+};
+
+type Props = {
+  location?: Location;
+};
+
+export default function EventNavigationButtons({ location }: Props) {
   if (!location) return null;
 
   const googleLink = getGoogleMapsLink(location);
@@ -23,25 +29,37 @@ export default function EventNavigationButtons({
 
   return (
     <div className="flex gap-3 justify-center mt-6">
-      {wazeLink && (
-        <a
-          href={wazeLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#33ccff] text-white font-semibold shadow"
-        >
-          🚗 Waze
-        </a>
-      )}
-
       {googleLink && (
         <a
           href={googleLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#4285F4] text-white font-semibold shadow"
+          className="
+            flex items-center gap-2 px-4 py-2 rounded-full
+            border border-[#d6c4a3]
+            text-[#6b5b3e] font-medium
+            hover:bg-[#f7f2ea] transition
+          "
         >
-          🗺️ Google Maps
+          <MapPin size={16} />
+          Google Maps
+        </a>
+      )}
+
+      {wazeLink && (
+        <a
+          href={wazeLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="
+            flex items-center gap-2 px-4 py-2 rounded-full
+            border border-[#d6c4a3]
+            text-[#6b5b3e] font-medium
+            hover:bg-[#f7f2ea] transition
+          "
+        >
+          <Navigation size={16} />
+          Waze
         </a>
       )}
     </div>

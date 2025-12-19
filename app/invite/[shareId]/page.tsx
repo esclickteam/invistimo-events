@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
-import EventNavigationButtons from "@/app/components/EventNavigationButtons";
-
+import EventLocationCard from "@/app/components/EventLocationCard";
 
 const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
 
@@ -118,7 +117,6 @@ export default function PublicInvitePage({ params }: any) {
 
       const data = await res.json();
       if (data.success) {
-        // ✅ שינוי יחיד: אם האורח מגיע → מעבר לעמוד תודה
         if (form.rsvp === "yes") {
           router.push("/thank-you");
         } else {
@@ -159,8 +157,8 @@ export default function PublicInvitePage({ params }: any) {
           )}
         </div>
 
-        <EventNavigationButtons location={invite.location} />
-
+        {/* כרטיס מיקום / איך מגיעים */}
+        <EventLocationCard location={invite.location} />
 
         {/* טופס אישור הגעה */}
         {!sent ? (
@@ -208,7 +206,7 @@ export default function PublicInvitePage({ params }: any) {
 
             {form.rsvp === "yes" && (
               <>
-                {/* 🔽 Dropdown מקצועי */}
+                {/* כמות אורחים */}
                 <div>
                   <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
                     כמה אנשים יגיעו?
@@ -252,6 +250,7 @@ export default function PublicInvitePage({ params }: any) {
                   </div>
                 </div>
 
+                {/* הערות */}
                 <div>
                   <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
                     הערות:
