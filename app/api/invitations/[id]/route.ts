@@ -73,7 +73,7 @@ export async function PUT(req: Request, context: any) {
       title,
       eventType,
       eventDate,
-      eventTime, // ✅ קריטי
+      eventTime,
       canvasData,
       location,
     } = body;
@@ -82,30 +82,54 @@ export async function PUT(req: Request, context: any) {
       updatedAt: new Date(),
     };
 
-    /* ===== שדות בסיס ===== */
-    if (title !== undefined) updatePayload.title = title;
-    if (eventType !== undefined) updatePayload.eventType = eventType;
-    if (eventDate !== undefined) updatePayload.eventDate = eventDate;
-    if (eventTime !== undefined) updatePayload.eventTime = eventTime;
+    /* ================= BASIC FIELDS ================= */
 
-    /* ===== מיקום האירוע ===== */
-    if (location !== undefined) {
+    if (typeof title === "string" && title.trim()) {
+      updatePayload.title = title.trim();
+    }
+
+    if (typeof eventType === "string" && eventType.trim()) {
+      updatePayload.eventType = eventType.trim();
+    }
+
+    if (eventDate) {
+      updatePayload.eventDate = eventDate;
+    }
+
+    if (typeof eventTime === "string" && eventTime.trim()) {
+      updatePayload.eventTime = eventTime;
+    }
+
+    /* ================= LOCATION ================= */
+
+    if (
+      location &&
+      (
+        typeof location.address === "string" && location.address.trim() ||
+        location.lat !== undefined ||
+        location.lng !== undefined
+      )
+    ) {
       updatePayload.location = {
-        name: location.name || "",
-        address: location.address || "",
-        lat: location.lat ?? null,
-        lng: location.lng ?? null,
+        name: typeof location.name === "string" ? location.name.trim() : "",
+        address:
+          typeof location.address === "string"
+            ? location.address.trim()
+            : "",
+        lat: typeof location.lat === "number" ? location.lat : null,
+        lng: typeof location.lng === "number" ? location.lng : null,
       };
     }
 
-    /* ===== canvasData ===== */
+    /* ================= CANVAS ================= */
+
     if (canvasData !== undefined) {
       updatePayload.canvasData = canvasData;
     }
 
     const updated = await Invitation.findByIdAndUpdate(
       id,
-      updatePayload,
+      { $set: updatePayload },
       { new: true }
     ).populate("guests");
 
