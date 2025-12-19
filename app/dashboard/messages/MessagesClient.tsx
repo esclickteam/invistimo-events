@@ -189,14 +189,20 @@ const MESSAGE_TEMPLATES: Record<
   /* ================= SEND ================= */
 
   const sendWhatsApp = (guest: Guest) => {
-    const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
-    const text = buildMessage(guest);
+  const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
+  const text = buildMessage(guest);
 
-    window.open(
-      `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`,
-      "_blank"
-    );
-  };
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const baseUrl = isMobile
+    ? "https://wa.me"
+    : "https://web.whatsapp.com/send";
+
+  window.open(
+    `${baseUrl}?phone=${phone}&text=${encodeURIComponent(text)}`,
+    "_blank"
+  );
+};
+
 
   const sendSMS = async () => {
   if (!invitation || !hasSmsBalance) {
