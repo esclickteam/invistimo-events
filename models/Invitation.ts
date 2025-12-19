@@ -1,6 +1,32 @@
 import mongoose, { Schema, models, model } from "mongoose";
 import { nanoid } from "nanoid";
 
+/* ================= LOCATION SUB-SCHEMA ================= */
+
+const LocationSchema = new Schema(
+  {
+    name: {
+      type: String,
+      default: "",
+    },
+    address: {
+      type: String,
+      default: "",
+    },
+    lat: {
+      type: Number,
+      default: null,
+    },
+    lng: {
+      type: Number,
+      default: null,
+    },
+  },
+  { _id: false } // ⬅️ חשוב – לא ליצור _id פנימי
+);
+
+/* ================= INVITATION SCHEMA ================= */
+
 const InvitationSchema = new Schema(
   {
     /* ================= OWNER ================= */
@@ -34,22 +60,8 @@ const InvitationSchema = new Schema(
 
     /* ================= LOCATION ================= */
     location: {
-      name: {
-        type: String,
-        default: "",
-      },
-      address: {
-        type: String,
-        default: "",
-      },
-      lat: {
-        type: Number,
-        default: null,
-      },
-      lng: {
-        type: Number,
-        default: null,
-      },
+      type: LocationSchema,
+      default: () => ({}),
     },
 
     /* ================= DESIGN ================= */
@@ -64,6 +76,7 @@ const InvitationSchema = new Schema(
       default: "",
     },
 
+    /* ================= SHARE ================= */
     shareId: {
       type: String,
       unique: true,

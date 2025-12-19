@@ -20,14 +20,15 @@ export default function EventDetailsModal({
     time: invitation.eventDate
       ? new Date(invitation.eventDate).toISOString().slice(11, 16)
       : "",
-  });
-
-  const [location, setLocation] = useState({
-    address: invitation.location?.address || "",
+    location: {
+      address: invitation.location?.address || "",
+      lat: invitation.location?.lat ?? null,
+      lng: invitation.location?.lng ?? null,
+    },
   });
 
   async function save() {
-    /* ⏰ חיבור date + time לתאריך אחד */
+    /* ⏰ חיבור date + time */
     let fullDate: string | null = null;
 
     if (form.date) {
@@ -35,7 +36,6 @@ export default function EventDetailsModal({
       fullDate = new Date(`${form.date}T${time}`).toISOString();
     }
 
-    /* 1️⃣ שמירת פרטי האירוע */
     const res = await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -43,33 +43,23 @@ export default function EventDetailsModal({
         title: form.title,
         eventType: form.eventType,
         eventDate: fullDate,
+        location: {
+          address: form.location.address,
+          lat: form.location.lat,
+          lng: form.location.lng,
+        },
       }),
     });
 
     const data = await res.json();
+
     if (!data.success) {
       alert("שגיאה בשמירת פרטי האירוע");
       return;
     }
 
-    /* 2️⃣ שמירת מיקום (אם הוזן) */
-    if (location.address.trim()) {
-      await fetch("/api/invitations/update-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invitationId: invitation._id,
-          location: {
-            address: location.address,
-            lat: null, // יתווסף בשלב הבא (Autocomplete)
-            lng: null,
-          },
-        }),
-      });
-    }
-
-    onSaved(); // רענון בדשבורד
-    onClose(); // סגירת המודאל
+    onSaved();
+    onClose();
   }
 
   return (
@@ -119,9 +109,15 @@ export default function EventDetailsModal({
           {/* 📍 מיקום האירוע */}
           <input
             placeholder="📍 מיקום האירוע (אולם / כתובת)"
-            value={location.address}
+            value={form.location.address}
             onChange={(e) =>
-              setLocation({ address: e.target.value })
+              setForm({
+                ...form,
+                location: {
+                  ...form.location,
+                  address: e.target.value,
+                },
+              })
             }
             className="border rounded-full px-4 py-3"
           />

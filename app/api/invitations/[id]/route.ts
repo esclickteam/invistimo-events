@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// ✅ חשוב: טוען את המודל של האורחים לפני ההזמנה
+// ✅ חשוב: טוען את מודל האורחים לפני ההזמנה
 import "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 
@@ -49,6 +49,7 @@ export async function GET(req: Request, context: any) {
 /* ============================================================
    💾 PUT — עדכון הזמנה קיימת
    ✔ פרטי אירוע
+   ✔ מיקום (Google Places)
    ✔ קנבס (לא חובה)
 ============================================================ */
 export async function PUT(req: Request, context: any) {
@@ -67,24 +68,34 @@ export async function PUT(req: Request, context: any) {
 
     const body = await req.json();
 
-    // 🔥 התאמה מלאה למודל
     const {
       title,
       eventType,
       eventDate,
       canvasData,
+      location, // ⭐ חדש
     } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
     };
 
-    // 🧠 מעדכן רק מה שנשלח
+    /* ===== עדכון שדות בסיס ===== */
     if (title !== undefined) updatePayload.title = title;
     if (eventType !== undefined) updatePayload.eventType = eventType;
     if (eventDate !== undefined) updatePayload.eventDate = eventDate;
 
-    // ❗ canvasData — רק אם באמת נשלח
+    /* ===== מיקום אירוע ===== */
+    if (location !== undefined) {
+      updatePayload.location = {
+        name: location.name || "",
+        address: location.address || "",
+        lat: location.lat ?? null,
+        lng: location.lng ?? null,
+      };
+    }
+
+    /* ===== canvasData — רק אם נשלח ===== */
     if (canvasData !== undefined) {
       updatePayload.canvasData = canvasData;
     }

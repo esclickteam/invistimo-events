@@ -12,12 +12,21 @@ type Props = {
 };
 
 export default function LocationAutocomplete({ value, onSelect }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const autocompleteRef = useRef<any>(null); // ✅ אין google כ־type
 
   useEffect(() => {
-    if (!window.google || !inputRef.current) return;
+    if (
+      typeof window === "undefined" ||
+      !window.google ||
+      !window.google.maps ||
+      !window.google.maps.places ||
+      !inputRef.current
+    ) {
+      return;
+    }
 
-    const autocomplete = new google.maps.places.Autocomplete(
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(
       inputRef.current,
       {
         types: ["establishment", "geocode"],
@@ -25,9 +34,10 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
       }
     );
 
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry) return;
+    autocompleteRef.current.addListener("place_changed", () => {
+      const place = autocompleteRef.current.getPlace();
+
+      if (!place?.geometry?.location) return;
 
       onSelect({
         address: place.formatted_address || place.name || "",
@@ -35,7 +45,7 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
         lng: place.geometry.location.lng(),
       });
     });
-  }, []);
+  }, [onSelect]);
 
   return (
     <input

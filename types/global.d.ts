@@ -26,3 +26,16 @@ declare module "*.json" {
   const value: any;
   export default value;
 }
+
+/* =========================================================
+   Google Maps / Places – GLOBAL
+   (works with @types/google.maps)
+========================================================= */
+
+export {};
+
+declare global {
+  interface Window {
+    google: typeof google;
+  }
+}
