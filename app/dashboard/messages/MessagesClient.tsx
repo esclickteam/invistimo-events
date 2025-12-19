@@ -56,7 +56,7 @@ const MESSAGE_TEMPLATES: Record<
     label: "מספר שולחן",
     requiresTable: true,
     content:
-      "שלום {{name}} 🌸 שמחים לראות אותך 💛 מספר השולחן שלך באירוע: 🪑 {{tableName}} מחכים לך!",
+      "היי {{name}} 🌸 שמחים לראות אותך 💛\nמספר השולחן שלך באירוע:\n🪑 {{tableName}}\nמחכים לך!",
   },
   custom: {
     label: "היי {{name}} 🌸 שמחנו לראותכם באירוע. תודה שהשתתפתם בשמחתנו.",
