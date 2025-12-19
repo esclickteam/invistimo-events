@@ -55,8 +55,8 @@ export async function POST(req: Request) {
       phone = "972" + phone;
     }
 
-    /* ---------- בניית טקסט בפועל ---------- */
-    const finalText = text
+    /* ---------- בניית טקסט בסיס ---------- */
+    let finalText = text
       .replace(/{{name}}/g, guest.name || "")
       .replace(
         /{{rsvpLink}}/g,
@@ -66,6 +66,37 @@ export async function POST(req: Request) {
 
     if (!finalText.trim()) continue;
 
+    /* =====================================================
+       📍 הוספת ניווט — רק להודעת "מספר שולחן"
+    ===================================================== */
+    const isTableMessage = text.includes("{{tableName}}");
+    const location = invitation.location;
+
+    if (
+      isTableMessage &&
+      location &&
+      (location.lat || location.address)
+    ) {
+      let googleMapsUrl = "";
+      let wazeUrl = "";
+
+      if (location.lat && location.lng) {
+        googleMapsUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
+        wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+      } else if (location.address) {
+        const encoded = encodeURIComponent(location.address);
+        googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+        wazeUrl = `https://waze.com/ul?q=${encoded}&navigate=yes`;
+      }
+
+      finalText += `
+
+📍 ניווט לאירוע:
+Google Maps 👉 ${googleMapsUrl}
+Waze 👉 ${wazeUrl}`;
+    }
+
+    /* ---------- שליחה ---------- */
     const payload = {
       key: process.env.SMS4FREE_KEY,
       user: process.env.SMS4FREE_USER,

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
+import EventNavigationButtons from "@/app/components/EventNavigationButtons";
+
 
 const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
 
@@ -156,6 +158,9 @@ export default function PublicInvitePage({ params }: any) {
             </div>
           )}
         </div>
+
+        <EventNavigationButtons location={invite.location} />
+
 
         {/* טופס אישור הגעה */}
         {!sent ? (
