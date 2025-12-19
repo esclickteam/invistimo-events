@@ -472,10 +472,14 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       <div className="p-4">
   <div className="bg-gray-200 rounded-2xl p-3 text-sm text-gray-900 max-w-[90%]">
     {renderPreviewText(
-      selectedGuest
+  selectedGuest
+    ? (channel === "whatsapp"
         ? buildMessage(selectedGuest)
-        : message
-    )}
+            .replace(/📍 ניווט לאירוע:\s*\n?/g, "")
+            .replace(/https?:\/\/[^\s]+/g, "")
+        : buildMessage(selectedGuest))
+    : message
+)}
   </div>
 </div>
 
