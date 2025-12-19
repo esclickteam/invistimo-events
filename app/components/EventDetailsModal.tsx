@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
 export default function EventDetailsModal({
   invitation,
@@ -64,7 +65,7 @@ export default function EventDetailsModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg overflow-visible">
         <h2 className="text-xl font-semibold mb-4">
           ✏️ עריכת פרטי האירוע
         </h2>
@@ -106,20 +107,19 @@ export default function EventDetailsModal({
             className="border rounded-full px-4 py-3"
           />
 
-          {/* 📍 מיקום האירוע */}
-          <input
-            placeholder="📍 מיקום האירוע (אולם / כתובת)"
+          {/* 📍 Google Places Autocomplete */}
+          <LocationAutocomplete
             value={form.location.address}
-            onChange={(e) =>
+            onSelect={({ address, lat, lng }) =>
               setForm({
                 ...form,
                 location: {
-                  ...form.location,
-                  address: e.target.value,
+                  address,
+                  lat,
+                  lng,
                 },
               })
             }
-            className="border rounded-full px-4 py-3"
           />
 
           <p className="text-xs text-gray-500 px-2">
