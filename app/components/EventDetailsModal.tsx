@@ -18,9 +18,7 @@ export default function EventDetailsModal({
     date: invitation.eventDate
       ? invitation.eventDate.slice(0, 10)
       : "",
-    time: invitation.eventDate
-      ? new Date(invitation.eventDate).toISOString().slice(11, 16)
-      : "",
+    time: invitation.eventTime || "", // ✅ קריטי
     location: {
       address: invitation.location?.address || "",
       lat: invitation.location?.lat ?? null,
@@ -29,21 +27,22 @@ export default function EventDetailsModal({
   });
 
   async function save() {
-    /* ⏰ חיבור date + time */
-    let fullDate: string | null = null;
-
-    if (form.date) {
-      const time = form.time || "00:00";
-      fullDate = new Date(`${form.date}T${time}`).toISOString();
-    }
-
     const res = await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: form.title,
         eventType: form.eventType,
-        eventDate: fullDate,
+
+        // ✅ תאריך בלבד (בלי שעה)
+        eventDate: form.date
+          ? new Date(form.date).toISOString()
+          : null,
+
+        // ✅ שעה נשמרת בנפרד
+        eventTime: form.time || "",
+
+        // ✅ מיקום מלא
         location: {
           address: form.location.address,
           lat: form.location.lat,
@@ -113,11 +112,7 @@ export default function EventDetailsModal({
             onSelect={({ address, lat, lng }) =>
               setForm({
                 ...form,
-                location: {
-                  address,
-                  lat,
-                  lng,
-                },
+                location: { address, lat, lng },
               })
             }
           />
