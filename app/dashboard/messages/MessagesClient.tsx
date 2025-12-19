@@ -383,6 +383,25 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         </div>
       )}
 
+      <div className="w-[90%] md:w-[600px] mb-2">
+  <label className="block font-semibold text-[#4a413a] mb-1">
+    תוכן ההודעה:
+  </label>
+  <p className="text-sm text-gray-500">
+    בחרו הודעה מתוך מאגר התבניות או ערכו את הטקסט לפי הצורך
+  </p>
+</div>
+
+<select
+  value={templateKey}
+  onChange={(e) => {
+    const key = e.target.value as MessageType;
+    setTemplateKey(key);
+    setMessage(MESSAGE_TEMPLATES[key].content);
+  }}
+  className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
+></select>
+
       <select
         value={templateKey}
         onChange={(e) => {
