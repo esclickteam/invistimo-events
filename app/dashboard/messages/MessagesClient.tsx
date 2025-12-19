@@ -171,10 +171,10 @@ const MESSAGE_TEMPLATES: Record<
     invitation.location?.lng;
 
   const navigationLink =
-  templateKey === "table" && hasLocation
-    ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
-      `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
-    : "";
+    templateKey === "table" && hasLocation
+      ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n` +
+        `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+      : "";
 
   return message
     .replace(/{{name}}/g, guest.name || "")
@@ -186,22 +186,32 @@ const MESSAGE_TEMPLATES: Record<
     .replace(/{{navigationLink}}/g, navigationLink);
 };
 
-  /* ================= SEND ================= */
+/* ================= SEND ================= */
 
-  const sendWhatsApp = (guest: Guest) => {
+const sendWhatsApp = (guest: Guest) => {
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
-  const text = buildMessage(guest);
+
+  // ✅ בוואטסאפ: בונים מהתבנית המקורית, בלי ניווט
+  const text = message
+    .replace(/{{name}}/g, guest.name || "")
+    .replace(
+      /{{rsvpLink}}/g,
+      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
+    )
+    .replace(/{{tableName}}/g, guest.tableName || "")
+    .replace(/{{navigationLink}}/g, "")
+    .replace(/📍 ניווט לאירוע:\s*\n?/g, ""); // מוריד את השורה אם נשארה ריקה
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const baseUrl = isMobile
-    ? "https://wa.me"
-    : "https://web.whatsapp.com/send";
+  const baseUrl = isMobile ? "https://wa.me" : "https://web.whatsapp.com/send";
 
   window.open(
     `${baseUrl}?phone=${phone}&text=${encodeURIComponent(text)}`,
     "_blank"
   );
 };
+
+
 
 
   const sendSMS = async () => {
