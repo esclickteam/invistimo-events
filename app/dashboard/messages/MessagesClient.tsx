@@ -238,6 +238,15 @@ const MESSAGE_TEMPLATES: Record<
   const selectedGuest =
     guests.find((g) => g._id === selectedGuestId) || null;
 
+      /* ================= PREVIEW HELPER ================= */
+  const renderPreviewText = (text: string) => {
+    return text.split("\n").map((line, i) => (
+      <p key={i} className="leading-relaxed">
+        {line || <span>&nbsp;</span>}
+      </p>
+    ));
+  };
+
   /* ================= RENDER ================= */
 
   if (loading) return null;
@@ -411,6 +420,32 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         rows={6}
         className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
       />
+
+      {/* PHONE PREVIEW */}
+<div className="w-[90%] md:w-[360px] mt-4 mb-6">
+  <p className="text-sm text-gray-500 mb-2 text-center">
+    תצוגה מקדימה – כך האורח יקבל את ההודעה
+  </p>
+
+  <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
+    <div className="bg-white rounded-[28px] overflow-hidden">
+
+      {/* Header */}
+      <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
+        INVISTIMO · SMS
+      </div>
+
+      {/* Message bubble */}
+      <div className="p-4">
+        <div className="bg-gray-200 rounded-2xl p-3 text-sm text-gray-900 max-w-[90%]">
+          {renderPreviewText(message)}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 
       <button
         onClick={sendToAll}
