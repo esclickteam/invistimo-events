@@ -59,9 +59,9 @@ const MESSAGE_TEMPLATES: Record<
       "היי {{name}} 🌸 שמחים לראות אותך 💛\nמספר השולחן שלך באירוע:\n🪑 {{tableName}}\nמחכים לך!",
   },
   custom: {
-    label: "היי {{name}} 🌸 שמחנו לראותכם באירוע. תודה שהשתתפתם בשמחתנו.",
-    content: "",
-  },
+  label: "הודעת תודה",
+  content: "היי {{name}} 🌸 שמחנו לראותכם באירוע. תודה שהשתתפתם בשמחתנו.",
+},
 };
 
 /* ================= COMPONENT ================= */
