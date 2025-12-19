@@ -48,10 +48,9 @@ export async function POST(req: Request) {
     invitation.location?.lat && invitation.location?.lng;
 
   const navigationLink = hasLocation
-    ? `📍 ניווט לאירוע:\n\n` +
-      `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
-      `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
-    : "";
+  ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
+    `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+  : "";
 
   /* ================= שליחה ================= */
 
