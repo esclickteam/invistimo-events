@@ -65,34 +65,7 @@ export async function POST(req: Request) {
       .replace(/{{tableName}}/g, guest.tableName || "");
 
     if (!finalText.trim()) continue;
-
-    /* =====================================================
-       📍 ניווט — רק אם זה טמפלט "מספר שולחן"
-    ===================================================== */
-    const isTableMessage = text.includes("{{tableName}}");
-    const location = invitation.location;
-
-    if (isTableMessage && location) {
-      let googleMapsUrl = "";
-      let wazeUrl = "";
-
-      if (location.lat && location.lng) {
-        googleMapsUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
-        wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-      } else if (location.address) {
-        const encoded = encodeURIComponent(location.address);
-        googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-        wazeUrl = `https://waze.com/ul?q=${encoded}&navigate=yes`;
-      }
-
-      if (googleMapsUrl || wazeUrl) {
-        finalText += `
-
-📍 ניווט לאירוע:
-Google Maps 👉 ${googleMapsUrl}
-Waze 👉 ${wazeUrl}`;
-      }
-    }
+    
 
     /* ---------- שליחה ---------- */
     const payload = {
