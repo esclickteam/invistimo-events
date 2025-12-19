@@ -18,7 +18,7 @@ export default function EventDetailsModal({
     date: invitation.eventDate
       ? invitation.eventDate.slice(0, 10)
       : "",
-    time: invitation.eventTime || "", // ✅ קריטי
+    time: invitation.eventTime || "",
     location: {
       address: invitation.location?.address || "",
       lat: invitation.location?.lat ?? null,
@@ -27,28 +27,44 @@ export default function EventDetailsModal({
   });
 
   async function save() {
+    /* =========================
+       🧠 בניית payload חכם
+    ========================= */
+
+    const payload: any = {};
+
+    if (form.title.trim()) {
+      payload.title = form.title.trim();
+    }
+
+    if (form.eventType.trim()) {
+      payload.eventType = form.eventType.trim();
+    }
+
+    if (form.date) {
+      payload.eventDate = new Date(form.date).toISOString();
+    }
+
+    if (form.time.trim()) {
+      payload.eventTime = form.time.trim();
+    }
+
+    if (
+      form.location.address ||
+      form.location.lat !== null ||
+      form.location.lng !== null
+    ) {
+      payload.location = {
+        address: form.location.address,
+        lat: form.location.lat,
+        lng: form.location.lng,
+      };
+    }
+
     const res = await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: form.title,
-        eventType: form.eventType,
-
-        // ✅ תאריך בלבד (בלי שעה)
-        eventDate: form.date
-          ? new Date(form.date).toISOString()
-          : null,
-
-        // ✅ שעה נשמרת בנפרד
-        eventTime: form.time || "",
-
-        // ✅ מיקום מלא
-        location: {
-          address: form.location.address,
-          lat: form.location.lat,
-          lng: form.location.lng,
-        },
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
