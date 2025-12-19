@@ -22,8 +22,12 @@ export default function EventDetailsModal({
       : "",
   });
 
+  const [location, setLocation] = useState({
+    address: invitation.location?.address || "",
+  });
+
   async function save() {
-    // ⏰ חיבור date + time לתאריך אחד אמיתי
+    /* ⏰ חיבור date + time לתאריך אחד */
     let fullDate: string | null = null;
 
     if (form.date) {
@@ -31,13 +35,14 @@ export default function EventDetailsModal({
       fullDate = new Date(`${form.date}T${time}`).toISOString();
     }
 
+    /* 1️⃣ שמירת פרטי האירוע */
     const res = await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: form.title,
         eventType: form.eventType,
-        eventDate: fullDate, // ⭐ זה השדה שמפעיל את הספירה לאחור
+        eventDate: fullDate,
       }),
     });
 
@@ -47,7 +52,23 @@ export default function EventDetailsModal({
       return;
     }
 
-    onSaved(); // רענון ההזמנה בדשבורד
+    /* 2️⃣ שמירת מיקום (אם הוזן) */
+    if (location.address.trim()) {
+      await fetch("/api/invitations/update-location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invitationId: invitation._id,
+          location: {
+            address: location.address,
+            lat: null, // יתווסף בשלב הבא (Autocomplete)
+            lng: null,
+          },
+        }),
+      });
+    }
+
+    onSaved(); // רענון בדשבורד
     onClose(); // סגירת המודאל
   }
 
@@ -94,6 +115,20 @@ export default function EventDetailsModal({
             }
             className="border rounded-full px-4 py-3"
           />
+
+          {/* 📍 מיקום האירוע */}
+          <input
+            placeholder="📍 מיקום האירוע (אולם / כתובת)"
+            value={location.address}
+            onChange={(e) =>
+              setLocation({ address: e.target.value })
+            }
+            className="border rounded-full px-4 py-3"
+          />
+
+          <p className="text-xs text-gray-500 px-2">
+            האורחים יוכלו לנווט בלחיצה ל־Google Maps או Waze
+          </p>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">

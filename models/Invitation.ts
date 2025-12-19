@@ -32,9 +32,24 @@ const InvitationSchema = new Schema(
       default: "",
     },
 
-    eventLocation: {
-      type: String,
-      default: "",
+    /* ================= LOCATION ================= */
+    location: {
+      name: {
+        type: String,
+        default: "",
+      },
+      address: {
+        type: String,
+        default: "",
+      },
+      lat: {
+        type: Number,
+        default: null,
+      },
+      lng: {
+        type: Number,
+        default: null,
+      },
     },
 
     /* ================= DESIGN ================= */
@@ -64,8 +79,6 @@ const InvitationSchema = new Schema(
     ],
 
     /* ================= LIMITS ================= */
-
-    // כמות אורחים מותרת
     maxGuests: {
       type: Number,
       default: 100,
@@ -73,14 +86,11 @@ const InvitationSchema = new Schema(
     },
 
     /* ================= SMS ================= */
-
-    // כמה SMS נשלחו בפועל
     sentSmsCount: {
       type: Number,
       default: 0,
     },
 
-    // 💬 מקסימום הודעות SMS (3 לכל אורח)
     maxMessages: {
       type: Number,
       default: function () {
@@ -88,7 +98,6 @@ const InvitationSchema = new Schema(
       },
     },
 
-    // 💬 יתרת הודעות SMS
     remainingMessages: {
       type: Number,
       default: function () {

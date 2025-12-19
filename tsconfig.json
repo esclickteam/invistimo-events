@@ -3,13 +3,13 @@
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
 
-    /*  מאפשר ל-TS לטעון קבצי .ts/.tsx ו-JS */
+    /* מאפשר עבודה עם JS + TS */
     "allowJs": true,
 
-    /*  חובה להשאיר כדי לפתור שגיאות טיפוסים של מודולים חיצוניים */
+    /* חובה כדי למנוע שגיאות טיפוסים מספריות חיצוניות */
     "skipLibCheck": true,
 
-    /*  strict יכול להישאר, אין בעיה */
+    /* Strict נשאר */
     "strict": true,
 
     "noEmit": true,
@@ -21,10 +21,10 @@
     "jsx": "react-jsx",
     "incremental": true,
 
-    /*  חובה שה־types שלנו ייטענו */
+    /* חשוב: טעינת טיפוסים גלובליים (כולל google.maps) */
     "typeRoots": ["./types", "./node_modules/@types"],
 
-    /* תוספת כדי לוודא ש־global.d.ts נטען */
+    /* טיפוסים בסיסיים */
     "types": ["node"],
 
     "plugins": [
@@ -33,13 +33,11 @@
       }
     ],
 
-    /* Paths קיימים — משאיר כמו שהם */
     "paths": {
       "@/*": ["./*"]
     }
   },
 
-  /* חובה לכלול את התיקייה types */
   "include": [
     "next-env.d.ts",
     "**/*.ts",

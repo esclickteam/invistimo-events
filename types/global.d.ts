@@ -1,4 +1,6 @@
-/* === Declare missing libraries === */
+/* =========================================================
+   Declare missing / untyped libraries
+========================================================= */
 
 declare module "@iconscout/react-unicons" {
   const content: any;
