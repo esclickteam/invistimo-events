@@ -172,9 +172,8 @@ const MESSAGE_TEMPLATES: Record<
 
   const navigationLink =
   templateKey === "table" && hasLocation
-    ? `📍 ניווט לאירוע:\n\n` +
-      `\u200Ehttps://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n` +
-      `\u200Ehttps://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+    ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
+      `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
     : "";
 
   return message
