@@ -187,22 +187,17 @@ const MESSAGE_TEMPLATES: Record<
     return;
   }
 
-  console.log("📤 Sending SMS", {
-    invitationId: invitation._id,
-    template: templateKey,
-    filter,
-  });
+
 
   try {
     const res = await fetch("/api/sms/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        invitationId: invitation._id,
-        template: templateKey,
-        filter,
-        customText: templateKey === "custom" ? message : undefined,
-      }),
+  invitationId: invitation._id,
+  filter,
+  text: message,
+}),
     });
 
     console.log("📬 SMS API status:", res.status);

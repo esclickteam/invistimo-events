@@ -6,11 +6,11 @@ import Invitation from "@/models/Invitation";
 export async function POST(req: Request) {
   await dbConnect();
 
-  const { invitationId, template, filter, customText } = await req.json();
+  const { invitationId, filter, text } = await req.json();
 
-  if (!invitationId) {
+  if (!invitationId || !text) {
     return NextResponse.json(
-      { success: false, error: "INVITATION_ID_MISSING" },
+      { success: false, error: "MISSING_PARAMS" },
       { status: 400 }
     );
   }
@@ -47,7 +47,6 @@ export async function POST(req: Request) {
   for (const guest of guests) {
     /* ---------- נרמול טלפון ---------- */
     let phone = (guest.phone || "").replace(/\D/g, "");
-
     if (!phone) continue;
 
     if (phone.startsWith("0")) {
@@ -56,25 +55,24 @@ export async function POST(req: Request) {
       phone = "972" + phone;
     }
 
-    /* ---------- בניית הודעה ---------- */
-    let text = "";
+    /* ---------- בניית טקסט בפועל ---------- */
+    const finalText = text
+      .replace(/{{name}}/g, guest.name || "")
+      .replace(
+        /{{rsvpLink}}/g,
+        `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
+      )
+      .replace(/{{tableName}}/g, guest.tableName || "");
 
-    if (template === "custom") {
-      text = customText || "";
-    } else {
-      text = buildMessage(template, guest, invitation);
-    }
+    if (!finalText.trim()) continue;
 
-    if (!text.trim()) continue;
-
-    /* ---------- payload לפי תיעוד רשמי ---------- */
     const payload = {
       key: process.env.SMS4FREE_KEY,
       user: process.env.SMS4FREE_USER,
       pass: process.env.SMS4FREE_PASS,
-      sender: process.env.SMS4FREE_SENDER, // מספר או Sender מאושר
-      recipient: phone,                   // 👈 לפי התיעוד
-      msg: text,
+      sender: process.env.SMS4FREE_SENDER,
+      recipient: phone,
+      msg: finalText,
     };
 
     try {
@@ -88,16 +86,14 @@ export async function POST(req: Request) {
       );
 
       const data = await res.json();
-      console.log("SMS4FREE RESPONSE:", data);
 
-      /* ---------- זיהוי הצלחה ---------- */
       const isSuccess =
         res.ok &&
         (data?.status === 0 ||
           data?.status === "0" ||
           data?.success === true ||
           data?.message === "OK" ||
-          data); // sms4free לפעמים לא מחזיר שדות עקביים
+          data);
 
       if (isSuccess) {
         sent++;
@@ -108,6 +104,7 @@ export async function POST(req: Request) {
   }
 
   /* ================= עדכון DB ================= */
+
   if (sent > 0) {
     await Invitation.updateOne(
       { _id: invitationId },
@@ -125,29 +122,4 @@ export async function POST(req: Request) {
     sent,
     total: guests.length,
   });
-}
-
-/* ================= HELPER ================= */
-
-function buildMessage(
-  template: "rsvp" | "table",
-  guest: any,
-  invitation: any
-) {
-  if (template === "rsvp") {
-    return `היי ${guest.name} 💛
-נשמח לדעת אם תגיע/י לאירוע 🎉
-לאישור הגעה:
-https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-  }
-
-  if (template === "table") {
-    if (!guest.tableName) return "";
-    return `שלום ${guest.name} 🌸
-מספר השולחן שלך:
-🪑 ${guest.tableName}
-מחכים לך!`;
-  }
-
-  return "";
 }
