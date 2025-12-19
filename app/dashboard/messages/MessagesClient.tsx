@@ -193,7 +193,7 @@ const MESSAGE_TEMPLATES: Record<
     const text = buildMessage(guest);
 
     window.open(
-      `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURI(text)}`,
+      `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`,
       "_blank"
     );
   };
