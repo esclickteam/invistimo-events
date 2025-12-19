@@ -42,6 +42,17 @@ export async function POST(req: Request) {
 
   let sent = 0;
 
+  /* ================= בניית ניווט ================= */
+
+  const hasLocation =
+    invitation.location?.lat && invitation.location?.lng;
+
+  const navigationLink = hasLocation
+    ? `📍 ניווט לאירוע:\n\n` +
+      `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
+      `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+    : "";
+
   /* ================= שליחה ================= */
 
   for (const guest of guests) {
@@ -55,17 +66,17 @@ export async function POST(req: Request) {
       phone = "972" + phone;
     }
 
-    /* ---------- בניית טקסט בסיס ---------- */
+    /* ---------- בניית טקסט ---------- */
     let finalText = text
       .replace(/{{name}}/g, guest.name || "")
       .replace(
         /{{rsvpLink}}/g,
         `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
       )
-      .replace(/{{tableName}}/g, guest.tableName || "");
+      .replace(/{{tableName}}/g, guest.tableName || "")
+      .replace(/{{navigationLink}}/g, navigationLink);
 
     if (!finalText.trim()) continue;
-    
 
     /* ---------- שליחה ---------- */
     const payload = {
