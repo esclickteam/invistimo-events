@@ -60,7 +60,8 @@ const MESSAGE_TEMPLATES: Record<
   },
   custom: {
   label: "הודעת תודה",
-  content: "היי {{name}} 🌸\nשמחנו לראותכם באירוע. תודה שהשתתפתם בשמחתנו.",
+  content: "היי {{name}} 🌸\nשמחנו לראותכם באירוע.\nתודה שהשתתפתם בשמחתנו.",
+
 
 },
 };
