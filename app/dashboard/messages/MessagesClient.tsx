@@ -49,23 +49,24 @@ const MESSAGE_TEMPLATES: Record<
   rsvp: {
     label: "אישור הגעה",
     content:
-      "היי {{name}} 💛\nנשמח לדעת אם תגיע/י לאירוע 🎉\nלאישור הגעה:\n{{rsvpLink}}",
+    "היי {{name}},\nנשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\nלאישור הגעה לחצו כאן:\n{{rsvpLink}}\n\nמחכים לכם באהבה 💖",
+
   },
   table: {
     label: "מספר שולחן",
     requiresTable: true,
     content:
-      "שלום {{name}} 🌸\nמספר השולחן שלך:\n🪑 {{tableName}}\nמחכים לך!",
+      "שלום {{name}} 🌸 שמחים לראות אותך 💛 מספר השולחן שלך באירוע: 🪑 {{tableName}} מחכים לך!",
   },
   custom: {
-    label: "הודעה חופשית",
+    label: "היי {{name}} 🌸 שמחנו לראותכם באירוע. תודה שהשתתפתם בשמחתנו.",
     content: "",
   },
 };
 
 /* ================= COMPONENT ================= */
 
-export default function MessagesPage() {
+  export default function MessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
