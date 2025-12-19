@@ -171,10 +171,10 @@ const MESSAGE_TEMPLATES: Record<
     invitation.location?.lng;
 
   const navigationLink =
-    templateKey === "table" && hasLocation
-      ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n` +
-        `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
-      : "";
+  templateKey === "table" && hasLocation
+    ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n` +
+      `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+    : "";
 
   return message
     .replace(/{{name}}/g, guest.name || "")
@@ -192,15 +192,21 @@ const MESSAGE_TEMPLATES: Record<
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
   const text = buildMessage(guest);
 
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const baseUrl = isMobile
-    ? "https://wa.me"
-    : "https://web.whatsapp.com/send";
+  // ✅ מקודד רק טקסט רגיל — משאיר שורות שמתחילות ב-http כמו שהן,
+  // כדי ש-WhatsApp יזהה אותן כלינקים לחיצים
+  const safeText = text
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+      if (/^https?:\/\//i.test(trimmed)) return trimmed; // לא מקודדים לינקים
+      return encodeURIComponent(line);
+    })
+    .join("%0A");
 
-  window.open(
-    `${baseUrl}?phone=${phone}&text=${encodeURIComponent(text)}`,
-    "_blank"
-  );
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const baseUrl = isMobile ? "https://wa.me" : "https://web.whatsapp.com/send";
+
+  window.open(`${baseUrl}?phone=${phone}&text=${safeText}`, "_blank");
 };
 
 
