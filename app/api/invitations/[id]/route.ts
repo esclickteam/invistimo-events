@@ -49,6 +49,7 @@ export async function GET(req: Request, context: any) {
 /* ============================================================
    💾 PUT — עדכון הזמנה קיימת
    ✔ פרטי אירוע
+   ✔ שעה
    ✔ מיקום (Google Places)
    ✔ קנבס (לא חובה)
 ============================================================ */
@@ -72,20 +73,22 @@ export async function PUT(req: Request, context: any) {
       title,
       eventType,
       eventDate,
+      eventTime, // ✅ קריטי
       canvasData,
-      location, // ⭐ חדש
+      location,
     } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
     };
 
-    /* ===== עדכון שדות בסיס ===== */
+    /* ===== שדות בסיס ===== */
     if (title !== undefined) updatePayload.title = title;
     if (eventType !== undefined) updatePayload.eventType = eventType;
     if (eventDate !== undefined) updatePayload.eventDate = eventDate;
+    if (eventTime !== undefined) updatePayload.eventTime = eventTime;
 
-    /* ===== מיקום אירוע ===== */
+    /* ===== מיקום האירוע ===== */
     if (location !== undefined) {
       updatePayload.location = {
         name: location.name || "",
@@ -95,7 +98,7 @@ export async function PUT(req: Request, context: any) {
       };
     }
 
-    /* ===== canvasData — רק אם נשלח ===== */
+    /* ===== canvasData ===== */
     if (canvasData !== undefined) {
       updatePayload.canvasData = canvasData;
     }
