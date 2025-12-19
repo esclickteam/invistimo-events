@@ -164,16 +164,27 @@ const MESSAGE_TEMPLATES: Record<
         balance.remainingMessages < guestsToSend.length));
 
   const buildMessage = (guest: Guest) => {
-    if (!invitation) return "";
+  if (!invitation) return "";
 
-    return message
-      .replace("{{name}}", guest.name)
-      .replace(
-        "{{rsvpLink}}",
-        `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
-      )
-      .replace("{{tableName}}", guest.tableName || "");
-  };
+  const hasLocation =
+    invitation.location?.lat &&
+    invitation.location?.lng;
+
+  const navigationLink =
+    templateKey === "table" && hasLocation
+      ? `Google Maps 👉 https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n` +
+        `Waze 👉 https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+      : "";
+
+  return message
+    .replace(/{{name}}/g, guest.name || "")
+    .replace(
+      /{{rsvpLink}}/g,
+      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
+    )
+    .replace(/{{tableName}}/g, guest.tableName || "")
+    .replace(/{{navigationLink}}/g, navigationLink);
+};
 
   /* ================= SEND ================= */
 

@@ -67,16 +67,12 @@ export async function POST(req: Request) {
     if (!finalText.trim()) continue;
 
     /* =====================================================
-       📍 הוספת ניווט — רק להודעת "מספר שולחן"
+       📍 ניווט — רק אם זה טמפלט "מספר שולחן"
     ===================================================== */
     const isTableMessage = text.includes("{{tableName}}");
     const location = invitation.location;
 
-    if (
-      isTableMessage &&
-      location &&
-      (location.lat || location.address)
-    ) {
+    if (isTableMessage && location) {
       let googleMapsUrl = "";
       let wazeUrl = "";
 
@@ -89,11 +85,13 @@ export async function POST(req: Request) {
         wazeUrl = `https://waze.com/ul?q=${encoded}&navigate=yes`;
       }
 
-      finalText += `
+      if (googleMapsUrl || wazeUrl) {
+        finalText += `
 
 📍 ניווט לאירוע:
 Google Maps 👉 ${googleMapsUrl}
 Waze 👉 ${wazeUrl}`;
+      }
     }
 
     /* ---------- שליחה ---------- */
@@ -130,7 +128,7 @@ Waze 👉 ${wazeUrl}`;
         sent++;
       }
     } catch (err) {
-      console.error("SMS SEND ERROR:", err);
+      console.error("❌ SMS SEND ERROR:", err);
     }
   }
 
