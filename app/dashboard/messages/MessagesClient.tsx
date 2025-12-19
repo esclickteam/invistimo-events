@@ -393,15 +393,6 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   </p>
 </div>
 
-<select
-  value={templateKey}
-  onChange={(e) => {
-    const key = e.target.value as MessageType;
-    setTemplateKey(key);
-    setMessage(MESSAGE_TEMPLATES[key].content);
-  }}
-  className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
-></select>
 
       <select
         value={templateKey}
