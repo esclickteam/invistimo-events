@@ -214,78 +214,90 @@ export async function POST(req: Request) {
      🟢 CASE 3: FULL PACKAGE PURCHASE (BASIC / PREMIUM)
   ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    limit: 1,
-    expand: ["data.price.product"],
-  });
+  limit: 1,
+  expand: ["data.price.product"],
+});
 
-  const lineItem = lineItems.data[0];
-  const price = lineItem?.price;
-  const priceKey = price?.lookup_key;
+const lineItem = lineItems.data[0];
+const price = lineItem?.price;
+const priceKey = price?.lookup_key;
 
-  if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
-    return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
-  }
+if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
+  return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
+}
 
-  const maxGuests = GUESTS_BY_KEY[priceKey];
-  const maxMessages = maxGuests * 3;
-  const amountPaid = (price?.unit_amount ?? 0) / 100;
+const maxGuests = GUESTS_BY_KEY[priceKey];
+const amountPaid = (price?.unit_amount ?? 0) / 100;
 
-  const isBasic = priceKey.startsWith("basic");
+// ⭐ זיהוי חבילת בסיס
+const isBasic = priceKey.startsWith("basic");
 
-  await Payment.create({
-    email,
-    stripeSessionId: session.id,
-    stripePaymentIntentId: String(session.payment_intent),
-    stripeCustomerId: session.customer as string,
-    stripePriceId: price?.id,
-    priceKey,
+// ⭐ הודעות רק לפרימיום
+const maxMessages = isBasic ? 0 : maxGuests * 3;
+
+/* ===================== Payment ===================== */
+await Payment.create({
+  email,
+  stripeSessionId: session.id,
+  stripePaymentIntentId: String(session.payment_intent),
+  stripeCustomerId: session.customer as string,
+  stripePriceId: price?.id,
+  priceKey,
+  maxGuests,
+  amount: amountPaid,
+  currency: price?.currency,
+  status: "paid",
+});
+
+/* ===================== User ===================== */
+await User.findByIdAndUpdate(user._id, {
+  plan: isBasic ? "basic" : "premium",
+  guests: maxGuests,
+  paidAmount: amountPaid,
+  planLimits: {
     maxGuests,
-    amount: amountPaid,
-    currency: price?.currency,
-    status: "paid",
+    smsEnabled: !isBasic,
+    seatingEnabled: !isBasic,
+    remindersEnabled: true,
+  },
+});
+
+/* ===================== Invitation ===================== */
+let invitation = await Invitation.findOne({ ownerId: user._id });
+
+if (!invitation) {
+  invitation = await Invitation.create({
+    ownerId: user._id,
+    title: "ההזמנה שלי",
+    canvasData: {},
+    shareId: crypto.randomUUID(),
+    maxGuests,
+    sentSmsCount: 0,
+    maxMessages,
+    remainingMessages: maxMessages,
   });
+} else {
+  const sent = invitation.sentSmsCount || 0;
 
-  await User.findByIdAndUpdate(user._id, {
-    plan: isBasic ? "basic" : "premium",
-    guests: maxGuests,
-    paidAmount: amountPaid,
-    planLimits: {
-      maxGuests,
-      smsEnabled: !isBasic,
-      seatingEnabled: !isBasic,
-      remindersEnabled: true,
-    },
-  });
-
-  let invitation = await Invitation.findOne({ ownerId: user._id });
-
-  if (!invitation) {
-    invitation = await Invitation.create({
-      ownerId: user._id,
-      title: "ההזמנה שלי",
-      canvasData: {},
-      shareId: crypto.randomUUID(),
-      maxGuests,
-      sentSmsCount: 0,
-      maxMessages,
-      remainingMessages: maxMessages,
-    });
-  } else {
-    const sent = invitation.sentSmsCount || 0;
-
-    invitation.maxGuests = maxGuests;
-    invitation.maxMessages = maxMessages;
-    invitation.remainingMessages = Math.max(
-      0,
-      maxMessages - sent
-    );
-
-    await invitation.save();
-  }
-
-  console.log(
-    `✅ Full package OK: ${email} | ${maxGuests} guests | ${maxMessages} messages`
+  invitation.maxGuests = maxGuests;
+  invitation.maxMessages = maxMessages;
+  invitation.remainingMessages = Math.max(
+    0,
+    maxMessages - sent
   );
 
-  return NextResponse.json({ received: true });
+  // ⭐ אם חבילת בסיס – אפס מוחלט
+  if (isBasic) {
+    invitation.sentSmsCount = 0;
+  }
+
+  await invitation.save();
+}
+
+console.log(
+  `✅ Full package OK: ${email} | ${maxGuests} guests | ${maxMessages} messages`
+);
+
+return NextResponse.json({ received: true });
+
 }
