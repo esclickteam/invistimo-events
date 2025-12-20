@@ -279,88 +279,103 @@ console.log("INVITATION:", invitation);
 
 
 {/* ⬇⬇⬇ רק עכשיו – שורת רשימת מוזמנים ⬇⬇⬇ */}
-<div className="flex items-center justify-between mb-6">
+<div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
   <h2 className="text-2xl font-semibold">
     רשימת מוזמנים
   </h2>
 
-        <div className="flex flex-wrap gap-3">
-
-  <button
-    onClick={() =>
-      router.push(
-        invitation
-          ? `/dashboard/edit-invite/${invitationId}`
-          : "/dashboard/create-invite"
-      )
-    }
-    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-  >
-    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-  </button>
-
-  {invitation && (
+  {/* ===================== דסקטופ בלבד ===================== */}
+  <div className="hidden md:flex flex-wrap gap-3">
     <button
-      onClick={() => router.push("/dashboard/seating")}
-      className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+      onClick={() =>
+        router.push(
+          invitation
+            ? `/dashboard/edit-invite/${invitationId}`
+            : "/dashboard/create-invite"
+        )
+      }
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
     >
-      🪑 הושבה
+      {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
     </button>
-  )}
 
-  {invitation && (
-  <a
-    href={`https://www.invistimo.com/invite/${invitation.shareId}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="
-      border border-gray-300
-      px-6 py-3
-      rounded-full
-      hover:bg-gray-100
-      transition
-      flex items-center gap-2
-    "
-    title="צפייה בהזמנה כפי שהאורחים רואים"
-  >
-    👁️ צפייה בהזמנה
-  </a>
-)}
+    {invitation && (
+      <button
+        onClick={() => router.push("/dashboard/seating")}
+        className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+      >
+        🪑 הושבה
+      </button>
+    )}
 
-  {invitation && (
+    {invitation && (
+      <a
+        href={`https://www.invistimo.com/invite/${invitation.shareId}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
+        title="צפייה בהזמנה כפי שהאורחים רואים"
+      >
+        👁️ צפייה בהזמנה
+      </a>
+    )}
+
+    {invitation && (
+      <button
+        onClick={() => router.push("/dashboard/messages")}
+        className="bg-green-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-700 transition"
+      >
+        💬 שליחת הודעות
+      </button>
+    )}
+
     <button
-      onClick={() => router.push("/dashboard/messages")}
-      className="
-        flex items-center gap-2
-        bg-green-600 text-white
-        px-6 py-3
-        rounded-full
-        font-semibold
-        hover:bg-green-700
-        transition
-      "
+      onClick={() => setOpenAddModal(true)}
+      className="bg-black text-white px-6 py-3 rounded-full"
     >
-      💬 שליחת הודעות
+      + הוספת מוזמן
     </button>
-  )}
 
-  <button
-    onClick={() => setOpenAddModal(true)}
-    className="bg-black text-white px-6 py-3 rounded-full"
-  >
-    + הוספת מוזמן
-  </button>
+    <button
+      onClick={() => setShowImportModal(true)}
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+      title="ייבוא רשימת מוזמנים מאקסל"
+    >
+      📥 ייבוא מאקסל
+    </button>
+  </div>
 
-  {/* ✅ חדש: ייבוא מאקסל */}
-  <button
-    onClick={() => setShowImportModal(true)}
-    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition flex items-center gap-2"
-    title="ייבוא רשימת מוזמנים מאקסל"
-  >
-    📥 ייבוא מאקסל
-  </button>
+  {/* ===================== מובייל בלבד ===================== */}
+  <div className="flex md:hidden flex-col gap-3">
+    <button
+      onClick={() => setOpenAddModal(true)}
+      className="bg-black text-white px-6 py-3 rounded-full"
+    >
+      + הוספת מוזמן
+    </button>
+
+    <button
+      onClick={() =>
+        router.push(
+          invitation
+            ? `/dashboard/edit-invite/${invitationId}`
+            : "/dashboard/create-invite"
+        )
+      }
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+    >
+      ✏️ עריכת הזמנה
+    </button>
+
+    <button
+      onClick={() => setShowImportModal(true)}
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+    >
+      📥 ייבוא מאקסל
+    </button>
+  </div>
 </div>
-</div>
+
 
 
       {/* Stats */}
