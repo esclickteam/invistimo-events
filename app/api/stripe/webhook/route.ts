@@ -39,11 +39,12 @@ export async function POST(req: Request) {
   console.log("✅ Stripe webhook called");
 
   const signature = req.headers.get("stripe-signature");
-  const body = await req.text();
-
   if (!signature) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
+
+  // ⭐️ קריטי: clone כדי לא לשבור את ה-stream
+  const body = await req.clone().text();
 
   let stripeEvent: Stripe.Event;
 
