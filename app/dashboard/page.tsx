@@ -92,6 +92,11 @@ const [showEventModal, setShowEventModal] = useState(false);
     setGuests(data.guests || []);
   }
 
+  function handleGuestAdded(newGuest: Guest) {
+  setGuests((prev) => [...prev, newGuest]);
+}
+
+
 async function deleteGuest(guest: Guest) {
   const ok = window.confirm(
     `האם למחוק את המוזמן "${guest.name}"?\nהפעולה אינה ניתנת לביטול.`
@@ -548,7 +553,7 @@ console.log("INVITATION:", invitation);
   <AddGuestModal
     invitationId={invitationId}
     onClose={() => setOpenAddModal(false)}
-    onSuccess={loadGuests}
+    onSuccess={handleGuestAdded}   // ⭐️ חובה
   />
 )}
 
