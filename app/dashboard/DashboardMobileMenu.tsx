@@ -48,7 +48,7 @@ export default function DashboardMobileMenu({
         {/* Navigation – ניווט בלבד */}
         <nav className="flex flex-col gap-4 text-[#4a413a] font-medium">
           <Link href="/dashboard" onClick={onClose}>
-            🏠 ניהול אירוע
+            🏠 ראשי
           </Link>
 
           <Link href="/dashboard/messages" onClick={onClose}>
