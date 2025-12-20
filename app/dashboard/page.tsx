@@ -396,30 +396,31 @@ console.log("INVITATION:", invitation);
       </div>
 
       {/* ✅ Controls row (search + filters) */}
-      <div className="flex items-center justify-between gap-6 mb-4">
-        {/* Search (not full width) */}
-        <div className="w-full max-w-[520px] relative">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="חיפוש לפי שם או טלפון…"
-            className="
-              w-full border border-gray-300 rounded-full
-              px-5 py-3 outline-none
-              focus:ring-2 focus:ring-[#c9b48f]
-              bg-white
-            "
-          />
-          {search.trim() && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
-              title="נקה חיפוש"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+  
+  {/* Search */}
+  <div className="w-full md:max-w-[520px] relative">
+    <input
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      placeholder="חיפוש לפי שם או טלפון…"
+      className="
+        w-full border border-gray-300 rounded-full
+        px-5 py-3 outline-none
+        focus:ring-2 focus:ring-[#c9b48f]
+        bg-white
+      "
+    />
+    {search.trim() && (
+      <button
+        onClick={() => setSearch("")}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+      >
+        ✕
+      </button>
+    )}
+  </div>
+
 
         {/* Quick filters */}
 <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
@@ -453,7 +454,8 @@ console.log("INVITATION:", invitation);
 
 
         {/* Count */}
-        <div className="text-sm text-gray-500 min-w-[140px] text-left">
+        <div className="text-sm text-gray-500 text-center md:text-left md:min-w-[140px]">
+
           מציג: <span className="font-semibold">{displayGuests.length}</span> / {guests.length}
         </div>
       </div>
