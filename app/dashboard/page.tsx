@@ -425,24 +425,63 @@ console.log("INVITATION:", invitation);
 
 {/* ===== דסקטופ ===== */}
 <div className="hidden md:flex items-center gap-2 flex-wrap">
-  <FilterPill active={quickFilter === "all"} onClick={() => setQuickFilter("all")} label="הכל" />
-  <FilterPill active={quickFilter === "yes"} onClick={() => setQuickFilter("yes")} label="מגיעים" />
-  <FilterPill active={quickFilter === "pending"} onClick={() => setQuickFilter("pending")} label="ממתינים" />
-  <FilterPill active={quickFilter === "no"} onClick={() => setQuickFilter("no")} label="לא מגיעים" />
-  <FilterPill active={quickFilter === "noTable"} onClick={() => setQuickFilter("noTable")} label="בלי שולחן" />
+  <FilterPill
+    active={quickFilter === "all"}
+    onClick={() => setQuickFilter("all")}
+    label="הכל"
+  />
+  <FilterPill
+    active={quickFilter === "yes"}
+    onClick={() => setQuickFilter("yes")}
+    label="מגיעים"
+  />
+  <FilterPill
+    active={quickFilter === "pending"}
+    onClick={() => setQuickFilter("pending")}
+    label="ממתינים"
+  />
+  <FilterPill
+    active={quickFilter === "no"}
+    onClick={() => setQuickFilter("no")}
+    label="לא מגיעים"
+  />
+  <FilterPill
+    active={quickFilter === "noTable"}
+    onClick={() => setQuickFilter("noTable")}
+    label="בלי שולחן"
+  />
 </div>
 
 {/* ===== מובייל ===== */}
-<div className="md:hidden w-full">
-  <div className="grid grid-cols-2 gap-2">
-    <FilterPill active={quickFilter === "all"} onClick={() => setQuickFilter("all")} label="הכל" />
-    <FilterPill active={quickFilter === "yes"} onClick={() => setQuickFilter("yes")} label="מגיעים" />
-    <FilterPill active={quickFilter === "pending"} onClick={() => setQuickFilter("pending")} label="ממתינים" />
-    <FilterPill active={quickFilter === "no"} onClick={() => setQuickFilter("no")} label="לא מגיעים" />
-    <FilterPill active={quickFilter === "noTable"} onClick={() => setQuickFilter("noTable")} label="בלי שולחן" />
+<div className="md:hidden w-full overflow-x-auto">
+  <div className="flex gap-2 min-w-max pb-1">
+    <FilterPill
+      active={quickFilter === "all"}
+      onClick={() => setQuickFilter("all")}
+      label="הכל"
+    />
+    <FilterPill
+      active={quickFilter === "yes"}
+      onClick={() => setQuickFilter("yes")}
+      label="מגיעים"
+    />
+    <FilterPill
+      active={quickFilter === "pending"}
+      onClick={() => setQuickFilter("pending")}
+      label="ממתינים"
+    />
+    <FilterPill
+      active={quickFilter === "no"}
+      onClick={() => setQuickFilter("no")}
+      label="לא מגיעים"
+    />
+    <FilterPill
+      active={quickFilter === "noTable"}
+      onClick={() => setQuickFilter("noTable")}
+      label="בלי שולחן"
+    />
   </div>
 </div>
-
 
 
         {/* Count */}
@@ -631,7 +670,7 @@ function FilterPill({
   return (
     <button
       onClick={onClick}
-      className={`w-full px-4 py-2 rounded-full border text-sm whitespace-nowrap transition ${
+      className={`px-4 py-2 rounded-full border text-sm transition ${
         active
           ? "bg-[#c9b48f] text-white border-[#c9b48f]"
           : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
