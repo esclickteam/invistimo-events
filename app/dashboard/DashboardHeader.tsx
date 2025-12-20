@@ -47,7 +47,7 @@ export default function DashboardHeader({
         </button>
 
         <span className="mr-3 font-medium text-[#4a413a]">
-          ניהול האירוע
+         
         </span>
       </div>
 
