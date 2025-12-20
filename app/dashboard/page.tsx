@@ -425,8 +425,8 @@ console.log("INVITATION:", invitation);
         {/* Quick filters */}
 <div
   className="
-    grid grid-cols-3 gap-2 place-items-center
-    md:flex md:flex-wrap md:gap-2 md:justify-start md:place-items-start
+    grid grid-cols-3 gap-2
+    md:flex md:flex-wrap md:gap-2 md:justify-start
   "
 >
   <FilterPill
@@ -434,27 +434,34 @@ console.log("INVITATION:", invitation);
     onClick={() => setQuickFilter("all")}
     label="הכל"
   />
+
   <FilterPill
     active={quickFilter === "yes"}
     onClick={() => setQuickFilter("yes")}
     label="מגיעים"
   />
+
   <FilterPill
     active={quickFilter === "pending"}
     onClick={() => setQuickFilter("pending")}
     label="ממתינים"
   />
-  <FilterPill
-    active={quickFilter === "no"}
-    onClick={() => setQuickFilter("no")}
-    label="לא מגיעים"
-  />
-  <FilterPill
-    active={quickFilter === "noTable"}
-    onClick={() => setQuickFilter("noTable")}
-    label="בלי שולחן"
-  />
+
+  {/* שורה שנייה – ממורכז */}
+  <div className="col-span-3 flex justify-center gap-2 md:contents">
+    <FilterPill
+      active={quickFilter === "no"}
+      onClick={() => setQuickFilter("no")}
+      label="לא מגיעים"
+    />
+    <FilterPill
+      active={quickFilter === "noTable"}
+      onClick={() => setQuickFilter("noTable")}
+      label="בלי שולחן"
+    />
+  </div>
 </div>
+
 
 
 

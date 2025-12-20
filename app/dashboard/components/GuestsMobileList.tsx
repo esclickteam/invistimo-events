@@ -30,7 +30,7 @@ type Props = {
    Helpers
 ============================================================ */
 function StatusBadge({ rsvp }: { rsvp: Guest["rsvp"] }) {
-  const styles: Record<string, string> = {
+  const styles: Record<Guest["rsvp"], string> = {
     yes: "bg-green-100 text-green-700",
     pending: "bg-yellow-100 text-yellow-700",
     no: "bg-red-100 text-red-700",
@@ -38,7 +38,7 @@ function StatusBadge({ rsvp }: { rsvp: Guest["rsvp"] }) {
 
   return (
     <span
-      className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[rsvp]}`}
+      className={`px-2.5 py-1 rounded-full text-xs font-semibold ${styles[rsvp]}`}
     >
       {RSVP_LABELS[rsvp]}
     </span>
@@ -64,62 +64,94 @@ export default function GuestsMobileList({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {guests.map((g) => (
         <div
           key={g._id}
-          className="bg-white border rounded-lg px-3 py-2"
+          className="bg-white border rounded-xl px-4 py-3 shadow-sm"
         >
-          {/* שורה 1 – שם + סטטוס */}
-          <div className="flex items-center justify-between">
-            <div className="font-medium text-sm">{g.name}</div>
+          {/* ================= Header ================= */}
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="font-semibold text-sm leading-tight">
+                {g.name}
+              </div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                {g.phone}
+              </div>
+            </div>
+
             <StatusBadge rsvp={g.rsvp} />
           </div>
 
-          {/* שורה 2 – טלפון */}
-          <div className="text-xs text-gray-600 mt-1">
-            {g.phone}
-          </div>
+          {/* ================= Meta ================= */}
+          {g.relation && (
+            <div className="text-xs text-gray-600 mt-1">
+              {g.relation}
+            </div>
+          )}
 
-          {/* שורה 3 – נתונים (כמו עמודות) */}
-          <div className="grid grid-cols-3 gap-2 text-xs text-gray-700 mt-2">
-            <div>
-              <span className="text-gray-500">מוזמנים</span>
-              <div className="font-medium">{g.guestsCount}</div>
+          {/* ================= Stats (כמו עמודות) ================= */}
+          <div className="grid grid-cols-3 gap-3 mt-3 text-center">
+            <div className="bg-gray-50 rounded-lg py-2">
+              <div className="text-[11px] text-gray-500">
+                מוזמנים
+              </div>
+              <div className="font-semibold text-sm">
+                {g.guestsCount}
+              </div>
             </div>
 
-            <div>
-              <span className="text-gray-500">מגיעים</span>
-              <div className="font-medium">
+            <div className="bg-gray-50 rounded-lg py-2">
+              <div className="text-[11px] text-gray-500">
+                מגיעים
+              </div>
+              <div className="font-semibold text-sm">
                 {g.rsvp === "yes" ? g.guestsCount : 0}
               </div>
             </div>
 
-            <div>
-              <span className="text-gray-500">שולחן</span>
-              <div className="font-medium">
+            <div className="bg-gray-50 rounded-lg py-2">
+              <div className="text-[11px] text-gray-500">
+                שולחן
+              </div>
+              <div className="font-semibold text-sm">
                 {g.tableName || "—"}
               </div>
             </div>
           </div>
 
-          {/* שורה 4 – הערה / קרבה */}
-          {(g.relation || g.notes) && (
+          {/* ================= Notes ================= */}
+          {g.notes && (
             <div className="text-xs text-gray-600 mt-2">
-              {g.relation || g.notes}
+              {g.notes}
             </div>
           )}
 
-          {/* פעולות – כמו בעמודת פעולות */}
-          <div className="flex items-center justify-between mt-3 pt-2 border-t text-sm">
-            <div className="flex gap-4">
-              <button onClick={() => onMessage(g)} title="הודעה">
+          {/* ================= Actions ================= */}
+          <div className="flex items-center justify-between mt-4 pt-3 border-t">
+            <div className="flex gap-5 text-lg">
+              <button
+                onClick={() => onMessage(g)}
+                title="שליחת הודעה"
+                className="hover:opacity-70"
+              >
                 💬
               </button>
-              <button onClick={() => onSeat(g)} title="הושבה">
+
+              <button
+                onClick={() => onSeat(g)}
+                title="הושבה"
+                className="hover:opacity-70"
+              >
                 🪑
               </button>
-              <button onClick={() => onEdit(g)} title="עריכה">
+
+              <button
+                onClick={() => onEdit(g)}
+                title="עריכה"
+                className="hover:opacity-70"
+              >
                 ✏️
               </button>
             </div>
@@ -127,7 +159,7 @@ export default function GuestsMobileList({
             <button
               onClick={() => onDelete(g)}
               title="מחיקה"
-              className="text-red-600"
+              className="text-red-600 hover:opacity-70 text-lg"
             >
               🗑️
             </button>
