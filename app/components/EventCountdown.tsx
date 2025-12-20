@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+/* ============================================================
+   Types
+============================================================ */
 type TimeLeft = {
   months: number;
   weeks: number;
@@ -11,6 +14,9 @@ type TimeLeft = {
   seconds: number;
 };
 
+/* ============================================================
+   Component
+============================================================ */
 export default function EventCountdown({ invitation }: { invitation: any }) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
 
@@ -54,7 +60,7 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
 
   if (!timeLeft) return null;
 
-  const boxes = [
+  const units = [
     timeLeft.months > 0 && { label: "חודשים", value: timeLeft.months },
     timeLeft.weeks > 0 && { label: "שבועות", value: timeLeft.weeks },
     timeLeft.days > 0 && { label: "ימים", value: timeLeft.days },
@@ -64,60 +70,49 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
   ].filter(Boolean) as { label: string; value: number }[];
 
   return (
-    <div dir="rtl">
-      <div
-        className="
-          inline-block
-          bg-gradient-to-l from-black to-zinc-800
-          text-white
-          rounded-2xl
-          px-4 py-4
-          border-2 border-[#c9b48f]
-          shadow-[0_8px_22px_rgba(0,0,0,0.45)]
-        "
-      >
-        {/* כותרת */}
-        <div className="text-sm font-semibold mb-3 text-center">
-          האירוע{" "}
-          <span className="text-[#c9b48f] font-bold">
-            {invitation.title || "שלך"}
-          </span>{" "}
-          יתחיל בעוד:
-        </div>
+    <div dir="rtl" className="flex flex-col items-center gap-3">
+      {/* כותרת קטנה */}
+      <div className="text-sm text-[#4a413a] font-medium">
+        האירוע{" "}
+        <span className="font-bold text-[#c9b48f]">
+          {invitation?.title || "שלך"}
+        </span>{" "}
+        יתחיל בעוד
+      </div>
 
-        {/* ספירה */}
-        <div
-          className="
-            grid
-            grid-cols-[repeat(auto-fit,minmax(72px,1fr))]
-            gap-2
-          "
-        >
-          {boxes.map((b) => (
-            <TimeBox key={b.label} value={b.value} label={b.label} />
-          ))}
-        </div>
+      {/* SLOT COUNTDOWN */}
+      <div className="flex items-end gap-2">
+        {units.map((u) => (
+          <SlotUnit key={u.label} value={u.value} label={u.label} />
+        ))}
       </div>
     </div>
   );
 }
 
-function TimeBox({ value, label }: { value: number; label: string }) {
+/* ============================================================
+   Slot Unit
+============================================================ */
+function SlotUnit({ value, label }: { value: number; label: string }) {
   return (
-    <div
-      className="
-        flex flex-col items-center justify-center
-        bg-white/10
-        border border-white/20
-        rounded-xl
-        py-2
-        text-center
-      "
-    >
-      <span className="text-lg font-bold tabular-nums">
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className="
+          min-w-[44px]
+          px-2 py-2
+          rounded-lg
+          bg-gradient-to-b from-zinc-900 to-black
+          text-white
+          text-xl
+          font-bold
+          tabular-nums
+          shadow-inner
+        "
+      >
         {String(value).padStart(2, "0")}
-      </span>
-      <span className="text-[11px] opacity-80">{label}</span>
+      </div>
+
+      <span className="text-[11px] text-gray-500">{label}</span>
     </div>
   );
 }
