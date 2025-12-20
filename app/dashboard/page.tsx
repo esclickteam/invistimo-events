@@ -414,8 +414,7 @@ console.log("INVITATION:", invitation);
         </div>
 
         {/* Quick filters */}
-        <div className="flex md:items-center gap-2 flex-wrap justify-center md:justify-start">
-
+        <div className="flex items-center gap-2 flex-wrap">
           <FilterPill
             active={quickFilter === "all"}
             onClick={() => setQuickFilter("all")}
@@ -444,15 +443,13 @@ console.log("INVITATION:", invitation);
         </div>
 
         {/* Count */}
-        <div className="hidden md:block text-sm text-gray-500 min-w-[140px] text-left">
-
+        <div className="text-sm text-gray-500 min-w-[140px] text-left">
           מציג: <span className="font-semibold">{displayGuests.length}</span> / {guests.length}
         </div>
       </div>
 
       {/* Table */}
-      <div className="hidden md:block w-full overflow-x-auto">
-
+      <div className="w-full overflow-x-auto">
       <table className="min-w-[900px] w-full border rounded-xl overflow-hidden bg-white">
         <thead className="bg-gray-100">
           <tr>
@@ -604,9 +601,6 @@ console.log("INVITATION:", invitation);
     </div>
   );
 }
-
-
-
 
 /* ============================================================
    UI helpers
