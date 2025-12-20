@@ -238,7 +238,8 @@ console.log("INVITATION:", invitation);
      Render
   ============================================================ */
   return (
-    <div className="p-10" dir="rtl">
+    <div className="px-4 py-6 md:p-10 max-w-full overflow-x-hidden" dir="rtl">
+
        <h1 className="text-4xl font-semibold mb-6">
       ניהול האירוע שלך
     </h1>
@@ -283,7 +284,8 @@ console.log("INVITATION:", invitation);
     רשימת מוזמנים
   </h2>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+
   <button
     onClick={() =>
       router.push(
@@ -362,7 +364,8 @@ console.log("INVITATION:", invitation);
 
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+
         <Box title="סה״כ מוזמנים" value={stats.totalGuests} />
         <Box title="סה״כ מגיעים" value={stats.comingGuests} color="green" />
         <Box title="לא מגיעים" value={stats.notComing} color="red" />
@@ -431,7 +434,8 @@ console.log("INVITATION:", invitation);
       </div>
 
       {/* Table */}
-      <table className="w-full border rounded-xl overflow-hidden">
+      <div className="w-full overflow-x-auto">
+      <table className="min-w-[900px] w-full border rounded-xl overflow-hidden bg-white">
         <thead className="bg-gray-100">
           <tr>
             <th
@@ -545,6 +549,7 @@ console.log("INVITATION:", invitation);
           )}
         </tbody>
       </table>
+      </div>
 
       {selectedGuest && (
   <EditGuestModal
