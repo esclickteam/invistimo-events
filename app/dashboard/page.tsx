@@ -425,36 +425,37 @@ console.log("INVITATION:", invitation);
         {/* Quick filters */}
 <div
   className="
-    grid grid-cols-3 gap-2
-    md:flex md:flex-wrap md:gap-2 md:justify-start
+    grid grid-cols-3 gap-2 place-items-center
+    md:flex md:flex-wrap md:gap-2 md:justify-start md:place-items-start
   "
 >
   <FilterPill
-    active={quickFilter === 'all'}
-    onClick={() => setQuickFilter('all')}
+    active={quickFilter === "all"}
+    onClick={() => setQuickFilter("all")}
     label="הכל"
   />
   <FilterPill
-    active={quickFilter === 'yes'}
-    onClick={() => setQuickFilter('yes')}
+    active={quickFilter === "yes"}
+    onClick={() => setQuickFilter("yes")}
     label="מגיעים"
   />
   <FilterPill
-    active={quickFilter === 'pending'}
-    onClick={() => setQuickFilter('pending')}
+    active={quickFilter === "pending"}
+    onClick={() => setQuickFilter("pending")}
     label="ממתינים"
   />
   <FilterPill
-    active={quickFilter === 'no'}
-    onClick={() => setQuickFilter('no')}
+    active={quickFilter === "no"}
+    onClick={() => setQuickFilter("no")}
     label="לא מגיעים"
   />
   <FilterPill
-    active={quickFilter === 'noTable'}
-    onClick={() => setQuickFilter('noTable')}
+    active={quickFilter === "noTable"}
+    onClick={() => setQuickFilter("noTable")}
     label="בלי שולחן"
   />
 </div>
+
 
 
 
