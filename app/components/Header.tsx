@@ -4,10 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const pathname = usePathname();
+  const isDashboard = pathname.startsWith("/dashboard");
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
@@ -46,19 +50,23 @@ export default function Header() {
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
           <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
-            {/* ימין – תפריט */}
+            {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
+              {/* דסקטופ */}
               <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium">
                 <NavLinks />
               </nav>
 
-              <button
-                onClick={() => setMobileOpen(true)}
-                className="md:hidden p-2"
-                aria-label="פתח תפריט"
-              >
-                <Menu size={26} />
-              </button>
+              {/* מובייל – המבורגר רק אם לא בדשבורד */}
+              {!isDashboard && (
+                <button
+                  onClick={() => setMobileOpen(true)}
+                  className="md:hidden p-2"
+                  aria-label="פתח תפריט"
+                >
+                  <Menu size={26} />
+                </button>
+              )}
             </div>
 
             {/* מרכז – לוגו */}
@@ -115,14 +123,16 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ================= MOBILE DRAWER ================= */}
-      {mobileOpen && (
+      {/* ================= MOBILE DRAWER (רק מחוץ לדשבורד) ================= */}
+      {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
+          {/* overlay */}
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileOpen(false)}
           />
 
+          {/* drawer */}
           <div
             className="
               absolute top-0 right-0 h-full w-[80%] max-w-sm
@@ -142,12 +152,11 @@ export default function Header() {
               </button>
             </div>
 
-            {/* ניווט */}
             <nav className="flex flex-col gap-5 text-[#4a413a] font-medium">
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
 
-            {/* 👇 אזור משתמש – מיד אחרי "צור קשר" */}
+            {/* אזור משתמש – מתחת לצור קשר */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               {!loading &&
                 (user ? (
