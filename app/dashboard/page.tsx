@@ -8,7 +8,6 @@ import UpgradeToPremium from "../components/UpgradeToPremium";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import ImportExcelModal from "../components/ImportExcelModal"; 
 import EventCountdown from "../components/EventCountdown";
-import EventDetailsModal from "../components/EventDetailsForm";
 import GuestsMobileList from "./components/GuestsMobileList";
 
 
@@ -52,7 +51,6 @@ export default function DashboardPage() {
   const [invitationId, setInvitationId] = useState<string>("");
 
   const [user, setUser] = useState<any | null>(null);
-const [showEventModal, setShowEventModal] = useState(false);
   // ✅ חיפוש
   const [search, setSearch] = useState("");
 
@@ -272,16 +270,17 @@ console.log("INVITATION:", invitation);
     </div>
 
     <button
-      onClick={() => setShowEventModal(true)}
-      className="
-        text-sm font-semibold
-        text-[#8f7a67]
-        hover:underline
-        whitespace-nowrap
-      "
-    >
-      ✏️ עריכת פרטי האירוע
-    </button>
+  onClick={() => router.push("/dashboard/event")}
+  className="
+    hidden md:inline-flex
+    text-sm font-semibold
+    text-[#8f7a67]
+    hover:underline
+    whitespace-nowrap
+  "
+>
+  ✏️ עריכת פרטי האירוע
+</button>
   </div>
 )}
 
@@ -626,13 +625,7 @@ console.log("INVITATION:", invitation);
   />
 )}
 
-{showEventModal && invitation && (
-  <EventDetailsModal
-    invitation={invitation}
-    onClose={() => setShowEventModal(false)}
-    onSaved={loadInvitation}
-  />
-)}
+
 
     </div>
   );
