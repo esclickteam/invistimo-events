@@ -46,14 +46,12 @@ export default function Header() {
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
           <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
-            {/* ====================== ימין – המבורגר / תפריט ====================== */}
+            {/* ימין – תפריט */}
             <div className="flex items-center justify-start">
-              {/* דסקטופ */}
               <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium">
                 <NavLinks />
               </nav>
 
-              {/* מובייל */}
               <button
                 onClick={() => setMobileOpen(true)}
                 className="md:hidden p-2"
@@ -63,7 +61,7 @@ export default function Header() {
               </button>
             </div>
 
-            {/* ====================== מרכז – לוגו ====================== */}
+            {/* מרכז – לוגו */}
             <div className="flex justify-center" dir="ltr">
               <Link href="/" className="flex items-center">
                 <img
@@ -74,7 +72,7 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* ====================== שמאל – התחברות ====================== */}
+            {/* שמאל – התחברות (דסקטופ בלבד) */}
             <div className="hidden md:flex justify-end items-center gap-4">
               {!loading &&
                 (user ? (
@@ -117,16 +115,14 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ====================== MOBILE DRAWER ====================== */}
+      {/* ================= MOBILE DRAWER ================= */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
-          {/* overlay */}
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileOpen(false)}
           />
 
-          {/* drawer */}
           <div
             className="
               absolute top-0 right-0 h-full w-[80%] max-w-sm
@@ -146,18 +142,20 @@ export default function Header() {
               </button>
             </div>
 
+            {/* ניווט */}
             <nav className="flex flex-col gap-5 text-[#4a413a] font-medium">
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
 
-            <div className="mt-auto pt-6 border-t border-[#e2d6c8]">
+            {/* 👇 אזור משתמש – מיד אחרי "צור קשר" */}
+            <div className="pt-4 border-t border-[#e2d6c8]">
               {!loading &&
                 (user ? (
                   <div className="flex flex-col gap-4">
                     <Link
                       href="/dashboard"
                       onClick={() => setMobileOpen(false)}
-                      className="hover:text-[var(--champagne-dark)]"
+                      className="hover:text-[var(--champagne-dark)] font-medium"
                     >
                       לוח בקרה
                     </Link>
