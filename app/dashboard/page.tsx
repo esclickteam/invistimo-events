@@ -312,7 +312,7 @@ console.log("INVITATION:", invitation);
         onClick={() => router.push("/dashboard/seating")}
         className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
       >
-        🪑 הושבה
+        🪑סידורי הושבה
       </button>
     )}
 

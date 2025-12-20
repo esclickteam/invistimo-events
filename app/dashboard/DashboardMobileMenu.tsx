@@ -56,7 +56,7 @@ export default function DashboardMobileMenu({
           </Link>
 
           <Link href="/dashboard/seating" onClick={onClose}>
-            🪑 הושבה
+            🪑סידורי הושבה
           </Link>
 
           {invitationShareId && (
