@@ -3,11 +3,21 @@
 import { Menu, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+/* ============================================================
+   Types
+============================================================ */
+type DashboardHeaderProps = {
+  onOpenMenu: () => void;
+  invitation: any; // אפשר להחליף בטיפוס מדויק בהמשך
+};
+
+/* ============================================================
+   Component
+============================================================ */
 export default function DashboardHeader({
   onOpenMenu,
-}: {
-  onOpenMenu: () => void;
-}) {
+  invitation,
+}: DashboardHeaderProps) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -46,8 +56,8 @@ export default function DashboardHeader({
           <Menu size={22} />
         </button>
 
-        <span className="mr-3 font-medium text-[#4a413a]">
-         
+        <span className="mr-3 font-medium text-[#4a413a] truncate max-w-[180px]">
+          {invitation?.title || "ניהול אירוע"}
         </span>
       </div>
 
