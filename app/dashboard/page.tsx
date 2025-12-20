@@ -8,7 +8,7 @@ import UpgradeToPremium from "../components/UpgradeToPremium";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import ImportExcelModal from "../components/ImportExcelModal"; 
 import EventCountdown from "../components/EventCountdown";
-import EventDetailsModal from "../components/EventDetailsModal";
+import EventDetailsModal from "../components/EventDetailsForm";
 import GuestsMobileList from "./components/GuestsMobileList";
 
 

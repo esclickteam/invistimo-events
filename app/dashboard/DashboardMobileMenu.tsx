@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { X, Pencil } from "lucide-react";
 
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  invitationShareId?: string;
+};
+
 export default function DashboardMobileMenu({
   open,
   onClose,
   invitationShareId,
-}: {
-  open: boolean;
-  onClose: () => void;
-  invitationShareId?: string;
-}) {
+}: Props) {
   if (!open) return null;
 
   return (
@@ -51,9 +53,9 @@ export default function DashboardMobileMenu({
             🏠 ראשי
           </Link>
 
-          {/* ✏️ עריכת פרטי האירוע – הועבר לכאן */}
+          {/* ✏️ עריכת פרטי האירוע – דף ייעודי */}
           <Link
-            href="/dashboard?editEvent=1"
+            href="/dashboard/event"
             onClick={onClose}
             className="flex items-center gap-2"
           >
