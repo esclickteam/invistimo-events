@@ -76,33 +76,37 @@ const [showEventModal, setShowEventModal] = useState(false);
      Load invitation
   ============================================================ */
   async function loadInvitation() {
-    const res = await fetch("/api/invitations/my");
-    const data = await res.json();
+  const res = await fetch("/api/invitations/my", {
+    credentials: "include", // ⭐️ קריטי
+    cache: "no-store",
+  });
 
-    if (data.success && data.invitation) {
-      setInvitation(data.invitation);
-      setInvitationId(data.invitation._id);
-    }
+  const data = await res.json();
+
+  if (data.success && data.invitation) {
+    setInvitation(data.invitation);
+    setInvitationId(data.invitation._id);
   }
+}
 
   /* ============================================================
      Load guests
   ============================================================ */
   async function loadGuests() {
-    if (!invitationId) return;
-    const res = await fetch(`/api/guests?invitation=${invitationId}`);
-    const data = await res.json();
-    setGuests(data.guests || []);
-  }
+  if (!invitationId) return;
 
-  function handleGuestAdded(newGuest: Guest) {
-  setGuests((prev) => [...prev, newGuest]);
+  const res = await fetch(
+    `/api/guests?invitation=${invitationId}`,
+    {
+      credentials: "include", // ⭐️ חובה עם cookies
+      cache: "no-store",      // ⭐️ מונע קאש בין מכשירים
+    }
+  );
 
-  // ⭐️ אם זו ההוספה הראשונה – טוענים מחדש invitation
-  if (!invitation) {
-    loadInvitation();
-  }
+  const data = await res.json();
+  setGuests(data.guests || []);
 }
+
 
 
 async function deleteGuest(guest: Guest) {
@@ -140,8 +144,9 @@ async function deleteGuest(guest: Guest) {
   }, []);
 
   useEffect(() => {
-    if (invitationId) loadGuests();
-  }, [invitationId]);
+  if (!invitationId) return;
+  loadGuests();
+}, [invitationId]);
 
   /* ============================================================
      Stats (על כל האורחים)
@@ -592,7 +597,7 @@ console.log("INVITATION:", invitation);
   <AddGuestModal
     invitationId={invitationId}
     onClose={() => setOpenAddModal(false)}
-    onSuccess={handleGuestAdded}   // ⭐️ חובה
+    onSuccess={loadGuests}    // ⭐️ חובה
   />
 )}
 
