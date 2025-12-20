@@ -46,7 +46,7 @@ export default function DashboardLayout({
       />
 
       {/* Content */}
-      <main className="pt-16">{children}</main>
+      <main className="pt-2">{children}</main>
     </div>
   );
 }
