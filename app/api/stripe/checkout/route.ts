@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 
 export const runtime = "nodejs";
@@ -90,21 +91,18 @@ const ADDON_CONFIG: Record<string, { lookupKey: string; messages: number }> = {
 
 export async function POST(req: Request) {
   try {
+    /* 🔗 חיבור למונגו – חובה לפני שימוש במודלים */
+    await connectDB();
+
     /* 🔐 זיהוי משתמש – במקום email מה-client */
     const userId = await getUserIdFromRequest();
     if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const { priceKey, invitationId, quantity = 1 } = await req.json();
@@ -152,7 +150,7 @@ export async function POST(req: Request) {
         cancel_url: `${baseUrl}/payment/cancel`,
 
         metadata: {
-          userId: user._id.toString(),        // ⭐️ קריטי ל-webhook
+          userId: user._id.toString(), // ⭐️ קריטי ל-webhook
           invitationId: invitationId || "",
           priceKey,
           type: "addon",
@@ -180,7 +178,7 @@ export async function POST(req: Request) {
       cancel_url: `${baseUrl}/payment/cancel`,
 
       metadata: {
-        userId: user._id.toString(),          // ⭐️ קריטי ל-webhook
+        userId: user._id.toString(), // ⭐️ קריטי ל-webhook
         invitationId: invitationId || "",
         priceKey,
         plan: config.plan,
