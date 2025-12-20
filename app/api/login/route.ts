@@ -31,23 +31,20 @@ export async function POST(req: Request) {
       { expiresIn: "7d" }
     );
 
-    // ===== תשובה ללקוח =====
     const res = NextResponse.json({
       success: true,
       user: { _id: user._id, name: user.name, email: user.email },
-      token,
     });
 
     // ======================================================
-    // ✅ Cookie תקין ששורד redirect חיצוני (Stripe)
+    // ✅ Cookie יציב – עובד במובייל ודסקטופ
     // ======================================================
     res.cookies.set("authToken", token, {
       httpOnly: true,
-      secure: true,                 // חובה ל-SameSite=None
-      sameSite: "none",             // ⭐️ קריטי לחזרה מ-Stripe
-      domain: ".invistimo.com",     // עובד עם www ובלי
+      secure: true,
+      sameSite: "lax",   // ⭐️ קריטי – לא none
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,     // שבוע
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return res;
