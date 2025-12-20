@@ -258,7 +258,7 @@ console.log("INVITATION:", invitation);
 
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
     {invitation && (
-  <div className="mb-10 flex justify-end">
+  <div className="mb-10 flex justify-center">
     {invitation.eventDate ? (
       <EventCountdown invitation={invitation} />
     ) : (
