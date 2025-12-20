@@ -29,6 +29,15 @@ type Props = {
 };
 
 /* ============================================================
+   Helpers
+============================================================ */
+function rsvpBadgeClass(rsvp: Guest["rsvp"]) {
+  if (rsvp === "yes") return "bg-green-100 text-green-700";
+  if (rsvp === "no") return "bg-red-100 text-red-700";
+  return "bg-yellow-100 text-yellow-700";
+}
+
+/* ============================================================
    Component
 ============================================================ */
 export default function GuestsMobileList({
@@ -47,51 +56,78 @@ export default function GuestsMobileList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-4">
       {guests.map((g) => (
         <div
           key={g._id}
-          className="border rounded-xl p-4 bg-white shadow-sm"
+          className="
+            bg-white
+            rounded-2xl
+            border
+            shadow-sm
+            p-4
+            flex
+            flex-col
+            gap-3
+          "
         >
-          {/* שם + סטטוס */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-lg">{g.name}</div>
-            <span className="text-sm text-gray-700">
+          {/* ================= Header ================= */}
+          <div className="flex items-center justify-between">
+            <div className="font-semibold text-lg leading-tight">
+              {g.name}
+            </div>
+
+            <span
+              className={`
+                text-xs
+                px-3
+                py-1
+                rounded-full
+                font-medium
+                ${rsvpBadgeClass(g.rsvp)}
+              `}
+            >
               {RSVP_LABELS[g.rsvp]}
             </span>
           </div>
 
-          {/* פרטים */}
-          <div className="text-sm text-gray-600 space-y-1 mb-3">
+          {/* ================= Details ================= */}
+          <div className="text-sm text-gray-600 space-y-1">
             <div>📞 {g.phone}</div>
             <div>👥 מוזמנים: {g.guestsCount}</div>
+
             <div>
               🪑 שולחן:{" "}
-              <span className="font-medium">
+              <span className="font-medium text-gray-800">
                 {g.tableName || "—"}
               </span>
             </div>
-            {g.relation && <div>🤍 {g.relation}</div>}
+
+            {g.relation && (
+              <div>🤍 {g.relation}</div>
+            )}
           </div>
 
-          {/* פעולות */}
-          <div className="flex justify-between items-center pt-2 border-t">
-            <div className="flex gap-4 text-lg">
+          {/* ================= Actions ================= */}
+          <div className="flex justify-between items-center pt-3 border-t">
+            <div className="flex gap-4 text-base">
               <button
                 onClick={() => onMessage(g)}
-                title="שליחת הודעה"
+                className="text-green-600 font-medium"
               >
                 💬
               </button>
+
               <button
                 onClick={() => onSeat(g)}
-                title="הושבה"
+                className="text-[#8f7a67] font-medium"
               >
                 🪑
               </button>
+
               <button
                 onClick={() => onEdit(g)}
-                title="עריכה"
+                className="text-blue-600 font-medium"
               >
                 ✏️
               </button>
@@ -99,8 +135,7 @@ export default function GuestsMobileList({
 
             <button
               onClick={() => onDelete(g)}
-              title="מחיקה"
-              className="text-red-600"
+              className="text-red-600 font-medium"
             >
               🗑️
             </button>
