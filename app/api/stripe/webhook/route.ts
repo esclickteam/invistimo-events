@@ -43,7 +43,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
-  // ⭐️ קריטי: clone כדי לא לשבור את ה-stream
   const body = await req.clone().text();
 
   let stripeEvent: Stripe.Event;
@@ -59,6 +58,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  console.log("📦 EVENT TYPE:", stripeEvent.type);
+
+  // ❗ מטפלים רק באירוע הרלוונטי, בלי לצאת מוקדם מדי
   if (stripeEvent.type !== "checkout.session.completed") {
     return NextResponse.json({ received: true });
   }
@@ -67,107 +69,104 @@ export async function POST(req: Request) {
 
   const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
+  if (!session.payment_intent) {
+    return NextResponse.json({ received: true });
+  }
+
   /* ================= Prevent duplicate ================= */
   const existingPayment = await Payment.findOne({
-  stripePaymentIntentId: session.payment_intent,
-});
+    stripePaymentIntentId: String(session.payment_intent),
+  });
   if (existingPayment) {
     return NextResponse.json({ received: true });
   }
 
   /* ================= Identify user ================= */
-  const email = session.customer_email;
-  if (!email) {
-    return NextResponse.json({ error: "Missing email" }, { status: 400 });
+  let user: any = null;
+
+  if (session.metadata?.userId) {
+    user = await User.findById(session.metadata.userId);
   }
 
-  const user = await User.findOne({ email });
+  if (!user && session.customer_email) {
+    user = await User.findOne({ email: session.customer_email });
+  }
+
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  const email = user.email;
+
   /* ============================================================
      🟢 CASE 1: PREMIUM UPGRADE
-     ➕ אורחים
-     ➕ SMS = (אורחים ששודרגו × 3)
-     ➕ הושבה
   ============================================================ */
   if (session.metadata?.type === "upgrade") {
-  const targetGuests = Number(session.metadata.targetGuests);
-  const fullPrice = Number(session.metadata.fullPrice);
-  const amountCharged = Number(session.metadata.amountCharged);
+    const targetGuests = Number(session.metadata.targetGuests);
+    const fullPrice = Number(session.metadata.fullPrice);
+    const amountCharged = Number(session.metadata.amountCharged);
 
-  if (!targetGuests || !fullPrice || !amountCharged) {
+    if (!targetGuests || !fullPrice || !amountCharged) {
+      return NextResponse.json({ received: true });
+    }
+
+    const currentGuests = user.guests || 0;
+    const newTotalGuests = currentGuests + targetGuests;
+    const smsToAdd = targetGuests * 3;
+    const priceKey = `premium_${targetGuests}`;
+
+    await Payment.create({
+      email,
+      stripeSessionId: session.id,
+      stripePaymentIntentId: String(session.payment_intent),
+      stripeCustomerId: session.customer as string,
+      priceKey,
+      maxGuests: newTotalGuests,
+      amount: amountCharged,
+      currency: "ils",
+      status: "paid",
+    });
+
+    await User.findByIdAndUpdate(user._id, {
+      plan: "premium",
+      guests: newTotalGuests,
+      paidAmount: (user.paidAmount || 0) + amountCharged,
+      planLimits: {
+        maxGuests: newTotalGuests,
+        smsEnabled: true,
+        seatingEnabled: true,
+        remindersEnabled: true,
+      },
+    });
+
+    let invitation = await Invitation.findOne({ ownerId: user._id });
+
+    if (!invitation) {
+      invitation = await Invitation.create({
+        ownerId: user._id,
+        title: "ההזמנה שלי",
+        canvasData: {},
+        shareId: crypto.randomUUID(),
+        maxGuests: newTotalGuests,
+        sentSmsCount: 0,
+        maxMessages: smsToAdd,
+        remainingMessages: smsToAdd,
+      });
+    } else {
+      invitation.maxGuests = newTotalGuests;
+      invitation.maxMessages =
+        (invitation.maxMessages || 0) + smsToAdd;
+      invitation.remainingMessages =
+        (invitation.remainingMessages || 0) + smsToAdd;
+      await invitation.save();
+    }
+
+    console.log(
+      `✅ Upgrade OK: ${email} | +${targetGuests} guests | +${smsToAdd} SMS`
+    );
+
     return NextResponse.json({ received: true });
   }
-
-  const currentGuests = user.guests || 0;
-  const newTotalGuests = currentGuests + targetGuests;
-
-  // ⭐ SMS מתווספים תמיד בשדרוג
-  const smsToAdd = targetGuests * 3;
-
-  const priceKey = `premium_${targetGuests}`;
-
-  /* 💾 Payment */
-  await Payment.create({
-    email,
-    stripeSessionId: session.id,
-    stripePaymentIntentId: session.payment_intent as string,
-    stripeCustomerId: session.customer as string,
-    priceKey,
-    maxGuests: newTotalGuests,
-    amount: amountCharged,
-    currency: "ils",
-    status: "paid",
-  });
-
-  /* 🧑 Update User */
-  await User.findByIdAndUpdate(user._id, {
-    plan: "premium",
-    guests: newTotalGuests,
-    paidAmount: (user.paidAmount || 0) + amountCharged,
-    planLimits: {
-      maxGuests: newTotalGuests,
-      smsEnabled: true,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    },
-  });
-
-  /* ✉️ Update Invitation + SMS */
-  let invitation = await Invitation.findOne({ ownerId: user._id });
-
-  if (!invitation) {
-    invitation = await Invitation.create({
-      ownerId: user._id,
-      title: "ההזמנה שלי",
-      canvasData: {},
-      shareId: crypto.randomUUID(),
-      maxGuests: newTotalGuests,
-      sentSmsCount: 0,
-      maxMessages: smsToAdd,
-      remainingMessages: smsToAdd,
-    });
-  } else {
-    invitation.maxGuests = newTotalGuests;
-
-    invitation.maxMessages =
-      (invitation.maxMessages || 0) + smsToAdd;
-
-    invitation.remainingMessages =
-      (invitation.remainingMessages || 0) + smsToAdd;
-
-    await invitation.save();
-  }
-
-  console.log(
-    `✅ Upgrade OK: ${email} | +${targetGuests} guests | +${smsToAdd} SMS`
-  );
-
-  return NextResponse.json({ received: true });
-}
-
 
   /* ============================================================
      🟢 CASE 2: SMS ADD-ON
@@ -193,10 +192,8 @@ export async function POST(req: Request) {
     } else {
       invitation.maxMessages =
         (invitation.maxMessages || 0) + messagesToAdd;
-
       invitation.remainingMessages =
         (invitation.remainingMessages || 0) + messagesToAdd;
-
       await invitation.save();
     }
 
@@ -227,7 +224,7 @@ export async function POST(req: Request) {
   await Payment.create({
     email,
     stripeSessionId: session.id,
-    stripePaymentIntentId: session.payment_intent as string,
+    stripePaymentIntentId: String(session.payment_intent),
     stripeCustomerId: session.customer as string,
     stripePriceId: price?.id,
     priceKey,
