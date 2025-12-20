@@ -94,6 +94,11 @@ const [showEventModal, setShowEventModal] = useState(false);
 
   function handleGuestAdded(newGuest: Guest) {
   setGuests((prev) => [...prev, newGuest]);
+
+  // ⭐️ אם זו ההוספה הראשונה – טוענים מחדש invitation
+  if (!invitation) {
+    loadInvitation();
+  }
 }
 
 
