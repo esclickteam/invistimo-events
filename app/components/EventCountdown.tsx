@@ -64,21 +64,20 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
   ].filter(Boolean) as { label: string; value: number }[];
 
   return (
-    <div dir="rtl" className="w-full flex justify-center">
+    <div dir="rtl">
       <div
         className="
-          w-full max-w-[360px] md:max-w-[420px]
+          inline-block
           bg-gradient-to-l from-black to-zinc-800
           text-white
           rounded-2xl
-          px-4 py-4 md:px-6 md:py-5
-          relative
+          px-4 py-4
           border-2 border-[#c9b48f]
-          shadow-[0_0_0_2px_rgba(201,180,143,0.65),_0_10px_28px_rgba(201,180,143,0.45)]
+          shadow-[0_8px_22px_rgba(0,0,0,0.45)]
         "
       >
         {/* כותרת */}
-        <div className="text-sm md:text-lg font-semibold mb-3 text-center">
+        <div className="text-sm font-semibold mb-3 text-center">
           האירוע{" "}
           <span className="text-[#c9b48f] font-bold">
             {invitation.title || "שלך"}
@@ -86,12 +85,12 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
           יתחיל בעוד:
         </div>
 
-        {/* ⏳ ספירה לאחור */}
+        {/* ספירה */}
         <div
           className="
-            grid grid-cols-4
-            md:grid-cols-2
-            gap-2 md:gap-4
+            grid
+            grid-cols-[repeat(auto-fit,minmax(72px,1fr))]
+            gap-2
           "
         >
           {boxes.map((b) => (
@@ -109,17 +108,16 @@ function TimeBox({ value, label }: { value: number; label: string }) {
       className="
         flex flex-col items-center justify-center
         bg-white/10
-        backdrop-blur
         border border-white/20
         rounded-xl
-        py-2 md:py-4
+        py-2
         text-center
       "
     >
-      <span className="text-lg md:text-3xl font-bold tabular-nums">
+      <span className="text-lg font-bold tabular-nums">
         {String(value).padStart(2, "0")}
       </span>
-      <span className="text-[10px] md:text-sm opacity-80">{label}</span>
+      <span className="text-[11px] opacity-80">{label}</span>
     </div>
   );
 }
