@@ -269,18 +269,7 @@ console.log("INVITATION:", invitation);
       )}
     </div>
 
-    <button
-  onClick={() => router.push("/dashboard/event")}
-  className="
-    hidden md:inline-flex
-    text-sm font-semibold
-    text-[#8f7a67]
-    hover:underline
-    whitespace-nowrap
-  "
->
-  ✏️ עריכת פרטי האירוע
-</button>
+    
   </div>
 )}
 
@@ -316,16 +305,26 @@ console.log("INVITATION:", invitation);
     )}
 
     {invitation && (
-      <a
-        href={`https://www.invistimo.com/invite/${invitation.shareId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
-        title="צפייה בהזמנה כפי שהאורחים רואים"
-      >
-        👁️ צפייה בהזמנה
-      </a>
-    )}
+  <>
+    <a
+      href={`https://www.invistimo.com/invite/${invitation.shareId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
+      title="צפייה בהזמנה כפי שהאורחים רואים"
+    >
+      👁️ צפייה בהזמנה
+    </a>
+
+    <button
+      onClick={() => router.push("/dashboard/event")}
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
+      title="עריכת פרטי האירוע"
+    >
+      🛠️ עריכת פרטי האירוע
+    </button>
+  </>
+)}
 
     {invitation && (
       <button
