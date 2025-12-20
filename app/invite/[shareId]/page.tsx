@@ -134,9 +134,7 @@ export default function PublicInvitePage({ params }: any) {
 
   if (!invite) {
     return (
-      <div className="p-10 text-center text-red-600">
-        ❌ ההזמנה לא נמצאה
-      </div>
+      <div className="p-10 text-center text-red-600">❌ ההזמנה לא נמצאה</div>
     );
   }
 
@@ -156,9 +154,6 @@ export default function PublicInvitePage({ params }: any) {
             </div>
           )}
         </div>
-
-        {/* כרטיס מיקום / איך מגיעים */}
-        <EventLocationCard location={invite.location} />
 
         {/* טופס אישור הגעה */}
         {!sent ? (
@@ -290,10 +285,15 @@ export default function PublicInvitePage({ params }: any) {
             </button>
           </form>
         ) : (
-          <div className="bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold">
+          <div className="w-full max-w-md bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold text-center">
             ✓ תודה! תשובתך התקבלה
           </div>
         )}
+
+        {/* ✅ כרטיס מיקום / איך מגיעים — מתחת לכפתור שליחת האישור */}
+        <div className="w-full flex justify-center">
+          <EventLocationCard location={invite.location} />
+        </div>
       </div>
     </div>
   );
