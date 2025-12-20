@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import User from "@/models/User";
 
 export const runtime = "nodejs";
 
@@ -12,7 +14,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 /* ============================================================
    SMS Add-ons config (lookup_key בלבד)
-   ⚠️ חייב להתאים בדיוק ל-Stripe
 ============================================================ */
 const SMS_ADDON_CONFIG: Record<
   string,
@@ -23,7 +24,6 @@ const SMS_ADDON_CONFIG: Record<
   extra_messages_1000: { lookupKey: "extra_messages_1000", messages: 1000 },
   extra_messages_1250: { lookupKey: "extra_messages_1250", messages: 1250 },
   extra_messages_1500: { lookupKey: "extra_messages_1500", messages: 1500 },
-
 };
 
 /* ============================================================
@@ -31,6 +31,23 @@ const SMS_ADDON_CONFIG: Record<
 ============================================================ */
 export async function POST(req: Request) {
   try {
+    /* 🔐 זיהוי משתמש */
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
     const { priceKey, quantity = 1 } = await req.json();
 
     if (!priceKey || !SMS_ADDON_CONFIG[priceKey]) {
@@ -50,9 +67,6 @@ export async function POST(req: Request) {
 
     const addon = SMS_ADDON_CONFIG[priceKey];
 
-    /* ============================================================
-       Fetch price by lookup_key from Stripe
-    ============================================================ */
     const prices = await stripe.prices.list({
       lookup_keys: [addon.lookupKey],
       limit: 1,
@@ -84,6 +98,7 @@ export async function POST(req: Request) {
       cancel_url: `${baseUrl}/dashboard/messages?canceled=true`,
 
       metadata: {
+        userId: user._id.toString(),   // ✅ זה מה שהיה חסר
         type: "addon",
         priceKey,
         messages: String(addon.messages * quantity),
