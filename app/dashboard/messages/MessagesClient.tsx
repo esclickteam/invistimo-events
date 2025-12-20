@@ -353,7 +353,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
             <button
               onClick={() =>
                 router.push(
-                  `/dashboard/purchase-sms?count=${selectedPackage || ""}`
+                  `/dashboard/purchase-sms?priceKey=extra_messages_${selectedPackage}`
                 )
               }
               disabled={!selectedPackage}

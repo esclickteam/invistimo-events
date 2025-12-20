@@ -12,12 +12,7 @@ const SMS_PACKAGES = {
   extra_messages_1000: { messages: 1000, price: 100 },
   extra_messages_1250: { messages: 1250, price: 125 },
   extra_messages_1500: { messages: 1500, price: 150 },
-  extra_messages_1750: { messages: 1750, price: 175 },
-  extra_messages_2000: { messages: 2000, price: 200 },
-  extra_messages_2500: { messages: 2500, price: 250 },
-  extra_messages_3000: { messages: 3000, price: 300 },
-  extra_messages_4000: { messages: 4000, price: 400 },
-  extra_messages_5000: { messages: 5000, price: 500 },
+  
 };
 
 function PurchaseSMSInner() {
