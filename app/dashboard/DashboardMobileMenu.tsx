@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { X } from "lucide-react";
+import { X, Pencil } from "lucide-react";
 
 export default function DashboardMobileMenu({
   open,
@@ -45,10 +45,20 @@ export default function DashboardMobileMenu({
           </button>
         </div>
 
-        {/* Navigation – ניווט בלבד */}
+        {/* Navigation */}
         <nav className="flex flex-col gap-4 text-[#4a413a] font-medium">
           <Link href="/dashboard" onClick={onClose}>
             🏠 ראשי
+          </Link>
+
+          {/* ✏️ עריכת פרטי האירוע – הועבר לכאן */}
+          <Link
+            href="/dashboard?editEvent=1"
+            onClick={onClose}
+            className="flex items-center gap-2"
+          >
+            <Pencil size={16} />
+            עריכת פרטי האירוע
           </Link>
 
           <Link href="/dashboard/messages" onClick={onClose}>
@@ -56,7 +66,7 @@ export default function DashboardMobileMenu({
           </Link>
 
           <Link href="/dashboard/seating" onClick={onClose}>
-            🪑סידורי הושבה
+            🪑 סידורי הושבה
           </Link>
 
           {invitationShareId && (
