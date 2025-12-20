@@ -18,8 +18,8 @@ const PRICE_CONFIG: Record<
   string,
   { priceId: string; maxGuests: number; plan: "basic" | "premium" }
 > = {
-  basic_plan: {
-    priceId: "price_1SdVK5LCgfc20iubLwRTHMKT",
+  basic_plan_49: {
+    priceId: "price_1SdWP9LCgfc20iubG9OFDPVs",
     maxGuests: 100,
     plan: "basic",
   },
@@ -31,13 +31,13 @@ const PRICE_CONFIG: Record<
   },
 
   premium_200: {
-    priceId: "price_1SdSGkLCgfc20iubDzINSFfW",
+    priceId: "price_1SfT32LCgfc20iubjKfjv3ZQ",
     maxGuests: 200,
     plan: "premium",
   },
 
   premium_300: {
-    priceId: "price_1SdSpILCgfc20iub7y1HQUeR",
+    priceId: "price_1SfPaoLCgfc20iubiRBsT6NF",
     maxGuests: 300,
     plan: "premium",
   },
@@ -49,7 +49,7 @@ const PRICE_CONFIG: Record<
   },
 
   premium_500: {
-    priceId: "price_1SdvFcLCgfc20iub0Pg9c2Su",
+    priceId: "price_1SfPgNLCgfc20iubN2pcgF6T",
     maxGuests: 500,
     plan: "premium",
   },
