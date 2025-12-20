@@ -18,6 +18,10 @@ export interface IUser extends Document {
     seatingEnabled: boolean;
     remindersEnabled: boolean;
   };
+
+  // 🔐 RESET PASSWORD
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
 }
 
 /* ============================================================
@@ -59,6 +63,7 @@ function applyPlanRules(user: IUser) {
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
+
     email: {
       type: String,
       required: true,
@@ -66,9 +71,14 @@ const UserSchema = new Schema<IUser>(
       lowercase: true,
       trim: true,
     },
+
     password: { type: String, required: true },
 
-    plan: { type: String, enum: ["basic", "premium"], default: "basic" },
+    plan: {
+      type: String,
+      enum: ["basic", "premium"],
+      default: "basic",
+    },
 
     guests: { type: Number, default: 100 },
 
@@ -80,13 +90,21 @@ const UserSchema = new Schema<IUser>(
       seatingEnabled: { type: Boolean, default: false },
       remindersEnabled: { type: Boolean, default: true },
     },
+
+    // 🔐 RESET PASSWORD FIELDS
+    resetPasswordToken: {
+      type: String,
+      index: true,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
 
 /* ============================================================
    AUTO LOGIC: לפני שמירה (create / save)
-   ✅ בלי next בכלל (מונע את: e is not a function)
 ============================================================ */
 UserSchema.pre("save", function () {
   applyPlanRules(this as unknown as IUser);
@@ -94,8 +112,6 @@ UserSchema.pre("save", function () {
 
 /* ============================================================
    AUTO LOGIC: לפני עדכון (findOneAndUpdate)
-   ✅ בלי next בכלל
-   ✅ תומך גם במבנה { $set: {...} }
 ============================================================ */
 UserSchema.pre("findOneAndUpdate", function () {
   const rawUpdate = (this as any).getUpdate() || {};
