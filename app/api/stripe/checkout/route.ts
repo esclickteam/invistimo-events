@@ -1,17 +1,17 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import User from "@/models/User";
 
 export const runtime = "nodejs";
 
 /* ============================================================
    Stripe instance
-   ✅ בלי apiVersion בכלל (כמו שביקשת)
 ============================================================ */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 /* ============================================================
    Packages (fixed prices)
-   ✅ שמרתי את ה-IDs שלך + הוספתי plan כדי שיהיה ברור ב-webhook
 ============================================================ */
 const PRICE_CONFIG: Record<
   string,
@@ -90,11 +90,28 @@ const ADDON_CONFIG: Record<string, { lookupKey: string; messages: number }> = {
 
 export async function POST(req: Request) {
   try {
-    const { priceKey, email, invitationId, quantity = 1 } = await req.json();
-
-    if (!priceKey || !email) {
+    /* 🔐 זיהוי משתמש – במקום email מה-client */
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
       return NextResponse.json(
-        { error: "Missing priceKey or email" },
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const { priceKey, invitationId, quantity = 1 } = await req.json();
+
+    if (!priceKey) {
+      return NextResponse.json(
+        { error: "Missing priceKey" },
         { status: 400 }
       );
     }
@@ -128,13 +145,14 @@ export async function POST(req: Request) {
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        customer_email: email,
+        customer_email: user.email,
         line_items: [{ price: price.id, quantity }],
 
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
 
         metadata: {
+          userId: user._id.toString(),        // ⭐️ קריטי ל-webhook
           invitationId: invitationId || "",
           priceKey,
           type: "addon",
@@ -155,13 +173,14 @@ export async function POST(req: Request) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer_email: email,
+      customer_email: user.email,
       line_items: [{ price: config.priceId, quantity: 1 }],
 
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/payment/cancel`,
 
       metadata: {
+        userId: user._id.toString(),          // ⭐️ קריטי ל-webhook
         invitationId: invitationId || "",
         priceKey,
         plan: config.plan,
