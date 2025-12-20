@@ -42,7 +42,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     "basic",         // 
     "basic_plan",    // 
     "basic_plan_49", // 
-    "premium_100",
+    "premium_100_v2",
     "premium_200",
     "premium_300",
     "premium_400",

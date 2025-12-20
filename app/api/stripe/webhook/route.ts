@@ -21,7 +21,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const GUESTS_BY_KEY: Record<string, number> = {
   basic_plan: 100,
   basic_plan_49: 100,
-  premium_100: 100,
+  premium_100_v2: 100,
   premium_200: 200,
   premium_300: 300,
   premium_400: 400,
