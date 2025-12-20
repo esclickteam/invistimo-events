@@ -1,36 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardHeader from "./DashboardHeader";
 import DashboardMobileMenu from "./DashboardMobileMenu";
 
 export default function DashboardLayout({
   children,
-  invitation,
 }: {
   children: React.ReactNode;
-  invitation?: {
-    shareId?: string;
-  };
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [invitationShareId, setInvitationShareId] = useState<
+    string | undefined
+  >(undefined);
+
+  useEffect(() => {
+    async function loadInvitation() {
+      try {
+        const res = await fetch("/api/invitations/my", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (data.success) {
+          setInvitationShareId(data.invitation?.shareId);
+        }
+      } catch (e) {
+        console.error("Failed to load invitation for menu");
+      }
+    }
+
+    loadInvitation();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      {/* Header של הדשבורד – כולל המבורגר במובייל */}
+      {/* Header */}
       <DashboardHeader onOpenMenu={() => setMenuOpen(true)} />
 
-      {/* תפריט מובייל – דשבורד בלבד */}
+      {/* Mobile menu */}
       <DashboardMobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        invitationShareId={invitation?.shareId}
+        invitationShareId={invitationShareId}
       />
 
-      {/* תוכן */}
-      <main className="pt-16">
-        {children}
-      </main>
+      {/* Content */}
+      <main className="pt-16">{children}</main>
     </div>
   );
 }
