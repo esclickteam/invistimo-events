@@ -11,7 +11,7 @@ export function middleware(req: NextRequest) {
   ======================================================== */
   if (
     pathname.startsWith("/api/stripe/webhook") ||
-    hostname.includes("stripe") // ביטוח למקרה של redirect חיצוני
+    hostname.includes("stripe")
   ) {
     return NextResponse.next();
   }
@@ -26,11 +26,13 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     2️⃣ הגנה על /dashboard – משתמש חייב להיות מחובר
+     2️⃣ הגנה על /dashboard
+     ❗ מאפשרים כניסה אחרי Stripe (session_id)
   ======================================================== */
   const token = cookies.get("authToken")?.value;
+  const hasStripeSession = nextUrl.searchParams.has("session_id");
 
-  if (pathname.startsWith("/dashboard") && !token) {
+  if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 

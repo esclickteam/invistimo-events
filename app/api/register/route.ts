@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import User from "@/models/User";
 import { connectDB } from "@/lib/db";
 
@@ -52,7 +53,6 @@ export async function POST(req: Request) {
         remindersEnabled: true,
       };
 
-      // לדוגמה — תמחור בסיסי לפי גודל
       const priceMap: Record<number, number> = {
         100: 149,
         200: 199,
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       יצירת המשתמש במסד הנתונים (תואם למודל)
+       יצירת המשתמש
     ============================================================ */
     const user = await User.create({
       name,
@@ -80,7 +80,30 @@ export async function POST(req: Request) {
       planLimits,
     });
 
-    return NextResponse.json({ success: true, user });
+    /* ============================================================
+       יצירת JWT + Cookie (כמו login)
+    ============================================================ */
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET!,
+      { expiresIn: "7d" }
+    );
+
+    const res = NextResponse.json({
+      success: true,
+      user: { _id: user._id, name: user.name, email: user.email },
+    });
+
+    res.cookies.set("authToken", token, {
+      httpOnly: true,
+      secure: true,                 // חובה ל-SameSite=None
+      sameSite: "none",             // ⭐️ קריטי ל-Stripe redirect
+      domain: ".invistimo.com",     // www + בלי www
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    return res;
   } catch (error) {
     console.error("REGISTER ERROR:", error);
     return NextResponse.json({ error: "שגיאה בשרת" }, { status: 500 });

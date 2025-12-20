@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface User {
   _id: string;
@@ -27,26 +28,25 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   /* --------------------------------------------------
-     טעינה ראשונית של משתמש
+     טעינה / רענון משתמש – מקור אמת יחיד
   -------------------------------------------------- */
   const refreshUser = async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/me", {
-        method: "GET",
         credentials: "include",
       });
-      const data = await res.json();
 
-      if (data?.user) {
-        setUser(data.user);
-        localStorage.setItem("authUser", JSON.stringify(data.user));
-      } else {
-        const stored = localStorage.getItem("authUser");
-        if (stored) setUser(JSON.parse(stored));
-        else setUser(null);
+      if (!res.ok) {
+        setUser(null);
+        return;
       }
+
+      const data = await res.json();
+      setUser(data?.user ?? null);
     } catch (err) {
       console.error("❌ refreshUser error:", err);
       setUser(null);
@@ -56,16 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // קודם מציג משתמש מקומי – כדי למנוע הבזק ריק
-    const stored = localStorage.getItem("authUser");
-    if (stored) setUser(JSON.parse(stored));
-
-    // ואז בודק מול השרת
     refreshUser();
   }, []);
 
   /* --------------------------------------------------
-     התחברות מלאה (login)
+     התחברות
   -------------------------------------------------- */
   const login = async (email: string, password: string) => {
     try {
@@ -81,17 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // שמירת המשתמש וה-token מקומית
-      if (data.user) {
-        localStorage.setItem("authUser", JSON.stringify(data.user));
-        setUser(data.user);
-      }
-      if (data.token) {
-        localStorage.setItem("authToken", data.token);
-      }
-
-      // הפניה לאחר התחברות (אם תרצי)
-      window.location.href = "/dashboard";
+      // אחרי login – מבקשים user מהשרת
+      await refreshUser();
+      router.push("/dashboard");
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
@@ -99,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /* --------------------------------------------------
-     התנתקות מלאה (logout)
+     התנתקות
   -------------------------------------------------- */
   const logout = async () => {
     try {
@@ -108,11 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: "include",
       });
 
-      localStorage.removeItem("authUser");
-      localStorage.removeItem("authToken");
       setUser(null);
-
-      window.location.href = "/login";
+      router.push("/login");
     } catch (err) {
       console.error("❌ Logout failed:", err);
     }

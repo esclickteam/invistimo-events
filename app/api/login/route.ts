@@ -12,11 +12,17 @@ export async function POST(req: Request) {
     // ===== בדיקת משתמש =====
     const user = await User.findOne({ email });
     if (!user)
-      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
+      return NextResponse.json(
+        { error: "מייל או סיסמה שגויים" },
+        { status: 401 }
+      );
 
     const match = await bcrypt.compare(password, user.password);
     if (!match)
-      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
+      return NextResponse.json(
+        { error: "מייל או סיסמה שגויים" },
+        { status: 401 }
+      );
 
     // ===== יצירת טוקן =====
     const token = jwt.sign(
@@ -33,19 +39,18 @@ export async function POST(req: Request) {
     });
 
     // ======================================================
-    // ✅ Cookie תקין שיישלח גם ב-fetch וגם יישאר אחרי רענון
+    // ✅ Cookie תקין ששורד redirect חיצוני (Stripe)
     // ======================================================
     res.cookies.set("authToken", token, {
-      httpOnly: true,         // לא נגיש מג׳אווהסקריפט
-      secure: process.env.NODE_ENV === "production", // ב־https בלבד בפרודקשן
-      sameSite: "lax",        // מאפשר שליחה ב־fetch רגיל
-      path: "/",              // לכל האתר
-      maxAge: 60 * 60 * 24 * 7, // שבוע
-      // ⚠️ אל תגדירי domain — הדפדפן יקבע אוטומטית
+      httpOnly: true,
+      secure: true,                 // חובה ל-SameSite=None
+      sameSite: "none",             // ⭐️ קריטי לחזרה מ-Stripe
+      domain: ".invistimo.com",     // עובד עם www ובלי
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,     // שבוע
     });
 
     return res;
-
   } catch (error) {
     console.error("LOGIN ERROR:", error);
     return NextResponse.json({ error: "שגיאה בשרת" }, { status: 500 });
