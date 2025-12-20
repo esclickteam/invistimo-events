@@ -23,12 +23,7 @@ const SMS_ADDON_CONFIG: Record<
   extra_messages_1000: { lookupKey: "extra_messages_1000", messages: 1000 },
   extra_messages_1250: { lookupKey: "extra_messages_1250", messages: 1250 },
   extra_messages_1500: { lookupKey: "extra_messages_1500", messages: 1500 },
-  extra_messages_1750: { lookupKey: "extra_messages_1750", messages: 1750 },
-  extra_messages_2000: { lookupKey: "extra_messages_2000", messages: 2000 },
-  extra_messages_2500: { lookupKey: "extra_messages_2500", messages: 2500 },
-  extra_messages_3000: { lookupKey: "extra_messages_3000", messages: 3000 },
-  extra_messages_4000: { lookupKey: "extra_messages_4000", messages: 4000 },
-  extra_messages_5000: { lookupKey: "extra_messages_5000", messages: 5000 },
+
 };
 
 /* ============================================================
