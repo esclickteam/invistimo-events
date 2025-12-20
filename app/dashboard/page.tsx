@@ -9,6 +9,9 @@ import { RSVP_LABELS } from "@/lib/rsvp";
 import ImportExcelModal from "../components/ImportExcelModal"; 
 import EventCountdown from "../components/EventCountdown";
 import EventDetailsModal from "../components/EventDetailsModal";
+import GuestsMobileList from "./components/GuestsMobileList";
+
+
 
 
 /* ============================================================
@@ -448,123 +451,134 @@ console.log("INVITATION:", invitation);
         </div>
       </div>
 
-      {/* Table */}
-      <div className="w-full overflow-x-auto">
-      <table className="min-w-[900px] w-full border rounded-xl overflow-hidden bg-white">
-        <thead className="bg-gray-100">
-          <tr>
-            <th
-              className="p-3 text-right cursor-pointer select-none"
-              onClick={() => toggleSort("name")}
-              title="מיון לפי שם"
+      {/* ===================== DESKTOP TABLE ===================== */}
+<div className="hidden md:block w-full overflow-x-auto">
+  <table className="min-w-[900px] w-full border rounded-xl overflow-hidden bg-white">
+    <thead className="bg-gray-100">
+      <tr>
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("name")}
+        >
+          שם מלא{sortArrow("name")}
+        </th>
+
+        <th className="p-3 text-right">טלפון</th>
+        <th className="p-3 text-right">קרבה</th>
+
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("rsvp")}
+        >
+          סטטוס{sortArrow("rsvp")}
+        </th>
+
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("invited")}
+        >
+          מוזמנים{sortArrow("invited")}
+        </th>
+
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("coming")}
+        >
+          מגיעים{sortArrow("coming")}
+        </th>
+
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("table")}
+        >
+          מס' שולחן{sortArrow("table")}
+        </th>
+
+        <th className="p-3 text-right">הערות</th>
+        <th className="p-3 text-right">פעולות</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {displayGuests.map((g) => (
+        <tr key={g._id} className="border-b">
+          <td className="p-3">{g.name}</td>
+          <td className="p-3">{g.phone}</td>
+          <td className="p-3">{g.relation?.trim() || "-"}</td>
+          <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
+          <td className="p-3">{g.guestsCount}</td>
+          <td className="p-3 font-semibold">
+            {g.rsvp === "yes" ? g.guestsCount : 0}
+          </td>
+          <td className="p-3">{g.tableName ?? "-"}</td>
+          <td className="p-3 text-sm text-gray-700">
+            {g.notes?.trim() || "-"}
+          </td>
+
+          <td className="p-3 flex gap-3">
+            <button
+              onClick={() =>
+                router.push(`/dashboard/messages?guestId=${g._id}`)
+              }
+              className="text-green-600"
             >
-              שם מלא{sortArrow("name")}
-            </th>
+              💬
+            </button>
 
-            <th className="p-3 text-right">טלפון</th>
-
-            <th className="p-3 text-right">קרבה</th>
-
-            <th
-              className="p-3 text-right cursor-pointer select-none"
-              onClick={() => toggleSort("rsvp")}
-              title="מיון לפי סטטוס"
+            <button
+              onClick={() =>
+                router.push(
+                  `/dashboard/seating?from=personal&guestId=${g._id}`
+                )
+              }
             >
-              סטטוס{sortArrow("rsvp")}
-            </th>
+              🪑
+            </button>
 
-            <th
-              className="p-3 text-right cursor-pointer select-none"
-              onClick={() => toggleSort("invited")}
-              title="מיון לפי מוזמנים"
+            <button onClick={() => setSelectedGuest(g)}>
+              ✏️
+            </button>
+
+            <button
+              onClick={() => deleteGuest(g)}
+              className="text-red-600"
             >
-              מוזמנים{sortArrow("invited")}
-            </th>
+              🗑️
+            </button>
+          </td>
+        </tr>
+      ))}
 
-            <th
-              className="p-3 text-right cursor-pointer select-none"
-              onClick={() => toggleSort("coming")}
-              title="מיון לפי מגיעים"
-            >
-              מגיעים{sortArrow("coming")}
-            </th>
+      {displayGuests.length === 0 && (
+        <tr>
+          <td colSpan={9} className="p-8 text-center text-gray-500">
+            לא נמצאו תוצאות.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
 
-            <th
-              className="p-3 text-right cursor-pointer select-none"
-              onClick={() => toggleSort("table")}
-              title="מיון לפי שולחן"
-            >
-              מס' שולחן{sortArrow("table")}
-            </th>
-
-            <th className="p-3 text-right">הערות</th>
-            <th className="p-3 text-right">פעולות</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {displayGuests.map((g) => (
-            <tr key={g._id} className="border-b">
-              <td className="p-3">{g.name}</td>
-              <td className="p-3">{g.phone}</td>
-              <td className="p-3">{g.relation?.trim() || "-"}</td>
-              <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
-              <td className="p-3">{g.guestsCount}</td>
-              <td className="p-3 font-semibold">
-              {g.rsvp === "yes" ? g.guestsCount : 0}
-               </td>
-              <td className="p-3">{g.tableName ?? "-"}</td>
-              <td className="p-3 text-sm text-gray-700">
-                {g.notes?.trim() || "-"}
-              </td>
-
-              <td className="p-3 flex gap-3">
-  <button
-    onClick={() =>
+{/* ===================== MOBILE LIST ===================== */}
+<div className="md:hidden">
+  <GuestsMobileList
+    guests={displayGuests}
+    onEdit={(g) => setSelectedGuest(g)}
+    onDelete={(g) => deleteGuest(g)}
+    onMessage={(g) =>
       router.push(`/dashboard/messages?guestId=${g._id}`)
     }
-    title="שליחת הודעה אישית ב-WhatsApp"
-    className="text-green-600 hover:text-green-700 transition"
-  >
-    💬
-  </button>
+    onSeat={(g) =>
+      router.push(
+        `/dashboard/seating?from=personal&guestId=${g._id}`
+      )
+    }
+  />
+</div>
 
-                <button
-                  onClick={() =>
-                    router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
-                  }
-                  title="הושבה אישית לאורח"
-                >
-                  🪑
-                </button>
 
-                <button onClick={() => setSelectedGuest(g)} title="עריכה">
-                  ✏️
-            
-                </button>
-                
-                 <button
-                  onClick={() => deleteGuest(g)}
-                  title="מחיקת מוזמן"
-                  className="text-red-600 hover:text-red-700 transition"
-                  >
-                  🗑️
-                   </button>
 
-              </td>
-            </tr>
-          ))}
-
-          {displayGuests.length === 0 && (
-            <tr>
-              <td colSpan={9} className="p-8 text-center text-gray-500">
-                לא נמצאו תוצאות.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      </div>
 
       {selectedGuest && (
   <EditGuestModal
