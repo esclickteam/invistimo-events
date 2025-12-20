@@ -422,9 +422,7 @@ console.log("INVITATION:", invitation);
         </div>
 
         {/* Quick filters */}
-
-{/* ===== דסקטופ ===== */}
-<div className="hidden md:flex items-center gap-2 flex-wrap">
+<div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
   <FilterPill
     active={quickFilter === "all"}
     onClick={() => setQuickFilter("all")}
@@ -452,36 +450,6 @@ console.log("INVITATION:", invitation);
   />
 </div>
 
-{/* ===== מובייל ===== */}
-<div className="md:hidden w-full overflow-x-auto">
-  <div className="flex gap-2 min-w-max pb-1">
-    <FilterPill
-      active={quickFilter === "all"}
-      onClick={() => setQuickFilter("all")}
-      label="הכל"
-    />
-    <FilterPill
-      active={quickFilter === "yes"}
-      onClick={() => setQuickFilter("yes")}
-      label="מגיעים"
-    />
-    <FilterPill
-      active={quickFilter === "pending"}
-      onClick={() => setQuickFilter("pending")}
-      label="ממתינים"
-    />
-    <FilterPill
-      active={quickFilter === "no"}
-      onClick={() => setQuickFilter("no")}
-      label="לא מגיעים"
-    />
-    <FilterPill
-      active={quickFilter === "noTable"}
-      onClick={() => setQuickFilter("noTable")}
-      label="בלי שולחן"
-    />
-  </div>
-</div>
 
 
         {/* Count */}
