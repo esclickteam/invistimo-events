@@ -8,13 +8,8 @@ import User from "@/models/User";
 /* ============================================================
    Stripe
 ============================================================ */
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
-/* ============================================================
-   🔴 FLAG לבדיקה ב-LIVE
-   ❗❗ אחרי הבדיקה להחזיר ל-false ❗❗
-============================================================ */
-const IS_LIVE_TEST = true;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+});
 
 /* ============================================================
    מחירי מקור אמת
@@ -79,19 +74,16 @@ export async function POST(req: Request) {
     }
 
     /* ===============================
-       💰 חישוב סכומים
+       💰 חישוב סכום לתשלום
     =============================== */
-    const realAmountToPay = Math.max(fullPrice - BASE_PRICE, 0);
+    const amountToPay = Math.max(fullPrice - BASE_PRICE, 0);
 
-    if (realAmountToPay <= 0) {
+    if (amountToPay <= 0) {
       return NextResponse.json(
         { error: "No payment required" },
         { status: 400 }
       );
     }
-
-    // 🧪 בדיקת LIVE – גבייה של 10 ₪ בלבד
-    const amountToPay = IS_LIVE_TEST ? 10 : realAmountToPay;
 
     /* ===============================
        💳 STRIPE CHECKOUT
@@ -103,15 +95,10 @@ export async function POST(req: Request) {
       metadata: {
         type: "upgrade",
         userId: user._id.toString(),
-
         targetGuests: String(guests),
         basePrice: String(BASE_PRICE),
-
         fullPrice: String(fullPrice),
-        realAmountToPay: String(realAmountToPay),
         amountCharged: String(amountToPay),
-
-        liveTest: IS_LIVE_TEST ? "true" : "false",
       },
 
       line_items: [
@@ -121,16 +108,13 @@ export async function POST(req: Request) {
             unit_amount: amountToPay * 100,
             product_data: {
               name: `שדרוג ל־Premium (עד ${guests} אורחים)`,
-              description: IS_LIVE_TEST
-                ? "בדיקת מערכת – חיוב בדיקה"
-                : `כבר שולם ${BASE_PRICE}₪ · תשלום הפרש`,
+              description: `כבר שולם ${BASE_PRICE}₪ · תשלום הפרש`,
             },
           },
           quantity: 1,
         },
       ],
 
-      /* ✅ חזרה ישירה להושבה */
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/seating?upgraded=1`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/seating`,
     });
