@@ -97,7 +97,7 @@ export default function LoginPage() {
           </div>
 
           {/* שכחתי סיסמה */}
-          <div className="text-left">
+          <div className="text-right">
             <Link
               href="/forgot-password"
               className="text-sm text-[var(--brown-soft)] hover:underline"
