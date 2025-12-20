@@ -54,60 +54,50 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
 
   if (!timeLeft) return null;
 
+  const boxes = [
+    timeLeft.months > 0 && { label: "חודשים", value: timeLeft.months },
+    timeLeft.weeks > 0 && { label: "שבועות", value: timeLeft.weeks },
+    timeLeft.days > 0 && { label: "ימים", value: timeLeft.days },
+    { label: "שעות", value: timeLeft.hours },
+    { label: "דקות", value: timeLeft.minutes },
+    { label: "שניות", value: timeLeft.seconds },
+  ].filter(Boolean) as { label: string; value: number }[];
+
   return (
-    <div
-      dir="rtl"
-      className="
-        flex flex-col gap-3
-        bg-gradient-to-l from-black to-zinc-800
-        text-white
-        rounded-2xl
-        px-6 py-4
-        shadow-lg
+    <div dir="rtl" className="w-full flex justify-center">
+      <div
+        className="
+          w-full max-w-[360px] md:max-w-[420px]
+          bg-gradient-to-l from-black to-zinc-800
+          text-white
+          rounded-2xl
+          px-4 py-4 md:px-6 md:py-5
+          relative
+          border-2 border-[#c9b48f]
+          shadow-[0_0_0_2px_rgba(201,180,143,0.65),_0_10px_28px_rgba(201,180,143,0.45)]
+        "
+      >
+        {/* כותרת */}
+        <div className="text-sm md:text-lg font-semibold mb-3 text-center">
+          האירוע{" "}
+          <span className="text-[#c9b48f] font-bold">
+            {invitation.title || "שלך"}
+          </span>{" "}
+          יתחיל בעוד:
+        </div>
 
-        /* ✨ מסגרת זהב יוקרתית – כפולה + glow איטי */
-relative
-border-2 border-[#c9b48f]
-rounded-2xl
-
-before:absolute
-before:inset-1
-before:rounded-xl
-before:border
-before:border-[#f3e7c9]
-before:opacity-70
-before:pointer-events-none
-
-shadow-[0_0_0_2px_rgba(201,180,143,0.65),_0_10px_28px_rgba(201,180,143,0.45)]
-
-animate-[goldGlow_6s_ease-in-out_infinite]
-
-      "
-    >
-      {/* כותרת */}
-      <div className="text-lg font-semibold">
-        האירוע{" "}
-        <span className="text-[#c9b48f] font-bold">
-          {invitation.title || "שלך"}
-        </span>{" "}
-        יתחיל בעוד:
-      </div>
-
-      {/* ⏳ ספירה לאחור – סדר הפוך */}
-      <div className="flex items-center gap-2 flex-wrap flex-row-reverse">
-        {timeLeft.months > 0 && (
-          <TimeBox label="חודשים" value={timeLeft.months} />
-        )}
-        {timeLeft.weeks > 0 && (
-          <TimeBox label="שבועות" value={timeLeft.weeks} />
-        )}
-        {timeLeft.days > 0 && (
-          <TimeBox label="ימים" value={timeLeft.days} />
-        )}
-
-        <TimeBox label="שעות" value={timeLeft.hours} />
-        <TimeBox label="דקות" value={timeLeft.minutes} />
-        <TimeBox label="שניות" value={timeLeft.seconds} />
+        {/* ⏳ ספירה לאחור */}
+        <div
+          className="
+            grid grid-cols-4
+            md:grid-cols-2
+            gap-2 md:gap-4
+          "
+        >
+          {boxes.map((b) => (
+            <TimeBox key={b.label} value={b.value} label={b.label} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -117,20 +107,19 @@ function TimeBox({ value, label }: { value: number; label: string }) {
   return (
     <div
       className="
-        flex flex-col items-center
+        flex flex-col items-center justify-center
         bg-white/10
         backdrop-blur
         border border-white/20
         rounded-xl
-        px-4 py-3
-        min-w-[72px]
+        py-2 md:py-4
         text-center
       "
     >
-      <span className="text-2xl font-bold tabular-nums">
+      <span className="text-lg md:text-3xl font-bold tabular-nums">
         {String(value).padStart(2, "0")}
       </span>
-      <span className="text-xs opacity-80">{label}</span>
+      <span className="text-[10px] md:text-sm opacity-80">{label}</span>
     </div>
   );
 }
