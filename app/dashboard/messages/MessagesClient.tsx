@@ -183,10 +183,12 @@ const MESSAGE_TEMPLATES: Record<
 
 /* ================= SEND ================= */
 
-const sendWhatsApp = (guest: Guest) => {
+const sendWhatsApp = async (guest: Guest) => {
+  if (!invitation) return;
+
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
-  // ✅ בוואטסאפ: בונים מהתבנית המקורית, בלי ניווט
+  // ✅ בניית ההודעה מהתבנית (כמו שהיה)
   const text = message
     .replace(/{{name}}/g, guest.name || "")
     .replace(
@@ -195,16 +197,32 @@ const sendWhatsApp = (guest: Guest) => {
     )
     .replace(/{{tableName}}/g, guest.tableName || "")
     .replace(/{{navigationLink}}/g, "")
-    .replace(/📍 ניווט לאירוע:\s*\n?/g, ""); // מוריד את השורה אם נשארה ריקה
+    .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const baseUrl = isMobile ? "https://wa.me" : "https://web.whatsapp.com/send";
+  /* =========================
+     📱 מובייל – בלי URL בכלל
+  ========================= */
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share({
+        text, // 🔥 האימוג'ים נשמרים 100%
+      });
+      return;
+    } catch (err) {
+      // אם המשתמש ביטל – נופלים לפתרון של URL
+      console.warn("Share canceled, fallback to WhatsApp URL");
+    }
+  }
 
+  /* =========================
+     🖥️ דסקטופ / fallback
+  ========================= */
   window.open(
-    `${baseUrl}?phone=${phone}&text=${encodeURIComponent(text)}`,
+    `https://wa.me/${phone}?text=${encodeURIComponent(text)}`,
     "_blank"
   );
 };
+
 
 
 
