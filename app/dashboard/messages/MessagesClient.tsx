@@ -31,6 +31,7 @@ const SMS_PACKAGES = [
   { count: 750, price: 75 },
   { count: 1000, price: 100 },
   { count: 1250, price: 125 },
+  { count: 1500, price: 150 },
   
 ];
 
