@@ -10,10 +10,8 @@ export type Guest = {
   name: string;
   phone: string;
   token: string;
-
   relation?: string;
   tableName?: string;
-
   rsvp: "yes" | "no" | "pending";
   guestsCount: number;
   arrivedCount?: number;
@@ -31,10 +29,20 @@ type Props = {
 /* ============================================================
    Helpers
 ============================================================ */
-function rsvpBadgeClass(rsvp: Guest["rsvp"]) {
-  if (rsvp === "yes") return "bg-green-100 text-green-700";
-  if (rsvp === "no") return "bg-red-100 text-red-700";
-  return "bg-yellow-100 text-yellow-700";
+function StatusBadge({ rsvp }: { rsvp: Guest["rsvp"] }) {
+  const styles: Record<string, string> = {
+    yes: "bg-green-100 text-green-700",
+    pending: "bg-yellow-100 text-yellow-700",
+    no: "bg-red-100 text-red-700",
+  };
+
+  return (
+    <span
+      className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[rsvp]}`}
+    >
+      {RSVP_LABELS[rsvp]}
+    </span>
+  );
 }
 
 /* ============================================================
@@ -56,86 +64,70 @@ export default function GuestsMobileList({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-2">
       {guests.map((g) => (
         <div
           key={g._id}
-          className="
-            bg-white
-            rounded-2xl
-            border
-            shadow-sm
-            p-4
-            flex
-            flex-col
-            gap-3
-          "
+          className="bg-white border rounded-lg px-3 py-2"
         >
-          {/* ================= Header ================= */}
+          {/* שורה 1 – שם + סטטוס */}
           <div className="flex items-center justify-between">
-            <div className="font-semibold text-lg leading-tight">
-              {g.name}
-            </div>
-
-            <span
-              className={`
-                text-xs
-                px-3
-                py-1
-                rounded-full
-                font-medium
-                ${rsvpBadgeClass(g.rsvp)}
-              `}
-            >
-              {RSVP_LABELS[g.rsvp]}
-            </span>
+            <div className="font-medium text-sm">{g.name}</div>
+            <StatusBadge rsvp={g.rsvp} />
           </div>
 
-          {/* ================= Details ================= */}
-          <div className="text-sm text-gray-600 space-y-1">
-            <div>📞 {g.phone}</div>
-            <div>👥 מוזמנים: {g.guestsCount}</div>
+          {/* שורה 2 – טלפון */}
+          <div className="text-xs text-gray-600 mt-1">
+            {g.phone}
+          </div>
+
+          {/* שורה 3 – נתונים (כמו עמודות) */}
+          <div className="grid grid-cols-3 gap-2 text-xs text-gray-700 mt-2">
+            <div>
+              <span className="text-gray-500">מוזמנים</span>
+              <div className="font-medium">{g.guestsCount}</div>
+            </div>
 
             <div>
-              🪑 שולחן:{" "}
-              <span className="font-medium text-gray-800">
-                {g.tableName || "—"}
-              </span>
+              <span className="text-gray-500">מגיעים</span>
+              <div className="font-medium">
+                {g.rsvp === "yes" ? g.guestsCount : 0}
+              </div>
             </div>
 
-            {g.relation && (
-              <div>🤍 {g.relation}</div>
-            )}
+            <div>
+              <span className="text-gray-500">שולחן</span>
+              <div className="font-medium">
+                {g.tableName || "—"}
+              </div>
+            </div>
           </div>
 
-          {/* ================= Actions ================= */}
-          <div className="flex justify-between items-center pt-3 border-t">
-            <div className="flex gap-4 text-base">
-              <button
-                onClick={() => onMessage(g)}
-                className="text-green-600 font-medium"
-              >
+          {/* שורה 4 – הערה / קרבה */}
+          {(g.relation || g.notes) && (
+            <div className="text-xs text-gray-600 mt-2">
+              {g.relation || g.notes}
+            </div>
+          )}
+
+          {/* פעולות – כמו בעמודת פעולות */}
+          <div className="flex items-center justify-between mt-3 pt-2 border-t text-sm">
+            <div className="flex gap-4">
+              <button onClick={() => onMessage(g)} title="הודעה">
                 💬
               </button>
-
-              <button
-                onClick={() => onSeat(g)}
-                className="text-[#8f7a67] font-medium"
-              >
+              <button onClick={() => onSeat(g)} title="הושבה">
                 🪑
               </button>
-
-              <button
-                onClick={() => onEdit(g)}
-                className="text-blue-600 font-medium"
-              >
+              <button onClick={() => onEdit(g)} title="עריכה">
                 ✏️
               </button>
             </div>
 
             <button
               onClick={() => onDelete(g)}
-              className="text-red-600 font-medium"
+              title="מחיקה"
+              className="text-red-600"
             >
               🗑️
             </button>
