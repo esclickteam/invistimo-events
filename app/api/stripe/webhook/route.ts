@@ -68,8 +68,8 @@ export async function POST(req: Request) {
 
   /* ================= Prevent duplicate ================= */
   const existingPayment = await Payment.findOne({
-    stripeSessionId: session.id,
-  });
+  stripePaymentIntentId: session.payment_intent,
+});
   if (existingPayment) {
     return NextResponse.json({ received: true });
   }
@@ -92,81 +92,81 @@ export async function POST(req: Request) {
      ➕ הושבה
   ============================================================ */
   if (session.metadata?.type === "upgrade") {
-    const targetGuests = Number(session.metadata.targetGuests); // כמה נוספו
-    const fullPrice = Number(session.metadata.fullPrice);
-    const amountCharged = Number(session.metadata.amountCharged);
+  const targetGuests = Number(session.metadata.targetGuests);
+  const fullPrice = Number(session.metadata.fullPrice);
+  const amountCharged = Number(session.metadata.amountCharged);
 
-    if (!targetGuests || !fullPrice || !amountCharged) {
-      return NextResponse.json({ received: true });
-    }
-
-    const currentGuests = user.guests || 0;
-    const newTotalGuests = currentGuests + targetGuests;
-
-    // ⭐ SMS רק על השדרוג (3 הודעות לכל אורח)
-    const smsToAdd = targetGuests * 3;
-
-    const priceKey = `premium_${targetGuests}`;
-
-    /* 💾 Payment */
-    await Payment.create({
-      email,
-      stripeSessionId: session.id,
-      stripePaymentIntentId: session.payment_intent as string,
-      stripeCustomerId: session.customer as string,
-      priceKey,
-      maxGuests: newTotalGuests,
-      amount: amountCharged,
-      currency: "ils",
-      status: "paid",
-    });
-
-    /* 🧑 Update User */
-    await User.findByIdAndUpdate(user._id, {
-      plan: "premium",
-      guests: newTotalGuests,
-      paidAmount: fullPrice,
-      planLimits: {
-        maxGuests: newTotalGuests,
-        smsEnabled: true,
-        seatingEnabled: true,
-        remindersEnabled: true,
-      },
-    });
-
-    /* ✉️ Update Invitation + SMS
-       ❗ SMS ניתן רק אם עדיין לא הייתה חבילת SMS */
-    let invitation = await Invitation.findOne({ ownerId: user._id });
-
-    if (!invitation) {
-      invitation = await Invitation.create({
-        ownerId: user._id,
-        title: "ההזמנה שלי",
-        canvasData: {},
-        shareId: crypto.randomUUID(),
-        maxGuests: newTotalGuests,
-        sentSmsCount: 0,
-        maxMessages: smsToAdd,
-        remainingMessages: smsToAdd,
-      });
-    } else {
-      invitation.maxGuests = newTotalGuests;
-
-      // ✅ חשוב: לא להוסיף SMS שוב אם כבר קיים
-      if (!invitation.maxMessages || invitation.maxMessages === 0) {
-        invitation.maxMessages = smsToAdd;
-        invitation.remainingMessages = smsToAdd;
-      }
-
-      await invitation.save();
-    }
-
-    console.log(
-      `✅ Upgrade OK: ${email} | +${targetGuests} guests | +${smsToAdd} SMS`
-    );
-
+  if (!targetGuests || !fullPrice || !amountCharged) {
     return NextResponse.json({ received: true });
   }
+
+  const currentGuests = user.guests || 0;
+  const newTotalGuests = currentGuests + targetGuests;
+
+  // ⭐ SMS מתווספים תמיד בשדרוג
+  const smsToAdd = targetGuests * 3;
+
+  const priceKey = `premium_${targetGuests}`;
+
+  /* 💾 Payment */
+  await Payment.create({
+    email,
+    stripeSessionId: session.id,
+    stripePaymentIntentId: session.payment_intent as string,
+    stripeCustomerId: session.customer as string,
+    priceKey,
+    maxGuests: newTotalGuests,
+    amount: amountCharged,
+    currency: "ils",
+    status: "paid",
+  });
+
+  /* 🧑 Update User */
+  await User.findByIdAndUpdate(user._id, {
+    plan: "premium",
+    guests: newTotalGuests,
+    paidAmount: (user.paidAmount || 0) + amountCharged,
+    planLimits: {
+      maxGuests: newTotalGuests,
+      smsEnabled: true,
+      seatingEnabled: true,
+      remindersEnabled: true,
+    },
+  });
+
+  /* ✉️ Update Invitation + SMS */
+  let invitation = await Invitation.findOne({ ownerId: user._id });
+
+  if (!invitation) {
+    invitation = await Invitation.create({
+      ownerId: user._id,
+      title: "ההזמנה שלי",
+      canvasData: {},
+      shareId: crypto.randomUUID(),
+      maxGuests: newTotalGuests,
+      sentSmsCount: 0,
+      maxMessages: smsToAdd,
+      remainingMessages: smsToAdd,
+    });
+  } else {
+    invitation.maxGuests = newTotalGuests;
+
+    invitation.maxMessages =
+      (invitation.maxMessages || 0) + smsToAdd;
+
+    invitation.remainingMessages =
+      (invitation.remainingMessages || 0) + smsToAdd;
+
+    await invitation.save();
+  }
+
+  console.log(
+    `✅ Upgrade OK: ${email} | +${targetGuests} guests | +${smsToAdd} SMS`
+  );
+
+  return NextResponse.json({ received: true });
+}
+
 
   /* ============================================================
      🟢 CASE 2: SMS ADD-ON
