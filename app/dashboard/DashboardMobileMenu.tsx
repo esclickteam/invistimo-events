@@ -53,7 +53,7 @@ export default function DashboardMobileMenu({
             🏠 ראשי
           </Link>
 
-          {/* ✏️ עריכת פרטי האירוע – דף ייעודי */}
+          {/* ✏️ עריכת פרטי האירוע – עמוד ייעודי */}
           <Link
             href="/dashboard/event"
             onClick={onClose}
@@ -71,6 +71,7 @@ export default function DashboardMobileMenu({
             🪑 סידורי הושבה
           </Link>
 
+          {/* 👁️ צפייה בהזמנה */}
           {invitationShareId && (
             <a
               href={`https://www.invistimo.com/invite/${invitationShareId}`}
