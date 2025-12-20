@@ -23,7 +23,7 @@ const GUESTS_BY_KEY: Record<string, number> = {
   basic_plan_49: 100,
 
   premium_100_v2: 100,
-  premium_200: 200,
+  premium_200_v2: 200,
   premium_300: 300,
   premium_400: 400,
   premium_500: 500,

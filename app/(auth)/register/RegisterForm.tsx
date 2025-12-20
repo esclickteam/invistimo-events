@@ -55,7 +55,7 @@ function RegisterFormInner() {
 
       const keyMap: Record<number, string> = {
         100: "premium_100_v2",
-        200: "premium_200",
+        200: "premium_200_v2",
         300: "premium_300",
         400: "premium_400",
         500: "premium_500",
