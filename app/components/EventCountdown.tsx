@@ -11,7 +11,15 @@ type TimeLeft = {
   seconds: number;
 };
 
-export default function EventCountdown({ invitation }: { invitation: any }) {
+type Props = {
+  invitation: any;
+  compact?: boolean; // ⭐️ חדש – מצב קומפקטי להידר
+};
+
+export default function EventCountdown({
+  invitation,
+  compact = false,
+}: Props) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
 
   useEffect(() => {
@@ -66,35 +74,41 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
   return (
     <div dir="rtl">
       <div
-        className="
+        className={`
           inline-block
           bg-gradient-to-l from-black to-zinc-800
           text-white
           rounded-2xl
-          px-4 py-4
           border-2 border-[#c9b48f]
           shadow-[0_8px_22px_rgba(0,0,0,0.45)]
-        "
+          ${compact ? "px-3 py-2" : "px-4 py-4"}
+        `}
       >
-        {/* כותרת */}
-        <div className="text-sm font-semibold mb-3 text-center">
-          האירוע{" "}
-          <span className="text-[#c9b48f] font-bold">
-            {invitation.title || "שלך"}
-          </span>{" "}
-          יתחיל בעוד:
-        </div>
+        {/* כותרת – לא בהידר */}
+        {!compact && (
+          <div className="text-sm font-semibold mb-3 text-center">
+            האירוע{" "}
+            <span className="text-[#c9b48f] font-bold">
+              {invitation.title || "שלך"}
+            </span>{" "}
+            יתחיל בעוד:
+          </div>
+        )}
 
         {/* ספירה */}
         <div
-          className="
+          className={`
             grid
-            grid-cols-[repeat(auto-fit,minmax(72px,1fr))]
-            gap-2
-          "
+            ${compact ? "grid-cols-3 gap-1" : "grid-cols-[repeat(auto-fit,minmax(72px,1fr))] gap-2"}
+          `}
         >
           {boxes.map((b) => (
-            <TimeBox key={b.label} value={b.value} label={b.label} />
+            <TimeBox
+              key={b.label}
+              value={b.value}
+              label={b.label}
+              compact={compact}
+            />
           ))}
         </div>
       </div>
@@ -102,22 +116,42 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
   );
 }
 
-function TimeBox({ value, label }: { value: number; label: string }) {
+function TimeBox({
+  value,
+  label,
+  compact,
+}: {
+  value: number;
+  label: string;
+  compact?: boolean;
+}) {
   return (
     <div
-      className="
+      className={`
         flex flex-col items-center justify-center
         bg-white/10
         border border-white/20
         rounded-xl
-        py-2
         text-center
-      "
+        ${compact ? "px-2 py-1" : "py-2"}
+      `}
     >
-      <span className="text-lg font-bold tabular-nums">
+      <span
+        className={`
+          font-bold tabular-nums
+          ${compact ? "text-sm" : "text-lg"}
+        `}
+      >
         {String(value).padStart(2, "0")}
       </span>
-      <span className="text-[11px] opacity-80">{label}</span>
+      <span
+        className={`
+          opacity-80
+          ${compact ? "text-[10px]" : "text-[11px]"}
+        `}
+      >
+        {label}
+      </span>
     </div>
   );
 }

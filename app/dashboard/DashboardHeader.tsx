@@ -2,11 +2,14 @@
 
 import { Menu, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import EventCountdown from "@/app/components/EventCountdown";
 
 export default function DashboardHeader({
   onOpenMenu,
+  invitation,
 }: {
   onOpenMenu: () => void;
+  invitation?: any;
 }) {
   const router = useRouter();
 
@@ -14,7 +17,7 @@ export default function DashboardHeader({
     try {
       await fetch("/api/logout", {
         method: "POST",
-        credentials: "include", // ⭐️ חשוב בשביל cookies
+        credentials: "include",
       });
 
       router.replace("/login");
@@ -28,44 +31,50 @@ export default function DashboardHeader({
     <header
       className="
         md:hidden
-        h-14
-        flex items-center justify-between
-        px-4
+        sticky top-0 z-40
         border-b border-[#e2d6c8]
         bg-[#f5eee7]
       "
       dir="rtl"
     >
-      {/* צד ימין – תפריט + כותרת */}
-      <div className="flex items-center">
-        <button
-          onClick={onOpenMenu}
-          className="p-2"
-          aria-label="פתח תפריט דשבורד"
-        >
-          <Menu size={22} />
-        </button>
+      {/* שורה ראשונה – תפריט + יציאה */}
+      <div className="h-14 flex items-center justify-between px-4">
+        <div className="flex items-center">
+          <button
+            onClick={onOpenMenu}
+            className="p-2"
+            aria-label="פתח תפריט דשבורד"
+          >
+            <Menu size={22} />
+          </button>
 
-        <span className="mr-3 font-medium text-[#4a413a]">
-         
-        </span>
+          <span className="mr-3 font-medium text-[#4a413a]">
+            ניהול האירוע
+          </span>
+        </div>
+
+        <button
+          onClick={handleLogout}
+          className="
+            flex items-center gap-1
+            text-red-600
+            text-sm font-medium
+            hover:text-red-700
+            transition
+          "
+          title="התנתקות"
+        >
+          <LogOut size={18} />
+          יציאה
+        </button>
       </div>
 
-      {/* צד שמאל – התנתקות */}
-      <button
-        onClick={handleLogout}
-        className="
-          flex items-center gap-1
-          text-red-600
-          text-sm font-medium
-          hover:text-red-700
-          transition
-        "
-        title="התנתקות"
-      >
-        <LogOut size={18} />
-        יציאה
-      </button>
+      {/* שורה שנייה – ספירה לאחור (אם יש תאריך) */}
+      {invitation?.eventDate && (
+        <div className="px-3 pb-2">
+          <EventCountdown invitation={invitation} compact />
+        </div>
+      )}
     </header>
   );
 }

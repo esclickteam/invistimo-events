@@ -10,9 +10,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [invitationShareId, setInvitationShareId] = useState<
-    string | undefined
-  >(undefined);
+  const [invitation, setInvitation] = useState<any | null>(null);
 
   useEffect(() => {
     async function loadInvitation() {
@@ -22,11 +20,12 @@ export default function DashboardLayout({
           cache: "no-store",
         });
         const data = await res.json();
-        if (data.success) {
-          setInvitationShareId(data.invitation?.shareId);
+
+        if (data.success && data.invitation) {
+          setInvitation(data.invitation);
         }
       } catch (e) {
-        console.error("Failed to load invitation for menu");
+        console.error("Failed to load invitation for dashboard layout");
       }
     }
 
@@ -35,18 +34,23 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      {/* Header */}
-      <DashboardHeader onOpenMenu={() => setMenuOpen(true)} />
+      {/* Header (mobile only) */}
+      <DashboardHeader
+        onOpenMenu={() => setMenuOpen(true)}
+        invitation={invitation}
+      />
 
       {/* Mobile menu */}
       <DashboardMobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        invitationShareId={invitationShareId}
+        invitationShareId={invitation?.shareId}
       />
 
       {/* Content */}
-      <main className="pt-2">{children}</main>
+      <main className="pt-0">
+        {children}
+      </main>
     </div>
   );
 }
