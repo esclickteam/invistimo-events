@@ -10,13 +10,8 @@ type SupportBotGateProps = {
 export default function SupportBotGate({ children }: SupportBotGateProps) {
   const pathname = usePathname();
 
-  const isBlocked =
-    pathname === "/thank-you" ||
-    pathname.startsWith("/invite/") ||
-    pathname.startsWith("/rsvp/") ||
-    pathname.startsWith("/invitation/");
-
-  if (isBlocked) return null;
+  // ✅ להציג את הבוט רק בעמוד הבית
+  if (pathname !== "/") return null;
 
   return <>{children}</>;
 }
