@@ -88,7 +88,7 @@ export default function SeatingPage() {
           tData.tables || [],
           normalizedGuests,
           tData.background ?? null,
-          tData.canvasView ?? null // ✅ תוספת בלבד
+          tData.canvasView ?? null
         );
 
         setZones(tData.zones || []);
@@ -122,7 +122,7 @@ export default function SeatingPage() {
     }
 
     const zones = useZoneStore.getState().zones;
-    const canvasView = useSeatingStore.getState().canvasView; // ✅ תוספת בלבד
+    const canvasView = useSeatingStore.getState().canvasView;
 
     try {
       const res = await fetch(`/api/seating/save/${invitationId}`, {
@@ -133,7 +133,7 @@ export default function SeatingPage() {
           guests,
           background,
           zones,
-          canvasView, // ✅ תוספת בלבד
+          canvasView,
         }),
       });
 
@@ -157,7 +157,7 @@ export default function SeatingPage() {
   }
 
   /* ===============================
-     BLOCKED VIEW (UPSOLD VIA MODAL)
+     BLOCKED VIEW
   =============================== */
   if (blocked) {
     return (
@@ -191,36 +191,42 @@ export default function SeatingPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* ================= HEADER ================= */}
-      <div className="border-b bg-white shadow-sm">
-        <div className="flex items-center justify-between px-6 py-3">
-          <h1 className="text-xl font-semibold">הושבה באולם</h1>
+      <div className="bg-white shadow-sm border-b sticky top-0 z-30">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
+          <h1 className="text-lg sm:text-xl font-semibold">
+            הושבה באולם
+          </h1>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => setShowUpload(true)}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg"
+              className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg w-full sm:w-auto"
             >
               העלאת תבנית אולם
             </button>
 
             <button
               onClick={saveSeating}
-              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg"
+              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg w-full sm:w-auto"
             >
               💾 שמירת הושבה
             </button>
           </div>
         </div>
 
-        {/* ⭐ סיידבר אלמנטים */}
-        <ZonesToolbar />
+        {/* ⭐ Toolbar אלמנטים – רספונסיבי */}
+        <div className="w-full overflow-x-auto scrollbar-hide">
+          <ZonesToolbar />
+        </div>
       </div>
 
-      {/* ================= MAIN ================= */}
-      <div className="flex-1 overflow-hidden">
-        <SeatingEditor background={background?.url || null} />
+      {/* ================= MAIN CANVAS ================= */}
+      <div className="flex-1 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <SeatingEditor background={background?.url || null} />
+        </div>
       </div>
 
       {/* ================= UPLOAD MODAL ================= */}

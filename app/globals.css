@@ -177,8 +177,12 @@ h1, h2, h3 {
   }
 }
 canvas {
-  touch-action: pan-y !important;
-  pointer-events: none !important;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+
+.seating-canvas-wrapper {
+  touch-action: none;
 }
 
 html,
