@@ -21,7 +21,19 @@ export async function GET() {
     }
 
     const invitation = await Invitation.findOne({ ownerId: userId })
-      .select("eventType eventDate maxGuests usedMessages shareId")
+      .select(
+        `
+        title
+        eventType
+        eventDate
+        eventTime
+        location
+        maxGuests
+        maxMessages
+        remainingMessages
+        shareId
+        `
+      )
       .lean();
 
     if (!invitation) {
@@ -33,10 +45,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      invitation: {
-        ...invitation,
-        usedMessages: invitation.usedMessages || 0,
-      },
+      invitation,
     });
   } catch (err) {
     console.error("❌ Error loading my invitation:", err);
@@ -49,7 +58,6 @@ export async function GET() {
 
 /* ============================================================
    POST — יוצר הזמנה "טיוטה" למשתמש אם אין עדיין
-   ✅ מיועד לזה שתוכלי להוסיף מוזמנים גם לפני יצירת הזמנה
 ============================================================ */
 export async function POST(req: NextRequest) {
   try {
@@ -63,34 +71,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // אם כבר יש הזמנה — לא יוצרים עוד אחת (רק מחזירים אותה)
+    // אם כבר יש הזמנה — מחזירים אותה
     const existing = await Invitation.findOne({ ownerId: userId })
-      .select("eventType eventDate maxGuests usedMessages shareId")
+      .select(
+        `
+        title
+        eventType
+        eventDate
+        eventTime
+        location
+        maxGuests
+        maxMessages
+        remainingMessages
+        shareId
+        `
+      )
       .lean();
 
     if (existing) {
       return NextResponse.json({
         success: true,
-        invitation: {
-          ...existing,
-          usedMessages: existing.usedMessages || 0,
-        },
+        invitation: existing,
       });
     }
 
-    // אפשר לקבל ערכים מהפרונט אם תרצי, אבל גם ריק עובד
     const body = await req.json().catch(() => ({} as any));
 
-    // יצירת טיוטה בסיסית
-    // חשוב: shareId חייב להיווצר אצלך במודל (default) או כאן.
     const created = await Invitation.create({
       ownerId: userId,
+      title: body?.title || "הזמנה חדשה",
       eventType: body?.eventType || "",
       eventDate: body?.eventDate || null,
+      eventTime: body?.eventTime || "",
+      location: body?.location || {},
       maxGuests: body?.maxGuests || 100,
-      usedMessages: 0,
-      // אם אין לך default ל-shareId במודל, תבטלי הערה ותייצרי פה:
-      // shareId: nanoid(10),
+      // maxMessages / remainingMessages מחושבים אוטומטית מהמודל
     });
 
     return NextResponse.json(
@@ -98,10 +113,14 @@ export async function POST(req: NextRequest) {
         success: true,
         invitation: {
           _id: created._id,
+          title: created.title,
           eventType: created.eventType,
           eventDate: created.eventDate,
+          eventTime: created.eventTime,
+          location: created.location,
           maxGuests: created.maxGuests,
-          usedMessages: created.usedMessages || 0,
+          maxMessages: created.maxMessages,
+          remainingMessages: created.remainingMessages,
           shareId: created.shareId,
         },
       },
