@@ -5,6 +5,8 @@ import { buildMessage } from "@/lib/messageTemplates";
 import MessageLog from "@/models/MessageLog";
 import Invitation from "@/models/Invitation";
 import Guest from "@/models/Guest";
+import User from "@/models/User";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +31,37 @@ export async function POST(req: Request) {
   try {
     await db();
 
+    /* ================= AUTH ================= */
+
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return NextResponse.json(
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    // ❌ חסימה מוחלטת לפי חבילה
+    if (!user.planLimits?.smsEnabled) {
+      return NextResponse.json(
+        {
+          error: "SMS_DISABLED",
+          message: "שליחת SMS אינה זמינה בחבילה הנוכחית",
+        },
+        { status: 403 }
+      );
+    }
+
+    /* ================= BODY ================= */
+
     const {
       invitationId,
       template,
@@ -48,6 +81,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "INV_NOT_FOUND" },
         { status: 404 }
+      );
+    }
+
+    // 🔐 ודא שההזמנה שייכת למשתמש
+    if (String(invitation.ownerId) !== String(userId)) {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
       );
     }
 
