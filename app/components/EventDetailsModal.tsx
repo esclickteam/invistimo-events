@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
 export default function EventDetailsModal({
@@ -13,41 +13,48 @@ export default function EventDetailsModal({
   onSaved: () => void;
 }) {
   const [form, setForm] = useState({
-    title: invitation.title || "",
-    eventType: invitation.eventType || "",
-    date: invitation.eventDate
-      ? invitation.eventDate.slice(0, 10)
-      : "",
-    time: invitation.eventTime || "",
+    title: "",
+    eventType: "",
+    date: "",
+    time: "",
     location: {
-      address: invitation.location?.address || "",
-      lat: invitation.location?.lat ?? null,
-      lng: invitation.location?.lng ?? null,
+      address: "",
+      lat: null as number | null,
+      lng: null as number | null,
     },
   });
 
-  async function save() {
-    /* =========================
-       🧠 בניית payload חכם
-    ========================= */
+  /* =========================
+     🔄 סנכרון invitation → state
+  ========================= */
+  useEffect(() => {
+    if (!invitation) return;
 
+    setForm({
+      title: invitation.title || "",
+      eventType: invitation.eventType || "",
+      date: invitation.eventDate
+        ? new Date(invitation.eventDate).toISOString().slice(0, 10)
+        : "",
+      time: invitation.eventTime || "",
+      location: {
+        address: invitation.location?.address || "",
+        lat: invitation.location?.lat ?? null,
+        lng: invitation.location?.lng ?? null,
+      },
+    });
+  }, [invitation]);
+
+  /* =========================
+     💾 Save
+  ========================= */
+  async function save() {
     const payload: any = {};
 
-    if (form.title.trim()) {
-      payload.title = form.title.trim();
-    }
-
-    if (form.eventType.trim()) {
-      payload.eventType = form.eventType.trim();
-    }
-
-    if (form.date) {
-      payload.eventDate = new Date(form.date).toISOString();
-    }
-
-    if (form.time.trim()) {
-      payload.eventTime = form.time.trim();
-    }
+    if (form.title.trim()) payload.title = form.title.trim();
+    if (form.eventType.trim()) payload.eventType = form.eventType.trim();
+    if (form.date) payload.eventDate = new Date(form.date).toISOString();
+    if (form.time) payload.eventTime = form.time;
 
     if (
       form.location.address ||
@@ -74,13 +81,13 @@ export default function EventDetailsModal({
       return;
     }
 
-    onSaved();
+    onSaved(); // 🔄 רענון invitation בדשבורד
     onClose();
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-lg overflow-visible">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
         <h2 className="text-xl font-semibold mb-4">
           ✏️ עריכת פרטי האירוע
         </h2>
@@ -96,7 +103,7 @@ export default function EventDetailsModal({
           />
 
           <input
-            placeholder="סוג האירוע (חתונה / בר מצווה וכו׳)"
+            placeholder="סוג האירוע"
             value={form.eventType}
             onChange={(e) =>
               setForm({ ...form, eventType: e.target.value })
@@ -122,7 +129,6 @@ export default function EventDetailsModal({
             className="border rounded-full px-4 py-3"
           />
 
-          {/* 📍 Google Places Autocomplete */}
           <LocationAutocomplete
             value={form.location.address}
             onSelect={({ address, lat, lng }) =>
