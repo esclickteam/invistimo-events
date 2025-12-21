@@ -37,9 +37,7 @@ export default function CreateInvitePage() {
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [selectedObject, setSelectedObject] = useState<EditorObject | null>(
-    null
-  );
+  const [selectedObject, setSelectedObject] = useState<EditorObject | null>(null);
   const [saving, setSaving] = useState(false);
 
   // ✅ אצלכם הטאבים במובייל: text / blessing / wedding / backgrounds / batmitzvah
@@ -208,19 +206,21 @@ export default function CreateInvitePage() {
             onClose={closeSheet}
             height={mobileTab === "text" ? "42vh" : "52vh"}
           >
+            {/* ✅ טקסט: עורך טקסט ייעודי */}
             {mobileTab === "text" ? (
               <TextEditorPanel
                 selected={selectedObject?.type === "text" ? selectedObject : null}
                 onApply={applyToSelected}
               />
             ) : (
-              // ✅ במקום Drawer של המבורגר: הסיידבר נטען בתוך ה-Sheet
-              <Sidebar
-                canvasRef={canvasRef}
-                googleApiKey={googleApiKey}
-                // אופציונלי: אם תרצי ש-Sidebar ידע איזה טאב נבחר
-                // activeTab={mobileTab}
-              />
+              // ✅ כל שאר הכפתורים: פותחים את ה-Sidebar עם הטאב המתאים (כמו Canva)
+              <div className="h-full">
+                <Sidebar
+                  canvasRef={canvasRef}
+                  googleApiKey={googleApiKey}
+                  activeTab={mobileTab}
+                />
+              </div>
             )}
           </MobileBottomSheet>
         </div>
