@@ -504,25 +504,32 @@ useEffect(() => {
   width={CANVAS_WIDTH}
   height={CANVAS_HEIGHT}
   ref={stageRef}
-  onMouseDown={(e) => {
-    // לחיצה על רקע הקנבס
-    if (e.target === e.target.getStage()) {
 
-      // ✅ אם היה מצב עריכת טקסט – סיים עריכה (כמו Canva)
+  onMouseDown={(e: Konva.KonvaEventObject<MouseEvent>) => {
+    const stage = e.target.getStage();
+    if (stage && e.target === stage) {
       if (editingTextId) {
         setEditingTextId(null);
         setTextInputRect(null);
       }
-
       handleSelect(null);
+      if (isMobile) setMobileDeletePos(null);
+    }
+  }}
 
-      // 📱 מובייל – להסתיר כפתור מחיקה
-      if (isMobile) {
-        setMobileDeletePos(null);
+  onTap={(e: Konva.KonvaEventObject<TouchEvent>) => {
+    const stage = e.target.getStage();
+    if (stage && e.target === stage) {
+      if (editingTextId) {
+        setEditingTextId(null);
+        setTextInputRect(null);
       }
+      handleSelect(null);
+      setMobileDeletePos(null);
     }
   }}
 >
+
 
           <Layer ref={mainLayerRef}>
             {sortedObjects.map((obj) => {
