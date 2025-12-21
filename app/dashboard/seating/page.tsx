@@ -30,6 +30,9 @@ export default function SeatingPage() {
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
 
+  // ✅ שליטה על Drawer של רשימת אורחים במובייל
+  const [showGuests, setShowGuests] = useState(false);
+
   /* ===============================
      STORES
   =============================== */
@@ -223,16 +226,29 @@ export default function SeatingPage() {
             }
           >
             <GuestSidebar
-  variant="desktop"
-  onDragStart={handleDragStart}
-/>
+              variant="desktop"
+              onDragStart={handleDragStart}
+            />
           </Suspense>
         </aside>
 
-        {/* המבורגר – מובייל */}
-        <Suspense fallback={null}>
-          <MobileGuests onDragStart={handleDragStart} />
-        </Suspense>
+        {/* כפתור פתיחה למובייל – מתחת להוסף שולחן */}
+        <button
+          onClick={() => setShowGuests(true)}
+          className="md:hidden absolute top-16 left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
+        >
+          👥 רשימת אורחים
+        </button>
+
+        {/* Drawer – מובייל */}
+        {showGuests && (
+          <Suspense fallback={null}>
+            <MobileGuests
+              onDragStart={handleDragStart}
+              onClose={() => setShowGuests(false)}
+            />
+          </Suspense>
+        )}
       </div>
 
       {/* ================= MODALS ================= */}
