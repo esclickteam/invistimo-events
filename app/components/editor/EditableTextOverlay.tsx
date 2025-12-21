@@ -30,6 +30,9 @@ interface EditableTextOverlayProps {
  * תיבת עריכת טקסט חיה מעל Konva
  * 🔥 מסונכרנת ל־Toolbar (צבע / גודל / פונט / יישור)
  * מותאמת ל־RTL + מובייל
+ *
+ * ✅ תוספת קריטית: סיום עריכה בלחיצה מחוץ לתיבה (click outside)
+ * כדי שאפשר יהיה לפתוח עריכה שוב.
  */
 export default function EditableTextOverlay({
   obj,
@@ -48,16 +51,38 @@ export default function EditableTextOverlay({
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
   /* ============================================================
-     🔥 סנכרון מלא עם האובייקט
-     זה החלק שהיה חסר וגרם לכך שבמובייל
-     צבע / פונט / גודל לא התעדכנו
+     🔥 סנכרון ערך בתחילת עריכה בלבד (לפי id)
   ============================================================ */
   useEffect(() => {
-  if (!obj) return;
+    if (!obj) return;
+    setValue(obj.text ?? "");
+  }, [obj?.id]);
 
-  // 🔥 סנכרון חד־פעמי בתחילת עריכה בלבד
-  setValue(obj.text ?? "");
-}, [obj?.id]);
+  /* ============================================================
+     ✅ סיום עריכה בלחיצה מחוץ לתיבה
+     (הבעיה שלך: textarea נשאר “מעל” וחוסם לחיצות על הטקסט בקנבס)
+  ============================================================ */
+  useEffect(() => {
+    if (!obj) return;
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const el = inputRef.current;
+      if (!el) return;
+
+      const target = e.target as Node | null;
+      if (target && el.contains(target)) return; // לחיצה בתוך התיבה → לא מסיים
+
+      onFinish(value); // 🔥 סיום עריכה
+    };
+
+    document.addEventListener("mousedown", handlePointerDown, true);
+    document.addEventListener("touchstart", handlePointerDown, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown, true);
+      document.removeEventListener("touchstart", handlePointerDown, true);
+    };
+  }, [obj?.id, value, onFinish]);
 
   /* ============================================================
      פוקוס אוטומטי בעת פתיחת עריכה
@@ -77,7 +102,6 @@ export default function EditableTextOverlay({
   ============================================================ */
   useEffect(() => {
     if (!inputRef.current) return;
-
     const el = inputRef.current;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
@@ -94,18 +118,15 @@ export default function EditableTextOverlay({
         setValue(newVal);
         onLiveChange?.(newVal);
       }}
-      
       onKeyDown={(e) => {
-  // ✅ Enter = ירידת שורה (textarea מטפל בזה לבד)
-  // ❌ לא עושים preventDefault
+        // ⌨️ דסקטופ בלבד: Escape = ביטול עריכה (מחזיר טקסט קודם)
+        if (!isMobile && e.key === "Escape") {
+          e.preventDefault();
+          onFinish(obj.text ?? "");
+        }
 
-  // ⌨️ דסקטופ בלבד: Escape = ביטול עריכה
-  if (!isMobile && e.key === "Escape") {
-    e.preventDefault();
-    onFinish(obj.text ?? "");
-  }
-}}
-
+        // (Enter = שורה חדשה, textarea מטפל לבד)
+      }}
       style={{
         position: "fixed",
         top: rect.y,
@@ -123,7 +144,7 @@ export default function EditableTextOverlay({
         boxSizing: "border-box",
 
         /* ======================================================
-           טיפוגרפיה – חייבת להיות זהה ל־Konva.Text
+           טיפוגרפיה – זהה ל־Konva.Text
         ====================================================== */
         fontFamily: obj.fontFamily,
         fontSize: obj.fontSize,
@@ -131,11 +152,8 @@ export default function EditableTextOverlay({
         fontStyle: obj.italic ? "italic" : "normal",
         lineHeight: String(obj.lineHeight || 1.1),
 
-        /* letterSpacing – במובייל נטרול ערכים בעייתיים */
         letterSpacing:
-          !isMobile && obj.letterSpacing
-            ? `${obj.letterSpacing}px`
-            : "0px",
+          !isMobile && obj.letterSpacing ? `${obj.letterSpacing}px` : "0px",
 
         color: obj.fill ?? "#000",
         textAlign: obj.align || "center",
@@ -147,6 +165,7 @@ export default function EditableTextOverlay({
         zIndex: 99999,
         cursor: "text",
         userSelect: "text",
+        pointerEvents: "auto",
       }}
     />
   );
