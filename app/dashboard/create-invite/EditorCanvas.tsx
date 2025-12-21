@@ -246,9 +246,9 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 ============================================================ */
 useEffect(() => {
   if (!mainLayerRef.current) return;
+  console.log("🖼️ Redrawing canvas after objects change");
   requestAnimationFrame(() => {
     mainLayerRef.current?.batchDraw();
-
   });
 }, [objects]);
 

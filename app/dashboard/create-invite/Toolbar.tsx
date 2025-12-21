@@ -47,9 +47,15 @@ export default function Toolbar() {
      Helper – עדכון אחיד (קריטי למובייל)
   ============================================================ */
   const apply = (changes: Partial<EditorObject>) => {
-    updateObject(obj.id, changes);
-    // ה־EditorCanvas כבר עושה batchDraw כשהאובייקט משתנה
-  };
+  console.log("🔹 Toolbar apply:", changes);
+  updateObject(obj.id, changes);
+
+  requestAnimationFrame(() => {
+    const state = useEditorStore.getState();
+    console.log("🔸 Zustand objects:", state.objects);
+    useEditorStore.setState({ objects: [...state.objects] });
+  });
+};
 
   return (
     <div className="h-14 px-4 bg-white border-b shadow flex items-center gap-4 overflow-x-auto">
