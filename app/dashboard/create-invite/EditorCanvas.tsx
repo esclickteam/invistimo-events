@@ -527,7 +527,7 @@ useEffect(() => {
 
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
-              if (isEditingThis) return null;
+              
 
 
               return (
@@ -537,9 +537,7 @@ useEffect(() => {
   className={obj.id}
 
   x={obj.x ?? 0}
-  /* 🔥 padding אנכי קל – פותר גלישה בעברית */
   y={obj.y ?? 0}
-
 
   rotation={obj.rotation || 0}
   text={obj.text ?? ""}
@@ -551,26 +549,22 @@ useEffect(() => {
 
   wrap="word"
   lineHeight={obj.lineHeight ?? 1.2}
-    verticalAlign="top" 
+  verticalAlign="top"
 
-  /* 🔥 חובה – גובה אמיתי לתיבת טקסט */
   width={obj.width}
   height={editingTextId === obj.id ? undefined : obj.height}
 
-
-  /* ✅ fontStyle תקין ל-Konva */
   fontStyle={[
     obj.fontWeight === "bold" ? "bold" : null,
     obj.italic ? "italic" : null,
-  ]
-    .filter(Boolean)
-    .join(" ")}
+  ].filter(Boolean).join(" ")}
 
-  /* ✅ underline בלי מחרוזת ריקה */
   textDecoration={obj.underline ? "underline" : undefined}
 
+  /* 🔥🔥 זה מה שחסר לך 🔥🔥 */
+  opacity={isEditingThis ? 0 : 1}
+  listening={!isEditingThis}
   draggable={!isEditingThis}
-
 
   onClick={() => {
     if (!isMobile) handleSelect(obj.id);
@@ -578,18 +572,14 @@ useEffect(() => {
   onDblClick={() => {
     if (!isMobile) handleDblClick(obj);
   }}
-
   onTap={(e) => {
-  e.cancelBubble = true;
-
-  // אם לוחצים שוב על אותו טקסט – נכנס שוב לעריכה
-  if (selectedId === obj.id && !editingTextId) {
-    handleDblClick(obj);
-    return;
-  }
-
-  handleSelect(obj.id);
-}}
+    e.cancelBubble = true;
+    if (selectedId === obj.id && !editingTextId) {
+      handleDblClick(obj);
+      return;
+    }
+    handleSelect(obj.id);
+  }}
 
   onDragEnd={(e) =>
     updateObject(obj.id, {
@@ -607,28 +597,23 @@ useEffect(() => {
       typeof obj.width === "number" ? obj.width : node.width();
 
     updateObject(obj.id, {
-  x: node.x(),
-  y: node.y(),
-  rotation: node.rotation(),
+      x: node.x(),
+      y: node.y(),
+      rotation: node.rotation(),
+      width: Math.max(20, baseWidth * scaleX),
+      fontSize: Math.max(5, (obj.fontSize ?? 40) * scaleY),
+      height: Math.max(
+        10,
+        (obj.fontSize ?? 40) *
+          scaleY *
+          (obj.lineHeight ?? 1.2)
+      ),
+    });
 
-  width: Math.max(20, baseWidth * scaleX),
-
-  fontSize: Math.max(5, (obj.fontSize ?? 40) * scaleY),
-
-  // 🔥 סנכרון גובה עם גודל טקסט + lineHeight
-  height: Math.max(
-    10,
-    (obj.fontSize ?? 40) *
-      scaleY *
-      (obj.lineHeight ?? 1.2)
-  ),
-});
-
-node.scaleX(1);
-node.scaleY(1);
+    node.scaleX(1);
+    node.scaleY(1);
   }}
 
-  listening
 />
 
 
