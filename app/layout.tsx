@@ -6,10 +6,11 @@ import Providers from "./providers";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import LayoutShell from "./components/LayoutShell";
 
 import SupportBotButton from "./components/SupportBotButton";
-import LayoutShell from "./components/LayoutShell";
 import SupportBotGate from "./components/SupportBotGate";
+import AccessibilityScript from "./components/AccessibilityScript";
 
 export const metadata = {
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
@@ -47,12 +48,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </SupportBotGate>
         </Providers>
 
-        {/* ♿ UserWay – נגישות */}
-        <Script
-          src="https://cdn.userway.org/widget.js"
-          data-account="HnP2BQ1axC"
-          strategy="afterInteractive"
-        />
+        {/* ♿ נגישות – רק בדפים ציבוריים (לא בדשבורד) */}
+        <AccessibilityScript />
       </body>
     </html>
   );
