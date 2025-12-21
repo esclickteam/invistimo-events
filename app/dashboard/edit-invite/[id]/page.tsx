@@ -6,6 +6,12 @@ import EditorCanvas from "../../create-invite/EditorCanvas";
 import Sidebar from "../../create-invite/Sidebar";
 import Toolbar from "../../create-invite/Toolbar";
 
+import MobileBottomNav, {
+  type MobileNavTab,
+} from "@/app/components/MobileBottomNav";
+import MobileBottomSheet from "@/app/components/MobileBottomSheet";
+import TextEditorPanel from "@/app/components/TextEditorPanel";
+
 const queryClient = new QueryClient();
 
 export default function EditInvitePage({ params }: any) {
@@ -16,7 +22,12 @@ export default function EditInvitePage({ params }: any) {
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
+
+  /* ===== Mobile UI State (זהה ל-Create) ===== */
+  const [mobileTab, setMobileTab] = useState<MobileNavTab>("text");
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
@@ -49,7 +60,6 @@ export default function EditInvitePage({ params }: any) {
 
         const canvasData = data.invitation.canvasData || { objects: [] };
 
-        // ⚠️ מנקה image – ייטען מחדש בקנבס
         canvasData.objects = canvasData.objects.map((o: any) => ({
           ...o,
           image: undefined,
@@ -60,7 +70,7 @@ export default function EditInvitePage({ params }: any) {
           canvasData,
         });
       } catch (err) {
-        console.error("❌ Error loading invitation:", err);
+        console.error(err);
         alert("שגיאה בטעינה");
       } finally {
         setLoading(false);
@@ -100,7 +110,7 @@ export default function EditInvitePage({ params }: any) {
       setInvite(result.invitation);
       alert("✅ ההזמנה עודכנה בהצלחה!");
     } catch (err) {
-      console.error("❌ Save error:", err);
+      console.error(err);
       alert("❌ שגיאת שרת");
     } finally {
       setSaving(false);
@@ -108,15 +118,52 @@ export default function EditInvitePage({ params }: any) {
   };
 
   /* ============================================================
-     📤 Upload invitation image → canvas background
+     📤 Upload background
   ============================================================ */
   const handleUploadInvitation = (file: File) => {
-    if (!canvasRef.current?.uploadBackground) {
-      alert("❌ הקנבס לא מוכן להעלאת רקע");
+    canvasRef.current?.uploadBackground?.(file);
+  };
+
+  /* ============================================================
+     🔥 Mobile – חיבור עריכת טקסט לקנבס
+  ============================================================ */
+  const applyToSelected = (patch: Record<string, any>) => {
+  canvasRef.current?.updateSelected?.(patch);
+
+  setSelectedObject((prev: any | null) =>
+    prev ? { ...prev, ...patch } : prev
+  );
+};
+
+  /* ============================================================
+     🗑 Delete
+  ============================================================ */
+  const handleDeleteSelected = () => {
+    canvasRef.current?.deleteSelected?.();
+    setSelectedObject(null);
+    setSheetOpen(false);
+  };
+
+  /* ============================================================
+     Mobile behavior – פתיחת Sheet כשנבחר טקסט
+  ============================================================ */
+  useEffect(() => {
+    if (selectedObject?.type === "text") {
+      setMobileTab("text");
+      setSheetOpen(true);
+    }
+  }, [selectedObject]);
+
+  const onChangeMobileTab = (tab: MobileNavTab) => {
+    if (tab === mobileTab) {
+      setSheetOpen((v) => !v);
       return;
     }
-    canvasRef.current.uploadBackground(file);
+    setMobileTab(tab);
+    setSheetOpen(true);
   };
+
+  const mobileSheetTitle = mobileTab === "text" ? "טקסט" : "";
 
   /* ============================================================
      ⏳ Loading
@@ -126,85 +173,98 @@ export default function EditInvitePage({ params }: any) {
   }
 
   /* ============================================================
-     🎨 UI (זהה ל־Create Invite)
+     🎨 UI
   ============================================================ */
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex h-screen bg-gray-100 relative">
-        {/* Sidebar */}
-        <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
+      <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
+          <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
+        </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* ✅ Sticky Top Bar */}
-          <div
-            className="
-              sticky top-0 z-40
-              bg-white border-b
-              px-6 py-3
-              flex items-center justify-between gap-4
-            "
-          >
-            {/* Upload */}
-            <div>
-              <button
-                onClick={() => uploadInputRef.current?.click()}
-                className="
-                  px-5 py-2.5
-                  rounded-full
-                  bg-violet-600
-                  text-white
-                  font-medium
-                  shadow
-                  hover:bg-violet-700
-                  transition
-                "
-              >
-                ⬆️ העלאת ההזמנה שלי
-              </button>
+        <div className="flex-1 flex flex-col min-h-0 relative">
+          {/* Top Bar */}
+          <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
+            <button
+              onClick={() => uploadInputRef.current?.click()}
+              className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
+            >
+              ⬆️ העלאה
+            </button>
 
-              <input
-                ref={uploadInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleUploadInvitation(file);
-                  e.currentTarget.value = "";
-                }}
-              />
-            </div>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUploadInvitation(file);
+                e.currentTarget.value = "";
+              }}
+            />
 
-            {/* Save */}
+            <div className="flex-1" />
+
             <button
               onClick={handleSave}
               disabled={saving}
-              className={`
-                px-6 py-3 rounded-full
-                text-white font-semibold shadow
-                flex items-center gap-2 transition
-                ${
-                  saving
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }
-              `}
+              className={`px-5 py-2 rounded-full text-white text-sm ${
+                saving
+                  ? "bg-gray-400"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-              {saving ? "שומר..." : "💾 שמור שינויים"}
+              {saving ? "שומר..." : "💾 שמור"}
             </button>
           </div>
 
-          {/* Toolbar */}
-          <Toolbar />
+          {/* Desktop Toolbar */}
+          <div className="hidden md:block">
+            <Toolbar />
+          </div>
 
           {/* Canvas */}
-          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
-            <EditorCanvas
-              ref={canvasRef}
-              initialData={invite.canvasData}
-              onSelect={setSelectedObject}
-            />
+          <div className="flex-1 relative bg-gray-100">
+            <div className="absolute inset-0 pb-24 md:pb-0">
+              <EditorCanvas
+                ref={canvasRef}
+                initialData={invite.canvasData}
+                onSelect={setSelectedObject}
+              />
+            </div>
           </div>
+
+          {/* Mobile Add Text */}
+          <button
+            onClick={() => canvasRef.current?.addText?.()}
+            className="md:hidden fixed bottom-28 right-4 z-50 px-5 py-3 rounded-full bg-black text-white shadow-xl"
+          >
+            ➕ טקסט
+          </button>
+
+          {/* Mobile Nav */}
+          <MobileBottomNav
+            active={mobileTab}
+            onChange={onChangeMobileTab}
+          />
+
+          {/* Mobile Sheet */}
+          <MobileBottomSheet
+            open={sheetOpen}
+            title={mobileSheetTitle}
+            onClose={() => setSheetOpen(false)}
+            height="42vh"
+          >
+            <TextEditorPanel
+              selected={
+                selectedObject?.type === "text" ? selectedObject : null
+              }
+              onApply={applyToSelected}
+              onDelete={handleDeleteSelected}
+            />
+          </MobileBottomSheet>
         </div>
       </div>
     </QueryClientProvider>
