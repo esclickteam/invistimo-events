@@ -561,12 +561,21 @@ useEffect(() => {
       y={obj.y ?? 0}
       rotation={obj.rotation || 0}
       draggable={!isEditingThis}
+
+       onMouseDown={(e: Konva.KonvaEventObject<MouseEvent>) => {
+    e.cancelBubble = true; // 🔥 זה הפיקס
+  }}
+
       onClick={() => {
-        if (!isMobile) handleSelect(obj.id);
-      }}
-      onDblClick={() => {
-        if (!isMobile) handleDblClick(obj);
-      }}
+  if (isMobile) return;
+
+  if (selectedId === obj.id) {
+    handleDblClick(obj); // ✍️ קליק שני = עריכה
+  } else {
+    handleSelect(obj.id);
+  }
+}}
+      
       onTap={(e: Konva.KonvaEventObject<TouchEvent>) => {
 
         e.cancelBubble = true;
