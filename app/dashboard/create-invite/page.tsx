@@ -20,7 +20,7 @@ const queryClient = new QueryClient();
 /* =========================================================
    Types
 ========================================================= */
-type EditorObject = {
+export type EditorObject = {
   id: string;
   type: "text" | string;
   text?: string;
@@ -41,6 +41,8 @@ type EditorCanvasRef = {
   uploadBackground: (file: File) => void;
   updateSelected: (patch: Record<string, any> | null) => void;
   selectById?: (id: string) => void;
+  deleteSelected?: () => void;
+  addObject?: (obj: EditorObject) => void; // ✅ חשוב
 };
 
 /* =========================================================
@@ -63,7 +65,7 @@ export default function CreateInvitePage() {
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* =========================================================
-     כאשר בוחרים טקסט – פותחים את עורך הטקסט
+     כאשר בוחרים טקסט – פותחים Sheet
   ========================================================= */
   useEffect(() => {
     if (selectedObject?.type === "text") {
@@ -73,10 +75,10 @@ export default function CreateInvitePage() {
   }, [selectedObject]);
 
   /* =========================================================
-     הוספת טקסט חדש (Mobile + Desktop)
+     הוספת טקסט (Mobile + Desktop)
   ========================================================= */
   const handleAddText = () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current?.addObject) return;
 
     const newText: EditorObject = {
       id: crypto.randomUUID(),
@@ -90,8 +92,7 @@ export default function CreateInvitePage() {
       align: "center",
     };
 
-    const canvasData = canvasRef.current.getCanvasData();
-    canvasData.objects.push(newText);
+    canvasRef.current.addObject(newText);
 
     setSelectedObject(newText);
     setMobileTab("text");
@@ -164,11 +165,22 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     עדכון טקסט מה-EditorPanel
+     עדכון טקסט
   ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
     setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
     canvasRef.current?.updateSelected(patch);
+  };
+
+  /* =========================================================
+     מחיקה
+  ========================================================= */
+  const handleDeleteSelected = () => {
+    if (!canvasRef.current || !selectedObject) return;
+
+    canvasRef.current.deleteSelected?.();
+    setSelectedObject(null);
+    setSheetOpen(false);
   };
 
   /* =========================================================
@@ -286,6 +298,7 @@ export default function CreateInvitePage() {
                   selectedObject?.type === "text" ? selectedObject : null
                 }
                 onApply={applyToSelected}
+                onDelete={handleDeleteSelected}
               />
             ) : (
               <Sidebar

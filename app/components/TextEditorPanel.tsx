@@ -1,29 +1,62 @@
 "use client";
 
-export default function TextEditorPanel({ selected, onApply }) {
-  // selected = האובייקט המסומן (טקסט)
+/* =========================================================
+   Types
+========================================================= */
+type TextEditorPanelProps = {
+  selected: {
+    id: string;
+    text?: string;
+    fontFamily?: string;
+    fontSize?: number;
+    fill?: string;
+    fontStyle?: string;
+    align?: string;
+  } | null;
+
+  onApply: (patch: Record<string, any>) => void;
+  onDelete: () => void;
+};
+
+/* =========================================================
+   Component
+========================================================= */
+export default function TextEditorPanel({
+  selected,
+  onApply,
+  onDelete,
+}: TextEditorPanelProps) {
+  // אין טקסט נבחר
   if (!selected) return null;
 
   const fontFamily = selected.fontFamily || "Heebo";
   const fontSize = Number(selected.fontSize || 36);
   const fill = selected.fill || "#111111";
-  const fontStyle = selected.fontStyle || "normal"; // "bold" / "italic" / "normal"
+  const fontStyle = selected.fontStyle || "normal"; // bold / italic / normal
   const align = selected.align || "right";
 
   const toggleBold = () =>
-    onApply({ fontStyle: fontStyle === "bold" ? "normal" : "bold" });
+    onApply({
+      fontStyle: fontStyle === "bold" ? "normal" : "bold",
+    });
 
   const toggleItalic = () =>
-    onApply({ fontStyle: fontStyle === "italic" ? "normal" : "italic" });
+    onApply({
+      fontStyle: fontStyle === "italic" ? "normal" : "italic",
+    });
 
   return (
-    <div className="space-y-4">
-      {/* Row 1 */}
+    <div className="flex flex-col h-full space-y-4">
+      {/* =========================
+         Row 1 – Bold / Italic / Align
+      ========================= */}
       <div className="flex items-center gap-2">
         <button
           onClick={toggleBold}
           className={`px-3 py-2 rounded-xl border text-sm ${
-            fontStyle === "bold" ? "bg-black text-white" : "bg-white"
+            fontStyle === "bold"
+              ? "bg-black text-white"
+              : "bg-white"
           }`}
         >
           B
@@ -32,7 +65,9 @@ export default function TextEditorPanel({ selected, onApply }) {
         <button
           onClick={toggleItalic}
           className={`px-3 py-2 rounded-xl border text-sm ${
-            fontStyle === "italic" ? "bg-black text-white" : "bg-white"
+            fontStyle === "italic"
+              ? "bg-black text-white"
+              : "bg-white"
           }`}
         >
           I
@@ -49,13 +84,17 @@ export default function TextEditorPanel({ selected, onApply }) {
         </select>
       </div>
 
-      {/* Row 2 */}
+      {/* =========================
+         Row 2 – Font + Size
+      ========================= */}
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <div className="text-xs text-gray-500 mb-1">Font</div>
           <select
             value={fontFamily}
-            onChange={(e) => onApply({ fontFamily: e.target.value })}
+            onChange={(e) =>
+              onApply({ fontFamily: e.target.value })
+            }
             className="w-full px-3 py-2 rounded-xl border text-sm"
           >
             <option value="Heebo">Heebo</option>
@@ -72,13 +111,17 @@ export default function TextEditorPanel({ selected, onApply }) {
             value={fontSize}
             min={8}
             max={180}
-            onChange={(e) => onApply({ fontSize: Number(e.target.value) })}
+            onChange={(e) =>
+              onApply({ fontSize: Number(e.target.value) })
+            }
             className="w-full px-3 py-2 rounded-xl border text-sm"
           />
         </div>
       </div>
 
-      {/* Row 3 */}
+      {/* =========================
+         Row 3 – Color
+      ========================= */}
       <div className="flex items-center gap-3">
         <div>
           <div className="text-xs text-gray-500 mb-1">Color</div>
@@ -96,6 +139,7 @@ export default function TextEditorPanel({ selected, onApply }) {
         >
           שחור
         </button>
+
         <button
           onClick={() => onApply({ fill: "#ffffff" })}
           className="px-3 py-2 rounded-xl border text-sm"
@@ -103,6 +147,28 @@ export default function TextEditorPanel({ selected, onApply }) {
           לבן
         </button>
       </div>
+
+      {/* spacer */}
+      <div className="flex-1" />
+
+      {/* =========================
+         Delete Button (Mobile)
+      ========================= */}
+      <button
+        onClick={onDelete}
+        className="
+          w-full
+          py-3
+          rounded-xl
+          bg-red-600
+          text-white
+          text-sm
+          font-medium
+          active:scale-95
+        "
+      >
+        🗑️ מחק טקסט
+      </button>
     </div>
   );
 }
