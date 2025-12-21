@@ -124,16 +124,22 @@ export default function EditableTextOverlay({
         setValue(newVal);
         onLiveChange?.(newVal);
       }}
-      onKeyDown={(e) => {
-        // ✅ Enter יורד שורה ונשאר בעורך — לא מסיימים עריכה
-        // לא עושים preventDefault
 
-        // ⌨️ דסקטופ: Escape מבטל עריכה ומחזיר לטקסט הקודם
-        if (!isMobile && e.key === "Escape") {
-          e.preventDefault();
-          onFinish(obj.text ?? "");
-        }
-      }}
+      onKeyDown={(e) => {
+  // ✅ Enter = ירידת שורה בלבד
+  if (e.key === "Enter") {
+    e.stopPropagation(); // 🔥 הכי חשוב
+    return;
+  }
+
+  // ⌨️ Esc (רק דסקטופ) – ביטול עריכה
+  if (!isMobile && e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();
+    onFinish(obj.text ?? "");
+  }
+}}
+      
       style={{
         position: "fixed",
         top: rect.y,
