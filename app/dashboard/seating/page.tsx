@@ -25,6 +25,7 @@ type GuestDTO = {
 export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showGuests, setShowGuests] = useState(false); // 👈 מובייל
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
 
@@ -46,16 +47,13 @@ export default function SeatingPage() {
   useEffect(() => {
     async function load() {
       try {
-        /* ================= הזמנה ================= */
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
-
         if (!invData?.success || !invData.invitation) return;
 
-        const id: string = invData.invitation._id;
+        const id = invData.invitation._id;
         setInvitationId(id);
 
-        /* ================= אורחים ================= */
         const gRes = await fetch(`/api/seating/guests/${id}`);
         if (gRes.status === 403) {
           setBlocked(true);
@@ -64,7 +62,6 @@ export default function SeatingPage() {
         }
 
         const gData = await gRes.json();
-
         const normalizedGuests = (gData.guests || []).map(
           (g: GuestDTO) => ({
             id: g._id,
@@ -74,7 +71,6 @@ export default function SeatingPage() {
           })
         );
 
-        /* ================= הושבה + רקע + zones ================= */
         const tRes = await fetch(`/api/seating/tables/${id}`);
         if (tRes.status === 403) {
           setBlocked(true);
@@ -101,63 +97,38 @@ export default function SeatingPage() {
   }, [init, setZones]);
 
   /* ===============================
-     SELECT BACKGROUND
-  =============================== */
-  const handleBackgroundSelect = (bgUrl: string) => {
-    if (!bgUrl) return;
-
-    setBackground({
-      url: bgUrl,
-      opacity: 0.28,
-    });
-  };
-
-  /* ===============================
-     SAVE SEATING (כולל ZONES)
+     SAVE
   =============================== */
   async function saveSeating() {
-    if (!invitationId) {
-      alert("לא נמצאה הזמנה.");
-      return;
-    }
+    if (!invitationId) return;
 
     const zones = useZoneStore.getState().zones;
     const canvasView = useSeatingStore.getState().canvasView;
 
-    try {
-      const res = await fetch(`/api/seating/save/${invitationId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tables,
-          guests,
-          background,
-          zones,
-          canvasView,
-        }),
-      });
+    const res = await fetch(`/api/seating/save/${invitationId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tables,
+        guests,
+        background,
+        zones,
+        canvasView,
+      }),
+    });
 
-      if (res.status === 403) {
-        setBlocked(true);
-        setShowUpgrade(true);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.success) {
-        alert("🎉 ההושבה והאלמנטים נשמרו בהצלחה!");
-      } else {
-        alert("❌ שגיאה בשמירה");
-      }
-    } catch (err) {
-      console.error("❌ Save error:", err);
-      alert("⚠ שמירה נכשלה!");
+    if (res.status === 403) {
+      setBlocked(true);
+      setShowUpgrade(true);
+      return;
     }
+
+    const data = await res.json();
+    alert(data.success ? "🎉 נשמר בהצלחה" : "❌ שגיאה");
   }
 
   /* ===============================
-     BLOCKED VIEW
+     BLOCKED
   =============================== */
   if (blocked) {
     return (
@@ -167,11 +138,6 @@ export default function SeatingPage() {
             <h2 className="text-2xl font-semibold mb-3">
               הושבה אינה כלולה בחבילה שלך
             </h2>
-            <p className="text-gray-600 mb-6">
-              כדי להשתמש במערכת ההושבה והאלמנטים החכמים,
-              יש לשדרג לחבילת פרימיום.
-            </p>
-
             <button
               onClick={() => setShowUpgrade(true)}
               className="px-5 py-2 bg-black text-white rounded-lg"
@@ -191,50 +157,79 @@ export default function SeatingPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
       {/* ================= HEADER ================= */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-30">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
-          <h1 className="text-lg sm:text-xl font-semibold">
-            הושבה באולם
-          </h1>
+      <div className="sticky top-0 z-30 bg-white border-b">
+        <div className="flex flex-col sm:flex-row justify-between px-4 py-3 gap-3">
+          <h1 className="text-lg font-semibold">הושבה באולם</h1>
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
             <button
               onClick={() => setShowUpload(true)}
-              className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg w-full sm:w-auto"
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg"
             >
-              העלאת תבנית אולם
+              העלאת תבנית
             </button>
-
             <button
               onClick={saveSeating}
-              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg w-full sm:w-auto"
+              className="px-3 py-2 bg-green-600 text-white rounded-lg"
             >
-              💾 שמירת הושבה
+              שמירה
             </button>
           </div>
         </div>
 
-        {/* ⭐ Toolbar אלמנטים – רספונסיבי */}
-        <div className="w-full overflow-x-auto scrollbar-hide">
-          <ZonesToolbar />
-        </div>
+        <ZonesToolbar />
       </div>
 
-      {/* ================= MAIN CANVAS ================= */}
-      <div className="flex-1 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <SeatingEditor background={background?.url || null} />
-        </div>
+      {/* ================= MAIN ================= */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* DESKTOP SIDEBAR */}
+        <aside className="hidden sm:flex w-[280px] bg-white border-l flex-col">
+          <div className="flex-1 overflow-y-auto">
+            {/* 👈 כאן רשימת האורחים הקיימת שלך */}
+          </div>
+        </aside>
+
+        {/* CANVAS */}
+        <main className="flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 seating-canvas-wrapper">
+            <SeatingEditor background={background?.url || null} />
+          </div>
+        </main>
       </div>
 
-      {/* ================= UPLOAD MODAL ================= */}
+      {/* ================= MOBILE GUESTS DRAWER ================= */}
+      <button
+        onClick={() => setShowGuests(true)}
+        className="sm:hidden fixed bottom-4 right-4 z-40 bg-black text-white px-4 py-3 rounded-full shadow-lg"
+      >
+        אורחים
+      </button>
+
+      {showGuests && (
+        <div className="fixed inset-0 z-50 bg-black/40">
+          <div className="absolute bottom-0 left-0 right-0 h-[70%] bg-white rounded-t-3xl flex flex-col">
+            <div className="p-4 border-b font-semibold">רשימת אורחים</div>
+            <div className="flex-1 overflow-y-auto">
+              {/* 👈 אותה רשימת אורחים */}
+            </div>
+            <button
+              onClick={() => setShowGuests(false)}
+              className="p-4 text-blue-600"
+            >
+              סגור
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODALS ================= */}
       {showUpload && (
         <UploadBackgroundModal
           onClose={() => setShowUpload(false)}
           onBackgroundSelect={(bgUrl: string) => {
-            handleBackgroundSelect(bgUrl);
+            setBackground({ url: bgUrl, opacity: 0.28 });
             setShowUpload(false);
           }}
         />
