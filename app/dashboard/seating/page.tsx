@@ -210,7 +210,8 @@ export default function SeatingPage() {
       </div>
 
       {/* ================= CONTENT ================= */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
+
         {/* קנבס */}
         <div className="flex-1 relative">
           <SeatingEditor background={background?.url || null} />
