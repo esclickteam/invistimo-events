@@ -302,36 +302,56 @@ export const useSeatingStore = create((set, get) => ({
     }),
 
   /* ---------------- ⭐️ עדכון למודאל ---------------- */
-  assignGuestsToTable: (tableId, guestId, count, seatIndex = 0) => {
-    const { tables, guests } = get();
-    const table = tables.find((t) => t.id === tableId);
-    const guest = guests.find((g) => g.id === guestId);
-    if (!table || !guest)
-      return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
+  assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
+  const { tables, guests } = get();
 
-    const block = findFreeBlock(table, count, seatIndex);
-    if (!block)
-      return { ok: false, message: "אין מספיק מקומות פנויים" };
+  const table = tables.find((t) => t.id === tableId);
+  const guest = guests.find((g) => g.id === guestId);
 
-    tables.forEach((t) => {
-      t.seatedGuests = t.seatedGuests.filter(
-        (s) => s.guestId !== guestId
-      );
-    });
+  if (!table || !guest) {
+    return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
+  }
 
-    table.seatedGuests.push(
-      ...block.map((seatIndex) => ({
-        guestId,
-        seatIndex,
-      }))
+  // ✅ תיקון קריטי:
+  // לא לכפות seatIndex = 0
+  // אם לא הגיע seatIndex – נותנים ל-engine לבחור לבד
+  const startIndex =
+    typeof seatIndex === "number" ? seatIndex : undefined;
+
+  const block = findFreeBlock(table, count, startIndex);
+
+  // guard חובה
+  if (!block || block.length === 0) {
+    return { ok: false, message: "אין מספיק מקומות פנויים" };
+  }
+
+  // ניקוי הושבות קודמות של האורח מכל השולחנות
+  tables.forEach((t) => {
+    t.seatedGuests = t.seatedGuests.filter(
+      (s) => s.guestId !== guestId
     );
+  });
 
-    guest.tableId = tableId;
-    guest.tableName = table.name;
+  // ✅ כאן נוצר seatIndex לכל מושב – זה מה שצובע באפור
+  table.seatedGuests.push(
+    ...block.map((seatIndex) => ({
+      guestId,
+      seatIndex,
+    }))
+  );
 
-    set({ tables: [...tables], guests: [...guests] });
-    return { ok: true };
-  },
+  // עדכון האורח
+  guest.tableId = tableId;
+  guest.tableName = table.name;
+
+  set({
+    tables: [...tables],
+    guests: [...guests],
+  });
+
+  return { ok: true };
+},
+
 
   removeGuestFromTable: (tableId, guestId) => {
     const { tables, guests } = get();
