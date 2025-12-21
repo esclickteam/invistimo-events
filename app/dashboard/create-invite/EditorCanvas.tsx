@@ -802,69 +802,76 @@ useEffect(() => {
   </button>
 )}
 
-
-      {editingTextId && (
+{editingTextId && (
   <EditableTextOverlay
-    key={`${editingTextId}-${
-      (objects.find(
-        (o): o is TextObject => o.id === editingTextId && o.type === "text"
-      )?.fill ?? "nofill")
-    }`}
+    key={editingTextId}
     obj={
       (objects.find(
-        (o) => o.id === editingTextId && o.type === "text"
+        (o): o is TextObject =>
+          o.id === editingTextId && o.type === "text"
       ) as TextObject | null) || null
     }
     rect={textInputRect}
 
-
+    /* =========================
+       ✍️ בזמן הקלדה – resize כמו Canva
+    ========================= */
     onLiveChange={({ text, height }) => {
-  if (!editingTextId || height == null) return;
+      if (!editingTextId || height == null) return;
 
-  const textObj = objects.find(
-    (o): o is TextObject =>
-      o.id === editingTextId && o.type === "text"
-  );
+      // 1️⃣ עדכון טקסט + גובה בזמן אמת (מה-textarea)
+      updateObject(editingTextId, {
+        text,
+        height,
+      });
 
-  const fontSize = textObj?.fontSize ?? 40;
-  const lineHeight = textObj?.lineHeight ?? 1.2;
+      // 2️⃣ עדכון overlay לפי הגובה החדש
+      setTextInputRect((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              height: height * scale,
+            }
+          : prev
+      );
+    }}
 
-  const lines = text.split("\n").length;
-  const minHeight = fontSize * lineHeight * lines;
-
-  const finalHeight = Math.max(height, minHeight);
-
-  updateObject(editingTextId, {
-    text,
-    height: finalHeight,
-  });
-
-  setTextInputRect((prev: any) =>
-    prev
-      ? {
-          ...prev,
-          height: finalHeight * scale,
-        }
-      : prev
-  );
-}}
-
-
-
-    onFinish={({ text, height }) => {
+    /* =========================
+       ✅ סיום עריכה
+    ========================= */
+    onFinish={({ text }) => {
   if (!editingTextId) return;
 
-  updateObject(editingTextId, {
-    text,
-    height, // 🔥 הגובה האמיתי מה-textarea
-  });
+  // 1️⃣ טקסט סופי (string!)
+  updateObject(editingTextId, { text });
 
-  // יציאה ממצב עריכה
-  setEditingTextId(null);
-  setTextInputRect(null);
+  // 2️⃣ sync סופי מול Konva
+  requestAnimationFrame(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const node = stage.findOne(
+      `.${editingTextId}`
+    ) as Konva.Text | null;
+
+    if (node) {
+      updateObject(editingTextId, {
+        height: node.height(),
+      });
+    }
+
+    // 3️⃣ יציאה ממצב עריכה
+    setEditingTextId(null);
+    setTextInputRect(null);
+  });
 }}
-/>
+
+
+  />
 )}
+
+
+      
 
     </div>
   );
