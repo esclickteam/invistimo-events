@@ -40,21 +40,38 @@ export default function EditableTextOverlay({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [value, setValue] = useState("");
 
-  /* זיהוי מובייל */
+  /* ============================================================
+     זיהוי מובייל
+  ============================================================ */
   const isMobile =
     typeof window !== "undefined" &&
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
   /* ============================================================
-     סנכרון מלא עם האובייקט (קריטי למובייל)
+     🔥 סנכרון מלא עם האובייקט
+     זה החלק שהיה חסר וגרם לכך שבמובייל
+     צבע / פונט / גודל לא התעדכנו
   ============================================================ */
   useEffect(() => {
     if (!obj) return;
+
     setValue(obj.text ?? "");
-  }, [obj?.id, obj?.text]);
+  }, [
+    obj?.id,
+    obj?.text,
+    obj?.fill,
+    obj?.fontFamily,
+    obj?.fontSize,
+    obj?.fontWeight,
+    obj?.italic,
+    obj?.underline,
+    obj?.align,
+    obj?.letterSpacing,
+    obj?.lineHeight,
+  ]);
 
   /* ============================================================
-     פוקוס אוטומטי
+     פוקוס אוטומטי בעת פתיחת עריכה
   ============================================================ */
   useEffect(() => {
     if (!inputRef.current || !rect) return;
@@ -71,6 +88,7 @@ export default function EditableTextOverlay({
   ============================================================ */
   useEffect(() => {
     if (!inputRef.current) return;
+
     const el = inputRef.current;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
@@ -119,7 +137,9 @@ export default function EditableTextOverlay({
         overflow: "hidden",
         boxSizing: "border-box",
 
-        /* 🔥 טיפוגרפיה – חייבת להיות זהה ל־Konva.Text */
+        /* ======================================================
+           טיפוגרפיה – חייבת להיות זהה ל־Konva.Text
+        ====================================================== */
         fontFamily: obj.fontFamily,
         fontSize: obj.fontSize,
         fontWeight: obj.fontWeight ?? "normal",
