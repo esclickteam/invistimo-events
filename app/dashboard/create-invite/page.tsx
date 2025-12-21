@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
@@ -8,18 +8,55 @@ import Toolbar from "./Toolbar";
 import { useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
+import MobileBottomNav from "@/app/components/MobileBottomNav";
+import MobileBottomSheet from "@/app/components/MobileBottomSheet";
+import TextEditorPanel from "@/app/components/TextEditorPanel";
+
 const queryClient = new QueryClient();
 
+/* =========================
+   Types (TS Fixes)
+========================= */
+type EditorObject = {
+  id?: string;
+  type?: string; // "text" | ...
+  fontFamily?: string;
+  fontSize?: number;
+  fill?: string;
+  fontStyle?: string;
+  align?: string;
+  [key: string]: any;
+};
+
+type EditorCanvasRef = {
+  getCanvasData?: () => any;
+  uploadBackground?: (file: File) => void;
+  updateSelected?: (patch: Record<string, any>) => void;
+};
+
 export default function CreateInvitePage() {
-  const canvasRef = useRef<any>(null);
+  const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [selectedObject, setSelectedObject] = useState<any | null>(null);
+  const [selectedObject, setSelectedObject] = useState<EditorObject | null>(
+    null
+  );
   const [saving, setSaving] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const [mobileTab, setMobileTab] = useState<string>("design");
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   const router = useRouter();
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
+
+  // --- כאשר נבחר טקסט — נפתח עורך טקסט כמו בקאנבה ---
+  useEffect(() => {
+    if (selectedObject?.type === "text") {
+      setMobileTab("text");
+      setSheetOpen(true);
+    }
+  }, [selectedObject]);
 
   /* ===========================================================
      SAVE INVITATION
@@ -46,9 +83,7 @@ export default function CreateInvitePage() {
 
       const data = await res.json();
       if (data.success) {
-        router.push(
-          `/dashboard/invitations/${data.invitation._id}/preview`
-        );
+        router.push(`/dashboard/invitations/${data.invitation._id}/preview`);
       } else {
         alert(data.error);
       }
@@ -67,11 +102,46 @@ export default function CreateInvitePage() {
     canvasRef.current?.uploadBackground?.(file);
   };
 
+  /* ===========================================================
+     MOBILE NAVIGATION
+  ============================================================ */
+  const closeSheet = () => setSheetOpen(false);
+
+  const onChangeMobileTab = (tabId: string) => {
+    if (tabId === mobileTab) {
+      setSheetOpen((v) => !v);
+      return;
+    }
+    setMobileTab(tabId);
+    setSheetOpen(true);
+  };
+
+  const applyToSelected = (patch: Record<string, any>) => {
+    setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
+    canvasRef.current?.updateSelected?.(patch);
+  };
+
+  const mobileSheetTitle = (() => {
+  switch (mobileTab) {
+    case "text":
+      return "טקסט";
+    case "blessing":
+      return "ברית/ה";
+    case "wedding":
+      return "חתונה";
+    case "backgrounds":
+      return "רקעים";
+    case "batmitzvah":
+      return "בת/מצווה, חינה ועוד";
+    default:
+      return "";
+  }
+})();
+
   return (
     <QueryClientProvider client={queryClient}>
-      {/* ⚠️ בלי overflow-hidden כאן */}
-      <div className="h-screen flex bg-gray-100">
-        {/* ================= Desktop Sidebar ================= */}
+      <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
+        {/* =============== Desktop Sidebar =============== */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar
             canvasRef={canvasRef}
@@ -79,7 +149,7 @@ export default function CreateInvitePage() {
           />
         </div>
 
-        {/* ================= Mobile Sidebar Drawer ================= */}
+        {/* =============== Mobile Sidebar Drawer (optional) =============== */}
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 bg-white flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
@@ -88,7 +158,6 @@ export default function CreateInvitePage() {
                 <X />
               </button>
             </div>
-
             <div className="flex-1 overflow-auto">
               <Sidebar
                 canvasRef={canvasRef}
@@ -98,19 +167,14 @@ export default function CreateInvitePage() {
           </div>
         )}
 
-        {/* ================= Editor ================= */}
-        <div className="flex-1 flex flex-col min-h-0">
+        {/* =============== Editor Area =============== */}
+        <div className="flex-1 flex flex-col min-h-0 relative">
           {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
-            {/* Mobile menu */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden"
-            >
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden">
               <Menu />
             </button>
 
-            {/* Upload */}
             <button
               onClick={() => uploadInputRef.current?.click()}
               className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
@@ -132,7 +196,6 @@ export default function CreateInvitePage() {
 
             <div className="flex-1" />
 
-            {/* Save */}
             <button
               onClick={handleSave}
               disabled={saving}
@@ -146,18 +209,55 @@ export default function CreateInvitePage() {
             </button>
           </div>
 
-          {/* ===== Toolbar ===== */}
-          <Toolbar />
+          {/* ===== Toolbar (Desktop Only) ===== */}
+          <div className="hidden md:block">
+            <Toolbar />
+          </div>
 
-          {/* ===== Canvas (החלק הקריטי) ===== */}
-          <div className="flex-1 min-h-0 overflow-auto bg-gray-100">
-            <div className="w-full h-full flex items-center justify-center p-2">
-              <EditorCanvas
-                ref={canvasRef}
-                onSelect={setSelectedObject}
-              />
+          {/* ===== Canvas ===== */}
+          <div className="flex-1 min-h-0 overflow-hidden bg-gray-100 relative">
+            <div className="absolute inset-0 pb-20 md:pb-0">
+              <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
             </div>
           </div>
+
+          {/* ===== Mobile Bottom Nav ===== */}
+          <MobileBottomNav active={mobileTab} onChange={onChangeMobileTab} />
+
+          {/* ===== Bottom Sheet ===== */}
+          <MobileBottomSheet
+            open={sheetOpen}
+            title={mobileSheetTitle}
+            onClose={closeSheet}
+            height={mobileTab === "text" ? "42vh" : "52vh"}
+          >
+            {mobileTab === "text" ? (
+              <TextEditorPanel
+                selected={selectedObject?.type === "text" ? selectedObject : null}
+                onApply={applyToSelected}
+              />
+            ) : mobileTab === "elements" ? (
+              <div className="space-y-3">
+                <button className="w-full py-3 rounded-xl bg-purple-600 text-white font-semibold">
+                  הוסף אלמנט
+                </button>
+              </div>
+            ) : mobileTab === "design" ? (
+              <div className="space-y-3">
+                <button className="w-full py-3 rounded-xl border font-semibold">
+                  רקע / תבנית
+                </button>
+              </div>
+            ) : mobileTab === "uploads" ? (
+              <div className="space-y-3">
+                <button className="w-full py-3 rounded-xl bg-black text-white font-semibold">
+                  העלאת תמונה
+                </button>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">תוכן בקרוב...</div>
+            )}
+          </MobileBottomSheet>
         </div>
       </div>
     </QueryClientProvider>
