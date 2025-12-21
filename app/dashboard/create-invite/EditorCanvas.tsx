@@ -315,12 +315,43 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      EXPORT
   ============================================================ */
   useImperativeHandle(ref, () => ({
-  addText: useEditorStore.getState().addText,
+  // 🆕 הוספת טקסט חדש שנבחר אוטומטית ונפתח לעריכה
+  addText: () => {
+    const newId = `text-${Date.now()}`;
+    const newText: TextObject = {
+      id: newId,
+      type: "text",
+      text: "טקסט חדש",
+      x: 100,
+      y: 300,
+      fontFamily: "Heebo",
+      fontSize: 40,
+      fill: "#000000",
+      align: "center",
+    };
+    const current = useEditorStore.getState().objects;
+    useEditorStore.getState().setObjects([...current, newText]);
+    useEditorStore.getState().setSelected(newId);
+
+    // 🔥 פותח ישר מצב עריכה (כמו בקאנבה)
+    setTimeout(() => {
+      const node = stageRef.current?.findOne(`.${newId}`);
+      if (!node) return;
+      const stageBox = stageRef.current.container().getBoundingClientRect();
+      const r = node.getClientRect({ skipShadow: true, skipStroke: true });
+      setTextInputRect({
+        x: stageBox.left + r.x * scale,
+        y: stageBox.top + r.y * scale,
+        width: r.width * scale,
+        height: r.height * scale,
+      });
+      setEditingTextId(newId);
+    }, 50);
+  },
+
   addRect: useEditorStore.getState().addRect,
   addCircle: useEditorStore.getState().addCircle,
   addImage: useEditorStore.getState().addImage,
-
-  // ✅ חדש — העלאת הזמנה כרקע
   uploadBackground: handleUploadBackground,
 
   getCanvasData: () => ({
@@ -332,6 +363,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     })),
   }),
 }));
+
 
   /* ============================================================
      SORT — BACKGROUND FIRST
