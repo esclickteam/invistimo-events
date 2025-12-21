@@ -105,24 +105,27 @@ export default function EditableTextOverlay({
         setValue(newVal);
         onLiveChange?.(newVal);
       }}
-      onBlur={() => {
-        onFinish(value);
-      }}
+      
       onKeyDown={(e) => {
-        /* Enter = סיום עריכה */
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          onFinish(value);
-        }
+  // ⌨️ דסקטופ: Enter מסיים עריכה
+  if (!isMobile && e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    onFinish(value);
+  }
 
-        /* Escape = ביטול */
-        if (e.key === "Escape") {
-          e.preventDefault();
-          onFinish(obj.text ?? "");
-        }
-      }}
+  // ⌨️ דסקטופ: Escape מבטל עריכה
+  if (!isMobile && e.key === "Escape") {
+    e.preventDefault();
+    onFinish(obj.text ?? "");
+  }
+
+  // 📱 מובייל:
+  // Enter = ירידת שורה (לא סוגר עריכה)
+  // אין Escape במקלדת → אין סגירה אוטומטית
+}}
+
       style={{
-        position: "absolute",
+        position: "fixed",
         top: rect.y,
         left: rect.x,
         width: rect.width,
