@@ -298,16 +298,17 @@ function TableRenderer({ table }) {
 
   return (
     <Group
-      ref={tableRef}
-      x={table.x}
-      y={table.y}
-      rotation={table.rotation || 0}
-      draggable={!rotating}
-      onDragEnd={updatePositionInStore}
-      onMouseUp={handleDrop}
-      onClick={handleClick}
-      listening={!rotating}
-    >
+  ref={tableRef}
+  x={table.x}
+  y={table.y}
+  rotation={table.rotation || 0}
+  draggable={!rotating}
+  onDragEnd={updatePositionInStore}
+  onMouseUp={handleDrop}
+  onClick={handleClick}      // דסקטופ
+  onTap={handleClick}        // ✅ מובייל
+  listening={!rotating}
+>
       {/* שולחן */}
       {layout.type === "round" && (
         <>
