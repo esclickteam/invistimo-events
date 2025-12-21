@@ -83,7 +83,7 @@ export default function EditableTextOverlay({
         }
       }}
       style={{
-        position: "fixed",
+        position: "absolute",
         top: rect.y,
         left: rect.x,
         width: rect.width,

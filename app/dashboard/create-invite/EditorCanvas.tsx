@@ -414,6 +414,9 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
+              if (isEditingThis) return null;
+
+
                 return (
                   <Text
   key={obj.id}
@@ -643,6 +646,7 @@ listening={true}
     onFinish={(txt) => {
       updateObject(editingTextId, { text: txt });
       setEditingTextId(null);
+      setTextInputRect(null);
           }}
         />
       )}
