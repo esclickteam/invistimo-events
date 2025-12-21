@@ -14,9 +14,10 @@ import AnimationsTab from "./AnimationsTab";
 interface SidebarProps {
   canvasRef: any;
   googleApiKey: string;
+  activeTab?: string; // ✅ מאפשר קבלת טאב חיצוני ממובייל
 }
 
-export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
+export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarProps) {
   const selectedId = useEditorStore((s) => s.selectedId);
   const objects = useEditorStore((s) => s.objects);
   const updateObject = useEditorStore((s) => s.updateObject);
@@ -25,10 +26,32 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
 
   const selectedObject = objects.find((o) => o.id === selectedId);
 
-  // ⭐ הוספתי animations לרשימת הבחירה
+  // ✅ סנכרון בין טאב חיצוני (mobileTab) לבין הטאב הפנימי
   const [tab, setTab] = useState<
     "text" | "elements" | "shapes" | "backgrounds" | "animations"
   >("text");
+
+  useEffect(() => {
+    if (activeTab) {
+      switch (activeTab) {
+        case "blessing":
+          setTab("elements");
+          break;
+        case "wedding":
+          setTab("shapes");
+          break;
+        case "backgrounds":
+          setTab("backgrounds");
+          break;
+        case "batmitzvah":
+          setTab("animations");
+          break;
+        case "text":
+        default:
+          setTab("text");
+      }
+    }
+  }, [activeTab]);
 
   const [fonts, setFonts] = useState<string[]>([]);
   useEffect(() => {
@@ -46,24 +69,24 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
     fetchFonts();
   }, [googleApiKey]);
 
-  // 🟣 עדכון ישיר של טקסט על הקנבס (בלי שכפול)
+  // עדכון ישיר של טקסט על הקנבס
   const handleChange = (field: string, value: any) => {
     if (!selectedId) return;
     updateObject(selectedId, { [field]: value });
   };
 
   return (
-    <aside className="w-72 bg-white border-r shadow-lg h-screen flex flex-col">
+    <aside className="w-72 bg-white border-r shadow-lg h-full flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
-      {/* ⭐ TABS כולל אנימציות */}
-       <div className="flex flex-wrap border-b text-sm font-medium">
+      {/* טאבים בעברית */}
+      <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
           ["elements", "ברית/ה"],
           ["shapes", "חתונה"],
           ["backgrounds", "רקעים"],
-          ["animations", "בר/ת מצווה, חינה ועוד"],
+          ["animations", "בת/מצווה, חינה ועוד"],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -79,9 +102,8 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
         ))}
       </div>
 
-      {/* TAB CONTENT */}
+      {/* תוכן כל טאב */}
       <div className="flex-1 overflow-y-auto p-3">
-        {/* ---- TEXT ---- */}
         {tab === "text" && (
           <div className="space-y-4">
             {selectedObject?.type === "text" && (
@@ -125,7 +147,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
                   onClick={() => removeObject(selectedId!)}
                   className="w-full bg-red-500 text-white py-2 rounded"
                 >
-                  מחק
+                  מחק טקסט
                 </button>
               </div>
             )}
@@ -134,21 +156,14 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
               onClick={addText}
               className="w-full bg-purple-600 text-white py-2 rounded"
             >
-              הוסף טקסט
+              ➕ הוסף טקסט
             </button>
           </div>
         )}
 
-        {/* ---- ELEMENTS ---- */}
         {tab === "elements" && <ElementsTab />}
-
-        {/* ---- SHAPES ---- */}
         {tab === "shapes" && <ShapesTab />}
-
-        {/* ---- BACKGROUNDS ---- */}
         {tab === "backgrounds" && <BackgroundsTab />}
-
-        {/* ⭐ ---- ANIMATIONS ---- */}
         {tab === "animations" && <AnimationsTab />}
       </div>
     </aside>

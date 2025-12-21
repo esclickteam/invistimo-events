@@ -6,7 +6,6 @@ import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
 import Toolbar from "./Toolbar";
 import { useRouter } from "next/navigation";
-import { Menu, X } from "lucide-react";
 
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import MobileBottomSheet from "@/app/components/MobileBottomSheet";
@@ -42,9 +41,8 @@ export default function CreateInvitePage() {
     null
   );
   const [saving, setSaving] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ✅ אצלכם הטאבים במובייל הם: text / blessing / wedding / backgrounds / batmitzvah
+  // ✅ אצלכם הטאבים במובייל: text / blessing / wedding / backgrounds / batmitzvah
   const [mobileTab, setMobileTab] = useState<string>("text");
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -104,11 +102,12 @@ export default function CreateInvitePage() {
   };
 
   /* ===========================================================
-     MOBILE NAVIGATION
+     MOBILE NAVIGATION (במקום ההמבורגר)
   ============================================================ */
   const closeSheet = () => setSheetOpen(false);
 
   const onChangeMobileTab = (tabId: string) => {
+    // לחיצה על אותו טאב = סגירה/פתיחה (כמו Canva)
     if (tabId === mobileTab) {
       setSheetOpen((v) => !v);
       return;
@@ -148,29 +147,10 @@ export default function CreateInvitePage() {
           <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
         </div>
 
-        {/* =============== Mobile Sidebar Drawer (optional) =============== */}
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-50 bg-white flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-              <span className="font-semibold">כלי עיצוב</span>
-              <button onClick={() => setSidebarOpen(false)}>
-                <X />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto">
-              <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
-            </div>
-          </div>
-        )}
-
         {/* =============== Editor Area =============== */}
         <div className="flex-1 flex flex-col min-h-0 relative">
           {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden">
-              <Menu />
-            </button>
-
             {/* העלאה נשארת ככפתור פעולה למעלה */}
             <button
               onClick={() => uploadInputRef.current?.click()}
@@ -218,10 +198,10 @@ export default function CreateInvitePage() {
             </div>
           </div>
 
-          {/* ===== Mobile Bottom Nav (הכפתורים בעברית מגיעים מהקומפוננטה שלך) ===== */}
+          {/* ===== Mobile Bottom Nav (במקום ההמבורגר) ===== */}
           <MobileBottomNav active={mobileTab} onChange={onChangeMobileTab} />
 
-          {/* ===== Bottom Sheet ===== */}
+          {/* ===== Bottom Sheet: כאן עברה כל הלוגיקה של ההמבורגר ===== */}
           <MobileBottomSheet
             open={sheetOpen}
             title={mobileSheetTitle}
@@ -233,40 +213,15 @@ export default function CreateInvitePage() {
                 selected={selectedObject?.type === "text" ? selectedObject : null}
                 onApply={applyToSelected}
               />
-            ) : mobileTab === "blessing" ? (
-              <div className="space-y-3">
-                <button className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold">
-                  הוסף ברכה/ה
-                </button>
-                <div className="text-sm text-gray-500">תוכן ברית/ה כאן…</div>
-              </div>
-            ) : mobileTab === "wedding" ? (
-              <div className="space-y-3">
-                <button className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold">
-                  הוסף אלמנט לחתונה
-                </button>
-                <div className="text-sm text-gray-500">תוכן חתונה כאן…</div>
-              </div>
-            ) : mobileTab === "backgrounds" ? (
-              <div className="space-y-3">
-                <button
-                  onClick={() => uploadInputRef.current?.click()}
-                  className="w-full py-3 rounded-xl bg-black text-white font-semibold"
-                >
-                  העלאת תמונה לרקע
-                </button>
-                <div className="text-sm text-gray-500">רקעים קיימים כאן…</div>
-              </div>
-            ) : mobileTab === "batmitzvah" ? (
-              <div className="space-y-3">
-                <button className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold">
-                  הוסף אלמנט
-                </button>
-                <div className="text-sm text-gray-500">
-                  תוכן בת/מצווה, חינה ועוד כאן…
-                </div>
-              </div>
-            ) : null}
+            ) : (
+              // ✅ במקום Drawer של המבורגר: הסיידבר נטען בתוך ה-Sheet
+              <Sidebar
+                canvasRef={canvasRef}
+                googleApiKey={googleApiKey}
+                // אופציונלי: אם תרצי ש-Sidebar ידע איזה טאב נבחר
+                // activeTab={mobileTab}
+              />
+            )}
           </MobileBottomSheet>
         </div>
       </div>

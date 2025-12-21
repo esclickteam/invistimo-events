@@ -26,31 +26,35 @@ export default function Toolbar() {
   ];
 
   /* ✨ יישור טקסט */
-  const alignments: Array<{ label: string; value: "left" | "center" | "right" }> = [
-    { label: "שמאל", value: "left" },
-    { label: "מרכז", value: "center" },
-    { label: "ימין", value: "right" },
-  ];
+  const alignments: Array<{ label: string; value: "left" | "center" | "right" }> =
+    [
+      { label: "שמאל", value: "left" },
+      { label: "מרכז", value: "center" },
+      { label: "ימין", value: "right" },
+    ];
+
+  const isText = obj.type === "text";
 
   return (
     <div className="h-14 px-4 bg-white border-b shadow flex items-center gap-4 overflow-x-auto">
-
       {/* 🎨 צבע */}
-      {obj.type === "text" && (
+      {isText && (
         <input
           type="color"
           value={obj.fill || "#000000"}
           onChange={(e) => updateObject(obj.id, { fill: e.target.value })}
           className="w-10 h-10 rounded"
+          aria-label="צבע טקסט"
         />
       )}
 
       {/* 🔤 פונט */}
-      {obj.type === "text" && (
+      {isText && (
         <select
-          value={obj.fontFamily || ""}
-          className="border p-1 rounded"
+          value={obj.fontFamily || "Assistant"}
+          className="border p-1 rounded min-w-[160px]"
           onChange={(e) => updateObject(obj.id, { fontFamily: e.target.value })}
+          aria-label="פונט"
         >
           {fontOptions.map((font) => (
             <option key={font} value={font}>
@@ -61,45 +65,49 @@ export default function Toolbar() {
       )}
 
       {/* 🔠 גודל טקסט */}
-      {obj.type === "text" && (
-        <input
-          type="number"
-          value={obj.fontSize || 40}
-          className="border p-1 w-16 rounded"
-          onChange={(e) =>
-            updateObject(obj.id, { fontSize: Number(e.target.value) })
-          }
-        />
+      {isText && (
+        <label className="flex items-center gap-2">
+          <span className="text-sm text-gray-700">גודל</span>
+          <input
+            type="number"
+            value={Number(obj.fontSize ?? 40)}
+            className="border p-1 w-20 rounded"
+            min={6}
+            max={300}
+            onChange={(e) =>
+              updateObject(obj.id, { fontSize: Number(e.target.value) })
+            }
+          />
+        </label>
       )}
 
       {/* 🅱 Bold */}
-      {obj.type === "text" && (
+      {isText && (
         <button
           className={`border px-3 py-1 rounded ${
-            obj.fontWeight === "bold" ? "bg-gray-200" : ""
+            obj.fontWeight === "bold" ? "bg-gray-200" : "hover:bg-gray-100"
           }`}
           onClick={() =>
             updateObject(obj.id, {
               fontWeight: obj.fontWeight === "bold" ? "normal" : "bold",
             })
           }
+          aria-label="הדגשה"
         >
           <b>B</b>
         </button>
       )}
 
       {/* 📏 יישור */}
-      {obj.type === "text" && (
+      {isText && (
         <div className="flex gap-1">
           {alignments.map((a) => (
             <button
               key={a.value}
               className={`border px-2 py-1 rounded ${
-                obj.align === a.value ? "bg-gray-200" : ""
+                obj.align === a.value ? "bg-gray-200" : "hover:bg-gray-100"
               }`}
-              onClick={() =>
-                updateObject(obj.id, { align: a.value })
-              }
+              onClick={() => updateObject(obj.id, { align: a.value })}
             >
               {a.label}
             </button>
@@ -108,12 +116,12 @@ export default function Toolbar() {
       )}
 
       {/* 🔁 סיבוב */}
-      <label className="flex items-center gap-1">
-        סיבוב:
+      <label className="flex items-center gap-2">
+        <span className="text-sm text-gray-700">סיבוב</span>
         <input
           type="number"
-          value={obj.rotation || 0}
-          className="border p-1 w-20 rounded"
+          value={Number(obj.rotation ?? 0)}
+          className="border p-1 w-24 rounded"
           onChange={(e) =>
             updateObject(obj.id, { rotation: Number(e.target.value) })
           }
