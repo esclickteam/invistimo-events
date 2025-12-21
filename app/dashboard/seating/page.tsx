@@ -218,7 +218,8 @@ export default function SeatingPage() {
         </div>
 
         {/* סיידבר – דסקטופ */}
-        <aside className="hidden md:block w-72 bg-white border-r">
+        <aside className="hidden md:block w-72 bg-white border-l">
+
           <Suspense
             fallback={
               <div className="p-4 text-sm text-gray-400">
