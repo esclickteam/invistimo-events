@@ -21,7 +21,7 @@ interface EditableTextOverlayProps {
 
 /**
  * EditableTextOverlay
- * תיבת עריכה חיה לטקסט — מותאמת ל־RTL ומובייל
+ * תיבת עריכה חיה לטקסט — מותאמת RTL + מובייל
  */
 export default function EditableTextOverlay({
   obj,
@@ -37,22 +37,22 @@ export default function EditableTextOverlay({
     typeof window !== "undefined" &&
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
-  /* 🔥 סנכרון מלא עם האובייקט */
+  /* סנכרון עם האובייקט */
   useEffect(() => {
     if (!obj) return;
     setValue(obj.text ?? "");
-  }, [obj?.id, obj?.text]);
+  }, [obj?.id]);
 
   /* פוקוס אוטומטי */
   useEffect(() => {
-    if (!inputRef.current || !rect) return;
+    if (!inputRef.current) return;
     const el = inputRef.current;
     el.focus();
     const len = el.value.length;
     el.setSelectionRange(len, len);
-  }, [rect]);
+  }, []);
 
-  /* התאמת גובה */
+  /* התאמת גובה דינמית */
   useEffect(() => {
     if (!inputRef.current) return;
     const el = inputRef.current;
@@ -60,7 +60,7 @@ export default function EditableTextOverlay({
     el.style.height = el.scrollHeight + "px";
   }, [value]);
 
-  if (!rect || !obj) return null;
+  if (!obj || !rect) return null;
 
   return (
     <textarea
@@ -82,18 +82,25 @@ export default function EditableTextOverlay({
           onFinish(obj.text ?? "");
         }
       }}
+      dir="rtl"
       style={{
-        position: "absolute",
-        top: rect.y,
-        left: rect.x,
-        width: rect.width,
+        /* 🔥 קריטי: מובייל = fixed, דסקטופ = absolute */
+        position: isMobile ? "fixed" : "absolute",
+
+        top: isMobile ? "auto" : rect.y,
+        left: isMobile ? "5%" : rect.x,
+        bottom: isMobile ? "90px" : "auto",
+
+        width: isMobile ? "90%" : rect.width,
         minHeight: rect.height,
 
         margin: 0,
-        padding: 0,
-        border: "none",
+        padding: isMobile ? "12px 14px" : 0,
+        border: isMobile ? "2px solid #2563eb" : "none",
+        borderRadius: isMobile ? 12 : 0,
         outline: "none",
-        background: "transparent",
+        background: isMobile ? "#fff" : "transparent",
+
         resize: "none",
         overflow: "hidden",
         boxSizing: "border-box",
@@ -104,8 +111,6 @@ export default function EditableTextOverlay({
         fontWeight: obj.fontWeight ?? "normal",
         fontStyle: obj.italic ? "italic" : "normal",
         lineHeight: String(obj.lineHeight || 1.1),
-
-        /* ❗️ קריטי: letterSpacing מותאם לנייד */
         letterSpacing: isMobile
           ? "normal"
           : obj.letterSpacing
@@ -116,10 +121,7 @@ export default function EditableTextOverlay({
         textAlign: obj.align || "center",
         textDecoration: obj.underline ? "underline" : "none",
 
-        /* RTL תקין במובייל */
-        direction: "rtl",
         whiteSpace: "pre-wrap",
-
         zIndex: 99999,
         cursor: "text",
       }}
