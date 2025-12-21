@@ -170,6 +170,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const removeObject = useEditorStore((s) => s.removeObject);
   const setObjects = useEditorStore((s) => s.setObjects);
 
+  const selectedText = useMemo(() => {
+  return objects.find(
+    (o) => o.id === selectedId && o.type === "text"
+  ) as TextObject | undefined;
+}, [objects, selectedId]);
+
   const scale = useEditorStore((s) => s.scale);
   const setScale = useEditorStore((s) => s.setScale);
 
@@ -177,6 +183,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const [textInputRect, setTextInputRect] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+
+  useEffect(() => {
+  if (mobileSheetOpen && !selectedText) {
+    setMobileSheetOpen(false);
+  }
+}, [mobileSheetOpen, selectedText]);
 
 const [isMobile, setIsMobile] = useState(false);
 
@@ -653,20 +665,73 @@ const handleTouchMove = () => {
         <button onClick={() => setMobileSheetOpen(false)}>✕</button>
       </div>
 
-      <div className="flex justify-around text-sm">
-        <button>טקסט</button>
-        <button>צבע</button>
-        <button>גודל</button>
-        <button
-          className="text-red-500"
-          onClick={() => {
-            removeObject(selectedId);
-            setMobileSheetOpen(false);
-          }}
-        >
-          מחק
-        </button>
-      </div>
+      <div className="space-y-4">
+  {/* עריכת טקסט */}
+  {selectedText && (
+    <input
+      value={selectedText.text}
+      onChange={(e) =>
+        updateObject(selectedText.id, { text: e.target.value })
+      }
+      className="w-full border rounded-lg px-3 py-2 text-sm"
+      placeholder="עריכת טקסט…"
+    />
+  )}
+
+  {/* גודל פונט */}
+  {selectedText && (
+    <div>
+      <label className="block text-xs text-gray-500 mb-1">
+        גודל טקסט
+      </label>
+      <input
+        type="range"
+        min={10}
+        max={80}
+        value={selectedText.fontSize}
+        onChange={(e) =>
+          updateObject(selectedText.id, {
+            fontSize: Number(e.target.value),
+          })
+        }
+        className="w-full"
+      />
+    </div>
+  )}
+
+  {/* צבע טקסט */}
+  {selectedText && (
+    <div>
+      <label className="block text-xs text-gray-500 mb-1">
+        צבע טקסט
+      </label>
+      <input
+        type="color"
+        value={selectedText.fill || "#000000"}
+        onChange={(e) =>
+          updateObject(selectedText.id, { fill: e.target.value })
+        }
+        className="w-12 h-10 p-0 border rounded"
+      />
+    </div>
+  )}
+
+  {/* מחיקה */}
+  {selectedText && (
+    <button
+      className="text-red-500 text-sm mt-2"
+      onClick={() => {
+        removeObject(selectedText.id);
+        setMobileSheetOpen(false);
+      }}
+    >
+      מחק טקסט
+    </button>
+  )}
+</div>
+
+
+
     </div>
   </div>
 )}
