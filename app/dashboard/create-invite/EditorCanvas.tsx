@@ -330,50 +330,104 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      EXPORT
   ============================================================ */
   useImperativeHandle(ref, () => ({
-  // 🆕 הוספת טקסט חדש שנבחר אוטומטית ונפתח לעריכה
+  /* =========================================================
+     🆕 הוספת טקסט חדש + פתיחת עריכה
+  ========================================================= */
   addText: () => {
-  const newId = `text-${Date.now()}`;
-  const newText: TextObject = {
-    id: newId,
-    type: "text",
-    text: "טקסט חדש",
-    x: 100,
-    y: 300,
-    fontFamily: "Heebo",
-    fontSize: 40,
-    fill: "#000000",
-    align: "center",
-  };
+    const newId = `text-${Date.now()}`;
 
-  // ✅ עדכון דרך setState בצורה בטוחה + מניעת כפילות
-  useEditorStore.setState((state: any) => {
-    if (state.objects.some((o: any) => o.id === newId)) return state;
-    return { objects: [...state.objects, newText], selectedId: newId };
-  });
+    const newText: TextObject = {
+      id: newId,
+      type: "text",
+      text: "טקסט חדש",
+      x: 100,
+      y: 300,
+      fontFamily: "Heebo",
+      fontSize: 40,
+      fill: "#000000",
+      align: "center",
+    };
 
-  // פותח ישר עריכה
-  setTimeout(() => {
-    const node = stageRef.current?.findOne(`.${newId}`);
-    if (!node) return;
-    const stageBox = stageRef.current.container().getBoundingClientRect();
-    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
-
-    setTextInputRect({
-      x: stageBox.left + r.x * scale,
-      y: stageBox.top + r.y * scale,
-      width: r.width * scale,
-      height: r.height * scale,
+    useEditorStore.setState((state: any) => {
+      if (state.objects.some((o: any) => o.id === newId)) return state;
+      return {
+        objects: [...state.objects, newText],
+        selectedId: newId,
+      };
     });
-    setEditingTextId(newId);
-  }, 50);
-},
 
+    // פתיחת עריכת טקסט אוטומטית
+    setTimeout(() => {
+      const node = stageRef.current?.findOne(`.${newId}`);
+      if (!node) return;
 
-  addRect: useEditorStore.getState().addRect,
-  addCircle: useEditorStore.getState().addCircle,
-  addImage: useEditorStore.getState().addImage,
+      const stageBox =
+        stageRef.current.container().getBoundingClientRect();
+      const r = node.getClientRect({
+        skipShadow: true,
+        skipStroke: true,
+      });
+
+      setTextInputRect({
+        x: stageBox.left + r.x * scale,
+        y: stageBox.top + r.y * scale,
+        width: r.width * scale,
+        height: r.height * scale,
+      });
+
+      setEditingTextId(newId);
+    }, 50);
+  },
+
+  /* =========================================================
+     🔥 קריטי למובייל – חיבור Toolbar / Sheet לקנבס
+  ========================================================= */
+  updateSelected: (patch: Record<string, any> | null) => {
+    const id = useEditorStore.getState().selectedId;
+    if (!id || !patch) return;
+
+    updateObject(id, patch);
+
+    // חובה במובייל – הכרחת redraw
+    requestAnimationFrame(() => {
+      mainLayerRef.current?.batchDraw();
+    });
+  },
+
+  /* =========================================================
+     בחירה חיצונית (Mobile / Sheet)
+  ========================================================= */
+  selectById: (id: string) => {
+    setSelected(id);
+
+    const obj =
+  (useEditorStore
+    .getState()
+    .objects.find((o: any) => o.id === id) as EditorObject | undefined) ?? null;
+
+    onSelect(obj);
+  },
+
+  /* =========================================================
+     מחיקה
+  ========================================================= */
+  deleteSelected: () => {
+    const id = useEditorStore.getState().selectedId;
+    if (!id) return;
+
+    removeObject(id);
+    setSelected(null);
+    onSelect(null);
+  },
+
+  /* =========================================================
+     רקע
+  ========================================================= */
   uploadBackground: handleUploadBackground,
 
+  /* =========================================================
+     ייצוא קנבס
+  ========================================================= */
   getCanvasData: () => ({
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
@@ -383,6 +437,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     })),
   }),
 }));
+
 
 
   /* ============================================================
@@ -460,10 +515,17 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   /* 📱 Mobile – נגיעה אחת = בחירה + עריכה */
   onTap={(e) => {
-    e.cancelBubble = true; // חשוב!
-    handleSelect(obj.id);
+  e.cancelBubble = true;
+
+  // אם כבר נבחר → פתח עריכה
+  if (selectedId === obj.id) {
     handleDblClick(obj);
-  }}
+    return;
+  }
+
+  // אחרת – רק בחירה
+  handleSelect(obj.id);
+}}
 
   onDragEnd={(e) =>
     updateObject(obj.id, {
