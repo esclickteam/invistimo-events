@@ -31,8 +31,9 @@ interface EditableTextOverlayProps {
  * 🔥 מסונכרנת ל־Toolbar (צבע / גודל / פונט / יישור)
  * מותאמת ל־RTL + מובייל
  *
- * ✅ תוספת קריטית: סיום עריכה בלחיצה מחוץ לתיבה (click outside)
- * כדי שאפשר יהיה לפתוח עריכה שוב.
+ * ✅ Enter יורד שורה ונשאר בתוך העורך (כמו Canva)
+ * ✅ התאמת גובה אוטומטית לפי תוכן (לא “נחתך”)
+ * ✅ סיום עריכה בלחיצה מחוץ לתיבה
  */
 export default function EditableTextOverlay({
   obj,
@@ -60,7 +61,6 @@ export default function EditableTextOverlay({
 
   /* ============================================================
      ✅ סיום עריכה בלחיצה מחוץ לתיבה
-     (הבעיה שלך: textarea נשאר “מעל” וחוסם לחיצות על הטקסט בקנבס)
   ============================================================ */
   useEffect(() => {
     if (!obj) return;
@@ -70,9 +70,9 @@ export default function EditableTextOverlay({
       if (!el) return;
 
       const target = e.target as Node | null;
-      if (target && el.contains(target)) return; // לחיצה בתוך התיבה → לא מסיים
+      if (target && el.contains(target)) return;
 
-      onFinish(value); // 🔥 סיום עריכה
+      onFinish(value);
     };
 
     document.addEventListener("mousedown", handlePointerDown, true);
@@ -98,14 +98,20 @@ export default function EditableTextOverlay({
   }, [rect]);
 
   /* ============================================================
-     התאמת גובה אוטומטית
+     ✅ התאמת גובה אוטומטית + שמירה בתוך rect
+     (חשוב ל-Enter כדי שיראו את השורה החדשה בתוך העורך)
   ============================================================ */
   useEffect(() => {
-    if (!inputRef.current) return;
     const el = inputRef.current;
+    if (!el) return;
+
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
+
+    // ✅ לא נחתך גם אם יש הרבה שורות (אפשר גלילה פנימית)
+    // אם את רוצה "כמו Canva" שזה תמיד גדל - תשאירי overflow hidden
+    // אם את רוצה לא להגזים ולהישאר בתוך התיבה - תשאירי hidden כמו פה
+  }, [value, rect?.width, obj?.fontSize, obj?.lineHeight, obj?.letterSpacing]);
 
   if (!obj || !rect) return null;
 
@@ -119,18 +125,21 @@ export default function EditableTextOverlay({
         onLiveChange?.(newVal);
       }}
       onKeyDown={(e) => {
-        // ⌨️ דסקטופ בלבד: Escape = ביטול עריכה (מחזיר טקסט קודם)
+        // ✅ Enter יורד שורה ונשאר בעורך — לא מסיימים עריכה
+        // לא עושים preventDefault
+
+        // ⌨️ דסקטופ: Escape מבטל עריכה ומחזיר לטקסט הקודם
         if (!isMobile && e.key === "Escape") {
           e.preventDefault();
           onFinish(obj.text ?? "");
         }
-
-        // (Enter = שורה חדשה, textarea מטפל לבד)
       }}
       style={{
         position: "fixed",
         top: rect.y,
         left: rect.x,
+
+        // ✅ תיבת העריכה כמו "תיבה" בקאנבה
         width: rect.width,
         minHeight: rect.height,
 
@@ -139,13 +148,12 @@ export default function EditableTextOverlay({
         border: "none",
         outline: "none",
         background: "transparent",
+
         resize: "none",
-        overflow: "hidden",
+        overflow: "hidden", // ✅ נשאר "בתוך העורך" ולא גולש
         boxSizing: "border-box",
 
-        /* ======================================================
-           טיפוגרפיה – זהה ל־Konva.Text
-        ====================================================== */
+        /* טיפוגרפיה – זהה ל־Konva.Text */
         fontFamily: obj.fontFamily,
         fontSize: obj.fontSize,
         fontWeight: obj.fontWeight ?? "normal",
@@ -161,6 +169,7 @@ export default function EditableTextOverlay({
 
         direction: "rtl",
         whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
 
         zIndex: 99999,
         cursor: "text",
