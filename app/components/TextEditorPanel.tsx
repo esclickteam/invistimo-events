@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 /* =========================================================
    Types
 ========================================================= */
@@ -28,6 +30,18 @@ export default function TextEditorPanel({
 }: TextEditorPanelProps) {
   // אין טקסט נבחר
   if (!selected) return null;
+
+  /* =========================
+     Mobile Detection
+  ========================= */
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const fontFamily = selected.fontFamily || "Heebo";
   const fontSize = Number(selected.fontSize || 36);
@@ -152,23 +166,25 @@ export default function TextEditorPanel({
       <div className="flex-1" />
 
       {/* =========================
-         Delete Button (Mobile)
+         Delete Button – Desktop ONLY
       ========================= */}
-      <button
-        onClick={onDelete}
-        className="
-          w-full
-          py-3
-          rounded-xl
-          bg-red-600
-          text-white
-          text-sm
-          font-medium
-          active:scale-95
-        "
-      >
-        🗑️ מחק טקסט
-      </button>
+      {!isMobile && (
+        <button
+          onClick={onDelete}
+          className="
+            w-full
+            py-3
+            rounded-xl
+            bg-red-600
+            text-white
+            text-sm
+            font-medium
+            active:scale-95
+          "
+        >
+          🗑️ מחק טקסט
+        </button>
+      )}
     </div>
   );
 }
