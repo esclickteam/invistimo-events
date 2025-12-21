@@ -705,6 +705,11 @@ listening={true}
 
       {editingTextId && (
   <EditableTextOverlay
+    key={`${editingTextId}-${
+  (objects.find(
+    (o): o is TextObject => o.id === editingTextId && o.type === "text"
+  )?.fill ?? "nofill")
+}`}
     obj={
       (objects.find(
         (o) => o.id === editingTextId && o.type === "text"
@@ -713,24 +718,20 @@ listening={true}
     rect={textInputRect}
     onLiveChange={(txt) => {
       updateObject(editingTextId, { text: txt });
-
-      // 🔥 חובה במובייל – הכרחת redraw
       requestAnimationFrame(() => {
         mainLayerRef.current?.batchDraw();
       });
     }}
     onFinish={(txt) => {
       updateObject(editingTextId, { text: txt });
-
       requestAnimationFrame(() => {
         mainLayerRef.current?.batchDraw();
       });
-
       setEditingTextId(null);
       setTextInputRect(null);
-          }}
-        />
-      )}
+    }}
+  />
+)}
     </div>
   );
 });
