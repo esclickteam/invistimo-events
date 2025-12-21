@@ -21,7 +21,7 @@ interface EditableTextOverlayProps {
 
 /**
  * EditableTextOverlay
- * תיבת עריכה חיה לטקסט — מסונכרנת 100% עם Konva.Text
+ * תיבת עריכה חיה לטקסט — מותאמת ל־RTL ומובייל
  */
 export default function EditableTextOverlay({
   obj,
@@ -32,7 +32,12 @@ export default function EditableTextOverlay({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [value, setValue] = useState("");
 
-  /* 🔥 סנכרון מלא — כל שינוי באובייקט */
+  /* זיהוי מובייל */
+  const isMobile =
+    typeof window !== "undefined" &&
+    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
+  /* 🔥 סנכרון מלא עם האובייקט */
   useEffect(() => {
     if (!obj) return;
     setValue(obj.text ?? "");
@@ -47,7 +52,7 @@ export default function EditableTextOverlay({
     el.setSelectionRange(len, len);
   }, [rect]);
 
-  /* התאמת גובה אוטומטית */
+  /* התאמת גובה */
   useEffect(() => {
     if (!inputRef.current) return;
     const el = inputRef.current;
@@ -57,10 +62,6 @@ export default function EditableTextOverlay({
 
   if (!rect || !obj) return null;
 
-  const fontStyle = `${obj.italic ? "italic " : ""}${
-    obj.fontWeight === "bold" ? "bold" : "normal"
-  }`;
-
   return (
     <textarea
       ref={inputRef}
@@ -68,7 +69,7 @@ export default function EditableTextOverlay({
       onChange={(e) => {
         const newVal = e.target.value;
         setValue(newVal);
-        onLiveChange?.(newVal); // אם תרצי עדכון חי לקנבס
+        onLiveChange?.(newVal);
       }}
       onBlur={() => onFinish(value)}
       onKeyDown={(e) => {
@@ -96,23 +97,27 @@ export default function EditableTextOverlay({
         resize: "none",
         overflow: "hidden",
         boxSizing: "border-box",
-        transform: "translateZ(0)",
 
-        /* 🔥 סגנון זהה ל־Konva.Text */
+        /* טיפוגרפיה */
         fontFamily: obj.fontFamily,
         fontSize: obj.fontSize,
-        fontStyle,
         fontWeight: obj.fontWeight ?? "normal",
+        fontStyle: obj.italic ? "italic" : "normal",
         lineHeight: String(obj.lineHeight || 1.1),
-        letterSpacing: obj.letterSpacing
+
+        /* ❗️ קריטי: letterSpacing מותאם לנייד */
+        letterSpacing: isMobile
+          ? "normal"
+          : obj.letterSpacing
           ? `${obj.letterSpacing}px`
           : "0px",
+
         color: obj.fill ?? "#000",
         textAlign: obj.align || "center",
         textDecoration: obj.underline ? "underline" : "none",
 
+        /* RTL תקין במובייל */
         direction: "rtl",
-        unicodeBidi: "plaintext",
         whiteSpace: "pre-wrap",
 
         zIndex: 99999,

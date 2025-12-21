@@ -629,16 +629,20 @@ listening={true}
       </div>
 
       {editingTextId && (
-        <EditableTextOverlay
-          obj={
-            (objects.find(
-              (o) => o.id === editingTextId && o.type === "text"
-            ) as TextObject | null) || null
-          }
-          rect={textInputRect}
-          onFinish={(txt) => {
-            updateObject(editingTextId, { text: txt });
-            setEditingTextId(null);
+  <EditableTextOverlay
+    obj={
+      (objects.find(
+        (o) => o.id === editingTextId && o.type === "text"
+      ) as TextObject | null) || null
+    }
+    rect={textInputRect}
+    onLiveChange={(txt) => {
+      // 🔥 עדכון בזמן אמת לקנבס
+      updateObject(editingTextId, { text: txt });
+    }}
+    onFinish={(txt) => {
+      updateObject(editingTextId, { text: txt });
+      setEditingTextId(null);
           }}
         />
       )}
