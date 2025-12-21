@@ -44,7 +44,8 @@ export default function CreateInvitePage() {
   const [saving, setSaving] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [mobileTab, setMobileTab] = useState<string>("design");
+  // ✅ אצלכם הטאבים במובייל הם: text / blessing / wedding / backgrounds / batmitzvah
+  const [mobileTab, setMobileTab] = useState<string>("text");
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const router = useRouter();
@@ -96,7 +97,7 @@ export default function CreateInvitePage() {
   };
 
   /* ===========================================================
-     UPLOAD BACKGROUND
+     UPLOAD BACKGROUND (כפתור העלאה למעלה)
   ============================================================ */
   const handleUploadInvitation = (file: File) => {
     canvasRef.current?.uploadBackground?.(file);
@@ -121,32 +122,30 @@ export default function CreateInvitePage() {
     canvasRef.current?.updateSelected?.(patch);
   };
 
+  // ✅ כותרות בעברית בדיוק כמו שביקשת
   const mobileSheetTitle = (() => {
-  switch (mobileTab) {
-    case "text":
-      return "טקסט";
-    case "blessing":
-      return "ברית/ה";
-    case "wedding":
-      return "חתונה";
-    case "backgrounds":
-      return "רקעים";
-    case "batmitzvah":
-      return "בת/מצווה, חינה ועוד";
-    default:
-      return "";
-  }
-})();
+    switch (mobileTab) {
+      case "text":
+        return "טקסט";
+      case "blessing":
+        return "ברית/ה";
+      case "wedding":
+        return "חתונה";
+      case "backgrounds":
+        return "רקעים";
+      case "batmitzvah":
+        return "בת/מצווה, חינה ועוד";
+      default:
+        return "";
+    }
+  })();
 
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
         {/* =============== Desktop Sidebar =============== */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
-          <Sidebar
-            canvasRef={canvasRef}
-            googleApiKey={googleApiKey}
-          />
+          <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
         </div>
 
         {/* =============== Mobile Sidebar Drawer (optional) =============== */}
@@ -159,10 +158,7 @@ export default function CreateInvitePage() {
               </button>
             </div>
             <div className="flex-1 overflow-auto">
-              <Sidebar
-                canvasRef={canvasRef}
-                googleApiKey={googleApiKey}
-              />
+              <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
             </div>
           </div>
         )}
@@ -175,6 +171,7 @@ export default function CreateInvitePage() {
               <Menu />
             </button>
 
+            {/* העלאה נשארת ככפתור פעולה למעלה */}
             <button
               onClick={() => uploadInputRef.current?.click()}
               className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
@@ -221,7 +218,7 @@ export default function CreateInvitePage() {
             </div>
           </div>
 
-          {/* ===== Mobile Bottom Nav ===== */}
+          {/* ===== Mobile Bottom Nav (הכפתורים בעברית מגיעים מהקומפוננטה שלך) ===== */}
           <MobileBottomNav active={mobileTab} onChange={onChangeMobileTab} />
 
           {/* ===== Bottom Sheet ===== */}
@@ -236,27 +233,40 @@ export default function CreateInvitePage() {
                 selected={selectedObject?.type === "text" ? selectedObject : null}
                 onApply={applyToSelected}
               />
-            ) : mobileTab === "elements" ? (
+            ) : mobileTab === "blessing" ? (
               <div className="space-y-3">
-                <button className="w-full py-3 rounded-xl bg-purple-600 text-white font-semibold">
+                <button className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold">
+                  הוסף ברכה/ה
+                </button>
+                <div className="text-sm text-gray-500">תוכן ברית/ה כאן…</div>
+              </div>
+            ) : mobileTab === "wedding" ? (
+              <div className="space-y-3">
+                <button className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold">
+                  הוסף אלמנט לחתונה
+                </button>
+                <div className="text-sm text-gray-500">תוכן חתונה כאן…</div>
+              </div>
+            ) : mobileTab === "backgrounds" ? (
+              <div className="space-y-3">
+                <button
+                  onClick={() => uploadInputRef.current?.click()}
+                  className="w-full py-3 rounded-xl bg-black text-white font-semibold"
+                >
+                  העלאת תמונה לרקע
+                </button>
+                <div className="text-sm text-gray-500">רקעים קיימים כאן…</div>
+              </div>
+            ) : mobileTab === "batmitzvah" ? (
+              <div className="space-y-3">
+                <button className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold">
                   הוסף אלמנט
                 </button>
+                <div className="text-sm text-gray-500">
+                  תוכן בת/מצווה, חינה ועוד כאן…
+                </div>
               </div>
-            ) : mobileTab === "design" ? (
-              <div className="space-y-3">
-                <button className="w-full py-3 rounded-xl border font-semibold">
-                  רקע / תבנית
-                </button>
-              </div>
-            ) : mobileTab === "uploads" ? (
-              <div className="space-y-3">
-                <button className="w-full py-3 rounded-xl bg-black text-white font-semibold">
-                  העלאת תמונה
-                </button>
-              </div>
-            ) : (
-              <div className="text-sm text-gray-500">תוכן בקרוב...</div>
-            )}
+            ) : null}
           </MobileBottomSheet>
         </div>
       </div>

@@ -1,22 +1,14 @@
 "use client";
 
-import {
-  LayoutGrid,
-  Shapes,
-  Type,
-  Image as ImageIcon,
-  Sparkles,
-  Folder,
-} from "lucide-react";
+import { Type, HeartHandshake, Gem, Image as ImageIcon, PartyPopper } from "lucide-react";
 
 export default function MobileBottomNav({ active, onChange }) {
   const items = [
-    { id: "design", label: "Design", Icon: LayoutGrid },
-    { id: "elements", label: "Elements", Icon: Shapes },
-    { id: "text", label: "Text", Icon: Type },
-    { id: "uploads", label: "Uploads", Icon: ImageIcon },
-    { id: "tools", label: "Tools", Icon: Sparkles },
-    { id: "projects", label: "Projects", Icon: Folder },
+    { id: "text", label: "טקסט", Icon: Type },
+    { id: "blessing", label: "ברית/ה", Icon: HeartHandshake },
+    { id: "wedding", label: "חתונה", Icon: Gem },
+    { id: "backgrounds", label: "רקעים", Icon: ImageIcon },
+    { id: "batmitzvah", label: "בת/מצווה, חינה ועוד", Icon: PartyPopper },
   ];
 
   return (
