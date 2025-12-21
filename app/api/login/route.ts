@@ -10,23 +10,25 @@ export async function POST(req: Request) {
     const { email, password } = await req.json();
 
     const user = await User.findOne({ email });
-    if (!user)
+    if (!user) {
       return NextResponse.json(
         { error: "מייל או סיסמה שגויים" },
         { status: 401 }
       );
+    }
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match)
+    if (!match) {
       return NextResponse.json(
         { error: "מייל או סיסמה שגויים" },
         { status: 401 }
       );
+    }
 
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET!,
-      { expiresIn: "1h" } // ⏱️ מומלץ
+      { expiresIn: "1h" }
     );
 
     const res = NextResponse.json({
@@ -34,10 +36,13 @@ export async function POST(req: Request) {
       user: { _id: user._id, name: user.name, email: user.email },
     });
 
-    // ✅ Session Cookie – נעלם בסגירת טאב / דפדפן
+    // 🔥 חובה: מחיקה לפני יצירה
+    res.cookies.delete("authToken");
+
+    // ✅ Cookie תקין גם במובייל
     res.cookies.set("authToken", token, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
     });

@@ -7,7 +7,18 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
-     0️⃣ חריגה מוחלטת ל־Stripe Webhook
+     0️⃣ חריגה מוחלטת ל־API ול־Auth
+  ======================================================== */
+  if (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register")
+  ) {
+    return NextResponse.next();
+  }
+
+  /* ========================================================
+     1️⃣ חריגה ל־Stripe Webhook
   ======================================================== */
   if (
     pathname.startsWith("/api/stripe/webhook") ||
@@ -17,7 +28,7 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     1️⃣ כפיית WWW – רק לשאר האתר
+     2️⃣ כפיית WWW
   ======================================================== */
   if (hostname === "invistimo.com") {
     const url = nextUrl.clone();
@@ -26,8 +37,7 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     2️⃣ הגנה על /dashboard
-     ❗ מאפשרים כניסה אחרי Stripe (session_id)
+     3️⃣ הגנה על dashboard
   ======================================================== */
   const token = cookies.get("authToken")?.value;
   const hasStripeSession = nextUrl.searchParams.has("session_id");
@@ -40,8 +50,8 @@ export function middleware(req: NextRequest) {
 }
 
 /* ========================================================
-   matcher – תופס הכל
+   matcher – רק מה שצריך
 ======================================================== */
 export const config = {
-  matcher: ["/:path*"],
+  matcher: ["/dashboard/:path*"],
 };

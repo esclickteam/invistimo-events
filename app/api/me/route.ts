@@ -8,20 +8,35 @@ export async function GET() {
   try {
     await connectDB();
 
-    const cookieStore = await cookies(); // ⭐ חובה await ב-Next.js 16
+    const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
-    if (!token) return NextResponse.json({ user: null });
+    if (!token) {
+      return NextResponse.json(
+        { user: null },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
 
-    // ⭐ תיקון קריטי: decoded.userId ולא decoded.id
     const user = await User.findById(decoded.userId).select("-password");
 
-    if (!user) return NextResponse.json({ user: null });
+    if (!user) {
+      return NextResponse.json(
+        { user: null },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-    return NextResponse.json({ user });
-  } catch (error) {
-    return NextResponse.json({ user: null });
+    return NextResponse.json(
+      { user },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch {
+    return NextResponse.json(
+      { user: null },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
