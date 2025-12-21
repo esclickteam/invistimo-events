@@ -813,12 +813,17 @@ useEffect(() => {
       ) as TextObject | null) || null
     }
     rect={textInputRect}
-    onLiveChange={(txt) => {
-      updateObject(editingTextId, { text: txt });
-      requestAnimationFrame(() => {
-        mainLayerRef.current?.batchDraw();
-      });
-    }}
+    onLiveChange={({ text, height }) => {
+  updateObject(editingTextId, {
+    text,
+    ...(height ? { height } : {}),
+  });
+
+  requestAnimationFrame(() => {
+    mainLayerRef.current?.batchDraw();
+  });
+}}
+
     onFinish={(txt) => {
       updateObject(editingTextId, { text: txt });
       requestAnimationFrame(() => {
