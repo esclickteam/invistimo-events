@@ -2,23 +2,30 @@
 
 import { useRef, useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+
 import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
 import Toolbar from "./Toolbar";
-import { useRouter } from "next/navigation";
 
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import MobileBottomSheet from "@/app/components/MobileBottomSheet";
 import TextEditorPanel from "@/app/components/TextEditorPanel";
 
+/* =========================================================
+   React Query
+========================================================= */
 const queryClient = new QueryClient();
 
-/* =========================
-   Types (TS Fixes)
-========================= */
+/* =========================================================
+   Types
+========================================================= */
 type EditorObject = {
-  id?: string;
-  type?: string; // "text" | ...
+  id: string;
+  type: "text" | string;
+  text?: string;
+  x?: number;
+  y?: number;
   fontFamily?: string;
   fontSize?: number;
   fill?: string;
@@ -28,26 +35,36 @@ type EditorObject = {
 };
 
 type EditorCanvasRef = {
-  getCanvasData?: () => any;
-  uploadBackground?: (file: File) => void;
-  updateSelected?: (patch: Record<string, any>) => void;
+  getCanvasData: () => {
+    objects: EditorObject[];
+  };
+  uploadBackground: (file: File) => void;
+  updateSelected: (patch: Record<string, any> | null) => void;
+  selectById?: (id: string) => void;
 };
 
+/* =========================================================
+   Component
+========================================================= */
 export default function CreateInvitePage() {
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [selectedObject, setSelectedObject] = useState<EditorObject | null>(null);
+  const [selectedObject, setSelectedObject] =
+    useState<EditorObject | null>(null);
+
   const [saving, setSaving] = useState(false);
 
-  // ✅ אצלכם הטאבים במובייל: text / blessing / wedding / backgrounds / batmitzvah
+  /* ===== Mobile UI State ===== */
   const [mobileTab, setMobileTab] = useState<string>("text");
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState<boolean>(false);
 
   const router = useRouter();
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
-  // --- כאשר נבחר טקסט — נפתח עורך טקסט כמו בקאנבה ---
+  /* =========================================================
+     כאשר בוחרים טקסט – פותחים את עורך הטקסט
+  ========================================================= */
   useEffect(() => {
     if (selectedObject?.type === "text") {
       setMobileTab("text");
@@ -55,14 +72,44 @@ export default function CreateInvitePage() {
     }
   }, [selectedObject]);
 
-  /* ===========================================================
-     SAVE INVITATION
-  ============================================================ */
+  /* =========================================================
+     הוספת טקסט חדש (Mobile + Desktop)
+  ========================================================= */
+  const handleAddText = () => {
+    if (!canvasRef.current) return;
+
+    const newText: EditorObject = {
+      id: crypto.randomUUID(),
+      type: "text",
+      text: "הקלידי טקסט",
+      x: 180,
+      y: 240,
+      fontSize: 26,
+      fontFamily: "Heebo",
+      fill: "#000000",
+      align: "center",
+    };
+
+    const canvasData = canvasRef.current.getCanvasData();
+    canvasData.objects.push(newText);
+
+    setSelectedObject(newText);
+    setMobileTab("text");
+    setSheetOpen(true);
+
+    requestAnimationFrame(() => {
+      canvasRef.current?.selectById?.(newText.id);
+    });
+  };
+
+  /* =========================================================
+     שמירה
+  ========================================================= */
   const handleSave = async () => {
     try {
       setSaving(true);
 
-      const canvasJSON = canvasRef.current?.getCanvasData?.();
+      const canvasJSON = canvasRef.current?.getCanvasData();
       if (!canvasJSON) {
         alert("❌ הקנבס לא מוכן");
         return;
@@ -79,8 +126,11 @@ export default function CreateInvitePage() {
       });
 
       const data = await res.json();
+
       if (data.success) {
-        router.push(`/dashboard/invitations/${data.invitation._id}/preview`);
+        router.push(
+          `/dashboard/invitations/${data.invitation._id}/preview`
+        );
       } else {
         alert(data.error);
       }
@@ -92,20 +142,19 @@ export default function CreateInvitePage() {
     }
   };
 
-  /* ===========================================================
-     UPLOAD BACKGROUND (כפתור העלאה למעלה)
-  ============================================================ */
+  /* =========================================================
+     העלאת רקע
+  ========================================================= */
   const handleUploadInvitation = (file: File) => {
-    canvasRef.current?.uploadBackground?.(file);
+    canvasRef.current?.uploadBackground(file);
   };
 
-  /* ===========================================================
-     MOBILE NAVIGATION (במקום ההמבורגר)
-  ============================================================ */
+  /* =========================================================
+     Mobile Nav
+  ========================================================= */
   const closeSheet = () => setSheetOpen(false);
 
   const onChangeMobileTab = (tabId: string) => {
-    // לחיצה על אותו טאב = סגירה/פתיחה (כמו Canva)
     if (tabId === mobileTab) {
       setSheetOpen((v) => !v);
       return;
@@ -114,42 +163,49 @@ export default function CreateInvitePage() {
     setSheetOpen(true);
   };
 
+  /* =========================================================
+     עדכון טקסט מה-EditorPanel
+  ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
     setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
-    canvasRef.current?.updateSelected?.(patch);
+    canvasRef.current?.updateSelected(patch);
   };
 
-  // ✅ כותרות בעברית בדיוק כמו שביקשת
+  /* =========================================================
+     כותרת Sheet
+  ========================================================= */
   const mobileSheetTitle = (() => {
     switch (mobileTab) {
       case "text":
         return "טקסט";
       case "blessing":
-        return "ברית/ה";
+        return "ברכה";
       case "wedding":
         return "חתונה";
       case "backgrounds":
         return "רקעים";
       case "batmitzvah":
-        return "בת/מצווה, חינה ועוד";
+        return "בת / מצווה";
       default:
         return "";
     }
   })();
 
+  /* =========================================================
+     Render
+  ========================================================= */
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
-        {/* =============== Desktop Sidebar =============== */}
+        {/* ===== Desktop Sidebar ===== */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
         </div>
 
-        {/* =============== Editor Area =============== */}
+        {/* ===== Editor Area ===== */}
         <div className="flex-1 flex flex-col min-h-0 relative">
           {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
-            {/* העלאה נשארת ככפתור פעולה למעלה */}
             <button
               onClick={() => uploadInputRef.current?.click()}
               className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
@@ -174,7 +230,7 @@ export default function CreateInvitePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className={`px-5 py-2 rounded-full text-white text-sm transition ${
+              className={`px-5 py-2 rounded-full text-white text-sm ${
                 saving
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700"
@@ -184,43 +240,59 @@ export default function CreateInvitePage() {
             </button>
           </div>
 
-          {/* ===== Toolbar (Desktop Only) ===== */}
+          {/* ===== Desktop Toolbar ===== */}
           <div className="hidden md:block">
             <Toolbar />
           </div>
 
           {/* ===== Canvas ===== */}
-          <div className="flex-1 min-h-0 overflow-hidden bg-gray-100 relative">
-            <div className="absolute inset-0 pb-20 md:pb-0">
+          <div className="flex-1 relative bg-gray-100">
+            <div className="absolute inset-0 pb-24 md:pb-0">
               <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
             </div>
           </div>
 
-          {/* ===== Mobile Bottom Nav (במקום ההמבורגר) ===== */}
+          {/* ===== Floating Add Text Button (Mobile) ===== */}
+          <button
+            onClick={handleAddText}
+            className="
+              md:hidden
+              fixed bottom-28 right-4
+              z-50
+              px-5 py-3
+              rounded-full
+              bg-black text-white
+              text-sm
+              shadow-xl
+              active:scale-95
+            "
+          >
+            ➕ טקסט
+          </button>
+
+          {/* ===== Mobile Bottom Nav ===== */}
           <MobileBottomNav active={mobileTab} onChange={onChangeMobileTab} />
 
-          {/* ===== Bottom Sheet: כאן עברה כל הלוגיקה של ההמבורגר ===== */}
+          {/* ===== Mobile Bottom Sheet ===== */}
           <MobileBottomSheet
             open={sheetOpen}
             title={mobileSheetTitle}
             onClose={closeSheet}
             height={mobileTab === "text" ? "42vh" : "52vh"}
           >
-            {/* ✅ טקסט: עורך טקסט ייעודי */}
             {mobileTab === "text" ? (
               <TextEditorPanel
-                selected={selectedObject?.type === "text" ? selectedObject : null}
+                selected={
+                  selectedObject?.type === "text" ? selectedObject : null
+                }
                 onApply={applyToSelected}
               />
             ) : (
-              // ✅ כל שאר הכפתורים: פותחים את ה-Sidebar עם הטאב המתאים (כמו Canva)
-              <div className="h-full">
-                <Sidebar
-                  canvasRef={canvasRef}
-                  googleApiKey={googleApiKey}
-                  activeTab={mobileTab}
-                />
-              </div>
+              <Sidebar
+                canvasRef={canvasRef}
+                googleApiKey={googleApiKey}
+                activeTab={mobileTab}
+              />
             )}
           </MobileBottomSheet>
         </div>
