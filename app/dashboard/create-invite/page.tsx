@@ -8,7 +8,9 @@ import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
 import Toolbar from "./Toolbar";
 
-import MobileBottomNav from "@/app/components/MobileBottomNav";
+import MobileBottomNav, {
+  type MobileNavTab,
+} from "@/app/components/MobileBottomNav";
 import MobileBottomSheet from "@/app/components/MobileBottomSheet";
 import TextEditorPanel from "@/app/components/TextEditorPanel";
 
@@ -35,22 +37,14 @@ export type EditorObject = {
 };
 
 type EditorCanvasRef = {
-  /* ===== נתוני קנבס ===== */
   getCanvasData: () => {
     objects: EditorObject[];
   };
-
-  /* ===== פעולות ===== */
   uploadBackground: (file: File) => void;
-
   updateSelected: (patch: Record<string, any> | null) => void;
-
   selectById?: (id: string) => void;
-
   deleteSelected?: () => void;
-
-  /* ===== הוספת אלמנטים ===== */
-  addText?: () => void;        // ✅ זה מה שהקנבס שלך באמת חושף
+  addText?: () => void;
   addRect?: () => void;
   addCircle?: () => void;
   addImage?: (url: string) => void;
@@ -68,8 +62,8 @@ export default function CreateInvitePage() {
 
   const [saving, setSaving] = useState(false);
 
-  /* ===== Mobile UI State ===== */
-  const [mobileTab, setMobileTab] = useState<string>("text");
+  /* ===== Mobile UI State (🔥 טיפוס נכון) ===== */
+  const [mobileTab, setMobileTab] = useState<MobileNavTab>("text");
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
 
   const router = useRouter();
@@ -86,11 +80,11 @@ export default function CreateInvitePage() {
   }, [selectedObject]);
 
   /* =========================================================
-     הוספת טקסט (Mobile + Desktop)
+     הוספת טקסט
   ========================================================= */
   const handleAddText = () => {
-  canvasRef.current?.addText?.();
-};
+    canvasRef.current?.addText?.();
+  };
 
   /* =========================================================
      שמירה
@@ -140,11 +134,11 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     Mobile Nav
+     Mobile Nav (🔥 טיפוס נכון)
   ========================================================= */
   const closeSheet = () => setSheetOpen(false);
 
-  const onChangeMobileTab = (tabId: string) => {
+  const onChangeMobileTab = (tabId: MobileNavTab) => {
     if (tabId === mobileTab) {
       setSheetOpen((v) => !v);
       return;
@@ -166,7 +160,6 @@ export default function CreateInvitePage() {
   ========================================================= */
   const handleDeleteSelected = () => {
     if (!canvasRef.current || !selectedObject) return;
-
     canvasRef.current.deleteSelected?.();
     setSelectedObject(null);
     setSheetOpen(false);
@@ -272,7 +265,10 @@ export default function CreateInvitePage() {
           </button>
 
           {/* ===== Mobile Bottom Nav ===== */}
-          <MobileBottomNav active={mobileTab} onChange={onChangeMobileTab} />
+          <MobileBottomNav
+            active={mobileTab}
+            onChange={onChangeMobileTab}
+          />
 
           {/* ===== Mobile Bottom Sheet ===== */}
           <MobileBottomSheet
@@ -284,7 +280,9 @@ export default function CreateInvitePage() {
             {mobileTab === "text" ? (
               <TextEditorPanel
                 selected={
-                  selectedObject?.type === "text" ? selectedObject : null
+                  selectedObject?.type === "text"
+                    ? selectedObject
+                    : null
                 }
                 onApply={applyToSelected}
                 onDelete={handleDeleteSelected}
