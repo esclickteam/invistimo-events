@@ -21,7 +21,8 @@ interface EditableTextOverlayProps {
 
 /**
  * EditableTextOverlay
- * תיבת עריכה חיה לטקסט — מותאמת ל־RTL ומובייל
+ * תיבת עריכת טקסט חיה מעל Konva
+ * מותאמת ל־RTL + מובייל
  */
 export default function EditableTextOverlay({
   obj,
@@ -37,30 +38,32 @@ export default function EditableTextOverlay({
     typeof window !== "undefined" &&
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
-  /* 🔥 סנכרון מלא עם האובייקט */
+  /* סנכרון עם האובייקט */
   useEffect(() => {
     if (!obj) return;
     setValue(obj.text ?? "");
-  }, [obj?.id, obj?.text]);
+  }, [obj?.id]);
 
   /* פוקוס אוטומטי */
   useEffect(() => {
     if (!inputRef.current || !rect) return;
+
     const el = inputRef.current;
-    el.focus();
+    el.focus({ preventScroll: true });
+
     const len = el.value.length;
     el.setSelectionRange(len, len);
   }, [rect]);
 
-  /* התאמת גובה */
+  /* התאמת גובה אוטומטית */
   useEffect(() => {
     if (!inputRef.current) return;
     const el = inputRef.current;
     el.style.height = "auto";
-    el.style.height = el.scrollHeight + "px";
+    el.style.height = `${el.scrollHeight}px`;
   }, [value]);
 
-  if (!rect || !obj) return null;
+  if (!obj || !rect) return null;
 
   return (
     <textarea
@@ -71,12 +74,17 @@ export default function EditableTextOverlay({
         setValue(newVal);
         onLiveChange?.(newVal);
       }}
-      onBlur={() => onFinish(value)}
+      onBlur={() => {
+        onFinish(value);
+      }}
       onKeyDown={(e) => {
+        // Enter = סיום (לא ירידת שורה)
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           onFinish(value);
         }
+
+        // Escape = ביטול
         if (e.key === "Escape") {
           e.preventDefault();
           onFinish(obj.text ?? "");
@@ -105,23 +113,22 @@ export default function EditableTextOverlay({
         fontStyle: obj.italic ? "italic" : "normal",
         lineHeight: String(obj.lineHeight || 1.1),
 
-        /* ❗️ קריטי: letterSpacing מותאם לנייד */
-        letterSpacing: isMobile
-          ? "normal"
-          : obj.letterSpacing
-          ? `${obj.letterSpacing}px`
-          : "0px",
+        /* letterSpacing – מובייל לא אוהב ערכים קטנים */
+        letterSpacing:
+          !isMobile && obj.letterSpacing
+            ? `${obj.letterSpacing}px`
+            : "0px",
 
         color: obj.fill ?? "#000",
         textAlign: obj.align || "center",
         textDecoration: obj.underline ? "underline" : "none",
 
-        /* RTL תקין במובייל */
         direction: "rtl",
         whiteSpace: "pre-wrap",
 
         zIndex: 99999,
         cursor: "text",
+        userSelect: "text",
       }}
     />
   );

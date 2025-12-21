@@ -22,6 +22,9 @@ import {
 import { useEditorStore } from "./editorStore";
 import EditableTextOverlay from "../../components/editor/EditableTextOverlay";
 import { loadFont } from "../../components/editor/loadFont";
+import Konva from "konva";
+
+
 
 /* ============================================================
    TYPES
@@ -182,6 +185,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [textInputRect, setTextInputRect] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const mainLayerRef = useRef<Konva.Layer>(null);
+
 
 
   /* ============================================================
@@ -413,7 +418,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
           if (e.target === e.target.getStage()) handleSelect(null);
         }}
       >
-          <Layer>
+          <Layer ref={mainLayerRef}>
             {sortedObjects.map((obj) => {
               const isEditingThis = editingTextId === obj.id;
 
@@ -645,11 +650,20 @@ listening={true}
     }
     rect={textInputRect}
     onLiveChange={(txt) => {
-      // 🔥 עדכון בזמן אמת לקנבס
       updateObject(editingTextId, { text: txt });
+
+      // 🔥 חובה במובייל – הכרחת redraw
+      requestAnimationFrame(() => {
+        mainLayerRef.current?.batchDraw();
+      });
     }}
     onFinish={(txt) => {
       updateObject(editingTextId, { text: txt });
+
+      requestAnimationFrame(() => {
+        mainLayerRef.current?.batchDraw();
+      });
+
       setEditingTextId(null);
       setTextInputRect(null);
           }}
