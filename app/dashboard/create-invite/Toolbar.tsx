@@ -49,12 +49,6 @@ export default function Toolbar() {
   const apply = (changes: Partial<EditorObject>) => {
   console.log("🔹 Toolbar apply:", changes);
   updateObject(obj.id, changes);
-
-  requestAnimationFrame(() => {
-    const state = useEditorStore.getState();
-    console.log("🔸 Zustand objects:", state.objects);
-    useEditorStore.setState({ objects: [...state.objects] });
-  });
 };
 
   return (
