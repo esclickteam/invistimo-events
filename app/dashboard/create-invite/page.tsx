@@ -37,13 +37,17 @@ export type EditorObject = {
 };
 
 type EditorCanvasRef = {
+  /* ===== נתוני קנבס ===== */
   getCanvasData: () => {
     objects: EditorObject[];
   };
+
+  /* ===== פעולות ===== */
   uploadBackground: (file: File) => void;
-  updateSelected: (patch: Record<string, any> | null) => void;
   selectById?: (id: string) => void;
   deleteSelected?: () => void;
+
+  /* ===== הוספת אלמנטים ===== */
   addText?: () => void;
   addRect?: () => void;
   addCircle?: () => void;
@@ -62,7 +66,7 @@ export default function CreateInvitePage() {
 
   const [saving, setSaving] = useState(false);
 
-  /* ===== Mobile UI State (🔥 טיפוס נכון) ===== */
+  /* ===== Mobile UI State ===== */
   const [mobileTab, setMobileTab] = useState<MobileNavTab>("text");
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
 
@@ -134,7 +138,7 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     Mobile Nav (🔥 טיפוס נכון)
+     Mobile Nav
   ========================================================= */
   const closeSheet = () => setSheetOpen(false);
 
@@ -148,11 +152,11 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     עדכון טקסט
+     עדכון טקסט (🔥 בלי Canvas API)
   ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
     setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
-    canvasRef.current?.updateSelected(patch);
+    // ❌ אין updateSelected – הכל עובר דרך ה-store
   };
 
   /* =========================================================
@@ -160,6 +164,7 @@ export default function CreateInvitePage() {
   ========================================================= */
   const handleDeleteSelected = () => {
     if (!canvasRef.current || !selectedObject) return;
+
     canvasRef.current.deleteSelected?.();
     setSelectedObject(null);
     setSheetOpen(false);
