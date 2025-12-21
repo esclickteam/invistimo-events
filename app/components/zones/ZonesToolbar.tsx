@@ -25,8 +25,9 @@ export default function ZonesToolbar() {
       {/* תוכן פנימי – גלילה אופקית */}
       <div
         className="
-          flex items-center gap-2
-          px-3 py-2
+          flex items-center gap-1.5
+          px-2 sm:px-3
+          py-1.5 sm:py-2
           overflow-x-auto
           scrollbar-hide
         "
@@ -50,7 +51,6 @@ export default function ZonesToolbar() {
                   icon: meta.icon,
                   color: meta.color,
                   opacity: 0.35,
-
                   x: 300,
                   y: 200,
                   width: meta.defaultSize.width,
@@ -60,25 +60,27 @@ export default function ZonesToolbar() {
                 });
               }}
               className="
-                flex items-center gap-2
-                px-3 py-2
-                rounded-xl
+                flex items-center gap-1.5
+                px-2 py-1.5
+                sm:px-3 sm:py-2
+                rounded-lg sm:rounded-xl
                 border
                 bg-gray-50
                 hover:bg-indigo-50
                 hover:border-indigo-300
                 active:scale-[0.97]
                 transition
-                text-sm
+                text-xs sm:text-sm
                 whitespace-nowrap
                 shrink-0
               "
             >
-              <span className="text-lg leading-none">
+              {/* אייקון – קטן יותר במובייל */}
+              <span className="text-base sm:text-lg leading-none">
                 {meta.icon}
               </span>
 
-              {/* טקסט – בדסקטופ כן, במובייל רק אייקון */}
+              {/* טקסט – רק בדסקטופ */}
               <span className="hidden sm:inline">
                 {meta.label}
               </span>
