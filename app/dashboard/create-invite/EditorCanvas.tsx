@@ -17,6 +17,7 @@ import {
   Image as KonvaImage,
   Circle,
   Transformer,
+  Group,  
 } from "react-konva";
 
 import { useEditorStore } from "./editorStore";
@@ -379,7 +380,8 @@ useEffect(() => {
     text: "הקלד טקסט כאן",
     x: (CANVAS_WIDTH - BOX_WIDTH) / 2,
     y: 200,
-    width: BOX_WIDTH,          // 🔥 תיבת טקסט אמיתית
+    width: BOX_WIDTH,   
+    height: 56,          
     fontFamily: "Heebo",
     fontSize: 40,
     fill: "#000000",
@@ -527,99 +529,107 @@ useEffect(() => {
               const isEditingThis = editingTextId === obj.id;
 
               if (obj.type === "text") {
-                loadFont(obj.fontFamily);
-              if (isEditingThis) return null;
+  loadFont(obj.fontFamily);
+  if (isEditingThis) return null;
 
+  const boxWidth =
+    typeof obj.width === "number"
+      ? obj.width
+      : Math.max(
+          120,
+          (obj.text?.length || 1) * (obj.fontSize ?? 40) * 0.6
+        );
 
-              return (
-  <Text
-  key={obj.id}
+  const boxHeight =
+    typeof obj.height === "number"
+      ? obj.height
+      : (obj.fontSize ?? 40) * 1.4;
 
+  return (
+    <Group
+      key={obj.id}
+      name={obj.id}
+      className={obj.id}
+      x={obj.x ?? 0}
+      y={obj.y ?? 0}
+      rotation={obj.rotation || 0}
+      draggable={!isEditingThis}
+      onClick={() => {
+        if (!isMobile) handleSelect(obj.id);
+      }}
+      onDblClick={() => {
+        if (!isMobile) handleDblClick(obj);
+      }}
+      onTap={(e: Konva.KonvaEventObject<TouchEvent>) => {
 
-  name={obj.id}
-  className={obj.id}
+        e.cancelBubble = true;
+        if (selectedId === obj.id) {
+          handleDblClick(obj);
+        } else {
+          handleSelect(obj.id);
+        }
+      }}
+      onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) =>
+        updateObject(obj.id, {
+          x: e.target.x(),
+          y: e.target.y(),
+        })
+      }
+      onTransformEnd={(e: Konva.KonvaEventObject<Event>) => {
+        const node = e.target;
+        const scaleX = node.scaleX();
+        const scaleY = node.scaleY();
 
-  x={obj.x ?? 0}
-  y={obj.y ?? 0}
-  rotation={obj.rotation || 0}
-  text={obj.text ?? ""}
+        updateObject(obj.id, {
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+          width: Math.max(40, boxWidth * scaleX),
+          height: Math.max(
+            (obj.fontSize ?? 40) * 1.2,
+            boxHeight * scaleY
+          ),
+        });
 
-  fontFamily={obj.fontFamily ?? "Heebo"}
-  fontSize={obj.fontSize ?? 40}
-  fill={obj.fill ?? "#000000"}
-  align={obj.align ?? "center"}
+        node.scaleX(1);
+        node.scaleY(1);
+      }}
+    >
+      {/* 🟦 תיבת טקסט */}
+      <Rect
+        width={boxWidth}
+        height={boxHeight}
+        stroke="#3b82f6"
+        strokeWidth={1}
+        dash={[4, 4]}
+        cornerRadius={6}
+        listening={false}
+      />
 
-  /* ✅ fontStyle תקין ל-Konva */
-  fontStyle={[
-    obj.fontWeight === "bold" ? "bold" : null,
-    obj.italic ? "italic" : null,
-  ]
-    .filter(Boolean)
-    .join(" ")}
-
-  /* ✅ underline בלי מחרוזת ריקה */
-  textDecoration={obj.underline ? "underline" : undefined}
-
-  /* ✅ width רק אם קיים */
-  width={
-  typeof obj.width === "number"
-    ? obj.width
-    : Math.max(50, (obj.text?.length || 1) * (obj.fontSize ?? 40) * 0.6)
+      {/* ✍️ הטקסט */}
+      <Text
+        text={obj.text ?? ""}
+        width={boxWidth}
+        height={boxHeight}
+        fontFamily={obj.fontFamily ?? "Heebo"}
+        fontSize={obj.fontSize ?? 40}
+        fill={obj.fill ?? "#000000"}
+        align={obj.align ?? "center"}
+        verticalAlign="middle"
+        lineHeight={obj.lineHeight ?? 1.2}
+        fontStyle={[
+          obj.fontWeight === "bold" ? "bold" : null,
+          obj.italic ? "italic" : null,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        textDecoration={obj.underline ? "underline" : undefined}
+        listening={false}
+      />
+    </Group>
+  );
 }
 
-  draggable={!isEditingThis}
-
-  onClick={() => {
-    if (!isMobile) handleSelect(obj.id);
-  }}
-  onDblClick={() => {
-    if (!isMobile) handleDblClick(obj);
-  }}
-  onTap={(e) => {
-    e.cancelBubble = true;
-    if (selectedId === obj.id) {
-      handleDblClick(obj);
-      return;
-    }
-    handleSelect(obj.id);
-  }}
-
-  onDragEnd={(e) =>
-    updateObject(obj.id, {
-      x: e.target.x(),
-      y: e.target.y(),
-    })
-  }
-
-  onTransformEnd={(e) => {
-    const node = e.target;
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
-
-    const baseWidth =
-      typeof obj.width === "number" ? obj.width : node.width();
-
-    updateObject(obj.id, {
-      x: node.x(),
-      y: node.y(),
-      rotation: node.rotation(),
-      width: Math.max(20, baseWidth * scaleX),
-      fontSize: Math.max(5, (obj.fontSize ?? 40) * scaleY),
-    });
-
-    node.scaleX(1);
-    node.scaleY(1);
-  }}
-
-  listening
-/>
-
-
-
-
-
-                );
-              }
 
               if (obj.type === "rect") {
                 return (
@@ -721,7 +731,7 @@ useEffect(() => {
   rotation={obj.rotation || 0}
   draggable
   onClick={() => handleSelect(obj.id)}      // דסקטופ
-  onTap={(e) => {                            // 📱 מובייל ← זה החסר
+  onTap={(e: Konva.KonvaEventObject<TouchEvent>) => {                      // 📱 מובייל ← זה החסר
     e.cancelBubble = true;
     handleSelect(obj.id);
   }}
