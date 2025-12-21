@@ -38,7 +38,11 @@ type EditorCanvasRef = {
 /* =========================================================
    Component
 ========================================================= */
-export default function EditInvitePage({ params }: { params: Promise<{ id: string }> }) {
+export default function EditInvitePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -50,8 +54,9 @@ export default function EditInvitePage({ params }: { params: Promise<{ id: strin
   const [selectedObject, setSelectedObject] =
     useState<EditorObject | null>(null);
 
-  /* ===== Mobile UI (זהה ל־Create) ===== */
-  const [mobileTab, setMobileTab] = useState<MobileNavTab>("text");
+  /* ===== Mobile UI ===== */
+  const [mobileTab, setMobileTab] =
+    useState<MobileNavTab>("backgrounds");
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
@@ -150,12 +155,12 @@ export default function EditInvitePage({ params }: { params: Promise<{ id: strin
   };
 
   /* =========================================================
-     Mobile – חיבור TextEditor → Canvas
+     Mobile – TextEditor → Canvas
   ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
     canvasRef.current?.updateSelected?.(patch);
 
-    setSelectedObject((prev: EditorObject | null) =>
+    setSelectedObject((prev) =>
       prev ? { ...prev, ...patch } : prev
     );
   };
@@ -170,15 +175,17 @@ export default function EditInvitePage({ params }: { params: Promise<{ id: strin
   };
 
   /* =========================================================
-     Open Sheet when text selected
+     🟣 פתיחת Sheet אוטומטית כשנבחר טקסט
   ========================================================= */
   useEffect(() => {
     if (selectedObject?.type === "text") {
-      setMobileTab("text");
       setSheetOpen(true);
     }
   }, [selectedObject]);
 
+  /* =========================================================
+     Mobile Nav
+  ========================================================= */
   const onChangeMobileTab = (tab: MobileNavTab) => {
     if (tab === mobileTab) {
       setSheetOpen((v) => !v);
@@ -188,7 +195,20 @@ export default function EditInvitePage({ params }: { params: Promise<{ id: strin
     setSheetOpen(true);
   };
 
-  const mobileSheetTitle = mobileTab === "text" ? "טקסט" : "";
+  const mobileSheetTitle = (() => {
+    switch (mobileTab) {
+      case "backgrounds":
+        return "רקעים";
+      case "wedding":
+        return "חתונה";
+      case "blessing":
+        return "ברית / בריתה";
+      case "batmitzvah":
+        return "בת / מצווה";
+      default:
+        return "";
+    }
+  })();
 
   /* =========================================================
      Loading
@@ -282,13 +302,19 @@ export default function EditInvitePage({ params }: { params: Promise<{ id: strin
             onClose={() => setSheetOpen(false)}
             height="42vh"
           >
-            <TextEditorPanel
-              selected={
-                selectedObject?.type === "text" ? selectedObject : null
-              }
-              onApply={applyToSelected}
-              onDelete={handleDeleteSelected}
-            />
+            {selectedObject?.type === "text" ? (
+              <TextEditorPanel
+                selected={selectedObject}
+                onApply={applyToSelected}
+                onDelete={handleDeleteSelected}
+              />
+            ) : (
+              <Sidebar
+                canvasRef={canvasRef}
+                googleApiKey={googleApiKey}
+                activeTab={mobileTab}
+              />
+            )}
           </MobileBottomSheet>
         </div>
       </div>
