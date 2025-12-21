@@ -352,33 +352,28 @@ console.log("INVITATION:", invitation);
 
   {/* ===================== מובייל בלבד ===================== */}
   <div className="flex md:hidden flex-col gap-3">
-    <button
-      onClick={() => setOpenAddModal(true)}
-      className="bg-black text-white px-6 py-3 rounded-full"
-    >
-      + הוספת מוזמן
-    </button>
+  <button
+    onClick={() =>
+      router.push(
+        invitation
+          ? `/dashboard/edit-invite/${invitationId}`
+          : "/dashboard/create-invite"
+      )
+    }
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+  >
+    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+  </button>
 
-    <button
-      onClick={() =>
-        router.push(
-          invitation
-            ? `/dashboard/edit-invite/${invitationId}`
-            : "/dashboard/create-invite"
-        )
-      }
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-    >
-      ✏️ עריכת הזמנה
-    </button>
+  <button
+    onClick={() => setShowImportModal(true)}
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+  >
+    📥 ייבוא מאקסל
+  </button>
+</div>
 
-    <button
-      onClick={() => setShowImportModal(true)}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-    >
-      📥 ייבוא מאקסל
-    </button>
-  </div>
+
 </div>
 
 

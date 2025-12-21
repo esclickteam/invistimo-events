@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 
 const queryClient = new QueryClient();
 
-export default function CreateInvitePage() {
+ export default function CreateInvitePage() {
   const canvasRef = useRef<any>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
