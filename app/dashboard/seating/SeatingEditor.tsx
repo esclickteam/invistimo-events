@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense, useRef } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  Suspense,
+  useRef,
+} from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 import { useSearchParams } from "next/navigation";
@@ -11,7 +17,6 @@ import { useZoneStore } from "@/store/zoneStore";
 import TableRenderer from "@/app/components/seating/TableRenderer";
 import ZoneRenderer from "@/app/components/zones/ZoneRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
-import GuestSidebar from "./GuestSidebar";
 import AddTableDrawer from "./AddTableDrawer";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
@@ -32,16 +37,18 @@ type SeatedGuest = {
 
 type Table = {
   id: string;
+  x: number;
+  y: number;
   seatedGuests?: SeatedGuest[];
 };
 
 /* ============================================================
-   INNER COMPONENT
+   INNER
 ============================================================ */
 function SeatingEditorInner({ background }: { background: string | null }) {
   const [bgImage] = useImage(background || "", "anonymous");
 
-  /* STORES */
+  /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
 
@@ -54,76 +61,49 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
 
+  const canvasView = useSeatingStore((s) => s.canvasView);
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
-  const canvasView = useSeatingStore((s) => s.canvasView); // ✅ תוספת
 
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
-  /* HIGHLIGHT */
-  const searchParams = useSearchParams();
-  const from = searchParams.get("from");
-  const highlightedGuestIdRaw = searchParams.get("guestId");
-  const isPersonalMode = from === "personal" && !!highlightedGuestIdRaw;
-
-  const canonicalGuestId = useMemo(() => {
-    if (!highlightedGuestIdRaw) return null;
-    const raw = String(highlightedGuestIdRaw);
-    const found = guests.find(
-      (g) => String(g?._id ?? g?.id ?? "") === raw
-    );
-    return found ? String(found.id ?? found._id) : raw;
-  }, [highlightedGuestIdRaw, guests]);
-
-  const highlightedTableId = useMemo(() => {
-    if (!isPersonalMode || !canonicalGuestId) return null;
-    const table = tables.find((t) =>
-      t.seatedGuests?.some(
-        (s) => String(s.guestId) === String(canonicalGuestId)
-      )
-    );
-    return table?.id || null;
-  }, [tables, canonicalGuestId, isPersonalMode]);
+  /* ================= CONTAINER SIZE ================= */
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!isPersonalMode || draggedGuest) return;
-    useSeatingStore.setState({
-      highlightedTable: highlightedTableId ?? null,
-    });
-  }, [highlightedTableId, draggedGuest, isPersonalMode]);
+    if (!containerRef.current) return;
 
-  /* Add Guest Modal */
-  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
+    const resize = () => {
+      setSize({
+        width: containerRef.current!.offsetWidth,
+        height: containerRef.current!.offsetHeight,
+      });
+    };
 
-  /* Canvas Size */
-  const width =
-    typeof window !== "undefined" ? window.innerWidth - 260 : 1200;
-  const height =
-    typeof window !== "undefined" ? window.innerHeight - 100 : 800;
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
 
-  /* Zoom & Pan */
+  /* ================= ZOOM & PAN ================= */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
 
-  /* ✅ תוספת – טעינת מצב קנבס שמור */
-  useEffect(() => {
-    if (!canvasView) return;
-
-    if (
-      typeof canvasView.scale === "number" &&
-      typeof canvasView.x === "number" &&
-      typeof canvasView.y === "number"
-    ) {
-      setScale(canvasView.scale);
-      setStagePos({ x: canvasView.x, y: canvasView.y });
-    }
-  }, [canvasView]);
-
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (!canvasView) return;
+    setScale(canvasView.scale ?? 1);
+    setStagePos({
+      x: canvasView.x ?? 0,
+      y: canvasView.y ?? 0,
+    });
+  }, [canvasView]);
 
   const handleMouseMove = (e: any) => {
     const stage = e.target.getStage();
@@ -150,7 +130,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
     const scaleBy = 1.05;
     const direction = e.evt.deltaY > 0 ? -1 : 1;
-
     const newScale =
       direction > 0
         ? Math.min(scale * scaleBy, 3)
@@ -166,9 +145,15 @@ function SeatingEditorInner({ background }: { background: string | null }) {
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
     });
+
+    setCanvasView({
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+      scale: newScale,
+    });
   };
 
-  /* DELETE ZONE */
+  /* ================= DELETE ZONE ================= */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
@@ -181,7 +166,26 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone]);
 
-  /* Unseated Guests */
+  /* ================= ADD TABLE ================= */
+  const handleAddTable = (type: string, seats: number) => {
+    const view = canvasView ?? { x: 0, y: 0, scale: 1 };
+
+    const centerX = (-view.x + size.width / 2) / view.scale;
+    const centerY = (-view.y + size.height / 2) / view.scale;
+
+    const newTable = addTable(type, seats, {
+      x: centerX,
+      y: centerY,
+    });
+
+    setCanvasView({
+      x: -centerX + size.width / 2,
+      y: -centerY + size.height / 2,
+      scale: view.scale,
+    });
+  };
+
+  /* ================= UNSEATED ================= */
   const unseatedGuests = useMemo(() => {
     const seated = new Set<string>();
     tables.forEach((t) =>
@@ -192,11 +196,11 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     );
   }, [tables, guests]);
 
-  return (
-    <div className="flex relative w-full h-full">
-      <GuestSidebar onDragStart={startDragGuest} />
+  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
-      {/* זום */}
+  return (
+    <div ref={containerRef} className="relative w-full h-full">
+      {/* ZOOM */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
         className="absolute top-20 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
@@ -210,10 +214,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         −
       </button>
 
-      {/* STAGE */}
       <Stage
-        width={width}
-        height={height}
+        width={size.width}
+        height={size.height}
         scaleX={scale}
         scaleY={scale}
         x={stagePos.x}
@@ -236,26 +239,25 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           setIsPanning(false);
           panStart.current = null;
         }}
-        className="flex-1"
       >
         <Layer listening={false}>
-          <GridLayer width={width} height={height} />
+          <GridLayer width={size.width} height={size.height} />
         </Layer>
 
         <Layer listening={false}>
           {bgImage && (
             <KonvaImage
               image={bgImage}
-              width={width}
-              height={height}
+              width={size.width}
+              height={size.height}
               opacity={0.28}
             />
           )}
         </Layer>
 
         <Layer>
-          {zones.map((zone) => (
-            <ZoneRenderer key={zone.id} zone={zone} />
+          {zones.map((z) => (
+            <ZoneRenderer key={z.id} zone={z} />
           ))}
         </Layer>
 
@@ -291,10 +293,10 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
       {showAddModal && (
         <AddTableDrawer
-          open={showAddModal}
+          open
           onClose={() => setShowAddModal(false)}
-          onAdd={({ type, seats }: { type: string; seats: number }) => {
-            addTable(type, seats);
+          onAdd={({ type, seats }) => {
+            handleAddTable(type, seats);
             setShowAddModal(false);
           }}
         />
