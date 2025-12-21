@@ -1,53 +1,67 @@
 "use client";
 
-import { Group, Rect, Text } from "react-konva";
+import { Group, Circle, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function DeleteTableButton({ table }) {
   const deleteTable = useSeatingStore((s) => s.deleteTable);
+  const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
-  if (!table) return null;
+  // מציגים רק אם זה השולחן שנבחר
+  if (!table || selectedTableId !== table.id) return null;
 
   const x = Number(table.x);
   const y = Number(table.y);
 
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
 
-  let offsetY = -180;
-  if (table.type === "square") offsetY = -200;
-  if (table.type === "banquet") offsetY = -160;
+  // מיקום הכפתור ביחס לשולחן
+  let offsetY = -90;
+  let offsetX = 70;
+
+  if (table.type === "square") {
+    offsetY = -90;
+    offsetX = 70;
+  }
+
+  if (table.type === "banquet") {
+    offsetY = -60;
+    offsetX = 120;
+  }
 
   const handleDelete = (e) => {
     e.cancelBubble = true;
+
+    // אופציונלי – הגנה ממחיקה בטעות
+    if (!confirm("למחוק את השולחן?")) return;
+
     deleteTable(table.id);
   };
 
   return (
     <Group
-      x={x}
+      x={x + offsetX}
       y={y + offsetY}
       listening
       onClick={handleDelete}
       onTap={handleDelete}
     >
-      <Rect
-        width={120}
-        height={40}
-        offsetX={60}
+      <Circle
+        radius={12}
         fill="#ef4444"
-        cornerRadius={8}
-        shadowBlur={8}
+        shadowBlur={6}
       />
-
       <Text
-        text="מחק שולחן"
-        fontSize={18}
-        fill="white"
+        text="✕"
+        width={24}
+        height={24}
+        offsetX={12}
+        offsetY={12}
         align="center"
         verticalAlign="middle"
-        width={120}
-        height={40}
-        offsetX={60}
+        fill="white"
+        fontSize={16}
+        fontStyle="bold"
       />
     </Group>
   );
