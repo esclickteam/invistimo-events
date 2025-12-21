@@ -36,6 +36,8 @@ export interface TextObject {
   y: number;
   width?: number;
   text: string;
+  height?: number;
+
   fontFamily: string;
   fontSize: number;
   fontWeight?: "bold" | "normal";
@@ -379,7 +381,8 @@ useEffect(() => {
     text: "הקלד טקסט כאן",
     x: (CANVAS_WIDTH - BOX_WIDTH) / 2,
     y: 200,
-    width: BOX_WIDTH,          // 🔥 תיבת טקסט אמיתית
+    width: BOX_WIDTH,    
+    height: 40 * 1.3,        // ✅ קריטי
     fontFamily: "Heebo",
     fontSize: 40,
     fill: "#000000",
@@ -534,7 +537,9 @@ useEffect(() => {
   className={obj.id}
 
   x={obj.x ?? 0}
-  y={obj.y ?? 0}
+  /* 🔥 padding אנכי קל – פותר גלישה בעברית */
+  y={(obj.y ?? 0) + (obj.fontSize ?? 40) * 0.15}
+
   rotation={obj.rotation || 0}
   text={obj.text ?? ""}
 
@@ -542,9 +547,16 @@ useEffect(() => {
   fontSize={obj.fontSize ?? 40}
   fill={obj.fill ?? "#000000"}
   align={obj.align ?? "center"}
-  wrap="word"
-  lineHeight={obj.lineHeight || 1.2}
 
+  wrap="word"
+  lineHeight={obj.lineHeight ?? 1.2}
+
+  /* 🔥 חובה – גובה אמיתי לתיבת טקסט */
+  width={obj.width}
+  height={
+  obj.height ??
+  (obj.fontSize ?? 40) * (obj.lineHeight ?? 1.2)
+}
 
   /* ✅ fontStyle תקין ל-Konva */
   fontStyle={[
@@ -557,10 +569,8 @@ useEffect(() => {
   /* ✅ underline בלי מחרוזת ריקה */
   textDecoration={obj.underline ? "underline" : undefined}
 
-width={obj.width}
-  
-
   draggable={!isEditingThis}
+
 
   onClick={() => {
     if (!isMobile) handleSelect(obj.id);
@@ -597,15 +607,25 @@ width={obj.width}
       typeof obj.width === "number" ? obj.width : node.width();
 
     updateObject(obj.id, {
-      x: node.x(),
-      y: node.y(),
-      rotation: node.rotation(),
-      width: Math.max(20, baseWidth * scaleX),
-      fontSize: Math.max(5, (obj.fontSize ?? 40) * scaleY),
-    });
+  x: node.x(),
+  y: node.y(),
+  rotation: node.rotation(),
 
-    node.scaleX(1);
-    node.scaleY(1);
+  width: Math.max(20, baseWidth * scaleX),
+
+  fontSize: Math.max(5, (obj.fontSize ?? 40) * scaleY),
+
+  // 🔥 סנכרון גובה עם גודל טקסט + lineHeight
+  height: Math.max(
+    10,
+    (obj.fontSize ?? 40) *
+      scaleY *
+      (obj.lineHeight ?? 1.2)
+  ),
+});
+
+node.scaleX(1);
+node.scaleY(1);
   }}
 
   listening
