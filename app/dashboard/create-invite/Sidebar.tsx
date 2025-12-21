@@ -2,19 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useEditorStore } from "./editorStore";
-
-// טאבים קיימים
 import ElementsTab from "./ElementsTab";
 import ShapesTab from "./ShapesTab";
 import BackgroundsTab from "./BackgroundsTab";
-
-// ⭐ טאב חדש לאנימציות
 import AnimationsTab from "./AnimationsTab";
 
 interface SidebarProps {
   canvasRef: any;
   googleApiKey: string;
-  activeTab?: string; // ✅ מגיע מהתפריט התחתון במובייל: text / blessing / wedding / backgrounds / batmitzvah
+  activeTab?: string;
 }
 
 type SidebarTab = "text" | "elements" | "shapes" | "backgrounds" | "animations";
@@ -41,29 +37,23 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
   const updateObject = useEditorStore((s) => s.updateObject);
   const addText = useEditorStore((s) => s.addText);
   const removeObject = useEditorStore((s) => s.removeObject);
-
   const selectedObject = objects.find((o) => o.id === selectedId);
 
   const [tab, setTab] = useState<SidebarTab>("text");
-
-  // ✅ זיהוי מובייל בצורה בטוחה ל-SSR (בלי window בזמן render)
   const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => setIsMobile(mq.matches);
     apply();
-
-    // תאימות לדפדפנים שונים
     if (mq.addEventListener) mq.addEventListener("change", apply);
     else mq.addListener(apply);
-
     return () => {
       if (mq.removeEventListener) mq.removeEventListener("change", apply);
       else mq.removeListener(apply);
     };
   }, []);
 
-  // ✅ סנכרון קשיח: כל שינוי בתפריט התחתון חייב להחליף את הטאב הפנימי
   useEffect(() => {
     setTab(mapActiveToInternalTab(activeTab));
   }, [activeTab]);
@@ -92,7 +82,6 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
     [selectedId, updateObject]
   );
 
-  // ✅ במובייל הטאב נקבע רק דרך activeTab (התפריט התחתון)
   const onInternalTabClick = (next: SidebarTab) => {
     if (isMobile) return;
     setTab(next);
@@ -130,6 +119,16 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
       <div className="flex-1 overflow-y-auto p-3">
         {tab === "text" && (
           <div className="space-y-4">
+            {/* תמיד מציג כפתור הוספת טקסט */}
+            <button
+              type="button"
+              onClick={addText}
+              className="w-full bg-purple-600 text-white py-2 rounded font-semibold"
+            >
+              ➕ הוסף טקסט
+            </button>
+
+            {/* עורך טקסט רק כשנבחר טקסט */}
             {selectedObject?.type === "text" && (
               <div className="p-3 border bg-gray-50 rounded space-y-4">
                 <div>
@@ -167,6 +166,39 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                   />
                 </div>
 
+                {/* 🅱 עיצוב טקסט */}
+                <div className="flex gap-2">
+                  <button
+                    className={`border px-3 py-1 rounded ${
+                      selectedObject.fontWeight === "bold" ? "bg-gray-200" : ""
+                    }`}
+                    onClick={() =>
+                      handleChange(
+                        "fontWeight",
+                        selectedObject.fontWeight === "bold" ? "normal" : "bold"
+                      )
+                    }
+                  >
+                    <b>B</b>
+                  </button>
+
+                  {["left", "center", "right"].map((align) => (
+                    <button
+                      key={align}
+                      className={`border px-3 py-1 rounded ${
+                        selectedObject.align === align ? "bg-gray-200" : ""
+                      }`}
+                      onClick={() => handleChange("align", align)}
+                    >
+                      {align === "left"
+                        ? "שמאל"
+                        : align === "center"
+                        ? "מרכז"
+                        : "ימין"}
+                    </button>
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => selectedId && removeObject(selectedId)}
@@ -176,14 +208,6 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                 </button>
               </div>
             )}
-
-            <button
-              type="button"
-              onClick={addText}
-              className="w-full bg-purple-600 text-white py-2 rounded"
-            >
-              ➕ הוסף טקסט
-            </button>
           </div>
         )}
 
