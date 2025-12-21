@@ -222,22 +222,12 @@ export default function SeatingPage() {
         </div>
       </div>
 
-      {/* ================= MAIN CANVAS + רשימת אורחים ================= */}
-<div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-  {/* קנבס ההושבה */}
-  <div className="flex-1 relative overflow-auto md:overflow-hidden">
-    <div className="min-h-[700px] md:min-h-full">
-      <SeatingEditor background={background?.url || null} />
-    </div>
-  </div>
-
-  {/* רשימת אורחים */}
-  <div className="w-full md:w-[320px] border-t md:border-l bg-white h-[300px] md:h-auto overflow-y-auto">
-    {/* 👇 כאן שימי את הרכיב שמציג את רשימת האורחים שלך */}
-    {/* לדוגמה: <GuestsList /> או <GuestsPanel /> */}
-  </div>
-</div>
-
+      {/* ================= MAIN CANVAS ================= */}
+      <div className="flex-1 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <SeatingEditor background={background?.url || null} />
+        </div>
+      </div>
 
       {/* ================= UPLOAD MODAL ================= */}
       {showUpload && (
