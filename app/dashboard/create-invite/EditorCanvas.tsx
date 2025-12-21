@@ -575,14 +575,18 @@ useEffect(() => {
   onDblClick={() => {
     if (!isMobile) handleDblClick(obj);
   }}
+
   onTap={(e) => {
-    e.cancelBubble = true;
-    if (selectedId === obj.id) {
-      handleDblClick(obj);
-      return;
-    }
-    handleSelect(obj.id);
-  }}
+  e.cancelBubble = true;
+
+  // אם לוחצים שוב על אותו טקסט – נכנס שוב לעריכה
+  if (selectedId === obj.id && !editingTextId) {
+    handleDblClick(obj);
+    return;
+  }
+
+  handleSelect(obj.id);
+}}
 
   onDragEnd={(e) =>
     updateObject(obj.id, {
