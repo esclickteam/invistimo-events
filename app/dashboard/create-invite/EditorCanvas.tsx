@@ -555,11 +555,9 @@ useEffect(() => {
 
   /* 🔥 חובה – גובה אמיתי לתיבת טקסט */
   width={obj.width}
-  height={
-  (obj.height ??
-    (obj.fontSize ?? 40) * (obj.lineHeight ?? 1.2))
-  + (obj.fontSize ?? 40) * 0.3
-}
+  
+  height={obj.height}
+
 
   /* ✅ fontStyle תקין ל-Konva */
   fontStyle={[
@@ -831,52 +829,38 @@ node.scaleY(1);
     rect={textInputRect}
 
     onLiveChange={({ text, height }) => {
-      if (!editingTextId) return;
+  if (!editingTextId || !height) return;
 
-      const obj = objects.find(
-        (o): o is TextObject =>
-          o.id === editingTextId && o.type === "text"
-      );
-      if (!obj) return;
+  // 1️⃣ עדכון אמת בקנבס – ה-textarea הוא מקור האמת
+  updateObject(editingTextId, {
+    text,
+    height,
+  });
 
-      const lineHeight = obj.lineHeight ?? 1.2;
-      const fontSize = obj.fontSize ?? 40;
+  // 2️⃣ סנכרון overlay לפי הקנבס המעודכן
+  requestAnimationFrame(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
 
-      // 🔥 fallback לגובה מחושב אם לא הגיע height מה-overlay
-      const nextHeight =
-        height ??
-        Math.max(
-          fontSize * lineHeight,
-          text.split("\n").length * fontSize * lineHeight
-        );
+    const node = stage.findOne(`.${editingTextId}`);
+    if (!node) return;
 
-      // 1️⃣ עדכון טקסט + גובה בקנבס
-      updateObject(editingTextId, {
-        text,
-        height: nextHeight,
-      });
+    const stageBox = stage.container().getBoundingClientRect();
+    const r = node.getClientRect({
+      skipShadow: true,
+      skipStroke: true,
+    });
 
-      // 2️⃣ סנכרון מחדש של מיקום וגודל ה-textarea
-      requestAnimationFrame(() => {
-        const node = stageRef.current?.findOne(`.${editingTextId}`);
-        if (!node || !stageRef.current) return;
+    setTextInputRect({
+      x: stageBox.left + r.x * scale,
+      y: stageBox.top + r.y * scale,
+      width: r.width * scale,
+      height: r.height * scale,
+    });
 
-        const stageBox =
-          stageRef.current.container().getBoundingClientRect();
-        const r = node.getClientRect({
-          skipShadow: true,
-          skipStroke: true,
-        });
+    mainLayerRef.current?.batchDraw();
+});
 
-        setTextInputRect({
-          x: stageBox.left + r.x * scale,
-          y: stageBox.top + r.y * scale,
-          width: r.width * scale,
-          height: r.height * scale,
-        });
-
-        mainLayerRef.current?.batchDraw();
-      });
     }}
 
     onFinish={(txt) => {

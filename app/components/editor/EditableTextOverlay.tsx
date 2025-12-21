@@ -18,10 +18,7 @@ type TextObject = EditorObject & { type: "text" };
 interface EditableTextOverlayProps {
   obj: TextObject | null;
   rect: OverlayRect | null;
-
   onFinish: (newText: string) => void;
-
-  // 🔥 שינוי חשוב: מחזירים גם height
   onLiveChange?: (payload: { text: string; height?: number }) => void;
 }
 
@@ -45,7 +42,7 @@ export default function EditableTextOverlay({
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
   /* ============================================================
-     סנכרון ערך בתחילת עריכה בלבד
+     סנכרון טקסט בתחילת עריכה בלבד
   ============================================================ */
   useEffect(() => {
     if (!obj) return;
@@ -107,57 +104,68 @@ export default function EditableTextOverlay({
     <textarea
       ref={inputRef}
       value={value}
+      rows={1}
       onChange={(e) => {
         const newText = e.target.value;
         setValue(newText);
 
         const el = inputRef.current;
+        if (!el) return;
 
         onLiveChange?.({
           text: newText,
-          height: el?.scrollHeight,
+          height: el.scrollHeight,
         });
       }}
-
       onKeyDown={(e) => {
-  // ✅ Enter = ירידת שורה אמיתית (כמו בקאנבה)
-  if (e.key === "Enter") {
-    e.stopPropagation();
-    e.preventDefault();
+        /* ==============================
+           Enter = שורה חדשה (כמו Canva)
+        ============================== */
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
 
-    const el = inputRef.current;
-    if (!el) return;
+          const el = inputRef.current;
+          if (!el) return;
 
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const newText = value.slice(0, start) + "\n" + value.slice(end);
+          const start = el.selectionStart;
+          const end = el.selectionEnd;
+          const newText =
+            value.slice(0, start) + "\n" + value.slice(end);
 
-    setValue(newText);
-    onLiveChange?.({ text: newText, height: el.scrollHeight });
+          setValue(newText);
 
-    // שימור מיקום הסמן אחרי הירידה שורה
-    requestAnimationFrame(() => {
-      el.selectionStart = el.selectionEnd = start + 1;
-    });
+          requestAnimationFrame(() => {
+            el.style.height = "auto";
+            el.style.height = `${el.scrollHeight}px`;
 
-    return;
-  }
+            onLiveChange?.({
+              text: newText,
+              height: el.scrollHeight,
+            });
 
-  // ⌨️ Escape בדסקטופ = ביטול עריכה
-  if (!isMobile && e.key === "Escape") {
-    e.preventDefault();
-    e.stopPropagation();
-    onFinish(obj.text ?? "");
-  }
-}}
+            el.selectionStart = el.selectionEnd = start + 1;
+          });
 
+          return;
+        }
+
+        /* ==============================
+           Escape = ביטול עריכה (דסקטופ)
+        ============================== */
+        if (!isMobile && e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onFinish(obj.text ?? "");
+        }
+      }}
       style={{
         position: "fixed",
         top: rect.y,
         left: rect.x,
 
         width: rect.width,
-        minHeight: rect.height,
+        height: rect.height, // 🔥 לא minHeight
 
         margin: 0,
         padding: 0,
@@ -192,7 +200,6 @@ export default function EditableTextOverlay({
         userSelect: "text",
         pointerEvents: "auto",
       }}
-      
     />
   );
 }
