@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import EditorCanvas from "../../create-invite/EditorCanvas";
 import Sidebar from "../../create-invite/Sidebar";
 import Toolbar from "../../create-invite/Toolbar";
@@ -12,10 +13,33 @@ import MobileBottomNav, {
 import MobileBottomSheet from "@/app/components/MobileBottomSheet";
 import TextEditorPanel from "@/app/components/TextEditorPanel";
 
+/* =========================================================
+   React Query
+========================================================= */
 const queryClient = new QueryClient();
 
-export default function EditInvitePage({ params }: any) {
-  const canvasRef = useRef<any>(null);
+/* =========================================================
+   Types
+========================================================= */
+type EditorObject = {
+  id: string;
+  type: string;
+  [key: string]: any;
+};
+
+type EditorCanvasRef = {
+  getCanvasData?: () => any;
+  uploadBackground?: (file: File) => void;
+  addText?: () => void;
+  updateSelected?: (patch: Record<string, any>) => void;
+  deleteSelected?: () => void;
+};
+
+/* =========================================================
+   Component
+========================================================= */
+export default function EditInvitePage({ params }: { params: Promise<{ id: string }> }) {
+  const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const [inviteId, setInviteId] = useState<string | null>(null);
@@ -23,17 +47,18 @@ export default function EditInvitePage({ params }: any) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [selectedObject, setSelectedObject] = useState<any | null>(null);
+  const [selectedObject, setSelectedObject] =
+    useState<EditorObject | null>(null);
 
-  /* ===== Mobile UI State (זהה ל-Create) ===== */
+  /* ===== Mobile UI (זהה ל־Create) ===== */
   const [mobileTab, setMobileTab] = useState<MobileNavTab>("text");
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
-  /* ============================================================
-     ⭐ unwrap params (Next 16)
-  ============================================================ */
+  /* =========================================================
+     unwrap params (Next 16)
+  ========================================================= */
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -42,9 +67,9 @@ export default function EditInvitePage({ params }: any) {
     unwrap();
   }, [params]);
 
-  /* ============================================================
-     📥 Load invitation
-  ============================================================ */
+  /* =========================================================
+     Load invitation
+  ========================================================= */
   useEffect(() => {
     if (!inviteId) return;
 
@@ -80,9 +105,9 @@ export default function EditInvitePage({ params }: any) {
     load();
   }, [inviteId]);
 
-  /* ============================================================
-     💾 SAVE (PUT)
-  ============================================================ */
+  /* =========================================================
+     Save
+  ========================================================= */
   const handleSave = async () => {
     if (!inviteId || !canvasRef.current?.getCanvasData) return;
 
@@ -117,36 +142,36 @@ export default function EditInvitePage({ params }: any) {
     }
   };
 
-  /* ============================================================
-     📤 Upload background
-  ============================================================ */
+  /* =========================================================
+     Upload background
+  ========================================================= */
   const handleUploadInvitation = (file: File) => {
     canvasRef.current?.uploadBackground?.(file);
   };
 
-  /* ============================================================
-     🔥 Mobile – חיבור עריכת טקסט לקנבס
-  ============================================================ */
+  /* =========================================================
+     Mobile – חיבור TextEditor → Canvas
+  ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
-  canvasRef.current?.updateSelected?.(patch);
+    canvasRef.current?.updateSelected?.(patch);
 
-  setSelectedObject((prev: any | null) =>
-    prev ? { ...prev, ...patch } : prev
-  );
-};
+    setSelectedObject((prev: EditorObject | null) =>
+      prev ? { ...prev, ...patch } : prev
+    );
+  };
 
-  /* ============================================================
-     🗑 Delete
-  ============================================================ */
+  /* =========================================================
+     Delete
+  ========================================================= */
   const handleDeleteSelected = () => {
     canvasRef.current?.deleteSelected?.();
     setSelectedObject(null);
     setSheetOpen(false);
   };
 
-  /* ============================================================
-     Mobile behavior – פתיחת Sheet כשנבחר טקסט
-  ============================================================ */
+  /* =========================================================
+     Open Sheet when text selected
+  ========================================================= */
   useEffect(() => {
     if (selectedObject?.type === "text") {
       setMobileTab("text");
@@ -165,16 +190,16 @@ export default function EditInvitePage({ params }: any) {
 
   const mobileSheetTitle = mobileTab === "text" ? "טקסט" : "";
 
-  /* ============================================================
-     ⏳ Loading
-  ============================================================ */
+  /* =========================================================
+     Loading
+  ========================================================= */
   if (!inviteId || loading || !invite) {
     return <div className="p-10 text-center text-xl">טוען את ההזמנה...</div>;
   }
 
-  /* ============================================================
-     🎨 UI
-  ============================================================ */
+  /* =========================================================
+     Render
+  ========================================================= */
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
