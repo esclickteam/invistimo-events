@@ -490,7 +490,7 @@ useEffect(() => {
 
               if (obj.type === "text") {
                 loadFont(obj.fontFamily);
-              if (isEditingThis) return null;
+              
 
 
               return (
