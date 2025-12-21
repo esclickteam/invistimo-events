@@ -4,18 +4,14 @@ import { Group, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function DeleteTableButton({ table }) {
-  const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const deleteTable = useSeatingStore((s) => s.deleteTable);
 
-  if (!table || highlightedTable !== table.id) return null;
+  if (!table) return null;
 
-  // ✅ נרמול קריטי ל-Konva
   const x = Number(table.x);
   const y = Number(table.y);
 
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return null;
-  }
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
 
   let offsetY = -180;
   if (table.type === "square") offsetY = -200;
@@ -30,8 +26,7 @@ export default function DeleteTableButton({ table }) {
     <Group
       x={x}
       y={y + offsetY}
-      listening={true}
-      isDeleteButton={true}
+      listening
       onClick={handleDelete}
       onTap={handleDelete}
     >
@@ -42,10 +37,6 @@ export default function DeleteTableButton({ table }) {
         fill="#ef4444"
         cornerRadius={8}
         shadowBlur={8}
-        listening={true}
-        isDeleteButton={true}
-        onClick={handleDelete}
-        onTap={handleDelete}
       />
 
       <Text
@@ -57,10 +48,6 @@ export default function DeleteTableButton({ table }) {
         width={120}
         height={40}
         offsetX={60}
-        listening={true}
-        isDeleteButton={true}
-        onClick={handleDelete}
-        onTap={handleDelete}
       />
     </Group>
   );
