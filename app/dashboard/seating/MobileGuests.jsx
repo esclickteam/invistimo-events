@@ -4,29 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import GuestSidebar from "./GuestSidebar";
 
-/* ============================================================
-   Types
-============================================================ */
-
-// טיפוס אורח מינימלי (אפשר להחליף לייבוא אם קיים בפרויקט)
-type Guest = {
-  id?: string;
-  _id?: string;
-  name?: string;
-};
-
-// Props לקומפוננטה
-type MobileGuestsProps = {
-  onDragStart: (guest: Guest) => void;
-};
-
-/* ============================================================
-   Component
-============================================================ */
-
-export default function MobileGuests({
-  onDragStart,
-}: MobileGuestsProps) {
+export default function MobileGuests({ onDragStart }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -69,7 +47,10 @@ export default function MobileGuests({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <GuestSidebar onDragStart={onDragStart} />
+              <GuestSidebar
+                variant="mobile"
+                onDragStart={onDragStart}
+              />
             </div>
           </div>
         </div>

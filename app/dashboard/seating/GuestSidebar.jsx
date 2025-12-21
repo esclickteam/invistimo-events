@@ -4,7 +4,10 @@ import React, { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
-export default function GuestSidebar({ onDragStart }) {
+export default function GuestSidebar({
+  onDragStart,
+  variant = "desktop",
+}) {
   /* ===============================
      Zustand
   =============================== */
@@ -30,11 +33,7 @@ export default function GuestSidebar({ onDragStart }) {
      Guards
   =============================== */
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
-    return (
-      <div className="w-full md:w-72 bg-white border-t md:border-t-0 md:border-r h-[300px] md:h-full p-4 text-gray-400 flex items-center justify-center">
-        טוען נתונים...
-      </div>
-    );
+    return null;
   }
 
   /* ===============================
@@ -56,14 +55,19 @@ export default function GuestSidebar({ onDragStart }) {
 
   return (
     <div
-      className="
-        w-full md:w-72
-        bg-white
-        border-t md:border-t-0 md:border-r
-        h-[300px] md:h-full
-        overflow-y-auto
-        shadow-none md:shadow-xl
-      "
+      className={`
+        bg-white overflow-y-auto
+        ${
+          variant === "desktop"
+            ? "hidden md:block w-72 h-full border-r shadow-xl"
+            : ""
+        }
+        ${
+          variant === "mobile"
+            ? "block md:hidden w-full h-full"
+            : ""
+        }
+      `}
     >
       <h2 className="text-lg font-bold p-4 border-b text-gray-800">
         🧾 רשימת אורחים
@@ -107,7 +111,9 @@ export default function GuestSidebar({ onDragStart }) {
               <div>
                 <div
                   className={`font-medium ${
-                    isHighlighted ? "text-yellow-900" : "text-gray-800"
+                    isHighlighted
+                      ? "text-yellow-900"
+                      : "text-gray-800"
                   }`}
                 >
                   {guest.name}
@@ -124,10 +130,13 @@ export default function GuestSidebar({ onDragStart }) {
                 <div className="mt-1 text-xs">
                   {table ? (
                     <span className="text-green-600">
-                      שובץ לשולחן: {table.name || `שולחן ${table.id}`}
+                      שובץ לשולחן:{" "}
+                      {table.name || `שולחן ${table.id}`}
                     </span>
                   ) : (
-                    <span className="text-gray-400">לא משובץ</span>
+                    <span className="text-gray-400">
+                      לא משובץ
+                    </span>
                   )}
                 </div>
 

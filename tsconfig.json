@@ -46,7 +46,7 @@
     ".next/dev/types/**/*.ts",
     "types/**/*.d.ts",
     "**/*.mts"
-  ],
+, "app/dashboard/seating/MobileGuests.jsx"  ],
 
   "exclude": ["node_modules"]
 }

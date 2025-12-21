@@ -222,7 +222,10 @@ export default function SeatingPage() {
               </div>
             }
           >
-            <GuestSidebar onDragStart={handleDragStart} />
+            <GuestSidebar
+  variant="desktop"
+  onDragStart={handleDragStart}
+/>
           </Suspense>
         </aside>
 
