@@ -1,14 +1,14 @@
 "use client";
 
 import { Menu, LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 /* ============================================================
    Types
 ============================================================ */
 type DashboardHeaderProps = {
   onOpenMenu: () => void;
-  invitation: any; // אפשר להחליף בטיפוס מדויק בהמשך
+  invitation: any;
 };
 
 /* ============================================================
@@ -18,21 +18,7 @@ export default function DashboardHeader({
   onOpenMenu,
   invitation,
 }: DashboardHeaderProps) {
-  const router = useRouter();
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include", // ⭐️ חשוב בשביל cookies
-      });
-
-      router.replace("/login");
-    } catch (err) {
-      console.error("Logout failed:", err);
-      alert("שגיאה בהתנתקות");
-    }
-  }
+  const { logout } = useAuth(); // 🔥 מקור אמת יחיד
 
   return (
     <header
@@ -63,7 +49,7 @@ export default function DashboardHeader({
 
       {/* צד שמאל – התנתקות */}
       <button
-        onClick={handleLogout}
+        onClick={logout}
         className="
           flex items-center gap-1
           text-red-600
@@ -71,10 +57,11 @@ export default function DashboardHeader({
           hover:text-red-700
           transition
         "
-        title="התנתקות"
+        title="התנתקות מהחשבון"
+        aria-label="התנתקות מהחשבון"
       >
         <LogOut size={18} />
-        יציאה
+        התנתקות
       </button>
     </header>
   );
