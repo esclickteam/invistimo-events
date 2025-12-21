@@ -47,8 +47,17 @@ export default function Toolbar() {
      Helper – עדכון אחיד (קריטי למובייל)
   ============================================================ */
   const apply = (changes: Partial<EditorObject>) => {
-  console.log("🔹 Toolbar apply:", changes);
-  updateObject(obj.id, changes);
+  const affectsLayout =
+    obj.type === "text" &&
+    ("fontSize" in changes ||
+     "fontFamily" in changes ||
+     "align" in changes ||
+     "fontWeight" in changes);
+
+  updateObject(obj.id, {
+    ...changes,
+    ...(affectsLayout ? { height: undefined } : null),
+  });
 };
 
   return (
