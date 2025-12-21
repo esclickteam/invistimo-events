@@ -802,11 +802,8 @@ useEffect(() => {
 
       {editingTextId && (
   <EditableTextOverlay
-    key={`${editingTextId}-${
-  (objects.find(
-    (o): o is TextObject => o.id === editingTextId && o.type === "text"
-  )?.fill ?? "nofill")
-}`}
+    // ✅ חשוב: key יציב לפי id בלבד (לא לפי fill)
+    key={editingTextId}
     obj={
       (objects.find(
         (o) => o.id === editingTextId && o.type === "text"
@@ -814,16 +811,38 @@ useEffect(() => {
     }
     rect={textInputRect}
     onLiveChange={(txt) => {
-      updateObject(editingTextId, { text: txt });
+      // ✅ מודדים את גובה ה-textarea ומעדכנים גם את ה-height של האובייקט בקנבס
+      const textarea = document.querySelector(
+        "textarea"
+      ) as HTMLTextAreaElement | null;
+
+      const newHeight = textarea ? textarea.scrollHeight / scale : undefined;
+
+      updateObject(editingTextId, {
+        text: txt,
+        ...(newHeight ? { height: newHeight } : {}),
+      });
+
       requestAnimationFrame(() => {
         mainLayerRef.current?.batchDraw();
       });
     }}
     onFinish={(txt) => {
-      updateObject(editingTextId, { text: txt });
+      const textarea = document.querySelector(
+        "textarea"
+      ) as HTMLTextAreaElement | null;
+
+      const newHeight = textarea ? textarea.scrollHeight / scale : undefined;
+
+      updateObject(editingTextId, {
+        text: txt,
+        ...(newHeight ? { height: newHeight } : {}),
+      });
+
       requestAnimationFrame(() => {
         mainLayerRef.current?.batchDraw();
       });
+
       setEditingTextId(null);
       setTextInputRect(null);
     }}
