@@ -1,7 +1,16 @@
 "use client";
 
 import { useEditorStore } from "./editorStore";
+import type { EditorObject } from "./editorStore";
 
+/* ============================================================
+   Types
+============================================================ */
+type Align = "left" | "center" | "right";
+
+/* ============================================================
+   Component
+============================================================ */
 export default function Toolbar() {
   const selectedId = useEditorStore((s) => s.selectedId);
   const objects = useEditorStore((s) => s.objects);
@@ -12,8 +21,10 @@ export default function Toolbar() {
 
   if (!selectedId) return null;
 
-  const obj = objects.find((o) => o.id === selectedId);
+  const obj = objects.find((o) => o.id === selectedId) as EditorObject | undefined;
   if (!obj) return null;
+
+  const isText = obj.type === "text";
 
   /* ✨ פונטים זמינים */
   const fontOptions = [
@@ -26,14 +37,19 @@ export default function Toolbar() {
   ];
 
   /* ✨ יישור טקסט */
-  const alignments: Array<{ label: string; value: "left" | "center" | "right" }> =
-    [
-      { label: "שמאל", value: "left" },
-      { label: "מרכז", value: "center" },
-      { label: "ימין", value: "right" },
-    ];
+  const alignments: Array<{ label: string; value: Align }> = [
+    { label: "שמאל", value: "left" },
+    { label: "מרכז", value: "center" },
+    { label: "ימין", value: "right" },
+  ];
 
-  const isText = obj.type === "text";
+  /* ============================================================
+     Helper – עדכון אחיד (קריטי למובייל)
+  ============================================================ */
+  const apply = (changes: Partial<EditorObject>) => {
+    updateObject(obj.id, changes);
+    // ה־EditorCanvas כבר עושה batchDraw כשהאובייקט משתנה
+  };
 
   return (
     <div className="h-14 px-4 bg-white border-b shadow flex items-center gap-4 overflow-x-auto">
@@ -42,7 +58,7 @@ export default function Toolbar() {
         <input
           type="color"
           value={obj.fill || "#000000"}
-          onChange={(e) => updateObject(obj.id, { fill: e.target.value })}
+          onChange={(e) => apply({ fill: e.target.value })}
           className="w-10 h-10 rounded"
           aria-label="צבע טקסט"
         />
@@ -53,7 +69,7 @@ export default function Toolbar() {
         <select
           value={obj.fontFamily || "Assistant"}
           className="border p-1 rounded min-w-[160px]"
-          onChange={(e) => updateObject(obj.id, { fontFamily: e.target.value })}
+          onChange={(e) => apply({ fontFamily: e.target.value })}
           aria-label="פונט"
         >
           {fontOptions.map((font) => (
@@ -71,11 +87,11 @@ export default function Toolbar() {
           <input
             type="number"
             value={Number(obj.fontSize ?? 40)}
-            className="border p-1 w-20 rounded"
             min={6}
             max={300}
+            className="border p-1 w-20 rounded"
             onChange={(e) =>
-              updateObject(obj.id, { fontSize: Number(e.target.value) })
+              apply({ fontSize: Number(e.target.value) })
             }
           />
         </label>
@@ -85,11 +101,14 @@ export default function Toolbar() {
       {isText && (
         <button
           className={`border px-3 py-1 rounded ${
-            obj.fontWeight === "bold" ? "bg-gray-200" : "hover:bg-gray-100"
+            obj.fontWeight === "bold"
+              ? "bg-gray-200"
+              : "hover:bg-gray-100"
           }`}
           onClick={() =>
-            updateObject(obj.id, {
-              fontWeight: obj.fontWeight === "bold" ? "normal" : "bold",
+            apply({
+              fontWeight:
+                obj.fontWeight === "bold" ? "normal" : "bold",
             })
           }
           aria-label="הדגשה"
@@ -105,9 +124,11 @@ export default function Toolbar() {
             <button
               key={a.value}
               className={`border px-2 py-1 rounded ${
-                obj.align === a.value ? "bg-gray-200" : "hover:bg-gray-100"
+                obj.align === a.value
+                  ? "bg-gray-200"
+                  : "hover:bg-gray-100"
               }`}
-              onClick={() => updateObject(obj.id, { align: a.value })}
+              onClick={() => apply({ align: a.value })}
             >
               {a.label}
             </button>
@@ -123,7 +144,7 @@ export default function Toolbar() {
           value={Number(obj.rotation ?? 0)}
           className="border p-1 w-24 rounded"
           onChange={(e) =>
-            updateObject(obj.id, { rotation: Number(e.target.value) })
+            apply({ rotation: Number(e.target.value) })
           }
         />
       </label>
