@@ -432,34 +432,38 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }`}
   textDecoration={obj.underline ? "underline" : ""}
   draggable={!isEditingThis}
-  onClick={() => {
-    handleSelect(obj.id);
 
-    // 📱 מובייל – לחיצה אחת פותחת עריכה
-     if (isMobile) {
-    setTimeout(() => {
-      handleDblClick(obj);
-    }, 0);
-  }
-}}
-  onDblClick={() => {
-    // 🖥️ דסקטופ – דאבל קליק פותח עריכה
-    if (!isMobile) {
-      handleDblClick(obj);
-    }
+  /* 🖥️ Desktop – בחירה */
+  onClick={() => {
+    if (!isMobile) handleSelect(obj.id);
   }}
+
+  /* 🖥️ Desktop – דאבל קליק לעריכה */
+  onDblClick={() => {
+    if (!isMobile) handleDblClick(obj);
+  }}
+
+  /* 📱 Mobile – נגיעה אחת = בחירה + עריכה */
+  onTap={(e) => {
+    e.cancelBubble = true; // חשוב!
+    handleSelect(obj.id);
+    handleDblClick(obj);
+  }}
+
   onDragEnd={(e) =>
     updateObject(obj.id, {
       x: e.target.x(),
       y: e.target.y(),
     })
   }
+
   onTransformEnd={(e) => {
     const node = e.target;
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
     const baseWidth =
       typeof obj.width === "number" ? obj.width : node.width();
+
     updateObject(obj.id, {
       x: node.x(),
       y: node.y(),
@@ -467,12 +471,15 @@ const EditorCanvas = forwardRef(function EditorCanvas(
       width: Math.max(20, baseWidth * scaleX),
       fontSize: Math.max(5, obj.fontSize * scaleY),
     });
+
     node.scaleX(1);
     node.scaleY(1);
   }}
+
   opacity={isEditingThis ? 0 : 1}
   listening={!isEditingThis}
 />
+
 
                 );
               }
