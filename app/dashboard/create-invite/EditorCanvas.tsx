@@ -498,15 +498,15 @@ useEffect(() => {
   key={`${obj.id}-${obj.fontFamily}-${obj.fontSize}-${obj.fill}-${obj.align}`}
   name={obj.id}
   className={obj.id}
-  x={obj.x}
-  y={obj.y}
+  x={obj.x ?? 0}
+  y={obj.y ?? 0}
   rotation={obj.rotation || 0}
-  text={obj.text}
-  fontFamily={obj.fontFamily}
-  fontSize={obj.fontSize}
+  text={obj.text ?? ""}
   width={obj.width}
-  fill={obj.fill}
-  align={obj.align}
+  fontFamily={obj.fontFamily ?? "Heebo"}
+  fontSize={obj.fontSize ?? 40}
+  fill={obj.fill ?? "#000000"}
+  align={obj.align ?? "center"}
   wrap="none"
   fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${obj.italic ? "italic" : ""}`}
   textDecoration={obj.underline ? "underline" : ""}
@@ -543,7 +543,7 @@ useEffect(() => {
       y: node.y(),
       rotation: node.rotation(),
       width: Math.max(20, baseWidth * scaleX),
-      fontSize: Math.max(5, obj.fontSize * scaleY),
+      fontSize: Math.max(5, (obj.fontSize ?? 40) * scaleY),
     });
 
     node.scaleX(1);
@@ -552,6 +552,7 @@ useEffect(() => {
   opacity={1}
   listening={true}
 />
+
 
 
 
