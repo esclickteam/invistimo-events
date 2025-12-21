@@ -46,6 +46,23 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
 
   const [tab, setTab] = useState<SidebarTab>("text");
 
+  // ✅ זיהוי מובייל בצורה בטוחה ל-SSR (בלי window בזמן render)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+
+    // תאימות לדפדפנים שונים
+    if (mq.addEventListener) mq.addEventListener("change", apply);
+    else mq.addListener(apply);
+
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", apply);
+      else mq.removeListener(apply);
+    };
+  }, []);
+
   // ✅ סנכרון קשיח: כל שינוי בתפריט התחתון חייב להחליף את הטאב הפנימי
   useEffect(() => {
     setTab(mapActiveToInternalTab(activeTab));
@@ -75,13 +92,9 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
     [selectedId, updateObject]
   );
 
-  // ✅ כשעובדים מהמובייל: אל תתני לטאבים הפנימיים "להתנגש" עם הבחירה מהתפריט התחתון
-  // במובייל הטאב נקבע רק דרך activeTab (התפריט התחתון).
-  const isMobile =
-    typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false;
-
+  // ✅ במובייל הטאב נקבע רק דרך activeTab (התפריט התחתון)
   const onInternalTabClick = (next: SidebarTab) => {
-    if (isMobile) return; // במובייל לא משנים פה — רק מהתפריט התחתון
+    if (isMobile) return;
     setTab(next);
   };
 
@@ -100,15 +113,13 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
         ] as Array<[SidebarTab, string]>).map(([key, label]) => (
           <button
             key={key}
+            type="button"
+            onClick={() => onInternalTabClick(key)}
             className={`flex-1 p-2 text-center border-l first:border-l-0 ${
               tab === key
                 ? "bg-purple-100 text-purple-700 font-bold"
                 : "hover:bg-gray-50"
-            }`}
-            onClick={() => onInternalTabClick(key)}
-            // במובייל הכפתורים האלה מוצגים רק כויזואל (כמו שראית אצלך),
-            // אבל אנחנו מונעים מהם לשנות את ה-state כדי שלא "יערבבו" טאבים.
-            type="button"
+            } ${isMobile ? "cursor-default" : ""}`}
           >
             {label}
           </button>
@@ -122,7 +133,7 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
             {selectedObject?.type === "text" && (
               <div className="p-3 border bg-gray-50 rounded space-y-4">
                 <div>
-                  <label>פונט</label>
+                  <label className="block text-sm mb-1">פונט</label>
                   <select
                     value={selectedObject.fontFamily || ""}
                     onChange={(e) => handleChange("fontFamily", e.target.value)}
@@ -137,7 +148,7 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                 </div>
 
                 <div>
-                  <label>גודל</label>
+                  <label className="block text-sm mb-1">גודל</label>
                   <input
                     type="number"
                     value={Number(selectedObject.fontSize || 40)}
@@ -147,7 +158,7 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                 </div>
 
                 <div>
-                  <label>צבע</label>
+                  <label className="block text-sm mb-1">צבע</label>
                   <input
                     type="color"
                     value={selectedObject.fill || "#000000"}
@@ -157,9 +168,9 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => selectedId && removeObject(selectedId)}
                   className="w-full bg-red-500 text-white py-2 rounded"
-                  type="button"
                 >
                   מחק טקסט
                 </button>
@@ -167,9 +178,9 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
             )}
 
             <button
+              type="button"
               onClick={addText}
               className="w-full bg-purple-600 text-white py-2 rounded"
-              type="button"
             >
               ➕ הוסף טקסט
             </button>
