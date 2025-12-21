@@ -6,6 +6,7 @@ import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
 import Toolbar from "./Toolbar";
 import { useRouter } from "next/navigation";
+import { Menu, X } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ export default function CreateInvitePage() {
 
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const router = useRouter();
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
@@ -67,6 +69,7 @@ export default function CreateInvitePage() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* ⚠️ בלי overflow-hidden כאן */}
       <div className="h-screen flex bg-gray-100">
         {/* ================= Desktop Sidebar ================= */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
@@ -76,10 +79,37 @@ export default function CreateInvitePage() {
           />
         </div>
 
+        {/* ================= Mobile Sidebar Drawer ================= */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-50 bg-white flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <span className="font-semibold">כלי עיצוב</span>
+              <button onClick={() => setSidebarOpen(false)}>
+                <X />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              <Sidebar
+                canvasRef={canvasRef}
+                googleApiKey={googleApiKey}
+              />
+            </div>
+          </div>
+        )}
+
         {/* ================= Editor ================= */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
+            {/* Mobile menu */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden"
+            >
+              <Menu />
+            </button>
+
             {/* Upload */}
             <button
               onClick={() => uploadInputRef.current?.click()}
@@ -116,12 +146,10 @@ export default function CreateInvitePage() {
             </button>
           </div>
 
-          {/* ===== Toolbar (דסקטופ בלבד) ===== */}
-          <div className="hidden md:block">
-            <Toolbar />
-          </div>
+          {/* ===== Toolbar ===== */}
+          <Toolbar />
 
-          {/* ===== Canvas ===== */}
+          {/* ===== Canvas (החלק הקריטי) ===== */}
           <div className="flex-1 min-h-0 overflow-auto bg-gray-100">
             <div className="w-full h-full flex items-center justify-center p-2">
               <EditorCanvas
@@ -130,28 +158,6 @@ export default function CreateInvitePage() {
               />
             </div>
           </div>
-        </div>
-
-        {/* ================= Bottom Bar – מובייל ================= */}
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t flex justify-around py-2 md:hidden">
-          <button
-            onClick={() => canvasRef.current?.addText()}
-            className="text-sm"
-          >
-            טקסט
-          </button>
-          <button
-            onClick={() => canvasRef.current?.addImage()}
-            className="text-sm"
-          >
-            תמונה
-          </button>
-          <button
-            onClick={() => canvasRef.current?.addRect()}
-            className="text-sm"
-          >
-            צורה
-          </button>
         </div>
       </div>
     </QueryClientProvider>
