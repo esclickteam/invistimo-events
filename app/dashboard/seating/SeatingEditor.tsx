@@ -9,7 +9,6 @@ import {
 } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
-import { useSearchParams } from "next/navigation";
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -21,6 +20,7 @@ import AddTableDrawer from "./AddTableDrawer";
 import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import GridLayer from "@/app/components/seating/GridLayer";
+import MobileGuests from "./MobileGuests";
 
 /* ============================================================
    TYPES
@@ -52,7 +52,7 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
 
-  const draggedGuest = useSeatingStore((s) => s.draggedGuest);
+  const draggedGuest = useSeatingStore((s) => s.draggingGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
@@ -68,6 +68,10 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
+
+  /* ================= LOCAL UI STATE ================= */
+  const [showGuests, setShowGuests] = useState(false);
+  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
   /* ================= CONTAINER SIZE ================= */
   const containerRef = useRef<HTMLDivElement>(null);
@@ -140,17 +144,14 @@ function SeatingEditorInner({ background }: { background: string | null }) {
       y: (pointer.y - stagePos.y) / scale,
     };
 
-    setScale(newScale);
-    setStagePos({
+    const newPos = {
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
-    });
+    };
 
-    setCanvasView({
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-      scale: newScale,
-    });
+    setScale(newScale);
+    setStagePos(newPos);
+    setCanvasView({ ...newPos, scale: newScale });
   };
 
   /* ================= DELETE ZONE ================= */
@@ -173,15 +174,9 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     const centerX = (-view.x + size.width / 2) / view.scale;
     const centerY = (-view.y + size.height / 2) / view.scale;
 
-    const newTable = addTable(type, seats, {
+    addTable(type, seats, {
       x: centerX,
       y: centerY,
-    });
-
-    setCanvasView({
-      x: -centerX + size.width / 2,
-      y: -centerY + size.height / 2,
-      scale: view.scale,
     });
   };
 
@@ -196,20 +191,51 @@ function SeatingEditorInner({ background }: { background: string | null }) {
     );
   }, [tables, guests]);
 
-  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
-
   return (
     <div ref={containerRef} className="relative w-full h-full">
+      {/* ➕ הוסף שולחן */}
+      <button
+        onClick={() => setShowAddModal(true)}
+        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
+      >
+        ➕ הוסף שולחן
+      </button>
+
+      {/* 👥 רשימת אורחים – מובייל */}
+      <button
+        onClick={() => setShowGuests(true)}
+        className="
+          absolute
+          top-16
+          left-4
+          md:hidden
+          bg-white
+          border
+          border-gray-200
+          text-gray-700
+          px-4
+          py-2
+          rounded-lg
+          shadow
+          z-50
+          flex
+          items-center
+          gap-2
+        "
+      >
+        רשימת אורחים 👥
+      </button>
+
       {/* ZOOM */}
       <button
         onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-        className="absolute top-20 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
+        className="absolute top-28 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
       >
         +
       </button>
       <button
         onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-        className="absolute top-36 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
+        className="absolute top-44 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
       >
         −
       </button>
@@ -284,13 +310,6 @@ function SeatingEditorInner({ background }: { background: string | null }) {
         </Layer>
       </Stage>
 
-      <button
-        onClick={() => setShowAddModal(true)}
-        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
-      >
-        ➕ הוסף שולחן
-      </button>
-
       {showAddModal && (
         <AddTableDrawer
           open
@@ -307,6 +326,13 @@ function SeatingEditorInner({ background }: { background: string | null }) {
           table={addGuestTable}
           guests={unseatedGuests}
           onClose={() => setAddGuestTable(null)}
+        />
+      )}
+
+      {showGuests && (
+        <MobileGuests
+          onDragStart={startDragGuest}
+          onClose={() => setShowGuests(false)}
         />
       )}
     </div>
