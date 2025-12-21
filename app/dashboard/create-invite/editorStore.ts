@@ -124,12 +124,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedId: null,
     })),
 
-  updateObject: (id, data) =>
-    set((state) => ({
-      objects: state.objects.map((o) =>
-        o.id === id ? { ...o, ...data } : o
-      ),
-    })),
+  updateObject: (id, data) => {
+  set((state) => {
+    const updated = state.objects.map((o) =>
+      o.id === id ? { ...o, ...data } : o
+    );
+    return { objects: updated };
+  });
+
+  // ✅ טריגר חכם שמכריח את Konva להתרנדר מיידית גם במובייל
+  requestAnimationFrame(() => {
+    const state = get();
+    set({ objects: [...state.objects] });
+  });
+},
 
   /* ============================================================
       ADD TEXT
