@@ -509,24 +509,25 @@ const startEditText = (obj: TextObject) => {
   width={CANVAS_WIDTH}
   height={CANVAS_HEIGHT}
   ref={stageRef}
+
   onMouseDown={(e) => {
-    // לחיצה על רקע הקנבס
-    if (e.target === e.target.getStage()) {
+  if (e.target === e.target.getStage()) {
 
-      // ✅ אם היה מצב עריכת טקסט – סיים עריכה (כמו Canva)
-      if (editingTextId) {
-  setEditingTextId(null);
-  setTextInputRect(null);
-}
-
-      handleSelect(null);
-
-      // 📱 מובייל – להסתיר כפתור מחיקה
-      if (isMobile) {
-        setMobileDeletePos(null);
-      }
+    // ✍️ אם היינו בעריכת טקסט – רק לסיים עריכה
+    if (editingTextId) {
+      setEditingTextId(null);
+      setTextInputRect(null);
+      return; // ⛔ לא לבטל בחירה!
     }
-  }}
+
+    // 🧹 רק אם לא בעריכה – לבטל בחירה
+    handleSelect(null);
+
+    if (isMobile) {
+      setMobileDeletePos(null);
+    }
+  }
+}}
 >
 
           <Layer ref={mainLayerRef}>
