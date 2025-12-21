@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
@@ -213,13 +213,23 @@ export default function SeatingPage() {
           <SeatingEditor background={background?.url || null} />
         </div>
 
-        {/* סיידבר דסקטופ */}
+        {/* סיידבר – דסקטופ */}
         <aside className="hidden md:block w-72 bg-white border-r">
-          <GuestSidebar onDragStart={handleDragStart} />
+          <Suspense
+            fallback={
+              <div className="p-4 text-sm text-gray-400">
+                טוען אורחים...
+              </div>
+            }
+          >
+            <GuestSidebar onDragStart={handleDragStart} />
+          </Suspense>
         </aside>
 
-        {/* המבורגר מובייל */}
-        <MobileGuests onDragStart={handleDragStart} />
+        {/* המבורגר – מובייל */}
+        <Suspense fallback={null}>
+          <MobileGuests onDragStart={handleDragStart} />
+        </Suspense>
       </div>
 
       {/* ================= MODALS ================= */}
