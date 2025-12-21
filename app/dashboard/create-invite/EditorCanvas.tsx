@@ -821,23 +821,34 @@ useEffect(() => {
     onLiveChange={({ text, height }) => {
   if (!editingTextId || height == null) return;
 
+  const textObj = objects.find(
+    (o): o is TextObject =>
+      o.id === editingTextId && o.type === "text"
+  );
 
-  // 🔥 1️⃣ עדכון טקסט + גובה אמיתי מה-textarea
+  const fontSize = textObj?.fontSize ?? 40;
+  const lineHeight = textObj?.lineHeight ?? 1.2;
+
+  const lines = text.split("\n").length;
+  const minHeight = fontSize * lineHeight * lines;
+
+  const finalHeight = Math.max(height, minHeight);
+
   updateObject(editingTextId, {
     text,
-    height,
+    height: finalHeight,
   });
 
-  // 🔥 2️⃣ עדכון תיבת העריכה (overlay) לפי הגובה החדש
   setTextInputRect((prev: any) =>
     prev
       ? {
           ...prev,
-          height: height * scale,
+          height: finalHeight * scale,
         }
       : prev
   );
 }}
+
 
 
     onFinish={({ text, height }) => {
