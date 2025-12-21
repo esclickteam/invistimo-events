@@ -1,18 +1,19 @@
 "use client";
 
 import {
-  Type,
   HeartHandshake,
   Gem,
   Image as ImageIcon,
   PartyPopper,
 } from "lucide-react";
 
+/* ============================================================
+   Types
+============================================================ */
 export type MobileNavTab =
-  | "text"
+  | "backgrounds"
   | "blessing"
   | "wedding"
-  | "backgrounds"
   | "batmitzvah";
 
 interface MobileBottomNavProps {
@@ -20,6 +21,9 @@ interface MobileBottomNavProps {
   onChange: (tab: MobileNavTab) => void;
 }
 
+/* ============================================================
+   Component
+============================================================ */
 export default function MobileBottomNav({
   active,
   onChange,
@@ -29,11 +33,10 @@ export default function MobileBottomNav({
     label: string;
     Icon: React.ComponentType<{ size?: number; className?: string }>;
   }> = [
-    { id: "text", label: "טקסט", Icon: Type },
+    { id: "backgrounds", label: "רקעים", Icon: ImageIcon },
     { id: "blessing", label: "ברית/ה", Icon: HeartHandshake },
     { id: "wedding", label: "חתונה", Icon: Gem },
-    { id: "backgrounds", label: "רקעים", Icon: ImageIcon },
-    { id: "batmitzvah", label: "בת/מצווה, חינה ועוד", Icon: PartyPopper },
+    { id: "batmitzvah", label: "בת/מצווה ועוד", Icon: PartyPopper },
   ];
 
   return (
