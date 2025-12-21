@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
+import GuestSidebar from "./GuestSidebar"; // ✅ הוספה
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -27,6 +28,9 @@ export default function SeatingPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+
+  // ✅ Drawer במובייל (כמו בתמונה)
+  const [showGuests, setShowGuests] = useState(false);
 
   /* ===============================
      STORES
@@ -65,14 +69,12 @@ export default function SeatingPage() {
 
         const gData = await gRes.json();
 
-        const normalizedGuests = (gData.guests || []).map(
-          (g: GuestDTO) => ({
-            id: g._id,
-            name: g.name,
-            count: g.guestsCount || 1,
-            tableId: g.tableId || null,
-          })
-        );
+        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+          id: g._id,
+          name: g.name,
+          count: g.guestsCount || 1,
+          tableId: g.tableId || null,
+        }));
 
         /* ================= הושבה + רקע + zones ================= */
         const tRes = await fetch(`/api/seating/tables/${id}`);
@@ -168,8 +170,7 @@ export default function SeatingPage() {
               הושבה אינה כלולה בחבילה שלך
             </h2>
             <p className="text-gray-600 mb-6">
-              כדי להשתמש במערכת ההושבה והאלמנטים החכמים,
-              יש לשדרג לחבילת פרימיום.
+              כדי להשתמש במערכת ההושבה והאלמנטים החכמים, יש לשדרג לחבילת פרימיום.
             </p>
 
             <button
@@ -195,9 +196,7 @@ export default function SeatingPage() {
       {/* ================= HEADER ================= */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
-          <h1 className="text-lg sm:text-xl font-semibold">
-            הושבה באולם
-          </h1>
+          <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
 
           <div className="flex flex-col sm:flex-row gap-2">
             <button
@@ -222,11 +221,75 @@ export default function SeatingPage() {
         </div>
       </div>
 
-      {/* ================= MAIN CANVAS ================= */}
-      <div className="flex-1 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <SeatingEditor background={background?.url || null} />
+      {/* ================= MAIN AREA ================= */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* ====== קנבס ====== */}
+        <div className="flex-1 relative overflow-auto md:overflow-hidden">
+          <div className="min-h-[700px] md:min-h-full">
+            <SeatingEditor background={background?.url || null} />
+          </div>
+
+          {/* ✅ כפתור תפריט במובייל (כמו בתמונה) */}
+          <button
+            onClick={() => setShowGuests(true)}
+            className="md:hidden fixed top-[110px] right-3 z-50 bg-[#2ea7ff] text-white px-3 py-2 rounded-lg shadow-lg"
+            aria-label="פתח תפריט"
+          >
+            ☰
+          </button>
         </div>
+
+        {/* ====== Sidebar בדסקטופ ====== */}
+        <div className="hidden md:block w-[320px] border-l bg-white overflow-y-auto">
+          <GuestSidebar onDragStart={() => {}} />
+        </div>
+
+        {/* ====== Drawer במובייל ====== */}
+        {showGuests && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex justify-end md:hidden">
+            <div className="w-4/5 max-w-[360px] bg-white h-full shadow-xl flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  תפריט הושבה
+                </h2>
+                <button
+                  onClick={() => setShowGuests(false)}
+                  className="text-gray-700 text-xl"
+                  aria-label="סגור"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* ⭐ אפשר לשים כאן גם כפתורי פעולות במובייל */}
+              <div className="p-3 border-b flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowUpload(true);
+                    setShowGuests(false);
+                  }}
+                  className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
+                >
+                  העלאת תבנית
+                </button>
+
+                <button
+                  onClick={() => {
+                    saveSeating();
+                    setShowGuests(false);
+                  }}
+                  className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-lg"
+                >
+                  שמירה
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <GuestSidebar onDragStart={() => {}} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ================= UPLOAD MODAL ================= */}
