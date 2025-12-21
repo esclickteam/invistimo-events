@@ -551,6 +551,7 @@ useEffect(() => {
 
   wrap="word"
   lineHeight={obj.lineHeight ?? 1.2}
+    verticalAlign="top" 
 
   /* 🔥 חובה – גובה אמיתי לתיבת טקסט */
   width={obj.width}
