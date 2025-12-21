@@ -35,14 +35,25 @@ export type EditorObject = {
 };
 
 type EditorCanvasRef = {
+  /* ===== נתוני קנבס ===== */
   getCanvasData: () => {
     objects: EditorObject[];
   };
+
+  /* ===== פעולות ===== */
   uploadBackground: (file: File) => void;
+
   updateSelected: (patch: Record<string, any> | null) => void;
+
   selectById?: (id: string) => void;
+
   deleteSelected?: () => void;
-  addObject?: (obj: EditorObject) => void; // ✅ חשוב
+
+  /* ===== הוספת אלמנטים ===== */
+  addText?: () => void;        // ✅ זה מה שהקנבס שלך באמת חושף
+  addRect?: () => void;
+  addCircle?: () => void;
+  addImage?: (url: string) => void;
 };
 
 /* =========================================================
@@ -78,30 +89,8 @@ export default function CreateInvitePage() {
      הוספת טקסט (Mobile + Desktop)
   ========================================================= */
   const handleAddText = () => {
-    if (!canvasRef.current?.addObject) return;
-
-    const newText: EditorObject = {
-      id: crypto.randomUUID(),
-      type: "text",
-      text: "הקלידי טקסט",
-      x: 180,
-      y: 240,
-      fontSize: 26,
-      fontFamily: "Heebo",
-      fill: "#000000",
-      align: "center",
-    };
-
-    canvasRef.current.addObject(newText);
-
-    setSelectedObject(newText);
-    setMobileTab("text");
-    setSheetOpen(true);
-
-    requestAnimationFrame(() => {
-      canvasRef.current?.selectById?.(newText.id);
-    });
-  };
+  canvasRef.current?.addText?.();
+};
 
   /* =========================================================
      שמירה
