@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, {
   useRef,
@@ -187,6 +187,11 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mainLayerRef = useRef<Konva.Layer>(null);
 
+  const [mobileDeletePos, setMobileDeletePos] = useState<{
+  x: number;
+  y: number;
+} | null>(null);
+
 
 
   /* ============================================================
@@ -291,16 +296,31 @@ useEffect(() => {
      SELECTION HANDLING
   ============================================================ */
   const handleSelect = (id: string | null) => {
-    setSelected(id);
-    const obj = objects.find((o) => o.id === id) || null;
-    onSelect(obj);
+  setSelected(id);
 
-    const node = id ? stageRef.current?.findOne(`.${id}`) : null;
-    if (transformerRef.current) {
-      transformerRef.current.nodes(node ? [node] : []);
-    }
-  };
+  const obj = objects.find((o) => o.id === id) || null;
+  onSelect(obj);
 
+  const node = id ? stageRef.current?.findOne(`.${id}`) : null;
+
+  if (transformerRef.current) {
+    transformerRef.current.nodes(node ? [node] : []);
+  }
+
+  // 📱 מובייל – מיקום כפתור מחיקה
+  if (isMobile && node && stageRef.current) {
+    const stageBox =
+      stageRef.current.container().getBoundingClientRect();
+    const r = node.getClientRect();
+
+    setMobileDeletePos({
+      x: stageBox.left + (r.x + r.width) * scale + 6,
+      y: stageBox.top + r.y * scale - 6,
+    });
+  } else {
+    setMobileDeletePos(null);
+  }
+};
   /* ============================================================
      DOUBLE CLICK → TEXT EDIT
   ============================================================ */
@@ -331,6 +351,7 @@ useEffect(() => {
       if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
         removeObject(selectedId);
         setSelected(null);
+        setMobileDeletePos(null);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -477,13 +498,22 @@ useEffect(() => {
       }}
     >
       <Stage
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
-        ref={stageRef}
-        onMouseDown={(e) => {
-          if (e.target === e.target.getStage()) handleSelect(null);
-        }}
-      >
+  width={CANVAS_WIDTH}
+  height={CANVAS_HEIGHT}
+  ref={stageRef}
+  onMouseDown={(e) => {
+    // לחיצה על רקע הקנבס
+    if (e.target === e.target.getStage()) {
+      handleSelect(null);
+
+      // 📱 מובייל – להסתיר כפתור מחיקה
+      if (isMobile) {
+        setMobileDeletePos(null);
+      }
+    }
+  }}
+>
+
           <Layer ref={mainLayerRef}>
             {sortedObjects.map((obj) => {
               const isEditingThis = editingTextId === obj.id;
@@ -719,6 +749,35 @@ useEffect(() => {
           </Layer>
         </Stage>
       </div>
+
+      {isMobile && mobileDeletePos && selectedId && !editingTextId && (
+  <button
+    onClick={() => {
+      removeObject(selectedId);
+      setSelected(null);
+      onSelect(null);
+      setMobileDeletePos(null);
+    }}
+    style={{
+      position: "fixed",
+      left: mobileDeletePos.x,
+      top: mobileDeletePos.y,
+      zIndex: 9999,
+    }}
+    className="
+      w-9 h-9
+      rounded-full
+      bg-red-600
+      text-white
+      flex items-center justify-center
+      shadow-lg
+      active:scale-95
+    "
+  >
+    ✕
+  </button>
+)}
+
 
       {editingTextId && (
   <EditableTextOverlay
