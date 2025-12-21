@@ -6,7 +6,7 @@ import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 type Props = {
   invitation: any;
   onSaved: () => void;
-  onClose?: () => void; // ✅ אופציונלי
+  onClose?: () => void;
 };
 
 export default function EventDetailsForm({
@@ -79,7 +79,7 @@ export default function EventDetailsForm({
     }
 
     onSaved();
-    onClose?.(); // ✅ רק אם קיים
+    onClose?.();
   }
 
   return (
@@ -88,43 +88,66 @@ export default function EventDetailsForm({
         ✏️ עריכת פרטי האירוע
       </h2>
 
-      <div className="grid gap-3">
+      <div className="grid gap-4">
+        {/* שם האירוע */}
         <input
           placeholder="שם האירוע"
           value={form.title}
           onChange={(e) =>
             setForm((f) => ({ ...f, title: e.target.value }))
           }
-          className="border rounded-full px-4 py-3"
+          className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
+        {/* סוג האירוע */}
         <input
           placeholder="סוג האירוע (חתונה / בר מצווה וכו׳)"
           value={form.eventType}
           onChange={(e) =>
             setForm((f) => ({ ...f, eventType: e.target.value }))
           }
-          className="border rounded-full px-4 py-3"
+          className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
-        <input
-          type="date"
-          value={form.date}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, date: e.target.value }))
-          }
-          className="border rounded-full px-4 py-3"
-        />
+        {/* 📅 תאריך */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600 px-2">
+            תאריך האירוע
+          </label>
+          <input
+            type="date"
+            value={form.date}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, date: e.target.value }))
+            }
+            className="
+              border rounded-full px-4 py-3
+              text-base min-h-[48px]
+              bg-white
+            "
+          />
+        </div>
 
-        <input
-          type="time"
-          value={form.time}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, time: e.target.value }))
-          }
-          className="border rounded-full px-4 py-3"
-        />
+        {/* ⏰ שעה */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600 px-2">
+            שעת האירוע
+          </label>
+          <input
+            type="time"
+            value={form.time}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, time: e.target.value }))
+            }
+            className="
+              border rounded-full px-4 py-3
+              text-base min-h-[48px]
+              bg-white
+            "
+          />
+        </div>
 
+        {/* מיקום */}
         <LocationAutocomplete
           value={form.location.address}
           onSelect={({ address, lat, lng }) =>
