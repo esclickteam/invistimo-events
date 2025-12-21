@@ -361,10 +361,15 @@ const startEditText = (obj: TextObject) => {
     if (editingTextId) return;
 
     if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
-      removeObject(selectedId);
-      setSelected(null);
-      setMobileDeletePos(null);
-    }
+  removeObject(selectedId);
+
+  // 🧹 ניקוי Transformer
+  transformerRef.current?.nodes([]);
+
+  setSelected(null);
+  setMobileDeletePos(null);
+}
+
   };
 
   window.addEventListener("keydown", onKey);
@@ -515,17 +520,23 @@ const startEditText = (obj: TextObject) => {
 
     // ✍️ אם היינו בעריכת טקסט – רק לסיים עריכה
     if (editingTextId) {
-      setEditingTextId(null);
-      setTextInputRect(null);
-      return; // ⛔ לא לבטל בחירה!
-    }
+  setEditingTextId(null);
+  setTextInputRect(null);
 
-    // 🧹 רק אם לא בעריכה – לבטל בחירה
-    handleSelect(null);
+  // 🧹 קריטי: לנקות Transformer של הטקסט הערוך
+  transformerRef.current?.nodes([]);
 
-    if (isMobile) {
-      setMobileDeletePos(null);
-    }
+  return; // ⛔ לא לבטל בחירה!
+}
+
+// 🧹 רק אם לא בעריכה – לבטל בחירה
+handleSelect(null);
+
+if (isMobile) {
+  setMobileDeletePos(null);
+}
+
+
   }
 }}
 >
@@ -782,12 +793,18 @@ const startEditText = (obj: TextObject) => {
 
       {isMobile && mobileDeletePos && selectedId && !editingTextId && (
   <button
+
     onClick={() => {
-      removeObject(selectedId);
-      setSelected(null);
-      onSelect(null);
-      setMobileDeletePos(null);
-    }}
+  removeObject(selectedId);
+
+  // 🧹 ניקוי Transformer (זה הפתרון!)
+  transformerRef.current?.nodes([]);
+
+  setSelected(null);
+  onSelect(null);
+  setMobileDeletePos(null);
+}}
+
     style={{
       position: "fixed",
       left: mobileDeletePos.x,
@@ -871,7 +888,9 @@ const startEditText = (obj: TextObject) => {
     setTextInputRect(null);
 
     // 4️⃣ ריענון בחירה → מחזיר כפתור מחיקה
-    handleSelect(editingTextId);
+    transformerRef.current?.nodes([]);
+
+
   });
 }}
 
