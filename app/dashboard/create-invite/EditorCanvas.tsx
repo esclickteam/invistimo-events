@@ -163,8 +163,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 ) {
 
   const isMobile =
-  typeof window !== "undefined" &&
-  ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+  typeof window !== "undefined" && window.innerWidth <= 768;
 
 
   const stageRef = useRef<any>(null);
