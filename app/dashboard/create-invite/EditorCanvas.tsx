@@ -555,8 +555,7 @@ useEffect(() => {
 
   /* 🔥 חובה – גובה אמיתי לתיבת טקסט */
   width={obj.width}
-  
-  height={obj.height}
+  height={editingTextId === obj.id ? undefined : obj.height}
 
 
   /* ✅ fontStyle תקין ל-Konva */
@@ -828,16 +827,14 @@ node.scaleY(1);
     }
     rect={textInputRect}
 
-    onLiveChange={({ text, height }) => {
-  if (!editingTextId || !height) return;
 
-  // 1️⃣ עדכון אמת בקנבס – ה-textarea הוא מקור האמת
-  updateObject(editingTextId, {
-    text,
-    height,
-  });
+    onLiveChange={({ text }) => {
+  if (!editingTextId) return;
 
-  // 2️⃣ סנכרון overlay לפי הקנבס המעודכן
+  // 1️⃣ עדכון טקסט בזמן אמת – קריטי!
+  updateObject(editingTextId, { text });
+
+  // 2️⃣ נותנים ל-Konva למדוד אחרי הרינדור
   requestAnimationFrame(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -845,11 +842,15 @@ node.scaleY(1);
     const node = stage.findOne(`.${editingTextId}`);
     if (!node) return;
 
-    const stageBox = stage.container().getBoundingClientRect();
-    const r = node.getClientRect({
-      skipShadow: true,
-      skipStroke: true,
+    // 🔥 Konva מחשבת גובה אמיתי לפי הטקסט החדש
+    const realHeight = node.height();
+
+    updateObject(editingTextId, {
+      height: realHeight,
     });
+
+    const stageBox = stage.container().getBoundingClientRect();
+    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
 
     setTextInputRect({
       x: stageBox.left + r.x * scale,
