@@ -826,13 +826,29 @@ node.scaleY(1);
       ) as TextObject | null) || null
     }
     rect={textInputRect}
-    onLiveChange={({ text }) => {
-  updateObject(editingTextId, { text });
 
-  requestAnimationFrame(() => {
-    mainLayerRef.current?.batchDraw();
+    onLiveChange={({ text }) => {
+  const obj = objects.find(
+    (o): o is TextObject =>
+      o.id === editingTextId && o.type === "text"
+  );
+  if (!obj) return;
+
+  const lineHeight = obj.lineHeight ?? 1.2;
+  const fontSize = obj.fontSize ?? 40;
+
+  // 🔥 חישוב מספר שורות בפועל
+  const lines = text.split("\n").length;
+
+  updateObject(editingTextId, {
+    text,
+    height: Math.max(
+      fontSize * lineHeight,
+      lines * fontSize * lineHeight
+    ),
   });
 
+  // 🔁 רינדור חלק במובייל / דסקטופ
   requestAnimationFrame(() => {
     mainLayerRef.current?.batchDraw();
   });
