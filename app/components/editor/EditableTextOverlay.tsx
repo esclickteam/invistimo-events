@@ -168,7 +168,7 @@ export default function EditableTextOverlay({
         height: rect.height, // 🔥 לא minHeight
 
         margin: 0,
-        padding: 0,
+        padding: 6,
         border: "none",
         outline: "none",
         background: "transparent",
