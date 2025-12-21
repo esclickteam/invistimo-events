@@ -53,22 +53,11 @@ export default function EditableTextOverlay({
      צבע / פונט / גודל לא התעדכנו
   ============================================================ */
   useEffect(() => {
-    if (!obj) return;
+  if (!obj) return;
 
-    setValue(obj.text ?? "");
-  }, [
-    obj?.id,
-    obj?.text,
-    obj?.fill,
-    obj?.fontFamily,
-    obj?.fontSize,
-    obj?.fontWeight,
-    obj?.italic,
-    obj?.underline,
-    obj?.align,
-    obj?.letterSpacing,
-    obj?.lineHeight,
-  ]);
+  // 🔥 סנכרון חד־פעמי בתחילת עריכה בלבד
+  setValue(obj.text ?? "");
+}, [obj?.id]);
 
   /* ============================================================
      פוקוס אוטומטי בעת פתיחת עריכה

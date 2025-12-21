@@ -373,6 +373,7 @@ useEffect(() => {
       text: "טקסט חדש",
       x: 100,
       y: 300,
+      width: 200,
       fontFamily: "Heebo",
       fontSize: 40,
       fill: "#000000",
@@ -551,7 +552,11 @@ useEffect(() => {
   textDecoration={obj.underline ? "underline" : undefined}
 
   /* ✅ width רק אם קיים */
-  width={typeof obj.width === "number" ? obj.width : undefined}
+  width={
+  typeof obj.width === "number"
+    ? obj.width
+    : Math.max(50, (obj.text?.length || 1) * (obj.fontSize ?? 40) * 0.6)
+}
 
   draggable={!isEditingThis}
 
