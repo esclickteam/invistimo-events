@@ -9,7 +9,6 @@ export async function POST(req: Request) {
     await connectDB();
     const { email, password } = await req.json();
 
-    // ===== בדיקת משתמש =====
     const user = await User.findOne({ email });
     if (!user)
       return NextResponse.json(
@@ -24,11 +23,10 @@ export async function POST(req: Request) {
         { status: 401 }
       );
 
-    // ===== יצירת טוקן =====
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET!,
-      { expiresIn: "7d" }
+      { expiresIn: "1h" } // ⏱️ מומלץ
     );
 
     const res = NextResponse.json({
@@ -36,15 +34,12 @@ export async function POST(req: Request) {
       user: { _id: user._id, name: user.name, email: user.email },
     });
 
-    // ======================================================
-    // ✅ Cookie יציב – עובד במובייל ודסקטופ
-    // ======================================================
+    // ✅ Session Cookie – נעלם בסגירת טאב / דפדפן
     res.cookies.set("authToken", token, {
       httpOnly: true,
       secure: true,
-      sameSite: "lax",   // ⭐️ קריטי – לא none
+      sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
     });
 
     return res;
