@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
-import Toolbar from "./Toolbar";
 
 import MobileBottomNav, {
   type MobileNavTab,
@@ -234,9 +233,7 @@ export default function CreateInvitePage() {
           </div>
 
           {/* ===== Desktop Toolbar ===== */}
-          <div className="hidden md:block">
-            <Toolbar />
-          </div>
+          
 
           {/* ===== Canvas ===== */}
           <div className="flex-1 relative bg-gray-100">
