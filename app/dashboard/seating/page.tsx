@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-
+import { useState, useEffect } from "react";
 
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
-import GuestSidebar from "./GuestSidebar"; // ✅ הוספה
+import GuestSidebar from "./GuestSidebar";
+import MobileGuests from "./MobileGuests";
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -30,9 +30,6 @@ export default function SeatingPage() {
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
 
-  // ✅ Drawer במובייל (כמו בתמונה)
-  const [showGuests, setShowGuests] = useState(false);
-
   /* ===============================
      STORES
   =============================== */
@@ -51,7 +48,6 @@ export default function SeatingPage() {
   useEffect(() => {
     async function load() {
       try {
-        /* ================= הזמנה ================= */
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
 
@@ -60,7 +56,6 @@ export default function SeatingPage() {
         const id: string = invData.invitation._id;
         setInvitationId(id);
 
-        /* ================= אורחים ================= */
         const gRes = await fetch(`/api/seating/guests/${id}`);
         if (gRes.status === 403) {
           setBlocked(true);
@@ -70,14 +65,15 @@ export default function SeatingPage() {
 
         const gData = await gRes.json();
 
-        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-          id: g._id,
-          name: g.name,
-          count: g.guestsCount || 1,
-          tableId: g.tableId || null,
-        }));
+        const normalizedGuests = (gData.guests || []).map(
+          (g: GuestDTO) => ({
+            id: g._id,
+            name: g.name,
+            count: g.guestsCount || 1,
+            tableId: g.tableId || null,
+          })
+        );
 
-        /* ================= הושבה + רקע + zones ================= */
         const tRes = await fetch(`/api/seating/tables/${id}`);
         if (tRes.status === 403) {
           setBlocked(true);
@@ -104,63 +100,53 @@ export default function SeatingPage() {
   }, [init, setZones]);
 
   /* ===============================
-     SELECT BACKGROUND
+     BACKGROUND
   =============================== */
   const handleBackgroundSelect = (bgUrl: string) => {
     if (!bgUrl) return;
-
-    setBackground({
-      url: bgUrl,
-      opacity: 0.28,
-    });
+    setBackground({ url: bgUrl, opacity: 0.28 });
   };
 
   /* ===============================
-     SAVE SEATING (כולל ZONES)
+     DRAG HANDLER
+  =============================== */
+  const handleDragStart = (guest: any) => {
+    useSeatingStore.getState().startDragGuest(guest);
+  };
+
+  /* ===============================
+     SAVE
   =============================== */
   async function saveSeating() {
-    if (!invitationId) {
-      alert("לא נמצאה הזמנה.");
-      return;
-    }
+    if (!invitationId) return;
 
     const zones = useZoneStore.getState().zones;
     const canvasView = useSeatingStore.getState().canvasView;
 
-    try {
-      const res = await fetch(`/api/seating/save/${invitationId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tables,
-          guests,
-          background,
-          zones,
-          canvasView,
-        }),
-      });
+    const res = await fetch(`/api/seating/save/${invitationId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tables,
+        guests,
+        background,
+        zones,
+        canvasView,
+      }),
+    });
 
-      if (res.status === 403) {
-        setBlocked(true);
-        setShowUpgrade(true);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.success) {
-        alert("🎉 ההושבה והאלמנטים נשמרו בהצלחה!");
-      } else {
-        alert("❌ שגיאה בשמירה");
-      }
-    } catch (err) {
-      console.error("❌ Save error:", err);
-      alert("⚠ שמירה נכשלה!");
+    if (res.status === 403) {
+      setBlocked(true);
+      setShowUpgrade(true);
+      return;
     }
+
+    const data = await res.json();
+    alert(data.success ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
   }
 
   /* ===============================
-     BLOCKED VIEW
+     BLOCKED
   =============================== */
   if (blocked) {
     return (
@@ -171,9 +157,8 @@ export default function SeatingPage() {
               הושבה אינה כלולה בחבילה שלך
             </h2>
             <p className="text-gray-600 mb-6">
-              כדי להשתמש במערכת ההושבה והאלמנטים החכמים, יש לשדרג לחבילת פרימיום.
+              כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום.
             </p>
-
             <button
               onClick={() => setShowUpgrade(true)}
               className="px-5 py-2 bg-black text-white rounded-lg"
@@ -202,102 +187,42 @@ export default function SeatingPage() {
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => setShowUpload(true)}
-              className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg w-full sm:w-auto"
+              className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
             >
               העלאת תבנית אולם
             </button>
 
             <button
               onClick={saveSeating}
-              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg w-full sm:w-auto"
+              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg"
             >
               💾 שמירת הושבה
             </button>
           </div>
         </div>
 
-        {/* ⭐ Toolbar אלמנטים – רספונסיבי */}
         <div className="w-full overflow-x-auto scrollbar-hide">
           <ZonesToolbar />
         </div>
       </div>
 
-      {/* ================= MAIN AREA ================= */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {/* ====== קנבס ====== */}
-        <div className="flex-1 relative overflow-auto md:overflow-hidden">
-          <div className="min-h-[700px] md:min-h-full">
-            <SeatingEditor background={background?.url || null} />
-          </div>
-
-          {/* ✅ כפתור תפריט במובייל (כמו בתמונה) */}
-          <button
-            onClick={() => setShowGuests(true)}
-            className="md:hidden fixed top-[110px] right-3 z-50 bg-[#2ea7ff] text-white px-3 py-2 rounded-lg shadow-lg"
-            aria-label="פתח תפריט"
-          >
-            ☰
-          </button>
+      {/* ================= CONTENT ================= */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* קנבס */}
+        <div className="flex-1 relative">
+          <SeatingEditor background={background?.url || null} />
         </div>
 
-        {/* ====== Sidebar בדסקטופ ====== */}
-        <div className="hidden md:block w-[320px] border-l bg-white overflow-y-auto">
-  <Suspense fallback={<div className="p-4 text-gray-500">טוען רשימת אורחים...</div>}>
-    <GuestSidebar onDragStart={() => {}} />
-  </Suspense>
-</div>
+        {/* סיידבר דסקטופ */}
+        <aside className="hidden md:block w-72 bg-white border-r">
+          <GuestSidebar onDragStart={handleDragStart} />
+        </aside>
 
-        {/* ====== Drawer במובייל ====== */}
-        {showGuests && (
-          <div className="fixed inset-0 z-50 bg-black/40 flex justify-end md:hidden">
-            <div className="w-4/5 max-w-[360px] bg-white h-full shadow-xl flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  תפריט הושבה
-                </h2>
-                <button
-                  onClick={() => setShowGuests(false)}
-                  className="text-gray-700 text-xl"
-                  aria-label="סגור"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* ⭐ אפשר לשים כאן גם כפתורי פעולות במובייל */}
-              <div className="p-3 border-b flex gap-2">
-                <button
-                  onClick={() => {
-                    setShowUpload(true);
-                    setShowGuests(false);
-                  }}
-                  className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
-                >
-                  העלאת תבנית
-                </button>
-
-                <button
-                  onClick={() => {
-                    saveSeating();
-                    setShowGuests(false);
-                  }}
-                  className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-lg"
-                >
-                  שמירה
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-  <Suspense fallback={<div className="p-4 text-gray-500">טוען רשימת אורחים...</div>}>
-    <GuestSidebar onDragStart={() => {}} />
-  </Suspense>
-</div>
-            </div>
-          </div>
-        )}
+        {/* המבורגר מובייל */}
+        <MobileGuests onDragStart={handleDragStart} />
       </div>
 
-      {/* ================= UPLOAD MODAL ================= */}
+      {/* ================= MODALS ================= */}
       {showUpload && (
         <UploadBackgroundModal
           onClose={() => setShowUpload(false)}
