@@ -18,7 +18,10 @@ type TextObject = EditorObject & { type: "text" };
 interface EditableTextOverlayProps {
   obj: TextObject | null;
   rect: OverlayRect | null;
-  onFinish: (newText: string) => void;
+
+  // 🔥 שינוי קריטי – מחזירים גם height
+  onFinish: (payload: { text: string; height: number }) => void;
+
   onLiveChange?: (payload: { text: string; height?: number }) => void;
 }
 
@@ -62,7 +65,10 @@ export default function EditableTextOverlay({
       const target = e.target as Node | null;
       if (target && el.contains(target)) return;
 
-      onFinish(value);
+      onFinish({
+        text: value,
+        height: el.scrollHeight || rect?.height || 0,
+      });
     };
 
     document.addEventListener("mousedown", handlePointerDown, true);
@@ -72,7 +78,7 @@ export default function EditableTextOverlay({
       document.removeEventListener("mousedown", handlePointerDown, true);
       document.removeEventListener("touchstart", handlePointerDown, true);
     };
-  }, [obj?.id, value, onFinish]);
+  }, [obj?.id, value, onFinish, rect?.height]);
 
   /* ============================================================
      פוקוס אוטומטי
@@ -130,6 +136,7 @@ export default function EditableTextOverlay({
 
           const start = el.selectionStart;
           const end = el.selectionEnd;
+
           const newText =
             value.slice(0, start) + "\n" + value.slice(end);
 
@@ -156,7 +163,13 @@ export default function EditableTextOverlay({
         if (!isMobile && e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          onFinish(obj.text ?? "");
+
+          const el = inputRef.current;
+
+          onFinish({
+            text: obj.text ?? "",
+            height: el?.scrollHeight || rect.height,
+          });
         }
       }}
       style={{
@@ -165,7 +178,7 @@ export default function EditableTextOverlay({
         left: rect.x,
 
         width: rect.width,
-        height: rect.height, // 🔥 לא minHeight
+        height: rect.height,
 
         margin: 0,
         padding: 6,

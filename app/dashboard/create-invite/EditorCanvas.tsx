@@ -507,9 +507,9 @@ useEffect(() => {
 
       // ✅ אם היה מצב עריכת טקסט – סיים עריכה (כמו Canva)
       if (editingTextId) {
-        setEditingTextId(null);
-        setTextInputRect(null);
-      }
+  setEditingTextId(null);
+  setTextInputRect(null);
+}
 
       handleSelect(null);
 
@@ -603,12 +603,16 @@ useEffect(() => {
       rotation: node.rotation(),
       width: Math.max(20, baseWidth * scaleX),
       fontSize: Math.max(5, (obj.fontSize ?? 40) * scaleY),
-      height: Math.max(
-        10,
-        (obj.fontSize ?? 40) *
-          scaleY *
-          (obj.lineHeight ?? 1.2)
-      ),
+
+      height: obj.height
+  ? Math.max(10, obj.height * scaleY)
+  : Math.max(
+      10,
+      (obj.fontSize ?? 40) *
+        scaleY *
+        (obj.lineHeight ?? 1.2)
+    ),
+
     });
 
     node.scaleX(1);
@@ -814,73 +818,43 @@ useEffect(() => {
     rect={textInputRect}
 
 
-    onLiveChange={({ text }) => {
-  if (!editingTextId) return;
+    onLiveChange={({ text, height }) => {
+  if (!editingTextId || height == null) return;
 
-  // 1️⃣ עדכון טקסט בזמן אמת – קריטי!
-  updateObject(editingTextId, { text });
 
-  // 2️⃣ נותנים ל-Konva למדוד אחרי הרינדור
-  requestAnimationFrame(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const node = stage.findOne(`.${editingTextId}`);
-    if (!node) return;
-
-    // 🔥 Konva מחשבת גובה אמיתי לפי הטקסט החדש
-    const realHeight = node.height();
-
-    updateObject(editingTextId, {
-  text: text,
-  height: undefined,
-    });
-
-    const stageBox = stage.container().getBoundingClientRect();
-    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
-
-    setTextInputRect({
-      x: stageBox.left + r.x * scale,
-      y: stageBox.top + r.y * scale,
-      width: r.width * scale,
-      height: r.height * scale,
-    });
-
-    mainLayerRef.current?.batchDraw();
-});
-
-    }}
-
-    onFinish={(txt) => {
-  if (!editingTextId) return;
-
-  // 1️⃣ עדכון הטקסט
-  updateObject(editingTextId, { text: txt });
-
-  // 2️⃣ מחכים לרינדור ואז מודדים גובה אמיתי
-  requestAnimationFrame(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const node = stage.findOne(`.${editingTextId}`);
-    if (!node) return;
-
-    // 🔥 הגובה האמיתי של הטקסט (כולל Enter)
-    const realHeight = node.height();
-
-    updateObject(editingTextId, {
-      height: realHeight,
-    });
-
-    mainLayerRef.current?.batchDraw();
-
-    // 3️⃣ רק עכשיו יוצאים ממצב עריכה
-    setEditingTextId(null);
-    setTextInputRect(null);
+  // 🔥 1️⃣ עדכון טקסט + גובה אמיתי מה-textarea
+  updateObject(editingTextId, {
+    text,
+    height,
   });
+
+  // 🔥 2️⃣ עדכון תיבת העריכה (overlay) לפי הגובה החדש
+  setTextInputRect((prev: any) =>
+    prev
+      ? {
+          ...prev,
+          height: height * scale,
+        }
+      : prev
+  );
+}}
+
+
+    onFinish={({ text, height }) => {
+  if (!editingTextId) return;
+
+  updateObject(editingTextId, {
+    text,
+    height, // 🔥 הגובה האמיתי מה-textarea
+  });
+
+  // יציאה ממצב עריכה
+  setEditingTextId(null);
+  setTextInputRect(null);
 }}
 />
 )}
+
     </div>
   );
 });
