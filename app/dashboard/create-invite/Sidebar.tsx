@@ -60,10 +60,10 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
        <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
-          ["elements", "אלמנטים"],
-          ["shapes", "צורות"],
+          ["elements", "ברית/ה"],
+          ["shapes", "חתונה"],
           ["backgrounds", "רקעים"],
-          ["animations", "אנימציות"], // ⭐ טאב חדש
+          ["animations", "בר/ת מצווה, חינה ועוד"],
         ].map(([key, label]) => (
           <button
             key={key}
