@@ -42,6 +42,9 @@ type EditorCanvasRef = {
     objects: EditorObject[];
   };
 
+  /* ===== 🔥 עדכון אלמנט נבחר ===== */
+  updateSelected?: (patch: Record<string, any>) => void;
+
   /* ===== פעולות ===== */
   uploadBackground: (file: File) => void;
   selectById?: (id: string) => void;
@@ -53,6 +56,7 @@ type EditorCanvasRef = {
   addCircle?: () => void;
   addImage?: (url: string) => void;
 };
+
 
 /* =========================================================
    Component
@@ -155,9 +159,12 @@ export default function CreateInvitePage() {
      עדכון טקסט (🔥 בלי Canvas API)
   ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
-    setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
-    // ❌ אין updateSelected – הכל עובר דרך ה-store
-  };
+  // 🔥 עדכון לקנבס דרך EditorCanvas
+  canvasRef.current?.updateSelected?.(patch);
+
+  // 🔄 עדכון state מקומי ל־UI של ה־Sheet
+  setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
+};
 
   /* =========================================================
      מחיקה
