@@ -322,27 +322,35 @@ useEffect(() => {
     setMobileDeletePos(null);
   }
 };
+
+const startEditText = (obj: TextObject) => {
+  const node = stageRef.current?.findOne(`.${obj.id}`);
+  if (!node) return;
+
+  const stageBox = stageRef.current.container().getBoundingClientRect();
+  const r = node.getClientRect({ skipShadow: true, skipStroke: true });
+
+  setTextInputRect({
+    x: stageBox.left + r.x * scale,
+    y: stageBox.top + r.y * scale,
+    width: r.width * scale,
+    height: r.height * scale,
+  });
+
+  setSelected(obj.id);
+  onSelect(obj);
+  setEditingTextId(obj.id);
+};
+
   /* ============================================================
      DOUBLE CLICK → TEXT EDIT
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
-    if (obj.type !== "text") return;
-    const node = stageRef.current?.findOne(`.${obj.id}`);
-    if (!node) return;
+  if (obj.type !== "text") return;
 
-    const stageBox = stageRef.current.container().getBoundingClientRect();
-    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
-
-    setTextInputRect({
-      x: stageBox.left + r.x * scale,
-      y: stageBox.top + r.y * scale,
-      width: r.width * scale,
-      height: r.height * scale,
-    });
-    setSelected(obj.id);        // 🆕
-    onSelect(obj);              // 🆕
-    setEditingTextId(obj.id);
-  };
+  // שימוש בלוגיקה האחידה
+  startEditText(obj as TextObject);
+};
 
   /* ============================================================
      DELETE / BACKSPACE
@@ -573,14 +581,11 @@ useEffect(() => {
   onDblClick={() => {
     if (!isMobile) handleDblClick(obj);
   }}
+
   onTap={(e) => {
-    e.cancelBubble = true;
-    if (selectedId === obj.id && !editingTextId) {
-      handleDblClick(obj);
-      return;
-    }
-    handleSelect(obj.id);
-  }}
+  e.cancelBubble = true;
+  startEditText(obj as TextObject); // 📱 tap = עריכה
+}}
 
   onDragEnd={(e) =>
     updateObject(obj.id, {

@@ -19,9 +19,7 @@ interface EditableTextOverlayProps {
   obj: TextObject | null;
   rect: OverlayRect | null;
 
-  // 🔥 שינוי קריטי – מחזירים גם height
   onFinish: (payload: { text: string; height: number }) => void;
-
   onLiveChange?: (payload: { text: string; height?: number }) => void;
 }
 
@@ -53,7 +51,7 @@ export default function EditableTextOverlay({
   }, [obj?.id]);
 
   /* ============================================================
-     סיום עריכה בלחיצה מחוץ לתיבה
+     click / touch מחוץ ל־textarea = סיום עריכה
   ============================================================ */
   useEffect(() => {
     if (!obj) return;
@@ -81,7 +79,7 @@ export default function EditableTextOverlay({
   }, [obj?.id, value, onFinish, rect?.height]);
 
   /* ============================================================
-     פוקוס אוטומטי
+     פוקוס + cursor בסוף + auto-grow ראשוני
   ============================================================ */
   useEffect(() => {
     if (!inputRef.current || !rect) return;
@@ -91,10 +89,14 @@ export default function EditableTextOverlay({
 
     const len = el.value.length;
     el.setSelectionRange(len, len);
+
+    // auto-grow ראשוני
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
   }, [rect]);
 
   /* ============================================================
-     התאמת גובה textarea בזמן אמת
+     auto-grow בזמן הקלדה / שינויי סגנון
   ============================================================ */
   useEffect(() => {
     const el = inputRef.current;
@@ -102,7 +104,13 @@ export default function EditableTextOverlay({
 
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [value, rect?.width, obj?.fontSize, obj?.lineHeight, obj?.letterSpacing]);
+  }, [
+    value,
+    rect?.width,
+    obj?.fontSize,
+    obj?.lineHeight,
+    obj?.letterSpacing,
+  ]);
 
   if (!obj || !rect) return null;
 
@@ -124,48 +132,12 @@ export default function EditableTextOverlay({
         });
       }}
       onKeyDown={(e) => {
-        /* ==============================
-           Enter = שורה חדשה (כמו Canva)
-        ============================== */
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const el = inputRef.current;
-          if (!el) return;
-
-          const start = el.selectionStart;
-          const end = el.selectionEnd;
-
-          const newText =
-            value.slice(0, start) + "\n" + value.slice(end);
-
-          setValue(newText);
-
-          requestAnimationFrame(() => {
-            el.style.height = "auto";
-            el.style.height = `${el.scrollHeight}px`;
-
-            onLiveChange?.({
-              text: newText,
-              height: el.scrollHeight,
-            });
-
-            el.selectionStart = el.selectionEnd = start + 1;
-          });
-
-          return;
-        }
-
-        /* ==============================
-           Escape = ביטול עריכה (דסקטופ)
-        ============================== */
+        /* Escape = ביטול עריכה (דסקטופ) */
         if (!isMobile && e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
 
           const el = inputRef.current;
-
           onFinish({
             text: obj.text ?? "",
             height: el?.scrollHeight || rect.height,
