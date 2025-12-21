@@ -697,30 +697,34 @@ useEffect(() => {
 
                 return (
                   <KonvaImage
-                    key={obj.id}
-                    name={obj.id}
-                    className={obj.id}
-                    x={obj.x}
-                    y={obj.y}
-                    width={obj.width}
-                    height={obj.height}
-                    image={obj.image || undefined}
-                    rotation={obj.rotation || 0}
-                    draggable
-                    onClick={() => handleSelect(obj.id)}
-                    onTransformEnd={(e) => {
-                      const node = e.target;
-                      const scaleX = node.scaleX();
-                      const scaleY = node.scaleY();
-                      updateObject(obj.id, {
-                        x: node.x(),
-                        y: node.y(),
-                        width: obj.width * scaleX,
-                        height: obj.height * scaleY,
-                        rotation: node.rotation(),
-                      });
-                      node.scaleX(1);
-                      node.scaleY(1);
+  key={obj.id}
+  name={obj.id}
+  className={obj.id}
+  x={obj.x}
+  y={obj.y}
+  width={obj.width}
+  height={obj.height}
+  image={obj.image || undefined}
+  rotation={obj.rotation || 0}
+  draggable
+  onClick={() => handleSelect(obj.id)}      // דסקטופ
+  onTap={(e) => {                            // 📱 מובייל ← זה החסר
+    e.cancelBubble = true;
+    handleSelect(obj.id);
+  }}
+  onTransformEnd={(e) => {
+    const node = e.target;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    updateObject(obj.id, {
+      x: node.x(),
+      y: node.y(),
+      width: obj.width * scaleX,
+      height: obj.height * scaleY,
+      rotation: node.rotation(),
+    });
+    node.scaleX(1);
+    node.scaleY(1);
                     }}
                   />
                 );
