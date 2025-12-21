@@ -211,26 +211,26 @@ export default function SeatingPage() {
 
       {/* ================= CONTENT ================= */}
       <div className="flex flex-1 overflow-hidden relative">
-  {/* קנבס */}
-  <div className="flex-1 relative">
-    <SeatingEditor background={background?.url || null} />
-  </div>
-
-  {/* סיידבר – דסקטופ (ימין) */}
-  <aside className="hidden md:block w-72 bg-white border-l">
-    <Suspense
-      fallback={
-        <div className="p-4 text-sm text-gray-400">
-          טוען אורחים...
+        {/* קנבס */}
+        <div className="flex-1 relative">
+          <SeatingEditor background={background?.url || null} />
         </div>
-      }
-    >
-      <GuestSidebar
-        variant="desktop"
-        onDragStart={handleDragStart}
-      />
-    </Suspense>
-  </aside>
+
+        {/* סיידבר – דסקטופ */}
+        <aside className="hidden md:block w-72 bg-white border-r">
+          <Suspense
+            fallback={
+              <div className="p-4 text-sm text-gray-400">
+                טוען אורחים...
+              </div>
+            }
+          >
+            <GuestSidebar
+              variant="desktop"
+              onDragStart={handleDragStart}
+            />
+          </Suspense>
+        </aside>
 
         {/* כפתור פתיחה למובייל – מתחת להוסף שולחן */}
         <button

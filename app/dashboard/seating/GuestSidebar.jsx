@@ -6,7 +6,7 @@ import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GuestSidebar({
   onDragStart,
-  variant = "desktop",
+  variant = "desktop", // "desktop" | "mobile"
 }) {
   /* ===============================
      Zustand
@@ -27,7 +27,8 @@ export default function GuestSidebar({
     : "";
 
   const shouldHighlightFromUrl =
-    (from === "dashboard" || from === "personal") && !!highlightedGuestId;
+    (from === "dashboard" || from === "personal") &&
+    !!highlightedGuestId;
 
   /* ===============================
      Guards
@@ -59,7 +60,7 @@ export default function GuestSidebar({
         bg-white overflow-y-auto
         ${
           variant === "desktop"
-            ? "hidden md:block w-72 h-full border-r shadow-xl"
+            ? "hidden md:block w-72 h-full border-l shadow-xl"
             : ""
         }
         ${
@@ -69,10 +70,12 @@ export default function GuestSidebar({
         }
       `}
     >
+      {/* כותרת */}
       <h2 className="text-lg font-bold p-4 border-b text-gray-800">
         🧾 רשימת אורחים
       </h2>
 
+      {/* רשימה */}
       <ul>
         {guests.map((guest) => {
           const guestId = String(guest.id ?? guest._id ?? "");
@@ -90,11 +93,15 @@ export default function GuestSidebar({
           return (
             <li
               key={guestId}
-              className={`p-3 border-b transition flex justify-between items-center select-none ${
-                isHighlighted
-                  ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400"
-                  : "hover:bg-gray-100"
-              } ${!table ? "cursor-grab active:cursor-grabbing" : ""}`}
+              className={`
+                p-3 border-b transition flex justify-between items-center select-none
+                ${
+                  isHighlighted
+                    ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400"
+                    : "hover:bg-gray-100"
+                }
+                ${!table ? "cursor-grab active:cursor-grabbing" : ""}
+              `}
               onMouseDown={(e) => {
                 if (!table) {
                   e.preventDefault();
@@ -109,6 +116,7 @@ export default function GuestSidebar({
               }}
             >
               <div>
+                {/* שם */}
                 <div
                   className={`font-medium ${
                     isHighlighted
@@ -119,6 +127,7 @@ export default function GuestSidebar({
                   {guest.name}
                 </div>
 
+                {/* כמות מוזמנים */}
                 <div className="text-xs text-gray-500">
                   {guest.confirmedGuestsCount ??
                     guest.guestsCount ??
@@ -127,6 +136,7 @@ export default function GuestSidebar({
                   מקומות
                 </div>
 
+                {/* סטטוס שיבוץ */}
                 <div className="mt-1 text-xs">
                   {table ? (
                     <span className="text-green-600">
@@ -140,6 +150,7 @@ export default function GuestSidebar({
                   )}
                 </div>
 
+                {/* חיווי אורח נבחר */}
                 {isHighlighted && (
                   <div className="mt-1 text-xs font-semibold text-yellow-700">
                     ← אורח שנבחר
@@ -147,6 +158,7 @@ export default function GuestSidebar({
                 )}
               </div>
 
+              {/* הסרת שיבוץ */}
               {table && (
                 <button
                   onClick={() => removeFromSeat(guestId)}
