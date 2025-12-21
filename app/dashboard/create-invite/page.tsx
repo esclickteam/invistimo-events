@@ -31,32 +31,22 @@ export type EditorObject = {
   fontFamily?: string;
   fontSize?: number;
   fill?: string;
-  fontStyle?: string;
   align?: string;
   [key: string]: any;
 };
 
 type EditorCanvasRef = {
-  /* ===== נתוני קנבס ===== */
   getCanvasData: () => {
     objects: EditorObject[];
   };
 
-  /* ===== 🔥 עדכון אלמנט נבחר ===== */
   updateSelected?: (patch: Record<string, any>) => void;
 
-  /* ===== פעולות ===== */
   uploadBackground: (file: File) => void;
-  selectById?: (id: string) => void;
   deleteSelected?: () => void;
 
-  /* ===== הוספת אלמנטים ===== */
   addText?: () => void;
-  addRect?: () => void;
-  addCircle?: () => void;
-  addImage?: (url: string) => void;
 };
-
 
 /* =========================================================
    Component
@@ -71,18 +61,18 @@ export default function CreateInvitePage() {
   const [saving, setSaving] = useState(false);
 
   /* ===== Mobile UI State ===== */
-  const [mobileTab, setMobileTab] = useState<MobileNavTab>("text");
+  const [mobileTab, setMobileTab] =
+    useState<MobileNavTab>("backgrounds");
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
 
   const router = useRouter();
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* =========================================================
-     כאשר בוחרים טקסט – פותחים Sheet
+     פתיחת Sheet אוטומטית כשנבחר טקסט
   ========================================================= */
   useEffect(() => {
     if (selectedObject?.type === "text") {
-      setMobileTab("text");
       setSheetOpen(true);
     }
   }, [selectedObject]);
@@ -156,15 +146,12 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     עדכון טקסט (🔥 בלי Canvas API)
+     עדכון אובייקט נבחר
   ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
-  // 🔥 עדכון לקנבס דרך EditorCanvas
-  canvasRef.current?.updateSelected?.(patch);
-
-  // 🔄 עדכון state מקומי ל־UI של ה־Sheet
-  setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
-};
+    canvasRef.current?.updateSelected?.(patch);
+    setSelectedObject((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
 
   /* =========================================================
      מחיקה
@@ -178,18 +165,18 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     כותרת Sheet
+     כותרת Sheet (❌ בלי "text")
   ========================================================= */
   const mobileSheetTitle = (() => {
+    if (selectedObject?.type === "text") return "טקסט";
+
     switch (mobileTab) {
-      case "text":
-        return "טקסט";
-      case "blessing":
-        return "ברכה";
-      case "wedding":
-        return "חתונה";
       case "backgrounds":
         return "רקעים";
+      case "blessing":
+        return "ברית / ברכה";
+      case "wedding":
+        return "חתונה";
       case "batmitzvah":
         return "בת / מצווה";
       default:
@@ -287,15 +274,11 @@ export default function CreateInvitePage() {
             open={sheetOpen}
             title={mobileSheetTitle}
             onClose={closeSheet}
-            height={mobileTab === "text" ? "42vh" : "52vh"}
+            height={selectedObject?.type === "text" ? "42vh" : "52vh"}
           >
-            {mobileTab === "text" ? (
+            {selectedObject?.type === "text" ? (
               <TextEditorPanel
-                selected={
-                  selectedObject?.type === "text"
-                    ? selectedObject
-                    : null
-                }
+                selected={selectedObject}
                 onApply={applyToSelected}
                 onDelete={handleDeleteSelected}
               />
