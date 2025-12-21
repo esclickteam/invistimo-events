@@ -58,23 +58,26 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   /* ---------------- ADD TABLE ---------------- */
-  addTable: (type, seats) => {
-    const { tables } = get();
-    const index = tables.length;
+  addTable: (type, seats, position) => {
+  const { tables } = get();
 
-    const newTable = {
-      id: "t" + (index + 1),
-      name: `שולחן ${index + 1}`,
-      type,
-      seats,
-      x: 300 + index * 200,
-      y: 200,
-      rotation: 0,
-      seatedGuests: [],
-    };
+  const newTable = {
+    id: crypto.randomUUID(), // ✅ קריטי – ID ייחודי באמת
+    name: `שולחן ${tables.length + 1}`,
+    type,
+    seats,
+    x: position?.x ?? 0,     // ✅ מיקום גמיש
+    y: position?.y ?? 0,
+    rotation: 0,
+    seatedGuests: [],
+  };
 
-    set({ tables: [...tables, newTable] });
-  },
+  set({
+    tables: [...tables, newTable], // ✅ append אמיתי
+  });
+
+  return newTable; // אופציונלי, אבל שימושי ל-auto pan
+},
 
   /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
