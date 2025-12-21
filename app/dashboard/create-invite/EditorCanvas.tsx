@@ -552,7 +552,8 @@ useEffect(() => {
   verticalAlign="top"
 
   width={obj.width}
-  height={editingTextId === obj.id ? undefined : obj.height}
+  height={obj.height}
+
 
   fontStyle={[
     obj.fontWeight === "bold" ? "bold" : null,
@@ -831,7 +832,8 @@ useEffect(() => {
     const realHeight = node.height();
 
     updateObject(editingTextId, {
-      height: realHeight,
+  text: text,
+  height: undefined,
     });
 
     const stageBox = stage.container().getBoundingClientRect();
@@ -850,14 +852,34 @@ useEffect(() => {
     }}
 
     onFinish={(txt) => {
-      updateObject(editingTextId, { text: txt });
-      requestAnimationFrame(() => {
-        mainLayerRef.current?.batchDraw();
-      });
-      setEditingTextId(null);
-      setTextInputRect(null);
-    }}
-  />
+  if (!editingTextId) return;
+
+  // 1️⃣ עדכון הטקסט
+  updateObject(editingTextId, { text: txt });
+
+  // 2️⃣ מחכים לרינדור ואז מודדים גובה אמיתי
+  requestAnimationFrame(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const node = stage.findOne(`.${editingTextId}`);
+    if (!node) return;
+
+    // 🔥 הגובה האמיתי של הטקסט (כולל Enter)
+    const realHeight = node.height();
+
+    updateObject(editingTextId, {
+      height: realHeight,
+    });
+
+    mainLayerRef.current?.batchDraw();
+
+    // 3️⃣ רק עכשיו יוצאים ממצב עריכה
+    setEditingTextId(null);
+    setTextInputRect(null);
+  });
+}}
+/>
 )}
     </div>
   );
