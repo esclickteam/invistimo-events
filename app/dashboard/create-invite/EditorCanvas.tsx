@@ -163,7 +163,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   typeof window !== "undefined" &&
   ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
-  
+
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -436,10 +436,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     handleSelect(obj.id);
 
     // 📱 מובייל – לחיצה אחת פותחת עריכה
-    if (isMobile) {
+     if (isMobile) {
+    setTimeout(() => {
       handleDblClick(obj);
-    }
-  }}
+    }, 0);
+  }
+}}
   onDblClick={() => {
     // 🖥️ דסקטופ – דאבל קליק פותח עריכה
     if (!isMobile) {
