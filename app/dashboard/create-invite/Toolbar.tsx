@@ -16,12 +16,12 @@ export default function Toolbar() {
   const objects = useEditorStore((s) => s.objects);
   const updateObject = useEditorStore((s) => s.updateObject);
   const removeObject = useEditorStore((s) => s.removeObject);
-  const bringToFront = useEditorStore((s) => s.bringToFront);
-  const sendToBack = useEditorStore((s) => s.sendToBack);
 
   if (!selectedId) return null;
 
-  const obj = objects.find((o) => o.id === selectedId) as EditorObject | undefined;
+  const obj = objects.find(
+    (o) => o.id === selectedId
+  ) as EditorObject | undefined;
   if (!obj) return null;
 
   const isText = obj.type === "text";
@@ -47,18 +47,18 @@ export default function Toolbar() {
      Helper – עדכון אחיד (קריטי למובייל)
   ============================================================ */
   const apply = (changes: Partial<EditorObject>) => {
-  const affectsLayout =
-    obj.type === "text" &&
-    ("fontSize" in changes ||
-     "fontFamily" in changes ||
-     "align" in changes ||
-     "fontWeight" in changes);
+    const affectsLayout =
+      obj.type === "text" &&
+      ("fontSize" in changes ||
+        "fontFamily" in changes ||
+        "align" in changes ||
+        "fontWeight" in changes);
 
-  updateObject(obj.id, {
-    ...changes,
-    ...(affectsLayout ? { height: undefined } : null),
-  });
-};
+    updateObject(obj.id, {
+      ...changes,
+      ...(affectsLayout ? { height: undefined } : null),
+    });
+  };
 
   return (
     <div className="h-14 px-4 bg-white border-b shadow flex items-center gap-4 overflow-x-auto">
@@ -157,22 +157,6 @@ export default function Toolbar() {
           }
         />
       </label>
-
-      {/* 🔼 קדימה */}
-      <button
-        className="border px-3 py-1 rounded hover:bg-gray-100"
-        onClick={() => bringToFront(obj.id)}
-      >
-        קדימה
-      </button>
-
-      {/* 🔽 אחורה */}
-      <button
-        className="border px-3 py-1 rounded hover:bg-gray-100"
-        onClick={() => sendToBack(obj.id)}
-      >
-        אחורה
-      </button>
 
       {/* 🗑 מחיקה */}
       <button
