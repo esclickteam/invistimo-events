@@ -176,6 +176,16 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [textInputRect, setTextInputRect] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+
+const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+  const check = () => setIsMobile(window.innerWidth < 768);
+  check();
+  window.addEventListener("resize", check);
+  return () => window.removeEventListener("resize", check);
+}, []);
 
 
   /* ============================================================
@@ -269,35 +279,52 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      SELECTION HANDLING
   ============================================================ */
   const handleSelect = (id: string | null) => {
-    setSelected(id);
-    const obj = objects.find((o) => o.id === id) || null;
-    onSelect(obj);
+  setSelected(id);
+  const obj = objects.find((o) => o.id === id) || null;
+  onSelect(obj);
 
-    const node = id ? stageRef.current?.findOne(`.${id}`) : null;
-    if (transformerRef.current) {
-      transformerRef.current.nodes(node ? [node] : []);
-    }
-  };
+  const node = id ? stageRef.current?.findOne(`.${id}`) : null;
+  if (transformerRef.current) {
+    transformerRef.current.nodes(node ? [node] : []);
+  }
+
+  // ✅ חדש – במובייל פותחים תפריט תחתון
+  if (obj && isMobile) {
+  setMobileSheetOpen(true);
+}
+};
+
 
   /* ============================================================
      DOUBLE CLICK → TEXT EDIT
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
-    if (obj.type !== "text") return;
-    const node = stageRef.current?.findOne(`.${obj.id}`);
-    if (!node) return;
+  if (obj.type !== "text") return;
 
-    const stageBox = stageRef.current.container().getBoundingClientRect();
-    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
+  // 📱 מובייל – לא overlay, פותחים תפריט תחתון
+  if (isMobile) {
+    setSelected(obj.id);
+    setMobileSheetOpen(true);
+    return;
+  }
 
-    setTextInputRect({
-      x: stageBox.left + r.x * scale,
-      y: stageBox.top + r.y * scale,
-      width: r.width * scale,
-      height: r.height * scale,
-    });
-    setEditingTextId(obj.id);
-  };
+  // 🖥 דסקטופ – עריכה רגילה עם overlay
+  const node = stageRef.current?.findOne(`.${obj.id}`);
+  if (!node) return;
+
+  const stageBox = stageRef.current.container().getBoundingClientRect();
+  const r = node.getClientRect({ skipShadow: true, skipStroke: true });
+
+  setTextInputRect({
+    x: stageBox.left + r.x * scale,
+    y: stageBox.top + r.y * scale,
+    width: r.width * scale,
+    height: r.height * scale,
+  });
+
+  setEditingTextId(obj.id);
+};
+
 
   const handleTouchStart = (obj: EditorObject) => {
   if (obj.type !== "text") return;
@@ -596,21 +623,58 @@ const handleTouchMove = () => {
         </Stage>
       </div>
 
-      {editingTextId && (
-        <EditableTextOverlay
-          obj={
-            (objects.find(
-              (o) => o.id === editingTextId && o.type === "text"
-            ) as TextObject | null) || null
-          }
-          rect={textInputRect}
-          onFinish={(txt) => {
-            updateObject(editingTextId, { text: txt });
-            setEditingTextId(null);
+      {editingTextId && !isMobile && (
+  <EditableTextOverlay
+    obj={
+      (objects.find(
+        (o) => o.id === editingTextId && o.type === "text"
+      ) as TextObject | null) || null
+    }
+    rect={textInputRect}
+    onFinish={(txt) => {
+      updateObject(editingTextId, { text: txt });
+      setEditingTextId(null);
+    }}
+  />
+)}
+
+{mobileSheetOpen && selectedId && (
+  <div className="fixed inset-0 z-50 flex items-end md:hidden">
+    {/* backdrop */}
+    <div
+      className="absolute inset-0 bg-black/30"
+      onClick={() => setMobileSheetOpen(false)}
+    />
+
+    {/* bottom sheet */}
+    <div className="relative w-full bg-white rounded-t-2xl p-4">
+      <div className="flex justify-between items-center mb-4">
+        <span className="font-semibold">עריכת טקסט</span>
+        <button onClick={() => setMobileSheetOpen(false)}>✕</button>
+      </div>
+
+      <div className="flex justify-around text-sm">
+        <button>טקסט</button>
+        <button>צבע</button>
+        <button>גודל</button>
+        <button
+          className="text-red-500"
+          onClick={() => {
+            removeObject(selectedId);
+            setMobileSheetOpen(false);
           }}
-        />
-      )}
+        >
+          מחק
+        </button>
+      </div>
     </div>
+  </div>
+)}
+
+
+    </div>
+
+    
   );
 });
 
