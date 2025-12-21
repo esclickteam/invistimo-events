@@ -186,6 +186,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const [textInputRect, setTextInputRect] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mainLayerRef = useRef<Konva.Layer>(null);
+  const lastTapRef = useRef<{ id: string; time: number } | null>(null);
+
 
   const [mobileDeletePos, setMobileDeletePos] = useState<{
   x: number;
@@ -368,6 +370,9 @@ const startEditText = (obj: TextObject) => {
 
   setSelected(null);
   setMobileDeletePos(null);
+
+  lastTapRef.current = null;
+
 }
 
   };
@@ -518,10 +523,16 @@ const startEditText = (obj: TextObject) => {
   onMouseDown={(e) => {
   if (e.target === e.target.getStage()) {
 
+  lastTapRef.current = null;
+  
+
     // ✍️ אם היינו בעריכת טקסט – רק לסיים עריכה
     if (editingTextId) {
   setEditingTextId(null);
   setTextInputRect(null);
+
+  lastTapRef.current = null;
+
 
   // 🧹 קריטי: לנקות Transformer של הטקסט הערוך
   transformerRef.current?.nodes([]);
@@ -597,14 +608,27 @@ if (isMobile) {
   onTap={(e) => {
   e.cancelBubble = true;
 
-  // 📱 Tap ראשון – בחירה
-  if (selectedId !== obj.id) {
-    handleSelect(obj.id);
+  const now = Date.now();
+  const DOUBLE_TAP_DELAY = 300;
+
+  // אם זה Tap שני מהיר על אותו אלמנט → עריכה
+  if (
+    lastTapRef.current &&
+    lastTapRef.current.id === obj.id &&
+    now - lastTapRef.current.time < DOUBLE_TAP_DELAY
+  ) {
+    startEditText(obj as TextObject);
+    lastTapRef.current = null;
     return;
   }
 
-  // 📱 Tap שני על אותו אלמנט – עריכה
-  startEditText(obj as TextObject);
+  // אחרת → Tap ראשון (בחירה בלבד)
+  handleSelect(obj.id);
+
+  lastTapRef.current = {
+    id: obj.id,
+    time: now,
+  };
 }}
 
   onDragEnd={(e) =>
@@ -811,6 +835,9 @@ if (isMobile) {
   setSelected(null);
   onSelect(null);
   setMobileDeletePos(null);
+
+  lastTapRef.current = null;
+
 }}
 
     style={{
