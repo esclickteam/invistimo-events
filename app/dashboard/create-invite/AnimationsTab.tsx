@@ -4,99 +4,65 @@ import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useEditorStore } from "./editorStore";
 
-interface AnimationItem {
+interface ImageItem {
   name: string;
   url: string;
-  width?: number;
-  height?: number;
-  format?: string; // gif/webp/mp4/webm/json וכו'
-  resource_type?: string; // image / video (מגיע מה-API)
 }
 
-function AnimationsTab() {
-  // ⭐ חשוב: להשתמש בפונקציה שמטפלת בכל הלוגיקה (וידאו/לוטי/גיפ)
-  const addAnimatedAsset = useEditorStore((s) => s.addAnimatedAsset);
+function AnimationsTabAsImages() {
+  const addObject = useEditorStore((s) => s.addObject);
 
-  const { data = [], isLoading } = useQuery<AnimationItem[]>({
-    queryKey: ["library", "animations"],
+  const { data = [], isLoading } = useQuery<ImageItem[]>({
+    queryKey: ["library", "animations-as-images"],
     queryFn: () =>
-      fetch("/api/invity/library/animations").then((r) => r.json())
-
+      fetch("/api/invity/library/animations").then((r) => r.json()),
   });
 
   if (isLoading) return <SkeletonGrid />;
 
   if (!data.length)
-    return <p className="text-center text-gray-400">אין אנימציות זמינות.</p>;
+    return (
+      <p className="text-center text-gray-400">אין תמונות זמינות כרגע.</p>
+    );
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {data.map((item) => {
-        const format = (item.format || "").toLowerCase();
-        const isVideo =
-          item.resource_type === "video" || format === "mp4" || format === "webm";
-        const isLottie = format === "json";
-
-        // ✅ שולחים רק שדות שהטיפוס של addAnimatedAsset מכיר
-        const payload = {
-          name: item.name,
-          url: item.url,
-          format: item.format,
-          width: item.width,
-          height: item.height,
-        };
-
-        return (
-          <button
-            key={item.name}
-            type="button"
-            className="cursor-pointer border rounded p-2 bg-white shadow hover:bg-gray-50 text-left"
-            onClick={() => addAnimatedAsset(payload)}
-            title={item.name}
-          >
-            {/* ---- Preview ---- */}
-            <div className="w-full h-32 rounded overflow-hidden bg-gray-50 flex items-center justify-center">
-              {isVideo ? (
-                <video
-                  src={item.url}
-                  muted
-                  autoPlay
-                  loop
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              ) : isLottie ? (
-                <div className="text-xs text-gray-500 font-medium">
-                  Lottie JSON
-                </div>
-              ) : (
-                <img
-                  src={item.url}
-                  alt={item.name}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-
-            <div className="mt-2 text-xs text-gray-600 truncate">
-              {item.name}
-            </div>
-          </button>
-        );
-      })}
+    <div className="grid grid-cols-3 gap-3">
+      {data.map((item) => (
+        <div
+          key={item.name}
+          className="cursor-pointer p-2 border rounded hover:bg-gray-100"
+          onClick={() =>
+            addObject({
+              id: crypto.randomUUID(),
+              type: "image",
+              url: item.url,
+              x: 150,
+              y: 150,
+              width: 200,
+              height: 200,
+            })
+          }
+        >
+          <img
+            src={item.url}
+            alt={item.name}
+            className="w-full h-full object-contain"
+          />
+        </div>
+      ))}
     </div>
   );
 }
 
-export default memo(AnimationsTab);
+export default memo(AnimationsTabAsImages);
 
 function SkeletonGrid() {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {[...Array(4)].map((_, i) => (
+    <div className="grid grid-cols-3 gap-3">
+      {[...Array(6)].map((_, i) => (
         <div
           key={i}
-          className="w-full h-32 bg-gray-200 animate-pulse rounded"
+          className="w-full h-24 bg-gray-200 animate-pulse rounded"
         />
       ))}
     </div>
