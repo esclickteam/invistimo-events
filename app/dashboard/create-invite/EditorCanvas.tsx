@@ -495,7 +495,7 @@ useEffect(() => {
 
                 return (
                   <Text
-  key={obj.id}
+  key={`${obj.id}-${obj.fontFamily}-${obj.fontSize}-${obj.fill}-${obj.align}`}
   name={obj.id}
   className={obj.id}
   x={obj.x}
@@ -508,43 +508,29 @@ useEffect(() => {
   fill={obj.fill}
   align={obj.align}
   wrap="none"
-  fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
-    obj.italic ? "italic" : ""
-  }`}
+  fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${obj.italic ? "italic" : ""}`}
   textDecoration={obj.underline ? "underline" : ""}
   draggable={!isEditingThis}
-
-  /* 🖥️ Desktop – בחירה */
   onClick={() => {
     if (!isMobile) handleSelect(obj.id);
   }}
-
-  /* 🖥️ Desktop – דאבל קליק לעריכה */
   onDblClick={() => {
     if (!isMobile) handleDblClick(obj);
   }}
-
-  /* 📱 Mobile – נגיעה אחת = בחירה + עריכה */
   onTap={(e) => {
-  e.cancelBubble = true;
-
-  // אם כבר נבחר → פתח עריכה
-  if (selectedId === obj.id) {
-    handleDblClick(obj);
-    return;
-  }
-
-  // אחרת – רק בחירה
-  handleSelect(obj.id);
-}}
-
+    e.cancelBubble = true;
+    if (selectedId === obj.id) {
+      handleDblClick(obj);
+      return;
+    }
+    handleSelect(obj.id);
+  }}
   onDragEnd={(e) =>
     updateObject(obj.id, {
       x: e.target.x(),
       y: e.target.y(),
     })
   }
-
   onTransformEnd={(e) => {
     const node = e.target;
     const scaleX = node.scaleX();
@@ -563,10 +549,10 @@ useEffect(() => {
     node.scaleX(1);
     node.scaleY(1);
   }}
-
   opacity={1}
-listening={true}
+  listening={true}
 />
+
 
 
                 );
