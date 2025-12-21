@@ -173,25 +173,32 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [textInputRect, setTextInputRect] = useState<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
 
   /* ============================================================
      AUTO SCALE
   ============================================================ */
   useEffect(() => {
-    const handleResize = () => {
-      const maxHeight = window.innerHeight - 100;
-      const maxWidth = window.innerWidth - 450;
-      const factor = Math.min(
-        maxWidth / CANVAS_WIDTH,
-        maxHeight / CANVAS_HEIGHT
-      );
-      setScale(factor);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [setScale]);
+  if (!containerRef.current) return;
 
+  const observer = new ResizeObserver(([entry]) => {
+    const { width, height } = entry.contentRect;
+
+    const factor = Math.min(
+      width / CANVAS_WIDTH,
+      height / CANVAS_HEIGHT,
+      1
+    );
+
+    setScale(factor);
+  });
+
+  observer.observe(containerRef.current);
+  return () => observer.disconnect();
+}, [setScale]);
+
+  
   /* ============================================================
      LOAD EXISTING CANVAS
   ============================================================ */
@@ -337,26 +344,28 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      RENDER
   ============================================================ */
   return (
-    <div className="w-full h-screen flex items-center justify-center bg-gray-100 overflow-auto relative">
-      
-      <div
-        className="shadow-2xl rounded-3xl bg-white overflow-hidden relative"
-        style={{
-          transform: `scale(${scale})`,
-          transformOrigin: "top center",
-          width: `${CANVAS_WIDTH}px`,
-          height: `${CANVAS_HEIGHT}px`,
-          border: "10px solid #f8f8f8",
+  <div
+    ref={containerRef}
+    className="w-full h-full flex items-center justify-center bg-gray-100 overflow-auto relative"
+  >
+    <div
+      className="shadow-2xl rounded-3xl bg-white overflow-hidden relative"
+      style={{
+        transform: `scale(${scale})`,
+        transformOrigin: "top center",
+        width: `${CANVAS_WIDTH}px`,
+        height: `${CANVAS_HEIGHT}px`,
+        border: "10px solid #f8f8f8",
+      }}
+    >
+      <Stage
+        width={CANVAS_WIDTH}
+        height={CANVAS_HEIGHT}
+        ref={stageRef}
+        onMouseDown={(e) => {
+          if (e.target === e.target.getStage()) handleSelect(null);
         }}
       >
-        <Stage
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          ref={stageRef}
-          onMouseDown={(e) => {
-            if (e.target === e.target.getStage()) handleSelect(null);
-          }}
-        >
           <Layer>
             {sortedObjects.map((obj) => {
               const isEditingThis = editingTextId === obj.id;

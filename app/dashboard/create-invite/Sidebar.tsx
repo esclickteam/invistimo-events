@@ -57,7 +57,7 @@ export default function Sidebar({ canvasRef, googleApiKey }: SidebarProps) {
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
       {/* ⭐ TABS כולל אנימציות */}
-      <div className="flex flex-wrap border-b text-sm font-medium">
+       <div className="flex flex-wrap border-b text-sm font-medium">
         {[
           ["text", "טקסט"],
           ["elements", "אלמנטים"],

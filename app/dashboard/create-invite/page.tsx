@@ -52,6 +52,9 @@ export default function CreateInvitePage() {
       } else {
         alert(data.error);
       }
+    } catch (err) {
+      console.error(err);
+      alert("❌ שגיאה בשמירה");
     } finally {
       setSaving(false);
     }
@@ -66,7 +69,8 @@ export default function CreateInvitePage() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="h-screen flex bg-gray-100 overflow-hidden">
+      {/* ⚠️ בלי overflow-hidden כאן */}
+      <div className="h-screen flex bg-gray-100">
         {/* ================= Desktop Sidebar ================= */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar
@@ -95,7 +99,7 @@ export default function CreateInvitePage() {
         )}
 
         {/* ================= Editor ================= */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0">
           {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
             {/* Mobile menu */}
@@ -132,9 +136,9 @@ export default function CreateInvitePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className={`px-5 py-2 rounded-full text-white text-sm ${
+              className={`px-5 py-2 rounded-full text-white text-sm transition ${
                 saving
-                  ? "bg-gray-400"
+                  ? "bg-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
@@ -145,12 +149,14 @@ export default function CreateInvitePage() {
           {/* ===== Toolbar ===== */}
           <Toolbar />
 
-          {/* ===== Canvas ===== */}
-          <div className="flex-1 flex items-center justify-center overflow-auto p-2">
-            <EditorCanvas
-              ref={canvasRef}
-              onSelect={setSelectedObject}
-            />
+          {/* ===== Canvas (החלק הקריטי) ===== */}
+          <div className="flex-1 min-h-0 overflow-auto bg-gray-100">
+            <div className="w-full h-full flex items-center justify-center p-2">
+              <EditorCanvas
+                ref={canvasRef}
+                onSelect={setSelectedObject}
+              />
+            </div>
           </div>
         </div>
       </div>
