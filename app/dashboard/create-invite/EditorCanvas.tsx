@@ -302,6 +302,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
       width: r.width * scale,
       height: r.height * scale,
     });
+    setSelected(obj.id);        // 🆕
+    onSelect(obj);              // 🆕
     setEditingTextId(obj.id);
   };
 
@@ -476,8 +478,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     node.scaleY(1);
   }}
 
-  opacity={isEditingThis ? 0 : 1}
-  listening={!isEditingThis}
+  opacity={1}
+listening={true}
 />
 
 

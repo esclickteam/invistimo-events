@@ -21,7 +21,7 @@ interface EditableTextOverlayProps {
 
 /**
  * EditableTextOverlay
- * תיבת עריכה חיה לטקסט — מיושרת בדיוק על Konva.Text (בלי קפיצה)
+ * תיבת עריכה חיה לטקסט — מסונכרנת 100% עם Konva.Text
  */
 export default function EditableTextOverlay({
   obj,
@@ -30,24 +30,24 @@ export default function EditableTextOverlay({
   onLiveChange,
 }: EditableTextOverlayProps) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const [value, setValue] = useState(obj?.text ?? "");
+  const [value, setValue] = useState("");
 
-  /* בכל פעם שנבחר טקסט חדש */
+  /* 🔥 סנכרון מלא — כל שינוי באובייקט */
   useEffect(() => {
-    if (obj) setValue(obj.text ?? "");
-  }, [obj]);
+    if (!obj) return;
+    setValue(obj.text ?? "");
+  }, [obj?.id, obj?.text]);
 
-  /* פוקוס מיידי + סמן בסוף */
+  /* פוקוס אוטומטי */
   useEffect(() => {
-    if (inputRef.current && rect) {
-      const el = inputRef.current;
-      el.focus();
-      const len = el.value.length;
-      el.setSelectionRange(len, len);
-    }
+    if (!inputRef.current || !rect) return;
+    const el = inputRef.current;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
   }, [rect]);
 
-  /* גובה דינמי */
+  /* התאמת גובה אוטומטית */
   useEffect(() => {
     if (!inputRef.current) return;
     const el = inputRef.current;
@@ -57,7 +57,9 @@ export default function EditableTextOverlay({
 
   if (!rect || !obj) return null;
 
-  const fontStyle = `${obj.italic ? "italic " : ""}${obj.fontWeight === "bold" ? "bold" : "normal"}`;
+  const fontStyle = `${obj.italic ? "italic " : ""}${
+    obj.fontWeight === "bold" ? "bold" : "normal"
+  }`;
 
   return (
     <textarea
@@ -66,7 +68,7 @@ export default function EditableTextOverlay({
       onChange={(e) => {
         const newVal = e.target.value;
         setValue(newVal);
-        onLiveChange?.(newVal);
+        onLiveChange?.(newVal); // אם תרצי עדכון חי לקנבס
       }}
       onBlur={() => onFinish(value)}
       onKeyDown={(e) => {
@@ -84,9 +86,8 @@ export default function EditableTextOverlay({
         top: rect.y,
         left: rect.x,
         width: rect.width,
-        height: rect.height,
+        minHeight: rect.height,
 
-        /* ✅ חשובים למיקום מושלם */
         margin: 0,
         padding: 0,
         border: "none",
@@ -95,25 +96,25 @@ export default function EditableTextOverlay({
         resize: "none",
         overflow: "hidden",
         boxSizing: "border-box",
-        transform: "translateZ(0)", // מניעת anti-alias blur בדפדפנים
+        transform: "translateZ(0)",
 
-        /* ✅ סגנון זהה ל-Konva.Text */
+        /* 🔥 סגנון זהה ל־Konva.Text */
         fontFamily: obj.fontFamily,
         fontSize: obj.fontSize,
         fontStyle,
         fontWeight: obj.fontWeight ?? "normal",
         lineHeight: String(obj.lineHeight || 1.1),
-        letterSpacing: obj.letterSpacing ? `${obj.letterSpacing}px` : "0px",
+        letterSpacing: obj.letterSpacing
+          ? `${obj.letterSpacing}px`
+          : "0px",
         color: obj.fill ?? "#000",
         textAlign: obj.align || "center",
         textDecoration: obj.underline ? "underline" : "none",
 
-        /* עברית ותמיכה מלאה */
         direction: "rtl",
         unicodeBidi: "plaintext",
-
-        /* ממש כמו קאנבה */
         whiteSpace: "pre-wrap",
+
         zIndex: 99999,
         cursor: "text",
       }}
