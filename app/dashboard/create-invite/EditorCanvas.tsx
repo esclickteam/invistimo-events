@@ -493,24 +493,39 @@ useEffect(() => {
               if (isEditingThis) return null;
 
 
-                return (
-                  <Text
-  key={`${obj.id}-${obj.fontFamily}-${obj.fontSize}-${obj.fill}-${obj.align}`}
+              return (
+  <Text
+  key={`${obj.id}-${obj.fontFamily}-${obj.fontSize}-${obj.fill}-${obj.align}-${obj.fontWeight}-${obj.italic}-${obj.underline}`}
+
   name={obj.id}
   className={obj.id}
+
   x={obj.x ?? 0}
   y={obj.y ?? 0}
   rotation={obj.rotation || 0}
   text={obj.text ?? ""}
-  width={obj.width}
+
   fontFamily={obj.fontFamily ?? "Heebo"}
   fontSize={obj.fontSize ?? 40}
   fill={obj.fill ?? "#000000"}
   align={obj.align ?? "center"}
-  wrap="none"
-  fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${obj.italic ? "italic" : ""}`}
-  textDecoration={obj.underline ? "underline" : ""}
+
+  /* ✅ fontStyle תקין ל-Konva */
+  fontStyle={[
+    obj.fontWeight === "bold" ? "bold" : null,
+    obj.italic ? "italic" : null,
+  ]
+    .filter(Boolean)
+    .join(" ")}
+
+  /* ✅ underline בלי מחרוזת ריקה */
+  textDecoration={obj.underline ? "underline" : undefined}
+
+  /* ✅ width רק אם קיים */
+  width={typeof obj.width === "number" ? obj.width : undefined}
+
   draggable={!isEditingThis}
+
   onClick={() => {
     if (!isMobile) handleSelect(obj.id);
   }}
@@ -525,16 +540,19 @@ useEffect(() => {
     }
     handleSelect(obj.id);
   }}
+
   onDragEnd={(e) =>
     updateObject(obj.id, {
       x: e.target.x(),
       y: e.target.y(),
     })
   }
+
   onTransformEnd={(e) => {
     const node = e.target;
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
+
     const baseWidth =
       typeof obj.width === "number" ? obj.width : node.width();
 
@@ -549,9 +567,10 @@ useEffect(() => {
     node.scaleX(1);
     node.scaleY(1);
   }}
-  opacity={1}
-  listening={true}
+
+  listening
 />
+
 
 
 
