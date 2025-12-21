@@ -3,6 +3,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { EditorObject } from "../../dashboard/create-invite/editorStore";
 
+/* ============================================================
+   Types
+============================================================ */
 interface OverlayRect {
   x: number;
   y: number;
@@ -19,9 +22,13 @@ interface EditableTextOverlayProps {
   onLiveChange?: (newValue: string) => void;
 }
 
+/* ============================================================
+   Component
+============================================================ */
 /**
  * EditableTextOverlay
  * תיבת עריכת טקסט חיה מעל Konva
+ * 🔥 מסונכרנת ל־Toolbar (צבע / גודל / פונט / יישור)
  * מותאמת ל־RTL + מובייל
  */
 export default function EditableTextOverlay({
@@ -38,13 +45,17 @@ export default function EditableTextOverlay({
     typeof window !== "undefined" &&
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
-  /* סנכרון עם האובייקט */
+  /* ============================================================
+     סנכרון מלא עם האובייקט (קריטי למובייל)
+  ============================================================ */
   useEffect(() => {
     if (!obj) return;
     setValue(obj.text ?? "");
-  }, [obj?.id]);
+  }, [obj?.id, obj?.text]);
 
-  /* פוקוס אוטומטי */
+  /* ============================================================
+     פוקוס אוטומטי
+  ============================================================ */
   useEffect(() => {
     if (!inputRef.current || !rect) return;
 
@@ -55,7 +66,9 @@ export default function EditableTextOverlay({
     el.setSelectionRange(len, len);
   }, [rect]);
 
-  /* התאמת גובה אוטומטית */
+  /* ============================================================
+     התאמת גובה אוטומטית
+  ============================================================ */
   useEffect(() => {
     if (!inputRef.current) return;
     const el = inputRef.current;
@@ -78,13 +91,13 @@ export default function EditableTextOverlay({
         onFinish(value);
       }}
       onKeyDown={(e) => {
-        // Enter = סיום (לא ירידת שורה)
+        /* Enter = סיום עריכה */
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           onFinish(value);
         }
 
-        // Escape = ביטול
+        /* Escape = ביטול */
         if (e.key === "Escape") {
           e.preventDefault();
           onFinish(obj.text ?? "");
@@ -106,14 +119,14 @@ export default function EditableTextOverlay({
         overflow: "hidden",
         boxSizing: "border-box",
 
-        /* טיפוגרפיה */
+        /* 🔥 טיפוגרפיה – חייבת להיות זהה ל־Konva.Text */
         fontFamily: obj.fontFamily,
         fontSize: obj.fontSize,
         fontWeight: obj.fontWeight ?? "normal",
         fontStyle: obj.italic ? "italic" : "normal",
         lineHeight: String(obj.lineHeight || 1.1),
 
-        /* letterSpacing – מובייל לא אוהב ערכים קטנים */
+        /* letterSpacing – במובייל נטרול ערכים בעייתיים */
         letterSpacing:
           !isMobile && obj.letterSpacing
             ? `${obj.letterSpacing}px`
