@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import EditorCanvas from "../../create-invite/EditorCanvas";
 import Sidebar from "../../create-invite/Sidebar";
-import Toolbar from "../../create-invite/Toolbar";
 
 import MobileBottomNav, {
   type MobileNavTab,
@@ -267,9 +266,7 @@ export default function EditInvitePage({
           </div>
 
           {/* Desktop Toolbar */}
-          <div className="hidden md:block">
-            <Toolbar />
-          </div>
+          
 
           {/* Canvas */}
           <div className="flex-1 relative bg-gray-100">
