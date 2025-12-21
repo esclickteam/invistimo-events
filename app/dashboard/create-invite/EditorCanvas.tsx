@@ -848,7 +848,7 @@ const startEditText = (obj: TextObject) => {
     onFinish={({ text }) => {
   if (!editingTextId) return;
 
-  // 1️⃣ טקסט סופי (string!)
+  // 1️⃣ טקסט סופי
   updateObject(editingTextId, { text });
 
   // 2️⃣ sync סופי מול Konva
@@ -869,6 +869,9 @@ const startEditText = (obj: TextObject) => {
     // 3️⃣ יציאה ממצב עריכה
     setEditingTextId(null);
     setTextInputRect(null);
+
+    // 4️⃣ ריענון בחירה → מחזיר כפתור מחיקה
+    handleSelect(editingTextId);
   });
 }}
 
@@ -876,8 +879,6 @@ const startEditText = (obj: TextObject) => {
   />
 )}
 
-
-      
 
     </div>
   );
