@@ -118,20 +118,39 @@ export default function EditableTextOverlay({
           height: el?.scrollHeight,
         });
       }}
-      onKeyDown={(e) => {
-        // ✅ Enter = ירידת שורה בלבד
-        if (e.key === "Enter") {
-          e.stopPropagation();
-          return;
-        }
 
-        // ⌨️ Escape בדסקטופ = ביטול עריכה
-        if (!isMobile && e.key === "Escape") {
-          e.preventDefault();
-          e.stopPropagation();
-          onFinish(obj.text ?? "");
-        }
-      }}
+      onKeyDown={(e) => {
+  // ✅ Enter = ירידת שורה אמיתית (כמו בקאנבה)
+  if (e.key === "Enter") {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const el = inputRef.current;
+    if (!el) return;
+
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const newText = value.slice(0, start) + "\n" + value.slice(end);
+
+    setValue(newText);
+    onLiveChange?.({ text: newText, height: el.scrollHeight });
+
+    // שימור מיקום הסמן אחרי הירידה שורה
+    requestAnimationFrame(() => {
+      el.selectionStart = el.selectionEnd = start + 1;
+    });
+
+    return;
+  }
+
+  // ⌨️ Escape בדסקטופ = ביטול עריכה
+  if (!isMobile && e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();
+    onFinish(obj.text ?? "");
+  }
+}}
+
       style={{
         position: "fixed",
         top: rect.y,
