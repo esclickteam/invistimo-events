@@ -538,7 +538,8 @@ useEffect(() => {
 
   x={obj.x ?? 0}
   /* 🔥 padding אנכי קל – פותר גלישה בעברית */
-  y={(obj.y ?? 0) + (obj.fontSize ?? 40) * 0.15}
+  y={obj.y ?? 0}
+
 
   rotation={obj.rotation || 0}
   text={obj.text ?? ""}
@@ -554,8 +555,9 @@ useEffect(() => {
   /* 🔥 חובה – גובה אמיתי לתיבת טקסט */
   width={obj.width}
   height={
-  obj.height ??
-  (obj.fontSize ?? 40) * (obj.lineHeight ?? 1.2)
+  (obj.height ??
+    (obj.fontSize ?? 40) * (obj.lineHeight ?? 1.2))
+  + (obj.fontSize ?? 40) * 0.3
 }
 
   /* ✅ fontStyle תקין ל-Konva */
@@ -816,10 +818,10 @@ node.scaleY(1);
       {editingTextId && (
   <EditableTextOverlay
     key={`${editingTextId}-${
-  (objects.find(
-    (o): o is TextObject => o.id === editingTextId && o.type === "text"
-  )?.fill ?? "nofill")
-}`}
+      (objects.find(
+        (o): o is TextObject => o.id === editingTextId && o.type === "text"
+      )?.fill ?? "nofill")
+    }`}
     obj={
       (objects.find(
         (o) => o.id === editingTextId && o.type === "text"
@@ -827,32 +829,54 @@ node.scaleY(1);
     }
     rect={textInputRect}
 
-    onLiveChange={({ text }) => {
-  const obj = objects.find(
-    (o): o is TextObject =>
-      o.id === editingTextId && o.type === "text"
-  );
-  if (!obj) return;
+    onLiveChange={({ text, height }) => {
+      if (!editingTextId) return;
 
-  const lineHeight = obj.lineHeight ?? 1.2;
-  const fontSize = obj.fontSize ?? 40;
+      const obj = objects.find(
+        (o): o is TextObject =>
+          o.id === editingTextId && o.type === "text"
+      );
+      if (!obj) return;
 
-  // 🔥 חישוב מספר שורות בפועל
-  const lines = text.split("\n").length;
+      const lineHeight = obj.lineHeight ?? 1.2;
+      const fontSize = obj.fontSize ?? 40;
 
-  updateObject(editingTextId, {
-    text,
-    height: Math.max(
-      fontSize * lineHeight,
-      lines * fontSize * lineHeight
-    ),
-  });
+      // 🔥 fallback לגובה מחושב אם לא הגיע height מה-overlay
+      const nextHeight =
+        height ??
+        Math.max(
+          fontSize * lineHeight,
+          text.split("\n").length * fontSize * lineHeight
+        );
 
-  // 🔁 רינדור חלק במובייל / דסקטופ
-  requestAnimationFrame(() => {
-    mainLayerRef.current?.batchDraw();
-  });
-}}
+      // 1️⃣ עדכון טקסט + גובה בקנבס
+      updateObject(editingTextId, {
+        text,
+        height: nextHeight,
+      });
+
+      // 2️⃣ סנכרון מחדש של מיקום וגודל ה-textarea
+      requestAnimationFrame(() => {
+        const node = stageRef.current?.findOne(`.${editingTextId}`);
+        if (!node || !stageRef.current) return;
+
+        const stageBox =
+          stageRef.current.container().getBoundingClientRect();
+        const r = node.getClientRect({
+          skipShadow: true,
+          skipStroke: true,
+        });
+
+        setTextInputRect({
+          x: stageBox.left + r.x * scale,
+          y: stageBox.top + r.y * scale,
+          width: r.width * scale,
+          height: r.height * scale,
+        });
+
+        mainLayerRef.current?.batchDraw();
+      });
+    }}
 
     onFinish={(txt) => {
       updateObject(editingTextId, { text: txt });
