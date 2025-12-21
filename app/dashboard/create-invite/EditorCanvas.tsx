@@ -92,6 +92,7 @@ interface EditorCanvasProps {
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 720;
 
+
 /* ============================================================
    HELPERS
 ============================================================ */
@@ -152,10 +153,17 @@ function removeWhiteBackground(img: HTMLImageElement): string {
 /* ============================================================
    MAIN COMPONENT
 ============================================================ */
+
 const EditorCanvas = forwardRef(function EditorCanvas(
   { onSelect, initialData }: EditorCanvasProps,
   ref
 ) {
+
+  const isMobile =
+  typeof window !== "undefined" &&
+  ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
+  
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -406,51 +414,64 @@ const EditorCanvas = forwardRef(function EditorCanvas(
                 loadFont(obj.fontFamily);
                 return (
                   <Text
-                    key={obj.id}
-                    name={obj.id}
-                    className={obj.id}
-                    x={obj.x}
-                    y={obj.y}
-                    rotation={obj.rotation || 0}
-                    text={obj.text}
-                    fontFamily={obj.fontFamily}
-                    fontSize={obj.fontSize}
-                    width={obj.width}
-                    fill={obj.fill}
-                    align={obj.align}
-                    wrap="none"
-                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
-                      obj.italic ? "italic" : ""
-                    }`}
-                    textDecoration={obj.underline ? "underline" : ""}
-                    draggable={!isEditingThis}
-                    onClick={() => handleSelect(obj.id)}
-                    onDblClick={() => handleDblClick(obj)}
-                    onDragEnd={(e) =>
-                      updateObject(obj.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      })
-                    }
-                    onTransformEnd={(e) => {
-                      const node = e.target;
-                      const scaleX = node.scaleX();
-                      const scaleY = node.scaleY();
-                      const baseWidth =
-                        typeof obj.width === "number" ? obj.width : node.width();
-                      updateObject(obj.id, {
-                        x: node.x(),
-                        y: node.y(),
-                        rotation: node.rotation(),
-                        width: Math.max(20, baseWidth * scaleX),
-                        fontSize: Math.max(5, obj.fontSize * scaleY),
-                      });
-                      node.scaleX(1);
-                      node.scaleY(1);
-                    }}
-                    opacity={isEditingThis ? 0 : 1}
-                    listening={!isEditingThis}
-                  />
+  key={obj.id}
+  name={obj.id}
+  className={obj.id}
+  x={obj.x}
+  y={obj.y}
+  rotation={obj.rotation || 0}
+  text={obj.text}
+  fontFamily={obj.fontFamily}
+  fontSize={obj.fontSize}
+  width={obj.width}
+  fill={obj.fill}
+  align={obj.align}
+  wrap="none"
+  fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
+    obj.italic ? "italic" : ""
+  }`}
+  textDecoration={obj.underline ? "underline" : ""}
+  draggable={!isEditingThis}
+  onClick={() => {
+    handleSelect(obj.id);
+
+    // 📱 מובייל – לחיצה אחת פותחת עריכה
+    if (isMobile) {
+      handleDblClick(obj);
+    }
+  }}
+  onDblClick={() => {
+    // 🖥️ דסקטופ – דאבל קליק פותח עריכה
+    if (!isMobile) {
+      handleDblClick(obj);
+    }
+  }}
+  onDragEnd={(e) =>
+    updateObject(obj.id, {
+      x: e.target.x(),
+      y: e.target.y(),
+    })
+  }
+  onTransformEnd={(e) => {
+    const node = e.target;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    const baseWidth =
+      typeof obj.width === "number" ? obj.width : node.width();
+    updateObject(obj.id, {
+      x: node.x(),
+      y: node.y(),
+      rotation: node.rotation(),
+      width: Math.max(20, baseWidth * scaleX),
+      fontSize: Math.max(5, obj.fontSize * scaleY),
+    });
+    node.scaleX(1);
+    node.scaleY(1);
+  }}
+  opacity={isEditingThis ? 0 : 1}
+  listening={!isEditingThis}
+/>
+
                 );
               }
 
