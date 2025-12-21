@@ -6,10 +6,9 @@ export async function POST() {
   response.cookies.set("authToken", "", {
     httpOnly: true,
     secure: true,
-    sameSite: "none",          // ⭐️ חייב להיות זהה
-    domain: ".invistimo.com",  // ⭐️ חייב להיות זהה
-    path: "/",
-    expires: new Date(0),
+    sameSite: "lax",   // ✅ זהה ללוגין
+    path: "/",         // ✅ זהה ללוגין
+    maxAge: 0,         // ✅ מחיקה מיידית
   });
 
   return response;
