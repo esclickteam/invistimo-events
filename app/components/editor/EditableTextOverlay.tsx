@@ -152,46 +152,47 @@ export default function EditableTextOverlay({
 }}
 
       style={{
-        position: "fixed",
-        top: rect.y,
-        left: rect.x,
+  position: "absolute", // 👈 במקום fixed
+  top: rect.y,
+  left: rect.x,
+  transform: "translate(0, 0)", // מבטיח שמירה על מיקום נכון
 
-        width: rect.width,
-        minHeight: rect.height,
+  width: rect.width,
+  height: "auto", // 👈 לא minHeight
+  minHeight: rect.height, // עדיין שומר גובה התחלתי
 
-        margin: 0,
-        padding: 0,
-        border: "none",
-        outline: "none",
-        background: "transparent",
+  margin: 0,
+  padding: 0,
+  border: "none",
+  outline: "none",
+  background: "transparent",
 
-        resize: "none",
-        overflow: "hidden",
-        boxSizing: "border-box",
+  resize: "none",
+  overflow: "hidden",
+  boxSizing: "border-box",
 
-        fontFamily: obj.fontFamily,
-        fontSize: obj.fontSize,
-        fontWeight: obj.fontWeight ?? "normal",
-        fontStyle: obj.italic ? "italic" : "normal",
-        lineHeight: String(obj.lineHeight || 1.1),
-        letterSpacing:
-          !isMobile && obj.letterSpacing
-            ? `${obj.letterSpacing}px`
-            : "0px",
+  fontFamily: obj.fontFamily,
+  fontSize: obj.fontSize,
+  fontWeight: obj.fontWeight ?? "normal",
+  fontStyle: obj.italic ? "italic" : "normal",
+  lineHeight: String(obj.lineHeight || 1.1),
+  letterSpacing:
+    !isMobile && obj.letterSpacing ? `${obj.letterSpacing}px` : "0px",
 
-        color: obj.fill ?? "#000",
-        textAlign: obj.align || "center",
-        textDecoration: obj.underline ? "underline" : "none",
+  color: obj.fill ?? "#000",
+  textAlign: obj.align || "center",
+  textDecoration: obj.underline ? "underline" : "none",
 
-        direction: "rtl",
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
+  direction: "rtl",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
 
-        zIndex: 99999,
-        cursor: "text",
-        userSelect: "text",
-        pointerEvents: "auto",
-      }}
+  zIndex: 99999,
+  cursor: "text",
+  userSelect: "text",
+  pointerEvents: "auto",
+}}
+
     />
   );
 }
