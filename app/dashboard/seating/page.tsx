@@ -225,8 +225,8 @@ export default function SeatingPage() {
       {/* ================= MAIN CANVAS + רשימת אורחים ================= */}
 <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
   {/* קנבס ההושבה */}
-  <div className="flex-1 relative">
-    <div className="absolute inset-0">
+  <div className="flex-1 relative overflow-auto md:overflow-hidden">
+    <div className="min-h-[700px] md:min-h-full">
       <SeatingEditor background={background?.url || null} />
     </div>
   </div>
