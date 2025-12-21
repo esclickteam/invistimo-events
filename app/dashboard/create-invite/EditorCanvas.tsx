@@ -242,6 +242,17 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   }, [objects, updateObject]);
 
   /* ============================================================
+   🔁 FORCE REDRAW WHEN OBJECTS CHANGE (FIX MOBILE ISSUE)
+============================================================ */
+useEffect(() => {
+  if (!mainLayerRef.current) return;
+  requestAnimationFrame(() => {
+    mainLayerRef.current?.batchDraw();
+
+  });
+}, [objects]);
+
+  /* ============================================================
      UPLOAD CUSTOM INVITATION AS BACKGROUND (תוספת בלבד)
   ============================================================ */
   const handleUploadBackground = (file: File) => {
