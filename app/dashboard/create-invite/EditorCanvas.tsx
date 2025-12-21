@@ -545,10 +545,8 @@ useEffect(() => {
   fontFamily={obj.fontFamily ?? "Heebo"}
   fontSize={obj.fontSize ?? 40}
   fill={obj.fill ?? "#000000"}
-  direction="rtl" 
   align={obj.align ?? "center"}
 
-  padding={0}   
   wrap="word"
   lineHeight={obj.lineHeight ?? 1.2}
   verticalAlign="top"
@@ -819,14 +817,24 @@ useEffect(() => {
     onLiveChange={({ text }) => {
   if (!editingTextId) return;
 
+  // 1️⃣ עדכון טקסט בזמן אמת – קריטי!
   updateObject(editingTextId, { text });
 
+  // 2️⃣ נותנים ל-Konva למדוד אחרי הרינדור
   requestAnimationFrame(() => {
     const stage = stageRef.current;
     if (!stage) return;
 
     const node = stage.findOne(`.${editingTextId}`);
     if (!node) return;
+
+    // 🔥 Konva מחשבת גובה אמיתי לפי הטקסט החדש
+    const realHeight = node.height();
+
+    updateObject(editingTextId, {
+  text: text,
+  height: undefined,
+    });
 
     const stageBox = stage.container().getBoundingClientRect();
     const r = node.getClientRect({ skipShadow: true, skipStroke: true });
