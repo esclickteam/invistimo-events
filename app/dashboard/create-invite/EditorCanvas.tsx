@@ -346,16 +346,20 @@ useEffect(() => {
      DELETE / BACKSPACE
   ============================================================ */
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
-        removeObject(selectedId);
-        setSelected(null);
-        setMobileDeletePos(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, removeObject, setSelected]);
+  const onKey = (e: KeyboardEvent) => {
+    // ❌ אם עורכים טקסט – לא למחוק אובייקט
+    if (editingTextId) return;
+
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+      removeObject(selectedId);
+      setSelected(null);
+      setMobileDeletePos(null);
+    }
+  };
+
+  window.addEventListener("keydown", onKey);
+  return () => window.removeEventListener("keydown", onKey);
+}, [selectedId, editingTextId, removeObject, setSelected]);
 
   /* ============================================================
      EXPORT
@@ -365,51 +369,48 @@ useEffect(() => {
      🆕 הוספת טקסט חדש + פתיחת עריכה
   ========================================================= */
   addText: () => {
-    const newId = `text-${Date.now()}`;
+  const newId = `text-${Date.now()}`;
 
-    const newText: TextObject = {
-      id: newId,
-      type: "text",
-      text: "טקסט חדש",
-      x: 100,
-      y: 300,
-      width: 200,
-      fontFamily: "Heebo",
-      fontSize: 40,
-      fill: "#000000",
-      align: "center",
-    };
+  const BOX_WIDTH = 240;
 
-    useEditorStore.setState((state: any) => {
-      if (state.objects.some((o: any) => o.id === newId)) return state;
-      return {
-        objects: [...state.objects, newText],
-        selectedId: newId,
-      };
+  const newText: TextObject = {
+    id: newId,
+    type: "text",
+    text: "הקלד טקסט כאן",
+    x: (CANVAS_WIDTH - BOX_WIDTH) / 2,
+    y: 200,
+    width: BOX_WIDTH,          // 🔥 תיבת טקסט אמיתית
+    fontFamily: "Heebo",
+    fontSize: 40,
+    fill: "#000000",
+    align: "center",
+    lineHeight: 1.2,
+  };
+
+  useEditorStore.setState((state: any) => ({
+    objects: [...state.objects, newText],
+    selectedId: newId,
+  }));
+
+  // פתיחת עריכה אוטומטית
+  setTimeout(() => {
+    const node = stageRef.current?.findOne(`.${newId}`);
+    if (!node) return;
+
+    const stageBox = stageRef.current.container().getBoundingClientRect();
+    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
+
+    setTextInputRect({
+      x: stageBox.left + r.x * scale,
+      y: stageBox.top + r.y * scale,
+      width: r.width * scale,
+      height: r.height * scale,
     });
 
-    // פתיחת עריכת טקסט אוטומטית
-    setTimeout(() => {
-      const node = stageRef.current?.findOne(`.${newId}`);
-      if (!node) return;
+    setEditingTextId(newId);
+  }, 50);
+},
 
-      const stageBox =
-        stageRef.current.container().getBoundingClientRect();
-      const r = node.getClientRect({
-        skipShadow: true,
-        skipStroke: true,
-      });
-
-      setTextInputRect({
-        x: stageBox.left + r.x * scale,
-        y: stageBox.top + r.y * scale,
-        width: r.width * scale,
-        height: r.height * scale,
-      });
-
-      setEditingTextId(newId);
-    }, 50);
-  },
 
   /* =========================================================
      🔥 קריטי למובייל – חיבור Toolbar / Sheet לקנבס
@@ -504,6 +505,13 @@ useEffect(() => {
   onMouseDown={(e) => {
     // לחיצה על רקע הקנבס
     if (e.target === e.target.getStage()) {
+
+      // ✅ אם היה מצב עריכת טקסט – סיים עריכה (כמו Canva)
+      if (editingTextId) {
+        setEditingTextId(null);
+        setTextInputRect(null);
+      }
+
       handleSelect(null);
 
       // 📱 מובייל – להסתיר כפתור מחיקה
@@ -525,7 +533,8 @@ useEffect(() => {
 
               return (
   <Text
-  key={`${obj.id}-${obj.fontFamily}-${obj.fontSize}-${obj.fill}-${obj.align}-${obj.fontWeight}-${obj.italic}-${obj.underline}`}
+  key={obj.id}
+
 
   name={obj.id}
   className={obj.id}

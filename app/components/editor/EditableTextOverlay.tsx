@@ -96,10 +96,10 @@ export default function EditableTextOverlay({
       }}
       
       onKeyDown={(e) => {
-  // ✅ Enter תמיד יורד שורה (לא סוגר עריכה)
-  // textarea מטפל בזה לבד – לא עושים preventDefault
+  // ✅ Enter = ירידת שורה (textarea מטפל בזה לבד)
+  // ❌ לא עושים preventDefault
 
-  // ⌨️ דסקטופ בלבד: Escape מבטל עריכה
+  // ⌨️ דסקטופ בלבד: Escape = ביטול עריכה
   if (!isMobile && e.key === "Escape") {
     e.preventDefault();
     onFinish(obj.text ?? "");
