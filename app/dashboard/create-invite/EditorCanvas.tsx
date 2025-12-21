@@ -159,6 +159,8 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const longPressTimer = useRef<number | null>(null);
+
 
   const objects = useEditorStore((s) => s.objects as EditorObject[]);
   const selectedId = useEditorStore((s) => s.selectedId);
@@ -297,6 +299,29 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     setEditingTextId(obj.id);
   };
 
+  const handleTouchStart = (obj: EditorObject) => {
+  if (obj.type !== "text") return;
+
+  longPressTimer.current = window.setTimeout(() => {
+    handleDblClick(obj);
+  }, 500); // לחיצה ארוכה = עריכה
+};
+
+const handleTouchEnd = () => {
+  if (longPressTimer.current) {
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }
+};
+
+const handleTouchMove = () => {
+  if (longPressTimer.current) {
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }
+};
+
+
   /* ============================================================
      DELETE / BACKSPACE
   ============================================================ */
@@ -371,56 +396,63 @@ const EditorCanvas = forwardRef(function EditorCanvas(
               const isEditingThis = editingTextId === obj.id;
 
               if (obj.type === "text") {
-                loadFont(obj.fontFamily);
-                return (
-                  <Text
-                    key={obj.id}
-                    name={obj.id}
-                    className={obj.id}
-                    x={obj.x}
-                    y={obj.y}
-                    rotation={obj.rotation || 0}
-                    text={obj.text}
-                    fontFamily={obj.fontFamily}
-                    fontSize={obj.fontSize}
-                    width={obj.width}
-                    fill={obj.fill}
-                    align={obj.align}
-                    wrap="none"
-                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
-                      obj.italic ? "italic" : ""
-                    }`}
-                    textDecoration={obj.underline ? "underline" : ""}
-                    draggable={!isEditingThis}
-                    onClick={() => handleSelect(obj.id)}
-                    onDblClick={() => handleDblClick(obj)}
-                    onDragEnd={(e) =>
-                      updateObject(obj.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      })
-                    }
-                    onTransformEnd={(e) => {
-                      const node = e.target;
-                      const scaleX = node.scaleX();
-                      const scaleY = node.scaleY();
-                      const baseWidth =
-                        typeof obj.width === "number" ? obj.width : node.width();
-                      updateObject(obj.id, {
-                        x: node.x(),
-                        y: node.y(),
-                        rotation: node.rotation(),
-                        width: Math.max(20, baseWidth * scaleX),
-                        fontSize: Math.max(5, obj.fontSize * scaleY),
-                      });
-                      node.scaleX(1);
-                      node.scaleY(1);
-                    }}
-                    opacity={isEditingThis ? 0 : 1}
-                    listening={!isEditingThis}
-                  />
-                );
-              }
+  loadFont(obj.fontFamily);
+  return (
+    <Text
+      key={obj.id}
+      name={obj.id}
+      className={obj.id}
+      x={obj.x}
+      y={obj.y}
+      rotation={obj.rotation || 0}
+      text={obj.text}
+      fontFamily={obj.fontFamily}
+      fontSize={obj.fontSize}
+      width={obj.width}
+      fill={obj.fill}
+      align={obj.align}
+      wrap="none"
+      fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
+        obj.italic ? "italic" : ""
+      }`}
+      textDecoration={obj.underline ? "underline" : ""}
+      draggable={!isEditingThis}
+
+      onClick={() => handleSelect(obj.id)}
+      onDblClick={() => handleDblClick(obj)}     // 🖥 דסקטופ
+
+      onTouchStart={() => handleTouchStart(obj)} // 📱 מובייל (לחיצה ארוכה)
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove} 
+
+      onDragEnd={(e) =>
+        updateObject(obj.id, {
+          x: e.target.x(),
+          y: e.target.y(),
+        })
+      }
+      onTransformEnd={(e) => {
+        const node = e.target;
+        const scaleX = node.scaleX();
+        const scaleY = node.scaleY();
+        const baseWidth =
+          typeof obj.width === "number" ? obj.width : node.width();
+        updateObject(obj.id, {
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+          width: Math.max(20, baseWidth * scaleX),
+          fontSize: Math.max(5, obj.fontSize * scaleY),
+        });
+        node.scaleX(1);
+        node.scaleY(1);
+      }}
+      opacity={isEditingThis ? 0 : 1}
+      listening={!isEditingThis}
+    />
+  );
+}
+
 
               if (obj.type === "rect") {
                 return (
