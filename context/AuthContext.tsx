@@ -31,13 +31,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   /* --------------------------------------------------
-     טעינה / רענון משתמש – מקור אמת יחיד
+     מקור אמת יחיד – מי המשתמש כרגע
+     ❗️ no-store כדי למנוע cache אחרי logout
   -------------------------------------------------- */
   const refreshUser = async () => {
     try {
       setLoading(true);
+
       const res = await fetch("/api/me", {
         credentials: "include",
+        cache: "no-store", // 🔥 קריטי
       });
 
       if (!res.ok) {
@@ -55,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  /* --------------------------------------------------
+     טעינה ראשונית
+  -------------------------------------------------- */
   useEffect(() => {
     refreshUser();
   }, []);
@@ -76,9 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // אחרי login – מבקשים user מהשרת
+      // 🔥 מבקשים משתמש מחדש מהשרת
       await refreshUser();
-      router.push("/dashboard");
+
+      // 🔄 ריענון App Router כדי שלא יישאר state ישן
+      router.replace("/dashboard");
+      router.refresh();
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
@@ -86,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /* --------------------------------------------------
-     התנתקות
+     התנתקות (החלק שהיה חסר!)
   -------------------------------------------------- */
   const logout = async () => {
     try {
@@ -95,8 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: "include",
       });
 
+      // 🔥 ניקוי state מקומי
       setUser(null);
-      router.push("/login");
+
+      // 🔥 רענון מלא של ה-App Router
+      router.replace("/login");
+      router.refresh();
     } catch (err) {
       console.error("❌ Logout failed:", err);
     }
