@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useEditorStore } from "./editorStore";
 
 // טאבים קיימים
@@ -14,7 +14,25 @@ import AnimationsTab from "./AnimationsTab";
 interface SidebarProps {
   canvasRef: any;
   googleApiKey: string;
-  activeTab?: string; // ✅ מאפשר קבלת טאב חיצוני ממובייל
+  activeTab?: string; // ✅ מגיע מהתפריט התחתון במובייל: text / blessing / wedding / backgrounds / batmitzvah
+}
+
+type SidebarTab = "text" | "elements" | "shapes" | "backgrounds" | "animations";
+
+function mapActiveToInternalTab(activeTab?: string): SidebarTab {
+  switch (activeTab) {
+    case "blessing":
+      return "elements";
+    case "wedding":
+      return "shapes";
+    case "backgrounds":
+      return "backgrounds";
+    case "batmitzvah":
+      return "animations";
+    case "text":
+    default:
+      return "text";
+  }
 }
 
 export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarProps) {
@@ -26,31 +44,11 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
 
   const selectedObject = objects.find((o) => o.id === selectedId);
 
-  // ✅ סנכרון בין טאב חיצוני (mobileTab) לבין הטאב הפנימי
-  const [tab, setTab] = useState<
-    "text" | "elements" | "shapes" | "backgrounds" | "animations"
-  >("text");
+  const [tab, setTab] = useState<SidebarTab>("text");
 
+  // ✅ סנכרון קשיח: כל שינוי בתפריט התחתון חייב להחליף את הטאב הפנימי
   useEffect(() => {
-    if (activeTab) {
-      switch (activeTab) {
-        case "blessing":
-          setTab("elements");
-          break;
-        case "wedding":
-          setTab("shapes");
-          break;
-        case "backgrounds":
-          setTab("backgrounds");
-          break;
-        case "batmitzvah":
-          setTab("animations");
-          break;
-        case "text":
-        default:
-          setTab("text");
-      }
-    }
+    setTab(mapActiveToInternalTab(activeTab));
   }, [activeTab]);
 
   const [fonts, setFonts] = useState<string[]>([]);
@@ -61,33 +59,45 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
           `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}&sort=alpha`
         );
         const data = await res.json();
-        setFonts(data.items.map((f: any) => f.family));
+        setFonts(Array.isArray(data?.items) ? data.items.map((f: any) => f.family) : []);
       } catch (err) {
         console.error("Error fetching Google Fonts:", err);
       }
     };
-    fetchFonts();
+    if (googleApiKey) fetchFonts();
   }, [googleApiKey]);
 
-  // עדכון ישיר של טקסט על הקנבס
-  const handleChange = (field: string, value: any) => {
-    if (!selectedId) return;
-    updateObject(selectedId, { [field]: value });
+  const handleChange = useCallback(
+    (field: string, value: any) => {
+      if (!selectedId) return;
+      updateObject(selectedId, { [field]: value });
+    },
+    [selectedId, updateObject]
+  );
+
+  // ✅ כשעובדים מהמובייל: אל תתני לטאבים הפנימיים "להתנגש" עם הבחירה מהתפריט התחתון
+  // במובייל הטאב נקבע רק דרך activeTab (התפריט התחתון).
+  const isMobile =
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false;
+
+  const onInternalTabClick = (next: SidebarTab) => {
+    if (isMobile) return; // במובייל לא משנים פה — רק מהתפריט התחתון
+    setTab(next);
   };
 
   return (
-    <aside className="w-72 bg-white border-r shadow-lg h-full flex flex-col">
+    <aside className="w-full md:w-72 bg-white border-r shadow-lg h-full flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
       {/* טאבים בעברית */}
       <div className="flex flex-wrap border-b text-sm font-medium">
-        {[
+        {([
           ["text", "טקסט"],
           ["elements", "ברית/ה"],
           ["shapes", "חתונה"],
           ["backgrounds", "רקעים"],
           ["animations", "בת/מצווה, חינה ועוד"],
-        ].map(([key, label]) => (
+        ] as Array<[SidebarTab, string]>).map(([key, label]) => (
           <button
             key={key}
             className={`flex-1 p-2 text-center border-l first:border-l-0 ${
@@ -95,7 +105,10 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                 ? "bg-purple-100 text-purple-700 font-bold"
                 : "hover:bg-gray-50"
             }`}
-            onClick={() => setTab(key as any)}
+            onClick={() => onInternalTabClick(key)}
+            // במובייל הכפתורים האלה מוצגים רק כויזואל (כמו שראית אצלך),
+            // אבל אנחנו מונעים מהם לשנות את ה-state כדי שלא "יערבבו" טאבים.
+            type="button"
           >
             {label}
           </button>
@@ -111,12 +124,14 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                 <div>
                   <label>פונט</label>
                   <select
-                    value={selectedObject.fontFamily}
+                    value={selectedObject.fontFamily || ""}
                     onChange={(e) => handleChange("fontFamily", e.target.value)}
                     className="w-full border p-2 rounded"
                   >
                     {fonts.map((font) => (
-                      <option key={font}>{font}</option>
+                      <option key={font} value={font}>
+                        {font}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -125,10 +140,8 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                   <label>גודל</label>
                   <input
                     type="number"
-                    value={selectedObject.fontSize}
-                    onChange={(e) =>
-                      handleChange("fontSize", Number(e.target.value))
-                    }
+                    value={Number(selectedObject.fontSize || 40)}
+                    onChange={(e) => handleChange("fontSize", Number(e.target.value))}
                     className="w-full border p-2 rounded"
                   />
                 </div>
@@ -137,15 +150,16 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                   <label>צבע</label>
                   <input
                     type="color"
-                    value={selectedObject.fill}
+                    value={selectedObject.fill || "#000000"}
                     onChange={(e) => handleChange("fill", e.target.value)}
                     className="w-full h-10 border rounded"
                   />
                 </div>
 
                 <button
-                  onClick={() => removeObject(selectedId!)}
+                  onClick={() => selectedId && removeObject(selectedId)}
                   className="w-full bg-red-500 text-white py-2 rounded"
+                  type="button"
                 >
                   מחק טקסט
                 </button>
@@ -155,6 +169,7 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
             <button
               onClick={addText}
               className="w-full bg-purple-600 text-white py-2 rounded"
+              type="button"
             >
               ➕ הוסף טקסט
             </button>
