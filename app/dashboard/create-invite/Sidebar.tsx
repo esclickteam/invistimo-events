@@ -83,12 +83,20 @@ export default function Sidebar({
   }, [googleApiKey]);
 
   const handleChange = useCallback(
-    (field: string, value: any) => {
-      if (!selectedId) return;
-      updateObject(selectedId, { [field]: value });
-    },
-    [selectedId, updateObject]
-  );
+  (field: string, value: any) => {
+    if (!selectedId || !selectedObject) return;
+
+    const affectsLayout =
+      selectedObject.type === "text" &&
+      ["fontSize", "fontFamily", "fontWeight", "align"].includes(field);
+
+    updateObject(selectedId, {
+      [field]: value,
+      ...(affectsLayout ? { height: undefined } : null),
+    });
+  },
+  [selectedId, selectedObject, updateObject]
+);
 
   return (
     <aside className="w-full md:w-72 bg-white border-r shadow-lg h-full flex flex-col">
