@@ -36,15 +36,18 @@ export async function POST(req: Request) {
       user: { _id: user._id, name: user.name, email: user.email },
     });
 
-    // 🔥 חובה: מחיקה לפני יצירה
+    // 🔥 ניקוי טוקן קודם (חשוב במובייל)
     res.cookies.delete("authToken");
 
-    // ✅ Cookie תקין גם במובייל
+    // ✅ Cookie אחד משותף לכל הדומיינים
     res.cookies.set("authToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+
+      // ⭐️ זה הפתרון לבעיה של מובייל / דסקטופ
+      domain: ".invistimo.com",
     });
 
     return res;
