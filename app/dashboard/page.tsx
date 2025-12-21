@@ -146,6 +146,17 @@ async function deleteGuest(guest: Guest) {
   loadGuests();
 }, [invitationId]);
 
+useEffect(() => {
+  if (!invitationId) return;
+
+  const interval = setInterval(() => {
+    loadGuests();
+  }, 5000); // כל 5 שניות
+
+  return () => clearInterval(interval);
+}, [invitationId]);
+
+
   /* ============================================================
      Stats (על כל האורחים)
   ============================================================ */
