@@ -124,6 +124,7 @@ export default function EditInvitePage({
       const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           title: invite.title,
           canvasData,
