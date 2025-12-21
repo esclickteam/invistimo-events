@@ -35,7 +35,6 @@ export interface TextObject {
   x: number;
   y: number;
   width?: number;
-  height?: number;
   text: string;
   fontFamily: string;
   fontSize: number;
@@ -251,6 +250,7 @@ const EditorCanvas = forwardRef(function EditorCanvas(
 useEffect(() => {
   if (!mainLayerRef.current) return;
   console.log("🖼️ Redrawing canvas after objects change");
+
   requestAnimationFrame(() => {
     mainLayerRef.current?.batchDraw();
   });
@@ -421,10 +421,6 @@ useEffect(() => {
 
     updateObject(id, patch);
 
-    // חובה במובייל – הכרחת redraw
-    requestAnimationFrame(() => {
-      mainLayerRef.current?.batchDraw();
-    });
   },
 
   /* =========================================================
@@ -534,8 +530,6 @@ useEffect(() => {
               return (
   <Text
   key={obj.id}
-
-
   name={obj.id}
   className={obj.id}
 
@@ -548,6 +542,9 @@ useEffect(() => {
   fontSize={obj.fontSize ?? 40}
   fill={obj.fill ?? "#000000"}
   align={obj.align ?? "center"}
+  wrap="word"
+  lineHeight={obj.lineHeight || 1.2}
+
 
   /* ✅ fontStyle תקין ל-Konva */
   fontStyle={[
@@ -560,12 +557,8 @@ useEffect(() => {
   /* ✅ underline בלי מחרוזת ריקה */
   textDecoration={obj.underline ? "underline" : undefined}
 
-  /* ✅ width רק אם קיים */
-  width={
-  typeof obj.width === "number"
-    ? obj.width
-    : Math.max(50, (obj.text?.length || 1) * (obj.fontSize ?? 40) * 0.6)
-}
+width={obj.width}
+  
 
   draggable={!isEditingThis}
 
@@ -813,10 +806,11 @@ useEffect(() => {
       ) as TextObject | null) || null
     }
     rect={textInputRect}
-    onLiveChange={({ text, height }) => {
-  updateObject(editingTextId, {
-    text,
-    ...(height ? { height } : {}),
+    onLiveChange={({ text }) => {
+  updateObject(editingTextId, { text });
+
+  requestAnimationFrame(() => {
+    mainLayerRef.current?.batchDraw();
   });
 
   requestAnimationFrame(() => {
