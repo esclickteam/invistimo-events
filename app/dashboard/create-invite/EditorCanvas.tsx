@@ -289,38 +289,23 @@ const EditorCanvas = forwardRef(function EditorCanvas(
      DOUBLE CLICK → TEXT EDIT
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
-  if (obj.type !== "text") return;
+    if (obj.type !== "text") return;
+    const node = stageRef.current?.findOne(`.${obj.id}`);
+    if (!node) return;
 
-  // ❗️מניעת פתיחה כפולה (חשוב במובייל)
-  if (editingTextId === obj.id) return;
+    const stageBox = stageRef.current.container().getBoundingClientRect();
+    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
 
-  const stage = stageRef.current;
-  if (!stage) return;
-
-  const node = stage.findOne(`.${obj.id}`);
-  if (!node) return;
-
-  const stageBox = stage.container().getBoundingClientRect();
-  const r = node.getClientRect({
-    skipShadow: true,
-    skipStroke: true,
-  });
-
-  setTextInputRect({
-    x: stageBox.left + r.x * scale,
-    y: stageBox.top + r.y * scale,
-    width: r.width * scale,
-    height: r.height * scale,
-  });
-
-  // בחירה + סנכרון חיצוני
-  setSelected(obj.id);
-  onSelect(obj);
-
-  // פתיחת עריכה
-  setEditingTextId(obj.id);
-};
-
+    setTextInputRect({
+      x: stageBox.left + r.x * scale,
+      y: stageBox.top + r.y * scale,
+      width: r.width * scale,
+      height: r.height * scale,
+    });
+    setSelected(obj.id);        // 🆕
+    onSelect(obj);              // 🆕
+    setEditingTextId(obj.id);
+  };
 
   /* ============================================================
      DELETE / BACKSPACE
@@ -456,25 +441,24 @@ const EditorCanvas = forwardRef(function EditorCanvas(
     obj.italic ? "italic" : ""
   }`}
   textDecoration={obj.underline ? "underline" : ""}
-  draggable={!isEditingThis && !isMobile}
-
+  draggable={!isEditingThis}
 
   /* 🖥️ Desktop – בחירה */
-  onClick={(e) => {
-  e.cancelBubble = true;
+  onClick={() => {
+    if (!isMobile) handleSelect(obj.id);
+  }}
 
-  if (isMobile) {
+  /* 🖥️ Desktop – דאבל קליק לעריכה */
+  onDblClick={() => {
+    if (!isMobile) handleDblClick(obj);
+  }}
+
+  /* 📱 Mobile – נגיעה אחת = בחירה + עריכה */
+  onTap={(e) => {
+    e.cancelBubble = true; // חשוב!
     handleSelect(obj.id);
-    handleDblClick(obj); // 📱 קליק אחד פותח עריכה
-  } else {
-    handleSelect(obj.id); // 🖥️ רק בחירה
-  }
-}}
-
-onDblClick={() => {
-  if (!isMobile) handleDblClick(obj); // 🖥️ עריכה
-}}
-
+    handleDblClick(obj);
+  }}
 
   onDragEnd={(e) =>
     updateObject(obj.id, {
@@ -632,30 +616,22 @@ listening={true}
             })}
 
             <Transformer
-  ref={transformerRef}
-  visible={!editingTextId}   // 🔥 זה החסר
-
-  rotateEnabled={!isMobile}
-  enabledAnchors={
-    isMobile
-      ? ["middle-left", "middle-right"]
-      : [
-          "top-left",
-          "top-center",
-          "top-right",
-          "middle-left",
-          "middle-right",
-          "bottom-left",
-          "bottom-center",
-          "bottom-right",
-        ]
-  }
-  anchorSize={isMobile ? 18 : 8}
-  anchorCornerRadius={8}
-  borderStroke="#7c3aed"
-  borderStrokeWidth={2}
-  anchorFill="#7c3aed"
-/>
+              ref={transformerRef}
+              rotateEnabled={true}
+              enabledAnchors={[
+                "top-left",
+                "top-center",
+                "top-right",
+                "middle-left",
+                "middle-right",
+                "bottom-left",
+                "bottom-center",
+                "bottom-right",
+              ]}
+              anchorSize={8}
+              borderStroke="#7c3aed"
+              anchorFill="#7c3aed"
+            />
           </Layer>
         </Stage>
       </div>
@@ -680,7 +656,6 @@ listening={true}
         />
       )}
     </div>
-
   );
 });
 
