@@ -19,12 +19,10 @@ export default function GuestSidebar({ onDragStart }) {
   const highlightedGuestIdRaw = searchParams.get("guestId");
   const from = searchParams.get("from");
 
-  // ✅ נרמול חד ערכי
   const highlightedGuestId = highlightedGuestIdRaw
     ? String(highlightedGuestIdRaw)
     : "";
 
-  // ✅ הצגת הדגשה גם מהדשבורד וגם מההושבה האישית
   const shouldHighlightFromUrl =
     (from === "dashboard" || from === "personal") && !!highlightedGuestId;
 
@@ -33,7 +31,7 @@ export default function GuestSidebar({ onDragStart }) {
   =============================== */
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
     return (
-      <div className="w-72 bg-white shadow-xl border-r h-full p-4 text-gray-400">
+      <div className="w-full md:w-72 bg-white border-t md:border-t-0 md:border-r h-[300px] md:h-full p-4 text-gray-400 flex items-center justify-center">
         טוען נתונים...
       </div>
     );
@@ -41,7 +39,6 @@ export default function GuestSidebar({ onDragStart }) {
 
   /* ===============================
      ⭐ מיפוי אורח → שולחן
-     (מקור אמת: tables[].seatedGuests[].guestId)
   =============================== */
   const guestTableMap = useMemo(() => {
     const map = new Map();
@@ -58,8 +55,19 @@ export default function GuestSidebar({ onDragStart }) {
   }, [tables]);
 
   return (
-    <div className="w-72 bg-white shadow-xl border-r h-full overflow-y-auto">
-      <h2 className="text-lg font-bold p-4 border-b">🧾 רשימת אורחים</h2>
+    <div
+      className="
+        w-full md:w-72
+        bg-white
+        border-t md:border-t-0 md:border-r
+        h-[300px] md:h-full
+        overflow-y-auto
+        shadow-none md:shadow-xl
+      "
+    >
+      <h2 className="text-lg font-bold p-4 border-b text-gray-800">
+        🧾 רשימת אורחים
+      </h2>
 
       <ul>
         {guests.map((guest) => {
@@ -71,7 +79,6 @@ export default function GuestSidebar({ onDragStart }) {
             guest._id != null ? String(guest._id) : null,
           ].filter(Boolean);
 
-          // ⭐️ הדגשה אם זה האורח מה-URL
           const isHighlighted =
             shouldHighlightFromUrl &&
             guestIdCandidates.includes(highlightedGuestId);
@@ -84,7 +91,6 @@ export default function GuestSidebar({ onDragStart }) {
                   ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400"
                   : "hover:bg-gray-100"
               } ${!table ? "cursor-grab active:cursor-grabbing" : ""}`}
-              // 🧩 גרירה ידנית – לא HTML drag
               onMouseDown={(e) => {
                 if (!table) {
                   e.preventDefault();
@@ -99,7 +105,6 @@ export default function GuestSidebar({ onDragStart }) {
               }}
             >
               <div>
-                {/* שם האורח */}
                 <div
                   className={`font-medium ${
                     isHighlighted ? "text-yellow-900" : "text-gray-800"
@@ -108,13 +113,14 @@ export default function GuestSidebar({ onDragStart }) {
                   {guest.name}
                 </div>
 
-                {/* כמות מקומות */}
                 <div className="text-xs text-gray-500">
-                  {(guest.confirmedGuestsCount ?? guest.guestsCount ?? guest.count ?? 1)}{" "}
+                  {guest.confirmedGuestsCount ??
+                    guest.guestsCount ??
+                    guest.count ??
+                    1}{" "}
                   מקומות
                 </div>
 
-                {/* שולחן */}
                 <div className="mt-1 text-xs">
                   {table ? (
                     <span className="text-green-600">
@@ -125,7 +131,6 @@ export default function GuestSidebar({ onDragStart }) {
                   )}
                 </div>
 
-                {/* אינדיקציה מקורית */}
                 {isHighlighted && (
                   <div className="mt-1 text-xs font-semibold text-yellow-700">
                     ← אורח שנבחר
@@ -133,7 +138,6 @@ export default function GuestSidebar({ onDragStart }) {
                 )}
               </div>
 
-              {/* כפתור הסרת שיבוץ */}
               {table && (
                 <button
                   onClick={() => removeFromSeat(guestId)}
