@@ -13,7 +13,12 @@ interface SidebarProps {
   activeTab?: string;
 }
 
-type SidebarTab = "text" | "elements" | "shapes" | "backgrounds" | "animations";
+type SidebarTab =
+  | "text"
+  | "elements"
+  | "shapes"
+  | "backgrounds"
+  | "animations";
 
 function mapActiveToInternalTab(activeTab?: string): SidebarTab {
   switch (activeTab) {
@@ -31,12 +36,17 @@ function mapActiveToInternalTab(activeTab?: string): SidebarTab {
   }
 }
 
-export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarProps) {
+export default function Sidebar({
+  canvasRef,
+  googleApiKey,
+  activeTab,
+}: SidebarProps) {
   const selectedId = useEditorStore((s) => s.selectedId);
   const objects = useEditorStore((s) => s.objects);
   const updateObject = useEditorStore((s) => s.updateObject);
   const addText = useEditorStore((s) => s.addText);
   const removeObject = useEditorStore((s) => s.removeObject);
+
   const selectedObject = objects.find((o) => o.id === selectedId);
 
   const [tab, setTab] = useState<SidebarTab>("text");
@@ -46,12 +56,8 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => setIsMobile(mq.matches);
     apply();
-    if (mq.addEventListener) mq.addEventListener("change", apply);
-    else mq.addListener(apply);
-    return () => {
-      if (mq.removeEventListener) mq.removeEventListener("change", apply);
-      else mq.removeListener(apply);
-    };
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
   }, []);
 
   useEffect(() => {
@@ -60,18 +66,20 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
 
   const [fonts, setFonts] = useState<string[]>([]);
   useEffect(() => {
-    const fetchFonts = async () => {
-      try {
-        const res = await fetch(
-          `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}&sort=alpha`
-        );
-        const data = await res.json();
-        setFonts(Array.isArray(data?.items) ? data.items.map((f: any) => f.family) : []);
-      } catch (err) {
-        console.error("Error fetching Google Fonts:", err);
-      }
-    };
-    if (googleApiKey) fetchFonts();
+    if (!googleApiKey) return;
+
+    fetch(
+      `https://www.googleapis.com/webfonts/v1/webfonts?key=${googleApiKey}&sort=alpha`
+    )
+      .then((r) => r.json())
+      .then((data) =>
+        setFonts(
+          Array.isArray(data?.items)
+            ? data.items.map((f: any) => f.family)
+            : []
+        )
+      )
+      .catch(console.error);
   }, [googleApiKey]);
 
   const handleChange = useCallback(
@@ -82,16 +90,11 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
     [selectedId, updateObject]
   );
 
-  const onInternalTabClick = (next: SidebarTab) => {
-    if (isMobile) return;
-    setTab(next);
-  };
-
   return (
     <aside className="w-full md:w-72 bg-white border-r shadow-lg h-full flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
-      {/* טאבים בעברית */}
+      {/* טאבים */}
       <div className="flex flex-wrap border-b text-sm font-medium">
         {([
           ["text", "טקסט"],
@@ -103,39 +106,39 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
           <button
             key={key}
             type="button"
-            onClick={() => onInternalTabClick(key)}
+            onClick={() => !isMobile && setTab(key)}
             className={`flex-1 p-2 text-center border-l first:border-l-0 ${
               tab === key
                 ? "bg-purple-100 text-purple-700 font-bold"
                 : "hover:bg-gray-50"
-            } ${isMobile ? "cursor-default" : ""}`}
+            }`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {/* תוכן כל טאב */}
+      {/* תוכן */}
       <div className="flex-1 overflow-y-auto p-3">
         {tab === "text" && (
           <div className="space-y-4">
-            {/* תמיד מציג כפתור הוספת טקסט */}
             <button
-              type="button"
               onClick={addText}
               className="w-full bg-purple-600 text-white py-2 rounded font-semibold"
             >
               ➕ הוסף טקסט
             </button>
 
-            {/* עורך טקסט רק כשנבחר טקסט */}
             {selectedObject?.type === "text" && (
               <div className="p-3 border bg-gray-50 rounded space-y-4">
+                {/* פונט */}
                 <div>
                   <label className="block text-sm mb-1">פונט</label>
                   <select
-                    value={selectedObject.fontFamily || ""}
-                    onChange={(e) => handleChange("fontFamily", e.target.value)}
+                    value={selectedObject.fontFamily}
+                    onChange={(e) =>
+                      handleChange("fontFamily", e.target.value)
+                    }
                     className="w-full border p-2 rounded"
                   >
                     {fonts.map((font) => (
@@ -146,61 +149,73 @@ export default function Sidebar({ canvasRef, googleApiKey, activeTab }: SidebarP
                   </select>
                 </div>
 
+                {/* גודל */}
                 <div>
                   <label className="block text-sm mb-1">גודל</label>
                   <input
                     type="number"
-                    value={Number(selectedObject.fontSize || 40)}
-                    onChange={(e) => handleChange("fontSize", Number(e.target.value))}
+                    value={selectedObject.fontSize}
+                    onChange={(e) =>
+                      handleChange("fontSize", Number(e.target.value))
+                    }
                     className="w-full border p-2 rounded"
                   />
                 </div>
 
+                {/* צבע */}
                 <div>
                   <label className="block text-sm mb-1">צבע</label>
                   <input
                     type="color"
                     value={selectedObject.fill || "#000000"}
-                    onChange={(e) => handleChange("fill", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("fill", e.target.value)
+                    }
                     className="w-full h-10 border rounded"
                   />
                 </div>
 
-                {/* 🅱 עיצוב טקסט */}
+                {/* עיצוב */}
                 <div className="flex gap-2">
                   <button
                     className={`border px-3 py-1 rounded ${
-                      selectedObject.fontWeight === "bold" ? "bg-gray-200" : ""
+                      selectedObject.fontWeight === "bold"
+                        ? "bg-gray-200"
+                        : ""
                     }`}
                     onClick={() =>
                       handleChange(
                         "fontWeight",
-                        selectedObject.fontWeight === "bold" ? "normal" : "bold"
+                        selectedObject.fontWeight === "bold"
+                          ? "normal"
+                          : "bold"
                       )
                     }
                   >
                     <b>B</b>
                   </button>
 
-                  {["left", "center", "right"].map((align) => (
+                  {/* ✅ סדר RTL נכון */}
+                  {[
+                    { key: "right", label: "ימין" },
+                    { key: "center", label: "מרכז" },
+                    { key: "left", label: "שמאל" },
+                  ].map(({ key, label }) => (
                     <button
-                      key={align}
+                      key={key}
                       className={`border px-3 py-1 rounded ${
-                        selectedObject.align === align ? "bg-gray-200" : ""
+                        selectedObject.align === key
+                          ? "bg-gray-200"
+                          : ""
                       }`}
-                      onClick={() => handleChange("align", align)}
+                      onClick={() => handleChange("align", key)}
                     >
-                      {align === "left"
-                        ? "שמאל"
-                        : align === "center"
-                        ? "מרכז"
-                        : "ימין"}
+                      {label}
                     </button>
                   ))}
                 </div>
 
                 <button
-                  type="button"
                   onClick={() => selectedId && removeObject(selectedId)}
                   className="w-full bg-red-500 text-white py-2 rounded"
                 >
