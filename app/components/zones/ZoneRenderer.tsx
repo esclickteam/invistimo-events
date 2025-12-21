@@ -18,7 +18,7 @@ export default function ZoneRenderer({ zone }: Props) {
 
   const isSelected = selectedZoneId === zone.id;
 
-  /* חיבור ה-Transformer רק כשנבחר */
+  /* חיבור Transformer רק כשנבחר */
   useEffect(() => {
     if (isSelected && groupRef.current && trRef.current) {
       trRef.current.nodes([groupRef.current]);
@@ -38,22 +38,15 @@ export default function ZoneRenderer({ zone }: Props) {
           e.cancelBubble = true;
           setSelectedZone(zone.id);
         }}
-        onDragStart={(e) => (e.cancelBubble = true)}
-        onDragMove={(e) => (e.cancelBubble = true)}
+        onTap={(e) => {
+          e.cancelBubble = true; // 👈 חובה למובייל
+          setSelectedZone(zone.id);
+        }}
         onDragEnd={(e) => {
           e.cancelBubble = true;
           updateZone(zone.id, {
             x: e.target.x(),
             y: e.target.y(),
-          });
-        }}
-        onTransformEnd={() => {
-          const node = groupRef.current;
-          if (!node) return;
-
-          // ✅ נשמרת רק הזווית החדשה, בלי לשנות כלום אחר
-          updateZone(zone.id, {
-            rotation: node.rotation(),
           });
         }}
       >
@@ -66,6 +59,7 @@ export default function ZoneRenderer({ zone }: Props) {
           stroke={isSelected ? "#2563eb" : "#374151"}
           strokeWidth={isSelected ? 2 : 1}
         />
+
         <Text
           text={`${zone.icon} ${zone.name}`}
           fontSize={18}
@@ -83,9 +77,38 @@ export default function ZoneRenderer({ zone }: Props) {
           ref={trRef}
           rotateEnabled={true}
           rotationSnaps={[]} // 🌀 סיבוב חופשי
-          enabledAnchors={[]} // ❗ אין שינוי גודל
-          anchorSize={8}
+          enabledAnchors={[
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right",
+          ]}
+          anchorSize={16} // 👆 נוח גם למובייל
           borderStroke="#2563eb"
+          boundBoxFunc={(oldBox, newBox) => {
+            // ⛔ מינימום גודל
+            if (newBox.width < 120 || newBox.height < 80) {
+              return oldBox;
+            }
+            return newBox;
+          }}
+          onTransformEnd={() => {
+            const node = groupRef.current;
+            if (!node) return;
+
+            const scaleX = node.scaleX();
+            const scaleY = node.scaleY();
+
+            // ⚠️ מנקים scale כדי לא לשבור future transforms
+            node.scaleX(1);
+            node.scaleY(1);
+
+            updateZone(zone.id, {
+              width: Math.max(120, zone.width * scaleX),
+              height: Math.max(80, zone.height * scaleY),
+              rotation: node.rotation(),
+            });
+          }}
         />
       )}
     </>
