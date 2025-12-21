@@ -597,13 +597,13 @@ if (isMobile) {
   onTap={(e) => {
   e.cancelBubble = true;
 
-  // 📱 אם לא בעריכה → זה Tap לבחירה (מחיקה)
-  if (!editingTextId) {
+  // 📱 Tap ראשון – בחירה
+  if (selectedId !== obj.id) {
     handleSelect(obj.id);
     return;
   }
 
-  // 📱 אם כבר נבחר → עריכה
+  // 📱 Tap שני על אותו אלמנט – עריכה
   startEditText(obj as TextObject);
 }}
 
