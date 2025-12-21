@@ -159,8 +159,6 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const longPressTimer = useRef<number | null>(null);
-
 
   const objects = useEditorStore((s) => s.objects as EditorObject[]);
   const selectedId = useEditorStore((s) => s.selectedId);
@@ -170,34 +168,12 @@ const EditorCanvas = forwardRef(function EditorCanvas(
   const removeObject = useEditorStore((s) => s.removeObject);
   const setObjects = useEditorStore((s) => s.setObjects);
 
-  const selectedText = useMemo(() => {
-  return objects.find(
-    (o) => o.id === selectedId && o.type === "text"
-  ) as TextObject | undefined;
-}, [objects, selectedId]);
-
   const scale = useEditorStore((s) => s.scale);
   const setScale = useEditorStore((s) => s.setScale);
 
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [textInputRect, setTextInputRect] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-
-  useEffect(() => {
-  if (mobileSheetOpen && !selectedText) {
-    setMobileSheetOpen(false);
-  }
-}, [mobileSheetOpen, selectedText]);
-
-const [isMobile, setIsMobile] = useState(false);
-
-useEffect(() => {
-  const check = () => setIsMobile(window.innerWidth < 768);
-  check();
-  window.addEventListener("resize", check);
-  return () => window.removeEventListener("resize", check);
-}, []);
 
 
   /* ============================================================
@@ -291,75 +267,35 @@ useEffect(() => {
      SELECTION HANDLING
   ============================================================ */
   const handleSelect = (id: string | null) => {
-  setSelected(id);
-  const obj = objects.find((o) => o.id === id) || null;
-  onSelect(obj);
+    setSelected(id);
+    const obj = objects.find((o) => o.id === id) || null;
+    onSelect(obj);
 
-  const node = id ? stageRef.current?.findOne(`.${id}`) : null;
-  if (transformerRef.current) {
-    transformerRef.current.nodes(node ? [node] : []);
-  }
-
-  // ✅ חדש – במובייל פותחים תפריט תחתון
-  if (obj && isMobile) {
-  setMobileSheetOpen(true);
-}
-};
-
+    const node = id ? stageRef.current?.findOne(`.${id}`) : null;
+    if (transformerRef.current) {
+      transformerRef.current.nodes(node ? [node] : []);
+    }
+  };
 
   /* ============================================================
      DOUBLE CLICK → TEXT EDIT
   ============================================================ */
   const handleDblClick = (obj: EditorObject) => {
-  if (obj.type !== "text") return;
+    if (obj.type !== "text") return;
+    const node = stageRef.current?.findOne(`.${obj.id}`);
+    if (!node) return;
 
-  // 📱 מובייל – לא overlay, פותחים תפריט תחתון
-  if (isMobile) {
-    setSelected(obj.id);
-    setMobileSheetOpen(true);
-    return;
-  }
+    const stageBox = stageRef.current.container().getBoundingClientRect();
+    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
 
-  // 🖥 דסקטופ – עריכה רגילה עם overlay
-  const node = stageRef.current?.findOne(`.${obj.id}`);
-  if (!node) return;
-
-  const stageBox = stageRef.current.container().getBoundingClientRect();
-  const r = node.getClientRect({ skipShadow: true, skipStroke: true });
-
-  setTextInputRect({
-    x: stageBox.left + r.x * scale,
-    y: stageBox.top + r.y * scale,
-    width: r.width * scale,
-    height: r.height * scale,
-  });
-
-  setEditingTextId(obj.id);
-};
-
-
-  const handleTouchStart = (obj: EditorObject) => {
-  if (obj.type !== "text") return;
-
-  longPressTimer.current = window.setTimeout(() => {
-    handleDblClick(obj);
-  }, 500); // לחיצה ארוכה = עריכה
-};
-
-const handleTouchEnd = () => {
-  if (longPressTimer.current) {
-    clearTimeout(longPressTimer.current);
-    longPressTimer.current = null;
-  }
-};
-
-const handleTouchMove = () => {
-  if (longPressTimer.current) {
-    clearTimeout(longPressTimer.current);
-    longPressTimer.current = null;
-  }
-};
-
+    setTextInputRect({
+      x: stageBox.left + r.x * scale,
+      y: stageBox.top + r.y * scale,
+      width: r.width * scale,
+      height: r.height * scale,
+    });
+    setEditingTextId(obj.id);
+  };
 
   /* ============================================================
      DELETE / BACKSPACE
@@ -435,63 +371,56 @@ const handleTouchMove = () => {
               const isEditingThis = editingTextId === obj.id;
 
               if (obj.type === "text") {
-  loadFont(obj.fontFamily);
-  return (
-    <Text
-      key={obj.id}
-      name={obj.id}
-      className={obj.id}
-      x={obj.x}
-      y={obj.y}
-      rotation={obj.rotation || 0}
-      text={obj.text}
-      fontFamily={obj.fontFamily}
-      fontSize={obj.fontSize}
-      width={obj.width}
-      fill={obj.fill}
-      align={obj.align}
-      wrap="none"
-      fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
-        obj.italic ? "italic" : ""
-      }`}
-      textDecoration={obj.underline ? "underline" : ""}
-      draggable={!isEditingThis}
-
-      onClick={() => handleSelect(obj.id)}
-      onDblClick={() => handleDblClick(obj)}     // 🖥 דסקטופ
-
-      onTouchStart={() => handleTouchStart(obj)} // 📱 מובייל (לחיצה ארוכה)
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchMove} 
-
-      onDragEnd={(e) =>
-        updateObject(obj.id, {
-          x: e.target.x(),
-          y: e.target.y(),
-        })
-      }
-      onTransformEnd={(e) => {
-        const node = e.target;
-        const scaleX = node.scaleX();
-        const scaleY = node.scaleY();
-        const baseWidth =
-          typeof obj.width === "number" ? obj.width : node.width();
-        updateObject(obj.id, {
-          x: node.x(),
-          y: node.y(),
-          rotation: node.rotation(),
-          width: Math.max(20, baseWidth * scaleX),
-          fontSize: Math.max(5, obj.fontSize * scaleY),
-        });
-        node.scaleX(1);
-        node.scaleY(1);
-      }}
-      opacity={isEditingThis ? 0 : 1}
-      listening={!isEditingThis}
-    />
-  );
-}
-
+                loadFont(obj.fontFamily);
+                return (
+                  <Text
+                    key={obj.id}
+                    name={obj.id}
+                    className={obj.id}
+                    x={obj.x}
+                    y={obj.y}
+                    rotation={obj.rotation || 0}
+                    text={obj.text}
+                    fontFamily={obj.fontFamily}
+                    fontSize={obj.fontSize}
+                    width={obj.width}
+                    fill={obj.fill}
+                    align={obj.align}
+                    wrap="none"
+                    fontStyle={`${obj.fontWeight === "bold" ? "bold" : ""} ${
+                      obj.italic ? "italic" : ""
+                    }`}
+                    textDecoration={obj.underline ? "underline" : ""}
+                    draggable={!isEditingThis}
+                    onClick={() => handleSelect(obj.id)}
+                    onDblClick={() => handleDblClick(obj)}
+                    onDragEnd={(e) =>
+                      updateObject(obj.id, {
+                        x: e.target.x(),
+                        y: e.target.y(),
+                      })
+                    }
+                    onTransformEnd={(e) => {
+                      const node = e.target;
+                      const scaleX = node.scaleX();
+                      const scaleY = node.scaleY();
+                      const baseWidth =
+                        typeof obj.width === "number" ? obj.width : node.width();
+                      updateObject(obj.id, {
+                        x: node.x(),
+                        y: node.y(),
+                        rotation: node.rotation(),
+                        width: Math.max(20, baseWidth * scaleX),
+                        fontSize: Math.max(5, obj.fontSize * scaleY),
+                      });
+                      node.scaleX(1);
+                      node.scaleY(1);
+                    }}
+                    opacity={isEditingThis ? 0 : 1}
+                    listening={!isEditingThis}
+                  />
+                );
+              }
 
               if (obj.type === "rect") {
                 return (
@@ -635,111 +564,21 @@ const handleTouchMove = () => {
         </Stage>
       </div>
 
-      {editingTextId && !isMobile && (
-  <EditableTextOverlay
-    obj={
-      (objects.find(
-        (o) => o.id === editingTextId && o.type === "text"
-      ) as TextObject | null) || null
-    }
-    rect={textInputRect}
-    onFinish={(txt) => {
-      updateObject(editingTextId, { text: txt });
-      setEditingTextId(null);
-    }}
-  />
-)}
-
-{mobileSheetOpen && selectedId && (
-  <div className="fixed inset-0 z-50 flex items-end md:hidden">
-    {/* backdrop */}
-    <div
-      className="absolute inset-0 bg-black/30"
-      onClick={() => setMobileSheetOpen(false)}
-    />
-
-    {/* bottom sheet */}
-    <div className="relative w-full bg-white rounded-t-2xl p-4">
-      <div className="flex justify-between items-center mb-4">
-        <span className="font-semibold">עריכת טקסט</span>
-        <button onClick={() => setMobileSheetOpen(false)}>✕</button>
-      </div>
-
-      <div className="space-y-4">
-  {/* עריכת טקסט */}
-  {selectedText && (
-    <input
-      value={selectedText.text}
-      onChange={(e) =>
-        updateObject(selectedText.id, { text: e.target.value })
-      }
-      className="w-full border rounded-lg px-3 py-2 text-sm"
-      placeholder="עריכת טקסט…"
-    />
-  )}
-
-  {/* גודל פונט */}
-  {selectedText && (
-    <div>
-      <label className="block text-xs text-gray-500 mb-1">
-        גודל טקסט
-      </label>
-      <input
-        type="range"
-        min={10}
-        max={80}
-        value={selectedText.fontSize}
-        onChange={(e) =>
-          updateObject(selectedText.id, {
-            fontSize: Number(e.target.value),
-          })
-        }
-        className="w-full"
-      />
+      {editingTextId && (
+        <EditableTextOverlay
+          obj={
+            (objects.find(
+              (o) => o.id === editingTextId && o.type === "text"
+            ) as TextObject | null) || null
+          }
+          rect={textInputRect}
+          onFinish={(txt) => {
+            updateObject(editingTextId, { text: txt });
+            setEditingTextId(null);
+          }}
+        />
+      )}
     </div>
-  )}
-
-  {/* צבע טקסט */}
-  {selectedText && (
-    <div>
-      <label className="block text-xs text-gray-500 mb-1">
-        צבע טקסט
-      </label>
-      <input
-        type="color"
-        value={selectedText.fill || "#000000"}
-        onChange={(e) =>
-          updateObject(selectedText.id, { fill: e.target.value })
-        }
-        className="w-12 h-10 p-0 border rounded"
-      />
-    </div>
-  )}
-
-  {/* מחיקה */}
-  {selectedText && (
-    <button
-      className="text-red-500 text-sm mt-2"
-      onClick={() => {
-        removeObject(selectedText.id);
-        setMobileSheetOpen(false);
-      }}
-    >
-      מחק טקסט
-    </button>
-  )}
-</div>
-
-
-
-    </div>
-  </div>
-)}
-
-
-    </div>
-
-    
   );
 });
 
