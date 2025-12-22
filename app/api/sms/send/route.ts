@@ -2,10 +2,69 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
+import User from "@/models/User";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   await dbConnect();
 
+  /* ======================================================
+     AUTH – זיהוי משתמש
+  ====================================================== */
+  const cookieStore = await cookies();
+  const token = cookieStore.get("authToken")?.value;
+
+  if (!token) {
+    return NextResponse.json(
+      { success: false, error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
+  }
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET!);
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "INVALID_TOKEN" },
+      { status: 401 }
+    );
+  }
+
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    return NextResponse.json(
+      { success: false, error: "USER_NOT_FOUND" },
+      { status: 401 }
+    );
+  }
+
+  /* ======================================================
+     TRIAL / SMS LIMIT GUARD (🔥 קריטי)
+  ====================================================== */
+  if (user.isTrial) {
+    if (
+      user.trialExpiresAt &&
+      new Date() > user.trialExpiresAt
+    ) {
+      return NextResponse.json(
+        { success: false, error: "TRIAL_EXPIRED" },
+        { status: 403 }
+      );
+    }
+
+    if (user.smsUsed >= user.planLimits.smsLimit) {
+      return NextResponse.json(
+        { success: false, error: "SMS_LIMIT_REACHED" },
+        { status: 403 }
+      );
+    }
+  }
+
+  /* ======================================================
+     BODY
+  ====================================================== */
   const { invitationId, filter, text } = await req.json();
 
   if (!invitationId || !text) {
@@ -23,8 +82,9 @@ export async function POST(req: Request) {
     );
   }
 
-  /* ================= סינון אורחים ================= */
-
+  /* ======================================================
+     סינון אורחים
+  ====================================================== */
   const query: any = { invitationId };
 
   if (filter === "pending") query.rsvp = "pending";
@@ -40,22 +100,42 @@ export async function POST(req: Request) {
     });
   }
 
-  let sent = 0;
+  /* ======================================================
+     חישוב כמה מותר לשלוח (Trial-safe)
+  ====================================================== */
+  let allowedToSend = guests.length;
 
-  /* ================= בניית ניווט ================= */
+  if (user.isTrial) {
+    const remaining = user.planLimits.smsLimit - user.smsUsed;
+    allowedToSend = Math.max(0, Math.min(remaining, guests.length));
+  }
 
+  if (allowedToSend === 0) {
+    return NextResponse.json(
+      { success: false, error: "SMS_LIMIT_REACHED" },
+      { status: 403 }
+    );
+  }
+
+  const guestsToSend = guests.slice(0, allowedToSend);
+
+  /* ======================================================
+     בניית ניווט
+  ====================================================== */
   const hasLocation =
     invitation.location?.lat && invitation.location?.lng;
 
   const navigationLink = hasLocation
-  ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
-    `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
-  : "";
+    ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
+      `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+    : "";
 
-  /* ================= שליחה ================= */
+  /* ======================================================
+     שליחה
+  ====================================================== */
+  let sent = 0;
 
-  for (const guest of guests) {
-    /* ---------- נרמול טלפון ---------- */
+  for (const guest of guestsToSend) {
     let phone = (guest.phone || "").replace(/\D/g, "");
     if (!phone) continue;
 
@@ -65,7 +145,6 @@ export async function POST(req: Request) {
       phone = "972" + phone;
     }
 
-    /* ---------- בניית טקסט ---------- */
     let finalText = text
       .replace(/{{name}}/g, guest.name || "")
       .replace(
@@ -77,7 +156,6 @@ export async function POST(req: Request) {
 
     if (!finalText.trim()) continue;
 
-    /* ---------- שליחה ---------- */
     const payload = {
       key: process.env.SMS4FREE_KEY,
       user: process.env.SMS4FREE_USER,
@@ -107,16 +185,15 @@ export async function POST(req: Request) {
           data?.message === "OK" ||
           data);
 
-      if (isSuccess) {
-        sent++;
-      }
+      if (isSuccess) sent++;
     } catch (err) {
       console.error("❌ SMS SEND ERROR:", err);
     }
   }
 
-  /* ================= עדכון DB ================= */
-
+  /* ======================================================
+     עדכון DB + Cookies
+  ====================================================== */
   if (sent > 0) {
     await Invitation.updateOne(
       { _id: invitationId },
@@ -127,11 +204,26 @@ export async function POST(req: Request) {
         },
       }
     );
+
+    await User.findByIdAndUpdate(user._id, {
+      $inc: { smsUsed: sent },
+    });
+
+    // 🔄 סנכרון cookie למiddleware
+    cookieStore.set("smsUsed", String(user.smsUsed + sent), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      domain: ".invistimo.com",
+      maxAge: 60 * 60,
+    });
   }
 
   return NextResponse.json({
     success: true,
     sent,
     total: guests.length,
+    limited: sent < guests.length,
   });
 }

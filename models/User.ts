@@ -8,6 +8,8 @@ export interface IUser extends Document {
   email: string;
   password: string;
 
+  role: "user" | "photographer" | "admin";
+
   plan: "basic" | "premium";
   guests: number;
   paidAmount: number;
@@ -15,13 +17,26 @@ export interface IUser extends Document {
   planLimits: {
     maxGuests: number;
     smsEnabled: boolean;
+    smsLimit: number;        // 🔥 חדש
     seatingEnabled: boolean;
     remindersEnabled: boolean;
   };
 
+  // 📊 שימוש בפועל
+  smsUsed: number;           // 🔥 חדש
+
+  // 🧪 TRIAL / DEMO
+  isTrial: boolean;
+  trialStartedAt?: Date;
+  trialExpiresAt?: Date;
+  isDemoUser?: boolean;
+
   // 🔐 RESET PASSWORD
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /* ============================================================
@@ -35,22 +50,43 @@ function safeLevel(value: any) {
 }
 
 function applyPlanRules(user: IUser) {
+  // 🧪 TRIAL – הכל פתוח, SMS עד 10
+  if (user.isTrial) {
+    user.plan = "premium";
+    user.guests = 1000;
+
+    user.planLimits = {
+      maxGuests: 1000,
+      smsEnabled: true,
+      smsLimit: 10, // 🔥 כאן ההגבלה
+      seatingEnabled: true,
+      remindersEnabled: true,
+    };
+
+    user.smsUsed = user.smsUsed ?? 0;
+    return;
+  }
+
   const level = safeLevel(user.guests);
 
   if (user.plan === "basic") {
     user.guests = 100;
     user.paidAmount = user.paidAmount || 49;
+
     user.planLimits = {
       maxGuests: 100,
       smsEnabled: true,
+      smsLimit: 100, // או מה שיש לך היום
       seatingEnabled: false,
       remindersEnabled: true,
     };
   } else {
     user.guests = level;
+
     user.planLimits = {
       maxGuests: level,
       smsEnabled: true,
+      smsLimit: Infinity as any, // ללא הגבלה
       seatingEnabled: true,
       remindersEnabled: true,
     };
@@ -74,6 +110,12 @@ const UserSchema = new Schema<IUser>(
 
     password: { type: String, required: true },
 
+    role: {
+      type: String,
+      enum: ["user", "photographer", "admin"],
+      default: "user",
+    },
+
     plan: {
       type: String,
       enum: ["basic", "premium"],
@@ -81,42 +123,58 @@ const UserSchema = new Schema<IUser>(
     },
 
     guests: { type: Number, default: 100 },
-
     paidAmount: { type: Number, default: 49 },
 
     planLimits: {
       maxGuests: { type: Number, default: 100 },
       smsEnabled: { type: Boolean, default: true },
+      smsLimit: { type: Number, default: 100 }, // 🔥 חדש
       seatingEnabled: { type: Boolean, default: false },
       remindersEnabled: { type: Boolean, default: true },
     },
 
-    // 🔐 RESET PASSWORD FIELDS
-    resetPasswordToken: {
-      type: String,
-      index: true,
-    },
-    resetPasswordExpires: {
-      type: Date,
-    },
+    smsUsed: { type: Number, default: 0 }, // 🔥 חדש
+
+    // 🧪 TRIAL / DEMO
+    isTrial: { type: Boolean, default: false },
+    trialStartedAt: Date,
+    trialExpiresAt: Date,
+    isDemoUser: { type: Boolean, default: false },
+
+    // 🔐 RESET PASSWORD
+    resetPasswordToken: { type: String, index: true },
+    resetPasswordExpires: Date,
   },
   { timestamps: true }
 );
 
 /* ============================================================
-   AUTO LOGIC: לפני שמירה (create / save)
+   AUTO LOGIC: לפני save
 ============================================================ */
 UserSchema.pre("save", function () {
-  applyPlanRules(this as unknown as IUser);
+  applyPlanRules(this as IUser);
 });
 
 /* ============================================================
-   AUTO LOGIC: לפני עדכון (findOneAndUpdate)
+   AUTO LOGIC: לפני findOneAndUpdate
 ============================================================ */
 UserSchema.pre("findOneAndUpdate", function () {
   const rawUpdate = (this as any).getUpdate() || {};
   const isUsingSet = !!rawUpdate.$set;
   const update = isUsingSet ? rawUpdate.$set : rawUpdate;
+
+  if (update.isTrial === true) {
+    update.plan = "premium";
+    update.guests = 1000;
+    update.planLimits = {
+      maxGuests: 1000,
+      smsEnabled: true,
+      smsLimit: 10,
+      seatingEnabled: true,
+      remindersEnabled: true,
+    };
+    update.smsUsed = update.smsUsed ?? 0;
+  }
 
   const plan = update.plan;
   const guests = update.guests;
@@ -131,6 +189,7 @@ UserSchema.pre("findOneAndUpdate", function () {
       update.planLimits = {
         maxGuests: 100,
         smsEnabled: true,
+        smsLimit: 100,
         seatingEnabled: false,
         remindersEnabled: true,
       };
@@ -140,14 +199,15 @@ UserSchema.pre("findOneAndUpdate", function () {
       update.planLimits = {
         maxGuests: level,
         smsEnabled: true,
+        smsLimit: Infinity as any,
         seatingEnabled: true,
         remindersEnabled: true,
       };
     }
-
-    if (isUsingSet) rawUpdate.$set = update;
-    (this as any).setUpdate(rawUpdate);
   }
+
+  if (isUsingSet) rawUpdate.$set = update;
+  (this as any).setUpdate(rawUpdate);
 });
 
 /* ============================================================
