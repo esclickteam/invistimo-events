@@ -15,7 +15,7 @@ type TextEditorPanelProps = {
     fontSize?: number;
     fill?: string;
     fontStyle?: string;
-    align?: "left" | "center" | "right";
+    align?: string;
   } | null;
 
   onApply: (patch: Record<string, any>) => void;
