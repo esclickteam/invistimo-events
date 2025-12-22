@@ -52,17 +52,18 @@ export default function ZoomControl({ canvasRef }: ZoomControlProps) {
   };
 
   return (
-    <div
-      className="
-        fixed bottom-4 left-1/2 -translate-x-1/2
-        z-50
-        bg-white
-        shadow-lg
-        rounded-full
-        px-3 py-2
-        flex items-center gap-3
-      "
-    >
+  <div
+    className="
+      fixed bottom-6 right-6
+      z-50
+      bg-white
+      shadow-lg
+      rounded-full
+      px-3 py-2
+      flex items-center gap-3
+    "
+  >
+
       {/* ➖ Zoom out */}
       <button
         onClick={zoomOut}
