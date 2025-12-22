@@ -3,8 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import EditorCanvas from "../../create-invite/EditorCanvas";
+import EditorCanvas, {
+  type EditorCanvasRef,
+} from "../../create-invite/EditorCanvas";
 import Sidebar from "../../create-invite/Sidebar";
+import ZoomControl from "../../create-invite/ZoomControl";
 
 import MobileBottomNav, {
   type MobileNavTab,
@@ -24,14 +27,6 @@ type EditorObject = {
   id: string;
   type: string;
   [key: string]: any;
-};
-
-type EditorCanvasRef = {
-  getCanvasData?: () => any;
-  uploadBackground?: (file: File) => void;
-  addText?: () => void;
-  updateSelected?: (patch: Record<string, any>) => void;
-  deleteSelected?: () => void;
 };
 
 /* =========================================================
@@ -184,33 +179,6 @@ export default function EditInvitePage({
   }, [selectedObject]);
 
   /* =========================================================
-     Mobile Nav
-  ========================================================= */
-  const onChangeMobileTab = (tab: MobileNavTab) => {
-    if (tab === mobileTab) {
-      setSheetOpen((v) => !v);
-      return;
-    }
-    setMobileTab(tab);
-    setSheetOpen(true);
-  };
-
-  const mobileSheetTitle = (() => {
-    switch (mobileTab) {
-      case "backgrounds":
-        return "רקעים";
-      case "wedding":
-        return "חתונה";
-      case "blessing":
-        return "ברית / בריתה";
-      case "batmitzvah":
-        return "בת / מצווה";
-      default:
-        return "";
-    }
-  })();
-
-  /* =========================================================
      Loading
   ========================================================= */
   if (!inviteId || loading || !invite) {
@@ -229,45 +197,6 @@ export default function EditInvitePage({
         </div>
 
         <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* Top Bar */}
-          <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
-            <button
-              onClick={() => uploadInputRef.current?.click()}
-              className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
-            >
-              ⬆️ העלאה
-            </button>
-
-            <input
-              ref={uploadInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleUploadInvitation(file);
-                e.currentTarget.value = "";
-              }}
-            />
-
-            <div className="flex-1" />
-
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className={`px-5 py-2 rounded-full text-white text-sm ${
-                saving
-                  ? "bg-gray-400"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-            >
-              {saving ? "שומר..." : "💾 שמור"}
-            </button>
-          </div>
-
-          {/* Desktop Toolbar */}
-          
-
           {/* Canvas */}
           <div className="flex-1 relative bg-gray-100">
             <div className="absolute inset-0 pb-24 md:pb-0">
@@ -277,6 +206,9 @@ export default function EditInvitePage({
                 onSelect={setSelectedObject}
               />
             </div>
+
+            {/* 🔍 Zoom Control — צף מעל הקנבס */}
+            <ZoomControl canvasRef={canvasRef} />
           </div>
 
           {/* Mobile Add Text */}
@@ -290,13 +222,13 @@ export default function EditInvitePage({
           {/* Mobile Nav */}
           <MobileBottomNav
             active={mobileTab}
-            onChange={onChangeMobileTab}
+            onChange={setMobileTab}
           />
 
           {/* Mobile Sheet */}
           <MobileBottomSheet
             open={sheetOpen}
-            title={mobileSheetTitle}
+            title=""
             onClose={() => setSheetOpen(false)}
             height="42vh"
           >

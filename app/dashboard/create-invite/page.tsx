@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import ZoomControl from "./ZoomControl";
 
 import EditorCanvas from "./EditorCanvas";
 import Sidebar from "./Sidebar";
@@ -237,10 +238,16 @@ export default function CreateInvitePage() {
 
           {/* ===== Canvas ===== */}
           <div className="flex-1 relative bg-gray-100">
-            <div className="absolute inset-0 pb-24 md:pb-0">
-              <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
-            </div>
-          </div>
+  {/* Editor Canvas */}
+  <div className="absolute inset-0 pb-24 md:pb-0">
+    <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
+  </div>
+
+  {/* Zoom Control */}
+  <div className="absolute top-4 right-4 z-50">
+    <ZoomControl canvasRef={canvasRef} />
+  </div>
+</div>
 
           {/* ===== Floating Add Text Button (Mobile) ===== */}
           <button

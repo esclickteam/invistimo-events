@@ -90,6 +90,19 @@ interface EditorCanvasProps {
   initialData?: { objects: EditorObject[] };
 }
 
+export interface EditorCanvasRef {
+  getCanvasData?: () => any;
+  uploadBackground?: (file: File) => void;
+  addText?: () => void;
+  updateSelected?: (patch: Record<string, any>) => void;
+  deleteSelected?: () => void;
+
+  // 🔍 Zoom (בשביל ZoomControl)
+  zoomIn?: () => void;
+  zoomOut?: () => void;
+  resetZoom?: () => void;
+}
+
 /* ============================================================
    CANVAS SIZE
 ============================================================ */
@@ -158,10 +171,8 @@ function removeWhiteBackground(img: HTMLImageElement): string {
    MAIN COMPONENT
 ============================================================ */
 
-const EditorCanvas = forwardRef(function EditorCanvas(
-  { onSelect, initialData }: EditorCanvasProps,
-  ref
-) {
+const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
+  function EditorCanvas({ onSelect, initialData }, ref) {
 
   const isMobile =
   typeof window !== "undefined" && window.innerWidth <= 768;
@@ -479,13 +490,25 @@ const startEditText = (obj: TextObject) => {
      ייצוא קנבס
   ========================================================= */
   getCanvasData: () => ({
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-    objects: useEditorStore.getState().objects.map((o: any) => ({
-      ...o,
-      image: undefined,
-    })),
-  }),
+  width: CANVAS_WIDTH,
+  height: CANVAS_HEIGHT,
+  objects: useEditorStore.getState().objects.map((o) => ({
+    ...o,
+    image: undefined,
+  })),
+}),
+
+zoomIn: () => {
+  setScale(Math.min(scale + 0.1, 3));
+},
+
+zoomOut: () => {
+  setScale(Math.max(scale - 0.1, 0.3));
+},
+
+resetZoom: () => {
+  setScale(1);
+},
 }));
 
 
