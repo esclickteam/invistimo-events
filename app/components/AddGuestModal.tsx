@@ -18,7 +18,7 @@ type Guest = {
 
 interface Props {
   onClose: () => void;
-  onSuccess: () => void; // ✅ רק טריגר רענון
+  onSuccess: () => Promise<void>; // ✅ async refresh
   invitationId?: string;
 }
 
@@ -30,7 +30,8 @@ export default function AddGuestModal({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [relation, setRelation] = useState("");
-  const [rsvp, setRsvp] = useState<"yes" | "no" | "pending">("pending");
+  const [rsvp, setRsvp] =
+    useState<"yes" | "no" | "pending">("pending");
   const [guestsCount, setGuestsCount] = useState(1);
   const [tableNumber, setTableNumber] = useState("");
   const [loading, setLoading] = useState(false);
@@ -88,7 +89,8 @@ export default function AddGuestModal({
         throw new Error(data?.error || "שגיאה בשמירה");
       }
 
-      onSuccess(); // 🔥 רענון מהשרת
+      // 🔥 חכים לריענון לפני סגירה
+      await onSuccess();
       onClose();
     } catch (err: any) {
       alert(err.message || "שגיאה");
@@ -99,7 +101,10 @@ export default function AddGuestModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-xl w-[420px]" dir="rtl">
+      <div
+        className="bg-white p-6 rounded-xl w-[420px]"
+        dir="rtl"
+      >
         <h2 className="text-xl font-semibold mb-4">
           הוספת מוזמן
         </h2>
@@ -134,7 +139,9 @@ export default function AddGuestModal({
         >
           <option value="yes">{RSVP_LABELS.yes}</option>
           <option value="no">{RSVP_LABELS.no}</option>
-          <option value="pending">{RSVP_LABELS.pending}</option>
+          <option value="pending">
+            {RSVP_LABELS.pending}
+          </option>
         </select>
 
         <input
