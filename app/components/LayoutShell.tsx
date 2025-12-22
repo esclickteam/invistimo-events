@@ -18,10 +18,14 @@ export default function LayoutShell({
 
   // רק לדפים ציבוריים באמת
   const hideLayout =
-    pathname === "/thank-you" ||
-    pathname.startsWith("/invite/") ||
-    pathname.startsWith("/rsvp/") ||
-    pathname.startsWith("/invitation/");
+  pathname === "/thank-you" ||
+  pathname.startsWith("/invite/") ||
+  pathname.startsWith("/rsvp/") ||
+  pathname.startsWith("/invitation/") ||
+  pathname === "/dashboard/create-invite" ||
+  pathname.startsWith("/dashboard/create-invite/") ||
+  pathname === "/dashboard/edit-invite" ||
+  pathname.startsWith("/dashboard/edit-invite/");
 
   return (
     <>

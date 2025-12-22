@@ -11,7 +11,7 @@ export default function CreateInviteLayout({
   return (
     <LayoutShell
       header={<Header />}
-      footer={null}   // ❌ אין Footer כאן
+      footer={null}   // ❌ מבטל Footer גם ב-Create וגם ב-Edit
     >
       {children}
     </LayoutShell>
