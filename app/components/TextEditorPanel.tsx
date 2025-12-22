@@ -9,11 +9,13 @@ type TextEditorPanelProps = {
   selected: {
     id: string;
     text?: string;
+    x?: number;
+    width?: number;
     fontFamily?: string;
     fontSize?: number;
     fill?: string;
     fontStyle?: string;
-    align?: string;
+    align?: "left" | "center" | "right";
   } | null;
 
   onApply: (patch: Record<string, any>) => void;
@@ -28,7 +30,6 @@ export default function TextEditorPanel({
   onApply,
   onDelete,
 }: TextEditorPanelProps) {
-  // אין טקסט נבחר
   if (!selected) return null;
 
   /* =========================
@@ -46,9 +47,12 @@ export default function TextEditorPanel({
   const fontFamily = selected.fontFamily || "Heebo";
   const fontSize = Number(selected.fontSize || 36);
   const fill = selected.fill || "#111111";
-  const fontStyle = selected.fontStyle || "normal"; // bold / italic / normal
+  const fontStyle = selected.fontStyle || "normal";
   const align = selected.align || "right";
 
+  /* =========================
+     Bold / Italic
+  ========================= */
   const toggleBold = () =>
     onApply({
       fontStyle: fontStyle === "bold" ? "normal" : "bold",
@@ -58,6 +62,33 @@ export default function TextEditorPanel({
     onApply({
       fontStyle: fontStyle === "italic" ? "normal" : "italic",
     });
+
+  /* =========================
+     🔥 ALIGN – כמו Canva
+  ========================= */
+  const changeAlign = (nextAlign: "left" | "center" | "right") => {
+    if (selected.x == null) return;
+
+    const width = selected.width ?? 200;
+    let nextX = selected.x;
+
+    if (nextAlign === "center") {
+      nextX = selected.x + width / 2;
+    }
+
+    if (nextAlign === "right") {
+      nextX = selected.x + width;
+    }
+
+    if (nextAlign === "left") {
+      nextX = selected.x;
+    }
+
+    onApply({
+      align: nextAlign,
+      x: nextX,
+    });
+  };
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -89,7 +120,9 @@ export default function TextEditorPanel({
 
         <select
           value={align}
-          onChange={(e) => onApply({ align: e.target.value })}
+          onChange={(e) =>
+            changeAlign(e.target.value as "left" | "center" | "right")
+          }
           className="flex-1 px-3 py-2 rounded-xl border text-sm"
         >
           <option value="right">Right</option>
@@ -162,11 +195,10 @@ export default function TextEditorPanel({
         </button>
       </div>
 
-      {/* spacer */}
       <div className="flex-1" />
 
       {/* =========================
-         Delete Button – Desktop ONLY
+         Delete – Desktop only
       ========================= */}
       {!isMobile && (
         <button

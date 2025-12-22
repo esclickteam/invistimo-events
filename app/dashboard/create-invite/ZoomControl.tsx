@@ -54,7 +54,7 @@ export default function ZoomControl({ canvasRef }: ZoomControlProps) {
   return (
   <div
     className="
-      fixed bottom-6 right-56
+      fixed bottom-6 right-106
       z-50
       bg-white
       shadow-lg
