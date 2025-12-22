@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 type LayoutShellProps = {
   children: ReactNode;
   header?: ReactNode;
-  footer?: ReactNode; // optional
+  footer?: ReactNode;
 };
 
 export default function LayoutShell({
@@ -16,32 +16,35 @@ export default function LayoutShell({
 }: LayoutShellProps) {
   const pathname = usePathname();
 
-  // רק לדפים ציבוריים באמת
-  const hideLayout =
-  pathname === "/thank-you" ||
-  pathname.startsWith("/invite/") ||
-  pathname.startsWith("/rsvp/") ||
-  pathname.startsWith("/invitation/") ||
-  pathname === "/dashboard/create-invite" ||
-  pathname.startsWith("/dashboard/create-invite/") ||
-  pathname === "/dashboard/edit-invite" ||
-  pathname.startsWith("/dashboard/edit-invite/");
+  // ❌ דפים ציבוריים – בלי Header ובלי Footer
+  const hideHeaderAndFooter =
+    pathname === "/thank-you" ||
+    pathname.startsWith("/invite/") ||
+    pathname.startsWith("/rsvp/") ||
+    pathname.startsWith("/invitation/");
+
+  // ❌ עורך הזמנות – בלי Footer בלבד
+  const hideFooterOnly =
+    pathname === "/dashboard/create-invite" ||
+    pathname.startsWith("/dashboard/create-invite/") ||
+    pathname === "/dashboard/edit-invite" ||
+    pathname.startsWith("/dashboard/edit-invite/");
 
   return (
     <>
       {/* Header */}
-      {!hideLayout && header}
+      {!hideHeaderAndFooter && header}
 
       <main
         className={`min-h-screen ${
-          !hideLayout && header ? "pt-[64px]" : ""
+          !hideHeaderAndFooter && header ? "pt-[64px]" : ""
         }`}
       >
         {children}
       </main>
 
-      {/* Footer – מוצג רק אם באמת הועבר */}
-      {!hideLayout && footer}
+      {/* Footer */}
+      {!hideHeaderAndFooter && !hideFooterOnly && footer}
     </>
   );
 }
