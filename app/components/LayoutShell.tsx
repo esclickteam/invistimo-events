@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 type LayoutShellProps = {
   children: ReactNode;
-  header: ReactNode;
-  footer: ReactNode;
+  header?: ReactNode;
+  footer?: ReactNode; // ← חשוב: optional
 };
 
 export default function LayoutShell({
@@ -16,7 +16,7 @@ export default function LayoutShell({
 }: LayoutShellProps) {
   const pathname = usePathname();
 
-  // ❌ דפים ללא Header / Footer
+  // ❌ דפים ציבוריים ללא Header / Footer
   const hideLayout =
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
@@ -25,12 +25,18 @@ export default function LayoutShell({
 
   return (
     <>
+      {/* Header */}
       {!hideLayout && header}
 
-      <main className={`min-h-screen ${!hideLayout ? "pt-[64px]" : ""}`}>
+      <main
+        className={`min-h-screen ${
+          !hideLayout && header ? "pt-[64px]" : ""
+        }`}
+      >
         {children}
       </main>
 
+      {/* Footer */}
       {!hideLayout && footer}
     </>
   );
