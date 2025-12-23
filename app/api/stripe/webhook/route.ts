@@ -5,6 +5,7 @@ import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
+import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 
 export const runtime = "nodejs";
 
@@ -172,6 +173,14 @@ export async function POST(req: Request) {
       `✅ Upgrade OK: ${email} | +${targetGuests} guests | +${smsToAdd} messages`
     );
 
+    await notifyAdminPurchase({
+      email,
+      amount: amountCharged,
+      currency: "ils",
+      type: "Premium upgrade",
+      details: `+${targetGuests} אורחים`,
+    });
+
     return NextResponse.json({ received: true });
   }
 
@@ -207,6 +216,15 @@ export async function POST(req: Request) {
     }
 
     console.log(`✅ Added ${messagesToAdd} SMS to ${email}`);
+
+    await notifyAdminPurchase({
+      email,
+      amount: 0,
+      currency: "ils",
+      type: "SMS add-on",
+      details: `+${messagesToAdd} הודעות`,
+    });
+
     return NextResponse.json({ received: true });
   }
 
@@ -214,90 +232,90 @@ export async function POST(req: Request) {
      🟢 CASE 3: FULL PACKAGE PURCHASE (BASIC / PREMIUM)
   ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-  limit: 1,
-  expand: ["data.price.product"],
-});
-
-const lineItem = lineItems.data[0];
-const price = lineItem?.price;
-const priceKey = price?.lookup_key;
-
-if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
-  return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
-}
-
-const maxGuests = GUESTS_BY_KEY[priceKey];
-const amountPaid = (price?.unit_amount ?? 0) / 100;
-
-// ⭐ זיהוי חבילת בסיס
-const isBasic = priceKey.startsWith("basic");
-
-// ⭐ הודעות רק לפרימיום
-const maxMessages = isBasic ? 0 : maxGuests * 3;
-
-/* ===================== Payment ===================== */
-await Payment.create({
-  email,
-  stripeSessionId: session.id,
-  stripePaymentIntentId: String(session.payment_intent),
-  stripeCustomerId: session.customer as string,
-  stripePriceId: price?.id,
-  priceKey,
-  maxGuests,
-  amount: amountPaid,
-  currency: price?.currency,
-  status: "paid",
-});
-
-/* ===================== User ===================== */
-await User.findByIdAndUpdate(user._id, {
-  plan: isBasic ? "basic" : "premium",
-  guests: maxGuests,
-  paidAmount: amountPaid,
-  planLimits: {
-    maxGuests,
-    smsEnabled: !isBasic,
-    seatingEnabled: !isBasic,
-    remindersEnabled: true,
-  },
-});
-
-/* ===================== Invitation ===================== */
-let invitation = await Invitation.findOne({ ownerId: user._id });
-
-if (!invitation) {
-  invitation = await Invitation.create({
-    ownerId: user._id,
-    title: "ההזמנה שלי",
-    canvasData: {},
-    shareId: crypto.randomUUID(),
-    maxGuests,
-    sentSmsCount: 0,
-    maxMessages,
-    remainingMessages: maxMessages,
+    limit: 1,
+    expand: ["data.price.product"],
   });
-} else {
-  const sent = invitation.sentSmsCount || 0;
 
-  invitation.maxGuests = maxGuests;
-  invitation.maxMessages = maxMessages;
-  invitation.remainingMessages = Math.max(
-    0,
-    maxMessages - sent
-  );
+  const lineItem = lineItems.data[0];
+  const price = lineItem?.price;
+  const priceKey = price?.lookup_key;
 
-  // ⭐ אם חבילת בסיס – אפס מוחלט
-  if (isBasic) {
-    invitation.sentSmsCount = 0;
+  if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
+    return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
   }
 
-  await invitation.save();
-}
+  const maxGuests = GUESTS_BY_KEY[priceKey];
+  const amountPaid = (price?.unit_amount ?? 0) / 100;
 
-console.log(
-  `✅ Full package OK: ${email} | ${maxGuests} guests | ${maxMessages} messages`
-);
+  const isBasic = priceKey.startsWith("basic");
+  const maxMessages = isBasic ? 0 : maxGuests * 3;
 
-return NextResponse.json({ received: true });
+  await Payment.create({
+    email,
+    stripeSessionId: session.id,
+    stripePaymentIntentId: String(session.payment_intent),
+    stripeCustomerId: session.customer as string,
+    stripePriceId: price?.id,
+    priceKey,
+    maxGuests,
+    amount: amountPaid,
+    currency: price?.currency,
+    status: "paid",
+  });
 
+  await User.findByIdAndUpdate(user._id, {
+    plan: isBasic ? "basic" : "premium",
+    guests: maxGuests,
+    paidAmount: amountPaid,
+    planLimits: {
+      maxGuests,
+      smsEnabled: !isBasic,
+      seatingEnabled: !isBasic,
+      remindersEnabled: true,
+    },
+  });
+
+  let invitation = await Invitation.findOne({ ownerId: user._id });
+
+  if (!invitation) {
+    invitation = await Invitation.create({
+      ownerId: user._id,
+      title: "ההזמנה שלי",
+      canvasData: {},
+      shareId: crypto.randomUUID(),
+      maxGuests,
+      sentSmsCount: 0,
+      maxMessages,
+      remainingMessages: maxMessages,
+    });
+  } else {
+    const sent = invitation.sentSmsCount || 0;
+
+    invitation.maxGuests = maxGuests;
+    invitation.maxMessages = maxMessages;
+    invitation.remainingMessages = Math.max(
+      0,
+      maxMessages - sent
+    );
+
+    if (isBasic) {
+      invitation.sentSmsCount = 0;
+    }
+
+    await invitation.save();
+  }
+
+  console.log(
+    `✅ Full package OK: ${email} | ${maxGuests} guests | ${maxMessages} messages`
+  );
+
+  await notifyAdminPurchase({
+    email,
+    amount: amountPaid,
+    currency: price?.currency || "ils",
+    type: isBasic ? "Basic package" : "Premium package",
+    details: `${maxGuests} אורחים`,
+  });
+
+  return NextResponse.json({ received: true });
 }
