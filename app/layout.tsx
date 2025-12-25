@@ -28,9 +28,25 @@ export const metadata = {
 
   icons: {
     icon: [
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon.ico" },
+      {
+        url: "/favicon-v2.ico",
+        type: "image/x-icon",
+      },
+      {
+        url: "/favicon-16x16-v2.png",
+        sizes: "16x16",
+        type: "image/png",
+      },
+      {
+        url: "/favicon-32x32-v2.png",
+        sizes: "32x32",
+        type: "image/png",
+      },
+      {
+        url: "/favicon-96x96-v2.png",
+        sizes: "96x96",
+        type: "image/png",
+      },
     ],
     apple: "/apple-touch-icon.png",
   },
