@@ -12,10 +12,20 @@ import SupportBotButton from "./components/SupportBotButton";
 import SupportBotGate from "./components/SupportBotGate";
 import AccessibilityScript from "./components/AccessibilityScript";
 
+/* =========================================================
+   Metadata
+========================================================= */
 export const metadata = {
+  metadataBase: new URL("https://www.invistimo.com"),
+
+  alternates: {
+    canonical: "/",
+  },
+
   title: "Invistimo – הזמנות דיגיטליות ואישורי הגעה",
   description:
     "Invistimo – הזמנות דיגיטליות מעוצבות עם אישורי הגעה והושבה חכמה לכל סוגי האירועים.",
+
   icons: {
     icon: [
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
@@ -24,9 +34,13 @@ export const metadata = {
     ],
     apple: "/apple-touch-icon.png",
   },
+
   manifest: "/site.webmanifest",
 };
 
+/* =========================================================
+   Root Layout
+========================================================= */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="he" dir="rtl">
