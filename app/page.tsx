@@ -328,19 +328,34 @@ export default function HomePage() {
 
 
 
-      {/* ================= CTA ================= */}
+            {/* ================= CTA ================= */}
       <section className="py-32 px-6 bg-[#C89F77] text-[#faf8f4] text-center">
-        <h2 className="text-4xl font-semibold mb-8">
+        <h2 className="text-4xl font-semibold mb-10">
           מוכנים לנהל אירוע רגוע באמת?
         </h2>
 
-        <Link
-          href="/pricing"
-          className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full"
-        >
-          לצפייה בחבילות
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <Link
+            href="/pricing"
+            className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full"
+          >
+            לצפייה בחבילות
+          </Link>
+
+          <Link
+            href="/try/dashboard"
+            className="inline-block px-14 py-4 border border-[#faf8f4] text-[#faf8f4] rounded-full
+                       hover:bg-[#faf8f4] hover:text-[#3f3a34] transition"
+          >
+            נסו את המערכת עכשיו – חינם
+          </Link>
+        </div>
+
+        <p className="text-sm mt-4 opacity-90">
+          ללא הרשמה · ללא התחייבות · ללא שמירה
+        </p>
       </section>
+
     </main>
   );
 }
