@@ -40,13 +40,8 @@ export const useDemoSeatingStore = create((set, get) => ({
       tables: Array.isArray(tables) ? tables : [],
       guests: Array.isArray(guests) ? guests : [],
       background,
-
-      // ✅ דמו תמיד ON
       demoMode: true,
-
-      // ✅ איפוס מצב UI כדי שלא "יידבק"
       draggingGuest: null,
-      ghostPosition: { x: 0, y: 0 },
       highlightedTable: null,
       highlightedSeats: [],
       selectedGuestId: null,
@@ -54,33 +49,6 @@ export const useDemoSeatingStore = create((set, get) => ({
       showSeatingModal: false,
       showAddModal: false,
       addGuestTable: null,
-
-      // ✅ איפוס view
-      canvasView: { scale: 1, x: 0, y: 0 },
-    }),
-
-  resetDemo: () =>
-    set({
-      tables: [],
-      guests: [],
-      background: null,
-      demoMode: true,
-
-      draggingGuest: null,
-      ghostPosition: { x: 0, y: 0 },
-
-      highlightedTable: null,
-      highlightedSeats: [],
-
-      selectedGuestId: null,
-
-      seatingModalTableId: null,
-      showSeatingModal: false,
-
-      showAddModal: false,
-      addGuestTable: null,
-
-      canvasView: { scale: 1, x: 0, y: 0 },
     }),
 
   setBackground: (background) => set({ background }),
@@ -127,8 +95,7 @@ export const useDemoSeatingStore = create((set, get) => ({
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
-      const radius =
-        t.type === "round" ? 90 : t.type === "square" ? 110 : 160;
+      const radius = t.type === "round" ? 90 : t.type === "square" ? 110 : 160;
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
 
@@ -151,14 +118,12 @@ export const useDemoSeatingStore = create((set, get) => ({
   /* ---------------- ASSIGN (CANVAS DRAG / DROP) ---------------- */
   assignGuestBlock: ({ guestId, tableId }) => {
     const { tables, guests } = get();
-
-    const guest = guests.find(
-      (g) => String(g.id ?? g._id) === String(guestId)
-    );
+    const guest = guests.find((g) => String(g.id ?? g._id) === String(guestId));
     const table = tables.find((t) => String(t.id) === String(tableId));
     if (!guest || !table) return;
 
     const count = guest.guestsCount || guest.count || 1;
+
     const block = findFreeBlock(table, count);
     if (!block || block.length === 0) return;
 
@@ -171,10 +136,7 @@ export const useDemoSeatingStore = create((set, get) => ({
 
     table.seatedGuests = table.seatedGuests || [];
     table.seatedGuests.push(
-      ...block.map((seatIndex) => ({
-        guestId: guest.id ?? guest._id,
-        seatIndex,
-      }))
+      ...block.map((seatIndex) => ({ guestId: guest.id ?? guest._id, seatIndex }))
     );
 
     guest.tableId = table.id;
@@ -199,9 +161,7 @@ export const useDemoSeatingStore = create((set, get) => ({
       ),
     }));
 
-    const targetTable = cleanedTables.find(
-      (t) => String(t.id) === String(tableId)
-    );
+    const targetTable = cleanedTables.find((t) => String(t.id) === String(tableId));
     if (!targetTable) return;
 
     targetTable.seatedGuests = targetTable.seatedGuests || [];
@@ -237,4 +197,23 @@ export const useDemoSeatingStore = create((set, get) => ({
       ),
     });
   },
+
+  /* ---------------- UTIL ---------------- */
+  resetDemo: () =>
+    set({
+      tables: [],
+      guests: [],
+      background: null,
+      demoMode: true,
+      draggingGuest: null,
+      ghostPosition: { x: 0, y: 0 },
+      highlightedTable: null,
+      highlightedSeats: [],
+      selectedGuestId: null,
+      seatingModalTableId: null,
+      showSeatingModal: false,
+      showAddModal: false,
+      addGuestTable: null,
+      canvasView: { scale: 1, x: 0, y: 0 },
+    }),
 }));

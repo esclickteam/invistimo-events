@@ -9,7 +9,6 @@ import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
 
 import { useSeatingStore } from "@/store/seatingStore";
-import { useDemoSeatingStore } from "@/store/store/demoSeatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
 /* ⭐ קומפוננטות עליונות */
@@ -25,28 +24,24 @@ type GuestDTO = {
   tableId?: string | null;
 };
 
-interface SeatingPageProps {
-  isDemo?: boolean;
-}
-
-export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
+export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
 
-  // ✅ Drawer של רשימת אורחים במובייל
+  // ✅ שליטה על Drawer של רשימת אורחים במובייל
   const [showGuests, setShowGuests] = useState(false);
 
   /* ===============================
      STORES
   =============================== */
-  const store = isDemo ? useDemoSeatingStore : useSeatingStore;
-  const init = store((s) => s.init);
-  const tables = store((s) => s.tables);
-  const guests = store((s) => s.guests);
-  const background = store((s) => s.background);
-  const setBackground = store((s) => s.setBackground);
+  const init = useSeatingStore((s) => s.init);
+  const tables = useSeatingStore((s) => s.tables);
+  const guests = useSeatingStore((s) => s.guests);
+
+  const background = useSeatingStore((s) => s.background);
+  const setBackground = useSeatingStore((s) => s.setBackground);
 
   const setZones = useZoneStore((s) => s.setZones);
 
@@ -54,8 +49,6 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
-    if (isDemo) return; // 🚀 במצב דמו אין טעינה מהשרת
-
     async function load() {
       try {
         const invRes = await fetch("/api/invitations/my");
@@ -107,7 +100,7 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
     }
 
     load();
-  }, [init, setZones, isDemo]);
+  }, [init, setZones]);
 
   /* ===============================
      BACKGROUND
@@ -121,22 +114,17 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
      DRAG HANDLER
   =============================== */
   const handleDragStart = (guest: any) => {
-    store.getState().startDragGuest(guest);
+    useSeatingStore.getState().startDragGuest(guest);
   };
 
   /* ===============================
      SAVE
   =============================== */
   async function saveSeating() {
-    if (isDemo) {
-      alert("💡 זהו מצב דמו — שמירה אמיתית אינה פעילה.");
-      return;
-    }
-
     if (!invitationId) return;
 
     const zones = useZoneStore.getState().zones;
-    const canvasView = store.getState().canvasView;
+    const canvasView = useSeatingStore.getState().canvasView;
 
     const res = await fetch(`/api/seating/save/${invitationId}`, {
       method: "POST",
@@ -163,7 +151,7 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
   /* ===============================
      BLOCKED
   =============================== */
-  if (blocked && !isDemo) {
+  if (blocked) {
     return (
       <>
         <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
@@ -192,17 +180,12 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
     );
   }
 
-  /* ===============================
-     RENDER
-  =============================== */
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* ================= HEADER ================= */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
-          <h1 className="text-lg sm:text-xl font-semibold">
-            {isDemo ? "מצב הדגמה – הושבה באולם" : "הושבה באולם"}
-          </h1>
+          <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
 
           <div className="flex flex-col sm:flex-row gap-2">
             <button
@@ -216,7 +199,7 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
               onClick={saveSeating}
               className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg"
             >
-              💾 {isDemo ? "שמירה (מדומה)" : "שמירת הושבה"}
+              💾 שמירת הושבה
             </button>
           </div>
         </div>
@@ -228,24 +211,30 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
 
       {/* ================= CONTENT ================= */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
+
         {/* קנבס */}
         <div className="flex-1 relative">
-          <SeatingEditor background={background?.url || null} isDemo={isDemo} />
-
+          <SeatingEditor background={background?.url || null} />
         </div>
 
         {/* סיידבר – דסקטופ */}
         <aside className="hidden md:block w-72 bg-white border-l">
+
           <Suspense
             fallback={
-              <div className="p-4 text-sm text-gray-400">טוען אורחים...</div>
+              <div className="p-4 text-sm text-gray-400">
+                טוען אורחים...
+              </div>
             }
           >
-            <GuestSidebar variant="desktop" onDragStart={handleDragStart} />
+            <GuestSidebar
+              variant="desktop"
+              onDragStart={handleDragStart}
+            />
           </Suspense>
         </aside>
 
-        {/* כפתור פתיחה למובייל */}
+        {/* כפתור פתיחה למובייל – מתחת להוסף שולחן */}
         <button
           onClick={() => setShowGuests(true)}
           className="md:hidden absolute top-16 left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"

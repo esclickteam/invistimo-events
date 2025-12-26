@@ -11,7 +11,6 @@ import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
 import { useSeatingStore } from "@/store/seatingStore";
-import { useDemoSeatingStore } from "@/store/store/demoSeatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
 import TableRenderer from "@/app/components/seating/TableRenderer";
@@ -43,35 +42,27 @@ type Table = {
   seatedGuests?: SeatedGuest[];
 };
 
-interface SeatingEditorProps {
-  background: string | null;
-  isDemo?: boolean;
-}
-
 /* ============================================================
    INNER
 ============================================================ */
-function SeatingEditorInner({ background, isDemo = false }: SeatingEditorProps) {
+function SeatingEditorInner({ background }: { background: string | null }) {
   const [bgImage] = useImage(background || "", "anonymous");
 
-  // ✅ בחירת ה־store לפי מצב (דמו או אמיתי)
-  const store = isDemo ? useDemoSeatingStore : useSeatingStore;
-
   /* ================= STORES ================= */
-  const tables = store((s) => s.tables) as Table[];
-  const guests = store((s) => s.guests) as Guest[];
+  const tables = useSeatingStore((s) => s.tables) as Table[];
+  const guests = useSeatingStore((s) => s.guests) as Guest[];
 
-  const draggedGuest = store((s) => s.draggingGuest);
-  const startDragGuest = store((s) => s.startDragGuest);
-  const updateGhost = store((s) => s.updateGhostPosition);
-  const evalHover = store((s) => s.evaluateHover);
+  const draggedGuest = useSeatingStore((s) => s.draggingGuest);
+  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
+  const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
+  const evalHover = useSeatingStore((s) => s.evaluateHover);
 
-  const showAddModal = store((s) => s.showAddModal);
-  const setShowAddModal = store((s) => s.setShowAddModal);
-  const addTable = store((s) => s.addTable);
+  const showAddModal = useSeatingStore((s) => s.showAddModal);
+  const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
+  const addTable = useSeatingStore((s) => s.addTable);
 
-  const canvasView = store((s) => s.canvasView);
-  const setCanvasView = store((s) => s.setCanvasView);
+  const canvasView = useSeatingStore((s) => s.canvasView);
+  const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
@@ -213,7 +204,24 @@ function SeatingEditorInner({ background, isDemo = false }: SeatingEditorProps) 
       {/* 👥 רשימת אורחים – מובייל */}
       <button
         onClick={() => setShowGuests(true)}
-        className="absolute top-16 left-4 md:hidden bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg shadow z-50 flex items-center gap-2"
+        className="
+          absolute
+          top-16
+          left-4
+          md:hidden
+          bg-white
+          border
+          border-gray-200
+          text-gray-700
+          px-4
+          py-2
+          rounded-lg
+          shadow
+          z-50
+          flex
+          items-center
+          gap-2
+        "
       >
         רשימת אורחים 👥
       </button>
@@ -336,11 +344,12 @@ function SeatingEditorInner({ background, isDemo = false }: SeatingEditorProps) 
 ============================================================ */
 export default function SeatingEditor({
   background,
-  isDemo = false,
-}: SeatingEditorProps) {
+}: {
+  background: string | null;
+}) {
   return (
     <Suspense fallback={null}>
-      <SeatingEditorInner background={background} isDemo={isDemo} />
+      <SeatingEditorInner background={background} />
     </Suspense>
   );
 }

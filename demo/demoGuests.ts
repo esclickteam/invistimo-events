@@ -1,17 +1,5 @@
 // demo/demoGuests.ts
-
-export type DemoGuestStatus = "yes" | "pending" | "no";
-
-export interface DemoGuest {
-  id: string;
-  name: string;
-  guestsCount: number;
-  status: DemoGuestStatus;
-  tableId: string | null;
-  tableName: string | null;
-}
-
-export const DEMO_GUESTS: DemoGuest[] = [
+export const DEMO_GUESTS = [
   {
     id: "demo-1",
     name: "דנה לוי",
