@@ -71,6 +71,14 @@ function SeatingEditorInner({ background }: { background: string | null }) {
 
   /* ================= LOCAL UI STATE ================= */
   const [showGuests, setShowGuests] = useState(false);
+  const demoMode = useSeatingStore((s) => s.demoMode);
+
+useEffect(() => {
+  if (demoMode) {
+    setShowGuests(true); // 🔥 בדמו – פותחים רשימת אורחים אוטומטית
+  }
+}, [demoMode]);
+
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
   /* ================= CONTAINER SIZE ================= */
