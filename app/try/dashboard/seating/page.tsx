@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import SeatingPage from "@/app/dashboard/seating/page";
 import { useSeatingStore } from "@/store/seatingStore";
 import { findFreeBlock } from "@/logic/seatingEngine";
@@ -8,13 +8,7 @@ import { findFreeBlock } from "@/logic/seatingEngine";
 export default function DemoSeatingPage() {
   const init = useSeatingStore((state) => state.init);
 
-  useEffect(() => {
-    /* =========================
-       🔥 איפוס persist לדמו בלבד
-    ========================= */
-    localStorage.removeItem("seating-store"); 
-    // ⬆️ אם שם ה־key שונה אצלך – זה השם שצריך
-
+  useLayoutEffect(() => {
     /* =========================
        DEMO TABLES
     ========================= */
@@ -82,14 +76,14 @@ export default function DemoSeatingPage() {
     ];
 
     /* =========================
-       🔥 הושבה אמיתית דרך engine
+       🔥 הושבה אמיתית (engine)
     ========================= */
-    const targetTable: any = tables[0];
-    const guest: any = guests[0];
+    const targetTable = tables[0];
+    const guest = guests[0];
 
     const block = findFreeBlock(targetTable, guest.guestsCount);
 
-    if (block && block.length) {
+    if (block?.length) {
       targetTable.seatedGuests.push(
         ...block.map((seatIndex: number) => ({
           guestId: guest.id,
@@ -102,10 +96,10 @@ export default function DemoSeatingPage() {
     }
 
     /* =========================
-       INIT – דמו נקי תמיד
+       INIT – דורס persist לחלוטין
     ========================= */
     init(tables, guests, null);
-  }, []); // ❗️ חשוב: רץ פעם אחת בלבד
+  }, []); // רץ לפני paint
 
   return <SeatingPage />;
 }
