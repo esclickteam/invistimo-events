@@ -163,7 +163,8 @@ useEffect(() => {
   }
 
   loadData();
-}, []);
+}, [isDemo]);
+
 
 
   /* ================= 🔄 REFRESH AFTER UPGRADE ================= */
