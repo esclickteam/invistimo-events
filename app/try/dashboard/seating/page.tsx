@@ -10,6 +10,12 @@ export default function DemoSeatingPage() {
 
   useEffect(() => {
     /* =========================
+       🔥 איפוס persist לדמו בלבד
+    ========================= */
+    localStorage.removeItem("seating-store"); 
+    // ⬆️ אם שם ה־key שונה אצלך – זה השם שצריך
+
+    /* =========================
        DEMO TABLES
     ========================= */
     const tables: any[] = [
@@ -76,7 +82,7 @@ export default function DemoSeatingPage() {
     ];
 
     /* =========================
-       🔥 הושבה דרך engine (כמו פרודקשן)
+       🔥 הושבה אמיתית דרך engine
     ========================= */
     const targetTable: any = tables[0];
     const guest: any = guests[0];
@@ -96,10 +102,10 @@ export default function DemoSeatingPage() {
     }
 
     /* =========================
-       INIT – ריסט מלא לדמו
+       INIT – דמו נקי תמיד
     ========================= */
     init(tables, guests, null);
-  }, []); // ❗️ תמיד ריסט בדמו
+  }, []); // ❗️ חשוב: רץ פעם אחת בלבד
 
   return <SeatingPage />;
 }
