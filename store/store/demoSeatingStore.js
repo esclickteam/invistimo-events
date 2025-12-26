@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { findFreeBlock } from "@/logic/seatingEngine";
-import { DEMO_GUESTS } from "@/demo/demoGuests";
 
 /**
  * Demo-only seating store (NO persist).
@@ -9,7 +8,7 @@ import { DEMO_GUESTS } from "@/demo/demoGuests";
 export const useDemoSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
   tables: [],
-  guests: DEMO_GUESTS, // ✅ אורחי דמו נטענים כברירת מחדל
+  guests: [],
   background: null,
   demoMode: true,
 
@@ -36,13 +35,10 @@ export const useDemoSeatingStore = create((set, get) => ({
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: !!isDemo }),
 
-  /**
-   * Explicit init (used if you want to override demo defaults)
-   */
   init: (tables, guests, background = null) =>
     set({
       tables: Array.isArray(tables) ? tables : [],
-      guests: Array.isArray(guests) ? guests : DEMO_GUESTS,
+      guests: Array.isArray(guests) ? guests : [],
       background,
       demoMode: true,
       draggingGuest: null,
@@ -127,9 +123,11 @@ export const useDemoSeatingStore = create((set, get) => ({
     if (!guest || !table) return;
 
     const count = guest.guestsCount || guest.count || 1;
+
     const block = findFreeBlock(table, count);
     if (!block || block.length === 0) return;
 
+    // remove previous seating for that guest
     tables.forEach((t) => {
       t.seatedGuests = (t.seatedGuests || []).filter(
         (s) => String(s.guestId) !== String(guestId)
@@ -138,10 +136,7 @@ export const useDemoSeatingStore = create((set, get) => ({
 
     table.seatedGuests = table.seatedGuests || [];
     table.seatedGuests.push(
-      ...block.map((seatIndex) => ({
-        guestId: guest.id ?? guest._id,
-        seatIndex,
-      }))
+      ...block.map((seatIndex) => ({ guestId: guest.id ?? guest._id, seatIndex }))
     );
 
     guest.tableId = table.id;
@@ -207,7 +202,7 @@ export const useDemoSeatingStore = create((set, get) => ({
   resetDemo: () =>
     set({
       tables: [],
-      guests: DEMO_GUESTS, // ✅ חזרה לאורחי דמו
+      guests: [],
       background: null,
       demoMode: true,
       draggingGuest: null,
