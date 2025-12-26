@@ -1,27 +1,35 @@
 // demo/demoGuests.ts
 export const DEMO_GUESTS = [
   {
-    _id: "demo-1",
-    fullName: "דנה לוי",
+    id: "demo-1",
+    name: "דנה לוי",
     guestsCount: 2,
     status: "yes",
+    tableId: null,
+    tableName: null,
   },
   {
-    _id: "demo-2",
-    fullName: "איתי כהן",
+    id: "demo-2",
+    name: "איתי כהן",
     guestsCount: 1,
     status: "pending",
+    tableId: null,
+    tableName: null,
   },
   {
-    _id: "demo-3",
-    fullName: "משפחת ישראלי",
+    id: "demo-3",
+    name: "משפחת ישראלי",
     guestsCount: 4,
     status: "yes",
+    tableId: null,
+    tableName: null,
   },
   {
-    _id: "demo-4",
-    fullName: "נועה בר",
+    id: "demo-4",
+    name: "נועה בר",
     guestsCount: 1,
     status: "no",
+    tableId: null,
+    tableName: null,
   },
 ];
