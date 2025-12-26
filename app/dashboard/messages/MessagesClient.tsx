@@ -349,7 +349,11 @@ const sendWhatsApp = async (guest: Guest) => {
   /* ================= RENDER ================= */
 
   if (loading) return null;
-  if (!invitation) return <div>לא נמצאה הזמנה</div>;
+
+// בפרודקשן – חובה הזמנה, בדמו לא חוסמים תצוגה
+if (!invitation && !isDemo) {
+  return <div>לא נמצאה הזמנה</div>;
+}
 
   const remaining = balance?.remainingMessages ?? 0;
 const max = balance?.maxMessages ?? 0;
