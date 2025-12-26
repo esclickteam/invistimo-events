@@ -161,6 +161,8 @@ function TableRenderer({ table }) {
   const rotateActiveRef = useRef(false);
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
+  const demoMode = useSeatingStore((s) => s.demoMode);
+
 
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
@@ -393,35 +395,39 @@ function TableRenderer({ table }) {
       </Group>
 
       {/* כסאות */}
-      {seatsCoords.map((c, i) => {
-        const guest = seatInfoMap.get(i)?.guest;
-        const rotation =
-          getSeatRotation(layout, c) - (table.rotation || 0);
+{seatsCoords.map((c, i) => {
+  const guest = seatInfoMap.get(i)?.guest;
+  const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-        return (
-          <Group key={i} x={c.x} y={c.y} rotation={rotation}>
-            <Rect
-              x={-5}
-              y={-16}
-              width={10}
-              height={6}
-              cornerRadius={3}
-              fill={guest ? "#cbd5e1" : "#bfdbfe"}
-            />
-            <Rect
-              x={-7}
-              y={-10}
-              width={14}
-              height={10}
-              cornerRadius={4}
-              fill={guest ? "#94a3b8" : "#3b82f6"}
-              stroke="#2563eb"
-              strokeWidth={1}
-              
-            />
-          </Group>
-        );
-      })}
+  const seatTopFill = demoMode ? "#bdbdbd" : guest ? "#cbd5e1" : "#bfdbfe";
+  const seatBodyFill = demoMode ? "#9e9e9e" : guest ? "#94a3b8" : "#3b82f6";
+  const seatStroke = demoMode ? "#8a8a8a" : "#2563eb";
+
+  return (
+    <Group key={i} x={c.x} y={c.y} rotation={rotation}>
+      <Rect
+        x={-5}
+        y={-16}
+        width={10}
+        height={6}
+        cornerRadius={3}
+        fill={seatTopFill}
+      />
+      <Rect
+        x={-7}
+        y={-10}
+        width={14}
+        height={10}
+        cornerRadius={4}
+        fill={seatBodyFill}
+        stroke={seatStroke}
+        strokeWidth={1}
+      />
+    </Group>
+  );
+})}
+
+
     </Group>
   );
 }

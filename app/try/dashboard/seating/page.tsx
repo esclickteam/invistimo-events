@@ -5,14 +5,41 @@ import SeatingPage from "@/app/dashboard/seating/page";
 import { useSeatingStore } from "@/store/seatingStore";
 import { findFreeBlock } from "@/logic/seatingEngine";
 
+/* =========================
+   TYPES
+========================= */
+interface DemoGuest {
+  id: string;
+  name: string;
+  guestsCount: number;
+  status: "yes" | "pending" | "no";
+  tableId: string | null;
+  tableName: string | null;
+}
+
+interface DemoTable {
+  id: string;
+  name: string;
+  type: "round" | "square" | "banquet";
+  seats: number;
+  x: number;
+  y: number;
+  rotation: number;
+  seatedGuests: { guestId: string; seatIndex: number }[];
+}
+
 export default function DemoSeatingPage() {
   const init = useSeatingStore((state) => state.init);
+  const setDemoMode = useSeatingStore((state) => state.setDemoMode);
 
   useLayoutEffect(() => {
+    // ✅ מפעיל מצב דמו
+    setDemoMode(true);
+
     /* =========================
        DEMO TABLES
     ========================= */
-    const tables: any[] = [
+    const tables: DemoTable[] = [
       {
         id: "round-1",
         name: "שולחן עגול",
@@ -48,7 +75,7 @@ export default function DemoSeatingPage() {
     /* =========================
        DEMO GUESTS
     ========================= */
-    const guests: any[] = [
+    const guests: DemoGuest[] = [
       {
         id: "demo-1",
         name: "דנה לוי",
@@ -85,7 +112,7 @@ export default function DemoSeatingPage() {
 
     if (block?.length) {
       targetTable.seatedGuests.push(
-        ...block.map((seatIndex: number) => ({
+        ...block.map((seatIndex) => ({
           guestId: guest.id,
           seatIndex,
         }))
@@ -99,7 +126,7 @@ export default function DemoSeatingPage() {
        INIT – דורס persist לחלוטין
     ========================= */
     init(tables, guests, null);
-  }, []); // רץ לפני paint
+  }, [init, setDemoMode]);
 
   return <SeatingPage />;
 }

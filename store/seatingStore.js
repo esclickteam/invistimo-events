@@ -8,6 +8,11 @@ export const useSeatingStore = create((set, get) => ({
 
   background: null,
 
+   demoMode: false, // ⭐ מצב דמו
+
+  /* ---------------- ACTIONS ---------------- */
+  setDemoMode: (isDemo) => set({ demoMode: isDemo }),
+
   draggingGuest: null,
   ghostPosition: { x: 0, y: 0 },
 
