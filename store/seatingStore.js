@@ -199,59 +199,69 @@ initDemo: () => {
   },
 
   /* ---------------- DROP (SIDEBAR → TABLE) ---------------- */
-  dropGuest: () => {
-    const {
-      draggingGuest,
-      highlightedTable,
-      highlightedSeats,
-      tables,
-      guests,
-    } = get();
+dropGuest: () => {
+  const {
+    draggingGuest,
+    highlightedTable,
+    highlightedSeats,
+    tables,
+    guests,
+  } = get();
 
-    if (!draggingGuest) return;
+  if (!draggingGuest) return;
 
-    if (!highlightedTable || highlightedSeats.length === 0) {
-      return set({
-        draggingGuest: null,
-        highlightedTable: null,
-        highlightedSeats: [],
-      });
+  if (!highlightedTable || highlightedSeats.length === 0) {
+    return set({
+      draggingGuest: null,
+      highlightedTable: null,
+      highlightedSeats: [],
+    });
+  }
+
+  const guestId = String(draggingGuest.id ?? draggingGuest._id);
+
+  const updatedTables = tables.map((t) => {
+    // ניקוי הושבות קודמות
+    const cleanedSeats =
+      t.seatedGuests?.filter((s) => s.guestId !== guestId) ?? [];
+
+    if (t.id !== highlightedTable) {
+      return { ...t, seatedGuests: cleanedSeats };
     }
 
-    const cleanedTables = tables.map((t) => ({
+    // ⬅️ כאן הקסם: יוצרים array חדש
+    return {
       ...t,
-      seatedGuests: t.seatedGuests.filter(
-        (s) => s.guestId !== draggingGuest.id
-      ),
-    }));
+      seatedGuests: [
+        ...cleanedSeats,
+        ...highlightedSeats.map((seatIndex) => ({
+          guestId,
+          seatIndex,
+        })),
+      ],
+    };
+  });
 
-    const targetTable = cleanedTables.find(
-      (t) => t.id === highlightedTable
-    );
+  const targetTable = updatedTables.find(
+    (t) => t.id === highlightedTable
+  );
 
-    targetTable.seatedGuests.push(
-      ...highlightedSeats.map((seatIndex) => ({
-        guestId: String(draggingGuest.id ?? draggingGuest._id),
-        seatIndex,
-      }))
-    );
-
-    set({
-      tables: cleanedTables,
-      guests: guests.map((g) =>
-        g.id === draggingGuest.id
-          ? {
-              ...g,
-              tableId: highlightedTable,
-              tableName: targetTable.name,
-            }
-          : g
-      ),
-      draggingGuest: null,
-      highlightedSeats: [],
-      highlightedTable: null,
-    });
-  },
+  set({
+    tables: updatedTables,
+    guests: guests.map((g) =>
+      String(g.id ?? g._id) === guestId
+        ? {
+            ...g,
+            tableId: highlightedTable,
+            tableName: targetTable?.name,
+          }
+        : g
+    ),
+    draggingGuest: null,
+    highlightedSeats: [],
+    highlightedTable: null,
+  });
+},
 
   /* ---------------- ⭐ ASSIGN BLOCK (CANVAS DRAG) ---------------- */
   assignGuestBlock: ({ guestId, tableId }) => {
