@@ -414,18 +414,13 @@ console.log("INVITATION:", invitation);
 
     <button
   onClick={() => {
-    // 🧪 מצב דמו – מאפשרים מוזמן אחד בלבד
-    if (isDemo && guests.length >= 1) {
-      alert("מצב דמו – ניתן להוסיף מוזמן אחד בלבד");
-      return;
-    }
-
     setOpenAddModal(true);
   }}
   className="bg-black text-white px-6 py-3 rounded-full"
 >
   + הוספת מוזמן
 </button>
+
 
 
     <button
@@ -716,7 +711,6 @@ console.log("INVITATION:", invitation);
   />
 )}
 
-
 {showImportModal && (
   <ImportExcelModal
     invitationId={invitationId}
@@ -724,7 +718,6 @@ console.log("INVITATION:", invitation);
     onSuccess={loadGuests}
   />
 )}
-
 
 
     </div>
