@@ -307,9 +307,14 @@ const sendWhatsApp = async (guest: Guest) => {
     console.log("📦 SMS API response:", data);
 
     if (!res.ok || !data?.success) {
-      alert("❌ שליחת SMS נכשלה");
-      return;
-    }
+  if (isDemo) {
+    alert("🟡 אתם במצב דמו\nלשליחת הודעות אמיתית – יש להצטרף ולרכוש חבילה");
+  } else {
+    alert("❌ שליחת SMS נכשלה");
+  }
+  return;
+}
+
 
     alert(`✅ נשלחו ${data.sent} הודעות`);
 
