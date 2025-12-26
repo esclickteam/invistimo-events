@@ -5,6 +5,9 @@ import SeatingPage from "@/app/dashboard/seating/page";
 import { useDemoSeatingStore } from "@/store/store/demoSeatingStore";
 import { findFreeBlock } from "@/logic/seatingEngine";
 
+// ✅ טוען את הרשימה מהקובץ שלך
+import { DEMO_GUESTS } from "@/demo/demoGuests";
+
 /* =========================
    TYPES
 ========================= */
@@ -75,49 +78,32 @@ export default function DemoSeatingPage() {
     ];
 
     /* =========================
-       DEMO GUESTS
+       DEMO GUESTS (FROM FILE)
+       ✅ Clone כדי שלא "ידבק" בין ריענונים
     ========================= */
-    const guests: DemoGuest[] = [
-      {
-        id: "demo-1",
-        name: "דנה לוי",
-        guestsCount: 2,
-        status: "yes",
-        tableId: null,
-        tableName: null,
-      },
-      {
-        id: "demo-2",
-        name: "איתי כהן",
-        guestsCount: 1,
-        status: "pending",
-        tableId: null,
-        tableName: null,
-      },
-      {
-        id: "demo-3",
-        name: "משפחת ישראלי",
-        guestsCount: 4,
-        status: "yes",
-        tableId: null,
-        tableName: null,
-      },
-    ];
+    const guests: DemoGuest[] = DEMO_GUESTS.map((g) => ({
+      ...g,
+      tableId: null,
+      tableName: null,
+    }));
 
     /* =========================
        🔥 הושבה לדוגמה (engine)
+       (אם אין אורחים/שולחנות - לא עושה כלום)
     ========================= */
-    const block = findFreeBlock(tables[0], guests[0].guestsCount);
-    if (block?.length) {
-      tables[0].seatedGuests.push(
-        ...block.map((seatIndex) => ({
-          guestId: guests[0].id,
-          seatIndex,
-        }))
-      );
+    if (tables.length && guests.length) {
+      const block = findFreeBlock(tables[0], guests[0].guestsCount || 1);
+      if (block?.length) {
+        tables[0].seatedGuests.push(
+          ...block.map((seatIndex) => ({
+            guestId: guests[0].id,
+            seatIndex,
+          }))
+        );
 
-      guests[0].tableId = tables[0].id;
-      guests[0].tableName = tables[0].name;
+        guests[0].tableId = tables[0].id;
+        guests[0].tableName = tables[0].name;
+      }
     }
 
     /* =========================
@@ -126,8 +112,5 @@ export default function DemoSeatingPage() {
     init(tables, guests, null);
   }, [init, setDemoMode, resetDemo]);
 
-  // ✅ אם SeatingPage יודע לקבל prop:
-  // return <SeatingPage isDemo />;
-  // אם לא — השאירי כך:
   return <SeatingPage />;
 }
