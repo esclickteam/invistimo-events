@@ -72,6 +72,9 @@ const MESSAGE_TEMPLATES: Record<
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const isDemo =
+  searchParams.get("demo") === "1";
+
   const [guests, setGuests] = useState<Guest[]>([]);
   const [invitation, setInvitation] = useState<any>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
@@ -86,33 +89,82 @@ const MESSAGE_TEMPLATES: Record<
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
 
-  /* ================= LOAD DATA ================= */
+ /* ================= LOAD DATA ================= */
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const invRes = await fetch("/api/invitations/my");
-        const invData = await invRes.json();
-        if (!invData.success) return;
+useEffect(() => {
+  async function loadData() {
 
-        setInvitation(invData.invitation);
+    /* ================= DEMO MODE ================= */
+    if (isDemo) {
+      setInvitation({
+        _id: "demo-invitation",
+        shareId: "demo123",
+        location: {
+          lat: 32.0853,
+          lng: 34.7818,
+        },
+      });
 
-        const guestsRes = await fetch(
-          `/api/guests?invitation=${invData.invitation._id}`
-        );
-        const guestsData = await guestsRes.json();
-        setGuests(guestsData.guests || []);
+      setGuests([
+        {
+          _id: "demo-1",
+          name: "דנה לוי",
+          phone: "0501234567",
+          token: "token1",
+          rsvp: "pending",
+          tableName: "שולחן 5",
+        },
+        {
+          _id: "demo-2",
+          name: "יואב כהן",
+          phone: "0529876543",
+          token: "token2",
+          rsvp: "yes",
+          tableName: "שולחן 2",
+        },
+        {
+          _id: "demo-3",
+          name: "רוני ישראלי",
+          phone: "0543332211",
+          token: "token3",
+          rsvp: "pending",
+        },
+      ]);
 
-        const balanceRes = await fetch("/api/messages/balance");
-        const balanceData = await balanceRes.json();
-        if (balanceData.success) setBalance(balanceData);
-      } finally {
-        setLoading(false);
-      }
+      setBalance({
+        maxMessages: 100,
+        remainingMessages: 72,
+      });
+
+      setLoading(false);
+      return; // ⛔ חשוב: עוצר כאן ולא ממשיך לפרודקשן
     }
 
-    loadData();
-  }, []);
+    /* ================= PRODUCTION (לא נגעתי) ================= */
+    try {
+      const invRes = await fetch("/api/invitations/my");
+      const invData = await invRes.json();
+      if (!invData.success) return;
+
+      setInvitation(invData.invitation);
+
+      const guestsRes = await fetch(
+        `/api/guests?invitation=${invData.invitation._id}`
+      );
+      const guestsData = await guestsRes.json();
+      setGuests(guestsData.guests || []);
+
+      const balanceRes = await fetch("/api/messages/balance");
+      const balanceData = await balanceRes.json();
+      if (balanceData.success) setBalance(balanceData);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadData();
+}, []);
+
 
   /* ================= 🔄 REFRESH AFTER UPGRADE ================= */
 
