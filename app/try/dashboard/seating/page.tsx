@@ -33,6 +33,33 @@ export default function DemoSeatingPage() {
   const setDemoMode = useSeatingStore((state) => state.setDemoMode);
 
   useLayoutEffect(() => {
+    // ✅ מנקה persist אם קיים (לא ישבור אם לא קיים)
+    try {
+      // אם שם המפתח אצלך שונה — תעדכני אותו כאן
+      localStorage.removeItem("seating-store");
+    } catch {}
+
+    // ✅ מאפס מצב בזיכרון לפני init (שלא ימשוך שאריות)
+    useSeatingStore.setState({
+      tables: [],
+      guests: [],
+      background: null,
+
+      draggingGuest: null,
+      ghostPosition: { x: 0, y: 0 },
+
+      highlightedTable: null,
+      highlightedSeats: [],
+
+      selectedGuestId: null,
+
+      seatingModalTableId: null,
+      showSeatingModal: false,
+
+      showAddModal: false,
+      addGuestTable: null,
+    });
+
     // ✅ מפעיל מצב דמו
     setDemoMode(true);
 
@@ -103,27 +130,22 @@ export default function DemoSeatingPage() {
     ];
 
     /* =========================
-       🔥 הושבה אמיתית (engine)
+       🔥 הושבה אמיתית (engine) - דוגמה
     ========================= */
-    const targetTable = tables[0];
-    const guest = guests[0];
-
-    const block = findFreeBlock(targetTable, guest.guestsCount);
-
+    const block = findFreeBlock(tables[0], guests[0].guestsCount);
     if (block?.length) {
-      targetTable.seatedGuests.push(
+      tables[0].seatedGuests.push(
         ...block.map((seatIndex) => ({
-          guestId: guest.id,
+          guestId: guests[0].id,
           seatIndex,
         }))
       );
-
-      guest.tableId = targetTable.id;
-      guest.tableName = targetTable.name;
+      guests[0].tableId = tables[0].id;
+      guests[0].tableName = tables[0].name;
     }
 
     /* =========================
-       INIT – דורס persist לחלוטין
+       INIT – דמו מאפס כל פעם
     ========================= */
     init(tables, guests, null);
   }, [init, setDemoMode]);
