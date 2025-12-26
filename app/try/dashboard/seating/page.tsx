@@ -2,7 +2,7 @@
 
 import { useLayoutEffect } from "react";
 import SeatingPage from "@/app/dashboard/seating/page";
-import { useSeatingStore } from "@/store/seatingStore";
+import { useDemoSeatingStore } from "@/store/store/demoSeatingStore";
 import { findFreeBlock } from "@/logic/seatingEngine";
 
 /* =========================
@@ -28,40 +28,14 @@ interface DemoTable {
   seatedGuests: { guestId: string; seatIndex: number }[];
 }
 
-/* =========================================================
-   FIX: איפוס מצב מוחלט גם אם ה-Store שמור בזיכרון גלובלי
-========================================================= */
-function resetSeatingStore() {
-  useSeatingStore.setState({
-    tables: [],
-    guests: [],
-    background: null,
-
-    demoMode: true,
-    draggingGuest: null,
-    ghostPosition: { x: 0, y: 0 },
-
-    highlightedTable: null,
-    highlightedSeats: [],
-
-    selectedGuestId: null,
-    seatingModalTableId: null,
-    showSeatingModal: false,
-
-    showAddModal: false,
-    addGuestTable: null,
-
-    canvasView: { scale: 1, x: 0, y: 0 },
-  });
-}
-
 export default function DemoSeatingPage() {
-  const init = useSeatingStore((state) => state.init);
-  const setDemoMode = useSeatingStore((state) => state.setDemoMode);
+  const init = useDemoSeatingStore((state) => state.init);
+  const setDemoMode = useDemoSeatingStore((state) => state.setDemoMode);
+  const resetDemo = useDemoSeatingStore((state) => state.resetDemo);
 
   useLayoutEffect(() => {
-    // ✅ מאפס ומפעיל דמו בוודאות, גם אחרי ריענון
-    resetSeatingStore();
+    // ✅ איפוס מלא של הדמו (נפרד מהאמיתי)
+    resetDemo();
     setDemoMode(true);
 
     /* =========================
@@ -131,7 +105,7 @@ export default function DemoSeatingPage() {
     ];
 
     /* =========================
-       🔥 הושבה אמיתית (engine)
+       🔥 הושבה לדוגמה (engine)
     ========================= */
     const block = findFreeBlock(tables[0], guests[0].guestsCount);
     if (block?.length) {
@@ -147,10 +121,13 @@ export default function DemoSeatingPage() {
     }
 
     /* =========================
-       INIT – מאפס כל פעם מחדש
+       INIT – דמו בלבד
     ========================= */
     init(tables, guests, null);
-  }, [init, setDemoMode]);
+  }, [init, setDemoMode, resetDemo]);
 
+  // ✅ אם SeatingPage יודע לקבל prop:
+  // return <SeatingPage isDemo />;
+  // אם לא — השאירי כך:
   return <SeatingPage />;
 }
