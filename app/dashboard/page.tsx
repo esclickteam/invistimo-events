@@ -703,9 +703,19 @@ console.log("INVITATION:", invitation);
   <AddGuestModal
     invitationId={invitationId}
     onClose={() => setOpenAddModal(false)}
-    onSuccess={loadGuests}    // ⭐️ חובה
+    onSuccess={async (newGuest?: Guest) => {
+      if (isDemo && newGuest) {
+        // 🧪 דמו – מוסיפים מוזמן זמני לפרונט בלבד
+        setGuests((prev) => [...prev, newGuest]);
+        return;
+      }
+
+      // 🟢 פרודקשן – התנהגות רגילה
+      await loadGuests();
+    }}
   />
 )}
+
 
 {showImportModal && (
   <ImportExcelModal
