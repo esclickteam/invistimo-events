@@ -216,61 +216,82 @@ export default function HomePage() {
     <main className="bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
 
       {/* ================= בלוק 1 – HERO ================= */}
-      <section className="relative min-h-screen flex items-center px-6 overflow-hidden">
-        <HeroFireworks />
+<section className="relative min-h-screen flex items-center px-6 overflow-hidden">
+  <HeroFireworks />
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
+  <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 1 }}
+    >
+      <h1 className="text-5xl md:text-6xl font-semibold mb-6">
+        ניהול אירוע חכם
+      </h1>
+
+      <h2 className="text-3xl md:text-4xl mb-8">
+        בלי לרדוף אחרי אף אחד
+      </h2>
+
+      <p className="text-xl text-[#6b5f55] max-w-xl mb-10">
+        Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה
+        וניהול אורחים למערכת אחת — רגועה, מדויקת ומעודכנת בזמן אמת.
+      </p>
+
+      {/* ===== CTA BUTTONS ===== */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start">
+
+        {/* כפתור ראשי */}
+        <Link
+          href="/pricing"
+          className="inline-block px-12 py-4 bg-[#3f3a34] text-[#faf8f4] rounded-full"
+        >
+          לצפייה בחבילות
+        </Link>
+
+        {/* כפתור דמו */}
+        <div>
+          <Link
+            href="/try/dashboard"
+            className="inline-block px-12 py-4 border border-[#3f3a34] text-[#3f3a34] rounded-full
+                       hover:bg-[#3f3a34] hover:text-[#faf8f4] transition"
           >
-            <h1 className="text-5xl md:text-6xl font-semibold mb-6">
-              ניהול אירוע חכם
-            </h1>
+            נסו את המערכת עכשיו – חינם
+          </Link>
 
-            <h2 className="text-3xl md:text-4xl mb-8">
-              בלי לרדוף אחרי אף אחד
-            </h2>
-
-            <p className="text-xl text-[#6b5f55] max-w-xl mb-10">
-              Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה
-              וניהול אורחים למערכת אחת — רגועה, מדויקת ומעודכנת בזמן אמת.
-            </p>
-
-            <Link
-              href="/pricing"
-              className="inline-block px-12 py-4 bg-[#3f3a34] text-[#faf8f4] rounded-full"
-            >
-              לצפייה בחבילות
-            </Link>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.2 }}
-            className="flex justify-center lg:justify-end"
-          >
-            <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 6, repeat: Infinity }}
-              className="w-[320px] aspect-[9/19] rounded-[42px] bg-black p-[10px] shadow-2xl"
-            >
-              <div className="w-full h-full rounded-[32px] overflow-hidden">
-                <video
-                  src="/videos/home1.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </motion.div>
-          </motion.div>
+          <p className="text-sm text-[#6b5f55] mt-2">
+            ללא הרשמה · ללא התחייבות · ללא שמירה
+          </p>
         </div>
-      </section>
+
+      </div>
+    </motion.div>
+
+    <motion.div
+      initial={{ opacity: 0, y: 60 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 1.2 }}
+      className="flex justify-center lg:justify-end"
+    >
+      <motion.div
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 6, repeat: Infinity }}
+        className="w-[320px] aspect-[9/19] rounded-[42px] bg-black p-[10px] shadow-2xl"
+      >
+        <div className="w-full h-full rounded-[32px] overflow-hidden">
+          <video
+            src="/videos/home1.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </motion.div>
+    </motion.div>
+  </div>
+</section>
 
       {/* ================= בלוק 2 ================= */}
       <section className="py-32 px-6 bg-[#faf8f4]">
