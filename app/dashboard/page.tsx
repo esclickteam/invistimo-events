@@ -306,6 +306,11 @@ console.log("INVITATION:", invitation);
   ============================================================ */
   return (
     <div className="px-4 py-6 md:p-10 max-w-full overflow-x-hidden" dir="rtl">
+      {isDemo && (
+  <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-amber-800">
+    🧪 מצב דמו פעיל – הנתונים לא יישמרו
+  </div>
+)}
 
        <h1 className="text-4xl font-semibold mb-6">
       ניהול האירוע שלך
@@ -357,11 +362,19 @@ console.log("INVITATION:", invitation);
 
     {invitation && (
       <button
-        onClick={() => router.push("/dashboard/seating")}
-        className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
-      >
-        🪑סידורי הושבה
-      </button>
+  onClick={() => {
+    if (isDemo) {
+      alert("מצב דמו – סידורי ההושבה זמינים לצפייה בלבד, הנתונים לא יישמרו");
+      return;
+    }
+
+    router.push("/dashboard/seating");
+  }}
+  className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+>
+  🪑 סידורי הושבה
+</button>
+
     )}
 
     {invitation && (
@@ -388,19 +401,36 @@ console.log("INVITATION:", invitation);
 
     {invitation && (
       <button
-        onClick={() => router.push("/dashboard/messages")}
-        className="bg-green-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-700 transition"
-      >
-        💬 שליחת הודעות
-      </button>
+  onClick={() => {
+    if (isDemo) {
+      alert("מצב דמו – ניתן לצפות במסך ההודעות אך לא לשלוח הודעות בפועל");
+      return;
+    }
+
+    router.push("/dashboard/messages");
+  }}
+  className="bg-green-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-700 transition"
+>
+  💬 שליחת הודעות
+</button>
+
     )}
 
     <button
-      onClick={() => setOpenAddModal(true)}
-      className="bg-black text-white px-6 py-3 rounded-full"
-    >
-      + הוספת מוזמן
-    </button>
+  onClick={() => {
+    // 🧪 מצב דמו – מאפשרים מוזמן אחד בלבד
+    if (isDemo && guests.length >= 1) {
+      alert("מצב דמו – ניתן להוסיף מוזמן אחד בלבד");
+      return;
+    }
+
+    setOpenAddModal(true);
+  }}
+  className="bg-black text-white px-6 py-3 rounded-full"
+>
+  + הוספת מוזמן
+</button>
+
 
     <button
       onClick={() => setShowImportModal(true)}
