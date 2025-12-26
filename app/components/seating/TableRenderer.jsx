@@ -399,9 +399,11 @@ function TableRenderer({ table }) {
   const guest = seatInfoMap.get(i)?.guest;
   const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-  const seatTopFill = demoMode ? "#bdbdbd" : guest ? "#cbd5e1" : "#bfdbfe";
-  const seatBodyFill = demoMode ? "#9e9e9e" : guest ? "#94a3b8" : "#3b82f6";
-  const seatStroke = demoMode ? "#8a8a8a" : "#2563eb";
+  // 🎨 צבעים
+  const isOccupied = Boolean(guest); // אם יש אורח שיושב
+  const seatTopFill = isOccupied ? "#bdbdbd" : "#bfdbfe";   // אפור אם תפוס
+  const seatBodyFill = isOccupied ? "#9e9e9e" : "#3b82f6";  // אפור כהה אם תפוס
+  const seatStroke = isOccupied ? "#8a8a8a" : "#2563eb";    // קו תואם
 
   return (
     <Group key={i} x={c.x} y={c.y} rotation={rotation}>
@@ -426,6 +428,7 @@ function TableRenderer({ table }) {
     </Group>
   );
 })}
+
 
 
     </Group>
