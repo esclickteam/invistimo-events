@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
+let DEMO_MODE = false;
+
+export const enableSeatingDemoMode = () => {
+  DEMO_MODE = true;
+};
+
+
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
   tables: [],
@@ -57,6 +64,56 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
+  initDemo: () => {
+  DEMO_MODE = true;
+
+  set({
+    tables: [
+      {
+        id: "demo-table-1",
+        name: "שולחן 1",
+        type: "round",
+        seats: 12,
+        x: 400,
+        y: 300,
+        rotation: 0,
+        seatedGuests: [],
+      },
+    ],
+
+    guests: [
+      {
+        id: "demo-guest-1",
+        _id: "demo-guest-1", // ⭐ חשוב לעקביות
+        name: "דנה לוי",
+        guestsCount: 2,
+        tableId: null,
+        tableName: null,
+      },
+      {
+        id: "demo-guest-2",
+        _id: "demo-guest-2",
+        name: "יואב כהן",
+        guestsCount: 1,
+        tableId: null,
+        tableName: null,
+      },
+      {
+        id: "demo-guest-3",
+        _id: "demo-guest-3",
+        name: "נועה ישראלי",
+        guestsCount: 3,
+        tableId: null,
+        tableName: null,
+      },
+    ],
+
+    background: null,
+  });
+},
+
+
+
   /* ---------------- ADD TABLE ---------------- */
   addTable: (type, seats, position) => {
   const { tables } = get();
@@ -94,11 +151,14 @@ export const useSeatingStore = create((set, get) => ({
 
   /* ---------------- DRAG START / END ---------------- */
   startDragGuest: (guest) =>
-    set({
-      draggingGuest: {
-        ...guest,
-        __isDragging: true,
-      },
+  set({
+    draggingGuest: {
+      ...guest,
+      guestsCount: guest.guestsCount || 1, 
+      __isDragging: true,
+    },
+
+
       highlightedSeats: [],
       highlightedTable: null,
     }),
@@ -178,7 +238,7 @@ export const useSeatingStore = create((set, get) => ({
 
     targetTable.seatedGuests.push(
       ...highlightedSeats.map((seatIndex) => ({
-        guestId: draggingGuest.id,
+        guestId: draggingGuest.id || draggingGuest._id,
         seatIndex,
       }))
     );
@@ -186,7 +246,8 @@ export const useSeatingStore = create((set, get) => ({
     set({
       tables: cleanedTables,
       guests: guests.map((g) =>
-        g.id === draggingGuest.id
+        g.id === (draggingGuest.id || draggingGuest._id)
+
           ? {
               ...g,
               tableId: highlightedTable,
