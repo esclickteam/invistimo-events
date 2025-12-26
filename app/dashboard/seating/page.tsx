@@ -8,7 +8,7 @@ import UpgradePlanModal from "./UpgradePlanModal";
 import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
 
-import { useSeatingStore } from "@/store/seatingStore";
+import { useActiveSeatingStore } from "@/store/store/useActiveSeatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
 /* ⭐ קומפוננטות עליונות */
@@ -29,6 +29,8 @@ export default function SeatingPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const useSeatingStore = useActiveSeatingStore();
+
 
   // ✅ שליטה על Drawer של רשימת אורחים במובייל
   const [showGuests, setShowGuests] = useState(false);
