@@ -224,7 +224,7 @@ export const useSeatingStore = create((set, get) => ({
 
     targetTable.seatedGuests.push(
       ...highlightedSeats.map((seatIndex) => ({
-        guestId: draggingGuest.id,
+        guestId: draggingGuest.id ?? draggingGuest._id,
         seatIndex,
       }))
     );
