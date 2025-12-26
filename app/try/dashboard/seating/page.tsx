@@ -28,39 +28,40 @@ interface DemoTable {
   seatedGuests: { guestId: string; seatIndex: number }[];
 }
 
+/* =========================================================
+   FIX: איפוס מצב מוחלט גם אם ה-Store שמור בזיכרון גלובלי
+========================================================= */
+function resetSeatingStore() {
+  useSeatingStore.setState({
+    tables: [],
+    guests: [],
+    background: null,
+
+    demoMode: true,
+    draggingGuest: null,
+    ghostPosition: { x: 0, y: 0 },
+
+    highlightedTable: null,
+    highlightedSeats: [],
+
+    selectedGuestId: null,
+    seatingModalTableId: null,
+    showSeatingModal: false,
+
+    showAddModal: false,
+    addGuestTable: null,
+
+    canvasView: { scale: 1, x: 0, y: 0 },
+  });
+}
+
 export default function DemoSeatingPage() {
   const init = useSeatingStore((state) => state.init);
   const setDemoMode = useSeatingStore((state) => state.setDemoMode);
 
   useLayoutEffect(() => {
-    // ✅ מנקה persist אם קיים (לא ישבור אם לא קיים)
-    try {
-      // אם שם המפתח אצלך שונה — תעדכני אותו כאן
-      localStorage.removeItem("seating-store");
-    } catch {}
-
-    // ✅ מאפס מצב בזיכרון לפני init (שלא ימשוך שאריות)
-    useSeatingStore.setState({
-      tables: [],
-      guests: [],
-      background: null,
-
-      draggingGuest: null,
-      ghostPosition: { x: 0, y: 0 },
-
-      highlightedTable: null,
-      highlightedSeats: [],
-
-      selectedGuestId: null,
-
-      seatingModalTableId: null,
-      showSeatingModal: false,
-
-      showAddModal: false,
-      addGuestTable: null,
-    });
-
-    // ✅ מפעיל מצב דמו
+    // ✅ מאפס ומפעיל דמו בוודאות, גם אחרי ריענון
+    resetSeatingStore();
     setDemoMode(true);
 
     /* =========================
@@ -130,7 +131,7 @@ export default function DemoSeatingPage() {
     ];
 
     /* =========================
-       🔥 הושבה אמיתית (engine) - דוגמה
+       🔥 הושבה אמיתית (engine)
     ========================= */
     const block = findFreeBlock(tables[0], guests[0].guestsCount);
     if (block?.length) {
@@ -140,12 +141,13 @@ export default function DemoSeatingPage() {
           seatIndex,
         }))
       );
+
       guests[0].tableId = tables[0].id;
       guests[0].tableName = tables[0].name;
     }
 
     /* =========================
-       INIT – דמו מאפס כל פעם
+       INIT – מאפס כל פעם מחדש
     ========================= */
     init(tables, guests, null);
   }, [init, setDemoMode]);
