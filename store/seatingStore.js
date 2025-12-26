@@ -63,45 +63,50 @@ export const useSeatingStore = create((set, get) => ({
   },
 
   /* ---------------- DEMO INIT ---------------- */
-  initDemo: () => {
-    set({
-      demoMode: true,
+initDemo: () => {
+  set({
+    demoMode: true,
 
-      tables: [
-        {
-          id: "demo-table-1",
-          name: "שולחן דמו",
-          type: "round",
-          seats: 10,
-          x: 450,
-          y: 300,
-          rotation: 0,
-          seatedGuests: [],
-        },
-      ],
+    tables: [
+      {
+        id: "demo-table-1",
+        name: "שולחן דמו",
+        type: "round",
+        seats: 10,
+        x: 450,
+        y: 300,
+        rotation: 0,
+        seatedGuests: [],
+      },
+    ],
 
-      guests: [
-        {
-          id: "demo-guest-1",
-          _id: "demo-guest-1",
-          name: "דנה לוי (דמו)",
-          guestsCount: 2,
-          tableId: null,
-          tableName: null,
-        },
-        {
-          id: "demo-guest-2",
-          _id: "demo-guest-2",
-          name: "יואב כהן (דמו)",
-          guestsCount: 1,
-          tableId: null,
-          tableName: null,
-        },
-      ],
+    guests: [
+      {
+        id: "demo-guest-1",
+        _id: "demo-guest-1",
+        name: "דנה לוי (דמו)",
+        guestsCount: 2,
+        confirmedGuestsCount: 2, // ⭐ זה מה שצובע אפור
+        confirmed: true,          // ⭐ זה מה שצובע אפור
+        tableId: null,
+        tableName: null,
+      },
+      {
+        id: "demo-guest-2",
+        _id: "demo-guest-2",
+        name: "יואב כהן (דמו)",
+        guestsCount: 1,
+        confirmedGuestsCount: 1, // ⭐
+        confirmed: true,          // ⭐
+        tableId: null,
+        tableName: null,
+      },
+    ],
 
-      background: null,
-    });
-  },
+    background: null,
+  });
+},
+
 
   /* ---------------- ADD TABLE ---------------- */
   addTable: (type, seats, position) => {
@@ -224,7 +229,7 @@ export const useSeatingStore = create((set, get) => ({
 
     targetTable.seatedGuests.push(
       ...highlightedSeats.map((seatIndex) => ({
-        guestId: draggingGuest.id ?? draggingGuest._id,
+        guestId: String(draggingGuest.id ?? draggingGuest._id),
         seatIndex,
       }))
     );
