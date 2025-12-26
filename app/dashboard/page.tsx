@@ -9,7 +9,7 @@ import { RSVP_LABELS } from "@/lib/rsvp";
 import ImportExcelModal from "../components/ImportExcelModal"; 
 import EventCountdown from "../components/EventCountdown";
 import GuestsMobileList from "./components/GuestsMobileList";
-
+import { usePathname } from "next/navigation";
 
 
 
@@ -37,6 +37,10 @@ type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
 
 export default function DashboardPage() {
+
+  const pathname = usePathname();
+const isDemo = pathname.startsWith("/try");
+
   const router = useRouter();
 
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -108,6 +112,12 @@ export default function DashboardPage() {
 
 
 async function deleteGuest(guest: Guest) {
+  // ⭐️ DEMO – חסימת מחיקה בדמו
+  if (isDemo) {
+    alert("מצב דמו – הפעולה לא נשמרת");
+    return;
+  }
+
   const ok = window.confirm(
     `האם למחוק את המוזמן "${guest.name}"?\nהפעולה אינה ניתנת לביטול.`
   );
@@ -132,21 +142,62 @@ async function deleteGuest(guest: Guest) {
   }
 }
 
-  useEffect(() => {
-    async function init() {
-      await loadUser();
-      await loadInvitation();
-      setLoading(false);
-    }
-    init();
-  }, []);
+useEffect(() => {
+  // ⭐️ DEMO – אם זה דמו, לא מריצים init אמיתי
+  if (isDemo) return;
 
-  useEffect(() => {
-  if (!invitationId) return;
-  loadGuests();
-}, [invitationId]);
+  async function init() {
+    await loadUser();
+    await loadInvitation();
+    setLoading(false);
+  }
+  init();
+}, [isDemo]);
 
 useEffect(() => {
+  // ⭐️ DEMO – טעינת נתוני דמו בלבד
+  if (!isDemo) return;
+
+  setUser({ plan: "premium" }); // או basic
+  setInvitation({
+    _id: "demo",
+    shareId: "demo",
+    eventDate: new Date().toISOString(),
+  });
+  setInvitationId("demo");
+  setGuests([
+    {
+      _id: "1",
+      name: "אורן לוי",
+      phone: "0501234567",
+      token: "demo1",
+      rsvp: "yes",
+      guestsCount: 2,
+      tableName: "שולחן 5",
+    },
+    {
+      _id: "2",
+      name: "נועה כהן",
+      phone: "0529876543",
+      token: "demo2",
+      rsvp: "pending",
+      guestsCount: 1,
+    },
+  ]);
+  setLoading(false);
+}, [isDemo]);
+
+useEffect(() => {
+  // ⭐️ DEMO – לא טוענים אורחים מהשרת בדמו
+  if (isDemo) return;
+  if (!invitationId) return;
+
+  loadGuests();
+}, [invitationId, isDemo]);
+
+useEffect(() => {
+  // ⭐️ DEMO – לא מפעילים polling בדמו
+  if (isDemo) return;
   if (!invitationId) return;
 
   const interval = setInterval(() => {
@@ -154,8 +205,7 @@ useEffect(() => {
   }, 5000); // כל 5 שניות
 
   return () => clearInterval(interval);
-}, [invitationId]);
-
+}, [invitationId, isDemo]);
 
   /* ============================================================
      Stats (על כל האורחים)
