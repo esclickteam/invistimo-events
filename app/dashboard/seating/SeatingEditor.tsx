@@ -201,6 +201,12 @@ useEffect(() => {
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
+      {demoMode && (
+  <div className="absolute top-4 right-4 z-50 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm shadow">
+    🟡 אתם במצב דמו – להושבה אמיתית וניהול מלא של האירוע, הצטרפו אלינו
+  </div>
+)}
+
       {/* ➕ הוסף שולחן */}
       <button
         onClick={() => setShowAddModal(true)}
