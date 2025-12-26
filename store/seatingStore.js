@@ -263,30 +263,30 @@ dropGuest: () => {
   });
 },
 
-  /* ---------------- ⭐ ASSIGN BLOCK (CANVAS DRAG) ---------------- */
 assignGuestBlock: ({ guestId, tableId }) => {
   const { tables, guests } = get();
 
-  const guest = guests.find((g) => String(g.id ?? g._id) === String(guestId));
+  const guest = guests.find(
+    (g) => String(g.id ?? g._id) === String(guestId)
+  );
   if (!guest) return;
 
-  const count =
-    guest.guestsCount ||
-    guest.count ||
-    1;
+  const count = guest.guestsCount || guest.count || 1;
 
   const updatedTables = tables.map((t) => {
-    // ניקוי הושבות קודמות של האורח מכל השולחנות
-    const cleanedSeats =
-      t.seatedGuests?.filter(
-        (s) => String(s.guestId) !== String(guestId)
-      ) ?? [];
+    const prevSeats = Array.isArray(t.seatedGuests)
+      ? t.seatedGuests
+      : [];
+
+    // ניקוי הושבות קודמות
+    const cleanedSeats = prevSeats.filter(
+      (s) => String(s.guestId) !== String(guestId)
+    );
 
     if (t.id !== tableId) {
       return { ...t, seatedGuests: cleanedSeats };
     }
 
-    // חישוב מקומות פנויים
     const block = findFreeBlock(
       { ...t, seatedGuests: cleanedSeats },
       count
@@ -296,7 +296,6 @@ assignGuestBlock: ({ guestId, tableId }) => {
       return { ...t, seatedGuests: cleanedSeats };
     }
 
-    // ⬅️ יצירת seatedGuests חדש (immutability)
     return {
       ...t,
       seatedGuests: [

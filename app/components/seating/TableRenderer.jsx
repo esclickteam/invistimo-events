@@ -212,12 +212,15 @@ function TableRenderer({ table }) {
 
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
-    if (tableRef.current) {
-      tableRef.current.cache();
-      tableRef.current.getLayer()?.batchDraw();
-    }
-  }, [layout.type, table.seats]);
-
+  if (tableRef.current) {
+    tableRef.current.cache();
+    tableRef.current.getLayer()?.batchDraw();
+  }
+}, [
+  layout.type,
+  table.seats,
+  table.seatedGuests, // 🔥 זה מה שחסר
+]);
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -437,4 +440,5 @@ function TableRenderer({ table }) {
   );
 }
 
-export default React.memo(TableRenderer);
+export default TableRenderer;
+
