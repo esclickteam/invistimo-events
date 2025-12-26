@@ -264,73 +264,117 @@ dropGuest: () => {
 },
 
   /* ---------------- ⭐ ASSIGN BLOCK (CANVAS DRAG) ---------------- */
-  assignGuestBlock: ({ guestId, tableId }) => {
-    const { tables, guests } = get();
-    const guest = guests.find((g) => g.id === guestId);
-    const table = tables.find((t) => t.id === tableId);
-    if (!guest || !table) return;
+assignGuestBlock: ({ guestId, tableId }) => {
+  const { tables, guests } = get();
 
-    const count =
-      guest.guestsCount ||
-      guest.count ||
-      1;
+  const guest = guests.find((g) => String(g.id ?? g._id) === String(guestId));
+  if (!guest) return;
 
-    const block = findFreeBlock(table, count);
-    if (!block) return;
+  const count =
+    guest.guestsCount ||
+    guest.count ||
+    1;
 
-    tables.forEach((t) => {
-      t.seatedGuests = t.seatedGuests.filter(
-        (s) => s.guestId !== guestId
-      );
-    });
+  const updatedTables = tables.map((t) => {
+    // ניקוי הושבות קודמות של האורח מכל השולחנות
+    const cleanedSeats =
+      t.seatedGuests?.filter(
+        (s) => String(s.guestId) !== String(guestId)
+      ) ?? [];
 
-    table.seatedGuests.push(
-      ...block.map((seatIndex) => ({
-        guestId,
-        seatIndex,
-      }))
+    if (t.id !== tableId) {
+      return { ...t, seatedGuests: cleanedSeats };
+    }
+
+    // חישוב מקומות פנויים
+    const block = findFreeBlock(
+      { ...t, seatedGuests: cleanedSeats },
+      count
     );
 
-    guest.tableId = tableId;
-    guest.tableName = table.name;
+    if (!block) {
+      return { ...t, seatedGuests: cleanedSeats };
+    }
 
-    set({
-      tables: [...tables],
-      guests: [...guests],
-      draggingGuest: null,
-      highlightedSeats: [],
-      highlightedTable: null,
-    });
-  },
-
-  /* ---------------- ⭐ DROP ישיר על מושב ---------------- */
-  assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
-    const { tables, guests } = get();
-
-    const cleanedTables = tables.map((t) => ({
+    // ⬅️ יצירת seatedGuests חדש (immutability)
+    return {
       ...t,
-      seatedGuests: t.seatedGuests.filter(
-        (s) => s.guestId !== guestId
-      ),
-    }));
+      seatedGuests: [
+        ...cleanedSeats,
+        ...block.map((seatIndex) => ({
+          guestId: String(guestId),
+          seatIndex,
+        })),
+      ],
+    };
+  });
 
-    const targetTable = cleanedTables.find((t) => t.id === tableId);
-    if (!targetTable) return;
+  const targetTable = updatedTables.find((t) => t.id === tableId);
 
-    targetTable.seatedGuests.push({ guestId, seatIndex });
+  set({
+    tables: updatedTables,
+    guests: guests.map((g) =>
+      String(g.id ?? g._id) === String(guestId)
+        ? {
+            ...g,
+            tableId,
+            tableName: targetTable?.name,
+          }
+        : g
+    ),
+    draggingGuest: null,
+    highlightedSeats: [],
+    highlightedTable: null,
+  });
+},
 
-    set({
-      tables: cleanedTables,
-      guests: guests.map((g) =>
-        g.id === guestId
-          ? { ...g, tableId, tableName: targetTable.name }
-          : g
-      ),
-      draggingGuest: null,
-      highlightedSeats: [],
-      highlightedTable: null,
-    });
-  },
+
+ /* ---------------- ⭐ DROP ישיר על מושב ---------------- */
+assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
+  const { tables, guests } = get();
+
+  const updatedTables = tables.map((t) => {
+    // ניקוי הושבות קודמות של האורח
+    const cleanedSeats =
+      t.seatedGuests?.filter(
+        (s) => String(s.guestId) !== String(guestId)
+      ) ?? [];
+
+    if (t.id !== tableId) {
+      return { ...t, seatedGuests: cleanedSeats };
+    }
+
+    // ⬅️ יצירת seatedGuests חדש (immutable)
+    return {
+      ...t,
+      seatedGuests: [
+        ...cleanedSeats,
+        {
+          guestId: String(guestId),
+          seatIndex,
+        },
+      ],
+    };
+  });
+
+  const targetTable = updatedTables.find((t) => t.id === tableId);
+
+  set({
+    tables: updatedTables,
+    guests: guests.map((g) =>
+      String(g.id ?? g._id) === String(guestId)
+        ? {
+            ...g,
+            tableId,
+            tableName: targetTable?.name,
+          }
+        : g
+    ),
+    draggingGuest: null,
+    highlightedSeats: [],
+    highlightedTable: null,
+  });
+},
 
   /* ---------------- REMOVE FROM SEAT ---------------- */
   removeFromSeat: (guestId) => {
