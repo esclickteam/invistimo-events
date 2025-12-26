@@ -356,18 +356,26 @@ const used = max - remaining;
 
 const progress = max > 0 ? (used / max) * 100 : 0;
 
-  return (
-    <div className="p-10 flex flex-col items-center" dir="rtl">
-      <button
-        onClick={() => router.back()}
-        className="text-sm text-gray-500 mb-3 hover:underline self-start"
-      >
-        ← חזרה
-      </button>
+ return (
+  <div className="p-10 flex flex-col items-center" dir="rtl">
 
-      <h1 className="text-3xl font-semibold mb-8 text-[#4a413a] text-center">
-        שליחת הודעות לאורחים 💌
-      </h1>
+    {isDemo && (
+      <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm">
+        🟡 מצב דמו – לא נשלחות הודעות אמיתיות
+      </div>
+    )}
+
+    <button
+      onClick={() => router.back()}
+      className="text-sm text-gray-500 mb-3 hover:underline self-start"
+    >
+      ← חזרה
+    </button>
+
+    <h1 className="text-3xl font-semibold mb-8 text-[#4a413a] text-center">
+      שליחת הודעות לאורחים 💌
+    </h1>
+
 
       {/* BALANCE CARD */}
       {balance && (
