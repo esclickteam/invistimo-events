@@ -73,7 +73,9 @@ const MESSAGE_TEMPLATES: Record<
   const searchParams = useSearchParams();
 
   const isDemo =
-  searchParams.get("demo") === "1";
+  searchParams.get("demo") === "1" ||
+  typeof window !== "undefined" && window.location.pathname.startsWith("/try/");
+
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [invitation, setInvitation] = useState<any>(null);
