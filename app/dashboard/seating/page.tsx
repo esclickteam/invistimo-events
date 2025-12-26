@@ -230,7 +230,8 @@ export default function SeatingPage({ isDemo = false }: SeatingPageProps) {
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
         {/* קנבס */}
         <div className="flex-1 relative">
-          <SeatingEditor background={background?.url || null} />
+          <SeatingEditor background={background?.url || null} isDemo={isDemo} />
+
         </div>
 
         {/* סיידבר – דסקטופ */}
