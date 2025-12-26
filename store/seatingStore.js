@@ -145,14 +145,16 @@ initDemo: () => {
 
   /* ---------------- DRAG START / END ---------------- */
   startDragGuest: (guest) =>
-    set({
-      draggingGuest: {
-        ...guest,
-        __isDragging: true,
-      },
-      highlightedSeats: [],
-      highlightedTable: null,
-    }),
+  set({
+    draggingGuest: {
+      ...guest,
+      id: String(guest.id ?? guest._id), // ⭐⭐⭐ השורה הקריטית
+      __isDragging: true,
+    },
+    highlightedSeats: [],
+    highlightedTable: null,
+  }),
+
 
   endDragGuest: () =>
     set({
