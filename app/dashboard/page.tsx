@@ -363,17 +363,15 @@ console.log("INVITATION:", invitation);
     {invitation && (
       <button
   onClick={() => {
-    if (isDemo) {
-      alert("מצב דמו – סידורי ההושבה זמינים לצפייה בלבד, הנתונים לא יישמרו");
-      return;
-    }
-
-    router.push("/dashboard/seating");
+    router.push(
+      isDemo ? "/try/dashboard/seating" : "/dashboard/seating"
+    );
   }}
   className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
 >
   🪑 סידורי הושבה
 </button>
+
 
     )}
 
@@ -402,17 +400,15 @@ console.log("INVITATION:", invitation);
     {invitation && (
       <button
   onClick={() => {
-    if (isDemo) {
-      alert("מצב דמו – ניתן לצפות במסך ההודעות אך לא לשלוח הודעות בפועל");
-      return;
-    }
-
-    router.push("/dashboard/messages");
+    router.push(
+      isDemo ? "/try/dashboard/messages" : "/dashboard/messages"
+    );
   }}
   className="bg-green-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-700 transition"
 >
   💬 שליחת הודעות
 </button>
+
 
     )}
 
