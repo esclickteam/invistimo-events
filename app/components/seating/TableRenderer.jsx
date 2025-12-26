@@ -184,15 +184,17 @@ function TableRenderer({ table }) {
   }, [assigned]);
 
   const seatInfoMap = useMemo(() => {
-    const map = new Map();
-    assigned.forEach((s) => {
-      const g = guests.find(
-        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
-      );
-      if (g) map.set(s.seatIndex, { guest: g });
-    });
-    return map;
-  }, [assigned, guests]);
+  const map = new Map();
+  assigned.forEach((s) => {
+    const g = guests.find(
+      (guest) =>
+        String(guest.id) === String(s.guestId) ||
+        String(guest._id) === String(s.guestId)
+    );
+    if (g) map.set(s.seatIndex, { guest: g });
+  });
+  return map;
+}, [assigned, guests]);
 
   const isHighlighted =
     highlightedTable === table.id ||
