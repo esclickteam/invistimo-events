@@ -9,6 +9,7 @@ import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
 
 import { useActiveSeatingStore } from "@/store/store/useActiveSeatingStore";
+import { useDemoSeatingStore } from "@/store/store/demoSeatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
 /* ⭐ קומפוננטות עליונות */
@@ -29,26 +30,39 @@ export default function SeatingPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+
+  /* ===============================
+     🔥 ביטול Demo Mode – אירוע אמיתי
+  =============================== */
+  const setDemoMode = useDemoSeatingStore((s) => s.setDemoMode);
+
+  useEffect(() => {
+    // ⛔ חובה: זה אירוע אמיתי, לא דמו
+    setDemoMode(false);
+  }, [setDemoMode]);
+
+  /* ===============================
+     Active Seating Store
+  =============================== */
   const useSeatingStore = useActiveSeatingStore();
 
-
-  // ✅ שליטה על Drawer של רשימת אורחים במובייל
+  // Drawer מובייל
   const [showGuests, setShowGuests] = useState(false);
 
   /* ===============================
      STORES
   =============================== */
-  const init = useSeatingStore((s) => s.init);
-  const tables = useSeatingStore((s) => s.tables);
-  const guests = useSeatingStore((s) => s.guests);
+  const init = useSeatingStore((s: any) => s.init);
+  const tables = useSeatingStore((s: any) => s.tables);
+  const guests = useSeatingStore((s: any) => s.guests);
 
-  const background = useSeatingStore((s) => s.background);
-  const setBackground = useSeatingStore((s) => s.setBackground);
+  const background = useSeatingStore((s: any) => s.background);
+  const setBackground = useSeatingStore((s: any) => s.setBackground);
 
   const setZones = useZoneStore((s) => s.setZones);
 
   /* ===============================
-     LOAD INITIAL DATA
+     LOAD INITIAL DATA (API)
   =============================== */
   useEffect(() => {
     async function load() {
@@ -213,7 +227,6 @@ export default function SeatingPage() {
 
       {/* ================= CONTENT ================= */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
-
         {/* קנבס */}
         <div className="flex-1 relative">
           <SeatingEditor background={background?.url || null} />
@@ -221,7 +234,6 @@ export default function SeatingPage() {
 
         {/* סיידבר – דסקטופ */}
         <aside className="hidden md:block w-72 bg-white border-l">
-
           <Suspense
             fallback={
               <div className="p-4 text-sm text-gray-400">
@@ -236,7 +248,7 @@ export default function SeatingPage() {
           </Suspense>
         </aside>
 
-        {/* כפתור פתיחה למובייל – מתחת להוסף שולחן */}
+        {/* כפתור מובייל */}
         <button
           onClick={() => setShowGuests(true)}
           className="md:hidden absolute top-16 left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
@@ -244,7 +256,7 @@ export default function SeatingPage() {
           👥 רשימת אורחים
         </button>
 
-        {/* Drawer – מובייל */}
+        {/* Drawer מובייל */}
         {showGuests && (
           <Suspense fallback={null}>
             <MobileGuests
