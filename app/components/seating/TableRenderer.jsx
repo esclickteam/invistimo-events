@@ -4,7 +4,7 @@ import React from "react";
 import { useRef, useMemo, useState, useEffect } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
-
+import { useSearchParams } from "next/navigation";
 
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
@@ -171,6 +171,10 @@ function TableRenderer({ table }) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
+  const searchParams = useSearchParams();
+const from = searchParams.get("from");
+const guestIdFromUrl = searchParams.get("guestId");
+
   const deleteTable =
     useSeatingStore((s) => s.deleteTable) ||
     useSeatingStore((s) => s.removeTable) ||
@@ -197,8 +201,14 @@ function TableRenderer({ table }) {
 }, [assigned, guests]);
 
   const isHighlighted =
-    highlightedTable === table.id ||
-    assigned.some((s) => String(s.guestId) === String(selectedGuestId));
+  highlightedTable === table.id ||
+  assigned.some((s) => String(s.guestId) === String(selectedGuestId)) ||
+  (
+    from === "personal" &&
+    guestIdFromUrl &&
+    assigned.some((s) => String(s.guestId) === String(guestIdFromUrl))
+  );
+
 
   const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
   const tableText = isHighlighted ? "#713f12" : "white";
