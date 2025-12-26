@@ -4,8 +4,6 @@ import { useLayoutEffect } from "react";
 import SeatingPage from "@/app/dashboard/seating/page";
 import { useDemoSeatingStore } from "@/store/store/demoSeatingStore";
 import { findFreeBlock } from "@/logic/seatingEngine";
-
-// ✅ טוען את הרשימה מהקובץ שלך
 import { DEMO_GUESTS } from "@/demo/demoGuests";
 
 /* =========================
@@ -33,17 +31,13 @@ interface DemoTable {
 
 export default function DemoSeatingPage() {
   const init = useDemoSeatingStore((state) => state.init);
-  const setDemoMode = useDemoSeatingStore((state) => state.setDemoMode);
   const resetDemo = useDemoSeatingStore((state) => state.resetDemo);
+  const setDemoMode = useDemoSeatingStore((state) => state.setDemoMode);
 
   useLayoutEffect(() => {
-    // ✅ איפוס מלא של הדמו (נפרד מהאמיתי)
     resetDemo();
     setDemoMode(true);
 
-    /* =========================
-       DEMO TABLES
-    ========================= */
     const tables: DemoTable[] = [
       {
         id: "round-1",
@@ -77,20 +71,12 @@ export default function DemoSeatingPage() {
       },
     ];
 
-    /* =========================
-       DEMO GUESTS (FROM FILE)
-       ✅ Clone כדי שלא "ידבק" בין ריענונים
-    ========================= */
     const guests: DemoGuest[] = DEMO_GUESTS.map((g) => ({
       ...g,
       tableId: null,
       tableName: null,
     }));
 
-    /* =========================
-       🔥 הושבה לדוגמה (engine)
-       (אם אין אורחים/שולחנות - לא עושה כלום)
-    ========================= */
     if (tables.length && guests.length) {
       const block = findFreeBlock(tables[0], guests[0].guestsCount || 1);
       if (block?.length) {
@@ -100,17 +86,14 @@ export default function DemoSeatingPage() {
             seatIndex,
           }))
         );
-
         guests[0].tableId = tables[0].id;
         guests[0].tableName = tables[0].name;
       }
     }
 
-    /* =========================
-       INIT – דמו בלבד
-    ========================= */
     init(tables, guests, null);
-  }, [init, setDemoMode, resetDemo]);
+  }, [init, resetDemo, setDemoMode]);
 
-  return <SeatingPage />;
+  // ✅ מעביר רק דגל isDemo
+  return <SeatingPage isDemo />;
 }
