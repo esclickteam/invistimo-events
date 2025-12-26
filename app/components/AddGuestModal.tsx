@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { RSVP_LABELS } from "@/lib/rsvp";
+import { useSeatingStore } from "@/store/seatingStore";
 
 type Guest = {
   _id: string;
@@ -36,6 +37,8 @@ export default function AddGuestModal({
   const [tableNumber, setTableNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const demoMode = useSeatingStore((s) => s.demoMode);
+
   const ensureInvitation = async (): Promise<string> => {
     if (invitationId) return invitationId;
 
@@ -59,6 +62,19 @@ export default function AddGuestModal({
       alert("יש למלא שם וטלפון");
       return;
     }
+
+    if (demoMode) {
+  alert(
+    "🟡 אתם במצב דמו – המוזמן נוסף לצפייה בלבד.\nכדי לשמור מוזמנים אמיתיים, יש להצטרף ולרכוש חבילה."
+  );
+
+  // אופציונלי: לדמות ריענון פרונט
+  await onSuccess();
+
+  onClose();
+  return; // ⛔ עוצר כאן – לא מגיע ל־API
+}
+
 
     try {
       setLoading(true);
@@ -108,6 +124,14 @@ export default function AddGuestModal({
         <h2 className="text-xl font-semibold mb-4">
           הוספת מוזמן
         </h2>
+
+{demoMode && (
+  <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
+    🟡 מצב דמו – המוזמן נוסף לצפייה בלבד.<br />
+    להוספת מוזמנים אמיתית, הצטרפו אלינו 🌟
+  </div>
+)}
+
 
         <input
           className="border w-full rounded px-3 py-2 mb-3"
