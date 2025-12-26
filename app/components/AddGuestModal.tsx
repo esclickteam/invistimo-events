@@ -19,7 +19,7 @@ type Guest = {
 
 interface Props {
   onClose: () => void;
-  onSuccess: () => Promise<void>; // ✅ async refresh
+  onSuccess: (guest?: Guest) => Promise<void>; // ⬅️ מאפשר אופציונלי
   invitationId?: string;
 }
 
@@ -63,19 +63,27 @@ export default function AddGuestModal({
       return;
     }
 
+    // 🧪 DEMO MODE – הוספה לפרונט בלבד
     if (demoMode) {
-  alert(
-    "🟡 אתם במצב דמו – המוזמן נוסף לצפייה בלבד.\nכדי לשמור מוזמנים אמיתיים, יש להצטרף ולרכוש חבילה."
-  );
+      const demoGuest = {
+        _id: crypto.randomUUID(),
+        name,
+        phone,
+        token: "demo-token",
+        relation,
+        rsvp,
+        guestsCount,
+        tableName: tableNumber
+          ? `שולחן ${tableNumber}`
+          : undefined,
+      };
 
-  // אופציונלי: לדמות ריענון פרונט
-  await onSuccess();
+      await onSuccess(demoGuest); // 🔥 מתעדכן בדשבורד בזמן אמת
+      onClose();
+      return; // ⛔ לא מגיע ל־API
+    }
 
-  onClose();
-  return; // ⛔ עוצר כאן – לא מגיע ל־API
-}
-
-
+    // 🚀 PRODUCTION – נשאר בדיוק כמו שהיה
     try {
       setLoading(true);
 
@@ -105,7 +113,6 @@ export default function AddGuestModal({
         throw new Error(data?.error || "שגיאה בשמירה");
       }
 
-      // 🔥 חכים לריענון לפני סגירה
       await onSuccess();
       onClose();
     } catch (err: any) {
@@ -125,13 +132,12 @@ export default function AddGuestModal({
           הוספת מוזמן
         </h2>
 
-{demoMode && (
-  <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
-    🟡 מצב דמו – המוזמן נוסף לצפייה בלבד.<br />
-    להוספת מוזמנים אמיתית, הצטרפו אלינו 🌟
-  </div>
-)}
-
+        {demoMode && (
+          <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
+            🟡 מצב דמו – המוזמן נוסף לצפייה בלבד.<br />
+            להוספת מוזמנים אמיתית, הצטרפו אלינו 🌟
+          </div>
+        )}
 
         <input
           className="border w-full rounded px-3 py-2 mb-3"
