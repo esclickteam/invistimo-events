@@ -18,7 +18,7 @@ export default function DashboardMobileMenu({
   isDemo = false,
 }: Props) {
   const router = useRouter();
-  const [showDemoToast, setShowDemoToast] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   if (!open) return null;
 
@@ -26,8 +26,6 @@ export default function DashboardMobileMenu({
      🔐 ניווט חכם לפי מצב דמו
   =============================== */
   const handleNav = (path: string) => {
-    onClose();
-
     if (isDemo) {
       // ✅ בדמו – פתוח
       if (
@@ -35,32 +33,21 @@ export default function DashboardMobileMenu({
         path === "/dashboard/seating" ||
         path === "/dashboard/messages"
       ) {
+        onClose();
         router.push(`/try${path}`);
       } else {
-        setShowDemoToast(true);
+        setShowDemoModal(true);
       }
       return;
     }
 
     // 🟢 פרודקשן
+    onClose();
     router.push(path);
   };
 
-  const handleViewInvite = () => {
-    onClose();
-
-    if (isDemo) {
-      setShowDemoToast(true);
-      return;
-    }
-
-    if (invitationShareId) {
-      window.open(
-        `https://www.invistimo.com/invite/${invitationShareId}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
-    }
+  const handleBlockedAction = () => {
+    setShowDemoModal(true);
   };
 
   return (
@@ -108,7 +95,7 @@ export default function DashboardMobileMenu({
             </button>
 
             <button
-              onClick={() => handleNav("/dashboard/event")}
+              onClick={handleBlockedAction}
               className="flex items-center gap-2 text-right"
             >
               <Pencil size={16} />
@@ -131,7 +118,7 @@ export default function DashboardMobileMenu({
 
             {invitationShareId && (
               <button
-                onClick={handleViewInvite}
+                onClick={handleBlockedAction}
                 className="text-right"
               >
                 👁️ צפייה בהזמנה
@@ -142,48 +129,55 @@ export default function DashboardMobileMenu({
       </div>
 
       {/* ===============================
-         🧪 Demo Toast
+         🧪 Demo Modal
       =============================== */}
-      {showDemoToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999]">
+      {showDemoModal && (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowDemoModal(false)}
+          />
+
           <div
             className="
-              flex items-center gap-4
+              relative
+              w-[92%] max-w-sm
+              mb-6
               bg-[#fff7e6]
               border border-[#e6cfa3]
               text-[#5c4632]
-              px-5 py-3
-              rounded-xl
-              shadow-lg
-              text-sm
+              rounded-2xl
+              shadow-xl
+              p-5
+              text-center
             "
           >
-            <span>
-              🧪 בדמו ניתן לצפות בדשבורד, הושבה והודעות בלבד
-            </span>
+            <button
+              onClick={() => setShowDemoModal(false)}
+              className="absolute top-3 left-3 text-gray-400 hover:text-gray-600"
+              aria-label="סגירת חלון"
+            >
+              ✕
+            </button>
+
+            <div className="text-sm leading-relaxed mb-4">
+              🧪 בדמו ניתן לצפות בדשבורד, סידורי הושבה והודעות בלבד
+            </div>
 
             <button
               onClick={() => router.push("/login")}
               className="
-                whitespace-nowrap
-                px-4 py-1.5
+                w-full
+                py-2.5
                 rounded-full
                 bg-[#c9b48f]
                 text-white
-                font-medium
+                font-semibold
                 hover:bg-[#b7a27a]
                 transition
               "
             >
               להתחברות
-            </button>
-
-            <button
-              onClick={() => setShowDemoToast(false)}
-              className="text-gray-400 hover:text-gray-600"
-              aria-label="סגירת הודעה"
-            >
-              ✕
             </button>
           </div>
         </div>
