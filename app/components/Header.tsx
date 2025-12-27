@@ -49,11 +49,13 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
+          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center min-h-[80px] py-3">
+
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
-              <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[18px]">
+              <nav className="hidden md:flex items-center gap-8 text-[#4a413a] font-medium text-[16px] leading-none">
+
 
 
                 <NavLinks />
@@ -66,7 +68,8 @@ export default function Header() {
                   className="md:hidden p-2"
                   aria-label="פתח תפריט"
                 >
-                  <Menu size={26} />
+                  <Menu size={28} />
+
                 </button>
               )}
             </div>
@@ -77,7 +80,8 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
-                  className="h-10 w-auto object-contain scale-[4] origin-center"
+                    className="h-14 w-auto object-contain"
+
                 />
               </Link>
             </div>
@@ -98,7 +102,8 @@ export default function Header() {
                       className="
                         px-5 py-2 rounded-full
                         border border-[#cbb59d]
-                        text-[#4a413a] text-sm
+                        text-[#4a413a] text-[14px] font-medium
+
                         hover:bg-[#efe6db]
                         transition
                       "
