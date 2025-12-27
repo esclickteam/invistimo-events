@@ -67,18 +67,6 @@ initDemo: () => {
   set({
     demoMode: true,
 
-    tables: [
-      {
-        id: "demo-table-1",
-        name: "שולחן דמו",
-        type: "round",
-        seats: 10,
-        x: 450,
-        y: 300,
-        rotation: 0,
-        seatedGuests: [],
-      },
-    ],
 
     guests: [
   {
