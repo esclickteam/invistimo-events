@@ -49,14 +49,14 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      {/* Header (mobile only) */}
+      {/* ✅ Header – גם מובייל וגם דסקטופ */}
       <DashboardHeader
         onOpenMenu={() => setMenuOpen(true)}
         invitation={invitation}
         isDemo={isDemo}
       />
 
-      {/* Mobile menu */}
+      {/* ✅ תפריט מובייל בלבד */}
       <DashboardMobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -65,7 +65,7 @@ export default function DashboardLayout({
       />
 
       {/* Content */}
-      <main className="pt-0">
+      <main className="pt-[64px]">
         {children}
       </main>
     </div>
