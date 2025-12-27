@@ -21,7 +21,6 @@ interface Props {
   onClose: () => void;
   onSuccess: (guest?: Guest) => Promise<void>;
   invitationId?: string;
-  isDemo?: boolean; // ⭐️ זה כל הסיפור
 }
 
 export default function AddGuestModal({
@@ -64,27 +63,24 @@ export default function AddGuestModal({
       return;
     }
 
-    // 🧪 DEMO MODE – הוספה לפרונט בלבד
+    /* ======================================================
+       🧪 DEMO MODE – חסימה + הפניה להרשמה
+    ====================================================== */
     if (demoMode) {
-      const demoGuest = {
-        _id: crypto.randomUUID(),
-        name,
-        phone,
-        token: "demo-token",
-        relation,
-        rsvp,
-        guestsCount,
-        tableName: tableNumber
-          ? `שולחן ${tableNumber}`
-          : undefined,
-      };
+      const goRegister = window.confirm(
+        "להוספת מוזמנים הצטרפו אלינו 🌟\n\nלעבור לעמוד הרשמה?"
+      );
 
-      await onSuccess(demoGuest); // 🔥 מתעדכן בדשבורד בזמן אמת
-      onClose();
-      return; // ⛔ לא מגיע ל־API
+      if (goRegister) {
+        window.location.href = "/register";
+      }
+
+      return; // ⛔ לא ממשיך לשום לוגיקה אחרת
     }
 
-    // 🚀 PRODUCTION – נשאר בדיוק כמו שהיה
+    /* ======================================================
+       🚀 PRODUCTION – נשאר בדיוק כמו שהיה
+    ====================================================== */
     try {
       setLoading(true);
 
@@ -125,18 +121,15 @@ export default function AddGuestModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-      <div
-        className="bg-white p-6 rounded-xl w-[420px]"
-        dir="rtl"
-      >
+      <div className="bg-white p-6 rounded-xl w-[420px]" dir="rtl">
         <h2 className="text-xl font-semibold mb-4">
           הוספת מוזמן
         </h2>
 
         {demoMode && (
           <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
-            🟡 מצב דמו – המוזמן נוסף לצפייה בלבד.<br />
-            להוספת מוזמנים אמיתית, הצטרפו אלינו 🌟
+            🟡 מצב דמו – לא ניתן להוסיף מוזמנים.<br />
+            לחצו על שמירה כדי להצטרף 🚀
           </div>
         )}
 
