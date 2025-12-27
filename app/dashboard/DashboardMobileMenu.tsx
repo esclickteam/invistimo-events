@@ -27,7 +27,7 @@ export default function DashboardMobileMenu({
   =============================== */
   const handleNav = (path: string) => {
     if (isDemo) {
-      // ✅ בדמו – פתוח
+      // בדמו – פתוחים רק דשבורד / הושבה / הודעות
       if (
         path === "/dashboard" ||
         path === "/dashboard/seating" ||
@@ -42,7 +42,7 @@ export default function DashboardMobileMenu({
       return;
     }
 
-    // 🟢 פרודקשן
+    // פרודקשן
     onClose();
     router.push(path);
   };
@@ -89,28 +89,17 @@ export default function DashboardMobileMenu({
 
           {/* Navigation */}
           <nav className="flex flex-col gap-4 text-[#4a413a] font-medium">
-            <button
-              onClick={() => handleNav("/dashboard")}
-              className="text-right"
-            >
-              🏠 ראשי
-            </button>
 
+            {/* ✏️ עריכת / יצירת הזמנה */}
             <button
               onClick={handleBlockedAction}
               className="flex items-center gap-2 text-right"
             >
               <Pencil size={16} />
-              עריכת פרטי האירוע
+              עריכת הזמנה
             </button>
 
-            <button
-              onClick={() => handleNav("/dashboard/messages")}
-              className="text-right"
-            >
-              💬 שליחת הודעות
-            </button>
-
+            {/* 🪑 סידורי הושבה */}
             <button
               onClick={() => handleNav("/dashboard/seating")}
               className="text-right"
@@ -118,6 +107,7 @@ export default function DashboardMobileMenu({
               🪑 סידורי הושבה
             </button>
 
+            {/* 👁️ צפייה בהזמנה */}
             {invitationShareId && (
               <button
                 onClick={handleBlockedAction}
@@ -126,6 +116,24 @@ export default function DashboardMobileMenu({
                 👁️ צפייה בהזמנה
               </button>
             )}
+
+            {/* 🛠️ עריכת פרטי האירוע */}
+            <button
+              onClick={handleBlockedAction}
+              className="flex items-center gap-2 text-right"
+            >
+              <Pencil size={16} />
+              עריכת פרטי האירוע
+            </button>
+
+            {/* 💬 שליחת הודעות */}
+            <button
+              onClick={() => handleNav("/dashboard/messages")}
+              className="text-right"
+            >
+              💬 שליחת הודעות
+            </button>
+
           </nav>
         </aside>
       </div>
