@@ -38,92 +38,97 @@ export default function DashboardHeader({
     <header
       dir="rtl"
       className="
+        fixed top-0 inset-x-0 z-40
         h-14
-        flex items-center
-        px-4
         border-b border-[#e2d6c8]
         bg-[#f5eee7]
       "
     >
       {/* =========================
-          צד ימין – הקשר + ניווט
+          GRID – 3 עמודות יציבות
       ========================= */}
-      <div className="flex items-center gap-4 flex-1">
-        {/* ☰ המבורגר – מובייל */}
-        <button
-          onClick={onOpenMenu}
-          className="p-2 md:hidden"
-          aria-label="פתח תפריט דשבורד"
-        >
-          <Menu size={22} />
-        </button>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4">
 
-        {/* שם אירוע / דמו */}
-        <div className="flex flex-col leading-tight">
-          <span className="font-medium text-[#4a413a] truncate max-w-[220px]">
-            {isDemo
-              ? "מצב דמו – לצפייה בלבד"
-              : invitation?.title || "ניהול אירוע"}
-          </span>
+        {/* =========================
+            צד ימין – הקשר + ניווט
+        ========================= */}
+        <div className="flex items-center gap-4 justify-start">
+          {/* ☰ המבורגר – מובייל */}
+          <button
+            onClick={onOpenMenu}
+            className="p-2 md:hidden"
+            aria-label="פתח תפריט דשבורד"
+          >
+            <Menu size={22} />
+          </button>
 
-          {isDemo && (
-            <span className="text-[11px] text-amber-600">
-              נתונים לדוגמה
+          {/* שם אירוע / דמו */}
+          <div className="flex flex-col leading-tight">
+            <span className="font-medium text-[#4a413a] truncate max-w-[220px]">
+              {isDemo
+                ? "מצב דמו – לצפייה בלבד"
+                : invitation?.title || "ניהול אירוע"}
             </span>
-          )}
+
+            {isDemo && (
+              <span className="text-[11px] text-amber-600">
+                נתונים לדוגמה
+              </span>
+            )}
+          </div>
+
+          {/* ניווט בסיסי – דסקטופ */}
+          <nav className="hidden md:flex items-center gap-4 mr-4 text-sm">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="text-[#4a413a] hover:underline"
+            >
+              ראשי
+            </button>
+
+            <button
+              onClick={() => router.push("/support")}
+              className="flex items-center gap-1 text-[#4a413a] hover:underline"
+            >
+              <MessageCircle size={16} />
+              תמיכה
+            </button>
+          </nav>
         </div>
 
-        {/* ניווט בסיסי */}
-        <nav className="hidden md:flex items-center gap-4 mr-4 text-sm">
+        {/* =========================
+            אמצע – לוגו (באמת באמצע)
+        ========================= */}
+        <div className="flex justify-center">
           <button
             onClick={() => router.push("/dashboard")}
-            className="text-[#4a413a] hover:underline"
+            className="font-bold text-lg tracking-wide text-[#3d342e]"
+            aria-label="מעבר לדשבורד הראשי"
           >
-            ראשי
+            Invistimo
           </button>
+        </div>
 
+        {/* =========================
+            צד שמאל – התנתקות
+        ========================= */}
+        <div className="flex justify-end">
           <button
-            onClick={() => router.push("/support")}
-            className="flex items-center gap-1 text-[#4a413a] hover:underline"
+            onClick={handleLogout}
+            className="
+              flex items-center gap-1
+              text-sm font-medium
+              text-red-600
+              hover:text-red-700
+              transition
+            "
+            title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
+            aria-label="התנתקות"
           >
-            <MessageCircle size={16} />
-            תמיכה
+            <LogOut size={18} />
+            {isDemo ? "התחברות" : "התנתקות"}
           </button>
-        </nav>
-      </div>
-
-      {/* =========================
-          אמצע – לוגו
-      ========================= */}
-      <div className="flex justify-center flex-1">
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="font-bold text-lg tracking-wide text-[#3d342e]"
-          aria-label="מעבר לדשבורד הראשי"
-        >
-          Invistimo
-        </button>
-      </div>
-
-      {/* =========================
-          צד שמאל – התנתקות
-      ========================= */}
-      <div className="flex justify-end flex-1">
-        <button
-          onClick={handleLogout}
-          className="
-            flex items-center gap-1
-            text-sm font-medium
-            text-red-600
-            hover:text-red-700
-            transition
-          "
-          title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
-          aria-label="התנתקות"
-        >
-          <LogOut size={18} />
-          {isDemo ? "התחברות" : "התנתקות"}
-        </button>
+        </div>
       </div>
     </header>
   );
