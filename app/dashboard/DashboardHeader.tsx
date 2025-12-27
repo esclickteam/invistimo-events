@@ -16,7 +16,7 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
-   UI CONST – תואם Header ראשי
+   UI CONST – זהה ל־Header הראשי
 ============================================================ */
 const HEADER_UI = {
   height: "min-h-[80px] py-3",
@@ -55,7 +55,7 @@ export default function DashboardHeader({
       `}
     >
       {/* GRID – 3 עמודות */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-10">
 
         {/* =========================
             ימין – ניווט + הקשר
@@ -68,7 +68,7 @@ export default function DashboardHeader({
             className="p-2 md:hidden"
             aria-label="פתח תפריט דשבורד"
           >
-            <Menu size={24} />
+            <Menu size={28} />
           </button>
 
           {/* שם אירוע / דמו */}
@@ -126,7 +126,6 @@ export default function DashboardHeader({
                 ${HEADER_UI.logo}
                 w-auto
                 object-contain
-                origin-center
                 select-none
               `}
               draggable={false}
