@@ -98,21 +98,22 @@ export default function Header() {
 
             {/* שמאל – כפתורים (דסקטופ בלבד) */}
             <div className="hidden md:flex justify-end items-center gap-3">
-              {/* ✅ תמיד מוצג: כפתור דמו (כמו התחברות) */}
-              <Link
-                href="/try/dashboard"
-                className="
-                  px-6 py-2 rounded-full
-                  border border-[#cbb59d]
-                  text-[#4a413a] font-medium
-                  hover:bg-[#efe6db]
-                  transition
-                  whitespace-nowrap
-                "
-                title="דמו לצפייה בלבד"
-              >
-                התחל דמו
-              </Link>
+  {/* ✅ תמיד מוצג: כפתור דמו (מודגש) */}
+  <Link
+    href="/try/dashboard"
+    className="
+      px-6 py-2 rounded-full
+      bg-[#3f3a34] text-[#faf8f4]
+      border border-[#3f3a34]
+      font-medium
+      hover:opacity-95
+      transition
+      whitespace-nowrap
+    "
+    title=" דמו – צפייה בלבד"
+  >
+    🧪 נסה דמו
+  </Link>
 
               {!loading &&
                 (user ? (
