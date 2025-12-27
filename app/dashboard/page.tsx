@@ -551,7 +551,26 @@ console.log("INVITATION:", invitation);
 
   {/* ===================== מובייל בלבד ===================== */}
   <div className="flex md:hidden flex-col gap-3">
-  {/* ➕ הוספת מוזמן */}
+
+  {/* ✏️ יצירת / עריכת הזמנה – ראשון */}
+  <button
+    onClick={() => {
+      if (isDemo) {
+        handleDemoBlockedAction(); // 🧪 Toast דמו
+      } else {
+        router.push(
+          invitation
+            ? `/dashboard/edit-invite/${invitationId}`
+            : "/dashboard/create-invite"
+        );
+      }
+    }}
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+  >
+    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+  </button>
+
+  {/* ➕ הוספת מוזמן – שני */}
   <button
     onClick={() => setOpenAddModal(true)}
     className="bg-black text-white px-6 py-3 rounded-full"
@@ -559,31 +578,14 @@ console.log("INVITATION:", invitation);
     + הוספת מוזמן
   </button>
 
-  {/* ✏️ יצירת / עריכת הזמנה */}
-  <button
-  onClick={() => {
-    if (isDemo) {
-      handleDemoBlockedAction(); // 🧪 Toast דמו
-    } else {
-      router.push(
-        invitation
-          ? `/dashboard/edit-invite/${invitationId}`
-          : "/dashboard/create-invite"
-      );
-    }
-  }}
-  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
->
-  {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-</button>
-
-  {/* 📥 ייבוא מאקסל */}
+  {/* 📥 ייבוא מאקסל – שלישי */}
   <button
     onClick={() => setShowImportModal(true)}
     className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
   >
     📥 ייבוא מאקסל
   </button>
+
 </div>
 
   
