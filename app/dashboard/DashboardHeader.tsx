@@ -16,12 +16,12 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
-   UI CONST – גובה קבוע, לוגו גדול בלי absolute
+   UI CONST – גובה קבוע, לוגו “כמו בדף הבית” (גדול וחורג)
 ============================================================ */
 const HEADER_UI = {
   height: "h-16", // גובה ההידר נשאר קבוע
   navText: "text-[20px] tracking-wide",
-  logo: "h-[72px]", // לוגו גדול יותר מההידר
+  logo: "h-[90px]", // ⬅️ גדול יותר מההידר
 };
 
 /* ============================================================
@@ -55,8 +55,7 @@ export default function DashboardHeader({
         overflow-visible
       `}
     >
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10 overflow-visible">
-
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10 overflow-visible relative">
         {/* =========================
             ימין – ניווט + הקשר
         ========================= */}
@@ -71,16 +70,10 @@ export default function DashboardHeader({
 
           <div className="flex flex-col leading-tight">
             <span className="font-medium text-[#4a413a] truncate max-w-[240px] text-[15px]">
-              {isDemo
-                ? "🧪 מצב דמו – לצפייה בלבד"
-                : invitation?.title || "📊 ניהול אירוע"}
+              {isDemo ? "🧪 מצב דמו – לצפייה בלבד" : invitation?.title || "📊 ניהול אירוע"}
             </span>
 
-            {isDemo && (
-              <span className="text-[11px] text-amber-600">
-                נתונים לדוגמה
-              </span>
-            )}
+            {isDemo && <span className="text-[11px] text-amber-600">נתונים לדוגמה</span>}
           </div>
 
           <nav
@@ -107,26 +100,21 @@ export default function DashboardHeader({
         </div>
 
         {/* =========================
-            אמצע – לוגו (נכון!)
+            אמצע – לוגו (כמו בדף הבית: גדול וחורג בלי להגדיל את ההידר)
         ========================= */}
-        <div
-          className="flex justify-center items-center overflow-visible"
-          dir="ltr"
-        >
+        <div className="flex justify-center items-center overflow-visible relative" dir="ltr">
           <button
             onClick={() => router.push("/dashboard")}
             aria-label="מעבר לדשבורד הראשי"
-            className="flex items-center justify-center overflow-visible"
+            className="relative flex items-center justify-center overflow-visible w-[220px] h-full"
           >
             <img
               src="/invistimo-logo.png"
               alt="Invistimo"
               className={`
                 ${HEADER_UI.logo}
-                w-auto
-                object-contain
-                select-none
-                -translate-y-1
+                w-auto object-contain select-none
+                absolute top-1/2 -translate-y-[60%]
               `}
               draggable={false}
             />
