@@ -16,12 +16,11 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
-   UI CONST – גובה קבוע, לוגו “כמו בדף הבית” (גדול וחורג)
+   UI CONST – גובה קבוע, לוגו כמו בדף הבית (הגדלה עם scale)
 ============================================================ */
 const HEADER_UI = {
   height: "h-16", // גובה ההידר נשאר קבוע
   navText: "text-[20px] tracking-wide",
-  logo: "h-[90px]", // ⬅️ גדול יותר מההידר
 };
 
 /* ============================================================
@@ -70,10 +69,14 @@ export default function DashboardHeader({
 
           <div className="flex flex-col leading-tight">
             <span className="font-medium text-[#4a413a] truncate max-w-[240px] text-[15px]">
-              {isDemo ? "🧪 מצב דמו – לצפייה בלבד" : invitation?.title || "📊 ניהול אירוע"}
+              {isDemo
+                ? "🧪 מצב דמו – לצפייה בלבד"
+                : invitation?.title || "📊 ניהול אירוע"}
             </span>
 
-            {isDemo && <span className="text-[11px] text-amber-600">נתונים לדוגמה</span>}
+            {isDemo && (
+              <span className="text-[11px] text-amber-600">נתונים לדוגמה</span>
+            )}
           </div>
 
           <nav
@@ -100,22 +103,26 @@ export default function DashboardHeader({
         </div>
 
         {/* =========================
-            אמצע – לוגו (כמו בדף הבית: גדול וחורג בלי להגדיל את ההידר)
+            אמצע – לוגו (כמו בדף הבית: scale על העטיפה)
         ========================= */}
-        <div className="flex justify-center items-center overflow-visible relative" dir="ltr">
+        <div
+          className="flex justify-center items-center overflow-visible relative"
+          dir="ltr"
+        >
           <button
             onClick={() => router.push("/dashboard")}
             aria-label="מעבר לדשבורד הראשי"
-            className="relative flex items-center justify-center overflow-visible w-[220px] h-full"
+            className="
+              flex items-center justify-center
+              overflow-visible
+              origin-center
+              scale-[4]
+            "
           >
             <img
               src="/invistimo-logo.png"
               alt="Invistimo"
-              className={`
-                ${HEADER_UI.logo}
-                w-auto object-contain select-none
-                absolute top-1/2 -translate-y-[60%]
-              `}
+              className="h-10 w-auto object-contain select-none"
               draggable={false}
             />
           </button>
