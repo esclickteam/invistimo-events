@@ -90,7 +90,7 @@ export default function Header() {
                       href="/dashboard"
                       className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
                     >
-                      לוח בקרה
+                     דשבורד
                     </Link>
                     <button
                       onClick={logout}
