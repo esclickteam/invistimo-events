@@ -1,6 +1,9 @@
+"use client";
+
 import "./globals.css";
 import type { ReactNode } from "react";
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 
 import Providers from "./providers";
 
@@ -58,6 +61,13 @@ export const metadata = {
    Root Layout
 ========================================================= */
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
+  // ❗ כל הדשבורדים (אמיתי + דמו)
+  const isDashboard =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/try/dashboard");
+
   return (
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
@@ -68,18 +78,23 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
 
         <Providers>
-          <LayoutShell header={<Header />} footer={<Footer />}>
+          <LayoutShell
+            header={!isDashboard ? <Header /> : null}
+            footer={!isDashboard ? <Footer /> : null}
+          >
             {children}
           </LayoutShell>
 
-          {/* 💬 בוט תמיכה – מוסתר בעמודי invite / thank-you */}
-          <SupportBotGate>
-            <SupportBotButton />
-          </SupportBotGate>
+          {/* 💬 בוט תמיכה – לא בדשבורד */}
+          {!isDashboard && (
+            <SupportBotGate>
+              <SupportBotButton />
+            </SupportBotGate>
+          )}
         </Providers>
 
-        {/* ♿ נגישות – רק בדפים ציבוריים (לא בדשבורד) */}
-        <AccessibilityScript />
+        {/* ♿ נגישות – רק בדפים ציבוריים */}
+        {!isDashboard && <AccessibilityScript />}
       </body>
     </html>
   );
