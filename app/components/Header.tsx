@@ -12,7 +12,6 @@ export default function Header() {
 
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
-  const isTryDemo = pathname.startsWith("/try"); // ✅ דפים של דמו
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
@@ -97,28 +96,23 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* שמאל – התחברות (דסקטופ בלבד) + ✅ Badge דמו קליקבילי ל-/try/dashboard */}
-            <div className="hidden md:flex justify-end items-center gap-4">
-              {/* ✅ מציגים Badge רק אם אנחנו בדמו, והוא קליקבילי לכניסה לדמו */}
-              {isTryDemo && (
-                <Link
-                  href="/try/dashboard"
-                  className="
-                    inline-flex items-center gap-2
-                    px-3 py-1 rounded-full
-                    text-xs font-semibold
-                    border border-[#cbb59d]
-                    bg-[#faf8f4]/70
-                    text-[#3f3a34]
-                    hover:bg-[#efe6db]
-                    transition
-                    whitespace-nowrap
-                  "
-                  title="דמו לצפייה בלבד — מעבר לדמו"
-                >
-                  🧪 דמו – צפייה בלבד
-                </Link>
-              )}
+            {/* שמאל – כפתורים (דסקטופ בלבד) */}
+            <div className="hidden md:flex justify-end items-center gap-3">
+              {/* ✅ תמיד מוצג: כפתור דמו (כמו התחברות) */}
+              <Link
+                href="/try/dashboard"
+                className="
+                  px-6 py-2 rounded-full
+                  border border-[#cbb59d]
+                  text-[#4a413a] font-medium
+                  hover:bg-[#efe6db]
+                  transition
+                  whitespace-nowrap
+                "
+                title="דמו לצפייה בלבד"
+              >
+                🧪 דמו
+              </Link>
 
               {!loading &&
                 (user ? (
@@ -151,6 +145,7 @@ export default function Header() {
                       text-[#4a413a] font-medium
                       hover:bg-[#efe6db]
                       transition
+                      whitespace-nowrap
                     "
                   >
                     התחברות
@@ -193,6 +188,25 @@ export default function Header() {
             <nav className="flex flex-col gap-5 text-[#4a413a] font-medium">
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
+
+            {/* ✅ תמיד במובייל: כפתור דמו */}
+            <div className="pt-4 border-t border-[#e2d6c8]">
+              <Link
+                href="/try/dashboard"
+                onClick={() => setMobileOpen(false)}
+                className="
+                  px-6 py-2 rounded-full
+                  border border-[#cbb59d]
+                  text-[#4a413a] font-medium
+                  hover:bg-[#efe6db]
+                  transition
+                  w-fit
+                "
+                title="דמו לצפייה בלבד"
+              >
+                🧪 דמו
+              </Link>
+            </div>
 
             {/* אזור משתמש – מתחת לצור קשר */}
             <div className="pt-4 border-t border-[#e2d6c8]">
@@ -240,29 +254,6 @@ export default function Header() {
                   </Link>
                 ))}
             </div>
-
-            {/* ✅ אופציונלי: גם במובייל בתוך התפריט נציג Badge דמו אם אנחנו בדמו */}
-            {isTryDemo && (
-              <div className="pt-2">
-                <Link
-                  href="/try/dashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className="
-                    inline-flex items-center gap-2
-                    px-3 py-2 rounded-full
-                    text-sm font-semibold
-                    border border-[#cbb59d]
-                    bg-[#faf8f4]/70
-                    text-[#3f3a34]
-                    hover:bg-[#efe6db]
-                    transition
-                    w-fit
-                  "
-                >
-                  🧪 מעבר לדמו (צפייה בלבד)
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       )}
