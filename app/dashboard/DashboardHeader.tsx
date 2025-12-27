@@ -16,6 +16,15 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
+   UI CONST – תואם Header ראשי
+============================================================ */
+const HEADER_UI = {
+  height: "h-16",
+  navText: "text-[17px]",
+  logo: "h-10 scale-[4]",
+};
+
+/* ============================================================
    Component
 ============================================================ */
 export default function DashboardHeader({
@@ -37,32 +46,34 @@ export default function DashboardHeader({
   return (
     <header
       dir="rtl"
-      className="
+      className={`
         fixed top-0 inset-x-0 z-40
-        h-14
+        ${HEADER_UI.height}
         border-b border-[#e2d6c8]
         bg-[#f5eee7]
-      "
+        bg-[url('/noise.png')] bg-repeat
+      `}
     >
       {/* GRID – 3 עמודות קבועות */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
 
         {/* =========================
-            צד ימין – הקשר + ניווט
+            ימין – ניווט + הקשר
         ========================= */}
-        <div className="flex items-center gap-4 justify-start">
+        <div className="flex items-center gap-6 justify-start">
+
           {/* ☰ מובייל */}
           <button
             onClick={onOpenMenu}
             className="p-2 md:hidden"
             aria-label="פתח תפריט דשבורד"
           >
-            <Menu size={22} />
+            <Menu size={24} />
           </button>
 
           {/* שם אירוע / דמו */}
           <div className="flex flex-col leading-tight">
-            <span className="font-medium text-[#4a413a] truncate max-w-[220px]">
+            <span className="font-medium text-[#4a413a] truncate max-w-[240px] text-[15px]">
               {isDemo
                 ? "מצב דמו – לצפייה בלבד"
                 : invitation?.title || "ניהול אירוע"}
@@ -76,28 +87,34 @@ export default function DashboardHeader({
           </div>
 
           {/* ניווט – דסקטופ */}
-          <nav className="hidden md:flex items-center gap-4 mr-4 text-sm">
+          <nav
+            className={`
+              hidden md:flex items-center gap-10 mr-6
+              text-[#4a413a] font-medium
+              ${HEADER_UI.navText}
+            `}
+          >
             <button
               onClick={() => router.push("/dashboard")}
-              className="text-[#4a413a] hover:underline"
+              className="hover:text-[var(--champagne-dark)] transition"
             >
               ראשי
             </button>
 
             <button
               onClick={() => router.push("/contact")}
-              className="flex items-center gap-1 text-[#4a413a] hover:underline"
+              className="flex items-center gap-2 hover:text-[var(--champagne-dark)] transition"
             >
-              <MessageCircle size={16} />
+              <MessageCircle size={18} />
               תמיכה
             </button>
           </nav>
         </div>
 
         {/* =========================
-            אמצע – לוגו גרפי
+            אמצע – לוגו
         ========================= */}
-        <div className="flex justify-center">
+        <div className="flex justify-center" dir="ltr">
           <button
             onClick={() => router.push("/dashboard")}
             aria-label="מעבר לדשבורד הראשי"
@@ -106,30 +123,32 @@ export default function DashboardHeader({
             <img
               src="/invistimo-logo.png"
               alt="Invistimo"
-              className="
-                h-7
+              className={`
+                ${HEADER_UI.logo}
                 w-auto
                 object-contain
+                origin-center
                 select-none
-              "
+              `}
               draggable={false}
             />
           </button>
         </div>
 
         {/* =========================
-            צד שמאל – התנתקות
+            שמאל – התנתקות
         ========================= */}
         <div className="flex justify-end">
           <button
             onClick={handleLogout}
-            className="
-              flex items-center gap-1
-              text-sm font-medium
+            className={`
+              flex items-center gap-2
+              font-medium
+              ${HEADER_UI.navText}
               text-red-600
               hover:text-red-700
               transition
-            "
+            `}
             title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
             aria-label="התנתקות"
           >
