@@ -49,6 +49,11 @@ const isDemo = pathname.startsWith("/try");
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDemoToast, setShowDemoToast] = useState(false);
+
+  const handleDemoBlockedAction = () => {
+  setShowDemoToast(true);
+};
 
 
   const [invitation, setInvitation] = useState<any | null>(null);
@@ -427,18 +432,23 @@ console.log("INVITATION:", invitation);
 
   {/* ===================== דסקטופ בלבד ===================== */}
   <div className="hidden md:flex flex-wrap gap-3">
+
     <button
-      onClick={() =>
-        router.push(
-          invitation
-            ? `/dashboard/edit-invite/${invitationId}`
-            : "/dashboard/create-invite"
-        )
-      }
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-    >
-      {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-    </button>
+  onClick={() => {
+    if (isDemo) {
+      handleDemoBlockedAction();
+    } else {
+      router.push(
+        invitation
+          ? `/dashboard/edit-invite/${invitationId}`
+          : "/dashboard/create-invite"
+      );
+    }
+  }}
+  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+>
+  {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+</button>
 
     {invitation && (
       <button
@@ -459,45 +469,46 @@ console.log("INVITATION:", invitation);
   <>
     {/* 👁️ צפייה בהזמנה */}
     <button
-      onClick={() => {
-        if (isDemo) {
-          router.push("/login");
-        } else {
-          window.open(
-            `https://www.invistimo.com/invite/${invitation.shareId}`,
-            "_blank",
-            "noopener,noreferrer"
-          );
-        }
-      }}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
-      title={
-        isDemo
-          ? "בדמו – נדרש להתחבר כדי לצפות בהזמנה"
-          : "צפייה בהזמנה כפי שהאורחים רואים"
-      }
-    >
-      👁️ צפייה בהזמנה
-    </button>
+  onClick={() => {
+    if (isDemo) {
+      handleDemoBlockedAction(); // 🧪 Toast דמו
+    } else {
+      window.open(
+        `https://www.invistimo.com/invite/${invitation.shareId}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    }
+  }}
+  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
+  title={
+    isDemo
+      ? "בדמו – ניתן לצפות בדשבורד, הושבה והודעות בלבד"
+      : "צפייה בהזמנה כפי שהאורחים רואים"
+  }
+>
+  👁️ צפייה בהזמנה
+</button>
 
     {/* 🛠️ עריכת פרטי האירוע */}
     <button
-      onClick={() => {
-        if (isDemo) {
-          router.push("/login");
-        } else {
-          router.push("/dashboard/event");
-        }
-      }}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
-      title={
-        isDemo
-          ? "בדמו – נדרש להתחבר כדי לערוך את פרטי האירוע"
-          : "עריכת פרטי האירוע"
-      }
-    >
-      🛠️ עריכת פרטי האירוע
-    </button>
+  onClick={() => {
+    if (isDemo) {
+      handleDemoBlockedAction(); // 🧪 Toast דמו
+    } else {
+      router.push("/dashboard/event");
+    }
+  }}
+  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
+  title={
+    isDemo
+      ? "בדמו – ניתן לצפות בדשבורד, הושבה והודעות בלבד"
+      : "עריכת פרטי האירוע"
+  }
+>
+  🛠️ עריכת פרטי האירוע
+</button>
+
   </>
 )}
 
