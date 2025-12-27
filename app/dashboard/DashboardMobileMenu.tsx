@@ -27,17 +27,18 @@ export default function DashboardMobileMenu({
     onClose();
 
     if (isDemo) {
-      // ✅ בדמו – רק הושבה והודעות פתוחים
-      if (
-        path === "/dashboard/seating" ||
-        path === "/dashboard/messages"
-      ) {
-        router.push(`/try${path.replace("/dashboard", "/dashboard")}`);
-      } else {
-        router.push("/login");
-      }
-      return;
-    }
+  // ✅ בדמו – פתוח: ראשי / הושבה / הודעות
+  if (
+    path === "/dashboard" ||
+    path === "/dashboard/seating" ||
+    path === "/dashboard/messages"
+  ) {
+    router.push(`/try${path}`);
+  } else {
+    router.push("/login");
+  }
+  return;
+}
 
     // 🟢 פרודקשן
     router.push(path);
