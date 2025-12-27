@@ -378,20 +378,44 @@ console.log("INVITATION:", invitation);
 
     {invitation && (
   <>
-    <a
-      href={`https://www.invistimo.com/invite/${invitation.shareId}`}
-      target="_blank"
-      rel="noopener noreferrer"
+    {/* 👁️ צפייה בהזמנה */}
+    <button
+      onClick={() => {
+        if (isDemo) {
+          router.push("/login");
+        } else {
+          window.open(
+            `https://www.invistimo.com/invite/${invitation.shareId}`,
+            "_blank",
+            "noopener,noreferrer"
+          );
+        }
+      }}
       className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
-      title="צפייה בהזמנה כפי שהאורחים רואים"
+      title={
+        isDemo
+          ? "בדמו – נדרש להתחבר כדי לצפות בהזמנה"
+          : "צפייה בהזמנה כפי שהאורחים רואים"
+      }
     >
       👁️ צפייה בהזמנה
-    </a>
+    </button>
 
+    {/* 🛠️ עריכת פרטי האירוע */}
     <button
-      onClick={() => router.push("/dashboard/event")}
+      onClick={() => {
+        if (isDemo) {
+          router.push("/login");
+        } else {
+          router.push("/dashboard/event");
+        }
+      }}
       className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
-      title="עריכת פרטי האירוע"
+      title={
+        isDemo
+          ? "בדמו – נדרש להתחבר כדי לערוך את פרטי האירוע"
+          : "עריכת פרטי האירוע"
+      }
     >
       🛠️ עריכת פרטי האירוע
     </button>
