@@ -192,22 +192,25 @@ export default function Header() {
 
             {/* ✅ תמיד במובייל: כפתור דמו */}
             <div className="pt-4 border-t border-[#e2d6c8]">
-              <Link
-                href="/try/dashboard"
-                onClick={() => setMobileOpen(false)}
-                className="
-                  px-6 py-2 rounded-full
-                  border border-[#cbb59d]
-                  text-[#4a413a] font-medium
-                  hover:bg-[#efe6db]
-                  transition
-                  w-fit
-                "
-                title="דמו לצפייה בלבד"
-              >
-                🧪 דמו
-              </Link>
-            </div>
+  <Link
+    href="/try/dashboard"
+    onClick={() => setMobileOpen(false)}
+    className="
+      px-6 py-3 rounded-full
+      bg-[#3f3a34] text-[#faf8f4]
+      border border-[#3f3a34]
+      font-medium
+      hover:opacity-95
+      transition
+      w-fit
+      inline-flex items-center gap-2
+      whitespace-nowrap
+    "
+    title=" דמו – צפייה בלבד"
+  >
+     נסה דמו
+  </Link>
+</div>
 
             {/* אזור משתמש – מתחת לצור קשר */}
             <div className="pt-4 border-t border-[#e2d6c8]">
