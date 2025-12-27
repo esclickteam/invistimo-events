@@ -22,7 +22,7 @@ export default function DashboardHeader({
   isDemo = false,
 }: DashboardHeaderProps) {
   const router = useRouter();
-  const { logout } = useAuth(); // 🔥 מקור אמת יחיד
+  const { logout } = useAuth();
 
   const handleLogout = () => {
     if (isDemo) {
@@ -35,7 +35,6 @@ export default function DashboardHeader({
   return (
     <header
       className="
-        md:hidden
         h-14
         flex items-center justify-between
         px-4
@@ -45,17 +44,18 @@ export default function DashboardHeader({
       dir="rtl"
     >
       {/* צד ימין – תפריט + כותרת */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-2">
+        {/* ☰ המבורגר – מובייל בלבד */}
         <button
           onClick={onOpenMenu}
-          className="p-2"
+          className="p-2 md:hidden"
           aria-label="פתח תפריט דשבורד"
         >
           <Menu size={22} />
         </button>
 
-        <div className="mr-3 flex flex-col">
-          <span className="font-medium text-[#4a413a] truncate max-w-[180px]">
+        <div className="flex flex-col">
+          <span className="font-medium text-[#4a413a] truncate max-w-[220px]">
             {invitation?.title || "ניהול אירוע"}
           </span>
 
