@@ -16,12 +16,12 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
-   UI CONST – זהה ל־Header הראשי
+   UI CONST – גובה קבוע, לוגו חורג
 ============================================================ */
 const HEADER_UI = {
-  height: "min-h-[80px] py-3",
+  height: "h-16", // ❗ גובה קבוע – לא גדל
   navText: "text-[20px] tracking-wide",
-  logo: "h-16",
+  logo: "h-[72px]", // ⬅️ לוגו גדול מההידר
 };
 
 /* ============================================================
@@ -55,13 +55,12 @@ export default function DashboardHeader({
       `}
     >
       {/* GRID – 3 עמודות */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-10">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
 
         {/* =========================
             ימין – ניווט + הקשר
         ========================= */}
         <div className="flex items-center gap-6 justify-start">
-
           {/* ☰ מובייל */}
           <button
             onClick={onOpenMenu}
@@ -111,18 +110,21 @@ export default function DashboardHeader({
         </div>
 
         {/* =========================
-            אמצע – לוגו
+            אמצע – לוגו (ABSOLUTE)
         ========================= */}
-        <div className="flex justify-center" dir="ltr">
+        <div className="relative flex justify-center" dir="ltr">
           <button
             onClick={() => router.push("/dashboard")}
             aria-label="מעבר לדשבורד הראשי"
-            className="flex items-center"
+            className="relative"
           >
             <img
               src="/invistimo-logo.png"
               alt="Invistimo"
               className={`
+                absolute
+                top-1/2
+                -translate-y-1/2
                 ${HEADER_UI.logo}
                 w-auto
                 object-contain
