@@ -111,7 +111,7 @@ export default function Header() {
                 "
                 title="דמו לצפייה בלבד"
               >
-                🧪 דמו
+                התחל דמו
               </Link>
 
               {!loading &&
