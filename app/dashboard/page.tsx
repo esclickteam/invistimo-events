@@ -308,7 +308,8 @@ console.log("INVITATION:", invitation);
     <div className="px-4 py-6 md:p-10 max-w-full overflow-x-hidden" dir="rtl">
       {isDemo && (
   <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-amber-800">
-    🧪 מצב דמו פעיל – הנתונים לא יישמרו
+    🧪 מצב דמו פעיל – המערכת פתוחה לצפייה בדשבורד, סידורי הושבה והודעות.
+רוצים גישה מלאה לכל הפונקציות? הצטרפו אלינו.
   </div>
 )}
 
