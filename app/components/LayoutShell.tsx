@@ -16,12 +16,21 @@ export default function LayoutShell({
 }: LayoutShellProps) {
   const pathname = usePathname();
 
+  /* =========================================================
+     זיהוי אזורים
+  ========================================================= */
+
   // ❌ דפים ציבוריים – בלי Header ובלי Footer
   const hideHeaderAndFooter =
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/rsvp/") ||
     pathname.startsWith("/invitation/");
+
+  // ❌ דשבורד (אמיתי + דמו) – בלי Header ובלי Footer של האתר
+  const isDashboard =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/try/dashboard");
 
   // ❌ עורך הזמנות – בלי Footer בלבד
   const hideFooterOnly =
@@ -30,21 +39,29 @@ export default function LayoutShell({
     pathname === "/dashboard/edit-invite" ||
     pathname.startsWith("/dashboard/edit-invite/");
 
+  /* =========================================================
+     Render
+  ========================================================= */
+
+  const shouldHideHeader = hideHeaderAndFooter || isDashboard;
+  const shouldHideFooter =
+    hideHeaderAndFooter || hideFooterOnly || isDashboard;
+
   return (
     <>
-      {/* Header */}
-      {!hideHeaderAndFooter && header}
+      {/* Header של האתר */}
+      {!shouldHideHeader && header}
 
       <main
         className={`min-h-screen ${
-          !hideHeaderAndFooter && header ? "pt-[64px]" : ""
+          !shouldHideHeader && header ? "pt-[64px]" : ""
         }`}
       >
         {children}
       </main>
 
-      {/* Footer */}
-      {!hideHeaderAndFooter && !hideFooterOnly && footer}
+      {/* Footer של האתר */}
+      {!shouldHideFooter && footer}
     </>
   );
 }
