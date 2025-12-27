@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X, Pencil } from "lucide-react";
 
@@ -21,14 +20,27 @@ export default function DashboardMobileMenu({
 
   if (!open) return null;
 
+  /* ===============================
+     🔐 ניווט חכם לפי מצב דמו
+  =============================== */
   const handleNav = (path: string) => {
     onClose();
 
     if (isDemo) {
-      router.push("/login");
-    } else {
-      router.push(path);
+      // ✅ בדמו – רק הושבה והודעות פתוחים
+      if (
+        path === "/dashboard/seating" ||
+        path === "/dashboard/messages"
+      ) {
+        router.push(`/try${path.replace("/dashboard", "/dashboard")}`);
+      } else {
+        router.push("/login");
+      }
+      return;
     }
+
+    // 🟢 פרודקשן
+    router.push(path);
   };
 
   const handleViewInvite = () => {
@@ -36,7 +48,10 @@ export default function DashboardMobileMenu({
 
     if (isDemo) {
       router.push("/login");
-    } else if (invitationShareId) {
+      return;
+    }
+
+    if (invitationShareId) {
       window.open(
         `https://www.invistimo.com/invite/${invitationShareId}`,
         "_blank",
@@ -95,7 +110,7 @@ export default function DashboardMobileMenu({
             עריכת פרטי האירוע
           </button>
 
-          {/* 💬 הודעות */}
+          {/* 💬 שליחת הודעות – פתוח בדמו */}
           <button
             onClick={() => handleNav("/dashboard/messages")}
             className="text-right"
@@ -103,7 +118,7 @@ export default function DashboardMobileMenu({
             💬 שליחת הודעות
           </button>
 
-          {/* 🪑 הושבה */}
+          {/* 🪑 סידורי הושבה – פתוח בדמו */}
           <button
             onClick={() => handleNav("/dashboard/seating")}
             className="text-right"
