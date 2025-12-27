@@ -3,6 +3,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+/* =====================================================
+   TYPES
+===================================================== */
 interface User {
   _id: string;
   email: string;
@@ -17,6 +20,9 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+/* =====================================================
+   CONTEXT
+===================================================== */
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
@@ -25,41 +31,59 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
+/* =====================================================
+   PROVIDER
+===================================================== */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // 🔥 טוען משתמש מיידית מה־sessionStorage (UX)
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === "undefined") return null;
+    const cached = sessionStorage.getItem("auth_user");
+    return cached ? JSON.parse(cached) : null;
+  });
+
+  const [loading, setLoading] = useState(true);
+
   /* --------------------------------------------------
-     מקור אמת יחיד – מי המשתמש כרגע
-     ❗️ no-store כדי למנוע cache אחרי logout
+     מקור אמת יחיד – אימות מול השרת
+     ❗ no-store למניעת cache אחרי logout
   -------------------------------------------------- */
   const refreshUser = async () => {
     try {
-      setLoading(true);
-
       const res = await fetch("/api/me", {
         credentials: "include",
-        cache: "no-store", // 🔥 קריטי
+        cache: "no-store",
       });
 
       if (!res.ok) {
         setUser(null);
+        sessionStorage.removeItem("auth_user");
         return;
       }
 
       const data = await res.json();
-      setUser(data?.user ?? null);
+      const nextUser = data?.user ?? null;
+
+      setUser(nextUser);
+
+      if (nextUser) {
+        sessionStorage.setItem("auth_user", JSON.stringify(nextUser));
+      } else {
+        sessionStorage.removeItem("auth_user");
+      }
     } catch (err) {
       console.error("❌ refreshUser error:", err);
       setUser(null);
+      sessionStorage.removeItem("auth_user");
     } finally {
       setLoading(false);
     }
   };
 
   /* --------------------------------------------------
-     טעינה ראשונית
+     טעינה ראשונית – אימות ברקע
   -------------------------------------------------- */
   useEffect(() => {
     refreshUser();
@@ -78,14 +102,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await res.json();
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // 🔥 מבקשים משתמש מחדש מהשרת
+      // 🔄 מביאים משתמש מחדש
       await refreshUser();
 
-      // 🔄 ריענון App Router כדי שלא יישאר state ישן
       router.replace("/dashboard");
       router.refresh();
     } catch (err: any) {
@@ -95,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /* --------------------------------------------------
-     התנתקות (החלק שהיה חסר!)
+     התנתקות – ניקוי מלא
   -------------------------------------------------- */
   const logout = async () => {
     try {
@@ -103,15 +127,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         credentials: "include",
       });
-
-      // 🔥 ניקוי state מקומי
+    } catch (err) {
+      console.error("❌ Logout request failed:", err);
+    } finally {
+      // 🔥 ניקוי מיידי
       setUser(null);
+      sessionStorage.removeItem("auth_user");
 
-      // 🔥 רענון מלא של ה-App Router
       router.replace("/login");
       router.refresh();
-    } catch (err) {
-      console.error("❌ Logout failed:", err);
     }
   };
 
@@ -130,6 +154,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* =====================================================
+   HOOK
+===================================================== */
 export function useAuth() {
   return useContext(AuthContext);
 }
