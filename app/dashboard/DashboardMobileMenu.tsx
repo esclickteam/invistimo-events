@@ -36,6 +36,7 @@ export default function DashboardMobileMenu({
         onClose();
         router.push(`/try${path}`);
       } else {
+        onClose();
         setShowDemoModal(true);
       }
       return;
@@ -47,6 +48,7 @@ export default function DashboardMobileMenu({
   };
 
   const handleBlockedAction = () => {
+    onClose();
     setShowDemoModal(true);
   };
 
