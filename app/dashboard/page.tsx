@@ -36,12 +36,10 @@ type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
 
-export default function DashboardPage({
-  isDemo = false,
-}: {
-  isDemo?: boolean;
-}) {
+export default function DashboardPage() {
 
+  const pathname = usePathname();
+const isDemo = pathname.startsWith("/try");
 
   const router = useRouter();
 
