@@ -287,7 +287,7 @@ export async function POST(req: Request) {
   await User.findByIdAndUpdate(user._id, {
     plan: newPlan,
     guests: maxGuests,
-    paidAmount: (user.paidAmount || 0) + amountPaid,
+    paidAmount: amountPaid,
     planLimits: {
       maxGuests,
       smsEnabled: !isBasic,
