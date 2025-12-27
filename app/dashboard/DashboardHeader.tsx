@@ -21,7 +21,7 @@ type DashboardHeaderProps = {
 const HEADER_UI = {
   height: "h-16", // גובה ההידר נשאר קבוע
   navText: "text-[20px] tracking-wide",
-  logo: "h-[140px]", // לוגו גדול יותר מההידר
+  logo: "h-[72px]", // לוגו גדול יותר מההידר
 };
 
 /* ============================================================
