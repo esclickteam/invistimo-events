@@ -10,6 +10,8 @@ import ImportExcelModal from "../components/ImportExcelModal";
 import EventCountdown from "../components/EventCountdown";
 import GuestsMobileList from "./components/GuestsMobileList";
 import { usePathname } from "next/navigation";
+import DemoToast from "../components/DemoToast";
+
 
 
 
@@ -833,6 +835,11 @@ console.log("INVITATION:", invitation);
     onSuccess={loadGuests}
   />
 )}
+
+<DemoToast
+  open={showDemoToast}
+  onClose={() => setShowDemoToast(false)}
+/>
 
 
     </div>
