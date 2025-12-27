@@ -44,16 +44,14 @@ export default function DashboardHeader({
         bg-[#f5eee7]
       "
     >
-      {/* =========================
-          GRID – 3 עמודות יציבות
-      ========================= */}
+      {/* GRID – 3 עמודות קבועות */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4">
 
         {/* =========================
             צד ימין – הקשר + ניווט
         ========================= */}
         <div className="flex items-center gap-4 justify-start">
-          {/* ☰ המבורגר – מובייל */}
+          {/* ☰ מובייל */}
           <button
             onClick={onOpenMenu}
             className="p-2 md:hidden"
@@ -77,7 +75,7 @@ export default function DashboardHeader({
             )}
           </div>
 
-          {/* ניווט בסיסי – דסקטופ */}
+          {/* ניווט – דסקטופ */}
           <nav className="hidden md:flex items-center gap-4 mr-4 text-sm">
             <button
               onClick={() => router.push("/dashboard")}
@@ -97,15 +95,25 @@ export default function DashboardHeader({
         </div>
 
         {/* =========================
-            אמצע – לוגו (באמת באמצע)
+            אמצע – לוגו גרפי
         ========================= */}
         <div className="flex justify-center">
           <button
             onClick={() => router.push("/dashboard")}
-            className="font-bold text-lg tracking-wide text-[#3d342e]"
             aria-label="מעבר לדשבורד הראשי"
+            className="flex items-center"
           >
-            Invistimo
+            <img
+              src="/invistimo-logo.png"
+              alt="Invistimo"
+              className="
+                h-7
+                w-auto
+                object-contain
+                select-none
+              "
+              draggable={false}
+            />
           </button>
         </div>
 
