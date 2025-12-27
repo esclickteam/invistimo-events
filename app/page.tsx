@@ -385,7 +385,7 @@ export default function HomePage() {
               focus:outline-none focus:ring-2 focus:ring-[#faf8f4]/60 focus:ring-offset-2 focus:ring-offset-[#C89F77]
             "
           >
-            🚀 התחילו דמו (צפייה בלבד)
+             התחילו דמו (צפייה בלבד)
           </Link>
 
           <Link
