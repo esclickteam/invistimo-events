@@ -1,9 +1,8 @@
 "use client";
 
-import { motion, useMotionValue, useAnimationFrame } from "framer-motion";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-
 
 /* =====================================================
    זיקוקים אלגנטיים – ONLY HERO (לא לגעת)
@@ -137,7 +136,6 @@ function SoftFireworks() {
   );
 }
 
-
 /* =====================================================
    בלוק 3 – קרוסלת פיצ'רים (RTL, איטית, תמונות גדולות)
 ===================================================== */
@@ -171,15 +169,15 @@ type FeatureItem = {
 };
 
 function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
-  const totalItems = [...items, ...items]; // שכפול כפול
+  const totalItems = [...items, ...items];
 
   return (
     <div dir="rtl" className="relative w-full overflow-hidden">
       <motion.div
         className="flex gap-6 flex-nowrap"
-        animate={{ x: ["0%", "50%"] }} // ← תנועה מימין לשמאל
+        animate={{ x: ["0%", "50%"] }}
         transition={{
-          duration: 50, // ככל שיותר גבוה = תנועה איטית יותר
+          duration: 50,
           ease: "linear",
           repeat: Infinity,
         }}
@@ -206,92 +204,120 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
   );
 }
 
-
-
-
-
-
 export default function HomePage() {
   return (
     <main className="bg-[#f6f2ec] text-[#3f3a34] overflow-x-hidden">
-
       {/* ================= בלוק 1 – HERO ================= */}
-<section className="relative min-h-screen flex items-center px-6 overflow-hidden">
-  <HeroFireworks />
+      <section className="relative min-h-screen flex items-center px-6 overflow-hidden">
+        <HeroFireworks />
 
-  <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 1 }}
-    >
-      <h1 className="text-5xl md:text-6xl font-semibold mb-6">
-        ניהול אירוע חכם
-      </h1>
-
-      <h2 className="text-3xl md:text-4xl mb-8">
-        בלי לרדוף אחרי אף אחד
-      </h2>
-
-      <p className="text-xl text-[#6b5f55] max-w-xl mb-10">
-        Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה
-        וניהול אורחים למערכת אחת — רגועה, מדויקת ומעודכנת בזמן אמת.
-      </p>
-
-      {/* ===== CTA BUTTONS ===== */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start">
-
-        {/* כפתור ראשי */}
-        <Link
-          href="/pricing"
-          className="inline-block px-12 py-4 bg-[#3f3a34] text-[#faf8f4] rounded-full"
-        >
-          לצפייה בחבילות
-        </Link>
-
-        {/* כפתור דמו */}
-        <div>
-          <Link
-            href="/try/dashboard"
-            className="inline-block px-12 py-4 border border-[#3f3a34] text-[#3f3a34] rounded-full
-                       hover:bg-[#3f3a34] hover:text-[#faf8f4] transition"
+        <div className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-20 items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1 }}
           >
-            נסו את המערכת עכשיו – חינם
-          </Link>
+            {/* ✅ DEMO BADGE – חד וברור */}
+            <div className="inline-flex items-center gap-2 mb-6">
+              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#cbb59d] bg-[#faf8f4]/70 text-[#3f3a34] font-semibold text-sm">
+                🧪 דמו אינטראקטיבי
+              </span>
+              <span className="text-sm text-[#6b5f55]">
+                צפייה בלבד · נתוני דוגמה
+              </span>
+            </div>
 
-          <p className="text-sm text-[#6b5f55] mt-2">
-            ללא הרשמה · ללא התחייבות · ללא שמירה
-          </p>
+            <h1 className="text-5xl md:text-6xl font-semibold mb-6">
+              ניהול אירוע חכם
+            </h1>
+
+            <h2 className="text-3xl md:text-4xl mb-8">
+              בלי לרדוף אחרי אף אחד
+            </h2>
+
+            <p className="text-xl text-[#6b5f55] max-w-xl mb-10">
+              Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה וניהול אורחים למערכת
+              אחת — רגועה, מדויקת ומעודכנת בזמן אמת.
+            </p>
+
+            {/* ✅ UX CTA – הדמו הוא ראשי, חבילות משני */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              {/* כפתור ראשי: דמו */}
+              <div className="flex flex-col">
+                <Link
+                  href="/try/dashboard"
+                  className="
+                    inline-flex items-center justify-center
+                    px-12 py-4 rounded-full
+                    bg-[#3f3a34] text-[#faf8f4]
+                    shadow-[0_14px_30px_rgba(63,58,52,0.22)]
+                    hover:opacity-95 transition
+                    focus:outline-none focus:ring-2 focus:ring-[#cbb38a]/60 focus:ring-offset-2 focus:ring-offset-[#f6f2ec]
+                  "
+                >
+                  🚀 התחילו דמו (צפייה בלבד)
+                </Link>
+
+                <div className="mt-3 flex flex-wrap gap-2 text-sm text-[#6b5f55]">
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#e5ddd2] bg-[#faf8f4]/70">
+                    ללא תשלום
+                  </span>
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#e5ddd2] bg-[#faf8f4]/70">
+                    ללא הרשמה
+                  </span>
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#e5ddd2] bg-[#faf8f4]/70">
+                    נתוני דוגמה בלבד
+                  </span>
+                </div>
+              </div>
+
+              {/* כפתור משני: חבילות */}
+              <Link
+                href="/pricing"
+                className="
+                  inline-flex items-center justify-center
+                  px-12 py-4 rounded-full
+                  border border-[#3f3a34] text-[#3f3a34]
+                  hover:bg-[#3f3a34] hover:text-[#faf8f4] transition
+                  focus:outline-none focus:ring-2 focus:ring-[#cbb38a]/60 focus:ring-offset-2 focus:ring-offset-[#f6f2ec]
+                "
+              >
+                לצפייה בחבילות
+              </Link>
+            </div>
+
+            {/* ✅ שורת מיקרו-קופי שמיישרת ציפיות */}
+            <p className="text-sm text-[#6b5f55] mt-6 max-w-xl leading-relaxed">
+              במצב דמו אפשר לצפות בדשבורד, סידורי הושבה והודעות עם נתונים לדוגמה.
+              כדי לשמור, לשלוח ולהוסיף אורחים — מצטרפים לחבילה.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 60 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1.2 }}
+            className="flex justify-center lg:justify-end"
+          >
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 6, repeat: Infinity }}
+              className="w-[320px] aspect-[9/19] rounded-[42px] bg-black p-[10px] shadow-2xl"
+            >
+              <div className="w-full h-full rounded-[32px] overflow-hidden">
+                <video
+                  src="/videos/home1.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </motion.div>
+          </motion.div>
         </div>
-
-      </div>
-    </motion.div>
-
-    <motion.div
-      initial={{ opacity: 0, y: 60 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 1.2 }}
-      className="flex justify-center lg:justify-end"
-    >
-      <motion.div
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 6, repeat: Infinity }}
-        className="w-[320px] aspect-[9/19] rounded-[42px] bg-black p-[10px] shadow-2xl"
-      >
-        <div className="w-full h-full rounded-[32px] overflow-hidden">
-          <video
-            src="/videos/home1.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          />
-        </div>
-      </motion.div>
-    </motion.div>
-  </div>
-</section>
+      </section>
 
       {/* ================= בלוק 2 ================= */}
       <section className="py-32 px-6 bg-[#faf8f4]">
@@ -302,11 +328,18 @@ export default function HomePage() {
             </h2>
 
             <p className="text-xl leading-relaxed">
-              אנחנו לא עובדים עם סבבי טלפונים.<br />
-              לא רודפים אחרי אורחים.<br />
-              ולא מבזבזים לכם זמן וכסף מיותרים.<br /><br />
-              מי שרוצה להגיע — מאשר לבד.<br />
-              מי שלא — לא צריך שיציקו לו.<br /><br />
+              אנחנו לא עובדים עם סבבי טלפונים.
+              <br />
+              לא רודפים אחרי אורחים.
+              <br />
+              ולא מבזבזים לכם זמן וכסף מיותרים.
+              <br />
+              <br />
+              מי שרוצה להגיע — מאשר לבד.
+              <br />
+              מי שלא — לא צריך שיציקו לו.
+              <br />
+              <br />
               הכול מתעדכן אוטומטית במערכת אחת ברורה.
             </p>
           </div>
@@ -315,68 +348,72 @@ export default function HomePage() {
         </div>
       </section>
 
-{/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
-<section className="py-28 bg-white overflow-hidden w-full">
-  <h2 className="text-4xl font-semibold text-center mb-20">
-    כל האירוע במקום אחד
-  </h2>
+      {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
+      <section className="py-28 bg-white overflow-hidden w-full">
+        <h2 className="text-4xl font-semibold text-center mb-20">
+          כל האירוע במקום אחד
+        </h2>
 
-  <InfiniteCarousel items={features} />
-</section>
+        <InfiniteCarousel items={features} />
+      </section>
 
+      {/* ================= בלוק 4 ================= */}
+      <section className="relative py-32 px-6 bg-[#faf8f4] overflow-hidden text-center">
+        <SoftFireworks />
 
+        <div className="relative z-10 max-w-3xl mx-auto">
+          <p className="text-xl leading-relaxed text-[#5f554c]">
+            בסופו של דבר, ניהול אירוע הוא הרבה החלטות קטנות.
+            <br />
+            כשכל המידע מרוכז במקום אחד, קל יותר לקבל אותן.
+            <br />
+            Invistimo נותנת לכם כלי מסודר, ברור ונוח —
+            <br />
+            כדי שתוכלו לנהל את האירוע בדרך שלכם, בלי רעשי רקע.
+          </p>
+        </div>
+      </section>
 
-
-{/* ================= בלוק 4 ================= */}
-<section className="relative py-32 px-6 bg-[#faf8f4] overflow-hidden text-center">
-
-  {/* אפקט זיקוקים – כמו בלוק 1 */}
-  <SoftFireworks />
-
-  {/* תוכן */}
-  <div className="relative z-10 max-w-3xl mx-auto">
-    <p className="text-xl leading-relaxed text-[#5f554c]">
-      בסופו של דבר, ניהול אירוע הוא הרבה החלטות קטנות.
-      <br />
-      כשכל המידע מרוכז במקום אחד, קל יותר לקבל אותן.
-      <br />
-      Invistimo נותנת לכם כלי מסודר, ברור ונוח —
-      <br />
-      כדי שתוכלו לנהל את האירוע בדרך שלכם, בלי רעשי רקע.
-    </p>
-  </div>
-</section>
-
-
-
-            {/* ================= CTA ================= */}
+      {/* ================= CTA ================= */}
       <section className="py-32 px-6 bg-[#C89F77] text-[#faf8f4] text-center">
         <h2 className="text-4xl font-semibold mb-10">
           מוכנים לנהל אירוע רגוע באמת?
         </h2>
 
+        {/* ✅ גם כאן: דמו ראשי */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link
+            href="/try/dashboard"
+            className="
+              inline-flex items-center justify-center
+              px-14 py-4 rounded-full
+              bg-[#3f3a34] text-[#faf8f4]
+              shadow-[0_14px_30px_rgba(0,0,0,0.18)]
+              hover:opacity-95 transition
+              focus:outline-none focus:ring-2 focus:ring-[#faf8f4]/60 focus:ring-offset-2 focus:ring-offset-[#C89F77]
+            "
+          >
+            🚀 התחילו דמו (צפייה בלבד)
+          </Link>
+
+          <Link
             href="/pricing"
-            className="inline-block px-14 py-4 bg-[#faf8f4] text-[#3f3a34] rounded-full"
+            className="
+              inline-flex items-center justify-center
+              px-14 py-4 rounded-full
+              border border-[#faf8f4] text-[#faf8f4]
+              hover:bg-[#faf8f4] hover:text-[#3f3a34] transition
+              focus:outline-none focus:ring-2 focus:ring-[#faf8f4]/60 focus:ring-offset-2 focus:ring-offset-[#C89F77]
+            "
           >
             לצפייה בחבילות
           </Link>
-
-          <Link
-            href="/try/dashboard"
-            className="inline-block px-14 py-4 border border-[#faf8f4] text-[#faf8f4] rounded-full
-                       hover:bg-[#faf8f4] hover:text-[#3f3a34] transition"
-          >
-            נסו את המערכת עכשיו – חינם
-          </Link>
         </div>
 
-        <p className="text-sm mt-4 opacity-90">
-          ללא הרשמה · ללא התחייבות · ללא שמירה
+        <p className="text-sm mt-4 opacity-95">
+          ללא תשלום · ללא הרשמה · נתוני דוגמה בלבד
         </p>
       </section>
-
     </main>
   );
 }
