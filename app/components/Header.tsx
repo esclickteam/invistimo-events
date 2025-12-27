@@ -90,7 +90,7 @@ export default function Header() {
                       href="/dashboard"
                       className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
                     >
-                     דשבורד
+                    לוח בקרה
                     </Link>
                     <button
                       onClick={logout}
@@ -167,7 +167,7 @@ export default function Header() {
                       onClick={() => setMobileOpen(false)}
                       className="hover:text-[var(--champagne-dark)] font-medium"
                     >
-                     דשבורד
+                    לוח בקרה
                     </Link>
                     <button
                       onClick={() => {
