@@ -81,29 +81,110 @@ initDemo: () => {
     ],
 
     guests: [
-      {
-        id: "demo-guest-1",
-        _id: "demo-guest-1",
-        name: "דנה לוי (דמו)",
-        guestsCount: 2,
-        confirmedGuestsCount: 2, // ⭐ זה מה שצובע אפור
-        confirmed: true,          // ⭐ זה מה שצובע אפור
-        tableId: null,
-        tableName: null,
-      },
-      {
-        id: "demo-guest-2",
-        _id: "demo-guest-2",
-        name: "יואב כהן (דמו)",
-        guestsCount: 1,
-        confirmedGuestsCount: 1, // ⭐
-        confirmed: true,          // ⭐
-        tableId: null,
-        tableName: null,
-      },
-    ],
+  {
+    id: "1",
+    _id: "1",
+    name: "אורן לוי",
+    guestsCount: 2,
+    confirmedGuestsCount: 2, // מגיעים
+    confirmed: true,
+    tableId: "table-5",
+    tableName: "5",
+  },
+  {
+    id: "2",
+    _id: "2",
+    name: "נועה כהן",
+    guestsCount: 1,
+    confirmedGuestsCount: 0, // ממתינה
+    confirmed: false,
+    tableId: undefined,
+    tableName: undefined,
+  },
+  {
+    id: "3",
+    _id: "3",
+    name: "דניאל לוי",
+    guestsCount: 3,
+    confirmedGuestsCount: 3,
+    confirmed: true,
+    tableId: "table-3",
+    tableName: "3",
+  },
+  {
+    id: "4",
+    _id: "4",
+    name: "מאיה ישראלי",
+    guestsCount: 1,
+    confirmedGuestsCount: 0, // לא מגיעה
+    confirmed: false,
+    tableId: undefined,
+    tableName: undefined,
+  },
+  {
+    id: "5",
+    _id: "5",
+    name: "יוסי כהן",
+    guestsCount: 1,
+    confirmedGuestsCount: 1,
+    confirmed: true,
+    tableId: "table-1",
+    tableName: "1",
+  },
+  {
+    id: "6",
+    _id: "6",
+    name: "שירה לוי",
+    guestsCount: 2,
+    confirmedGuestsCount: 0,
+    confirmed: false,
+    tableId: undefined,
+    tableName: undefined,
+  },
+  {
+    id: "7",
+    _id: "7",
+    name: "אלון פרץ",
+    guestsCount: 2,
+    confirmedGuestsCount: 2,
+    confirmed: true,
+    tableId: "table-2",
+    tableName: "2",
+  },
+  {
+    id: "8",
+    _id: "8",
+    name: "רוני אברהם",
+    guestsCount: 1,
+    confirmedGuestsCount: 0,
+    confirmed: false,
+    tableId: undefined,
+    tableName: undefined,
+  },
+  {
+    id: "9",
+    _id: "9",
+    name: "תמר כהן",
+    guestsCount: 1,
+    confirmedGuestsCount: 1,
+    confirmed: true,
+    tableId: "table-3",
+    tableName: "3",
+  },
+  {
+    id: "10",
+    _id: "10",
+    name: "איתי רוזן",
+    guestsCount: 2,
+    confirmedGuestsCount: 0,
+    confirmed: false,
+    tableId: undefined,
+    tableName: undefined,
+  },
+],
 
-    background: null,
+background: null,
+
   });
 },
 
