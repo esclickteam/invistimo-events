@@ -689,10 +689,25 @@ console.log("INVITATION:", invitation);
       {selectedGuest && (
   <EditGuestModal
     guest={selectedGuest}
+    isDemo={isDemo}
     onClose={() => setSelectedGuest(null)}
-    onSuccess={loadGuests}
+    onSuccess={async (updatedGuest?: Guest) => {
+      if (isDemo && updatedGuest) {
+        // 🧪 דמו – עדכון זמני ב־state
+        setGuests((prev) =>
+          prev.map((g) =>
+            g._id === updatedGuest._id ? updatedGuest : g
+          )
+        );
+        return;
+      }
+
+      // 🟢 פרודקשן – ריענון רגיל
+      await loadGuests();
+    }}
   />
 )}
+
 
 {openAddModal && (
   <AddGuestModal

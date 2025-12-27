@@ -5,23 +5,28 @@ import { useEffect, useMemo, useState } from "react";
 interface EditGuestModalProps {
   guest: any;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (guest?: any) => Promise<void>;
+  isDemo?: boolean; // 🧪 תוספת לדמו בלבד
 }
 
 export default function EditGuestModal({
   guest,
   onClose,
   onSuccess,
+  isDemo = false,
 }: EditGuestModalProps) {
   const [name, setName] = useState(guest?.name || "");
   const [phone, setPhone] = useState(guest?.phone || "");
   const [relation, setRelation] = useState(guest?.relation || "");
-  const [rsvp, setRsvp] = useState<"pending" | "yes" | "no">(guest?.rsvp || "pending");
-  const [guestsCount, setGuestsCount] = useState<number>(guest?.guestsCount || 1);
+  const [rsvp, setRsvp] =
+    useState<"pending" | "yes" | "no">(guest?.rsvp || "pending");
+  const [guestsCount, setGuestsCount] = useState<number>(
+    guest?.guestsCount || 1
+  );
   const [notes, setNotes] = useState(guest?.notes || "");
   const [loading, setLoading] = useState(false);
 
-  // אם עוברים לערוך אורח אחר בלי לסגור מודאל
+  // אם מחליפים אורח בלי לסגור מודאל
   useEffect(() => {
     setName(guest?.name || "");
     setPhone(guest?.phone || "");
@@ -31,15 +36,32 @@ export default function EditGuestModal({
     setNotes(guest?.notes || "");
   }, [guest]);
 
-  // "מגיעים" לפי הטבלה (תואם לוגיקה בדשבורד)
+  // מגיעים בפועל
   const comingCount = useMemo(() => {
     return rsvp === "yes" ? Number(guestsCount || 0) : 0;
   }, [rsvp, guestsCount]);
 
-  // מס' שולחן להצגה (בד"כ מתעדכן דרך הושבה)
   const tableName = guest?.tableName ?? "-";
 
   async function save() {
+    // 🧪 DEMO MODE – עדכון פרונט בלבד
+    if (isDemo) {
+      const updatedGuest = {
+        ...guest,
+        name,
+        phone,
+        relation,
+        rsvp,
+        guestsCount,
+        notes,
+      };
+
+      await onSuccess(updatedGuest); // 🔥 עדכון state בדשבורד
+      onClose();
+      return; // ⛔ אין API
+    }
+
+    // 🚀 PRODUCTION – נשאר כמו שהיה
     setLoading(true);
 
     try {
@@ -48,7 +70,7 @@ export default function EditGuestModal({
         phone,
         relation,
         rsvp,
-        guestsCount: rsvp === "yes" ? Number(guestsCount || 1) : Number(guestsCount || 1),
+        guestsCount: Number(guestsCount || 1),
         notes,
       };
 
@@ -61,7 +83,7 @@ export default function EditGuestModal({
       setLoading(false);
 
       if (res.ok) {
-        onSuccess();
+        await onSuccess();
         onClose();
       } else {
         alert("שגיאה בעדכון אורח");
@@ -74,11 +96,19 @@ export default function EditGuestModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" dir="rtl">
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      dir="rtl"
+    >
       <div className="bg-white p-6 rounded-xl w-[420px] shadow-xl">
         <h2 className="text-xl font-bold mb-4">עריכת אורח</h2>
 
-        {/* שם מלא */}
+        {isDemo && (
+          <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
+            🟡 מצב דמו – השינויים לא יישמרו
+          </div>
+        )}
+
         <label className="text-sm">שם מלא</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4"
@@ -86,7 +116,6 @@ export default function EditGuestModal({
           onChange={(e) => setName(e.target.value)}
         />
 
-        {/* טלפון */}
         <label className="text-sm">טלפון</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4"
@@ -94,16 +123,13 @@ export default function EditGuestModal({
           onChange={(e) => setPhone(e.target.value)}
         />
 
-        {/* קרבה */}
         <label className="text-sm">קרבה</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4"
           value={relation}
           onChange={(e) => setRelation(e.target.value)}
-          placeholder="משפחה / חברים / עבודה..."
         />
 
-        {/* סטטוס */}
         <label className="text-sm">סטטוס</label>
         <select
           className="w-full border rounded px-3 py-2 mb-4"
@@ -115,7 +141,6 @@ export default function EditGuestModal({
           <option value="no">לא מגיע</option>
         </select>
 
-        {/* מוזמנים */}
         <label className="text-sm">מוזמנים</label>
         <input
           type="number"
@@ -125,23 +150,20 @@ export default function EditGuestModal({
           onChange={(e) => setGuestsCount(Number(e.target.value))}
         />
 
-        {/* מגיעים (תואם טבלה) */}
         <label className="text-sm">מגיעים</label>
         <input
-          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
+          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50"
           value={comingCount}
           readOnly
         />
 
-        {/* מס' שולחן (תצוגה בלבד) */}
         <label className="text-sm">מס' שולחן</label>
         <input
-          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
+          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50"
           value={tableName}
           readOnly
         />
 
-        {/* הערות */}
         <label className="text-sm">הערות</label>
         <textarea
           className="w-full border rounded px-3 py-2 mb-4"
