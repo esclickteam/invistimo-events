@@ -561,17 +561,21 @@ console.log("INVITATION:", invitation);
 
   {/* ✏️ יצירת / עריכת הזמנה */}
   <button
-    onClick={() =>
+  onClick={() => {
+    if (isDemo) {
+      handleDemoBlockedAction(); // 🧪 Toast דמו
+    } else {
       router.push(
         invitation
           ? `/dashboard/edit-invite/${invitationId}`
           : "/dashboard/create-invite"
-      )
+      );
     }
-    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-  >
-    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-  </button>
+  }}
+  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+>
+  {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+</button>
 
   {/* 📥 ייבוא מאקסל */}
   <button
