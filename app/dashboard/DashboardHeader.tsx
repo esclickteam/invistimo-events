@@ -85,7 +85,7 @@ export default function DashboardHeader({
             </button>
 
             <button
-              onClick={() => router.push("/support")}
+              onClick={() => router.push("/contact")}
               className="flex items-center gap-1 text-[#4a413a] hover:underline"
             >
               <MessageCircle size={16} />

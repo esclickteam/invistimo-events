@@ -50,15 +50,14 @@ export default function Header() {
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
           <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
-
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
-              <nav className="hidden md:flex items-center gap-10 text-base text-[#4a413a] font-medium tracking-[0.01em]">
+              <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium">
                 <NavLinks />
               </nav>
 
-              {/* מובייל */}
+              {/* מובייל – המבורגר רק אם לא בדשבורד */}
               {!isDashboard && (
                 <button
                   onClick={() => setMobileOpen(true)}
@@ -76,14 +75,13 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
-                  className="h-8 w-auto object-contain"
-                  draggable={false}
+                  className="h-10 w-auto object-contain scale-[4] origin-center"
                 />
               </Link>
             </div>
 
-            {/* שמאל – משתמש */}
-            <div className="hidden md:flex justify-end items-center gap-5 text-base">
+            {/* שמאל – התחברות (דסקטופ בלבד) */}
+            <div className="hidden md:flex justify-end items-center gap-4">
               {!loading &&
                 (user ? (
                   <>
@@ -96,9 +94,9 @@ export default function Header() {
                     <button
                       onClick={logout}
                       className="
-                        px-6 py-2 rounded-full
+                        px-5 py-2 rounded-full
                         border border-[#cbb59d]
-                        text-[#4a413a]
+                        text-[#4a413a] text-sm
                         hover:bg-[#efe6db]
                         transition
                       "
@@ -125,14 +123,16 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ================= MOBILE DRAWER ================= */}
+      {/* ================= MOBILE DRAWER (רק מחוץ לדשבורד) ================= */}
       {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
+          {/* overlay */}
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileOpen(false)}
           />
 
+          {/* drawer */}
           <div
             className="
               absolute top-0 right-0 h-full w-[80%] max-w-sm
@@ -152,11 +152,12 @@ export default function Header() {
               </button>
             </div>
 
-            <nav className="flex flex-col gap-6 text-base text-[#4a413a] font-medium">
+            <nav className="flex flex-col gap-5 text-[#4a413a] font-medium">
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
 
-            <div className="pt-4 border-t border-[#e2d6c8] text-base">
+            {/* אזור משתמש – מתחת לצור קשר */}
+            <div className="pt-4 border-t border-[#e2d6c8]">
               {!loading &&
                 (user ? (
                   <div className="flex flex-col gap-4">
@@ -173,9 +174,9 @@ export default function Header() {
                         setMobileOpen(false);
                       }}
                       className="
-                        px-6 py-2 rounded-full
+                        px-5 py-2 rounded-full
                         border border-[#cbb59d]
-                        text-[#4a413a]
+                        text-[#4a413a] text-sm
                         hover:bg-[#efe6db]
                         transition
                         w-fit
@@ -197,7 +198,7 @@ export default function Header() {
                       w-fit
                     "
                   >
-                      התחברות
+                    התחברות
                   </Link>
                 ))}
             </div>
