@@ -217,15 +217,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1 }}
           >
-            {/* ✅ DEMO BADGE – חד וברור */}
-            <div className="inline-flex items-center gap-2 mb-6">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#cbb59d] bg-[#faf8f4]/70 text-[#3f3a34] font-semibold text-sm">
-                🧪 דמו אינטראקטיבי
-              </span>
-              <span className="text-sm text-[#6b5f55]">
-                צפייה בלבד · נתוני דוגמה
-              </span>
-            </div>
+    
 
             <h1 className="text-5xl md:text-6xl font-semibold mb-6">
               ניהול אירוע חכם
