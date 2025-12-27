@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, LogOut, MessageCircle } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -54,7 +54,7 @@ export default function DashboardHeader({
         bg-[url('/noise.png')] bg-repeat
       `}
     >
-      {/* GRID – 3 עמודות קבועות */}
+      {/* GRID – 3 עמודות */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
 
         {/* =========================
@@ -75,8 +75,8 @@ export default function DashboardHeader({
           <div className="flex flex-col leading-tight">
             <span className="font-medium text-[#4a413a] truncate max-w-[240px] text-[15px]">
               {isDemo
-                ? "מצב דמו – לצפייה בלבד"
-                : invitation?.title || "ניהול אירוע"}
+                ? "🧪 מצב דמו – לצפייה בלבד"
+                : invitation?.title || "📊 ניהול אירוע"}
             </span>
 
             {isDemo && (
@@ -98,15 +98,14 @@ export default function DashboardHeader({
               onClick={() => router.push("/dashboard")}
               className="hover:text-[var(--champagne-dark)] transition"
             >
-              ראשי
+              🏠 ראשי
             </button>
 
             <button
               onClick={() => router.push("/dashboard/contact")}
-              className="flex items-center gap-2 hover:text-[var(--champagne-dark)] transition"
+              className="hover:text-[var(--champagne-dark)] transition"
             >
-              <MessageCircle size={18} />
-              תמיכה
+              💬 תמיכה
             </button>
           </nav>
         </div>
@@ -142,7 +141,6 @@ export default function DashboardHeader({
           <button
             onClick={handleLogout}
             className={`
-              flex items-center gap-2
               font-medium
               ${HEADER_UI.navText}
               text-red-600
@@ -152,8 +150,7 @@ export default function DashboardHeader({
             title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
             aria-label="התנתקות"
           >
-            <LogOut size={18} />
-            {isDemo ? "התחברות" : "התנתקות"}
+            🚪 {isDemo ? "התחברות" : "התנתקות"}
           </button>
         </div>
       </div>
