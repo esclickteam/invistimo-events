@@ -165,26 +165,28 @@ useEffect(() => {
     eventDate: new Date().toISOString(),
   });
   setInvitationId("demo");
-  setGuests([
-    {
-      _id: "1",
-      name: "אורן לוי",
-      phone: "0501234567",
-      token: "demo1",
-      rsvp: "yes",
-      guestsCount: 2,
-      tableName: "שולחן 5",
-    },
-    {
-      _id: "2",
-      name: "נועה כהן",
-      phone: "0529876543",
-      token: "demo2",
-      rsvp: "pending",
-      guestsCount: 1,
-    },
-  ]);
-  setLoading(false);
+setGuests([
+  {
+    _id: "1",
+    name: "אורן לוי",
+    phone: "0501234567",
+    token: "demo1",
+    rsvp: "yes",
+    guestsCount: 2,
+    tableName: "שולחן 5",
+    relation: "משפחה", // ✅ נוסף
+  },
+  {
+    _id: "2",
+    name: "נועה כהן",
+    phone: "0529876543",
+    token: "demo2",
+    rsvp: "pending",
+    guestsCount: 1,
+    relation: "חברים", // ✅ נוסף
+  },
+]);
+setLoading(false);
 }, [isDemo]);
 
 useEffect(() => {
