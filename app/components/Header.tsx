@@ -53,7 +53,8 @@ export default function Header() {
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
-              <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[17px] tracking-wide">
+              <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[18px]">
+
 
                 <NavLinks />
               </nav>
