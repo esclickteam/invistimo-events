@@ -1,20 +1,49 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { X, Pencil } from "lucide-react";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   invitationShareId?: string;
+  isDemo?: boolean;
 };
 
 export default function DashboardMobileMenu({
   open,
   onClose,
   invitationShareId,
+  isDemo = false,
 }: Props) {
+  const router = useRouter();
+
   if (!open) return null;
+
+  const handleNav = (path: string) => {
+    onClose();
+
+    if (isDemo) {
+      router.push("/login");
+    } else {
+      router.push(path);
+    }
+  };
+
+  const handleViewInvite = () => {
+    onClose();
+
+    if (isDemo) {
+      router.push("/login");
+    } else if (invitationShareId) {
+      window.open(
+        `https://www.invistimo.com/invite/${invitationShareId}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 md:hidden" dir="rtl">
@@ -49,38 +78,47 @@ export default function DashboardMobileMenu({
 
         {/* Navigation */}
         <nav className="flex flex-col gap-4 text-[#4a413a] font-medium">
-          <Link href="/dashboard" onClick={onClose}>
+          {/* 🏠 ראשי */}
+          <button
+            onClick={() => handleNav("/dashboard")}
+            className="text-right"
+          >
             🏠 ראשי
-          </Link>
+          </button>
 
-          {/* ✏️ עריכת פרטי האירוע – עמוד ייעודי */}
-          <Link
-            href="/dashboard/event"
-            onClick={onClose}
-            className="flex items-center gap-2"
+          {/* ✏️ עריכת פרטי האירוע */}
+          <button
+            onClick={() => handleNav("/dashboard/event")}
+            className="flex items-center gap-2 text-right"
           >
             <Pencil size={16} />
             עריכת פרטי האירוע
-          </Link>
+          </button>
 
-          <Link href="/dashboard/messages" onClick={onClose}>
+          {/* 💬 הודעות */}
+          <button
+            onClick={() => handleNav("/dashboard/messages")}
+            className="text-right"
+          >
             💬 שליחת הודעות
-          </Link>
+          </button>
 
-          <Link href="/dashboard/seating" onClick={onClose}>
+          {/* 🪑 הושבה */}
+          <button
+            onClick={() => handleNav("/dashboard/seating")}
+            className="text-right"
+          >
             🪑 סידורי הושבה
-          </Link>
+          </button>
 
           {/* 👁️ צפייה בהזמנה */}
           {invitationShareId && (
-            <a
-              href={`https://www.invistimo.com/invite/${invitationShareId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onClose}
+            <button
+              onClick={handleViewInvite}
+              className="text-right"
             >
               👁️ צפייה בהזמנה
-            </a>
+            </button>
           )}
         </nav>
       </aside>

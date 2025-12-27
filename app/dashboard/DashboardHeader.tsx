@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 /* ============================================================
@@ -9,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 type DashboardHeaderProps = {
   onOpenMenu: () => void;
   invitation: any;
+  isDemo?: boolean;
 };
 
 /* ============================================================
@@ -17,8 +19,18 @@ type DashboardHeaderProps = {
 export default function DashboardHeader({
   onOpenMenu,
   invitation,
+  isDemo = false,
 }: DashboardHeaderProps) {
+  const router = useRouter();
   const { logout } = useAuth(); // 🔥 מקור אמת יחיד
+
+  const handleLogout = () => {
+    if (isDemo) {
+      router.push("/login");
+    } else {
+      logout();
+    }
+  };
 
   return (
     <header
@@ -42,14 +54,22 @@ export default function DashboardHeader({
           <Menu size={22} />
         </button>
 
-        <span className="mr-3 font-medium text-[#4a413a] truncate max-w-[180px]">
-          {invitation?.title || "ניהול אירוע"}
-        </span>
+        <div className="mr-3 flex flex-col">
+          <span className="font-medium text-[#4a413a] truncate max-w-[180px]">
+            {invitation?.title || "ניהול אירוע"}
+          </span>
+
+          {isDemo && (
+            <span className="text-[11px] text-amber-600">
+              מצב דמו
+            </span>
+          )}
+        </div>
       </div>
 
       {/* צד שמאל – התנתקות */}
       <button
-        onClick={logout}
+        onClick={handleLogout}
         className="
           flex items-center gap-1
           text-red-600
@@ -57,11 +77,11 @@ export default function DashboardHeader({
           hover:text-red-700
           transition
         "
-        title="התנתקות מהחשבון"
+        title={isDemo ? "בדמו – מעבר להתחברות" : "התנתקות מהחשבון"}
         aria-label="התנתקות מהחשבון"
       >
         <LogOut size={18} />
-        התנתקות
+        {isDemo ? "התחברות" : "התנתקות"}
       </button>
     </header>
   );
