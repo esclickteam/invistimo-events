@@ -247,7 +247,7 @@ export default function HomePage() {
                     focus:outline-none focus:ring-2 focus:ring-[#cbb38a]/60 focus:ring-offset-2 focus:ring-offset-[#f6f2ec]
                   "
                 >
-                  🚀 התחילו דמו (צפייה בלבד)
+                   התחילו דמו (צפייה בלבד)
                 </Link>
 
                 <div className="mt-3 flex flex-wrap gap-2 text-sm text-[#6b5f55]">
