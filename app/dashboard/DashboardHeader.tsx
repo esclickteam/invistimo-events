@@ -16,12 +16,12 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
-   UI CONST – גובה קבוע, לוגו חורג
+   UI CONST – גובה קבוע, לוגו גדול בלי absolute
 ============================================================ */
 const HEADER_UI = {
-  height: "h-16", // ❗ גובה קבוע – לא גדל
+  height: "h-16", // גובה ההידר נשאר קבוע
   navText: "text-[20px] tracking-wide",
-  logo: "h-[72px]", // ⬅️ לוגו גדול מההידר
+  logo: "h-[72px]", // לוגו גדול יותר מההידר
 };
 
 /* ============================================================
@@ -52,16 +52,15 @@ export default function DashboardHeader({
         border-b border-[#e2d6c8]
         bg-[#f5eee7]
         bg-[url('/noise.png')] bg-repeat
+        overflow-visible
       `}
     >
-      {/* GRID – 3 עמודות */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10 overflow-visible">
 
         {/* =========================
             ימין – ניווט + הקשר
         ========================= */}
         <div className="flex items-center gap-6 justify-start">
-          {/* ☰ מובייל */}
           <button
             onClick={onOpenMenu}
             className="p-2 md:hidden"
@@ -70,7 +69,6 @@ export default function DashboardHeader({
             <Menu size={28} />
           </button>
 
-          {/* שם אירוע / דמו */}
           <div className="flex flex-col leading-tight">
             <span className="font-medium text-[#4a413a] truncate max-w-[240px] text-[15px]">
               {isDemo
@@ -85,7 +83,6 @@ export default function DashboardHeader({
             )}
           </div>
 
-          {/* ניווט – דסקטופ */}
           <nav
             className={`
               hidden md:flex items-center gap-10 mr-6
@@ -110,25 +107,26 @@ export default function DashboardHeader({
         </div>
 
         {/* =========================
-            אמצע – לוגו (ABSOLUTE)
+            אמצע – לוגו (נכון!)
         ========================= */}
-        <div className="relative flex justify-center" dir="ltr">
+        <div
+          className="flex justify-center items-center overflow-visible"
+          dir="ltr"
+        >
           <button
             onClick={() => router.push("/dashboard")}
             aria-label="מעבר לדשבורד הראשי"
-            className="relative"
+            className="flex items-center justify-center overflow-visible"
           >
             <img
               src="/invistimo-logo.png"
               alt="Invistimo"
               className={`
-                absolute
-                top-1/2
-                -translate-y-1/2
                 ${HEADER_UI.logo}
                 w-auto
                 object-contain
                 select-none
+                -translate-y-1
               `}
               draggable={false}
             />
@@ -149,7 +147,6 @@ export default function DashboardHeader({
               transition
             `}
             title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
-            aria-label="התנתקות"
           >
             🚪 {isDemo ? "התחברות" : "התנתקות"}
           </button>
