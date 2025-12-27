@@ -38,7 +38,7 @@ export default function GuestSidebar({
   }
 
   /* ===============================
-     ⭐ מיפוי אורח → שולחן
+     ⭐ מיפוי אורח → שולחן (מה-store)
   =============================== */
   const guestTableMap = useMemo(() => {
     const map = new Map();
@@ -56,19 +56,15 @@ export default function GuestSidebar({
 
   return (
     <div
-      className={`
-        bg-white overflow-y-auto
-        ${
-          variant === "desktop"
-            ? "hidden md:block w-72 h-full border-l shadow-xl"
-            : ""
-        }
-        ${
-          variant === "mobile"
-            ? "block md:hidden w-full h-full"
-            : ""
-        }
-      `}
+      className={
+        "bg-white overflow-y-auto " +
+        (variant === "desktop"
+          ? "hidden md:block w-72 h-full border-l shadow-xl"
+          : "") +
+        (variant === "mobile"
+          ? "block md:hidden w-full h-full"
+          : "")
+      }
     >
       {/* כותרת */}
       <h2 className="text-lg font-bold p-4 border-b text-gray-800">
@@ -79,7 +75,15 @@ export default function GuestSidebar({
       <ul>
         {guests.map((guest) => {
           const guestId = String(guest.id ?? guest._id ?? "");
-          const table = guestTableMap.get(guestId) || null;
+
+          const tableFromStore = guestTableMap.get(guestId) || null;
+
+          const tableLabel =
+            (tableFromStore && tableFromStore.name) ||
+            guest.tableName ||
+            (tableFromStore ? `שולחן ${tableFromStore.id}` : null);
+
+          const isSeated = Boolean(tableLabel);
 
           const guestIdCandidates = [
             guest.id != null ? String(guest.id) : null,
@@ -90,26 +94,25 @@ export default function GuestSidebar({
             shouldHighlightFromUrl &&
             guestIdCandidates.includes(highlightedGuestId);
 
+          const itemClassName =
+            "p-3 border-b transition flex justify-between items-center select-none " +
+            (isHighlighted
+              ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400 "
+              : "hover:bg-gray-100 ") +
+            (!isSeated ? "cursor-grab active:cursor-grabbing" : "");
+
           return (
             <li
               key={guestId}
-              className={`
-                p-3 border-b transition flex justify-between items-center select-none
-                ${
-                  isHighlighted
-                    ? "bg-yellow-200 border-yellow-400 shadow-[0_0_6px_#facc15] ring-2 ring-yellow-400"
-                    : "hover:bg-gray-100"
-                }
-                ${!table ? "cursor-grab active:cursor-grabbing" : ""}
-              `}
+              className={itemClassName}
               onMouseDown={(e) => {
-                if (!table) {
+                if (!isSeated) {
                   e.preventDefault();
                   onDragStart(guest);
                 }
               }}
               onTouchStart={(e) => {
-                if (!table) {
+                if (!isSeated) {
                   e.preventDefault();
                   onDragStart(guest);
                 }
@@ -118,30 +121,29 @@ export default function GuestSidebar({
               <div>
                 {/* שם */}
                 <div
-                  className={`font-medium ${
-                    isHighlighted
+                  className={
+                    "font-medium " +
+                    (isHighlighted
                       ? "text-yellow-900"
-                      : "text-gray-800"
-                  }`}
+                      : "text-gray-800")
+                  }
                 >
                   {guest.name}
                 </div>
 
                 {/* כמות מוזמנים */}
                 <div className="text-xs text-gray-500">
-                  {guest.confirmedGuestsCount ??
+                  {(guest.confirmedGuestsCount ??
                     guest.guestsCount ??
                     guest.count ??
-                    1}{" "}
-                  מקומות
+                    1) + " מקומות"}
                 </div>
 
                 {/* סטטוס שיבוץ */}
                 <div className="mt-1 text-xs">
-                  {table ? (
+                  {isSeated ? (
                     <span className="text-green-600">
-                      שובץ לשולחן:{" "}
-                      {table.name || `שולחן ${table.id}`}
+                      משובץ לשולחן {tableLabel}
                     </span>
                   ) : (
                     <span className="text-gray-400">
@@ -159,7 +161,7 @@ export default function GuestSidebar({
               </div>
 
               {/* הסרת שיבוץ */}
-              {table && (
+              {tableFromStore && (
                 <button
                   onClick={() => removeFromSeat(guestId)}
                   className="text-red-500 text-sm hover:text-red-700 ml-2"
