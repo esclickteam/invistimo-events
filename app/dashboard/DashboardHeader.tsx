@@ -19,9 +19,9 @@ type DashboardHeaderProps = {
    UI CONST – תואם Header ראשי
 ============================================================ */
 const HEADER_UI = {
-  height: "h-16",
-  navText: "text-[17px]",
-  logo: "h-10 scale-[4]",
+  height: "min-h-[80px] py-3",
+  navText: "text-[20px] tracking-wide",
+  logo: "h-14",
 };
 
 /* ============================================================
