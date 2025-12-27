@@ -56,7 +56,7 @@ export default function EditInvitePage({
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* =========================================================
-     unwrap params (Next 16)
+     unwrap params
   ========================================================= */
   useEffect(() => {
     async function unwrap() {
@@ -95,7 +95,7 @@ export default function EditInvitePage({
         });
       } catch (err) {
         console.error(err);
-        alert("שגיאה בטעינה");
+        alert("❌ שגיאה בטעינה");
       } finally {
         setLoading(false);
       }
@@ -150,39 +150,33 @@ export default function EditInvitePage({
   };
 
   /* =========================================================
-     Mobile – TextEditor → Canvas
+     Text → Canvas
   ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
     canvasRef.current?.updateSelected?.(patch);
-
     setSelectedObject((prev) =>
       prev ? { ...prev, ...patch } : prev
     );
   };
 
-  /* =========================================================
-     Delete
-  ========================================================= */
   const handleDeleteSelected = () => {
     canvasRef.current?.deleteSelected?.();
     setSelectedObject(null);
     setSheetOpen(false);
   };
 
-  /* =========================================================
-     🟣 פתיחת Sheet אוטומטית כשנבחר טקסט
-  ========================================================= */
   useEffect(() => {
     if (selectedObject?.type === "text") {
       setSheetOpen(true);
     }
   }, [selectedObject]);
 
-  /* =========================================================
-     Loading
-  ========================================================= */
   if (!inviteId || loading || !invite) {
-    return <div className="p-10 text-center text-xl">טוען את ההזמנה...</div>;
+    return (
+      <div className="p-10 text-center text-xl">
+        טוען את ההזמנה...
+      </div>
+    );
   }
 
   /* =========================================================
@@ -191,13 +185,50 @@ export default function EditInvitePage({
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
-        {/* Desktop Sidebar */}
+        {/* ===== Desktop Sidebar ===== */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
         </div>
 
+        {/* ===== Editor Area ===== */}
         <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* Canvas */}
+          {/* ===== TOP BAR (זה מה שהיה חסר!) ===== */}
+          <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
+            <button
+              onClick={() => uploadInputRef.current?.click()}
+              className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
+            >
+              ⬆️ העלאה
+            </button>
+
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUploadInvitation(file);
+                e.currentTarget.value = "";
+              }}
+            />
+
+            <div className="flex-1" />
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`px-5 py-2 rounded-full text-white text-sm ${
+                saving
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              {saving ? "שומר..." : "💾 שמור"}
+            </button>
+          </div>
+
+          {/* ===== Canvas ===== */}
           <div className="flex-1 relative bg-gray-100">
             <div className="absolute inset-0 pb-24 md:pb-0">
               <EditorCanvas
@@ -207,11 +238,12 @@ export default function EditInvitePage({
               />
             </div>
 
-            {/* 🔍 Zoom Control — צף מעל הקנבס */}
-            <ZoomControl canvasRef={canvasRef} />
+            <div className="absolute top-4 right-4 z-50">
+              <ZoomControl canvasRef={canvasRef} />
+            </div>
           </div>
 
-          {/* Mobile Add Text */}
+          {/* ===== Mobile Add Text ===== */}
           <button
             onClick={() => canvasRef.current?.addText?.()}
             className="md:hidden fixed bottom-28 right-4 z-50 px-5 py-3 rounded-full bg-black text-white shadow-xl"
@@ -219,13 +251,13 @@ export default function EditInvitePage({
             ➕ טקסט
           </button>
 
-          {/* Mobile Nav */}
+          {/* ===== Mobile Nav ===== */}
           <MobileBottomNav
             active={mobileTab}
             onChange={setMobileTab}
           />
 
-          {/* Mobile Sheet */}
+          {/* ===== Mobile Sheet ===== */}
           <MobileBottomSheet
             open={sheetOpen}
             title=""
