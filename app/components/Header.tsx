@@ -112,7 +112,7 @@ export default function Header() {
     "
     title=" דמו – צפייה בלבד"
   >
-    🧪 נסה דמו
+     נסה דמו
   </Link>
 
               {!loading &&
