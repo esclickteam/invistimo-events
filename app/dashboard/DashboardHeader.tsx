@@ -21,7 +21,7 @@ type DashboardHeaderProps = {
 const HEADER_UI = {
   height: "min-h-[80px] py-3",
   navText: "text-[20px] tracking-wide",
-  logo: "h-14",
+  logo: "h-16",
 };
 
 /* ============================================================
