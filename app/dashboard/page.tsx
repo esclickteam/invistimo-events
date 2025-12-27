@@ -697,6 +697,7 @@ console.log("INVITATION:", invitation);
 {openAddModal && (
   <AddGuestModal
     invitationId={invitationId}
+   isDemo={isDemo}
     onClose={() => setOpenAddModal(false)}
     onSuccess={async (newGuest?: Guest) => {
       if (isDemo && newGuest) {

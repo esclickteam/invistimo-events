@@ -19,8 +19,9 @@ type Guest = {
 
 interface Props {
   onClose: () => void;
-  onSuccess: (guest?: Guest) => Promise<void>; // ⬅️ מאפשר אופציונלי
+  onSuccess: (guest?: Guest) => Promise<void>;
   invitationId?: string;
+  isDemo?: boolean; // ⭐️ זה כל הסיפור
 }
 
 export default function AddGuestModal({
