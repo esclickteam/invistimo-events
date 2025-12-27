@@ -15,44 +15,24 @@ export default function Header() {
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
-      <Link
-        href="/"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        🏠 ראשי
+      <Link href="/" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+        ראשי
       </Link>
-
-      <Link
-        href="/rsvp"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        📩 אישורי הגעה
+      <Link href="/rsvp" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+        אישורי הגעה
       </Link>
-
       <Link
         href="/seating-explained"
         onClick={onClick}
         className="hover:text-[var(--champagne-dark)] transition"
       >
-        🪑 סידורי הושבה
+        סידורי הושבה
       </Link>
-
-      <Link
-        href="/pricing"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        💳 חבילות ומחירים
+      <Link href="/pricing" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+        חבילות ומחירים
       </Link>
-
-      <Link
-        href="/contact"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        💬 צור קשר
+      <Link href="/contact" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+        צור קשר
       </Link>
     </>
   );
@@ -70,15 +50,15 @@ export default function Header() {
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
           <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
-            
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
               <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[17px] tracking-wide">
+
                 <NavLinks />
               </nav>
 
-              {/* מובייל */}
+              {/* מובייל – המבורגר רק אם לא בדשבורד */}
               {!isDashboard && (
                 <button
                   onClick={() => setMobileOpen(true)}
@@ -101,7 +81,7 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* שמאל – משתמש */}
+            {/* שמאל – התחברות (דסקטופ בלבד) */}
             <div className="hidden md:flex justify-end items-center gap-4">
               {!loading &&
                 (user ? (
@@ -110,9 +90,8 @@ export default function Header() {
                       href="/dashboard"
                       className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
                     >
-                      📊 לוח בקרה
+                    לוח בקרה
                     </Link>
-
                     <button
                       onClick={logout}
                       className="
@@ -123,7 +102,7 @@ export default function Header() {
                         transition
                       "
                     >
-                      🚪 התנתקות
+                      התנתקות
                     </button>
                   </>
                 ) : (
@@ -137,7 +116,7 @@ export default function Header() {
                       transition
                     "
                   >
-                    🔐 התחברות
+                    התחברות
                   </Link>
                 ))}
             </div>
@@ -145,7 +124,7 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ================= MOBILE DRAWER ================= */}
+      {/* ================= MOBILE DRAWER (רק מחוץ לדשבורד) ================= */}
       {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
           {/* overlay */}
@@ -168,7 +147,7 @@ export default function Header() {
             dir="rtl"
           >
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-lg">📋 תפריט</span>
+              <span className="font-semibold text-lg">תפריט</span>
               <button onClick={() => setMobileOpen(false)}>
                 <X size={22} />
               </button>
@@ -178,7 +157,7 @@ export default function Header() {
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
 
-            {/* אזור משתמש */}
+            {/* אזור משתמש – מתחת לצור קשר */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               {!loading &&
                 (user ? (
@@ -188,9 +167,8 @@ export default function Header() {
                       onClick={() => setMobileOpen(false)}
                       className="hover:text-[var(--champagne-dark)] font-medium"
                     >
-                      📊 לוח בקרה
+                    לוח בקרה
                     </Link>
-
                     <button
                       onClick={() => {
                         logout();
@@ -205,7 +183,7 @@ export default function Header() {
                         w-fit
                       "
                     >
-                      🚪 התנתקות
+                      התנתקות
                     </button>
                   </div>
                 ) : (
@@ -221,7 +199,7 @@ export default function Header() {
                       w-fit
                     "
                   >
-                    🔐 התחברות
+                    התחברות
                   </Link>
                 ))}
             </div>
