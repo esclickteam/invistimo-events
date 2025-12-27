@@ -12,13 +12,22 @@ export default function Header() {
 
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
+  const isTryDemo = pathname.startsWith("/try"); // ✅ דפים של דמו
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
-      <Link href="/" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         ראשי
       </Link>
-      <Link href="/rsvp" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/rsvp"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         אישורי הגעה
       </Link>
       <Link
@@ -28,10 +37,18 @@ export default function Header() {
       >
         סידורי הושבה
       </Link>
-      <Link href="/pricing" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/pricing"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         חבילות ומחירים
       </Link>
-      <Link href="/contact" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/contact"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         צור קשר
       </Link>
     </>
@@ -54,7 +71,6 @@ export default function Header() {
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
               <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[20px] tracking-wide">
-
                 <NavLinks />
               </nav>
 
@@ -81,8 +97,29 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* שמאל – התחברות (דסקטופ בלבד) */}
+            {/* שמאל – התחברות (דסקטופ בלבד) + ✅ Badge דמו קליקבילי ל-/try/dashboard */}
             <div className="hidden md:flex justify-end items-center gap-4">
+              {/* ✅ מציגים Badge רק אם אנחנו בדמו, והוא קליקבילי לכניסה לדמו */}
+              {isTryDemo && (
+                <Link
+                  href="/try/dashboard"
+                  className="
+                    inline-flex items-center gap-2
+                    px-3 py-1 rounded-full
+                    text-xs font-semibold
+                    border border-[#cbb59d]
+                    bg-[#faf8f4]/70
+                    text-[#3f3a34]
+                    hover:bg-[#efe6db]
+                    transition
+                    whitespace-nowrap
+                  "
+                  title="דמו לצפייה בלבד — מעבר לדמו"
+                >
+                  🧪 דמו – צפייה בלבד
+                </Link>
+              )}
+
               {!loading &&
                 (user ? (
                   <>
@@ -90,7 +127,7 @@ export default function Header() {
                       href="/dashboard"
                       className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
                     >
-                    לוח בקרה
+                      לוח בקרה
                     </Link>
                     <button
                       onClick={logout}
@@ -167,7 +204,7 @@ export default function Header() {
                       onClick={() => setMobileOpen(false)}
                       className="hover:text-[var(--champagne-dark)] font-medium"
                     >
-                    לוח בקרה
+                      לוח בקרה
                     </Link>
                     <button
                       onClick={() => {
@@ -203,6 +240,29 @@ export default function Header() {
                   </Link>
                 ))}
             </div>
+
+            {/* ✅ אופציונלי: גם במובייל בתוך התפריט נציג Badge דמו אם אנחנו בדמו */}
+            {isTryDemo && (
+              <div className="pt-2">
+                <Link
+                  href="/try/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="
+                    inline-flex items-center gap-2
+                    px-3 py-2 rounded-full
+                    text-sm font-semibold
+                    border border-[#cbb59d]
+                    bg-[#faf8f4]/70
+                    text-[#3f3a34]
+                    hover:bg-[#efe6db]
+                    transition
+                    w-fit
+                  "
+                >
+                  🧪 מעבר לדמו (צפייה בלבד)
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
