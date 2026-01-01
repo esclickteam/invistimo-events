@@ -1,7 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
-
 import Payment from "@/models/Payment";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
@@ -22,7 +21,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const GUESTS_BY_KEY: Record<string, number> = {
   basic_plan: 100,
   basic_plan_49: 100,
-
   premium_100_v2: 100,
   premium_200_v2: 200,
   premium_300: 300,
@@ -62,7 +60,9 @@ export async function POST(req: Request) {
 
   console.log("📦 EVENT TYPE:", stripeEvent.type);
 
-  // לוגים חשובים לזיהוי כישלונות או ביטולים
+  /* ============================================================
+     CASE: Session Expired / Failed
+  ============================================================ */
   if (
     stripeEvent.type === "checkout.session.expired" ||
     stripeEvent.type === "checkout.session.async_payment_failed"
@@ -78,7 +78,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true });
   }
 
-  // מטפלים רק ב־checkout.session.completed אמיתי
+  /* ============================================================
+     We only care about completed sessions
+  ============================================================ */
   if (stripeEvent.type !== "checkout.session.completed") {
     return NextResponse.json({ received: true });
   }
@@ -87,7 +89,9 @@ export async function POST(req: Request) {
 
   const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
-  // הגנה נוספת – לא לעבד תשלום אם לא שולם באמת
+  /* ============================================================
+     Ensure payment actually completed
+  ============================================================ */
   if (session.payment_status !== "paid") {
     console.log("⚠️ checkout.session.completed but not paid:", {
       id: session.id,
@@ -133,7 +137,7 @@ export async function POST(req: Request) {
   const email = user.email;
 
   /* ============================================================
-     🟢 CASE 1: PREMIUM UPGRADE (הוספת אורחים)
+     🟢 CASE 1: PREMIUM UPGRADE (Add more guests)
 ============================================================ */
   if (session.metadata?.type === "upgrade") {
     const targetGuests = Number(session.metadata.targetGuests);
@@ -189,7 +193,6 @@ export async function POST(req: Request) {
       invitation.maxMessages = (invitation.maxMessages || 0) + smsToAdd;
       invitation.remainingMessages =
         (invitation.remainingMessages || 0) + smsToAdd;
-
       await invitation.save();
     }
 
@@ -249,45 +252,58 @@ export async function POST(req: Request) {
 
   /* ============================================================
      🟢 CASE 3: FULL PACKAGE PURCHASE (BASIC / PREMIUM)
+     ✅ כולל שירות השיחות (includeCalls)
 ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    limit: 1,
-    expand: ["data.price.product"],
+    limit: 10,
   });
 
-  const lineItem = lineItems.data[0];
-  const price = lineItem?.price;
-  const priceKey = price?.lookup_key;
+  // 💰 חישוב מחיר כולל לפי metadata או לפי הסכום ב-line items
+  const totalPaid =
+    Number(session.metadata?.totalPaid) ||
+    lineItems.data.reduce((sum, item) => {
+      const unit = item.price?.unit_amount ?? 0;
+      return sum + unit * (item.quantity ?? 1);
+    }, 0) / 100;
 
-  if (!priceKey || !(priceKey in GUESTS_BY_KEY)) {
-    return NextResponse.json({ error: "Unknown priceKey" }, { status: 400 });
-  }
+  const includeCalls = session.metadata?.includeCalls === "true";
+  const callsAddonPrice = Number(session.metadata?.callsAddonPrice || 0);
+  const priceKey = session.metadata?.priceKey || "";
+  const maxGuests = Number(session.metadata?.maxGuests || 100);
+  const plan = session.metadata?.plan || "basic";
 
-  const maxGuests = GUESTS_BY_KEY[priceKey];
-  const amountPaid = (price?.unit_amount ?? 0) / 100;
-  const isBasic = priceKey.startsWith("basic");
+  const isBasic = plan === "basic";
   const maxMessages = isBasic ? 0 : maxGuests * 3;
 
-  const oldPlan = user.plan;
-  const newPlan = isBasic ? "basic" : "premium";
-
+  /* ============================================================
+     Save Payment
+============================================================ */
   await Payment.create({
     email,
     stripeSessionId: session.id,
     stripePaymentIntentId: String(session.payment_intent),
     stripeCustomerId: session.customer as string,
-    stripePriceId: price?.id,
     priceKey,
     maxGuests,
-    amount: amountPaid,
-    currency: price?.currency,
+    amount: totalPaid,
+    currency: "ils",
     status: "paid",
+    metadata: {
+      includeCalls,
+      callsAddonPrice,
+      totalPaid,
+    },
   });
 
+  /* ============================================================
+     Update User Plan
+============================================================ */
   await User.findByIdAndUpdate(user._id, {
-    plan: newPlan,
+    plan,
     guests: maxGuests,
-    paidAmount: amountPaid,
+    paidAmount: totalPaid,
+    includeCalls,
+    callsAddonPrice,
     planLimits: {
       maxGuests,
       smsEnabled: !isBasic,
@@ -296,18 +312,9 @@ export async function POST(req: Request) {
     },
   });
 
-  // 🚀 שדרוג מבסיס לפרימיום
-  if (oldPlan === "basic" && newPlan === "premium") {
-    console.log(`🚀 User upgraded from Basic → Premium: ${email}`);
-    await notifyAdminPurchase({
-      email,
-      amount: amountPaid,
-      currency: price?.currency || "ils",
-      type: "Plan upgrade",
-      details: `שדרוג מבסיס לפרימיום (${maxGuests} אורחים)`,
-    });
-  }
-
+  /* ============================================================
+     Create or update Invitation
+============================================================ */
   let invitation = await Invitation.findOne({ ownerId: user._id });
 
   if (!invitation) {
@@ -326,20 +333,24 @@ export async function POST(req: Request) {
     invitation.maxGuests = maxGuests;
     invitation.maxMessages = maxMessages;
     invitation.remainingMessages = Math.max(0, maxMessages - sent);
-    if (isBasic) invitation.sentSmsCount = 0;
     await invitation.save();
   }
 
+  /* ============================================================
+     Logs + Admin notification
+============================================================ */
   console.log(
-    `✅ Full package OK: ${email} | ${maxGuests} guests | ${maxMessages} messages`
+    `✅ Full package OK: ${email} | ${maxGuests} guests | calls=${
+      includeCalls ? "yes" : "no"
+    } | totalPaid=${totalPaid}₪`
   );
 
   await notifyAdminPurchase({
     email,
-    amount: amountPaid,
-    currency: price?.currency || "ils",
-    type: isBasic ? "Basic package" : "Premium package",
-    details: `${maxGuests} אורחים`,
+    amount: totalPaid,
+    currency: "ils",
+    type: plan === "basic" ? "Basic package" : "Premium package",
+    details: `${maxGuests} אורחים${includeCalls ? " + שירות שיחות" : ""}`,
   });
 
   return NextResponse.json({ received: true });
