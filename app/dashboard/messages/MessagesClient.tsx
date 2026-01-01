@@ -243,7 +243,6 @@ const sendWhatsApp = (guest: Guest) => {
 
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
-  // נבנה את ההודעה
   let text = message
     .replace(/{{name}}/g, guest.name || "")
     .replace(
@@ -254,23 +253,21 @@ const sendWhatsApp = (guest: Guest) => {
     .replace(/{{navigationLink}}/g, "")
     .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
-  // מנקה תווים נסתרים שיכולים לשבור אימוג'ים
-  text = text.replace(/[\u200B-\u200F\uFEFF]/g, "");
+  // 🧹 מנקה תווי RTL/LTR + תווים נסתרים נפוצים
+  text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
 
-  // מחליף שורות חדשות בקידוד תקין לוואטסאפ
-  text = text.replace(/\n/g, "%0A");
-
-  // 👇 encodeURI שומר על אימוג'ים 🎉💖 ולא הורס תווים מיוחדים
-  const encodedText = encodeURI(text);
+  // 🧩 לוואטסאפ: שורות חדשות חייבות להיות %0A
+  // ואז משתמשים ב-encodeURI (לא encodeURIComponent) כדי לא להרוס אימוג'ים
+  const encodedText = encodeURI(text).replace(/\n/g, "%0A");
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   const url = isMobile
     ? `whatsapp://send?phone=${phone}&text=${encodedText}`
     : `https://wa.me/${phone}?text=${encodedText}`;
 
   window.open(url, "_blank", "noopener,noreferrer");
 };
-
 
 
 
