@@ -418,11 +418,7 @@ console.log("INVITATION:", invitation);
   </div>
 )}
 
-    {user?.plan === "basic" && (
-      <div className="mb-10">
-        <UpgradeToPremium paidAmount={user.paidAmount} />
-      </div>
-    )}
+   
 
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
     {invitation && (
