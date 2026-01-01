@@ -243,6 +243,7 @@ const sendWhatsApp = (guest: Guest) => {
 
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
+  // 🧩 בניית הודעה מלאה
   const text = message
     .replace(/{{name}}/g, guest.name || "")
     .replace(
@@ -253,6 +254,7 @@ const sendWhatsApp = (guest: Guest) => {
     .replace(/{{navigationLink}}/g, "")
     .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
+  // ✅ כאן הקידוד הנכון (כולל אימוג'ים)
   const encodedText = encodeURIComponent(text);
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -542,25 +544,18 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
       {/* Message bubble */}
       <div className="p-4">
-  <div
-    className="bg-gray-200 rounded-2xl p-3 text-sm text-gray-900 max-w-[90%]"
-    style={{
-      fontFamily:
-        "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'",
-    }}
-  >
+  <div className="bg-gray-200 rounded-2xl p-3 text-sm text-gray-900 max-w-[90%]">
     {renderPreviewText(
-      selectedGuest
-        ? channel === "whatsapp"
-          ? buildMessage(selectedGuest)
-              .replace(/📍 ניווט לאירוע:\s*\n?/g, "")
-              .replace(/https?:\/\/[^\s]+/g, "")
-          : buildMessage(selectedGuest)
-        : message
-    )}
+  selectedGuest
+    ? (channel === "whatsapp"
+        ? buildMessage(selectedGuest)
+            .replace(/📍 ניווט לאירוע:\s*\n?/g, "")
+            .replace(/https?:\/\/[^\s]+/g, "")
+        : buildMessage(selectedGuest))
+    : message
+)}
   </div>
 </div>
-
 
     </div>
   </div>
