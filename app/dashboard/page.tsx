@@ -296,17 +296,30 @@ useEffect(() => {
   /* ============================================================
      Stats (על כל האורחים)
   ============================================================ */
-  const stats = {
-  totalGuests: guests.reduce((s, g) => s + g.guestsCount, 0),
+  const stats = useMemo(() => {
+  const totalGuests = guests.reduce((s, g) => s + (g.guestsCount || 0), 0);
 
-  comingGuests: guests.reduce(
-  (s, g) => s + (g.arrivedCount || 0),
-  0
-),
+  // 🟢 מי שסימן מגיע
+  const totalYes = guests
+    .filter((g) => g.rsvp === "yes")
+    .reduce((s, g) => s + (g.guestsCount || 0), 0);
 
-  notComing: guests.filter((g) => g.rsvp === "no").length,
-  noResponse: guests.filter((g) => g.rsvp === "pending").length,
-};
+  // 🟢 מי שסומן כ"נכח בפועל"
+  const totalArrived = guests.reduce(
+    (s, g) => s + (g.arrivedCount || 0),
+    0
+  );
+
+  const totalNo = guests.filter((g) => g.rsvp === "no").length;
+  const totalPending = guests.filter((g) => g.rsvp === "pending").length;
+
+  return {
+    totalGuests,
+    comingGuests: totalArrived || totalYes, // מציג את המספר הכי מדויק
+    notComing: totalNo,
+    noResponse: totalPending,
+  };
+}, [guests]);
 
   /* ============================================================
      WhatsApp (אישי – אישור הגעה בלבד)
