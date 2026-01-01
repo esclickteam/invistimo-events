@@ -418,7 +418,7 @@ console.log("INVITATION:", invitation);
   </div>
 )}
 
-   
+  
 
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
     {invitation && (
