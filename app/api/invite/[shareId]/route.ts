@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
+import InvitationGuest from "@/models/InvitationGuest";
 
 // ✅ חובה: לטעון את המודל של האורחים כדי ש-populate יעבוד
 import "@/models/InvitationGuest";
@@ -8,19 +9,17 @@ import "@/models/InvitationGuest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   GET — קבלת הזמנה לפי shareId (לא לפי _id)
+   GET — קבלת הזמנה לפי shareId
+   אם מגיע token => מאתרים אורח לפי token ומחזירים גם אותו
 ============================================================ */
 export async function GET(
   req: Request,
-  context: { params: Promise<{ shareId: string }> } // ⭐ ב־Next.js 16 חובה להשתמש ב־Promise
+  context: { params: Promise<{ shareId: string }> }
 ) {
   try {
     await db();
 
-    // ⭐ חובה await על params
     const { shareId } = await context.params;
-
-    console.log("📩 GET invitation by shareId:", shareId);
 
     if (!shareId || typeof shareId !== "string") {
       return NextResponse.json(
@@ -29,7 +28,11 @@ export async function GET(
       );
     }
 
-    // 🔍 מוצא הזמנה לפי shareId ומבצע populate לאורחים
+    // ✅ קוראים token מה-URL: /invite/:shareId?token=...
+    const { searchParams } = new URL(req.url);
+    const token = searchParams.get("token");
+
+    // 1) תמיד נביא הזמנה לפי shareId (הבסיס)
     const invitation = await Invitation.findOne({ shareId }).populate("guests");
 
     if (!invitation) {
@@ -39,11 +42,29 @@ export async function GET(
       );
     }
 
-    // ⭐ מנקה את הנתונים לפני שליחה
+    // 2) אם יש token — נאתר את האורח ונאמת שהוא שייך להזמנה הזו
+    let guest = null;
+
+    if (token) {
+      guest = await InvitationGuest.findOne({ token }).lean();
+
+      // token לא קיים / לא שייך להזמנה הזו
+      if (!guest || String(guest.invitationId) !== String(invitation._id)) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_TOKEN" },
+          { status: 404 }
+        );
+      }
+    }
+
     const cleanInvite = JSON.parse(JSON.stringify(invitation));
 
     return NextResponse.json(
-      { success: true, invitation: cleanInvite },
+      {
+        success: true,
+        invitation: cleanInvite,
+        guest: guest ? JSON.parse(JSON.stringify(guest)) : null,
+      },
       { status: 200 }
     );
   } catch (err) {
