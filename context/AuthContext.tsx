@@ -92,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   -------------------------------------------------- */
   useEffect(() => {
     refreshUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* --------------------------------------------------
@@ -130,20 +131,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /* --------------------------------------------------
-     התנתקות – ניקוי מלא
+     התנתקות – ניקוי מלא + מחיקת cookies בשרת
   -------------------------------------------------- */
   const logout = async () => {
     try {
-      await fetch("/api/logout", {
+      // ✅ קריאה ל־API שמוחק cookies בפועל
+      await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
+        headers: {
+          "Cache-Control": "no-store",
+        },
       });
     } catch (err) {
       console.error("❌ Logout request failed:", err);
     } finally {
+      // ✅ ניקוי מלא בצד לקוח
       setUser(null);
+
+      // מוחק את ה־cache של המשתמש ששמרת ל-UX
       sessionStorage.removeItem("auth_user");
 
+      // אם יש דברים שנשמרו בפרויקט (כמו role / flags / cached data)
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // ✅ הפניה להתחברות
       router.replace("/login");
       router.refresh();
     }
