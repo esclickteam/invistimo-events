@@ -11,14 +11,13 @@ interface User {
   email: string;
   name?: string;
   role?: "admin" | "user";
-
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
   logout: () => Promise<void>;
 }
 
@@ -29,7 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => {},
-  refreshUser: async () => {},
+  refreshUser: async () => null,
   logout: async () => {},
 });
 
@@ -39,7 +38,9 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
-  // 🔥 טוען משתמש מיידית מה־sessionStorage (UX)
+  /* --------------------------------------------------
+     טעינה מיידית מ-sessionStorage (UX)
+  -------------------------------------------------- */
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window === "undefined") return null;
     const cached = sessionStorage.getItem("auth_user");
@@ -50,9 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /* --------------------------------------------------
      מקור אמת יחיד – אימות מול השרת
-     ❗ no-store למניעת cache אחרי logout
   -------------------------------------------------- */
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<User | null> => {
     try {
       const res = await fetch("/api/me", {
         credentials: "include",
@@ -62,11 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         setUser(null);
         sessionStorage.removeItem("auth_user");
-        return;
+        return null;
       }
 
       const data = await res.json();
-      const nextUser = data?.user ?? null;
+      const nextUser: User | null = data?.user ?? null;
 
       setUser(nextUser);
 
@@ -75,10 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         sessionStorage.removeItem("auth_user");
       }
+
+      return nextUser;
     } catch (err) {
       console.error("❌ refreshUser error:", err);
       setUser(null);
       sessionStorage.removeItem("auth_user");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -92,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /* --------------------------------------------------
-     התחברות
+     התחברות + ניתוב לפי role
   -------------------------------------------------- */
   const login = async (email: string, password: string) => {
     try {
@@ -110,9 +113,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 🔄 מביאים משתמש מחדש
-      await refreshUser();
+      const nextUser = await refreshUser();
 
-      router.replace("/dashboard");
+      // 🧭 ניתוב חכם לפי role
+      if (nextUser?.role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/dashboard");
+      }
+
       router.refresh();
     } catch (err: any) {
       console.error("❌ Login failed:", err);
@@ -132,7 +141,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("❌ Logout request failed:", err);
     } finally {
-      // 🔥 ניקוי מיידי
       setUser(null);
       sessionStorage.removeItem("auth_user");
 
