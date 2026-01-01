@@ -5,7 +5,6 @@ export const runtime = "nodejs";
 
 /* ============================================================
    Stripe instance
-   ✅ בלי apiVersion
 ============================================================ */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -21,55 +20,46 @@ const PRICE_CONFIG: Record<
     maxGuests: 100,
     plan: "basic",
   },
-
   premium_100_v2: {
     priceId: "price_1SdSGkLCgfc20iubDzINSFfW",
     maxGuests: 100,
     plan: "premium",
   },
-
   premium_200_v2: {
     priceId: "price_1SfPbsLCgfc20iubw1ZSq3hE",
     maxGuests: 200,
     plan: "premium",
   },
-
   premium_300: {
     priceId: "price_1SfPaoLCgfc20iubiRBsT6NF",
     maxGuests: 300,
     plan: "premium",
   },
-
   premium_400: {
     priceId: "price_1SfPeALCgfc20iubmO93vP6z",
     maxGuests: 400,
     plan: "premium",
   },
-
   premium_500: {
     priceId: "price_1SfPgNLCgfc20iubN2pcgF6T",
     maxGuests: 500,
     plan: "premium",
   },
-
   premium_600: {
     priceId: "price_1SfPhlLCgfc20iubcsRvxp3H",
     maxGuests: 600,
     plan: "premium",
   },
-
   premium_700: {
     priceId: "price_1SfPijLCgfc20iubU3bGUyHc",
     maxGuests: 700,
     plan: "premium",
   },
-
   premium_800: {
     priceId: "price_1SfPjNLCgfc20iub4OuAyn1Y",
     maxGuests: 800,
     plan: "premium",
   },
-
   premium_1000: {
     priceId: "price_1SdSqULCgfc20iubjawJsU7h",
     maxGuests: 1000,
@@ -78,56 +68,56 @@ const PRICE_CONFIG: Record<
 };
 
 /* ============================================================
-   One-off Add-ons (lookup_key based)
+   Add-ons
 ============================================================ */
 const ADDON_CONFIG: Record<string, { lookupKey: string; messages: number }> = {
-  extra_messages_500: {
-    lookupKey: "extra_messages_500",
-    messages: 500,
-  },
+  extra_messages_500: { lookupKey: "extra_messages_500", messages: 500 },
 };
 
 /* ============================================================
-   Premium base prices (₪) by guest level
-   ✅ חייב להיות "מקור אמת" בשרת כדי למנוע זיופים מהקליינט
+   Premium & Calls price maps (₪)
 ============================================================ */
-const PREMIUM_BASE_PRICE_MAP: Record<number, number> = {
-  100: 99,
-  200: 149,
-  300: 199,
-  400: 249,
-  500: 299,
-  600: 349,
-  700: 399,
-  800: 449,
-  1000: 499,
+const PREMIUM_PRICE_MAP: Record<number, number> = {
+  100: 149,
+  200: 239,
+  300: 299,
+  400: 379,
+  500: 429,
+  600: 489,
+  700: 539,
+  800: 599,
+  1000: 699,
+};
+
+const CALLS_ADDON_MAP: Record<number, number> = {
+  100: 100,
+  200: 200,
+  300: 300,
+  400: 400,
+  500: 500,
+  600: 600,
+  700: 700,
+  800: 800,
+  1000: 1000,
 };
 
 /* ============================================================
    Helpers
 ============================================================ */
 const ALLOWED_GUEST_LEVELS = [100, 200, 300, 400, 500, 600, 700, 800, 1000];
-
 function safeGuestLevel(n: any) {
   const num = Number(n);
   return ALLOWED_GUEST_LEVELS.includes(num) ? num : 100;
 }
 
+/* ============================================================
+   POST handler
+============================================================ */
 export async function POST(req: Request) {
   try {
-    const {
-      priceKey,
-      email,
-      invitationId,
-      quantity = 1,
+    const { priceKey, email, invitationId, includeCalls = false } =
+      await req.json();
 
-      // ✅ מגיע מהקליינט (בדף register)
-      includeCalls,
-      // אפשר להגיע גם guests אם תרצי, אבל אנחנו ניקח את maxGuests מה-config
-      // guests,
-    } = await req.json();
-
-    // ✅ priceKey + email חובה כדי שלא יהיה checkout אנונימי
     if (!priceKey || !email) {
       return NextResponse.json(
         { error: "Missing priceKey or email" },
@@ -144,16 +134,14 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       CASE 1: Add-on (messages וכו')
+       CASE 1: Add-on (messages)
     ============================================================ */
     if (ADDON_CONFIG[priceKey]) {
       const addon = ADDON_CONFIG[priceKey];
-
       const prices = await stripe.prices.list({
         lookup_keys: [addon.lookupKey],
         expand: ["data.product"],
       });
-
       const price = prices.data[0];
       if (!price) {
         return NextResponse.json(
@@ -161,30 +149,25 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         customer_email: email,
-        line_items: [{ price: price.id, quantity }],
-
+        line_items: [{ price: price.id, quantity: 1 }],
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
-
         metadata: {
           invitationId: invitationId || "",
           priceKey,
           type: "addon",
-          messages: String(addon.messages * Number(quantity || 1)),
+          messages: String(addon.messages),
         },
       });
-
       return NextResponse.json({ url: session.url });
     }
 
     /* ============================================================
-       CASE 2: Package purchase
-       ✅ כאן אנחנו מוסיפים את תוספת השיחות בתוך אותה עסקה
-============================================================ */
+       CASE 2: Package purchase (Premium + Optional Calls)
+    ============================================================ */
     const config = PRICE_CONFIG[priceKey];
     if (!config) {
       return NextResponse.json(
@@ -193,44 +176,30 @@ export async function POST(req: Request) {
       );
     }
 
-    const wantCalls = Boolean(includeCalls);
-
-    // ✅ מחשבים לפי השרת:
-    // - basic: נשאר עם priceId קבוע
-    // - premium: אנחנו *לא* סומכים על מחיר מהקליינט לתוספת,
-    //           אלא יוצרים line_items ידני לפי base + addon
     if (config.plan === "basic") {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         customer_email: email,
         line_items: [{ price: config.priceId, quantity: 1 }],
-
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
-
         metadata: {
           invitationId: invitationId || "",
           priceKey,
           plan: config.plan,
           maxGuests: String(config.maxGuests),
           includeCalls: "false",
-          callsAddonPrice: "0",
-          totalPaid: "49",
           type: "package",
         },
       });
-
       return NextResponse.json({ url: session.url });
     }
 
-    // ✅ PREMIUM flow:
+    // ✅ PREMIUM
     const level = safeGuestLevel(config.maxGuests);
+    const basePrice = PREMIUM_PRICE_MAP[level];
+    const addonPrice = includeCalls ? CALLS_ADDON_MAP[level] : 0;
 
-    const basePrice = PREMIUM_BASE_PRICE_MAP[level] ?? PREMIUM_BASE_PRICE_MAP[100];
-    const addonPrice = wantCalls ? level * 1 : 0; // ✅ 1₪ לכל אורח
-    const totalPaid = basePrice + addonPrice;
-
-    // ✅ יוצרים line_items בצורה דינמית כדי לשלב base + addon באותה עסקה
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
         price_data: {
@@ -238,39 +207,39 @@ export async function POST(req: Request) {
           product_data: {
             name: `Invistimo Premium (עד ${level} אורחים)`,
           },
-          unit_amount: Math.round(basePrice * 100), // אגורות
+          unit_amount: Math.round(basePrice * 100),
         },
         quantity: 1,
       },
     ];
 
-    if (wantCalls && addonPrice > 0) {
+    if (includeCalls && addonPrice > 0) {
       lineItems.push({
         price_data: {
           currency: "ils",
           product_data: {
-            name: `שירות אישורי הגעה טלפוניים (3 סבבים)`,
+            name: "שירות אישורי הגעה טלפוניים (3 סבבים)",
           },
-          unit_amount: Math.round(addonPrice * 100), // אגורות
+          unit_amount: Math.round(addonPrice * 100),
         },
         quantity: 1,
       });
     }
 
+    const totalPaid = basePrice + addonPrice;
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
       line_items: lineItems,
-
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/payment/cancel`,
-
       metadata: {
         invitationId: invitationId || "",
         priceKey,
-        plan: "premium",
+        plan: config.plan,
         maxGuests: String(level),
-        includeCalls: wantCalls ? "true" : "false",
+        includeCalls: includeCalls ? "true" : "false",
         callsAddonPrice: String(addonPrice),
         totalPaid: String(totalPaid),
         type: "package",
