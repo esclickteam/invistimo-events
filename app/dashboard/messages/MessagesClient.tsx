@@ -216,9 +216,7 @@ useEffect(() => {
   const buildMessage = (guest: Guest) => {
   if (!invitation) return "";
 
-  const hasLocation =
-    invitation.location?.lat &&
-    invitation.location?.lng;
+  const hasLocation = invitation.location?.lat && invitation.location?.lng;
 
   const navigationLink =
     templateKey === "table" && hasLocation
@@ -226,12 +224,15 @@ useEffect(() => {
         `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
       : "";
 
+  // ✅ SMS עם token, WhatsApp בלי token
+  const rsvpLink =
+    channel === "sms"
+      ? `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
+      : `https://www.invistimo.com/invite/${invitation.shareId}`;
+
   return message
     .replace(/{{name}}/g, guest.name || "")
-    .replace(
-      /{{rsvpLink}}/g,
-      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
-    )
+    .replace(/{{rsvpLink}}/g, rsvpLink)
     .replace(/{{tableName}}/g, guest.tableName || "")
     .replace(/{{navigationLink}}/g, navigationLink);
 };
@@ -243,21 +244,18 @@ const sendWhatsApp = (guest: Guest) => {
 
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
-  let text = message
-    .replace(/{{name}}/g, guest.name || "")
-    // ❗ שולחים רק את ה-shareId בלי token
-    .replace(
-      /{{rsvpLink}}/g,
-      `https://www.invistimo.com/invite/${invitation.shareId}`
-    )
-    .replace(/{{tableName}}/g, guest.tableName || "")
-    .replace(/{{navigationLink}}/g, "")
-    .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
+  // ✅ תמיד נשלח את ההודעה המוכנה מ-buildMessage
+  let text = buildMessage(guest);
+
+  // ✅ ליתר ביטחון: אם איכשהו נשאר token (עריכה ידנית/הודעה מודבקת) — ננקה
+  text = text.replace(/\?token=[A-Za-z0-9_-]+/g, "");
+
+  // ✅ להסיר “ניווט לאירוע” בוואטספ אם אתה לא רוצה
+  text = text.replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
   // ניקוי תווים נסתרים
   text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
 
-  // שורות חדשות
   const encodedText = encodeURI(text).replace(/\n/g, "%0A");
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -267,6 +265,7 @@ const sendWhatsApp = (guest: Guest) => {
 
   window.open(url, "_blank", "noopener,noreferrer");
 };
+
 
 
 
