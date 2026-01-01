@@ -36,14 +36,13 @@ export async function POST(
       );
     }
 
-    // ✅ guestsCount תקין (שימי לב: 0 זה ערך חוקי במקרה של "no")
-    let validatedGuestsCount: number = Number(guestsCount);
-
+    // ✅ guestsCount תקין (0 חוקי כשלא מגיע)
+    let validatedGuestsCount = Number(guestsCount);
     if (rsvp === "no") validatedGuestsCount = 0;
     else if (!Number.isFinite(validatedGuestsCount) || validatedGuestsCount < 1)
       validatedGuestsCount = 1;
 
-    // ✅ arrivedCount (לא חובה) — נשמר רק אם הגיע מספר
+    // ✅ arrivedCount (לא חובה)
     let validatedArrivedCount: number | undefined = undefined;
     if (arrivedCount !== undefined) {
       const n = Number(arrivedCount);
@@ -67,8 +66,8 @@ export async function POST(
     }
 
     console.log("🟨 [respondByToken] BEFORE:", {
-      _id: guest._id,
-      invitationId: guest.invitationId,
+      _id: guest._id?.toString?.() || String(guest._id),
+      invitationId: guest.invitationId?.toString?.() || String(guest.invitationId),
       rsvp: guest.rsvp,
       guestsCount: guest.guestsCount,
       arrivedCount: guest.arrivedCount,
@@ -76,37 +75,40 @@ export async function POST(
       updatedAt: guest.updatedAt,
     });
 
-    // ✅ עדכון בפועל
+    // ✅ עדכון
     guest.rsvp = rsvp;
     guest.guestsCount = validatedGuestsCount;
 
+    // אם נשלח arrivedCount — שומרים
     if (validatedArrivedCount !== undefined) {
-      // שומר arrivedCount רק אם נשלח
       guest.arrivedCount = validatedArrivedCount;
     }
 
     // ✅ notes: תומך גם במערך וגם במחרוזת
-    if (typeof notes === "string") guest.notes = notes;
-    else if (Array.isArray(notes)) guest.notes = notes.join(", ");
-    else if (notes === undefined) {
-      // לא לדרוס אם לא נשלח
-    } else guest.notes = "";
+    if (notes !== undefined) {
+      if (typeof notes === "string") guest.notes = notes;
+      else if (Array.isArray(notes)) guest.notes = notes.join(", ");
+      else guest.notes = "";
+    }
 
     await guest.save();
-    await guest.reload(); // ✅ לוודא שקיבלנו את הערכים המעודכנים
 
-    console.log("🟩 [respondByToken] AFTER:", {
-      _id: guest._id,
-      invitationId: guest.invitationId,
-      rsvp: guest.rsvp,
-      guestsCount: guest.guestsCount,
-      arrivedCount: guest.arrivedCount,
-      notes: guest.notes,
-      updatedAt: guest.updatedAt,
+    // ✅ שליפה מחדש כדי לראות מה באמת נשמר במונגו
+    const fresh = await InvitationGuest.findById(guest._id).lean();
+
+    console.log("🟩 [respondByToken] AFTER (fresh):", {
+      _id: fresh?._id?.toString?.() || String(fresh?._id),
+      invitationId:
+        (fresh as any)?.invitationId?.toString?.() || String((fresh as any)?.invitationId),
+      rsvp: (fresh as any)?.rsvp,
+      guestsCount: (fresh as any)?.guestsCount,
+      arrivedCount: (fresh as any)?.arrivedCount,
+      notes: (fresh as any)?.notes,
+      updatedAt: (fresh as any)?.updatedAt,
     });
 
     return NextResponse.json(
-      { success: true, guest },
+      { success: true, guest: fresh },
       {
         status: 200,
         headers: {
