@@ -1,15 +1,22 @@
 import mongoose, { Schema, models } from "mongoose";
 
 /* ===========================================================
-   📌 InvitationGuest Schema
-   כל אורח שמקבל הזמנה אישית עם token ייחודי
-   שייך להזמנה אחת (Invitation)
+   Helpers
 =========================================================== */
+function toNumber(v: unknown, fallback = 0): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : fallback;
+  if (typeof v === "string") {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  return fallback;
+}
 
+/* ===========================================================
+   📌 InvitationGuest Schema
+=========================================================== */
 const InvitationGuestSchema = new Schema(
   {
-    /* ================= קשר להזמנה ================= */
-
     invitationId: {
       type: Schema.Types.ObjectId,
       ref: "Invitation",
@@ -17,16 +24,11 @@ const InvitationGuestSchema = new Schema(
       index: true,
     },
 
-    /* ================= פרטי אורח ================= */
-
     name: { type: String, required: true },
     phone: { type: String, required: true },
 
     relation: { type: String, default: "" },
-
     notes: { type: String, default: "" },
-
-    /* ================= RSVP ================= */
 
     rsvp: {
       type: String,
@@ -34,21 +36,21 @@ const InvitationGuestSchema = new Schema(
       default: "pending",
     },
 
-    // כמה הוזמנו
+    // ✅ כמה הוזמנו (מאפשר גם 0 כשלא מגיעים)
     guestsCount: {
       type: Number,
       default: 1,
-      min: 1,
+      min: 0,
+      set: (v: unknown) => toNumber(v, 0),
     },
 
-    // ✅ כמה הגיעו בפועל (ידני – אדמין / בעל הזמנה)
+    // ✅ כמה הגיעו בפועל
     arrivedCount: {
       type: Number,
       default: 0,
       min: 0,
+      set: (v: unknown) => toNumber(v, 0),
     },
-
-    /* ================= טוקן אישי ================= */
 
     token: {
       type: String,
@@ -57,35 +59,16 @@ const InvitationGuestSchema = new Schema(
       index: true,
     },
 
-    /* ================= 🪑 הושבה ================= */
-
-    // מספר שולחן (לתצוגה / הודעות)
-    tableNumber: {
-      type: Number,
-      default: null,
-    },
-
-    // שם שולחן (מחושב מהושבה)
-    tableName: {
-      type: String,
-      default: "",
-    },
-
-    // קישור לשולחן בקנבס
+    tableNumber: { type: Number, default: null },
+    tableName: { type: String, default: "" },
     tableId: {
       type: Schema.Types.ObjectId,
       ref: "SeatingTable",
       default: null,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
-
-/* ===========================================================
-   ⚠️ חובה ב-Next.js (prevent model overwrite)
-=========================================================== */
 
 export default models.InvitationGuest ||
   mongoose.model("InvitationGuest", InvitationGuestSchema);
