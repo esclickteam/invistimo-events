@@ -104,13 +104,17 @@ export default function DashboardHeader({
 
             {/* 🛡️ ניהול מערכת – אדמין בלבד */}
             {user?.role === "admin" && (
-              <button
-                onClick={() => router.push("/admin")}
-                className="font-semibold text-[#7a5c2e] hover:opacity-80 transition"
-              >
-                🛡️ ניהול מערכת
-              </button>
-            )}
+  <button
+    onClick={() => {
+      if (!user) return; // מגן מפני מצב שה-auth עוד נטען לרגע
+      router.push("/admin");
+    }}
+    className="font-semibold text-[#7a5c2e] hover:opacity-80 transition"
+  >
+    🛡️ ניהול מערכת
+  </button>
+)}
+
           </nav>
         </div>
 
