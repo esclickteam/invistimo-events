@@ -24,6 +24,8 @@ const InvitationGuestSchema = new Schema(
 
     relation: { type: String, default: "" },
 
+    notes: { type: String, default: "" },
+
     /* ================= RSVP ================= */
 
     rsvp: {
@@ -32,9 +34,19 @@ const InvitationGuestSchema = new Schema(
       default: "pending",
     },
 
-    guestsCount: { type: Number, default: 1 },
+    // כמה הוזמנו
+    guestsCount: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
 
-    notes: { type: String, default: "" },
+    // ✅ כמה הגיעו בפועל (ידני – אדמין / בעל הזמנה)
+    arrivedCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
 
     /* ================= טוקן אישי ================= */
 
@@ -47,30 +59,32 @@ const InvitationGuestSchema = new Schema(
 
     /* ================= 🪑 הושבה ================= */
 
-    // מספר שולחן (ל־SMS / WhatsApp / תצוגה)
+    // מספר שולחן (לתצוגה / הודעות)
     tableNumber: {
       type: Number,
       default: null,
     },
 
-    // שם שולחן (אם בעתיד יהיו אזורים / שמות)
+    // שם שולחן (מחושב מהושבה)
     tableName: {
       type: String,
       default: "",
     },
 
-    // קישור לשולחן בקנבס (לא חובה)
+    // קישור לשולחן בקנבס
     tableId: {
       type: Schema.Types.ObjectId,
       ref: "SeatingTable",
       default: null,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 /* ===========================================================
-   ⚠️ חובה ב-NEXT.JS
+   ⚠️ חובה ב-Next.js (prevent model overwrite)
 =========================================================== */
 
 export default models.InvitationGuest ||

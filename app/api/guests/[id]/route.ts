@@ -24,14 +24,9 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
 
-    console.log("🔵 GET GUEST →", {
-      id: guest._id,
-      arrivedCount: guest.arrivedCount,
-    });
-
     return NextResponse.json({ success: true, guest });
   } catch (error) {
-    console.error("❌ GET /guests/[id] error:", error);
+    console.error("GET /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -44,21 +39,12 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
   try {
     await db();
-
     const data = await req.json();
-    console.log("🟠 PUT BODY →", data);
 
     const guest = await InvitationGuest.findById(id);
     if (!guest) {
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
-
-    console.log("🟡 BEFORE UPDATE →", {
-      id: guest._id,
-      arrivedCount: guest.arrivedCount,
-      rsvp: guest.rsvp,
-      guestsCount: guest.guestsCount,
-    });
 
     const invitation = await Invitation.findById(guest.invitationId);
     if (!invitation) {
@@ -100,22 +86,19 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       guest.guestsCount = data.guestsCount;
     }
 
-    // ✅ מגיעים בפועל – קריטי
+    // ✅ מגיעים בפועל – השדה הנכון
     if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
-      console.log("🟣 SET arrivedCount →", data.arrivedCount);
       guest.arrivedCount = data.arrivedCount;
     }
 
-    await guest.save();
+    // ❗ tableName הוא שדה מחושב מהושבה – אל תשמרי אותו כאן
+    // אם בעתיד תרצי כן – נדבר על זה בנפרד
 
-    console.log("🟢 AFTER SAVE →", {
-      id: guest._id,
-      arrivedCount: guest.arrivedCount,
-    });
+    await guest.save();
 
     return NextResponse.json({ success: true, guest });
   } catch (error) {
-    console.error("❌ PUT /guests/[id] error:", error);
+    console.error("PUT /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -156,11 +139,9 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
     await guest.deleteOne();
 
-    console.log("🗑️ GUEST DELETED →", id);
-
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("❌ DELETE /guests/[id] error:", error);
+    console.error("DELETE /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
