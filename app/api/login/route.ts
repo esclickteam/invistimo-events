@@ -26,9 +26,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ======================================================
-       JWT
-    ====================================================== */
+    /* ================= JWT ================= */
     const token = jwt.sign(
       {
         userId: user._id,
@@ -49,37 +47,28 @@ export async function POST(req: Request) {
       },
     });
 
-    /* ======================================================
-       ניקוי Cookies ישנים (חשוב למובייל)
-    ====================================================== */
+    /* ================= ניקוי ================= */
     res.cookies.delete("authToken");
     res.cookies.delete("isTrial");
     res.cookies.delete("trialExpiresAt");
     res.cookies.delete("smsUsed");
     res.cookies.delete("smsLimit");
 
-    /* ======================================================
-       Auth Token (משותף לכל הדומיינים)
-    ====================================================== */
+    /* ================= Auth ================= */
     res.cookies.set("authToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      path: "/",
-      domain: ".invistimo.com",
-      maxAge: 60 * 60, // 1 שעה
+      path: "/",          // ✅ קריטי
+      maxAge: 60 * 60,
     });
 
-    /* ======================================================
-       Cookies ל-Trial / Middleware
-       (🔥 קריטי)
-    ====================================================== */
+    /* ================= Trial ================= */
     res.cookies.set("isTrial", String(user.isTrial), {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      domain: ".invistimo.com",
       maxAge: 60 * 60,
     });
 
@@ -92,7 +81,6 @@ export async function POST(req: Request) {
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
           path: "/",
-          domain: ".invistimo.com",
           maxAge: 60 * 60,
         }
       );
@@ -103,7 +91,6 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      domain: ".invistimo.com",
       maxAge: 60 * 60,
     });
 
@@ -115,7 +102,6 @@ export async function POST(req: Request) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        domain: ".invistimo.com",
         maxAge: 60 * 60,
       }
     );
