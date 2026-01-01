@@ -19,7 +19,7 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
-     ❗ מניעת הפניות לא רצויות בבקשות HEAD / prefetch
+     ❗ מניעת הפניות לא רצויות (HEAD / prefetch)
   ======================================================== */
   if (req.method === "HEAD") {
     return NextResponse.next();
@@ -57,20 +57,14 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     3️⃣ Auth Token (משותף ל-dashboard + admin)
+     3️⃣ Auth Token (משותף ל־dashboard + admin)
   ======================================================== */
   const token = cookies.get("authToken")?.value;
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
   /* ========================================================
-     4️⃣ הגנה על /dashboard (Auth)
-  ======================================================== */
-  if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  /* ========================================================
-     5️⃣ הגנה על /admin (Admin only)
+     4️⃣ הגנה על /admin (Admin only)
+     ⚠️ חייב לבוא לפני /dashboard
   ======================================================== */
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     if (!token) {
@@ -78,17 +72,27 @@ export function middleware(req: NextRequest) {
     }
 
     try {
-      const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
+      const decoded: any = jwt.verify(
+        token,
+        process.env.JWT_SECRET as string
+      );
 
-      // ✅ תומך בשני מבנים אפשריים של JWT
+      // תומך בשני מבנים של JWT
       const userRole = decoded?.role || decoded?.user?.role;
 
       if (userRole !== "admin") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
-    } catch (err) {
+    } catch (error) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
+  }
+
+  /* ========================================================
+     5️⃣ הגנה על /dashboard (Auth)
+  ======================================================== */
+  if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   /* ========================================================
@@ -108,7 +112,7 @@ export function middleware(req: NextRequest) {
 
   /* ========================================================
      7️⃣ חסימת UI של הודעות אם נגמרה מכסת SMS
-     (האכיפה האמיתית ב־API)
+     (האכיפה האמיתית מתבצעת ב־API)
   ======================================================== */
   if (pathname.startsWith("/dashboard/messages")) {
     const smsUsed = Number(cookies.get("smsUsed")?.value ?? 0);
