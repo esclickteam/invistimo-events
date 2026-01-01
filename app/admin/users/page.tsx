@@ -87,7 +87,7 @@ export default function AdminUsersPage() {
         throw new Error("Impersonation failed");
       }
 
-      // ⏩ מעבר לדשבורד של הלקוח
+      // מעבר לדשבורד של הלקוח
       window.location.href = "/dashboard";
     } catch (err) {
       console.error("Impersonate error:", err);
@@ -101,18 +101,12 @@ export default function AdminUsersPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="text-gray-500">
-        טוען משתמשים…
-      </div>
-    );
+    return <div className="text-gray-500">טוען משתמשים…</div>;
   }
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold mb-6">
-        ניהול משתמשים
-      </h1>
+      <h1 className="text-3xl font-semibold mb-6">ניהול משתמשים</h1>
 
       <div className="overflow-x-auto bg-white border rounded-xl shadow-sm">
         <table className="min-w-full text-right">
@@ -131,11 +125,8 @@ export default function AdminUsersPage() {
             {users.map((u) => (
               <tr key={u._id} className="border-t text-sm">
                 <td className="p-3">{u.name || "-"}</td>
-
                 <td className="p-3">{u.email}</td>
-
                 <td className="p-3 font-semibold">{u.role}</td>
-
                 <td className="p-3">{u.plan || "-"}</td>
 
                 <td className="p-3">
@@ -144,14 +135,11 @@ export default function AdminUsersPage() {
                       ☎️ פעיל ({u.callsRounds || 0})
                     </span>
                   ) : (
-                    <span className="text-gray-400">
-                      לא פעיל
-                    </span>
+                    <span className="text-gray-400">לא פעיל</span>
                   )}
                 </td>
 
                 <td className="p-3 flex flex-wrap gap-2">
-                  {/* Toggle calls */}
                   <button
                     onClick={() =>
                       toggleCalls(u._id, !u.includeCalls)
@@ -161,7 +149,6 @@ export default function AdminUsersPage() {
                     {u.includeCalls ? "כבה שיחות" : "הפעל שיחות"}
                   </button>
 
-                  {/* Impersonate */}
                   {u.role === "user" && (
                     <button
                       onClick={() => impersonateUser(u._id)}
