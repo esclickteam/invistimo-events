@@ -5,7 +5,8 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   Register → Stripe Checkout
+   Register → Stripe Checkout (with optional Phone Calls add-on)
+   ✅ calls=1 adds: 1₪ לכל אורח (לפי guests)
 ============================================================ */
 
 function RegisterFormInner() {
@@ -17,6 +18,10 @@ function RegisterFormInner() {
   const guestsParam = params.get("guests");
   const guests = plan === "premium" && guestsParam ? Number(guestsParam) : 0;
 
+  // ✅ תוספת: האם המשתמש בחר שירות שיחות (מהדף הקודם)
+  const callsParam = params.get("calls");
+  const includeCalls = plan === "premium" && callsParam === "1";
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -25,21 +30,34 @@ function RegisterFormInner() {
   });
 
   const [loading, setLoading] = useState(false);
+
+  // ✅ מחיר סופי שמוצג למשתמש (כולל תוספת אם יש)
   const [price, setPrice] = useState<number>(0);
 
-  // 🔑 priceKey אחיד ל-Stripe
+  // 🔑 priceKey אחיד ל-Stripe (המחיר של החבילה עצמה)
   const [priceKey, setPriceKey] = useState<string>("");
+
+  // ✅ תוספת לשיחות (1₪ לכל אורח) – נשמר לצורך תצוגה + שליחה לשרת
+  const [callsAddonPrice, setCallsAddonPrice] = useState<number>(0);
 
   /* ============================================================
      חישוב מחיר + priceKey
+     ✅ price = base + (includeCalls ? guests*1 : 0)
   ============================================================ */
   useEffect(() => {
+    // ------------------------
+    // BASIC
+    // ------------------------
     if (plan === "basic") {
+      setCallsAddonPrice(0);
       setPrice(49);
       setPriceKey("basic_plan_49"); // ✅ תואם לשרת שלך
       return;
     }
 
+    // ------------------------
+    // PREMIUM
+    // ------------------------
     if (plan === "premium") {
       const priceMap: Record<number, number> = {
         100: 149,
@@ -65,15 +83,26 @@ function RegisterFormInner() {
         1000: "premium_1000",
       };
 
-      if (guests in priceMap) {
-        setPrice(priceMap[guests]);
-        setPriceKey(keyMap[guests]);
-      } else {
-        setPrice(0);
-        setPriceKey("");
-      }
+      const base = guests in priceMap ? priceMap[guests] : 0;
+      const key = guests in keyMap ? keyMap[guests] : "";
+
+      // ✅ תוספת: 1₪ לכל אורח רק אם includeCalls
+      const addon = includeCalls && guests > 0 ? guests * 1 : 0;
+
+      setCallsAddonPrice(addon);
+      setPrice(base + addon);
+      setPriceKey(key);
+
+      return;
     }
-  }, [plan, guests]);
+
+    // ------------------------
+    // Fallback
+    // ------------------------
+    setCallsAddonPrice(0);
+    setPrice(0);
+    setPriceKey("");
+  }, [plan, guests, includeCalls]);
 
   /* ============================================================
      שינוי שדות
@@ -84,6 +113,7 @@ function RegisterFormInner() {
 
   /* ============================================================
      הרשמה → Stripe Checkout
+     ✅ שולחים includeCalls + callsAddonPrice לשרת, והוא יחשב בפועל
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +135,7 @@ function RegisterFormInner() {
           ...form,
           plan,
           guests,
+          includeCalls, // ✅ שומר אצלך DB אם תרצי
         }),
       });
 
@@ -121,10 +152,16 @@ function RegisterFormInner() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          priceKey,          // ✅ חובה
-          email: form.email, // ✅ חשוב (ראית שהיה חסר)
-          invitationId: "",  // ✅ אופציונלי אצלך כרגע
+          priceKey, // ✅ מחיר החבילה
+          email: form.email, // ✅ חובה
+          invitationId: "", // ✅ אופציונלי אצלך כרגע
           quantity: 1,
+
+          // ✅ תוספת שירות שיחות:
+          includeCalls,
+          // לא חובה לשלוח מחיר, אבל עוזר לתצוגה/לוגים.
+          // השרת עדיין חייב לחשב בעצמו לפי maxGuests כדי למנוע זיופים.
+          callsAddonPrice,
         }),
       });
 
@@ -214,6 +251,30 @@ function RegisterFormInner() {
             required
           />
         </div>
+
+        {/* ✅ פירוט תשלום (רק לפרימיום) */}
+        {plan === "premium" && guests > 0 && (
+          <div className="rounded-2xl border border-[#e6dccd] bg-[#fbf8f4] p-4 space-y-2">
+            <div className="flex items-center justify-between text-[#5c4632]">
+              <span className="text-sm">כמות אורחים</span>
+              <span className="font-semibold">{guests}</span>
+            </div>
+
+            <div className="flex items-center justify-between text-[#5c4632]">
+              <span className="text-sm">מחיר חבילה</span>
+              <span className="font-semibold">{price - callsAddonPrice} ₪</span>
+            </div>
+
+            <div className="flex items-center justify-between text-[#5c4632]">
+              <span className="text-sm">
+                שירות אישורי הגעה טלפוניים (3 סבבים)
+              </span>
+              <span className="font-semibold">
+                {includeCalls ? `${callsAddonPrice} ₪` : "לא נבחר"}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* סכום */}
         <div className="text-center text-lg font-semibold text-[#5c4632]">
