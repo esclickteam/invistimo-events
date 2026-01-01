@@ -1,33 +1,49 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
 
-    const cookieStore = await cookies(); // ✅ חובה await
+    /* ===== Auth ===== */
+    const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
-      return NextResponse.json({ success: false }, { status: 401 });
+      return NextResponse.json(
+        { success: false },
+        { status: 401 }
+      );
     }
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    const decoded: any = jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    );
 
     if (decoded.role !== "admin") {
-      return NextResponse.json({ success: false }, { status: 403 });
+      return NextResponse.json(
+        { success: false },
+        { status: 403 }
+      );
     }
 
-    const body = await req.json();
+    /* ===== Params ===== */
+    const { id } = await context.params;
+
+    /* ===== Body ===== */
+    const body = await request.json();
     const { includeCalls, callsRounds } = body;
 
-    await User.findByIdAndUpdate(params.id, {
+    /* ===== Update ===== */
+    await User.findByIdAndUpdate(id, {
       includeCalls,
       callsRounds,
       callsEnabledBy: "admin",
