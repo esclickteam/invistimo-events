@@ -68,6 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       const nextUser: User | null = data?.user ?? null;
 
+      console.log("🟦 refreshUser():", nextUser);
+
       setUser(nextUser);
 
       if (nextUser) {
@@ -113,13 +115,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // 🔄 מביאים משתמש מחדש
+      // ✅ נוודא קודם שהמשתמש נטען מחדש מהשרת
       const nextUser = await refreshUser();
 
-      // 🧭 ניתוב חכם לפי role
-      if (nextUser?.role === "admin") {
+      console.log("✅ התחברות הצליחה, משתמש:", nextUser);
+
+      if (!nextUser) {
+        alert("לא הצלחנו לטעון את פרטי המשתמש");
+        return;
+      }
+
+      // ✅ ניתוב לפי ROLE אמיתי מהשרת
+      if (nextUser.role === "admin") {
+        console.log("👑 ניתוב לאדמין...");
         router.replace("/admin");
       } else {
+        console.log("👤 ניתוב למשתמש רגיל...");
         router.replace("/dashboard");
       }
 
@@ -149,14 +160,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ✅ ניקוי מלא בצד לקוח
       setUser(null);
 
-      // מוחק את ה־cache של המשתמש ששמרת ל-UX
       sessionStorage.removeItem("auth_user");
-
-      // אם יש דברים שנשמרו בפרויקט (כמו role / flags / cached data)
       localStorage.clear();
       sessionStorage.clear();
 
-      // ✅ הפניה להתחברות
       router.replace("/login");
       router.refresh();
     }
