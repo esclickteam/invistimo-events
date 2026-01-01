@@ -300,13 +300,7 @@ useEffect(() => {
   totalGuests: guests.reduce((s, g) => s + g.guestsCount, 0),
 
   comingGuests: guests.reduce(
-  (s, g) =>
-    s +
-    (typeof g.arrivedCount === "number"
-      ? g.arrivedCount
-      : g.rsvp === "yes"
-      ? g.guestsCount
-      : 0),
+  (s, g) => s + (g.arrivedCount || 0),
   0
 ),
 
@@ -758,11 +752,7 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.guestsCount}</td>
 
           <td className="p-3 font-semibold">
-  {typeof g.arrivedCount === "number"
-    ? g.arrivedCount
-    : g.rsvp === "yes"
-    ? g.guestsCount
-    : 0}
+  {g.arrivedCount || 0}
 </td>
 
           <td className="p-3">{g.tableName ?? "-"}</td>
