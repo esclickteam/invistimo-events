@@ -245,16 +245,14 @@ const sendWhatsApp = (guest: Guest) => {
 
   let text = message
     .replace(/{{name}}/g, guest.name || "")
+    // ❗ שולחים רק את ה-shareId בלי token
     .replace(
       /{{rsvpLink}}/g,
-      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
+      `https://www.invistimo.com/invite/${invitation.shareId}`
     )
     .replace(/{{tableName}}/g, guest.tableName || "")
     .replace(/{{navigationLink}}/g, "")
     .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
-
-  // ✅ מוריד אימוג'ים (וגם סימנים גרפיים “אמוג'יים”)
-  text = text.replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu, "");
 
   // ניקוי תווים נסתרים
   text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
