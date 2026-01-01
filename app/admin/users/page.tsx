@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+/* =========================
+   TYPES
+========================= */
 type AdminUser = {
   _id: string;
   name?: string;
@@ -13,9 +16,13 @@ type AdminUser = {
   createdAt?: string;
 };
 
+/* =========================
+   PAGE
+========================= */
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [impersonating, setImpersonating] = useState<string | null>(null);
 
   /* =========================
      Load users
@@ -23,6 +30,7 @@ export default function AdminUsersPage() {
   async function loadUsers() {
     try {
       const res = await fetch("/api/admin/users", {
+        credentials: "include",
         cache: "no-store",
       });
       const data = await res.json();
@@ -39,13 +47,11 @@ export default function AdminUsersPage() {
   /* =========================
      Toggle calls service
   ========================= */
-  async function toggleCalls(
-    userId: string,
-    enable: boolean
-  ) {
+  async function toggleCalls(userId: string, enable: boolean) {
     try {
       await fetch(`/api/admin/users/${userId}/calls`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -58,6 +64,35 @@ export default function AdminUsersPage() {
       loadUsers();
     } catch (err) {
       console.error("Toggle calls error:", err);
+    }
+  }
+
+  /* =========================
+     Impersonate user
+  ========================= */
+  async function impersonateUser(userId: string) {
+    try {
+      setImpersonating(userId);
+
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Impersonation failed");
+      }
+
+      // ⏩ מעבר לדשבורד של הלקוח
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("Impersonate error:", err);
+      alert("לא הצלחנו להיכנס כמשתמש");
+      setImpersonating(null);
     }
   }
 
@@ -94,25 +129,14 @@ export default function AdminUsersPage() {
 
           <tbody>
             {users.map((u) => (
-              <tr
-                key={u._id}
-                className="border-t text-sm"
-              >
-                <td className="p-3">
-                  {u.name || "-"}
-                </td>
+              <tr key={u._id} className="border-t text-sm">
+                <td className="p-3">{u.name || "-"}</td>
 
-                <td className="p-3">
-                  {u.email}
-                </td>
+                <td className="p-3">{u.email}</td>
 
-                <td className="p-3 font-semibold">
-                  {u.role}
-                </td>
+                <td className="p-3 font-semibold">{u.role}</td>
 
-                <td className="p-3">
-                  {u.plan || "-"}
-                </td>
+                <td className="p-3">{u.plan || "-"}</td>
 
                 <td className="p-3">
                   {u.includeCalls ? (
@@ -126,20 +150,29 @@ export default function AdminUsersPage() {
                   )}
                 </td>
 
-                <td className="p-3">
+                <td className="p-3 flex flex-wrap gap-2">
+                  {/* Toggle calls */}
                   <button
                     onClick={() =>
-                      toggleCalls(
-                        u._id,
-                        !u.includeCalls
-                      )
+                      toggleCalls(u._id, !u.includeCalls)
                     }
                     className="px-4 py-2 rounded-full bg-black text-white text-xs hover:opacity-90"
                   >
-                    {u.includeCalls
-                      ? "כבה שיחות"
-                      : "הפעל שיחות"}
+                    {u.includeCalls ? "כבה שיחות" : "הפעל שיחות"}
                   </button>
+
+                  {/* Impersonate */}
+                  {u.role === "user" && (
+                    <button
+                      onClick={() => impersonateUser(u._id)}
+                      disabled={impersonating === u._id}
+                      className="px-4 py-2 rounded-full bg-blue-600 text-white text-xs hover:opacity-90 disabled:opacity-50"
+                    >
+                      {impersonating === u._id
+                        ? "נכנס…"
+                        : "כניסה כמשתמש"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

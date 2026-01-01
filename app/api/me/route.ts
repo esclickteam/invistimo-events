@@ -8,12 +8,11 @@ export async function GET() {
   try {
     await connectDB();
 
-    // ✅ שימי לב להבדל — כאן באמת יש await
+    // ✅ cookies() הוא async ב-route.ts
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
-      console.log("❌ אין טוקן בכלל");
       return NextResponse.json(
         { success: false, user: null },
         { status: 401, headers: { "Cache-Control": "no-store" } }
@@ -26,14 +25,15 @@ export async function GET() {
       decoded = jwt.verify(token, process.env.JWT_SECRET!);
     } catch (err) {
       console.error("❌ JWT לא תקין:", err);
+
       const res = NextResponse.json(
         { success: false, user: null },
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
 
+      // ✅ ניקוי cookie בצורה בטוחה (עובד גם prod וגם dev)
       res.cookies.set("authToken", "", {
         path: "/",
-        domain: "www.invistimo.com",
         maxAge: 0,
       });
 
@@ -50,14 +50,19 @@ export async function GET() {
 
       res.cookies.set("authToken", "", {
         path: "/",
-        domain: "www.invistimo.com",
         maxAge: 0,
       });
 
       return res;
     }
 
-    console.log("✅ משתמש אותר:", user.email, "| role:", user.role);
+    console.log(
+      "✅ ME:",
+      user.email,
+      "| role:",
+      user.role,
+      decoded.impersonatedByAdmin ? "| impersonated" : ""
+    );
 
     return NextResponse.json(
       {
@@ -71,11 +76,20 @@ export async function GET() {
           guests: user.guests,
           paidAmount: user.paidAmount,
           planLimits: user.planLimits,
+
+          // 📞 שיחות
           includeCalls: user.includeCalls,
           callsRounds: user.callsRounds,
           callsAddonPrice: user.callsAddonPrice,
+
+          // 🧪 סטטוסים
           isTrial: user.isTrial,
           isDemoUser: user.isDemoUser,
+
+          // 🕵️‍♂️ אדמין בתחזות
+          impersonatedByAdmin: !!decoded.impersonatedByAdmin,
+          adminId: decoded.adminId ?? null,
+
           createdAt: user.createdAt,
         },
       },
