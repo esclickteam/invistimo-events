@@ -823,6 +823,7 @@ console.log("INVITATION:", invitation);
       {selectedGuest && (
   <EditGuestModal
     guest={selectedGuest}
+    isAdmin={true}
     onClose={() => setSelectedGuest(null)}
     onSuccess={loadGuests}
   />
