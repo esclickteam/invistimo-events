@@ -55,17 +55,13 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     const auth = await getUserIdFromRequest();
-
     if (!auth?.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isOwner =
-      auth.userId.toString() === invitation.ownerId.toString();
-
+    const isOwner = auth.userId.toString() === invitation.ownerId.toString();
     const isAdmin = auth.role === "admin";
 
-    // 🔐 רק בעל ההזמנה או אדמין מערכת
     if (!isOwner && !isAdmin) {
       return NextResponse.json(
         { error: "Not authorized to update this guest" },
@@ -73,48 +69,30 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    /* ============================================
+    /* ===============================
        עדכונים מותרים
-    ============================================ */
+    =============================== */
 
-    if (typeof data.name === "string") {
-      guest.name = data.name;
-    }
+    if (typeof data.name === "string") guest.name = data.name;
+    if (typeof data.phone === "string") guest.phone = data.phone;
+    if (typeof data.relation === "string") guest.relation = data.relation;
+    if (typeof data.notes === "string") guest.notes = data.notes;
 
-    if (typeof data.phone === "string") {
-      guest.phone = data.phone;
-    }
-
-    if (typeof data.relation === "string") {
-      guest.relation = data.relation;
-    }
-
-    if (typeof data.notes === "string") {
-      guest.notes = data.notes;
-    }
-
-    // RSVP
     if (["yes", "no", "pending"].includes(data.rsvp)) {
       guest.rsvp = data.rsvp;
     }
 
-    // מוזמנים
     if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
       guest.guestsCount = data.guestsCount;
     }
 
-    // ✅ מגיעים בפועל – owner + admin
-    if (
-      typeof data.actualArrived === "number" &&
-      data.actualArrived >= 0
-    ) {
-      guest.actualArrived = data.actualArrived;
+    // ✅ מגיעים בפועל – השדה הנכון
+    if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
+      guest.arrivedCount = data.arrivedCount;
     }
 
-    // 🔐 מספר שולחן – רק owner / admin
-    if (typeof data.tableName === "string") {
-      guest.tableName = data.tableName;
-    }
+    // ❗ tableName הוא שדה מחושב מהושבה – אל תשמרי אותו כאן
+    // אם בעתיד תרצי כן – נדבר על זה בנפרד
 
     await guest.save();
 
@@ -148,10 +126,8 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     }
 
     const auth = await getUserIdFromRequest();
-
     const isOwner =
       auth?.userId?.toString() === invitation.ownerId.toString();
-
     const isAdmin = auth?.role === "admin";
 
     if (!isOwner && !isAdmin) {
