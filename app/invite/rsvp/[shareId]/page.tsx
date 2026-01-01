@@ -178,6 +178,7 @@ async function submitRsvp() {
         token: guest.token,
         rsvp,
         guestsCount: rsvp === "yes" ? guestsCount : 0,
+        arrivedCount: rsvp === "yes" ? guestsCount : 0,
         notes: finalNotes.join(", "),
       }),
     });
