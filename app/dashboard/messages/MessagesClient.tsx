@@ -243,8 +243,7 @@ const sendWhatsApp = (guest: Guest) => {
 
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
-  // 🧩 בניית הודעה מלאה
-  const text = message
+  let text = message
     .replace(/{{name}}/g, guest.name || "")
     .replace(
       /{{rsvpLink}}/g,
@@ -254,11 +253,13 @@ const sendWhatsApp = (guest: Guest) => {
     .replace(/{{navigationLink}}/g, "")
     .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
-  // ✅ כאן הקידוד הנכון (כולל אימוג'ים)
-  const encodedText = encodeURIComponent(text);
+  // 🧹 מנקה תווי יוניקוד "נסתרים" שעלולים לשבור אימוג'ים
+  text = text.replace(/[\u200E\u200F\u202A-\u202E]/g, "");
+
+  // 🧩 מקודד נכון כולל מעבר שורה
+  const encodedText = encodeURIComponent(text).replace(/%0A/g, "%0A");
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   const url = isMobile
     ? `whatsapp://send?phone=${phone}&text=${encodedText}`
     : `https://wa.me/${phone}?text=${encodedText}`;
