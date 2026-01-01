@@ -238,12 +238,11 @@ useEffect(() => {
 
 /* ================= SEND ================= */
 
-const sendWhatsApp = async (guest: Guest) => {
+const sendWhatsApp = (guest: Guest) => {
   if (!invitation) return;
 
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
-  // ✅ בניית ההודעה מהתבנית (כמו שהיה)
   const text = message
     .replace(/{{name}}/g, guest.name || "")
     .replace(
@@ -254,29 +253,17 @@ const sendWhatsApp = async (guest: Guest) => {
     .replace(/{{navigationLink}}/g, "")
     .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
-  /* =========================
-     📱 מובייל – בלי URL בכלל
-  ========================= */
-  if (typeof navigator !== "undefined" && navigator.share) {
-    try {
-      await navigator.share({
-        text, // 🔥 האימוג'ים נשמרים 100%
-      });
-      return;
-    } catch (err) {
-      // אם המשתמש ביטל – נופלים לפתרון של URL
-      console.warn("Share canceled, fallback to WhatsApp URL");
-    }
-  }
+  const encodedText = encodeURIComponent(text);
 
-  /* =========================
-     🖥️ דסקטופ / fallback
-  ========================= */
-  window.open(
-    `https://wa.me/${phone}?text=${encodeURIComponent(text)}`,
-    "_blank"
-  );
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  const url = isMobile
+    ? `whatsapp://send?phone=${phone}&text=${encodedText}`
+    : `https://wa.me/${phone}?text=${encodedText}`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
 };
+
 
 
 
