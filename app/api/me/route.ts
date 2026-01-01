@@ -9,7 +9,7 @@ export async function GET() {
     await connectDB();
 
     const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
+const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -19,22 +19,40 @@ export async function GET() {
     }
 
     let decoded: any;
+
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!);
     } catch {
-      return NextResponse.json(
+      // 🔥 טוקן לא תקין → מחיקה
+      const res = NextResponse.json(
         { success: false, user: null },
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
+
+      res.cookies.set("authToken", "", {
+        path: "/",
+        domain: ".invistimo.com",
+        maxAge: 0,
+      });
+
+      return res;
     }
 
     const user = await User.findById(decoded.userId).lean();
 
     if (!user) {
-      return NextResponse.json(
+      const res = NextResponse.json(
         { success: false, user: null },
         { status: 404, headers: { "Cache-Control": "no-store" } }
       );
+
+      res.cookies.set("authToken", "", {
+        path: "/",
+        domain: ".invistimo.com",
+        maxAge: 0,
+      });
+
+      return res;
     }
 
     return NextResponse.json(
@@ -46,9 +64,9 @@ export async function GET() {
           email: user.email,
 
           // 🔐 הרשאות
-          role: user.role, // ✅ קריטי לאדמין
+          role: user.role,
 
-          // 💳 חבילה ותשלום
+          // 💳 חבילה
           plan: user.plan,
           guests: user.guests,
           paidAmount: user.paidAmount,
@@ -56,12 +74,12 @@ export async function GET() {
           // 📦 מגבלות
           planLimits: user.planLimits,
 
-          // ☎️ שירות שיחות
+          // ☎️ שיחות
           includeCalls: user.includeCalls,
           callsRounds: user.callsRounds,
           callsAddonPrice: user.callsAddonPrice,
 
-          // 🧪 מצבים מיוחדים
+          // 🧪 מצבים
           isTrial: user.isTrial,
           isDemoUser: user.isDemoUser,
 
