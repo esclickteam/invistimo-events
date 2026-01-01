@@ -19,6 +19,13 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
+     ❗ מניעת הפניות לא רצויות בבקשות HEAD / prefetch
+  ======================================================== */
+  if (req.method === "HEAD") {
+    return NextResponse.next();
+  }
+
+  /* ========================================================
      0️⃣ חריגות מוחלטות (API / Auth / Assets)
   ======================================================== */
   if (
@@ -65,24 +72,24 @@ export function middleware(req: NextRequest) {
   /* ========================================================
      5️⃣ הגנה על /admin (Admin only)
   ======================================================== */
-  if (pathname.startsWith("/admin")) {
-  if (!token) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  try {
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
-
-    // ✅ תומך בשני מבנים אפשריים של JWT
-    const userRole = decoded?.role || decoded?.user?.role;
-
-    if (userRole !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", req.url));
     }
-  } catch (err) {
-    return NextResponse.redirect(new URL("/login", req.url));
+
+    try {
+      const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
+
+      // ✅ תומך בשני מבנים אפשריים של JWT
+      const userRole = decoded?.role || decoded?.user?.role;
+
+      if (userRole !== "admin") {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    } catch (err) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
   }
-}
 
   /* ========================================================
      6️⃣ Trial checks (Dashboard בלבד)
