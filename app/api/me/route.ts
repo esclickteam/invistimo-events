@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import User from "@/models/User";
-import { connectDB } from "@/lib/db";
 import { cookies } from "next/headers";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
 
 export async function GET() {
   try {
@@ -14,46 +14,67 @@ export async function GET() {
     if (!token) {
       return NextResponse.json(
         { success: false, user: null },
-        { headers: { "Cache-Control": "no-store" } }
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // ✅ פענוח JWT
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
+      return NextResponse.json(
+        { success: false, user: null },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-    // ✅ טעינת המשתמש בלי סיסמה
-    const user = await User.findById(decoded.userId).select("-password");
+    const user = await User.findById(decoded.userId).lean();
 
     if (!user) {
       return NextResponse.json(
         { success: false, user: null },
-        { headers: { "Cache-Control": "no-store" } }
+        { status: 404, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // ✅ החזרת השדות הדרושים לדשבורד
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      plan: user.plan,
-      guests: user.guests,
-      paidAmount: user.paidAmount,
-      planLimits: user.planLimits,
-      includeCalls: user.includeCalls || false,
-      callsAddonPrice: user.callsAddonPrice || 0,
-      createdAt: user.createdAt,
-    };
-
     return NextResponse.json(
-      { success: true, user: userData },
+      {
+        success: true,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+
+          // 🔐 הרשאות
+          role: user.role, // ✅ קריטי לאדמין
+
+          // 💳 חבילה ותשלום
+          plan: user.plan,
+          guests: user.guests,
+          paidAmount: user.paidAmount,
+
+          // 📦 מגבלות
+          planLimits: user.planLimits,
+
+          // ☎️ שירות שיחות
+          includeCalls: user.includeCalls,
+          callsRounds: user.callsRounds,
+          callsAddonPrice: user.callsAddonPrice,
+
+          // 🧪 מצבים מיוחדים
+          isTrial: user.isTrial,
+          isDemoUser: user.isDemoUser,
+
+          createdAt: user.createdAt,
+        },
+      },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch (error) {
-    console.error("❌ /api/me error:", error);
+  } catch (err) {
+    console.error("ME API ERROR:", err);
     return NextResponse.json(
       { success: false, user: null },
-      { headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

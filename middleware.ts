@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import jwt from "jsonwebtoken";
 
 /* ========================================================
    HELPERS
@@ -18,12 +19,13 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
-     0️⃣ חריגה מוחלטת ל־API ול־Auth
+     0️⃣ חריגות מוחלטות (API / Auth / Assets)
   ======================================================== */
   if (
     pathname.startsWith("/api") ||
     pathname.startsWith("/login") ||
-    pathname.startsWith("/register")
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/_next")
   ) {
     return NextResponse.next();
   }
@@ -48,28 +50,47 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     3️⃣ הגנה על dashboard (Auth)
+     3️⃣ Auth Token (משותף ל-dashboard + admin)
   ======================================================== */
   const token = cookies.get("authToken")?.value;
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
+  /* ========================================================
+     4️⃣ הגנה על /dashboard (Auth)
+  ======================================================== */
   if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   /* ========================================================
-     4️⃣ Trial checks (מבוסס cookies / JWT)
-     cookies נדרשים:
-     - isTrial = "true"
-     - trialExpiresAt = timestamp
-     - smsUsed
-     - smsLimit
+     5️⃣ הגנה על /admin (Admin only)
+  ======================================================== */
+  if (pathname.startsWith("/admin")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+
+    try {
+      const decoded: any = jwt.verify(
+        token,
+        process.env.JWT_SECRET as string
+      );
+
+      if (decoded.role !== "admin") {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    } catch (err) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+  }
+
+  /* ========================================================
+     6️⃣ Trial checks (Dashboard בלבד)
   ======================================================== */
   const isTrial = cookies.get("isTrial")?.value === "true";
   const trialExpiresAt = cookies.get("trialExpiresAt")?.value;
 
   if (pathname.startsWith("/dashboard") && isTrial) {
-    // ⏳ Trial פג
     if (isTrialExpired(trialExpiresAt)) {
       const url = nextUrl.clone();
       url.pathname = "/dashboard/upgrade";
@@ -79,8 +100,8 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     5️⃣ חסימת ניווט ל-SMS UI אם נגמר ה-SMS
-     (האכיפה האמיתית ב-API)
+     7️⃣ חסימת UI של הודעות אם נגמרה מכסת SMS
+     (האכיפה האמיתית ב־API)
   ======================================================== */
   if (pathname.startsWith("/dashboard/messages")) {
     const smsUsed = Number(cookies.get("smsUsed")?.value ?? 0);
@@ -98,8 +119,8 @@ export function middleware(req: NextRequest) {
 }
 
 /* ========================================================
-   matcher – רק dashboard
+   matcher – dashboard + admin
 ======================================================== */
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*"],
 };
