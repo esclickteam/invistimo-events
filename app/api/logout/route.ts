@@ -1,33 +1,60 @@
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  const res = NextResponse.json({ success: true });
+  const res = NextResponse.json(
+    { success: true },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 
-  const commonOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+  /* =====================================================
+     אפשרויות בסיס משותפות
+  ===================================================== */
+  const baseOptions = {
     path: "/",
-    domain: ".invistimo.com",
     maxAge: 0,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
   };
 
   /* =====================================================
-     מחיקת auth
+     1️⃣ מחיקה עם domain = www.invistimo.com
   ===================================================== */
-  res.cookies.set("authToken", "", commonOptions);
+  const wwwOptions = {
+    ...baseOptions,
+    httpOnly: true,
+    domain: "www.invistimo.com",
+  };
+
+  res.cookies.set("authToken", "", wwwOptions);
+  res.cookies.set("isTrial", "", wwwOptions);
+  res.cookies.set("smsLimit", "", wwwOptions);
+  res.cookies.set("smsUsed", "", wwwOptions);
+  res.cookies.set("trialExpiresAt", "", wwwOptions);
 
   /* =====================================================
-     מחיקת cookies נלווים (חשוב!)
+     2️⃣ מחיקה עם domain = .invistimo.com
   ===================================================== */
-  res.cookies.set("isTrial", "", commonOptions);
-  res.cookies.set("smsLimit", "", commonOptions);
-  res.cookies.set("smsUsed", "", commonOptions);
-  res.cookies.set("trialExpiresAt", "", commonOptions);
+  const dotOptions = {
+    ...baseOptions,
+    httpOnly: true,
+    domain: ".invistimo.com",
+  };
+
+  res.cookies.set("authToken", "", dotOptions);
+  res.cookies.set("isTrial", "", dotOptions);
+  res.cookies.set("smsLimit", "", dotOptions);
+  res.cookies.set("smsUsed", "", dotOptions);
+  res.cookies.set("trialExpiresAt", "", dotOptions);
 
   /* =====================================================
-     אם הוספת cookie של role (לא httpOnly)
+     3️⃣ cookie role (לא httpOnly)
   ===================================================== */
+  res.cookies.set("role", "", {
+    path: "/",
+    domain: "www.invistimo.com",
+    maxAge: 0,
+  });
+
   res.cookies.set("role", "", {
     path: "/",
     domain: ".invistimo.com",
