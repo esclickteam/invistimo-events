@@ -312,15 +312,26 @@ useEffect(() => {
      WhatsApp (אישי – אישור הגעה בלבד)
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
-    const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
-    const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
-    const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
+  if (!invitation?.shareId || !guest?.phone) return;
 
-    window.open(
-      `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
-      "_blank"
-    );
-  };
+  const inviteLink = `https://www.invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
+  const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
+
+  const phone = `972${guest.phone
+    .replace(/\D/g, "")
+    .replace(/^0/, "")}`;
+
+  const encodedMessage = encodeURIComponent(message);
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  const url = isMobile
+    ? `whatsapp://send?phone=${phone}&text=${encodedMessage}`
+    : `https://wa.me/${phone}?text=${encodedMessage}`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
 
   /* ============================================================
      ✅ פילטר + מיון + חיפוש
