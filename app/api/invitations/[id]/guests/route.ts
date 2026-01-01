@@ -21,13 +21,16 @@ export async function POST(
   try {
     await db();
 
-    const userId = await getUserIdFromRequest();
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const auth = await getUserIdFromRequest();
+
+if (!auth?.userId) {
+  return NextResponse.json(
+    { success: false, error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+const userId = auth.userId;
 
     const { name, phone, relation, rsvp, guestsCount, tableNumber } =
       await req.json();

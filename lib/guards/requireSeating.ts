@@ -6,13 +6,16 @@ import db from "@/lib/db";
 export async function requireSeating() {
   await db();
 
-  const userId = await getUserIdFromRequest();
-  if (!userId) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
+  const auth = await getUserIdFromRequest();
+
+if (!auth?.userId) {
+  return NextResponse.json(
+    { success: false, error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+const userId = auth.userId;
 
   const user = await User.findById(userId).lean();
 

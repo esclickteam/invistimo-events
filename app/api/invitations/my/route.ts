@@ -12,17 +12,19 @@ export async function GET() {
   try {
     await db();
 
-    const userId = await getUserIdFromRequest();
-    if (!userId) {
+    const auth = await getUserIdFromRequest();
+
+    if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    const invitation = await Invitation.findOne({ ownerId: userId })
-      .select(
-        `
+    const invitation = await Invitation.findOne({
+      ownerId: auth.userId, // ✅ string בלבד
+    })
+      .select(`
         title
         eventType
         eventDate
@@ -32,8 +34,7 @@ export async function GET() {
         maxMessages
         remainingMessages
         shareId
-        `
-      )
+      `)
       .lean();
 
     if (!invitation) {
@@ -63,8 +64,9 @@ export async function POST(req: NextRequest) {
   try {
     await db();
 
-    const userId = await getUserIdFromRequest();
-    if (!userId) {
+    const auth = await getUserIdFromRequest();
+
+    if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
@@ -72,9 +74,10 @@ export async function POST(req: NextRequest) {
     }
 
     // אם כבר יש הזמנה — מחזירים אותה
-    const existing = await Invitation.findOne({ ownerId: userId })
-      .select(
-        `
+    const existing = await Invitation.findOne({
+      ownerId: auth.userId, // ✅ string בלבד
+    })
+      .select(`
         title
         eventType
         eventDate
@@ -84,8 +87,7 @@ export async function POST(req: NextRequest) {
         maxMessages
         remainingMessages
         shareId
-        `
-      )
+      `)
       .lean();
 
     if (existing) {
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({} as any));
 
     const created = await Invitation.create({
-      ownerId: userId,
+      ownerId: auth.userId, // ✅ string בלבד
       title: body?.title || "הזמנה חדשה",
       eventType: body?.eventType || "",
       eventDate: body?.eventDate || null,

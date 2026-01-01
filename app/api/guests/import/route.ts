@@ -25,13 +25,16 @@ export async function POST(req: Request) {
 
     /* ================= אימות משתמש ================= */
 
-    const userId = await getUserIdFromRequest();
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+    const auth = await getUserIdFromRequest();
+
+if (!auth?.userId) {
+  return NextResponse.json(
+    { success: false, error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+const userId = auth.userId;
 
     const invitation = await Invitation.findById(invitationId);
     if (!invitation || invitation.ownerId.toString() !== userId.toString()) {

@@ -11,15 +11,16 @@ export async function POST(req: Request) {
     await db();
 
     // ✔️ זיהוי בעל ההזמנה
-    const userId = await getUserIdFromRequest();
-    console.log("USER ID →", userId);
+    const auth = await getUserIdFromRequest();
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+if (!auth?.userId) {
+  return NextResponse.json(
+    { success: false, error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+const userId = auth.userId;
 
     // ✔️ קבלת גוף הבקשה
     const body = await req.json();

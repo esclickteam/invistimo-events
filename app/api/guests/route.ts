@@ -34,10 +34,13 @@ export async function GET() {
     /* ===============================
        בעל האירוע
     =============================== */
-    const userId = await getUserIdFromRequest();
-    if (!userId) {
-      return NextResponse.json({ guests: [] });
-    }
+    const auth = await getUserIdFromRequest();
+
+if (!auth?.userId) {
+  return NextResponse.json({ guests: [] });
+}
+
+const userId = auth.userId;
 
     /* ===============================
        כל ההזמנות של המשתמש

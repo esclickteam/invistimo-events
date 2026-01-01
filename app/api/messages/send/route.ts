@@ -33,13 +33,16 @@ export async function POST(req: Request) {
 
     /* ================= AUTH ================= */
 
-    const userId = await getUserIdFromRequest();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+    const auth = await getUserIdFromRequest();
+
+if (!auth?.userId) {
+  return NextResponse.json(
+    { success: false, error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+const userId = auth.userId;
 
     const user = await User.findById(userId).lean();
     if (!user) {

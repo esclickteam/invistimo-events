@@ -32,13 +32,16 @@ const SMS_ADDON_CONFIG: Record<
 export async function POST(req: Request) {
   try {
     /* 🔐 זיהוי משתמש */
-    const userId = await getUserIdFromRequest();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const auth = await getUserIdFromRequest();
+
+if (!auth?.userId) {
+  return NextResponse.json(
+    { success: false, error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+const userId = auth.userId;
 
     const user = await User.findById(userId);
     if (!user) {
