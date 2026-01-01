@@ -224,11 +224,8 @@ useEffect(() => {
         `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
       : "";
 
-  // ✅ SMS עם token, WhatsApp בלי token
-  const rsvpLink =
-    channel === "sms"
-      ? `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
-      : `https://www.invistimo.com/invite/${invitation.shareId}`;
+  // ✅ חייב token גם ב-SMS וגם ב-WhatsApp כדי לזהות אורח
+  const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
   return message
     .replace(/{{name}}/g, guest.name || "")
@@ -244,7 +241,7 @@ const sendWhatsApp = (guest: Guest) => {
 
   const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
-  // ✅ תמיד נשלח את ההודעה המוכנה מ-buildMessage
+  // ✅ תמיד נשלח את ההודעה המוכנה מ-buildMessage (כולל token)
   let text = buildMessage(guest);
 
   // ✅ מוריד אימוג'ים רק בוואטספ
@@ -257,19 +254,19 @@ const sendWhatsApp = (guest: Guest) => {
 
   text = stripEmojis(text);
 
-  // ✅ ליתר ביטחון: אם איכשהו נשאר token (עריכה ידנית/הודעה מודבקת) — ננקה
-  text = text.replace(/\?token=[A-Za-z0-9_-]+/g, "");
+  // ❌ לא לנקות token — אחרת לא יזהה את האורח
+  // text = text.replace(/\?token=[A-Za-z0-9_-]+/g, "");
 
-  // ✅ להסיר “ניווט לאירוע” בוואטספ אם לא רוצים
+  // ✅ אם לא רוצים את השורה הזו בוואטספ (רק את הכותרת עצמה), נשאיר:
   text = text.replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
   // ניקוי תווים נסתרים
   text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
 
-  // ✅ ניקוי רווחים כפולים אחרי הורדת אימוג'ים
+  // ניקוי רווחים כפולים אחרי הורדת אימוג'ים
   text = text.replace(/[ \t]{2,}/g, " ").trim();
 
-  const encodedText = encodeURI(text).replace(/\n/g, "%0A");
+  const encodedText = encodeURIComponent(text);
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const url = isMobile
@@ -278,10 +275,6 @@ const sendWhatsApp = (guest: Guest) => {
 
   window.open(url, "_blank", "noopener,noreferrer");
 };
-
-
-
-
 
 
 
