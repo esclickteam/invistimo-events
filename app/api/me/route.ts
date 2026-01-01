@@ -13,29 +13,46 @@ export async function GET() {
 
     if (!token) {
       return NextResponse.json(
-        { user: null },
+        { success: false, user: null },
         { headers: { "Cache-Control": "no-store" } }
       );
     }
 
+    // ✅ פענוח JWT
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
 
+    // ✅ טעינת המשתמש בלי סיסמה
     const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
       return NextResponse.json(
-        { user: null },
+        { success: false, user: null },
         { headers: { "Cache-Control": "no-store" } }
       );
     }
 
+    // ✅ החזרת השדות הדרושים לדשבורד
+    const userData = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      plan: user.plan,
+      guests: user.guests,
+      paidAmount: user.paidAmount,
+      planLimits: user.planLimits,
+      includeCalls: user.includeCalls || false,
+      callsAddonPrice: user.callsAddonPrice || 0,
+      createdAt: user.createdAt,
+    };
+
     return NextResponse.json(
-      { user },
+      { success: true, user: userData },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch {
+  } catch (error) {
+    console.error("❌ /api/me error:", error);
     return NextResponse.json(
-      { user: null },
+      { success: false, user: null },
       { headers: { "Cache-Control": "no-store" } }
     );
   }
