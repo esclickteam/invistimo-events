@@ -16,10 +16,10 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
-   UI CONST – גובה קבוע, לוגו כמו בדף הבית (הגדלה עם scale)
+   UI CONST
 ============================================================ */
 const HEADER_UI = {
-  height: "h-16", // גובה ההידר נשאר קבוע
+  height: "h-16",
   navText: "text-[20px] tracking-wide",
 };
 
@@ -32,7 +32,7 @@ export default function DashboardHeader({
   isDemo = false,
 }: DashboardHeaderProps) {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth(); // ✅ user נוסף כאן
 
   const handleLogout = () => {
     if (isDemo) {
@@ -57,7 +57,6 @@ export default function DashboardHeader({
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10 overflow-visible relative">
         {/* =========================
             ימין – ניווט + הקשר
-            ✅ הטקסט של שם האירוע יופיע רק בדסקטופ
         ========================= */}
         <div className="flex items-center gap-6 justify-start">
           <button
@@ -68,7 +67,6 @@ export default function DashboardHeader({
             <Menu size={28} />
           </button>
 
-          {/* ✅ רק בדסקטופ: כדי שבמובייל לא ידרוס את הלוגו */}
           <div className="hidden md:flex flex-col leading-tight">
             <span className="font-medium text-[#4a413a] truncate max-w-[240px] text-[15px]">
               {isDemo
@@ -77,7 +75,9 @@ export default function DashboardHeader({
             </span>
 
             {isDemo && (
-              <span className="text-[11px] text-amber-600">נתונים לדוגמה</span>
+              <span className="text-[11px] text-amber-600">
+                נתונים לדוגמה
+              </span>
             )}
           </div>
 
@@ -101,11 +101,21 @@ export default function DashboardHeader({
             >
               💬 תמיכה
             </button>
+
+            {/* 🛡️ ניהול מערכת – אדמין בלבד */}
+            {user?.role === "admin" && (
+              <button
+                onClick={() => router.push("/admin")}
+                className="font-semibold text-[#7a5c2e] hover:opacity-80 transition"
+              >
+                🛡️ ניהול מערכת
+              </button>
+            )}
           </nav>
         </div>
 
         {/* =========================
-            אמצע – לוגו (כמו בדף הבית: scale על העטיפה)
+            אמצע – לוגו
         ========================= */}
         <div
           className="flex justify-center items-center overflow-visible relative"

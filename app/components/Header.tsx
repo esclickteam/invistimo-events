@@ -124,18 +124,6 @@ export default function Header() {
                     >
                       לוח בקרה
                     </Link>
-
-                    {user?.role === "admin" && (
-  <Link
-    href="/admin"
-    onClick={() => setMobileOpen(false)}
-    className="font-semibold text-[#7a5c2e]"
-  >
-    🛡️ ניהול מערכת
-  </Link>
-)}
-
-
                     <button
                       onClick={logout}
                       className="
