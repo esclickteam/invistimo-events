@@ -16,10 +16,10 @@ type DashboardHeaderProps = {
 };
 
 /* ============================================================
-   UI CONST – עיצוב ההידר
+   UI CONST
 ============================================================ */
 const HEADER_UI = {
-  height: "h-16", // גובה ההידר
+  height: "h-16",
   navText: "text-[20px] tracking-wide",
 };
 
@@ -32,20 +32,36 @@ export default function DashboardHeader({
   isDemo = false,
 }: DashboardHeaderProps) {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  const isImpersonating = !!user?.impersonatedByAdmin;
 
   /* ============================================================
-     פונקציית התנתקות מלאה
+     חזרה לאדמין (מצב התחזות)
+  ============================================================= */
+  const handleReturnToAdmin = async () => {
+    try {
+      await fetch("/api/admin/stop-impersonation", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      window.location.href = "/admin";
+    } catch (err) {
+      console.error("Failed to return to admin:", err);
+    }
+  };
+
+  /* ============================================================
+     התנתקות רגילה
   ============================================================= */
   const handleLogout = async () => {
     try {
-      // במצב דמו – מעבר ישיר לדף התחברות
       if (isDemo) {
         router.push("/login");
         return;
       }
 
-      // ✅ שליחת בקשה לשרת למחיקת ה־cookies
       await fetch("/api/logout", {
         method: "POST",
         headers: {
@@ -54,16 +70,13 @@ export default function DashboardHeader({
         },
       });
 
-      // ✅ ניקוי כל הנתונים המקומיים
       localStorage.clear();
       sessionStorage.clear();
 
-      // ✅ קריאה לפונקציית ה־logout מהקונטקסט (אם קיימת)
       if (typeof logout === "function") {
         logout();
       }
 
-      // ✅ הפניה לדף התחברות + רענון מלא
       router.replace("/login");
       router.refresh();
     } catch (error) {
@@ -83,7 +96,6 @@ export default function DashboardHeader({
         border-b border-[#e2d6c8]
         bg-[#f5eee7]
         bg-[url('/noise.png')] bg-repeat
-        overflow-visible
       `}
     >
       <div
@@ -91,14 +103,12 @@ export default function DashboardHeader({
           grid grid-cols-[1fr_auto_1fr]
           items-center h-full
           px-4 md:px-10
-          overflow-visible relative
         "
       >
         {/* =========================
-            צד ימין – תפריט ניווט
+            ימין – ניווט
         ========================= */}
         <div className="flex items-center gap-6 justify-start">
-          {/* כפתור תפריט במובייל */}
           <button
             onClick={onOpenMenu}
             className="p-2 md:hidden"
@@ -107,7 +117,6 @@ export default function DashboardHeader({
             <Menu size={28} />
           </button>
 
-          {/* שם האירוע (רק בדסקטופ) */}
           <div className="hidden md:flex flex-col leading-tight">
             <span className="font-medium text-[#4a413a] truncate max-w-[240px] text-[15px]">
               {isDemo
@@ -115,12 +124,13 @@ export default function DashboardHeader({
                 : invitation?.title || "📊 ניהול אירוע"}
             </span>
 
-            {isDemo && (
-              <span className="text-[11px] text-amber-600">נתונים לדוגמה</span>
+            {isImpersonating && (
+              <span className="text-[11px] text-amber-600">
+                מחוברת כמשתמש (מצב אדמין)
+              </span>
             )}
           </div>
 
-          {/* ניווט פנימי */}
           <nav
             className={`
               hidden md:flex items-center gap-10 mr-6
@@ -147,46 +157,54 @@ export default function DashboardHeader({
         {/* =========================
             מרכז – לוגו
         ========================= */}
-        <div
-          className="flex justify-center items-center overflow-visible relative"
-          dir="ltr"
-        >
+        <div className="flex justify-center">
           <button
             onClick={() => router.push("/dashboard")}
             aria-label="מעבר לדשבורד הראשי"
-            className="
-              flex items-center justify-center
-              overflow-visible
-              origin-center
-              scale-[4]
-            "
+            className="scale-[4]"
           >
             <img
               src="/invistimo-logo.png"
               alt="Invistimo"
-              className="h-10 w-auto object-contain select-none"
+              className="h-10 w-auto select-none"
               draggable={false}
             />
           </button>
         </div>
 
         {/* =========================
-            צד שמאל – כפתור התנתקות
+            שמאל – פעולה ראשית
         ========================= */}
         <div className="flex justify-end">
-          <button
-            onClick={handleLogout}
-            className={`
-              font-medium
-              ${HEADER_UI.navText}
-              text-red-600
-              hover:text-red-700
-              transition
-            `}
-            title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
-          >
-            🚪 {isDemo ? "התחברות" : "התנתקות"}
-          </button>
+          {isImpersonating ? (
+            <button
+              onClick={handleReturnToAdmin}
+              className={`
+                font-medium
+                ${HEADER_UI.navText}
+                text-blue-600
+                hover:text-blue-700
+                transition
+              `}
+              title="חזרה לניהול אדמין"
+            >
+              🔁 חזרה לאדמין
+            </button>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className={`
+                font-medium
+                ${HEADER_UI.navText}
+                text-red-600
+                hover:text-red-700
+                transition
+              `}
+              title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
+            >
+              🚪 {isDemo ? "התחברות" : "התנתקות"}
+            </button>
+          )}
         </div>
       </div>
     </header>

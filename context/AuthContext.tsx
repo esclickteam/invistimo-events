@@ -11,6 +11,9 @@ interface User {
   email: string;
   name?: string;
   role?: "admin" | "user";
+
+  impersonatedByAdmin?: boolean;
+  adminId?: string | null;
 }
 
 interface AuthContextType {
