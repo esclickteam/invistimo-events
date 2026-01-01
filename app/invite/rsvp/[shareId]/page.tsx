@@ -151,49 +151,50 @@ export default function InviteRsvpPage({ params }: any) {
   /* ============================================================
      שליחת RSVP
   ============================================================ */
-  async function submitRsvp() {
-    if (!rsvp) {
-      alert("נא לבחור מגיע / לא מגיע");
-      return;
-    }
-
-    if (!guest?.token) {
-      alert("אורח לא מזוהה");
-      return;
-    }
-
-    const finalNotes =
-      notes.includes("אחר") && otherNote
-        ? [...notes.filter((n) => n !== "אחר"), `אחר: ${otherNote}`]
-        : notes;
-
-    const payload: any = {
-      rsvp,
-      guestsCount: rsvp === "yes" ? guestsCount : 0,
-    };
-
-    if (finalNotes.length > 0) {
-      payload.notes = finalNotes.join(", ");
-    }
-
-    try {
-      const res = await fetch(
-        `/api/invitationGuests/respondByToken/${guest.token}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const data = await res.json();
-      if (data.success) setSent(true);
-      else alert("שגיאה בשליחה");
-    } catch (err) {
-      console.error(err);
-      alert("שגיאת שרת");
-    }
+  /* ============================================================
+   שליחת RSVP
+============================================================ */
+async function submitRsvp() {
+  if (!rsvp) {
+    alert("נא לבחור מגיע / לא מגיע");
+    return;
   }
+
+  if (!guest?.token || !shareId) {
+    alert("שגיאה בזיהוי האורח");
+    return;
+  }
+
+  const finalNotes =
+    notes.includes("אחר") && otherNote
+      ? [...notes.filter((n) => n !== "אחר"), `אחר: ${otherNote}`]
+      : notes;
+
+  try {
+    const res = await fetch(`/api/invite/${shareId}/rsvp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: guest.token,
+        rsvp,
+        guestsCount: rsvp === "yes" ? guestsCount : 0,
+        notes: finalNotes.join(", "),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setSent(true);
+    } else {
+      alert("שגיאה בשליחה: " + (data.error || ""));
+    }
+  } catch (err) {
+    console.error("❌ RSVP error:", err);
+    alert("שגיאת שרת");
+  }
+}
+
 
   /* ============================================================
      Render
