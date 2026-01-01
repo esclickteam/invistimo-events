@@ -247,14 +247,27 @@ const sendWhatsApp = (guest: Guest) => {
   // ✅ תמיד נשלח את ההודעה המוכנה מ-buildMessage
   let text = buildMessage(guest);
 
+  // ✅ מוריד אימוג'ים רק בוואטספ
+  const stripEmojis = (s: string) =>
+    s
+      .replace(/[\u{1F300}-\u{1FAFF}]/gu, "") // רוב האימוג'ים
+      .replace(/[\u{2600}-\u{26FF}]/gu, "")   // סמלים (☀️ וכו')
+      .replace(/[\u{2700}-\u{27BF}]/gu, "")   // דינגבאטס
+      .replace(/[\u{FE0F}\u{200D}]/gu, "");   // Variation Selector + ZWJ
+
+  text = stripEmojis(text);
+
   // ✅ ליתר ביטחון: אם איכשהו נשאר token (עריכה ידנית/הודעה מודבקת) — ננקה
   text = text.replace(/\?token=[A-Za-z0-9_-]+/g, "");
 
-  // ✅ להסיר “ניווט לאירוע” בוואטספ אם אתה לא רוצה
+  // ✅ להסיר “ניווט לאירוע” בוואטספ אם לא רוצים
   text = text.replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
   // ניקוי תווים נסתרים
   text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
+
+  // ✅ ניקוי רווחים כפולים אחרי הורדת אימוג'ים
+  text = text.replace(/[ \t]{2,}/g, " ").trim();
 
   const encodedText = encodeURI(text).replace(/\n/g, "%0A");
 
