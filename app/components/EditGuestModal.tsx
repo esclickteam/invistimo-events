@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 
 interface EditGuestModalProps {
   guest: any;
+  isAdmin?: boolean; // 👑 חדש
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export default function EditGuestModal({
   guest,
+  isAdmin = false,
   onClose,
   onSuccess,
 }: EditGuestModalProps) {
@@ -52,7 +54,11 @@ export default function EditGuestModal({
         relation,
         rsvp,
         guestsCount: Number(guestsCount),
-        comingCount: rsvp === "yes" ? Number(comingCount) : 0,
+        comingCount: isAdmin
+          ? Number(comingCount)
+          : rsvp === "yes"
+          ? Number(comingCount)
+          : 0,
         tableName,
         notes,
       };
@@ -80,7 +86,10 @@ export default function EditGuestModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" dir="rtl">
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      dir="rtl"
+    >
       <div className="bg-white p-6 rounded-xl w-[420px] shadow-xl">
         <h2 className="text-xl font-bold mb-4">עריכת אורח</h2>
 
@@ -130,24 +139,41 @@ export default function EditGuestModal({
           onChange={(e) => setGuestsCount(Number(e.target.value))}
         />
 
-        {/* מגיעים – ניתן לעריכה */}
-        <label className="text-sm">מגיעים בפועל</label>
+        {/* מגיעים בפועל */}
+        <label className="text-sm">
+          מגיעים בפועל
+          {isAdmin && (
+            <span className="text-xs text-blue-600 mr-2">(עריכת אדמין)</span>
+          )}
+        </label>
         <input
           type="number"
           min={0}
           max={guestsCount}
-          disabled={rsvp !== "yes"}
+          disabled={!isAdmin && rsvp !== "yes"}
           className={`w-full border rounded px-3 py-2 mb-4 ${
-            rsvp !== "yes" ? "bg-gray-100 text-gray-400" : ""
+            !isAdmin && rsvp !== "yes"
+              ? "bg-gray-100 text-gray-400"
+              : ""
           }`}
           value={comingCount}
           onChange={(e) => setComingCount(Number(e.target.value))}
         />
 
-        {/* מספר שולחן – ניתן לעריכה */}
-        <label className="text-sm">מספר שולחן</label>
+        {/* מספר שולחן */}
+        <label className="text-sm">
+          מספר שולחן
+          {isAdmin && (
+            <span className="text-xs text-blue-600 mr-2">(עריכת אדמין)</span>
+          )}
+        </label>
         <input
-          className="w-full border rounded px-3 py-2 mb-4"
+          disabled={!isAdmin && rsvp !== "yes"}
+          className={`w-full border rounded px-3 py-2 mb-4 ${
+            !isAdmin && rsvp !== "yes"
+              ? "bg-gray-100 text-gray-400"
+              : ""
+          }`}
           value={tableName}
           onChange={(e) => setTableName(e.target.value)}
           placeholder="לדוגמה: 12"
@@ -163,7 +189,10 @@ export default function EditGuestModal({
         />
 
         <div className="flex justify-between mt-4">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 rounded"
+          >
             ביטול
           </button>
 
