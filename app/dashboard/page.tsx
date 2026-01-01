@@ -403,6 +403,21 @@ console.log("INVITATION:", invitation);
       ניהול האירוע שלך
     </h1>
 
+    {/* תיוג שירות שיחות */}
+{user?.plan === "premium" && (
+  <div className="mb-8">
+    {user.includeCalls ? (
+      <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+        ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
+      </div>
+    ) : (
+      <div className="inline-flex items-center gap-2 bg-[#fff7e6] text-[#b67c00] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+        ⚠️ ללא שירות שיחות טלפוניים
+      </div>
+    )}
+  </div>
+)}
+
     {user?.plan === "basic" && (
       <div className="mb-10">
         <UpgradeToPremium paidAmount={user.paidAmount} />
