@@ -298,9 +298,18 @@ useEffect(() => {
   ============================================================ */
   const stats = {
   totalGuests: guests.reduce((s, g) => s + g.guestsCount, 0),
-  comingGuests: guests
-    .filter((g) => g.rsvp === "yes")
-    .reduce((s, g) => s + g.guestsCount, 0),
+
+  comingGuests: guests.reduce(
+  (s, g) =>
+    s +
+    (typeof g.arrivedCount === "number"
+      ? g.arrivedCount
+      : g.rsvp === "yes"
+      ? g.guestsCount
+      : 0),
+  0
+),
+
   notComing: guests.filter((g) => g.rsvp === "no").length,
   noResponse: guests.filter((g) => g.rsvp === "pending").length,
 };
@@ -747,9 +756,15 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.relation?.trim() || "-"}</td>
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
+
           <td className="p-3 font-semibold">
-            {g.rsvp === "yes" ? g.guestsCount : 0}
-          </td>
+  {typeof g.arrivedCount === "number"
+    ? g.arrivedCount
+    : g.rsvp === "yes"
+    ? g.guestsCount
+    : 0}
+</td>
+
           <td className="p-3">{g.tableName ?? "-"}</td>
           <td className="p-3 text-sm text-gray-700">
             {g.notes?.trim() || "-"}
