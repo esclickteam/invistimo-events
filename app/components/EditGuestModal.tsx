@@ -27,13 +27,13 @@ export default function EditGuestModal({
     guest?.guestsCount || 1
   );
 
-  // 🔥 מגיעים בפועל – עריך לכולם
-  const [actualArrived, setActualArrived] = useState<number>(
-    guest?.actualArrived ?? 0
+  // ✅ מגיעים בפועל – השם הנכון
+  const [arrivedCount, setArrivedCount] = useState<number>(
+    guest?.arrivedCount ?? 0
   );
 
-  // 🔐 מספר שולחן – עריך רק לאדמין
-  const [tableName, setTableName] = useState(guest?.tableName || "");
+  // 🔐 מספר שולחן – תצוגה בלבד (מחושב מהושבה)
+  const tableName = guest?.tableName ?? "-";
 
   const [notes, setNotes] = useState(guest?.notes || "");
   const [loading, setLoading] = useState(false);
@@ -44,12 +44,11 @@ export default function EditGuestModal({
     setRelation(guest?.relation || "");
     setRsvp(guest?.rsvp || "pending");
     setGuestsCount(guest?.guestsCount || 1);
-    setActualArrived(guest?.actualArrived ?? 0);
-    setTableName(guest?.tableName || "");
+    setArrivedCount(guest?.arrivedCount ?? 0);
     setNotes(guest?.notes || "");
   }, [guest]);
 
-  // מגיעים מחושבים (לוגיקה קיימת)
+  // מגיעים מחושבים (לפי RSVP)
   const comingCount = useMemo(() => {
     return rsvp === "yes" ? Number(guestsCount || 0) : 0;
   }, [rsvp, guestsCount]);
@@ -58,20 +57,15 @@ export default function EditGuestModal({
     setLoading(true);
 
     try {
-      const payload: any = {
+      const payload = {
         name,
         phone,
         relation,
         rsvp,
         guestsCount: Number(guestsCount || 1),
-        actualArrived: Number(actualArrived || 0),
+        arrivedCount: Number(arrivedCount || 0), // ⭐️ זה השינוי הקריטי
         notes,
       };
-
-      // ⛔ רק אדמין יכול לשלוח מספר שולחן
-      if (isAdmin) {
-        payload.tableName = tableName;
-      }
 
       const res = await fetch(`/api/guests/${guest._id}`, {
         method: "PUT",
@@ -156,21 +150,16 @@ export default function EditGuestModal({
           type="number"
           min={0}
           className="w-full border rounded px-3 py-2 mb-4"
-          value={actualArrived}
-          onChange={(e) => setActualArrived(Number(e.target.value))}
+          value={arrivedCount}
+          onChange={(e) => setArrivedCount(Number(e.target.value))}
         />
 
-        {/* 🔐 מספר שולחן */}
-        <label className="text-sm flex items-center gap-1">
-          מספר שולחן {!isAdmin && <span className="text-xs text-gray-500">🔒</span>}
-        </label>
+        {/* מספר שולחן – תצוגה */}
+        <label className="text-sm">מספר שולחן</label>
         <input
-          className={`w-full border rounded px-3 py-2 mb-4 ${
-            isAdmin ? "" : "bg-gray-50 text-gray-600"
-          }`}
-          value={tableName || "-"}
-          onChange={(e) => setTableName(e.target.value)}
-          readOnly={!isAdmin}
+          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
+          value={tableName}
+          readOnly
         />
 
         <label className="text-sm">הערות</label>
