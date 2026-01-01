@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 
 /* ========================================================
    HELPERS
@@ -13,7 +13,7 @@ function isTrialExpired(trialExpiresAt?: string) {
 /* ========================================================
    MIDDLEWARE
 ======================================================== */
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { nextUrl, cookies } = req;
   const pathname = nextUrl.pathname;
   const hostname = nextUrl.hostname;
@@ -72,13 +72,15 @@ export function middleware(req: NextRequest) {
     }
 
     try {
-      const decoded: any = jwt.verify(
-        token,
+      const secret = new TextEncoder().encode(
         process.env.JWT_SECRET as string
       );
 
-      // תומך בשני מבנים של JWT
-      const userRole = decoded?.role || decoded?.user?.role;
+      const { payload } = await jwtVerify(token, secret);
+
+      // תומך בשני מבנים אפשריים של JWT
+      const userRole =
+        (payload as any)?.role || (payload as any)?.user?.role;
 
       if (userRole !== "admin") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
