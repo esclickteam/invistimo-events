@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       // ✅ קריאה ל־API שמוחק cookies בפועל
-      await fetch("/api/auth/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
         headers: {

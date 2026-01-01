@@ -46,7 +46,7 @@ export default function DashboardHeader({
       }
 
       // ✅ שליחת בקשה לשרת למחיקת ה־cookies
-      await fetch("/api/auth/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
