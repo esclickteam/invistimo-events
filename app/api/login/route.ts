@@ -26,12 +26,14 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= JWT ================= */
+    /* ======================================================
+       יצירת JWT
+    ====================================================== */
     const token = jwt.sign(
       {
         userId: user._id,
         email: user.email,
-        role: user.role, 
+        role: user.role,
         isTrial: user.isTrial,
       },
       process.env.JWT_SECRET!,
@@ -48,29 +50,38 @@ export async function POST(req: Request) {
       },
     });
 
-    /* ================= ניקוי ================= */
+    /* ======================================================
+       הגדרה בסיסית לכל ה־cookies
+    ====================================================== */
+    const baseCookie = {
+      domain: "www.invistimo.com", // ✅ קריטי
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+      path: "/",
+      maxAge: 60 * 60,
+    };
+
+    /* ======================================================
+       מחיקה מקדימה ליתר ביטחון
+    ====================================================== */
     res.cookies.delete("authToken");
     res.cookies.delete("isTrial");
     res.cookies.delete("trialExpiresAt");
     res.cookies.delete("smsUsed");
     res.cookies.delete("smsLimit");
 
-    /* ================= Auth ================= */
-    res.cookies.set("authToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",          // ✅ קריטי
-      maxAge: 60 * 60,
-    });
+    /* ======================================================
+       Auth Token
+    ====================================================== */
+    res.cookies.set("authToken", token, baseCookie);
 
-    /* ================= Trial ================= */
+    /* ======================================================
+       Trial
+    ====================================================== */
     res.cookies.set("isTrial", String(user.isTrial), {
+      ...baseCookie,
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60,
     });
 
     if (user.isTrial && user.trialExpiresAt) {
@@ -78,32 +89,23 @@ export async function POST(req: Request) {
         "trialExpiresAt",
         String(user.trialExpiresAt.getTime()),
         {
+          ...baseCookie,
           httpOnly: false,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 60,
         }
       );
     }
 
     res.cookies.set("smsUsed", String(user.smsUsed ?? 0), {
+      ...baseCookie,
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60,
     });
 
     res.cookies.set(
       "smsLimit",
       String(user.planLimits?.smsLimit ?? 0),
       {
+        ...baseCookie,
         httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60,
       }
     );
 
