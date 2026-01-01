@@ -253,15 +253,16 @@ const sendWhatsApp = (guest: Guest) => {
     .replace(/{{navigationLink}}/g, "")
     .replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
-  // 🧹 מנקה תווי RTL/LTR + תווים נסתרים נפוצים
+  // ✅ מוריד אימוג'ים (וגם סימנים גרפיים “אמוג'יים”)
+  text = text.replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu, "");
+
+  // ניקוי תווים נסתרים
   text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
 
-  // 🧩 לוואטסאפ: שורות חדשות חייבות להיות %0A
-  // ואז משתמשים ב-encodeURI (לא encodeURIComponent) כדי לא להרוס אימוג'ים
+  // שורות חדשות
   const encodedText = encodeURI(text).replace(/\n/g, "%0A");
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   const url = isMobile
     ? `whatsapp://send?phone=${phone}&text=${encodedText}`
     : `https://wa.me/${phone}?text=${encodedText}`;
