@@ -5,7 +5,7 @@ import Invitation from "@/models/Invitation";
 
 /* ============================================================
    POST — עדכון RSVP לפי shareId + token של האורח
-   כולל חישוב מחדש של הסטטיסטיקות
+   כולל arrivedCount וחישוב מחדש של הסטטיסטיקות
 ============================================================ */
 export async function POST(
   req: Request,
@@ -23,7 +23,7 @@ export async function POST(
       );
     }
 
-    // מוצא את ההזמנה
+    // 🔹 שליפה של ההזמנה
     const invitation = await Invitation.findOne({ shareId });
     if (!invitation) {
       return NextResponse.json(
@@ -32,7 +32,7 @@ export async function POST(
       );
     }
 
-    // מוצא את האורח לפי token והזמנה
+    // 🔹 שליפה של האורח לפי token
     const guest = await InvitationGuest.findOne({
       token,
       invitationId: invitation._id,
@@ -44,30 +44,43 @@ export async function POST(
       );
     }
 
-    // 🔄 עדכון בפועל של נתוני האורח
+    // 🔄 עדכון נתוני האורח
     if (rsvp) guest.rsvp = rsvp;
     if (guestsCount !== undefined) guest.guestsCount = guestsCount;
     if (notes !== undefined) guest.notes = notes;
 
+    // ✅ עדכון arrivedCount לפי סטטוס
+    if (rsvp === "yes") {
+      guest.arrivedCount = guestsCount || 0;
+    } else {
+      guest.arrivedCount = 0;
+    }
+
     await guest.save();
 
-    // 🧮 חישוב מחדש של הסטטיסטיקות
-    const allGuests = await InvitationGuest.find({
-      invitationId: invitation._id,
-    });
+    // 🧮 חישוב סטטיסטיקות כלליות להזמנה
+    const allGuests = await InvitationGuest.find({ invitationId: invitation._id });
+
+    const totalGuests = allGuests.length;
 
     const totalYes = allGuests
       .filter((g) => g.rsvp === "yes")
       .reduce((sum, g) => sum + (g.guestsCount || 0), 0);
 
+    const totalArrived = allGuests.reduce(
+      (sum, g) => sum + (g.arrivedCount || 0),
+      0
+    );
+
     const totalNo = allGuests.filter((g) => g.rsvp === "no").length;
     const totalPending = allGuests.filter((g) => g.rsvp === "pending").length;
 
     invitation.stats = {
+      totalGuests,
       totalYes,
+      totalArrived,
       totalNo,
       totalPending,
-      totalGuests: allGuests.length,
     };
 
     await invitation.save();
