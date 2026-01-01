@@ -63,8 +63,8 @@ export default function PricingPage() {
   }, [premiumGuests]);
 
   const callsAddonPrice = useMemo(() => {
-    return CALLS_ADDON_MAP[premiumGuests] ?? CALLS_ADDON_MAP[100];
-  }, [premiumGuests]);
+  return includeCalls ? premiumGuests * 1 : 0; // 1₪ לכל אורח רק אם סומן
+}, [includeCalls, premiumGuests]);
 
   const premiumTotalPrice = useMemo(() => {
     return includeCalls ? premiumPrice + callsAddonPrice : premiumPrice;
