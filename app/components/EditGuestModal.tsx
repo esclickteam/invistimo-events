@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface EditGuestModalProps {
   guest: any;
@@ -13,42 +13,47 @@ export default function EditGuestModal({
   onClose,
   onSuccess,
 }: EditGuestModalProps) {
-  const [name, setName] = useState(guest?.name || "");
-  const [phone, setPhone] = useState(guest?.phone || "");
-  const [relation, setRelation] = useState(guest?.relation || "");
-  const [rsvp, setRsvp] = useState<"pending" | "yes" | "no">(guest?.rsvp || "pending");
-  const [guestsCount, setGuestsCount] = useState<number>(guest?.guestsCount || 1);
-  const [notes, setNotes] = useState(guest?.notes || "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [relation, setRelation] = useState("");
+  const [rsvp, setRsvp] = useState<"pending" | "yes" | "no">("pending");
+  const [guestsCount, setGuestsCount] = useState<number>(1);
+  const [comingCount, setComingCount] = useState<number>(0);
+  const [tableName, setTableName] = useState("");
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // אם עוברים לערוך אורח אחר בלי לסגור מודאל
+  /* =========================
+     INIT / UPDATE
+  ========================= */
   useEffect(() => {
-    setName(guest?.name || "");
-    setPhone(guest?.phone || "");
-    setRelation(guest?.relation || "");
-    setRsvp(guest?.rsvp || "pending");
-    setGuestsCount(guest?.guestsCount || 1);
-    setNotes(guest?.notes || "");
+    if (!guest) return;
+
+    setName(guest.name || "");
+    setPhone(guest.phone || "");
+    setRelation(guest.relation || "");
+    setRsvp(guest.rsvp || "pending");
+    setGuestsCount(guest.guestsCount ?? 1);
+    setComingCount(guest.comingCount ?? 0);
+    setTableName(guest.tableName || "");
+    setNotes(guest.notes || "");
   }, [guest]);
 
-  // "מגיעים" לפי הטבלה (תואם לוגיקה בדשבורד)
-  const comingCount = useMemo(() => {
-    return rsvp === "yes" ? Number(guestsCount || 0) : 0;
-  }, [rsvp, guestsCount]);
-
-  // מס' שולחן להצגה (בד"כ מתעדכן דרך הושבה)
-  const tableName = guest?.tableName ?? "-";
-
+  /* =========================
+     SAVE
+  ========================= */
   async function save() {
     setLoading(true);
 
     try {
-      const payload: any = {
+      const payload = {
         name,
         phone,
         relation,
         rsvp,
-        guestsCount: rsvp === "yes" ? Number(guestsCount || 1) : Number(guestsCount || 1),
+        guestsCount: Number(guestsCount),
+        comingCount: rsvp === "yes" ? Number(comingCount) : 0,
+        tableName,
         notes,
       };
 
@@ -60,14 +65,15 @@ export default function EditGuestModal({
 
       setLoading(false);
 
-      if (res.ok) {
-        onSuccess();
-        onClose();
-      } else {
+      if (!res.ok) {
         alert("שגיאה בעדכון אורח");
+        return;
       }
-    } catch (e) {
-      console.error(e);
+
+      onSuccess();
+      onClose();
+    } catch (err) {
+      console.error(err);
       setLoading(false);
       alert("שגיאה בעדכון אורח");
     }
@@ -78,7 +84,7 @@ export default function EditGuestModal({
       <div className="bg-white p-6 rounded-xl w-[420px] shadow-xl">
         <h2 className="text-xl font-bold mb-4">עריכת אורח</h2>
 
-        {/* שם מלא */}
+        {/* שם */}
         <label className="text-sm">שם מלא</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4"
@@ -100,7 +106,6 @@ export default function EditGuestModal({
           className="w-full border rounded px-3 py-2 mb-4"
           value={relation}
           onChange={(e) => setRelation(e.target.value)}
-          placeholder="משפחה / חברים / עבודה..."
         />
 
         {/* סטטוס */}
@@ -125,29 +130,36 @@ export default function EditGuestModal({
           onChange={(e) => setGuestsCount(Number(e.target.value))}
         />
 
-        {/* מגיעים (תואם טבלה) */}
-        <label className="text-sm">מגיעים</label>
+        {/* מגיעים – ניתן לעריכה */}
+        <label className="text-sm">מגיעים בפועל</label>
         <input
-          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
+          type="number"
+          min={0}
+          max={guestsCount}
+          disabled={rsvp !== "yes"}
+          className={`w-full border rounded px-3 py-2 mb-4 ${
+            rsvp !== "yes" ? "bg-gray-100 text-gray-400" : ""
+          }`}
           value={comingCount}
-          readOnly
+          onChange={(e) => setComingCount(Number(e.target.value))}
         />
 
-        {/* מס' שולחן (תצוגה בלבד) */}
-        <label className="text-sm">מס' שולחן</label>
+        {/* מספר שולחן – ניתן לעריכה */}
+        <label className="text-sm">מספר שולחן</label>
         <input
-          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
+          className="w-full border rounded px-3 py-2 mb-4"
           value={tableName}
-          readOnly
+          onChange={(e) => setTableName(e.target.value)}
+          placeholder="לדוגמה: 12"
         />
 
         {/* הערות */}
         <label className="text-sm">הערות</label>
         <textarea
           className="w-full border rounded px-3 py-2 mb-4"
+          rows={3}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          rows={3}
         />
 
         <div className="flex justify-between mt-4">
@@ -157,8 +169,8 @@ export default function EditGuestModal({
 
           <button
             onClick={save}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
             disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded"
           >
             {loading ? "שומר..." : "שמור"}
           </button>
