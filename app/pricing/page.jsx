@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, Star, ArrowDown } from "lucide-react";
+import { Check, Star, ArrowDown, PhoneCall } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +29,20 @@ const PREMIUM_PRICE_MAP = {
   1000: 699,
 };
 
+// ✅ תוספת לשירות אישורי הגעה טלפוניים (3 סבבים) לפי כמות אורחים
+// אפשר לשנות מחירים כאן בקלות
+const CALLS_ADDON_MAP = {
+  100: 99,
+  200: 149,
+  300: 199,
+  400: 249,
+  500: 299,
+  600: 349,
+  700: 399,
+  800: 449,
+  1000: 499,
+};
+
 export default function PricingPage() {
   const router = useRouter();
 
@@ -41,9 +55,20 @@ export default function PricingPage() {
   // ✅ בחירת כמות אורחים בפרימיום
   const [premiumGuests, setPremiumGuests] = useState(100);
 
+  // ✅ בחירה אם לכלול שיחות (3 סבבים)
+  const [includeCalls, setIncludeCalls] = useState(false);
+
   const premiumPrice = useMemo(() => {
     return PREMIUM_PRICE_MAP[premiumGuests] ?? PREMIUM_PRICE_MAP[100];
   }, [premiumGuests]);
+
+  const callsAddonPrice = useMemo(() => {
+    return CALLS_ADDON_MAP[premiumGuests] ?? CALLS_ADDON_MAP[100];
+  }, [premiumGuests]);
+
+  const premiumTotalPrice = useMemo(() => {
+    return includeCalls ? premiumPrice + callsAddonPrice : premiumPrice;
+  }, [includeCalls, premiumPrice, callsAddonPrice]);
 
   // ✅ BASIC מחיר קבוע
   const basicPrice = 49;
@@ -57,7 +82,9 @@ export default function PricingPage() {
     }
 
     router.push(
-      `/register?plan=premium&guests=${premiumGuests}&price=${premiumPrice}`
+      `/register?plan=premium&guests=${premiumGuests}&price=${premiumTotalPrice}&calls=${
+        includeCalls ? "1" : "0"
+      }`
     );
   };
 
@@ -81,8 +108,8 @@ export default function PricingPage() {
           custom={2}
           className="text-lg md:text-xl text-[#8f7a67] max-w-3xl mx-auto mb-12"
         >
-          אישורי הגעה, הושבה וניהול אורחים – במקום אחד,
-          בלי אקסלים, בלי בלגן ובלי אינסוף הודעות
+          אישורי הגעה, הושבה וניהול אורחים – במקום אחד, בלי אקסלים, בלי בלגן ובלי
+          אינסוף הודעות
         </motion.p>
 
         <motion.div
@@ -222,9 +249,9 @@ export default function PricingPage() {
                     <Star />
                   </div>
 
-                  {/* ✅ מחיר דינמי לפי בחירה */}
+                  {/* ✅ מחיר דינמי לפי בחירה (כולל/לא כולל שיחות) */}
                   <div className="mb-6">
-                    <span className="text-3xl font-semibold">₪{premiumPrice}</span>
+                    <span className="text-3xl font-semibold">₪{premiumTotalPrice}</span>
                     <span className="opacity-80"> · תשלום חד־פעמי</span>
                   </div>
 
@@ -244,7 +271,7 @@ export default function PricingPage() {
                     ))}
                   </ul>
 
-                  <div className="bg-white/20 rounded-2xl p-4 mb-6">
+                  <div className="bg-white/20 rounded-2xl p-4 mb-4">
                     <label className="block text-sm mb-2">בחרו כמות אורחים</label>
                     <select
                       value={premiumGuests}
@@ -264,9 +291,42 @@ export default function PricingPage() {
 
                     {/* ✅ טקסט קטן שמסביר מה נבחר */}
                     <p className="mt-3 text-sm opacity-90">
-                      נבחר: עד {premiumGuests === 1000 ? "1000" : premiumGuests} אורחים · סה״כ ₪
+                      נבחר: עד {premiumGuests === 1000 ? "1000" : premiumGuests} אורחים · מחיר בסיס ₪
                       {premiumPrice}
                     </p>
+                  </div>
+
+                  {/* ✅ תוספת: צ׳קבוקס שירות שיחות */}
+                  <div className="bg-white/18 rounded-2xl p-4 mb-6 border border-white/20">
+                    <label className="flex items-start gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={includeCalls}
+                        onChange={(e) => setIncludeCalls(e.target.checked)}
+                        className="mt-1 h-5 w-5 accent-[#4a413a]"
+                      />
+
+                      <div className="text-white">
+                        <div className="flex items-center gap-2 font-semibold">
+                          <PhoneCall className="w-4 h-4" />
+                          הוספת שירות אישורי הגעה טלפוניים (3 סבבים אנושיים)
+                        </div>
+
+                        <div className="text-sm opacity-90 mt-1 leading-relaxed">
+                          שירות אנושי לאורחים שלא ענו — עד 3 ניסיונות לכל אורח + עדכון סטטוס במערכת.
+                        </div>
+
+                        <div className="mt-2 text-sm opacity-95">
+                          תוספת: <span className="font-semibold">₪{callsAddonPrice}</span>
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* ✅ תצוגת מחיר סופי */}
+                    <div className="mt-4 flex items-center justify-between rounded-xl bg-white/25 px-4 py-3">
+                      <span className="text-white font-semibold">סה״כ לתשלום</span>
+                      <span className="text-white font-bold text-lg">₪{premiumTotalPrice}</span>
+                    </div>
                   </div>
 
                   <Button
@@ -276,9 +336,7 @@ export default function PricingPage() {
                     הרשמה לפרימיום
                   </Button>
 
-                  <p className="text-center text-sm mt-4 opacity-80">
-                  
-                  </p>
+                  <p className="text-center text-sm mt-4 opacity-80"></p>
                 </CardContent>
               </Card>
             </motion.div>
