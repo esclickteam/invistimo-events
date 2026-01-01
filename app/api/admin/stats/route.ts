@@ -5,13 +5,11 @@ import { connectDB } from "@/lib/db";
 
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
-import Call from "@/models/Call"; // אם קיים
 
 export async function GET() {
   try {
     await connectDB();
 
-    // ✅ חובה await
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -28,7 +26,7 @@ export async function GET() {
     const [users, invitations, calls] = await Promise.all([
       User.countDocuments(),
       Invitation.countDocuments(),
-      Call?.countDocuments?.() ?? 0,
+      User.countDocuments({ includeCalls: true }), // ✅ שירותי שיחות
     ]);
 
     return NextResponse.json({
