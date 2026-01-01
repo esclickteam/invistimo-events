@@ -823,6 +823,8 @@ console.log("INVITATION:", invitation);
       {selectedGuest && (
   <EditGuestModal
     guest={selectedGuest}
+    userRole={user?.role === "admin" ? "admin" : "guest"}
+
     onClose={() => setSelectedGuest(null)}
     onSuccess={loadGuests}
   />

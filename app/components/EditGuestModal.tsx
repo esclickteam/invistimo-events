@@ -4,40 +4,55 @@ import { useEffect, useMemo, useState } from "react";
 
 interface EditGuestModalProps {
   guest: any;
+  userRole: "guest" | "admin";
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export default function EditGuestModal({
   guest,
+  userRole,
   onClose,
   onSuccess,
 }: EditGuestModalProps) {
+  const isAdmin = userRole === "admin";
+
   const [name, setName] = useState(guest?.name || "");
   const [phone, setPhone] = useState(guest?.phone || "");
   const [relation, setRelation] = useState(guest?.relation || "");
-  const [rsvp, setRsvp] = useState<"pending" | "yes" | "no">(guest?.rsvp || "pending");
-  const [guestsCount, setGuestsCount] = useState<number>(guest?.guestsCount || 1);
+  const [rsvp, setRsvp] = useState<"pending" | "yes" | "no">(
+    guest?.rsvp || "pending"
+  );
+  const [guestsCount, setGuestsCount] = useState<number>(
+    guest?.guestsCount || 1
+  );
+
+  // 🔥 מגיעים בפועל – עריך לכולם
+  const [actualArrived, setActualArrived] = useState<number>(
+    guest?.actualArrived ?? 0
+  );
+
+  // 🔐 מספר שולחן – עריך רק לאדמין
+  const [tableName, setTableName] = useState(guest?.tableName || "");
+
   const [notes, setNotes] = useState(guest?.notes || "");
   const [loading, setLoading] = useState(false);
 
-  // אם עוברים לערוך אורח אחר בלי לסגור מודאל
   useEffect(() => {
     setName(guest?.name || "");
     setPhone(guest?.phone || "");
     setRelation(guest?.relation || "");
     setRsvp(guest?.rsvp || "pending");
     setGuestsCount(guest?.guestsCount || 1);
+    setActualArrived(guest?.actualArrived ?? 0);
+    setTableName(guest?.tableName || "");
     setNotes(guest?.notes || "");
   }, [guest]);
 
-  // "מגיעים" לפי הטבלה (תואם לוגיקה בדשבורד)
+  // מגיעים מחושבים (לוגיקה קיימת)
   const comingCount = useMemo(() => {
     return rsvp === "yes" ? Number(guestsCount || 0) : 0;
   }, [rsvp, guestsCount]);
-
-  // מס' שולחן להצגה (בד"כ מתעדכן דרך הושבה)
-  const tableName = guest?.tableName ?? "-";
 
   async function save() {
     setLoading(true);
@@ -48,9 +63,15 @@ export default function EditGuestModal({
         phone,
         relation,
         rsvp,
-        guestsCount: rsvp === "yes" ? Number(guestsCount || 1) : Number(guestsCount || 1),
+        guestsCount: Number(guestsCount || 1),
+        actualArrived: Number(actualArrived || 0),
         notes,
       };
+
+      // ⛔ רק אדמין יכול לשלוח מספר שולחן
+      if (isAdmin) {
+        payload.tableName = tableName;
+      }
 
       const res = await fetch(`/api/guests/${guest._id}`, {
         method: "PUT",
@@ -74,11 +95,13 @@ export default function EditGuestModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" dir="rtl">
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      dir="rtl"
+    >
       <div className="bg-white p-6 rounded-xl w-[420px] shadow-xl">
         <h2 className="text-xl font-bold mb-4">עריכת אורח</h2>
 
-        {/* שם מלא */}
         <label className="text-sm">שם מלא</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4"
@@ -86,7 +109,6 @@ export default function EditGuestModal({
           onChange={(e) => setName(e.target.value)}
         />
 
-        {/* טלפון */}
         <label className="text-sm">טלפון</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4"
@@ -94,16 +116,13 @@ export default function EditGuestModal({
           onChange={(e) => setPhone(e.target.value)}
         />
 
-        {/* קרבה */}
         <label className="text-sm">קרבה</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4"
           value={relation}
           onChange={(e) => setRelation(e.target.value)}
-          placeholder="משפחה / חברים / עבודה..."
         />
 
-        {/* סטטוס */}
         <label className="text-sm">סטטוס</label>
         <select
           className="w-full border rounded px-3 py-2 mb-4"
@@ -115,7 +134,6 @@ export default function EditGuestModal({
           <option value="no">לא מגיע</option>
         </select>
 
-        {/* מוזמנים */}
         <label className="text-sm">מוזמנים</label>
         <input
           type="number"
@@ -125,23 +143,36 @@ export default function EditGuestModal({
           onChange={(e) => setGuestsCount(Number(e.target.value))}
         />
 
-        {/* מגיעים (תואם טבלה) */}
-        <label className="text-sm">מגיעים</label>
+        <label className="text-sm">מגיעים (מחושב)</label>
         <input
           className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
           value={comingCount}
           readOnly
         />
 
-        {/* מס' שולחן (תצוגה בלבד) */}
-        <label className="text-sm">מס' שולחן</label>
+        {/* ✅ מגיעים בפועל */}
+        <label className="text-sm">מגיעים בפועל</label>
         <input
-          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
-          value={tableName}
-          readOnly
+          type="number"
+          min={0}
+          className="w-full border rounded px-3 py-2 mb-4"
+          value={actualArrived}
+          onChange={(e) => setActualArrived(Number(e.target.value))}
         />
 
-        {/* הערות */}
+        {/* 🔐 מספר שולחן */}
+        <label className="text-sm flex items-center gap-1">
+          מספר שולחן {!isAdmin && <span className="text-xs text-gray-500">🔒</span>}
+        </label>
+        <input
+          className={`w-full border rounded px-3 py-2 mb-4 ${
+            isAdmin ? "" : "bg-gray-50 text-gray-600"
+          }`}
+          value={tableName || "-"}
+          onChange={(e) => setTableName(e.target.value)}
+          readOnly={!isAdmin}
+        />
+
         <label className="text-sm">הערות</label>
         <textarea
           className="w-full border rounded px-3 py-2 mb-4"
@@ -151,7 +182,10 @@ export default function EditGuestModal({
         />
 
         <div className="flex justify-between mt-4">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 rounded"
+          >
             ביטול
           </button>
 

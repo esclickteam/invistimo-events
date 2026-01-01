@@ -18,10 +18,12 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   try {
     await db();
+
     const guest = await InvitationGuest.findById(id);
     if (!guest) {
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
+
     return NextResponse.json({ success: true, guest });
   } catch (error) {
     console.error("GET /guests/[id] error:", error);
@@ -52,8 +54,19 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const userId = await getUserIdFromRequest();
-    if (!userId || userId.toString() !== invitation.ownerId.toString()) {
+    const auth = await getUserIdFromRequest();
+
+    if (!auth?.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const isOwner =
+      auth.userId.toString() === invitation.ownerId.toString();
+
+    const isAdmin = auth.role === "admin";
+
+    // 🔐 רק בעל ההזמנה או אדמין מערכת
+    if (!isOwner && !isAdmin) {
       return NextResponse.json(
         { error: "Not authorized to update this guest" },
         { status: 403 }
@@ -61,31 +74,50 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     /* ============================================
-       עדכונים מותרים בלבד
+       עדכונים מותרים
     ============================================ */
 
-    guest.name = data.name ?? guest.name;
-    guest.phone = data.phone ?? guest.phone;
-    guest.relation = data.relation ?? guest.relation;
-    guest.notes = data.notes ?? guest.notes;
-
-    // ✅ RSVP – ערכים חוקיים בלבד
-    if (["yes", "no", "pending"].includes(data.rsvp)) {
-      guest.rsvp = data.rsvp;
-    } else if (!guest.rsvp) {
-      guest.rsvp = "pending";
+    if (typeof data.name === "string") {
+      guest.name = data.name;
     }
 
-    // ✅ מוזמנים (כמה הוזמנו)
-    if (typeof data.guestsCount === "number") {
+    if (typeof data.phone === "string") {
+      guest.phone = data.phone;
+    }
+
+    if (typeof data.relation === "string") {
+      guest.relation = data.relation;
+    }
+
+    if (typeof data.notes === "string") {
+      guest.notes = data.notes;
+    }
+
+    // RSVP
+    if (["yes", "no", "pending"].includes(data.rsvp)) {
+      guest.rsvp = data.rsvp;
+    }
+
+    // מוזמנים
+    if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
       guest.guestsCount = data.guestsCount;
     }
 
-    // 🚨 קריטי: מגיעים תמיד 0 כאן
-    // RSVP ≠ הגעה בפועל
-    guest.arrivedCount = 0;
+    // ✅ מגיעים בפועל – owner + admin
+    if (
+      typeof data.actualArrived === "number" &&
+      data.actualArrived >= 0
+    ) {
+      guest.actualArrived = data.actualArrived;
+    }
+
+    // 🔐 מספר שולחן – רק owner / admin
+    if (typeof data.tableName === "string") {
+      guest.tableName = data.tableName;
+    }
 
     await guest.save();
+
     return NextResponse.json({ success: true, guest });
   } catch (error) {
     console.error("PUT /guests/[id] error:", error);
@@ -101,6 +133,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
   try {
     await db();
+
     const guest = await InvitationGuest.findById(id);
     if (!guest) {
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
@@ -114,8 +147,14 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const userId = await getUserIdFromRequest();
-    if (!userId || userId.toString() !== invitation.ownerId.toString()) {
+    const auth = await getUserIdFromRequest();
+
+    const isOwner =
+      auth?.userId?.toString() === invitation.ownerId.toString();
+
+    const isAdmin = auth?.role === "admin";
+
+    if (!isOwner && !isAdmin) {
       return NextResponse.json(
         { error: "Not authorized to delete this guest" },
         { status: 403 }
@@ -123,9 +162,10 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     }
 
     await guest.deleteOne();
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /guests/[id] error:", error);
-     return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
