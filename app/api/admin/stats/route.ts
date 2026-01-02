@@ -5,11 +5,15 @@ import { connectDB } from "@/lib/db";
 
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
+import Payment from "@/models/Payment";
 
 export async function GET() {
   try {
     await connectDB();
 
+    /* ======================================================
+       AUTH
+    ====================================================== */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -23,16 +27,37 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [users, invitations, calls] = await Promise.all([
+    /* ======================================================
+       COUNTS
+    ====================================================== */
+    const [users, invitations, calls, revenueAgg] = await Promise.all([
       User.countDocuments(),
       Invitation.countDocuments(),
-      User.countDocuments({ includeCalls: true }), // ✅ שירותי שיחות
+      User.countDocuments({ includeCalls: true }), // שירותי שיחות פעילים
+
+      // 💰 סה"כ הכנסות
+      Payment.aggregate([
+        { $match: { status: "paid" } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
     ]);
 
+    const revenue =
+      revenueAgg.length > 0 ? revenueAgg[0].total : 0;
+
+    /* ======================================================
+       RESPONSE
+    ====================================================== */
     return NextResponse.json({
       users,
       invitations,
       calls,
+      revenue, // 💰
     });
   } catch (err) {
     console.error("❌ Admin stats error:", err);
