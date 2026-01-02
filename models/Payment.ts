@@ -10,10 +10,10 @@ export interface PaymentDocument extends Document {
   stripeSessionId: string;
   stripePaymentIntentId?: string;
   stripeCustomerId?: string;
-  stripePriceId?: string; // (לפעמים יש, לפעמים לא כשעובדים עם price_data)
+  stripePriceId?: string;
 
   // 💳 חבילה / מוצר
-  priceKey: string; // basic_plan_49 | premium_200_v2 | extra_messages_500 | upgrade וכו'
+  priceKey: string;
   maxGuests: number;
 
   // ✅ תוספת שירות שיחות (3 סבבים)
@@ -21,14 +21,17 @@ export interface PaymentDocument extends Document {
   callsAddonPrice: number;
 
   // 💰 סכום
-  amount: number; // בשקלים
-  currency: string; // ils
+  amount: number;
+  currency: string;
 
-  // 🧾 מידע נוסף (לא חובה, אבל מציל חיים לדיבאג)
+  // 🧾 מידע נוסף
   type: "package" | "addon" | "upgrade";
   metadata?: Record<string, any>;
 
   status: "paid" | "refunded" | "failed";
+
+  // 🔥 חדש – האם תשלום בדיקה
+  isTest: boolean;
 
   createdAt: Date;
   updatedAt: Date;
@@ -44,13 +47,13 @@ const PaymentSchema = new Schema<PaymentDocument>(
     stripeSessionId: {
       type: String,
       required: true,
-      unique: true, // 🛑 הגנה מכפילויות webhook (Session unique)
+      unique: true,
       index: true,
     },
 
     stripePaymentIntentId: {
       type: String,
-      index: true, // ✅ גם זה טוב להגנה
+      index: true,
     },
 
     stripeCustomerId: { type: String },
@@ -59,9 +62,6 @@ const PaymentSchema = new Schema<PaymentDocument>(
     priceKey: {
       type: String,
       required: true,
-      // ✅ לא חוסמים enum כדי לא להיתקע כשנוספות אופציות (addon/upgrade/דינמי)
-      // אם את מתעקשת על enum, תצטרכי להוסיף גם:
-      // extra_messages_500, premium_300_upgrade, וכו'
     },
 
     maxGuests: { type: Number, required: true, default: 0 },
@@ -88,6 +88,13 @@ const PaymentSchema = new Schema<PaymentDocument>(
       type: String,
       enum: ["paid", "refunded", "failed"],
       default: "paid",
+    },
+
+    // 🔥 חדש – סינון בדיקות
+    isTest: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   { timestamps: true }
