@@ -46,7 +46,7 @@
     ".next/dev/types/**/*.ts",
     "types/**/*.d.ts",
     "**/*.mts"
-, "app/dashboard/seating/MobileGuests.jsx", "scripts/createDemoUser.ts", "store/store/demoSeatingStore.js"  ],
+, "app/dashboard/seating/MobileGuests.jsx", "scripts/createDemoUser.ts", "store/store/demoSeatingStore.js", "scripts/test-email.js"  ],
 
   "exclude": ["node_modules"]
 }
