@@ -54,11 +54,28 @@ function HeroFireworks() {
 ===================================================== */
 function RingingPhoneBig() {
   return (
-    <div className="relative flex items-center justify-center min-h-[640px] scale-[1.25] md:scale-[1.35]">
+    <div
+      className="
+        relative flex items-center justify-center
+        min-h-[360px]
+        sm:min-h-[420px]
+        md:min-h-[520px]
+        lg:min-h-[640px]
+        scale-[1]
+        md:scale-[1.2]
+        lg:scale-[1.35]
+      "
+    >
       {[...Array(2)].map((_, i) => (
         <motion.span
           key={i}
-          className="absolute w-[520px] h-[520px] rounded-full border border-[#cbb38a]/25"
+          className="
+            absolute
+            w-[360px] h-[360px]
+            md:w-[480px] md:h-[480px]
+            lg:w-[520px] lg:h-[520px]
+            rounded-full border border-[#cbb38a]/25
+          "
           initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1.7, opacity: 0 }}
           transition={{
@@ -74,7 +91,7 @@ function RingingPhoneBig() {
         src="/home2.png"
         alt="RSVP system illustration"
         animate={{
-          y: [0, -10, 0],
+          y: [0, -8, 0],
           scale: [1, 1.015, 1],
         }}
         transition={{
@@ -82,11 +99,18 @@ function RingingPhoneBig() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="w-[420px] md:w-[520px] lg:w-[640px] object-contain relative z-10"
+        className="
+          w-[260px]
+          sm:w-[300px]
+          md:w-[420px]
+          lg:w-[580px]
+          object-contain relative z-10
+        "
       />
     </div>
   );
 }
+
 
 
 
