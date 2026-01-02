@@ -59,11 +59,11 @@ function RingingPhoneBig() {
         <motion.span
           key={i}
           className="absolute w-[480px] h-[480px] rounded-full border border-[#cbb38a]/25"
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={{ scale: 1.6, opacity: 0 }}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1.65, opacity: 0 }}
           transition={{
-            duration: 2.6,
-            delay: i * 1.3,
+            duration: 3.2,
+            delay: i * 1.6,
             repeat: Infinity,
             ease: "easeOut",
           }}
@@ -72,10 +72,13 @@ function RingingPhoneBig() {
 
       <motion.img
         src="/home2.png"
-        alt="Incoming call"
-        animate={{ rotate: [0, -4, 4, -4, 0] }}
+        alt="RSVP system illustration"
+        animate={{
+          y: [0, -12, 0],
+          scale: [1, 1.02, 1],
+        }}
         transition={{
-          duration: 1.6,
+          duration: 5,
           repeat: Infinity,
           ease: "easeInOut",
         }}
@@ -84,6 +87,7 @@ function RingingPhoneBig() {
     </div>
   );
 }
+
 
 /* =====================================================
    זיקוקים אלגנטיים – BLOCK 4 (כמו HERO אבל עדין יותר)
