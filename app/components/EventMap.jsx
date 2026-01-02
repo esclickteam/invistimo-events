@@ -18,7 +18,7 @@ export default function EventMap({ location }) {
     <div className="w-full mt-6">
       {/* כותרת */}
       <div className="mb-3 text-center text-sm font-medium text-[#6b5b3e]">
-        📍 מיקום האירוע
+      
       </div>
 
       {/* מפה */}

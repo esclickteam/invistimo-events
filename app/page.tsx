@@ -82,6 +82,7 @@ function RingingPhoneBig() {
         className="w-[200px] md:w-[240px] object-contain relative z-10"
       />
     </div>
+    
   );
 }
 
