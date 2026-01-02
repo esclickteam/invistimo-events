@@ -57,13 +57,13 @@ function RingingPhoneBig() {
     <div
       className="
         relative flex items-center justify-center
-        min-h-[360px]
-        sm:min-h-[420px]
+        min-h-0
         md:min-h-[520px]
         lg:min-h-[640px]
         scale-[1]
-        md:scale-[1.2]
+        md:scale-[1.25]
         lg:scale-[1.35]
+        mt-6 md:mt-0
       "
     >
       {[...Array(2)].map((_, i) => (
@@ -71,9 +71,8 @@ function RingingPhoneBig() {
           key={i}
           className="
             absolute
-            w-[360px] h-[360px]
-            md:w-[480px] md:h-[480px]
-            lg:w-[520px] lg:h-[520px]
+            hidden md:block
+            w-[520px] h-[520px]
             rounded-full border border-[#cbb38a]/25
           "
           initial={{ scale: 0.85, opacity: 0 }}
@@ -100,10 +99,10 @@ function RingingPhoneBig() {
           ease: "easeInOut",
         }}
         className="
-          w-[260px]
-          sm:w-[300px]
+          w-[240px]
+          sm:w-[280px]
           md:w-[420px]
-          lg:w-[580px]
+          lg:w-[640px]
           object-contain relative z-10
         "
       />
@@ -341,7 +340,8 @@ export default function HomePage() {
       </section>
 
       {/* ================= בלוק 2 ================= */}
-      <section className="py-32 px-6 bg-[#faf8f4]">
+      <section className="py-16 md:py-32 px-6 bg-[#faf8f4]">
+
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-24 items-center">
           <div>
             <h2 className="text-4xl font-semibold mb-12">
