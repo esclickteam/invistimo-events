@@ -58,7 +58,7 @@ function RingingPhoneBig() {
       {[...Array(2)].map((_, i) => (
         <motion.span
           key={i}
-          className="absolute w-[420px] h-[420px] rounded-full border border-[#cbb38a]/25"
+          className="absolute w-[480px] h-[480px] rounded-full border border-[#cbb38a]/25"
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1.6, opacity: 0 }}
           transition={{
@@ -79,7 +79,7 @@ function RingingPhoneBig() {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="w-[320px] md:w-[420px] lg:w-[520px] object-contain relative z-10"
+        className="w-[360px] md:w-[460px] lg:w-[580px] object-contain relative z-10"
       />
     </div>
   );
