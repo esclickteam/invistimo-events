@@ -44,8 +44,8 @@ export default async function AdminLayout({
   const nav = [
     { href: "/admin", label: "סקירה" },
     { href: "/admin/users", label: "משתמשים" },
-    { href: "/admin/invitations", label: "אירועים" },
-    { href: "/admin/calls", label: "שירות שיחות" },
+    
+    
   ];
 
   return (
