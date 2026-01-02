@@ -99,12 +99,12 @@ function RingingPhoneBig() {
           ease: "easeInOut",
         }}
         className="
-          w-[240px]
-          sm:w-[280px]
-          md:w-[420px]
-          lg:w-[640px]
-          object-contain relative z-10
-        "
+  w-[300px]
+  sm:w-[320px]
+  md:w-[420px]
+  lg:w-[640px]
+  object-contain relative z-10
+"
       />
     </div>
   );
