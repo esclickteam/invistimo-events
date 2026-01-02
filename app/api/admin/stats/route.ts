@@ -28,16 +28,24 @@ export async function GET() {
     }
 
     /* ======================================================
-       COUNTS
+       COUNTS + REVENUE
     ====================================================== */
     const [users, invitations, calls, revenueAgg] = await Promise.all([
       User.countDocuments(),
-      Invitation.countDocuments(),
-      User.countDocuments({ includeCalls: true }), // שירותי שיחות פעילים
 
-      // 💰 סה"כ הכנסות
+      Invitation.countDocuments(),
+
+      // שירותי שיחות פעילים
+      User.countDocuments({ includeCalls: true }),
+
+      // 💰 סה"כ הכנסות אמיתיות בלבד
       Payment.aggregate([
-        { $match: { status: "paid" } },
+        {
+          $match: {
+            status: "paid",
+            isTest: { $ne: true }, // ❌ בלי בדיקות
+          },
+        },
         {
           $group: {
             _id: null,
@@ -57,7 +65,7 @@ export async function GET() {
       users,
       invitations,
       calls,
-      revenue, // 💰
+      revenue, // 💰 הכנסות נטו
     });
   } catch (err) {
     console.error("❌ Admin stats error:", err);
