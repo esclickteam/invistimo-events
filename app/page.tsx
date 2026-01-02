@@ -54,16 +54,16 @@ function HeroFireworks() {
 ===================================================== */
 function RingingPhoneBig() {
   return (
-    <div className="relative flex items-center justify-center min-h-[520px]">
+    <div className="relative flex items-center justify-center min-h-[640px] scale-[1.25] md:scale-[1.35]">
       {[...Array(2)].map((_, i) => (
         <motion.span
           key={i}
-          className="absolute w-[480px] h-[480px] rounded-full border border-[#cbb38a]/25"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1.65, opacity: 0 }}
+          className="absolute w-[520px] h-[520px] rounded-full border border-[#cbb38a]/25"
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1.7, opacity: 0 }}
           transition={{
-            duration: 3.2,
-            delay: i * 1.6,
+            duration: 3.4,
+            delay: i * 1.7,
             repeat: Infinity,
             ease: "easeOut",
           }}
@@ -74,19 +74,20 @@ function RingingPhoneBig() {
         src="/home2.png"
         alt="RSVP system illustration"
         animate={{
-          y: [0, -12, 0],
-          scale: [1, 1.02, 1],
+          y: [0, -10, 0],
+          scale: [1, 1.015, 1],
         }}
         transition={{
-          duration: 5,
+          duration: 5.5,
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="w-[360px] md:w-[460px] lg:w-[580px] object-contain relative z-10"
+        className="w-[420px] md:w-[520px] lg:w-[640px] object-contain relative z-10"
       />
     </div>
   );
 }
+
 
 
 /* =====================================================
