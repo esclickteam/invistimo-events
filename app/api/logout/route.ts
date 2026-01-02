@@ -15,9 +15,15 @@ export async function POST() {
     domain: "www.invistimo.com",
   };
 
-  const names = ["authToken", "isTrial", "smsLimit", "smsUsed", "trialExpiresAt", "role"];
+  // 🔐 cookies שנוצרו כ-httpOnly
+  ["authToken", "role"].forEach((n) =>
+    res.cookies.set(n, "", { ...base, httpOnly: true })
+  );
 
-  names.forEach((n) => res.cookies.set(n, "", { ...base, httpOnly: true }));
+  // 🌐 cookies שנוצרו כ-NOT httpOnly
+  ["isTrial", "smsLimit", "smsUsed", "trialExpiresAt"].forEach((n) =>
+    res.cookies.set(n, "", { ...base, httpOnly: false })
+  );
 
   return res;
 }
