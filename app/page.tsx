@@ -60,8 +60,7 @@ function RingingPhoneBig() {
         min-h-0
         md:min-h-[520px]
         lg:min-h-[640px]
-        scale-[1]
-        md:scale-[1.25]
+        scale-[1.25]
         lg:scale-[1.35]
         mt-6 md:mt-0
       "
@@ -70,8 +69,7 @@ function RingingPhoneBig() {
         <motion.span
           key={i}
           className="
-            absolute
-            hidden md:block
+            absolute hidden md:block
             w-[520px] h-[520px]
             rounded-full border border-[#cbb38a]/25
           "
@@ -99,12 +97,12 @@ function RingingPhoneBig() {
           ease: "easeInOut",
         }}
         className="
-  w-[300px]
-  sm:w-[320px]
-  md:w-[420px]
-  lg:w-[640px]
-  object-contain relative z-10
-"
+          w-[380px]
+          sm:w-[420px]
+          md:w-[420px]
+          lg:w-[640px]
+          object-contain relative z-10
+        "
       />
     </div>
   );
