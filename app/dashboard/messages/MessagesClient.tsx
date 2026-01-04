@@ -693,17 +693,29 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
 
-      <button
-        onClick={sendToAll}
-        disabled={channel === "whatsapp" ? !selectedGuestId : disableSend}
-        className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
-      >
-        {channel === "whatsapp"
-          ? "💬 שלח ב־WhatsApp"
-          : `📩 שליחה (${guestsToSend.length})`}
-      </button>
+      {/* כפתור שליחה ראשי */}
+<button
+  onClick={sendToAll}
+  disabled={channel === "whatsapp" ? !selectedGuestId : disableSend}
+  className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
+>
+  {channel === "whatsapp"
+    ? "💬 שלח ב־WhatsApp"
+    : `📩 שליחה (${guestsToSend.length})`}
+</button>
 
+{/* כפתור משני – הודעות מתוזמנות */}
+<button
+  onClick={async () => {
+    await loadScheduledMessages();
+    setShowScheduled(true);
+  }}
+  className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
+>
+  📅 צפייה בהודעות מתוזמנות
+</button>
 
+{/* מודאל הודעות מתוזמנות – נפתח רק בלחיצה */}
 {showScheduled && (
   <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
     <div className="bg-white rounded-2xl w-[95%] max-w-[900px] max-h-[85vh] overflow-y-auto p-6 relative">
@@ -728,6 +740,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     </div>
   </div>
 )}
+
 
 
       
