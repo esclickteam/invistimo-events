@@ -348,11 +348,8 @@ const loadScheduledMessages = async () => {
 
 
 if (data.scheduled) {
-  // ⏱️ הודעה מתוזמנת – טוענים ואז פותחים מודאל
-  await loadScheduledMessages();
-  setShowScheduled(true);
+  alert(`⏱️ ההודעה תוזמנה בהצלחה\nתישלח ל־${data.guestsCount} אורחים`);
 } else {
-  // ✅ שליחה מיידית – פידבק רגיל
   alert(`✅ נשלחו ${data.sent} הודעות`);
 }
 
