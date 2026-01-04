@@ -9,7 +9,7 @@ import { cookies } from "next/headers";
 ====================================================== */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   await dbConnect();
 
@@ -35,7 +35,7 @@ export async function PATCH(
   }
 
   /* ================= PARAMS ================= */
-  const { id } = params;
+  const { id } = await context.params;
 
   /* ================= BODY ================= */
   const { text, scheduledAt } = await request.json();
@@ -72,7 +72,7 @@ export async function PATCH(
 ====================================================== */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   await dbConnect();
 
@@ -98,7 +98,7 @@ export async function DELETE(
   }
 
   /* ================= PARAMS ================= */
-  const { id } = params;
+  const { id } = await context.params;
 
   const msg = await ScheduledMessage.findOne({
     _id: id,
