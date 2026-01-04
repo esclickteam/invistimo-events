@@ -89,7 +89,8 @@ const MESSAGE_TEMPLATES: Record<
   const [message, setMessage] = useState(MESSAGE_TEMPLATES.rsvp.content);
 
   const [filter, setFilter] = useState<FilterType>("pending");
-  const [channel, setChannel] = useState<Channel>("whatsapp");
+  const [channel, setChannel] = useState<Channel>("sms");
+
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
@@ -216,6 +217,17 @@ useEffect(() => {
       setSelectedGuestId(guestIdFromUrl);
     }
   }, [searchParams]);
+
+  /* ================= RESET SCHEDULING WHEN WHATSAPP ================= */
+
+useEffect(() => {
+  if (channel === "whatsapp") {
+    setSendTiming("now");
+    setScheduledDate("");
+    setScheduledTime("");
+  }
+}, [channel]);
+
 
   /* ================= LOGIC ================= */
 
@@ -629,70 +641,73 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 </div>
 
  {/* ================= MESSAGE TIMING ================= */}
-<div className="w-[90%] md:w-[600px] mb-6">
-  <label className="block font-semibold text-[#4a413a] mb-2">
-    ⏱️ תזמון ההודעה
-  </label>
-
-  <div className="flex gap-6 mb-4">
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="radio"
-        checked={sendTiming === "now"}
-        onChange={() => setSendTiming("now")}
-      />
-      שליחה מיידית
+{channel === "sms" && (
+  <div className="w-[90%] md:w-[600px] mb-6">
+    <label className="block font-semibold text-[#4a413a] mb-2">
+      ⏱️ תזמון ההודעה
     </label>
 
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="radio"
-        checked={sendTiming === "scheduled"}
-        onChange={() => setSendTiming("scheduled")}
-      />
-      שליחה מתוזמנת
-    </label>
-  </div>
-
-  {sendTiming === "scheduled" && (
-    <div className="flex gap-4">
-      <div className="flex-1">
-        <label className="text-sm text-gray-600">תאריך שליחה</label>
+    <div className="flex gap-6 mb-4">
+      <label className="flex items-center gap-2 cursor-pointer">
         <input
-          type="date"
-          min={new Date().toISOString().split("T")[0]}
-          value={scheduledDate}
-          onChange={(e) => setScheduledDate(e.target.value)}
-          className="w-full border rounded-xl p-3"
+          type="radio"
+          checked={sendTiming === "now"}
+          onChange={() => setSendTiming("now")}
         />
-      </div>
+        שליחה מיידית
+      </label>
 
-      <div className="flex-1">
-        <label className="text-sm text-gray-600">שעת שליחה</label>
+      <label className="flex items-center gap-2 cursor-pointer">
         <input
-          type="time"
-          value={scheduledTime}
-          onChange={(e) => setScheduledTime(e.target.value)}
-          className="w-full border rounded-xl p-3"
+          type="radio"
+          checked={sendTiming === "scheduled"}
+          onChange={() => setSendTiming("scheduled")}
         />
-      </div>
+        שליחה מתוזמנת
+      </label>
     </div>
-  )}
 
-  {sendTiming === "scheduled" && scheduledAt && (
-    <p className="text-xs text-gray-500 mt-2">
-      📅 ההודעה תישלח בתאריך{" "}
-      <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
-      בשעה{" "}
-      <strong>
-        {scheduledAt.toLocaleTimeString("he-IL", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </strong>
-    </p>
-  )}
-</div>
+    {sendTiming === "scheduled" && (
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <label className="text-sm text-gray-600">תאריך שליחה</label>
+          <input
+            type="date"
+            min={new Date().toLocaleDateString("en-CA")}
+            value={scheduledDate}
+            onChange={(e) => setScheduledDate(e.target.value)}
+            className="w-full border rounded-xl p-3"
+          />
+        </div>
+
+        <div className="flex-1">
+          <label className="text-sm text-gray-600">שעת שליחה</label>
+          <input
+            type="time"
+            value={scheduledTime}
+            onChange={(e) => setScheduledTime(e.target.value)}
+            className="w-full border rounded-xl p-3"
+          />
+        </div>
+      </div>
+    )}
+
+    {sendTiming === "scheduled" && scheduledAt && (
+      <p className="text-xs text-gray-500 mt-2">
+        📅 ההודעה תישלח בתאריך{" "}
+        <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
+        בשעה{" "}
+        <strong>
+          {scheduledAt.toLocaleTimeString("he-IL", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </strong>
+      </p>
+    )}
+  </div>
+)}
+
 
 
 
