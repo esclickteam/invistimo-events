@@ -97,6 +97,7 @@ const MESSAGE_TEMPLATES: Record<
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
 
+
   /* ================= SCHEDULING ================= */
 
 type SendTiming = "now" | "scheduled";
@@ -382,6 +383,13 @@ if (data.scheduled) {
 
 
   const sendToAll = () => {
+  if (isDemo) {
+    alert("🟡 זהו דמו בלבד\nכדי לשלוח הודעות אמיתיות יש לפתוח אירוע");
+    return;
+  }
+
+  // הקוד הקיים ממשיך כרגיל
+
 
   // ✅ ולידציה לתזמון
   if (sendTiming === "scheduled" && !scheduledAt) {
@@ -556,7 +564,8 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         </div>
       )}
 
-      {channel === "sms" && (
+      {channel === "sms" && !isDemo && (
+
         <div className="mb-6 w-[90%] md:w-[600px]">
           <label className="block mb-2">למי לשלוח:</label>
           <select
@@ -679,7 +688,8 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 </div>
 
  {/* ================= MESSAGE TIMING ================= */}
-{channel === "sms" && (
+{channel === "sms" && !isDemo && (
+
   <div className="w-[90%] md:w-[600px] mb-6">
     <label className="block font-semibold text-[#4a413a] mb-2">
       ⏱️ תזמון ההודעה
@@ -752,26 +762,24 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       {/* כפתור שליחה ראשי */}
 <button
   onClick={sendToAll}
-  disabled={channel === "whatsapp" ? !selectedGuestId : disableSend}
-  className="w-[90%] md:w-[600px] bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50"
+  disabled={
+    isDemo ||
+    (channel === "whatsapp" ? !selectedGuestId : disableSend)
+  }
+  title={isDemo ? "שליחה זמינה לאחר פתיחת אירוע" : undefined}
+  className="
+    w-[90%] md:w-[600px]
+    bg-green-600 text-white
+    py-4 rounded-xl text-lg font-semibold
+    disabled:opacity-50 disabled:cursor-not-allowed
+  "
 >
-  {channel === "whatsapp"
+  {isDemo
+    ? "🔒 שליחה זמינה לאחר פתיחת אירוע"
+    : channel === "whatsapp"
     ? "💬 שלח ב־WhatsApp"
     : `📩 שליחה (${guestsToSend.length})`}
 </button>
-
-{/* כפתור משני – הודעות מתוזמנות */}
-{channel === "sms" && (
-  <button
-    onClick={async () => {
-      await loadScheduledMessages();
-      setShowScheduled(true);
-    }}
-    className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
-  >
-    📅 צפייה בהודעות מתוזמנות
-  </button>
-)}
 
 {/* מודאל הודעות מתוזמנות – נפתח רק בלחיצה */}
 {showScheduled && (
