@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
@@ -9,13 +9,13 @@ import { cookies } from "next/headers";
 ====================================================== */
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await dbConnect();
 
   /* ================= AUTH ================= */
-  const cookieStore = await cookies(); // ✅ חובה await
+  const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
 
   if (!token) {
@@ -35,6 +35,9 @@ export async function PATCH(
     );
   }
 
+  /* ================= PARAMS ================= */
+  const { id } = await params;
+
   /* ================= BODY ================= */
   const { text, scheduledAt } = await request.json();
 
@@ -46,7 +49,7 @@ export async function PATCH(
   }
 
   const msg = await ScheduledMessage.findOne({
-    _id: params.id,
+    _id: id,
     userId: decoded.userId,
     status: "scheduled",
   });
@@ -70,13 +73,13 @@ export async function PATCH(
 ====================================================== */
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await dbConnect();
 
   /* ================= AUTH ================= */
-  const cookieStore = await cookies(); // ✅ חובה await
+  const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
 
   if (!token) {
@@ -96,8 +99,11 @@ export async function DELETE(
     );
   }
 
+  /* ================= PARAMS ================= */
+  const { id } = await params;
+
   const msg = await ScheduledMessage.findOne({
-    _id: params.id,
+    _id: id,
     userId: decoded.userId,
     status: "scheduled",
   });
