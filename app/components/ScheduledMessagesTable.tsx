@@ -117,7 +117,7 @@ export default function ScheduledMessagesTable({
                         disabled={loadingId === msg._id}
                         className="px-3 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600 disabled:opacity-50"
                       >
-                        ❌ ביטול
+                        ⏸️ בטל תזמון
                       </button>
                     </div>
                   ) : (
