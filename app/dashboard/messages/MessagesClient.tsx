@@ -616,21 +616,43 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
       {/* Header */}
       <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
-        INVISTIMO · SMS
-      </div>
+  INVISTIMO · {channel === "sms" ? "SMS" : "WhatsApp"}
+</div>
 
       {/* Message bubble */}
-      <div className="p-4">
-  <div className="bg-gray-200 rounded-2xl p-3 text-sm text-gray-900 max-w-[90%]">
+      <div className={`p-4 flex ${channel === "whatsapp" ? "justify-start" : "justify-center"}`}>
 
-    {renderPreviewText(
-  channel === "sms"
-    ? message
-    : selectedGuest
-      ? buildMessage(selectedGuest)
-          .replace(/📍 ניווט לאירוע:\s*\n?/g, "")
-          .replace(/https?:\/\/[^\s]+/g, "")
-      : message
+  <div
+  className={`rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap ${
+    channel === "sms"
+      ? "bg-gray-200 text-gray-900"
+      : "bg-[#dcf8c6] text-gray-900 self-start"
+  }`}
+>
+
+    {channel === "sms" ? (
+  renderPreviewText(message)
+) : selectedGuest ? (
+  <div className="space-y-2">
+    {buildMessage(selectedGuest)
+      .split("\n")
+      .map((line, i) => {
+        if (line.startsWith("http")) {
+          return (
+            <div
+              key={i}
+              className="bg-white border rounded-lg p-2 text-green-700 text-xs break-all"
+            >
+              {line}
+            </div>
+          );
+        }
+
+        return <p key={i}>{line}</p>;
+      })}
+  </div>
+) : (
+  renderPreviewText(message)
 )}
 
   </div>
