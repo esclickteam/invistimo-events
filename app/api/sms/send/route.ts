@@ -3,6 +3,7 @@ import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
+import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
@@ -41,13 +42,10 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     TRIAL / SMS LIMIT GUARD (🔥 קריטי)
+     TRIAL / SMS LIMIT GUARD
   ====================================================== */
   if (user.isTrial) {
-    if (
-      user.trialExpiresAt &&
-      new Date() > user.trialExpiresAt
-    ) {
+    if (user.trialExpiresAt && new Date() > user.trialExpiresAt) {
       return NextResponse.json(
         { success: false, error: "TRIAL_EXPIRED" },
         { status: 403 }
@@ -65,7 +63,7 @@ export async function POST(req: Request) {
   /* ======================================================
      BODY
   ====================================================== */
-  const { invitationId, filter, text } = await req.json();
+  const { invitationId, filter = "all", text, scheduledAt } = await req.json();
 
   if (!invitationId || !text) {
     return NextResponse.json(
@@ -83,13 +81,39 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     סינון אורחים
+     בניית query לאורחים
   ====================================================== */
   const query: any = { invitationId };
-
   if (filter === "pending") query.rsvp = "pending";
   if (filter === "withTable") query.tableName = { $exists: true, $ne: "" };
 
+  /* ======================================================
+     ⏱️ תזמון – אם יש scheduledAt → שומרים ויוצאים
+  ====================================================== */
+  if (scheduledAt) {
+    const guestsCount = await InvitationGuest.countDocuments(query);
+
+    await ScheduledMessage.create({
+      invitationId,
+      userId: user._id,
+      channel: "sms",
+      filter,
+      text,
+      scheduledAt: new Date(scheduledAt),
+      guestsCount,
+      status: "scheduled",
+    });
+
+    return NextResponse.json({
+      success: true,
+      scheduled: true,
+      guestsCount,
+    });
+  }
+
+  /* ======================================================
+     שליפה לשליחה מיידית
+  ====================================================== */
   const guests = await InvitationGuest.find(query).lean();
 
   if (!guests.length) {
@@ -131,7 +155,7 @@ export async function POST(req: Request) {
     : "";
 
   /* ======================================================
-     שליחה
+     שליחה מיידית
   ====================================================== */
   let sent = 0;
 
@@ -139,13 +163,10 @@ export async function POST(req: Request) {
     let phone = (guest.phone || "").replace(/\D/g, "");
     if (!phone) continue;
 
-    if (phone.startsWith("0")) {
-      phone = "972" + phone.slice(1);
-    } else if (!phone.startsWith("972")) {
-      phone = "972" + phone;
-    }
+    if (phone.startsWith("0")) phone = "972" + phone.slice(1);
+    else if (!phone.startsWith("972")) phone = "972" + phone;
 
-    let finalText = text
+    const finalText = text
       .replace(/{{name}}/g, guest.name || "")
       .replace(
         /{{rsvpLink}}/g,
@@ -209,7 +230,6 @@ export async function POST(req: Request) {
       $inc: { smsUsed: sent },
     });
 
-    // 🔄 סנכרון cookie למiddleware
     cookieStore.set("smsUsed", String(user.smsUsed + sent), {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",

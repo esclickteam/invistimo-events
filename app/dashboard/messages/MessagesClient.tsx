@@ -91,6 +91,21 @@ const MESSAGE_TEMPLATES: Record<
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
 
+  /* ================= SCHEDULING ================= */
+
+type SendTiming = "now" | "scheduled";
+
+const [sendTiming, setSendTiming] = useState<SendTiming>("now");
+const [scheduledDate, setScheduledDate] = useState<string>("");
+const [scheduledTime, setScheduledTime] = useState<string>("");
+
+const scheduledAt = useMemo(() => {
+  if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime)
+    return null;
+
+  return new Date(`${scheduledDate}T${scheduledTime}:00`);
+}, [sendTiming, scheduledDate, scheduledTime]);
+
  /* ================= LOAD DATA ================= */
 
 useEffect(() => {
@@ -294,6 +309,7 @@ const sendWhatsApp = (guest: Guest) => {
   invitationId: invitation._id,
   filter,
   text: message,
+  scheduledAt,
 }),
     });
 
@@ -328,14 +344,26 @@ const sendWhatsApp = (guest: Guest) => {
 
 
   const sendToAll = () => {
-    if (channel === "whatsapp") {
-      const guest = guests.find((g) => g._id === selectedGuestId);
-      if (!guest) return alert("בחר/י מוזמן לשליחה");
-      sendWhatsApp(guest);
-    } else {
-      sendSMS();
-    }
-  };
+
+  // ✅ ולידציה לתזמון
+  if (sendTiming === "scheduled" && !scheduledAt) {
+    return alert("נא לבחור תאריך ושעה לשליחה");
+  }
+
+  // ❗ אופציונלי: לחסום תזמון ל-WhatsApp
+  if (channel === "whatsapp" && sendTiming === "scheduled") {
+    return alert("תזמון זמין כרגע לשליחת SMS בלבד");
+  }
+
+  if (channel === "whatsapp") {
+    const guest = guests.find((g) => g._id === selectedGuestId);
+    if (!guest) return alert("בחר/י מוזמן לשליחה");
+    sendWhatsApp(guest);
+  } else {
+    sendSMS();
+  }
+};
+
 
   const selectedGuest =
     guests.find((g) => g._id === selectedGuestId) || null;
@@ -567,6 +595,73 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     </div>
   </div>
 </div>
+
+ {/* ================= MESSAGE TIMING ================= */}
+<div className="w-[90%] md:w-[600px] mb-6">
+  <label className="block font-semibold text-[#4a413a] mb-2">
+    ⏱️ תזמון ההודעה
+  </label>
+
+  <div className="flex gap-6 mb-4">
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="radio"
+        checked={sendTiming === "now"}
+        onChange={() => setSendTiming("now")}
+      />
+      שליחה מיידית
+    </label>
+
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="radio"
+        checked={sendTiming === "scheduled"}
+        onChange={() => setSendTiming("scheduled")}
+      />
+      שליחה מתוזמנת
+    </label>
+  </div>
+
+  {sendTiming === "scheduled" && (
+    <div className="flex gap-4">
+      <div className="flex-1">
+        <label className="text-sm text-gray-600">תאריך שליחה</label>
+        <input
+          type="date"
+          min={new Date().toISOString().split("T")[0]}
+          value={scheduledDate}
+          onChange={(e) => setScheduledDate(e.target.value)}
+          className="w-full border rounded-xl p-3"
+        />
+      </div>
+
+      <div className="flex-1">
+        <label className="text-sm text-gray-600">שעת שליחה</label>
+        <input
+          type="time"
+          value={scheduledTime}
+          onChange={(e) => setScheduledTime(e.target.value)}
+          className="w-full border rounded-xl p-3"
+        />
+      </div>
+    </div>
+  )}
+
+  {sendTiming === "scheduled" && scheduledAt && (
+    <p className="text-xs text-gray-500 mt-2">
+      📅 ההודעה תישלח בתאריך{" "}
+      <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
+      בשעה{" "}
+      <strong>
+        {scheduledAt.toLocaleTimeString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </strong>
+    </p>
+  )}
+</div>
+
 
 
       <button
