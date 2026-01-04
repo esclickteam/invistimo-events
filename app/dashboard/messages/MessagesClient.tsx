@@ -328,8 +328,11 @@ const sendWhatsApp = (guest: Guest) => {
 }
 
 
-    alert(`✅ נשלחו ${data.sent} הודעות`);
-
+if (data.scheduled) {
+  alert(`⏱️ ההודעה תוזמנה בהצלחה\nתישלח ל־${data.guestsCount} אורחים`);
+} else {
+  alert(`✅ נשלחו ${data.sent} הודעות`);
+}
     // 🔄 ריענון יתרה אחרי שליחה
     const balanceRes = await fetch("/api/messages/balance");
     const balanceData = await balanceRes.json();
@@ -580,15 +583,17 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       {/* Message bubble */}
       <div className="p-4">
   <div className="bg-gray-200 rounded-2xl p-3 text-sm text-gray-900 max-w-[90%]">
+
     {renderPreviewText(
-  selectedGuest
-    ? (channel === "whatsapp"
-        ? buildMessage(selectedGuest)
-            .replace(/📍 ניווט לאירוע:\s*\n?/g, "")
-            .replace(/https?:\/\/[^\s]+/g, "")
-        : buildMessage(selectedGuest))
-    : message
+  channel === "sms"
+    ? message
+    : selectedGuest
+      ? buildMessage(selectedGuest)
+          .replace(/📍 ניווט לאירוע:\s*\n?/g, "")
+          .replace(/https?:\/\/[^\s]+/g, "")
+      : message
 )}
+
   </div>
 </div>
 
