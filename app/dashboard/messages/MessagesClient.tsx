@@ -446,11 +446,10 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       ← חזרה
     </button>
 
-    <div className="w-full max-w-[900px] flex items-center justify-between mb-8">
-  <h1 className="text-3xl font-semibold text-[#4a413a]">
+    <div className="w-full max-w-[900px] flex items-center justify-center mb-8">
+  <h1 className="text-3xl font-semibold text-[#4a413a] text-center">
     שליחת הודעות לאורחים 💌
   </h1>
-
 </div>
 
 
