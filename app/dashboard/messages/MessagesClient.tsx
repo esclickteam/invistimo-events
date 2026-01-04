@@ -108,7 +108,10 @@ const scheduledAt = useMemo(() => {
   if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime)
     return null;
 
-  return new Date(`${scheduledDate}T${scheduledTime}:00`);
+  const [year, month, day] = scheduledDate.split("-").map(Number);
+  const [hour, minute] = scheduledTime.split(":").map(Number);
+
+  return new Date(year, month - 1, day, hour, minute, 0, 0);
 }, [sendTiming, scheduledDate, scheduledTime]);
 
  /* ================= LOAD DATA ================= */
