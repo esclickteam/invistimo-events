@@ -7,7 +7,7 @@ import { useState } from "react";
 type ScheduledMessage = {
   _id: string;
   text: string;
-  scheduledAt: string;
+  scheduledAt: string; // ISO string (UTC מה-DB)
 };
 
 export default function EditScheduledMessageModal({
@@ -19,13 +19,23 @@ export default function EditScheduledMessageModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [text, setText] = useState(message.text);
+  const initialDate = new Date(message.scheduledAt);
+
+  // ✅ תאריך מקומי ל-input date (YYYY-MM-DD)
   const [date, setDate] = useState(
-    new Date(message.scheduledAt).toISOString().split("T")[0]
+    initialDate.toLocaleDateString("en-CA")
   );
+
+  // ✅ שעה מקומית ל-input time (HH:mm)
   const [time, setTime] = useState(
-    new Date(message.scheduledAt).toISOString().slice(11, 16)
+    initialDate.toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
   );
+
+  const [text, setText] = useState(message.text);
   const [loading, setLoading] = useState(false);
 
   /* ================= SAVE ================= */
@@ -41,7 +51,19 @@ export default function EditScheduledMessageModal({
       return;
     }
 
-    const scheduledAt = new Date(`${date}T${time}:00`);
+    // ✅ בניית Date מקומי (לא מ-string ISO)
+    const [year, month, day] = date.split("-").map(Number);
+    const [hour, minute] = time.split(":").map(Number);
+
+    const scheduledAt = new Date(
+      year,
+      month - 1,
+      day,
+      hour,
+      minute,
+      0,
+      0
+    );
 
     if (scheduledAt.getTime() < Date.now()) {
       alert("לא ניתן לקבוע זמן עבר");
@@ -56,7 +78,7 @@ export default function EditScheduledMessageModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
-          scheduledAt,
+          scheduledAt, // נשלח כ-Date, השרת ישמור כ-UTC
         }),
       });
 
@@ -103,7 +125,7 @@ export default function EditScheduledMessageModal({
         <input
           type="date"
           value={date}
-          min={new Date().toISOString().split("T")[0]}
+          min={new Date().toLocaleDateString("en-CA")}
           onChange={(e) => setDate(e.target.value)}
           className="w-full border rounded-xl p-3 mb-4"
         />
