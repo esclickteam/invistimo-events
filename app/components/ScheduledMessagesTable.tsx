@@ -69,7 +69,8 @@ export default function ScheduledMessagesTable({
   return (
     <>
       {/* ================= DESKTOP TABLE ================= */}
-      <div className="hidden sm:block overflow-x-auto" dir="ltr">
+      <div className="hidden sm:block overflow-x-auto" dir="rtl">
+
         <table className="w-full border rounded-xl overflow-hidden text-sm table-fixed">
           <thead className="bg-gray-100">
             <tr>
