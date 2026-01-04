@@ -781,6 +781,20 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     : `📩 שליחה (${guestsToSend.length})`}
 </button>
 
+{/* כפתור פתיחת מודאל הודעות מתוזמנות */}
+{channel === "sms" && !isDemo && (
+  <button
+    onClick={async () => {
+      await loadScheduledMessages();
+      setShowScheduled(true);
+    }}
+    className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
+  >
+    📅 צפייה בהודעות מתוזמנות
+  </button>
+)}
+
+
 {/* מודאל הודעות מתוזמנות – נפתח רק בלחיצה */}
 {showScheduled && (
   <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
