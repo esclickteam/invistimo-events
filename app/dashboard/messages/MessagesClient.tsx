@@ -611,17 +611,21 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   </p>
 
   <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
+
     <div
-  className="rounded-[28px] overflow-hidden"
-  style={{
-    backgroundImage:
-      channel === "whatsapp"
-        ? "url('/whatsapp-bg.png')"
-        : "none",
-    backgroundSize: "cover",
-    backgroundRepeat: "repeat",
-  }}
+  className={`rounded-[28px] overflow-hidden ${
+    channel === "sms" ? "bg-white" : ""
+  }`}
+  style={
+    channel === "whatsapp"
+      ? {
+          backgroundImage: "url('/whatsapp-bg.png')",
+          backgroundRepeat: "repeat",
+        }
+      : undefined
+  }
 >
+
 
       {/* Header */}
       <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
