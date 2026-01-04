@@ -802,7 +802,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     <div
   className="
     bg-white rounded-2xl relative
-    w-[95%] max-w-[800px]
+    w-[95%] max-w-[900px]
 
     max-h-[85vh] overflow-y-auto
     p-4 sm:p-6
