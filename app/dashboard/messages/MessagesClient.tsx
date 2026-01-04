@@ -723,15 +723,17 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 </button>
 
 {/* כפתור משני – הודעות מתוזמנות */}
-<button
-  onClick={async () => {
-    await loadScheduledMessages();
-    setShowScheduled(true);
-  }}
-  className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
->
-  📅 צפייה בהודעות מתוזמנות
-</button>
+{channel === "sms" && (
+  <button
+    onClick={async () => {
+      await loadScheduledMessages();
+      setShowScheduled(true);
+    }}
+    className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
+  >
+    📅 צפייה בהודעות מתוזמנות
+  </button>
+)}
 
 {/* מודאל הודעות מתוזמנות – נפתח רק בלחיצה */}
 {showScheduled && (
