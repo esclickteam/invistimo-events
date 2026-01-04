@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
@@ -7,7 +7,6 @@ import { cookies } from "next/headers";
 /* ======================================================
    PATCH – Edit Scheduled Message
 ====================================================== */
-
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -35,6 +34,9 @@ export async function PATCH(
     );
   }
 
+  /* ================= PARAMS ================= */
+  const { id } = params;
+
   /* ================= BODY ================= */
   const { text, scheduledAt } = await request.json();
 
@@ -46,7 +48,7 @@ export async function PATCH(
   }
 
   const msg = await ScheduledMessage.findOne({
-    _id: params.id,
+    _id: id,
     userId: decoded.userId,
     status: "scheduled",
   });
@@ -68,7 +70,6 @@ export async function PATCH(
 /* ======================================================
    DELETE – Cancel Scheduled Message
 ====================================================== */
-
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -76,8 +77,8 @@ export async function DELETE(
   await dbConnect();
 
   /* ================= AUTH ================= */
- const cookieStore = await cookies();
- const token = cookieStore.get("authToken")?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("authToken")?.value;
 
   if (!token) {
     return NextResponse.json(
@@ -96,8 +97,11 @@ export async function DELETE(
     );
   }
 
+  /* ================= PARAMS ================= */
+  const { id } = params;
+
   const msg = await ScheduledMessage.findOne({
-    _id: params.id,
+    _id: id,
     userId: decoded.userId,
     status: "scheduled",
   });
