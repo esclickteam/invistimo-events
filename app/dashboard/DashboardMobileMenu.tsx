@@ -22,67 +22,29 @@ export default function DashboardMobileMenu({
 
   if (!open) return null;
 
-  /* ===============================
-     🔐 ניווט חכם לפי מצב דמו
-  =============================== */
-  const handleNav = (path: string) => {
-    if (isDemo) {
-      // בדמו – פתוחים רק דשבורד / הושבה / הודעות
-      if (
-        path === "/dashboard" ||
-        path === "/dashboard/seating" ||
-        path === "/dashboard/messages"
-      ) {
-        onClose();
-        router.push(`/try${path}`);
-      } else {
-        onClose();
-        setShowDemoModal(true);
-      }
-      return;
-    }
-
-    // פרודקשן
+  const go = (path: string) => {
     onClose();
     router.push(path);
   };
 
-  const handleBlockedAction = () => {
+  const demoBlock = () => {
     onClose();
     setShowDemoModal(true);
   };
 
   return (
     <>
-      {/* ===============================
-         Drawer
-      =============================== */}
+      {/* Drawer */}
       <div className="fixed inset-0 z-50 md:hidden" dir="rtl">
-        {/* Overlay */}
-        <div
-          className="absolute inset-0 bg-black/40"
-          onClick={onClose}
-        />
+        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-        {/* Drawer */}
-        <aside
-          className="
-            absolute top-0 right-0
-            h-full w-[80%] max-w-xs
-            bg-[#f5eee7]
-            border-l border-[#e2d6c8]
-            shadow-xl
-            p-6
-            flex flex-col
-            gap-6
-          "
-        >
+        <aside className="absolute top-0 right-0 h-full w-[80%] max-w-xs bg-[#f5eee7] border-l border-[#e2d6c8] shadow-xl p-6 flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <span className="font-semibold text-lg text-[#4a413a]">
               ניהול האירוע
             </span>
-            <button onClick={onClose} aria-label="סגירת תפריט">
+            <button onClick={onClose}>
               <X size={22} />
             </button>
           </div>
@@ -90,9 +52,13 @@ export default function DashboardMobileMenu({
           {/* Navigation */}
           <nav className="flex flex-col gap-4 text-[#4a413a] font-medium">
 
-            {/* ✏️ עריכת / יצירת הזמנה */}
+            {/* ✏️ עריכת הזמנה */}
             <button
-              onClick={handleBlockedAction}
+              onClick={() =>
+                isDemo
+                  ? demoBlock()
+                  : go("/dashboard/edit-invite")
+              }
               className="flex items-center gap-2 text-right"
             >
               <Pencil size={16} />
@@ -101,7 +67,11 @@ export default function DashboardMobileMenu({
 
             {/* 🪑 סידורי הושבה */}
             <button
-              onClick={() => handleNav("/dashboard/seating")}
+              onClick={() =>
+                isDemo
+                  ? go("/try/dashboard/seating")
+                  : go("/dashboard/seating")
+              }
               className="text-right"
             >
               🪑 סידורי הושבה
@@ -110,7 +80,15 @@ export default function DashboardMobileMenu({
             {/* 👁️ צפייה בהזמנה */}
             {invitationShareId && (
               <button
-                onClick={handleBlockedAction}
+                onClick={() =>
+                  isDemo
+                    ? demoBlock()
+                    : window.open(
+                        `https://www.invistimo.com/invite/${invitationShareId}`,
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                }
                 className="text-right"
               >
                 👁️ צפייה בהזמנה
@@ -119,16 +97,24 @@ export default function DashboardMobileMenu({
 
             {/* 🛠️ עריכת פרטי האירוע */}
             <button
-              onClick={handleBlockedAction}
+              onClick={() =>
+                isDemo
+                  ? demoBlock()
+                  : go("/dashboard/event")
+              }
               className="flex items-center gap-2 text-right"
             >
               <Pencil size={16} />
               עריכת פרטי האירוע
             </button>
 
-            {/* 💬 שליחת הודעות */}
+            {/* 💬 הודעות */}
             <button
-              onClick={() => handleNav("/dashboard/messages")}
+              onClick={() =>
+                isDemo
+                  ? go("/try/dashboard/messages")
+                  : go("/dashboard/messages")
+              }
               className="text-right"
             >
               💬 שליחת הודעות
@@ -138,9 +124,7 @@ export default function DashboardMobileMenu({
         </aside>
       </div>
 
-      {/* ===============================
-         🧪 Demo Modal
-      =============================== */}
+      {/* 🧪 Demo Modal */}
       {showDemoModal && (
         <div className="fixed inset-0 z-[9999] flex items-end justify-center">
           <div
@@ -148,44 +132,21 @@ export default function DashboardMobileMenu({
             onClick={() => setShowDemoModal(false)}
           />
 
-          <div
-            className="
-              relative
-              w-[92%] max-w-sm
-              mb-6
-              bg-[#fff7e6]
-              border border-[#e6cfa3]
-              text-[#5c4632]
-              rounded-2xl
-              shadow-xl
-              p-5
-              text-center
-            "
-          >
+          <div className="relative w-[92%] max-w-sm mb-6 bg-[#fff7e6] border border-[#e6cfa3] text-[#5c4632] rounded-2xl shadow-xl p-5 text-center">
             <button
               onClick={() => setShowDemoModal(false)}
-              className="absolute top-3 left-3 text-gray-400 hover:text-gray-600"
-              aria-label="סגירת חלון"
+              className="absolute top-3 left-3 text-gray-400"
             >
               ✕
             </button>
 
-            <div className="text-sm leading-relaxed mb-4">
+            <div className="text-sm mb-4">
               🧪 בדמו ניתן לצפות בדשבורד, סידורי הושבה והודעות בלבד
             </div>
 
             <button
               onClick={() => router.push("/login")}
-              className="
-                w-full
-                py-2.5
-                rounded-full
-                bg-[#c9b48f]
-                text-white
-                font-semibold
-                hover:bg-[#b7a27a]
-                transition
-              "
+              className="w-full py-2.5 rounded-full bg-[#c9b48f] text-white font-semibold"
             >
               להתחברות
             </button>
