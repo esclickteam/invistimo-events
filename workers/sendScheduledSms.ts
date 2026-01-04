@@ -13,22 +13,36 @@ export async function sendScheduledSms() {
 
   const now = new Date();
 
+  let processed = 0;
+  let sentTotal = 0;
+  let failed = 0;
+
   /* ======================================================
-     שליפת הודעות שמוכנות לשליחה
+     שליפת הודעות שמוכנות לשליחה (בלי cancelled)
   ====================================================== */
-  const messages = await ScheduledMessage.find({
+  const candidates = await ScheduledMessage.find({
     status: "scheduled",
     scheduledAt: { $lte: now },
-  }).limit(10); // ⛔ הגבלה לבטיחות (לא להציף)
+  })
+    .sort({ scheduledAt: 1 })
+    .limit(10)
+    .select("_id")
+    .lean();
 
-  for (const msg of messages) {
+  for (const c of candidates) {
+    processed++;
+
+    // 🔒 Atomic lock – מונע שליחה כפולה
+    const msg = await ScheduledMessage.findOneAndUpdate(
+      { _id: c._id, status: "scheduled" },
+      { $set: { status: "sending" } },
+      { new: true }
+    );
+
+    // אם מישהו אחר כבר לקח – מדלגים
+    if (!msg) continue;
+
     try {
-      /* ======================================================
-         נעילה (prevent double send)
-      ====================================================== */
-      msg.status = "sending";
-      await msg.save();
-
       const invitation = await Invitation.findById(msg.invitationId).lean();
       const user = await User.findById(msg.userId);
 
@@ -42,8 +56,9 @@ export async function sendScheduledSms() {
       const query: any = { invitationId: msg.invitationId };
 
       if (msg.filter === "pending") query.rsvp = "pending";
-      if (msg.filter === "withTable")
+      if (msg.filter === "withTable") {
         query.tableName = { $exists: true, $ne: "" };
+      }
 
       const guests = await InvitationGuest.find(query).lean();
 
@@ -69,6 +84,7 @@ export async function sendScheduledSms() {
         msg.status = "failed";
         msg.error = "SMS_LIMIT_REACHED";
         await msg.save();
+        failed++;
         continue;
       }
 
@@ -151,6 +167,8 @@ export async function sendScheduledSms() {
       msg.sentAt = new Date();
       await msg.save();
 
+      sentTotal += sent;
+
       if (sent > 0) {
         await Invitation.updateOne(
           { _id: msg.invitationId },
@@ -172,6 +190,16 @@ export async function sendScheduledSms() {
       msg.status = "failed";
       msg.error = err?.message || "UNKNOWN_ERROR";
       await msg.save();
+      failed++;
     }
   }
+
+  /* ======================================================
+     Result (ללוגים של Cron)
+  ====================================================== */
+  return {
+    processed,
+    sent: sentTotal,
+    failed,
+  };
 }

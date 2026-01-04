@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
+import Link from "next/link";
+
 
 /* ================= TYPES ================= */
 
@@ -411,9 +413,19 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       ← חזרה
     </button>
 
-    <h1 className="text-3xl font-semibold mb-8 text-[#4a413a] text-center">
-      שליחת הודעות לאורחים 💌
-    </h1>
+    <div className="w-full max-w-[900px] flex items-center justify-between mb-8">
+  <h1 className="text-3xl font-semibold text-[#4a413a]">
+    שליחת הודעות לאורחים 💌
+  </h1>
+
+  <Link
+    href="/dashboard/scheduled-messages"
+    className="text-sm px-4 py-2 rounded-xl border border-[#c9a46a] text-[#4a413a] hover:bg-[#f7ede2] transition"
+  >
+    📅 הודעות מתוזמנות
+  </Link>
+</div>
+
 
 
       {/* BALANCE CARD */}

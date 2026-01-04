@@ -1,14 +1,15 @@
 import mongoose, { Schema, Types } from "mongoose";
 
 /* ======================================================
-   ScheduledMessage Schema
+   Types
 ====================================================== */
 
 export type ScheduledMessageStatus =
   | "scheduled"
   | "sending"
   | "sent"
-  | "failed";
+  | "failed"
+  | "cancelled";
 
 export interface ScheduledMessageDocument {
   _id: Types.ObjectId;
@@ -81,7 +82,7 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     status: {
       type: String,
-      enum: ["scheduled", "sending", "sent", "failed"],
+      enum: ["scheduled", "sending", "sent", "failed", "cancelled"],
       default: "scheduled",
       index: true,
     },
@@ -108,7 +109,7 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 );
 
 /* ======================================================
-   Indexes (ביצועים)
+   Indexes (ביצועים + Cron)
 ====================================================== */
 
 // לשליפה מהירה של הודעות שמוכנות לשליחה
@@ -120,6 +121,12 @@ ScheduledMessageSchema.index({
 // היסטוריה לפי הזמנה
 ScheduledMessageSchema.index({
   invitationId: 1,
+  createdAt: -1,
+});
+
+// היסטוריה לפי משתמש (מסך "הודעות מתוזמנות")
+ScheduledMessageSchema.index({
+  userId: 1,
   createdAt: -1,
 });
 
