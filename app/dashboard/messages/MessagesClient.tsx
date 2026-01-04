@@ -621,6 +621,8 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       ? {
           backgroundImage: "url('/whatsapp-bg.png')",
           backgroundRepeat: "repeat",
+          backgroundSize: "auto",
+
         }
       : undefined
   }
@@ -637,11 +639,11 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
   <div
-  className={`rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap ${
-  channel === "sms"
-    ? "bg-gray-200 text-gray-900"
-    : "bg-[#dcf8c6] text-gray-900"
-}`}
+  className={`rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words ${
+    channel === "sms"
+      ? "bg-gray-200 text-gray-900"
+      : "bg-[#dcf8c6] text-gray-900"
+  }`}
 >
 
     {channel === "sms" ? (
@@ -774,7 +776,14 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 {/* מודאל הודעות מתוזמנות – נפתח רק בלחיצה */}
 {showScheduled && (
   <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-    <div className="bg-white rounded-2xl w-[95%] max-w-[900px] max-h-[85vh] overflow-y-auto p-6 relative">
+    <div
+  className="
+    bg-white rounded-2xl relative
+    w-[92%] max-w-[520px]
+    max-h-[85vh] overflow-y-auto
+    p-4 sm:p-6
+  "
+>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
