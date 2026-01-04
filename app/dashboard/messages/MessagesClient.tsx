@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
+import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 import Link from "next/link";
 
 
@@ -92,6 +93,8 @@ const MESSAGE_TEMPLATES: Record<
 
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
+  const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
+  const [showScheduled, setShowScheduled] = useState(false);
 
   /* ================= SCHEDULING ================= */
 
@@ -293,6 +296,20 @@ const sendWhatsApp = (guest: Guest) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
+const loadScheduledMessages = async () => {
+  try {
+    const res = await fetch("/api/scheduled-messages");
+    const data = await res.json();
+
+    if (data.success) {
+      setScheduledMessages(data.messages);
+    }
+  } catch (err) {
+    console.error("❌ Failed to load scheduled messages", err);
+  }
+};
+
+
 
 
   const sendSMS = async () => {
@@ -331,10 +348,14 @@ const sendWhatsApp = (guest: Guest) => {
 
 
 if (data.scheduled) {
-  alert(`⏱️ ההודעה תוזמנה בהצלחה\nתישלח ל־${data.guestsCount} אורחים`);
+  // ⏱️ הודעה מתוזמנת – טוענים ואז פותחים מודאל
+  await loadScheduledMessages();
+  setShowScheduled(true);
 } else {
+  // ✅ שליחה מיידית – פידבק רגיל
   alert(`✅ נשלחו ${data.sent} הודעות`);
 }
+
     // 🔄 ריענון יתרה אחרי שליחה
     const balanceRes = await fetch("/api/messages/balance");
     const balanceData = await balanceRes.json();
@@ -418,12 +439,6 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     שליחת הודעות לאורחים 💌
   </h1>
 
-  <Link
-    href="/dashboard/scheduled-messages"
-    className="text-sm px-4 py-2 rounded-xl border border-[#c9a46a] text-[#4a413a] hover:bg-[#f7ede2] transition"
-  >
-    📅 הודעות מתוזמנות
-  </Link>
 </div>
 
 
@@ -690,6 +705,35 @@ const progress = max > 0 ? (used / max) * 100 : 0;
           ? "💬 שלח ב־WhatsApp"
           : `📩 שליחה (${guestsToSend.length})`}
       </button>
+
+
+{showScheduled && (
+  <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+    <div className="bg-white rounded-2xl w-[95%] max-w-[900px] max-h-[85vh] overflow-y-auto p-6 relative">
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">📅 הודעות מתוזמנות</h2>
+
+        <button
+          onClick={() => setShowScheduled(false)}
+          className="text-gray-500 hover:text-black text-xl"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Table */}
+      <ScheduledMessagesTable
+        messages={scheduledMessages}
+        onChange={loadScheduledMessages}
+      />
+    </div>
+  </div>
+)}
+
+
+      
     </div>
   );
 }
