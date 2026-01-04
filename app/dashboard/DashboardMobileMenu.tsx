@@ -52,18 +52,7 @@ export default function DashboardMobileMenu({
           {/* Navigation */}
           <nav className="flex flex-col gap-4 text-[#4a413a] font-medium">
 
-            {/* ✏️ עריכת הזמנה */}
-            <button
-              onClick={() =>
-                isDemo
-                  ? demoBlock()
-                  : go("/dashboard/edit-invite")
-              }
-              className="flex items-center gap-2 text-right"
-            >
-              <Pencil size={16} />
-              עריכת הזמנה
-            </button>
+           
 
             {/* 🪑 סידורי הושבה */}
             <button
