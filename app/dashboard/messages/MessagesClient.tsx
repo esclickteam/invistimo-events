@@ -88,7 +88,8 @@ const MESSAGE_TEMPLATES: Record<
   const [templateKey, setTemplateKey] = useState<MessageType>("rsvp");
   const [message, setMessage] = useState(MESSAGE_TEMPLATES.rsvp.content);
 
-  const [filter, setFilter] = useState<FilterType>("pending");
+  const [filter, setFilter] = useState<FilterType>("all");
+
   const [channel, setChannel] = useState<Channel>("sms");
 
 

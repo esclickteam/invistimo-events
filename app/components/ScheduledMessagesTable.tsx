@@ -83,9 +83,11 @@ export default function ScheduledMessagesTable({
           <tbody>
             {messages.map((msg) => (
               <tr key={msg._id} className="border-t">
-                <td className="p-3 text-right max-w-[420px] truncate">
-                  {msg.text}
-                </td>
+                <td className="p-3 text-right max-w-[520px]">
+  <div className="whitespace-pre-wrap break-words leading-relaxed text-gray-800 bg-gray-50 rounded-lg p-2">
+    {msg.text}
+  </div>
+</td>
 
                 <td className="p-3 text-center">
                   {new Date(msg.scheduledAt).toLocaleString("he-IL")}
