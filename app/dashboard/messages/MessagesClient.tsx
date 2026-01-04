@@ -611,7 +611,17 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   </p>
 
   <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
-    <div className="bg-white rounded-[28px] overflow-hidden">
+    <div
+  className="rounded-[28px] overflow-hidden"
+  style={{
+    backgroundImage:
+      channel === "whatsapp"
+        ? "url('/whatsapp-bg.png')"
+        : "none",
+    backgroundSize: "cover",
+    backgroundRepeat: "repeat",
+  }}
+>
 
       {/* Header */}
       <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
@@ -619,14 +629,15 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 </div>
 
       {/* Message bubble */}
-      <div className={`p-4 flex ${channel === "whatsapp" ? "justify-start" : "justify-center"}`}>
+      <div className="p-4 flex justify-center">
+
 
   <div
   className={`rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap ${
-    channel === "sms"
-      ? "bg-gray-200 text-gray-900"
-      : "bg-[#dcf8c6] text-gray-900 self-start"
-  }`}
+  channel === "sms"
+    ? "bg-gray-200 text-gray-900"
+    : "bg-[#dcf8c6] text-gray-900"
+}`}
 >
 
     {channel === "sms" ? (
