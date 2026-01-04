@@ -69,36 +69,43 @@ export default function ScheduledMessagesTable({
   return (
     <>
       {/* ================= DESKTOP TABLE ================= */}
-      <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full border rounded-xl overflow-hidden text-sm">
+      <div className="hidden sm:block overflow-x-auto" dir="ltr">
+        <table className="w-full border rounded-xl overflow-hidden text-sm table-fixed">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-3 text-right">תוכן ההודעה</th>
-              <th className="p-3 text-center">מועד שליחה</th>
-              <th className="p-3 text-center">סטטוס</th>
-              <th className="p-3 text-center">פעולות</th>
+              <th className="p-3 text-right w-[55%]">תוכן ההודעה</th>
+              <th className="p-3 text-center w-[20%]">מועד שליחה</th>
+              <th className="p-3 text-center w-[12%]">סטטוס</th>
+              <th className="p-3 text-center w-[13%]">פעולות</th>
             </tr>
           </thead>
 
           <tbody>
             {messages.map((msg) => (
-              <tr key={msg._id} className="border-t">
-                <td className="p-3 text-right max-w-[520px]">
-  <div className="whitespace-pre-wrap break-words leading-relaxed text-gray-800 bg-gray-50 rounded-lg p-2">
-    {msg.text}
-  </div>
-</td>
+              <tr key={msg._id} className="border-t align-top">
+                {/* תוכן הודעה */}
+                <td className="p-3">
+                  <div
+                    dir="rtl"
+                    className="whitespace-pre-wrap break-words leading-relaxed text-gray-800 bg-gray-50 rounded-lg p-3"
+                  >
+                    {msg.text}
+                  </div>
+                </td>
 
+                {/* תאריך */}
                 <td className="p-3 text-center">
                   {new Date(msg.scheduledAt).toLocaleString("he-IL")}
                 </td>
 
+                {/* סטטוס */}
                 <td
                   className={`p-3 text-center font-semibold ${statusColor[msg.status]}`}
                 >
                   {statusLabel[msg.status]}
                 </td>
 
+                {/* פעולות */}
                 <td className="p-3 text-center">
                   {msg.status === "scheduled" ? (
                     <div className="flex gap-2 justify-center">
@@ -134,9 +141,7 @@ export default function ScheduledMessagesTable({
             key={msg._id}
             className="border rounded-xl p-4 bg-white shadow-sm"
           >
-            <div className="text-sm font-semibold mb-2">
-              תוכן ההודעה
-            </div>
+            <div className="text-sm font-semibold mb-2">תוכן ההודעה</div>
 
             <div className="text-sm text-gray-700 whitespace-pre-wrap break-words mb-3">
               {msg.text}
