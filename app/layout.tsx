@@ -14,6 +14,7 @@ import AccessibilityScript from "./components/AccessibilityScript";
 
 /* =========================================================
    Metadata
+   (Favicons with versioned URLs to break cache like BizUply)
 ========================================================= */
 export const metadata = {
   metadataBase: new URL("https://www.invistimo.com"),
@@ -28,26 +29,22 @@ export const metadata = {
 
   icons: {
     icon: [
-      { url: "/favicon.ico", type: "image/x-icon" },
-      {
-        url: "/favicon-16x16-v2.png",
-        sizes: "16x16",
-        type: "image/png",
-      },
-      {
-        url: "/favicon-32x32-v2.png",
-        sizes: "32x32",
-        type: "image/png",
-      },
-      {
-        url: "/favicon-96x96-v2.png",
-        sizes: "96x96",
-        type: "image/png",
-      },
+      // Keep an .ico (some crawlers/browsers still prefer it)
+      { url: "/favicon-v3.ico?v=3", type: "image/x-icon" },
+
+      // PNG sizes (clear in tabs + Google results)
+      { url: "/favicon-16x16-v3.png?v=3", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32-v3.png?v=3", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-96x96-v3.png?v=3", sizes: "96x96", type: "image/png" },
     ],
-    apple: "/apple-touch-icon.png",
-    shortcut: "/favicon.ico",
+
+    apple: [{ url: "/apple-touch-icon-v3.png?v=3" }],
+
+    shortcut: ["/favicon-v3.ico?v=3"],
   },
+
+  // optional but nice for mobile UI chrome
+  themeColor: "#f7f3ee",
 
   manifest: "/site.webmanifest",
 };
