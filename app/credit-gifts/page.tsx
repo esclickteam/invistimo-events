@@ -68,54 +68,72 @@ export default function CreditGiftsPage() {
       </section>
 
       {/* ================= FEATURES (UPDATED) ================= */}
-      <section className="bg-white py-24">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-6">
-          {[
-            {
-              title: "חלוקה לתשלומים",
-              text: "ניתן לפרוס עד 6 תשלומים את המתנה ואתם מקבלים את מלוא הסכום",
-            },
-            {
-              title: "שיטת תשלום",
-              text: "אפשרות לתשלום בכרטיס אשראי, Apple Pay או Google Pay",
-            },
-            {
-              title: "עמוד מתנה",
-              text: "עמוד ייעודי להענקת מתנה באשראי עם אפשרות להוספת ברכה",
-            },
-            {
-              title: "העברת הכספים",
-              text: "העברת כספי המתנות מתבצעת עד 3 ימי עסקים לאחר האירוע",
-            },
-            {
-              title: "סיכום המתנות",
-              text: "סיכום מלא וברור של כל המתנות עם אפשרות ייצוא לקובץ אקסל",
-            },
-            {
-              title: "תזמון אוטומטי",
-              text: "שליחת הודעות SMS אוטומטיות לכל האורחים ביום האירוע",
-            },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="flex items-start justify-between gap-6
-                         bg-[#faf9f7] border border-[#e8e6e1]
-                         rounded-xl px-6 py-5"
-            >
-              <div>
-                <h3 className="text-lg font-bold mb-1">
-                  {item.title}
-                </h3>
-                <p className="text-gray-600 text-base">
-                  {item.text}
-                </p>
-              </div>
+      {/* ================= FEATURES (WITH ICON IMAGES) ================= */}
+<section className="bg-white py-24">
+  <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-6">
+    {[
+      {
+        title: "חלוקה לתשלומים",
+        text: "ניתן לפרוס עד 3 תשלומים את המתנה ואתם מקבלים את מלוא הסכום",
+        icon: "/icons/installments.png",
+      },
+      {
+        title: "שיטת תשלום",
+        text: "אפשרות לתשלום בכרטיס אשראי, Apple Pay או ",
+        icon: "/icons/payment.png",
+      },
+      {
+        title: "עמוד מתנה",
+        text: "עמוד ייעודי להענקת מתנה באשראי עם אפשרות להוספת ברכה",
+        icon: "/icons/gift-page.png",
+      },
+      {
+        title: "העברת הכספים",
+        text: "העברת כספי המתנות מתבצעת עד 5 ימי עסקים לאחר האירוע",
+        icon: "/icons/transfer.png",
+      },
+      {
+        title: "סיכום המתנות",
+        text: "סיכום מלא וברור של כל המתנות ",
+        icon: "/icons/summary.png",
+      },
+      {
+        title: "תזמון אוטומטי",
+        text: "שליחת הודעות SMS אוטומטיות לכל האורחים ביום האירוע",
+        icon: "/icons/schedule.png",
+      },
+    ].map((item, i) => (
+      <div
+        key={i}
+        className="
+          flex items-start gap-5
+          bg-[#faf9f7]
+          border border-[#e8e6e1]
+          rounded-xl
+          px-6 py-5
+        "
+      >
+        {/* ICON */}
+        <img
+          src={item.icon}
+          alt=""
+          className="w-10 h-10 object-contain flex-shrink-0"
+        />
 
-              <span className="text-[#9c8a5f] text-xl font-bold">✓</span>
-            </div>
-          ))}
+        {/* TEXT */}
+        <div>
+          <h3 className="text-lg font-bold mb-1">
+            {item.title}
+          </h3>
+          <p className="text-gray-600 text-base">
+            {item.text}
+          </p>
         </div>
-      </section>
+      </div>
+    ))}
+  </div>
+</section>
+
 
      
 
