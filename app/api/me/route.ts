@@ -82,6 +82,10 @@ export async function GET() {
           callsRounds: user.callsRounds,
           callsAddonPrice: user.callsAddonPrice,
 
+             // 💳 מתנות באשראי  ✅✅✅
+          includeCreditGifts: user.includeCreditGifts,
+          creditGiftsAddonPrice: user.creditGiftsAddonPrice,
+
           // 🧪 סטטוסים
           isTrial: user.isTrial,
           isDemoUser: user.isDemoUser,
