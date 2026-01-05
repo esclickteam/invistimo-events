@@ -22,6 +22,10 @@ function RegisterFormInner() {
   const callsParam = params.get("calls");
   const includeCalls = plan === "premium" && callsParam === "1";
 
+  const creditGiftsParam = params.get("creditGifts");
+  const includeCreditGifts =
+  plan === "premium" && creditGiftsParam === "1";
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -39,6 +43,8 @@ function RegisterFormInner() {
 
   // ✅ תוספת לשיחות (1₪ לכל אורח) – נשמר לצורך תצוגה + שליחה לשרת
   const [callsAddonPrice, setCallsAddonPrice] = useState<number>(0);
+  const [creditGiftsAddonPrice, setCreditGiftsAddonPrice] = useState<number>(0);
+
 
   /* ============================================================
      חישוב מחיר + priceKey
@@ -83,17 +89,21 @@ function RegisterFormInner() {
         1000: "premium_1000",
       };
 
+      const CREDIT_GIFTS_PRICE = 150;
+
       const base = guests in priceMap ? priceMap[guests] : 0;
       const key = guests in keyMap ? keyMap[guests] : "";
 
       // ✅ תוספת: 1₪ לכל אורח רק אם includeCalls
-      const addon = includeCalls && guests > 0 ? guests * 1 : 0;
+      const callsAddon = includeCalls && guests > 0 ? guests * 1 : 0;
+const creditGiftsAddon = includeCreditGifts ? CREDIT_GIFTS_PRICE : 0;
 
-      setCallsAddonPrice(addon);
-      setPrice(base + addon);
-      setPriceKey(key);
+setCallsAddonPrice(callsAddon);
+setCreditGiftsAddonPrice(creditGiftsAddon);
+setPrice(base + callsAddon + creditGiftsAddon);
+setPriceKey(key);
 
-      return;
+return;
     }
 
     // ------------------------
@@ -102,7 +112,8 @@ function RegisterFormInner() {
     setCallsAddonPrice(0);
     setPrice(0);
     setPriceKey("");
-  }, [plan, guests, includeCalls]);
+  }, [plan, guests, includeCalls, includeCreditGifts]);
+
 
   /* ============================================================
      שינוי שדות
@@ -162,10 +173,14 @@ function RegisterFormInner() {
           // לא חובה לשלוח מחיר, אבל עוזר לתצוגה/לוגים.
           // השרת עדיין חייב לחשב בעצמו לפי maxGuests כדי למנוע זיופים.
           callsAddonPrice,
+          includeCreditGifts,
+          creditGiftsAddonPrice,
+
         }),
       });
 
       const checkoutData = await checkoutRes.json();
+
 
       if (checkoutRes.ok && checkoutData?.url) {
         window.location.href = checkoutData.url;
@@ -262,7 +277,11 @@ function RegisterFormInner() {
 
             <div className="flex items-center justify-between text-[#5c4632]">
               <span className="text-sm">מחיר חבילה</span>
-              <span className="font-semibold">{price - callsAddonPrice} ₪</span>
+
+              <span className="font-semibold">
+  {price - callsAddonPrice - creditGiftsAddonPrice} ₪
+</span>
+
             </div>
 
             <div className="flex items-center justify-between text-[#5c4632]">
@@ -273,6 +292,15 @@ function RegisterFormInner() {
                 {includeCalls ? `${callsAddonPrice} ₪` : "לא נבחר"}
               </span>
             </div>
+
+    {/* ⬅️⬅️⬅️ כאן בדיוק להוסיף */}
+    <div className="flex items-center justify-between text-[#5c4632]">
+      <span className="text-sm">מתנות באשראי</span>
+      <span className="font-semibold">
+        {includeCreditGifts ? `${creditGiftsAddonPrice} ₪` : "לא נבחר"}
+      </span>
+    </div>
+
           </div>
         )}
 
