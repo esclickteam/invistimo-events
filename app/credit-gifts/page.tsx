@@ -31,7 +31,7 @@ export default function CreditGiftsPage() {
           </a>
 
           <p className="text-[#2c5f9e] text-lg">
-            *לא נדרש כרטיס אשראי להרשמה ולשירות
+            *שירות המתנות באשראי מופעל באמצעות ספק הסליקה החיצוני RSVP ומערכת צד ג’ מאובטחת, בהתאם לתקני אבטחה מחמירים.
           </p>
         </div>
       </section>
@@ -159,7 +159,7 @@ export default function CreditGiftsPage() {
           </a>
 
           <p className="text-[#2c5f9e] text-lg">
-            *לא נדרש כרטיס אשראי להרשמה ולשירות
+            *שירות המתנות באשראי מופעל באמצעות ספק הסליקה החיצוני RSVP ומערכת צד ג’ מאובטחת, בהתאם לתקני אבטחה מחמירים.
           </p>
         </div>
       </section>
