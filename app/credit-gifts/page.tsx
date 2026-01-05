@@ -22,12 +22,13 @@ export default function CreditGiftsPage() {
 
         <div className="flex flex-col items-center gap-4">
           <a
-            href="https://ktzr.io/giftInvistimoSignup"
+                href="https://www.invistimo.com/pricing"
+
             target="_blank"
             rel="noopener noreferrer"
             className="px-10 py-4 bg-[#c9ab4d] text-white text-2xl font-bold hover:opacity-90 transition"
           >
-            הרשמה בחינם
+            הצטרפות לחבילות שלנו
           </a>
 
           <p className="text-[#2c5f9e] text-lg">
@@ -150,12 +151,13 @@ export default function CreditGiftsPage() {
 
         <div className="flex flex-col items-center gap-4">
           <a
-            href="https://ktzr.io/giftInvistimoSignup"
+                href="https://www.invistimo.com/pricing"
+
             target="_blank"
             rel="noopener noreferrer"
             className="px-12 py-5 bg-[#c9ab4d] text-white text-2xl font-bold hover:opacity-90 transition"
           >
-            הרשמה בחינם
+           הצטרפו לחבילות שלנו
           </a>
 
           <p className="text-[#2c5f9e] text-lg">
