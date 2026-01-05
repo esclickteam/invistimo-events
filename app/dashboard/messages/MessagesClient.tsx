@@ -97,6 +97,9 @@ const MESSAGE_TEMPLATES: Record<
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
+  const [includeGiftLink, setIncludeGiftLink] = useState(false);
+  const [giftLink, setGiftLink] = useState("");
+
 
 
   /* ================= SCHEDULING ================= */
@@ -261,15 +264,23 @@ useEffect(() => {
         `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
       : "";
 
-  // ✅ חייב token גם ב-SMS וגם ב-WhatsApp כדי לזהות אורח
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-  return message
+  let finalMessage = message
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{rsvpLink}}/g, rsvpLink)
     .replace(/{{tableName}}/g, guest.tableName || "")
     .replace(/{{navigationLink}}/g, navigationLink);
+
+  // 🎁 תוספת קישור מתנה באשראי
+  if (includeGiftLink && giftLink) {
+    finalMessage += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+  }
+
+  return finalMessage;
 };
+
+
 
 /* ================= SEND ================= */
 
@@ -344,9 +355,13 @@ const loadScheduledMessages = async () => {
       body: JSON.stringify({
   invitationId: invitation._id,
   filter,
-  text: message,
+  text:
+    includeGiftLink && giftLink
+      ? `${message}\n\n🎁 למתנה באשראי:\n${giftLink}`
+      : message,
   scheduledAt,
 }),
+
     });
 
     console.log("📬 SMS API status:", res.status);
@@ -389,27 +404,36 @@ if (data.scheduled) {
     return;
   }
 
-  // הקוד הקיים ממשיך כרגיל
-
-
-  // ✅ ולידציה לתזמון
-  if (sendTiming === "scheduled" && !scheduledAt) {
-    return alert("נא לבחור תאריך ושעה לשליחה");
+  // 🎁 ולידציה – קישור מתנה באשראי
+  if (includeGiftLink && !giftLink) {
+    alert("נא להזין קישור למתנה באשראי");
+    return;
   }
 
-  // ❗ אופציונלי: לחסום תזמון ל-WhatsApp
+  // ⏱️ ולידציה לתזמון
+  if (sendTiming === "scheduled" && !scheduledAt) {
+    alert("נא לבחור תאריך ושעה לשליחה");
+    return;
+  }
+
+  // ❗ לחסום תזמון ל־WhatsApp
   if (channel === "whatsapp" && sendTiming === "scheduled") {
-    return alert("תזמון זמין כרגע לשליחת SMS בלבד");
+    alert("תזמון זמין כרגע לשליחת SMS בלבד");
+    return;
   }
 
   if (channel === "whatsapp") {
     const guest = guests.find((g) => g._id === selectedGuestId);
-    if (!guest) return alert("בחר/י מוזמן לשליחה");
+    if (!guest) {
+      alert("בחר/י מוזמן לשליחה");
+      return;
+    }
     sendWhatsApp(guest);
   } else {
     sendSMS();
   }
 };
+
 
 
   const selectedGuest =
@@ -613,6 +637,40 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         rows={6}
         className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
       />
+
+      {/* ================= CREDIT GIFT LINK ================= */}
+<div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
+  <label className="flex items-start gap-2 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={includeGiftLink}
+      onChange={(e) => setIncludeGiftLink(e.target.checked)}
+      className="mt-1"
+    />
+    <span className="text-sm text-[#4a413a]">
+      תוספת להודעה: קישור למתנות באשראי  
+      <span className="block text-xs text-gray-500">
+        מותנה בהרשמה למערכת ספק צד ג’ (RSVP)
+      </span>
+    </span>
+  </label>
+
+  {includeGiftLink && (
+    <div className="mt-4">
+      <label className="block text-sm font-semibold mb-1">
+        קישור למתנה באשראי (לכל האורחים)
+      </label>
+      <input
+        type="url"
+        placeholder="https://..."
+        value={giftLink}
+        onChange={(e) => setGiftLink(e.target.value)}
+        className="w-full border rounded-xl p-3"
+      />
+    </div>
+  )}
+</div>
+
 
       {/* PHONE PREVIEW */}
 <div className="w-[90%] md:w-[360px] mt-4 mb-6">
