@@ -263,7 +263,7 @@ export default function PricingPage() {
                       "3 הודעות SMS לכל אורח",
                       "שליטה מלאה ברשימת האורחים",
                       "סטטיסטיקות וניהול בזמן אמת",
-                      "מתנות באשראי",
+                      
                     ].map((item) => (
                       <li key={item} className="flex items-center gap-3">
                         <Check className="w-5 h-5" />
