@@ -34,7 +34,7 @@ export default function CreditGiftsPage() {
 
 
           <p className="text-[#2c5f9e] text-lg">
-            *שירות המתנות באשראי מופעל באמצעות ספק הסליקה החיצוני RSVP ומערכת צד ג’ מאובטחת, .
+            *שירות המתנות באשראי מופעל באמצעות ספק הסליקה החיצוני RSVP ומערכת צד ג’ מאובטחת.
           </p>
         </div>
       </section>
@@ -166,7 +166,7 @@ export default function CreditGiftsPage() {
 
 
           <p className="text-[#2c5f9e] text-lg">
-            *שירות המתנות באשראי מופעל באמצעות ספק הסליקה החיצוני RSVP ומערכת צד ג’ מאובטחת, .
+            *שירות המתנות באשראי מופעל באמצעות ספק הסליקה החיצוני RSVP ומערכת צד ג’ מאובטחת.
           </p>
         </div>
       </section>
