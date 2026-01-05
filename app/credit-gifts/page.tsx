@@ -69,8 +69,8 @@ export default function CreditGiftsPage() {
 
       {/* ================= FEATURES (UPDATED) ================= */}
       {/* ================= FEATURES (WITH ICON IMAGES) ================= */}
-  <section className="bg-white py-24">
-  <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-6">
+   <section className="bg-white py-24">
+   <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-6">
     {[
       {
         title: "חלוקה לתשלומים",
