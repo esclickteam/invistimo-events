@@ -20,32 +20,20 @@ export default function CreditGiftsPage() {
           הכול מרוכז, מסודר ובטוח
         </p>
 
-       <div className="flex flex-col items-center gap-4">
-  <a
-    href="https://ktzr.io/giftInvistimoSignup"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="
-      px-10 py-4
-      rounded-none
-      bg-[#c9ab4d]
-      text-white
-      text-2xl
-      font-bold
-      hover:opacity-90
-      transition
-      inline-block
-    "
-  >
-    הרשמה בחינם
-  </a>
+        <div className="flex flex-col items-center gap-4">
+          <a
+            href="https://ktzr.io/giftInvistimoSignup"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-10 py-4 bg-[#c9ab4d] text-white text-2xl font-bold hover:opacity-90 transition"
+          >
+            הרשמה בחינם
+          </a>
 
-  <p className="text-[#2c5f9e] text-lg">
-    *לא נדרש כרטיס אשראי להרשמה ולשירות
-  </p>
-</div>
-
-
+          <p className="text-[#2c5f9e] text-lg">
+            *לא נדרש כרטיס אשראי להרשמה ולשירות
+          </p>
+        </div>
       </section>
 
       {/* ================= HOW IT WORKS ================= */}
@@ -79,126 +67,79 @@ export default function CreditGiftsPage() {
         </div>
       </section>
 
-      {/* ================= DASHBOARD PREVIEW ================= */}
-      <section className="py-24" id="demo">
-        <div className="max-w-5xl mx-auto px-6 text-center">
-          <h2 className="text-4xl font-bold mb-6">
-            כל המתנות – בדשבורד אחד
-          </h2>
-          <p className="text-lg text-gray-600 mb-12">
-            מעקב מלא, סכומים, סטטוסים וייצוא נתונים – בלי בלגן
-          </p>
-
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { label: 'סה"כ מתנות', value: '₪12,450' },
-              { label: 'מספר משלמים', value: '37' },
-              { label: 'מתנה ממוצעת', value: '₪336' },
-              { label: 'תשלומים הושלמו', value: '100%' },
-            ].map((card, i) => (
-              <div
-                key={i}
-                className="p-6 bg-white rounded-2xl border text-center"
-              >
-                <div className="text-3xl font-bold mb-2">
-                  {card.value}
-                </div>
-                <div className="text-gray-600">{card.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ================= BENEFITS ================= */}
-      <section className="bg-white py-20">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-8">
+      {/* ================= FEATURES (UPDATED) ================= */}
+      <section className="bg-white py-24">
+        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-6">
           {[
-            "אין מעטפות",
-            "אין ספירה ידנית",
-            "אין טעויות",
-            "הכול מתועד",
-            "חוויה מכובדת לאורחים",
-            "שליטה מלאה בדשבורד",
+            {
+              title: "חלוקה לתשלומים",
+              text: "ניתן לפרוס עד 6 תשלומים את המתנה ואתם מקבלים את מלוא הסכום",
+            },
+            {
+              title: "שיטת תשלום",
+              text: "אפשרות לתשלום בכרטיס אשראי, Apple Pay או Google Pay",
+            },
+            {
+              title: "עמוד מתנה",
+              text: "עמוד ייעודי להענקת מתנה באשראי עם אפשרות להוספת ברכה",
+            },
+            {
+              title: "העברת הכספים",
+              text: "העברת כספי המתנות מתבצעת עד 3 ימי עסקים לאחר האירוע",
+            },
+            {
+              title: "סיכום המתנות",
+              text: "סיכום מלא וברור של כל המתנות עם אפשרות ייצוא לקובץ אקסל",
+            },
+            {
+              title: "תזמון אוטומטי",
+              text: "שליחת הודעות SMS אוטומטיות לכל האורחים ביום האירוע",
+            },
           ].map((item, i) => (
             <div
               key={i}
-              className="p-6 rounded-xl border bg-[#faf9f7]"
+              className="flex items-start justify-between gap-6
+                         bg-[#faf9f7] border border-[#e8e6e1]
+                         rounded-xl px-6 py-5"
             >
-              ✔ {item}
+              <div>
+                <h3 className="text-lg font-bold mb-1">
+                  {item.title}
+                </h3>
+                <p className="text-gray-600 text-base">
+                  {item.text}
+                </p>
+              </div>
+
+              <span className="text-[#9c8a5f] text-xl font-bold">✓</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ================= FAQ ================= */}
-      <section className="py-24">
-        <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-4xl font-bold mb-10 text-center">
-            שאלות נפוצות
-          </h2>
+     
 
-          {[
-            {
-              q: "האורחים חייבים לשלם?",
-              a: "לא. האפשרות למתנה באשראי היא רשות בלבד.",
-            },
-            {
-              q: "אפשר לבטל את האפשרות?",
-              a: "כן, בכל רגע דרך הדשבורד.",
-            },
-            {
-              q: "הכסף נכנס אליי ישירות?",
-              a: "כן, לפי הגדרות הסליקה שלך.",
-            },
-            {
-              q: "יש עמלה?",
-              a: "רק עמלת סליקה סטנדרטית – מוצגת בשקיפות.",
-            },
-          ].map((item, i) => (
-            <div key={i} className="mb-6">
-              <h3 className="text-xl font-semibold mb-2">
-                {item.q}
-              </h3>
-              <p className="text-gray-600">{item.a}</p>
-            </div>
-          ))}
+      {/* ================= CTA ================= */}
+      <section className="py-28 text-center">
+        <h2 className="text-4xl font-bold mb-10">
+          מוכנים לקבל מתנות בלי כאב ראש?
+        </h2>
+
+        <div className="flex flex-col items-center gap-4">
+          <a
+            href="https://ktzr.io/giftInvistimoSignup"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-12 py-5 bg-[#c9ab4d] text-white text-2xl font-bold hover:opacity-90 transition"
+          >
+            הרשמה בחינם
+          </a>
+
+          <p className="text-[#2c5f9e] text-lg">
+            *לא נדרש כרטיס אשראי להרשמה ולשירות
+          </p>
         </div>
       </section>
-
-      <section className="py-28 text-center bg-transparent">
-  <h2 className="text-4xl font-bold mb-10 text-[#2b2b2b]">
-    מוכנים לקבל מתנות בלי כאב ראש?
-  </h2>
-
-  <div className="flex flex-col items-center gap-4">
-    <a
-      href="https://ktzr.io/giftInvistimoSignup"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="
-        px-12 py-5
-        bg-[#c9ab4d]
-        text-white
-        text-2xl
-        font-bold
-        tracking-wide
-        hover:opacity-90
-        transition
-        inline-block
-      "
-    >
-     הרשמה בחינם
-
-    </a>
-
-    <p className="text-[#2c5f9e] text-lg">
-      *לא נדרש כרטיס אשראי להרשמה ולשירות
-    </p>
-  </div>
-</section>
-
-
     </main>
   );
 }
