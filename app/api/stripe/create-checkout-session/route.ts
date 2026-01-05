@@ -208,20 +208,36 @@ export async function POST(req: Request) {
     const basePrice = PREMIUM_PRICE_MAP[level];
     const addonPrice = includeCalls ? CALLS_ADDON_MAP[level] : 0;
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-      {
-        price_data: {
-          currency: "ils",
-          product_data: {
-            name: `Invistimo Premium (עד ${level} אורחים)`,
-          },
-          unit_amount: Math.round(basePrice * 100),
-        },
-        quantity: 1,
+    // 1️⃣ חבילת פרימיום
+const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+  {
+    price_data: {
+      currency: "ils",
+      product_data: {
+        name: `Invistimo Premium (עד ${level} אורחים)`,
       },
-    ];
+      unit_amount: Math.round(basePrice * 100),
+    },
+    quantity: 1,
+  },
+];
 
-    if (includeCreditGifts) {
+// 2️⃣ שירות אישורי הגעה טלפוניים
+if (includeCalls && addonPrice > 0) {
+  lineItems.push({
+    price_data: {
+      currency: "ils",
+      product_data: {
+        name: "שירות אישורי הגעה טלפוניים (3 סבבים)",
+      },
+      unit_amount: Math.round(addonPrice * 100),
+    },
+    quantity: 1,
+  });
+}
+
+// 3️⃣ מתנות באשראי
+if (includeCreditGifts) {
   lineItems.push({
     price_data: {
       currency: "ils",
@@ -229,25 +245,11 @@ export async function POST(req: Request) {
         name: "מתנות באשראי לאורחים (RSVP)",
       },
       unit_amount: Math.round(CREDIT_GIFTS_PRICE * 100),
-
     },
     quantity: 1,
   });
 }
 
-
-    if (includeCalls && addonPrice > 0) {
-      lineItems.push({
-        price_data: {
-          currency: "ils",
-          product_data: {
-            name: "שירות אישורי הגעה טלפוניים (3 סבבים)",
-          },
-          unit_amount: Math.round(addonPrice * 100),
-        },
-        quantity: 1,
-      });
-    }
 
     const creditGiftsAddonPrice = includeCreditGifts
   ? CREDIT_GIFTS_PRICE
