@@ -75,7 +75,7 @@ export default function CreditGiftsPage() {
     {[
       {
         title: "חלוקה לתשלומים",
-        text: "ניתן לפרוס עד 6 תשלומים את המתנה ואתם מקבלים את מלוא הסכום",
+        text: "ניתן לפרוס עד 3 תשלומים את המתנה ואתם מקבלים את מלוא הסכום",
         icon: "/icons/installments.png",
       },
       {
