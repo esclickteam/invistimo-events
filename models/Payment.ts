@@ -16,21 +16,27 @@ export interface PaymentDocument extends Document {
   priceKey: string;
   maxGuests: number;
 
-  // ✅ תוספת שירות שיחות (3 סבבים)
+  // ☎️ שירות שיחות (3 סבבים)
   includeCalls: boolean;
   callsAddonPrice: number;
 
-  // 💰 סכום
+  // 🎁 מתנות באשראי
+  includeCreditGifts: boolean;
+  creditGiftsAddonPrice: number;
+
+  // 💰 סכום כולל ששולם בפועל
   amount: number;
   currency: string;
 
-  // 🧾 מידע נוסף
+  // 🧾 סוג תשלום
   type: "package" | "addon" | "upgrade";
+
+  // 🧠 מידע נוסף מ־Stripe / חישובים
   metadata?: Record<string, any>;
 
   status: "paid" | "refunded" | "failed";
 
-  // 🔥 חדש – האם תשלום בדיקה
+  // 🔥 תשלום בדיקה (Stripe test mode)
   isTest: boolean;
 
   createdAt: Date;
@@ -42,7 +48,12 @@ export interface PaymentDocument extends Document {
 ============================================================ */
 const PaymentSchema = new Schema<PaymentDocument>(
   {
-    email: { type: String, required: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
 
     stripeSessionId: {
       type: String,
@@ -56,49 +67,106 @@ const PaymentSchema = new Schema<PaymentDocument>(
       index: true,
     },
 
-    stripeCustomerId: { type: String },
-    stripePriceId: { type: String },
+    stripeCustomerId: {
+      type: String,
+    },
+
+    stripePriceId: {
+      type: String,
+    },
 
     priceKey: {
       type: String,
       required: true,
     },
 
-    maxGuests: { type: Number, required: true, default: 0 },
+    maxGuests: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
 
-    // ✅ שירות שיחות
-    includeCalls: { type: Boolean, default: false },
-    callsAddonPrice: { type: Number, default: 0 },
+    /* =========================
+       ☎️ שירות שיחות
+    ========================= */
+    includeCalls: {
+      type: Boolean,
+      default: false,
+    },
 
-    amount: { type: Number, required: true },
-    currency: { type: String, default: "ils" },
+    callsAddonPrice: {
+      type: Number,
+      default: 0,
+    },
 
+    /* =========================
+       🎁 מתנות באשראי
+    ========================= */
+    includeCreditGifts: {
+      type: Boolean,
+      default: false,
+    },
+
+    creditGiftsAddonPrice: {
+      type: Number,
+      default: 0,
+    },
+
+    /* =========================
+       💰 סכום
+    ========================= */
+    amount: {
+      type: Number,
+      required: true,
+    },
+
+    currency: {
+      type: String,
+      default: "ils",
+    },
+
+    /* =========================
+       🧾 סוג תשלום
+    ========================= */
     type: {
       type: String,
       enum: ["package", "addon", "upgrade"],
       default: "package",
     },
 
+    /* =========================
+       🧠 Metadata
+    ========================= */
     metadata: {
       type: Schema.Types.Mixed,
       default: {},
     },
 
+    /* =========================
+       סטטוס
+    ========================= */
     status: {
       type: String,
       enum: ["paid", "refunded", "failed"],
       default: "paid",
     },
 
-    // 🔥 חדש – סינון בדיקות
+    /* =========================
+       🔥 בדיקות Stripe
+    ========================= */
     isTest: {
       type: Boolean,
       default: false,
       index: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
+/* ============================================================
+   MODEL
+============================================================ */
 export default mongoose.models.Payment ||
   mongoose.model<PaymentDocument>("Payment", PaymentSchema);

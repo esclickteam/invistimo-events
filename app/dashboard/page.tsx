@@ -434,6 +434,22 @@ console.log("INVITATION:", invitation);
   </div>
 )}
 
+{/* תיוג מתנות באשראי */}
+{user?.plan === "premium" && (
+  <div className="mb-8">
+    {user.includeCreditGifts ? (
+      <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+        💳 כולל מתנות באשראי לאורחים
+      </div>
+    ) : (
+      <div className="inline-flex items-center gap-2 bg-[#fff7e6] text-[#b67c00] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+        ⚠️ ללא מתנות באשראי
+      </div>
+    )}
+  </div>
+)}
+
+
   
 
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
