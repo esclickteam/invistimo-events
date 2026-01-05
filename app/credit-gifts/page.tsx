@@ -69,12 +69,12 @@ export default function CreditGiftsPage() {
 
       {/* ================= FEATURES (UPDATED) ================= */}
       {/* ================= FEATURES (WITH ICON IMAGES) ================= */}
-<section className="bg-white py-24">
+  <section className="bg-white py-24">
   <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-6">
     {[
       {
         title: "חלוקה לתשלומים",
-        text: "ניתן לפרוס עד 3 תשלומים את המתנה ואתם מקבלים את מלוא הסכום",
+        text: "ניתן לפרוס עד 3 תשלומים את המתנה ללא כפל עמלה ואתם מקבלים את מלוא הסכום",
         icon: "/icons/installments.png",
       },
       {
