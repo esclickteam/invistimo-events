@@ -20,23 +20,32 @@ export default function CreditGiftsPage() {
           הכול מרוכז, מסודר ובטוח
         </p>
 
-        <div className="flex justify-center gap-4">
-          <a
-            href="https://ktzr.io/giftInvistimoSignup"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-8 py-4 rounded-full bg-black text-white text-lg hover:opacity-90 transition inline-block"
-          >
-            הפעלת מתנות באשראי
-          </a>
+       <div className="flex flex-col items-center gap-4">
+  <a
+    href="https://ktzr.io/giftInvistimoSignup"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="
+      px-10 py-4
+      rounded-none
+      bg-[#c9ab4d]
+      text-white
+      text-2xl
+      font-bold
+      hover:opacity-90
+      transition
+      inline-block
+    "
+  >
+    הרשמה בחינם
+  </a>
 
-          <a
-            href="#demo"
-            className="px-8 py-4 rounded-full border border-black text-lg hover:bg-black hover:text-white transition inline-block"
-          >
-            צפייה בדוגמה חיה
-          </a>
-        </div>
+  <p className="text-[#2c5f9e] text-lg">
+    *לא נדרש כרטיס אשראי להרשמה ולשירות
+  </p>
+</div>
+
+
       </section>
 
       {/* ================= HOW IT WORKS ================= */}
@@ -157,21 +166,38 @@ export default function CreditGiftsPage() {
         </div>
       </section>
 
-      {/* ================= CTA ================= */}
-      <section className="bg-black text-white py-24 text-center">
-        <h2 className="text-4xl font-bold mb-6">
-          מוכנים לקבל מתנות בלי כאב ראש?
-        </h2>
+      <section className="py-28 text-center bg-transparent">
+  <h2 className="text-4xl font-bold mb-10 text-[#2b2b2b]">
+    מוכנים לקבל מתנות בלי כאב ראש?
+  </h2>
 
-        <a
-          href="https://ktzr.io/giftInvistimoSignup"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-10 py-4 rounded-full bg-white text-black text-lg hover:opacity-90 transition inline-block"
-        >
-          הפעלת מתנות באשראי עכשיו
-        </a>
-      </section>
+  <div className="flex flex-col items-center gap-4">
+    <a
+      href="https://ktzr.io/giftInvistimoSignup"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="
+        px-12 py-5
+        bg-[#c9ab4d]
+        text-white
+        text-2xl
+        font-bold
+        tracking-wide
+        hover:opacity-90
+        transition
+        inline-block
+      "
+    >
+      הפעלת מתנות באשראי עכשיו
+    </a>
+
+    <p className="text-[#2c5f9e] text-lg">
+      *לא נדרש כרטיס אשראי להרשמה ולשירות
+    </p>
+  </div>
+</section>
+
+
     </main>
   );
 }
