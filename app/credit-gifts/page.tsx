@@ -69,66 +69,70 @@ export default function CreditGiftsPage() {
 
       {/* ================= FEATURES (UPDATED) ================= */}
       {/* ================= FEATURES (WITH ICON IMAGES) ================= */}
-   <section className="bg-white py-24">
-   <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-6">
+   {/* ================= FEATURES – CARD UX (LIKE IMAGE) ================= */}
+<section className="bg-white py-24">
+  <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-8">
     {[
       {
         title: "חלוקה לתשלומים",
-        text: "ניתן לפרוס עד 3 תשלומים את המתנה ללא כפל עמלה ואתם מקבלים את מלוא הסכום",
+        text: "ניתן לפרוס עד 6 תשלומים את המתנה ואתם מקבלים את מלוא הסכום",
         icon: "/icons/installments.png",
       },
       {
         title: "שיטת תשלום",
-        text: "אפשרות לתשלום בכרטיס אשראי, Apple Pay או ",
+        text: "ניתן לבחור להעניק מתנה בכרטיס אשראי או Apple Pay / Google Pay",
         icon: "/icons/payment.png",
       },
       {
         title: "עמוד מתנה",
-        text: "עמוד ייעודי להענקת מתנה באשראי עם אפשרות להוספת ברכה",
+        text: "עמוד הענקת מתנה באשראי לאורחי האירוע עם כתיבת ברכה",
         icon: "/icons/gift-page.png",
       },
       {
         title: "העברת הכספים",
-        text: "העברת כספי המתנות מתבצעת עד 5 ימי עסקים לאחר האירוע",
+        text: "העברת כספי המתנות מתבצעת עד 3 ימי עסקים לאחר מועד האירוע",
         icon: "/icons/transfer.png",
       },
       {
         title: "סיכום המתנות",
-        text: "סיכום מלא וברור של כל המתנות ",
+        text: "סיכום כספי המתנות והברכות עם אפשרות הורדה לקובץ אקסל",
         icon: "/icons/summary.png",
       },
       {
         title: "תזמון אוטומטי",
-        text: "שליחת הודעות SMS אוטומטיות לכל האורחים ביום האירוע",
+        text: "שליחה אוטומטית בהודעות SMS לכל האורחים ביום האירוע",
         icon: "/icons/schedule.png",
       },
     ].map((item, i) => (
       <div
         key={i}
         className="
-          flex items-start gap-5
-          bg-[#faf9f7]
-          border border-[#e8e6e1]
-          rounded-xl
-          px-6 py-5
+          bg-white
+          rounded-2xl
+          border border-[#ededed]
+          shadow-[0_6px_20px_rgba(0,0,0,0.06)]
+          px-8 py-10
+          text-center
         "
       >
         {/* ICON */}
-        <img
-          src={item.icon}
-          alt=""
-          className="w-10 h-10 object-contain flex-shrink-0"
-        />
+        <div className="flex justify-center mb-6">
+          <img
+            src={item.icon}
+            alt=""
+            className="w-16 h-16 object-contain"
+          />
+        </div>
+
+        {/* TITLE */}
+        <h3 className="text-2xl font-bold mb-3 text-[#1f1f1f]">
+          {item.title}
+        </h3>
 
         {/* TEXT */}
-        <div>
-          <h3 className="text-lg font-bold mb-1">
-            {item.title}
-          </h3>
-          <p className="text-gray-600 text-base">
-            {item.text}
-          </p>
-        </div>
+        <p className="text-gray-600 text-lg leading-relaxed">
+          {item.text}
+        </p>
       </div>
     ))}
   </div>
