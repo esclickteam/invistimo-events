@@ -268,6 +268,15 @@ export async function POST(req: Request) {
 
   const includeCalls = session.metadata?.includeCalls === "true";
   const callsAddonPrice = Number(session.metadata?.callsAddonPrice || 0);
+
+const includeCreditGifts =
+  session.metadata?.includeCreditGifts === "true";
+
+const creditGiftsAddonPrice = Number(
+  session.metadata?.creditGiftsAddonPrice || 0
+);
+
+
   const priceKey = session.metadata?.priceKey || "";
   const maxGuests = Number(session.metadata?.maxGuests || 100);
   const plan = session.metadata?.plan || "basic";
@@ -279,38 +288,45 @@ export async function POST(req: Request) {
      Save Payment
 ============================================================ */
   await Payment.create({
-    email,
-    stripeSessionId: session.id,
-    stripePaymentIntentId: String(session.payment_intent),
-    stripeCustomerId: session.customer as string,
-    priceKey,
-    maxGuests,
-    amount: totalPaid,
-    currency: "ils",
-    status: "paid",
-    metadata: {
-      includeCalls,
-      callsAddonPrice,
-      totalPaid,
-    },
-  });
+  email,
+  stripeSessionId: session.id,
+  stripePaymentIntentId: String(session.payment_intent),
+  stripeCustomerId: session.customer as string,
+  priceKey,
+  maxGuests,
+  amount: totalPaid,
+  currency: "ils",
+  status: "paid",
+  metadata: {
+    includeCalls,
+    callsAddonPrice,
+    includeCreditGifts,
+    creditGiftsAddonPrice,
+    totalPaid,
+  },
+});
 
   /* ============================================================
      Update User Plan
 ============================================================ */
   await User.findByIdAndUpdate(user._id, {
-    plan,
-    guests: maxGuests,
-    paidAmount: totalPaid,
-    includeCalls,
-    callsAddonPrice,
-    planLimits: {
-      maxGuests,
-      smsEnabled: !isBasic,
-      seatingEnabled: !isBasic,
-      remindersEnabled: true,
-    },
-  });
+  plan,
+  guests: maxGuests,
+  paidAmount: totalPaid,
+
+  includeCalls,
+  callsAddonPrice,
+
+  includeCreditGifts,
+  creditGiftsAddonPrice,
+
+  planLimits: {
+    maxGuests,
+    smsEnabled: !isBasic,
+    seatingEnabled: !isBasic,
+    remindersEnabled: true,
+  },
+});
 
   /* ============================================================
      Create or update Invitation
@@ -340,17 +356,21 @@ export async function POST(req: Request) {
      Logs + Admin notification
 ============================================================ */
   console.log(
-    `✅ Full package OK: ${email} | ${maxGuests} guests | calls=${
-      includeCalls ? "yes" : "no"
-    } | totalPaid=${totalPaid}₪`
-  );
+  `✅ Full package OK: ${email} | ${maxGuests} guests | calls=${
+    includeCalls ? "yes" : "no"
+  } | creditGifts=${includeCreditGifts ? "yes" : "no"} | totalPaid=${totalPaid}₪`
+);
 
   await notifyAdminPurchase({
     email,
     amount: totalPaid,
     currency: "ils",
     type: plan === "basic" ? "Basic package" : "Premium package",
-    details: `${maxGuests} אורחים${includeCalls ? " + שירות שיחות" : ""}`,
+    details: `${maxGuests} אורחים${
+  includeCalls ? " + שירות שיחות" : ""
+}${
+  includeCreditGifts ? " + מתנות באשראי" : ""
+}`,
   });
 
   return NextResponse.json({ received: true });

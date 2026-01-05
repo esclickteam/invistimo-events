@@ -8,9 +8,16 @@ export async function POST(req: Request) {
   try {
     await connectDB();
 
-    // ✅ הוספנו includeCalls (בלי לגעת במחירים בכלל)
-    const { name, email, password, plan, guests, includeCalls } =
-      await req.json();
+    // ✅ תוספות: includeCalls + includeCreditGifts
+    const {
+      name,
+      email,
+      password,
+      plan,
+      guests,
+      includeCalls,
+      includeCreditGifts,
+    } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -30,7 +37,7 @@ export async function POST(req: Request) {
     const hashed = await bcrypt.hash(password, 12);
 
     /* ============================================================
-       הגדרות חבילה לפי סוג
+       הגדרות חבילה בסיסיות
        ❗ לא נוגעים במחירים
     ============================================================ */
     let planLimits = {
@@ -60,13 +67,13 @@ export async function POST(req: Request) {
 
       const priceMap: Record<number, number> = {
         100: 149,
-        200: 199,
-        300: 249,
-        400: 299,
-        500: 349,
-        600: 399,
-        700: 449,
-        800: 499,
+        200: 239,
+        300: 299,
+        400: 379,
+        500: 429,
+        600: 489,
+        700: 539,
+        800: 599,
         1000: 699,
       };
 
@@ -74,11 +81,11 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       ✅ שיחות טלפוניות (3 סבבים)
-       ⚠️ לא מחייבים כאן כסף! (התשלום נקבע ע"י Stripe + webhook)
-       כאן רק שומרים בחירה ראשונית כדי שלא "יאבד" בדרך
+       תוספות (ללא חיוב כאן!)
+       החיוב האמיתי נקבע רק ב־Stripe webhook
     ============================================================ */
     const includeCallsBool = Boolean(includeCalls);
+    const includeCreditGiftsBool = Boolean(includeCreditGifts);
 
     /* ============================================================
        יצירת המשתמש
@@ -92,13 +99,17 @@ export async function POST(req: Request) {
       paidAmount,
       planLimits,
 
-      // ✅ חדש
+      // ✅ שיחות
       includeCalls: includeCallsBool,
-      callsAddonPrice: 0, // ישתנה ב-webhook לפי Stripe (totalPaid / callsAddonPrice)
+      callsAddonPrice: 0,
+
+      // ✅ מתנות באשראי
+      includeCreditGifts: includeCreditGiftsBool,
+      creditGiftsAddonPrice: 0,
     });
 
     /* ============================================================
-       יצירת JWT + Cookie (כמו login)
+       JWT + Cookie
     ============================================================ */
     const token = jwt.sign(
       { userId: user._id, email: user.email },
@@ -108,14 +119,18 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({
       success: true,
-      user: { _id: user._id, name: user.name, email: user.email },
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+      },
     });
 
     res.cookies.set("authToken", token, {
       httpOnly: true,
-      secure: true, // חובה ל-SameSite=None
-      sameSite: "none", // ⭐️ קריטי ל-Stripe redirect
-      domain: ".invistimo.com", // www + בלי www
+      secure: true,
+      sameSite: "none",
+      domain: ".invistimo.com",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
