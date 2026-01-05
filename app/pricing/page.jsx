@@ -359,15 +359,7 @@ const creditGiftsPrice = useMemo(() => {
         תוספת: <span className="font-semibold">₪150</span>
       </div>
 
-      <div className="text-xs opacity-80 mt-2">
-        <a
-          href="https://www.invistimo.com/pricing"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          לצפייה בחבילות
-        </a>
+      
       </div>
     </div>
   </label>
