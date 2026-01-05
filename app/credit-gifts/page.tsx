@@ -188,7 +188,8 @@ export default function CreditGiftsPage() {
         inline-block
       "
     >
-      הפעלת מתנות באשראי עכשיו
+     הרשמה בחינם
+
     </a>
 
     <p className="text-[#2c5f9e] text-lg">
