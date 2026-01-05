@@ -448,6 +448,12 @@ if (data.scheduled) {
     ));
   };
 
+const smsPreviewText =
+  includeGiftLink && giftLink
+    ? `${message}\n\n🎁 למתנה באשראי:\n${giftLink}`
+    : message;
+
+
   /* ================= RENDER ================= */
 
   if (loading) return null;
@@ -715,8 +721,9 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 >
 
     {channel === "sms" ? (
-  renderPreviewText(message)
+  renderPreviewText(smsPreviewText)
 ) : selectedGuest ? (
+
   <div className="space-y-2">
     {buildMessage(selectedGuest)
       .split("\n")
