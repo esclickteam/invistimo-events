@@ -80,7 +80,7 @@ export default function CreditGiftsPage() {
       },
       {
         title: "שיטת תשלום",
-        text: "ניתן לבחור להעניק מתנה בכרטיס אשראי או Apple Pay / Google Pay",
+        text: "ניתן לבחור להעניק מתנה בכרטיס אשראי או Apple Pay ",
         icon: "/icons/payment.png",
       },
       {
@@ -96,7 +96,7 @@ export default function CreditGiftsPage() {
       },
       {
         title: "סיכום המתנות",
-        text: "סיכום כספי המתנות והברכות עם אפשרות הורדה לקובץ אקסל",
+        text: "סיכום כספי המתנות והברכות ",
         icon: "/icons/summary.png",
       },
       {
