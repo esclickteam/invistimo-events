@@ -360,7 +360,6 @@ const creditGiftsPrice = useMemo(() => {
       </div>
 
       
-      </div>
     </div>
   </label>
 </div>
