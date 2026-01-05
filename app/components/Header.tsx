@@ -14,53 +14,57 @@ export default function Header() {
   const isDashboard = pathname.startsWith("/dashboard");
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
-    <>
-      <Link
-        href="/"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        ראשי
-      </Link>
-      <Link
-        href="/rsvp"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        אישורי הגעה
-      </Link>
-      <Link
-        href="/seating-explained"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        סידורי הושבה
-      </Link>
-      <Link
-        href="/pricing"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
-        חבילות ומחירים
-      </Link>
-      <Link
-        href="/contact"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
+  <>
+    <Link
+      href="/"
+      onClick={onClick}
+      className="hover:text-[var(--champagne-dark)] transition"
+    >
+      ראשי
+    </Link>
 
-<Link
-  href="/credit-gifts"
-  onClick={onClick}
-  className="hover:text-[var(--champagne-dark)] transition"
->
-  מתנות באשראי
-</Link>
+    <Link
+      href="/rsvp"
+      onClick={onClick}
+      className="hover:text-[var(--champagne-dark)] transition"
+    >
+      אישורי הגעה
+    </Link>
 
-        צור קשר
-      </Link>
-    </>
-  );
+    <Link
+      href="/seating-explained"
+      onClick={onClick}
+      className="hover:text-[var(--champagne-dark)] transition"
+    >
+      סידורי הושבה
+    </Link>
+
+    <Link
+      href="/pricing"
+      onClick={onClick}
+      className="hover:text-[var(--champagne-dark)] transition"
+    >
+      חבילות ומחירים
+    </Link>
+
+    <Link
+      href="/credit-gifts"
+      onClick={onClick}
+      className="hover:text-[var(--champagne-dark)] transition"
+    >
+      מתנות באשראי
+    </Link>
+
+    <Link
+      href="/contact"
+      onClick={onClick}
+      className="hover:text-[var(--champagne-dark)] transition"
+    >
+      צור קשר
+    </Link>
+  </>
+);
+
 
   return (
     <>
