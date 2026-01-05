@@ -43,6 +43,9 @@ const CALLS_ADDON_MAP = {
   1000: 1000,
 };
 
+const CREDIT_GIFTS_PRICE = 150;
+
+
 export default function PricingPage() {
   const router = useRouter();
 
@@ -57,18 +60,24 @@ export default function PricingPage() {
 
   // ✅ בחירה אם לכלול שיחות (3 סבבים)
   const [includeCalls, setIncludeCalls] = useState(false);
+  const [includeCreditGifts, setIncludeCreditGifts] = useState(false);
+
 
   const premiumPrice = useMemo(() => {
     return PREMIUM_PRICE_MAP[premiumGuests] ?? PREMIUM_PRICE_MAP[100];
   }, [premiumGuests]);
 
   const callsAddonPrice = useMemo(() => {
-  return includeCalls ? premiumGuests * 1 : 0; // 1₪ לכל אורח רק אם סומן
+  return includeCalls ? CALLS_ADDON_MAP[premiumGuests] ?? 0 : 0;
 }, [includeCalls, premiumGuests]);
 
+const creditGiftsPrice = useMemo(() => {
+  return includeCreditGifts ? CREDIT_GIFTS_PRICE : 0;
+}, [includeCreditGifts]);
+
   const premiumTotalPrice = useMemo(() => {
-    return includeCalls ? premiumPrice + callsAddonPrice : premiumPrice;
-  }, [includeCalls, premiumPrice, callsAddonPrice]);
+  return premiumPrice + callsAddonPrice + creditGiftsPrice;
+}, [premiumPrice, callsAddonPrice, creditGiftsPrice]);
 
   // ✅ BASIC מחיר קבוע
   const basicPrice = 49;
@@ -82,10 +91,12 @@ export default function PricingPage() {
     }
 
     router.push(
-      `/register?plan=premium&guests=${premiumGuests}&price=${premiumTotalPrice}&calls=${
-        includeCalls ? "1" : "0"
-      }`
-    );
+  `/register?plan=premium&guests=${premiumGuests}&price=${premiumTotalPrice}&calls=${
+    includeCalls ? "1" : "0"
+  }&creditGifts=${includeCreditGifts ? "1" : "0"}`
+);
+
+
   };
 
   return (
@@ -298,37 +309,109 @@ export default function PricingPage() {
                   </div>
 
                   {/* ✅ תוספת: צ׳קבוקס שירות שיחות */}
-                  <div className="bg-white/18 rounded-2xl p-4 mb-6 border border-white/20">
-                    <label className="flex items-start gap-3 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={includeCalls}
-                        onChange={(e) => setIncludeCalls(e.target.checked)}
-                        className="mt-1 h-5 w-5 accent-[#4a413a]"
-                      />
+                  {/* ✅ תוספת: צ׳קבוקס שירות שיחות */}
+<div className="bg-white/18 rounded-2xl p-4 mb-6 border border-white/20">
+  <label className="flex items-start gap-3 cursor-pointer select-none">
+    <input
+      type="checkbox"
+      checked={includeCalls}
+      onChange={(e) => setIncludeCalls(e.target.checked)}
+      className="mt-1 h-5 w-5 accent-[#4a413a]"
+    />
 
-                      <div className="text-white">
-                        <div className="flex items-center gap-2 font-semibold">
-                          <PhoneCall className="w-4 h-4" />
-                          הוספת שירות אישורי הגעה טלפוניים (3 סבבים אנושיים)
-                        </div>
+    <div className="text-white">
+      <div className="flex items-center gap-2 font-semibold">
+        <PhoneCall className="w-4 h-4" />
+        הוספת שירות אישורי הגעה טלפוניים (3 סבבים אנושיים)
+      </div>
 
-                        <div className="text-sm opacity-90 mt-1 leading-relaxed">
-                          שירות אנושי לאורחים שלא ענו — עד 3 ניסיונות לכל אורח + עדכון סטטוס במערכת.
-                        </div>
+      <div className="text-sm opacity-90 mt-1 leading-relaxed">
+        שירות אנושי לאורחים שלא ענו — עד 3 ניסיונות לכל אורח + עדכון סטטוס במערכת.
+      </div>
 
-                        <div className="mt-2 text-sm opacity-95">
-                          תוספת: <span className="font-semibold">₪{callsAddonPrice}</span>
-                        </div>
-                      </div>
-                    </label>
+      <div className="mt-2 text-sm opacity-95">
+        תוספת: <span className="font-semibold">₪{callsAddonPrice}</span>
+      </div>
+    </div>
+  </label>
+</div>
 
-                    {/* ✅ תצוגת מחיר סופי */}
-                    <div className="mt-4 flex items-center justify-between rounded-xl bg-white/25 px-4 py-3">
-                      <span className="text-white font-semibold">סה״כ לתשלום</span>
-                      <span className="text-white font-bold text-lg">₪{premiumTotalPrice}</span>
-                    </div>
-                  </div>
+{/* ✅ תוספת: צ׳קבוקס מתנות באשראי */}
+<div className="bg-white/18 rounded-2xl p-4 mb-6 border border-white/20">
+  <label className="flex items-start gap-3 cursor-pointer select-none">
+    <input
+      type="checkbox"
+      checked={includeCreditGifts}
+      onChange={(e) => setIncludeCreditGifts(e.target.checked)}
+      className="mt-1 h-5 w-5 accent-[#4a413a]"
+    />
+
+    <div className="text-white">
+      <div className="font-semibold">
+        מתנות באשראי לאורחים 💳
+      </div>
+
+      <div className="text-sm opacity-90 mt-1 leading-relaxed">
+        הוספת קישור למתנות באשראי דרך ספק חיצוני (RSVP)
+      </div>
+
+      <div className="mt-2 text-sm opacity-95">
+        תוספת: <span className="font-semibold">₪150</span>
+      </div>
+
+      <div className="text-xs opacity-80 mt-2">
+        <a
+          href="https://www.invistimo.com/pricing"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          לצפייה בחבילות
+        </a>
+      </div>
+    </div>
+  </label>
+</div>
+
+
+
+                   {/* ✅ פירוט מחיר + סה״כ */}
+<div className="mt-4 rounded-xl bg-white/25 px-4 py-3 space-y-2 text-sm">
+
+  {/* מחיר בסיס */}
+  <div className="flex items-center justify-between">
+    <span className="text-white/90">חבילת פרימיום</span>
+    <span className="text-white">₪{premiumPrice}</span>
+  </div>
+
+  {/* תוספת שיחות */}
+  {includeCalls && (
+    <div className="flex items-center justify-between">
+      <span className="text-white/90">אישורי הגעה טלפוניים</span>
+      <span className="text-white">₪{callsAddonPrice}</span>
+    </div>
+  )}
+
+  {/* תוספת מתנות באשראי */}
+  {includeCreditGifts && (
+    <div className="flex items-center justify-between">
+      <span className="text-white/90">מתנות באשראי</span>
+      <span className="text-white">₪{CREDIT_GIFTS_PRICE}</span>
+
+    </div>
+  )}
+
+  {/* קו הפרדה */}
+  <div className="border-t border-white/30 pt-2 flex items-center justify-between">
+    <span className="text-white font-semibold">סה״כ לתשלום</span>
+    <span className="text-white font-bold text-lg">
+      ₪{premiumTotalPrice}
+    </span>
+  </div>
+</div>
+
+
+                  
 
                   <Button
                     className="w-full rounded-full py-6 bg-[#4a413a] hover:bg-[#3a332d]"
