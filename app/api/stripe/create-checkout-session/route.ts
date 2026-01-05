@@ -101,6 +101,9 @@ const CALLS_ADDON_MAP: Record<number, number> = {
   1000: 1000,
 };
 
+const CREDIT_GIFTS_PRICE = 150;
+
+
 /* ============================================================
    Helpers
 ============================================================ */
@@ -115,8 +118,13 @@ function safeGuestLevel(n: any) {
 ============================================================ */
 export async function POST(req: Request) {
   try {
-    const { priceKey, email, invitationId, includeCalls = false } =
-      await req.json();
+    const {
+  priceKey,
+  email,
+  invitationId,
+  includeCalls = false,
+  includeCreditGifts = false,
+} = await req.json();
 
     if (!priceKey || !email) {
       return NextResponse.json(
@@ -213,6 +221,21 @@ export async function POST(req: Request) {
       },
     ];
 
+    if (includeCreditGifts) {
+  lineItems.push({
+    price_data: {
+      currency: "ils",
+      product_data: {
+        name: "מתנות באשראי לאורחים (RSVP)",
+      },
+      unit_amount: Math.round(CREDIT_GIFTS_PRICE * 100),
+
+    },
+    quantity: 1,
+  });
+}
+
+
     if (includeCalls && addonPrice > 0) {
       lineItems.push({
         price_data: {
@@ -226,7 +249,12 @@ export async function POST(req: Request) {
       });
     }
 
-    const totalPaid = basePrice + addonPrice;
+    const creditGiftsAddonPrice = includeCreditGifts
+  ? CREDIT_GIFTS_PRICE
+  : 0;
+
+const totalPaid = basePrice + addonPrice + creditGiftsAddonPrice;
+
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -234,16 +262,22 @@ export async function POST(req: Request) {
       line_items: lineItems,
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/payment/cancel`,
+
       metadata: {
-        invitationId: invitationId || "",
-        priceKey,
-        plan: config.plan,
-        maxGuests: String(level),
-        includeCalls: includeCalls ? "true" : "false",
-        callsAddonPrice: String(addonPrice),
-        totalPaid: String(totalPaid),
-        type: "package",
-      },
+  invitationId: invitationId || "",
+  priceKey,
+  plan: config.plan,
+  maxGuests: String(level),
+
+  includeCalls: includeCalls ? "true" : "false",
+  callsAddonPrice: String(addonPrice),
+
+  includeCreditGifts: includeCreditGifts ? "true" : "false",
+  creditGiftsAddonPrice: String(creditGiftsAddonPrice),
+
+  totalPaid: String(totalPaid),
+  type: "package",
+},
     });
 
     return NextResponse.json({ url: session.url });
