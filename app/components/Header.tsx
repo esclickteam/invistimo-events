@@ -48,6 +48,15 @@ export default function Header() {
         onClick={onClick}
         className="hover:text-[var(--champagne-dark)] transition"
       >
+
+<Link
+  href="/credit-gifts"
+  onClick={onClick}
+  className="hover:text-[var(--champagne-dark)] transition"
+>
+  מתנות באשראי
+</Link>
+
         צור קשר
       </Link>
     </>
