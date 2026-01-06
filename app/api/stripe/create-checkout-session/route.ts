@@ -241,18 +241,24 @@ const finalIncludeCreditGifts = includeCalls
   ? true
   : includeCreditGifts;
 
-if (finalIncludeCreditGifts && !includeCalls) {
+// 🎁 מתנות באשראי – מוצג תמיד אם כלול
+if (finalIncludeCreditGifts) {
   lineItems.push({
     price_data: {
       currency: "ils",
       product_data: {
-        name: "מתנות באשראי לאורחים (RSVP)",
+        name: includeCalls
+          ? "🎁 מתנות באשראי לאורחים – כלול ללא עלות"
+          : "מתנות באשראי לאורחים (RSVP)",
       },
-      unit_amount: Math.round(CREDIT_GIFTS_PRICE * 100),
+      unit_amount: includeCalls
+        ? 0
+        : Math.round(CREDIT_GIFTS_PRICE * 100),
     },
     quantity: 1,
   });
 }
+
 
 
     const creditGiftsAddonPrice =
