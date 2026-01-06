@@ -342,7 +342,7 @@ const creditGiftsPrice = useMemo(() => {
         שירות אנושי לאורחים שלא ענו — עד 3 ניסיונות לכל אורח + עדכון סטטוס במערכת.
       </div>
 
-      <div className="mt-2 text-xs text-white/80 italic">
+      <div className="mt-2 text-xs text-white/85 italic">
   🎁 בשדרוג לשירות זה – מתנות באשראי כלולות ללא עלות
 </div>
 
