@@ -342,14 +342,14 @@ const creditGiftsPrice = useMemo(() => {
         שירות אנושי לאורחים שלא ענו — עד 3 ניסיונות לכל אורח + עדכון סטטוס במערכת.
       </div>
 
-      <div className="mt-2 text-sm opacity-95">
+      <div className="mt-2 text-sm opacity-80">
   {includeCalls ? (
     <span className="font-semibold">
       תוספת: ₪{callsAddonPrice}
     </span>
   ) : (
-    <span>
-      תוספת: <span className="font-semibold">₪{CALLS_ADDON_MAP[premiumGuests]}</span>
+    <span className="italic">
+      המחיר מחושב לפי כמות האורחים
     </span>
   )}
 </div>
