@@ -65,12 +65,12 @@ export default function PricingPage() {
   const handleCallsChange = (checked) => {
   setIncludeCalls(checked);
 
-  // 🎁 אם נבחרו אישורי הגעה טלפוניים – מתנות באשראי נכללות אוטומטית
   if (checked) {
     setIncludeCreditGifts(true);
+  } else {
+    setIncludeCreditGifts(false);
   }
 };
-
 
 
   const premiumPrice = useMemo(() => {
