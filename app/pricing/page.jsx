@@ -62,6 +62,16 @@ export default function PricingPage() {
   const [includeCalls, setIncludeCalls] = useState(false);
   const [includeCreditGifts, setIncludeCreditGifts] = useState(false);
 
+  const handleCallsChange = (checked) => {
+  setIncludeCalls(checked);
+
+  // 🎁 אם נבחרו אישורי הגעה טלפוניים – מתנות באשראי נכללות אוטומטית
+  if (checked) {
+    setIncludeCreditGifts(true);
+  }
+};
+
+
 
   const premiumPrice = useMemo(() => {
     return PREMIUM_PRICE_MAP[premiumGuests] ?? PREMIUM_PRICE_MAP[100];
@@ -312,13 +322,13 @@ const creditGiftsPrice = useMemo(() => {
                   </div>
 
                   {/* ✅ תוספת: צ׳קבוקס שירות שיחות */}
-                  {/* ✅ תוספת: צ׳קבוקס שירות שיחות */}
 <div className="bg-white/18 rounded-2xl p-4 mb-6 border border-white/20">
   <label className="flex items-start gap-3 cursor-pointer select-none">
     <input
       type="checkbox"
       checked={includeCalls}
-      onChange={(e) => setIncludeCalls(e.target.checked)}
+      onChange={(e) => handleCallsChange(e.target.checked)}
+
       className="mt-1 h-5 w-5 accent-[#4a413a]"
     />
 
@@ -334,11 +344,13 @@ const creditGiftsPrice = useMemo(() => {
 
       <div className="mt-2 text-sm opacity-95">
   {includeCalls ? (
-    <span className="font-semibold">₪0 — כלול ללא עלות</span>
+    <span className="font-semibold">
+      תוספת: ₪{callsAddonPrice}
+    </span>
   ) : (
-    <>
-      תוספת: <span className="font-semibold">₪150</span>
-    </>
+    <span>
+      תוספת: <span className="font-semibold">₪{CALLS_ADDON_MAP[premiumGuests]}</span>
+    </span>
   )}
 </div>
 
@@ -350,11 +362,12 @@ const creditGiftsPrice = useMemo(() => {
 <div className="bg-white/18 rounded-2xl p-4 mb-6 border border-white/20">
   <label className="flex items-start gap-3 cursor-pointer select-none">
     <input
-      type="checkbox"
-      checked={includeCreditGifts}
-      onChange={(e) => setIncludeCreditGifts(e.target.checked)}
-      className="mt-1 h-5 w-5 accent-[#4a413a]"
-    />
+  type="checkbox"
+  checked={includeCreditGifts}
+  disabled={includeCalls}
+  onChange={(e) => setIncludeCreditGifts(e.target.checked)}
+  className="mt-1 h-5 w-5 accent-[#4a413a] disabled:opacity-50"
+/>
 
     <div className="text-white">
       <div className="font-semibold">
@@ -366,8 +379,14 @@ const creditGiftsPrice = useMemo(() => {
       </div>
 
       <div className="mt-2 text-sm opacity-95">
-        תוספת: <span className="font-semibold">₪150</span>
-      </div>
+  {includeCalls ? (
+    <span className="font-semibold">₪0 — כלול עם אישורי הגעה טלפוניים</span>
+  ) : (
+    <>
+      תוספת: <span className="font-semibold">₪150</span>
+    </>
+  )}
+</div>
 
       
     </div>
