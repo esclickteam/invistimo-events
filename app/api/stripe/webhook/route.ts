@@ -267,14 +267,17 @@ export async function POST(req: Request) {
     }, 0) / 100;
 
   const includeCalls = session.metadata?.includeCalls === "true";
-  const callsAddonPrice = Number(session.metadata?.callsAddonPrice || 0);
+const callsAddonPrice = Number(session.metadata?.callsAddonPrice || 0);
 
-const includeCreditGifts =
-  session.metadata?.includeCreditGifts === "true";
+// 🎁 כלל עסקי מחייב ב־Webhook:
+// אם יש אישורי הגעה טלפוניים – מתנות באשראי כלולות וחינמיות
+const includeCreditGifts = includeCalls
+  ? true
+  : session.metadata?.includeCreditGifts === "true";
 
-const creditGiftsAddonPrice = Number(
-  session.metadata?.creditGiftsAddonPrice || 0
-);
+const creditGiftsAddonPrice = includeCalls
+  ? 0
+  : Number(session.metadata?.creditGiftsAddonPrice || 0);
 
 
   const priceKey = session.metadata?.priceKey || "";

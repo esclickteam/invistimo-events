@@ -236,8 +236,12 @@ if (includeCalls && addonPrice > 0) {
   });
 }
 
-// 3️⃣ מתנות באשראי
-if (includeCreditGifts) {
+// 🎁 מתנות באשראי – נגבות רק אם אין אישורי הגעה טלפוניים
+const finalIncludeCreditGifts = includeCalls
+  ? true
+  : includeCreditGifts;
+
+if (finalIncludeCreditGifts && !includeCalls) {
   lineItems.push({
     price_data: {
       currency: "ils",
@@ -251,9 +255,10 @@ if (includeCreditGifts) {
 }
 
 
-    const creditGiftsAddonPrice = includeCreditGifts
-  ? CREDIT_GIFTS_PRICE
-  : 0;
+    const creditGiftsAddonPrice =
+  finalIncludeCreditGifts && !includeCalls
+    ? CREDIT_GIFTS_PRICE
+    : 0;
 
 const totalPaid = basePrice + addonPrice + creditGiftsAddonPrice;
 
@@ -274,7 +279,8 @@ const totalPaid = basePrice + addonPrice + creditGiftsAddonPrice;
   includeCalls: includeCalls ? "true" : "false",
   callsAddonPrice: String(addonPrice),
 
-  includeCreditGifts: includeCreditGifts ? "true" : "false",
+  includeCreditGifts: finalIncludeCreditGifts ? "true" : "false",
+
   creditGiftsAddonPrice: String(creditGiftsAddonPrice),
 
   totalPaid: String(totalPaid),

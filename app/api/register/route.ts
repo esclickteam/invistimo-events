@@ -85,7 +85,11 @@ export async function POST(req: Request) {
        החיוב האמיתי נקבע רק ב־Stripe webhook
     ============================================================ */
     const includeCallsBool = Boolean(includeCalls);
-    const includeCreditGiftsBool = Boolean(includeCreditGifts);
+
+// 🎁 אם יש אישורי הגעה טלפוניים – מתנות באשראי תמיד כלולות
+const includeCreditGiftsBool = includeCallsBool
+  ? true
+  : Boolean(includeCreditGifts);
 
     /* ============================================================
        יצירת המשתמש
