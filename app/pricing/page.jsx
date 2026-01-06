@@ -72,8 +72,11 @@ export default function PricingPage() {
 }, [includeCalls, premiumGuests]);
 
 const creditGiftsPrice = useMemo(() => {
+  // אם יש אישורי הגעה טלפוניים – מתנות באשראי חינם
+  if (includeCalls && includeCreditGifts) return 0;
+
   return includeCreditGifts ? CREDIT_GIFTS_PRICE : 0;
-}, [includeCreditGifts]);
+}, [includeCalls, includeCreditGifts]);
 
   const premiumTotalPrice = useMemo(() => {
   return premiumPrice + callsAddonPrice + creditGiftsPrice;
@@ -330,8 +333,15 @@ const creditGiftsPrice = useMemo(() => {
       </div>
 
       <div className="mt-2 text-sm opacity-95">
-        תוספת: <span className="font-semibold">₪{callsAddonPrice}</span>
-      </div>
+  {includeCalls ? (
+    <span className="font-semibold">₪0 — כלול ללא עלות</span>
+  ) : (
+    <>
+      תוספת: <span className="font-semibold">₪150</span>
+    </>
+  )}
+</div>
+
     </div>
   </label>
 </div>
@@ -385,12 +395,16 @@ const creditGiftsPrice = useMemo(() => {
 
   {/* תוספת מתנות באשראי */}
   {includeCreditGifts && (
-    <div className="flex items-center justify-between">
-      <span className="text-white/90">מתנות באשראי</span>
-      <span className="text-white">₪{CREDIT_GIFTS_PRICE}</span>
-
-    </div>
-  )}
+  <div className="flex items-center justify-between">
+    <span className="text-white/90">מתנות באשראי</span>
+    <span className="text-white">
+      ₪{creditGiftsPrice}
+      {includeCalls && creditGiftsPrice === 0 && (
+        <span className="text-xs opacity-80 mr-2">(כלול)</span>
+      )}
+    </span>
+  </div>
+)}
 
   {/* קו הפרדה */}
   <div className="border-t border-white/30 pt-2 flex items-center justify-between">
