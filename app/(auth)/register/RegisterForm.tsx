@@ -96,7 +96,8 @@ function RegisterFormInner() {
 
       // ✅ תוספת: 1₪ לכל אורח רק אם includeCalls
       const callsAddon = includeCalls && guests > 0 ? guests * 1 : 0;
-const creditGiftsAddon = includeCreditGifts ? CREDIT_GIFTS_PRICE : 0;
+const creditGiftsAddon =
+  includeCreditGifts && !includeCalls ? CREDIT_GIFTS_PRICE : 0;
 
 setCallsAddonPrice(callsAddon);
 setCreditGiftsAddonPrice(creditGiftsAddon);
@@ -269,40 +270,45 @@ return;
 
         {/* ✅ פירוט תשלום (רק לפרימיום) */}
         {plan === "premium" && guests > 0 && (
-          <div className="rounded-2xl border border-[#e6dccd] bg-[#fbf8f4] p-4 space-y-2">
-            <div className="flex items-center justify-between text-[#5c4632]">
-              <span className="text-sm">כמות אורחים</span>
-              <span className="font-semibold">{guests}</span>
-            </div>
-
-            <div className="flex items-center justify-between text-[#5c4632]">
-              <span className="text-sm">מחיר חבילה</span>
-
-              <span className="font-semibold">
-  {price - callsAddonPrice - creditGiftsAddonPrice} ₪
-</span>
-
-            </div>
-
-            <div className="flex items-center justify-between text-[#5c4632]">
-              <span className="text-sm">
-                שירות אישורי הגעה טלפוניים (3 סבבים)
-              </span>
-              <span className="font-semibold">
-                {includeCalls ? `${callsAddonPrice} ₪` : "לא נבחר"}
-              </span>
-            </div>
-
-    {/* ⬅️⬅️⬅️ כאן בדיוק להוסיף */}
+  <div className="rounded-2xl border border-[#e6dccd] bg-[#fbf8f4] p-4 space-y-2">
+    
+    {/* כמות אורחים */}
     <div className="flex items-center justify-between text-[#5c4632]">
-      <span className="text-sm">מתנות באשראי</span>
+      <span className="text-sm">כמות אורחים</span>
+      <span className="font-semibold">{guests}</span>
+    </div>
+
+    {/* מחיר חבילה – תמיד מחיר בסיס */}
+    <div className="flex items-center justify-between text-[#5c4632]">
+      <span className="text-sm">מחיר חבילה</span>
       <span className="font-semibold">
-        {includeCreditGifts ? `${creditGiftsAddonPrice} ₪` : "לא נבחר"}
+        {price - callsAddonPrice - creditGiftsAddonPrice} ₪
       </span>
     </div>
 
-          </div>
+    {/* אישורי הגעה טלפוניים */}
+    <div className="flex items-center justify-between text-[#5c4632]">
+      <span className="text-sm">אישורי הגעה טלפוניים (3 סבבים)</span>
+      <span className="font-semibold">
+        {includeCalls ? `${callsAddonPrice} ₪` : "לא נבחר"}
+      </span>
+    </div>
+
+    {/* מתנות באשראי */}
+    <div className="flex items-center justify-between text-[#5c4632]">
+      <span className="text-sm">מתנות באשראי</span>
+      <span className="font-semibold">
+        {includeCreditGifts ? (
+          includeCalls ? "כלול ללא עלות" : `${creditGiftsAddonPrice} ₪`
+        ) : (
+          "לא נבחר"
         )}
+      </span>
+    </div>
+
+  </div>
+)}
+
 
         {/* סכום */}
         <div className="text-center text-lg font-semibold text-[#5c4632]">
