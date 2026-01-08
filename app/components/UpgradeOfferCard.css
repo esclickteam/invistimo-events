@@ -1,0 +1,80 @@
+.upgrade-card {
+  direction: ltr;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2.4rem 2rem;
+  text-align: center;
+  max-width: 420px;
+  margin: 40px auto;
+  box-shadow: 0 12px 28px rgba(123, 97, 255, 0.12);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.header-line {
+  width: 60%;
+  height: 4px;
+  background: linear-gradient(90deg, #7b61ff, #ff7be5);
+  border-radius: 4px;
+  margin: 0 auto 1rem;
+}
+
+.upgrade-card h2 {
+  font-size: 1.6rem;
+  color: #1d1b3a;
+  margin-bottom: 0.6rem;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 1.2rem;
+  line-height: 1.6;
+}
+
+.countdown {
+  font-size: 0.95rem;
+  color: #7b61ff;
+  margin-bottom: 1.8rem;
+  font-weight: 600;
+}
+
+.upgrade-btn {
+  background: linear-gradient(90deg, #7b61ff, #9178ff);
+  color: white;
+  font-weight: 700;
+  padding: 0.95rem 1.2rem;
+  border-radius: 12px;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.upgrade-btn:hover {
+  transform: scale(1.03);
+}
+
+.upgrade-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.back-btn {
+  margin-top: 1rem;
+  background: #fff;
+  border: 2px solid #7b61ff;
+  color: #7b61ff;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 0.95rem 1.2rem;
+  width: 100%;
+  cursor: pointer;
+}
+
+.note {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 1.4rem;
+  line-height: 1.6;
+}

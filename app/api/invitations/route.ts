@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
+import User from "@/models/User";
 import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
@@ -10,19 +11,35 @@ export async function POST(req: Request) {
   try {
     await db();
 
-    // ✔️ זיהוי בעל ההזמנה
+    /* ===============================
+       🔐 זיהוי משתמש
+    =============================== */
     const auth = await getUserIdFromRequest();
 
-if (!auth?.userId) {
-  return NextResponse.json(
-    { success: false, error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-const userId = auth.userId;
+    const userId = auth.userId;
 
-    // ✔️ קבלת גוף הבקשה
+    /* ===============================
+       🧠 טעינת יוזר אמיתי מה־DB
+    =============================== */
+    const user = await User.findById(userId).lean();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    /* ===============================
+       📦 גוף הבקשה
+    =============================== */
     const body = await req.json();
     const { title, canvasData, previewImage } = body;
 
@@ -33,23 +50,46 @@ const userId = auth.userId;
       );
     }
 
-    // ✔️ יצירת מזהה ציבורי להזמנה
+    /* ===============================
+       🧮 הגבלות לפי היוזר האמיתי
+    =============================== */
+    const maxGuests = Number(user.guests) || 100;
+    const maxMessages = Number(user.maxMessages) || 300;
+
+    /* ===============================
+       🔗 יצירת shareId
+    =============================== */
     const shareId = nanoid(10);
 
-    // ✔️ יצירת מסמך במונגו
+    /* ===============================
+       🧾 יצירת ההזמנה
+    =============================== */
     const newInvite = await Invitation.create({
       ownerId: userId,
       title: title || "Untitled Invitation",
       canvasData,
       previewImage: previewImage || null,
       shareId,
-      guests: [], // נוצר ריק בתחילת הדרך
+
+      guests: [],
+
+      maxGuests,          // ✅ כאן התיקון הקריטי
+      maxMessages,
+      sentSmsCount: 0,
+      remainingMessages: maxMessages,
     });
 
-    // ⭐ המרת מסמך mongoose ל־JSON נקי
+    /* ===============================
+       🧼 ניקוי mongoose → JSON
+    =============================== */
     const cleanInvite = JSON.parse(JSON.stringify(newInvite));
 
-    console.log("🔥 NEW INVITATION CREATED:", cleanInvite);
+    console.log("🔥 NEW INVITATION CREATED:", {
+      inviteId: cleanInvite._id,
+      ownerId: userId,
+      maxGuests,
+      maxMessages,
+    });
 
     return NextResponse.json(
       { success: true, invitation: cleanInvite },

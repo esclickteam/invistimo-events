@@ -102,7 +102,8 @@ export default function AddGuestModal({
         throw new Error(data?.error || "שגיאה בשמירה");
       }
 
-      await onSuccess();
+      await onSuccess(data.guest);
+
       onClose();
     } catch (err: any) {
       alert(err.message || "שגיאה");
