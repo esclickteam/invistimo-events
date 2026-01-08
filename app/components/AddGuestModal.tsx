@@ -153,12 +153,19 @@ export default function AddGuestModal({
           onChange={(e) => setPhone(e.target.value)}
         />
 
-        <input
-          className="border w-full rounded px-3 py-2 mb-3"
-          placeholder="קרבה"
-          value={relation}
-          onChange={(e) => setRelation(e.target.value)}
-        />
+        <select
+  className="border w-full rounded px-3 py-2 mb-3 bg-white"
+  value={relation}
+  onChange={(e) => setRelation(e.target.value)}
+>
+  <option value="">בחר קרבה</option>
+  <option value="חברים קרובים">חברים קרובים</option>
+  <option value="משפחה קרובה">משפחה קרובה</option>
+  <option value="משפחה מורחבת">משפחה מורחבת</option>
+  <option value="חברים של ההורים">חברים של ההורים</option>
+  <option value="חברים רחוקים">חברים רחוקים</option>
+</select>
+
 
         <select
           className="border w-full rounded px-3 py-2 mb-3"
