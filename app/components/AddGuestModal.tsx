@@ -158,7 +158,8 @@ export default function AddGuestModal({
             פרטי הגעה
           </h3>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-end">
+
             {/* קרבה */}
             <select
               className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/10"
@@ -174,21 +175,30 @@ export default function AddGuestModal({
             </select>
 
             {/* כמות אורחים */}
-            <select
-              className="w-24 rounded-lg border border-gray-200 bg-white text-center px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black/10"
-              value={guestsCount}
-              onChange={(e) =>
-                setGuestsCount(Number(e.target.value))
-              }
-            >
-              {Array.from({ length: 20 }, (_, i) => i + 1).map(
-                (num) => (
-                  <option key={num} value={num}>
-                    {num}
-                  </option>
-                )
-              )}
-            </select>
+<div className="flex flex-col w-24">
+  <span className="text-xs text-gray-500 mb-1 text-center">
+    כמות אורחים
+  </span>
+
+  <select
+    className="rounded-lg border border-gray-200 bg-white text-center px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black/10"
+    value={guestsCount}
+    onChange={(e) =>
+      setGuestsCount(Number(e.target.value))
+    }
+  >
+    {Array.from({ length: 20 }, (_, i) => i + 1).map(
+      (num) => (
+        <option key={num} value={num}>
+          {num}
+        </option>
+      )
+    )}
+  </select>
+</div>
+
+
+
           </div>
         </div>
 
