@@ -167,20 +167,6 @@ export default function AddGuestModal({
 </select>
 
 
-        <select
-          className="border w-full rounded px-3 py-2 mb-3"
-          value={rsvp}
-          onChange={(e) =>
-            setRsvp(e.target.value as any)
-          }
-        >
-          <option value="yes">{RSVP_LABELS.yes}</option>
-          <option value="no">{RSVP_LABELS.no}</option>
-          <option value="pending">
-            {RSVP_LABELS.pending}
-          </option>
-        </select>
-
         
 
         <div className="flex items-center justify-between gap-3 mb-3">
