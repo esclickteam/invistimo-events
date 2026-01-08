@@ -876,16 +876,18 @@ console.log("INVITATION:", invitation);
   <AddGuestModal
     invitationId={invitationId}
     onClose={() => setOpenAddModal(false)}
-    onSuccess={async (newGuest?: Guest) => {
-      if (isDemo && newGuest) {
-        // 🧪 דמו – מוסיפים מוזמן זמני לפרונט בלבד
-        setGuests((prev) => [...prev, newGuest]);
-        return;
-      }
 
-      // 🟢 פרודקשן – התנהגות רגילה
-      await loadGuests();
-    }}
+    onSuccess={async (newGuest?: Guest) => {
+  if (newGuest) {
+    // ✅ עובד גם בדמו וגם בפרוד – כולל הפעם הראשונה
+    setGuests((prev) => [...prev, newGuest]);
+    return;
+  }
+
+  // fallback (אם מסיבה כלשהי לא חזר guest)
+  await loadGuests();
+}}
+
   />
 )}
 
