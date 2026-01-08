@@ -31,7 +31,6 @@ export default function AddGuestModal({
   const [phone, setPhone] = useState("");
   const [relation, setRelation] = useState("");
   const [guestsCount, setGuestsCount] = useState(1);
-  const [tableNumber, setTableNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
   const demoMode = useSeatingStore((s) => s.demoMode);
