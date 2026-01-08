@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
+import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function GET() {
     }
 
     const invitation = await Invitation.findOne({
-      ownerId: auth.userId, // ✅ string בלבד
+      ownerId: auth.userId,
     })
       .select(`
         title
@@ -73,9 +74,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // אם כבר יש הזמנה — מחזירים אותה
+    /* ===============================
+       🧠 טעינת יוזר אמיתי מה־DB
+    =============================== */
+    const user = await User.findById(auth.userId).lean();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    /* ===============================
+       אם כבר יש הזמנה — מחזירים אותה
+    =============================== */
     const existing = await Invitation.findOne({
-      ownerId: auth.userId, // ✅ string בלבד
+      ownerId: auth.userId,
     })
       .select(`
         title
@@ -97,17 +112,34 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    /* ===============================
+       📦 גוף הבקשה
+    =============================== */
     const body = await req.json().catch(() => ({} as any));
 
+    /* ===============================
+       🧮 הגבלות מהיוזר האמיתי
+    =============================== */
+    const maxGuests = Number(user.guests) || 100;
+    const maxMessages = Number(user.maxMessages) || 300;
+
+    /* ===============================
+       🧾 יצירת ההזמנה
+    =============================== */
     const created = await Invitation.create({
-      ownerId: auth.userId, // ✅ string בלבד
+      ownerId: auth.userId,
       title: body?.title || "הזמנה חדשה",
       eventType: body?.eventType || "",
       eventDate: body?.eventDate || null,
       eventTime: body?.eventTime || "",
       location: body?.location || {},
-      maxGuests: body?.maxGuests || 100,
-      // maxMessages / remainingMessages מחושבים אוטומטית מהמודל
+
+      guests: [],
+
+      maxGuests,                 // ✅ כאן התיקון הקריטי
+      maxMessages,
+      remainingMessages: maxMessages,
+      sentSmsCount: 0,
     });
 
     return NextResponse.json(
