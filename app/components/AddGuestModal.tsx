@@ -204,20 +204,7 @@ export default function AddGuestModal({
           </div>
          </div>
 
-        {/* ===== מיקום (אופציונלי) ===== */}
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-500 mb-2">
-            מיקום (אופציונלי)
-          </h3>
-
-          <input
-            type="number"
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black/10"
-            placeholder="מס׳ שולחן"
-            value={tableNumber}
-            onChange={(e) => setTableNumber(e.target.value)}
-          />
-        </div>
+        
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
