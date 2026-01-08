@@ -181,17 +181,34 @@ export default function AddGuestModal({
     כמות אורחים
   </label>
 
-  <input
-    type="number"
-    min={1}
-    max={20}
+  <select
     value={guestsCount}
     onChange={(e) =>
-      setGuestsCount(Math.max(1, Number(e.target.value)))
+      setGuestsCount(Number(e.target.value))
     }
-    className="w-20 text-center border rounded-lg px-2 py-1"
-  />
+    className="
+      w-24
+      border
+      rounded-lg
+      px-2
+      py-1
+      text-center
+      bg-white
+      focus:outline-none
+      focus:ring-2
+      focus:ring-black/20
+    "
+  >
+    {Array.from({ length: 20 }, (_, i) => i + 1).map(
+      (num) => (
+        <option key={num} value={num}>
+          {num}
+        </option>
+      )
+    )}
+  </select>
 </div>
+
 
         <input
           type="number"
