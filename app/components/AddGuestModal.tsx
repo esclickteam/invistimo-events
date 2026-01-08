@@ -62,15 +62,14 @@ export default function AddGuestModal({
     // 🧪 DEMO MODE
     if (demoMode) {
       const demoGuest: Guest = {
-        _id: crypto.randomUUID(),
-        name,
-        phone,
-        token: "demo-token",
-        relation,
-        rsvp: "pending",
-        guestsCount,
-        tableName: tableNumber ? `שולחן ${tableNumber}` : undefined,
-      };
+  _id: crypto.randomUUID(),
+  name,
+  phone,
+  token: "demo-token",
+  relation,
+  rsvp: "pending",
+  guestsCount,
+};
 
       await onSuccess(demoGuest);
       onClose();
@@ -93,7 +92,7 @@ export default function AddGuestModal({
             relation,
             rsvp: "pending",
             guestsCount,
-            tableNumber: tableNumber ? Number(tableNumber) : undefined,
+            
           }),
         }
       );
