@@ -116,11 +116,13 @@ export default function AddGuestModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div
-        className="bg-white w-[440px] rounded-2xl p-6 shadow-xl"
+          className="bg-white w-[560px] max-w-[90vw] rounded-3xl p-8 shadow-2xl"
+
         dir="rtl"
       >
         {/* Header */}
-        <h2 className="text-xl font-semibold mb-4 text-gray-900">
+        <h2 className="text-xl font-semibold mb-6 text-gray-900">
+
           הוספת מוזמן
         </h2>
 
@@ -229,7 +231,7 @@ export default function AddGuestModal({
           <button
             onClick={save}
             disabled={loading}
-            className="px-5 py-2 rounded-lg bg-black text-white hover:bg-black/90 disabled:opacity-60"
+            className="px-6 py-2 rounded-lg bg-black text-white hover:bg-black/90 disabled:opacity-60"
           >
             {loading ? "שומר..." : "הוסף מוזמן"}
           </button>
