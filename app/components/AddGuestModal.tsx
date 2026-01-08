@@ -200,7 +200,7 @@ export default function AddGuestModal({
 
 
           </div>
-        </div>
+         </div>
 
         {/* ===== מיקום (אופציונלי) ===== */}
         <div className="mb-6">
