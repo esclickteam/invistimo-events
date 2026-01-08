@@ -343,8 +343,6 @@ const creditGiftsPrice = useMemo(() => {
       </div>
 
       <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm text-white">
-
-
   🎁 בשדרוג לשירות זה – מתנות באשראי כלולות ללא עלות
 </div>
 

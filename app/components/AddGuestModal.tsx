@@ -174,16 +174,24 @@ export default function AddGuestModal({
           </option>
         </select>
 
-        <input
-          type="number"
-          min={1}
-          className="border w-full rounded px-3 py-2 mb-3"
-          placeholder="כמות מוזמנים"
-          value={guestsCount}
-          onChange={(e) =>
-            setGuestsCount(Number(e.target.value))
-          }
-        />
+        
+
+        <div className="flex items-center justify-between gap-3 mb-3">
+  <label className="text-sm font-medium text-gray-700">
+    כמות אורחים
+  </label>
+
+  <input
+    type="number"
+    min={1}
+    max={20}
+    value={guestsCount}
+    onChange={(e) =>
+      setGuestsCount(Math.max(1, Number(e.target.value)))
+    }
+    className="w-20 text-center border rounded-lg px-2 py-1"
+  />
+</div>
 
         <input
           type="number"
