@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     /* ======================================================
-       יצירת JWT
+       JWT
     ====================================================== */
     const token = jwt.sign(
       {
@@ -46,24 +46,24 @@ export async function POST(req: Request) {
         _id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
         isTrial: user.isTrial,
       },
     });
 
     /* ======================================================
-       הגדרה בסיסית לכל ה־cookies
+       Cookie Base (✅ בלי domain)
     ====================================================== */
     const baseCookie = {
-      domain: "www.invistimo.com", // ✅ קריטי
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax" as const,
       path: "/",
-      maxAge: 60 * 60,
+      maxAge: 60 * 60, // 1 שעה
     };
 
     /* ======================================================
-       מחיקה מקדימה ליתר ביטחון
+       Cleanup
     ====================================================== */
     res.cookies.delete("authToken");
     res.cookies.delete("isTrial");
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     res.cookies.set("authToken", token, baseCookie);
 
     /* ======================================================
-       Trial
+       Client-readable cookies
     ====================================================== */
     res.cookies.set("isTrial", String(user.isTrial), {
       ...baseCookie,
