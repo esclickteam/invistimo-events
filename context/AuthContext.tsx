@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 🔥 ניקוי cache ישן (קריטי למובייל)
       sessionStorage.removeItem("auth_user");
 
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
