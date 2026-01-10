@@ -9,7 +9,7 @@ interface AdminStats {
   users: number;
   invitations: number;
   calls: number;
-  revenue: number; // 💰 סה"כ הכנסות
+  revenue: number;
 }
 
 /* =====================================================
@@ -27,9 +27,7 @@ export default function AdminDashboardPage() {
           cache: "no-store",
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch admin stats");
-        }
+        if (!res.ok) throw new Error("Failed to fetch stats");
 
         const data = await res.json();
         setStats(data);
@@ -46,33 +44,28 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* ===== Header ===== */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-semibold">
-          סקירת מערכת
-        </h1>
-        <p className="text-sm md:text-base text-gray-500">
-          נתונים כלליים על פעילות המערכת
-        </p>
-      </div>
+      <h1 className="text-xl md:text-3xl font-semibold">סקירת מערכת</h1>
 
-      {/* ===== Stats Grid ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      {/* ===== Stats ===== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <AdminBox
-          title="משתמשים"
+          title="סה״כ משתמשים"
           value={loading ? "—" : String(stats?.users ?? 0)}
+          color="text-green-600"
         />
 
         <AdminBox
           title="אירועים פעילים"
           value={loading ? "—" : String(stats?.invitations ?? 0)}
+          color="text-blue-600"
         />
 
         <AdminBox
-          title="שירותי שיחות פעילים"
+          title="שירותי שיחות"
           value={loading ? "—" : String(stats?.calls ?? 0)}
+          color="text-orange-500"
         />
 
-        {/* 💰 סה"כ הכנסות */}
         <AdminBox
           title="סה״כ הכנסות"
           value={
@@ -80,6 +73,7 @@ export default function AdminDashboardPage() {
               ? "—"
               : `${Number(stats?.revenue ?? 0).toLocaleString()} ₪`
           }
+          color="text-amber-600"
           highlight
         />
       </div>
@@ -88,35 +82,33 @@ export default function AdminDashboardPage() {
 }
 
 /* =====================================================
-   COMPONENT
+   CARD
 ===================================================== */
 function AdminBox({
   title,
   value,
+  color,
   highlight = false,
 }: {
   title: string;
   value: string;
+  color: string;
   highlight?: boolean;
 }) {
   return (
     <div
       className={`
-        rounded-xl border bg-white p-5 md:p-6
-        shadow-sm transition
-        hover:shadow-md
+        rounded-2xl border bg-white px-4 py-5
+        text-center shadow-sm
         ${highlight ? "border-amber-300 bg-amber-50" : ""}
       `}
     >
-      <div className="text-sm md:text-base text-gray-500 mb-2">
+      <div className="text-xs md:text-sm text-gray-500 mb-1">
         {title}
       </div>
 
       <div
-        className={`
-          text-2xl md:text-3xl font-bold
-          ${highlight ? "text-amber-700" : "text-gray-900"}
-        `}
+        className={`text-2xl md:text-3xl font-bold ${color}`}
       >
         {value}
       </div>
