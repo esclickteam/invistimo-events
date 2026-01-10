@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.replace("/dashboard");
       }
 
-      router.refresh();
+      
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
@@ -196,7 +196,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.clear();
 
       router.replace("/login");
-      router.refresh();
     }
   };
 
