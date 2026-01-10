@@ -1,8 +1,7 @@
-// /app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  const res = NextResponse.json(
+  const response = NextResponse.json(
     { success: true },
     {
       headers: {
@@ -12,52 +11,19 @@ export async function POST() {
   );
 
   /* =====================================================
-     🔑 בסיס cookie – חייב להיות זהה ל-login
+     🔥 מחיקה נכונה של cookies – Next.js App Router
+     ✔ בלי options
+     ✔ בלי domain
+     ✔ בלי TypeScript errors
   ===================================================== */
-  const baseCookie = {
-    path: "/",
-    domain: "www.invistimo.com",
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 0, // 🔥 קריטי למחיקה
-  };
 
-  /* =====================================================
-     🔐 Cookies httpOnly
-  ===================================================== */
-  res.cookies.set("authToken", "", {
-    ...baseCookie,
-    httpOnly: true,
-  });
+  response.cookies.delete("authToken");
+  response.cookies.delete("role");
 
-  // אם יצרת בעבר cookie של role (לא חובה, אבל לניקוי מלא)
-  res.cookies.set("role", "", {
-    ...baseCookie,
-    httpOnly: true,
-  });
+  response.cookies.delete("isTrial");
+  response.cookies.delete("smsLimit");
+  response.cookies.delete("smsUsed");
+  response.cookies.delete("trialExpiresAt");
 
-  /* =====================================================
-     🌐 Cookies לא httpOnly
-  ===================================================== */
-  res.cookies.set("isTrial", "", {
-    ...baseCookie,
-    httpOnly: false,
-  });
-
-  res.cookies.set("smsLimit", "", {
-    ...baseCookie,
-    httpOnly: false,
-  });
-
-  res.cookies.set("smsUsed", "", {
-    ...baseCookie,
-    httpOnly: false,
-  });
-
-  res.cookies.set("trialExpiresAt", "", {
-    ...baseCookie,
-    httpOnly: false,
-  });
-
-  return res;
+  return response;
 }

@@ -48,23 +48,29 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     3️⃣ Auth בסיסי
+     3️⃣ Auth בסיסי – מקור האמת
   ======================================================== */
   const token = cookies.get("authToken")?.value;
-  const role = cookies.get("role")?.value; // 👈 חשוב
+  const role = cookies.get("role")?.value;
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
+  /* 🔐 חסימת dashboard ללא token */
   if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  /* 🔐 חסימת admin ללא token */
+  if (pathname.startsWith("/admin") && !token) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
   /* ========================================================
-     4️⃣ אדמין → ניתוב אוטומטי לדשבורד אדמין
-     (אם ניסה להיכנס לדשבורד רגיל)
+     4️⃣ ניתוב אדמין – רק אם יש token
+     ❗ אין role בלי authToken
   ======================================================== */
   if (
-    pathname === "/dashboard" ||
-    pathname.startsWith("/dashboard/")
+    token &&
+    (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))
   ) {
     if (role === "admin") {
       const url = nextUrl.clone();
@@ -74,12 +80,12 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     5️⃣ Trial checks (Dashboard בלבד)
+     5️⃣ Trial checks – Dashboard בלבד
   ======================================================== */
   const isTrial = cookies.get("isTrial")?.value === "true";
   const trialExpiresAt = cookies.get("trialExpiresAt")?.value;
 
-  if (pathname.startsWith("/dashboard") && isTrial) {
+  if (pathname.startsWith("/dashboard") && token && isTrial) {
     if (isTrialExpired(trialExpiresAt)) {
       const url = nextUrl.clone();
       url.pathname = "/dashboard/upgrade";
@@ -92,7 +98,7 @@ export function middleware(req: NextRequest) {
      6️⃣ חסימת UI של הודעות אם נגמרה מכסת SMS
      (האכיפה האמיתית ב־API)
   ======================================================== */
-  if (pathname.startsWith("/dashboard/messages")) {
+  if (pathname.startsWith("/dashboard/messages") && token) {
     const smsUsed = Number(cookies.get("smsUsed")?.value ?? 0);
     const smsLimit = Number(cookies.get("smsLimit")?.value ?? 0);
 
@@ -108,8 +114,8 @@ export function middleware(req: NextRequest) {
 }
 
 /* ========================================================
-   matcher – רק dashboard
+   matcher – dashboard + admin
 ======================================================== */
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*"],
 };
