@@ -5,34 +5,75 @@ import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Link from "next/link";
+import React from "react";
 
+/* =====================================================
+   TYPES
+===================================================== */
+interface DecodedToken {
+  userId: string;
+  iat?: number;
+  exp?: number;
+}
+
+/* =====================================================
+   ADMIN LAYOUT (SERVER)
+===================================================== */
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  /* --------------------------------------------------
+     DB
+  -------------------------------------------------- */
   await connectDB();
 
-  // 🔑 חובה await
+  /* --------------------------------------------------
+     AUTH TOKEN
+  -------------------------------------------------- */
   const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
 
-  // ❌ לא מחובר
+  // ❌ אין טוקן → לא מחובר
   if (!token) {
     redirect("/login");
   }
 
-  let decoded: any;
+  /* --------------------------------------------------
+     VERIFY JWT
+  -------------------------------------------------- */
+  let decoded: DecodedToken;
+
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET!);
-  } catch {
+    decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as DecodedToken;
+  } catch (err) {
+    console.error("❌ Invalid JWT:", err);
     redirect("/login");
   }
 
-  const user = await User.findById(decoded.userId).lean();
+  if (!decoded?.userId) {
+    redirect("/login");
+  }
+
+  /* --------------------------------------------------
+     LOAD USER
+  -------------------------------------------------- */
+  const user = await User.findById(decoded.userId)
+    .select("_id email role")
+    .lean();
 
   // ❌ משתמש לא קיים
   if (!user) {
+    redirect("/login");
+  }
+
+  // ❌ משתמש ללא role – מצב לא חוקי
+  if (!user.role) {
+    console.error("❌ User without role:", user._id);
     redirect("/login");
   }
 
@@ -41,13 +82,20 @@ export default async function AdminLayout({
     redirect("/dashboard");
   }
 
+  /* --------------------------------------------------
+     NAV
+  -------------------------------------------------- */
   const nav = [
     { href: "/admin", label: "סקירה" },
     { href: "/admin/users", label: "משתמשים" },
-    
-    
+    // בהמשך:
+    // { href: "/admin/logs", label: "לוגים" },
+    // { href: "/admin/settings", label: "הגדרות" },
   ];
 
+  /* --------------------------------------------------
+     RENDER
+  -------------------------------------------------- */
   return (
     <div className="min-h-screen flex bg-gray-100" dir="rtl">
       {/* Sidebar */}

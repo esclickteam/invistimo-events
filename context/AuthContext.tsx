@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 
 /* =====================================================
@@ -10,8 +16,11 @@ interface User {
   _id: string;
   email: string;
   name?: string;
-  role?: "admin" | "user";
 
+  // ✅ role חובה – אין משתמש בלי role
+  role: "admin" | "user";
+
+  // 👑 תמיכה בהתחזות אדמין (אם קיים)
   impersonatedByAdmin?: boolean;
   adminId?: string | null;
 }
@@ -38,22 +47,29 @@ const AuthContext = createContext<AuthContextType>({
 /* =====================================================
    PROVIDER
 ===================================================== */
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   /* --------------------------------------------------
-     טעינה מיידית מ-sessionStorage (UX)
+     UX: טעינה מיידית מ־sessionStorage
+     ⚠️ לא מקור אמת – רק UX
   -------------------------------------------------- */
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window === "undefined") return null;
-    const cached = sessionStorage.getItem("auth_user");
-    return cached ? JSON.parse(cached) : null;
+
+    try {
+      const cached = sessionStorage.getItem("auth_user");
+      return cached ? (JSON.parse(cached) as User) : null;
+    } catch {
+      sessionStorage.removeItem("auth_user");
+      return null;
+    }
   });
 
   const [loading, setLoading] = useState(true);
 
   /* --------------------------------------------------
-     מקור אמת יחיד – אימות מול השרת
+     🔐 מקור אמת יחיד – אימות מול השרת
   -------------------------------------------------- */
   const refreshUser = async (): Promise<User | null> => {
     try {
@@ -71,7 +87,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       const nextUser: User | null = data?.user ?? null;
 
-      console.log("🟦 refreshUser():", nextUser);
+      // ❌ אין מצב חוקי בלי role
+      if (nextUser && !nextUser.role) {
+        console.error("❌ User without role returned from /api/me");
+        setUser(null);
+        sessionStorage.removeItem("auth_user");
+        return null;
+      }
+
+      console.log("🟦 AUTH USER FROM SERVER:", {
+        email: nextUser?.email,
+        role: nextUser?.role,
+      });
 
       setUser(nextUser);
 
@@ -93,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /* --------------------------------------------------
-     טעינה ראשונית – אימות ברקע
+     🚀 טעינה ראשונית – אימות ברקע
   -------------------------------------------------- */
   useEffect(() => {
     refreshUser();
@@ -101,10 +128,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /* --------------------------------------------------
-     התחברות + ניתוב לפי role
+     🔑 התחברות + ניתוב לפי role אמיתי
   -------------------------------------------------- */
   const login = async (email: string, password: string) => {
     try {
+      // ✅ ניקוי cache ישן (קריטי למובייל)
+      sessionStorage.removeItem("auth_user");
+
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,22 +148,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // ✅ נוודא קודם שהמשתמש נטען מחדש מהשרת
+      // ✅ טעינה מחדש מהשרת – מקור אמת
       const nextUser = await refreshUser();
 
-      console.log("✅ התחברות הצליחה, משתמש:", nextUser);
+      console.log("✅ LOGIN SUCCESS:", nextUser);
 
       if (!nextUser) {
         alert("לא הצלחנו לטעון את פרטי המשתמש");
         return;
       }
 
-      // ✅ ניתוב לפי ROLE אמיתי מהשרת
+      // ✅ ניתוב קשיח לפי ROLE
       if (nextUser.role === "admin") {
-        console.log("👑 ניתוב לאדמין...");
+        console.log("👑 Redirect → /admin");
         router.replace("/admin");
       } else {
-        console.log("👤 ניתוב למשתמש רגיל...");
+        console.log("👤 Redirect → /dashboard");
         router.replace("/dashboard");
       }
 
@@ -145,11 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /* --------------------------------------------------
-     התנתקות – ניקוי מלא + מחיקת cookies בשרת
+     🚪 התנתקות – ניקוי מלא + מחיקת cookies
   -------------------------------------------------- */
   const logout = async () => {
     try {
-      // ✅ קריאה ל־API שמוחק cookies בפועל
       await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
@@ -160,18 +189,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("❌ Logout request failed:", err);
     } finally {
-      // ✅ ניקוי מלא בצד לקוח
       setUser(null);
 
       sessionStorage.removeItem("auth_user");
-      localStorage.clear();
       sessionStorage.clear();
+      localStorage.clear();
 
       router.replace("/login");
       router.refresh();
     }
   };
 
+  /* --------------------------------------------------
+     PROVIDER
+  -------------------------------------------------- */
   return (
     <AuthContext.Provider
       value={{
