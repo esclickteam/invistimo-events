@@ -1,4 +1,8 @@
 // app/admin/layout.tsx
+
+// 🔒 קריטי לספארי iOS – מונע snapshot / BFCache
+export const dynamic = "force-dynamic";
+
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import jwt from "jsonwebtoken";
@@ -35,7 +39,7 @@ export default async function AdminLayout({
   const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
 
-  // ❌ אין טוקן → לא מחובר
+  // ❌ לא מחובר
   if (!token) {
     redirect("/login");
   }
@@ -71,7 +75,7 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  // ❌ משתמש ללא role – מצב לא חוקי
+  // ❌ משתמש בלי role – מצב לא חוקי
   if (!user.role) {
     console.error("❌ User without role:", user._id);
     redirect("/login");
@@ -88,7 +92,6 @@ export default async function AdminLayout({
   const nav = [
     { href: "/admin", label: "סקירה" },
     { href: "/admin/users", label: "משתמשים" },
-    // בהמשך:
     // { href: "/admin/logs", label: "לוגים" },
     // { href: "/admin/settings", label: "הגדרות" },
   ];
