@@ -37,15 +37,16 @@ export default function AdminLayout({
     <div className="min-h-screen bg-gray-100 flex" dir="rtl">
       {/* ================= Mobile Header ================= */}
       <header className="fixed top-0 right-0 left-0 z-40 h-14 bg-white border-b flex items-center justify-between px-4 md:hidden">
-        <span className="font-semibold">Admin Panel</span>
-        <button
-          onClick={() => setOpen(true)}
-          className="text-2xl"
-          aria-label="Open menu"
-        >
-          ☰
-        </button>
-      </header>
+  <button
+    onClick={() => setOpen(true)}
+    className="text-2xl"
+    aria-label="Open menu"
+  >
+    ☰
+  </button>
+
+  <span className="font-semibold">Admin Panel</span>
+</header>
 
       {/* ================= Overlay (Mobile) ================= */}
       {open && (
