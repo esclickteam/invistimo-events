@@ -1,29 +1,56 @@
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  const response = NextResponse.json(
+  const res = NextResponse.json(
     { success: true },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    }
+    { headers: { "Cache-Control": "no-store" } }
   );
 
-  /* =====================================================
-     🔥 מחיקה נכונה של cookies – Next.js App Router
-     ✔ בלי options
-     ✔ בלי domain
-     ✔ בלי TypeScript errors
-  ===================================================== */
+  const baseCookie = {
+    path: "/",
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+  };
 
-  response.cookies.delete("authToken");
-  response.cookies.delete("role");
+  // 🔐 auth token (HttpOnly)
+  res.cookies.set("authToken", "", {
+    ...baseCookie,
+    httpOnly: true,
+    maxAge: 0,
+  });
 
-  response.cookies.delete("isTrial");
-  response.cookies.delete("smsLimit");
-  response.cookies.delete("smsUsed");
-  response.cookies.delete("trialExpiresAt");
+  // 👤 role
+  res.cookies.set("role", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
 
-  return response;
+  // 🧪 trial
+  res.cookies.set("isTrial", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  res.cookies.set("trialExpiresAt", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  // ✉️ sms
+  res.cookies.set("smsLimit", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  res.cookies.set("smsUsed", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  return res;
 }
