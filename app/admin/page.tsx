@@ -44,10 +44,19 @@ export default function AdminDashboardPage() {
   }, []);
 
   return (
-    <div>
-      <h1 className="text-3xl font-semibold mb-6">סקירת מערכת</h1>
+    <div className="space-y-6">
+      {/* ===== Header ===== */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl md:text-3xl font-semibold">
+          סקירת מערכת
+        </h1>
+        <p className="text-sm md:text-base text-gray-500">
+          נתונים כלליים על פעילות המערכת
+        </p>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* ===== Stats Grid ===== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <AdminBox
           title="משתמשים"
           value={loading ? "—" : String(stats?.users ?? 0)}
@@ -93,15 +102,21 @@ function AdminBox({
   return (
     <div
       className={`
-        bg-white rounded-xl border p-6 shadow-sm text-center
+        rounded-xl border bg-white p-5 md:p-6
+        shadow-sm transition
+        hover:shadow-md
         ${highlight ? "border-amber-300 bg-amber-50" : ""}
       `}
     >
-      <div className="text-gray-500 mb-2">{title}</div>
+      <div className="text-sm md:text-base text-gray-500 mb-2">
+        {title}
+      </div>
+
       <div
-        className={`text-3xl font-bold ${
-          highlight ? "text-amber-700" : ""
-        }`}
+        className={`
+          text-2xl md:text-3xl font-bold
+          ${highlight ? "text-amber-700" : "text-gray-900"}
+        `}
       >
         {value}
       </div>
