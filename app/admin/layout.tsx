@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function AdminLayout({
   children,
@@ -12,11 +13,29 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   const nav = [
     { href: "/admin", label: "סקירה" },
     { href: "/admin/users", label: "משתמשים" },
   ];
+
+  /* --------------------------------------------------
+     LOGOUT
+  -------------------------------------------------- */
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      setOpen(false);
+      router.replace("/login");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex" dir="rtl">
@@ -49,16 +68,21 @@ export default function AdminLayout({
           ${open ? "translate-x-0" : "translate-x-full"}
         `}
       >
+        {/* Header */}
         <div className="flex items-center justify-between mb-8 md:block">
-          <h2 className="text-xl font-bold">🛡️ Admin Panel</h2>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            🛡️ Admin Panel
+          </h2>
           <button
             className="md:hidden text-xl"
             onClick={() => setOpen(false)}
+            aria-label="Close menu"
           >
             ✕
           </button>
         </div>
 
+        {/* Nav */}
         <nav className="flex flex-col gap-2">
           {nav.map((item) => (
             <Link
@@ -71,6 +95,21 @@ export default function AdminLayout({
             </Link>
           ))}
         </nav>
+
+        {/* Divider */}
+        <div className="my-6 border-t" />
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="
+            w-full px-4 py-2 rounded-lg
+            text-red-600 font-medium
+            hover:bg-red-50 transition
+          "
+        >
+          התנתקות
+        </button>
       </aside>
 
       {/* ================= Content ================= */}
