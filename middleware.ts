@@ -9,6 +9,53 @@ function isTrialExpired(trialExpiresAt?: string) {
   return Date.now() > Number(trialExpiresAt);
 }
 
+function clearAuthCookies(res: NextResponse) {
+  const baseCookie = {
+    path: "/",
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+  };
+
+  // 🔐 auth
+  res.cookies.set("authToken", "", {
+    ...baseCookie,
+    httpOnly: true,
+    maxAge: 0,
+  });
+
+  // 👤 role + flags
+  res.cookies.set("role", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  res.cookies.set("isTrial", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  res.cookies.set("trialExpiresAt", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  // ✉️ sms
+  res.cookies.set("smsUsed", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
+  res.cookies.set("smsLimit", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+}
+
 /* ========================================================
    MIDDLEWARE
 ======================================================== */
@@ -18,7 +65,7 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
-     0️⃣ חריגה מוחלטת ל־API ול־Auth
+     0️⃣ חריגה מוחלטת ל־API / Login / Register
   ======================================================== */
   if (
     pathname.startsWith("/api") ||
@@ -29,7 +76,7 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     1️⃣ חריגה ל־Stripe Webhook
+     1️⃣ Stripe Webhook
   ======================================================== */
   if (
     pathname.startsWith("/api/stripe/webhook") ||
@@ -48,35 +95,42 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     3️⃣ Auth בסיסי – מקור האמת
+     3️⃣ Auth – מקור אמת
   ======================================================== */
   const token = cookies.get("authToken")?.value;
   const role = cookies.get("role")?.value;
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
-  /* 🔐 חסימת dashboard ללא token */
+  /* ========================================================
+     🔐 חסימת Dashboard ללא token
+     ❗ ניקוי cookies כפוי
+  ======================================================== */
   if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  /* 🔐 חסימת admin ללא token */
-  if (pathname.startsWith("/admin") && !token) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    const res = NextResponse.redirect(new URL("/login", req.url));
+    clearAuthCookies(res);
+    return res;
   }
 
   /* ========================================================
-     4️⃣ ניתוב אדמין – רק אם יש token
-     ❗ אין role בלי authToken
+     🔐 חסימת Admin ללא token
+  ======================================================== */
+  if (pathname.startsWith("/admin") && !token) {
+    const res = NextResponse.redirect(new URL("/login", req.url));
+    clearAuthCookies(res);
+    return res;
+  }
+
+  /* ========================================================
+     4️⃣ ניתוב Admin אוטומטי
   ======================================================== */
   if (
     token &&
+    role === "admin" &&
     (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))
   ) {
-    if (role === "admin") {
-      const url = nextUrl.clone();
-      url.pathname = "/admin";
-      return NextResponse.redirect(url);
-    }
+    const url = nextUrl.clone();
+    url.pathname = "/admin";
+    return NextResponse.redirect(url);
   }
 
   /* ========================================================
@@ -95,8 +149,7 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     6️⃣ חסימת UI של הודעות אם נגמרה מכסת SMS
-     (האכיפה האמיתית ב־API)
+     6️⃣ חסימת Messages UI אם נגמרה מכסת SMS
   ======================================================== */
   if (pathname.startsWith("/dashboard/messages") && token) {
     const smsUsed = Number(cookies.get("smsUsed")?.value ?? 0);
@@ -114,7 +167,7 @@ export function middleware(req: NextRequest) {
 }
 
 /* ========================================================
-   matcher – dashboard + admin
+   MATCHER
 ======================================================== */
 export const config = {
   matcher: ["/dashboard/:path*", "/admin/:path*"],
