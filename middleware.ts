@@ -30,6 +30,12 @@ function clearAuthCookies(res: NextResponse) {
     maxAge: 0,
   });
 
+  res.cookies.set("impersonating", "", {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  });
+
   res.cookies.set("isTrial", "", {
     ...baseCookie,
     httpOnly: false,
@@ -99,6 +105,7 @@ export function middleware(req: NextRequest) {
   ======================================================== */
   const token = cookies.get("authToken")?.value;
   const role = cookies.get("role")?.value;
+  const impersonating = cookies.get("impersonating")?.value === "true";
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
   /* ========================================================
@@ -122,10 +129,12 @@ export function middleware(req: NextRequest) {
 
   /* ========================================================
      4️⃣ ניתוב Admin אוטומטי
+     ❗ רק אם לא בתחזות
   ======================================================== */
   if (
     token &&
     role === "admin" &&
+    !impersonating &&
     (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))
   ) {
     const url = nextUrl.clone();
