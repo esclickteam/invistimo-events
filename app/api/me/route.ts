@@ -8,9 +8,7 @@ export async function GET() {
   try {
     await connectDB();
 
-    /* =====================================================
-       🍪 Cookies (async בפרויקט הזה)
-    ===================================================== */
+    // ✅ cookies() הוא async ב-route.ts
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -21,9 +19,6 @@ export async function GET() {
       );
     }
 
-    /* =====================================================
-       🔐 Verify JWT
-    ===================================================== */
     let decoded: any;
 
     try {
@@ -36,20 +31,15 @@ export async function GET() {
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
 
-      // 🔥 ניקוי מוחלט של cookies
-      res.cookies.delete("authToken");
-      res.cookies.delete("role");
-      res.cookies.delete("isTrial");
-      res.cookies.delete("trialExpiresAt");
-      res.cookies.delete("smsUsed");
-      res.cookies.delete("smsLimit");
+      // ✅ ניקוי cookie בצורה בטוחה (עובד גם prod וגם dev)
+      res.cookies.set("authToken", "", {
+        path: "/",
+        maxAge: 0,
+      });
 
       return res;
     }
 
-    /* =====================================================
-       👤 Fetch User
-    ===================================================== */
     const user = await User.findById(decoded.userId).lean();
 
     if (!user) {
@@ -58,8 +48,10 @@ export async function GET() {
         { status: 404, headers: { "Cache-Control": "no-store" } }
       );
 
-      res.cookies.delete("authToken");
-      res.cookies.delete("role");
+      res.cookies.set("authToken", "", {
+        path: "/",
+        maxAge: 0,
+      });
 
       return res;
     }
@@ -72,9 +64,6 @@ export async function GET() {
       decoded.impersonatedByAdmin ? "| impersonated" : ""
     );
 
-    /* =====================================================
-       ✅ Success
-    ===================================================== */
     return NextResponse.json(
       {
         success: true,
@@ -83,7 +72,6 @@ export async function GET() {
           name: user.name,
           email: user.email,
           role: user.role,
-
           plan: user.plan,
           guests: user.guests,
           paidAmount: user.paidAmount,
@@ -94,7 +82,7 @@ export async function GET() {
           callsRounds: user.callsRounds,
           callsAddonPrice: user.callsAddonPrice,
 
-          // 💳 מתנות באשראי
+             // 💳 מתנות באשראי  ✅✅✅
           includeCreditGifts: user.includeCreditGifts,
           creditGiftsAddonPrice: user.creditGiftsAddonPrice,
 
