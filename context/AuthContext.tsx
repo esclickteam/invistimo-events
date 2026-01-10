@@ -17,10 +17,8 @@ interface User {
   email: string;
   name?: string;
 
-  // ✅ role חובה – אין משתמש בלי role
   role: "admin" | "user";
 
-  // 👑 תמיכה בהתחזות אדמין (אם קיים)
   impersonatedByAdmin?: boolean;
   adminId?: string | null;
 }
@@ -51,8 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   /* --------------------------------------------------
-     UX: טעינה מיידית מ־sessionStorage
-     ⚠️ לא מקור אמת – רק UX
+     UX cache בלבד – לא מקור אמת
   -------------------------------------------------- */
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window === "undefined") return null;
@@ -69,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   /* --------------------------------------------------
-     🔐 מקור אמת יחיד – אימות מול השרת
+     🔐 מקור אמת יחיד – השרת
   -------------------------------------------------- */
   const refreshUser = async (): Promise<User | null> => {
     try {
@@ -95,11 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      console.log("🟦 AUTH USER FROM SERVER:", {
-        email: nextUser?.email,
-        role: nextUser?.role,
-      });
-
       setUser(nextUser);
 
       if (nextUser) {
@@ -120,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     🚀 טעינה ראשונית – אימות ברקע
+     🚀 אימות ראשוני
   -------------------------------------------------- */
   useEffect(() => {
     refreshUser();
@@ -128,14 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /* --------------------------------------------------
-     🔑 התחברות + ניתוב לפי role אמיתי
+     🔑 LOGIN – ניתוב לפי ROLE אמיתי בלבד
   -------------------------------------------------- */
   const login = async (email: string, password: string) => {
     try {
-      // ✅ ניקוי cache ישן (קריטי למובייל)
+      // 🔥 ניקוי cache ישן (קריטי למובייל)
       sessionStorage.removeItem("auth_user");
 
-      const res = await fetch("/api/login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -148,26 +140,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // ✅ טעינה מחדש מהשרת – מקור אמת
+      // ✅ מקור אמת – טעינה מהשרת
       const nextUser = await refreshUser();
 
-      console.log("✅ LOGIN SUCCESS:", nextUser);
-
       if (!nextUser) {
-        alert("לא הצלחנו לטעון את פרטי המשתמש");
-        return;
+        throw new Error("לא הצלחנו לטעון את פרטי המשתמש");
       }
 
-      // ✅ ניתוב קשיח לפי ROLE
+      // 🔁 ניתוב חד־משמעי
       if (nextUser.role === "admin") {
-        console.log("👑 Redirect → /admin");
         router.replace("/admin");
       } else {
-        console.log("👤 Redirect → /dashboard");
         router.replace("/dashboard");
       }
-
-      
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
@@ -175,16 +160,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     🚪 התנתקות – ניקוי מלא + מחיקת cookies
+     🚪 LOGOUT – ניקוי מוחלט
   -------------------------------------------------- */
   const logout = async () => {
     try {
-      await fetch("/api/logout", {
+      await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        cache: "no-store",
       });
     } catch (err) {
       console.error("❌ Logout request failed:", err);

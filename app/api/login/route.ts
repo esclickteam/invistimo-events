@@ -10,7 +10,14 @@ export async function POST(req: Request) {
 
     const { email, password } = await req.json();
 
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "חסרים פרטי התחברות" },
+        { status: 400 }
+      );
+    }
+
+    const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return NextResponse.json(
         { error: "מייל או סיסמה שגויים" },
@@ -27,14 +34,12 @@ export async function POST(req: Request) {
     }
 
     /* ======================================================
-       JWT
+       🔐 JWT – מקור האמת
     ====================================================== */
     const token = jwt.sign(
       {
-        userId: user._id,
-        email: user.email,
+        userId: user._id.toString(),
         role: user.role,
-        isTrial: user.isTrial,
       },
       process.env.JWT_SECRET!,
       { expiresIn: "1h" }
@@ -52,10 +57,20 @@ export async function POST(req: Request) {
     });
 
     /* ======================================================
-       Cookie Base (✅ בלי domain)
+       🔥 ניקוי cookies קודמים (מונע הדבקה)
+    ====================================================== */
+    res.cookies.delete("authToken");
+    res.cookies.delete("role");
+    res.cookies.delete("isTrial");
+    res.cookies.delete("trialExpiresAt");
+    res.cookies.delete("smsUsed");
+    res.cookies.delete("smsLimit");
+
+    /* ======================================================
+       🍪 Cookie בסיס
+       ❗ בלי domain – תואם middleware + logout
     ====================================================== */
     const baseCookie = {
-      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax" as const,
       path: "/",
@@ -63,21 +78,23 @@ export async function POST(req: Request) {
     };
 
     /* ======================================================
-       Cleanup
+       🔐 Auth Token (HttpOnly)
     ====================================================== */
-    res.cookies.delete("authToken");
-    res.cookies.delete("isTrial");
-    res.cookies.delete("trialExpiresAt");
-    res.cookies.delete("smsUsed");
-    res.cookies.delete("smsLimit");
+    res.cookies.set("authToken", token, {
+      ...baseCookie,
+      httpOnly: true,
+    });
 
     /* ======================================================
-       Auth Token
+       👤 Role (לא HttpOnly – למידלוור)
     ====================================================== */
-    res.cookies.set("authToken", token, baseCookie);
+    res.cookies.set("role", user.role, {
+      ...baseCookie,
+      httpOnly: false,
+    });
 
     /* ======================================================
-       Client-readable cookies
+       🧪 Trial
     ====================================================== */
     res.cookies.set("isTrial", String(user.isTrial), {
       ...baseCookie,
@@ -95,6 +112,9 @@ export async function POST(req: Request) {
       );
     }
 
+    /* ======================================================
+       ✉️ SMS limits
+    ====================================================== */
     res.cookies.set("smsUsed", String(user.smsUsed ?? 0), {
       ...baseCookie,
       httpOnly: false,
@@ -112,6 +132,9 @@ export async function POST(req: Request) {
     return res;
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    return NextResponse.json({ error: "שגיאה בשרת" }, { status: 500 });
+    return NextResponse.json(
+      { error: "שגיאה בשרת" },
+      { status: 500 }
+    );
   }
 }
