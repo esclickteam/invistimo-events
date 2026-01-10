@@ -4,26 +4,60 @@ import { NextResponse } from "next/server";
 export async function POST() {
   const res = NextResponse.json(
     { success: true },
-    { headers: { "Cache-Control": "no-store" } }
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
   );
 
-  const base = {
+  /* =====================================================
+     🔑 בסיס cookie – חייב להיות זהה ל-login
+  ===================================================== */
+  const baseCookie = {
     path: "/",
-    maxAge: 0,
+    domain: "www.invistimo.com",
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
-    domain: "www.invistimo.com",
+    maxAge: 0, // 🔥 קריטי למחיקה
   };
 
-  // 🔐 cookies שנוצרו כ-httpOnly
-  ["authToken", "role"].forEach((n) =>
-    res.cookies.set(n, "", { ...base, httpOnly: true })
-  );
+  /* =====================================================
+     🔐 Cookies httpOnly
+  ===================================================== */
+  res.cookies.set("authToken", "", {
+    ...baseCookie,
+    httpOnly: true,
+  });
 
-  // 🌐 cookies שנוצרו כ-NOT httpOnly
-  ["isTrial", "smsLimit", "smsUsed", "trialExpiresAt"].forEach((n) =>
-    res.cookies.set(n, "", { ...base, httpOnly: false })
-  );
+  // אם יצרת בעבר cookie של role (לא חובה, אבל לניקוי מלא)
+  res.cookies.set("role", "", {
+    ...baseCookie,
+    httpOnly: true,
+  });
+
+  /* =====================================================
+     🌐 Cookies לא httpOnly
+  ===================================================== */
+  res.cookies.set("isTrial", "", {
+    ...baseCookie,
+    httpOnly: false,
+  });
+
+  res.cookies.set("smsLimit", "", {
+    ...baseCookie,
+    httpOnly: false,
+  });
+
+  res.cookies.set("smsUsed", "", {
+    ...baseCookie,
+    httpOnly: false,
+  });
+
+  res.cookies.set("trialExpiresAt", "", {
+    ...baseCookie,
+    httpOnly: false,
+  });
 
   return res;
 }
