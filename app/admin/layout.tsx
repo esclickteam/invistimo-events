@@ -5,15 +5,20 @@ export const dynamic = "force-dynamic";
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
+/* =====================================================
+   ADMIN LAYOUT
+===================================================== */
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
+
+  // ✅ מקור אמת אחד להתנתקות
+  const { logout } = useAuth();
 
   const nav = [
     { href: "/admin", label: "סקירה" },
@@ -24,17 +29,8 @@ export default function AdminLayout({
      LOGOUT
   -------------------------------------------------- */
   const handleLogout = async () => {
-    try {
-      await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (err) {
-      console.error("Logout failed", err);
-    } finally {
-      setOpen(false);
-      router.replace("/login");
-    }
+    await logout();      // 🔑 ניתוק מלא + ניקוי state + redirect
+    setOpen(false);
   };
 
   return (
@@ -70,9 +66,7 @@ export default function AdminLayout({
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-8 md:block">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            🛡️ Admin Panel
-          </h2>
+          <h2 className="text-xl font-bold">🛡️ Admin Panel</h2>
           <button
             className="md:hidden text-xl"
             onClick={() => setOpen(false)}
