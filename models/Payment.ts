@@ -16,7 +16,7 @@ export interface PaymentDocument extends Document {
   priceKey: string;
   maxGuests: number;
 
-  // ☎️ שירות שיחות (3 סבבים)
+  // ☎️ שירות שיחות
   includeCalls: boolean;
   callsAddonPrice: number;
 
@@ -24,20 +24,26 @@ export interface PaymentDocument extends Document {
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
 
-  // 💰 סכום כולל ששולם בפועל
-  amount: number;
+  // 💰 סכומים
+  amount: number;          // סכום מקורי ששולם
+  refundAmount: number;    // סכום שזוכה בפועל
   currency: string;
 
   // 🧾 סוג תשלום
   type: "package" | "addon" | "upgrade";
 
-  // 🧠 מידע נוסף מ־Stripe / חישובים
+  // 🧠 מידע נוסף
   metadata?: Record<string, any>;
 
-  status: "paid" | "refunded" | "failed";
+  // 📌 סטטוס
+  status: "paid" | "refunded" | "partially_refunded" | "failed";
 
-  // 🔥 תשלום בדיקה (Stripe test mode)
+  // 🔥 בדיקה
   isTest: boolean;
+
+  // 🕒 זיכוי
+  refundedAt?: Date;
+  refundReason?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -53,8 +59,12 @@ const PaymentSchema = new Schema<PaymentDocument>(
       required: true,
       trim: true,
       lowercase: true,
+      index: true,
     },
 
+    /* =========================
+       Stripe
+    ========================= */
     stripeSessionId: {
       type: String,
       required: true,
@@ -75,19 +85,22 @@ const PaymentSchema = new Schema<PaymentDocument>(
       type: String,
     },
 
+    /* =========================
+       Package / Product
+    ========================= */
     priceKey: {
       type: String,
       required: true,
+      index: true,
     },
 
     maxGuests: {
       type: Number,
-      required: true,
       default: 0,
     },
 
     /* =========================
-       ☎️ שירות שיחות
+       ☎️ Calls
     ========================= */
     includeCalls: {
       type: Boolean,
@@ -100,7 +113,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     },
 
     /* =========================
-       🎁 מתנות באשראי
+       🎁 Credit Gifts
     ========================= */
     includeCreditGifts: {
       type: Boolean,
@@ -113,11 +126,18 @@ const PaymentSchema = new Schema<PaymentDocument>(
     },
 
     /* =========================
-       💰 סכום
+       💰 Amounts
     ========================= */
     amount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+
+    refundAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     currency: {
@@ -126,7 +146,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     },
 
     /* =========================
-       🧾 סוג תשלום
+       🧾 Type
     ========================= */
     type: {
       type: String,
@@ -143,16 +163,29 @@ const PaymentSchema = new Schema<PaymentDocument>(
     },
 
     /* =========================
-       סטטוס
+       Status
     ========================= */
     status: {
       type: String,
-      enum: ["paid", "refunded", "failed"],
+      enum: ["paid", "refunded", "partially_refunded", "failed"],
       default: "paid",
+      index: true,
     },
 
     /* =========================
-       🔥 בדיקות Stripe
+       Refund info
+    ========================= */
+    refundedAt: {
+      type: Date,
+    },
+
+    refundReason: {
+      type: String,
+      trim: true,
+    },
+
+    /* =========================
+       Test payments
     ========================= */
     isTest: {
       type: Boolean,
@@ -164,6 +197,13 @@ const PaymentSchema = new Schema<PaymentDocument>(
     timestamps: true,
   }
 );
+
+/* ============================================================
+   VIRTUAL – NET AMOUNT (סכום נטו)
+============================================================ */
+PaymentSchema.virtual("netAmount").get(function () {
+  return Math.max(0, this.amount - (this.refundAmount || 0));
+});
 
 /* ============================================================
    MODEL

@@ -7,6 +7,9 @@ import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import Payment from "@/models/Payment";
 
+// 🔥 חובה לאדמין – בלי cache
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     await connectDB();
@@ -28,28 +31,59 @@ export async function GET() {
     }
 
     /* ======================================================
-       COUNTS + REVENUE
+       COUNTS
     ====================================================== */
-    const [users, invitations, calls, revenueAgg] = await Promise.all([
+    const [
+      usersCount,
+      invitationsCount,
+      callsCount,
+      revenueAgg,
+      refundsAgg,
+    ] = await Promise.all([
+      // 👤 משתמשים
       User.countDocuments(),
 
+      // ✉️ הזמנות
       Invitation.countDocuments(),
 
-      // שירותי שיחות פעילים
+      // ☎️ שירותי שיחות פעילים
       User.countDocuments({ includeCalls: true }),
 
-      // 💰 סה"כ הכנסות אמיתיות בלבד
+      // 💰 הכנסות נטו (כולל partial refunds)
       Payment.aggregate([
         {
           $match: {
-            status: "paid",
-            isTest: { $ne: true }, // ❌ בלי בדיקות
+            status: { $in: ["paid", "partially_refunded"] },
+            isTest: { $ne: true },
+          },
+        },
+        {
+          $project: {
+            netAmount: {
+              $subtract: ["$amount", { $ifNull: ["$refundAmount", 0] }],
+            },
           },
         },
         {
           $group: {
             _id: null,
-            total: { $sum: "$amount" },
+            total: { $sum: "$netAmount" },
+          },
+        },
+      ]),
+
+      // 🔻 סה״כ זיכויים (מידע משלים לאדמין)
+      Payment.aggregate([
+        {
+          $match: {
+            status: { $in: ["refunded", "partially_refunded"] },
+            isTest: { $ne: true },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRefunds: { $sum: "$refundAmount" },
           },
         },
       ]),
@@ -58,15 +92,27 @@ export async function GET() {
     const revenue =
       revenueAgg.length > 0 ? revenueAgg[0].total : 0;
 
+    const refunds =
+      refundsAgg.length > 0 ? refundsAgg[0].totalRefunds : 0;
+
     /* ======================================================
        RESPONSE
     ====================================================== */
-    return NextResponse.json({
-      users,
-      invitations,
-      calls,
-      revenue, // 💰 הכנסות נטו
-    });
+    return NextResponse.json(
+      {
+        users: usersCount,
+        invitations: invitationsCount,
+        calls: callsCount,
+
+        revenue, // 💰 הכנסות נטו
+        refunds, // 🔻 סה״כ זיכויים (אופציונלי להצגה)
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   } catch (err) {
     console.error("❌ Admin stats error:", err);
     return NextResponse.json(
