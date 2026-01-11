@@ -4,11 +4,13 @@ import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
+export const dynamic = "force-dynamic"; // 🔥 חובה
+
 export async function GET() {
   try {
     await connectDB();
 
-    const cookieStore = await cookies(); // ✅ חובה await
+    const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
@@ -22,17 +24,19 @@ export async function GET() {
     }
 
     const users = await User.find({})
-      .select(
-        "email name role plan includeCalls callsRounds createdAt"
-      )
+      .select("email name role plan includeCalls callsRounds createdAt")
       .sort({ createdAt: -1 });
 
-    return NextResponse.json({ success: true, users });
+    return NextResponse.json(
+      { success: true, users },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (err) {
     console.error("ADMIN USERS ERROR:", err);
-    return NextResponse.json(
-      { success: false },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
