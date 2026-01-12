@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
 type Props = {
-  event: any;            // ✅ Event במקום invitation
+  invitation: any;
   onSaved: () => void;
   onClose?: () => void;
 };
 
 export default function EventDetailsForm({
-  event,
+  invitation,
   onSaved,
   onClose,
 }: Props) {
@@ -27,31 +27,31 @@ export default function EventDetailsForm({
   });
 
   /* ============================================================
-     🔄 Sync event → local state
+     🔄 Sync invitation → local state
   ============================================================ */
   useEffect(() => {
-    if (!event) return;
+    if (!invitation) return;
 
     setForm({
-      title: event.title ?? "",
-      eventType: event.eventType ?? "",
-      date: event.eventDate
-        ? new Date(event.eventDate).toISOString().slice(0, 10)
+      title: invitation.title ?? "",
+      eventType: invitation.eventType ?? "",
+      date: invitation.eventDate
+        ? new Date(invitation.eventDate).toISOString().slice(0, 10)
         : "",
-      time: event.eventTime ?? "",
+      time: invitation.eventTime ?? "",
       location: {
-        address: event.location?.address ?? "",
-        lat: event.location?.lat ?? null,
-        lng: event.location?.lng ?? null,
+        address: invitation.location?.address ?? "",
+        lat: invitation.location?.lat ?? null,
+        lng: invitation.location?.lng ?? null,
       },
     });
-  }, [event]);
+  }, [invitation]);
 
   /* ============================================================
-     💾 Save → Event model
+     💾 Save
   ============================================================ */
   async function save() {
-    if (!event?._id) return;
+    if (!invitation?._id) return;
 
     const payload = {
       title: form.title.trim(),
@@ -65,7 +65,7 @@ export default function EventDetailsForm({
       },
     };
 
-    const res = await fetch(`/api/events/${event._id}`, {
+    const res = await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -73,7 +73,7 @@ export default function EventDetailsForm({
 
     const data = await res.json();
 
-    if (!res.ok || !data?.success) {
+    if (!data?.success) {
       alert("❌ שגיאה בשמירת פרטי האירוע");
       return;
     }
@@ -120,7 +120,11 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, date: e.target.value }))
             }
-            className="border rounded-full px-4 py-3 text-base min-h-[48px] bg-white"
+            className="
+              border rounded-full px-4 py-3
+              text-base min-h-[48px]
+              bg-white
+            "
           />
         </div>
 
@@ -135,11 +139,15 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, time: e.target.value }))
             }
-            className="border rounded-full px-4 py-3 text-base min-h-[48px] bg-white"
+            className="
+              border rounded-full px-4 py-3
+              text-base min-h-[48px]
+              bg-white
+            "
           />
         </div>
 
-        {/* 📍 מיקום */}
+        {/* מיקום */}
         <LocationAutocomplete
           value={form.location.address}
           onSelect={({ address, lat, lng }) =>

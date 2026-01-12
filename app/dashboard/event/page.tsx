@@ -7,38 +7,38 @@ import EventDetailsForm from "@/app/components/EventDetailsForm";
 export default function EditEventPage() {
   const router = useRouter();
 
-  const [event, setEvent] = useState<any>(null);
+  const [invitation, setInvitation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /* ============================================================
-     📥 Load event
+     📥 Load invitation
   ============================================================ */
   useEffect(() => {
-    async function loadEvent() {
+    async function loadInvitation() {
       try {
-        const res = await fetch("/api/events", {
+        const res = await fetch("/api/invitations/my", {
           credentials: "include",
           cache: "no-store",
         });
 
         const data = await res.json();
 
-        if (!res.ok || !data || Object.keys(data).length === 0) {
-          setError("לא נמצא אירוע");
+        if (!data.success) {
+          setError("לא נמצאה הזמנה");
           return;
         }
 
-        setEvent(data);
+        setInvitation(data.invitation);
       } catch (err) {
-        console.error("❌ Failed to load event:", err);
-        setError("שגיאה בטעינת פרטי האירוע");
+        console.error("❌ Failed to load invitation:", err);
+        setError("שגיאה בטעינת ההזמנה");
       } finally {
         setLoading(false);
       }
     }
 
-    loadEvent();
+    loadInvitation();
   }, []);
 
   /* ============================================================
@@ -52,10 +52,10 @@ export default function EditEventPage() {
     );
   }
 
-  if (error || !event) {
+  if (error || !invitation) {
     return (
       <div className="p-10 text-center text-red-600">
-        {error || "לא נמצא אירוע"}
+        {error || "לא נמצאה הזמנה"}
       </div>
     );
   }
@@ -80,8 +80,9 @@ export default function EditEventPage() {
 
       {/* Form */}
       <EventDetailsForm
-        event={event}
+        invitation={invitation}
         onSaved={() => {
+          // אחרי שמירה – חזרה לדשבורד
           router.back();
         }}
       />
