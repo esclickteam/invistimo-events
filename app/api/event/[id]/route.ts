@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/auth";
 
 export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
 
+    const { id } = await context.params; // ✅ חובה await
     const userId = await getUserIdFromRequest(req);
     const body = await req.json();
 
     const event = await Event.findOneAndUpdate(
-      { _id: params.id, userId }, // אבטחה: רק בעל האירוע
+      { _id: id, userId }, // 🔐 אבטחה
       body,
       { new: true }
     );
