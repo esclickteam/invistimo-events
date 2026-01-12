@@ -499,7 +499,8 @@ const creditGiftsPrice = useMemo(() => {
 </div>
 
 {/* ✅ אישור תקנון ופרטיות */}
-<div className="mt-6 text-sm text-[#3a332d]">
+<div className="mt-6 text-base md:text-xs text-[#3a332d]">
+
 
   <label className="flex items-start gap-3 cursor-pointer">
     <input
