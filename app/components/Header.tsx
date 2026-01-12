@@ -15,11 +15,19 @@ export default function Header() {
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <>
-      <Link href="/" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         ראשי
       </Link>
 
-      <Link href="/rsvp" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/rsvp"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         אישורי הגעה
       </Link>
 
@@ -31,7 +39,11 @@ export default function Header() {
         סידורי הושבה
       </Link>
 
-      <Link href="/pricing" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/pricing"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         חבילות ומחירים
       </Link>
 
@@ -43,7 +55,11 @@ export default function Header() {
         מתנות באשראי
       </Link>
 
-      <Link href="/contact" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/contact"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         צור קשר
       </Link>
     </>
@@ -61,25 +77,13 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          {/* GRID: ימין | מרכז | שמאל */}
-          <div className="grid grid-cols-[auto_1fr_auto] items-center h-16">
+          {/* ✅ גריד חדש – ימין (כפתורים + ניווט), מרכז (לוגו), שמאל (ריק) */}
+          <div className="grid grid-cols-[1fr_auto] items-center h-16">
 
-            {/* ================= MOBILE: HAMBURGER (RIGHT) ================= */}
-            {!isDashboard && (
-              <div className="md:hidden flex items-center">
-                <button
-                  onClick={() => setMobileOpen(true)}
-                  className="p-2"
-                  aria-label="פתח תפריט"
-                >
-                  <Menu size={26} />
-                </button>
-              </div>
-            )}
-
-            {/* ================= DESKTOP: NAV + ACTIONS ================= */}
+            
+            {/* ✅ צד ימין – כפתורים צמוד לימין ואז ניווט */}
             <div className="hidden md:flex items-center justify-start gap-6">
-              {/* actions */}
+              {/* כפתורים קודם */}
               <div className="flex items-center gap-3 pl-4 border-l border-[#d7c9b8]">
                 <Link
                   href="/try/dashboard"
@@ -92,6 +96,7 @@ export default function Header() {
                     transition
                     whitespace-nowrap
                   "
+                  title=" דמו – צפייה בלבד"
                 >
                   נסה דמו
                 </Link>
@@ -105,7 +110,6 @@ export default function Header() {
                       >
                         לוח בקרה
                       </Link>
-
                       <button
                         onClick={logout}
                         className="
@@ -137,23 +141,34 @@ export default function Header() {
                   ))}
               </div>
 
-              {/* nav */}
+              {/* ✅ אחרי הכפתורים – הניווט */}
               <nav className="flex items-center gap-6 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
                 <NavLinks />
               </nav>
             </div>
 
-            {/* ================= LOGO (LEFT) ================= */}
+            {/* ✅ מרכז – לוגו */}
             <div className="flex justify-end" dir="ltr">
-              <Link href="/" className="flex items-center">
-                <img
-                  src="/invistimo-logo.png"
-                  alt="Invistimo Logo"
-                  className="h-10 w-auto object-contain scale-[4] origin-left"
-                />
-              </Link>
-            </div>
+  <Link href="/" className="flex items-center">
+    <img
+      src="/invistimo-logo.png"
+      alt="Invistimo Logo"
+      className="h-10 w-auto object-contain scale-[4] origin-left"
+    />
+  </Link>
+</div>
 
+
+            {/* ✅ מובייל – המבורגר */}
+            {!isDashboard && (
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="md:hidden p-2 absolute left-4 top-3"
+                aria-label="פתח תפריט"
+              >
+                <Menu size={26} />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -161,11 +176,13 @@ export default function Header() {
       {/* ================= MOBILE DRAWER ================= */}
       {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
+          {/* overlay */}
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileOpen(false)}
           />
 
+          {/* drawer */}
           <div
             className="
               absolute top-0 right-0 h-full w-[80%] max-w-sm
@@ -189,6 +206,7 @@ export default function Header() {
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
 
+            {/* כפתור דמו */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               <Link
                 href="/try/dashboard"
@@ -201,12 +219,16 @@ export default function Header() {
                   hover:opacity-95
                   transition
                   w-fit
+                  inline-flex items-center gap-2
+                  whitespace-nowrap
                 "
+                title=" דמו – צפייה בלבד"
               >
                 נסה דמו
               </Link>
             </div>
 
+            {/* אזור משתמש */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               {!loading &&
                 (user ? (
@@ -218,7 +240,6 @@ export default function Header() {
                     >
                       לוח בקרה
                     </Link>
-
                     <button
                       onClick={() => {
                         logout();
