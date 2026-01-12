@@ -1,29 +1,41 @@
 import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 
 type AuthPayload = {
   userId: string;
   role: "admin" | "user";
 };
 
-export async function getUserIdFromRequest(): Promise<AuthPayload | null> {
+export async function getUserIdFromRequest(
+  req: Request
+): Promise<AuthPayload | null> {
   try {
-    // ✔ אצלך cookies() מחזיר Promise
-    const cookieStore = await cookies();
+    // 🔑 קריאת cookie ישירות מה־Request (חובה ב־Route Handlers)
+    const cookieHeader = req.headers.get("cookie");
+    if (!cookieHeader) return null;
 
+    // חיפוש authToken / token
     const token =
-      cookieStore.get("authToken")?.value ||
-      cookieStore.get("token")?.value ||
-      null;
+      cookieHeader
+        .split(";")
+        .map((c) => c.trim())
+        .find(
+          (c) =>
+            c.startsWith("authToken=") || c.startsWith("token=")
+        )
+        ?.split("=")[1] || null;
 
     if (!token) return null;
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    // 🔐 אימות JWT
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    ) as any;
 
     /*
-      מצופה JWT בצורה:
+      מצופה JWT:
       {
-        id / userId,
+        userId | id,
         role: "admin" | "user",
         iat,
         exp
@@ -31,7 +43,7 @@ export async function getUserIdFromRequest(): Promise<AuthPayload | null> {
     */
 
     const userId = decoded.userId || decoded.id || null;
-    const role = decoded.role || "user";
+    const role = decoded.role === "admin" ? "admin" : "user";
 
     if (!userId) return null;
 
