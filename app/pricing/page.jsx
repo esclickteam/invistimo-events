@@ -221,11 +221,12 @@ const creditGiftsPrice = useMemo(() => {
           <div className="grid md:grid-cols-2 gap-14">
             {/* BASIC */}
             <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeUp}
-            >
+  initial="hidden"
+  whileInView="visible"
+  viewport={{ once: true }}
+  variants={fadeUp}
+  className="md:-mt-6"
+>
               <Card className="rounded-3xl shadow-xl h-full bg-[#f7f3ee]">
 
                 <CardContent className="p-10 flex flex-col h-full">
