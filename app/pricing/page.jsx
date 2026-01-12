@@ -228,7 +228,8 @@ const creditGiftsPrice = useMemo(() => {
             >
               <Card className="rounded-3xl shadow-xl h-full bg-[#f7f3ee]">
 
-                <CardContent className="p-10">
+                <CardContent className="p-10 flex flex-col h-full">
+
                   <h3 className="text-2xl font-semibold mb-2">חבילת בסיס</h3>
                   <p className="text-[#8f7a67] mb-2">לאירועים קטנים</p>
 
@@ -288,7 +289,7 @@ const creditGiftsPrice = useMemo(() => {
 </div>
 
 
-                  <div className="mt-8">
+                  <div className="mt-auto pt-8">
   <Button
     variant="outline"
     className={`w-full rounded-full py-6 ${
@@ -317,8 +318,8 @@ const creditGiftsPrice = useMemo(() => {
 >
 
 {/* ⭐ הבחירה המומלצת – מעל הכרטיס */}
-<div className="flex justify-center mb-4">
-  <div className="flex items-center gap-2 rounded-full bg-[#fff7ec] px-4 py-1.5 text-sm font-semibold text-[#4a413a] shadow">
+<div className="flex justify-center -mb-4 relative z-10">
+  <div className="flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-[#4a413a] shadow">
     ⭐ הבחירה המומלצת
   </div>
 </div>
@@ -328,7 +329,8 @@ const creditGiftsPrice = useMemo(() => {
 
               <Card className="relative rounded-3xl shadow-2xl bg-gradient-to-b from-[#d1bba3] to-[#c3a98c] text-[#2f2a25] h-full">
 
-                <CardContent className="p-10">
+                <CardContent className="p-10 flex flex-col h-full">
+
                   
                   <h3 className="text-2xl font-semibold text-[#2f2a25] text-center mb-2">
   חבילת פרימיום
@@ -544,17 +546,20 @@ const creditGiftsPrice = useMemo(() => {
 
                   
 
-                  <Button
-  className={`w-full rounded-full py-6 ${
-    acceptedTerms
-      ? "bg-[#4a413a] hover:bg-[#3a332d]"
-      : "bg-[#4a413a]/60 cursor-not-allowed"
-  }`}
-  disabled={!acceptedTerms}
-  onClick={() => goRegister("premium")}
->
-  הרשמה לפרימיום
-</Button>
+                 <div className="mt-auto pt-8">
+  <Button
+    className={`w-full rounded-full py-6 ${
+      acceptedTerms
+        ? "bg-[#4a413a] hover:bg-[#3a332d]"
+        : "bg-[#4a413a]/60 cursor-not-allowed"
+    }`}
+    disabled={!acceptedTerms}
+    onClick={() => goRegister("premium")}
+  >
+    הרשמה לפרימיום
+  </Button>
+</div>
+
 
                   <p className="text-center text-sm mt-4 opacity-80"></p>
                 </CardContent>
