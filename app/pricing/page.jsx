@@ -262,7 +262,7 @@ const creditGiftsPrice = useMemo(() => {
       type="checkbox"
       checked={acceptedBasicTerms}
       onChange={(e) => setAcceptedBasicTerms(e.target.checked)}
-      className="mt-1 h-4 w-4 accent-[#4a413a]"
+      className="mt-1 h-5 w-5 scale-110 accent-[#4a413a]"
     />
     <span>
       הנני מאשר/ת את{" "}
@@ -497,7 +497,7 @@ const creditGiftsPrice = useMemo(() => {
       type="checkbox"
       checked={acceptedTerms}
       onChange={(e) => setAcceptedTerms(e.target.checked)}
-      className="mt-1 h-4 w-4 accent-[#4a413a]"
+      className="mt-1 h-5 w-5 scale-110 accent-[#4a413a]"
     />
     <span>
       הנני מאשר/ת את{" "}
