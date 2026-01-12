@@ -8,26 +8,28 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
+/* ============================================================
+   POST — יצירת הזמנה
+   ✅ אם אין eventId, נזהה אירוע קיים או ניצור חדש אוטומטית
+============================================================ */
 export async function POST(req: Request) {
   try {
     await db();
 
     /* ===============================
-       🔐 זיהוי משתמש
+       🔐 אימות משתמש
     =============================== */
     const auth = await getUserIdFromRequest();
-
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
-
     const userId = auth.userId;
 
     /* ===============================
-       🧠 טעינת יוזר
+       🧠 טעינת משתמש
     =============================== */
     const user = await User.findById(userId).lean();
     if (!user) {
@@ -40,23 +42,37 @@ export async function POST(req: Request) {
     /* ===============================
        📦 גוף הבקשה
     =============================== */
-    const body = await req.json();
-    const { eventId, canvasData, previewImage } = body;
-
-    if (!eventId) {
-      return NextResponse.json(
-        { success: false, error: "EVENT_ID_REQUIRED" },
-        { status: 400 }
-      );
-    }
+    const body = await req.json().catch(() => ({} as any));
+    let { eventId, canvasData, previewImage } = body;
 
     /* ===============================
-       🎯 טעינת Event
+       🎯 נזהה או ניצור Event
     =============================== */
-    const event = await Event.findOne({
-      _id: eventId,
-      userId,
-    });
+    let event;
+
+    if (eventId) {
+      event = await Event.findOne({ _id: eventId, userId });
+    } else {
+      // 🔍 נבדוק אם כבר יש אירוע למשתמש
+      event = await Event.findOne({ userId });
+      if (!event) {
+        // 🆕 ניצור אירוע חדש אם אין
+        event = await Event.create({
+          userId,
+          title: "אירוע חדש",
+          eventType: "wedding",
+          status: "draft",
+          date: null,
+          time: null,
+          paymentStatus: "paid",
+          maxGuests: 100,
+          location: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        console.log("✅ נוצר אירוע חדש אוטומטית:", event._id);
+      }
+    }
 
     if (!event) {
       return NextResponse.json(
@@ -66,9 +82,12 @@ export async function POST(req: Request) {
     }
 
     /* ===============================
-       🔒 בדיקה שאין כבר הזמנה לאירוע
+       🔒 בדיקה אם כבר קיימת הזמנה לאירוע הזה
     =============================== */
-    const existing = await Invitation.findOne({ eventId });
+    const existing = await Invitation.findOne({
+      eventId: event._id,
+      ownerId: userId,
+    }).lean();
 
     if (existing) {
       return NextResponse.json(
@@ -78,36 +97,27 @@ export async function POST(req: Request) {
     }
 
     /* ===============================
-       🧮 הגבלות
+       🧮 חישוב מגבלות
     =============================== */
     const maxGuests = Number(event.maxGuests) || 100;
     const maxMessages = maxGuests * 3;
-
-    /* ===============================
-       🔗 shareId
-    =============================== */
     const shareId = nanoid(10);
 
     /* ===============================
-       🧾 יצירת ההזמנה
+       🧾 יצירת הזמנה חדשה
     =============================== */
     const newInvite = await Invitation.create({
       ownerId: userId,
       eventId: event._id,
-
-      // 📸 snapshot מה־Event
       title: event.title || "הזמנה חדשה",
       eventType: event.eventType || "",
       eventDate: event.date || null,
       eventTime: event.time || "",
       location: event.location || {},
-
       canvasData: canvasData || {},
       previewImage: previewImage || "",
-
       shareId,
       guests: [],
-
       maxGuests,
       maxMessages,
       sentSmsCount: 0,
@@ -116,7 +126,7 @@ export async function POST(req: Request) {
 
     const cleanInvite = JSON.parse(JSON.stringify(newInvite));
 
-    console.log("🔥 INVITATION CREATED FROM EVENT:", {
+    console.log("🔥 INVITATION CREATED:", {
       inviteId: cleanInvite._id,
       eventId: event._id,
       ownerId: userId,
