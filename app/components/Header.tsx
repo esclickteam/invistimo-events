@@ -77,13 +77,17 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          {/* ✅ שינוי: בדסקטופ הגריד עכשיו auto_1fr_auto כדי להחזיק ימין=כפתורים, מרכז=לוגו, שמאל=ניווט */}
-          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_auto] items-center h-16">
-            {/* ✅ ימין – כפתורים (דסקטופ) + המבורגר (מובייל) */}
-            <div className="flex items-center justify-start">
-              {/* דסקטופ – כפתורים בצד ימין */}
-              <div className="hidden md:flex items-center gap-3">
-                {/* ✅ תמיד מוצג: כפתור דמו (מודגש) */}
+          {/* ✅ גריד חדש – ימין (ניווט+כפתורים), מרכז (לוגו), שמאל (ריק או רווח) */}
+          <div className="grid grid-cols-[auto_1fr_auto] items-center h-16">
+            {/* ✅ צד ימין – תפריט ניווט + כפתורים */}
+            <div className="hidden md:flex items-center justify-start gap-6">
+              {/* ניווט */}
+              <nav className="flex items-center gap-6 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
+                <NavLinks />
+              </nav>
+
+              {/* כפתורים */}
+              <div className="flex items-center gap-3">
                 <Link
                   href="/try/dashboard"
                   className="
@@ -139,20 +143,9 @@ export default function Header() {
                     </Link>
                   ))}
               </div>
-
-              {/* מובייל – המבורגר רק אם לא בדשבורד */}
-              {!isDashboard && (
-                <button
-                  onClick={() => setMobileOpen(true)}
-                  className="md:hidden p-2"
-                  aria-label="פתח תפריט"
-                >
-                  <Menu size={26} />
-                </button>
-              )}
             </div>
 
-            {/* מרכז – לוגו */}
+            {/* ✅ מרכז – לוגו */}
             <div className="flex justify-center" dir="ltr">
               <Link href="/" className="flex items-center">
                 <img
@@ -163,17 +156,26 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* ✅ שמאל – ניווט (דסקטופ בלבד) */}
+            {/* ✅ שמאל – ריק או רווח עיצובי */}
             <div className="hidden md:flex justify-end items-center">
-              <nav className="flex items-center gap-8 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
-                <NavLinks />
-              </nav>
+              {/* השארנו ריק כדי שהלוגו יישאר בדיוק במרכז */}
             </div>
+
+            {/* מובייל – המבורגר */}
+            {!isDashboard && (
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="md:hidden p-2 absolute left-4 top-3"
+                aria-label="פתח תפריט"
+              >
+                <Menu size={26} />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* ================= MOBILE DRAWER (רק מחוץ לדשבורד) ================= */}
+      {/* ================= MOBILE DRAWER ================= */}
       {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
           {/* overlay */}
@@ -206,7 +208,7 @@ export default function Header() {
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
 
-            {/* ✅ תמיד במובייל: כפתור דמו */}
+            {/* כפתור דמו */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               <Link
                 href="/try/dashboard"
@@ -228,7 +230,7 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* אזור משתמש – מתחת לצור קשר */}
+            {/* אזור משתמש */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               {!loading &&
                 (user ? (
