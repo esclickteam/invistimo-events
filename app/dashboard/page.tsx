@@ -85,7 +85,8 @@ const isDemo = pathname.startsWith("/try");
      Load invitation
   ============================================================ */
   async function loadInvitation() {
-  const res = await fetch("/api/invitations/my", {
+  const res = await fetch("/api/event", {
+
     credentials: "include", // ⭐️ קריטי
     cache: "no-store",
   });
