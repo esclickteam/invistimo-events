@@ -200,7 +200,8 @@ export default function ProducerDashboard() {
 
             <div className="flex flex-col items-stretch gap-2 min-w-[200px]">
               <Button
-                className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
+                className="rounded-xl px-5 py-2 bg-white border border-gray-200 text-slate-900 hover:bg-gray-50 transition"
+
                 onClick={() => {
                   // בהמשך ננווט לניהול האירוע (למשל /dashboard/event/[id])
                   // כרגע זה placeholder
@@ -212,12 +213,12 @@ export default function ProducerDashboard() {
               </Button>
 
               <Button
-                variant="outline"
-                className="rounded-xl px-5 py-2 bg-white/70 hover:bg-white transition border-gray-200 text-slate-900"
-                onClick={() => alert("בקרוב: פתיחת צ׳ק-אין")}
-              >
-                צ׳ק-אין / כניסה
-              </Button>
+  className="rounded-xl px-5 py-2 bg-white border border-gray-200 text-slate-900 hover:bg-gray-50 transition"
+  onClick={() => alert("בקרוב: פתיחת צ׳ק-אין")}
+>
+  צ׳ק-אין / כניסה
+</Button>
+
             </div>
           </div>
         </motion.div>
@@ -239,7 +240,8 @@ export default function ProducerDashboard() {
             </div>
 
             <Button
-              className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
+              className="rounded-xl px-5 py-2 bg-white border border-gray-200 text-slate-900 hover:bg-gray-50 transition"
+
               onClick={() => alert("בקרוב: פתיחת יצירת אירוע")}
             >
               <Plus className="w-4 h-4 ml-2" />
@@ -257,12 +259,13 @@ export default function ProducerDashboard() {
           <h2 className="text-xl font-semibold text-slate-900">האירועים שלי</h2>
 
           <Button
-            className="flex items-center gap-2 bg-[var(--brand-purple)] text-white rounded-xl px-4 py-2 hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
-            onClick={() => alert("בקרוב: יצירת אירוע + יצירת לקוח")}
-          >
-            <Plus className="w-4 h-4" />
-            הוסף אירוע חדש
-          </Button>
+  className="flex items-center gap-2 bg-white border border-gray-200 text-slate-900 rounded-xl px-4 py-2 hover:bg-gray-50 transition"
+  onClick={() => alert("בקרוב: יצירת אירוע + יצירת לקוח")}
+>
+  <Plus className="w-4 h-4" />
+  הוסף אירוע חדש
+</Button>
+
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
