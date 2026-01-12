@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import EditorCanvas, {
@@ -32,20 +33,17 @@ type EditorObject = {
 /* =========================================================
    Component
 ========================================================= */
-export default function EditInvitePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function EditInvitePage() {
+  /* ================= Params ================= */
+  const params = useParams();
+  const inviteId = params?.id as string | undefined;
+
+  console.log("🧩 EditInvitePage mounted");
+  console.log("🆔 inviteId from useParams:", inviteId);
+
   /* ================= Refs ================= */
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-
-  /* ================= Params ================= */
-  const inviteId = params.id;
-
-  console.log("🧩 EditInvitePage mounted");
-  console.log("🆔 inviteId from params:", inviteId);
 
   /* ================= State ================= */
   const [invite, setInvite] = useState<any>(null);
@@ -76,7 +74,10 @@ export default function EditInvitePage({
 
     async function loadInvitation() {
       try {
-        console.log("➡️ Fetching invitation:", `/api/invitations/${inviteId}`);
+        console.log(
+          "➡️ Fetching invitation:",
+          `/api/invitations/${inviteId}`
+        );
 
         const res = await fetch(`/api/invitations/${inviteId}`, {
           credentials: "include",
@@ -100,13 +101,15 @@ export default function EditInvitePage({
           canvasData.objects?.length ?? 0
         );
 
-        canvasData.objects = canvasData.objects.map((obj: any, i: number) => {
-          console.log("✏️ Canvas object", i, obj.type);
-          return {
-            ...obj,
-            image: undefined,
-          };
-        });
+        canvasData.objects = canvasData.objects.map(
+          (obj: any, i: number) => {
+            console.log("✏️ Canvas object", i, obj.type);
+            return {
+              ...obj,
+              image: undefined,
+            };
+          }
+        );
 
         setInvite({
           ...data.invitation,
@@ -131,7 +134,9 @@ export default function EditInvitePage({
   ========================================================= */
   const handleSave = async () => {
     if (!inviteId || !canvasRef.current?.getCanvasData) {
-      console.warn("⚠️ Save aborted – missing inviteId or canvasRef");
+      console.warn(
+        "⚠️ Save aborted – missing inviteId or canvasRef"
+      );
       return;
     }
 
@@ -174,7 +179,12 @@ export default function EditInvitePage({
      Loading state
   ========================================================= */
   if (loading || !invite) {
-    console.log("⏳ Still loading… loading:", loading, "invite:", invite);
+    console.log(
+      "⏳ Still loading… loading:",
+      loading,
+      "invite:",
+      invite
+    );
     return (
       <div className="p-10 text-center text-xl">
         טוען את ההזמנה...
@@ -191,7 +201,10 @@ export default function EditInvitePage({
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
-          <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
+          <Sidebar
+            canvasRef={canvasRef}
+            googleApiKey={googleApiKey}
+          />
         </div>
 
         <div className="flex-1 flex flex-col min-h-0 relative">
@@ -210,7 +223,9 @@ export default function EditInvitePage({
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) canvasRef.current?.uploadBackground?.(file);
+                if (file) {
+                  canvasRef.current?.uploadBackground?.(file);
+                }
                 e.currentTarget.value = "";
               }}
             />
