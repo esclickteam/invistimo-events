@@ -255,41 +255,34 @@ const creditGiftsPrice = useMemo(() => {
                   </ul>
 
                   {/* ✅ אישור תקנון ופרטיות – חבילת בסיס */}
-<div className="mt-4 text-base md:text-xs text-[#8f7a67]">
-  <label className="flex items-center gap-3 cursor-pointer whitespace-nowrap">
-
-
-
+<div className="mt-6 text-base md:text-sm lg:text-base text-[#8f7a67]">
+  <label className="flex items-start gap-3 cursor-pointer">
     <input
       type="checkbox"
       checked={acceptedBasicTerms}
       onChange={(e) => setAcceptedBasicTerms(e.target.checked)}
-      className="h-5 w-5 scale-110 accent-[#4a413a]"
-
+      className="h-5 w-5 accent-[#4a413a]"
     />
-    <span className="whitespace-nowrap">
 
+    <span>
       הנני מאשר/ת את{" "}
-
       <a
-  href="https://www.invistimo.com/terms"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
->
-  תקנון השימוש
-</a>{" "}
-ו־
-<a
-  href="https://www.invistimo.com/privacy"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
->
-  מדיניות הפרטיות
-</a>
-
-
+        href="https://www.invistimo.com/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+      >
+        תקנון השימוש
+      </a>{" "}
+      ו־
+      <a
+        href="https://www.invistimo.com/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+      >
+        מדיניות הפרטיות
+      </a>
     </span>
   </label>
 </div>
@@ -499,38 +492,34 @@ const creditGiftsPrice = useMemo(() => {
 </div>
 
 {/* ✅ אישור תקנון ופרטיות */}
-<div className="mt-6 text-base md:text-xs text-[#3a332d]">
-
-
+<div className="mt-6 text-base md:text-sm lg:text-base text-[#3a332d]">
   <label className="flex items-start gap-3 cursor-pointer">
     <input
       type="checkbox"
       checked={acceptedTerms}
       onChange={(e) => setAcceptedTerms(e.target.checked)}
-      className="h-5 w-5 scale-110 accent-[#4a413a]"
-
+      className="h-5 w-5 accent-[#4a413a]"
     />
-    <span className="whitespace-nowrap">
 
+    <span>
       הנני מאשר/ת את{" "}
-
       <a
-  href="https://www.invistimo.com/terms"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
->
-  תקנון השימוש
-</a>{" "}
-ו־
-<a
-  href="https://www.invistimo.com/privacy"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
->
-  מדיניות הפרטיות
-</a>
+        href="https://www.invistimo.com/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+      >
+        תקנון השימוש
+      </a>{" "}
+      ו־
+      <a
+        href="https://www.invistimo.com/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+      >
+        מדיניות הפרטיות
+      </a>
 
 
     </span>
