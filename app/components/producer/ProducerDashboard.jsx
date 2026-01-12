@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import CreateClientAndEvent from "@/components/producer/CreateClientAndEvent";
+import CreateClientAndEvent from "@/app/components/producer/CreateClientAndEvent";
 import { useAuth } from "@/context/AuthContext";
 
 const fadeUp = {
