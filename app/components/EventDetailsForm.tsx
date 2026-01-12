@@ -54,14 +54,9 @@ export default function EventDetailsForm({
   }, [event]);
 
   /* ============================================================
-     💾 Save event
+     💾 Save event (UPSERT)
   ============================================================ */
   async function save() {
-    if (!event?._id) {
-      alert("❌ אירוע לא נמצא");
-      return;
-    }
-
     const payload = {
       title: form.title.trim(),
       eventType: form.eventType.trim(),
@@ -76,10 +71,11 @@ export default function EventDetailsForm({
 
     try {
       const res = await fetch("/api/event", {
-        method: "PUT",
+        method: "POST", // ✅ upsert
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // ⭐️ חובה
         body: JSON.stringify(payload),
       });
 
@@ -108,7 +104,6 @@ export default function EventDetailsForm({
       </h2>
 
       <div className="grid gap-4">
-        {/* שם האירוע */}
         <input
           placeholder="שם האירוע"
           value={form.title}
@@ -118,7 +113,6 @@ export default function EventDetailsForm({
           className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
-        {/* סוג האירוע */}
         <input
           placeholder="סוג האירוע (חתונה / בר מצווה וכו׳)"
           value={form.eventType}
@@ -128,7 +122,6 @@ export default function EventDetailsForm({
           className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
-        {/* 📅 תאריך */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-600 px-2">
             תאריך האירוע
@@ -143,7 +136,6 @@ export default function EventDetailsForm({
           />
         </div>
 
-        {/* ⏰ שעה */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-600 px-2">
             שעת האירוע
@@ -158,7 +150,6 @@ export default function EventDetailsForm({
           />
         </div>
 
-        {/* 📍 מיקום */}
         <LocationAutocomplete
           value={form.location.address}
           onSelect={({ address, lat, lng }) =>
