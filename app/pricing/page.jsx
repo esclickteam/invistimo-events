@@ -255,16 +255,20 @@ const creditGiftsPrice = useMemo(() => {
                   </ul>
 
                   {/* ✅ אישור תקנון ופרטיות – חבילת בסיס */}
-<div className="mt-4 text-xs text-[#8f7a67] leading-relaxed">
+<div className="mt-4 text-base md:text-xs text-[#8f7a67]">
+  <label className="flex items-center gap-3 cursor-pointer whitespace-nowrap">
 
-  <label className="flex items-start gap-3 cursor-pointer">
+
+
     <input
       type="checkbox"
       checked={acceptedBasicTerms}
       onChange={(e) => setAcceptedBasicTerms(e.target.checked)}
-      className="mt-1 h-5 w-5 scale-110 accent-[#4a413a]"
+      className="h-5 w-5 scale-110 accent-[#4a413a]"
+
     />
-    <span>
+    <span className="whitespace-nowrap">
+
       הנני מאשר/ת את{" "}
 
       <a
@@ -502,9 +506,11 @@ const creditGiftsPrice = useMemo(() => {
       type="checkbox"
       checked={acceptedTerms}
       onChange={(e) => setAcceptedTerms(e.target.checked)}
-      className="mt-1 h-5 w-5 scale-110 accent-[#4a413a]"
+      className="h-5 w-5 scale-110 accent-[#4a413a]"
+
     />
-    <span>
+    <span className="whitespace-nowrap">
+
       הנני מאשר/ת את{" "}
 
       <a
@@ -528,6 +534,7 @@ const creditGiftsPrice = useMemo(() => {
 
     </span>
   </label>
+
 </div>
 
 
