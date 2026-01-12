@@ -12,6 +12,16 @@ import GuestsMobileList from "./components/GuestsMobileList";
 import { usePathname } from "next/navigation";
 import DemoToast from "../components/DemoToast";
 
+type EventModel = {
+  title?: string;
+  date?: string; // YYYY-MM-DD
+  time?: string;
+  location?: {
+    address?: string;
+    lat?: number | null;
+    lng?: number | null;
+  };
+};
 
 
 
@@ -60,6 +70,8 @@ const isDemo = pathname.startsWith("/try");
 
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
+  const [event, setEvent] = useState<EventModel | null>(null);
+
 
   const [user, setUser] = useState<any | null>(null);
   // ✅ חיפוש
@@ -97,6 +109,19 @@ const isDemo = pathname.startsWith("/try");
     setInvitationId(data.invitation._id);
   }
 }
+
+async function loadEvent() {
+  const res = await fetch("/api/events", {
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+  if (data.success) {
+    setEvent(data.event);
+  }
+}
+
 
   /* ============================================================
      Load guests
@@ -156,6 +181,7 @@ useEffect(() => {
   async function init() {
     await loadUser();
     await loadInvitation();
+    await loadEvent();
     setLoading(false);
   }
   init();
@@ -461,20 +487,20 @@ console.log("INVITATION:", invitation);
   
 
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
-    {invitation && (
+    {event && (
   <div className="flex items-center justify-between mb-4">
     <div className="text-lg font-semibold">
-      {invitation.eventDate ? (
-        <EventCountdown invitation={invitation} />
+      {event.date ? (
+        <EventCountdown event={event} />
       ) : (
         <span className="text-gray-500">
           📅 טרם הוגדר תאריך לאירוע
         </span>
       )}
     </div>
- 
   </div>
 )}
+
 
 
 {/* ⬇⬇⬇ רק עכשיו – שורת רשימת מוזמנים ⬇⬇⬇ */}

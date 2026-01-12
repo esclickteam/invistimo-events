@@ -14,16 +14,24 @@ type TimeLeft = {
   seconds: number;
 };
 
+type Props = {
+  event: {
+    title?: string;
+    date?: string; // YYYY-MM-DD
+  } | null;
+};
+
 /* ============================================================
    Component
 ============================================================ */
-export default function EventCountdown({ invitation }: { invitation: any }) {
+export default function EventCountdown({ event }: Props) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
 
   useEffect(() => {
-    if (!invitation?.eventDate) return;
+    if (!event?.date) return;
 
-    const target = new Date(invitation.eventDate).getTime();
+    // חשוב: date בלבד → ניצור תאריך תקני
+    const target = new Date(`${event.date}T00:00:00`).getTime();
     if (isNaN(target)) return;
 
     const interval = setInterval(() => {
@@ -56,7 +64,7 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [invitation?.eventDate]);
+  }, [event?.date]);
 
   if (!timeLeft) return null;
 
@@ -71,16 +79,16 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
 
   return (
     <div dir="rtl" className="flex flex-col items-center gap-3">
-      {/* כותרת קטנה */}
+      {/* כותרת */}
       <div className="text-sm text-[#4a413a] font-medium">
         האירוע{" "}
         <span className="font-bold text-[#c9b48f]">
-          {invitation?.title || "שלך"}
+          {event?.title || "שלך"}
         </span>{" "}
         יתחיל בעוד
       </div>
 
-      {/* SLOT COUNTDOWN */}
+      {/* Countdown */}
       <div className="flex items-end gap-2">
         {units.map((u) => (
           <SlotUnit key={u.label} value={u.value} label={u.label} />
@@ -96,19 +104,7 @@ export default function EventCountdown({ invitation }: { invitation: any }) {
 function SlotUnit({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <div
-        className="
-          min-w-[44px]
-          px-2 py-2
-          rounded-lg
-          bg-gradient-to-b from-zinc-900 to-black
-          text-white
-          text-xl
-          font-bold
-          tabular-nums
-          shadow-inner
-        "
-      >
+      <div className="min-w-[44px] px-2 py-2 rounded-lg bg-gradient-to-b from-zinc-900 to-black text-white text-xl font-bold tabular-nums shadow-inner">
         {String(value).padStart(2, "0")}
       </div>
 
