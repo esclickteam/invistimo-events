@@ -232,6 +232,7 @@ export default function EditInvitePage({
           <div className="flex-1 relative bg-gray-100">
             <div className="absolute inset-0 pb-24 md:pb-0">
               <EditorCanvas
+                key={invite._id}
                 ref={canvasRef}
                 initialData={invite.canvasData}
                 onSelect={setSelectedObject}
