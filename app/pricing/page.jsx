@@ -218,14 +218,16 @@ const creditGiftsPrice = useMemo(() => {
             בחרו את החבילה שמתאימה לכם
           </motion.h2>
 
-          <div className="grid md:grid-cols-2 gap-14">
+          <div className="grid md:grid-cols-2 gap-14 items-stretch">
+
             {/* BASIC */}
             <motion.div
   initial="hidden"
   whileInView="visible"
   viewport={{ once: true }}
   variants={fadeUp}
-  className="md:-mt-6"
+    className="md:-mt-6 h-full flex flex-col"
+
 >
               <Card className="rounded-3xl shadow-xl h-full bg-[#f7f3ee]">
 
@@ -315,7 +317,7 @@ const creditGiftsPrice = useMemo(() => {
   whileInView="visible"
   viewport={{ once: true }}
   variants={fadeUp}
-  className="md:-mt-6"
+  className="md:-mt-6 h-full flex flex-col"
 >
 
 {/* ⭐ הבחירה המומלצת – מעל הכרטיס */}
