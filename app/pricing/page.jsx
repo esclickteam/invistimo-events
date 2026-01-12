@@ -59,6 +59,8 @@ export default function PricingPage() {
   const [premiumGuests, setPremiumGuests] = useState(100);
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedBasicTerms, setAcceptedBasicTerms] = useState(false);
+
 
 
   // ✅ בחירה אם לכלול שיחות (3 סבבים)
@@ -251,13 +253,54 @@ const creditGiftsPrice = useMemo(() => {
                     ))}
                   </ul>
 
+                  {/* ✅ אישור תקנון ופרטיות – חבילת בסיס */}
+<div className="mt-6 text-sm text-[#8f7a67]">
+  <label className="flex items-start gap-3 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={acceptedBasicTerms}
+      onChange={(e) => setAcceptedBasicTerms(e.target.checked)}
+      className="mt-1 h-4 w-4 accent-[#4a413a]"
+    />
+    <span>
+      הנני מאשר/ת את{" "}
+
+      <a
+  href="https://www.invistimo.com/terms"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+>
+  תקנון השימוש
+</a>{" "}
+ו־
+<a
+  href="https://www.invistimo.com/privacy"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+>
+  מדיניות הפרטיות
+</a>
+
+
+    </span>
+  </label>
+</div>
+
+
                   <Button
-                    variant="outline"
-                    className="w-full rounded-full py-6"
-                    onClick={() => goRegister("basic")}
-                  >
-                    הרשמה לחבילת בסיס
-                  </Button>
+  variant="outline"
+  className={`w-full rounded-full py-6 ${
+    acceptedBasicTerms ? "" : "opacity-60 cursor-not-allowed"
+  }`}
+  disabled={!acceptedBasicTerms}
+  onClick={() => goRegister("basic")}
+>
+  הרשמה לחבילת בסיס
+</Button>
+
+
                 </CardContent>
               </Card>
             </motion.div>
@@ -453,23 +496,26 @@ const creditGiftsPrice = useMemo(() => {
     />
     <span>
       הנני מאשר/ת את{" "}
+
       <a
-        href="https://www.invistimo.com/terms"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline hover:opacity-80"
-      >
-        תקנון השימוש
-      </a>{" "}
-      ואת{" "}
-      <a
-        href="https://www.invistimo.com/privacy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline hover:opacity-80"
-      >
-        מדיניות הפרטיות
-      </a>
+  href="https://www.invistimo.com/terms"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+>
+  תקנון השימוש
+</a>{" "}
+ו־
+<a
+  href="https://www.invistimo.com/privacy"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
+>
+  מדיניות הפרטיות
+</a>
+
+
     </span>
   </label>
 </div>
