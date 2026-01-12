@@ -11,23 +11,31 @@ export default function EditEventPage() {
   const [loading, setLoading] = useState(true);
 
   /* ============================================================
-     📥 Load event (לא הזמנה!)
+     📥 Load event
   ============================================================ */
   useEffect(() => {
     async function loadEvent() {
       try {
-        const res = await fetch("/api/events/my", {
+        const res = await fetch("/api/events", {
           credentials: "include",
           cache: "no-store",
         });
 
+        if (!res.ok) {
+          console.error("❌ Failed to fetch event:", res.status);
+          return;
+        }
+
         const data = await res.json();
 
-        if (data.success) {
-          setEvent(data.event || null); // ← גם null זה תקין
+        if (data?.success) {
+          setEvent(data.event || null);
+        } else {
+          setEvent(null);
         }
       } catch (err) {
         console.error("❌ Failed to load event:", err);
+        setEvent(null);
       } finally {
         setLoading(false);
       }
@@ -48,7 +56,7 @@ export default function EditEventPage() {
   }
 
   /* ============================================================
-     Render (תמיד!)
+     Render
   ============================================================ */
   return (
     <div className="max-w-xl mx-auto p-6 md:p-10" dir="rtl">
