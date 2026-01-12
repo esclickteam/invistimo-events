@@ -3,13 +3,13 @@ import { connectDB } from "@/lib/db";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/auth";
 
-type Params = {
-  params: { id: string };
-};
-
-export async function PUT(req: Request, { params }: Params) {
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     await connectDB();
+
     const userId = await getUserIdFromRequest(req);
     const body = await req.json();
 
@@ -26,8 +26,12 @@ export async function PUT(req: Request, { params }: Params) {
       );
     }
 
-    return NextResponse.json({ success: true, event });
+    return NextResponse.json({
+      success: true,
+      event,
+    });
   } catch (err) {
+    console.error("❌ Update event failed:", err);
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
