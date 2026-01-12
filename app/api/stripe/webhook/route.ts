@@ -5,6 +5,8 @@ import Payment from "@/models/Payment";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
+import Event from "@/models/Event";
+
 
 export const runtime = "nodejs";
 
@@ -135,6 +137,26 @@ export async function POST(req: Request) {
   }
 
   const email = user.email;
+
+  /* ============================================================
+   Ensure Event exists (ALWAYS after payment)
+============================================================ */
+let event = await Event.findOne({ ownerId: user._id });
+
+if (!event) {
+  event = await Event.create({
+    ownerId: user._id,
+    title: "",
+    eventType: "",
+    eventDate: null,
+    eventTime: "",
+    location: {},
+    status: "draft", // ⬅️ חשוב ל־UX
+  });
+
+  console.log("🎉 Event created for user:", user.email);
+}
+
 
   /* ============================================================
      🟢 CASE 1: PREMIUM UPGRADE (Add more guests)

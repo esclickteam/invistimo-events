@@ -121,17 +121,18 @@ export async function POST(req: Request) {
     const {
   priceKey,
   email,
+  userId,
   invitationId,
   includeCalls = false,
   includeCreditGifts = false,
 } = await req.json();
 
-    if (!priceKey || !email) {
-      return NextResponse.json(
-        { error: "Missing priceKey or email" },
-        { status: 400 }
-      );
-    }
+    if (!priceKey || !email || !userId) {
+  return NextResponse.json(
+    { error: "Missing priceKey, email or userId" },
+    { status: 400 }
+  );
+}
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
     if (!baseUrl) {
@@ -164,6 +165,7 @@ export async function POST(req: Request) {
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
         metadata: {
+          userId, 
           invitationId: invitationId || "",
           priceKey,
           type: "addon",
@@ -192,6 +194,7 @@ export async function POST(req: Request) {
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
         metadata: {
+           userId, 
           invitationId: invitationId || "",
           priceKey,
           plan: config.plan,
@@ -277,6 +280,7 @@ const totalPaid = basePrice + addonPrice + creditGiftsAddonPrice;
       cancel_url: `${baseUrl}/payment/cancel`,
 
       metadata: {
+        userId, 
   invitationId: invitationId || "",
   priceKey,
   plan: config.plan,
