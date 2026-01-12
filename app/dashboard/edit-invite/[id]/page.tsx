@@ -35,12 +35,16 @@ type EditorObject = {
 export default function EditInvitePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
+  /* ================= Refs ================= */
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [inviteId, setInviteId] = useState<string | null>(null);
+  /* ================= Params ================= */
+  const inviteId = params.id;
+
+  /* ================= State ================= */
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,7 +52,7 @@ export default function EditInvitePage({
   const [selectedObject, setSelectedObject] =
     useState<EditorObject | null>(null);
 
-  /* ===== Mobile UI ===== */
+  /* ================= Mobile UI ================= */
   const [mobileTab, setMobileTab] =
     useState<MobileNavTab>("backgrounds");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -56,25 +60,17 @@ export default function EditInvitePage({
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* =========================================================
-     unwrap params
-  ========================================================= */
-  useEffect(() => {
-    async function unwrap() {
-      const resolved = await params;
-      setInviteId(resolved.id);
-    }
-    unwrap();
-  }, [params]);
-
-  /* =========================================================
-     Load invitation
+     Load invitation (GET)
   ========================================================= */
   useEffect(() => {
     if (!inviteId) return;
 
-    async function load() {
+    async function loadInvitation() {
       try {
-        const res = await fetch(`/api/invitations/${inviteId}`);
+        const res = await fetch(`/api/invitations/${inviteId}`, {
+          credentials: "include",
+        });
+
         const data = await res.json();
 
         if (!data.success || !data.invitation) {
@@ -84,8 +80,9 @@ export default function EditInvitePage({
 
         const canvasData = data.invitation.canvasData || { objects: [] };
 
-        canvasData.objects = canvasData.objects.map((o: any) => ({
-          ...o,
+        // ניקוי שדות בעייתיים (תמונות נטענות מחדש בקנבס)
+        canvasData.objects = canvasData.objects.map((obj: any) => ({
+          ...obj,
           image: undefined,
         }));
 
@@ -95,17 +92,17 @@ export default function EditInvitePage({
         });
       } catch (err) {
         console.error(err);
-        alert("❌ שגיאה בטעינה");
+        alert("❌ שגיאה בטעינת ההזמנה");
       } finally {
         setLoading(false);
       }
     }
 
-    load();
+    loadInvitation();
   }, [inviteId]);
 
   /* =========================================================
-     Save
+     Save invitation (PUT)
   ========================================================= */
   const handleSave = async () => {
     if (!inviteId || !canvasRef.current?.getCanvasData) return;
@@ -150,7 +147,7 @@ export default function EditInvitePage({
   };
 
   /* =========================================================
-     Text → Canvas
+     Text editing
   ========================================================= */
   const applyToSelected = (patch: Record<string, any>) => {
     canvasRef.current?.updateSelected?.(patch);
@@ -171,7 +168,10 @@ export default function EditInvitePage({
     }
   }, [selectedObject]);
 
-  if (!inviteId || loading || !invite) {
+  /* =========================================================
+     Loading state
+  ========================================================= */
+  if (loading || !invite) {
     return (
       <div className="p-10 text-center text-xl">
         טוען את ההזמנה...
@@ -192,7 +192,7 @@ export default function EditInvitePage({
 
         {/* ===== Editor Area ===== */}
         <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* ===== TOP BAR (זה מה שהיה חסר!) ===== */}
+          {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
             <button
               onClick={() => uploadInputRef.current?.click()}
