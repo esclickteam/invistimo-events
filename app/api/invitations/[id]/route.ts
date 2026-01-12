@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// ✅ חשוב: טוען את מודל האורחים לפני ההזמנה
+// חשוב: טעינת מודל האורחים
 import "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 
@@ -11,13 +11,13 @@ export const dynamic = "force-dynamic";
    📥 GET — שליפת הזמנה לפי מזהה
 ============================================================ */
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await db();
 
-    const id = params?.id;
+    const { id } = await context.params;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -37,13 +37,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        invitation,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      success: true,
+      invitation,
+    });
   } catch (err) {
     console.error("❌ Error in GET /api/invitations/[id]:", err);
     return NextResponse.json(
@@ -55,19 +52,15 @@ export async function GET(
 
 /* ============================================================
    💾 PUT — עדכון הזמנה קיימת
-   ✔ פרטי אירוע
-   ✔ שעה
-   ✔ מיקום (Google Places)
-   ✔ קנבס (לא חובה)
 ============================================================ */
 export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await db();
 
-    const id = params?.id;
+    const { id } = await context.params;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -76,7 +69,7 @@ export async function PUT(
       );
     }
 
-    const body = await req.json();
+    const body = await request.json();
 
     const {
       title,
@@ -91,7 +84,7 @@ export async function PUT(
       updatedAt: new Date(),
     };
 
-    /* ================= BASIC FIELDS ================= */
+    /* ===== BASIC FIELDS ===== */
 
     if (typeof title === "string" && title.trim()) {
       updatePayload.title = title.trim();
@@ -109,7 +102,7 @@ export async function PUT(
       updatePayload.eventTime = eventTime;
     }
 
-    /* ================= LOCATION ================= */
+    /* ===== LOCATION ===== */
 
     if (
       location &&
@@ -130,7 +123,7 @@ export async function PUT(
       };
     }
 
-    /* ================= CANVAS ================= */
+    /* ===== CANVAS ===== */
 
     if (canvasData !== undefined) {
       updatePayload.canvasData = canvasData;
