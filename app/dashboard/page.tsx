@@ -323,14 +323,13 @@ useEffect(() => {
      Stats (על כל האורחים)
   ============================================================ */
   const stats = useMemo(() => {
-  const totalGuests = guests.reduce((s, g) => s + (g.guestsCount || 0), 0);
+  // 🟦 מוזמנים – קבועים
+  const totalInvited = guests.reduce(
+    (s, g) => s + (g.guestsCount || 0),
+    0
+  );
 
-  // 🟢 מי שסימן מגיע
-  const totalYes = guests
-    .filter((g) => g.rsvp === "yes")
-    .reduce((s, g) => s + (g.guestsCount || 0), 0);
-
-  // 🟢 מי שסומן כ"נכח בפועל"
+  // 🟩 מגיעים בפועל – אך ורק arrivedCount
   const totalArrived = guests.reduce(
     (s, g) => s + (g.arrivedCount || 0),
     0
@@ -340,12 +339,13 @@ useEffect(() => {
   const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalGuests,
-    comingGuests: totalArrived || totalYes, // מציג את המספר הכי מדויק
+    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
+    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
     notComing: totalNo,
     noResponse: totalPending,
   };
 }, [guests]);
+
 
   /* ============================================================
      WhatsApp (אישי – אישור הגעה בלבד)

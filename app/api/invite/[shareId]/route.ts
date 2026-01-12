@@ -4,16 +4,12 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import Event from "@/models/Event";
 
-// ✅ חובה: לטעון מודלים ל-populate
-import "@/models/InvitationGuest";
-import "@/models/Event";
-
 export const dynamic = "force-dynamic";
 
 /* ============================================================
    GET — קבלת הזמנה לפי shareId
-   אם מגיע token => מאתרים אורח לפי token
-   מחזירים גם invitation וגם event (כולל location האמיתי)
+   אם מגיע token => מאתרים אורח לפי token + invitationId
+   מחזירים invitation + event + guest (אם קיים)
 ============================================================ */
 export async function GET(
   req: Request,
@@ -31,14 +27,14 @@ export async function GET(
       );
     }
 
-    // ✅ token מה-URL: /invite/:shareId?token=...
+    // token מה-URL: /invite/:shareId?token=...
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("token");
 
     /* ============================================================
-       1) שליפת ההזמנה
+       1) שליפת ההזמנה (בלי populate!)
     ============================================================ */
-    const invitation = await Invitation.findOne({ shareId }).populate("guests");
+    const invitation = await Invitation.findOne({ shareId }).lean();
 
     if (!invitation) {
       return NextResponse.json(
@@ -48,9 +44,9 @@ export async function GET(
     }
 
     /* ============================================================
-       2) שליפת האירוע (שם נמצא location האמיתי)
+       2) שליפת האירוע (location האמיתי נמצא כאן)
     ============================================================ */
-    const event = await Event.findById(invitation.eventId);
+    const event = await Event.findById(invitation.eventId).lean();
 
     if (!event) {
       return NextResponse.json(
@@ -60,14 +56,17 @@ export async function GET(
     }
 
     /* ============================================================
-       3) אם יש token — אימות אורח
+       3) אימות אורח לפי token + invitationId
     ============================================================ */
     let guest = null;
 
     if (token) {
-      guest = await InvitationGuest.findOne({ token }).lean();
+      guest = await InvitationGuest.findOne({
+        token,
+        invitationId: invitation._id,
+      }).lean();
 
-      if (!guest || String(guest.invitationId) !== String(invitation._id)) {
+      if (!guest) {
         return NextResponse.json(
           { success: false, error: "INVALID_TOKEN" },
           { status: 404 }
@@ -76,21 +75,14 @@ export async function GET(
     }
 
     /* ============================================================
-       4) ניקוי לאובייקטים רגילים (lean-safe)
-    ============================================================ */
-    const cleanInvitation = JSON.parse(JSON.stringify(invitation));
-    const cleanEvent = JSON.parse(JSON.stringify(event));
-    const cleanGuest = guest ? JSON.parse(JSON.stringify(guest)) : null;
-
-    /* ============================================================
        Response
     ============================================================ */
     return NextResponse.json(
       {
         success: true,
-        invitation: cleanInvitation,
-        event: cleanEvent, // ✅ כאן נמצא location עם lat/lng
-        guest: cleanGuest,
+        invitation,
+        event, // כולל location עם lat/lng
+        guest, // כולל guestsCount + arrivedCount
       },
       { status: 200 }
     );

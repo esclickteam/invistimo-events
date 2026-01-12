@@ -53,7 +53,7 @@ export async function POST(
 
     /* ============================================================
        עדכון נתוני האורח
-       ❗️ לא נוגעים ב-guestsCount (מוזמנים)
+       ❗️ guestsCount (מוזמנים) — לא נוגעים
     ============================================================ */
     if (rsvp) {
       guest.rsvp = rsvp;
@@ -66,9 +66,9 @@ export async function POST(
     // ✅ arrivedCount בלבד
     if (rsvp === "yes") {
       guest.arrivedCount =
-        typeof guestsCount === "number" && guestsCount > 0
+        typeof guestsCount === "number" && guestsCount >= 0
           ? guestsCount
-          : 0;
+          : guest.arrivedCount;
     } else {
       guest.arrivedCount = 0;
     }
@@ -82,26 +82,27 @@ export async function POST(
       invitationId: invitation._id,
     });
 
-    const totalGuests = allGuests.length;
+    // ✅ סה"כ מוזמנים (קבוע)
+    const totalInvited = allGuests.reduce(
+      (sum, g) => sum + (g.guestsCount || 0),
+      0
+    );
 
-    // כמה מגיעים בפועל (YES)
-    const totalYes = allGuests
-      .filter((g) => g.rsvp === "yes")
-      .reduce((sum, g) => sum + (g.arrivedCount || 0), 0);
-
-    // סה"כ מגיעים (אותו דבר, נשאר לשקיפות)
+    // ✅ סה"כ מגיעים בפועל
     const totalArrived = allGuests.reduce(
       (sum, g) => sum + (g.arrivedCount || 0),
       0
     );
 
+    // סטטוס RSVP לפי אורחים (לא לפי כמות אנשים)
+    const totalYes = allGuests.filter((g) => g.rsvp === "yes").length;
     const totalNo = allGuests.filter((g) => g.rsvp === "no").length;
     const totalPending = allGuests.filter((g) => g.rsvp === "pending").length;
 
     invitation.stats = {
-      totalGuests,
+      totalInvited,   // מוזמנים
+      totalArrived,   // מגיעים
       totalYes,
-      totalArrived,
       totalNo,
       totalPending,
     };
