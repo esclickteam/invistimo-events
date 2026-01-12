@@ -317,11 +317,13 @@ const creditGiftsPrice = useMemo(() => {
   whileInView="visible"
   viewport={{ once: true }}
   variants={fadeUp}
-  className="md:-mt-6 h-full flex flex-col"
+    className="md:-mt-6 h-full flex flex-col relative"
+
 >
 
 {/* ⭐ הבחירה המומלצת – מעל הכרטיס */}
-<div className="flex justify-center -mb-4 relative z-10">
+<div className="absolute -top-5 left-1/2 -translate-x-1/2 z-20">
+
   <div className="flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-[#4a413a] shadow">
     ⭐ הבחירה המומלצת
   </div>
