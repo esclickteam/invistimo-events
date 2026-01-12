@@ -28,7 +28,7 @@ export default function EventDetailsForm({
 
   /* ============================================================
      🔄 Sync event → local state
-     (אם אין event – נשאר ריק וזה תקין)
+     גם אם אין event – הטופס נשאר ריק (וזה תקין)
   ============================================================ */
   useEffect(() => {
     if (!event) return;
@@ -41,39 +41,30 @@ export default function EventDetailsForm({
         : "",
       time: event.time ?? "",
       location: {
-        address: event.location?.address ?? "",
-        lat: event.location?.lat ?? null,
-        lng: event.location?.lng ?? null,
+        address: event.location ?? "",
+        lat: null,
+        lng: null,
       },
     });
   }, [event]);
 
   /* ============================================================
-     💾 Save (CREATE או UPDATE)
+     💾 Save (CREATE או UPDATE – אותו endpoint)
   ============================================================ */
   async function save() {
     const payload = {
       title: form.title.trim(),
       eventType: form.eventType.trim(),
-      date: form.date ? new Date(form.date).toISOString() : "",
+      date: form.date || "",
       time: form.time || "",
-      location: {
-        address: form.location.address || "",
-        lat: form.location.lat,
-        lng: form.location.lng,
-      },
+      location: form.location.address || "",
     };
 
-    const isEdit = Boolean(event?._id);
-
-    const res = await fetch(
-      isEdit ? `/api/events/${event._id}` : "/api/events",
-      {
-        method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }
-    );
+    const res = await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
     const data = await res.json();
 

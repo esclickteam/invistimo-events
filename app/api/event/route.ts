@@ -1,36 +1,99 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
+import connectDB from "@/lib/db";
 import Event from "@/models/Event";
-import { getUserIdFromRequest } from "@/lib/auth";
+import User from "@/models/User";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
-export async function GET(req: Request) {
+export const dynamic = "force-dynamic";
+
+/* ============================================================
+   GET – שליפת Event (אם קיים)
+============================================================ */
+export async function GET() {
   try {
     await connectDB();
-    const userId = await getUserIdFromRequest(req);
 
-    const event = await Event.findOne({ userId });
-    return NextResponse.json(event || {});
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const event = await Event.findOne({ userId: auth.userId }).lean();
+
+    return NextResponse.json({
+      success: true,
+      event: event || null, // ⬅️ חשוב ל-UX
+    });
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("❌ GET /api/events failed:", err);
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
 
+/* ============================================================
+   POST – יצירה או עדכון Event
+============================================================ */
 export async function POST(req: Request) {
   try {
     await connectDB();
-    const userId = await getUserIdFromRequest(req);
-    const body = await req.json();
 
-    let event = await Event.findOne({ userId });
-
-    if (!event) {
-      event = await Event.create({ userId, ...body });
-    } else {
-      await event.updateOne(body);
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
-    return NextResponse.json({ success: true });
+    const user = await User.findById(auth.userId).lean();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const body = await req.json();
+
+    const payload = {
+      title: body.title || "",
+      eventType: body.eventType || "wedding",
+      date: body.date || "",
+      location: body.location || "",
+    };
+
+    let event = await Event.findOne({ userId: auth.userId });
+
+    // 🔹 יצירה ראשונה
+    if (!event) {
+      event = await Event.create({
+        userId: auth.userId,
+        email: user.email,
+        maxGuests: user.guests || 100,
+        ...payload,
+      });
+    }
+    // 🔹 עדכון
+    else {
+      event.set(payload);
+      await event.save();
+    }
+
+    return NextResponse.json({
+      success: true,
+      event,
+    });
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("❌ POST /api/events failed:", err);
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
