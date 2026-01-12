@@ -3,20 +3,14 @@
 import { useEffect, useState } from "react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
-/* ============================================================
-   Props
-============================================================ */
 type Props = {
-  event: any;
+  invitation: any;
   onSaved: () => void;
   onClose?: () => void;
 };
 
-/* ============================================================
-   Component
-============================================================ */
 export default function EventDetailsForm({
-  event,
+  invitation,
   onSaved,
   onClose,
 }: Props) {
@@ -33,30 +27,32 @@ export default function EventDetailsForm({
   });
 
   /* ============================================================
-     🔄 Sync event → local state
+     🔄 Sync invitation → local state
   ============================================================ */
   useEffect(() => {
-    if (!event) return;
+    if (!invitation) return;
 
     setForm({
-      title: event.title ?? "",
-      eventType: event.eventType ?? "",
-      date: event.eventDate
-        ? new Date(event.eventDate).toISOString().slice(0, 10)
+      title: invitation.title ?? "",
+      eventType: invitation.eventType ?? "",
+      date: invitation.eventDate
+        ? new Date(invitation.eventDate).toISOString().slice(0, 10)
         : "",
-      time: event.eventTime ?? "",
+      time: invitation.eventTime ?? "",
       location: {
-        address: event.location?.address ?? "",
-        lat: event.location?.lat ?? null,
-        lng: event.location?.lng ?? null,
+        address: invitation.location?.address ?? "",
+        lat: invitation.location?.lat ?? null,
+        lng: invitation.location?.lng ?? null,
       },
     });
-  }, [event]);
+  }, [invitation]);
 
   /* ============================================================
-     💾 Save event (UPSERT)
+     💾 Save
   ============================================================ */
   async function save() {
+    if (!invitation?._id) return;
+
     const payload = {
       title: form.title.trim(),
       eventType: form.eventType.trim(),
@@ -69,34 +65,23 @@ export default function EventDetailsForm({
       },
     };
 
-    try {
-      const res = await fetch("/api/event", {
-        method: "POST", // ✅ upsert
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // ⭐️ חובה
-        body: JSON.stringify(payload),
-      });
+    const res = await fetch(`/api/invitations/${invitation._id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!data?.success) {
-        alert("❌ שגיאה בשמירת פרטי האירוע");
-        return;
-      }
-
-      onSaved();
-      onClose?.();
-    } catch (err) {
-      console.error("Save event error:", err);
-      alert("❌ שגיאת שרת");
+    if (!data?.success) {
+      alert("❌ שגיאה בשמירת פרטי האירוע");
+      return;
     }
+
+    onSaved();
+    onClose?.();
   }
 
-  /* ============================================================
-     Render
-  ============================================================ */
   return (
     <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-xl">
       <h2 className="text-xl font-semibold mb-5">
@@ -104,6 +89,7 @@ export default function EventDetailsForm({
       </h2>
 
       <div className="grid gap-4">
+        {/* שם האירוע */}
         <input
           placeholder="שם האירוע"
           value={form.title}
@@ -113,6 +99,7 @@ export default function EventDetailsForm({
           className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
+        {/* סוג האירוע */}
         <input
           placeholder="סוג האירוע (חתונה / בר מצווה וכו׳)"
           value={form.eventType}
@@ -122,6 +109,7 @@ export default function EventDetailsForm({
           className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
+        {/* 📅 תאריך */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-600 px-2">
             תאריך האירוע
@@ -132,10 +120,15 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, date: e.target.value }))
             }
-            className="border rounded-full px-4 py-3 text-base min-h-[48px] bg-white"
+            className="
+              border rounded-full px-4 py-3
+              text-base min-h-[48px]
+              bg-white
+            "
           />
         </div>
 
+        {/* ⏰ שעה */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-600 px-2">
             שעת האירוע
@@ -146,10 +139,15 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, time: e.target.value }))
             }
-            className="border rounded-full px-4 py-3 text-base min-h-[48px] bg-white"
+            className="
+              border rounded-full px-4 py-3
+              text-base min-h-[48px]
+              bg-white
+            "
           />
         </div>
 
+        {/* מיקום */}
         <LocationAutocomplete
           value={form.location.address}
           onSelect={({ address, lat, lng }) =>

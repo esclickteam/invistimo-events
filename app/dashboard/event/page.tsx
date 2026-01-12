@@ -7,51 +7,38 @@ import EventDetailsForm from "@/app/components/EventDetailsForm";
 export default function EditEventPage() {
   const router = useRouter();
 
-  const [event, setEvent] = useState<any | null>(null);
+  const [invitation, setInvitation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /* ============================================================
-     📥 Load event (GET /api/event)
+     📥 Load invitation
   ============================================================ */
-  async function loadEvent() {
-    try {
-      setError(null);
-
-      const res = await fetch("/api/event", {
-        credentials: "include", // ✅ חובה – שולח cookie
-        cache: "no-store",
-      });
-
-      if (res.status === 401) {
-        setError("יש להתחבר מחדש כדי לערוך את האירוע");
-        return;
-      }
-
-      if (!res.ok) {
-        setError("שגיאה בטעינת פרטי האירוע");
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!data?.success) {
-        setError(data?.error || "שגיאה בטעינת האירוע");
-        return;
-      }
-
-      // event יכול להיות null – וזה תקין (ייווצר בשמירה)
-      setEvent(data.event || null);
-    } catch (err) {
-      console.error("❌ Failed to load event:", err);
-      setError("שגיאת שרת בטעינת האירוע");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadEvent();
+    async function loadInvitation() {
+      try {
+        const res = await fetch("/api/invitations/my", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          setError("לא נמצאה הזמנה");
+          return;
+        }
+
+        setInvitation(data.invitation);
+      } catch (err) {
+        console.error("❌ Failed to load invitation:", err);
+        setError("שגיאה בטעינת ההזמנה");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadInvitation();
   }, []);
 
   /* ============================================================
@@ -65,10 +52,10 @@ export default function EditEventPage() {
     );
   }
 
-  if (error) {
+  if (error || !invitation) {
     return (
       <div className="p-10 text-center text-red-600">
-        {error}
+        {error || "לא נמצאה הזמנה"}
       </div>
     );
   }
@@ -93,10 +80,9 @@ export default function EditEventPage() {
 
       {/* Form */}
       <EventDetailsForm
-        event={event}
-        onSaved={async () => {
-          // רענון + חזרה לדשבורד
-          await loadEvent();
+        invitation={invitation}
+        onSaved={() => {
+          // אחרי שמירה – חזרה לדשבורד
           router.back();
         }}
       />
