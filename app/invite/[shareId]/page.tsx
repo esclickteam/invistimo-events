@@ -279,7 +279,7 @@ export default function PublicInvitePage({ params }: any) {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
+               className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
             >
               שליחת אישור הגעה
             </button>
