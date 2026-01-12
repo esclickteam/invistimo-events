@@ -9,57 +9,27 @@ import { usePathname } from "next/navigation";
 export default function Header() {
   const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
 
-  const NavLinks = ({ onClick }: { onClick?: () => void }) => (
+  const NavLinks = ({ onClick }) => (
     <>
-      <Link
-        href="/"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
+      <Link href="/" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         ראשי
       </Link>
-
-      <Link
-        href="/rsvp"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
+      <Link href="/rsvp" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         אישורי הגעה
       </Link>
-
-      <Link
-        href="/seating-explained"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
+      <Link href="/seating-explained" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         סידורי הושבה
       </Link>
-
-      <Link
-        href="/pricing"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
+      <Link href="/pricing" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         חבילות ומחירים
       </Link>
-
-      <Link
-        href="/credit-gifts"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
+      <Link href="/credit-gifts" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         מתנות באשראי
       </Link>
-
-      <Link
-        href="/contact"
-        onClick={onClick}
-        className="hover:text-[var(--champagne-dark)] transition"
-      >
+      <Link href="/contact" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         צור קשר
       </Link>
     </>
@@ -77,26 +47,14 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          {/* ✅ גריד חדש – ימין (כפתורים + ניווט), מרכז (לוגו), שמאל (ריק) */}
-          <div className="grid grid-cols-[1fr_auto] items-center h-16">
-
-            
-            {/* ✅ צד ימין – כפתורים צמוד לימין ואז ניווט */}
-            <div className="hidden md:flex items-center justify-start gap-6">
-              {/* כפתורים קודם */}
+          {/* גריד דסקטופ */}
+          <div className="hidden md:grid grid-cols-[1fr_auto] items-center h-16">
+            {/* צד ימין – ניווט וכפתורים */}
+            <div className="flex items-center justify-start gap-6">
               <div className="flex items-center gap-3 pl-4 border-l border-[#d7c9b8]">
                 <Link
                   href="/try/dashboard"
-                  className="
-                    px-6 py-2 rounded-full
-                    bg-[#3f3a34] text-[#faf8f4]
-                    border border-[#3f3a34]
-                    font-medium
-                    hover:opacity-95
-                    transition
-                    whitespace-nowrap
-                  "
-                  title=" דמו – צפייה בלבד"
+                  className="px-6 py-2 rounded-full bg-[#3f3a34] text-[#faf8f4] border border-[#3f3a34] font-medium hover:opacity-95 transition whitespace-nowrap"
                 >
                   נסה דמו
                 </Link>
@@ -112,14 +70,7 @@ export default function Header() {
                       </Link>
                       <button
                         onClick={logout}
-                        className="
-                          px-5 py-2 rounded-full
-                          border border-[#cbb59d]
-                          text-[#4a413a] text-sm
-                          hover:bg-[#efe6db]
-                          transition
-                          whitespace-nowrap
-                        "
+                        className="px-5 py-2 rounded-full border border-[#cbb59d] text-[#4a413a] text-sm hover:bg-[#efe6db] transition whitespace-nowrap"
                       >
                         התנתקות
                       </button>
@@ -127,48 +78,51 @@ export default function Header() {
                   ) : (
                     <Link
                       href="/login"
-                      className="
-                        px-6 py-2 rounded-full
-                        border border-[#cbb59d]
-                        text-[#4a413a] font-medium
-                        hover:bg-[#efe6db]
-                        transition
-                        whitespace-nowrap
-                      "
+                      className="px-6 py-2 rounded-full border border-[#cbb59d] text-[#4a413a] font-medium hover:bg-[#efe6db] transition whitespace-nowrap"
                     >
                       התחברות
                     </Link>
                   ))}
               </div>
 
-              {/* ✅ אחרי הכפתורים – הניווט */}
               <nav className="flex items-center gap-6 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
                 <NavLinks />
               </nav>
             </div>
 
-            {/* ✅ מרכז – לוגו */}
+            {/* מרכז – לוגו */}
             <div className="flex justify-end" dir="ltr">
-  <Link href="/" className="flex items-center">
-    <img
-      src="/invistimo-logo.png"
-      alt="Invistimo Logo"
-      className="h-10 w-auto object-contain scale-[4] origin-left"
-    />
-  </Link>
-</div>
+              <Link href="/" className="flex items-center">
+                <img
+                  src="/invistimo-logo.png"
+                  alt="Invistimo Logo"
+                  className="h-10 w-auto object-contain scale-[4] origin-left"
+                />
+              </Link>
+            </div>
+          </div>
 
-
-            {/* ✅ מובייל – המבורגר */}
+          {/* גריד מובייל */}
+          <div className="flex md:hidden items-center justify-between h-16">
+            {/* המבורגר בצד ימין */}
             {!isDashboard && (
               <button
                 onClick={() => setMobileOpen(true)}
-                className="md:hidden p-2 absolute left-4 top-3"
+                className="p-2 order-1"
                 aria-label="פתח תפריט"
               >
                 <Menu size={26} />
               </button>
             )}
+
+            {/* לוגו בצד שמאל */}
+            <Link href="/" className="order-2 ml-auto">
+              <img
+                src="/invistimo-logo.png"
+                alt="Invistimo Logo"
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
           </div>
         </div>
       </header>
@@ -176,13 +130,7 @@ export default function Header() {
       {/* ================= MOBILE DRAWER ================= */}
       {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
-          {/* overlay */}
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileOpen(false)}
-          />
-
-          {/* drawer */}
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
           <div
             className="
               absolute top-0 right-0 h-full w-[80%] max-w-sm
@@ -206,29 +154,16 @@ export default function Header() {
               <NavLinks onClick={() => setMobileOpen(false)} />
             </nav>
 
-            {/* כפתור דמו */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               <Link
                 href="/try/dashboard"
                 onClick={() => setMobileOpen(false)}
-                className="
-                  px-6 py-3 rounded-full
-                  bg-[#3f3a34] text-[#faf8f4]
-                  border border-[#3f3a34]
-                  font-medium
-                  hover:opacity-95
-                  transition
-                  w-fit
-                  inline-flex items-center gap-2
-                  whitespace-nowrap
-                "
-                title=" דמו – צפייה בלבד"
+                className="px-6 py-3 rounded-full bg-[#3f3a34] text-[#faf8f4] border border-[#3f3a34] font-medium hover:opacity-95 transition w-fit inline-flex items-center gap-2 whitespace-nowrap"
               >
                 נסה דמו
               </Link>
             </div>
 
-            {/* אזור משתמש */}
             <div className="pt-4 border-t border-[#e2d6c8]">
               {!loading &&
                 (user ? (
@@ -245,14 +180,7 @@ export default function Header() {
                         logout();
                         setMobileOpen(false);
                       }}
-                      className="
-                        px-5 py-2 rounded-full
-                        border border-[#cbb59d]
-                        text-[#4a413a] text-sm
-                        hover:bg-[#efe6db]
-                        transition
-                        w-fit
-                      "
+                      className="px-5 py-2 rounded-full border border-[#cbb59d] text-[#4a413a] text-sm hover:bg-[#efe6db] transition w-fit"
                     >
                       התנתקות
                     </button>
@@ -261,14 +189,7 @@ export default function Header() {
                   <Link
                     href="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="
-                      px-6 py-2 rounded-full
-                      border border-[#cbb59d]
-                      text-[#4a413a] font-medium
-                      hover:bg-[#efe6db]
-                      transition
-                      w-fit
-                    "
+                    className="px-6 py-2 rounded-full border border-[#cbb59d] text-[#4a413a] font-medium hover:bg-[#efe6db] transition w-fit"
                   >
                     התחברות
                   </Link>
