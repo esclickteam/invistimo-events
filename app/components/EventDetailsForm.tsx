@@ -3,6 +3,19 @@
 import { useEffect, useState } from "react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
+/* =========================
+   Event types (UX layer)
+========================= */
+const EVENT_TYPES = [
+  { label: "חתונה", value: "חתונה" },
+  { label: "בר מצווה", value: "בר מצווה" },
+  { label: "בת מצווה", value: "בת מצווה" },
+  { label: "ברית", value: "ברית" },
+  { label: "בריתה", value: "בריתה" },
+  { label: "חינה", value: "חינה" },
+  { label: "אחר…", value: "other" },
+];
+
 type Props = {
   event?: any | null;
   onSaved: () => void;
@@ -16,7 +29,8 @@ export default function EventDetailsForm({
 }: Props) {
   const [form, setForm] = useState({
     title: "",
-    eventType: "",
+    eventTypeSelect: "חתונה", // מה שנבחר ב־select
+    eventTypeCustom: "",      // שדה חופשי אם נבחר "אחר"
     date: "",
     time: "",
     location: {
@@ -28,14 +42,18 @@ export default function EventDetailsForm({
 
   /* ============================================================
      🔄 Sync event → local state
-     גם אם אין event – הטופס נשאר ריק (וזה תקין)
   ============================================================ */
   useEffect(() => {
     if (!event) return;
 
+    const knownType = EVENT_TYPES.find(
+      (t) => t.value === event.eventType
+    );
+
     setForm({
       title: event.title ?? "",
-      eventType: event.eventType ?? "",
+      eventTypeSelect: knownType ? knownType.value : "other",
+      eventTypeCustom: knownType ? "" : event.eventTypeLabel || "",
       date: event.date
         ? new Date(event.date).toISOString().slice(0, 10)
         : "",
@@ -49,12 +67,17 @@ export default function EventDetailsForm({
   }, [event]);
 
   /* ============================================================
-     💾 Save (CREATE או UPDATE – אותו endpoint)
+     💾 Save (UPSERT)
   ============================================================ */
   async function save() {
+    const finalEventType =
+      form.eventTypeSelect === "other"
+        ? form.eventTypeCustom.trim()
+        : form.eventTypeSelect;
+
     const payload = {
       title: form.title.trim(),
-      eventType: form.eventType.trim(),
+      eventType: finalEventType,
       date: form.date || "",
       time: form.time || "",
       location: form.location.address || "",
@@ -77,6 +100,9 @@ export default function EventDetailsForm({
     onClose?.();
   }
 
+  /* ============================================================
+     Render
+  ============================================================ */
   return (
     <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-xl">
       <h2 className="text-xl font-semibold mb-5">
@@ -94,15 +120,45 @@ export default function EventDetailsForm({
           className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
-        {/* סוג האירוע */}
-        <input
-          placeholder="סוג האירוע (חתונה / בר מצווה וכו׳)"
-          value={form.eventType}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, eventType: e.target.value }))
-          }
-          className="border rounded-full px-4 py-3 text-base min-h-[48px]"
-        />
+        {/* סוג האירוע – SELECT */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600 px-2">
+            סוג האירוע
+          </label>
+
+          <select
+            value={form.eventTypeSelect}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                eventTypeSelect: e.target.value,
+                eventTypeCustom: "",
+              }))
+            }
+            className="border rounded-full px-4 py-3 bg-white"
+          >
+            {EVENT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* סוג אירוע חופשי */}
+        {form.eventTypeSelect === "other" && (
+          <input
+            placeholder="הקלד סוג אירוע"
+            value={form.eventTypeCustom}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                eventTypeCustom: e.target.value,
+              }))
+            }
+            className="border rounded-full px-4 py-3 text-base min-h-[48px]"
+          />
+        )}
 
         {/* תאריך */}
         <div className="flex flex-col gap-1">
@@ -146,7 +202,7 @@ export default function EventDetailsForm({
         />
 
         <p className="text-xs text-gray-500 px-2">
-          האורחים יוכלו לנווט בלחיצה ל־Google Maps או Waze
+          ניתן לבחור מהרשימה או להקליד סוג אירוע אחר
         </p>
       </div>
 
