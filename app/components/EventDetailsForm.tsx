@@ -75,7 +75,7 @@ export default function EventDetailsForm({
     };
 
     try {
-      const res = await fetch(`/api/events/${event._id}`, {
+      const res = await fetch("/api/event", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
