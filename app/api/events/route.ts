@@ -7,6 +7,18 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
+   🔁 מיפוי סוגי אירוע – עברית → enum באנגלית
+============================================================ */
+const EVENT_TYPE_MAP: Record<string, string> = {
+  "חתונה": "wedding",
+  "בר מצווה": "bar-mitzvah",
+  "בת מצווה": "bat-mitzvah",
+  "ברית": "brit",
+  "בריתה": "brita",
+  "חינה": "henna",
+};
+
+/* ============================================================
    GET – שליפת Event (אם קיים)
 ============================================================ */
 export async function GET() {
@@ -25,7 +37,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      event: event || null, // ⬅️ חשוב ל-UX
+      event: event || null,
     });
   } catch (err) {
     console.error("❌ GET /api/events failed:", err);
@@ -37,7 +49,7 @@ export async function GET() {
 }
 
 /* ============================================================
-   POST – יצירה או עדכון Event
+   POST – יצירה או עדכון Event (UPSERT בטוח)
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -61,9 +73,17 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
+    /* ======================================================
+       🧠 נרמול סוג אירוע
+       - אם קיים במיפוי → enum תקין
+       - אם לא → other + שומרים label חופשי
+    ====================================================== */
+    const mappedType = EVENT_TYPE_MAP[body.eventType];
+
     const payload = {
       title: body.title || "",
-      eventType: body.eventType || "wedding",
+      eventType: mappedType ? mappedType : "other",
+      eventTypeLabel: mappedType ? "" : (body.eventType || ""),
       date: body.date || "",
       location: body.location || "",
     };

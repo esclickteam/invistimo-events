@@ -97,11 +97,18 @@ const EventSchema = new mongoose.Schema(
        פרטי האירוע
     ========================= */
     eventType: {
-      type: String,
-      enum: ["wedding", "bar-mitzvah", "bat-mitzvah", "brit", "brita", "henna"],
-      required: true,
-      index: true,
-    },
+  type: String,
+  enum: [
+    "wedding",
+    "bar-mitzvah",
+    "bat-mitzvah",
+    "brit",
+    "brita",
+    "henna",
+    "other", // ⬅️ חשוב
+  ],
+  default: "wedding",
+},
 
     title: {
       type: String,
