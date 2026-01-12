@@ -50,30 +50,48 @@ export default function EventDetailsForm({
   /* ============================================================
      💾 Save
   ============================================================ */
-  async function save() {
-  if (!invitation?._id) return;
-
+  /* ============================================================
+   💾 Save (Create or Update)
+============================================================ */
+async function save() {
   const payload = {
     title: form.title.trim(),
     eventType: form.eventType.trim(),
     date: form.date ? new Date(form.date).toISOString() : null,
     location: form.location.address || "",
-    maxGuests: invitation.maxGuests || 200,
+    maxGuests: invitation?.maxGuests || 200,
   };
 
-  // שמירה להזמנה (קיים)
-  await fetch(`/api/invitations/${invitation._id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  // אם יש הזמנה קיימת — נעדכן אותה
+  if (invitation?._id) {
+    await fetch(`/api/invitations/${invitation._id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } else {
+    // אם אין הזמנה קיימת — ניצור אחת חדשה
+    const res = await fetch(`/api/invitations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        userId: invitation?.userId, // או getUserIdFromRequest אם בצד שרת
+      }),
+    });
 
-  // שמירה גם למודל Event
+    if (!res.ok) {
+      alert("שגיאה ביצירת הזמנה חדשה");
+      return;
+    }
+  }
+
+  // שמירה גם למודל Event (נשמר תמיד)
   await fetch(`/api/events/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      userId: invitation.userId,
+      userId: invitation?.userId,
       eventType: payload.eventType,
       title: payload.title,
       date: payload.date,
@@ -85,6 +103,7 @@ export default function EventDetailsForm({
   onSaved();
   onClose?.();
 }
+
 
 
   return (
