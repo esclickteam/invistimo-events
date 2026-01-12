@@ -50,61 +50,37 @@ export default function EventDetailsForm({
   /* ============================================================
      💾 Save
   ============================================================ */
-  /* ============================================================
-   💾 Save (Create or Update)
-============================================================ */
-async function save() {
-  const payload = {
-    title: form.title.trim(),
-    eventType: form.eventType.trim(),
-    date: form.date ? new Date(form.date).toISOString() : null,
-    location: form.location.address || "",
-    maxGuests: invitation?.maxGuests || 200,
-  };
+  async function save() {
+    if (!invitation?._id) return;
 
-  // אם יש הזמנה קיימת — נעדכן אותה
-  if (invitation?._id) {
-    await fetch(`/api/invitations/${invitation._id}`, {
+    const payload = {
+      title: form.title.trim(),
+      eventType: form.eventType.trim(),
+      eventDate: form.date ? new Date(form.date).toISOString() : null,
+      eventTime: form.time || "",
+      location: {
+        address: form.location.address || "",
+        lat: form.location.lat,
+        lng: form.location.lng,
+      },
+    };
+
+    const res = await fetch(`/api/invitations/${invitation._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-  } else {
-    // אם אין הזמנה קיימת — ניצור אחת חדשה
-    const res = await fetch(`/api/invitations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...payload,
-        userId: invitation?.userId, // או getUserIdFromRequest אם בצד שרת
-      }),
-    });
 
-    if (!res.ok) {
-      alert("שגיאה ביצירת הזמנה חדשה");
+    const data = await res.json();
+
+    if (!data?.success) {
+      alert("❌ שגיאה בשמירת פרטי האירוע");
       return;
     }
+
+    onSaved();
+    onClose?.();
   }
-
-  // שמירה גם למודל Event (נשמר תמיד)
-  await fetch(`/api/events/create`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: invitation?.userId,
-      eventType: payload.eventType,
-      title: payload.title,
-      date: payload.date,
-      location: payload.location,
-      maxGuests: payload.maxGuests,
-    }),
-  });
-
-  onSaved();
-  onClose?.();
-}
-
-
 
   return (
     <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-xl">
