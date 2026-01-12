@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
@@ -56,9 +56,11 @@ export async function GET() {
 }
 
 /* ============================================================
-   POST — יוצר הזמנה למשתמש (חייב eventId)
+   POST — יצירת הזמנה חדשה
+   ✅ אם אין eventId בבקשה — נוצרת הזמנה על בסיס האירוע הקיים,
+      ואם אין אירוע — נוצר אירוע חדש אוטומטית
 ============================================================ */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     await db();
 
@@ -70,9 +72,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ===============================
-       🧠 טעינת יוזר
-    =============================== */
+    // 🧠 שליפת המשתמש
     const user = await User.findById(auth.userId).lean();
     if (!user) {
       return NextResponse.json(
@@ -81,25 +81,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ===============================
-       📦 גוף הבקשה
-    =============================== */
+    // 📦 פרטי הבקשה
     const body = await req.json().catch(() => ({} as any));
+    let { eventId } = body;
 
-    if (!body?.eventId) {
-      return NextResponse.json(
-        { success: false, error: "EVENT_ID_REQUIRED" },
-        { status: 400 }
-      );
+    // 🔍 אם לא נשלח eventId — נמצא או ניצור אירוע למשתמש
+    let event = null;
+    if (eventId) {
+      event = await Event.findOne({ _id: eventId, userId: auth.userId });
+    } else {
+      event = await Event.findOne({ userId: auth.userId });
+      if (!event) {
+        event = await Event.create({
+          userId: auth.userId,
+          title: "אירוע חדש",
+          eventType: "wedding",
+          status: "draft",
+          date: null,
+          time: null,
+          paymentStatus: "paid",
+          maxGuests: 100,
+          location: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        console.log("✅ נוצר אירוע חדש אוטומטית:", event._id);
+      }
     }
-
-    /* ===============================
-       🧠 וידוא שהאירוע שייך ליוזר
-    =============================== */
-    const event = await Event.findOne({
-      _id: body.eventId,
-      userId: auth.userId,
-    }).lean();
 
     if (!event) {
       return NextResponse.json(
@@ -108,12 +116,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ===============================
-       אם כבר יש הזמנה — מחזירים אותה
-    =============================== */
+    // אם כבר קיימת הזמנה לאירוע הזה — נחזיר אותה
     const existing = await Invitation.findOne({
       ownerId: auth.userId,
-      eventId: body.eventId,
+      eventId: event._id,
     }).lean();
 
     if (existing) {
@@ -123,21 +129,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    /* ===============================
-       🧮 מגבלות לפי היוזר
-    =============================== */
+    // 🧮 הגדרות ברירת מחדל
     const maxGuests = Number(user.guests) || 100;
     const maxMessages = Number(user.maxMessages) || 300;
 
-    /* ===============================
-       🧾 יצירת הזמנה
-    =============================== */
+    // 🧾 יצירת הזמנה חדשה
     const created = await Invitation.create({
       ownerId: auth.userId,
-      eventId: body.eventId,
-
+      eventId: event._id,
       guests: [],
-
       maxGuests,
       maxMessages,
       remainingMessages: maxMessages,
