@@ -226,7 +226,8 @@ const creditGiftsPrice = useMemo(() => {
               viewport={{ once: true }}
               variants={fadeUp}
             >
-              <Card className="rounded-3xl shadow-xl h-full bg-white">
+              <Card className="rounded-3xl shadow-xl h-full bg-[#f7f3ee]">
+
                 <CardContent className="p-10">
                   <h3 className="text-2xl font-semibold mb-2">חבילת בסיס</h3>
                   <p className="text-[#8f7a67] mb-2">לאירועים קטנים</p>
