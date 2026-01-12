@@ -1,120 +1,194 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 
 /* -------------------------------------------------------------
-   טיפוס להזמנה
+   Types
 ------------------------------------------------------------- */
 interface InvitationData {
   _id: string;
-  title: string;
-  shareId: string;
-  canvasData: any;
+  title?: string;
+  shareId?: string;
+  canvasData?: any;
 }
 
+type LoadState = "loading" | "ready" | "not_found" | "unauthorized" | "error";
+
 /* -------------------------------------------------------------
-   קומפוננטת תצוגה מקדימה
+   Component
 ------------------------------------------------------------- */
 export default function InvitationPreviewPage() {
   const params = useParams();
-  const id = params?.id as string | undefined;
+
+  // ✅ useParams יכול להיות string | string[]
+  const id = useMemo(() => {
+    const raw = (params as any)?.id;
+    if (!raw) return undefined;
+    return Array.isArray(raw) ? raw[0] : (raw as string);
+  }, [params]);
 
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<LoadState>("loading");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
-  /* -------------------------------------------------------------
-     טעינת נתוני ההזמנה
-  ------------------------------------------------------------- */
-  useEffect(() => {
-    console.log("🚀 useEffect — id =", id);
-
+  const fetchInvitation = useCallback(async () => {
     if (!id) {
-      console.warn("⚠ אין id בנתיב");
       setInvitation(null);
-      setLoading(false);
+      setState("not_found");
       return;
     }
 
-    async function fetchData() {
-      try {
-        console.log(`🌐 Fetching → /api/invitations/${id}`);
-        const res = await fetch(`/api/invitations/${id}`);
+    setState("loading");
+    setErrorMsg("");
 
-        console.log("📡 Status:", res.status);
-        const data = await res.json();
-        console.log("📦 DATA FROM SERVER:", data);
+    try {
+      const res = await fetch(`/api/invitations/${id}`, {
+        method: "GET",
+        credentials: "include", // ✅ חשוב אם ה-API מוגן/קורא cookies
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
 
-        if (data.success && data.invitation) {
-          setInvitation(data.invitation);
-        } else {
-          setInvitation(null);
-        }
-      } catch (err) {
-        console.error("❌ Fetch error:", err);
+      if (res.status === 401) {
         setInvitation(null);
-      } finally {
-        setLoading(false);
+        setState("unauthorized");
+        return;
       }
-    }
 
-    fetchData();
+      if (res.status === 404) {
+        setInvitation(null);
+        setState("not_found");
+        return;
+      }
+
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.success && data?.invitation) {
+        setInvitation(data.invitation);
+        setState("ready");
+      } else {
+        setInvitation(null);
+        setState("error");
+        setErrorMsg(data?.error || "שגיאה בטעינת ההזמנה");
+      }
+    } catch (err) {
+      console.error("❌ Fetch error:", err);
+      setInvitation(null);
+      setState("error");
+      setErrorMsg("שגיאת רשת / שרת");
+    }
   }, [id]);
 
-  /* -------------------------------------------------------------
-     UI – טעינה / שגיאה
-  ------------------------------------------------------------- */
-  if (loading)
-    return <div className="p-10 text-center text-xl">טוען...</div>;
+  useEffect(() => {
+    fetchInvitation();
+  }, [fetchInvitation]);
 
-  if (!invitation)
+  /* -------------------------------------------------------------
+     UI states
+  ------------------------------------------------------------- */
+  if (state === "loading") {
+    return <div className="p-10 text-center text-xl">טוען...</div>;
+  }
+
+  if (state === "unauthorized") {
     return (
       <div className="p-10 text-center text-xl">
-        ❌ לא נמצאה הזמנה  
-        <br />
-        <span className="text-sm text-gray-500">
-          בדקי בקונסול מה הגיע ב־useParams()
-        </span>
+        🔒 אין הרשאה לצפות בהזמנה
+        <div className="mt-4 text-sm text-gray-500">
+          אם את מחוברת ועדיין רואה את זה — ייתכן שה-cookie לא נשלח.
+        </div>
+
+        <button
+          onClick={fetchInvitation}
+          className="mt-6 bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
+        >
+          נסי שוב
+        </button>
       </div>
     );
+  }
+
+  if (state === "not_found" || !invitation) {
+    return (
+      <div className="p-10 text-center text-xl">
+        ❌ לא נמצאה הזמנה
+        <div className="mt-3 text-sm text-gray-500">
+          בדקי שה-ID בכתובת נכון ושיש הזמנה קיימת למזהה הזה.
+        </div>
+
+        <button
+          onClick={fetchInvitation}
+          className="mt-6 bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
+        >
+          נסי שוב
+        </button>
+      </div>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <div className="p-10 text-center text-xl">
+        ❌ שגיאה בטעינה
+        <div className="mt-3 text-sm text-gray-500">{errorMsg}</div>
+
+        <button
+          onClick={fetchInvitation}
+          className="mt-6 bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
+        >
+          נסי שוב
+        </button>
+      </div>
+    );
+  }
 
   /* -------------------------------------------------------------
-     תצוגת פריוויו אמיתית עם קנבס
+     Render preview
   ------------------------------------------------------------- */
+  const safeTitle = invitation.title?.trim() || "תצוגת הזמנה";
+  const shareId = invitation.shareId;
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10">
-      <h1 className="text-3xl font-bold mb-2">{invitation.title}</h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+      <h1 className="text-3xl font-bold mb-2 text-center">{safeTitle}</h1>
       <p className="text-gray-500 mb-8">תצוגת מקדימה</p>
 
-      {/* ⭐ תצוגה אמיתית של הקנבס במקום JSON */}
+      {/* ⭐ תצוגה אמיתית של הקנבס */}
       <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10 flex justify-center">
-        <PublicInviteRenderer canvasData={invitation.canvasData} />
+        {invitation.canvasData ? (
+          <PublicInviteRenderer canvasData={invitation.canvasData} />
+        ) : (
+          <div className="text-sm text-gray-500">
+            אין עדיין תוכן קנבס להזמנה הזו.
+          </div>
+        )}
       </div>
 
       {/* ⭐ תצוגת iframe של הדף הציבורי */}
-      <div className="text-center">
+      <div className="text-center w-full flex flex-col items-center">
         <h2 className="text-lg font-medium mb-3">כך ייראה לאורחים:</h2>
 
-        {invitation.shareId ? (
+        {shareId ? (
           <iframe
-            key={invitation.shareId}
-            src={`/invite/${invitation.shareId}`}
-            className="w-[400px] h-[600px] border rounded-xl shadow"
-          ></iframe>
+            key={shareId}
+            src={`/invite/${shareId}`}
+            className="w-[360px] sm:w-[400px] h-[560px] sm:h-[600px] border rounded-xl shadow bg-white"
+          />
         ) : (
           <div className="text-red-600 font-semibold">
-            ⚠ אין shareId להזמנה
+            ⚠ אין shareId להזמנה (לא ניתן להציג עמוד ציבורי)
           </div>
         )}
       </div>
 
       {/* ⭐ כפתור מעבר לעמוד הציבורי */}
-      {invitation.shareId && (
+      {shareId && (
         <div className="mt-8">
           <Link
-            href={`/invite/${invitation.shareId}`}
+            href={`/invite/${shareId}`}
             target="_blank"
             className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
           >
