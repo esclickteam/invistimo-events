@@ -501,14 +501,20 @@ console.log("INVITATION:", invitation);
   className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
 >
   {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+  
 </button>
 
-    {invitation && (
-      <button
+    <button
   onClick={() => {
-    router.push(
-      isDemo ? "/try/dashboard/seating" : "/dashboard/seating"
-    );
+    if (isDemo) {
+      handleDemoBlockedAction();
+    } else {
+      router.push(
+        invitation
+          ? "/dashboard/seating"
+          : "/dashboard/create-invite"
+      );
+    }
   }}
   className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
 >
@@ -516,61 +522,56 @@ console.log("INVITATION:", invitation);
 </button>
 
 
-    )}
-
-    {invitation && (
+    
   <>
     {/* 👁️ צפייה בהזמנה */}
-    <button
-  onClick={() => {
-    if (isDemo) {
-      handleDemoBlockedAction(); // 🧪 Toast דמו
-    } else {
-      window.open(
-        `https://www.invistimo.com/invite/${invitation.shareId}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
-    }
-  }}
-  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
-  title={
-    isDemo
-      ? "בדמו – ניתן לצפות בדשבורד, הושבה והודעות בלבד"
-      : "צפייה בהזמנה כפי שהאורחים רואים"
-  }
->
-  👁️ צפייה בהזמנה
-</button>
+    {invitation && (
+  <button
+    onClick={() => {
+      if (isDemo) {
+        handleDemoBlockedAction();
+      } else {
+        window.open(
+          `https://www.invistimo.com/invite/${invitation.shareId}`,
+          "_blank",
+          "noopener,noreferrer"
+        );
+      }
+    }}
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
+  >
+    👁️ צפייה בהזמנה
+  </button>
+)}
 
     {/* 🛠️ עריכת פרטי האירוע */}
     <button
   onClick={() => {
     if (isDemo) {
-      handleDemoBlockedAction(); // 🧪 Toast דמו
+      handleDemoBlockedAction();
     } else {
       router.push("/dashboard/event");
     }
   }}
-  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 flex items-center gap-2"
-  title={
-    isDemo
-      ? "בדמו – ניתן לצפות בדשבורד, הושבה והודעות בלבד"
-      : "עריכת פרטי האירוע"
-  }
+  className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
 >
   🛠️ עריכת פרטי האירוע
 </button>
 
-  </>
-)}
 
-    {invitation && (
+  </>
+
+
+   
       <button
   onClick={() => {
-    router.push(
-      isDemo ? "/try/dashboard/messages" : "/dashboard/messages"
-    );
+    if (isDemo) {
+      handleDemoBlockedAction();
+    } else {
+      router.push(
+        isDemo ? "/try/dashboard/messages" : "/dashboard/messages"
+      );
+    }
   }}
   className="bg-green-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-700 transition"
 >
@@ -578,7 +579,7 @@ console.log("INVITATION:", invitation);
 </button>
 
 
-    )}
+    
 
     <button
   onClick={() => {
