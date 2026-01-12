@@ -81,13 +81,17 @@ export default function Header() {
           <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
-              {/* דסקטופ */}
-              <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
+
+  
+
+              <div className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
 
   {/* ניווט ראשי */}
-  <NavLinks />
+  <nav className="flex items-center gap-8">
+    <NavLinks />
+  </nav>
 
-  {/* פעולות משתמש */}
+  {/* פעולות – צמוד לניווט */}
   <div className="flex items-center gap-3">
 
     {/* נסה דמו – תמיד */}
@@ -145,10 +149,8 @@ export default function Header() {
         </Link>
       ))}
   </div>
-</nav>
+</div>
 
-
-              
 
               {/* מובייל – המבורגר רק אם לא בדשבורד */}
               {!isDashboard && (
