@@ -1,20 +1,40 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { CalendarDays, Users, CheckCircle2, Plus, MapPin } from "lucide-react";
+import { useMemo } from "react";
+import {
+  CalendarDays,
+  Users,
+  CheckCircle2,
+  Plus,
+  MapPin,
+  ArrowUpRight,
+  ListChecks,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
-// אנימציה רכה
 const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 18 },
   visible: (i = 1) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.15, duration: 0.5, ease: "easeOut" },
+    transition: { delay: i * 0.12, duration: 0.55, ease: "easeOut" },
   }),
 };
+
+function isWithinDays(dateStr, days) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const end = new Date();
+  end.setDate(now.getDate() + days);
+
+  // לנקות שעות כדי לא "לפספס" בגלל שעה
+  const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const nn = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const ee = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+  return dd >= nn && dd <= ee;
+}
 
 export default function ProducerDashboard() {
   // ⚙️ נתונים מדומים זמניים
@@ -39,13 +59,30 @@ export default function ProducerDashboard() {
     },
   ];
 
-  // נחשב אירוע קרוב
-  const nextEvent = useMemo(() => {
-    const sorted = [...events].sort(
+  const stats = useMemo(() => {
+    const activeEvents = events.filter((e) => e.status === "active");
+    const upcomingWeek = activeEvents.filter((e) => isWithinDays(e.date, 7));
+    const totalGuests = activeEvents.reduce((sum, e) => sum + (e.guests || 0), 0);
+    const totalConfirmed = activeEvents.reduce(
+      (sum, e) => sum + (e.confirmed || 0),
+      0
+    );
+
+    const sorted = [...activeEvents].sort(
       (a, b) => new Date(a.date) - new Date(b.date)
     );
-    return sorted[0];
+    const nextEvent = sorted[0] || null;
+
+    return {
+      activeCount: activeEvents.length,
+      upcomingWeekCount: upcomingWeek.length,
+      totalGuests,
+      totalConfirmed,
+      nextEvent,
+    };
   }, [events]);
+
+  const nextEvent = stats.nextEvent;
 
   return (
     <div className="p-6 space-y-8">
@@ -63,7 +100,10 @@ export default function ProducerDashboard() {
             <h3 className="text-sm text-gray-500">אירועים פעילים</h3>
             <CalendarDays className="w-5 h-5 text-[var(--brand-purple)]" />
           </div>
-          <p className="text-3xl font-bold mt-2">{events.length}</p>
+          <p className="text-3xl font-bold mt-2 text-slate-900">
+            {stats.activeCount}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">כל האירועים שבניהולך</p>
         </motion.div>
 
         <motion.div
@@ -76,7 +116,10 @@ export default function ProducerDashboard() {
             <h3 className="text-sm text-gray-500">אירועים בשבוע הקרוב</h3>
             <CheckCircle2 className="w-5 h-5 text-[var(--brand-cyan-strong)]" />
           </div>
-          <p className="text-3xl font-bold mt-2">1</p>
+          <p className="text-3xl font-bold mt-2 text-slate-900">
+            {stats.upcomingWeekCount}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">7 ימים קדימה</p>
         </motion.div>
 
         <motion.div
@@ -87,11 +130,12 @@ export default function ProducerDashboard() {
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm text-gray-500">סה״כ מוזמנים</h3>
-            <Users className="w-5 h-5 text-purple-600" />
+            <Users className="w-5 h-5 text-[var(--brand-purple)]" />
           </div>
-          <p className="text-3xl font-bold mt-2">
-            {events.reduce((sum, e) => sum + e.guests, 0)}
+          <p className="text-3xl font-bold mt-2 text-slate-900">
+            {stats.totalGuests}
           </p>
+          <p className="text-xs text-gray-500 mt-1">אירועים פעילים בלבד</p>
         </motion.div>
 
         <motion.div
@@ -101,37 +145,105 @@ export default function ProducerDashboard() {
           className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-sm text-gray-500">משימות פתוחות</h3>
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
+            <h3 className="text-sm text-gray-500">אישרו הגעה</h3>
+            <ListChecks className="w-5 h-5 text-emerald-500" />
           </div>
-          <p className="text-3xl font-bold mt-2">3</p>
+          <p className="text-3xl font-bold mt-2 text-slate-900">
+            {stats.totalConfirmed}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">סה״כ אישורים</p>
         </motion.div>
       </div>
 
       {/* =====================
           האירוע הבא שלי
       ====================== */}
-      {nextEvent && (
+      {nextEvent ? (
         <motion.div
           variants={fadeUp}
           initial="hidden"
           animate="visible"
-          className="bg-gradient-to-r from-purple-50 to-cyan-50 rounded-2xl p-6 shadow-sm border border-gray-100"
+          className="rounded-2xl p-6 shadow-sm border border-gray-100"
+          style={{
+            background: "linear-gradient(90deg, #faf6ff 0%, #fef9f3 100%)",
+          }}
         >
-          <h2 className="text-xl font-semibold mb-4">האירוע הבא שלי 🎉</h2>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-lg font-bold">{nextEvent.title}</h3>
-              <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                <CalendarDays className="w-4 h-4" />{" "}
-                {new Date(nextEvent.date).toLocaleDateString("he-IL")}
-              </p>
-              <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                <MapPin className="w-4 h-4" /> {nextEvent.location}
+              <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                <span>האירוע הבא שלי</span> <span>🎉</span>
+              </h2>
+
+              <div className="mt-3">
+                <h3 className="text-lg font-bold text-slate-900">
+                  {nextEvent.title}
+                </h3>
+
+                <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5 text-sm text-gray-700">
+                  <span className="flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-[var(--brand-purple)]" />
+                    {new Date(nextEvent.date).toLocaleDateString("he-IL")}
+                  </span>
+
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[var(--brand-purple)]" />
+                    {nextEvent.location}
+                  </span>
+
+                  <span className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[var(--brand-purple)]" />
+                    {nextEvent.confirmed}/{nextEvent.guests} אישרו
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-stretch gap-2 min-w-[200px]">
+              <Button
+                className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
+                onClick={() => {
+                  // בהמשך ננווט לניהול האירוע (למשל /dashboard/event/[id])
+                  // כרגע זה placeholder
+                  alert("בקרוב: ניווט לניהול האירוע");
+                }}
+              >
+                כניסה לניהול האירוע
+                <ArrowUpRight className="w-4 h-4 ml-2" />
+              </Button>
+
+              <Button
+                variant="outline"
+                className="rounded-xl px-5 py-2 bg-white/70 hover:bg-white transition border-gray-200 text-slate-900"
+                onClick={() => alert("בקרוב: פתיחת צ׳ק-אין")}
+              >
+                צ׳ק-אין / כניסה
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">
+                אין אירועים קרובים כרגע
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                אפשר ליצור אירוע חדש ולהתחיל לעבוד.
               </p>
             </div>
-            <Button className="bg-[var(--brand-purple)] hover:bg-[var(--brand-purple-hover)] text-white rounded-xl px-5">
-              כניסה לניהול האירוע
+
+            <Button
+              className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
+              onClick={() => alert("בקרוב: פתיחת יצירת אירוע")}
+            >
+              <Plus className="w-4 h-4 ml-2" />
+              הוסף אירוע חדש
             </Button>
           </div>
         </motion.div>
@@ -142,8 +254,12 @@ export default function ProducerDashboard() {
       ====================== */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-semibold">האירועים שלי</h2>
-          <Button className="flex items-center gap-2 bg-[var(--brand-cyan-strong)] text-white rounded-xl px-4 hover:opacity-90">
+          <h2 className="text-xl font-semibold text-slate-900">האירועים שלי</h2>
+
+          <Button
+            className="flex items-center gap-2 bg-[var(--brand-purple)] text-white rounded-xl px-4 py-2 hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
+            onClick={() => alert("בקרוב: יצירת אירוע + יצירת לקוח")}
+          >
             <Plus className="w-4 h-4" />
             הוסף אירוע חדש
           </Button>
@@ -151,48 +267,70 @@ export default function ProducerDashboard() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
           <table className="min-w-full text-sm text-right">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-[#fbfafc] text-gray-600">
               <tr>
-                <th className="p-3">תאריך</th>
-                <th className="p-3">שם האירוע</th>
-                <th className="p-3">מיקום</th>
-                <th className="p-3">מוזמנים</th>
-                <th className="p-3">אישרו הגעה</th>
-                <th className="p-3">סטטוס</th>
-                <th className="p-3">פעולות</th>
+                <th className="p-3 font-medium">תאריך</th>
+                <th className="p-3 font-medium">שם האירוע</th>
+                <th className="p-3 font-medium">מיקום</th>
+                <th className="p-3 font-medium">מוזמנים</th>
+                <th className="p-3 font-medium">אישרו הגעה</th>
+                <th className="p-3 font-medium">סטטוס</th>
+                <th className="p-3 font-medium">פעולות</th>
               </tr>
             </thead>
+
             <tbody>
-              {events.map((ev, i) => (
-                <tr
-                  key={ev.id}
-                  className="border-t hover:bg-gray-50 transition text-gray-800"
-                >
-                  <td className="p-3">
-                    {new Date(ev.date).toLocaleDateString("he-IL")}
-                  </td>
-                  <td className="p-3 font-medium">{ev.title}</td>
-                  <td className="p-3">{ev.location}</td>
-                  <td className="p-3">{ev.guests}</td>
-                  <td className="p-3">{ev.confirmed}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs ${
-                        ev.status === "active"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-200 text-gray-600"
-                      }`}
-                    >
-                      פעיל
-                    </span>
-                  </td>
-                  <td className="p-3 text-[var(--brand-purple)] cursor-pointer hover:underline">
-                    ניהול
-                  </td>
-                </tr>
-              ))}
+              {events.map((ev) => {
+                const isActive = ev.status === "active";
+                return (
+                  <tr
+                    key={ev.id}
+                    className="border-t hover:bg-gray-50/70 transition text-slate-900"
+                  >
+                    <td className="p-3 text-gray-700">
+                      {new Date(ev.date).toLocaleDateString("he-IL")}
+                    </td>
+
+                    <td className="p-3 font-semibold">{ev.title}</td>
+
+                    <td className="p-3 text-gray-700">{ev.location}</td>
+
+                    <td className="p-3 text-gray-800">{ev.guests}</td>
+
+                    <td className="p-3 text-gray-800">{ev.confirmed}</td>
+
+                    <td className="p-3">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          isActive
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {isActive ? "פעיל" : "לא פעיל"}
+                      </span>
+                    </td>
+
+                    <td className="p-3">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-[var(--brand-purple)] font-medium hover:underline"
+                        onClick={() => alert(`בקרוב: ניהול אירוע ${ev.id}`)}
+                      >
+                        ניהול
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+
+        {/* שורת עזר קטנה */}
+        <div className="text-xs text-gray-500 mt-2">
+          טיפ: בהמשך נוסיף חיפוש, פילטרים (היום/שבוע/חודש), וייצוא דוחות.
         </div>
       </div>
     </div>
