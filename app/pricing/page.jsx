@@ -255,7 +255,8 @@ const creditGiftsPrice = useMemo(() => {
                   </ul>
 
                   {/* ✅ אישור תקנון ופרטיות – חבילת בסיס */}
-<div className="mt-6 text-sm text-[#8f7a67]">
+<div className="mt-4 text-xs text-[#8f7a67] leading-relaxed">
+
   <label className="flex items-start gap-3 cursor-pointer">
     <input
       type="checkbox"
@@ -290,16 +291,19 @@ const creditGiftsPrice = useMemo(() => {
 </div>
 
 
-                  <Button
-  variant="outline"
-  className={`w-full rounded-full py-6 ${
-    acceptedBasicTerms ? "" : "opacity-60 cursor-not-allowed"
-  }`}
-  disabled={!acceptedBasicTerms}
-  onClick={() => goRegister("basic")}
->
-  הרשמה לחבילת בסיס
-</Button>
+                  <div className="mt-8">
+  <Button
+    variant="outline"
+    className={`w-full rounded-full py-6 ${
+      acceptedBasicTerms ? "" : "opacity-60 cursor-not-allowed"
+    }`}
+    disabled={!acceptedBasicTerms}
+    onClick={() => goRegister("basic")}
+  >
+    הרשמה לחבילת בסיס
+  </Button>
+</div>
+
 
 
                 </CardContent>
