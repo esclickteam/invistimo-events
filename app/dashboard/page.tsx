@@ -86,16 +86,22 @@ const isDemo = pathname.startsWith("/try");
   ============================================================ */
   async function loadInvitation() {
   const res = await fetch("/api/event", {
-
-    credentials: "include", // ⭐️ קריטי
+    credentials: "include",
     cache: "no-store",
   });
 
+  if (res.status === 401) {
+    // ❌ באמת לא מחובר
+    router.push("/login");
+    return;
+  }
+
   const data = await res.json();
 
-  if (data.success && data.invitation) {
-    setInvitation(data.invitation);
-    setInvitationId(data.invitation._id);
+  if (data.success) {
+    // ✅ גם אם event === null – זה מצב חוקי
+    setInvitation(data.event);
+    setInvitationId(data.event?._id || "");
   }
 }
 
