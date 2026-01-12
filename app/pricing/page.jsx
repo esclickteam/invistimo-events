@@ -58,6 +58,9 @@ export default function PricingPage() {
   // ✅ בחירת כמות אורחים בפרימיום
   const [premiumGuests, setPremiumGuests] = useState(100);
 
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+
   // ✅ בחירה אם לכלול שיחות (3 סבבים)
   const [includeCalls, setIncludeCalls] = useState(false);
   const [includeCreditGifts, setIncludeCreditGifts] = useState(false);
@@ -429,6 +432,7 @@ const creditGiftsPrice = useMemo(() => {
   </div>
 )}
 
+
   {/* קו הפרדה */}
   <div className="border-t border-white/30 pt-2 flex items-center justify-between">
     <span className="text-white font-semibold">סה״כ לתשלום</span>
@@ -438,15 +442,53 @@ const creditGiftsPrice = useMemo(() => {
   </div>
 </div>
 
+{/* ✅ אישור תקנון ופרטיות */}
+<div className="mt-6 text-sm text-white/90">
+  <label className="flex items-start gap-3 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={acceptedTerms}
+      onChange={(e) => setAcceptedTerms(e.target.checked)}
+      className="mt-1 h-4 w-4 accent-[#4a413a]"
+    />
+    <span>
+      הנני מאשר/ת את{" "}
+      <a
+        href="https://www.invistimo.com/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline hover:opacity-80"
+      >
+        תקנון השימוש
+      </a>{" "}
+      ואת{" "}
+      <a
+        href="https://www.invistimo.com/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline hover:opacity-80"
+      >
+        מדיניות הפרטיות
+      </a>
+    </span>
+  </label>
+</div>
+
+
 
                   
 
                   <Button
-                    className="w-full rounded-full py-6 bg-[#4a413a] hover:bg-[#3a332d]"
-                    onClick={() => goRegister("premium")}
-                  >
-                    הרשמה לפרימיום
-                  </Button>
+  className={`w-full rounded-full py-6 ${
+    acceptedTerms
+      ? "bg-[#4a413a] hover:bg-[#3a332d]"
+      : "bg-[#4a413a]/60 cursor-not-allowed"
+  }`}
+  disabled={!acceptedTerms}
+  onClick={() => goRegister("premium")}
+>
+  הרשמה לפרימיום
+</Button>
 
                   <p className="text-center text-sm mt-4 opacity-80"></p>
                 </CardContent>
