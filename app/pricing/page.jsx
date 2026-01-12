@@ -58,8 +58,6 @@ export default function PricingPage() {
   // ✅ בחירת כמות אורחים בפרימיום
   const [premiumGuests, setPremiumGuests] = useState(100);
 
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [acceptedBasicTerms, setAcceptedBasicTerms] = useState(false);
 
 
 
@@ -258,49 +256,15 @@ const creditGiftsPrice = useMemo(() => {
                     ))}
                   </ul>
 
-                  {/* ✅ אישור תקנון ופרטיות – חבילת בסיס */}
-<div className="mt-6 text-base md:text-sm lg:text-base text-[#8f7a67]">
-  <label className="flex items-start gap-3 cursor-pointer">
-    <input
-      type="checkbox"
-      checked={acceptedBasicTerms}
-      onChange={(e) => setAcceptedBasicTerms(e.target.checked)}
-      className="h-5 w-5 accent-[#4a413a]"
-    />
-
-    <span>
-      הנני מאשר/ת את{" "}
-      <a
-        href="https://www.invistimo.com/terms"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
-      >
-        תקנון השימוש
-      </a>{" "}
-      ו־
-      <a
-        href="https://www.invistimo.com/privacy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
-      >
-        מדיניות הפרטיות
-      </a>
-    </span>
-  </label>
-</div>
+            
 
 
                   <div className="mt-auto pt-8">
-  <Button
-    variant="outline"
-    className={`w-full rounded-full py-6 ${
-      acceptedBasicTerms ? "" : "opacity-60 cursor-not-allowed"
-    }`}
-    disabled={!acceptedBasicTerms}
-    onClick={() => goRegister("basic")}
-  >
+ <Button
+  variant="outline"
+  className="w-full rounded-full py-6"
+  onClick={() => goRegister("basic")}
+>
     הרשמה לחבילת בסיס
   </Button>
 </div>
@@ -511,56 +475,15 @@ const creditGiftsPrice = useMemo(() => {
   </div>
 </div>
 
-{/* ✅ אישור תקנון ופרטיות */}
-<div className="mt-6 text-base md:text-sm lg:text-base text-[#3a332d]">
-  <label className="flex items-start gap-3 cursor-pointer">
-    <input
-      type="checkbox"
-      checked={acceptedTerms}
-      onChange={(e) => setAcceptedTerms(e.target.checked)}
-      className="h-5 w-5 accent-[#4a413a]"
-    />
-
-    <span>
-      הנני מאשר/ת את{" "}
-      <a
-        href="https://www.invistimo.com/terms"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
-      >
-        תקנון השימוש
-      </a>{" "}
-      ו־
-      <a
-        href="https://www.invistimo.com/privacy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[#6b5b4a] underline underline-offset-2 decoration-[#6b5b4a]/40 hover:decoration-[#6b5b4a] hover:text-[#4a413a] transition"
-      >
-        מדיניות הפרטיות
-      </a>
-
-
-    </span>
-  </label>
-
-</div>
-
 
 
                   
 
                  <div className="mt-auto pt-8">
   <Button
-    className={`w-full rounded-full py-6 ${
-      acceptedTerms
-        ? "bg-[#4a413a] hover:bg-[#3a332d]"
-        : "bg-[#4a413a]/60 cursor-not-allowed"
-    }`}
-    disabled={!acceptedTerms}
-    onClick={() => goRegister("premium")}
-  >
+  className="w-full rounded-full py-6 bg-[#4a413a] hover:bg-[#3a332d]"
+  onClick={() => goRegister("premium")}
+>
     הרשמה לפרימיום
   </Button>
 </div>
