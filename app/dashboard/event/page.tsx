@@ -80,10 +80,9 @@ export default function EditEventPage() {
 
       {/* Form */}
       <EventDetailsForm
-        invitation={invitation}
-        onSaved={() => {
-          // אחרי שמירה – חזרה לדשבורד
-          router.back();
+  event={event}
+  onSaved={() => {
+    router.back();
         }}
       />
     </div>
