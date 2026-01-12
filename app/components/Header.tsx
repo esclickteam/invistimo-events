@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -82,73 +82,10 @@ export default function Header() {
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
-              <nav className="hidden md:flex items-center gap-10 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
+              <nav className="hidden md:flex items-center gap-8 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
 
-  {/* ניווט ראשי */}
-  <NavLinks />
-
-  {/* פעולות משתמש */}
-  <div className="flex items-center gap-3">
-
-    {/* נסה דמו – תמיד */}
-    <Link
-      href="/try/dashboard"
-      className="
-        px-6 py-2 rounded-full
-        bg-[#3f3a34] text-[#faf8f4]
-        border border-[#3f3a34]
-        font-medium
-        hover:opacity-95
-        transition
-        whitespace-nowrap
-      "
-    >
-      נסה דמו
-    </Link>
-
-    {!loading &&
-      (user ? (
-        <>
-          <Link
-            href="/dashboard"
-            className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
-          >
-            לוח בקרה
-          </Link>
-
-          <button
-            onClick={logout}
-            className="
-              px-5 py-2 rounded-full
-              border border-[#cbb59d]
-              text-[#4a413a] text-sm
-              hover:bg-[#efe6db]
-              transition
-            "
-          >
-            התנתקות
-          </button>
-        </>
-      ) : (
-        <Link
-          href="/login"
-          className="
-            px-6 py-2 rounded-full
-            border border-[#cbb59d]
-            text-[#4a413a] font-medium
-            hover:bg-[#efe6db]
-            transition
-            whitespace-nowrap
-          "
-        >
-          התחברות
-        </Link>
-      ))}
-  </div>
-</nav>
-
-
-              
+                <NavLinks />
+              </nav>
 
               {/* מובייל – המבורגר רק אם לא בדשבורד */}
               {!isDashboard && (
@@ -173,10 +110,65 @@ export default function Header() {
               </Link>
             </div>
 
-      
+            {/* שמאל – כפתורים (דסקטופ בלבד) */}
+            <div className="hidden md:flex justify-end items-center gap-3">
+  {/* ✅ תמיד מוצג: כפתור דמו (מודגש) */}
+  <Link
+    href="/try/dashboard"
+    className="
+      px-6 py-2 rounded-full
+      bg-[#3f3a34] text-[#faf8f4]
+      border border-[#3f3a34]
+      font-medium
+      hover:opacity-95
+      transition
+      whitespace-nowrap
+    "
+    title=" דמו – צפייה בלבד"
+  >
+     נסה דמו
+  </Link>
+
+              {!loading &&
+                (user ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
+                    >
+                      לוח בקרה
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="
+                        px-5 py-2 rounded-full
+                        border border-[#cbb59d]
+                        text-[#4a413a] text-sm
+                        hover:bg-[#efe6db]
+                        transition
+                      "
+                    >
+                      התנתקות
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="
+                      px-6 py-2 rounded-full
+                      border border-[#cbb59d]
+                      text-[#4a413a] font-medium
+                      hover:bg-[#efe6db]
+                      transition
+                      whitespace-nowrap
+                    "
+                  >
+                    התחברות
+                  </Link>
+                ))}
+            </div>
           </div>
         </div>
-        
       </header>
 
       {/* ================= MOBILE DRAWER (רק מחוץ לדשבורד) ================= */}
