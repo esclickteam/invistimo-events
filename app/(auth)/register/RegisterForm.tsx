@@ -21,6 +21,8 @@ function RegisterFormInner() {
   // ✅ תוספת: האם המשתמש בחר שירות שיחות (מהדף הקודם)
   const callsParam = params.get("calls");
   const includeCalls = plan === "premium" && callsParam === "1";
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
 
   const creditGiftsParam = params.get("creditGifts");
   const includeCreditGifts =
@@ -128,12 +130,17 @@ return;
      ✅ שולחים includeCalls + callsAddonPrice לשרת, והוא יחשב בפועל
   ============================================================ */
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!priceKey) {
-      alert("חבילה לא תקינה — נסי לבחור שוב");
-      return;
-    }
+  if (!acceptedTerms) {
+    alert("יש לאשר את תקנון השימוש ומדיניות הפרטיות");
+    return;
+  }
+
+  if (!priceKey) {
+    alert("חבילה לא תקינה — נסי לבחור שוב");
+    return;
+  }
 
     setLoading(true);
 
@@ -315,10 +322,41 @@ return;
           סכום לתשלום: {price} ₪
         </div>
 
+        {/* אישור תקנון */}
+<div className="flex items-start gap-3 text-sm text-[#5c4632]">
+  <input
+    type="checkbox"
+    checked={acceptedTerms}
+    onChange={(e) => setAcceptedTerms(e.target.checked)}
+    className="mt-1 h-4 w-4 accent-[#c9b29b]"
+  />
+
+  <span>
+    הנני מאשר/ת את{" "}
+    <Link
+      href="/terms"
+      target="_blank"
+      className="underline font-medium"
+    >
+      תקנון השימוש
+    </Link>{" "}
+    ו{" "}
+    <Link
+      href="/privacy"
+      target="_blank"
+      className="underline font-medium"
+    >
+      מדיניות הפרטיות
+    </Link>
+  </span>
+</div>
+
+
         {/* כפתור */}
         <button
           type="submit"
-          disabled={loading || price === 0 || !priceKey}
+          disabled={loading || price === 0 || !priceKey || !acceptedTerms}
+
           className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
         >
           {loading ? "מעבירה לתשלום..." : "המשך לתשלום"}
