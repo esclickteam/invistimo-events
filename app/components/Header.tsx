@@ -78,7 +78,8 @@ export default function Header() {
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
           {/* ✅ גריד חדש – ימין (כפתורים + ניווט), מרכז (לוגו), שמאל (ריק) */}
-          <div className="grid grid-cols-[auto_1fr_auto] items-center h-16">
+          <div className="grid grid-cols-[1fr_auto] items-center h-16">
+
             
             {/* ✅ צד ימין – כפתורים צמוד לימין ואז ניווט */}
             <div className="hidden md:flex items-center justify-start gap-6">
@@ -147,18 +148,16 @@ export default function Header() {
             </div>
 
             {/* ✅ מרכז – לוגו */}
-            <div className="flex justify-center" dir="ltr">
-              <Link href="/" className="flex items-center">
-                <img
-                  src="/invistimo-logo.png"
-                  alt="Invistimo Logo"
-                  className="h-10 w-auto object-contain scale-[4] origin-center"
-                />
-              </Link>
-            </div>
+            <div className="flex justify-end" dir="ltr">
+  <Link href="/" className="flex items-center">
+    <img
+      src="/invistimo-logo.png"
+      alt="Invistimo Logo"
+      className="h-10 w-auto object-contain scale-[4] origin-left"
+    />
+  </Link>
+</div>
 
-            {/* ✅ שמאל – ריק לאיזון */}
-            <div className="hidden md:flex justify-end items-center"></div>
 
             {/* ✅ מובייל – המבורגר */}
             {!isDashboard && (
