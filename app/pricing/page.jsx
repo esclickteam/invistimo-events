@@ -317,10 +317,22 @@ const creditGiftsPrice = useMemo(() => {
               <Card className="relative rounded-3xl shadow-2xl bg-gradient-to-b from-[#d1bba3] to-[#c3a98c] text-[#2f2a25] h-full">
 
                 <CardContent className="p-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-2xl font-semibold text-[#2f2a25]">חבילת פרימיום</h3>
-<Star className="text-[#2f2a25]" />
-                  </div>
+                  
+                    {/* 🔥 Recommended badge */}
+<div className="inline-flex items-center justify-center mb-3">
+  <span className="rounded-full bg-[#f7f3ee] px-4 py-1 text-xs font-semibold tracking-wide text-[#4a413a]">
+    ⭐ הבחירה המומלצת
+  </span>
+</div>
+
+<div className="flex items-center justify-between mb-2">
+  <h3 className="text-2xl font-semibold text-[#2f2a25]">
+    חבילת פרימיום
+  </h3>
+  <Star className="text-[#2f2a25]" />
+</div>
+
+                  
 
                   {/* ✅ מחיר דינמי לפי בחירה (כולל/לא כולל שיחות) */}
                   <div className="mb-6">
