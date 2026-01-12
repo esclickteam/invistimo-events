@@ -88,7 +88,8 @@ export default function Header() {
   <NavLinks />
 
   {/* פעולות משתמש */}
-  <div className="flex items-center gap-3 mr-4">
+  <div className="flex items-center gap-3">
+
     {/* נסה דמו – תמיד */}
     <Link
       href="/try/dashboard"
