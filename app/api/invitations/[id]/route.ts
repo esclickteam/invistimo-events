@@ -1,61 +1,21 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
-import Event from "@/models/Event"; // ✅ נוסיף כדי למצוא את האירוע של המשתמש
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest"; // ✅ לאמת משתמש
-
-// ✅ חשוב: טוען את מודל האורחים לפני ההזמנה
+import Event from "@/models/Event";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import "@/models/InvitationGuest";
 
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   📥 GET — שליפת הזמנה לפי מזהה
-============================================================ */
-export async function GET(req: Request, context: any) {
-  try {
-    await db();
-
-    const params = await context.params;
-    const id = params?.id;
-
-    if (!id || typeof id !== "string") {
-      return NextResponse.json(
-        { error: "Invalid invitation id" },
-        { status: 400 }
-      );
-    }
-
-    const invitation = await Invitation.findById(id).populate("guests");
-
-    if (!invitation) {
-      return NextResponse.json(
-        { error: "Invitation not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        invitation: JSON.parse(JSON.stringify(invitation)),
-      },
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error("❌ Error in GET /api/invitations/[id]:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
-}
-
-/* ============================================================
    💾 POST — יצירת הזמנה חדשה
-   אם לא נשלח eventId — נזהה את האירוע לפי המשתמש המחובר
+   אם אין אירוע קיים למשתמש, ייווצר אירוע חדש אוטומטית
 ============================================================ */
 export async function POST(req: Request) {
   try {
     await db();
 
+    // 🧩 אימות משתמש
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -65,29 +25,40 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    let { eventId, title, eventType, eventDate, eventTime, location } = body;
+    let { eventId, title, eventType, eventDate, eventTime, location, canvasData } = body;
 
-    // 🔍 אם אין eventId, נזהה את האירוע של המשתמש
-    if (!eventId) {
-      const userEvent = await Event.findOne({ userId: auth.userId });
-      if (!userEvent) {
-        return NextResponse.json(
-          { success: false, error: "EVENT_ID_REQUIRED" },
-          { status: 400 }
-        );
-      }
-      eventId = userEvent._id;
+    // 🔍 נסה למצוא אירוע קיים למשתמש
+    let userEvent = eventId
+      ? await Event.findById(eventId)
+      : await Event.findOne({ userId: auth.userId });
+
+    // 🆕 אם אין אירוע קיים — צור אחד אוטומטית
+    if (!userEvent) {
+      userEvent = await Event.create({
+        userId: auth.userId,
+        title: title || "אירוע חדש",
+        eventType: eventType || "wedding",
+        date: eventDate || null,
+        time: eventTime || null,
+        status: "draft",
+        paymentStatus: "paid",
+        maxGuests: 100,
+        location: location || {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
 
-    // ✨ יצירת ההזמנה החדשה
+    // ✨ צור הזמנה חדשה
     const invitation = await Invitation.create({
-      eventId,
+      eventId: userEvent._id,
       ownerId: auth.userId,
-      title: title?.trim() || "",
-      eventType: eventType?.trim() || "",
-      eventDate: eventDate || null,
-      eventTime: eventTime?.trim() || "",
-      location: location || {},
+      title: title?.trim() || "ההזמנה שלי 🎉",
+      eventType: eventType?.trim() || userEvent.eventType || "wedding",
+      eventDate: eventDate || userEvent.date || null,
+      eventTime: eventTime || userEvent.time || "",
+      location: location || userEvent.location || {},
+      canvasData: canvasData || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -111,7 +82,6 @@ export async function POST(req: Request) {
 export async function PUT(req: Request, context: any) {
   try {
     await db();
-
     const params = await context.params;
     const id = params?.id;
 
@@ -123,32 +93,15 @@ export async function PUT(req: Request, context: any) {
     }
 
     const body = await req.json();
-    const {
-      title,
-      eventType,
-      eventDate,
-      eventTime,
-      canvasData,
-      location,
-    } = body;
+    const { title, eventType, eventDate, eventTime, canvasData, location } = body;
 
     const updatePayload: any = { updatedAt: new Date() };
 
-    if (typeof title === "string" && title.trim()) {
-      updatePayload.title = title.trim();
-    }
-
-    if (typeof eventType === "string" && eventType.trim()) {
-      updatePayload.eventType = eventType.trim();
-    }
-
-    if (eventDate) {
-      updatePayload.eventDate = eventDate;
-    }
-
-    if (typeof eventTime === "string" && eventTime.trim()) {
-      updatePayload.eventTime = eventTime;
-    }
+    if (title?.trim()) updatePayload.title = title.trim();
+    if (eventType?.trim()) updatePayload.eventType = eventType.trim();
+    if (eventDate) updatePayload.eventDate = eventDate;
+    if (eventTime?.trim()) updatePayload.eventTime = eventTime.trim();
+    if (canvasData !== undefined) updatePayload.canvasData = canvasData;
 
     if (
       location &&
@@ -159,16 +112,10 @@ export async function PUT(req: Request, context: any) {
       updatePayload.location = {
         name: typeof location.name === "string" ? location.name.trim() : "",
         address:
-          typeof location.address === "string"
-            ? location.address.trim()
-            : "",
+          typeof location.address === "string" ? location.address.trim() : "",
         lat: typeof location.lat === "number" ? location.lat : null,
         lng: typeof location.lng === "number" ? location.lng : null,
       };
-    }
-
-    if (canvasData !== undefined) {
-      updatePayload.canvasData = canvasData;
     }
 
     const updated = await Invitation.findByIdAndUpdate(
