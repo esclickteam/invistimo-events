@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
 type Props = {
-  invitation: any;
+  event?: any | null;
   onSaved: () => void;
   onClose?: () => void;
 };
 
 export default function EventDetailsForm({
-  invitation,
+  event,
   onSaved,
   onClose,
 }: Props) {
@@ -27,37 +27,36 @@ export default function EventDetailsForm({
   });
 
   /* ============================================================
-     🔄 Sync invitation → local state
+     🔄 Sync event → local state
+     (אם אין event – נשאר ריק וזה תקין)
   ============================================================ */
   useEffect(() => {
-    if (!invitation) return;
+    if (!event) return;
 
     setForm({
-      title: invitation.title ?? "",
-      eventType: invitation.eventType ?? "",
-      date: invitation.eventDate
-        ? new Date(invitation.eventDate).toISOString().slice(0, 10)
+      title: event.title ?? "",
+      eventType: event.eventType ?? "",
+      date: event.date
+        ? new Date(event.date).toISOString().slice(0, 10)
         : "",
-      time: invitation.eventTime ?? "",
+      time: event.time ?? "",
       location: {
-        address: invitation.location?.address ?? "",
-        lat: invitation.location?.lat ?? null,
-        lng: invitation.location?.lng ?? null,
+        address: event.location?.address ?? "",
+        lat: event.location?.lat ?? null,
+        lng: event.location?.lng ?? null,
       },
     });
-  }, [invitation]);
+  }, [event]);
 
   /* ============================================================
-     💾 Save
+     💾 Save (CREATE או UPDATE)
   ============================================================ */
   async function save() {
-    if (!invitation?._id) return;
-
     const payload = {
       title: form.title.trim(),
       eventType: form.eventType.trim(),
-      eventDate: form.date ? new Date(form.date).toISOString() : null,
-      eventTime: form.time || "",
+      date: form.date ? new Date(form.date).toISOString() : "",
+      time: form.time || "",
       location: {
         address: form.location.address || "",
         lat: form.location.lat,
@@ -65,11 +64,16 @@ export default function EventDetailsForm({
       },
     };
 
-    const res = await fetch(`/api/invitations/${invitation._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const isEdit = Boolean(event?._id);
+
+    const res = await fetch(
+      isEdit ? `/api/events/${event._id}` : "/api/events",
+      {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
 
     const data = await res.json();
 
@@ -85,7 +89,7 @@ export default function EventDetailsForm({
   return (
     <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-xl">
       <h2 className="text-xl font-semibold mb-5">
-        ✏️ עריכת פרטי האירוע
+        🛠️ פרטי האירוע
       </h2>
 
       <div className="grid gap-4">
@@ -109,7 +113,7 @@ export default function EventDetailsForm({
           className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
-        {/* 📅 תאריך */}
+        {/* תאריך */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-600 px-2">
             תאריך האירוע
@@ -120,15 +124,11 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, date: e.target.value }))
             }
-            className="
-              border rounded-full px-4 py-3
-              text-base min-h-[48px]
-              bg-white
-            "
+            className="border rounded-full px-4 py-3 bg-white"
           />
         </div>
 
-        {/* ⏰ שעה */}
+        {/* שעה */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-600 px-2">
             שעת האירוע
@@ -139,11 +139,7 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, time: e.target.value }))
             }
-            className="
-              border rounded-full px-4 py-3
-              text-base min-h-[48px]
-              bg-white
-            "
+            className="border rounded-full px-4 py-3 bg-white"
           />
         </div>
 

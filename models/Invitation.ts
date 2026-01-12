@@ -6,9 +6,9 @@ import { nanoid } from "nanoid";
 const LocationSchema = new Schema(
   {
     name: {
-      type: String,
-      default: "",
-    },
+  type: String,
+  default: "",
+},
     address: {
       type: String,
       default: "",
@@ -22,7 +22,7 @@ const LocationSchema = new Schema(
       default: null,
     },
   },
-  { _id: false } // ⬅️ חשוב – לא ליצור _id פנימי
+  { _id: false }
 );
 
 /* ================= INVITATION SCHEMA ================= */
@@ -34,9 +34,18 @@ const InvitationSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
-    /* ================= EVENT INFO ================= */
+    /* ================= EVENT LINK ================= */
+    eventId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Event",
+      required: true,
+      index: true,
+    },
+
+    /* ================= EVENT SNAPSHOT ================= */
     title: {
       type: String,
       required: true,
@@ -80,6 +89,7 @@ const InvitationSchema = new Schema(
     shareId: {
       type: String,
       unique: true,
+      index: true,
       default: () => nanoid(10),
     },
 
@@ -121,6 +131,14 @@ const InvitationSchema = new Schema(
   {
     timestamps: true,
   }
+);
+
+/* ================= INDEXES ================= */
+
+// 🔒 מוודא שלא תהיה יותר מהזמנה אחת לאותו Event
+InvitationSchema.index(
+  { eventId: 1 },
+  { unique: true }
 );
 
 export default models.Invitation ||

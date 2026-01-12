@@ -7,42 +7,37 @@ import EventDetailsForm from "@/app/components/EventDetailsForm";
 export default function EditEventPage() {
   const router = useRouter();
 
-  const [invitation, setInvitation] = useState<any>(null);
+  const [event, setEvent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   /* ============================================================
-     📥 Load invitation
+     📥 Load event (לא הזמנה!)
   ============================================================ */
   useEffect(() => {
-    async function loadInvitation() {
+    async function loadEvent() {
       try {
-        const res = await fetch("/api/invitations/my", {
+        const res = await fetch("/api/events/my", {
           credentials: "include",
           cache: "no-store",
         });
 
         const data = await res.json();
 
-        if (!data.success) {
-          setError("לא נמצאה הזמנה");
-          return;
+        if (data.success) {
+          setEvent(data.event || null); // ← גם null זה תקין
         }
-
-        setInvitation(data.invitation);
       } catch (err) {
-        console.error("❌ Failed to load invitation:", err);
-        setError("שגיאה בטעינת ההזמנה");
+        console.error("❌ Failed to load event:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    loadInvitation();
+    loadEvent();
   }, []);
 
   /* ============================================================
-     ⏳ States
+     ⏳ Loading
   ============================================================ */
   if (loading) {
     return (
@@ -52,16 +47,8 @@ export default function EditEventPage() {
     );
   }
 
-  if (error || !invitation) {
-    return (
-      <div className="p-10 text-center text-red-600">
-        {error || "לא נמצאה הזמנה"}
-      </div>
-    );
-  }
-
   /* ============================================================
-     Render
+     Render (תמיד!)
   ============================================================ */
   return (
     <div className="max-w-xl mx-auto p-6 md:p-10" dir="rtl">
@@ -73,16 +60,13 @@ export default function EditEventPage() {
         ← חזרה
       </button>
 
-      {/* Title */}
       <h1 className="text-2xl font-semibold mb-6 text-[#4a413a]">
-        ✏️ עריכת פרטי האירוע
+        ✏️ פרטי האירוע
       </h1>
 
-      {/* Form */}
       <EventDetailsForm
-        invitation={invitation}
+        event={event}
         onSaved={() => {
-          // אחרי שמירה – חזרה לדשבורד
           router.back();
         }}
       />
