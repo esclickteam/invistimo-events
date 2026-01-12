@@ -7,38 +7,38 @@ import EventDetailsForm from "@/app/components/EventDetailsForm";
 export default function EditEventPage() {
   const router = useRouter();
 
-  const [invitation, setInvitation] = useState<any>(null);
+  const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /* ============================================================
-     📥 Load invitation
+     📥 Load event
   ============================================================ */
   useEffect(() => {
-    async function loadInvitation() {
+    async function loadEvent() {
       try {
-        const res = await fetch("/api/invitations/my", {
+        const res = await fetch("/api/events", {
           credentials: "include",
           cache: "no-store",
         });
 
         const data = await res.json();
 
-        if (!data.success) {
-          setError("לא נמצאה הזמנה");
+        if (!res.ok || !data || Object.keys(data).length === 0) {
+          setError("לא נמצא אירוע");
           return;
         }
 
-        setInvitation(data.invitation);
+        setEvent(data);
       } catch (err) {
-        console.error("❌ Failed to load invitation:", err);
-        setError("שגיאה בטעינת ההזמנה");
+        console.error("❌ Failed to load event:", err);
+        setError("שגיאה בטעינת פרטי האירוע");
       } finally {
         setLoading(false);
       }
     }
 
-    loadInvitation();
+    loadEvent();
   }, []);
 
   /* ============================================================
@@ -52,10 +52,10 @@ export default function EditEventPage() {
     );
   }
 
-  if (error || !invitation) {
+  if (error || !event) {
     return (
       <div className="p-10 text-center text-red-600">
-        {error || "לא נמצאה הזמנה"}
+        {error || "לא נמצא אירוע"}
       </div>
     );
   }
@@ -80,9 +80,9 @@ export default function EditEventPage() {
 
       {/* Form */}
       <EventDetailsForm
-  event={event}
-  onSaved={() => {
-    router.back();
+        event={event}
+        onSaved={() => {
+          router.back();
         }}
       />
     </div>
