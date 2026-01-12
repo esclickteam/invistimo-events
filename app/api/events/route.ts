@@ -7,18 +7,6 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   🔁 מיפוי סוגי אירוע – עברית → enum באנגלית
-============================================================ */
-const EVENT_TYPE_MAP: Record<string, string> = {
-  "חתונה": "wedding",
-  "בר מצווה": "bar-mitzvah",
-  "בת מצווה": "bat-mitzvah",
-  "ברית": "brit",
-  "בריתה": "brita",
-  "חינה": "henna",
-};
-
-/* ============================================================
    GET – שליפת Event (אם קיים)
 ============================================================ */
 export async function GET() {
@@ -49,7 +37,7 @@ export async function GET() {
 }
 
 /* ============================================================
-   POST – יצירה או עדכון Event (UPSERT בטוח)
+   POST – יצירה או עדכון Event (UPSERT)
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -74,32 +62,49 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     /* ======================================================
-       🧠 נרמול סוג אירוע
-       - אם קיים במיפוי → enum תקין
-       - אם לא → other + שומרים label חופשי
+       Payload תקני (תואם Frontend)
     ====================================================== */
-    const mappedType = EVENT_TYPE_MAP[body.eventType];
-
     const payload = {
-      title: body.title || "",
-      eventType: mappedType ? mappedType : "other",
-      eventTypeLabel: mappedType ? "" : (body.eventType || ""),
+      title: body.title?.trim() || "",
+      eventType: body.eventType || "wedding",
       date: body.date || "",
-      location: body.location || "",
+      time: body.time || "",
+      location: body.location
+        ? {
+            address: body.location.address || "",
+            lat:
+              typeof body.location.lat === "number"
+                ? body.location.lat
+                : null,
+            lng:
+              typeof body.location.lng === "number"
+                ? body.location.lng
+                : null,
+          }
+        : {
+            address: "",
+            lat: null,
+            lng: null,
+          },
     };
 
     let event = await Event.findOne({ userId: auth.userId });
 
-    // 🔹 יצירה ראשונה
+    /* ======================================================
+       יצירה ראשונה
+    ====================================================== */
     if (!event) {
       event = await Event.create({
         userId: auth.userId,
         email: user.email,
         maxGuests: user.guests || 100,
+        status: "active",
         ...payload,
       });
     }
-    // 🔹 עדכון
+    /* ======================================================
+       עדכון
+    ====================================================== */
     else {
       event.set(payload);
       await event.save();

@@ -43,20 +43,24 @@ export default function EventDetailsForm({
      🔄 Sync event → local state
   ============================================================ */
   useEffect(() => {
-    if (!event) return;
+  if (!event) return;
 
-    setForm({
-      title: event.title ?? "",
-      eventType: event.eventType ?? "wedding",
-      date: event.date ?? "",
-      time: event.time ?? "",
-      location: {
-        address: event.location?.address ?? "",
-        lat: event.location?.lat ?? null,
-        lng: event.location?.lng ?? null,
-      },
-    });
-  }, [event]);
+  setForm({
+    title: event.title ?? "",
+    eventType: event.eventType ?? "wedding",
+
+    date: event.date
+      ? new Date(event.date).toISOString().slice(0, 10)
+      : "",
+
+    time: event.time ?? "",
+    location: {
+      address: event.location?.address ?? "",
+      lat: event.location?.lat ?? null,
+      lng: event.location?.lng ?? null,
+    },
+  });
+}, [event]);
 
   /* ============================================================
      💾 Save (UPSERT)
