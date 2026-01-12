@@ -11,6 +11,7 @@ export default function PublicInvitePage({ params }: any) {
   const router = useRouter();
   const [shareId, setShareId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
+  const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
@@ -78,11 +79,13 @@ export default function PublicInvitePage({ params }: any) {
         const res = await fetch(`/api/invite/${shareId}`);
         const data = await res.json();
 
-        if (data.success && data.invitation) {
-          setInvite(data.invitation);
-        } else {
-          setInvite(null);
-        }
+        if (data.success && data.invitation && data.event) {
+  setInvite(data.invitation);
+  setEvent(data.event);
+} else {
+  setInvite(null);
+  setEvent(null);
+}
       } catch (err) {
         console.error("❌ Invite fetch error:", err);
         setInvite(null);
@@ -279,7 +282,7 @@ export default function PublicInvitePage({ params }: any) {
 
             <button
               type="submit"
-               className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
             >
               שליחת אישור הגעה
             </button>
@@ -292,7 +295,8 @@ export default function PublicInvitePage({ params }: any) {
 
         {/* ✅ כרטיס מיקום / איך מגיעים — מתחת לכפתור שליחת האישור */}
         <div className="w-full flex justify-center">
-          <EventLocationCard location={invite.location} />
+          <EventLocationCard location={event?.location} />
+
         </div>
       </div>
     </div>
