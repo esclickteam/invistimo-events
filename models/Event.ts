@@ -65,12 +65,23 @@ const ZoneSchema = new mongoose.Schema(
 const EventSchema = new mongoose.Schema(
   {
     /* =========================
-       בעלות / משתמש
+       בעלות / משתמש (הלקוח)
     ========================= */
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
+    },
+
+    /* =========================
+       מפיק שפתח את האירוע (אופציונלי)
+       אם הלקוח פתח לבד - יהיה null
+    ========================= */
+    producerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
       index: true,
     },
 
@@ -87,14 +98,7 @@ const EventSchema = new mongoose.Schema(
     ========================= */
     eventType: {
       type: String,
-      enum: [
-        "wedding",
-        "bar-mitzvah",
-        "bat-mitzvah",
-        "brit",
-        "brita",
-        "henna",
-      ],
+      enum: ["wedding", "bar-mitzvah", "bat-mitzvah", "brit", "brita", "henna"],
       required: true,
       index: true,
     },
@@ -132,23 +136,28 @@ const EventSchema = new mongoose.Schema(
 
     /* =========================
        Stripe (חד־פעמי)
+       ⬅️ לא חובה כי מפיק יכול ליצור אירוע בלי תשלום בסטרייפ
     ========================= */
     stripeSessionId: {
       type: String,
-      required: true,
-      unique: true,
+      default: null,
       index: true,
     },
 
     stripePriceId: {
       type: String,
-      required: true,
+      default: null,
     },
 
+    /* =========================
+       תשלום
+       ⬅️ תמיד "paid" כשמפיק פותח
+    ========================= */
     paymentStatus: {
       type: String,
       enum: ["paid", "refunded"],
       default: "paid",
+      index: true,
     },
 
     /* =========================
@@ -158,6 +167,7 @@ const EventSchema = new mongoose.Schema(
       type: String,
       enum: ["active", "archived"],
       default: "active",
+      index: true,
     },
   },
   {
@@ -165,5 +175,16 @@ const EventSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.models.Event ||
-  mongoose.model("Event", EventSchema);
+/* =========================================================
+   Partial Unique Index ל-stripeSessionId
+   כדי שלא ישבר כשיש null
+========================================================= */
+EventSchema.index(
+  { stripeSessionId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { stripeSessionId: { $type: "string" } },
+  }
+);
+
+export default mongoose.models.Event || mongoose.model("Event", EventSchema);

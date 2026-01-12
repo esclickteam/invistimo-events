@@ -8,11 +8,14 @@ export interface IUser extends Document {
   email: string;
   password: string;
 
-  role: "user" | "photographer" | "admin";
+  role: "user" | "producer" | "photographer" | "admin";
 
   plan: "basic" | "premium";
   guests: number;
   paidAmount: number;
+
+  // ✅ מי יצר את הלקוח (אם נוצר ע"י מפיק)
+  createdByProducer?: mongoose.Types.ObjectId | null;
 
   // ☎️ שירות שיחות
   includeCalls: boolean;
@@ -158,7 +161,7 @@ const UserSchema = new Schema<IUser>(
 
     role: {
       type: String,
-      enum: ["user", "photographer", "admin"],
+      enum: ["user", "producer", "photographer", "admin"],
       default: "user",
     },
 
@@ -170,6 +173,14 @@ const UserSchema = new Schema<IUser>(
 
     guests: { type: Number, default: 100 },
     paidAmount: { type: Number, default: 49 },
+
+    // ✅ קישור למפיק שיצר את הלקוח
+    createdByProducer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
 
     // ☎️ שירות שיחות
     includeCalls: { type: Boolean, default: false },
@@ -242,7 +253,12 @@ UserSchema.pre("findOneAndUpdate", function () {
     };
 
     update.smsUsed = update.smsUsed ?? 0;
-  } else if (plan || guests || update.includeCalls !== undefined || update.includeCreditGifts !== undefined) {
+  } else if (
+    plan ||
+    guests ||
+    update.includeCalls !== undefined ||
+    update.includeCreditGifts !== undefined
+  ) {
     const level = safeLevel(guests);
 
     const basePrices: Record<number, number> = {

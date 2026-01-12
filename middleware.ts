@@ -104,7 +104,7 @@ export function middleware(req: NextRequest) {
      3️⃣ Auth – מקור אמת
   ======================================================== */
   const token = cookies.get("authToken")?.value;
-  const role = cookies.get("role")?.value;
+  const role = cookies.get("role")?.value; // "admin" | "producer" | "user" ...
   const impersonating = cookies.get("impersonating")?.value === "true";
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
@@ -113,6 +113,16 @@ export function middleware(req: NextRequest) {
      ❗ ניקוי cookies כפוי
   ======================================================== */
   if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
+    const res = NextResponse.redirect(new URL("/login", req.url));
+    clearAuthCookies(res);
+    return res;
+  }
+
+  /* ========================================================
+     🔐 חסימת Producers ללא token
+     ❗ ניקוי cookies כפוי
+  ======================================================== */
+  if (pathname.startsWith("/producers") && !token) {
     const res = NextResponse.redirect(new URL("/login", req.url));
     clearAuthCookies(res);
     return res;
@@ -139,6 +149,36 @@ export function middleware(req: NextRequest) {
   ) {
     const url = nextUrl.clone();
     url.pathname = "/admin";
+    return NextResponse.redirect(url);
+  }
+
+  /* ========================================================
+     4.1️⃣ ✅ ניתוב Producer אוטומטי ל־/producers
+     ❗ רק אם לא בתחזות
+  ======================================================== */
+  if (
+    token &&
+    role === "producer" &&
+    !impersonating &&
+    (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))
+  ) {
+    const url = nextUrl.clone();
+    url.pathname = "/producers";
+    return NextResponse.redirect(url);
+  }
+
+  /* ========================================================
+     4.2️⃣ (אופציונלי אבל מומלץ) חסימת כניסה ל־/producers אם לא Producer/Admin
+     אם את רוצה שגם אדמין יוכל להיכנס לשם - השארתי גם admin.
+  ======================================================== */
+  if (
+    token &&
+    pathname.startsWith("/producers") &&
+    role !== "producer" &&
+    role !== "admin"
+  ) {
+    const url = nextUrl.clone();
+    url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
@@ -179,5 +219,5 @@ export function middleware(req: NextRequest) {
    MATCHER
 ======================================================== */
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/producers/:path*"],
 };
