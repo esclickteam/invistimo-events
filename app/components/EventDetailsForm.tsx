@@ -3,14 +3,20 @@
 import { useEffect, useState } from "react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
+/* ============================================================
+   Props
+============================================================ */
 type Props = {
-  invitation: any;
+  event: any;
   onSaved: () => void;
   onClose?: () => void;
 };
 
+/* ============================================================
+   Component
+============================================================ */
 export default function EventDetailsForm({
-  invitation,
+  event,
   onSaved,
   onClose,
 }: Props) {
@@ -27,31 +33,34 @@ export default function EventDetailsForm({
   });
 
   /* ============================================================
-     🔄 Sync invitation → local state
+     🔄 Sync event → local state
   ============================================================ */
   useEffect(() => {
-    if (!invitation) return;
+    if (!event) return;
 
     setForm({
-      title: invitation.title ?? "",
-      eventType: invitation.eventType ?? "",
-      date: invitation.eventDate
-        ? new Date(invitation.eventDate).toISOString().slice(0, 10)
+      title: event.title ?? "",
+      eventType: event.eventType ?? "",
+      date: event.eventDate
+        ? new Date(event.eventDate).toISOString().slice(0, 10)
         : "",
-      time: invitation.eventTime ?? "",
+      time: event.eventTime ?? "",
       location: {
-        address: invitation.location?.address ?? "",
-        lat: invitation.location?.lat ?? null,
-        lng: invitation.location?.lng ?? null,
+        address: event.location?.address ?? "",
+        lat: event.location?.lat ?? null,
+        lng: event.location?.lng ?? null,
       },
     });
-  }, [invitation]);
+  }, [event]);
 
   /* ============================================================
-     💾 Save
+     💾 Save event
   ============================================================ */
   async function save() {
-    if (!invitation?._id) return;
+    if (!event?._id) {
+      alert("❌ אירוע לא נמצא");
+      return;
+    }
 
     const payload = {
       title: form.title.trim(),
@@ -65,23 +74,33 @@ export default function EventDetailsForm({
       },
     };
 
-    const res = await fetch(`/api/invitations/${invitation._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch(`/api/events/${event._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!data?.success) {
-      alert("❌ שגיאה בשמירת פרטי האירוע");
-      return;
+      if (!data?.success) {
+        alert("❌ שגיאה בשמירת פרטי האירוע");
+        return;
+      }
+
+      onSaved();
+      onClose?.();
+    } catch (err) {
+      console.error("Save event error:", err);
+      alert("❌ שגיאת שרת");
     }
-
-    onSaved();
-    onClose?.();
   }
 
+  /* ============================================================
+     Render
+  ============================================================ */
   return (
     <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-xl">
       <h2 className="text-xl font-semibold mb-5">
@@ -120,11 +139,7 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, date: e.target.value }))
             }
-            className="
-              border rounded-full px-4 py-3
-              text-base min-h-[48px]
-              bg-white
-            "
+            className="border rounded-full px-4 py-3 text-base min-h-[48px] bg-white"
           />
         </div>
 
@@ -139,15 +154,11 @@ export default function EventDetailsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, time: e.target.value }))
             }
-            className="
-              border rounded-full px-4 py-3
-              text-base min-h-[48px]
-              bg-white
-            "
+            className="border rounded-full px-4 py-3 text-base min-h-[48px] bg-white"
           />
         </div>
 
-        {/* מיקום */}
+        {/* 📍 מיקום */}
         <LocationAutocomplete
           value={form.location.address}
           onSelect={({ address, lat, lng }) =>
