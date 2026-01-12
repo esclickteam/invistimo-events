@@ -7,19 +7,26 @@ import EventDetailsForm from "@/app/components/EventDetailsForm";
 export default function EditEventPage() {
   const router = useRouter();
 
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /* ============================================================
-     📥 Load event
+     📥 Load event (GET /api/event)
   ============================================================ */
   async function loadEvent() {
     try {
+      setError(null);
+
       const res = await fetch("/api/event", {
-        credentials: "include",
+        credentials: "include", // ✅ חובה – שולח cookie
         cache: "no-store",
       });
+
+      if (res.status === 401) {
+        setError("יש להתחבר מחדש כדי לערוך את האירוע");
+        return;
+      }
 
       if (!res.ok) {
         setError("שגיאה בטעינת פרטי האירוע");
@@ -28,8 +35,13 @@ export default function EditEventPage() {
 
       const data = await res.json();
 
-      // אם אין עדיין אירוע – זה לא שגיאה, הוא ייווצר בשמירה
-      setEvent(data || null);
+      if (!data?.success) {
+        setError(data?.error || "שגיאה בטעינת האירוע");
+        return;
+      }
+
+      // event יכול להיות null – וזה תקין (ייווצר בשמירה)
+      setEvent(data.event || null);
     } catch (err) {
       console.error("❌ Failed to load event:", err);
       setError("שגיאת שרת בטעינת האירוע");
@@ -83,7 +95,7 @@ export default function EditEventPage() {
       <EventDetailsForm
         event={event}
         onSaved={async () => {
-          // רענון נתונים + חזרה
+          // רענון + חזרה לדשבורד
           await loadEvent();
           router.back();
         }}
