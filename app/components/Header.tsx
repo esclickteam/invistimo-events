@@ -14,57 +14,56 @@ export default function Header() {
   const isDashboard = pathname.startsWith("/dashboard");
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
-  <>
-    <Link
-      href="/"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      ראשי
-    </Link>
+    <>
+      <Link
+        href="/"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
+        ראשי
+      </Link>
 
-    <Link
-      href="/rsvp"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      אישורי הגעה
-    </Link>
+      <Link
+        href="/rsvp"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
+        אישורי הגעה
+      </Link>
 
-    <Link
-      href="/seating-explained"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      סידורי הושבה
-    </Link>
+      <Link
+        href="/seating-explained"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
+        סידורי הושבה
+      </Link>
 
-    <Link
-      href="/pricing"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      חבילות ומחירים
-    </Link>
+      <Link
+        href="/pricing"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
+        חבילות ומחירים
+      </Link>
 
-    <Link
-      href="/credit-gifts"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      מתנות באשראי
-    </Link>
+      <Link
+        href="/credit-gifts"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
+        מתנות באשראי
+      </Link>
 
-    <Link
-      href="/contact"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      צור קשר
-    </Link>
-  </>
-);
-
+      <Link
+        href="/contact"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
+        צור קשר
+      </Link>
+    </>
+  );
 
   return (
     <>
@@ -78,14 +77,68 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
-            {/* ימין – ניווט / המבורגר */}
+          {/* ✅ שינוי: בדסקטופ הגריד עכשיו auto_1fr_auto כדי להחזיק ימין=כפתורים, מרכז=לוגו, שמאל=ניווט */}
+          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_auto] items-center h-16">
+            {/* ✅ ימין – כפתורים (דסקטופ) + המבורגר (מובייל) */}
             <div className="flex items-center justify-start">
-              {/* דסקטופ */}
-              <nav className="hidden md:flex items-center gap-8 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
+              {/* דסקטופ – כפתורים בצד ימין */}
+              <div className="hidden md:flex items-center gap-3">
+                {/* ✅ תמיד מוצג: כפתור דמו (מודגש) */}
+                <Link
+                  href="/try/dashboard"
+                  className="
+                    px-6 py-2 rounded-full
+                    bg-[#3f3a34] text-[#faf8f4]
+                    border border-[#3f3a34]
+                    font-medium
+                    hover:opacity-95
+                    transition
+                    whitespace-nowrap
+                  "
+                  title=" דמו – צפייה בלבד"
+                >
+                  נסה דמו
+                </Link>
 
-                <NavLinks />
-              </nav>
+                {!loading &&
+                  (user ? (
+                    <>
+                      <Link
+                        href="/dashboard"
+                        className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition whitespace-nowrap"
+                      >
+                        לוח בקרה
+                      </Link>
+                      <button
+                        onClick={logout}
+                        className="
+                          px-5 py-2 rounded-full
+                          border border-[#cbb59d]
+                          text-[#4a413a] text-sm
+                          hover:bg-[#efe6db]
+                          transition
+                          whitespace-nowrap
+                        "
+                      >
+                        התנתקות
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className="
+                        px-6 py-2 rounded-full
+                        border border-[#cbb59d]
+                        text-[#4a413a] font-medium
+                        hover:bg-[#efe6db]
+                        transition
+                        whitespace-nowrap
+                      "
+                    >
+                      התחברות
+                    </Link>
+                  ))}
+              </div>
 
               {/* מובייל – המבורגר רק אם לא בדשבורד */}
               {!isDashboard && (
@@ -110,62 +163,11 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* שמאל – כפתורים (דסקטופ בלבד) */}
-            <div className="hidden md:flex justify-end items-center gap-3">
-  {/* ✅ תמיד מוצג: כפתור דמו (מודגש) */}
-  <Link
-    href="/try/dashboard"
-    className="
-      px-6 py-2 rounded-full
-      bg-[#3f3a34] text-[#faf8f4]
-      border border-[#3f3a34]
-      font-medium
-      hover:opacity-95
-      transition
-      whitespace-nowrap
-    "
-    title=" דמו – צפייה בלבד"
-  >
-     נסה דמו
-  </Link>
-
-              {!loading &&
-                (user ? (
-                  <>
-                    <Link
-                      href="/dashboard"
-                      className="text-[#4a413a] font-medium hover:text-[var(--champagne-dark)] transition"
-                    >
-                      לוח בקרה
-                    </Link>
-                    <button
-                      onClick={logout}
-                      className="
-                        px-5 py-2 rounded-full
-                        border border-[#cbb59d]
-                        text-[#4a413a] text-sm
-                        hover:bg-[#efe6db]
-                        transition
-                      "
-                    >
-                      התנתקות
-                    </button>
-                  </>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="
-                      px-6 py-2 rounded-full
-                      border border-[#cbb59d]
-                      text-[#4a413a] font-medium
-                      hover:bg-[#efe6db]
-                      transition
-                      whitespace-nowrap
-                    "
-                  >
-                    התחברות
-                  </Link>
-                ))}
+            {/* ✅ שמאל – ניווט (דסקטופ בלבד) */}
+            <div className="hidden md:flex justify-end items-center">
+              <nav className="flex items-center gap-8 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
+                <NavLinks />
+              </nav>
             </div>
           </div>
         </div>
@@ -206,25 +208,25 @@ export default function Header() {
 
             {/* ✅ תמיד במובייל: כפתור דמו */}
             <div className="pt-4 border-t border-[#e2d6c8]">
-  <Link
-    href="/try/dashboard"
-    onClick={() => setMobileOpen(false)}
-    className="
-      px-6 py-3 rounded-full
-      bg-[#3f3a34] text-[#faf8f4]
-      border border-[#3f3a34]
-      font-medium
-      hover:opacity-95
-      transition
-      w-fit
-      inline-flex items-center gap-2
-      whitespace-nowrap
-    "
-    title=" דמו – צפייה בלבד"
-  >
-     נסה דמו
-  </Link>
-</div>
+              <Link
+                href="/try/dashboard"
+                onClick={() => setMobileOpen(false)}
+                className="
+                  px-6 py-3 rounded-full
+                  bg-[#3f3a34] text-[#faf8f4]
+                  border border-[#3f3a34]
+                  font-medium
+                  hover:opacity-95
+                  transition
+                  w-fit
+                  inline-flex items-center gap-2
+                  whitespace-nowrap
+                "
+                title=" דמו – צפייה בלבד"
+              >
+                נסה דמו
+              </Link>
+            </div>
 
             {/* אזור משתמש – מתחת לצור קשר */}
             <div className="pt-4 border-t border-[#e2d6c8]">
