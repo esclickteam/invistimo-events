@@ -44,6 +44,9 @@ export default function EditInvitePage({
   /* ================= Params ================= */
   const inviteId = params.id;
 
+  console.log("🧩 EditInvitePage mounted");
+  console.log("🆔 inviteId from params:", inviteId);
+
   /* ================= State ================= */
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -63,37 +66,59 @@ export default function EditInvitePage({
      Load invitation (GET)
   ========================================================= */
   useEffect(() => {
-    if (!inviteId) return;
+    console.log("🔁 useEffect(loadInvitation) triggered");
+
+    if (!inviteId) {
+      console.error("❌ inviteId is missing");
+      setLoading(false);
+      return;
+    }
 
     async function loadInvitation() {
       try {
+        console.log("➡️ Fetching invitation:", `/api/invitations/${inviteId}`);
+
         const res = await fetch(`/api/invitations/${inviteId}`, {
           credentials: "include",
         });
 
+        console.log("⬅️ Response status:", res.status);
+
         const data = await res.json();
+        console.log("📦 Response JSON:", data);
 
         if (!data.success || !data.invitation) {
+          console.error("❌ Invalid invitation response", data);
           alert("❌ שגיאה בטעינת ההזמנה");
           return;
         }
 
         const canvasData = data.invitation.canvasData || { objects: [] };
 
-        // ניקוי שדות בעייתיים (תמונות נטענות מחדש בקנבס)
-        canvasData.objects = canvasData.objects.map((obj: any) => ({
-          ...obj,
-          image: undefined,
-        }));
+        console.log(
+          "🖼 Canvas objects count:",
+          canvasData.objects?.length ?? 0
+        );
+
+        canvasData.objects = canvasData.objects.map((obj: any, i: number) => {
+          console.log("✏️ Canvas object", i, obj.type);
+          return {
+            ...obj,
+            image: undefined,
+          };
+        });
 
         setInvite({
           ...data.invitation,
           canvasData,
         });
+
+        console.log("✅ Invitation loaded into state");
       } catch (err) {
-        console.error(err);
+        console.error("🔥 Error while loading invitation:", err);
         alert("❌ שגיאה בטעינת ההזמנה");
       } finally {
+        console.log("⏹ Finished loading invitation");
         setLoading(false);
       }
     }
@@ -105,12 +130,17 @@ export default function EditInvitePage({
      Save invitation (PUT)
   ========================================================= */
   const handleSave = async () => {
-    if (!inviteId || !canvasRef.current?.getCanvasData) return;
+    if (!inviteId || !canvasRef.current?.getCanvasData) {
+      console.warn("⚠️ Save aborted – missing inviteId or canvasRef");
+      return;
+    }
 
     try {
       setSaving(true);
+      console.log("💾 Saving invitation", inviteId);
 
       const canvasData = canvasRef.current.getCanvasData();
+      console.log("📤 Canvas data to save:", canvasData);
 
       const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
@@ -123,6 +153,7 @@ export default function EditInvitePage({
       });
 
       const result = await res.json();
+      console.log("⬅️ Save response:", result);
 
       if (!result.success) {
         alert("❌ שגיאה בשמירה");
@@ -132,7 +163,7 @@ export default function EditInvitePage({
       setInvite(result.invitation);
       alert("✅ ההזמנה עודכנה בהצלחה!");
     } catch (err) {
-      console.error(err);
+      console.error("🔥 Error while saving invitation:", err);
       alert("❌ שגיאת שרת");
     } finally {
       setSaving(false);
@@ -140,38 +171,10 @@ export default function EditInvitePage({
   };
 
   /* =========================================================
-     Upload background
-  ========================================================= */
-  const handleUploadInvitation = (file: File) => {
-    canvasRef.current?.uploadBackground?.(file);
-  };
-
-  /* =========================================================
-     Text editing
-  ========================================================= */
-  const applyToSelected = (patch: Record<string, any>) => {
-    canvasRef.current?.updateSelected?.(patch);
-    setSelectedObject((prev) =>
-      prev ? { ...prev, ...patch } : prev
-    );
-  };
-
-  const handleDeleteSelected = () => {
-    canvasRef.current?.deleteSelected?.();
-    setSelectedObject(null);
-    setSheetOpen(false);
-  };
-
-  useEffect(() => {
-    if (selectedObject?.type === "text") {
-      setSheetOpen(true);
-    }
-  }, [selectedObject]);
-
-  /* =========================================================
      Loading state
   ========================================================= */
   if (loading || !invite) {
+    console.log("⏳ Still loading… loading:", loading, "invite:", invite);
     return (
       <div className="p-10 text-center text-xl">
         טוען את ההזמנה...
@@ -179,20 +182,19 @@ export default function EditInvitePage({
     );
   }
 
+  console.log("🎨 Rendering editor with invite:", invite._id);
+
   /* =========================================================
      Render
   ========================================================= */
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
-        {/* ===== Desktop Sidebar ===== */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
         </div>
 
-        {/* ===== Editor Area ===== */}
         <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
             <button
               onClick={() => uploadInputRef.current?.click()}
@@ -208,7 +210,7 @@ export default function EditInvitePage({
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleUploadInvitation(file);
+                if (file) canvasRef.current?.uploadBackground?.(file);
                 e.currentTarget.value = "";
               }}
             />
@@ -228,37 +230,24 @@ export default function EditInvitePage({
             </button>
           </div>
 
-          {/* ===== Canvas ===== */}
           <div className="flex-1 relative bg-gray-100">
-            <div className="absolute inset-0 pb-24 md:pb-0">
-              <EditorCanvas
-                key={invite._id}
-                ref={canvasRef}
-                initialData={invite.canvasData}
-                onSelect={setSelectedObject}
-              />
-            </div>
+            <EditorCanvas
+              key={invite._id}
+              ref={canvasRef}
+              initialData={invite.canvasData}
+              onSelect={setSelectedObject}
+            />
 
             <div className="absolute top-4 right-4 z-50">
               <ZoomControl canvasRef={canvasRef} />
             </div>
           </div>
 
-          {/* ===== Mobile Add Text ===== */}
-          <button
-            onClick={() => canvasRef.current?.addText?.()}
-            className="md:hidden fixed bottom-28 right-4 z-50 px-5 py-3 rounded-full bg-black text-white shadow-xl"
-          >
-            ➕ טקסט
-          </button>
-
-          {/* ===== Mobile Nav ===== */}
           <MobileBottomNav
             active={mobileTab}
             onChange={setMobileTab}
           />
 
-          {/* ===== Mobile Sheet ===== */}
           <MobileBottomSheet
             open={sheetOpen}
             title=""
@@ -268,8 +257,12 @@ export default function EditInvitePage({
             {selectedObject?.type === "text" ? (
               <TextEditorPanel
                 selected={selectedObject}
-                onApply={applyToSelected}
-                onDelete={handleDeleteSelected}
+                onApply={(patch) =>
+                  canvasRef.current?.updateSelected?.(patch)
+                }
+                onDelete={() =>
+                  canvasRef.current?.deleteSelected?.()
+                }
               />
             ) : (
               <Sidebar
