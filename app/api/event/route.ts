@@ -3,18 +3,40 @@ import { connectDB } from "@/lib/db";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/auth";
 
+/* ============================================================
+   GET – שליפת אירוע קיים (או יצירת ברירת מחדל ריקה)
+============================================================ */
 export async function GET(req: Request) {
   try {
     await connectDB();
     const userId = await getUserIdFromRequest(req);
 
-    const event = await Event.findOne({ userId });
-    return NextResponse.json(event || {});
+    let event = await Event.findOne({ userId });
+
+    // ✅ אם אין אירוע בכלל, נחזיר אובייקט ריק (כדי שהטופס ייטען ריק ולא "לא נמצאה הזמנה")
+    if (!event) {
+      return NextResponse.json({
+        success: true,
+        event: {
+          title: "",
+          date: "",
+          location: "",
+          eventType: "wedding",
+          maxGuests: 0,
+        },
+      });
+    }
+
+    return NextResponse.json({ success: true, event });
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error(err);
+    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
   }
 }
 
+/* ============================================================
+   POST – שמירת אירוע: אם לא קיים ניצור, אם קיים נעדכן
+============================================================ */
 export async function POST(req: Request) {
   try {
     await connectDB();
@@ -24,13 +46,22 @@ export async function POST(req: Request) {
     let event = await Event.findOne({ userId });
 
     if (!event) {
-      event = await Event.create({ userId, ...body });
+      // 🆕 יצירת אירוע חדש אם אין
+      event = await Event.create({
+        userId,
+        ...body,
+        status: "draft", // מסמן שהאירוע טרם נשלח או הושלם
+        createdAt: new Date(),
+      });
     } else {
-      await event.updateOne(body);
+      // ✏️ עדכון אם קיים
+      Object.assign(event, body);
+      await event.save();
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, event });
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error(err);
+    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
   }
 }
