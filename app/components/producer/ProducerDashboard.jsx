@@ -198,56 +198,56 @@ export default function ProducerDashboard() {
               </div>
             </div>
 
-           <div className="flex flex-col items-stretch gap-2 min-w-[200px]">
-  <Button
-    className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
-    onClick={() => {
-      // בהמשך ננווט לניהול האירוע (למשל /dashboard/event/[id])
-      // כרגע זה placeholder
-      alert("בקרוב: ניווט לניהול האירוע");
-    }}
-  >
-    כניסה לניהול האירוע
-    <ArrowUpRight className="w-4 h-4 ml-2" />
-  </Button>
+            <div className="flex flex-col items-stretch gap-2 min-w-[200px]">
+              <Button
+                className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
+                onClick={() => {
+                  // בהמשך ננווט לניהול האירוע (למשל /dashboard/event/[id])
+                  // כרגע זה placeholder
+                  alert("בקרוב: ניווט לניהול האירוע");
+                }}
+              >
+                כניסה לניהול האירוע
+                <ArrowUpRight className="w-4 h-4 ml-2" />
+              </Button>
 
-  {/* ✅ אותו צבע כמו כפתור הצ'ק-אין */}
-  <Button
-    className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
-    onClick={() => alert("בקרוב: פתיחת צ׳ק-אין")}
-  >
-    צ׳ק-אין / כניסה
-  </Button>
-</div>
-</div>
-</motion.div>
-) : (
-<motion.div
-  variants={fadeUp}
-  initial="hidden"
-  animate="visible"
-  className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
->
-  <div className="flex items-center justify-between gap-4">
-    <div>
-      <h2 className="text-xl font-semibold text-slate-900">
-        אין אירועים קרובים כרגע
-      </h2>
-      <p className="text-sm text-gray-600 mt-1">
-        אפשר ליצור אירוע חדש ולהתחיל לעבוד.
-      </p>
-    </div>
+              <Button
+                variant="outline"
+                className="rounded-xl px-5 py-2 bg-white/70 hover:bg-white transition border-gray-200 text-slate-900"
+                onClick={() => alert("בקרוב: פתיחת צ׳ק-אין")}
+              >
+                צ׳ק-אין / כניסה
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">
+                אין אירועים קרובים כרגע
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                אפשר ליצור אירוע חדש ולהתחיל לעבוד.
+              </p>
+            </div>
 
-    <Button
-      className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
-      onClick={() => alert("בקרוב: פתיחת יצירת אירוע")}
-    >
-      <Plus className="w-4 h-4 ml-2" />
-      הוסף אירוע חדש
-    </Button>
-  </div>
-</motion.div>
-)}
+            <Button
+              className="bg-[var(--brand-purple)] text-white rounded-xl px-5 py-2 font-medium hover:bg-[var(--brand-purple-hover)] hover:shadow-md hover:-translate-y-[1px] transition"
+              onClick={() => alert("בקרוב: פתיחת יצירת אירוע")}
+            >
+              <Plus className="w-4 h-4 ml-2" />
+              הוסף אירוע חדש
+            </Button>
+          </div>
+        </motion.div>
+      )}
 
       {/* =====================
           טבלת האירועים שלי
