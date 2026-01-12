@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// טעינת מודל האורחים
 import "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 
@@ -12,12 +11,12 @@ export const dynamic = "force-dynamic";
 ============================================================ */
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await db();
 
-    const { id } = context.params;
+    const { id } = await context.params;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -55,12 +54,12 @@ export async function GET(
 ============================================================ */
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await db();
 
-    const { id } = context.params;
+    const { id } = await context.params;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
