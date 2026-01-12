@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
+import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import "@/models/InvitationGuest";
 
@@ -9,13 +10,14 @@ export const dynamic = "force-dynamic";
 
 /* ============================================================
    💾 POST — יצירת הזמנה חדשה
-   אם אין אירוע קיים למשתמש, ייווצר אירוע חדש אוטומטית
+   ✅ אם אין אירוע קיים למשתמש, ייווצר אירוע חדש אוטומטית
+   ✅ עומד בולידציות של Event: email/date required, status enum
 ============================================================ */
 export async function POST(req: Request) {
   try {
     await db();
 
-    // 🧩 אימות משתמש
+    // 🔐 אימות משתמש
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -24,41 +26,98 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
-    let { eventId, title, eventType, eventDate, eventTime, location, canvasData } = body;
+    const userId = auth.userId;
 
-    // 🔍 נסה למצוא אירוע קיים למשתמש
-    let userEvent = eventId
-      ? await Event.findById(eventId)
-      : await Event.findOne({ userId: auth.userId });
+    // 🧠 טעינת משתמש (כדי לקחת email לאירוע חדש)
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
-    // 🆕 אם אין אירוע קיים — צור אחד אוטומטית
+    const body = await req.json().catch(() => ({} as any));
+    const {
+      eventId,
+      title,
+      eventType,
+      eventDate,
+      eventTime,
+      location,
+      canvasData,
+    } = body;
+
+    /* ===============================
+       🎯 מציאת Event שייך למשתמש
+       - אם נשלח eventId: חייב להיות שייך ליוזר
+       - אם לא נשלח: נחפש הראשון של היוזר
+       - אם אין בכלל: ניצור חדש אוטומטית (חוקי לסכמה)
+    =============================== */
+    let userEvent: any = null;
+
+    if (eventId) {
+      userEvent = await Event.findOne({ _id: eventId, userId });
+    } else {
+      userEvent = await Event.findOne({ userId });
+    }
+
     if (!userEvent) {
       userEvent = await Event.create({
-        userId: auth.userId,
-        title: title || "אירוע חדש",
-        eventType: eventType || "wedding",
-        date: eventDate || null,
-        time: eventTime || null,
-        status: "draft",
+        userId,
+        email: user.email || "noemail@placeholder.com", // ✅ required
+        title: typeof title === "string" && title.trim() ? title.trim() : "אירוע חדש",
+        eventType:
+          typeof eventType === "string" && eventType.trim()
+            ? eventType.trim()
+            : "wedding",
+
+        // ✅ required לפי הסכמה שלך
+        date: eventDate ? new Date(eventDate) : new Date(),
+
+        time: typeof eventTime === "string" && eventTime.trim() ? eventTime.trim() : "00:00",
+
+        // ✅ enum חוקי אצלך
+        status: "active",
+
+        // אם השדה קיים אצלך בסכמה זה ישמר, ואם strict והוא לא קיים — הוא פשוט ייזרק
         paymentStatus: "paid",
+
         maxGuests: 100,
         location: location || {},
+
         createdAt: new Date(),
         updatedAt: new Date(),
       });
     }
 
-    // ✨ צור הזמנה חדשה
+    /* ===============================
+       🧾 יצירת הזמנה חדשה
+       (אם תרצי: אפשר להחזיר קיימת במקום ליצור כפילות)
+    =============================== */
     const invitation = await Invitation.create({
       eventId: userEvent._id,
-      ownerId: auth.userId,
-      title: title?.trim() || "ההזמנה שלי 🎉",
-      eventType: eventType?.trim() || userEvent.eventType || "wedding",
-      eventDate: eventDate || userEvent.date || null,
-      eventTime: eventTime || userEvent.time || "",
+      ownerId: userId,
+
+      title:
+        typeof title === "string" && title.trim()
+          ? title.trim()
+          : "ההזמנה שלי 🎉",
+
+      eventType:
+        typeof eventType === "string" && eventType.trim()
+          ? eventType.trim()
+          : userEvent.eventType || "wedding",
+
+      eventDate: eventDate ? new Date(eventDate) : userEvent.date || null,
+      eventTime:
+        typeof eventTime === "string" && eventTime.trim()
+          ? eventTime.trim()
+          : userEvent.time || "",
+
       location: location || userEvent.location || {},
       canvasData: canvasData || null,
+
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -82,6 +141,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request, context: any) {
   try {
     await db();
+
     const params = await context.params;
     const id = params?.id;
 
@@ -92,15 +152,20 @@ export async function PUT(req: Request, context: any) {
       );
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({} as any));
     const { title, eventType, eventDate, eventTime, canvasData, location } = body;
 
     const updatePayload: any = { updatedAt: new Date() };
 
-    if (title?.trim()) updatePayload.title = title.trim();
-    if (eventType?.trim()) updatePayload.eventType = eventType.trim();
-    if (eventDate) updatePayload.eventDate = eventDate;
-    if (eventTime?.trim()) updatePayload.eventTime = eventTime.trim();
+    if (typeof title === "string" && title.trim()) updatePayload.title = title.trim();
+    if (typeof eventType === "string" && eventType.trim())
+      updatePayload.eventType = eventType.trim();
+
+    if (eventDate) updatePayload.eventDate = new Date(eventDate);
+
+    if (typeof eventTime === "string" && eventTime.trim())
+      updatePayload.eventTime = eventTime.trim();
+
     if (canvasData !== undefined) updatePayload.canvasData = canvasData;
 
     if (
@@ -111,8 +176,7 @@ export async function PUT(req: Request, context: any) {
     ) {
       updatePayload.location = {
         name: typeof location.name === "string" ? location.name.trim() : "",
-        address:
-          typeof location.address === "string" ? location.address.trim() : "",
+        address: typeof location.address === "string" ? location.address.trim() : "",
         lat: typeof location.lat === "number" ? location.lat : null,
         lng: typeof location.lng === "number" ? location.lng : null,
       };

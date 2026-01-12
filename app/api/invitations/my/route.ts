@@ -57,8 +57,9 @@ export async function GET() {
 
 /* ============================================================
    POST — יצירת הזמנה חדשה
-   ✅ אם אין eventId בבקשה — נוצרת הזמנה על בסיס האירוע הקיים,
-      ואם אין אירוע — נוצר אירוע חדש אוטומטית
+   ✅ אם אין eventId בבקשה:
+      1) מחפש אירוע קיים למשתמש
+      2) אם אין — יוצר אירוע חדש אוטומטית (חוקי לסכמה שלך)
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -72,8 +73,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🧠 שליפת המשתמש
-    const user = await User.findById(auth.userId).lean();
+    const userId = auth.userId;
+
+    // 🧠 שליפת המשתמש (כדי לקחת email לאירוע החדש + מגבלות)
+    const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
@@ -85,40 +88,48 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({} as any));
     let { eventId } = body;
 
-    // 🔍 אם לא נשלח eventId — נמצא או ניצור אירוע למשתמש
-    let event = null;
+    /* ============================================================
+       🎯 מציאת/יצירת Event
+       - אם הגיע eventId: חייב להיות שייך למשתמש
+       - אם לא הגיע: נחפש event ראשון למשתמש
+       - אם אין: ניצור event חדש שעובר validation (email/date/status)
+    ============================================================ */
+    let event: any = null;
+
     if (eventId) {
-      event = await Event.findOne({ _id: eventId, userId: auth.userId });
-    } else {
-      event = await Event.findOne({ userId: auth.userId });
+      event = await Event.findOne({ _id: eventId, userId }).lean();
       if (!event) {
-        event = await Event.create({
-          userId: auth.userId,
+        return NextResponse.json(
+          { success: false, error: "EVENT_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+    } else {
+      event = await Event.findOne({ userId }).lean();
+
+      if (!event) {
+        const createdEvent = await Event.create({
+          userId,
+          email: user.email || "noemail@placeholder.com", // ✅ required
           title: "אירוע חדש",
           eventType: "wedding",
-          status: "draft",
-          date: null,
-          time: null,
-          paymentStatus: "paid",
+          status: "active", // ✅ enum חוקי אצלך (active/archived)
+          date: new Date(), // ✅ required
+          time: "00:00",
           maxGuests: 100,
           location: {},
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-        console.log("✅ נוצר אירוע חדש אוטומטית:", event._id);
-      }
-    }
 
-    if (!event) {
-      return NextResponse.json(
-        { success: false, error: "EVENT_NOT_FOUND" },
-        { status: 404 }
-      );
+        event = createdEvent.toObject();
+        console.log("✅ נוצר אירוע חדש אוטומטית:", createdEvent._id);
+      }
     }
 
     // אם כבר קיימת הזמנה לאירוע הזה — נחזיר אותה
     const existing = await Invitation.findOne({
-      ownerId: auth.userId,
+      ownerId: userId,
       eventId: event._id,
     }).lean();
 
@@ -130,12 +141,12 @@ export async function POST(req: Request) {
     }
 
     // 🧮 הגדרות ברירת מחדל
-    const maxGuests = Number(user.guests) || 100;
+    const maxGuests = Number(user.guests) || Number(event.maxGuests) || 100;
     const maxMessages = Number(user.maxMessages) || 300;
 
     // 🧾 יצירת הזמנה חדשה
     const created = await Invitation.create({
-      ownerId: auth.userId,
+      ownerId: userId,
       eventId: event._id,
       guests: [],
       maxGuests,

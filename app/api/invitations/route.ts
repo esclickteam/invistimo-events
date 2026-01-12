@@ -43,34 +43,36 @@ export async function POST(req: Request) {
        📦 גוף הבקשה
     =============================== */
     const body = await req.json().catch(() => ({} as any));
-    let { eventId, canvasData, previewImage } = body;
+    const { eventId, canvasData, previewImage } = body;
 
     /* ===============================
        🎯 נזהה או ניצור Event
     =============================== */
-    let event;
+    let event: any = null;
 
     if (eventId) {
-      event = await Event.findOne({ _id: eventId, userId });
+      event = await Event.findOne({ _id: eventId, userId }).lean();
     } else {
-      // 🔍 נבדוק אם כבר יש אירוע למשתמש
-      event = await Event.findOne({ userId });
+      event = await Event.findOne({ userId }).lean();
+
       if (!event) {
-        // 🆕 ניצור אירוע חדש אם אין
-        event = await Event.create({
+        // 🆕 ניצור אירוע חדש אם אין (לפי הסכמה שלך: email+date חובה, status enum רק active/archived)
+        const createdEvent = await Event.create({
           userId,
+          email: user.email || "noemail@placeholder.com",
           title: "אירוע חדש",
           eventType: "wedding",
-          status: "draft",
-          date: null,
-          time: null,
-          paymentStatus: "paid",
+          status: "active",
+          date: new Date(),
+          time: "00:00",
           maxGuests: 100,
           location: {},
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-        console.log("✅ נוצר אירוע חדש אוטומטית:", event._id);
+
+        event = createdEvent.toObject();
+        console.log("✅ נוצר אירוע חדש אוטומטית:", createdEvent._id);
       }
     }
 
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
     }
 
     /* ===============================
-       🔒 בדיקה אם כבר קיימת הזמנה לאירוע הזה
+       🔒 בדיקה אם כבר קיימת הזמנה לאירוע הזה (לאותו משתמש)
     =============================== */
     const existing = await Invitation.findOne({
       eventId: event._id,
@@ -109,15 +111,20 @@ export async function POST(req: Request) {
     const newInvite = await Invitation.create({
       ownerId: userId,
       eventId: event._id,
+
+      // 📸 snapshot מה־Event
       title: event.title || "הזמנה חדשה",
       eventType: event.eventType || "",
       eventDate: event.date || null,
       eventTime: event.time || "",
       location: event.location || {},
+
       canvasData: canvasData || {},
       previewImage: previewImage || "",
+
       shareId,
       guests: [],
+
       maxGuests,
       maxMessages,
       sentSmsCount: 0,
