@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// חשוב: טעינת מודל האורחים
+// טעינת מודל האורחים
 import "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 
@@ -12,12 +12,12 @@ export const dynamic = "force-dynamic";
 ============================================================ */
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
     await db();
 
-    const { id } = await context.params;
+    const { id } = context.params;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -55,12 +55,12 @@ export async function GET(
 ============================================================ */
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
     await db();
 
-    const { id } = await context.params;
+    const { id } = context.params;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -84,8 +84,6 @@ export async function PUT(
       updatedAt: new Date(),
     };
 
-    /* ===== BASIC FIELDS ===== */
-
     if (typeof title === "string" && title.trim()) {
       updatePayload.title = title.trim();
     }
@@ -101,8 +99,6 @@ export async function PUT(
     if (typeof eventTime === "string" && eventTime.trim()) {
       updatePayload.eventTime = eventTime;
     }
-
-    /* ===== LOCATION ===== */
 
     if (
       location &&
@@ -122,8 +118,6 @@ export async function PUT(
         lng: typeof location.lng === "number" ? location.lng : null,
       };
     }
-
-    /* ===== CANVAS ===== */
 
     if (canvasData !== undefined) {
       updatePayload.canvasData = canvasData;
