@@ -51,36 +51,41 @@ export default function EventDetailsForm({
      💾 Save
   ============================================================ */
   async function save() {
-    if (!invitation?._id) return;
+  if (!invitation?._id) return;
 
-    const payload = {
-      title: form.title.trim(),
-      eventType: form.eventType.trim(),
-      eventDate: form.date ? new Date(form.date).toISOString() : null,
-      eventTime: form.time || "",
-      location: {
-        address: form.location.address || "",
-        lat: form.location.lat,
-        lng: form.location.lng,
-      },
-    };
+  const payload = {
+    title: form.title.trim(),
+    eventType: form.eventType.trim(),
+    date: form.date ? new Date(form.date).toISOString() : null,
+    location: form.location.address || "",
+    maxGuests: invitation.maxGuests || 200,
+  };
 
-    const res = await fetch(`/api/invitations/${invitation._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+  // שמירה להזמנה (קיים)
+  await fetch(`/api/invitations/${invitation._id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    const data = await res.json();
+  // שמירה גם למודל Event
+  await fetch(`/api/events/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: invitation.userId,
+      eventType: payload.eventType,
+      title: payload.title,
+      date: payload.date,
+      location: payload.location,
+      maxGuests: payload.maxGuests,
+    }),
+  });
 
-    if (!data?.success) {
-      alert("❌ שגיאה בשמירת פרטי האירוע");
-      return;
-    }
+  onSaved();
+  onClose?.();
+}
 
-    onSaved();
-    onClose?.();
-  }
 
   return (
     <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-xl">
