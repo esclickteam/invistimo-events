@@ -40,11 +40,25 @@ const ZoneSchema = new mongoose.Schema(
       default: 0.25,
     },
 
-    x: { type: Number, required: true },
-    y: { type: Number, required: true },
+    x: {
+      type: Number,
+      required: true,
+    },
 
-    width: { type: Number, required: true },
-    height: { type: Number, required: true },
+    y: {
+      type: Number,
+      required: true,
+    },
+
+    width: {
+      type: Number,
+      required: true,
+    },
+
+    height: {
+      type: Number,
+      required: true,
+    },
 
     rotation: {
       type: Number,
@@ -76,7 +90,6 @@ const EventSchema = new mongoose.Schema(
 
     /* =========================
        מפיק שפתח את האירוע (אופציונלי)
-       אם הלקוח פתח לבד - יהיה null
     ========================= */
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -97,36 +110,61 @@ const EventSchema = new mongoose.Schema(
        פרטי האירוע
     ========================= */
     eventType: {
-  type: String,
-  enum: [
-    "wedding",
-    "bar-mitzvah",
-    "bat-mitzvah",
-    "brit",
-    "brita",
-    "henna",
-    "other", // ⬅️ חשוב
-  ],
-  default: "wedding",
-},
+      type: String,
+      enum: [
+        "wedding",
+        "bar-mitzvah",
+        "bat-mitzvah",
+        "brit",
+        "brita",
+        "henna",
+        "other",
+      ],
+      default: "wedding",
+    },
 
     title: {
       type: String,
       default: "",
+      trim: true,
     },
 
+    /* =========================
+       תאריך ושעה
+       ✔ תואם input type="date"
+       ✔ תואם input type="time"
+    ========================= */
     date: {
-      type: String,
-      default: "",
+      type: String, // yyyy-mm-dd
+      required: true,
     },
 
-    location: {
-      type: String,
+    time: {
+      type: String, // HH:mm
       default: "",
     },
 
     /* =========================
-       אזורים (במה / חופה / רחבה)
+       מיקום (תואם LocationAutocomplete)
+    ========================= */
+    location: {
+      address: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+      lat: {
+        type: Number,
+        default: null,
+      },
+      lng: {
+        type: Number,
+        default: null,
+      },
+    },
+
+    /* =========================
+       אזורים (חופה / במה / רחבה)
     ========================= */
     zones: {
       type: [ZoneSchema],
@@ -143,7 +181,6 @@ const EventSchema = new mongoose.Schema(
 
     /* =========================
        Stripe (חד־פעמי)
-       ⬅️ לא חובה כי מפיק יכול ליצור אירוע בלי תשלום בסטרייפ
     ========================= */
     stripeSessionId: {
       type: String,
@@ -158,7 +195,6 @@ const EventSchema = new mongoose.Schema(
 
     /* =========================
        תשלום
-       ⬅️ תמיד "paid" כשמפיק פותח
     ========================= */
     paymentStatus: {
       type: String,
@@ -184,14 +220,16 @@ const EventSchema = new mongoose.Schema(
 
 /* =========================================================
    Partial Unique Index ל-stripeSessionId
-   כדי שלא ישבר כשיש null
 ========================================================= */
 EventSchema.index(
   { stripeSessionId: 1 },
   {
     unique: true,
-    partialFilterExpression: { stripeSessionId: { $type: "string" } },
+    partialFilterExpression: {
+      stripeSessionId: { $type: "string" },
+    },
   }
 );
 
-export default mongoose.models.Event || mongoose.model("Event", EventSchema);
+export default mongoose.models.Event ||
+  mongoose.model("Event", EventSchema);

@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
 /* =========================
-   Event types (UX layer)
+   Event types (UX ↔ DB)
 ========================= */
 const EVENT_TYPES = [
-  { label: "חתונה", value: "חתונה" },
-  { label: "בר מצווה", value: "בר מצווה" },
-  { label: "בת מצווה", value: "בת מצווה" },
-  { label: "ברית", value: "ברית" },
-  { label: "בריתה", value: "בריתה" },
-  { label: "חינה", value: "חינה" },
+  { label: "חתונה", value: "wedding" },
+  { label: "בר מצווה", value: "bar-mitzvah" },
+  { label: "בת מצווה", value: "bat-mitzvah" },
+  { label: "ברית", value: "brit" },
+  { label: "בריתה", value: "brita" },
+  { label: "חינה", value: "henna" },
   { label: "אחר…", value: "other" },
 ];
 
@@ -29,8 +29,7 @@ export default function EventDetailsForm({
 }: Props) {
   const [form, setForm] = useState({
     title: "",
-    eventTypeSelect: "חתונה", // מה שנבחר ב־select
-    eventTypeCustom: "",      // שדה חופשי אם נבחר "אחר"
+    eventType: "wedding",
     date: "",
     time: "",
     location: {
@@ -46,22 +45,15 @@ export default function EventDetailsForm({
   useEffect(() => {
     if (!event) return;
 
-    const knownType = EVENT_TYPES.find(
-      (t) => t.value === event.eventType
-    );
-
     setForm({
       title: event.title ?? "",
-      eventTypeSelect: knownType ? knownType.value : "other",
-      eventTypeCustom: knownType ? "" : event.eventTypeLabel || "",
-      date: event.date
-        ? new Date(event.date).toISOString().slice(0, 10)
-        : "",
+      eventType: event.eventType ?? "wedding",
+      date: event.date ?? "",
       time: event.time ?? "",
       location: {
-        address: event.location ?? "",
-        lat: null,
-        lng: null,
+        address: event.location?.address ?? "",
+        lat: event.location?.lat ?? null,
+        lng: event.location?.lng ?? null,
       },
     });
   }, [event]);
@@ -70,17 +62,16 @@ export default function EventDetailsForm({
      💾 Save (UPSERT)
   ============================================================ */
   async function save() {
-    const finalEventType =
-      form.eventTypeSelect === "other"
-        ? form.eventTypeCustom.trim()
-        : form.eventTypeSelect;
-
     const payload = {
       title: form.title.trim(),
-      eventType: finalEventType,
-      date: form.date || "",
-      time: form.time || "",
-      location: form.location.address || "",
+      eventType: form.eventType,
+      date: form.date,
+      time: form.time,
+      location: {
+        address: form.location.address,
+        lat: form.location.lat,
+        lng: form.location.lng,
+      },
     };
 
     const res = await fetch("/api/events", {
@@ -105,9 +96,7 @@ export default function EventDetailsForm({
   ============================================================ */
   return (
     <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-auto shadow-xl">
-      <h2 className="text-xl font-semibold mb-5">
-        🛠️ פרטי האירוע
-      </h2>
+      <h2 className="text-xl font-semibold mb-5">🛠️ פרטי האירוע</h2>
 
       <div className="grid gap-4">
         {/* שם האירוע */}
@@ -120,20 +109,15 @@ export default function EventDetailsForm({
           className="border rounded-full px-4 py-3 text-base min-h-[48px]"
         />
 
-        {/* סוג האירוע – SELECT */}
+        {/* סוג האירוע */}
         <div className="flex flex-col gap-1">
           <label className="text-sm text-gray-600 px-2">
             סוג האירוע
           </label>
-
           <select
-            value={form.eventTypeSelect}
+            value={form.eventType}
             onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                eventTypeSelect: e.target.value,
-                eventTypeCustom: "",
-              }))
+              setForm((f) => ({ ...f, eventType: e.target.value }))
             }
             className="border rounded-full px-4 py-3 bg-white"
           >
@@ -144,21 +128,6 @@ export default function EventDetailsForm({
             ))}
           </select>
         </div>
-
-        {/* סוג אירוע חופשי */}
-        {form.eventTypeSelect === "other" && (
-          <input
-            placeholder="הקלד סוג אירוע"
-            value={form.eventTypeCustom}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                eventTypeCustom: e.target.value,
-              }))
-            }
-            className="border rounded-full px-4 py-3 text-base min-h-[48px]"
-          />
-        )}
 
         {/* תאריך */}
         <div className="flex flex-col gap-1">
@@ -202,7 +171,7 @@ export default function EventDetailsForm({
         />
 
         <p className="text-xs text-gray-500 px-2">
-          ניתן לבחור מהרשימה או להקליד סוג אירוע אחר
+          ניתן לבחור מיקום מהרשימה או להקליד ידנית
         </p>
       </div>
 
