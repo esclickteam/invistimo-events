@@ -6,13 +6,17 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
 
+interface NavLinksProps {
+  onClick?: () => void; // ← הוספת טיפוס ברור
+}
+
 export default function Header() {
   const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
 
-  const NavLinks = ({ onClick }) => (
+  const NavLinks: React.FC<NavLinksProps> = ({ onClick }) => (
     <>
       <Link href="/" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         ראשי
@@ -20,13 +24,21 @@ export default function Header() {
       <Link href="/rsvp" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         אישורי הגעה
       </Link>
-      <Link href="/seating-explained" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/seating-explained"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         סידורי הושבה
       </Link>
       <Link href="/pricing" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
         חבילות ומחירים
       </Link>
-      <Link href="/credit-gifts" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
+      <Link
+        href="/credit-gifts"
+        onClick={onClick}
+        className="hover:text-[var(--champagne-dark)] transition"
+      >
         מתנות באשראי
       </Link>
       <Link href="/contact" onClick={onClick} className="hover:text-[var(--champagne-dark)] transition">
@@ -47,9 +59,8 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          {/* גריד דסקטופ */}
+          {/* דסקטופ */}
           <div className="hidden md:grid grid-cols-[1fr_auto] items-center h-16">
-            {/* צד ימין – ניווט וכפתורים */}
             <div className="flex items-center justify-start gap-6">
               <div className="flex items-center gap-3 pl-4 border-l border-[#d7c9b8]">
                 <Link
@@ -90,7 +101,6 @@ export default function Header() {
               </nav>
             </div>
 
-            {/* מרכז – לוגו */}
             <div className="flex justify-end" dir="ltr">
               <Link href="/" className="flex items-center">
                 <img
@@ -102,44 +112,28 @@ export default function Header() {
             </div>
           </div>
 
-          {/* גריד מובייל */}
+          {/* מובייל */}
           <div className="flex md:hidden items-center justify-between h-16">
-            {/* המבורגר בצד ימין */}
-            {!isDashboard && (
-              <button
-                onClick={() => setMobileOpen(true)}
-                className="p-2 order-1"
-                aria-label="פתח תפריט"
-              >
-                <Menu size={26} />
-              </button>
-            )}
+            <button onClick={() => setMobileOpen(true)} className="p-2 order-1" aria-label="פתח תפריט">
+              <Menu size={26} />
+            </button>
 
-            {/* לוגו בצד שמאל */}
             <Link href="/" className="order-2 ml-auto">
-              <img
-                src="/invistimo-logo.png"
-                alt="Invistimo Logo"
-                className="h-10 w-auto object-contain"
-              />
+              <img src="/invistimo-logo.png" alt="Invistimo Logo" className="h-10 w-auto object-contain" />
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ================= MOBILE DRAWER ================= */}
+      {/* תפריט מובייל */}
       {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
           <div
             className="
               absolute top-0 right-0 h-full w-[80%] max-w-sm
-              bg-[#f5eee7]
-              border-l border-[#e2d6c8]
-              shadow-xl
-              p-6
-              flex flex-col
-              gap-6
+              bg-[#f5eee7] border-l border-[#e2d6c8] shadow-xl
+              p-6 flex flex-col gap-6
             "
             dir="rtl"
           >
