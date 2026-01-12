@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
+import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,6 @@ export async function GET() {
     await db();
 
     const auth = await getUserIdFromRequest();
-
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -26,11 +26,8 @@ export async function GET() {
       ownerId: auth.userId,
     })
       .select(`
-        title
-        eventType
-        eventDate
-        eventTime
-        location
+        _id
+        eventId
         maxGuests
         maxMessages
         remainingMessages
@@ -59,14 +56,13 @@ export async function GET() {
 }
 
 /* ============================================================
-   POST — יוצר הזמנה "טיוטה" למשתמש אם אין עדיין
+   POST — יוצר הזמנה למשתמש (חייב eventId)
 ============================================================ */
 export async function POST(req: NextRequest) {
   try {
     await db();
 
     const auth = await getUserIdFromRequest();
-
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -75,13 +71,39 @@ export async function POST(req: NextRequest) {
     }
 
     /* ===============================
-       🧠 טעינת יוזר אמיתי מה־DB
+       🧠 טעינת יוזר
     =============================== */
     const user = await User.findById(auth.userId).lean();
-
     if (!user) {
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    /* ===============================
+       📦 גוף הבקשה
+    =============================== */
+    const body = await req.json().catch(() => ({} as any));
+
+    if (!body?.eventId) {
+      return NextResponse.json(
+        { success: false, error: "EVENT_ID_REQUIRED" },
+        { status: 400 }
+      );
+    }
+
+    /* ===============================
+       🧠 וידוא שהאירוע שייך ליוזר
+    =============================== */
+    const event = await Event.findOne({
+      _id: body.eventId,
+      userId: auth.userId,
+    }).lean();
+
+    if (!event) {
+      return NextResponse.json(
+        { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -91,19 +113,8 @@ export async function POST(req: NextRequest) {
     =============================== */
     const existing = await Invitation.findOne({
       ownerId: auth.userId,
-    })
-      .select(`
-        title
-        eventType
-        eventDate
-        eventTime
-        location
-        maxGuests
-        maxMessages
-        remainingMessages
-        shareId
-      `)
-      .lean();
+      eventId: body.eventId,
+    }).lean();
 
     if (existing) {
       return NextResponse.json({
@@ -113,30 +124,21 @@ export async function POST(req: NextRequest) {
     }
 
     /* ===============================
-       📦 גוף הבקשה
-    =============================== */
-    const body = await req.json().catch(() => ({} as any));
-
-    /* ===============================
-       🧮 הגבלות מהיוזר האמיתי
+       🧮 מגבלות לפי היוזר
     =============================== */
     const maxGuests = Number(user.guests) || 100;
     const maxMessages = Number(user.maxMessages) || 300;
 
     /* ===============================
-       🧾 יצירת ההזמנה
+       🧾 יצירת הזמנה
     =============================== */
     const created = await Invitation.create({
       ownerId: auth.userId,
-      title: body?.title || "הזמנה חדשה",
-      eventType: body?.eventType || "",
-      eventDate: body?.eventDate || null,
-      eventTime: body?.eventTime || "",
-      location: body?.location || {},
+      eventId: body.eventId,
 
       guests: [],
 
-      maxGuests,                 // ✅ כאן התיקון הקריטי
+      maxGuests,
       maxMessages,
       remainingMessages: maxMessages,
       sentSmsCount: 0,
@@ -147,11 +149,7 @@ export async function POST(req: NextRequest) {
         success: true,
         invitation: {
           _id: created._id,
-          title: created.title,
-          eventType: created.eventType,
-          eventDate: created.eventDate,
-          eventTime: created.eventTime,
-          location: created.location,
+          eventId: created.eventId,
           maxGuests: created.maxGuests,
           maxMessages: created.maxMessages,
           remainingMessages: created.remainingMessages,
@@ -161,7 +159,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    console.error("❌ Error creating my invitation:", err);
+    console.error("❌ Error creating invitation:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
