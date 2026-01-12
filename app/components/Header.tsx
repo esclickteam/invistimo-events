@@ -77,17 +77,13 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          {/* ✅ גריד חדש – ימין (ניווט+כפתורים), מרכז (לוגו), שמאל (ריק או רווח) */}
+          {/* ✅ גריד חדש – ימין (כפתורים + ניווט), מרכז (לוגו), שמאל (ריק) */}
           <div className="grid grid-cols-[auto_1fr_auto] items-center h-16">
-            {/* ✅ צד ימין – תפריט ניווט + כפתורים */}
+            
+            {/* ✅ צד ימין – כפתורים צמוד לימין ואז ניווט */}
             <div className="hidden md:flex items-center justify-start gap-6">
-              {/* ניווט */}
-              <nav className="flex items-center gap-6 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
-                <NavLinks />
-              </nav>
-
-              {/* כפתורים */}
-              <div className="flex items-center gap-3">
+              {/* כפתורים קודם */}
+              <div className="flex items-center gap-3 pl-4 border-l border-[#d7c9b8]">
                 <Link
                   href="/try/dashboard"
                   className="
@@ -143,6 +139,11 @@ export default function Header() {
                     </Link>
                   ))}
               </div>
+
+              {/* ✅ אחרי הכפתורים – הניווט */}
+              <nav className="flex items-center gap-6 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
+                <NavLinks />
+              </nav>
             </div>
 
             {/* ✅ מרכז – לוגו */}
@@ -156,12 +157,10 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* ✅ שמאל – ריק או רווח עיצובי */}
-            <div className="hidden md:flex justify-end items-center">
-              {/* השארנו ריק כדי שהלוגו יישאר בדיוק במרכז */}
-            </div>
+            {/* ✅ שמאל – ריק לאיזון */}
+            <div className="hidden md:flex justify-end items-center"></div>
 
-            {/* מובייל – המבורגר */}
+            {/* ✅ מובייל – המבורגר */}
             {!isDashboard && (
               <button
                 onClick={() => setMobileOpen(true)}
