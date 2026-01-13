@@ -141,8 +141,10 @@ const userId = auth.userId;
   }
 }
 
+
 /* ============================================================
    GET — כל המוזמנים להזמנה
+   ✅ כולל tableName + tableNumber
 ============================================================ */
 export async function GET(
   req: NextRequest,
@@ -154,10 +156,28 @@ export async function GET(
     await db();
 
     const guests = await InvitationGuest.find({ invitationId })
+      .select(`
+  _id
+  name
+  phone
+  token
+  rsvp
+  guestsCount
+  arrivedCount
+  relation
+  notes
+  tableName
+  tableNumber
+  createdAt
+`)
+
       .sort({ createdAt: -1 })
       .lean();
 
-    return NextResponse.json({ success: true, guests });
+    return NextResponse.json({
+      success: true,
+      guests: Array.isArray(guests) ? guests : [],
+    });
   } catch (err) {
     console.error("❌ GET error:", err);
     return NextResponse.json(
@@ -166,6 +186,7 @@ export async function GET(
     );
   }
 }
+
 
 /* ============================================================
    PUT — עדכון מוזמן (עם חסימת חריגה)
