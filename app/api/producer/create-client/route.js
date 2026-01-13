@@ -5,89 +5,108 @@ import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
+/* =========================================================
+   CREATE CLIENT BY PRODUCER
+========================================================= */
 export async function POST(req) {
+  console.log("🟢 create-client API hit");
+
+  /* =========================================================
+     1. Grab cookies and headers BEFORE any await
+  ========================================================== */
+  const cookieStore = cookies();
+  const token = cookieStore.get("authToken")?.value || null;
+  const rawCookieHeader = headers().get("cookie");
+
+  console.log("🔐 token (from cookies):", token);
+  console.log("🍪 raw cookie header:", rawCookieHeader);
+  console.log("🧩 cookieStore.get type:", typeof cookieStore.get);
+
+  /* =========================================================
+     2. Connect to DB (safe after cookies read)
+  ========================================================== */
   try {
     await connectDB();
+  } catch (err) {
+    console.error("❌ DB connection error:", err);
+    return NextResponse.json({ error: "DB connection failed" }, { status: 500 });
+  }
 
-    console.log("🟢 create-client API hit");
+  /* =========================================================
+     3. Auth token validation
+  ========================================================== */
+  if (!token) {
+    console.log("⛔ No authToken found");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    /* =========================
-       COOKIE DEBUG (SAFE)
-    ========================= */
-    const cookieStore = cookies();
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("🧠 decoded token:", decoded);
+  } catch (err) {
+    console.error("⛔ JWT verification failed:", err);
+    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  }
 
-    const token = cookieStore.get("authToken")?.value;
-    console.log("🔐 authToken:", token);
+  const producerId = decoded?.id || decoded?._id;
+  console.log("👤 producerId:", producerId);
 
-    // debug מתקדם – אם צריך לראות הכול
-    const rawCookieHeader = headers().get("cookie");
-    console.log("🍪 raw cookie header:", rawCookieHeader);
+  if (!producerId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    if (!token) {
-      console.log("⛔ No authToken found");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  /* =========================================================
+     4. Verify producer user
+  ========================================================== */
+  const producer = await User.findById(producerId).lean();
+  console.log("👤 producer user:", producer);
 
-    /* =========================
-       JWT VERIFY
-    ========================= */
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("🧠 decoded token:", decoded);
-    } catch (err) {
-      console.log("⛔ JWT verification failed:", err);
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
+  if (!producer) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const producerId = decoded?.id || decoded?._id;
-    console.log("👤 producerId:", producerId);
+  if (producer.role !== "producer") {
+    console.log("⛔ Not producer role:", producer.role);
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-    if (!producerId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  /* =========================================================
+     5. Parse body
+  ========================================================== */
+  let body;
+  try {
+    body = await req.json();
+  } catch (err) {
+    console.error("❌ Failed to parse JSON body:", err);
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-    const producer = await User.findById(producerId);
-    console.log("👤 producer user:", producer);
+  console.log("📦 request body:", body);
+  const { email, name, phone, guests, includeCalls } = body;
 
-    if (!producer) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!email || !name) {
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 }
+    );
+  }
 
-    if (producer.role !== "producer") {
-      console.log("⛔ Not producer role:", producer.role);
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  /* =========================================================
+     6. Check for existing user
+  ========================================================== */
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    console.log("⚠️ User already exists:", existingUser._id);
+    return NextResponse.json({ success: true, user: existingUser });
+  }
 
-    /* =========================
-       BODY
-    ========================= */
-    const body = await req.json();
-    console.log("📦 request body:", body);
-
-    const { email, name, phone, guests, includeCalls } = body;
-
-    if (!email || !name) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    /* =========================
-       EXISTING USER
-    ========================= */
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ success: true, user: existingUser });
-    }
-
-    /* =========================
-       CREATE CLIENT
-    ========================= */
+  /* =========================================================
+     7. Create client user
+  ========================================================== */
+  try {
     const tempPassword = Math.random().toString(36).slice(-10);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
     const maxGuests = Number(guests) || 100;
 
     const newUser = await User.create({
@@ -133,7 +152,7 @@ export async function POST(req) {
       user: newUser,
     });
   } catch (err) {
-    console.error("❌ create-client fatal error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("❌ create-client save error:", err);
+    return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
   }
 }
