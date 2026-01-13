@@ -8,7 +8,6 @@ export interface IUser extends Document {
   email: string;
   password?: string;
 
-
   phone?: string;
 
   role: "user" | "client" | "producer" | "photographer" | "admin";
@@ -59,11 +58,7 @@ export interface IUser extends Document {
 ============================================================ */
 const UserSchema = new Schema<IUser>(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    name: { type: String, required: true, trim: true },
 
     email: {
       type: String,
@@ -74,19 +69,14 @@ const UserSchema = new Schema<IUser>(
     },
 
     password: {
-  type: String,
-  required: function (this: any) {
-    return !this.needsPasswordSetup;
-  },
-  minlength: [6, "Password must be at least 6 characters"],
-},
-
-
-    phone: {
       type: String,
-      trim: true,
-      default: "",
+      required: function (this: any) {
+        return !this.needsPasswordSetup;
+      },
+      minlength: [6, "Password must be at least 6 characters"],
     },
+
+    phone: { type: String, trim: true, default: "" },
 
     role: {
       type: String,
@@ -100,21 +90,11 @@ const UserSchema = new Schema<IUser>(
       default: "basic",
     },
 
-    guests: {
-      type: Number,
-      default: 100,
-    },
+    guests: { type: Number, default: 100 },
 
-    paidAmount: {
-      type: Number,
-      default: 0,
-    },
+    paidAmount: { type: Number, default: 0 },
 
-    hasPaid: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+    hasPaid: { type: Boolean, default: false, index: true },
 
     createdByProducer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -123,87 +103,33 @@ const UserSchema = new Schema<IUser>(
       index: true,
     },
 
-    includeCalls: {
-      type: Boolean,
-      default: false,
-    },
+    includeCalls: { type: Boolean, default: false },
+    callsAddonPrice: { type: Number, default: 0 },
 
-    callsAddonPrice: {
-      type: Number,
-      default: 0,
-    },
-
-    includeCreditGifts: {
-      type: Boolean,
-      default: false,
-    },
-
-    creditGiftsAddonPrice: {
-      type: Number,
-      default: 0,
-    },
+    includeCreditGifts: { type: Boolean, default: false },
+    creditGiftsAddonPrice: { type: Number, default: 0 },
 
     planLimits: {
-      maxGuests: {
-        type: Number,
-        default: 100,
-      },
-      smsEnabled: {
-        type: Boolean,
-        default: true,
-      },
-      smsLimit: {
-        type: Number,
-        default: 0,
-      },
-      seatingEnabled: {
-        type: Boolean,
-        default: false,
-      },
-      remindersEnabled: {
-        type: Boolean,
-        default: true,
-      },
+      maxGuests: { type: Number, default: 100 },
+      smsEnabled: { type: Boolean, default: true },
+      smsLimit: { type: Number, default: 0 },
+      seatingEnabled: { type: Boolean, default: false },
+      remindersEnabled: { type: Boolean, default: true },
     },
 
-    maxMessages: {
-      type: Number,
-      default: 0,
-    },
+    maxMessages: { type: Number, default: 0 },
+    remainingMessages: { type: Number, default: 0 },
+    smsUsed: { type: Number, default: 0 },
 
-    remainingMessages: {
-      type: Number,
-      default: 0,
-    },
-
-    smsUsed: {
-      type: Number,
-      default: 0,
-    },
-
-    isTrial: {
-      type: Boolean,
-      default: false,
-    },
-
+    isTrial: { type: Boolean, default: false },
     trialStartedAt: Date,
     trialExpiresAt: Date,
 
-    isDemoUser: {
-      type: Boolean,
-      default: false,
-    },
+    isDemoUser: { type: Boolean, default: false },
 
-    needsPasswordSetup: {
-      type: Boolean,
-      default: false,
-    },
+    needsPasswordSetup: { type: Boolean, default: false },
 
-    resetPasswordToken: {
-      type: String,
-      index: true,
-    },
-
+    resetPasswordToken: { type: String, index: true },
     resetPasswordExpires: Date,
   },
   { timestamps: true }
@@ -213,6 +139,14 @@ const UserSchema = new Schema<IUser>(
    AUTO LOGIC – PRE SAVE
 ============================================================ */
 UserSchema.pre("save", function () {
+  /* 🎁 BONUS RULE
+     includeCalls ⇒ free credit gifts
+  */
+  if (this.includeCalls === true) {
+    this.includeCreditGifts = true;
+    this.creditGiftsAddonPrice = 0;
+  }
+
   // 🧪 TRIAL USER
   if (this.isTrial) {
     this.plan = "premium";
@@ -243,40 +177,37 @@ UserSchema.pre("save", function () {
   }
 
   // 💼 PAID USER CREATED BY PRODUCER
-if (this.hasPaid && this.role === "client" && this.createdByProducer) {
+  if (this.hasPaid && this.role === "client" && this.createdByProducer) {
+    const MESSAGES_PER_GUEST = 3;
+    const baseMessages = this.guests * MESSAGES_PER_GUEST;
 
-  const MESSAGES_PER_GUEST = 3;
-  const baseMessages = this.guests * MESSAGES_PER_GUEST;
+    if (!this.maxMessages || this.maxMessages === 0) {
+      this.maxMessages = baseMessages;
+    }
 
-  if (!this.maxMessages || this.maxMessages === 0) {
-    this.maxMessages = baseMessages;
+    if (!this.remainingMessages || this.remainingMessages === 0) {
+      this.remainingMessages = Math.max(
+        baseMessages - (this.smsUsed ?? 0),
+        0
+      );
+    }
+
+    this.planLimits = {
+      maxGuests: this.guests,
+      smsEnabled: true,
+      smsLimit: 0,
+      seatingEnabled: true,
+      remindersEnabled: true,
+    };
+
+    return;
   }
-
-  if (!this.remainingMessages || this.remainingMessages === 0) {
-    this.remainingMessages = Math.max(
-      baseMessages - (this.smsUsed ?? 0),
-      0
-    );
-  }
-
-  this.planLimits = {
-    maxGuests: this.guests,
-    smsEnabled: true,
-    smsLimit: 0,
-    seatingEnabled: true,
-    remindersEnabled: true,
-  };
-
-  return;
-}
-
 
   // 💳 PAID USER → לא לדרוס
   if (this.hasPaid) {
     return;
   }
 });
-
 
 /* ============================================================
    AUTO LOGIC – FIND ONE AND UPDATE
@@ -286,9 +217,15 @@ UserSchema.pre("findOneAndUpdate", function () {
   const isUsingSet = !!rawUpdate.$set;
   const update = isUsingSet ? rawUpdate.$set : rawUpdate;
 
-  /* =========================
-     🧪 TRIAL USER
-  ========================= */
+  /* 🎁 BONUS RULE (UPDATE)
+     includeCalls ⇒ free credit gifts
+  */
+  if (update.includeCalls === true) {
+    update.includeCreditGifts = true;
+    update.creditGiftsAddonPrice = 0;
+  }
+
+  // 🧪 TRIAL USER
   if (update.isTrial === true) {
     update.plan = "premium";
     update.guests = 1000;
@@ -319,10 +256,7 @@ UserSchema.pre("findOneAndUpdate", function () {
     return;
   }
 
-  /* =========================
-     💼 PAID CLIENT (CREATED BY PRODUCER)
-     → כל אורח = 3 הודעות
-  ========================= */
+  // 💼 PAID CLIENT CREATED BY PRODUCER
   if (
     update.hasPaid === true &&
     update.role === "client" &&
@@ -352,22 +286,11 @@ UserSchema.pre("findOneAndUpdate", function () {
     };
   }
 
-  /* =========================
-     💳 PAID USER → לא לדרוס
-  ========================= */
-  if (update.hasPaid === true && update.isTrial !== true) {
-    if (isUsingSet) rawUpdate.$set = update;
-    (this as any).setUpdate(rawUpdate);
-    return;
-  }
-
   if (isUsingSet) rawUpdate.$set = update;
   (this as any).setUpdate(rawUpdate);
 });
 
-
 /* ============================================================
    MODEL
 ============================================================ */
-export default models.User ||
-  mongoose.model<IUser>("User", UserSchema);
+export default models.User || mongoose.model<IUser>("User", UserSchema);
