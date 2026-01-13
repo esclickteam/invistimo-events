@@ -36,6 +36,7 @@ type Guest = {
 
   relation?: string;
   tableName?: string;
+  tableNumber?: number;
 
   rsvp: "yes" | "no" | "pending";
   guestsCount: number;
@@ -819,7 +820,14 @@ console.log("INVITATION:", invitation);
   {g.arrivedCount || 0}
 </td>
 
-          <td className="p-3">{g.tableName ?? "-"}</td>
+          <td className="p-3">
+  {g.tableName
+    ? g.tableName
+    : g.tableNumber
+    ? `שולחן ${g.tableNumber}`
+    : "-"}
+</td>
+
           <td className="p-3 text-sm text-gray-700">
             {g.notes?.trim() || "-"}
           </td>
