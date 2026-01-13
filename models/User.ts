@@ -243,31 +243,33 @@ UserSchema.pre("save", function () {
   }
 
   // 💼 PAID USER CREATED BY PRODUCER
-  if (this.hasPaid && this.role === "client" && this.createdByProducer) {
-    let baseMessages = 300;
-    if (this.guests <= 100) baseMessages = 300;
-    else if (this.guests <= 300) baseMessages = 500;
-    else if (this.guests <= 600) baseMessages = 800;
-    else baseMessages = 1000;
+if (this.hasPaid && this.role === "client" && this.createdByProducer) {
 
-    if (!this.maxMessages || this.maxMessages === 0) {
-      this.maxMessages = baseMessages;
-    }
+  const MESSAGES_PER_GUEST = 3;
+  const baseMessages = this.guests * MESSAGES_PER_GUEST;
 
-    if (!this.remainingMessages || this.remainingMessages === 0) {
-      this.remainingMessages = this.maxMessages;
-    }
-
-    this.planLimits = {
-      maxGuests: this.guests,
-      smsEnabled: true,
-      smsLimit: 0,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-
-    return;
+  if (!this.maxMessages || this.maxMessages === 0) {
+    this.maxMessages = baseMessages;
   }
+
+  if (!this.remainingMessages || this.remainingMessages === 0) {
+    this.remainingMessages = Math.max(
+      baseMessages - (this.smsUsed ?? 0),
+      0
+    );
+  }
+
+  this.planLimits = {
+    maxGuests: this.guests,
+    smsEnabled: true,
+    smsLimit: 0,
+    seatingEnabled: true,
+    remindersEnabled: true,
+  };
+
+  return;
+}
+
 
   // 💳 PAID USER → לא לדרוס
   if (this.hasPaid) {
@@ -284,7 +286,9 @@ UserSchema.pre("findOneAndUpdate", function () {
   const isUsingSet = !!rawUpdate.$set;
   const update = isUsingSet ? rawUpdate.$set : rawUpdate;
 
-  // 🧪 TRIAL
+  /* =========================
+     🧪 TRIAL USER
+  ========================= */
   if (update.isTrial === true) {
     update.plan = "premium";
     update.guests = 1000;
@@ -309,16 +313,58 @@ UserSchema.pre("findOneAndUpdate", function () {
         0
       );
     }
+
+    if (isUsingSet) rawUpdate.$set = update;
+    (this as any).setUpdate(rawUpdate);
+    return;
   }
 
-  // 💳 PAID USER → לא נוגעים
+  /* =========================
+     💼 PAID CLIENT (CREATED BY PRODUCER)
+     → כל אורח = 3 הודעות
+  ========================= */
+  if (
+    update.hasPaid === true &&
+    update.role === "client" &&
+    update.createdByProducer &&
+    typeof update.guests === "number"
+  ) {
+    const MESSAGES_PER_GUEST = 3;
+    const baseMessages = update.guests * MESSAGES_PER_GUEST;
+
+    if (typeof update.maxMessages !== "number") {
+      update.maxMessages = baseMessages;
+    }
+
+    if (typeof update.remainingMessages !== "number") {
+      update.remainingMessages = Math.max(
+        baseMessages - (update.smsUsed ?? 0),
+        0
+      );
+    }
+
+    update.planLimits = {
+      maxGuests: update.guests,
+      smsEnabled: true,
+      smsLimit: 0,
+      seatingEnabled: true,
+      remindersEnabled: true,
+    };
+  }
+
+  /* =========================
+     💳 PAID USER → לא לדרוס
+  ========================= */
   if (update.hasPaid === true && update.isTrial !== true) {
+    if (isUsingSet) rawUpdate.$set = update;
+    (this as any).setUpdate(rawUpdate);
     return;
   }
 
   if (isUsingSet) rawUpdate.$set = update;
   (this as any).setUpdate(rawUpdate);
 });
+
 
 /* ============================================================
    MODEL
