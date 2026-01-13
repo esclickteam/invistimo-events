@@ -60,7 +60,7 @@ const fetchEvents = async () => {
     const data = await res.json();
 
     if (data.success) {
-      setEvents(data.events);
+       setEvents(Array.isArray(data.events) ? data.events : []);
     } else {
       console.error("❌ שגיאה בטעינת אירועים:", data.error);
     }
@@ -79,25 +79,30 @@ const fetchEvents = async () => {
      חישוב נתוני סטטיסטיקות כלליים
   ========================================================= */
   const stats = useMemo(() => {
-    const activeEvents = events.filter((e) => e.status === "active");
-    const upcomingWeek = activeEvents.filter((e) => isWithinDays(e.date, 7));
-    const totalGuests = activeEvents.reduce(
-      (sum, e) => sum + (e.maxGuests || 0),
-      0
-    );
+  const safeEvents = Array.isArray(events) ? events : [];
 
-    const nextEvent = [...activeEvents].sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    )[0];
+  const activeEvents = safeEvents.filter((e) => e.status === "active");
+  const upcomingWeek = activeEvents.filter((e) =>
+    isWithinDays(e.date, 7)
+  );
 
-    return {
-      activeCount: activeEvents.length,
-      upcomingWeekCount: upcomingWeek.length,
-      totalGuests,
-      totalConfirmed: 0,
-      nextEvent: nextEvent || null,
-    };
-  }, [events]);
+  const totalGuests = activeEvents.reduce(
+    (sum, e) => sum + (e.maxGuests || 0),
+    0
+  );
+
+  const nextEvent = [...activeEvents].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  )[0];
+
+  return {
+    activeCount: activeEvents.length,
+    upcomingWeekCount: upcomingWeek.length,
+    totalGuests,
+    totalConfirmed: 0,
+    nextEvent: nextEvent || null,
+  };
+}, [events]);
 
   const nextEvent = stats.nextEvent;
 
