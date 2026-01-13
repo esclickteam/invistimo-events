@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
-export const dynamic = "force-dynamic"; // 🔥 חובה
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -12,7 +12,7 @@ export async function GET() {
 
     /* ================= AUTH ================= */
     const cookieStore = await cookies();
-const token = cookieStore.get("authToken")?.value;
+    const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
       return NextResponse.json({ success: false }, { status: 401 });
@@ -24,10 +24,10 @@ const token = cookieStore.get("authToken")?.value;
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    /* ================= USERS = SOURCE OF TRUTH ================= */
+    /* ================= USERS (PAID ONLY) ================= */
     const users = await User.find({
-      hasPaid: true,              // ✅ זה הקריטריון היחיד
-      isDemoUser: { $ne: true },  // ❌ לא דמו
+      hasPaid: true,
+      isDemoUser: { $ne: true },
     })
       .select(`
         email
@@ -43,10 +43,29 @@ const token = cookieStore.get("authToken")?.value;
       .sort({ createdAt: -1 })
       .lean();
 
+    /* ================= TOTAL REVENUE ================= */
+    const revenueAgg = await User.aggregate([
+      {
+        $match: {
+          hasPaid: true,
+          isDemoUser: { $ne: true },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$paidAmount" },
+        },
+      },
+    ]);
+
+    const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
+
     return NextResponse.json(
       {
         success: true,
         users,
+        totalRevenue, // ✅ זה המספר שצריך להופיע בכרטיס
       },
       {
         headers: {
