@@ -14,6 +14,8 @@ export interface IUser extends Document {
   guests: number;
   paidAmount: number;
 
+  hasPaid: boolean;
+
   // ✅ מי יצר את הלקוח (אם נוצר ע"י מפיק)
   createdByProducer?: mongoose.Types.ObjectId | null;
 
@@ -61,7 +63,6 @@ function safeLevel(value: any) {
 
 /* ============================================================
    חישוב כללי לפי חבילה
-   ⚠️ מתנות באשראי אינן משפיעות על חישוב מחיר כאן
 ============================================================ */
 function applyPlanRules(user: IUser) {
   // 🧪 TRIAL
@@ -69,6 +70,7 @@ function applyPlanRules(user: IUser) {
     user.plan = "premium";
     user.guests = 1000;
     user.paidAmount = 0;
+    user.hasPaid = false;
 
     user.includeCalls = false;
     user.callsAddonPrice = 0;
@@ -102,13 +104,13 @@ function applyPlanRules(user: IUser) {
     1000: 699,
   };
 
-  // ☎️ תוספת שיחות – שקל לאורח
   const callsAddon = user.includeCalls ? level * 1 : 0;
 
   if (user.plan === "basic") {
     user.plan = "basic";
     user.guests = 100;
     user.paidAmount = 49;
+    user.hasPaid = true;
 
     user.includeCalls = false;
     user.callsAddonPrice = 0;
@@ -128,9 +130,8 @@ function applyPlanRules(user: IUser) {
     user.guests = level;
 
     user.callsAddonPrice = callsAddon;
-
-    // ⚠️ כאן לא מוסיפים מתנות באשראי למחיר
     user.paidAmount = (basePrices[level] ?? 149) + callsAddon;
+    user.hasPaid = user.paidAmount > 0;
 
     user.planLimits = {
       maxGuests: level,
@@ -174,7 +175,12 @@ const UserSchema = new Schema<IUser>(
     guests: { type: Number, default: 100 },
     paidAmount: { type: Number, default: 49 },
 
-    // ✅ קישור למפיק שיצר את הלקוח
+    hasPaid: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     createdByProducer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -182,11 +188,9 @@ const UserSchema = new Schema<IUser>(
       index: true,
     },
 
-    // ☎️ שירות שיחות
     includeCalls: { type: Boolean, default: false },
     callsAddonPrice: { type: Number, default: 0 },
 
-    // 🎁 מתנות באשראי
     includeCreditGifts: { type: Boolean, default: false },
     creditGiftsAddonPrice: { type: Number, default: 0 },
 
@@ -200,13 +204,11 @@ const UserSchema = new Schema<IUser>(
 
     smsUsed: { type: Number, default: 0 },
 
-    // 🧪 TRIAL / DEMO
     isTrial: { type: Boolean, default: false },
     trialStartedAt: Date,
     trialExpiresAt: Date,
     isDemoUser: { type: Boolean, default: false },
 
-    // 🔐 RESET PASSWORD
     resetPasswordToken: { type: String, index: true },
     resetPasswordExpires: Date,
   },
@@ -214,14 +216,14 @@ const UserSchema = new Schema<IUser>(
 );
 
 /* ============================================================
-   AUTO LOGIC: לפני save
+   AUTO LOGIC – SAVE
 ============================================================ */
 UserSchema.pre("save", function () {
   applyPlanRules(this as IUser);
 });
 
 /* ============================================================
-   AUTO LOGIC: לפני findOneAndUpdate
+   AUTO LOGIC – FIND ONE AND UPDATE
 ============================================================ */
 UserSchema.pre("findOneAndUpdate", function () {
   const rawUpdate = (this as any).getUpdate() || {};
@@ -237,6 +239,7 @@ UserSchema.pre("findOneAndUpdate", function () {
     update.plan = "premium";
     update.guests = 1000;
     update.paidAmount = 0;
+    update.hasPaid = false;
 
     update.includeCalls = false;
     update.callsAddonPrice = 0;
@@ -279,6 +282,7 @@ UserSchema.pre("findOneAndUpdate", function () {
       update.plan = "basic";
       update.guests = 100;
       update.paidAmount = 49;
+      update.hasPaid = true;
 
       update.includeCalls = false;
       update.callsAddonPrice = 0;
@@ -305,6 +309,7 @@ UserSchema.pre("findOneAndUpdate", function () {
         includeCreditGifts ? update.creditGiftsAddonPrice || 150 : 0;
 
       update.paidAmount = (basePrices[level] ?? 149) + callsAddon;
+      update.hasPaid = update.paidAmount > 0;
 
       update.planLimits = {
         maxGuests: level,

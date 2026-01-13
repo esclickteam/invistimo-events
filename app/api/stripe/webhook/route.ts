@@ -147,6 +147,7 @@ export async function POST(req: Request) {
 
     await User.findByIdAndUpdate(user._id, {
       plan: "premium",
+      hasPaid: true, 
       $inc: {
         guests: targetGuests,
         paidAmount: amountCharged,
@@ -262,6 +263,7 @@ if (!maxGuests) {
     plan,
     guests: maxGuests,
     paidAmount: totalPaid,
+    hasPaid: true, 
     isTrial: false,
   });
 
