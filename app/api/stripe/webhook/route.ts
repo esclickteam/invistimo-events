@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import User from "@/models/User";
-import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 
@@ -124,7 +123,6 @@ export async function POST(req: Request) {
     if (session.metadata?.type === "upgrade") {
       const targetGuests = Number(session.metadata.targetGuests || 0);
       const amountCharged = Number(session.metadata.amountCharged || 0);
-      const smsToAdd = targetGuests * 3;
 
       await Payment.create({
         email,
@@ -146,13 +144,19 @@ export async function POST(req: Request) {
         $inc: {
           guests: targetGuests,
           paidAmount: amountCharged,
-          maxMessages: smsToAdd,
-          remainingMessages: smsToAdd,
         },
       });
 
       event.maxGuests += targetGuests;
       await event.save();
+
+      await notifyAdminPurchase({
+        email,
+        amount: amountCharged,
+        currency: "ils",
+        type: "Premium upgrade",
+        details: `${targetGuests} אורחים נוספים`,
+      });
 
       return NextResponse.json({ received: true });
     }
@@ -178,10 +182,16 @@ export async function POST(req: Request) {
 
       await User.findByIdAndUpdate(user._id, {
         $inc: {
-          maxMessages: messagesToAdd,
-          remainingMessages: messagesToAdd,
           paidAmount: amount,
         },
+      });
+
+      await notifyAdminPurchase({
+        email,
+        amount,
+        currency: "ils",
+        type: "SMS Add-on",
+        details: `${messagesToAdd} הודעות`,
       });
 
       return NextResponse.json({ received: true });
@@ -218,7 +228,6 @@ export async function POST(req: Request) {
     }
 
     const plan = session.metadata?.plan || "basic";
-    const messagesToAdd = plan === "basic" ? 0 : maxGuests * 3;
 
     await Payment.create({
       email,
@@ -242,8 +251,6 @@ export async function POST(req: Request) {
         paidAmount: totalPaid,
         hasPaid: true,
         isTrial: false,
-        maxMessages: messagesToAdd,
-        remainingMessages: messagesToAdd,
       },
       { new: true }
     );
@@ -251,17 +258,13 @@ export async function POST(req: Request) {
     event.maxGuests = maxGuests;
     await event.save();
 
-    try {
-      await notifyAdminPurchase({
-        email,
-        amount: totalPaid,
-        currency: "ils",
-        type: plan === "basic" ? "Basic package" : "Premium package",
-        details: `${maxGuests} אורחים`,
-      });
-    } catch (err) {
-      console.error("⚠️ Failed to notify admin", err);
-    }
+    await notifyAdminPurchase({
+      email,
+      amount: totalPaid,
+      currency: "ils",
+      type: plan === "basic" ? "Basic package" : "Premium package",
+      details: `${maxGuests} אורחים`,
+    });
 
     return NextResponse.json({ received: true });
   } catch (err) {
