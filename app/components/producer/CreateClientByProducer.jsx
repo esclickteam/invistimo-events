@@ -37,16 +37,17 @@ export default function CreateClientByProducer({ onSuccess }) {
       setLoading(true);
 
       const res = await fetch("/api/producer/create-client", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          guests: Number(form.guests),
-          includeCalls: form.includeCalls,
-        }),
-      });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include", // 🔥🔥🔥 זה הפתרון
+  body: JSON.stringify({
+    name: form.name,
+    email: form.email,
+    phone: form.phone,
+    guests: Number(form.guests),
+    includeCalls: form.includeCalls,
+  }),
+});
 
       const data = await res.json();
 
