@@ -16,6 +16,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (password.length < 6) {
+      return NextResponse.json(
+        { success: false, message: "הסיסמה חייבת להכיל לפחות 6 תווים" },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
 
     const user = await User.findOne({
@@ -26,6 +33,13 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json(
         { success: false, message: "הקישור אינו תקף או שפג תוקפו" },
+        { status: 400 }
+      );
+    }
+
+    if (!user.needsPasswordSetup) {
+      return NextResponse.json(
+        { success: false, message: "הסיסמה כבר הוגדרה עבור חשבון זה" },
         { status: 400 }
       );
     }
