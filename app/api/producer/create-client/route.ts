@@ -4,6 +4,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import Payment from "@/models/Payment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,35 +13,63 @@ export const dynamic = "force-dynamic";
    TYPES
 ========================================================= */
 type AuthTokenPayload = JwtPayload & {
-  userId?: string; // ✅ זה מה שאת עושה ב-register/login
+  userId?: string;
   id?: string;
   _id?: string;
   email?: string;
   role?: string;
 };
 
+type CreateClientBody = {
+  email: string;
+  name: string;
+  phone?: string;
+  guests?: number;
+  includeCalls?: boolean;
+};
+
 /* =========================================================
-   CREATE CLIENT BY PRODUCER — FIXED FOR TS
+   HELPERS
+========================================================= */
+function getPriceKeyByGuests(maxGuests: number) {
+  // התאמה לקיז שיש לך במערכת (תעדכני אם השמות שונים)
+  const map: Record<number, string> = {
+    100: "premium_100_v2",
+    200: "premium_200_v2",
+    300: "premium_300",
+    400: "premium_400",
+    500: "premium_500",
+    600: "premium_600",
+    700: "premium_700",
+    800: "premium_800",
+    1000: "premium_1000",
+  };
+
+  // אם הגיע ערך לא חוקי – ניפול ל-100
+  return map[maxGuests] || "premium_100_v2";
+}
+
+/* =========================================================
+   CREATE CLIENT BY PRODUCER
 ========================================================= */
 export async function POST(req: Request): Promise<NextResponse> {
   console.log("🟢 create-client API hit");
 
-  /* =========================================================
-     1. Grab cookies and headers BEFORE any await connectDB()
-  ========================================================== */
+  /* =========================
+     Cookies/Headers (before connectDB await)
+  ========================= */
   const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value || null;
 
   const allHeaders = await headers();
   const rawCookieHeader = allHeaders.get("cookie");
 
-  console.log("🔐 token (from cookies) exists:", !!token);
+  console.log("🔐 token exists:", !!token);
   console.log("🍪 raw cookie header exists:", !!rawCookieHeader);
-  console.log("🧩 cookieStore.get type:", typeof cookieStore.get);
 
-  /* =========================================================
-     2. Connect to DB (safe after cookies read)
-  ========================================================== */
+  /* =========================
+     DB
+  ========================= */
   try {
     await connectDB();
   } catch (err) {
@@ -48,9 +77,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "DB connection failed" }, { status: 500 });
   }
 
-  /* =========================================================
-     3. Auth token validation
-  ========================================================== */
+  /* =========================
+     Auth
+  ========================= */
   if (!token) {
     console.log("⛔ No authToken found");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -59,59 +88,38 @@ export async function POST(req: Request): Promise<NextResponse> {
   let decoded: AuthTokenPayload;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthTokenPayload;
-    console.log("🧠 decoded token:", decoded);
-    console.log("🧠 decoded keys:", Object.keys(decoded || {}));
   } catch (err) {
     console.error("⛔ JWT verification failed:", err);
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  // ✅ חשוב: אצלך ב-register/login זה userId
   const producerId = decoded.userId || decoded.id || decoded._id;
-
   console.log("👤 producerId:", producerId);
 
   if (!producerId) {
-    console.log("⛔ producerId missing in token payload");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  /* =========================================================
-     4. Verify producer user
-  ========================================================== */
   const producer = await User.findById(producerId).lean();
-  console.log("👤 producer user exists:", !!producer);
-
   if (!producer) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  console.log("👤 producer.role:", producer.role);
 
   if (producer.role !== "producer") {
     console.log("⛔ Not producer role:", producer.role);
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  /* =========================================================
-     5. Parse body
-  ========================================================== */
-  let body: {
-    email: string;
-    name: string;
-    phone?: string;
-    guests?: number;
-    includeCalls?: boolean;
-  };
-
+  /* =========================
+     Body
+  ========================= */
+  let body: CreateClientBody;
   try {
     body = await req.json();
   } catch (err) {
-    console.error("❌ Failed to parse JSON body:", err);
+    console.error("❌ Invalid JSON body:", err);
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-
-  console.log("📦 request body:", body);
 
   const { email, name, phone, guests, includeCalls } = body;
 
@@ -122,22 +130,27 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
-  /* =========================================================
-     6. Check for existing user
-  ========================================================== */
+  const maxGuests = Number(guests) || 100;
+  const priceKey = getPriceKeyByGuests(maxGuests);
+
+  /* =========================
+     Existing user
+  ========================= */
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     console.log("⚠️ User already exists:", existingUser._id);
+
+    // אופציונלי: אם תרצי גם ליצור Payment “ידני” גם למשתמש קיים — תגידי לי
     return NextResponse.json({ success: true, user: existingUser });
   }
 
-  /* =========================================================
-     7. Create client user
-  ========================================================== */
+  /* =========================
+     Create user
+     (אל תשלחי maxMessages וכו' כדי שהסכמה תחושב)
+  ========================= */
   try {
     const tempPassword = Math.random().toString(36).slice(-10);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    const maxGuests = Number(guests) || 100;
 
     const newUser = await User.create({
       name,
@@ -148,7 +161,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       needsPasswordSetup: true,
 
       role: "client",
-      createdByProducer: producerId, // ✅ ObjectId של המפיק
+      createdByProducer: producerId,
 
       hasPaid: true,
       isTrial: false,
@@ -165,10 +178,6 @@ export async function POST(req: Request): Promise<NextResponse> {
         remindersEnabled: true,
       },
 
-      maxMessages: 0,
-      remainingMessages: 0,
-      smsUsed: 0,
-
       includeCalls: !!includeCalls,
       includeCreditGifts: false,
 
@@ -176,10 +185,49 @@ export async function POST(req: Request): Promise<NextResponse> {
     });
 
     console.log("✅ Client created:", newUser._id);
+    console.log("💬 maxMessages:", newUser.maxMessages);
+    console.log("💬 remainingMessages:", newUser.remainingMessages);
+
+    /* =========================
+       Create payment record (internal/manual)
+       חובה: priceKey + amount
+    ========================= */
+    const payment = await Payment.create({
+      email: newUser.email,
+
+      // Stripe optional -> לא שמים כלום
+      priceKey,
+      maxGuests,
+
+      includeCalls: !!includeCalls,
+      callsAddonPrice: 0,
+
+      includeCreditGifts: false,
+      creditGiftsAddonPrice: 0,
+
+      amount: 0, // ✅ “תשלום” פנימי/מתנה/פיילוט
+      refundAmount: 0,
+      currency: "ils",
+
+      type: "package",
+      status: "paid",
+
+      isTest: false,
+
+      metadata: {
+        source: "producer-create-client",
+        producerId: String(producerId),
+        userId: String(newUser._id),
+        note: "Internal/manual payment created by producer flow",
+      },
+    });
+
+    console.log("💳 Payment created:", payment._id);
 
     return NextResponse.json({
       success: true,
       user: newUser,
+      payment,
     });
   } catch (err) {
     console.error("❌ create-client save error:", err);

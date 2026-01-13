@@ -237,11 +237,39 @@ UserSchema.pre("save", function () {
     return;
   }
 
+  // 💼 PAID USER CREATED BY PRODUCER
+  if (this.hasPaid && this.role === "client" && this.createdByProducer) {
+    let baseMessages = 300;
+    if (this.guests <= 100) baseMessages = 300;
+    else if (this.guests <= 300) baseMessages = 500;
+    else if (this.guests <= 600) baseMessages = 800;
+    else baseMessages = 1000;
+
+    if (!this.maxMessages || this.maxMessages === 0) {
+      this.maxMessages = baseMessages;
+    }
+
+    if (!this.remainingMessages || this.remainingMessages === 0) {
+      this.remainingMessages = this.maxMessages;
+    }
+
+    this.planLimits = {
+      maxGuests: this.guests,
+      smsEnabled: true,
+      smsLimit: 0,
+      seatingEnabled: true,
+      remindersEnabled: true,
+    };
+
+    return;
+  }
+
   // 💳 PAID USER → לא לדרוס
   if (this.hasPaid) {
     return;
   }
 });
+
 
 /* ============================================================
    AUTO LOGIC – FIND ONE AND UPDATE
