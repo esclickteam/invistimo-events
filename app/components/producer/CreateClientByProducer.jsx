@@ -203,26 +203,33 @@ export default function CreateClientByProducer({ onSuccess }) {
       )}
 
       {/* Submit */}
-     <button
+    <button
   type="submit"
   disabled={loading}
   className="
     w-full
-    mt-4
     h-12
+    mt-6
     rounded-xl
     bg-[#3A2B23]
     text-white
     text-base
     font-semibold
-    shadow-md
-    hover:bg-[#2e221b]
-    transition
-    disabled:opacity-50
+    border
+    border-[#3A2B23]
+    shadow-lg
+    hover:bg-[#2E221B]
+    focus:outline-none
+    focus:ring-2
+    focus:ring-[#3A2B23]
+    focus:ring-offset-2
+    disabled:opacity-80
+    disabled:cursor-not-allowed
   "
 >
   {loading ? "יוצר לקוח…" : "צור לקוח"}
 </button>
+
     </form>
   );
 }
