@@ -98,12 +98,25 @@ export default function ProducerDashboard() {
         <h1 className="text-2xl font-bold text-slate-900">דשבורד מפיק</h1>
 
         <Button
-          onClick={() => setShowCreateClient(true)}
-          className="bg-[var(--brand-purple)] hover:bg-[var(--brand-purple-dark)] text-white rounded-xl px-5 py-2.5 text-sm font-semibold flex gap-2"
-        >
-          <UserPlus className="w-4 h-4" />
-          יצירת לקוח חדש
-        </Button>
+  type="submit"
+  disabled={loading}
+  className="
+    w-full
+    h-12
+    mt-6
+    bg-[var(--brand-purple)]
+    hover:bg-[var(--brand-purple-dark)]
+    text-white
+    text-base
+    font-semibold
+    rounded-xl
+    shadow-lg
+    disabled:opacity-80
+  "
+>
+  {loading ? "יוצר לקוח…" : "צור לקוח"}
+</Button>
+
       </div>
 
       {/* Create Client – PROFESSIONAL FORM */}
