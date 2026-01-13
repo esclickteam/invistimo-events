@@ -20,7 +20,9 @@ import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 type GuestDTO = {
   _id: string;
   name: string;
-  guestsCount?: number;
+  guestsCount?: number;        // מוזמנים
+  arrivedCount?: number;       // מגיעים בפועל
+  rsvp?: "yes" | "no" | "pending";
   tableId?: string | null;
 };
 
@@ -68,11 +70,19 @@ export default function SeatingPage() {
 
         const gData = await gRes.json();
 
+        /* =====================================================
+           ✅ כאן התיקון הקריטי:
+           אם rsvp === "yes" → arrivedCount
+           אחרת → guestsCount
+        ===================================================== */
         const normalizedGuests = (gData.guests || []).map(
           (g: GuestDTO) => ({
             id: g._id,
             name: g.name,
-            count: g.guestsCount || 1,
+            count:
+              g.rsvp === "yes"
+                ? g.arrivedCount || g.guestsCount || 1
+                : g.guestsCount || 1,
             tableId: g.tableId || null,
           })
         );
@@ -180,6 +190,9 @@ export default function SeatingPage() {
     );
   }
 
+  /* ===============================
+     RENDER
+  =============================== */
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* ================= HEADER ================= */}
@@ -211,7 +224,6 @@ export default function SeatingPage() {
 
       {/* ================= CONTENT ================= */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
-
         {/* קנבס */}
         <div className="flex-1 relative">
           <SeatingEditor background={background?.url || null} />
@@ -219,7 +231,6 @@ export default function SeatingPage() {
 
         {/* סיידבר – דסקטופ */}
         <aside className="hidden md:block w-72 bg-white border-l">
-
           <Suspense
             fallback={
               <div className="p-4 text-sm text-gray-400">
@@ -234,7 +245,7 @@ export default function SeatingPage() {
           </Suspense>
         </aside>
 
-        {/* כפתור פתיחה למובייל – מתחת להוסף שולחן */}
+        {/* כפתור פתיחה למובייל */}
         <button
           onClick={() => setShowGuests(true)}
           className="md:hidden absolute top-16 left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
