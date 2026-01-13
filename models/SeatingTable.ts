@@ -65,7 +65,7 @@ const TableSchema = new Schema(
 const BackgroundSchema = new Schema(
   {
     url: {
-      type: String, // URL / base64
+      type: String,
       required: true,
     },
     opacity: {
@@ -85,13 +85,12 @@ const ZoneSchema = new Schema(
   {
     id: {
       type: String,
-      required: true, // מזהה פנימי לקנבס
+      required: true,
     },
     type: {
       type: String,
       required: true, // stage / bar / chuppah וכו'
     },
-
     name: {
       type: String,
       default: "",
@@ -110,7 +109,6 @@ const ZoneSchema = new Schema(
       min: 0,
       max: 1,
     },
-
     x: {
       type: Number,
       default: 0,
@@ -131,7 +129,6 @@ const ZoneSchema = new Schema(
       type: Number,
       default: 0,
     },
-
     locked: {
       type: Boolean,
       default: false,
@@ -162,15 +159,15 @@ const CanvasViewSchema = new Schema(
 );
 
 /* ===============================
-   סידור הושבה (מסמך אחד להזמנה)
+   ⭐ סידור הושבה (מסמך אחד לאירוע)
 =============================== */
 const SeatingTableSchema = new Schema(
   {
-    invitationId: {
+    eventId: {
       type: Schema.Types.ObjectId,
-      ref: "Invitation",
+      ref: "Event",
       required: true,
-      unique: true, // ⭐ מסמך אחד לכל הזמנה
+      unique: true, // ⭐ מסמך אחד לכל אירוע
       index: true,
     },
 
@@ -186,7 +183,7 @@ const SeatingTableSchema = new Schema(
       default: [],
     },
 
-    /** ⭐ אזורים (Zones) */
+    /** ⭐ אזורים */
     zones: {
       type: [ZoneSchema],
       default: [],
@@ -200,7 +197,7 @@ const SeatingTableSchema = new Schema(
   },
   {
     timestamps: true,
-    strict: true, // ⭐ עכשיו בטוח – canvasView מוגדר
+    strict: true,
   }
 );
 

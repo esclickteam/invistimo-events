@@ -3,6 +3,7 @@ import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
 import User from "@/models/User";
+import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
    TYPES
 =============================== */
 type RouteContext = {
-  params: Promise<{ invitationId: string }>;
+  params: Promise<{ eventId: string }>;
 };
 
 type BackgroundPayload = {
@@ -25,15 +26,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* 🔐 זיהוי משתמש */
     const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-if (!auth?.userId) {
-  return NextResponse.json(
-    { success: false, error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
-
-const userId = auth.userId;
+    const userId = auth.userId;
 
     /* 🔐 בדיקת חבילה – הושבה */
     const user = await User.findById(userId).lean();
@@ -48,11 +48,14 @@ const userId = auth.userId;
       );
     }
 
-    const { invitationId } = await context.params;
+    const { eventId } = await context.params;
     const body = await req.json();
 
-    // 🔎 בדיקה קריטית (אפשר למחוק בפרודקשן)
-    console.log("📥 SAVE SEATING BODY:", body);
+    console.log("📥 SAVE SEATING BODY:", {
+      eventId,
+      tables: body.tables?.length,
+      zones: body.zones?.length,
+    });
 
     /* ===============================
        TABLES
@@ -65,16 +68,13 @@ const userId = auth.userId;
     const zones = Array.isArray(body.zones) ? body.zones : [];
 
     /* ===============================
-       BACKGROUND (OPTIONAL)
+       BACKGROUND
     =============================== */
     let background: BackgroundPayload | null = null;
 
     if (typeof body.background === "string") {
       background = { url: body.background, opacity: 0.28 };
-    } else if (
-      body.background &&
-      typeof body.background.url === "string"
-    ) {
+    } else if (body.background?.url) {
       background = {
         url: body.background.url,
         opacity:
@@ -85,7 +85,7 @@ const userId = auth.userId;
     }
 
     /* ===============================
-       CANVAS VIEW (ZOOM + PAN)
+       CANVAS VIEW
     =============================== */
     const canvasView =
       body.canvasView &&
@@ -100,12 +100,13 @@ const userId = auth.userId;
         : null;
 
     /* ===============================
-       SAVE / UPSERT
+       SAVE / UPSERT (לפי eventId)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
-      { invitationId },
+      { eventId },
       {
         $set: {
+          eventId,
           tables,
           zones,
           background,
@@ -121,41 +122,47 @@ const userId = auth.userId;
     );
 
     /* ===============================
-       SNAPSHOT – RESET TABLE NUMBER
-       (לא נוגעים בלוגיקה הקיימת)
+       איפוס מספרי שולחן לאורחים
+       (האורחים שייכים להזמנה)
     =============================== */
-    await InvitationGuest.updateMany(
-      { invitationId },
-      { $set: { tableNumber: null } }
-    );
+    const invitation = await Invitation.findOne({
+      ownerId: userId,
+      eventId,
+    }).lean();
 
-    /* ===============================
-       ASSIGN TABLES TO GUESTS
-       ✅ תיקון CAST ERROR
-    =============================== */
-    for (const table of tables) {
-      if (!Array.isArray(table.seatedGuests)) continue;
+    if (invitation) {
+      await InvitationGuest.updateMany(
+        { invitationId: invitation._id },
+        { $set: { tableNumber: null, tableName: "" } }
+      );
 
-      // חילוץ מספר שולחן מהשם (אם קיים)
-      const tableNumber =
-        typeof table.name === "string"
-          ? Number(table.name.replace(/\D/g, "")) || null
-          : null;
+      /* ===============================
+         שיוך אורחים לשולחנות
+      =============================== */
+      for (const table of tables) {
+        if (!Array.isArray(table.seatedGuests)) continue;
 
-      for (const seated of table.seatedGuests) {
-        if (!seated?.guestId) continue;
+        const tableNumber =
+          typeof table.name === "string"
+            ? Number(table.name.replace(/\D/g, "")) || null
+            : null;
 
-        await InvitationGuest.findByIdAndUpdate(seated.guestId, {
-          tableNumber,                 // ✅ מספר בלבד
-          tableName: table.name ?? "", // ✅ שם לתצוגה
-        });
+        for (const seated of table.seatedGuests) {
+          if (!seated?.guestId) continue;
+
+          await InvitationGuest.findByIdAndUpdate(seated.guestId, {
+            tableNumber,
+            tableName: table.name ?? "",
+          });
+        }
       }
     }
 
     return NextResponse.json({
       success: true,
       seatingId: saved._id,
-      hasBackground: !!background,
+      eventId,
+      tablesCount: tables.length,
       zonesCount: zones.length,
     });
   } catch (err) {

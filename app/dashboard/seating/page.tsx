@@ -20,19 +20,18 @@ import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 type GuestDTO = {
   _id: string;
   name: string;
-  guestsCount?: number;        // מוזמנים
-  arrivedCount?: number;       // מגיעים בפועל
+  guestsCount?: number;
+  arrivedCount?: number;
   rsvp?: "yes" | "no" | "pending";
-  tableId?: string | null;
 };
 
 export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [invitationId, setInvitationId] = useState<string | null>(null);
+  const [eventId, setEventId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
 
-  // ✅ שליטה על Drawer של רשימת אורחים במובייל
+  /* Drawer אורחים במובייל */
   const [showGuests, setShowGuests] = useState(false);
 
   /* ===============================
@@ -53,15 +52,21 @@ export default function SeatingPage() {
   useEffect(() => {
     async function load() {
       try {
+        /* 🧹 איפוס מוחלט לפני טעינה */
+        useSeatingStore.getState().init([], [], null, null);
+        useZoneStore.getState().setZones([]);
+
+        /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
 
-        if (!invData?.success || !invData.invitation) return;
+        if (!invData?.success || !invData.invitation?.eventId) return;
 
-        const id: string = invData.invitation._id;
-        setInvitationId(id);
+        const eventIdFromApi: string = invData.invitation.eventId;
+        setEventId(eventIdFromApi);
 
-        const gRes = await fetch(`/api/seating/guests/${id}`);
+        /* 2️⃣ אורחים – לפי eventId */
+        const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
         if (gRes.status === 403) {
           setBlocked(true);
           setShowUpgrade(true);
@@ -70,24 +75,17 @@ export default function SeatingPage() {
 
         const gData = await gRes.json();
 
-        /* =====================================================
-           ✅ כאן התיקון הקריטי:
-           אם rsvp === "yes" → arrivedCount
-           אחרת → guestsCount
-        ===================================================== */
-        const normalizedGuests = (gData.guests || []).map(
-          (g: GuestDTO) => ({
-            id: g._id,
-            name: g.name,
-            count:
-              g.rsvp === "yes"
-                ? g.arrivedCount || g.guestsCount || 1
-                : g.guestsCount || 1,
-            tableId: g.tableId || null,
-          })
-        );
+        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+          id: g._id,
+          name: g.name,
+          count:
+            g.rsvp === "yes"
+              ? g.arrivedCount || g.guestsCount || 1
+              : g.guestsCount || 1,
+        }));
 
-        const tRes = await fetch(`/api/seating/tables/${id}`);
+        /* 3️⃣ שולחנות + אזורים + קנבס */
+        const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
         if (tRes.status === 403) {
           setBlocked(true);
           setShowUpgrade(true);
@@ -131,12 +129,12 @@ export default function SeatingPage() {
      SAVE
   =============================== */
   async function saveSeating() {
-    if (!invitationId) return;
+    if (!eventId) return;
 
     const zones = useZoneStore.getState().zones;
     const canvasView = useSeatingStore.getState().canvasView;
 
-    const res = await fetch(`/api/seating/save/${invitationId}`, {
+    const res = await fetch(`/api/seating/save/${eventId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -195,7 +193,7 @@ export default function SeatingPage() {
   =============================== */
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
           <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
@@ -222,14 +220,12 @@ export default function SeatingPage() {
         </div>
       </div>
 
-      {/* ================= CONTENT ================= */}
+      {/* CONTENT */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
-        {/* קנבס */}
         <div className="flex-1 relative">
           <SeatingEditor background={background?.url || null} />
         </div>
 
-        {/* סיידבר – דסקטופ */}
         <aside className="hidden md:block w-72 bg-white border-l">
           <Suspense
             fallback={
@@ -245,7 +241,6 @@ export default function SeatingPage() {
           </Suspense>
         </aside>
 
-        {/* כפתור פתיחה למובייל */}
         <button
           onClick={() => setShowGuests(true)}
           className="md:hidden absolute top-16 left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
@@ -253,7 +248,6 @@ export default function SeatingPage() {
           👥 רשימת אורחים
         </button>
 
-        {/* Drawer – מובייל */}
         {showGuests && (
           <Suspense fallback={null}>
             <MobileGuests
@@ -264,7 +258,7 @@ export default function SeatingPage() {
         )}
       </div>
 
-      {/* ================= MODALS ================= */}
+      {/* MODALS */}
       {showUpload && (
         <UploadBackgroundModal
           onClose={() => setShowUpload(false)}

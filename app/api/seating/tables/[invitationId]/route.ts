@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** ⭐ Next.js 16 — params הוא Promise */
 type RouteContext = {
-  params: Promise<{ invitationId: string }>;
+  params: Promise<{ eventId: string }>;
 };
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -17,15 +17,14 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     /* 🔐 זיהוי משתמש */
     const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-if (!auth?.userId) {
-  return NextResponse.json(
-    { success: false, error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
-
-const userId = auth.userId;
+    const userId = auth.userId;
 
     /* 🔐 בדיקת חבילה – הושבה */
     const user = await User.findById(userId).lean();
@@ -43,20 +42,20 @@ const userId = auth.userId;
     /* ===============================
        1️⃣ params (חובה await)
     =============================== */
-    const { invitationId } = await context.params;
+    const { eventId } = await context.params;
 
-    if (!invitationId) {
+    if (!eventId) {
       return NextResponse.json(
-        { success: false, error: "Missing invitationId" },
+        { success: false, error: "Missing eventId" },
         { status: 400 }
       );
     }
 
     /* ===============================
-       2️⃣ שליפת הושבה מה־DB
-       בלי סינון, בלי map, בלי filter
+       2️⃣ שליפת הושבה לפי eventId
+       מסמך אחד = אירוע אחד
     =============================== */
-    const record = await SeatingTable.findOne({ invitationId });
+    const record = await SeatingTable.findOne({ eventId }).lean();
 
     /* ===============================
        3️⃣ החזרה מלאה לפרונט
@@ -66,7 +65,7 @@ const userId = auth.userId;
       tables: record?.tables || [],
       background: record?.background ?? null,
       zones: record?.zones || [],
-      canvasView: record?.canvasView ?? null, // ✅ תוספת בלבד
+      canvasView: record?.canvasView ?? null,
     });
   } catch (err) {
     console.error("❌ Load seating tables error:", err);
