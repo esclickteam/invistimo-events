@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     }
 
     /* ================= DUPLICATE PROTECTION ================= */
-    const existingPayment = await Payment.findOne({
+     const existingPayment = await Payment.findOne({
       stripePaymentIntentId: String(session.payment_intent),
     });
 
@@ -281,12 +281,14 @@ export async function POST(req: Request) {
     });
 
     await User.findByIdAndUpdate(user._id, {
-      plan,
-      guests: maxGuests,
-      paidAmount: totalPaid,
-      hasPaid: true,
-      isTrial: false,
-    });
+  plan,
+  guests: maxGuests,
+  maxMessages: maxGuests,
+  remainingMessages: maxGuests,
+  paidAmount: totalPaid,
+  hasPaid: true,
+  isTrial: false,
+});
 
     event.maxGuests = maxGuests;
     await event.save();
