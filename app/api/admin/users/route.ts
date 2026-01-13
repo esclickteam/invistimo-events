@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import Payment from "@/models/Payment";
 
 export const dynamic = "force-dynamic"; // 🔥 חובה
 
@@ -10,6 +11,7 @@ export async function GET() {
   try {
     await connectDB();
 
+    /* ================= AUTH ================= */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -23,7 +25,31 @@ export async function GET() {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    const users = await User.find({})
+    /* ================= PAYMENTS = source of truth ================= */
+    const paidEmails = await Payment.distinct("email", {
+      status: "paid",
+      isTest: false,
+      amount: { $gt: 0 },
+    });
+
+    if (!paidEmails.length) {
+      return NextResponse.json(
+        { success: true, users: [] },
+        {
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        }
+      );
+    }
+
+    /* ================= USERS ================= */
+    const users = await User.find({
+      email: { $in: paidEmails },
+      status: "active",
+      isSubscriptionValid: true,
+      isDemoUser: { $ne: true },
+    })
       .select("email name role plan includeCalls callsRounds createdAt")
       .sort({ createdAt: -1 });
 
