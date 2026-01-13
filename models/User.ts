@@ -27,12 +27,11 @@ export interface IUser extends Document {
   planLimits: {
     maxGuests: number;
     smsEnabled: boolean;
-    smsLimit: number; // 🧪 Trial only
+    smsLimit: number;
     seatingEnabled: boolean;
     remindersEnabled: boolean;
   };
 
-  // 🔥 SMS – USER SOURCE OF TRUTH
   maxMessages: number;
   remainingMessages: number;
   smsUsed: number;
@@ -47,18 +46,6 @@ export interface IUser extends Document {
 
   createdAt: Date;
   updatedAt: Date;
-}
-
-/* ============================================================
-   HELPERS
-============================================================ */
-const ALLOWED_GUEST_LEVELS = [
-  100, 200, 300, 400, 500, 600, 700, 800, 1000,
-];
-
-function safeLevel(value: any) {
-  const n = Number(value);
-  return ALLOWED_GUEST_LEVELS.includes(n) ? n : 100;
 }
 
 /* ============================================================
@@ -111,12 +98,11 @@ const UserSchema = new Schema<IUser>(
     planLimits: {
       maxGuests: { type: Number, default: 100 },
       smsEnabled: { type: Boolean, default: true },
-      smsLimit: { type: Number, default: 0 }, // 🧪 trial only
+      smsLimit: { type: Number, default: 0 },
       seatingEnabled: { type: Boolean, default: false },
       remindersEnabled: { type: Boolean, default: true },
     },
 
-    // 🔥 SMS FIELDS
     maxMessages: { type: Number, default: 0 },
     remainingMessages: { type: Number, default: 0 },
     smsUsed: { type: Number, default: 0 },
@@ -129,9 +115,7 @@ const UserSchema = new Schema<IUser>(
     resetPasswordToken: { type: String, index: true },
     resetPasswordExpires: Date,
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 /* ============================================================
@@ -153,15 +137,11 @@ UserSchema.pre("save", function () {
       remindersEnabled: true,
     };
 
-    // ❗ לא לדרוס אם כבר הוגדר (מיגרציה / תשלום)
-    if (typeof this.maxMessages !== "number" || this.maxMessages === 0) {
+    if (!this.maxMessages || this.maxMessages === 0) {
       this.maxMessages = 10;
     }
 
-    if (
-      typeof this.remainingMessages !== "number" ||
-      this.remainingMessages === 0
-    ) {
+    if (!this.remainingMessages || this.remainingMessages === 0) {
       this.remainingMessages = Math.max(
         this.maxMessages - (this.smsUsed ?? 0),
         0
@@ -171,9 +151,10 @@ UserSchema.pre("save", function () {
     return;
   }
 
-  // 💳 PAID USER
-  // ❌ אין SMS דרך planLimits
-  this.planLimits.smsLimit = 0;
+  // 💳 PAID USER → ❌ לא לדרוס כלום
+  if (this.hasPaid) {
+    return;
+  }
 });
 
 /* ============================================================
@@ -184,7 +165,7 @@ UserSchema.pre("findOneAndUpdate", function () {
   const isUsingSet = !!rawUpdate.$set;
   const update = isUsingSet ? rawUpdate.$set : rawUpdate;
 
-  // 🧪 Trial update
+  // 🧪 TRIAL
   if (update.isTrial === true) {
     update.plan = "premium";
     update.guests = 1000;
@@ -209,6 +190,11 @@ UserSchema.pre("findOneAndUpdate", function () {
         0
       );
     }
+  }
+
+  // 💳 PAID USER → ❌ לא נוגעים
+  if (update.hasPaid === true && update.isTrial !== true) {
+    return;
   }
 
   if (isUsingSet) rawUpdate.$set = update;
