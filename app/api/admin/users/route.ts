@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import Payment from "@/models/Payment";
 
 export const dynamic = "force-dynamic"; // 🔥 חובה
 
@@ -24,16 +25,36 @@ const token = cookieStore.get("authToken")?.value;
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    /* ================= USERS = SOURCE OF TRUTH ================= */
+    /* ================= PAYMENTS = SOURCE OF TRUTH ================= */
+    const paidPayments = await Payment.find({
+      status: "paid",
+      isTest: false,
+    })
+      .select("email createdAt amount priceKey maxGuests includeCalls includeCreditGifts")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const paidEmails = paidPayments.map(p => p.email);
+
+    if (paidEmails.length === 0) {
+      return NextResponse.json({ success: true, users: [] });
+    }
+
+    /* ================= USERS ================= */
     const users = await User.find({
-      hasPaid: true,
+      email: { $in: paidEmails },
       isDemoUser: { $ne: true },
     })
-      .select("email name role plan includeCalls callsRounds createdAt")
-      .sort({ createdAt: -1 });
+      .select("email name role plan guests paidAmount includeCalls includeCreditGifts createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
 
     return NextResponse.json(
-      { success: true, users },
+      {
+        success: true,
+        users,
+        payments: paidPayments, // 👈 אופציונלי – שימושי לאדמין
+      },
       {
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate",
