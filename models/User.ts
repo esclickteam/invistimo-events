@@ -6,7 +6,8 @@ import mongoose, { Schema, Document, models } from "mongoose";
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string;
+  password?: string;
+
 
   phone?: string;
 
@@ -73,9 +74,13 @@ const UserSchema = new Schema<IUser>(
     },
 
     password: {
-      type: String,
-      required: true,
-    },
+  type: String,
+  required: function (this: any) {
+    return !this.needsPasswordSetup;
+  },
+  minlength: [6, "Password must be at least 6 characters"],
+},
+
 
     phone: {
       type: String,

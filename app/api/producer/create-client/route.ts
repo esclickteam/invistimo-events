@@ -150,7 +150,6 @@ console.log("🍪 raw cookie header exists:", !!cookieHeader);
       name,
       email,
       phone: phone || "",
-      password: "", // יגדיר אחר כך
       needsPasswordSetup: true,
       magicToken,
       magicTokenExpires,
