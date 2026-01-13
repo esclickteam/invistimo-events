@@ -29,49 +29,58 @@ export default function CreateClientByProducer({ onSuccess }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
 
-    try {
-      setLoading(true);
+  // ⛔ מניעת שליחה כפולה
+  if (loading) return;
 
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: form.fullName,
-          email: form.email,
-          phone: form.phone,
-          password: form.password,
-          plan: "premium",
-          maxGuests: Number(form.maxGuests),
-          includeCalls: form.includeCalls,
-          createdByProducer: true,
-        }),
-      });
+  setError("");
 
-      const data = await res.json();
+  try {
+    setLoading(true);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "יצירת משתמש נכשלה");
-      }
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        plan: "premium",
+        maxGuests: Number(form.maxGuests),
+        includeCalls: form.includeCalls,
+        createdByProducer: true,
+      }),
+    });
 
-      onSuccess?.();
+    // ✅ טיפול בטוח בתגובה (גם אם ריקה)
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
 
-      setForm({
-        fullName: "",
-        email: "",
-        phone: "",
-        password: "",
-        maxGuests: 100,
-        includeCalls: false,
-      });
-    } catch (err) {
-      setError(err.message || "שגיאה כללית");
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error(data?.error || "יצירת משתמש נכשלה");
     }
-  };
+
+    // ✅ הצלחה
+    onSuccess?.();
+
+    // ניקוי טופס
+    setForm({
+      fullName: "",
+      email: "",
+      phone: "",
+      password: "",
+      maxGuests: 100,
+      includeCalls: false,
+    });
+  } catch (err) {
+    setError(err?.message || "שגיאה כללית");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   /* =========================
      Render
@@ -194,13 +203,26 @@ export default function CreateClientByProducer({ onSuccess }) {
       )}
 
       {/* Submit */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full mt-2 bg-[var(--brand-purple)] hover:bg-[var(--brand-purple-dark)] text-white font-semibold py-2.5 rounded-xl transition disabled:opacity-60"
-      >
-        {loading ? "יוצר לקוח…" : "צור לקוח"}
-      </button>
+     <button
+  type="submit"
+  disabled={loading}
+  className="
+    w-full
+    mt-4
+    h-12
+    rounded-xl
+    bg-[#3A2B23]
+    text-white
+    text-base
+    font-semibold
+    shadow-md
+    hover:bg-[#2e221b]
+    transition
+    disabled:opacity-50
+  "
+>
+  {loading ? "יוצר לקוח…" : "צור לקוח"}
+</button>
     </form>
   );
 }
