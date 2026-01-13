@@ -17,7 +17,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 /* ============================================================
-   lookup_key → maxGuests (FULL PACKAGES ONLY)
+   lookup_key → maxGuests
 ============================================================ */
 const GUESTS_BY_KEY: Record<string, number> = {
   basic_plan: 100,
@@ -60,9 +60,6 @@ export async function POST(req: Request) {
 
   console.log("📦 EVENT TYPE:", stripeEvent.type);
 
-  /* ============================================================
-     Ignore non-successful sessions
-============================================================ */
   if (
     stripeEvent.type === "checkout.session.expired" ||
     stripeEvent.type === "checkout.session.async_payment_failed"
@@ -131,12 +128,12 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     Load Invitation ONCE (do not recreate blindly)
+     Load Invitation (do not recreate blindly)
 ============================================================ */
   let invitation = await Invitation.findOne({ ownerId: user._id });
 
   /* ============================================================
-     🟢 CASE 1: PREMIUM UPGRADE (Add guests + SMS)
+     🟢 CASE 1: PREMIUM UPGRADE
 ============================================================ */
   if (session.metadata?.type === "upgrade") {
     const targetGuests = Number(session.metadata.targetGuests || 0);
@@ -157,10 +154,16 @@ export async function POST(req: Request) {
 
     await User.findByIdAndUpdate(user._id, {
       plan: "premium",
+
+      hasPaid: true,
+      status: "active",
+      isSubscriptionValid: true,
+
       $inc: {
         guests: targetGuests,
         paidAmount: amountCharged,
       },
+
       planLimits: {
         maxGuests: (user.guests || 0) + targetGuests,
         smsEnabled: true,
@@ -178,12 +181,12 @@ export async function POST(req: Request) {
         maxGuests: targetGuests,
         sentSmsCount: 0,
         maxMessages: smsToAdd,
-        remainingMessages: smsToAdd, // ✅ מותר רק כי אין הזמנה קיימת
+        remainingMessages: smsToAdd,
       });
     } else {
       invitation.maxGuests += targetGuests;
       invitation.maxMessages += smsToAdd;
-      invitation.remainingMessages += smsToAdd; // ✅ ADD בלבד
+      invitation.remainingMessages += smsToAdd;
       await invitation.save();
     }
 
@@ -199,6 +202,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
+    await User.findByIdAndUpdate(user._id, {
+      hasPaid: true,
+      status: "active",
+      isSubscriptionValid: true,
+    });
+
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: user._id,
@@ -207,11 +216,11 @@ export async function POST(req: Request) {
         shareId: crypto.randomUUID(),
         sentSmsCount: 0,
         maxMessages: messagesToAdd,
-        remainingMessages: messagesToAdd, // ✅ יצירה ראשונה
+        remainingMessages: messagesToAdd,
       });
     } else {
       invitation.maxMessages += messagesToAdd;
-      invitation.remainingMessages += messagesToAdd; // ✅ ADD בלבד
+      invitation.remainingMessages += messagesToAdd;
       await invitation.save();
     }
 
@@ -219,9 +228,8 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🟢 CASE 3: FULL PACKAGE PURCHASE (BASIC / PREMIUM)
+     🟢 CASE 3: FULL PACKAGE PURCHASE
 ============================================================ */
-
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 10,
   });
@@ -249,7 +257,7 @@ export async function POST(req: Request) {
   const plan = session.metadata?.plan || "basic";
 
   const isBasic = plan === "basic";
-  const messagesToAdd = isBasic ? 0 : maxGuests * 3; // 🔴 שונה: ADD ולא SET
+  const messagesToAdd = isBasic ? 0 : maxGuests * 3;
 
   await Payment.create({
     email,
@@ -274,10 +282,16 @@ export async function POST(req: Request) {
     plan,
     guests: maxGuests,
     paidAmount: totalPaid,
+
+    hasPaid: true,
+    status: "active",
+    isSubscriptionValid: true,
+
     includeCalls,
     callsAddonPrice,
     includeCreditGifts,
     creditGiftsAddonPrice,
+
     planLimits: {
       maxGuests,
       smsEnabled: !isBasic,
@@ -295,12 +309,12 @@ export async function POST(req: Request) {
       maxGuests,
       sentSmsCount: 0,
       maxMessages: messagesToAdd,
-      remainingMessages: messagesToAdd, // ✅ יצירה ראשונה בלבד
+      remainingMessages: messagesToAdd,
     });
   } else {
     invitation.maxGuests = maxGuests;
-    invitation.maxMessages += messagesToAdd;        // 🔴 שונה
-    invitation.remainingMessages += messagesToAdd;  // 🔴 שונה
+    invitation.maxMessages += messagesToAdd;
+    invitation.remainingMessages += messagesToAdd;
     await invitation.save();
   }
 
