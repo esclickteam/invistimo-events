@@ -459,9 +459,8 @@ const smsPreviewText =
   if (loading) return null;
 
 // בפרודקשן – חובה הזמנה, בדמו לא חוסמים תצוגה
-if (!invitation && !isDemo) {
-  return <div>לא נמצאה הזמנה</div>;
-}
+const hasInvitation = !!invitation;
+
 
   const remaining = balance?.remainingMessages ?? 0;
 const max = balance?.maxMessages ?? 0;
