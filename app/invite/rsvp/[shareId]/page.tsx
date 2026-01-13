@@ -65,7 +65,9 @@ export default function InviteRsvpPage({ params }: any) {
   const [sent, setSent] = useState(false);
 
   const [rsvp, setRsvp] = useState<"yes" | "no" | null>(null);
-  const [guestsCount, setGuestsCount] = useState<number>(1);
+
+  // ❗ arrivedCount = כמה יגיעו בפועל
+  const [arrivedCount, setArrivedCount] = useState<number>(1);
   const [guestsOpen, setGuestsOpen] = useState(false);
 
   const [notes, setNotes] = useState<string[]>([]);
@@ -78,7 +80,9 @@ export default function InviteRsvpPage({ params }: any) {
   const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
   const [shareId, setShareId] = useState<string | null>(null);
 
-  /* unwrap params */
+  /* ============================================================
+     unwrap params
+  ============================================================ */
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -87,7 +91,9 @@ export default function InviteRsvpPage({ params }: any) {
     unwrap();
   }, [params]);
 
-  /* load guest by token */
+  /* ============================================================
+     load guest by token
+  ============================================================ */
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const token = query.get("token");
@@ -96,13 +102,18 @@ export default function InviteRsvpPage({ params }: any) {
     async function loadGuest() {
       const res = await fetch(`/api/invitationGuests/byToken/${token}`);
       const data = await res.json();
-      if (data.success) setGuest(data.guest);
+      if (data.success) {
+        setGuest(data.guest);
+        setArrivedCount(1); // ברירת מחדל
+      }
     }
 
     loadGuest();
   }, []);
 
-  /* load invitation */
+  /* ============================================================
+     load invitation
+  ============================================================ */
   useEffect(() => {
     if (!shareId) return;
 
@@ -137,12 +148,13 @@ export default function InviteRsvpPage({ params }: any) {
     load();
   }, [shareId]);
 
-  if (loading)
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         טוען הזמנה...
       </div>
     );
+  }
 
   if (!invitation) return notFound();
 
@@ -150,52 +162,48 @@ export default function InviteRsvpPage({ params }: any) {
 
   /* ============================================================
      שליחת RSVP
+     ❗ לא שולחים guestsCount בכלל
   ============================================================ */
-  /* ============================================================
-   שליחת RSVP
-============================================================ */
-async function submitRsvp() {
-  if (!rsvp) {
-    alert("נא לבחור מגיע / לא מגיע");
-    return;
-  }
-
-  if (!guest?.token || !shareId) {
-    alert("שגיאה בזיהוי האורח");
-    return;
-  }
-
-  const finalNotes =
-    notes.includes("אחר") && otherNote
-      ? [...notes.filter((n) => n !== "אחר"), `אחר: ${otherNote}`]
-      : notes;
-
-  try {
-    const res = await fetch(`/api/invite/${shareId}/rsvp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token: guest.token,
-        rsvp,
-        guestsCount: rsvp === "yes" ? guestsCount : 0,
-        arrivedCount: rsvp === "yes" ? guestsCount : 0,
-        notes: finalNotes.join(", "),
-      }),
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      setSent(true);
-    } else {
-      alert("שגיאה בשליחה: " + (data.error || ""));
+  async function submitRsvp() {
+    if (!rsvp) {
+      alert("נא לבחור מגיע / לא מגיע");
+      return;
     }
-  } catch (err) {
-    console.error("❌ RSVP error:", err);
-    alert("שגיאת שרת");
-  }
-}
 
+    if (!guest?.token || !shareId) {
+      alert("שגיאה בזיהוי האורח");
+      return;
+    }
+
+    const finalNotes =
+      notes.includes("אחר") && otherNote
+        ? [...notes.filter((n) => n !== "אחר"), `אחר: ${otherNote}`]
+        : notes;
+
+    try {
+      const res = await fetch(`/api/invite/${shareId}/rsvp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: guest.token,
+          rsvp,
+          arrivedCount: rsvp === "yes" ? arrivedCount : 0,
+          notes: finalNotes.join(", "),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setSent(true);
+      } else {
+        alert("שגיאה בשליחה: " + (data.error || ""));
+      }
+    } catch (err) {
+      console.error("❌ RSVP error:", err);
+      alert("שגיאת שרת");
+    }
+  }
 
   /* ============================================================
      Render
@@ -286,14 +294,13 @@ async function submitRsvp() {
               <>
                 <label className="block mb-2">כמה אנשים יגיעו?</label>
 
-                {/* 🔽 DROPDOWN מקצועי */}
                 <div className="relative mb-4">
                   <button
                     type="button"
                     onClick={() => setGuestsOpen((v) => !v)}
                     className="w-full flex justify-between items-center px-4 py-3 rounded-full border border-[#d1c7b4]"
                   >
-                    <span>{guestsCount}</span>
+                    <span>{arrivedCount}</span>
                     <span>▾</span>
                   </button>
 
@@ -303,11 +310,11 @@ async function submitRsvp() {
                         <div
                           key={n}
                           onClick={() => {
-                            setGuestsCount(n);
+                            setArrivedCount(n);
                             setGuestsOpen(false);
                           }}
                           className={`px-4 py-3 cursor-pointer hover:bg-[#faf9f6] ${
-                            guestsCount === n
+                            arrivedCount === n
                               ? "bg-[#f3eee7] font-semibold"
                               : ""
                           }`}

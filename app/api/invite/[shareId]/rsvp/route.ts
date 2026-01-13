@@ -16,7 +16,9 @@ export async function POST(
     await db();
 
     const { shareId } = await context.params;
-    const { token, rsvp, guestsCount, notes } = await req.json();
+
+    // ❗ arrivedCount בלבד
+    const { token, rsvp, arrivedCount, notes } = await req.json();
 
     if (!shareId || !token) {
       return NextResponse.json(
@@ -55,7 +57,7 @@ export async function POST(
        עדכון נתוני האורח
        ❗️ guestsCount (מוזמנים) — לא נוגעים
     ============================================================ */
-    if (rsvp) {
+    if (rsvp === "yes" || rsvp === "no" || rsvp === "pending") {
       guest.rsvp = rsvp;
     }
 
@@ -66,8 +68,8 @@ export async function POST(
     // ✅ arrivedCount בלבד
     if (rsvp === "yes") {
       guest.arrivedCount =
-        typeof guestsCount === "number" && guestsCount >= 0
-          ? guestsCount
+        typeof arrivedCount === "number" && arrivedCount >= 0
+          ? arrivedCount
           : guest.arrivedCount;
     } else {
       guest.arrivedCount = 0;
@@ -82,7 +84,7 @@ export async function POST(
       invitationId: invitation._id,
     });
 
-    // ✅ סה"כ מוזמנים (קבוע)
+    // ✅ סה"כ מוזמנים (קבוע — לפי הזמנות, לא אישורים)
     const totalInvited = allGuests.reduce(
       (sum, g) => sum + (g.guestsCount || 0),
       0

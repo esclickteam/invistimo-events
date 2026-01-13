@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 }
 
 /* ============================================
-   PUT — עדכון אורח
+   PUT — עדכון אורח / RSVP
 ============================================ */
 export async function PUT(req: NextRequest, { params }: RouteContext) {
   const { id } = await params;
@@ -70,29 +70,39 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     /* ===============================
-       עדכונים מותרים
+       שדות כלליים (עריכת בעל האירוע)
     =============================== */
-
     if (typeof data.name === "string") guest.name = data.name;
     if (typeof data.phone === "string") guest.phone = data.phone;
     if (typeof data.relation === "string") guest.relation = data.relation;
     if (typeof data.notes === "string") guest.notes = data.notes;
 
+    /* ===============================
+       RSVP
+    =============================== */
     if (["yes", "no", "pending"].includes(data.rsvp)) {
       guest.rsvp = data.rsvp;
     }
 
-    if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
+    /* ===============================
+       🔒 guestsCount — רק בעל האירוע / אדמין
+       ❗ אורח לא יכול לשנות מוזמנים
+    =============================== */
+    if (
+      typeof data.guestsCount === "number" &&
+      data.guestsCount >= 1 &&
+      (isOwner || isAdmin)
+    ) {
       guest.guestsCount = data.guestsCount;
     }
 
-    // ✅ מגיעים בפועל – השדה הנכון
+    /* ===============================
+       ✅ arrivedCount — כמה אישרו / הגיעו
+       (זה השדה שמתעדכן ב-RSVP)
+    =============================== */
     if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
       guest.arrivedCount = data.arrivedCount;
     }
-
-    // ❗ tableName הוא שדה מחושב מהושבה – אל תשמרי אותו כאן
-    // אם בעתיד תרצי כן – נדבר על זה בנפרד
 
     await guest.save();
 

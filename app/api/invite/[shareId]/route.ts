@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
    GET — קבלת הזמנה לפי shareId
    אם מגיע token => מאתרים אורח לפי token + invitationId
    מחזירים invitation + event + guest (אם קיים)
+   ❗️ GET בלבד — לא משנה נתונים
 ============================================================ */
 export async function GET(
   req: Request,
@@ -32,7 +33,7 @@ export async function GET(
     const token = searchParams.get("token");
 
     /* ============================================================
-       1) שליפת ההזמנה (בלי populate!)
+       1) שליפת ההזמנה (בלי populate)
     ============================================================ */
     const invitation = await Invitation.findOne({ shareId }).lean();
 
@@ -56,22 +57,32 @@ export async function GET(
     }
 
     /* ============================================================
-       3) אימות אורח לפי token + invitationId
+       3) אימות אורח לפי token + invitationId (אם קיים token)
     ============================================================ */
-    let guest = null;
+    let guest: any = null;
 
     if (token) {
-      guest = await InvitationGuest.findOne({
+      const foundGuest = await InvitationGuest.findOne({
         token,
         invitationId: invitation._id,
       }).lean();
 
-      if (!guest) {
+      if (!foundGuest) {
         return NextResponse.json(
           { success: false, error: "INVALID_TOKEN" },
           { status: 404 }
         );
       }
+
+      // ✅ נרמול עקבי ל־Frontend:
+      // arrivedCount תמיד קיים (לפני RSVP = 0)
+      guest = {
+        ...foundGuest,
+        arrivedCount:
+          typeof foundGuest.arrivedCount === "number"
+            ? foundGuest.arrivedCount
+            : 0,
+      };
     }
 
     /* ============================================================
@@ -82,7 +93,7 @@ export async function GET(
         success: true,
         invitation,
         event, // כולל location עם lat/lng
-        guest, // כולל guestsCount + arrivedCount
+        guest, // כולל guestsCount (מוזמנים) + arrivedCount (מגיעים)
       },
       { status: 200 }
     );

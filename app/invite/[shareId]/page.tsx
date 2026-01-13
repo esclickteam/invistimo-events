@@ -17,13 +17,18 @@ export default function PublicInvitePage({ params }: any) {
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [sent, setSent] = useState(false);
 
+  /* ============================================================
+     RSVP FORM STATE
+     ❗ arrivedCount = כמה יגיעו
+     ❗ guestsCount לא קיים כאן יותר
+  ============================================================ */
   const [form, setForm] = useState<{
     rsvp: "yes" | "no" | "pending";
-    guestsCount: number;
+    arrivedCount: number;
     notes: string[];
   }>({
     rsvp: "pending",
-    guestsCount: 1,
+    arrivedCount: 1,
     notes: [],
   });
 
@@ -55,9 +60,11 @@ export default function PublicInvitePage({ params }: any) {
 
         if (data.success && data.guest) {
           setSelectedGuest(data.guest);
+
+          // ❗ ברירת מחדל: מגיע אדם אחד
           setForm((prev) => ({
             ...prev,
-            guestsCount: data.guest.guestsCount || 1,
+            arrivedCount: 1,
           }));
         }
       } catch (err) {
@@ -80,12 +87,12 @@ export default function PublicInvitePage({ params }: any) {
         const data = await res.json();
 
         if (data.success && data.invitation && data.event) {
-  setInvite(data.invitation);
-  setEvent(data.event);
-} else {
-  setInvite(null);
-  setEvent(null);
-}
+          setInvite(data.invitation);
+          setEvent(data.event);
+        } else {
+          setInvite(null);
+          setEvent(null);
+        }
       } catch (err) {
         console.error("❌ Invite fetch error:", err);
         setInvite(null);
@@ -99,6 +106,7 @@ export default function PublicInvitePage({ params }: any) {
 
   /* ============================================================
      שליחת RSVP
+     ❗ שולחים arrivedCount בלבד
   ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -114,7 +122,11 @@ export default function PublicInvitePage({ params }: any) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            rsvp: form.rsvp,
+            arrivedCount: form.rsvp === "yes" ? form.arrivedCount : 0,
+            notes: form.notes,
+          }),
         }
       );
 
@@ -191,7 +203,9 @@ export default function PublicInvitePage({ params }: any) {
 
               <button
                 type="button"
-                onClick={() => setForm({ ...form, rsvp: "no" })}
+                onClick={() =>
+                  setForm({ ...form, rsvp: "no", arrivedCount: 0 })
+                }
                 className={`flex-1 py-3 rounded-full font-medium border ${
                   form.rsvp === "no"
                     ? "bg-[#b88a8a] text-white border-[#b88a8a]"
@@ -204,7 +218,7 @@ export default function PublicInvitePage({ params }: any) {
 
             {form.rsvp === "yes" && (
               <>
-                {/* כמות אורחים */}
+                {/* כמות מגיעים */}
                 <div>
                   <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
                     כמה אנשים יגיעו?
@@ -216,7 +230,7 @@ export default function PublicInvitePage({ params }: any) {
                       onClick={() => setGuestsOpen((v) => !v)}
                       className="w-full flex justify-between items-center px-4 py-3 rounded-full border border-[#d1c7b4] bg-white"
                     >
-                      <span>{form.guestsCount}</span>
+                      <span>{form.arrivedCount}</span>
                       <span className="text-gray-400">▾</span>
                     </button>
 
@@ -229,12 +243,12 @@ export default function PublicInvitePage({ params }: any) {
                               onClick={() => {
                                 setForm({
                                   ...form,
-                                  guestsCount: num,
+                                  arrivedCount: num,
                                 });
                                 setGuestsOpen(false);
                               }}
                               className={`px-4 py-3 cursor-pointer hover:bg-[#faf9f6] ${
-                                form.guestsCount === num
+                                form.arrivedCount === num
                                   ? "bg-[#f3eee7] font-semibold"
                                   : ""
                               }`}
@@ -293,10 +307,9 @@ export default function PublicInvitePage({ params }: any) {
           </div>
         )}
 
-        {/* ✅ כרטיס מיקום / איך מגיעים — מתחת לכפתור שליחת האישור */}
+        {/* כרטיס מיקום */}
         <div className="w-full flex justify-center">
           <EventLocationCard location={event?.location} />
-
         </div>
       </div>
     </div>
