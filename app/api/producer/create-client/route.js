@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
@@ -12,15 +12,16 @@ export async function POST(req) {
     console.log("🟢 create-client API hit");
 
     /* =========================
-       COOKIES DEBUG
+       COOKIE DEBUG (SAFE)
     ========================= */
     const cookieStore = cookies();
-    const allCookies = cookieStore.getAll();
-
-    console.log("🍪 All cookies:", allCookies);
 
     const token = cookieStore.get("authToken")?.value;
     console.log("🔐 authToken:", token);
+
+    // debug מתקדם – אם צריך לראות הכול
+    const rawCookieHeader = headers().get("cookie");
+    console.log("🍪 raw cookie header:", rawCookieHeader);
 
     if (!token) {
       console.log("⛔ No authToken found");
@@ -35,7 +36,7 @@ export async function POST(req) {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
       console.log("🧠 decoded token:", decoded);
     } catch (err) {
-      console.log("⛔ JWT verification failed", err);
+      console.log("⛔ JWT verification failed:", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -43,7 +44,6 @@ export async function POST(req) {
     console.log("👤 producerId:", producerId);
 
     if (!producerId) {
-      console.log("⛔ No producerId in token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -51,12 +51,11 @@ export async function POST(req) {
     console.log("👤 producer user:", producer);
 
     if (!producer) {
-      console.log("⛔ Producer not found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (producer.role !== "producer") {
-      console.log("⛔ User is not producer:", producer.role);
+      console.log("⛔ Not producer role:", producer.role);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -69,7 +68,6 @@ export async function POST(req) {
     const { email, name, phone, guests, includeCalls } = body;
 
     if (!email || !name) {
-      console.log("⛔ Missing required fields");
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -80,14 +78,12 @@ export async function POST(req) {
        EXISTING USER
     ========================= */
     const existingUser = await User.findOne({ email });
-    console.log("🔍 existingUser:", existingUser);
-
     if (existingUser) {
       return NextResponse.json({ success: true, user: existingUser });
     }
 
     /* =========================
-       CREATE USER
+       CREATE CLIENT
     ========================= */
     const tempPassword = Math.random().toString(36).slice(-10);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
@@ -130,7 +126,7 @@ export async function POST(req) {
       isDemoUser: false,
     });
 
-    console.log("✅ Client created:", newUser);
+    console.log("✅ Client created:", newUser._id);
 
     return NextResponse.json({
       success: true,
