@@ -6,17 +6,20 @@ import { nanoid } from "nanoid";
 const LocationSchema = new Schema(
   {
     name: {
-  type: String,
-  default: "",
-},
+      type: String,
+      default: "",
+    },
+
     address: {
       type: String,
       default: "",
     },
+
     lat: {
       type: Number,
       default: null,
     },
+
     lng: {
       type: Number,
       default: null,
@@ -108,24 +111,10 @@ const InvitationSchema = new Schema(
       required: true,
     },
 
-    /* ================= SMS ================= */
+    /* ================= SMS (USAGE ONLY) ================= */
     sentSmsCount: {
       type: Number,
       default: 0,
-    },
-
-    maxMessages: {
-      type: Number,
-      default: function () {
-        return (this.maxGuests || 100) * 3;
-      },
-    },
-
-    remainingMessages: {
-      type: Number,
-      default: function () {
-        return (this.maxGuests || 100) * 3;
-      },
     },
   },
   {
@@ -136,10 +125,9 @@ const InvitationSchema = new Schema(
 /* ================= INDEXES ================= */
 
 // 🔒 מוודא שלא תהיה יותר מהזמנה אחת לאותו Event
-InvitationSchema.index(
-  { eventId: 1 },
-  { unique: true }
-);
+InvitationSchema.index({ eventId: 1 }, { unique: true });
+
+/* ================= MODEL ================= */
 
 export default models.Invitation ||
   model("Invitation", InvitationSchema);

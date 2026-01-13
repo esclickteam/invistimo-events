@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     TRIAL / SMS LIMIT GUARD
+     TRIAL / SMS LIMIT GUARD (USER-BASED)
   ====================================================== */
   if (user.isTrial) {
     if (user.trialExpiresAt && new Date() > user.trialExpiresAt) {
@@ -53,6 +53,16 @@ export async function POST(req: Request) {
     }
 
     if (user.smsUsed >= user.planLimits.smsLimit) {
+      return NextResponse.json(
+        { success: false, error: "SMS_LIMIT_REACHED" },
+        { status: 403 }
+      );
+    }
+  } else {
+    if (
+      typeof user.remainingMessages !== "number" ||
+      user.remainingMessages <= 0
+    ) {
       return NextResponse.json(
         { success: false, error: "SMS_LIMIT_REACHED" },
         { status: 403 }
@@ -88,7 +98,7 @@ export async function POST(req: Request) {
   if (filter === "withTable") query.tableName = { $exists: true, $ne: "" };
 
   /* ======================================================
-     ⏱️ תזמון – אם יש scheduledAt → שומרים ויוצאים
+     ⏱️ תזמון – שומרים בלבד (לא נוגעים ביתרה עכשיו)
   ====================================================== */
   if (scheduledAt) {
     const guestsCount = await InvitationGuest.countDocuments(query);
@@ -125,13 +135,15 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     חישוב כמה מותר לשלוח (Trial-safe)
+     חישוב כמה מותר לשלוח (USER-BASED)
   ====================================================== */
   let allowedToSend = guests.length;
 
   if (user.isTrial) {
     const remaining = user.planLimits.smsLimit - user.smsUsed;
     allowedToSend = Math.max(0, Math.min(remaining, guests.length));
+  } else {
+    allowedToSend = Math.min(user.remainingMessages, guests.length);
   }
 
   if (allowedToSend === 0) {
@@ -213,22 +225,17 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     עדכון DB + Cookies
+     עדכון DB – USER הוא מקור האמת
   ====================================================== */
   if (sent > 0) {
-    await Invitation.updateOne(
-      { _id: invitationId },
-      {
-        $inc: {
-          sentSmsCount: sent,
-          remainingMessages: -sent,
-        },
-      }
-    );
-
     await User.findByIdAndUpdate(user._id, {
-      $inc: { smsUsed: sent },
+      $inc: {
+        smsUsed: sent,
+        remainingMessages: -sent,
+      },
     });
+
+  
 
     cookieStore.set("smsUsed", String(user.smsUsed + sent), {
       httpOnly: false,

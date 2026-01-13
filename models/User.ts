@@ -16,14 +16,11 @@ export interface IUser extends Document {
 
   hasPaid: boolean;
 
-  // ✅ מי יצר את הלקוח (אם נוצר ע"י מפיק)
   createdByProducer?: mongoose.Types.ObjectId | null;
 
-  // ☎️ שירות שיחות
   includeCalls: boolean;
   callsAddonPrice: number;
 
-  // 🎁 מתנות באשראי
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
 
@@ -37,18 +34,19 @@ export interface IUser extends Document {
 
   smsUsed: number;
 
-  // 🧪 TRIAL / DEMO
   isTrial: boolean;
   trialStartedAt?: Date;
   trialExpiresAt?: Date;
   isDemoUser?: boolean;
 
-  // 🔐 RESET PASSWORD
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
 
   createdAt: Date;
   updatedAt: Date;
+
+  // 🧠 VIRTUAL
+  remainingSms?: number;
 }
 
 /* ============================================================
@@ -62,7 +60,7 @@ function safeLevel(value: any) {
 }
 
 /* ============================================================
-   חישוב כללי לפי חבילה
+   PLAN RULES
 ============================================================ */
 function applyPlanRules(user: IUser) {
   // 🧪 TRIAL
@@ -175,11 +173,7 @@ const UserSchema = new Schema<IUser>(
     guests: { type: Number, default: 100 },
     paidAmount: { type: Number, default: 49 },
 
-    hasPaid: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+    hasPaid: { type: Boolean, default: false, index: true },
 
     createdByProducer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -212,8 +206,28 @@ const UserSchema = new Schema<IUser>(
     resetPasswordToken: { type: String, index: true },
     resetPasswordExpires: Date,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+/* ============================================================
+   🔥 VIRTUAL – remainingSms (SOURCE OF TRUTH FOR UI)
+============================================================ */
+UserSchema.virtual("remainingSms").get(function (this: IUser) {
+  if (!this.planLimits?.smsEnabled) return 0;
+
+  if (this.planLimits.smsLimit === Infinity) {
+    return Infinity;
+  }
+
+  const used = this.smsUsed ?? 0;
+  const limit = this.planLimits.smsLimit ?? 0;
+
+  return Math.max(limit - used, 0);
+});
 
 /* ============================================================
    AUTO LOGIC – SAVE
