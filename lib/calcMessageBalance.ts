@@ -1,12 +1,20 @@
 import MessageLog from "@/models/MessageLog";
 
-export async function calcBalance(invitationId: string, maxGuests: number) {
-  const maxMessages = maxGuests * 3;
-  const usedMessages = await MessageLog.countDocuments({ invitationId });
+/**
+ * ⚠️ IMPORTANT
+ * This function is for STATS / DISPLAY ONLY.
+ * It is NOT the source of truth for SMS balance.
+ *
+ * Source of truth:
+ * Invitation.remainingMessages
+ */
+export async function calcBalanceStats(invitationId: string) {
+  const usedMessages = await MessageLog.countDocuments({
+    invitationId,
+    channel: "sms",
+  });
 
   return {
-    maxMessages,
     usedMessages,
-    remainingMessages: Math.max(maxMessages - usedMessages, 0),
   };
 }

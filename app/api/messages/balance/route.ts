@@ -41,7 +41,6 @@ const userId = auth.userId;
       isTrial: true,
       smsEnabled: limit > 0,
       maxMessages: limit,
-      remainingMessages: Math.max(limit - used, 0),
       sentSmsCount: used,
     });
   }

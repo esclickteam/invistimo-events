@@ -127,8 +127,7 @@ export async function POST(req: Request) {
 
       maxGuests,
       maxMessages,
-      sentSmsCount: 0,
-      remainingMessages: maxMessages,
+      
     });
 
     const cleanInvite = JSON.parse(JSON.stringify(newInvite));

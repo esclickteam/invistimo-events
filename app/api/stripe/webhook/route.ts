@@ -7,7 +7,6 @@ import Invitation from "@/models/Invitation";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 import Event from "@/models/Event";
 
-
 export const runtime = "nodejs";
 
 /* ============================================================
@@ -46,7 +45,6 @@ export async function POST(req: Request) {
   }
 
   const body = await req.clone().text();
-
   let stripeEvent: Stripe.Event;
 
   try {
@@ -63,26 +61,15 @@ export async function POST(req: Request) {
   console.log("📦 EVENT TYPE:", stripeEvent.type);
 
   /* ============================================================
-     CASE: Session Expired / Failed
-  ============================================================ */
+     Ignore non-successful sessions
+============================================================ */
   if (
     stripeEvent.type === "checkout.session.expired" ||
     stripeEvent.type === "checkout.session.async_payment_failed"
   ) {
-    const s = stripeEvent.data.object as Stripe.Checkout.Session;
-    console.log("🕒 Checkout session did NOT complete:", {
-      id: s.id,
-      email: s.customer_email,
-      payment_status: s.payment_status,
-      status: s.status,
-      metadata: s.metadata,
-    });
     return NextResponse.json({ received: true });
   }
 
-  /* ============================================================
-     We only care about completed sessions
-  ============================================================ */
   if (stripeEvent.type !== "checkout.session.completed") {
     return NextResponse.json({ received: true });
   }
@@ -91,25 +78,13 @@ export async function POST(req: Request) {
 
   const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
-  /* ============================================================
-     Ensure payment actually completed
-  ============================================================ */
-  if (session.payment_status !== "paid") {
-    console.log("⚠️ checkout.session.completed but not paid:", {
-      id: session.id,
-      payment_status: session.payment_status,
-      status: session.status,
-    });
-    return NextResponse.json({ received: true });
-  }
-
-  if (!session.payment_intent) {
+  if (session.payment_status !== "paid" || !session.payment_intent) {
     return NextResponse.json({ received: true });
   }
 
   /* ============================================================
-     Prevent duplicate payment processing
-  ============================================================ */
+     Prevent duplicate processing
+============================================================ */
   const existingPayment = await Payment.findOne({
     stripePaymentIntentId: String(session.payment_intent),
   });
@@ -121,7 +96,7 @@ export async function POST(req: Request) {
 
   /* ============================================================
      Identify user
-  ============================================================ */
+============================================================ */
   let user: any = null;
 
   if (session.metadata?.userId) {
@@ -139,38 +114,33 @@ export async function POST(req: Request) {
   const email = user.email;
 
   /* ============================================================
-   Ensure Event exists (ALWAYS after payment)
+     Ensure Event exists
 ============================================================ */
-let event = await Event.findOne({ ownerId: user._id });
+  let event = await Event.findOne({ ownerId: user._id });
 
-if (!event) {
-  event = await Event.create({
-    ownerId: user._id,
-    title: "",
-    eventType: "",
-    eventDate: null,
-    eventTime: "",
-    location: {},
-    status: "draft", // ⬅️ חשוב ל־UX
-  });
-
-  console.log("🎉 Event created for user:", user.email);
-}
-
+  if (!event) {
+    event = await Event.create({
+      ownerId: user._id,
+      title: "",
+      eventType: "",
+      eventDate: null,
+      eventTime: "",
+      location: {},
+      status: "draft",
+    });
+  }
 
   /* ============================================================
-     🟢 CASE 1: PREMIUM UPGRADE (Add more guests)
+     Load Invitation ONCE (do not recreate blindly)
+============================================================ */
+  let invitation = await Invitation.findOne({ ownerId: user._id });
+
+  /* ============================================================
+     🟢 CASE 1: PREMIUM UPGRADE (Add guests + SMS)
 ============================================================ */
   if (session.metadata?.type === "upgrade") {
-    const targetGuests = Number(session.metadata.targetGuests);
-    const amountCharged = Number(session.metadata.amountCharged);
-
-    if (!targetGuests || !amountCharged) {
-      return NextResponse.json({ received: true });
-    }
-
-    const currentGuests = user.guests || 0;
-    const newTotalGuests = currentGuests + targetGuests;
+    const targetGuests = Number(session.metadata.targetGuests || 0);
+    const amountCharged = Number(session.metadata.amountCharged || 0);
     const smsToAdd = targetGuests * 3;
 
     await Payment.create({
@@ -179,7 +149,7 @@ if (!event) {
       stripePaymentIntentId: String(session.payment_intent),
       stripeCustomerId: session.customer as string,
       priceKey: `premium_${targetGuests}`,
-      maxGuests: newTotalGuests,
+      maxGuests: (user.guests || 0) + targetGuests,
       amount: amountCharged,
       currency: "ils",
       status: "paid",
@@ -187,17 +157,17 @@ if (!event) {
 
     await User.findByIdAndUpdate(user._id, {
       plan: "premium",
-      guests: newTotalGuests,
-      paidAmount: (user.paidAmount || 0) + amountCharged,
+      $inc: {
+        guests: targetGuests,
+        paidAmount: amountCharged,
+      },
       planLimits: {
-        maxGuests: newTotalGuests,
+        maxGuests: (user.guests || 0) + targetGuests,
         smsEnabled: true,
         seatingEnabled: true,
         remindersEnabled: true,
       },
     });
-
-    let invitation = await Invitation.findOne({ ownerId: user._id });
 
     if (!invitation) {
       invitation = await Invitation.create({
@@ -205,30 +175,17 @@ if (!event) {
         title: "ההזמנה שלי",
         canvasData: {},
         shareId: crypto.randomUUID(),
-        maxGuests: newTotalGuests,
+        maxGuests: targetGuests,
         sentSmsCount: 0,
         maxMessages: smsToAdd,
-        remainingMessages: smsToAdd,
+        remainingMessages: smsToAdd, // ✅ מותר רק כי אין הזמנה קיימת
       });
     } else {
-      invitation.maxGuests = newTotalGuests;
-      invitation.maxMessages = (invitation.maxMessages || 0) + smsToAdd;
-      invitation.remainingMessages =
-        (invitation.remainingMessages || 0) + smsToAdd;
+      invitation.maxGuests += targetGuests;
+      invitation.maxMessages += smsToAdd;
+      invitation.remainingMessages += smsToAdd; // ✅ ADD בלבד
       await invitation.save();
     }
-
-    console.log(
-      `✅ Upgrade OK: ${email} | +${targetGuests} guests | +${smsToAdd} messages`
-    );
-
-    await notifyAdminPurchase({
-      email,
-      amount: amountCharged,
-      currency: "ils",
-      type: "Premium upgrade",
-      details: `+${targetGuests} אורחים`,
-    });
 
     return NextResponse.json({ received: true });
   }
@@ -238,9 +195,9 @@ if (!event) {
 ============================================================ */
   if (session.metadata?.type === "addon") {
     const messagesToAdd = Number(session.metadata.messages || 0);
-    if (messagesToAdd <= 0) return NextResponse.json({ received: true });
-
-    let invitation = await Invitation.findOne({ ownerId: user._id });
+    if (messagesToAdd <= 0) {
+      return NextResponse.json({ received: true });
+    }
 
     if (!invitation) {
       invitation = await Invitation.create({
@@ -250,37 +207,25 @@ if (!event) {
         shareId: crypto.randomUUID(),
         sentSmsCount: 0,
         maxMessages: messagesToAdd,
-        remainingMessages: messagesToAdd,
+        remainingMessages: messagesToAdd, // ✅ יצירה ראשונה
       });
     } else {
-      invitation.maxMessages = (invitation.maxMessages || 0) + messagesToAdd;
-      invitation.remainingMessages =
-        (invitation.remainingMessages || 0) + messagesToAdd;
+      invitation.maxMessages += messagesToAdd;
+      invitation.remainingMessages += messagesToAdd; // ✅ ADD בלבד
       await invitation.save();
     }
-
-    console.log(`✅ Added ${messagesToAdd} SMS to ${email}`);
-
-    await notifyAdminPurchase({
-      email,
-      amount: 0,
-      currency: "ils",
-      type: "SMS add-on",
-      details: `+${messagesToAdd} הודעות`,
-    });
 
     return NextResponse.json({ received: true });
   }
 
   /* ============================================================
      🟢 CASE 3: FULL PACKAGE PURCHASE (BASIC / PREMIUM)
-     ✅ כולל שירות השיחות (includeCalls)
 ============================================================ */
+
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 10,
   });
 
-  // 💰 חישוב מחיר כולל לפי metadata או לפי הסכום ב-line items
   const totalPaid =
     Number(session.metadata?.totalPaid) ||
     lineItems.data.reduce((sum, item) => {
@@ -289,74 +234,57 @@ if (!event) {
     }, 0) / 100;
 
   const includeCalls = session.metadata?.includeCalls === "true";
-const callsAddonPrice = Number(session.metadata?.callsAddonPrice || 0);
+  const callsAddonPrice = Number(session.metadata?.callsAddonPrice || 0);
 
-// 🎁 כלל עסקי מחייב ב־Webhook:
-// אם יש אישורי הגעה טלפוניים – מתנות באשראי כלולות וחינמיות
-const includeCreditGifts = includeCalls
-  ? true
-  : session.metadata?.includeCreditGifts === "true";
+  const includeCreditGifts = includeCalls
+    ? true
+    : session.metadata?.includeCreditGifts === "true";
 
-const creditGiftsAddonPrice = includeCalls
-  ? 0
-  : Number(session.metadata?.creditGiftsAddonPrice || 0);
-
+  const creditGiftsAddonPrice = includeCalls
+    ? 0
+    : Number(session.metadata?.creditGiftsAddonPrice || 0);
 
   const priceKey = session.metadata?.priceKey || "";
   const maxGuests = Number(session.metadata?.maxGuests || 100);
   const plan = session.metadata?.plan || "basic";
 
   const isBasic = plan === "basic";
-  const maxMessages = isBasic ? 0 : maxGuests * 3;
+  const messagesToAdd = isBasic ? 0 : maxGuests * 3; // 🔴 שונה: ADD ולא SET
 
-  /* ============================================================
-     Save Payment
-============================================================ */
   await Payment.create({
-  email,
-  stripeSessionId: session.id,
-  stripePaymentIntentId: String(session.payment_intent),
-  stripeCustomerId: session.customer as string,
-  priceKey,
-  maxGuests,
-  amount: totalPaid,
-  currency: "ils",
-  status: "paid",
-  metadata: {
+    email,
+    stripeSessionId: session.id,
+    stripePaymentIntentId: String(session.payment_intent),
+    stripeCustomerId: session.customer as string,
+    priceKey,
+    maxGuests,
+    amount: totalPaid,
+    currency: "ils",
+    status: "paid",
+    metadata: {
+      includeCalls,
+      callsAddonPrice,
+      includeCreditGifts,
+      creditGiftsAddonPrice,
+      totalPaid,
+    },
+  });
+
+  await User.findByIdAndUpdate(user._id, {
+    plan,
+    guests: maxGuests,
+    paidAmount: totalPaid,
     includeCalls,
     callsAddonPrice,
     includeCreditGifts,
     creditGiftsAddonPrice,
-    totalPaid,
-  },
-});
-
-  /* ============================================================
-     Update User Plan
-============================================================ */
-  await User.findByIdAndUpdate(user._id, {
-  plan,
-  guests: maxGuests,
-  paidAmount: totalPaid,
-
-  includeCalls,
-  callsAddonPrice,
-
-  includeCreditGifts,
-  creditGiftsAddonPrice,
-
-  planLimits: {
-    maxGuests,
-    smsEnabled: !isBasic,
-    seatingEnabled: !isBasic,
-    remindersEnabled: true,
-  },
-});
-
-  /* ============================================================
-     Create or update Invitation
-============================================================ */
-  let invitation = await Invitation.findOne({ ownerId: user._id });
+    planLimits: {
+      maxGuests,
+      smsEnabled: !isBasic,
+      seatingEnabled: !isBasic,
+      remindersEnabled: true,
+    },
+  });
 
   if (!invitation) {
     invitation = await Invitation.create({
@@ -366,25 +294,15 @@ const creditGiftsAddonPrice = includeCalls
       shareId: crypto.randomUUID(),
       maxGuests,
       sentSmsCount: 0,
-      maxMessages,
-      remainingMessages: maxMessages,
+      maxMessages: messagesToAdd,
+      remainingMessages: messagesToAdd, // ✅ יצירה ראשונה בלבד
     });
   } else {
-    const sent = invitation.sentSmsCount || 0;
     invitation.maxGuests = maxGuests;
-    invitation.maxMessages = maxMessages;
-    invitation.remainingMessages = Math.max(0, maxMessages - sent);
+    invitation.maxMessages += messagesToAdd;        // 🔴 שונה
+    invitation.remainingMessages += messagesToAdd;  // 🔴 שונה
     await invitation.save();
   }
-
-  /* ============================================================
-     Logs + Admin notification
-============================================================ */
-  console.log(
-  `✅ Full package OK: ${email} | ${maxGuests} guests | calls=${
-    includeCalls ? "yes" : "no"
-  } | creditGifts=${includeCreditGifts ? "yes" : "no"} | totalPaid=${totalPaid}₪`
-);
 
   await notifyAdminPurchase({
     email,
@@ -392,10 +310,8 @@ const creditGiftsAddonPrice = includeCalls
     currency: "ils",
     type: plan === "basic" ? "Basic package" : "Premium package",
     details: `${maxGuests} אורחים${
-  includeCalls ? " + שירות שיחות" : ""
-}${
-  includeCreditGifts ? " + מתנות באשראי" : ""
-}`,
+      includeCalls ? " + שירות שיחות" : ""
+    }${includeCreditGifts ? " + מתנות באשראי" : ""}`,
   });
 
   return NextResponse.json({ received: true });

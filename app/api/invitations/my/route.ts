@@ -151,7 +151,6 @@ export async function POST(req: Request) {
       guests: [],
       maxGuests,
       maxMessages,
-      remainingMessages: maxMessages,
       sentSmsCount: 0,
     });
 

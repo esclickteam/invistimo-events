@@ -35,14 +35,14 @@ export async function POST(req: Request) {
 
     const auth = await getUserIdFromRequest();
 
-if (!auth?.userId) {
-  return NextResponse.json(
-    { success: false, error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-const userId = auth.userId;
+    const userId = auth.userId;
 
     const user = await User.findById(userId).lean();
     if (!user) {
@@ -52,7 +52,6 @@ const userId = auth.userId;
       );
     }
 
-    // ❌ חסימה מוחלטת לפי חבילה
     if (!user.planLimits?.smsEnabled) {
       return NextResponse.json(
         {
@@ -87,7 +86,6 @@ const userId = auth.userId;
       );
     }
 
-    // 🔐 ודא שההזמנה שייכת למשתמש
     if (String(invitation.ownerId) !== String(userId)) {
       return NextResponse.json(
         { error: "FORBIDDEN" },
@@ -97,9 +95,7 @@ const userId = auth.userId;
 
     /* ================= LOAD GUESTS ================= */
 
-    const guests: GuestDoc[] = await Guest.find({
-      invitationId,
-    }).lean();
+    const guests: GuestDoc[] = await Guest.find({ invitationId }).lean();
 
     /* ================= FILTER TARGETS ================= */
 
@@ -111,13 +107,23 @@ const userId = auth.userId;
 
     /* ================= BALANCE CHECK (SOURCE OF TRUTH) ================= */
 
-    const remainingMessages = invitation.remainingMessages ?? 0;
+    // ❗ אין fallback – אם לא מאותחל זה באג
+    if (typeof invitation.remainingMessages !== "number") {
+      return NextResponse.json(
+        {
+          error: "SMS_BALANCE_NOT_INITIALIZED",
+        },
+        { status: 500 }
+      );
+    }
+
+    const remainingMessages = invitation.remainingMessages;
 
     if (remainingMessages <= 0) {
       return NextResponse.json(
         {
           error: "NO_SMS_BALANCE",
-          remainingMessages: 0,
+          remainingMessages,
         },
         { status: 403 }
       );
@@ -151,10 +157,7 @@ const userId = auth.userId;
         ? guest.phone
         : `972${guest.phone.replace(/^0/, "")}`;
 
-      await sendSMS({
-        to: phone,
-        message: text,
-      });
+      await sendSMS({ to: phone, message: text });
 
       await MessageLog.create({
         invitationId,
@@ -171,20 +174,25 @@ const userId = auth.userId;
 
     /* ================= UPDATE SMS BALANCE ================= */
 
+    let updatedInvitation = invitation;
+
     if (actuallySent > 0) {
-      await Invitation.findByIdAndUpdate(invitation._id, {
-        $inc: {
-          sentSmsCount: actuallySent,
-          remainingMessages: -actuallySent,
+      updatedInvitation = await Invitation.findByIdAndUpdate(
+        invitation._id,
+        {
+          $inc: {
+            sentSmsCount: actuallySent,
+            remainingMessages: -actuallySent,
+          },
         },
-      });
+        { new: true }
+      );
     }
 
     return NextResponse.json({
       success: true,
       sent: actuallySent,
-      remainingMessages:
-        (invitation.remainingMessages ?? 0) - actuallySent,
+      remainingMessages: updatedInvitation.remainingMessages,
     });
   } catch (err) {
     console.error("❌ SMS SEND ERROR:", err);
