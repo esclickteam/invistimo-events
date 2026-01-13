@@ -78,14 +78,16 @@ export async function POST(req: Request): Promise<NextResponse> {
   /* =========================
      Cookies & Auth
   ========================= */
-  const cookieStore = await cookies();
-  const token = cookieStore.get("authToken")?.value || null;
+  const cookieHeader = req.headers.get("cookie") || "";
 
-  const allHeaders = await headers();
-  const rawCookieHeader = allHeaders.get("cookie");
+const token =
+  cookieHeader
+    .split(";")
+    .find((c) => c.trim().startsWith("authToken="))
+    ?.split("=")[1] || null;
 
-  console.log("🔐 token exists:", !!token);
-  console.log("🍪 raw cookie header exists:", !!rawCookieHeader);
+console.log("🔐 token exists:", !!token);
+console.log("🍪 raw cookie header exists:", !!cookieHeader);
 
   await connectDB();
 
