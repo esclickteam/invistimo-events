@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies, headers } from "next/headers";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Resend } from "resend";
 import { connectDB } from "@/lib/db";
@@ -15,7 +13,8 @@ export const dynamic = "force-dynamic";
    INIT
 ========================================================= */
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://www.invistimo.com";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL || "https://www.invistimo.com";
 
 /* =========================================================
    TYPES
@@ -24,7 +23,6 @@ type AuthTokenPayload = JwtPayload & {
   userId?: string;
   id?: string;
   _id?: string;
-  email?: string;
   role?: string;
 };
 
@@ -75,21 +73,13 @@ function getAmountByGuests(maxGuests: number) {
 export async function POST(req: Request): Promise<NextResponse> {
   console.log("🟢 create-client API hit");
 
-  /* =========================
-     Cookies & Auth
-  ========================= */
+  /* ================= AUTH ================= */
   const cookieHeader = req.headers.get("cookie") || "";
-
-const token =
-  cookieHeader
-    .split(";")
-    .find((c) => c.trim().startsWith("authToken="))
-    ?.split("=")[1] || null;
-
-console.log("🔐 token exists:", !!token);
-console.log("🍪 raw cookie header exists:", !!cookieHeader);
-
-  await connectDB();
+  const token =
+    cookieHeader
+      .split(";")
+      .find((c) => c.trim().startsWith("authToken="))
+      ?.split("=")[1] || null;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -97,21 +87,24 @@ console.log("🍪 raw cookie header exists:", !!cookieHeader);
 
   let decoded: AuthTokenPayload;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthTokenPayload;
-  } catch (err) {
-    console.error("⛔ JWT verification failed:", err);
+    decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    ) as AuthTokenPayload;
+  } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
   const producerId = decoded.userId || decoded.id || decoded._id;
-  const producer = await User.findById(producerId).lean();
+
+  await connectDB();
+
+  const producer = await User.findById(producerId);
   if (!producer || producer.role !== "producer") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  /* =========================
-     Body
-  ========================= */
+  /* ================= BODY ================= */
   let body: CreateClientBody;
   try {
     body = await req.json();
@@ -120,48 +113,52 @@ console.log("🍪 raw cookie header exists:", !!cookieHeader);
   }
 
   const { email, name, phone, guests, includeCalls } = body;
+
   if (!email || !name) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 }
+    );
   }
 
   const maxGuests = Number(guests) || 100;
   const priceKey = getPriceKeyByGuests(maxGuests);
   const amount = getAmountByGuests(maxGuests);
 
-  console.log("📦 Pricing:", { maxGuests, priceKey, amount });
-
-  /* =========================
-     Check existing
-  ========================= */
+  /* ================= EXISTING USER ================= */
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    console.log("⚠️ User already exists:", existingUser._id);
     return NextResponse.json({ success: true, user: existingUser });
   }
 
-  /* =========================
-     Create new user
-  ========================= */
+  /* ================= CREATE USER ================= */
   try {
-    const magicToken = crypto.randomBytes(32).toString("hex");
-    const magicTokenExpires = Date.now() + 1000 * 60 * 60 * 24; // 24h
+    const resetPasswordToken = crypto
+      .randomBytes(32)
+      .toString("hex");
+
+    const resetPasswordExpires = new Date(
+      Date.now() + 1000 * 60 * 60 * 24 // 24 שעות
+    );
 
     const newUser = await User.create({
       name,
       email,
       phone: phone || "",
-      needsPasswordSetup: true,
-      magicToken,
-      magicTokenExpires,
 
       role: "client",
       createdByProducer: producerId,
+
+      needsPasswordSetup: true,
+      resetPasswordToken,
+      resetPasswordExpires,
 
       hasPaid: true,
       isTrial: false,
       plan: "premium",
       paidAmount: amount,
       guests: maxGuests,
+
       planLimits: {
         maxGuests,
         smsEnabled: true,
@@ -169,16 +166,13 @@ console.log("🍪 raw cookie header exists:", !!cookieHeader);
         seatingEnabled: true,
         remindersEnabled: true,
       },
+
       includeCalls: !!includeCalls,
       includeCreditGifts: false,
       isDemoUser: false,
     });
 
-    console.log("✅ Client created:", newUser._id);
-
-    /* =========================
-       Payment record
-    ========================= */
+    /* ================= PAYMENT ================= */
     const payment = await Payment.create({
       email: newUser.email,
       priceKey,
@@ -198,40 +192,39 @@ console.log("🍪 raw cookie header exists:", !!cookieHeader);
       },
     });
 
-    console.log("💳 Payment created:", payment._id);
+    /* ================= SEND MAGIC LINK ================= */
+    const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
 
-    /* =========================
-       Send Magic Link email
-    ========================= */
-    const magicLink = `${BASE_URL}/set-password?token=${magicToken}`;
-    try {
-      await resend.emails.send({
-        from: "Invistimo <noreply@invistimo.com>",
-        to: email,
-        subject: "הגדרת סיסמה לחשבון שלך",
-        html: `
-          <div style="font-family:Heebo,Arial,sans-serif;direction:rtl;text-align:right">
-            <h2>ברוך הבא לאינויסטימו 🎉</h2>
-            <p>המפיק שלך יצר עבורך חשבון חדש במערכת.</p>
-            <p>להגדרת סיסמה ולכניסה למערכת לחץ כאן:</p>
-            <a href="${magicLink}" target="_blank"
-              style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
-              הגדר סיסמה
-            </a>
-            <p style="margin-top:16px;font-size:14px;color:#555">
-              הקישור תקף ל-24 שעות בלבד.
-            </p>
-          </div>
-        `,
-      });
-      console.log("📧 Magic link email sent to:", email);
-    } catch (err) {
-      console.error("❌ Failed to send magic link:", err);
-    }
+    await resend.emails.send({
+      from: "Invistimo <noreply@invistimo.com>",
+      to: email,
+      subject: "הגדרת סיסמה לחשבון שלך",
+      html: `
+        <div style="font-family:Heebo,Arial,sans-serif;direction:rtl;text-align:right">
+          <h2>ברוך הבא לאינויסטימו 🎉</h2>
+          <p>המפיק שלך יצר עבורך חשבון חדש.</p>
+          <p>להגדרת סיסמה ולכניסה למערכת:</p>
+          <a href="${magicLink}" target="_blank"
+            style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
+            הגדר סיסמה
+          </a>
+          <p style="margin-top:16px;font-size:14px;color:#555">
+            הקישור תקף ל־24 שעות.
+          </p>
+        </div>
+      `,
+    });
 
-    return NextResponse.json({ success: true, user: newUser, payment });
+    return NextResponse.json({
+      success: true,
+      user: newUser,
+      payment,
+    });
   } catch (err) {
-    console.error("❌ create-client save error:", err);
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
+    console.error("❌ create-client error:", err);
+    return NextResponse.json(
+      { error: "Failed to create client" },
+      { status: 500 }
+    );
   }
 }
