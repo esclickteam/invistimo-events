@@ -8,7 +8,6 @@ export async function POST(req: Request) {
   try {
     await connectDB();
 
-    // ✅ תוספות: includeCalls + includeCreditGifts
     const {
       name,
       email,
@@ -17,6 +16,7 @@ export async function POST(req: Request) {
       guests,
       includeCalls,
       includeCreditGifts,
+      createdByProducer, // ✅ חדש
     } = await req.json();
 
     if (!name || !email || !password) {
@@ -37,8 +37,7 @@ export async function POST(req: Request) {
     const hashed = await bcrypt.hash(password, 12);
 
     /* ============================================================
-       הגדרות חבילה בסיסיות
-       ❗ לא נוגעים במחירים
+       הגדרות חבילה בסיסיות (לא נוגעים במחירים)
     ============================================================ */
     let planLimits = {
       maxGuests: 100,
@@ -81,15 +80,14 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       תוספות (ללא חיוב כאן!)
-       החיוב האמיתי נקבע רק ב־Stripe webhook
+       תוספות
     ============================================================ */
     const includeCallsBool = Boolean(includeCalls);
 
-// 🎁 אם יש אישורי הגעה טלפוניים – מתנות באשראי תמיד כלולות
-const includeCreditGiftsBool = includeCallsBool
-  ? true
-  : Boolean(includeCreditGifts);
+    // 🎁 אם יש אישורי הגעה טלפוניים – מתנות באשראי תמיד כלולות
+    const includeCreditGiftsBool = includeCallsBool
+      ? true
+      : Boolean(includeCreditGifts);
 
     /* ============================================================
        יצירת המשתמש
@@ -103,17 +101,31 @@ const includeCreditGiftsBool = includeCallsBool
       paidAmount,
       planLimits,
 
-      // ✅ שיחות
       includeCalls: includeCallsBool,
       callsAddonPrice: 0,
 
-      // ✅ מתנות באשראי
       includeCreditGifts: includeCreditGiftsBool,
       creditGiftsAddonPrice: 0,
+
+      createdByProducer: Boolean(createdByProducer), // ✅ אופציונלי לשמירה
     });
 
     /* ============================================================
-       JWT + Cookie
+       🟢 אם נוצר ע"י מפיק – לא מבצעים login
+    ============================================================ */
+    if (createdByProducer) {
+      return NextResponse.json({
+        success: true,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+        },
+      });
+    }
+
+    /* ============================================================
+       🔐 הרשמה רגילה – JWT + Cookie (לא נגע!)
     ============================================================ */
     const token = jwt.sign(
       { userId: user._id, email: user.email },

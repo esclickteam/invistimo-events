@@ -8,11 +8,11 @@ export default function CreateClientByProducer({ onSuccess }) {
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
-    fullName: "",
+    name: "",          // ✅ במקום fullName
     email: "",
     phone: "",
     password: "",
-    maxGuests: 100,
+    guests: 100,       // ✅ במקום maxGuests
     includeCalls: false,
   });
 
@@ -41,14 +41,13 @@ export default function CreateClientByProducer({ onSuccess }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: form.fullName,
+          name: form.name,                // ✅
           email: form.email,
-          phone: form.phone,
           password: form.password,
           plan: "premium",
-          maxGuests: Number(form.maxGuests),
+          guests: Number(form.guests),    // ✅
           includeCalls: form.includeCalls,
-          createdByProducer: true,
+          createdByProducer: true,        // ✅ קריטי
         }),
       });
 
@@ -62,11 +61,11 @@ export default function CreateClientByProducer({ onSuccess }) {
       onSuccess?.();
 
       setForm({
-        fullName: "",
+        name: "",
         email: "",
         phone: "",
         password: "",
-        maxGuests: 100,
+        guests: 100,
         includeCalls: false,
       });
     } catch (err) {
@@ -83,14 +82,9 @@ export default function CreateClientByProducer({ onSuccess }) {
     <div className="w-full flex justify-center">
       <form
         onSubmit={handleSubmit}
-        className="
-          w-full
-          max-w-[520px]
-          space-y-5
-          text-right
-        "
+        className="w-full max-w-[520px] space-y-5 text-right"
       >
-        {/* Full Name */}
+        {/* Name */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             שם מלא
@@ -99,11 +93,11 @@ export default function CreateClientByProducer({ onSuccess }) {
             <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              name="fullName"
-              value={form.fullName}
+              name="name"
+              value={form.name}
               onChange={handleChange}
               required
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
             />
           </div>
         </div>
@@ -121,12 +115,12 @@ export default function CreateClientByProducer({ onSuccess }) {
               value={form.email}
               onChange={handleChange}
               required
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
             />
           </div>
         </div>
 
-        {/* Phone */}
+        {/* Phone (ויזואלי בלבד) */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             טלפון
@@ -138,8 +132,7 @@ export default function CreateClientByProducer({ onSuccess }) {
               name="phone"
               value={form.phone}
               onChange={handleChange}
-              required
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 outline-none"
             />
           </div>
         </div>
@@ -157,12 +150,12 @@ export default function CreateClientByProducer({ onSuccess }) {
               value={form.password}
               onChange={handleChange}
               required
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
             />
           </div>
         </div>
 
-        {/* Max Guests */}
+        {/* Guests */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             כמות אורחים
@@ -170,8 +163,8 @@ export default function CreateClientByProducer({ onSuccess }) {
           <div className="relative">
             <Users className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <select
-              name="maxGuests"
-              value={form.maxGuests}
+              name="guests"
+              value={form.guests}
               onChange={handleChange}
               className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
             >
@@ -184,14 +177,13 @@ export default function CreateClientByProducer({ onSuccess }) {
           </div>
         </div>
 
-        {/* Include Calls */}
+        {/* Calls */}
         <label className="flex items-center gap-3 text-sm text-slate-700 cursor-pointer">
           <input
             type="checkbox"
             name="includeCalls"
             checked={form.includeCalls}
             onChange={handleChange}
-            className="w-4 h-4 rounded border-slate-300 text-[var(--brand-purple)] focus:ring-[var(--brand-purple)]"
           />
           <PhoneCall className="w-4 h-4 text-slate-400" />
           כולל שיחות טלפון
@@ -208,26 +200,7 @@ export default function CreateClientByProducer({ onSuccess }) {
         <button
           type="submit"
           disabled={loading}
-          className="
-            w-full
-            h-12
-            mt-6
-            rounded-xl
-            bg-[#3A2B23]
-            text-white
-            text-base
-            font-semibold
-            border
-            border-[#3A2B23]
-            shadow-lg
-            hover:bg-[#2E221B]
-            focus:outline-none
-            focus:ring-2
-            focus:ring-[#3A2B23]
-            focus:ring-offset-2
-            disabled:opacity-80
-            disabled:cursor-not-allowed
-          "
+          className="w-full h-12 mt-6 rounded-xl bg-[#3A2B23] text-white font-semibold hover:bg-[#2E221B]"
         >
           {loading ? "יוצר לקוח…" : "צור לקוח"}
         </button>
