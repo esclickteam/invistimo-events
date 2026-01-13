@@ -9,39 +9,67 @@ export async function POST(req) {
   try {
     await connectDB();
 
+    console.log("🟢 create-client API hit");
+
     /* =========================
-       AUTH – זיהוי מפיק
+       COOKIES DEBUG
     ========================= */
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
+    const allCookies = cookieStore.getAll();
+
+    console.log("🍪 All cookies:", allCookies);
+
     const token = cookieStore.get("authToken")?.value;
+    console.log("🔐 authToken:", token);
 
     if (!token) {
+      console.log("⛔ No authToken found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    /* =========================
+       JWT VERIFY
+    ========================= */
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
+      console.log("🧠 decoded token:", decoded);
+    } catch (err) {
+      console.log("⛔ JWT verification failed", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const producerId = decoded?.id || decoded?._id;
+    console.log("👤 producerId:", producerId);
+
     if (!producerId) {
+      console.log("⛔ No producerId in token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const producer = await User.findById(producerId);
-    if (!producer || producer.role !== "producer") {
+    console.log("👤 producer user:", producer);
+
+    if (!producer) {
+      console.log("⛔ Producer not found");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (producer.role !== "producer") {
+      console.log("⛔ User is not producer:", producer.role);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     /* =========================
        BODY
     ========================= */
-    const { email, name, phone, guests, includeCalls } = await req.json();
+    const body = await req.json();
+    console.log("📦 request body:", body);
+
+    const { email, name, phone, guests, includeCalls } = body;
 
     if (!email || !name) {
+      console.log("⛔ Missing required fields");
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -49,24 +77,23 @@ export async function POST(req) {
     }
 
     /* =========================
-       בדיקה אם קיים
+       EXISTING USER
     ========================= */
     const existingUser = await User.findOne({ email });
+    console.log("🔍 existingUser:", existingUser);
+
     if (existingUser) {
       return NextResponse.json({ success: true, user: existingUser });
     }
 
     /* =========================
-       סיסמה זמנית
+       CREATE USER
     ========================= */
     const tempPassword = Math.random().toString(36).slice(-10);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     const maxGuests = Number(guests) || 100;
 
-    /* =========================
-       CREATE CLIENT – זהה ללקוח משלם
-    ========================= */
     const newUser = await User.create({
       name,
       email,
@@ -78,7 +105,6 @@ export async function POST(req) {
       role: "client",
       createdByProducer: producerId,
 
-      /* ===== זהות ללקוח משלם ===== */
       hasPaid: true,
       isTrial: false,
       plan: "premium",
@@ -99,20 +125,19 @@ export async function POST(req) {
       smsUsed: 0,
 
       includeCalls: !!includeCalls,
-      callsAddonPrice: includeCalls ? 0 : 0,
-
       includeCreditGifts: false,
-      creditGiftsAddonPrice: 0,
 
       isDemoUser: false,
     });
+
+    console.log("✅ Client created:", newUser);
 
     return NextResponse.json({
       success: true,
       user: newUser,
     });
   } catch (err) {
-    console.error("❌ create-client error:", err);
+    console.error("❌ create-client fatal error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

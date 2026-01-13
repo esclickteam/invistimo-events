@@ -33,23 +33,30 @@ export default function CreateClientByProducer({ onSuccess }) {
 
     setError("");
 
+    console.log("📤 Submitting create-client form:", form);
+
     try {
       setLoading(true);
 
       const res = await fetch("/api/producer/create-client", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include", // 🔥🔥🔥 זה הפתרון
-  body: JSON.stringify({
-    name: form.name,
-    email: form.email,
-    phone: form.phone,
-    guests: Number(form.guests),
-    includeCalls: form.includeCalls,
-  }),
-});
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // 🔥 חובה
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          guests: Number(form.guests),
+          includeCalls: form.includeCalls,
+        }),
+      });
+
+      console.log("📥 Response status:", res.status);
 
       const data = await res.json();
+      console.log("📥 Response body:", data);
 
       if (!res.ok) {
         throw new Error(data?.error || "יצירת לקוח נכשלה");
@@ -65,6 +72,7 @@ export default function CreateClientByProducer({ onSuccess }) {
         includeCalls: false,
       });
     } catch (err) {
+      console.error("❌ Frontend error:", err);
       setError(err.message || "שגיאה כללית");
     } finally {
       setLoading(false);
