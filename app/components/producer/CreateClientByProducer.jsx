@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { User, Mail, Phone, Lock, Users, PhoneCall } from "lucide-react";
 
 export default function CreateClientByProducer({ onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -42,12 +43,9 @@ export default function CreateClientByProducer({ onSuccess }) {
           email: form.email,
           phone: form.phone,
           password: form.password,
-
-          // חבילת פרימיום – בדיוק כמו הרשמה רגילה
           plan: "premium",
           maxGuests: Number(form.maxGuests),
           includeCalls: form.includeCalls,
-
           createdByProducer: true,
         }),
       });
@@ -58,10 +56,8 @@ export default function CreateClientByProducer({ onSuccess }) {
         throw new Error(data?.error || "יצירת משתמש נכשלה");
       }
 
-      // ✅ הצלחה – מחזירים שליטה לדשבורד
       onSuccess?.();
 
-      // ניקוי טופס (אופציונלי אבל מומלץ)
       setForm({
         fullName: "",
         email: "",
@@ -71,7 +67,6 @@ export default function CreateClientByProducer({ onSuccess }) {
         includeCalls: false,
       });
     } catch (err) {
-      console.error(err);
       setError(err.message || "שגיאה כללית");
     } finally {
       setLoading(false);
@@ -82,80 +77,130 @@ export default function CreateClientByProducer({ onSuccess }) {
      Render
   ========================= */
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: 12 }}>יצירת לקוח חדש</h2>
+    <form onSubmit={handleSubmit} className="space-y-5 text-right">
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-        <input
-          type="text"
-          name="fullName"
-          placeholder="שם מלא"
-          value={form.fullName}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          type="email"
-          name="email"
-          placeholder="אימייל"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          type="tel"
-          name="phone"
-          placeholder="טלפון"
-          value={form.phone}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          type="password"
-          name="password"
-          placeholder="סיסמה"
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
-
-        <select
-          name="maxGuests"
-          value={form.maxGuests}
-          onChange={handleChange}
-        >
-          <option value={100}>עד 100 אורחים</option>
-          <option value={200}>עד 200 אורחים</option>
-          <option value={300}>עד 300 אורחים</option>
-          <option value={400}>עד 400 אורחים</option>
-          <option value={500}>עד 500 אורחים</option>
-          <option value={600}>עד 600 אורחים</option>
-          <option value={700}>עד 700 אורחים</option>
-          <option value={800}>עד 800 אורחים</option>
-          <option value={1000}>עד 1000 אורחים</option>
-        </select>
-
-        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input
-            type="checkbox"
-            name="includeCalls"
-            checked={form.includeCalls}
-            onChange={handleChange}
-          />
-          כולל שיחות טלפון
+      {/* Full Name */}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          שם מלא
         </label>
+        <div className="relative">
+          <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            name="fullName"
+            value={form.fullName}
+            onChange={handleChange}
+            required
+            className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+          />
+        </div>
+      </div>
 
-        {error && (
-          <div style={{ color: "red", fontSize: 14 }}>{error}</div>
-        )}
+      {/* Email */}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          אימייל
+        </label>
+        <div className="relative">
+          <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            required
+            className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+          />
+        </div>
+      </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "יוצר משתמש..." : "צור לקוח"}
-        </button>
-      </form>
-    </div>
+      {/* Phone */}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          טלפון
+        </label>
+        <div className="relative">
+          <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="tel"
+            name="phone"
+            value={form.phone}
+            onChange={handleChange}
+            required
+            className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Password */}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          סיסמה
+        </label>
+        <div className="relative">
+          <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="password"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            required
+            className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] focus:border-[var(--brand-purple)] outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Max Guests */}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          כמות אורחים
+        </label>
+        <div className="relative">
+          <Users className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <select
+            name="maxGuests"
+            value={form.maxGuests}
+            onChange={handleChange}
+            className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
+          >
+            {[100,200,300,400,500,600,700,800,1000].map((n) => (
+              <option key={n} value={n}>
+                עד {n} אורחים
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Include Calls */}
+      <label className="flex items-center gap-3 text-sm text-slate-700 cursor-pointer">
+        <input
+          type="checkbox"
+          name="includeCalls"
+          checked={form.includeCalls}
+          onChange={handleChange}
+          className="w-4 h-4 rounded border-slate-300 text-[var(--brand-purple)] focus:ring-[var(--brand-purple)]"
+        />
+        <PhoneCall className="w-4 h-4 text-slate-400" />
+        כולל שיחות טלפון
+      </label>
+
+      {/* Error */}
+      {error && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {error}
+        </div>
+      )}
+
+      {/* Submit */}
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full mt-2 bg-[var(--brand-purple)] hover:bg-[var(--brand-purple-dark)] text-white font-semibold py-2.5 rounded-xl transition disabled:opacity-60"
+      >
+        {loading ? "יוצר לקוח…" : "צור לקוח"}
+      </button>
+    </form>
   );
 }

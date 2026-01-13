@@ -9,6 +9,8 @@ import {
   MapPin,
   ArrowUpRight,
   ListChecks,
+  UserPlus,
+  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -46,8 +48,6 @@ export default function ProducerDashboard() {
 
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(false);
-
-  // פתיחה / סגירה של מיני טופס
   const [showCreateClient, setShowCreateClient] = useState(false);
 
   /* =========================
@@ -63,14 +63,9 @@ export default function ProducerDashboard() {
           cache: "no-store",
         });
         const data = await res.json();
-
         if (data.success) {
           setEvents(Array.isArray(data.events) ? data.events : []);
-        } else {
-          console.error("❌ שגיאה בטעינת אירועים:", data.error);
         }
-      } catch (err) {
-        console.error("❌ שגיאה בטעינה:", err);
       } finally {
         setEventsLoading(false);
       }
@@ -83,147 +78,95 @@ export default function ProducerDashboard() {
      Stats
   ========================= */
   const stats = useMemo(() => {
-    const safeEvents = Array.isArray(events) ? events : [];
-    const activeEvents = safeEvents.filter((e) => e.status === "active");
-    const upcomingWeek = activeEvents.filter((e) =>
-      isWithinDays(e.date, 7)
-    );
-
-    const totalGuests = activeEvents.reduce(
-      (sum, e) => sum + (e.maxGuests || 0),
-      0
-    );
-
-    const nextEvent = [...activeEvents].sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    )[0];
-
+    const active = events.filter((e) => e.status === "active");
     return {
-      activeCount: activeEvents.length,
-      upcomingWeekCount: upcomingWeek.length,
-      totalGuests,
+      activeCount: active.length,
+      upcomingWeekCount: active.filter((e) => isWithinDays(e.date, 7)).length,
+      totalGuests: active.reduce((s, e) => s + (e.maxGuests || 0), 0),
       totalConfirmed: 0,
-      nextEvent: nextEvent || null,
     };
   }, [events]);
 
-  /* =========================
-     Guards
-  ========================= */
-  if (authLoading) return <div className="p-6">🔐 טוען משתמש...</div>;
-  if (!user) return <div className="p-6">❌ לא מחובר</div>;
-  if (eventsLoading) return <div className="p-6">🔄 טוען אירועים...</div>;
+  if (authLoading) return <div className="p-6">טוען…</div>;
+  if (!user) return <div className="p-6">לא מחובר</div>;
 
-  /* =========================
-     Render
-  ========================= */
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-10">
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">דשבורד מפיק</h1>
 
         <Button
-          className="flex items-center gap-2 bg-[var(--brand-purple)] text-white rounded-xl px-4 py-2"
           onClick={() => setShowCreateClient(true)}
+          className="bg-[var(--brand-purple)] hover:bg-[var(--brand-purple-dark)] text-white rounded-xl px-5 py-2.5 text-sm font-semibold flex gap-2"
         >
-          <Plus className="w-4 h-4" />
+          <UserPlus className="w-4 h-4" />
           יצירת לקוח חדש
         </Button>
       </div>
 
-      {/* Mini Create Client Form */}
+      {/* Create Client – PROFESSIONAL FORM */}
       {showCreateClient && (
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
+          transition={{ duration: 0.3 }}
+          className="bg-slate-50 border border-slate-200 rounded-2xl shadow-sm p-6"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">
-              יצירת לקוח חדש
-            </h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-[var(--brand-purple)]/10 text-[var(--brand-purple)] p-2 rounded-lg">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  יצירת לקוח חדש
+                </h2>
+                <p className="text-sm text-slate-500">
+                  פתיחת לקוח חדש וניהול האירועים שלו
+                </p>
+              </div>
+            </div>
 
             <button
               onClick={() => setShowCreateClient(false)}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="p-2 rounded-lg hover:bg-slate-200 transition"
             >
-              סגור ✕
+              <X className="w-4 h-4 text-slate-600" />
             </button>
           </div>
 
-          <CreateClientByProducer
-            onSuccess={() => {
-              setShowCreateClient(false);
-              alert("הלקוח נוצר בהצלחה");
-            }}
-          />
+          <div className="bg-white border border-slate-200 rounded-xl p-6">
+            <CreateClientByProducer
+              onSuccess={() => {
+                setShowCreateClient(false);
+              }}
+            />
+          </div>
         </motion.div>
       )}
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="bg-white rounded-2xl p-5 border">
-          <h3 className="text-sm text-gray-500">אירועים פעילים</h3>
-          <p className="text-3xl font-bold">{stats.activeCount}</p>
-        </motion.div>
-
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="bg-white rounded-2xl p-5 border">
-          <h3 className="text-sm text-gray-500">בשבוע הקרוב</h3>
-          <p className="text-3xl font-bold">{stats.upcomingWeekCount}</p>
-        </motion.div>
-
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="bg-white rounded-2xl p-5 border">
-          <h3 className="text-sm text-gray-500">סה״כ מוזמנים</h3>
-          <p className="text-3xl font-bold">{stats.totalGuests}</p>
-        </motion.div>
-
-        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="bg-white rounded-2xl p-5 border">
-          <h3 className="text-sm text-gray-500">אישרו הגעה</h3>
-          <p className="text-3xl font-bold">{stats.totalConfirmed}</p>
-        </motion.div>
-      </div>
-
-      {/* Events Table */}
-      <div>
-        <h2 className="text-xl font-semibold mb-3">האירועים שלי</h2>
-
-        {events.length === 0 ? (
-          <p className="text-gray-600">אין אירועים להצגה כרגע.</p>
-        ) : (
-          <div className="bg-white rounded-2xl border overflow-x-auto">
-            <table className="min-w-full text-sm text-right">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-3">תאריך</th>
-                  <th className="p-3">שם</th>
-                  <th className="p-3">מיקום</th>
-                  <th className="p-3">מוזמנים</th>
-                  <th className="p-3">סטטוס</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((ev) => (
-                  <tr key={ev._id} className="border-t">
-                    <td className="p-3">
-                      {ev.date
-                        ? new Date(ev.date).toLocaleDateString("he-IL")
-                        : "-"}
-                    </td>
-                    <td className="p-3 font-semibold">{ev.title}</td>
-                    <td className="p-3">{ev.location || "-"}</td>
-                    <td className="p-3">{ev.maxGuests || "-"}</td>
-                    <td className="p-3">
-                      {ev.status === "active" ? "פעיל" : "לא פעיל"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {[
+          ["אירועים פעילים", stats.activeCount],
+          ["בשבוע הקרוב", stats.upcomingWeekCount],
+          ['סה״כ מוזמנים', stats.totalGuests],
+          ["אישרו הגעה", stats.totalConfirmed],
+        ].map(([label, value], i) => (
+          <motion.div
+            key={label}
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            custom={i}
+            className="bg-white rounded-2xl p-5 border"
+          >
+            <p className="text-sm text-slate-500">{label}</p>
+            <p className="text-3xl font-bold text-slate-900">{value}</p>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
