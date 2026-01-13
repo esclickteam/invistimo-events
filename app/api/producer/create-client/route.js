@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
@@ -9,7 +10,7 @@ export async function POST(req) {
     await connectDB();
 
     /* =========================
-       AUTH – מזהה מפיק מה-token
+       AUTH – זיהוי מפיק
     ========================= */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
@@ -30,43 +31,88 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    /* =========================
-       קבלת נתוני גוף הבקשה
-    ========================= */
-    const { email, name, phone } = await req.json();
-    if (!email) {
-      return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    const producer = await User.findById(producerId);
+    if (!producer || producer.role !== "producer") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     /* =========================
-       אם המשתמש כבר קיים
+       BODY
     ========================= */
-    let existingUser = await User.findOne({ email });
+    const { email, name, phone, guests, includeCalls } = await req.json();
+
+    if (!email || !name) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       בדיקה אם קיים
+    ========================= */
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json({ success: true, user: existingUser });
     }
 
     /* =========================
-       יצירת משתמש חדש ע״י מפיק
+       סיסמה זמנית
+    ========================= */
+    const tempPassword = Math.random().toString(36).slice(-10);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    const maxGuests = Number(guests) || 100;
+
+    /* =========================
+       CREATE CLIENT – זהה ללקוח משלם
     ========================= */
     const newUser = await User.create({
-      name: name || "",
+      name,
       email,
-      password: "temporary", // בהמשך תשלחי לו לינק התחברות
       phone: phone || "",
-      role: "user",
-      createdByProducer: producerId, // ✅ שומר מי פתח
-      plan: "premium",
+
+      password: hashedPassword,
+      needsPasswordSetup: true,
+
+      role: "client",
+      createdByProducer: producerId,
+
+      /* ===== זהות ללקוח משלם ===== */
+      hasPaid: true,
       isTrial: false,
-      guests: 100,
-      paidAmount: 0, // כי המפיק שילם עליו
-      includeCalls: false,
+      plan: "premium",
+      paidAmount: 0,
+
+      guests: maxGuests,
+
+      planLimits: {
+        maxGuests,
+        smsEnabled: true,
+        smsLimit: 0,
+        seatingEnabled: true,
+        remindersEnabled: true,
+      },
+
+      maxMessages: 0,
+      remainingMessages: 0,
+      smsUsed: 0,
+
+      includeCalls: !!includeCalls,
+      callsAddonPrice: includeCalls ? 0 : 0,
+
       includeCreditGifts: false,
+      creditGiftsAddonPrice: 0,
+
+      isDemoUser: false,
     });
 
-    return NextResponse.json({ success: true, user: newUser });
+    return NextResponse.json({
+      success: true,
+      user: newUser,
+    });
   } catch (err) {
-    console.error("❌ Error in create-client:", err);
+    console.error("❌ create-client error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

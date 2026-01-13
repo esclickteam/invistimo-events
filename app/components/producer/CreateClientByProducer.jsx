@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { User, Mail, Phone, Lock, Users, PhoneCall } from "lucide-react";
+import { User, Mail, Phone, Users, PhoneCall } from "lucide-react";
 
 export default function CreateClientByProducer({ onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
-    name: "",          // ✅ במקום fullName
+    name: "",
     email: "",
     phone: "",
-    password: "",
-    guests: 100,       // ✅ במקום maxGuests
+    guests: 100,
     includeCalls: false,
   });
 
@@ -37,40 +36,35 @@ export default function CreateClientByProducer({ onSuccess }) {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/register", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    name: form.fullName,          // ✅ name
-    email: form.email,
-    password: form.password,
-    plan: "premium",
-    guests: Number(form.maxGuests), // ✅ guests
-    includeCalls: form.includeCalls,
-    includeCreditGifts: false,    // או לפי צורך
-  }),
-});
+      const res = await fetch("/api/producer/create-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          guests: Number(form.guests),
+          includeCalls: form.includeCalls,
+        }),
+      });
 
-
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : null;
+      const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "יצירת משתמש נכשלה");
+        throw new Error(data?.error || "יצירת לקוח נכשלה");
       }
 
-      onSuccess?.();
+      onSuccess?.(data.user);
 
       setForm({
         name: "",
         email: "",
         phone: "",
-        password: "",
         guests: 100,
         includeCalls: false,
       });
     } catch (err) {
-      setError(err?.message || "שגיאה כללית");
+      setError(err.message || "שגיאה כללית");
     } finally {
       setLoading(false);
     }
@@ -121,7 +115,7 @@ export default function CreateClientByProducer({ onSuccess }) {
           </div>
         </div>
 
-        {/* Phone (ויזואלי בלבד) */}
+        {/* Phone */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             טלפון
@@ -134,24 +128,6 @@ export default function CreateClientByProducer({ onSuccess }) {
               value={form.phone}
               onChange={handleChange}
               className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Password */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            סיסמה
-          </label>
-          <div className="relative">
-            <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
             />
           </div>
         </div>

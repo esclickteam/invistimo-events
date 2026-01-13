@@ -8,7 +8,9 @@ export interface IUser extends Document {
   email: string;
   password: string;
 
-  role: "user" | "producer" | "photographer" | "admin";
+  phone?: string;
+
+  role: "user" | "client" | "producer" | "photographer" | "admin";
 
   plan: "basic" | "premium";
   guests: number;
@@ -39,7 +41,10 @@ export interface IUser extends Document {
   isTrial: boolean;
   trialStartedAt?: Date;
   trialExpiresAt?: Date;
+
   isDemoUser?: boolean;
+
+  needsPasswordSetup?: boolean;
 
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -53,7 +58,11 @@ export interface IUser extends Document {
 ============================================================ */
 const UserSchema = new Schema<IUser>(
   {
-    name: { type: String, required: true, trim: true },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
     email: {
       type: String,
@@ -63,11 +72,20 @@ const UserSchema = new Schema<IUser>(
       trim: true,
     },
 
-    password: { type: String, required: true },
+    password: {
+      type: String,
+      required: true,
+    },
+
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
 
     role: {
       type: String,
-      enum: ["user", "producer", "photographer", "admin"],
+      enum: ["user", "client", "producer", "photographer", "admin"],
       default: "user",
     },
 
@@ -77,10 +95,21 @@ const UserSchema = new Schema<IUser>(
       default: "basic",
     },
 
-    guests: { type: Number, default: 100 },
-    paidAmount: { type: Number, default: 0 },
+    guests: {
+      type: Number,
+      default: 100,
+    },
 
-    hasPaid: { type: Boolean, default: false, index: true },
+    paidAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    hasPaid: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
 
     createdByProducer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -89,30 +118,87 @@ const UserSchema = new Schema<IUser>(
       index: true,
     },
 
-    includeCalls: { type: Boolean, default: false },
-    callsAddonPrice: { type: Number, default: 0 },
-
-    includeCreditGifts: { type: Boolean, default: false },
-    creditGiftsAddonPrice: { type: Number, default: 0 },
-
-    planLimits: {
-      maxGuests: { type: Number, default: 100 },
-      smsEnabled: { type: Boolean, default: true },
-      smsLimit: { type: Number, default: 0 },
-      seatingEnabled: { type: Boolean, default: false },
-      remindersEnabled: { type: Boolean, default: true },
+    includeCalls: {
+      type: Boolean,
+      default: false,
     },
 
-    maxMessages: { type: Number, default: 0 },
-    remainingMessages: { type: Number, default: 0 },
-    smsUsed: { type: Number, default: 0 },
+    callsAddonPrice: {
+      type: Number,
+      default: 0,
+    },
 
-    isTrial: { type: Boolean, default: false },
+    includeCreditGifts: {
+      type: Boolean,
+      default: false,
+    },
+
+    creditGiftsAddonPrice: {
+      type: Number,
+      default: 0,
+    },
+
+    planLimits: {
+      maxGuests: {
+        type: Number,
+        default: 100,
+      },
+      smsEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      smsLimit: {
+        type: Number,
+        default: 0,
+      },
+      seatingEnabled: {
+        type: Boolean,
+        default: false,
+      },
+      remindersEnabled: {
+        type: Boolean,
+        default: true,
+      },
+    },
+
+    maxMessages: {
+      type: Number,
+      default: 0,
+    },
+
+    remainingMessages: {
+      type: Number,
+      default: 0,
+    },
+
+    smsUsed: {
+      type: Number,
+      default: 0,
+    },
+
+    isTrial: {
+      type: Boolean,
+      default: false,
+    },
+
     trialStartedAt: Date,
     trialExpiresAt: Date,
-    isDemoUser: { type: Boolean, default: false },
 
-    resetPasswordToken: { type: String, index: true },
+    isDemoUser: {
+      type: Boolean,
+      default: false,
+    },
+
+    needsPasswordSetup: {
+      type: Boolean,
+      default: false,
+    },
+
+    resetPasswordToken: {
+      type: String,
+      index: true,
+    },
+
     resetPasswordExpires: Date,
   },
   { timestamps: true }
@@ -151,7 +237,7 @@ UserSchema.pre("save", function () {
     return;
   }
 
-  // 💳 PAID USER → ❌ לא לדרוס כלום
+  // 💳 PAID USER → לא לדרוס
   if (this.hasPaid) {
     return;
   }
@@ -192,7 +278,7 @@ UserSchema.pre("findOneAndUpdate", function () {
     }
   }
 
-  // 💳 PAID USER → ❌ לא נוגעים
+  // 💳 PAID USER → לא נוגעים
   if (update.hasPaid === true && update.isTrial !== true) {
     return;
   }
