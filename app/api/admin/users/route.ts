@@ -45,13 +45,12 @@ export async function GET() {
 
     /* ================= USERS ================= */
     const users = await User.find({
-      email: { $in: paidEmails },
-      status: "active",
-      isSubscriptionValid: true,
-      isDemoUser: { $ne: true },
-    })
-      .select("email name role plan includeCalls callsRounds createdAt")
-      .sort({ createdAt: -1 });
+  hasPaid: true,
+  status: "active",
+  isDemoUser: { $ne: true },
+})
+  .select("email name role plan includeCalls callsRounds createdAt")
+  .sort({ createdAt: -1 });
 
     return NextResponse.json(
       { success: true, users },
