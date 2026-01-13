@@ -17,7 +17,7 @@ interface User {
   email: string;
   name?: string;
 
-  role: "admin" | "user";
+role: "admin" | "user" | "producer";
 
   impersonatedByAdmin?: boolean;
   adminId?: string | null;
@@ -149,10 +149,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 🔁 ניתוב חד־משמעי
       if (nextUser.role === "admin") {
-        router.replace("/admin");
-      } else {
-        router.replace("/dashboard");
-      }
+  router.replace("/admin");
+} else if (nextUser.role === "producer") {
+  router.replace("/producer/dashboard");
+} else {
+  router.replace("/dashboard");
+}
+
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
