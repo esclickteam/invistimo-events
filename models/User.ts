@@ -27,11 +27,14 @@ export interface IUser extends Document {
   planLimits: {
     maxGuests: number;
     smsEnabled: boolean;
-    smsLimit: number;
+    smsLimit: number; // 🧪 Trial only
     seatingEnabled: boolean;
     remindersEnabled: boolean;
   };
 
+  // 🔥 SMS – USER SOURCE OF TRUTH
+  maxMessages: number;
+  remainingMessages: number;
   smsUsed: number;
 
   isTrial: boolean;
@@ -44,101 +47,18 @@ export interface IUser extends Document {
 
   createdAt: Date;
   updatedAt: Date;
-
-  // 🧠 VIRTUAL
-  remainingSms?: number;
 }
 
 /* ============================================================
    HELPERS
 ============================================================ */
-const ALLOWED_GUEST_LEVELS = [100, 200, 300, 400, 500, 600, 700, 800, 1000];
+const ALLOWED_GUEST_LEVELS = [
+  100, 200, 300, 400, 500, 600, 700, 800, 1000,
+];
 
 function safeLevel(value: any) {
   const n = Number(value);
   return ALLOWED_GUEST_LEVELS.includes(n) ? n : 100;
-}
-
-/* ============================================================
-   PLAN RULES
-============================================================ */
-function applyPlanRules(user: IUser) {
-  // 🧪 TRIAL
-  if (user.isTrial) {
-    user.plan = "premium";
-    user.guests = 1000;
-    user.paidAmount = 0;
-    user.hasPaid = false;
-
-    user.includeCalls = false;
-    user.callsAddonPrice = 0;
-
-    user.includeCreditGifts = false;
-    user.creditGiftsAddonPrice = 0;
-
-    user.planLimits = {
-      maxGuests: 1000,
-      smsEnabled: true,
-      smsLimit: 10,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-
-    user.smsUsed = user.smsUsed ?? 0;
-    return;
-  }
-
-  const level = safeLevel(user.guests);
-
-  const basePrices: Record<number, number> = {
-    100: 149,
-    200: 239,
-    300: 299,
-    400: 379,
-    500: 429,
-    600: 489,
-    700: 539,
-    800: 599,
-    1000: 699,
-  };
-
-  const callsAddon = user.includeCalls ? level * 1 : 0;
-
-  if (user.plan === "basic") {
-    user.plan = "basic";
-    user.guests = 100;
-    user.paidAmount = 49;
-    user.hasPaid = true;
-
-    user.includeCalls = false;
-    user.callsAddonPrice = 0;
-
-    user.includeCreditGifts = false;
-    user.creditGiftsAddonPrice = 0;
-
-    user.planLimits = {
-      maxGuests: 100,
-      smsEnabled: true,
-      smsLimit: 100,
-      seatingEnabled: false,
-      remindersEnabled: true,
-    };
-  } else {
-    user.plan = "premium";
-    user.guests = level;
-
-    user.callsAddonPrice = callsAddon;
-    user.paidAmount = (basePrices[level] ?? 149) + callsAddon;
-    user.hasPaid = user.paidAmount > 0;
-
-    user.planLimits = {
-      maxGuests: level,
-      smsEnabled: true,
-      smsLimit: Infinity as any,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-  }
 }
 
 /* ============================================================
@@ -171,7 +91,7 @@ const UserSchema = new Schema<IUser>(
     },
 
     guests: { type: Number, default: 100 },
-    paidAmount: { type: Number, default: 49 },
+    paidAmount: { type: Number, default: 0 },
 
     hasPaid: { type: Boolean, default: false, index: true },
 
@@ -191,11 +111,14 @@ const UserSchema = new Schema<IUser>(
     planLimits: {
       maxGuests: { type: Number, default: 100 },
       smsEnabled: { type: Boolean, default: true },
-      smsLimit: { type: Number, default: 100 },
+      smsLimit: { type: Number, default: 0 }, // 🧪 trial only
       seatingEnabled: { type: Boolean, default: false },
       remindersEnabled: { type: Boolean, default: true },
     },
 
+    // 🔥 SMS FIELDS
+    maxMessages: { type: Number, default: 0 },
+    remainingMessages: { type: Number, default: 0 },
     smsUsed: { type: Number, default: 0 },
 
     isTrial: { type: Boolean, default: false },
@@ -208,32 +131,49 @@ const UserSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
 
 /* ============================================================
-   🔥 VIRTUAL – remainingSms (SOURCE OF TRUTH FOR UI)
-============================================================ */
-UserSchema.virtual("remainingSms").get(function (this: IUser) {
-  if (!this.planLimits?.smsEnabled) return 0;
-
-  if (this.planLimits.smsLimit === Infinity) {
-    return Infinity;
-  }
-
-  const used = this.smsUsed ?? 0;
-  const limit = this.planLimits.smsLimit ?? 0;
-
-  return Math.max(limit - used, 0);
-});
-
-/* ============================================================
-   AUTO LOGIC – SAVE
+   AUTO LOGIC – PRE SAVE
 ============================================================ */
 UserSchema.pre("save", function () {
-  applyPlanRules(this as IUser);
+  // 🧪 TRIAL USER
+  if (this.isTrial) {
+    this.plan = "premium";
+    this.guests = 1000;
+    this.paidAmount = 0;
+    this.hasPaid = false;
+
+    this.planLimits = {
+      maxGuests: 1000,
+      smsEnabled: true,
+      smsLimit: 10,
+      seatingEnabled: true,
+      remindersEnabled: true,
+    };
+
+    // ❗ לא לדרוס אם כבר הוגדר (מיגרציה / תשלום)
+    if (typeof this.maxMessages !== "number" || this.maxMessages === 0) {
+      this.maxMessages = 10;
+    }
+
+    if (
+      typeof this.remainingMessages !== "number" ||
+      this.remainingMessages === 0
+    ) {
+      this.remainingMessages = Math.max(
+        this.maxMessages - (this.smsUsed ?? 0),
+        0
+      );
+    }
+
+    return;
+  }
+
+  // 💳 PAID USER
+  // ❌ אין SMS דרך planLimits
+  this.planLimits.smsLimit = 0;
 });
 
 /* ============================================================
@@ -244,22 +184,12 @@ UserSchema.pre("findOneAndUpdate", function () {
   const isUsingSet = !!rawUpdate.$set;
   const update = isUsingSet ? rawUpdate.$set : rawUpdate;
 
-  const plan = update.plan;
-  const guests = update.guests;
-  const includeCalls = !!update.includeCalls;
-  const includeCreditGifts = !!update.includeCreditGifts;
-
+  // 🧪 Trial update
   if (update.isTrial === true) {
     update.plan = "premium";
     update.guests = 1000;
     update.paidAmount = 0;
     update.hasPaid = false;
-
-    update.includeCalls = false;
-    update.callsAddonPrice = 0;
-
-    update.includeCreditGifts = false;
-    update.creditGiftsAddonPrice = 0;
 
     update.planLimits = {
       maxGuests: 1000,
@@ -269,69 +199,15 @@ UserSchema.pre("findOneAndUpdate", function () {
       remindersEnabled: true,
     };
 
-    update.smsUsed = update.smsUsed ?? 0;
-  } else if (
-    plan ||
-    guests ||
-    update.includeCalls !== undefined ||
-    update.includeCreditGifts !== undefined
-  ) {
-    const level = safeLevel(guests);
+    if (typeof update.maxMessages !== "number") {
+      update.maxMessages = 10;
+    }
 
-    const basePrices: Record<number, number> = {
-      100: 149,
-      200: 239,
-      300: 299,
-      400: 379,
-      500: 429,
-      600: 489,
-      700: 539,
-      800: 599,
-      1000: 699,
-    };
-
-    const callsAddon = includeCalls ? level * 1 : 0;
-
-    if (plan === "basic") {
-      update.plan = "basic";
-      update.guests = 100;
-      update.paidAmount = 49;
-      update.hasPaid = true;
-
-      update.includeCalls = false;
-      update.callsAddonPrice = 0;
-
-      update.includeCreditGifts = false;
-      update.creditGiftsAddonPrice = 0;
-
-      update.planLimits = {
-        maxGuests: 100,
-        smsEnabled: true,
-        smsLimit: 100,
-        seatingEnabled: false,
-        remindersEnabled: true,
-      };
-    } else if (plan === "premium") {
-      update.plan = "premium";
-      update.guests = level;
-
-      update.includeCalls = includeCalls;
-      update.callsAddonPrice = callsAddon;
-
-      update.includeCreditGifts = includeCreditGifts;
-      update.creditGiftsAddonPrice =
-        includeCreditGifts ? update.creditGiftsAddonPrice || 150 : 0;
-
-      update.paidAmount = (basePrices[level] ?? 149) + callsAddon;
-      update.hasPaid = update.paidAmount > 0;
-
-      update.planLimits = {
-        maxGuests: level,
-        smsEnabled: true,
-        smsLimit: Infinity as any,
-        seatingEnabled: true,
-        remindersEnabled: true,
-      };
+    if (typeof update.remainingMessages !== "number") {
+      update.remainingMessages = Math.max(
+        update.maxMessages - (update.smsUsed ?? 0),
+        0
+      );
     }
   }
 
@@ -342,4 +218,5 @@ UserSchema.pre("findOneAndUpdate", function () {
 /* ============================================================
    MODEL
 ============================================================ */
-export default models.User || mongoose.model<IUser>("User", UserSchema);
+export default models.User ||
+  mongoose.model<IUser>("User", UserSchema);
