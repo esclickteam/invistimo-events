@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
 /* =========================================================
-   CREATE CLIENT BY PRODUCER
+   CREATE CLIENT BY PRODUCER — FIXED FOR TS
 ========================================================= */
-export async function POST(req) {
+export async function POST(req: Request): Promise<NextResponse> {
   console.log("🟢 create-client API hit");
 
   /* =========================================================
-     1. Grab cookies and headers BEFORE any await
+     1. Grab cookies and headers BEFORE any await connectDB()
   ========================================================== */
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value || null;
-  const rawCookieHeader = headers().get("cookie");
+
+  const allHeaders = await headers();
+  const rawCookieHeader = allHeaders.get("cookie");
 
   console.log("🔐 token (from cookies):", token);
   console.log("🍪 raw cookie header:", rawCookieHeader);
@@ -29,7 +31,10 @@ export async function POST(req) {
     await connectDB();
   } catch (err) {
     console.error("❌ DB connection error:", err);
-    return NextResponse.json({ error: "DB connection failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "DB connection failed" },
+      { status: 500 }
+    );
   }
 
   /* =========================================================
@@ -40,16 +45,16 @@ export async function POST(req) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let decoded;
+  let decoded: JwtPayload | string;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET);
+    decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
     console.log("🧠 decoded token:", decoded);
   } catch (err) {
     console.error("⛔ JWT verification failed:", err);
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const producerId = decoded?.id || decoded?._id;
+  const producerId = (decoded as any)?.id || (decoded as any)?._id;
   console.log("👤 producerId:", producerId);
 
   if (!producerId) {
@@ -74,7 +79,14 @@ export async function POST(req) {
   /* =========================================================
      5. Parse body
   ========================================================== */
-  let body;
+  let body: {
+    email: string;
+    name: string;
+    phone?: string;
+    guests?: number;
+    includeCalls?: boolean;
+  };
+
   try {
     body = await req.json();
   } catch (err) {
@@ -83,6 +95,7 @@ export async function POST(req) {
   }
 
   console.log("📦 request body:", body);
+
   const { email, name, phone, guests, includeCalls } = body;
 
   if (!email || !name) {
@@ -153,6 +166,9 @@ export async function POST(req) {
     });
   } catch (err) {
     console.error("❌ create-client save error:", err);
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create client" },
+      { status: 500 }
+    );
   }
 }
