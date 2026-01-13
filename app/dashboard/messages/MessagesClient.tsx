@@ -171,26 +171,32 @@ useEffect(() => {
       return; // ⛔ חשוב: עוצר כאן ולא ממשיך לפרודקשן
     }
 
-    /* ================= PRODUCTION (לא נגעתי) ================= */
-    try {
-      const invRes = await fetch("/api/invitations/my");
-      const invData = await invRes.json();
-      if (!invData.success) return;
+    /* ================= PRODUCTION ================= */
+try {
+  const invRes = await fetch("/api/invitations/my");
+  const invData = await invRes.json();
 
-      setInvitation(invData.invitation);
+  setInvitation(invData.invitation ?? null);
 
-      const guestsRes = await fetch(
-        `/api/guests?invitation=${invData.invitation._id}`
-      );
-      const guestsData = await guestsRes.json();
-      setGuests(guestsData.guests || []);
+  // 🔹 טוענים יתרת הודעות תמיד
+  const balanceRes = await fetch("/api/messages/balance");
+  const balanceData = await balanceRes.json();
+  if (balanceData.success) setBalance(balanceData);
 
-      const balanceRes = await fetch("/api/messages/balance");
-      const balanceData = await balanceRes.json();
-      if (balanceData.success) setBalance(balanceData);
-    } finally {
-      setLoading(false);
-    }
+  // 🔹 אורחים – רק אם יש הזמנה
+  if (invData.invitation?._id) {
+    const guestsRes = await fetch(
+      `/api/guests?invitation=${invData.invitation._id}`
+    );
+    const guestsData = await guestsRes.json();
+    setGuests(guestsData.guests || []);
+  } else {
+    setGuests([]);
+  }
+} finally {
+  setLoading(false);
+}
+
   }
 
   loadData();
@@ -570,14 +576,15 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         </button>
 
         <button
-          disabled={!hasSmsBalance}
-          onClick={() => setChannel("sms")}
-          className={`px-4 py-2 rounded-full border ${
-            channel === "sms" ? "bg-blue-600 text-white" : ""
-          } ${!hasSmsBalance ? "opacity-40 cursor-not-allowed" : ""}`}
-        >
-          SMS
-        </button>
+  disabled={!hasInvitation && !isDemo}
+  onClick={() => setChannel("sms")}
+  className={`px-4 py-2 rounded-full border ${
+    channel === "sms" ? "bg-blue-600 text-white" : ""
+  } ${!hasInvitation && !isDemo ? "opacity-40 cursor-not-allowed" : ""}`}
+>
+  SMS
+</button>
+
       </div>
 
       {channel === "whatsapp" && (
