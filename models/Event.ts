@@ -94,7 +94,7 @@ const EventSchema = new mongoose.Schema(
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null,
+      default: undefined, // ❌ לא null
       index: true,
     },
 
@@ -131,8 +131,6 @@ const EventSchema = new mongoose.Schema(
 
     /* =========================
        תאריך ושעה
-       ✔ תואם input type="date"
-       ✔ תואם input type="time"
     ========================= */
     date: {
       type: String, // yyyy-mm-dd
@@ -145,7 +143,7 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-       מיקום (תואם LocationAutocomplete)
+       מיקום
     ========================= */
     location: {
       address: {
@@ -155,16 +153,16 @@ const EventSchema = new mongoose.Schema(
       },
       lat: {
         type: Number,
-        default: null,
+        default: undefined, // ❌ לא null
       },
       lng: {
         type: Number,
-        default: null,
+        default: undefined, // ❌ לא null
       },
     },
 
     /* =========================
-       אזורים (חופה / במה / רחבה)
+       אזורים
     ========================= */
     zones: {
       type: [ZoneSchema],
@@ -181,16 +179,17 @@ const EventSchema = new mongoose.Schema(
 
     /* =========================
        Stripe (חד־פעמי)
+       ⚠️ אין default, אין index, אין unique
+       ⚠️ האינדקס מנוהל רק בדאטאבייס
     ========================= */
     stripeSessionId: {
       type: String,
-      default: null,
-      index: true,
+      default: undefined,
     },
 
     stripePriceId: {
       type: String,
-      default: null,
+      default: undefined,
     },
 
     /* =========================
@@ -219,17 +218,9 @@ const EventSchema = new mongoose.Schema(
 );
 
 /* =========================================================
-   Partial Unique Index ל-stripeSessionId
+   ❌ אין אינדקסים כאן!
+   ✔️ כל האינדקסים מנוהלים ידנית ב־MongoDB
 ========================================================= */
-EventSchema.index(
-  { stripeSessionId: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      stripeSessionId: { $type: "string" },
-    },
-  }
-);
 
 export default mongoose.models.Event ||
   mongoose.model("Event", EventSchema);

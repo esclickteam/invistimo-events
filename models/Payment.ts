@@ -6,8 +6,8 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface PaymentDocument extends Document {
   email: string;
 
-  // 🔗 Stripe
-  stripeSessionId: string;
+  // 🔗 Stripe (אופציונלי – לא כל תשלום עובר דרך Stripe)
+  stripeSessionId?: string;
   stripePaymentIntentId?: string;
   stripeCustomerId?: string;
   stripePriceId?: string;
@@ -25,8 +25,8 @@ export interface PaymentDocument extends Document {
   creditGiftsAddonPrice: number;
 
   // 💰 סכומים
-  amount: number;          // סכום מקורי ששולם
-  refundAmount: number;    // סכום שזוכה בפועל
+  amount: number;
+  refundAmount: number;
   currency: string;
 
   // 🧾 סוג תשלום
@@ -63,26 +63,30 @@ const PaymentSchema = new Schema<PaymentDocument>(
     },
 
     /* =========================
-       Stripe
+       Stripe (אופציונלי!)
+       ❌ לא required
+       ❌ לא unique
+       ❌ לא index
+       ✔️ האינדקס מנוהל ידנית ב־MongoDB
     ========================= */
     stripeSessionId: {
       type: String,
-      required: true,
-      unique: true,
-      index: true,
+      default: undefined,
     },
 
     stripePaymentIntentId: {
       type: String,
-      index: true,
+      default: undefined,
     },
 
     stripeCustomerId: {
       type: String,
+      default: undefined,
     },
 
     stripePriceId: {
       type: String,
+      default: undefined,
     },
 
     /* =========================
@@ -159,7 +163,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     ========================= */
     metadata: {
       type: Schema.Types.Mixed,
-      default: {},
+      default: undefined,
     },
 
     /* =========================
@@ -177,11 +181,13 @@ const PaymentSchema = new Schema<PaymentDocument>(
     ========================= */
     refundedAt: {
       type: Date,
+      default: undefined,
     },
 
     refundReason: {
       type: String,
       trim: true,
+      default: undefined,
     },
 
     /* =========================
@@ -199,14 +205,26 @@ const PaymentSchema = new Schema<PaymentDocument>(
 );
 
 /* ============================================================
-   VIRTUAL – NET AMOUNT (סכום נטו)
+   VIRTUAL – NET AMOUNT
 ============================================================ */
-PaymentSchema.virtual("netAmount").get(function () {
+PaymentSchema.virtual("netAmount").get(function (this: PaymentDocument) {
   return Math.max(0, this.amount - (this.refundAmount || 0));
 });
 
 /* ============================================================
-   MODEL
+   ❌ אין אינדקסים כאן
+   ✔️ האינדקס ל־stripeSessionId מנוהל ידנית ב־MongoDB:
+   
+   db.payments.createIndex(
+     { stripeSessionId: 1 },
+     {
+       unique: true,
+       partialFilterExpression: {
+         stripeSessionId: { $exists: true, $ne: "" }
+       }
+     }
+   )
 ============================================================ */
+
 export default mongoose.models.Payment ||
   mongoose.model<PaymentDocument>("Payment", PaymentSchema);

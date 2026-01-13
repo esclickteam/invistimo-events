@@ -37,8 +37,6 @@ const GUESTS_BY_KEY: Record<string, number> = {
    MAIN HANDLER
 ============================================================ */
 export async function POST(req: Request) {
-  console.log("✅ Stripe webhook called");
-
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
@@ -57,8 +55,6 @@ export async function POST(req: Request) {
     console.error("❌ Invalid webhook signature:", err.message);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
-
-  console.log("📦 EVENT TYPE:", stripeEvent.type);
 
   if (stripeEvent.type !== "checkout.session.completed") {
     return NextResponse.json({ received: true });
@@ -80,7 +76,6 @@ export async function POST(req: Request) {
   });
 
   if (existingPayment) {
-    console.log("⚠️ Payment already processed");
     return NextResponse.json({ received: true });
   }
 
@@ -98,31 +93,33 @@ export async function POST(req: Request) {
   }
 
   if (!user) {
-    console.error("❌ User not found");
+    console.error("❌ User not found for payment");
     return NextResponse.json({ received: true });
   }
 
   const email = user.email;
 
   /* ============================================================
-     Ensure Event exists
+     Ensure Event exists (⚠️ תואם לסכמה החדשה)
 ============================================================ */
-  let event = await Event.findOne({ ownerId: user._id });
+  let event = await Event.findOne({ userId: user._id });
 
   if (!event) {
     event = await Event.create({
-      ownerId: user._id,
+      userId: user._id,
+      email,
+      eventType: "wedding",
       title: "",
-      eventType: "",
-      eventDate: null,
-      eventTime: "",
-      location: {},
-      status: "draft",
+      date: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
+      time: "",
+      maxGuests: 0,
+      zones: [],
+      status: "active",
     });
   }
 
   /* ============================================================
-     Load Invitation
+     Load Invitation (אם קיים)
 ============================================================ */
   let invitation = await Invitation.findOne({ ownerId: user._id });
 
@@ -154,13 +151,10 @@ export async function POST(req: Request) {
         guests: targetGuests,
         paidAmount: amountCharged,
       },
-      planLimits: {
-        maxGuests: (user.guests || 0) + targetGuests,
-        smsEnabled: true,
-        seatingEnabled: true,
-        remindersEnabled: true,
-      },
     });
+
+    event.maxGuests += targetGuests;
+    await event.save();
 
     if (!invitation) {
       invitation = await Invitation.create({
@@ -235,17 +229,6 @@ export async function POST(req: Request) {
       return sum + unit * (item.quantity ?? 1);
     }, 0) / 100;
 
-  const includeCalls = session.metadata?.includeCalls === "true";
-  const callsAddonPrice = Number(session.metadata?.callsAddonPrice || 0);
-
-  const includeCreditGifts = includeCalls
-    ? true
-    : session.metadata?.includeCreditGifts === "true";
-
-  const creditGiftsAddonPrice = includeCalls
-    ? 0
-    : Number(session.metadata?.creditGiftsAddonPrice || 0);
-
   const priceKey = session.metadata?.priceKey || "";
   const maxGuests =
     Number(session.metadata?.maxGuests) ||
@@ -268,12 +251,6 @@ export async function POST(req: Request) {
     type: "package",
     status: "paid",
     isTest: false,
-    metadata: {
-      includeCalls,
-      callsAddonPrice,
-      includeCreditGifts,
-      creditGiftsAddonPrice,
-    },
   });
 
   await User.findByIdAndUpdate(user._id, {
@@ -281,17 +258,10 @@ export async function POST(req: Request) {
     guests: maxGuests,
     paidAmount: totalPaid,
     isTrial: false,
-    includeCalls,
-    callsAddonPrice,
-    includeCreditGifts,
-    creditGiftsAddonPrice,
-    planLimits: {
-      maxGuests,
-      smsEnabled: !isBasic,
-      seatingEnabled: !isBasic,
-      remindersEnabled: true,
-    },
   });
+
+  event.maxGuests = maxGuests;
+  await event.save();
 
   if (!invitation) {
     invitation = await Invitation.create({
@@ -316,9 +286,7 @@ export async function POST(req: Request) {
     amount: totalPaid,
     currency: "ils",
     type: plan === "basic" ? "Basic package" : "Premium package",
-    details: `${maxGuests} אורחים${
-      includeCalls ? " + שירות שיחות" : ""
-    }${includeCreditGifts ? " + מתנות באשראי" : ""}`,
+    details: `${maxGuests} אורחים`,
   });
 
   return NextResponse.json({ received: true });
