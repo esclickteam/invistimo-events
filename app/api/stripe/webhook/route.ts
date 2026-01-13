@@ -230,10 +230,15 @@ export async function POST(req: Request) {
     }, 0) / 100;
 
   const priceKey = session.metadata?.priceKey || "";
+
   const maxGuests =
-    Number(session.metadata?.maxGuests) ||
-    GUESTS_BY_KEY[priceKey] ||
-    100;
+  Number(session.metadata?.maxGuests) ||
+  GUESTS_BY_KEY[priceKey] ||
+  user.guests;
+
+if (!maxGuests) {
+  throw new Error("Cannot resolve maxGuests for package purchase");
+}
 
   const plan = session.metadata?.plan || "basic";
   const isBasic = plan === "basic";
@@ -275,9 +280,12 @@ export async function POST(req: Request) {
       remainingMessages: messagesToAdd,
     });
   } else {
+    
     invitation.maxGuests = maxGuests;
-    invitation.maxMessages += messagesToAdd;
-    invitation.remainingMessages += messagesToAdd;
+invitation.maxMessages = messagesToAdd;
+invitation.remainingMessages = messagesToAdd;
+
+
     await invitation.save();
   }
 
