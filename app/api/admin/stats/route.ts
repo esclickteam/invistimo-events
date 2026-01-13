@@ -5,7 +5,6 @@ import { connectDB } from "@/lib/db";
 
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
-import Payment from "@/models/Payment";
 
 // 🔥 חובה לאדמין – בלי cache
 export const dynamic = "force-dynamic";
@@ -31,69 +30,42 @@ export async function GET() {
     }
 
     /* ======================================================
-       COUNTS
+       COUNTS + REVENUE (SOURCE OF TRUTH = USERS)
     ====================================================== */
     const [
       usersCount,
       invitationsCount,
       callsCount,
       revenueAgg,
-      refundsAgg,
     ] = await Promise.all([
-      // 👤 משתמשים
+      // 👤 סה״כ משתמשים
       User.countDocuments(),
 
-      // ✉️ הזמנות
+      // ✉️ סה״כ אירועים / הזמנות
       Invitation.countDocuments(),
 
       // ☎️ שירותי שיחות פעילים
       User.countDocuments({ includeCalls: true }),
 
-      // 💰 הכנסות נטו (כולל partial refunds)
-      Payment.aggregate([
+      // 💰 הכנסות – רק מי ששילם בפועל
+      User.aggregate([
         {
           $match: {
-            status: { $in: ["paid", "partially_refunded"] },
-            isTest: { $ne: true },
-          },
-        },
-        {
-          $project: {
-            netAmount: {
-              $subtract: ["$amount", { $ifNull: ["$refundAmount", 0] }],
-            },
+            hasPaid: true,
+            isDemoUser: { $ne: true },
           },
         },
         {
           $group: {
             _id: null,
-            total: { $sum: "$netAmount" },
-          },
-        },
-      ]),
-
-      // 🔻 סה״כ זיכויים (מידע משלים לאדמין)
-      Payment.aggregate([
-        {
-          $match: {
-            status: { $in: ["refunded", "partially_refunded"] },
-            isTest: { $ne: true },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalRefunds: { $sum: "$refundAmount" },
+            totalRevenue: { $sum: "$paidAmount" },
           },
         },
       ]),
     ]);
 
     const revenue =
-      revenueAgg.length > 0 ? revenueAgg[0].total : 0;
-
-    const refunds =
-      refundsAgg.length > 0 ? refundsAgg[0].totalRefunds : 0;
+      revenueAgg.length > 0 ? revenueAgg[0].totalRevenue : 0;
 
     /* ======================================================
        RESPONSE
@@ -103,9 +75,7 @@ export async function GET() {
         users: usersCount,
         invitations: invitationsCount,
         calls: callsCount,
-
-        revenue, // 💰 הכנסות נטו
-        refunds, // 🔻 סה״כ זיכויים (אופציונלי להצגה)
+        revenue, // ✅ זה חייב להיות 2797
       },
       {
         headers: {
