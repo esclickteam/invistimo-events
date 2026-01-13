@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
@@ -14,6 +16,9 @@ export async function POST(req: Request) {
 
     const { token, password } = body;
 
+    /* =========================
+       VALIDATION
+    ========================= */
     if (!token || !password) {
       console.log("❌ MISSING DATA", { token, password });
       return NextResponse.json(
@@ -33,8 +38,9 @@ export async function POST(req: Request) {
     await connectDB();
     console.log("✅ DB CONNECTED");
 
-    console.log("🔎 SEARCHING USER WITH TOKEN:", token);
-
+    /* =========================
+       FIND USER BY TOKEN
+    ========================= */
     const user = await User.findOne({
       resetPasswordToken: token,
     });
@@ -49,9 +55,6 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("⏰ TOKEN EXPIRES AT:", user.resetPasswordExpires);
-    console.log("⏰ NOW:", new Date());
-
     if (!user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
       console.log("❌ TOKEN EXPIRED");
       return NextResponse.json(
@@ -59,8 +62,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    console.log("🔐 needsPasswordSetup:", user.needsPasswordSetup);
 
     if (!user.needsPasswordSetup) {
       console.log("❌ PASSWORD ALREADY SET");
@@ -70,6 +71,9 @@ export async function POST(req: Request) {
       );
     }
 
+    /* =========================
+       SET PASSWORD
+    ========================= */
     console.log("🔑 HASHING PASSWORD...");
     user.password = await bcrypt.hash(password, 10);
 
@@ -78,13 +82,42 @@ export async function POST(req: Request) {
     user.needsPasswordSetup = false;
 
     await user.save();
+    console.log("✅ PASSWORD SAVED");
 
-    console.log("✅ PASSWORD SAVED SUCCESSFULLY");
+    /* =========================
+       CREATE JWT
+    ========================= */
+    const authToken = jwt.sign(
+      {
+        userId: user._id.toString(),
+        role: user.role,
+        email: user.email,
+      },
+      process.env.JWT_SECRET!,
+      { expiresIn: "7d" }
+    );
 
-    return NextResponse.json({
+    /* =========================
+       SET COOKIE
+    ========================= */
+    const response = NextResponse.json({
       success: true,
       message: "הסיסמה הוגדרה בהצלחה 🎉",
     });
+
+    response.cookies.set({
+      name: "authToken",
+      value: authToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 ימים
+    });
+
+    console.log("🍪 AUTH COOKIE SET");
+
+    return response;
   } catch (error) {
     console.error("🔥 SET PASSWORD SERVER ERROR:", error);
     return NextResponse.json(

@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SetPasswordPage() {
+  const router = useRouter();
+
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,6 +21,7 @@ export default function SetPasswordPage() {
 
     if (!tokenFromUrl) {
       setMessage("הקישור אינו תקף או חסר טוקן");
+      return;
     }
 
     setToken(tokenFromUrl);
@@ -71,11 +75,16 @@ export default function SetPasswordPage() {
         return;
       }
 
-      setMessage(data.message || "הסיסמה הוגדרה בהצלחה 🎉");
+      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
 
-      // ניקוי שדות
+      // ניקוי שדות (לא חובה, אבל נקי)
       setPassword("");
       setConfirmPassword("");
+
+      // ⏩ ניווט לדשבורד
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 800);
     } catch (err) {
       console.error("❌ set-password frontend error:", err);
       setMessage("שגיאת רשת, נסה שוב");
