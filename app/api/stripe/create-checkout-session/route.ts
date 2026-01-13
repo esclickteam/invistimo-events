@@ -68,14 +68,17 @@ const PRICE_CONFIG: Record<
 };
 
 /* ============================================================
-   Add-ons
+   Add-ons (SMS)
 ============================================================ */
 const ADDON_CONFIG: Record<string, { lookupKey: string; messages: number }> = {
-  extra_messages_500: { lookupKey: "extra_messages_500", messages: 500 },
+  extra_messages_500: {
+    lookupKey: "extra_messages_500",
+    messages: 500,
+  },
 };
 
 /* ============================================================
-   Premium & Calls price maps (₪)
+   Price maps (₪)
 ============================================================ */
 const PREMIUM_PRICE_MAP: Record<number, number> = {
   100: 149,
@@ -103,14 +106,14 @@ const CALLS_ADDON_MAP: Record<number, number> = {
 
 const CREDIT_GIFTS_PRICE = 150;
 
-
 /* ============================================================
    Helpers
 ============================================================ */
 const ALLOWED_GUEST_LEVELS = [100, 200, 300, 400, 500, 600, 700, 800, 1000];
-function safeGuestLevel(n: any) {
-  const num = Number(n);
-  return ALLOWED_GUEST_LEVELS.includes(num) ? num : 100;
+
+function safeGuestLevel(value: any) {
+  const n = Number(value);
+  return ALLOWED_GUEST_LEVELS.includes(n) ? n : 100;
 }
 
 /* ============================================================
@@ -119,12 +122,13 @@ function safeGuestLevel(n: any) {
 export async function POST(req: Request) {
   try {
     const {
-  priceKey,
-  email,
-  invitationId,
-  includeCalls = false,
-  includeCreditGifts = false,
-} = await req.json();
+      priceKey,
+      email,
+      userId,
+      invitationId,
+      includeCalls = false,
+      includeCreditGifts = false,
+    } = await req.json();
 
     if (!priceKey || !email) {
       return NextResponse.json(
@@ -142,21 +146,26 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       CASE 1: Add-on (messages)
+       CASE 1: SMS ADD-ON
     ============================================================ */
     if (ADDON_CONFIG[priceKey]) {
       const addon = ADDON_CONFIG[priceKey];
+
       const prices = await stripe.prices.list({
         lookup_keys: [addon.lookupKey],
         expand: ["data.product"],
       });
+
       const price = prices.data[0];
-      if (!price) {
+      if (!price || !price.unit_amount) {
         return NextResponse.json(
           { error: "Price not found for add-on" },
           { status: 400 }
         );
       }
+
+      const amount = price.unit_amount / 100;
+
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         customer_email: email,
@@ -164,17 +173,20 @@ export async function POST(req: Request) {
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
         metadata: {
+          userId: userId || "",
           invitationId: invitationId || "",
           priceKey,
           type: "addon",
           messages: String(addon.messages),
+          amount: String(amount),
         },
       });
+
       return NextResponse.json({ url: session.url });
     }
 
     /* ============================================================
-       CASE 2: Package purchase (Premium + Optional Calls)
+       CASE 2: PACKAGE PURCHASE
     ============================================================ */
     const config = PRICE_CONFIG[priceKey];
     if (!config) {
@@ -184,6 +196,9 @@ export async function POST(req: Request) {
       );
     }
 
+    /* ============================================================
+       BASIC
+    ============================================================ */
     if (config.plan === "basic") {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
@@ -192,82 +207,81 @@ export async function POST(req: Request) {
         success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
         metadata: {
+          userId: userId || "",
           invitationId: invitationId || "",
           priceKey,
-          plan: config.plan,
+          plan: "basic",
           maxGuests: String(config.maxGuests),
           includeCalls: "false",
+          includeCreditGifts: "false",
           type: "package",
         },
       });
+
       return NextResponse.json({ url: session.url });
     }
 
-    // ✅ PREMIUM
+    /* ============================================================
+       PREMIUM
+    ============================================================ */
     const level = safeGuestLevel(config.maxGuests);
     const basePrice = PREMIUM_PRICE_MAP[level];
-    const addonPrice = includeCalls ? CALLS_ADDON_MAP[level] : 0;
+    const callsAddonPrice = includeCalls ? CALLS_ADDON_MAP[level] : 0;
 
-    // 1️⃣ חבילת פרימיום
-const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-  {
-    price_data: {
-      currency: "ils",
-      product_data: {
-        name: `Invistimo Premium (עד ${level} אורחים)`,
-      },
-      unit_amount: Math.round(basePrice * 100),
-    },
-    quantity: 1,
-  },
-];
-
-// 2️⃣ שירות אישורי הגעה טלפוניים
-if (includeCalls && addonPrice > 0) {
-  lineItems.push({
-    price_data: {
-      currency: "ils",
-      product_data: {
-        name: "שירות אישורי הגעה טלפוניים (3 סבבים)",
-      },
-      unit_amount: Math.round(addonPrice * 100),
-    },
-    quantity: 1,
-  });
-}
-
-// 🎁 מתנות באשראי – נגבות רק אם אין אישורי הגעה טלפוניים
-const finalIncludeCreditGifts = includeCalls
-  ? true
-  : includeCreditGifts;
-
-// 🎁 מתנות באשראי – מוצג תמיד אם כלול
-if (finalIncludeCreditGifts) {
-  lineItems.push({
-    price_data: {
-      currency: "ils",
-      product_data: {
-        name: includeCalls
-          ? "🎁 מתנות באשראי לאורחים – כלול ללא עלות"
-          : "מתנות באשראי לאורחים (RSVP)",
-      },
-      unit_amount: includeCalls
-        ? 0
-        : Math.round(CREDIT_GIFTS_PRICE * 100),
-    },
-    quantity: 1,
-  });
-}
-
-
+    const finalIncludeCreditGifts = includeCalls
+      ? true
+      : includeCreditGifts;
 
     const creditGiftsAddonPrice =
-  finalIncludeCreditGifts && !includeCalls
-    ? CREDIT_GIFTS_PRICE
-    : 0;
+      finalIncludeCreditGifts && !includeCalls
+        ? CREDIT_GIFTS_PRICE
+        : 0;
 
-const totalPaid = basePrice + addonPrice + creditGiftsAddonPrice;
+    const totalPaid =
+      basePrice + callsAddonPrice + creditGiftsAddonPrice;
 
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: "ils",
+          product_data: {
+            name: `Invistimo Premium (עד ${level} אורחים)`,
+          },
+          unit_amount: Math.round(basePrice * 100),
+        },
+        quantity: 1,
+      },
+    ];
+
+    if (includeCalls && callsAddonPrice > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "ils",
+          product_data: {
+            name: "שירות אישורי הגעה טלפוניים (3 סבבים)",
+          },
+          unit_amount: Math.round(callsAddonPrice * 100),
+        },
+        quantity: 1,
+      });
+    }
+
+    if (finalIncludeCreditGifts) {
+      lineItems.push({
+        price_data: {
+          currency: "ils",
+          product_data: {
+            name: includeCalls
+              ? "🎁 מתנות באשראי לאורחים – כלול ללא עלות"
+              : "מתנות באשראי לאורחים",
+          },
+          unit_amount: includeCalls
+            ? 0
+            : Math.round(CREDIT_GIFTS_PRICE * 100),
+        },
+        quantity: 1,
+      });
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -275,23 +289,19 @@ const totalPaid = basePrice + addonPrice + creditGiftsAddonPrice;
       line_items: lineItems,
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/payment/cancel`,
-
       metadata: {
-  invitationId: invitationId || "",
-  priceKey,
-  plan: config.plan,
-  maxGuests: String(level),
-
-  includeCalls: includeCalls ? "true" : "false",
-  callsAddonPrice: String(addonPrice),
-
-  includeCreditGifts: finalIncludeCreditGifts ? "true" : "false",
-
-  creditGiftsAddonPrice: String(creditGiftsAddonPrice),
-
-  totalPaid: String(totalPaid),
-  type: "package",
-},
+        userId: userId || "",
+        invitationId: invitationId || "",
+        priceKey,
+        plan: "premium",
+        maxGuests: String(level),
+        includeCalls: includeCalls ? "true" : "false",
+        callsAddonPrice: String(callsAddonPrice),
+        includeCreditGifts: finalIncludeCreditGifts ? "true" : "false",
+        creditGiftsAddonPrice: String(creditGiftsAddonPrice),
+        totalPaid: String(totalPaid),
+        type: "package",
+      },
     });
 
     return NextResponse.json({ url: session.url });

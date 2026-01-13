@@ -4,8 +4,8 @@ import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
-import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 import Event from "@/models/Event";
+import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 
 export const runtime = "nodejs";
 
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
-  const body = await req.clone().text();
+  const body = await req.text();
   let stripeEvent: Stripe.Event;
 
   try {
@@ -59,13 +59,6 @@ export async function POST(req: Request) {
   }
 
   console.log("📦 EVENT TYPE:", stripeEvent.type);
-
-  if (
-    stripeEvent.type === "checkout.session.expired" ||
-    stripeEvent.type === "checkout.session.async_payment_failed"
-  ) {
-    return NextResponse.json({ received: true });
-  }
 
   if (stripeEvent.type !== "checkout.session.completed") {
     return NextResponse.json({ received: true });
@@ -105,7 +98,8 @@ export async function POST(req: Request) {
   }
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    console.error("❌ User not found");
+    return NextResponse.json({ received: true });
   }
 
   const email = user.email;
@@ -128,12 +122,12 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     Load Invitation (do not recreate blindly)
+     Load Invitation
 ============================================================ */
   let invitation = await Invitation.findOne({ ownerId: user._id });
 
   /* ============================================================
-     🟢 CASE 1: PREMIUM UPGRADE
+     CASE 1: PREMIUM UPGRADE
 ============================================================ */
   if (session.metadata?.type === "upgrade") {
     const targetGuests = Number(session.metadata.targetGuests || 0);
@@ -145,25 +139,21 @@ export async function POST(req: Request) {
       stripeSessionId: session.id,
       stripePaymentIntentId: String(session.payment_intent),
       stripeCustomerId: session.customer as string,
+      type: "upgrade",
       priceKey: `premium_${targetGuests}`,
-      maxGuests: (user.guests || 0) + targetGuests,
+      maxGuests: targetGuests,
       amount: amountCharged,
       currency: "ils",
       status: "paid",
+      isTest: false,
     });
 
     await User.findByIdAndUpdate(user._id, {
       plan: "premium",
-
-      hasPaid: true,
-      status: "active",
-      isSubscriptionValid: true,
-
       $inc: {
         guests: targetGuests,
         paidAmount: amountCharged,
       },
-
       planLimits: {
         maxGuests: (user.guests || 0) + targetGuests,
         smsEnabled: true,
@@ -194,18 +184,22 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🟢 CASE 2: SMS ADD-ON
+     CASE 2: SMS ADD-ON
 ============================================================ */
   if (session.metadata?.type === "addon") {
     const messagesToAdd = Number(session.metadata.messages || 0);
-    if (messagesToAdd <= 0) {
-      return NextResponse.json({ received: true });
-    }
+    const amount = Number(session.metadata.amount || 0);
 
-    await User.findByIdAndUpdate(user._id, {
-      hasPaid: true,
-      status: "active",
-      isSubscriptionValid: true,
+    await Payment.create({
+      email,
+      stripeSessionId: session.id,
+      stripePaymentIntentId: String(session.payment_intent),
+      stripeCustomerId: session.customer as string,
+      type: "addon",
+      amount,
+      currency: "ils",
+      status: "paid",
+      isTest: false,
     });
 
     if (!invitation) {
@@ -228,7 +222,7 @@ export async function POST(req: Request) {
   }
 
   /* ============================================================
-     🟢 CASE 3: FULL PACKAGE PURCHASE
+     CASE 3: FULL PACKAGE PURCHASE
 ============================================================ */
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     limit: 10,
@@ -253,9 +247,12 @@ export async function POST(req: Request) {
     : Number(session.metadata?.creditGiftsAddonPrice || 0);
 
   const priceKey = session.metadata?.priceKey || "";
-  const maxGuests = Number(session.metadata?.maxGuests || 100);
-  const plan = session.metadata?.plan || "basic";
+  const maxGuests =
+    Number(session.metadata?.maxGuests) ||
+    GUESTS_BY_KEY[priceKey] ||
+    100;
 
+  const plan = session.metadata?.plan || "basic";
   const isBasic = plan === "basic";
   const messagesToAdd = isBasic ? 0 : maxGuests * 3;
 
@@ -268,13 +265,14 @@ export async function POST(req: Request) {
     maxGuests,
     amount: totalPaid,
     currency: "ils",
+    type: "package",
     status: "paid",
+    isTest: false,
     metadata: {
       includeCalls,
       callsAddonPrice,
       includeCreditGifts,
       creditGiftsAddonPrice,
-      totalPaid,
     },
   });
 
@@ -282,16 +280,11 @@ export async function POST(req: Request) {
     plan,
     guests: maxGuests,
     paidAmount: totalPaid,
-
-    hasPaid: true,
-    status: "active",
-    isSubscriptionValid: true,
-
+    isTrial: false,
     includeCalls,
     callsAddonPrice,
     includeCreditGifts,
     creditGiftsAddonPrice,
-
     planLimits: {
       maxGuests,
       smsEnabled: !isBasic,
