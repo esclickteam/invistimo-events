@@ -38,19 +38,19 @@ export default function CreateClientByProducer({ onSuccess }) {
       setLoading(true);
 
       const res = await fetch("/api/register", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    name: form.fullName,          // ✅ name
+    email: form.email,
+    password: form.password,
+    plan: "premium",
+    guests: Number(form.maxGuests), // ✅ guests
+    includeCalls: form.includeCalls,
+    includeCreditGifts: false,    // או לפי צורך
+  }),
+});
 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,                // ✅
-          email: form.email,
-          password: form.password,
-          plan: "premium",
-          guests: Number(form.guests),    // ✅
-          includeCalls: form.includeCalls,
-          createdByProducer: true,        // ✅ קריטי
-        }),
-      });
 
       const text = await res.text();
       const data = text ? JSON.parse(text) : null;
