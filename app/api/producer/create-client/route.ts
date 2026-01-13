@@ -5,6 +5,20 @@ import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/* =========================================================
+   TYPES
+========================================================= */
+type AuthTokenPayload = JwtPayload & {
+  userId?: string; // ✅ זה מה שאת עושה ב-register/login
+  id?: string;
+  _id?: string;
+  email?: string;
+  role?: string;
+};
+
 /* =========================================================
    CREATE CLIENT BY PRODUCER — FIXED FOR TS
 ========================================================= */
@@ -20,8 +34,8 @@ export async function POST(req: Request): Promise<NextResponse> {
   const allHeaders = await headers();
   const rawCookieHeader = allHeaders.get("cookie");
 
-  console.log("🔐 token (from cookies):", token);
-  console.log("🍪 raw cookie header:", rawCookieHeader);
+  console.log("🔐 token (from cookies) exists:", !!token);
+  console.log("🍪 raw cookie header exists:", !!rawCookieHeader);
   console.log("🧩 cookieStore.get type:", typeof cookieStore.get);
 
   /* =========================================================
@@ -31,10 +45,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     await connectDB();
   } catch (err) {
     console.error("❌ DB connection error:", err);
-    return NextResponse.json(
-      { error: "DB connection failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "DB connection failed" }, { status: 500 });
   }
 
   /* =========================================================
@@ -45,19 +56,23 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let decoded: JwtPayload | string;
+  let decoded: AuthTokenPayload;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthTokenPayload;
     console.log("🧠 decoded token:", decoded);
+    console.log("🧠 decoded keys:", Object.keys(decoded || {}));
   } catch (err) {
     console.error("⛔ JWT verification failed:", err);
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const producerId = (decoded as any)?.id || (decoded as any)?._id;
+  // ✅ חשוב: אצלך ב-register/login זה userId
+  const producerId = decoded.userId || decoded.id || decoded._id;
+
   console.log("👤 producerId:", producerId);
 
   if (!producerId) {
+    console.log("⛔ producerId missing in token payload");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -65,11 +80,13 @@ export async function POST(req: Request): Promise<NextResponse> {
      4. Verify producer user
   ========================================================== */
   const producer = await User.findById(producerId).lean();
-  console.log("👤 producer user:", producer);
+  console.log("👤 producer user exists:", !!producer);
 
   if (!producer) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  console.log("👤 producer.role:", producer.role);
 
   if (producer.role !== "producer") {
     console.log("⛔ Not producer role:", producer.role);
@@ -131,7 +148,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       needsPasswordSetup: true,
 
       role: "client",
-      createdByProducer: producerId,
+      createdByProducer: producerId, // ✅ ObjectId של המפיק
 
       hasPaid: true,
       isTrial: false,
