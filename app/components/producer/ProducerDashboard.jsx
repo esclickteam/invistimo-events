@@ -39,32 +39,38 @@ function isWithinDays(dateStr, days) {
    רכיב ראשי: דשבורד של מפיק אירועים
 ========================================================= */
 export default function ProducerDashboard() {
-  const { user } = useAuth(); // נניח שהמפיק מחובר
+  const { user, loading: authLoading } = useAuth();
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+const [eventsLoading, setEventsLoading] = useState(false);
 
   /* =========================================================
      שליפת אירועים שקשורים למפיק (לפי producerId)
   ========================================================= */
   useEffect(() => {
+
     if (!user?._id) return;
 
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch(`/api/events?producerId=${user._id}`);
-        const data = await res.json();
+const fetchEvents = async () => {
+  setEventsLoading(true);
 
-        if (data.success) {
-          setEvents(data.events);
-        } else {
-          console.error("❌ שגיאה בטעינת אירועים:", data.error);
-        }
-      } catch (err) {
-        console.error("❌ שגיאה בטעינה:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    const res = await fetch(`/api/events?producerId=${user._id}`, {
+      cache: "no-store",
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      setEvents(data.events);
+    } else {
+      console.error("❌ שגיאה בטעינת אירועים:", data.error);
+    }
+  } catch (err) {
+    console.error("❌ שגיאה בטעינה:", err);
+  } finally {
+    setEventsLoading(false);
+  }
+};
+
 
     fetchEvents();
   }, [user?._id]);
@@ -95,7 +101,22 @@ export default function ProducerDashboard() {
 
   const nextEvent = stats.nextEvent;
 
-  if (loading) return <div className="p-6">🔄 טוען נתונים...</div>;
+  /* =========================================================
+   Guards – חובה
+========================================================= */
+if (authLoading) {
+  return <div className="p-6">🔐 טוען משתמש...</div>;
+}
+
+if (!user) {
+  return <div className="p-6">❌ לא מחובר</div>;
+}
+
+if (eventsLoading) {
+  return <div className="p-6">🔄 טוען אירועים...</div>;
+}
+
+
 
   /* =========================================================
      Render
