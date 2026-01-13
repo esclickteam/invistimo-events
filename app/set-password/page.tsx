@@ -1,0 +1,137 @@
+"use client";
+
+import { useState, useEffect } from "react";
+
+export default function SetPasswordPage() {
+  const [token, setToken] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  /* =========================
+     Get token from URL
+  ========================= */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get("token");
+
+    if (!tokenFromUrl) {
+      setMessage("הקישור אינו תקף או חסר טוקן");
+    }
+
+    setToken(tokenFromUrl);
+  }, []);
+
+  /* =========================
+     Submit
+  ========================= */
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!token) {
+      setMessage("הקישור אינו תקף או שפג תוקפו");
+      return;
+    }
+
+    if (!password || !confirmPassword) {
+      setMessage("אנא מלא את כל השדות");
+      return;
+    }
+
+    if (password.length < 6) {
+      setMessage("הסיסמה חייבת להכיל לפחות 6 תווים");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage("הסיסמאות אינן תואמות");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const res = await fetch("/api/auth/set-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          token,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data?.message || "אירעה שגיאה");
+        return;
+      }
+
+      setMessage(data.message || "הסיסמה הוגדרה בהצלחה 🎉");
+
+      // ניקוי שדות
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error("❌ set-password frontend error:", err);
+      setMessage("שגיאת רשת, נסה שוב");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================
+     UI
+  ========================= */
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-gray-50 px-4">
+      <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md text-right">
+        <h1 className="text-2xl font-bold mb-6 text-center">
+          הגדרת סיסמה
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            placeholder="סיסמה חדשה"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading || !token}
+            className="w-full border rounded-lg p-2"
+          />
+
+          <input
+            type="password"
+            placeholder="אימות סיסמה"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={loading || !token}
+            className="w-full border rounded-lg p-2"
+          />
+
+          <button
+            type="submit"
+            disabled={loading || !token}
+            className={`w-full py-2 rounded-lg text-white transition ${
+              loading || !token
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-purple-600 hover:bg-purple-700"
+            }`}
+          >
+            {loading ? "שומר..." : "שמור סיסמה"}
+          </button>
+        </form>
+
+        {message && (
+          <p className="text-center mt-4 text-sm text-gray-700">
+            {message}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
