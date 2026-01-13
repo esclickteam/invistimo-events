@@ -9,6 +9,7 @@ export async function POST(req: Request) {
   try {
     const { token, password } = await req.json();
 
+    /* ================= VALIDATION ================= */
     if (!token || !password) {
       return NextResponse.json(
         { success: false, message: "חסרים נתונים" },
@@ -25,9 +26,10 @@ export async function POST(req: Request) {
 
     await connectDB();
 
+    /* ================= FIND USER ================= */
     const user = await User.findOne({
-      magicToken: token,
-      magicTokenExpires: { $gt: Date.now() },
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
     });
 
     if (!user) {
@@ -44,9 +46,10 @@ export async function POST(req: Request) {
       );
     }
 
+    /* ================= UPDATE PASSWORD ================= */
     user.password = await bcrypt.hash(password, 10);
-    user.magicToken = undefined;
-    user.magicTokenExpires = undefined;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
     user.needsPasswordSetup = false;
 
     await user.save();
