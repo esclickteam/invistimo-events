@@ -32,7 +32,6 @@ type CreateClientBody = {
    HELPERS
 ========================================================= */
 function getPriceKeyByGuests(maxGuests: number) {
-  // התאמה לקיז שיש לך במערכת (תעדכני אם השמות שונים)
   const map: Record<number, string> = {
     100: "premium_100_v2",
     200: "premium_200_v2",
@@ -45,8 +44,23 @@ function getPriceKeyByGuests(maxGuests: number) {
     1000: "premium_1000",
   };
 
-  // אם הגיע ערך לא חוקי – ניפול ל-100
   return map[maxGuests] || "premium_100_v2";
+}
+
+function getAmountByGuests(maxGuests: number) {
+  const priceMap: Record<number, number> = {
+    100: 149,
+    200: 239,
+    300: 299,
+    400: 379,
+    500: 429,
+    600: 489,
+    700: 539,
+    800: 599,
+    1000: 699,
+  };
+
+  return priceMap[maxGuests] ?? 149;
 }
 
 /* =========================================================
@@ -131,7 +145,12 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
 
   const maxGuests = Number(guests) || 100;
+
+  // ✅ מחיר וקוד מוצר לפי אורחים
   const priceKey = getPriceKeyByGuests(maxGuests);
+  const amount = getAmountByGuests(maxGuests);
+
+  console.log("📦 create-client pricing:", { maxGuests, priceKey, amount });
 
   /* =========================
      Existing user
@@ -139,8 +158,6 @@ export async function POST(req: Request): Promise<NextResponse> {
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     console.log("⚠️ User already exists:", existingUser._id);
-
-    // אופציונלי: אם תרצי גם ליצור Payment “ידני” גם למשתמש קיים — תגידי לי
     return NextResponse.json({ success: true, user: existingUser });
   }
 
@@ -166,7 +183,9 @@ export async function POST(req: Request): Promise<NextResponse> {
       hasPaid: true,
       isTrial: false,
       plan: "premium",
-      paidAmount: 0,
+
+      // ✅ עכשיו גם ביוזר נשמר מחיר אמיתי
+      paidAmount: amount,
 
       guests: maxGuests,
 
@@ -189,7 +208,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     console.log("💬 remainingMessages:", newUser.remainingMessages);
 
     /* =========================
-       Create payment record (internal/manual)
+       Create payment record
        חובה: priceKey + amount
     ========================= */
     const payment = await Payment.create({
@@ -205,7 +224,8 @@ export async function POST(req: Request): Promise<NextResponse> {
       includeCreditGifts: false,
       creditGiftsAddonPrice: 0,
 
-      amount: 0, // ✅ “תשלום” פנימי/מתנה/פיילוט
+      // ✅ עכשיו גם בתשלום נשמר מחיר אמיתי
+      amount,
       refundAmount: 0,
       currency: "ils",
 
@@ -218,7 +238,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         source: "producer-create-client",
         producerId: String(producerId),
         userId: String(newUser._id),
-        note: "Internal/manual payment created by producer flow",
+        note: "Manual/internal payment created by producer flow",
       },
     });
 
