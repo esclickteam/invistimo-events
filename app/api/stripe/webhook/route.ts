@@ -37,6 +37,8 @@ const GUESTS_BY_KEY: Record<string, number> = {
    MAIN HANDLER
 ============================================================ */
 export async function POST(req: Request) {
+  try {
+
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
@@ -64,9 +66,21 @@ export async function POST(req: Request) {
 
   const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
-  if (session.payment_status !== "paid" || !session.payment_intent) {
-    return NextResponse.json({ received: true });
-  }
+  if (session.payment_status !== "paid") {
+  console.warn("⚠️ Checkout session not paid yet", {
+    sessionId: session.id,
+    paymentStatus: session.payment_status,
+  });
+  return NextResponse.json({ received: true });
+}
+
+if (!session.payment_intent) {
+  console.warn("⚠️ Missing payment_intent on paid session", {
+    sessionId: session.id,
+  });
+  return NextResponse.json({ received: true });
+}
+
 
   /* ============================================================
      Prevent duplicate processing
@@ -235,10 +249,19 @@ export async function POST(req: Request) {
   const maxGuests =
   Number(session.metadata?.maxGuests) ||
   GUESTS_BY_KEY[priceKey] ||
-  user.guests;
+  Number(user?.guests) ||
+  0;
 
 if (!maxGuests) {
-  throw new Error("Cannot resolve maxGuests for package purchase");
+  console.error("⚠️ Cannot resolve maxGuests for package purchase", {
+    sessionId: session.id,
+    priceKey,
+    metadata: session.metadata,
+    userGuests: user?.guests,
+  });
+
+  // ❗ לא מפילים webhook
+  return NextResponse.json({ received: true });
 }
 
   const plan = session.metadata?.plan || "basic";
@@ -291,13 +314,22 @@ invitation.remainingMessages = messagesToAdd;
     await invitation.save();
   }
 
-  await notifyAdminPurchase({
-    email,
-    amount: totalPaid,
-    currency: "ils",
-    type: plan === "basic" ? "Basic package" : "Premium package",
-    details: `${maxGuests} אורחים`,
-  });
+     try {
+      await notifyAdminPurchase({
+        email,
+        amount: totalPaid,
+        currency: "ils",
+        type: plan === "basic" ? "Basic package" : "Premium package",
+        details: `${maxGuests} אורחים`,
+      });
+    } catch (err) {
+      console.error("⚠️ Failed to send admin purchase notification", err);
+    }
 
-  return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true });
+
+  } catch (err) {
+    console.error("🔥 Stripe webhook fatal error:", err);
+    return NextResponse.json({ received: true });
+  }
 }
