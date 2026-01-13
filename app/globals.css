@@ -254,10 +254,13 @@ body {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    background: var(--cream);
+    color: var(--brown-dark);
   }
 }
+
 
 .pac-container {
   z-index: 99999 !important;
