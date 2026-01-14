@@ -23,15 +23,17 @@ export interface ScheduledMessageDocument {
 
   filter: "all" | "pending" | "withTable";
 
-  // 🧠 לוגיקה – מקור אמת
+  // 🧠 לוגיקה (נשמר לצורכי בקרה / סטטיסטיקה)
   templateKey: MessageTemplateKey;
+
+  // ✉️ מקור אמת – הטקסט הסופי שנשלח (וניתן לעריכה)
+  messageContent: string;
 
   // 🎁 מתנה באשראי
   includeGiftLink: boolean;
   giftLink?: string | null;
 
-  // ⚠️ נשאר לשמירה לאחור / debug בלבד
-  // לא חובה, לא מקור אמת
+  // ⚠️ LEGACY – לא בשימוש, נשמר לאחור בלבד
   text?: string;
 
   scheduledAt: Date;
@@ -83,11 +85,19 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     },
 
     /* ======================
-       TEMPLATE (SOURCE OF TRUTH)
+       TEMPLATE META (לא מקור אמת)
     ====================== */
     templateKey: {
       type: String,
       enum: ["rsvp", "table", "custom"],
+      required: true,
+    },
+
+    /* ======================
+       SOURCE OF TRUTH
+    ====================== */
+    messageContent: {
+      type: String,
       required: true,
     },
 
@@ -105,8 +115,8 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     },
 
     /* ======================
-       LEGACY / DEBUG TEXT
-       (לא חובה, לא בשימוש בלוגיקה)
+       LEGACY / DEBUG
+       (לא בשימוש בלוגיקה)
     ====================== */
     text: {
       type: String,

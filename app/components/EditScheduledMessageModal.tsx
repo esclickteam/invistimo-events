@@ -6,7 +6,8 @@ import { useState } from "react";
 
 type ScheduledMessage = {
   _id: string;
-  scheduledAt: string; // ISO string (UTC מה-DB)
+  scheduledAt: string;      // ISO string
+  messageContent: string;  // ✅ מקור אמת
 };
 
 /* ================= COMPONENT ================= */
@@ -36,11 +37,19 @@ export default function EditScheduledMessageModal({
     })
   );
 
+  // ✅ תוכן ההודעה – עריכה חופשית
+  const [content, setContent] = useState(message.messageContent);
+
   const [loading, setLoading] = useState(false);
 
   /* ================= SAVE ================= */
 
   async function save() {
+    if (!content.trim()) {
+      alert("תוכן ההודעה לא יכול להיות ריק");
+      return;
+    }
+
     if (!date || !time) {
       alert("יש לבחור תאריך ושעה");
       return;
@@ -70,7 +79,10 @@ export default function EditScheduledMessageModal({
       const res = await fetch(`/api/scheduled-messages/${message._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduledAt }),
+        body: JSON.stringify({
+          scheduledAt,
+          messageContent: content, // ✅ זה העיקר
+        }),
       });
 
       const data = await res.json();
@@ -93,17 +105,27 @@ export default function EditScheduledMessageModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl w-[90%] max-w-md p-6" dir="rtl">
+      <div className="bg-white rounded-2xl w-[95%] max-w-lg p-6" dir="rtl">
         <h2 className="text-xl font-semibold mb-4">
           ✏️ עריכת הודעה מתוזמנת
         </h2>
 
-        {/* PREVIEW */}
-        <div className="mb-4">
-          <div className="text-sm font-medium mb-1">תצוגה מקדימה</div>
-          <div className="whitespace-pre-wrap text-sm bg-gray-50 border rounded-xl p-3 text-gray-700">
-            תוכן ההודעה נבנה אוטומטית לפי התבנית, ההזמנה והאורחים
-          </div>
+        {/* MESSAGE CONTENT */}
+        <div className="mb-5">
+          <label className="block text-sm font-medium mb-1">
+            תוכן ההודעה (יישלח כפי שהוא)
+          </label>
+
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={8}
+            className="w-full border rounded-xl p-3 text-sm whitespace-pre-wrap"
+          />
+
+          <p className="text-xs text-gray-500 mt-1">
+            ✉️ הטקסט יישלח בדיוק כפי שמופיע כאן
+          </p>
         </div>
 
         {/* DATE */}
