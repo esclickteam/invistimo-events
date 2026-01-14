@@ -6,46 +6,6 @@ import Event from "@/models/Event";
 import User from "@/models/User";
 
 /* ======================================================
-   TYPES
-====================================================== */
-
-type MessageTemplateKey = "rsvp" | "table" | "custom";
-
-/* ======================================================
-   MESSAGE TEMPLATES – SOURCE OF TRUTH
-====================================================== */
-
-const MESSAGE_TEMPLATES: Record<
-  MessageTemplateKey,
-  { requiresTable?: boolean; content: string }
-> = {
-  rsvp: {
-    content:
-      "היי {{name}},\n" +
-      "נשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\n" +
-      "לאישור הגעה לחצו כאן:\n" +
-      "{{rsvpLink}}\n\n" +
-      "מחכים לכם באהבה 💖",
-  },
-  table: {
-    requiresTable: true,
-    content:
-      "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
-      "מספר השולחן שלך באירוע:\n" +
-      "🪑 {{tableName}}\n\n" +
-      "ניווט לאירוע:\n" +
-      "{{navigationLink}}\n\n" +
-      "מחכים לך!",
-  },
-  custom: {
-    content:
-      "היי {{name}} 🌸\n" +
-      "שמחנו לראותכם באירוע.\n" +
-      "תודה שהשתתפתם בשמחתנו.",
-  },
-};
-
-/* ======================================================
    WORKER
 ====================================================== */
 
@@ -72,7 +32,7 @@ export async function sendScheduledSms() {
   for (const candidate of candidates) {
     processed++;
 
-    // 🔒 atomic lock
+    // 🔒 Atomic lock
     const msg = await ScheduledMessage.findOneAndUpdate(
       { _id: candidate._id, status: "scheduled" },
       { $set: { status: "sending" } },
@@ -82,16 +42,6 @@ export async function sendScheduledSms() {
     if (!msg) continue;
 
     try {
-      /* ======================================================
-         TEMPLATE
-      ====================================================== */
-      const templateKey = msg.templateKey as MessageTemplateKey;
-      const template = MESSAGE_TEMPLATES[templateKey];
-
-      if (!template) {
-        throw new Error("INVALID_TEMPLATE");
-      }
-
       /* ======================================================
          INVITATION + EVENT + USER
       ====================================================== */
@@ -135,7 +85,8 @@ export async function sendScheduledSms() {
       let allowedToSend = guests.length;
 
       if (user.isTrial) {
-        const remaining = user.planLimits.smsLimit - user.smsUsed;
+        const remaining =
+          (user.planLimits?.smsLimit ?? 0) - (user.smsUsed ?? 0);
         allowedToSend = Math.max(0, Math.min(remaining, guests.length));
       }
 
@@ -150,8 +101,7 @@ export async function sendScheduledSms() {
       const guestsToSend = guests.slice(0, allowedToSend);
 
       /* ======================================================
-         LOCATION / NAVIGATION (⭐️ FIX HERE ⭐️)
-         זהה לשליחה מיידית
+         LOCATION / NAVIGATION
       ====================================================== */
       const location =
         invitation.eventLocation ?? event?.location;
@@ -163,7 +113,7 @@ export async function sendScheduledSms() {
         : "";
 
       /* ======================================================
-         SEND
+         SEND (SOURCE OF TRUTH = messageContent)
       ====================================================== */
       let sent = 0;
 
@@ -180,19 +130,16 @@ export async function sendScheduledSms() {
             ? `שולחן ${guest.tableNumber}`
             : "");
 
-        let finalText = template.content
+        // ✅ SOURCE OF TRUTH
+        let finalText = msg.messageContent
           .replace(/{{name}}/g, guest.name || "")
+          .replace(/{{token}}/g, guest.token || "")
           .replace(
             /{{rsvpLink}}/g,
             `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
           )
           .replace(/{{tableName}}/g, tableName)
           .replace(/{{navigationLink}}/g, navigationLink);
-
-        // 🎁 מתנה באשראי
-        if (msg.includeGiftLink && msg.giftLink) {
-          finalText += `\n\n🎁 למתנה באשראי:\n${msg.giftLink}`;
-        }
 
         if (!finalText.trim()) continue;
 
