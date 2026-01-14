@@ -7,7 +7,6 @@ import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
-import { useParams } from "next/navigation";
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -44,11 +43,6 @@ export default function SeatingPage() {
 
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
-  const params = useParams();
-
-const invitationId = Array.isArray(params?.invitationId)
-  ? params.invitationId[0]
-  : (params?.invitationId as string);
 
   const setZones = useZoneStore((s) => s.setZones);
 
@@ -56,74 +50,65 @@ const invitationId = Array.isArray(params?.invitationId)
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
-  async function load() {
-    try {
-      if (!invitationId) return;
+    async function load() {
+      try {
+        /* 🧹 איפוס מוחלט לפני טעינה */
+        useSeatingStore.getState().init([], [], null, null);
+        useZoneStore.getState().setZones([]);
 
-      /* 🧹 איפוס מוחלט לפני טעינה */
-      useSeatingStore.getState().init([], [], null, null);
-      useZoneStore.getState().setZones([]);
+        /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
+        const invRes = await fetch("/api/invitations/my");
+        const invData = await invRes.json();
 
-      const invRes = await fetch(`/api/invitations/${invitationId}`);
-      const invData = await invRes.json();
+        if (!invData?.success || !invData.invitation?.eventId) return;
 
-      if (!invData?.success || !invData.invitation?.eventId) {
-        console.warn("❌ Invitation not found for seating");
-        return;
+        const eventIdFromApi: string = invData.invitation.eventId;
+        setEventId(eventIdFromApi);
+
+        /* 2️⃣ אורחים – לפי eventId */
+        const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
+        if (gRes.status === 403) {
+          setBlocked(true);
+          setShowUpgrade(true);
+          return;
+        }
+
+        const gData = await gRes.json();
+
+        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+          id: g._id,
+          name: g.name,
+          count:
+            g.rsvp === "yes"
+              ? g.arrivedCount || g.guestsCount || 1
+              : g.guestsCount || 1,
+        }));
+
+        /* 3️⃣ שולחנות + אזורים + קנבס */
+        const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
+        if (tRes.status === 403) {
+          setBlocked(true);
+          setShowUpgrade(true);
+          return;
+        }
+
+        const tData = await tRes.json();
+
+        init(
+          tData.tables || [],
+          normalizedGuests,
+          tData.background ?? null,
+          tData.canvasView ?? null
+        );
+
+        setZones(tData.zones || []);
+      } catch (err) {
+        console.error("❌ SeatingPage load error:", err);
       }
-
-      const eventIdFromApi: string = invData.invitation.eventId;
-      setEventId(eventIdFromApi);
-
-      const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
-      if (gRes.status === 403) {
-        setBlocked(true);
-        setShowUpgrade(true);
-        return;
-      }
-
-      const gData = await gRes.json();
-
-      const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => {
-  const guestsCount =
-    g.guestsCount && g.guestsCount > 0 ? g.guestsCount : 1;
-
-  return {
-    id: g._id,
-    name: g.name,
-
-    // ⭐ חשוב: אחידות עם כל המערכת
-    guestsCount,
-    count: guestsCount,
-  };
-});
-
-      const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
-      if (tRes.status === 403) {
-        setBlocked(true);
-        setShowUpgrade(true);
-        return;
-      }
-
-      const tData = await tRes.json();
-
-      init(
-        tData.tables || [],
-        normalizedGuests,
-        tData.background ?? null,
-        tData.canvasView ?? null
-      );
-
-      setZones(tData.zones || []);
-    } catch (err) {
-      console.error("❌ SeatingPage load error:", err);
     }
-  }
 
-  load();
-}, [invitationId, init, setZones]);
-
-
+    load();
+  }, [init, setZones]);
 
   /* ===============================
      BACKGROUND
