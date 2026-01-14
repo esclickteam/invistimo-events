@@ -279,7 +279,7 @@ useEffect(() => {
   const buildMessage = (guest: Guest) => {
   if (!invitation) return "";
 
-  const location = invitation.eventLocation;
+  const location = invitation.eventLocation ?? invitation.event?.location;
   const hasLocation = !!(location?.lat && location?.lng);
 
   // 📍 ניווט – Google + Waze, כל אחד בשורה נפרדת

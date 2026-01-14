@@ -212,16 +212,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, sent: 0, total: 0 });
     }
 
-    const hasLocation =
-      event?.location?.lat && event?.location?.lng;
+    const location =
+  invitation.eventLocation ?? event?.location;
 
-    const navigationLink = hasLocation
-      ? `Google Maps:
-https://www.google.com/maps?q=${event.location.lat},${event.location.lng}
+const hasLocation = !!(location?.lat && location?.lng);
+
+const navigationLink = hasLocation
+  ? `Google Maps:
+https://www.google.com/maps?q=${location.lat},${location.lng}
 
 Waze:
-https://waze.com/ul?ll=${event.location.lat},${event.location.lng}&navigate=yes`
-      : "";
+https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
+  : "";
 
     let sent = 0;
 
