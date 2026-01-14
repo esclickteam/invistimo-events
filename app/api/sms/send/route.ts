@@ -35,7 +35,7 @@ const MESSAGE_TEMPLATES: Record<
       "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
       "מספר השולחן שלך באירוע:\n" +
       "🪑 {{tableName}}\n\n" +
-      "📍 ניווט לאירוע:\n" +
+      "ניווט לאירוע:\n" +
       "{{navigationLink}}\n\n" +
       "מחכים לך!",
   },
@@ -113,6 +113,8 @@ export async function POST(req: Request) {
       filter?: FilterType;
       templateKey?: MessageTemplateKey;
       scheduledAt?: string;
+      includeGiftLink?: boolean;
+      giftLink?: string;
     };
 
     const {
@@ -120,6 +122,8 @@ export async function POST(req: Request) {
       filter = "all",
       templateKey,
       scheduledAt,
+      includeGiftLink,
+      giftLink,
     } = body;
 
     if (!invitationId || !templateKey) {
@@ -185,17 +189,23 @@ export async function POST(req: Request) {
         );
       }
 
+      let scheduledText = template.content;
+
+      if (includeGiftLink && giftLink) {
+        scheduledText += `\n\n${giftLink}`;
+      }
+
       await ScheduledMessage.create({
-  invitationId,
-  userId: user._id,
-  channel: "sms",
-  filter,
-  templateKey,
-  text: template.content, // ⭐️ זה הפתרון
-  scheduledAt: new Date(scheduledAt),
-  guestsCount,
-  status: "scheduled",
-});
+        invitationId,
+        userId: user._id,
+        channel: "sms",
+        filter,
+        templateKey,
+        text: scheduledText,
+        scheduledAt: new Date(scheduledAt),
+        guestsCount,
+        status: "scheduled",
+      });
 
       return NextResponse.json({
         success: true,
@@ -212,18 +222,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, sent: 0, total: 0 });
     }
 
-    const location =
-  invitation.eventLocation ?? event?.location;
+    const location = invitation.eventLocation ?? event?.location;
+    const hasLocation = !!(location?.lat && location?.lng);
 
-const hasLocation = !!(location?.lat && location?.lng);
-
-const navigationLink = hasLocation
-  ? `Google Maps:
-https://www.google.com/maps?q=${location.lat},${location.lng}
-
-Waze:
-https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-  : "";
+    const navigationLink = hasLocation
+      ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
+      : "";
 
     let sent = 0;
 
@@ -250,7 +254,7 @@ https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
       if (phone.startsWith("0")) phone = "972" + phone.slice(1);
       else if (!phone.startsWith("972")) phone = "972" + phone;
 
-      const finalText = template.content
+      let finalText = template.content
         .replace(/{{name}}/g, guest.name || "")
         .replace(
           /{{rsvpLink}}/g,
@@ -258,6 +262,10 @@ https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
         )
         .replace(/{{tableName}}/g, tableName)
         .replace(/{{navigationLink}}/g, navigationLink);
+
+      if (includeGiftLink && giftLink) {
+        finalText += `\n\n${giftLink}`;
+      }
 
       try {
         const res = await fetch(

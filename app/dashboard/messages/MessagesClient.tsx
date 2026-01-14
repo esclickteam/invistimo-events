@@ -299,7 +299,7 @@ https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
 
   // 🪑 מספר שולחן
   const tableName =
-    guest.tableName ||
+     guest.tableName ||
     (typeof guest.tableNumber === "number"
       ? `שולחן ${guest.tableNumber}`
       : "");
@@ -395,11 +395,13 @@ const loadScheduledMessages = async () => {
   headers: { "Content-Type": "application/json" },
 
   body: JSON.stringify({
-    invitationId: invitation._id,
-    filter,
-    templateKey,  
-    scheduledAt,
-  }),
+  invitationId: invitation._id,
+  filter,
+  templateKey,
+  scheduledAt,
+  includeGiftLink,
+  giftLink,
+}),
 });
 
     console.log("📬 SMS API status:", res.status);
