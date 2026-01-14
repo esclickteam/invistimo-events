@@ -1,26 +1,20 @@
-"use client";
-
 import "./globals.css";
 import type { ReactNode } from "react";
 import Script from "next/script";
-import { usePathname } from "next/navigation";
 
 import Providers from "./providers";
-
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import LayoutShell from "./components/LayoutShell";
-
-import SupportBotButton from "./components/SupportBotButton";
-import SupportBotGate from "./components/SupportBotGate";
 import AccessibilityScript from "./components/AccessibilityScript";
+import ClientShell from "./ClientShell";
+
+
+/* ✅ METADATA – זה מה שגוגל צריך */
+export const metadata = {
+  title: "Invistimo – ניהול אירועים חכם",
+  description:
+    "Invistimo – מערכת חכמה לניהול אירועים, הזמנות דיגיטליות, אישורי הגעה והושבה במקום אחד",
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-
-  // 🛡️ בדיקת Admin
-  const isAdmin = pathname.startsWith("/admin");
-
   return (
     <html lang="he" dir="rtl">
       <body className="min-h-screen font-[Heebo] bg-[#f7f3ee] text-[#5c4632]">
@@ -30,22 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
 
         <Providers>
-          {isAdmin ? (
-            // ✅ Admin – בלי Header / Footer של האתר
-            <>{children}</>
-          ) : (
-            // 🌐 אתר רגיל
-            <LayoutShell header={<Header />} footer={<Footer />}>
-              {children}
-            </LayoutShell>
-          )}
-
-          {/* 🤖 בוט תמיכה – רק מחוץ לאדמין */}
-          {!isAdmin && (
-            <SupportBotGate>
-              <SupportBotButton />
-            </SupportBotGate>
-          )}
+          <ClientShell>{children}</ClientShell>
         </Providers>
 
         <AccessibilityScript />
