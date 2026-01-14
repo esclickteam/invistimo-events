@@ -42,9 +42,30 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     TRIAL / SMS LIMIT GUARD (USER-BASED)
+     חישוב יתרה – מקור אמת
   ====================================================== */
-  if (user.isTrial) {
+  const isTrial = !!user.isTrial;
+
+  const maxMessages = isTrial
+    ? typeof user.planLimits?.smsLimit === "number"
+      ? user.planLimits.smsLimit
+      : 0
+    : typeof user.maxMessages === "number"
+    ? user.maxMessages
+    : 0;
+
+  const smsUsed =
+    typeof user.smsUsed === "number" ? user.smsUsed : 0;
+
+  const remainingMessages = Math.max(
+    maxMessages - smsUsed,
+    0
+  );
+
+  /* ======================================================
+     TRIAL / SMS LIMIT GUARD
+  ====================================================== */
+  if (isTrial) {
     if (user.trialExpiresAt && new Date() > user.trialExpiresAt) {
       return NextResponse.json(
         { success: false, error: "TRIAL_EXPIRED" },
@@ -52,17 +73,14 @@ export async function POST(req: Request) {
       );
     }
 
-    if (user.smsUsed >= user.planLimits.smsLimit) {
+    if (remainingMessages <= 0) {
       return NextResponse.json(
         { success: false, error: "SMS_LIMIT_REACHED" },
         { status: 403 }
       );
     }
   } else {
-    if (
-      typeof user.remainingMessages !== "number" ||
-      user.remainingMessages <= 0
-    ) {
+    if (remainingMessages <= 0) {
       return NextResponse.json(
         { success: false, error: "SMS_LIMIT_REACHED" },
         { status: 403 }
@@ -73,7 +91,8 @@ export async function POST(req: Request) {
   /* ======================================================
      BODY
   ====================================================== */
-  const { invitationId, filter = "all", text, scheduledAt } = await req.json();
+  const { invitationId, filter = "all", text, scheduledAt } =
+    await req.json();
 
   if (!invitationId || !text) {
     return NextResponse.json(
@@ -95,13 +114,23 @@ export async function POST(req: Request) {
   ====================================================== */
   const query: any = { invitationId };
   if (filter === "pending") query.rsvp = "pending";
-  if (filter === "withTable") query.tableName = { $exists: true, $ne: "" };
+  if (filter === "withTable")
+    query.tableName = { $exists: true, $ne: "" };
 
   /* ======================================================
-     ⏱️ תזמון – שומרים בלבד (לא נוגעים ביתרה עכשיו)
+     ⏱️ תזמון – שומרים בלבד (לא נוגעים ביתרה)
   ====================================================== */
   if (scheduledAt) {
-    const guestsCount = await InvitationGuest.countDocuments(query);
+    const guestsCount = await InvitationGuest.countDocuments(
+      query
+    );
+
+    if (guestsCount > remainingMessages) {
+      return NextResponse.json(
+        { success: false, error: "SMS_LIMIT_REACHED" },
+        { status: 403 }
+      );
+    }
 
     await ScheduledMessage.create({
       invitationId,
@@ -135,16 +164,12 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     חישוב כמה מותר לשלוח (USER-BASED)
+     חישוב כמה מותר לשלוח
   ====================================================== */
-  let allowedToSend = guests.length;
-
-  if (user.isTrial) {
-    const remaining = user.planLimits.smsLimit - user.smsUsed;
-    allowedToSend = Math.max(0, Math.min(remaining, guests.length));
-  } else {
-    allowedToSend = Math.min(user.remainingMessages, guests.length);
-  }
+  const allowedToSend = Math.min(
+    remainingMessages,
+    guests.length
+  );
 
   if (allowedToSend === 0) {
     return NextResponse.json(
@@ -176,7 +201,8 @@ export async function POST(req: Request) {
     if (!phone) continue;
 
     if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-    else if (!phone.startsWith("972")) phone = "972" + phone;
+    else if (!phone.startsWith("972"))
+      phone = "972" + phone;
 
     const finalText = text
       .replace(/{{name}}/g, guest.name || "")
@@ -225,19 +251,23 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     עדכון DB – USER הוא מקור האמת
+     עדכון DB – מקור אמת: smsUsed בלבד
   ====================================================== */
   if (sent > 0) {
+    const newSmsUsed = smsUsed + sent;
+    const newRemaining = Math.max(
+      maxMessages - newSmsUsed,
+      0
+    );
+
     await User.findByIdAndUpdate(user._id, {
-      $inc: {
-        smsUsed: sent,
-        remainingMessages: -sent,
+      $set: {
+        smsUsed: newSmsUsed,
+        remainingMessages: newRemaining, // נשמר רק ל־compatibility
       },
     });
 
-  
-
-    cookieStore.set("smsUsed", String(user.smsUsed + sent), {
+    cookieStore.set("smsUsed", String(newSmsUsed), {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

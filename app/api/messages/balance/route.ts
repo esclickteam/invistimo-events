@@ -60,15 +60,13 @@ export async function GET() {
   const maxMessages =
     typeof user.maxMessages === "number" ? user.maxMessages : 0;
 
-  const remainingMessages =
-    typeof user.remainingMessages === "number"
-      ? user.remainingMessages
-      : 0;
-
   const sentSmsCount =
-    maxMessages > remainingMessages
-      ? maxMessages - remainingMessages
-      : 0;
+    typeof user.smsUsed === "number" ? user.smsUsed : 0;
+
+  const remainingMessages = Math.max(
+    maxMessages - sentSmsCount,
+    0
+  );
 
   return NextResponse.json({
     success: true,
