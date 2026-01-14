@@ -265,7 +265,7 @@ useEffect(() => {
     });
   }, [guests, filter]);
 
-  const hasSmsBalance =
+   const hasSmsBalance =
     balance !== null && balance.remainingMessages > 0;
 
   const disableSend =
@@ -278,14 +278,18 @@ useEffect(() => {
   if (!invitation) return "";
 
   const location = invitation.eventLocation;
+  const hasLocation = !!(location?.lat && location?.lng);
 
-const hasLocation = location?.lat && location?.lng;
+  // 📍 ניווט – Google + Waze, כל אחד בשורה נפרדת
+  const navigationLink =
+    templateKey === "table" && hasLocation
+      ? 
+`Google Maps:
+https://www.google.com/maps?q=${location.lat},${location.lng}
 
-const navigationLink =
-  templateKey === "table" && hasLocation
-    ? `https://www.google.com/maps?q=${location.lat},${location.lng}\n\n` +
-      `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-    : "";
+Waze:
+https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
+      : "";
 
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
@@ -300,8 +304,10 @@ const navigationLink =
     finalMessage += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
   }
 
-  return finalMessage;
+  return finalMessage.trim();
 };
+
+
 
 
 
@@ -360,6 +366,10 @@ const loadScheduledMessages = async () => {
   }
 };
 
+const buildSmsText = () => {
+  if (!guests.length) return message;
+  return buildMessage(guests[0]);
+};
 
 
 
@@ -382,7 +392,10 @@ const loadScheduledMessages = async () => {
     filter,
 
     // ✅ חובה – השרת משתמש בזה
-    text: message,
+    text: buildSmsText(),
+
+
+
 
     scheduledAt,
   }),
@@ -478,8 +491,8 @@ if (balanceData.success) {
   };
 
 const smsPreviewText =
-  includeGiftLink && giftLink
-    ? `${message}\n\n🎁 למתנה באשראי:\n${giftLink}`
+  channel === "sms" && guests.length > 0
+    ? buildMessage(guests[0])
     : message;
 
 
