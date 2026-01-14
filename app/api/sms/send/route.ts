@@ -263,9 +263,10 @@ export async function POST(req: Request) {
         .replace(/{{tableName}}/g, tableName)
         .replace(/{{navigationLink}}/g, navigationLink);
 
+
       if (includeGiftLink && giftLink) {
-        finalText += `\n\n${giftLink}`;
-      }
+  finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+}
 
       try {
         const res = await fetch(
