@@ -8,11 +8,50 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
+/* ======================================================
+   TYPES
+====================================================== */
+type MessageTemplateKey = "rsvp" | "table" | "custom";
+type FilterType = "all" | "pending" | "withTable";
+
+/* ======================================================
+   MESSAGE TEMPLATES – SERVER SOURCE OF TRUTH
+====================================================== */
+const MESSAGE_TEMPLATES: Record<
+  MessageTemplateKey,
+  { requiresTable?: boolean; content: string }
+> = {
+  rsvp: {
+    content:
+      "היי {{name}},\n" +
+      "נשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\n" +
+      "לאישור הגעה לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לכם באהבה 💖",
+  },
+  table: {
+    requiresTable: true,
+    content:
+      "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
+      "מספר השולחן שלך באירוע:\n" +
+      "🪑 {{tableName}}\n\n" +
+      "📍 ניווט לאירוע:\n" +
+      "{{navigationLink}}\n\n" +
+      "מחכים לך!",
+  },
+  custom: {
+    content:
+      "היי {{name}} 🌸\n" +
+      "שמחנו לראותכם באירוע.\n" +
+      "תודה שהשתתפתם בשמחתנו.",
+  },
+};
+
 export async function POST(req: Request) {
   await dbConnect();
 
   /* ======================================================
-     AUTH – זיהוי משתמש
+     AUTH
   ====================================================== */
   const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
@@ -43,7 +82,7 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     חישוב יתרה – מקור אמת
+     BALANCE
   ====================================================== */
   const isTrial = !!user.isTrial;
 
@@ -56,12 +95,8 @@ export async function POST(req: Request) {
     : 0;
 
   const smsUsed = typeof user.smsUsed === "number" ? user.smsUsed : 0;
-
   const remainingMessages = Math.max(maxMessages - smsUsed, 0);
 
-  /* ======================================================
-     TRIAL / SMS LIMIT GUARD
-  ====================================================== */
   if (remainingMessages <= 0) {
     return NextResponse.json(
       { success: false, error: "SMS_LIMIT_REACHED" },
@@ -70,18 +105,47 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     BODY
+     BODY (TYPE SAFE)
   ====================================================== */
-  const { invitationId, filter = "all", text, scheduledAt } =
-    await req.json();
+  const body = (await req.json()) as {
+    invitationId?: string;
+    filter?: FilterType;
+    templateKey?: MessageTemplateKey;
+    scheduledAt?: string;
+  };
 
-  if (!invitationId || !text) {
+  const {
+    invitationId,
+    filter = "all",
+    templateKey,
+    scheduledAt,
+  } = body;
+
+  if (!invitationId || !templateKey) {
     return NextResponse.json(
       { success: false, error: "MISSING_PARAMS" },
       { status: 400 }
     );
   }
 
+  const template = MESSAGE_TEMPLATES[templateKey];
+  if (!template) {
+    return NextResponse.json(
+      { success: false, error: "INVALID_TEMPLATE" },
+      { status: 400 }
+    );
+  }
+
+  if (template.requiresTable && filter !== "withTable") {
+    return NextResponse.json(
+      { success: false, error: "INVALID_FILTER_FOR_TABLE_MESSAGE" },
+      { status: 400 }
+    );
+  }
+
+  /* ======================================================
+     INVITATION + EVENT
+  ====================================================== */
   const invitation = await Invitation.findById(invitationId).lean();
   if (!invitation) {
     return NextResponse.json(
@@ -90,15 +154,12 @@ export async function POST(req: Request) {
     );
   }
 
-  /* ======================================================
-     🔥 טעינת EVENT (שם נמצא המיקום)
-  ====================================================== */
   const event = invitation.eventId
     ? await Event.findById(invitation.eventId).lean()
     : null;
 
   /* ======================================================
-     בניית query לאורחים
+     QUERY
   ====================================================== */
   const query: any = { invitationId };
   if (filter === "pending") query.rsvp = "pending";
@@ -106,7 +167,7 @@ export async function POST(req: Request) {
     query.tableName = { $exists: true, $ne: "" };
 
   /* ======================================================
-     ⏱️ תזמון – שומרים בלבד
+     SCHEDULE
   ====================================================== */
   if (scheduledAt) {
     const guestsCount = await InvitationGuest.countDocuments(query);
@@ -123,7 +184,7 @@ export async function POST(req: Request) {
       userId: user._id,
       channel: "sms",
       filter,
-      text,
+      templateKey,
       scheduledAt: new Date(scheduledAt),
       guestsCount,
       status: "scheduled",
@@ -137,37 +198,34 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     שליחה מיידית
+     SEND NOW
   ====================================================== */
   const guests = await InvitationGuest.find(query).lean();
   if (!guests.length) {
     return NextResponse.json({ success: true, sent: 0, total: 0 });
   }
 
-  const allowedToSend = Math.min(remainingMessages, guests.length);
-  const guestsToSend = guests.slice(0, allowedToSend);
-
-  /* ======================================================
-     📍 בניית ניווט מה-EVENT
-  ====================================================== */
   const hasLocation =
     event?.location?.lat && event?.location?.lng;
 
   const navigationLink = hasLocation
-    ? `https://www.google.com/maps?q=${event.location.lat},${event.location.lng}\n\n` +
-      `https://waze.com/ul?ll=${event.location.lat},${event.location.lng}&navigate=yes`
+    ? `Google Maps:\nhttps://www.google.com/maps?q=${event.location.lat},${event.location.lng}\n\n` +
+      `Waze:\nhttps://waze.com/ul?ll=${event.location.lat},${event.location.lng}&navigate=yes`
     : "";
 
   let sent = 0;
 
-  for (const guest of guestsToSend) {
+  for (const guest of guests) {
+    if (sent >= remainingMessages) break;
+    if (template.requiresTable && !guest.tableName) continue;
+
     let phone = (guest.phone || "").replace(/\D/g, "");
     if (!phone) continue;
 
     if (phone.startsWith("0")) phone = "972" + phone.slice(1);
     else if (!phone.startsWith("972")) phone = "972" + phone;
 
-    const finalText = text
+    const finalText = template.content
       .replace(/{{name}}/g, guest.name || "")
       .replace(
         /{{rsvpLink}}/g,
@@ -175,8 +233,6 @@ export async function POST(req: Request) {
       )
       .replace(/{{tableName}}/g, guest.tableName || "")
       .replace(/{{navigationLink}}/g, navigationLink);
-
-    if (!finalText.trim()) continue;
 
     try {
       const res = await fetch(
@@ -201,9 +257,6 @@ export async function POST(req: Request) {
     }
   }
 
-  /* ======================================================
-     עדכון יתרה
-  ====================================================== */
   if (sent > 0) {
     await User.findByIdAndUpdate(user._id, {
       $inc: { smsUsed: sent },

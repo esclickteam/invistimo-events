@@ -366,11 +366,6 @@ const loadScheduledMessages = async () => {
   }
 };
 
-const buildSmsText = () => {
-  if (!guests.length) return message;
-  return buildMessage(guests[0]);
-};
-
 
 
   const sendSMS = async () => {
@@ -390,13 +385,7 @@ const buildSmsText = () => {
   body: JSON.stringify({
     invitationId: invitation._id,
     filter,
-
-    // ✅ חובה – השרת משתמש בזה
-    text: buildSmsText(),
-
-
-
-
+    templateKey,  
     scheduledAt,
   }),
 });
@@ -464,6 +453,17 @@ if (balanceData.success) {
     return;
   }
 
+  // 🔒 ולידציה לתבניות שדורשות שולחן
+  if (channel === "sms") {
+    const template = MESSAGE_TEMPLATES[templateKey];
+
+    if (template.requiresTable && filter !== "withTable") {
+      alert("הודעת מספר שולחן ניתנת לשליחה רק למוזמנים עם שולחן");
+      return;
+    }
+  }
+
+  // 🚀 שליחה בפועל
   if (channel === "whatsapp") {
     const guest = guests.find((g) => g._id === selectedGuestId);
     if (!guest) {
@@ -475,6 +475,7 @@ if (balanceData.success) {
     sendSMS();
   }
 };
+
 
 
 
