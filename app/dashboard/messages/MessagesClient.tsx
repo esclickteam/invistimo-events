@@ -16,6 +16,7 @@ type Guest = {
   token: string;
   rsvp: "yes" | "no" | "pending";
   tableName?: string;
+  tableNumber?: number;
 };
 
 type MessageType = "rsvp" | "table" | "custom";
@@ -260,7 +261,8 @@ useEffect(() => {
   const guestsToSend = useMemo(() => {
     return guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
-      if (filter === "withTable") return !!g.tableName;
+      if (filter === "withTable") return !!g.tableName || !!g.tableNumber;
+
       return true;
     });
   }, [guests, filter]);

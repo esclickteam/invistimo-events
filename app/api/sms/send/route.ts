@@ -163,8 +163,13 @@ export async function POST(req: Request) {
   ====================================================== */
   const query: any = { invitationId };
   if (filter === "pending") query.rsvp = "pending";
-  if (filter === "withTable")
-    query.tableName = { $exists: true, $ne: "" };
+
+  if (filter === "withTable") {
+  query.$or = [
+    { tableName: { $exists: true, $ne: "" } },
+    { tableNumber: { $exists: true } },
+  ];
+}
 
   /* ======================================================
      SCHEDULE
@@ -217,7 +222,22 @@ export async function POST(req: Request) {
 
   for (const guest of guests) {
     if (sent >= remainingMessages) break;
-    if (template.requiresTable && !guest.tableName) continue;
+
+    if (
+  template.requiresTable &&
+  !guest.tableName &&
+  typeof guest.tableNumber !== "number"
+) {
+  continue;
+}
+
+const tableName =
+  guest.tableName ||
+  (typeof guest.tableNumber === "number"
+    ? `שולחן ${guest.tableNumber}`
+    : "");
+
+
 
     let phone = (guest.phone || "").replace(/\D/g, "");
     if (!phone) continue;
@@ -231,7 +251,8 @@ export async function POST(req: Request) {
         /{{rsvpLink}}/g,
         `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
       )
-      .replace(/{{tableName}}/g, guest.tableName || "")
+      .replace(/{{tableName}}/g, tableName)
+
       .replace(/{{navigationLink}}/g, navigationLink);
 
     try {
