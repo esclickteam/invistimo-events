@@ -366,11 +366,6 @@ const loadScheduledMessages = async () => {
   }
 };
 
-const buildSmsText = () => {
-  if (!guests.length) return message;
-  return buildMessage(guests[0]);
-};
-
 
 
   const sendSMS = async () => {
@@ -388,17 +383,19 @@ const buildSmsText = () => {
   headers: { "Content-Type": "application/json" },
 
   body: JSON.stringify({
-    invitationId: invitation._id,
-    filter,
+  invitationId: invitation._id,
+  filter,
 
-    // ✅ חובה – השרת משתמש בזה
-    text: buildSmsText(),
+  // ✅ השרת בונה את ההודעה
+  templateKey,
 
+  // 🎁 תוספות אופציונליות
+  includeGiftLink,
+  giftLink,
 
+  scheduledAt,
+}),
 
-
-    scheduledAt,
-  }),
 });
 
     console.log("📬 SMS API status:", res.status);
@@ -440,6 +437,8 @@ if (balanceData.success) {
 };
 
 
+
+
   const sendToAll = () => {
   if (isDemo) {
     alert("🟡 זהו דמו בלבד\nכדי לשלוח הודעות אמיתיות יש לפתוח אירוע");
@@ -463,6 +462,16 @@ if (balanceData.success) {
     alert("תזמון זמין כרגע לשליחת SMS בלבד");
     return;
   }
+
+  if (
+  channel === "sms" &&
+  MESSAGE_TEMPLATES[templateKey]?.requiresTable &&
+  filter !== "withTable"
+) {
+  alert("בהודעת מספר שולחן יש לבחור סינון: למי שיש מספר שולחן");
+  return;
+}
+
 
   if (channel === "whatsapp") {
     const guest = guests.find((g) => g._id === selectedGuestId);
@@ -664,14 +673,21 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
       <select
-        value={templateKey}
-        onChange={(e) => {
-          const key = e.target.value as MessageType;
-          setTemplateKey(key);
-          setMessage(MESSAGE_TEMPLATES[key].content);
-        }}
-        className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
-      >
+  value={templateKey}
+  onChange={(e) => {
+    const key = e.target.value as MessageType;
+
+    setTemplateKey(key);
+    setMessage(MESSAGE_TEMPLATES[key].content);
+
+    // ✅ אם זו תבנית שמצריכה שולחן – בחר סינון מתאים אוטומטית
+    if (MESSAGE_TEMPLATES[key].requiresTable) {
+      setFilter("withTable");
+    }
+  }}
+  className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
+>
+
         {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
           <option key={key} value={key}>
             {t.label}
