@@ -285,8 +285,7 @@ useEffect(() => {
   // 📍 ניווט – Google + Waze, כל אחד בשורה נפרדת
   const navigationLink =
     templateKey === "table" && hasLocation
-      ? 
-`Google Maps:
+      ? `Google Maps:
 https://www.google.com/maps?q=${location.lat},${location.lng}
 
 Waze:
@@ -295,10 +294,17 @@ https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
 
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
+  // 🪑 מספר שולחן – tableName או tableNumber
+  const tableName =
+    guest.tableName ||
+    (typeof (guest as any).tableNumber === "number"
+      ? `שולחן ${(guest as any).tableNumber}`
+      : "");
+
   let finalMessage = message
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{rsvpLink}}/g, rsvpLink)
-    .replace(/{{tableName}}/g, guest.tableName || "")
+    .replace(/{{tableName}}/g, tableName)
     .replace(/{{navigationLink}}/g, navigationLink);
 
   // 🎁 תוספת קישור מתנה באשראי
