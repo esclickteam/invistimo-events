@@ -111,11 +111,25 @@ export async function POST(req: Request) {
   /* ================= QUERY ================= */
   const query: any = { invitationId };
   if (filter === "pending") query.rsvp = "pending";
-  if (filter === "withTable") query.tableName = { $exists: true, $ne: "" };
+
+  if (filter === "withTable") {
+  query.$or = [
+    { tableName: { $exists: true, $ne: "" } },
+    { tableNumber: { $ne: null } },
+  ];
+}
 
   /* ================= SCHEDULE ================= */
   if (scheduledAt) {
     const guestsCount = await InvitationGuest.countDocuments(query);
+
+    if (guestsCount > remainingMessages) {
+  return NextResponse.json(
+    { success: false, error: "SMS_LIMIT_REACHED" },
+    { status: 403 }
+  );
+}
+
 
     await ScheduledMessage.create({
       invitationId,
@@ -158,7 +172,13 @@ export async function POST(req: Request) {
         /{{rsvpLink}}/g,
         `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
       )
-      .replace(/{{tableName}}/g, guest.tableName || "")
+      .replace(
+  /{{tableName}}/g,
+  guest.tableName?.trim() ||
+    (guest.tableNumber ? `שולחן ${guest.tableNumber}` : "")
+)
+
+
       .replace(/{{navigationLink}}/g, navigationLink);
 
     if (includeGiftLink && giftLink) {
