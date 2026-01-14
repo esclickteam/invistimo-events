@@ -287,13 +287,9 @@ useEffect(() => {
 
   // 📍 ניווט – רק אם צריך ויש מיקום
   const navigationLink =
-    templateKey === "table" && hasLocation
-      ? `Google Maps:
-https://www.google.com/maps?q=${location.lat},${location.lng}
-
-Waze:
-https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-      : "";
+  templateKey === "table" && hasLocation
+    ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
+    : "";
 
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
