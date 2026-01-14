@@ -42,11 +42,10 @@ const InvitationSchema = new Schema(
 
     /* ================= EVENT LINK ================= */
     eventId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Event",
-      required: true,
-      index: true,
-    },
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Event",
+  required: true,
+},
 
     /* ================= EVENT SNAPSHOT ================= */
     title: {
