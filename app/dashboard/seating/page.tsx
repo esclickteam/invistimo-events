@@ -84,11 +84,19 @@ const invitationId = Array.isArray(params?.invitationId)
 
       const gData = await gRes.json();
 
-      const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-        id: g._id,
-        name: g.name,
-        count: g.guestsCount && g.guestsCount > 0 ? g.guestsCount : 1,
-      }));
+      const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => {
+  const guestsCount =
+    g.guestsCount && g.guestsCount > 0 ? g.guestsCount : 1;
+
+  return {
+    id: g._id,
+    name: g.name,
+
+    // ⭐ חשוב: אחידות עם כל המערכת
+    guestsCount,
+    count: guestsCount,
+  };
+});
 
       const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
       if (tRes.status === 403) {
