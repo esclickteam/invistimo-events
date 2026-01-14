@@ -326,6 +326,8 @@ const sendWhatsApp = (guest: Guest) => {
   // ❌ לא לנקות token — אחרת לא יזהה את האורח
   // text = text.replace(/\?token=[A-Za-z0-9_-]+/g, "");
 
+  // ✅ אם לא רוצים את השורה הזו בוואטספ (רק את הכותרת עצמה), נשאיר:
+  text = text.replace(/📍 ניווט לאירוע:\s*\n?/g, "");
 
   // ניקוי תווים נסתרים
   text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
@@ -368,22 +370,21 @@ const loadScheduledMessages = async () => {
 
 
   try {
-    const res = await fetch("/api/sms/send", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-  invitationId: invitation._id,
-  filter,
+  const res = await fetch("/api/sms/send", {
+  method: "POST",
+  credentials: "include",
+  headers: { "Content-Type": "application/json" },
 
-  text: guestsToSend
-  .map((g) => buildMessage(g))
-  .join("\n\n"),
+  body: JSON.stringify({
+    invitationId: invitation._id,
+    filter,
 
-  scheduledAt,
-}),
+    // ✅ חובה – השרת משתמש בזה
+    text: message,
 
-    });
+    scheduledAt,
+  }),
+});
 
     console.log("📬 SMS API status:", res.status);
 
@@ -475,9 +476,10 @@ if (balanceData.success) {
   };
 
 const smsPreviewText =
-  guestsToSend.length > 0
-    ? buildMessage(guestsToSend[0])
+  includeGiftLink && giftLink
+    ? `${message}\n\n🎁 למתנה באשראי:\n${giftLink}`
     : message;
+
 
   /* ================= RENDER ================= */
 
