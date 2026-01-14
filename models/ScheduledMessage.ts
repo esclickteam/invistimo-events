@@ -1,7 +1,7 @@
 import mongoose, { Schema, Types } from "mongoose";
 
 /* ======================================================
-   Types
+   TYPES
 ====================================================== */
 
 export type ScheduledMessageStatus =
@@ -11,6 +11,8 @@ export type ScheduledMessageStatus =
   | "failed"
   | "cancelled";
 
+export type MessageTemplateKey = "rsvp" | "table" | "custom";
+
 export interface ScheduledMessageDocument {
   _id: Types.ObjectId;
 
@@ -19,8 +21,18 @@ export interface ScheduledMessageDocument {
 
   channel: "sms";
 
-  filter?: "all" | "pending" | "withTable";
-  text: string;
+  filter: "all" | "pending" | "withTable";
+
+  // 🧠 לוגיקה – מקור אמת
+  templateKey: MessageTemplateKey;
+
+  // 🎁 מתנה באשראי
+  includeGiftLink: boolean;
+  giftLink?: string | null;
+
+  // ⚠️ נשאר לשמירה לאחור / debug בלבד
+  // לא חובה, לא מקור אמת
+  text?: string;
 
   scheduledAt: Date;
 
@@ -37,7 +49,7 @@ export interface ScheduledMessageDocument {
 }
 
 /* ======================================================
-   Schema
+   SCHEMA
 ====================================================== */
 
 const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
@@ -67,13 +79,43 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
       type: String,
       enum: ["all", "pending", "withTable"],
       default: "all",
-    },
-
-    text: {
-      type: String,
       required: true,
     },
 
+    /* ======================
+       TEMPLATE (SOURCE OF TRUTH)
+    ====================== */
+    templateKey: {
+      type: String,
+      enum: ["rsvp", "table", "custom"],
+      required: true,
+    },
+
+    /* ======================
+       CREDIT GIFT
+    ====================== */
+    includeGiftLink: {
+      type: Boolean,
+      default: false,
+    },
+
+    giftLink: {
+      type: String,
+      default: null,
+    },
+
+    /* ======================
+       LEGACY / DEBUG TEXT
+       (לא חובה, לא בשימוש בלוגיקה)
+    ====================== */
+    text: {
+      type: String,
+      default: "",
+    },
+
+    /* ======================
+       SCHEDULING
+    ====================== */
     scheduledAt: {
       type: Date,
       required: true,
@@ -109,10 +151,10 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 );
 
 /* ======================================================
-   Indexes (ביצועים + Cron)
+   INDEXES – PERFORMANCE / CRON
 ====================================================== */
 
-// לשליפה מהירה של הודעות שמוכנות לשליחה
+// הודעות מוכנות לשליחה
 ScheduledMessageSchema.index({
   status: 1,
   scheduledAt: 1,
@@ -124,14 +166,14 @@ ScheduledMessageSchema.index({
   createdAt: -1,
 });
 
-// היסטוריה לפי משתמש (מסך "הודעות מתוזמנות")
+// היסטוריה לפי משתמש
 ScheduledMessageSchema.index({
   userId: 1,
   createdAt: -1,
 });
 
 /* ======================================================
-   Export
+   EXPORT
 ====================================================== */
 
 const ScheduledMessage =
