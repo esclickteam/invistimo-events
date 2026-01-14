@@ -25,7 +25,10 @@ const InvitationGuestSchema = new Schema(
     },
 
     name: { type: String, required: true },
-    phone: { type: String, required: true },
+    phone: {
+  type: String,
+  default: null,
+},
 
     relation: { type: String, default: "" },
     notes: { type: String, default: "" },
