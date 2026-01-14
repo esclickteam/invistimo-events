@@ -191,9 +191,9 @@ export async function POST(req: Request) {
 
       let scheduledText = template.content;
 
-      if (includeGiftLink && giftLink) {
-        scheduledText += `\n\n${giftLink}`;
-      }
+if (includeGiftLink && giftLink) {
+  scheduledText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+}
 
       await ScheduledMessage.create({
         invitationId,
