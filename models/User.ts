@@ -118,7 +118,6 @@ const UserSchema = new Schema<IUser>(
     },
 
     maxMessages: { type: Number, default: 0 },
-    remainingMessages: { type: Number, default: 0 },
     smsUsed: { type: Number, default: 0 },
 
     isTrial: { type: Boolean, default: false },
