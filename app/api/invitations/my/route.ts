@@ -42,9 +42,19 @@ export async function GET() {
       );
     }
 
+    // ✅ שליפת האירוע לצורך מיקום
+    const event = invitation.eventId
+      ? await Event.findById(invitation.eventId)
+          .select("location")
+          .lean()
+      : null;
+
     return NextResponse.json({
       success: true,
-      invitation,
+      invitation: {
+        ...invitation,
+        eventLocation: event?.location || null,
+      },
     });
   } catch (err) {
     console.error("❌ Error loading my invitation:", err);
@@ -54,6 +64,7 @@ export async function GET() {
     );
   }
 }
+
 
 /* ============================================================
    POST — יצירת הזמנה חדשה

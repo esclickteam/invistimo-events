@@ -130,7 +130,7 @@ useEffect(() => {
       setInvitation({
         _id: "demo-invitation",
         shareId: "demo123",
-        location: {
+        eventLocation: {
           lat: 32.0853,
           lng: 34.7818,
         },
@@ -277,13 +277,15 @@ useEffect(() => {
   const buildMessage = (guest: Guest) => {
   if (!invitation) return "";
 
-  const hasLocation = invitation.location?.lat && invitation.location?.lng;
+  const location = invitation.eventLocation;
 
-  const navigationLink =
-    templateKey === "table" && hasLocation
-      ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n` +
-        `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
-      : "";
+const hasLocation = location?.lat && location?.lng;
+
+const navigationLink =
+  templateKey === "table" && hasLocation
+    ? `https://www.google.com/maps?q=${location.lat},${location.lng}\n` +
+      `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
+    : "";
 
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
