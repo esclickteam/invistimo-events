@@ -186,15 +186,16 @@ export async function POST(req: Request) {
       }
 
       await ScheduledMessage.create({
-        invitationId,
-        userId: user._id,
-        channel: "sms",
-        filter,
-        templateKey,
-        scheduledAt: new Date(scheduledAt),
-        guestsCount,
-        status: "scheduled",
-      });
+  invitationId,
+  userId: user._id,
+  channel: "sms",
+  filter,
+  templateKey,
+  text: template.content, // ⭐️ זה הפתרון
+  scheduledAt: new Date(scheduledAt),
+  guestsCount,
+  status: "scheduled",
+});
 
       return NextResponse.json({
         success: true,
