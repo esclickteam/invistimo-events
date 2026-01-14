@@ -189,23 +189,22 @@ export async function POST(req: Request) {
         );
       }
 
-      let scheduledText = template.content;
-
-if (includeGiftLink && giftLink) {
-  scheduledText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-}
+     
 
       await ScheduledMessage.create({
-        invitationId,
-        userId: user._id,
-        channel: "sms",
-        filter,
-        templateKey,
-        text: scheduledText,
-        scheduledAt: new Date(scheduledAt),
-        guestsCount,
-        status: "scheduled",
-      });
+  invitationId,
+  userId: user._id,
+  channel: "sms",
+  filter,
+  templateKey,
+  scheduledAt: new Date(scheduledAt),
+  guestsCount,
+  status: "scheduled",
+
+  // ⭐️ חדש – שומרים לוגיקה, לא טקסט
+  includeGiftLink: !!includeGiftLink,
+  giftLink: giftLink || null,
+});
 
       return NextResponse.json({
         success: true,

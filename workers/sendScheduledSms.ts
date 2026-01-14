@@ -5,7 +5,48 @@ import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 
 /* ======================================================
-   Worker: Send Scheduled SMS
+   TYPES
+====================================================== */
+
+type MessageTemplateKey = "rsvp" | "table" | "custom";
+
+/* ======================================================
+   MESSAGE TEMPLATES – SOURCE OF TRUTH
+   (חייב להיות זהה ל־/api/sms/send)
+====================================================== */
+
+const MESSAGE_TEMPLATES: Record<
+  MessageTemplateKey,
+  { requiresTable?: boolean; content: string }
+> = {
+  rsvp: {
+    content:
+      "היי {{name}},\n" +
+      "נשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\n" +
+      "לאישור הגעה לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לכם באהבה 💖",
+  },
+  table: {
+    requiresTable: true,
+    content:
+      "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
+      "מספר השולחן שלך באירוע:\n" +
+      "🪑 {{tableName}}\n\n" +
+      "ניווט לאירוע:\n" +
+      "{{navigationLink}}\n\n" +
+      "מחכים לך!",
+  },
+  custom: {
+    content:
+      "היי {{name}} 🌸\n" +
+      "שמחנו לראותכם באירוע.\n" +
+      "תודה שהשתתפתם בשמחתנו.",
+  },
+};
+
+/* ======================================================
+   WORKER
 ====================================================== */
 
 export async function sendScheduledSms() {
@@ -18,7 +59,7 @@ export async function sendScheduledSms() {
   let failed = 0;
 
   /* ======================================================
-     שליפת הודעות שמוכנות לשליחה (בלי cancelled)
+     שליפת הודעות שמוכנות לשליחה
   ====================================================== */
   const candidates = await ScheduledMessage.find({
     status: "scheduled",
@@ -26,23 +67,31 @@ export async function sendScheduledSms() {
   })
     .sort({ scheduledAt: 1 })
     .limit(10)
-    .select("_id")
     .lean();
 
-  for (const c of candidates) {
+  for (const candidate of candidates) {
     processed++;
 
-    // 🔒 Atomic lock – מונע שליחה כפולה
+    // 🔒 Atomic lock
     const msg = await ScheduledMessage.findOneAndUpdate(
-      { _id: c._id, status: "scheduled" },
+      { _id: candidate._id, status: "scheduled" },
       { $set: { status: "sending" } },
       { new: true }
     );
 
-    // אם מישהו אחר כבר לקח – מדלגים
     if (!msg) continue;
 
     try {
+      /* ======================================================
+         VALIDATION
+      ====================================================== */
+      const templateKey = msg.templateKey as MessageTemplateKey;
+      const template = MESSAGE_TEMPLATES[templateKey];
+
+      if (!template) {
+        throw new Error("INVALID_TEMPLATE");
+      }
+
       const invitation = await Invitation.findById(msg.invitationId).lean();
       const user = await User.findById(msg.userId);
 
@@ -51,13 +100,17 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         בניית query לאורחים (RSVP בזמן אמת)
+         QUERY – RSVP LIVE
       ====================================================== */
       const query: any = { invitationId: msg.invitationId };
 
       if (msg.filter === "pending") query.rsvp = "pending";
+
       if (msg.filter === "withTable") {
-        query.tableName = { $exists: true, $ne: "" };
+        query.$or = [
+          { tableName: { $exists: true, $ne: "" } },
+          { tableNumber: { $exists: true } },
+        ];
       }
 
       const guests = await InvitationGuest.find(query).lean();
@@ -71,7 +124,7 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         בדיקת מגבלות SMS (Trial-safe)
+         SMS LIMIT CHECK
       ====================================================== */
       let allowedToSend = guests.length;
 
@@ -91,18 +144,19 @@ export async function sendScheduledSms() {
       const guestsToSend = guests.slice(0, allowedToSend);
 
       /* ======================================================
-         בניית ניווט
+         LOCATION / NAVIGATION (זהה לשליחה מיידית)
       ====================================================== */
-      const hasLocation =
-        invitation.location?.lat && invitation.location?.lng;
+      const location =
+        invitation.eventLocation ?? invitation.location;
+
+      const hasLocation = !!(location?.lat && location?.lng);
 
       const navigationLink = hasLocation
-        ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
-          `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+        ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
         : "";
 
       /* ======================================================
-         שליחה בפועל
+         SEND
       ====================================================== */
       let sent = 0;
 
@@ -113,25 +167,27 @@ export async function sendScheduledSms() {
         if (phone.startsWith("0")) phone = "972" + phone.slice(1);
         else if (!phone.startsWith("972")) phone = "972" + phone;
 
-        const finalText = msg.text
+        const tableName =
+          guest.tableName ||
+          (typeof guest.tableNumber === "number"
+            ? `שולחן ${guest.tableNumber}`
+            : "");
+
+        let finalText = template.content
           .replace(/{{name}}/g, guest.name || "")
           .replace(
             /{{rsvpLink}}/g,
             `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
           )
-          .replace(/{{tableName}}/g, guest.tableName || "")
+          .replace(/{{tableName}}/g, tableName)
           .replace(/{{navigationLink}}/g, navigationLink);
 
-        if (!finalText.trim()) continue;
+        // 🎁 מתנה באשראי – זהה לשליחה מיידית
+        if (msg.includeGiftLink && msg.giftLink) {
+          finalText += `\n\n🎁 למתנה באשראי:\n${msg.giftLink}`;
+        }
 
-        const payload = {
-          key: process.env.SMS4FREE_KEY,
-          user: process.env.SMS4FREE_USER,
-          pass: process.env.SMS4FREE_PASS,
-          sender: process.env.SMS4FREE_SENDER,
-          recipient: phone,
-          msg: finalText,
-        };
+        if (!finalText.trim()) continue;
 
         try {
           const res = await fetch(
@@ -139,28 +195,25 @@ export async function sendScheduledSms() {
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
+              body: JSON.stringify({
+                key: process.env.SMS4FREE_KEY,
+                user: process.env.SMS4FREE_USER,
+                pass: process.env.SMS4FREE_PASS,
+                sender: process.env.SMS4FREE_SENDER,
+                recipient: phone,
+                msg: finalText,
+              }),
             }
           );
 
-          const data = await res.json();
-
-          const isSuccess =
-            res.ok &&
-            (data?.status === 0 ||
-              data?.status === "0" ||
-              data?.success === true ||
-              data?.message === "OK" ||
-              data);
-
-          if (isSuccess) sent++;
+          if (res.ok) sent++;
         } catch (err) {
           console.error("❌ SMS SEND ERROR:", err);
         }
       }
 
       /* ======================================================
-         עדכון סטטוסים + מונים
+         UPDATE STATUS
       ====================================================== */
       msg.status = "sent";
       msg.sentCount = sent;
@@ -170,16 +223,6 @@ export async function sendScheduledSms() {
       sentTotal += sent;
 
       if (sent > 0) {
-        await Invitation.updateOne(
-          { _id: msg.invitationId },
-          {
-            $inc: {
-              sentSmsCount: sent,
-              remainingMessages: -sent,
-            },
-          }
-        );
-
         await User.findByIdAndUpdate(user._id, {
           $inc: { smsUsed: sent },
         });
@@ -194,9 +237,6 @@ export async function sendScheduledSms() {
     }
   }
 
-  /* ======================================================
-     Result (ללוגים של Cron)
-  ====================================================== */
   return {
     processed,
     sent: sentTotal,
