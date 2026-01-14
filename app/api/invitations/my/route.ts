@@ -122,7 +122,8 @@ export async function POST(req: Request) {
           updatedAt: new Date(),
         });
 
-        event = createdEvent.toObject();
+        event = createdEvent; // ✅ אל תעשי .toObject()
+
         console.log("✅ נוצר אירוע חדש אוטומטית:", createdEvent._id);
       }
     }
