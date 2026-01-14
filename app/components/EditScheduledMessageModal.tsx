@@ -6,9 +6,10 @@ import { useState } from "react";
 
 type ScheduledMessage = {
   _id: string;
-  text: string;
   scheduledAt: string; // ISO string (UTC מה-DB)
 };
+
+/* ================= COMPONENT ================= */
 
 export default function EditScheduledMessageModal({
   message,
@@ -21,12 +22,12 @@ export default function EditScheduledMessageModal({
 }) {
   const initialDate = new Date(message.scheduledAt);
 
-  // ✅ תאריך מקומי ל-input date (YYYY-MM-DD)
+  // YYYY-MM-DD (local)
   const [date, setDate] = useState(
     initialDate.toLocaleDateString("en-CA")
   );
 
-  // ✅ שעה מקומית ל-input time (HH:mm)
+  // HH:mm (local)
   const [time, setTime] = useState(
     initialDate.toLocaleTimeString("he-IL", {
       hour: "2-digit",
@@ -35,23 +36,16 @@ export default function EditScheduledMessageModal({
     })
   );
 
-  const [text, setText] = useState(message.text);
   const [loading, setLoading] = useState(false);
 
   /* ================= SAVE ================= */
 
   async function save() {
-    if (!text.trim()) {
-      alert("תוכן ההודעה חובה");
-      return;
-    }
-
     if (!date || !time) {
       alert("יש לבחור תאריך ושעה");
       return;
     }
 
-    // ✅ בניית Date מקומי (לא מ-string ISO)
     const [year, month, day] = date.split("-").map(Number);
     const [hour, minute] = time.split(":").map(Number);
 
@@ -76,10 +70,7 @@ export default function EditScheduledMessageModal({
       const res = await fetch(`/api/scheduled-messages/${message._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          scheduledAt, // נשלח כ-Date, השרת ישמור כ-UTC
-        }),
+        body: JSON.stringify({ scheduledAt }),
       });
 
       const data = await res.json();
@@ -107,16 +98,13 @@ export default function EditScheduledMessageModal({
           ✏️ עריכת הודעה מתוזמנת
         </h2>
 
-        {/* TEXT */}
-        <label className="block text-sm font-medium mb-1">
-          תוכן ההודעה
-        </label>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          className="w-full border rounded-xl p-3 mb-4"
-        />
+        {/* PREVIEW */}
+        <div className="mb-4">
+          <div className="text-sm font-medium mb-1">תצוגה מקדימה</div>
+          <div className="whitespace-pre-wrap text-sm bg-gray-50 border rounded-xl p-3 text-gray-700">
+            תוכן ההודעה נבנה אוטומטית לפי התבנית, ההזמנה והאורחים
+          </div>
+        </div>
 
         {/* DATE */}
         <label className="block text-sm font-medium mb-1">
