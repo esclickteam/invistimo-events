@@ -6,6 +6,8 @@ import User from "@/models/User";
 import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import mongoose from "mongoose";
+import Event from "@/models/Event";
+
 
 export const dynamic = "force-dynamic";
 
@@ -48,24 +50,46 @@ const userId = auth.userId;
       (await Invitation.findOne({ ownerId: userId }));
 
     if (!invitation) {
-      const user = await User.findById(userId).lean();
-      const planLimit = user?.planLimits?.maxGuests || 100;
+  const user = await User.findById(userId).lean();
+  const planLimit = user?.planLimits?.maxGuests || 100;
 
-      invitation = await Invitation.create({
-        ownerId: userId,
-        title: "הזמנה חדשה",
-        eventType: "",
-        eventDate: null,
-        eventTime: "",
-        eventLocation: "",
-        canvasData: {},
-        previewImage: "",
-        shareId: nanoid(10),
-        maxGuests: planLimit,
-        sentSmsCount: 0,
-        guests: [],
-      });
-    }
+  // 🔹 למצוא Event קיים למשתמש, ואם אין — ליצור חדש
+  let event = await Event.findOne({ userId }).lean();
+
+  if (!event) {
+    const createdEvent = await Event.create({
+      userId,
+      email: user?.email || "noemail@placeholder.com",
+      title: "אירוע חדש",
+      eventType: "wedding",
+      status: "active",
+      date: new Date(),
+      time: "00:00",
+      maxGuests: planLimit,
+      location: {},
+    });
+
+    event = createdEvent;
+    console.log("✅ נוצר אירוע חדש:", event._id);
+  }
+
+  // 🔹 עכשיו יוצרים Invitation עם eventId חובה
+  invitation = await Invitation.create({
+    ownerId: userId,
+    eventId: event._id, // ✅ זה החלק החשוב שתוקן
+    title: "הזמנה חדשה",
+    eventType: "wedding",
+    eventDate: event.date || null,
+    eventTime: event.time || "",
+    canvasData: {},
+    previewImage: "",
+    shareId: nanoid(10),
+    maxGuests: planLimit,
+    sentSmsCount: 0,
+    guests: [],
+  });
+}
+
 
     /* ================= בדיקת כפילות ================= */
     const existing = await InvitationGuest.findOne({
