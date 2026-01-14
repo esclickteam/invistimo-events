@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
+import Event from "@/models/Event";
 import User from "@/models/User";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
@@ -54,38 +55,18 @@ export async function POST(req: Request) {
     ? user.maxMessages
     : 0;
 
-  const smsUsed =
-    typeof user.smsUsed === "number" ? user.smsUsed : 0;
+  const smsUsed = typeof user.smsUsed === "number" ? user.smsUsed : 0;
 
-  const remainingMessages = Math.max(
-    maxMessages - smsUsed,
-    0
-  );
+  const remainingMessages = Math.max(maxMessages - smsUsed, 0);
 
   /* ======================================================
      TRIAL / SMS LIMIT GUARD
   ====================================================== */
-  if (isTrial) {
-    if (user.trialExpiresAt && new Date() > user.trialExpiresAt) {
-      return NextResponse.json(
-        { success: false, error: "TRIAL_EXPIRED" },
-        { status: 403 }
-      );
-    }
-
-    if (remainingMessages <= 0) {
-      return NextResponse.json(
-        { success: false, error: "SMS_LIMIT_REACHED" },
-        { status: 403 }
-      );
-    }
-  } else {
-    if (remainingMessages <= 0) {
-      return NextResponse.json(
-        { success: false, error: "SMS_LIMIT_REACHED" },
-        { status: 403 }
-      );
-    }
+  if (remainingMessages <= 0) {
+    return NextResponse.json(
+      { success: false, error: "SMS_LIMIT_REACHED" },
+      { status: 403 }
+    );
   }
 
   /* ======================================================
@@ -110,6 +91,13 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
+     🔥 טעינת EVENT (שם נמצא המיקום)
+  ====================================================== */
+  const event = invitation.eventId
+    ? await Event.findById(invitation.eventId).lean()
+    : null;
+
+  /* ======================================================
      בניית query לאורחים
   ====================================================== */
   const query: any = { invitationId };
@@ -118,12 +106,10 @@ export async function POST(req: Request) {
     query.tableName = { $exists: true, $ne: "" };
 
   /* ======================================================
-     ⏱️ תזמון – שומרים בלבד (לא נוגעים ביתרה)
+     ⏱️ תזמון – שומרים בלבד
   ====================================================== */
   if (scheduledAt) {
-    const guestsCount = await InvitationGuest.countDocuments(
-      query
-    );
+    const guestsCount = await InvitationGuest.countDocuments(query);
 
     if (guestsCount > remainingMessages) {
       return NextResponse.json(
@@ -151,49 +137,27 @@ export async function POST(req: Request) {
   }
 
   /* ======================================================
-     שליפה לשליחה מיידית
+     שליחה מיידית
   ====================================================== */
   const guests = await InvitationGuest.find(query).lean();
-
   if (!guests.length) {
-    return NextResponse.json({
-      success: true,
-      sent: 0,
-      total: 0,
-    });
+    return NextResponse.json({ success: true, sent: 0, total: 0 });
   }
 
-  /* ======================================================
-     חישוב כמה מותר לשלוח
-  ====================================================== */
-  const allowedToSend = Math.min(
-    remainingMessages,
-    guests.length
-  );
-
-  if (allowedToSend === 0) {
-    return NextResponse.json(
-      { success: false, error: "SMS_LIMIT_REACHED" },
-      { status: 403 }
-    );
-  }
-
+  const allowedToSend = Math.min(remainingMessages, guests.length);
   const guestsToSend = guests.slice(0, allowedToSend);
 
   /* ======================================================
-     בניית ניווט
+     📍 בניית ניווט מה-EVENT
   ====================================================== */
   const hasLocation =
-    invitation.location?.lat && invitation.location?.lng;
+    event?.location?.lat && event?.location?.lng;
 
   const navigationLink = hasLocation
-    ? `https://www.google.com/maps?q=${invitation.location.lat},${invitation.location.lng}\n\n` +
-      `https://waze.com/ul?ll=${invitation.location.lat},${invitation.location.lng}&navigate=yes`
+    ? `https://www.google.com/maps?q=${event.location.lat},${event.location.lng}\n\n` +
+      `https://waze.com/ul?ll=${event.location.lat},${event.location.lng}&navigate=yes`
     : "";
 
-  /* ======================================================
-     שליחה מיידית
-  ====================================================== */
   let sent = 0;
 
   for (const guest of guestsToSend) {
@@ -201,8 +165,7 @@ export async function POST(req: Request) {
     if (!phone) continue;
 
     if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-    else if (!phone.startsWith("972"))
-      phone = "972" + phone;
+    else if (!phone.startsWith("972")) phone = "972" + phone;
 
     const finalText = text
       .replace(/{{name}}/g, guest.name || "")
@@ -215,65 +178,35 @@ export async function POST(req: Request) {
 
     if (!finalText.trim()) continue;
 
-    const payload = {
-      key: process.env.SMS4FREE_KEY,
-      user: process.env.SMS4FREE_USER,
-      pass: process.env.SMS4FREE_PASS,
-      sender: process.env.SMS4FREE_SENDER,
-      recipient: phone,
-      msg: finalText,
-    };
-
     try {
       const res = await fetch(
         "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            key: process.env.SMS4FREE_KEY,
+            user: process.env.SMS4FREE_USER,
+            pass: process.env.SMS4FREE_PASS,
+            sender: process.env.SMS4FREE_SENDER,
+            recipient: phone,
+            msg: finalText,
+          }),
         }
       );
 
-      const data = await res.json();
-
-      const isSuccess =
-        res.ok &&
-        (data?.status === 0 ||
-          data?.status === "0" ||
-          data?.success === true ||
-          data?.message === "OK" ||
-          data);
-
-      if (isSuccess) sent++;
+      if (res.ok) sent++;
     } catch (err) {
       console.error("❌ SMS SEND ERROR:", err);
     }
   }
 
   /* ======================================================
-     עדכון DB – מקור אמת: smsUsed בלבד
+     עדכון יתרה
   ====================================================== */
   if (sent > 0) {
-    const newSmsUsed = smsUsed + sent;
-    const newRemaining = Math.max(
-      maxMessages - newSmsUsed,
-      0
-    );
-
     await User.findByIdAndUpdate(user._id, {
-      $set: {
-        smsUsed: newSmsUsed,
-        remainingMessages: newRemaining, // נשמר רק ל־compatibility
-      },
-    });
-
-    cookieStore.set("smsUsed", String(newSmsUsed), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      domain: ".invistimo.com",
-      maxAge: 60 * 60,
+      $inc: { smsUsed: sent },
     });
   }
 
