@@ -46,8 +46,15 @@ const userId = auth.userId;
 
     /* ================= מציאת הזמנה או יצירת חדשה ================= */
     let invitation =
-      (invitationId && (await Invitation.findById(invitationId))) ||
-      (await Invitation.findOne({ ownerId: userId }));
+  (invitationId &&
+    (await Invitation.findOne({
+      _id: invitationId,
+      eventId: { $exists: true, $ne: null },
+    }))) ||
+  (await Invitation.findOne({
+    ownerId: userId,
+    eventId: { $exists: true, $ne: null },
+  }));
 
     if (!invitation) {
   const user = await User.findById(userId).lean();
@@ -166,6 +173,15 @@ const userId = auth.userId;
     });
 
     invitation.guests.push(guest._id);
+
+if (!invitation.eventId) {
+  console.error("❌ Invitation without eventId blocked:", invitation._id);
+  return NextResponse.json(
+    { success: false, error: "INVITATION_INVALID" },
+    { status: 500 }
+  );
+}
+
     await invitation.save();
 
     return NextResponse.json(
@@ -278,6 +294,14 @@ export async function PUT(
 
       const totalGuests = guestsAgg[0]?.total || 0;
       const invitation = await Invitation.findById(invitationId);
+
+      if (!invitation || !invitation.eventId) {
+  return NextResponse.json(
+    { success: false, error: "Invalid invitation" },
+    { status: 400 }
+  );
+}
+
 
       if (totalGuests + guestsCount > invitation.maxGuests) {
         return NextResponse.json(
