@@ -53,9 +53,13 @@ const userId = auth.userId;
   const user = await User.findById(userId).lean();
   const planLimit = user?.planLimits?.maxGuests || 100;
 
-  // 🔹 למצוא Event קיים למשתמש, ואם אין — ליצור חדש
-  let event = await Event.findOne({ userId }).lean();
+  console.log("🟡 No invitation found for user:", userId);
 
+  // 1️⃣ למצוא Event קיים
+  let event = await Event.findOne({ userId }).lean();
+  console.log("🔎 Existing event:", event?._id);
+
+  // 2️⃣ אם אין — ליצור אחד חדש
   if (!event) {
     const createdEvent = await Event.create({
       userId,
@@ -73,10 +77,19 @@ const userId = auth.userId;
     console.log("✅ נוצר אירוע חדש:", event._id);
   }
 
-  // 🔹 עכשיו יוצרים Invitation עם eventId חובה
+  // 3️⃣ ודא שהאירוע באמת קיים
+  if (!event?._id) {
+    console.error("❌ event._id עדיין undefined!");
+    return NextResponse.json(
+      { success: false, error: "EVENT_CREATION_FAILED" },
+      { status: 500 }
+    );
+  }
+
+  // 4️⃣ עכשיו ליצור Invitation עם eventId תקין
   invitation = await Invitation.create({
     ownerId: userId,
-    eventId: event._id, // ✅ זה החלק החשוב שתוקן
+    eventId: event._id, // ✅ החלק הקריטי
     title: "הזמנה חדשה",
     eventType: "wedding",
     eventDate: event.date || null,
@@ -88,7 +101,10 @@ const userId = auth.userId;
     sentSmsCount: 0,
     guests: [],
   });
+
+  console.log("✅ Invitation created successfully with eventId:", event._id);
 }
+
 
 
     /* ================= בדיקת כפילות ================= */
