@@ -7,6 +7,7 @@ import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
+import { useParams } from "next/navigation";
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -43,6 +44,11 @@ export default function SeatingPage() {
 
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
+  const params = useParams();
+
+const invitationId = Array.isArray(params?.invitationId)
+  ? params.invitationId[0]
+  : (params?.invitationId as string);
 
   const setZones = useZoneStore((s) => s.setZones);
 
@@ -50,64 +56,66 @@ export default function SeatingPage() {
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
-    async function load() {
-      try {
-        /* 🧹 איפוס מוחלט לפני טעינה */
-        useSeatingStore.getState().init([], [], null, null);
-        useZoneStore.getState().setZones([]);
+  async function load() {
+    try {
+      if (!invitationId) return;
 
-        /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
-        const invRes = await fetch("/api/invitations/my");
-        const invData = await invRes.json();
+      /* 🧹 איפוס מוחלט לפני טעינה */
+      useSeatingStore.getState().init([], [], null, null);
+      useZoneStore.getState().setZones([]);
 
-        if (!invData?.success || !invData.invitation?.eventId) return;
+      const invRes = await fetch(`/api/invitations/${invitationId}`);
+      const invData = await invRes.json();
 
-        const eventIdFromApi: string = invData.invitation.eventId;
-        setEventId(eventIdFromApi);
-
-        /* 2️⃣ אורחים – לפי eventId */
-        const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
-        if (gRes.status === 403) {
-          setBlocked(true);
-          setShowUpgrade(true);
-          return;
-        }
-
-        const gData = await gRes.json();
-
-        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-  id: g._id,
-  name: g.name,
-
-  // 🪑 בסידורי הושבה – תמיד לפי כמה הוזמנו
-  count: g.guestsCount && g.guestsCount > 0 ? g.guestsCount : 1,
-}));
-
-        /* 3️⃣ שולחנות + אזורים + קנבס */
-        const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
-        if (tRes.status === 403) {
-          setBlocked(true);
-          setShowUpgrade(true);
-          return;
-        }
-
-        const tData = await tRes.json();
-
-        init(
-          tData.tables || [],
-          normalizedGuests,
-          tData.background ?? null,
-          tData.canvasView ?? null
-        );
-
-        setZones(tData.zones || []);
-      } catch (err) {
-        console.error("❌ SeatingPage load error:", err);
+      if (!invData?.success || !invData.invitation?.eventId) {
+        console.warn("❌ Invitation not found for seating");
+        return;
       }
-    }
 
-    load();
-  }, [init, setZones]);
+      const eventIdFromApi: string = invData.invitation.eventId;
+      setEventId(eventIdFromApi);
+
+      const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
+      if (gRes.status === 403) {
+        setBlocked(true);
+        setShowUpgrade(true);
+        return;
+      }
+
+      const gData = await gRes.json();
+
+      const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+        id: g._id,
+        name: g.name,
+        count: g.guestsCount && g.guestsCount > 0 ? g.guestsCount : 1,
+      }));
+
+      const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
+      if (tRes.status === 403) {
+        setBlocked(true);
+        setShowUpgrade(true);
+        return;
+      }
+
+      const tData = await tRes.json();
+
+      init(
+        tData.tables || [],
+        normalizedGuests,
+        tData.background ?? null,
+        tData.canvasView ?? null
+      );
+
+      setZones(tData.zones || []);
+    } catch (err) {
+      console.error("❌ SeatingPage load error:", err);
+    }
+  }
+
+  load();
+}, [invitationId, init, setZones]);
+
+
 
   /* ===============================
      BACKGROUND
