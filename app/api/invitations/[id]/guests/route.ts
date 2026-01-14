@@ -56,7 +56,7 @@ const userId = auth.userId;
   console.log("🟡 No invitation found for user:", userId);
 
   // 1️⃣ למצוא Event קיים
-  let event = await Event.findOne({ userId }).lean();
+  let event = await Event.findOne({ userId });
   console.log("🔎 Existing event:", event?._id);
 
   // 2️⃣ אם אין — ליצור אחד חדש
