@@ -179,9 +179,16 @@ try {
   setInvitation(invData.invitation ?? null);
 
   // 🔹 טוענים יתרת הודעות תמיד
-  const balanceRes = await fetch("/api/messages/balance");
-  const balanceData = await balanceRes.json();
-  if (balanceData.success) setBalance(balanceData);
+  const balanceRes = await fetch("/api/messages/balance", {
+  credentials: "include",
+  cache: "no-store",
+});
+
+const balanceData = await balanceRes.json();
+if (balanceData.success) {
+  setBalance(balanceData);
+}
+
 
   // 🔹 אורחים – רק אם יש הזמנה
   if (invData.invitation?._id) {
@@ -207,17 +214,25 @@ try {
   /* ================= 🔄 REFRESH AFTER UPGRADE ================= */
 
   useEffect(() => {
-    const upgraded = searchParams.get("upgraded");
-    if (!upgraded) return;
+  const upgraded = searchParams.get("upgraded");
+  if (!upgraded) return;
 
-    async function refreshBalance() {
-      const balanceRes = await fetch("/api/messages/balance");
-      const balanceData = await balanceRes.json();
-      if (balanceData.success) setBalance(balanceData);
+  async function refreshBalance() {
+    const balanceRes = await fetch("/api/messages/balance", {
+      credentials: "include", // ⭐️ חובה – authToken
+      cache: "no-store",      // ⭐️ בלי קאש
+    });
+
+    const balanceData = await balanceRes.json();
+
+    if (balanceData.success) {
+      setBalance(balanceData);
     }
+  } // ✅ סוגר פונקציה
 
-    refreshBalance();
-  }, [searchParams]);
+  refreshBalance(); // ✅ קריאה לפונקציה
+}, [searchParams]);
+
 
   /* ================= PRESELECT GUEST ================= */
 
@@ -393,11 +408,16 @@ if (data.scheduled) {
 }
 
     // 🔄 ריענון יתרה אחרי שליחה
-    const balanceRes = await fetch("/api/messages/balance");
-    const balanceData = await balanceRes.json();
-    if (balanceData.success) {
-      setBalance(balanceData);
-    }
+    const balanceRes = await fetch("/api/messages/balance", {
+  credentials: "include",
+  cache: "no-store",
+});
+
+const balanceData = await balanceRes.json();
+if (balanceData.success) {
+  setBalance(balanceData);
+}
+
   } catch (err) {
     console.error("💥 SMS SEND ERROR:", err);
     alert("❌ שגיאה בשליחת SMS");
