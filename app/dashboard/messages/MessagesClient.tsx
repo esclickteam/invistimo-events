@@ -279,10 +279,13 @@ useEffect(() => {
   const buildMessage = (guest: Guest) => {
   if (!invitation) return "";
 
+  // ⭐ מקור אמת אחד
+  const baseTemplate = message;
+
   const location = invitation.eventLocation ?? invitation.event?.location;
   const hasLocation = !!(location?.lat && location?.lng);
 
-  // 📍 ניווט – Google + Waze, כל אחד בשורה נפרדת
+  // 📍 ניווט – רק אם צריך ויש מיקום
   const navigationLink =
     templateKey === "table" && hasLocation
       ? `Google Maps:
@@ -294,26 +297,27 @@ https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
 
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-  // 🪑 מספר שולחן – tableName או tableNumber
+  // 🪑 מספר שולחן
   const tableName =
     guest.tableName ||
-    (typeof (guest as any).tableNumber === "number"
-      ? `שולחן ${(guest as any).tableNumber}`
+    (typeof guest.tableNumber === "number"
+      ? `שולחן ${guest.tableNumber}`
       : "");
 
-  let finalMessage = message
+  let finalMessage = baseTemplate
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{rsvpLink}}/g, rsvpLink)
     .replace(/{{tableName}}/g, tableName)
     .replace(/{{navigationLink}}/g, navigationLink);
 
-  // 🎁 תוספת קישור מתנה באשראי
+  // 🎁 מתנה באשראי
   if (includeGiftLink && giftLink) {
     finalMessage += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
   }
 
   return finalMessage.trim();
 };
+
 
 
 
@@ -673,14 +677,16 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
       <select
-        value={templateKey}
-        onChange={(e) => {
-          const key = e.target.value as MessageType;
-          setTemplateKey(key);
-          setMessage(MESSAGE_TEMPLATES[key].content);
-        }}
-        className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
-      >
+  value={templateKey}
+  onChange={(e) => {
+    const key = e.target.value as MessageType;
+    setTemplateKey(key);
+
+    // ⭐ מקור אמת: message
+    setMessage(MESSAGE_TEMPLATES[key].content);
+  }}
+  className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
+>
         {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
           <option key={key} value={key}>
             {t.label}
