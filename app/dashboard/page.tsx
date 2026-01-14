@@ -49,6 +49,25 @@ type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
 
+
+function formatPhone(phone?: string) {
+  if (!phone) return "";
+
+  const digits = String(phone).replace(/\D/g, "");
+
+  // אם כבר מתחיל ב־0 → לא לגעת
+  if (digits.startsWith("0")) return digits;
+
+  // מספר סלולרי ישראלי בלי 0 (9 ספרות שמתחיל ב־5)
+  if (digits.length === 9 && digits.startsWith("5")) {
+    return "0" + digits;
+  }
+
+  return digits;
+}
+
+
+
 export default function DashboardPage() {
 
   const pathname = usePathname();
@@ -811,7 +830,7 @@ console.log("INVITATION:", invitation);
       {displayGuests.map((g) => (
         <tr key={g._id} className="border-b">
           <td className="p-3">{g.name}</td>
-          <td className="p-3">{g.phone}</td>
+          <td className="p-3">{formatPhone(g.phone)}</td>
           <td className="p-3">{g.relation?.trim() || "-"}</td>
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
