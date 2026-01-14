@@ -357,6 +357,7 @@ const loadScheduledMessages = async () => {
   try {
     const res = await fetch("/api/sms/send", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
   invitationId: invitation._id,
