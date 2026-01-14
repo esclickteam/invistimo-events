@@ -76,13 +76,12 @@ export default function SeatingPage() {
         const gData = await gRes.json();
 
         const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-          id: g._id,
-          name: g.name,
-          count:
-            g.rsvp === "yes"
-              ? g.arrivedCount || g.guestsCount || 1
-              : g.guestsCount || 1,
-        }));
+  id: g._id,
+  name: g.name,
+
+  // 🪑 בסידורי הושבה – תמיד לפי כמה הוזמנו
+  count: g.guestsCount && g.guestsCount > 0 ? g.guestsCount : 1,
+}));
 
         /* 3️⃣ שולחנות + אזורים + קנבס */
         const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
