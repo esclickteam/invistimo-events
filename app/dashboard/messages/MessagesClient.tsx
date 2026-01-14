@@ -283,7 +283,7 @@ const hasLocation = location?.lat && location?.lng;
 
 const navigationLink =
   templateKey === "table" && hasLocation
-    ? `https://www.google.com/maps?q=${location.lat},${location.lng}\n` +
+    ? `https://www.google.com/maps?q=${location.lat},${location.lng}\n\n` +
       `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
     : "";
 
