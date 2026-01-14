@@ -37,35 +37,52 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawJson = XLSX.utils.sheet_to_json(sheet);
+      const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
       /* ============================================================
          ניקוי + נרמול נתונים לפני שליחה לשרת
       ============================================================ */
-      const guests = rawJson.map((row) => {
-        const rawStatus = String(row["סטטוס"] || "").trim();
+      const guests = rawJson
+        .map((row, index) => {
+          const name = String(row["שם"] || row["שם מלא"] || "").trim();
+          if (!name) return null; // ⛔ רק שם הוא שדה חובה
 
-        return {
-          name: String(row["שם"] || row["שם מלא"] || "").trim(),
-          phone: String(row["טלפון"] || "").replace(/\D/g, ""),
-          relation: String(row["קרבה"] || "").trim(),
+          const rawStatus = String(row["סטטוס"] || "").trim();
 
-          // 🟢 RSVP תקני בלבד
-          rsvp: "pending",
+          return {
+            name,
 
+            // 📞 טלפון = אופציונלי (אסור לסנן לפיו)
+            phone: String(row["טלפון"] || "")
+              .replace(/\D/g, "")
+              .trim() || null,
 
-          // 🟢 מוזמנים (כמה הוזמנו)
-          guestsCount: Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 0),
+            relation: String(row["קרבה"] || "").trim() || null,
 
-          // 🛑 מגיעים תמיד מתחיל מ־0
-          arrivedCount: 0,
+            // 🟢 סטטוס RSVP תקני
+            rsvp: RSVP_MAP[rawStatus] || "pending",
 
-          notes: String(row["הערות"] || "").trim(),
-          tableName: String(row["מס' שולחן"] || "").trim(),
-        };
-      });
+            // 🟢 כמה הוזמנו (ברירת מחדל: 1)
+            guestsCount: Math.max(
+              1,
+              Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1)
+            ),
+
+            // 🛑 תמיד מתחיל מ־0
+            arrivedCount: 0,
+
+            notes: String(row["הערות"] || "").trim() || null,
+            tableName: String(row["מס' שולחן"] || "").trim() || null,
+          };
+        })
+        .filter(Boolean); // מסיר רק שורות ריקות באמת
 
       console.log("📦 Guests to import (normalized):", guests);
+
+      if (guests.length === 0) {
+        alert("לא נמצאו שורות תקינות לייבוא");
+        return;
+      }
 
       const res = await fetch("/api/guests/import", {
         method: "POST",
@@ -81,8 +98,8 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
       if (result.success) {
         alert(`✅ יובאו ${result.count} מוזמנים בהצלחה`);
-        onSuccess();
-        onClose();
+        onSuccess?.();
+        onClose?.();
       } else {
         alert(result.error || "שגיאה בייבוא הקובץ");
       }

@@ -24,17 +24,16 @@ export async function POST(req: Request) {
     await db();
 
     /* ================= אימות משתמש ================= */
-
     const auth = await getUserIdFromRequest();
 
-if (!auth?.userId) {
-  return NextResponse.json(
-    { success: false, error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-const userId = auth.userId;
+    const userId = auth.userId;
 
     const invitation = await Invitation.findById(invitationId);
     if (!invitation || invitation.ownerId.toString() !== userId.toString()) {
@@ -47,14 +46,18 @@ const userId = auth.userId;
     let importedCount = 0;
 
     /* ================= לולאת ייבוא ================= */
-
     for (const g of guests) {
-      if (!g?.name || !g?.phone) continue;
+      // ❗ שם הוא השדה החובה היחיד
+      const name = String(g?.name || "").trim();
+      if (!name) continue;
 
-      const phone = String(g.phone).replace(/\D/g, "");
-      if (!phone) continue;
+      /* ---------- טלפון (אופציונלי) ---------- */
+      const phone =
+        g.phone && String(g.phone).replace(/\D/g, "").trim()
+          ? String(g.phone).replace(/\D/g, "")
+          : null;
 
-      /* ---------- נרמול מספר שולחן ---------- */
+      /* ---------- נרמול שולחן ---------- */
       const rawTable =
         g.tableNumber ?? g.table ?? g.tableName ?? null;
 
@@ -66,44 +69,34 @@ const userId = auth.userId;
       const payload: any = {
         invitationId,
 
-        name: String(g.name).trim(),
-        phone,
+        name,
+        phone, // ⬅️ אופציונלי
 
-        relation: String(g.relation || "").trim(),
+        relation: String(g.relation || "").trim() || null,
 
         rsvp: ["yes", "no", "pending"].includes(g.rsvp)
           ? g.rsvp
           : "pending",
 
         guestsCount: Number.isFinite(Number(g.guestsCount))
-          ? Number(g.guestsCount)
+          ? Math.max(1, Number(g.guestsCount))
           : 1,
 
-        notes: String(g.notes || "").trim(),
+        arrivedCount: 0,
+
+        notes: String(g.notes || "").trim() || null,
 
         /* 🪑 הושבה */
         tableNumber,
         tableName:
-          tableNumber !== null ? `שולחן ${tableNumber}` : "",
+          tableNumber !== null ? `שולחן ${tableNumber}` : null,
 
-        token: g.token || crypto.randomUUID(),
+        // 🔐 טוקן ייחודי לכל מוזמן
+        token: crypto.randomUUID(),
       };
 
-      /* ---------- upsert לפי טלפון ---------- */
-      const existing = await InvitationGuest.findOne({
-        invitationId,
-        phone,
-      });
-
-      if (existing) {
-        await InvitationGuest.updateOne(
-          { _id: existing._id },
-          { $set: payload }
-        );
-      } else {
-        await InvitationGuest.create(payload);
-      }
-
+      // ❗ כל שורה = מוזמן חדש (בלי upsert)
+      await InvitationGuest.create(payload);
       importedCount++;
     }
 
