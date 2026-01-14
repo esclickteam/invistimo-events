@@ -2,6 +2,7 @@ import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
+import Event from "@/models/Event";
 import User from "@/models/User";
 
 /* ======================================================
@@ -12,7 +13,6 @@ type MessageTemplateKey = "rsvp" | "table" | "custom";
 
 /* ======================================================
    MESSAGE TEMPLATES – SOURCE OF TRUTH
-   (חייב להיות זהה ל־/api/sms/send)
 ====================================================== */
 
 const MESSAGE_TEMPLATES: Record<
@@ -59,7 +59,7 @@ export async function sendScheduledSms() {
   let failed = 0;
 
   /* ======================================================
-     שליפת הודעות שמוכנות לשליחה
+     FETCH CANDIDATES
   ====================================================== */
   const candidates = await ScheduledMessage.find({
     status: "scheduled",
@@ -72,7 +72,7 @@ export async function sendScheduledSms() {
   for (const candidate of candidates) {
     processed++;
 
-    // 🔒 Atomic lock
+    // 🔒 atomic lock
     const msg = await ScheduledMessage.findOneAndUpdate(
       { _id: candidate._id, status: "scheduled" },
       { $set: { status: "sending" } },
@@ -83,7 +83,7 @@ export async function sendScheduledSms() {
 
     try {
       /* ======================================================
-         VALIDATION
+         TEMPLATE
       ====================================================== */
       const templateKey = msg.templateKey as MessageTemplateKey;
       const template = MESSAGE_TEMPLATES[templateKey];
@@ -92,7 +92,13 @@ export async function sendScheduledSms() {
         throw new Error("INVALID_TEMPLATE");
       }
 
+      /* ======================================================
+         INVITATION + EVENT + USER
+      ====================================================== */
       const invitation = await Invitation.findById(msg.invitationId).lean();
+      const event = invitation?.eventId
+        ? await Event.findById(invitation.eventId).lean()
+        : null;
       const user = await User.findById(msg.userId);
 
       if (!invitation || !user) {
@@ -100,7 +106,7 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         QUERY – RSVP LIVE
+         GUEST QUERY (LIVE RSVP)
       ====================================================== */
       const query: any = { invitationId: msg.invitationId };
 
@@ -124,7 +130,7 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         SMS LIMIT CHECK
+         SMS LIMIT
       ====================================================== */
       let allowedToSend = guests.length;
 
@@ -144,10 +150,11 @@ export async function sendScheduledSms() {
       const guestsToSend = guests.slice(0, allowedToSend);
 
       /* ======================================================
-         LOCATION / NAVIGATION (זהה לשליחה מיידית)
+         LOCATION / NAVIGATION (⭐️ FIX HERE ⭐️)
+         זהה לשליחה מיידית
       ====================================================== */
       const location =
-        invitation.eventLocation ?? invitation.location;
+        invitation.eventLocation ?? event?.location;
 
       const hasLocation = !!(location?.lat && location?.lng);
 
@@ -182,7 +189,7 @@ export async function sendScheduledSms() {
           .replace(/{{tableName}}/g, tableName)
           .replace(/{{navigationLink}}/g, navigationLink);
 
-        // 🎁 מתנה באשראי – זהה לשליחה מיידית
+        // 🎁 מתנה באשראי
         if (msg.includeGiftLink && msg.giftLink) {
           finalText += `\n\n🎁 למתנה באשראי:\n${msg.giftLink}`;
         }
