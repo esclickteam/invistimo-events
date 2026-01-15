@@ -469,7 +469,7 @@ console.log("INVITATION:", invitation);
           href="https://www.invistimo.com/pricing"
           className="mt-2 md:mt-0 inline-block rounded-lg bg-amber-600 px-4 py-2 text-white font-semibold hover:bg-amber-700 transition"
         >
-          לצפייה בחבילות →
+          הצטרפו עכשיו →
         </Link>
 
       </div>
