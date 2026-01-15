@@ -127,18 +127,51 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   /* ================= EXISTING USER ================= */
   const existingUser = await User.findOne({ email });
+
   if (existingUser) {
+    // אם המשתמש קיים ועדיין לא הגדיר סיסמה – שליחת קישור מחדש
+    if (existingUser.needsPasswordSetup) {
+      const resetPasswordToken = crypto.randomBytes(32).toString("hex");
+      const resetPasswordExpires = new Date(
+        Date.now() + 1000 * 60 * 60 * 24
+      );
+
+      existingUser.resetPasswordToken = resetPasswordToken;
+      existingUser.resetPasswordExpires = resetPasswordExpires;
+      await existingUser.save();
+
+      const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
+
+      console.log("📧 Sending magic link to existing user:", email);
+
+      await resend.emails.send({
+        from: "Invistimo <noreply@invistimo.com>",
+        to: email,
+        subject: "הגדרת סיסמה לחשבון שלך",
+        html: `
+          <div style="font-family:Heebo,Arial,sans-serif;direction:rtl;text-align:right">
+            <h2>ברוך הבא לאינויסטימו 🎉</h2>
+            <p>נשלח אליך שוב קישור להגדרת סיסמה:</p>
+            <a href="${magicLink}"
+              style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
+              הגדר סיסמה
+            </a>
+            <p style="margin-top:16px;font-size:14px;color:#555">
+              הקישור תקף ל־24 שעות.
+            </p>
+          </div>
+        `,
+      });
+    }
+
     return NextResponse.json({ success: true, user: existingUser });
   }
 
   /* ================= CREATE USER ================= */
   try {
-    const resetPasswordToken = crypto
-      .randomBytes(32)
-      .toString("hex");
-
+    const resetPasswordToken = crypto.randomBytes(32).toString("hex");
     const resetPasswordExpires = new Date(
-      Date.now() + 1000 * 60 * 60 * 24 // 24 שעות
+      Date.now() + 1000 * 60 * 60 * 24
     );
 
     const newUser = await User.create({
@@ -158,14 +191,6 @@ export async function POST(req: Request): Promise<NextResponse> {
       plan: "premium",
       paidAmount: amount,
       guests: maxGuests,
-
-      planLimits: {
-        maxGuests,
-        smsEnabled: true,
-        smsLimit: 0,
-        seatingEnabled: true,
-        remindersEnabled: true,
-      },
 
       includeCalls: !!includeCalls,
       includeCreditGifts: false,
@@ -195,6 +220,8 @@ export async function POST(req: Request): Promise<NextResponse> {
     /* ================= SEND MAGIC LINK ================= */
     const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
 
+    console.log("📧 Sending magic link to new user:", email);
+
     await resend.emails.send({
       from: "Invistimo <noreply@invistimo.com>",
       to: email,
@@ -204,7 +231,7 @@ export async function POST(req: Request): Promise<NextResponse> {
           <h2>ברוך הבא לאינויסטימו 🎉</h2>
           <p>המפיק שלך יצר עבורך חשבון חדש.</p>
           <p>להגדרת סיסמה ולכניסה למערכת:</p>
-          <a href="${magicLink}" target="_blank"
+          <a href="${magicLink}"
             style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
             הגדר סיסמה
           </a>
