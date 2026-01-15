@@ -197,25 +197,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       isDemoUser: false,
     });
 
-    /* ================= PAYMENT ================= */
-    const payment = await Payment.create({
-      email: newUser.email,
-      priceKey,
-      maxGuests,
-      includeCalls: !!includeCalls,
-      includeCreditGifts: false,
-      amount,
-      refundAmount: 0,
-      currency: "ils",
-      type: "package",
-      status: "paid",
-      isTest: false,
-      metadata: {
-        source: "producer-create-client",
-        producerId: String(producerId),
-        userId: String(newUser._id),
-      },
-    });
+   
 
     /* ================= SEND MAGIC LINK ================= */
     const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
@@ -245,7 +227,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({
       success: true,
       user: newUser,
-      payment,
+      
     });
   } catch (err) {
     console.error("❌ create-client error:", err);
