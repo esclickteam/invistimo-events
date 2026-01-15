@@ -457,27 +457,28 @@ console.log("INVITATION:", invitation);
   return (
   <div className="px-4 py-6 md:p-10 max-w-full overflow-x-hidden" dir="rtl">
     {isDemo && (
-  <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900">
-    <div className="flex flex-col gap-3">
-
-      <p className="text-sm leading-relaxed">
-        🧪 <strong>מצב דמו פעיל</strong> –  
-        המערכת פתוחה לצפייה בדשבורד, סידורי הושבה והודעות.  
-        רוצים גישה מלאה לכל הפונקציות?
-      </p>
-
-      <div>
-        <a
-          href="https://www.invistimo.com/pricing"
-          className="inline-block rounded-lg bg-amber-600 px-4 py-2 text-white text-sm font-semibold hover:bg-amber-700 transition"
-        >
-          הצטרפו עכשיו 
-        </a>
+      <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900">
+        <p className="text-sm leading-relaxed">
+          🧪 <strong>מצב דמו פעיל</strong> –  
+          המערכת פתוחה לצפייה בדשבורד, סידורי הושבה והודעות.  
+          רוצים גישה מלאה לכל הפונקציות?{" "}
+          <a
+            href="https://www.invistimo.com/pricing"
+            className="
+              font-semibold
+              text-amber-700
+              underline
+              underline-offset-2
+              hover:text-amber-900
+              transition
+            "
+          >
+            הצטרפו עכשיו
+          </a>
+        </p>
       </div>
+    )}
 
-    </div>
-  </div>
-)}
 
        <h1 className="text-4xl font-semibold mb-6">
       ניהול האירוע שלך
