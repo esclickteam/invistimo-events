@@ -4,13 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Users,
-  CheckCircle2,
-  Plus,
-  MapPin,
-  ArrowUpRight,
-  ListChecks,
   UserPlus,
   X,
+  ArrowUpRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -47,11 +43,13 @@ export default function ProducerDashboard() {
   const { user, loading: authLoading } = useAuth();
 
   const [events, setEvents] = useState([]);
+  const [clients, setClients] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [clientsLoading, setClientsLoading] = useState(false);
   const [showCreateClient, setShowCreateClient] = useState(false);
 
   /* =========================
-     Fetch Events
+     Fetch Events (stats only)
   ========================= */
   useEffect(() => {
     if (!user?._id) return;
@@ -75,13 +73,61 @@ export default function ProducerDashboard() {
   }, [user?._id]);
 
   /* =========================
+     Fetch Clients (table)
+  ========================= */
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const fetchClients = async () => {
+      setClientsLoading(true);
+      try {
+        const res = await fetch("/api/producer/clients", {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (data.success) {
+          setClients(data.clients || []);
+        }
+      } finally {
+        setClientsLoading(false);
+      }
+    };
+
+    fetchClients();
+  }, [user?._id]);
+
+  /* =========================
+     Impersonation
+  ========================= */
+  const handleManageClient = async (clientId) => {
+    try {
+      const res = await fetch("/api/producer/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: clientId }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = "/dashboard";
+      } else {
+        alert("לא ניתן להיכנס למשתמש");
+      }
+    } catch (err) {
+      alert("שגיאה בכניסה למשתמש");
+    }
+  };
+
+  /* =========================
      Stats
   ========================= */
   const stats = useMemo(() => {
     const active = events.filter((e) => e.status === "active");
     return {
       activeCount: active.length,
-      upcomingWeekCount: active.filter((e) => isWithinDays(e.date, 7)).length,
+      upcomingWeekCount: active.filter((e) =>
+        isWithinDays(e.date, 7)
+      ).length,
       totalGuests: active.reduce((s, e) => s + (e.maxGuests || 0), 0),
       totalConfirmed: 0,
     };
@@ -95,33 +141,20 @@ export default function ProducerDashboard() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">דשבורד מפיק</h1>
+        <h1 className="text-2xl font-bold text-slate-900">
+          דשבורד מפיק
+        </h1>
 
         <Button
-  onClick={() => setShowCreateClient(true)}
-  className="
-    bg-[#3b2a22]
-    hover:bg-[#2f211a]
-    text-white
-    rounded-full
-    px-6
-    py-3
-    text-sm
-    font-semibold
-    flex
-    items-center
-    gap-2
-    transition-colors
-    shadow-sm
-  "
->
-  <UserPlus className="w-4 h-4" />
-  יצירת לקוח חדש
-</Button>
-
+          onClick={() => setShowCreateClient(true)}
+          className="bg-[#3b2a22] hover:bg-[#2f211a] text-white rounded-full px-6 py-3 text-sm font-semibold flex items-center gap-2 shadow-sm"
+        >
+          <UserPlus className="w-4 h-4" />
+          יצירת לקוח חדש
+        </Button>
       </div>
 
-      {/* Create Client – PROFESSIONAL FORM */}
+      {/* Create Client */}
       {showCreateClient && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -130,35 +163,21 @@ export default function ProducerDashboard() {
           className="bg-slate-50 border border-slate-200 rounded-2xl shadow-sm p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-[var(--brand-purple)]/10 text-[var(--brand-purple)] p-2 rounded-lg">
-                <UserPlus className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  יצירת לקוח חדש
-                </h2>
-                <p className="text-sm text-slate-500">
-                  פתיחת לקוח חדש וניהול האירועים שלו
-                </p>
-              </div>
-            </div>
+            <h2 className="text-lg font-semibold">
+              יצירת לקוח חדש
+            </h2>
 
             <button
               onClick={() => setShowCreateClient(false)}
-              className="p-2 rounded-lg hover:bg-slate-200 transition"
+              className="p-2 rounded-lg hover:bg-slate-200"
             >
-              <X className="w-4 h-4 text-slate-600" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
-            <CreateClientByProducer
-              onSuccess={() => {
-                setShowCreateClient(false);
-              }}
-            />
-          </div>
+          <CreateClientByProducer
+            onSuccess={() => setShowCreateClient(false)}
+          />
         </motion.div>
       )}
 
@@ -179,9 +198,62 @@ export default function ProducerDashboard() {
             className="bg-white rounded-2xl p-5 border"
           >
             <p className="text-sm text-slate-500">{label}</p>
-            <p className="text-3xl font-bold text-slate-900">{value}</p>
+            <p className="text-3xl font-bold">{value}</p>
           </motion.div>
         ))}
+      </div>
+
+      {/* Clients Table */}
+      <div className="bg-white border rounded-2xl overflow-hidden">
+        <div className="p-4 font-semibold text-lg">
+          לקוחות
+        </div>
+
+        {clientsLoading ? (
+          <div className="p-6 text-slate-500">טוען לקוחות…</div>
+        ) : clients.length === 0 ? (
+          <div className="p-6 text-slate-500">
+            עדיין לא נוצרו לקוחות
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b">
+              <tr className="text-right">
+                <th className="p-4">שם</th>
+                <th className="p-4">אימייל</th>
+                <th className="p-4">טלפון</th>
+                <th className="p-4"></th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {clients.map((client) => (
+                <tr
+                  key={client._id}
+                  className="border-b hover:bg-slate-50"
+                >
+                  <td className="p-4 font-medium">
+                    {client.name}
+                  </td>
+                  <td className="p-4">{client.email}</td>
+                  <td className="p-4">{client.phone}</td>
+                  <td className="p-4">
+                    <Button
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() =>
+                        handleManageClient(client._id)
+                      }
+                    >
+                      ניהול
+                      <ArrowUpRight className="w-4 h-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
