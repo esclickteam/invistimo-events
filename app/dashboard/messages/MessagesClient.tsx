@@ -648,21 +648,35 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         </div>
       )}
 
-      {channel === "sms" && !isDemo && (
+      {channel === "sms" && (
+  <div className="mb-6 w-[90%] md:w-[600px]">
+    <label className="block mb-2">למי לשלוח:</label>
+    <select
+      value={filter}
+      onChange={(e) => setFilter(e.target.value as FilterType)}
+      className="w-full border rounded-xl p-3"
+    >
+      <option value="all">
+        לכל המוזמנים ({guests.length})
+      </option>
 
-        <div className="mb-6 w-[90%] md:w-[600px]">
-          <label className="block mb-2">למי לשלוח:</label>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as FilterType)}
-            className="w-full border rounded-xl p-3"
-          >
-            <option value="all">לכל המוזמנים</option>
-            <option value="pending">למי שטרם ענה</option>
-            <option value="withTable">למי שיש מספר שולחן</option>
-          </select>
-        </div>
-      )}
+      <option value="pending">
+        למי שטרם ענה ({guests.filter(g => g.rsvp === "pending").length})
+      </option>
+
+      <option value="withTable">
+        למי שיש מספר שולחן (
+        {guests.filter(g => g.tableName || g.tableNumber).length})
+      </option>
+    </select>
+
+    {isDemo && (
+      <p className="text-xs text-gray-500 mt-2">
+        🧪 בדמו ניתן לצפות בפילוחים – שליחה זמינה לאחר פתיחת אירוע
+      </p>
+    )}
+  </div>
+)}
 
       <div className="w-[90%] md:w-[600px] mb-2">
   <label className="block font-semibold text-[#4a413a] mb-1">
