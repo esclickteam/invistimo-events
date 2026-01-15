@@ -11,6 +11,8 @@ import EventCountdown from "../components/EventCountdown";
 import GuestsMobileList from "./components/GuestsMobileList";
 import { usePathname } from "next/navigation";
 import DemoToast from "../components/DemoToast";
+import Link from "next/link";
+
 
 type EventModel = {
   title?: string;
@@ -453,13 +455,25 @@ console.log("INVITATION:", invitation);
      Render
   ============================================================ */
   return (
-    <div className="px-4 py-6 md:p-10 max-w-full overflow-x-hidden" dir="rtl">
-      {isDemo && (
-  <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-amber-800">
-    🧪 מצב דמו פעיל – המערכת פתוחה לצפייה בדשבורד, סידורי הושבה והודעות.
-רוצים גישה מלאה לכל הפונקציות? הצטרפו אלינו.
-  </div>
-)}
+  <div className="px-4 py-6 md:p-10 max-w-full overflow-x-hidden" dir="rtl">
+    {isDemo && (
+      <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-800 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        
+        <div>
+          🧪 <strong>מצב דמו פעיל</strong> –  
+          המערכת פתוחה לצפייה בדשבורד, סידורי הושבה והודעות.  
+          רוצים גישה מלאה לכל הפונקציות?
+        </div>
+
+        <Link
+          href="https://www.invistimo.com/pricing"
+          className="mt-2 md:mt-0 inline-block rounded-lg bg-amber-600 px-4 py-2 text-white font-semibold hover:bg-amber-700 transition"
+        >
+          לצפייה בחבילות →
+        </Link>
+
+      </div>
+    )}
 
        <h1 className="text-4xl font-semibold mb-6">
       ניהול האירוע שלך
