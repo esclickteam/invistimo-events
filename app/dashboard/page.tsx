@@ -534,33 +534,30 @@ console.log("INVITATION:", invitation);
 
     <button
   onClick={() => {
-    if (isDemo) {
-      handleDemoBlockedAction();
-    } else {
-      router.push(
-        invitation
-          ? `/dashboard/edit-invite/${invitationId}`
-          : "/dashboard/create-invite"
-      );
-    }
+    router.push(
+      isDemo
+        ? invitation
+          ? `/try/dashboard/edit-invite/${invitationId}`
+          : "/try/dashboard/create-invite"
+        : invitation
+        ? `/dashboard/edit-invite/${invitationId}`
+        : "/dashboard/create-invite"
+    );
   }}
   className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
 >
   {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-  
 </button>
 
     <button
   onClick={() => {
-    if (isDemo) {
-      handleDemoBlockedAction();
-    } else {
-      router.push(
-        invitation
-          ? "/dashboard/seating"
-          : "/dashboard/create-invite"
-      );
-    }
+    router.push(
+      isDemo
+        ? "/try/dashboard/seating"
+        : invitation
+        ? "/dashboard/seating"
+        : "/dashboard/create-invite"
+    );
   }}
   className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
 >
@@ -611,14 +608,11 @@ console.log("INVITATION:", invitation);
    
       <button
   onClick={() => {
-    if (isDemo) {
-      handleDemoBlockedAction();
-    } else {
-      router.push(
-        isDemo ? "/try/dashboard/messages" : "/dashboard/messages"
-      );
-    }
-  }}
+  router.push(
+    isDemo ? "/try/dashboard/messages" : "/dashboard/messages"
+  );
+}}
+
   className="bg-green-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-700 transition"
 >
   💬 שליחת הודעות
@@ -852,24 +846,30 @@ console.log("INVITATION:", invitation);
           </td>
 
           <td className="p-3 flex gap-3">
+            
             <button
-              onClick={() =>
-                router.push(`/dashboard/messages?guestId=${g._id}`)
-              }
-              className="text-green-600"
-            >
-              💬
-            </button>
+  onClick={() =>
+    router.push(
+      isDemo
+        ? `/try/dashboard/messages?guestId=${g._id}`
+        : `/dashboard/messages?guestId=${g._id}`
+    )
+  }
+>
+  💬
+</button>
 
-            <button
-              onClick={() =>
-                router.push(
-                  `/dashboard/seating?from=personal&guestId=${g._id}`
-                )
-              }
-            >
-              🪑
-            </button>
+<button
+  onClick={() =>
+    router.push(
+      isDemo
+        ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+        : `/dashboard/seating?from=personal&guestId=${g._id}`
+    )
+  }
+>
+  🪑
+</button>
 
             <button onClick={() => setSelectedGuest(g)}>
               ✏️
@@ -903,13 +903,19 @@ console.log("INVITATION:", invitation);
     onEdit={(g) => setSelectedGuest(g)}
     onDelete={(g) => deleteGuest(g)}
     onMessage={(g) =>
-      router.push(`/dashboard/messages?guestId=${g._id}`)
-    }
-    onSeat={(g) =>
-      router.push(
-        `/dashboard/seating?from=personal&guestId=${g._id}`
-      )
-    }
+  router.push(
+    isDemo
+      ? `/try/dashboard/messages?guestId=${g._id}`
+      : `/dashboard/messages?guestId=${g._id}`
+  )
+}
+onSeat={(g) =>
+  router.push(
+    isDemo
+      ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+      : `/dashboard/seating?from=personal&guestId=${g._id}`
+  )
+}
   />
 </div>
 
