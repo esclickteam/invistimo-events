@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 type DemoToastProps = {
   open: boolean;
@@ -9,8 +8,6 @@ type DemoToastProps = {
 };
 
 export default function DemoToast({ open, onClose }: DemoToastProps) {
-  const router = useRouter();
-
   useEffect(() => {
     if (!open) return;
 
@@ -38,25 +35,23 @@ export default function DemoToast({ open, onClose }: DemoToastProps) {
           animate-slide-up
         "
       >
-        <span>
-          🧪 בדמו ניתן לצפות בדשבורד, הושבה והודעות בלבד
+        <span className="leading-relaxed">
+          🧪 בדמו ניתן לצפות בדשבורד, הושבה והודעות בלבד.{" "}
+          <a
+            href="https://www.invistimo.com/pricing"
+            className="
+              font-semibold
+              text-amber-700
+              underline
+              underline-offset-2
+              hover:text-amber-900
+              transition
+              whitespace-nowrap
+            "
+          >
+            להצטרפות
+          </a>
         </span>
-
-        <button
-          onClick={() => router.push("/login")}
-          className="
-            whitespace-nowrap
-            px-4 py-1.5
-            rounded-full
-            bg-[#c9b48f]
-            text-white
-            font-medium
-            hover:bg-[#b7a27a]
-            transition
-          "
-        >
-          להתחברות
-        </button>
       </div>
     </div>
   );
