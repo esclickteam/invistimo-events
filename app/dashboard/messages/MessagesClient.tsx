@@ -164,8 +164,8 @@ useEffect(() => {
       ]);
 
       setBalance({
-        maxMessages: 100,
-        remainingMessages: 72,
+        maxMessages: 300,
+        remainingMessages: 300,
       });
 
       setLoading(false);
