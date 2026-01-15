@@ -651,6 +651,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       {channel === "sms" && (
   <div className="mb-6 w-[90%] md:w-[600px]">
     <label className="block mb-2">למי לשלוח:</label>
+
     <select
       value={filter}
       onChange={(e) => setFilter(e.target.value as FilterType)}
@@ -672,11 +673,12 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
     {isDemo && (
       <p className="text-xs text-gray-500 mt-2">
-        🧪 בדמו ניתן לצפות בפילוחים – שליחה זמינה לאחר פתיחת אירוע
+        🧪 בדמו ניתן לצפות בפילוחים – שליחה פעילה לאחר פתיחת אירוע
       </p>
     )}
   </div>
 )}
+
 
       <div className="w-[90%] md:w-[600px] mb-2">
   <label className="block font-semibold text-[#4a413a] mb-1">
