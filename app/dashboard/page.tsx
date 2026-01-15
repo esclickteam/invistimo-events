@@ -534,12 +534,13 @@ console.log("INVITATION:", invitation);
 
     <button
   onClick={() => {
+    if (isDemo) {
+      handleDemoBlockedAction();
+      return;
+    }
+
     router.push(
-      isDemo
-        ? invitation
-          ? `/try/dashboard/edit-invite/${invitationId}`
-          : "/try/dashboard/create-invite"
-        : invitation
+      invitation
         ? `/dashboard/edit-invite/${invitationId}`
         : "/dashboard/create-invite"
     );
@@ -548,6 +549,7 @@ console.log("INVITATION:", invitation);
 >
   {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
 </button>
+
 
     <button
   onClick={() => {
