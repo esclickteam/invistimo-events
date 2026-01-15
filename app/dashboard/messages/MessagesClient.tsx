@@ -523,10 +523,23 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
  return (
   <div className="p-10 flex flex-col items-center" dir="rtl">
-
     {isDemo && (
       <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm">
-        🟡 מצב דמו – לא נשלחות הודעות אמיתיות
+        🧪 מצב הדגמה – שליחת הודעות זמינה לאחר{" "}
+        <a
+          href="https://www.invistimo.com/pricing"
+          className="
+            font-semibold
+            underline
+            underline-offset-2
+            text-amber-700
+            hover:text-amber-900
+            transition
+            whitespace-nowrap
+          "
+        >
+          הצטרפות
+        </a>
       </div>
     )}
 
