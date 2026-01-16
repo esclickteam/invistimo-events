@@ -164,19 +164,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* --------------------------------------------------
      🔁 EXIT IMPERSONATION  (⭐ הקריטי)
   -------------------------------------------------- */
-  const exitImpersonation = async () => {
+ const exitImpersonation = async () => {
   try {
+    // 🔑 שומרים מאיפה הגענו לפני המחיקה
+    const returnRole = user?.impersonationRole;
+
     await fetch("/api/auth/exit-impersonation", {
       method: "POST",
       credentials: "include",
       cache: "no-store",
     });
 
-    // ❗❗ קריטי:
-    // לא refreshUser
-    // לא router.replace
-    // אלא reload מלא כדי לנקות cookies
-    window.location.href = "/producer/dashboard";
+    // ❗ reload מלא כדי לנקות cookies
+    if (returnRole === "admin") {
+      window.location.href = "/admin";
+    } else {
+      // ברירת מחדל: מפיק
+      window.location.href = "/producer/dashboard";
+    }
   } catch (err) {
     console.error("❌ exitImpersonation failed:", err);
     alert("שגיאה ביציאה ממצב התחזות");
