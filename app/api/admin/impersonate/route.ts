@@ -4,24 +4,45 @@ import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
+/* =========================
+   Cookie helper (TS-safe)
+========================= */
+async function getCookieStore() {
+  const store = cookies();
+  return store instanceof Promise ? await store : store;
+}
+
+/* =========================
+   POST /api/admin/impersonate
+========================= */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
     /* ======================================================
-       🔐 אימות אדמין קיים
+       🔐 אימות אדמין
     ====================================================== */
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
+    const cookieStore = await getCookieStore();
+
+    const token =
+      cookieStore.get("authToken")?.value ||
+      cookieStore.get("token")?.value ||
+      null;
 
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
 
     if (decoded.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
     }
 
     /* ======================================================
@@ -31,67 +52,64 @@ export async function POST(req: Request) {
 
     if (!userId) {
       return NextResponse.json(
-        { error: "Missing userId" },
+        { success: false, error: "Missing userId" },
         { status: 400 }
       );
     }
 
     const user = await User.findById(userId);
+
     if (!user) {
       return NextResponse.json(
-        { error: "User not found" },
+        { success: false, error: "User not found" },
         { status: 404 }
       );
     }
 
     /* ======================================================
-       🎭 JWT התחזות (משתמש אמיתי)
+       🎭 JWT התחזות (מודל אחיד)
     ====================================================== */
     const impersonationToken = jwt.sign(
       {
         userId: user._id.toString(),
-        role: user.role,               // ⬅️ role של המשתמש!
-        impersonatedByAdmin: true,
-        adminId: decoded.userId,
+
+        // 🔑 role של המשתמש שמתחזים אליו
+        role: user.role,
+
+        // 🎭 flags כלליים (admin / producer)
+        impersonated: true,
+        impersonatedBy: decoded.userId,
+        impersonationRole: "admin",
       },
       process.env.JWT_SECRET!,
       { expiresIn: "30m" }
     );
 
+    /* ======================================================
+       🍪 Cookies
+    ====================================================== */
     const res = NextResponse.json({ success: true });
 
-    /* ======================================================
-       🍪 Cookies – קריטי למידלוור
-    ====================================================== */
-    const baseCookie = {
-      path: "/",
-      sameSite: "lax" as const,
-      secure: process.env.NODE_ENV === "production",
-    };
-
-    // 🔐 Auth token (HttpOnly)
     res.cookies.set("authToken", impersonationToken, {
-      ...baseCookie,
+      path: "/",
       httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     });
 
-    // 👤 role של המשתמש (לא admin!)
-    res.cookies.set("role", user.role, {
-      ...baseCookie,
-      httpOnly: false,
-    });
-
-    // 🎭 דגל התחזות – מה שהמידלוור בודק
-    res.cookies.set("impersonating", "true", {
-      ...baseCookie,
-      httpOnly: false,
+    // תאימות לאחור (אם יש middleware שמחפש token)
+    res.cookies.set("token", impersonationToken, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     });
 
     return res;
   } catch (err) {
-    console.error("❌ Impersonation error:", err);
+    console.error("❌ Admin impersonation error:", err);
     return NextResponse.json(
-      { error: "Server error" },
+      { success: false, error: "Server error" },
       { status: 500 }
     );
   }

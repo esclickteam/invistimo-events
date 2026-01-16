@@ -17,10 +17,13 @@ interface User {
   email: string;
   name?: string;
 
-role: "admin" | "user" | "producer";
+  // role אמיתי מהשרת
+  role: "admin" | "user" | "producer" | "client";
 
-  impersonatedByAdmin?: boolean;
-  adminId?: string | null;
+  // impersonation (אם קיים)
+  impersonated?: boolean;
+  impersonatedBy?: string;
+  impersonationRole?: "admin" | "producer";
 }
 
 interface AuthContextType {

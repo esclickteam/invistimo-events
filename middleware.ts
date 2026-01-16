@@ -4,11 +4,6 @@ import type { NextRequest } from "next/server";
 /* ========================================================
    HELPERS
 ======================================================== */
-function isTrialExpired(trialExpiresAt?: string) {
-  if (!trialExpiresAt) return false;
-  return Date.now() > Number(trialExpiresAt);
-}
-
 function clearAuthCookies(res: NextResponse) {
   const baseCookie = {
     path: "/",
@@ -16,48 +11,16 @@ function clearAuthCookies(res: NextResponse) {
     secure: process.env.NODE_ENV === "production",
   };
 
-  // 🔐 auth
   res.cookies.set("authToken", "", {
     ...baseCookie,
     httpOnly: true,
     maxAge: 0,
   });
 
-  // 👤 role + flags
-  res.cookies.set("role", "", {
+  // תאימות לאחור אם קיים
+  res.cookies.set("token", "", {
     ...baseCookie,
-    httpOnly: false,
-    maxAge: 0,
-  });
-
-  res.cookies.set("impersonating", "", {
-    ...baseCookie,
-    httpOnly: false,
-    maxAge: 0,
-  });
-
-  res.cookies.set("isTrial", "", {
-    ...baseCookie,
-    httpOnly: false,
-    maxAge: 0,
-  });
-
-  res.cookies.set("trialExpiresAt", "", {
-    ...baseCookie,
-    httpOnly: false,
-    maxAge: 0,
-  });
-
-  // ✉️ sms
-  res.cookies.set("smsUsed", "", {
-    ...baseCookie,
-    httpOnly: false,
-    maxAge: 0,
-  });
-
-  res.cookies.set("smsLimit", "", {
-    ...baseCookie,
-    httpOnly: false,
+    httpOnly: true,
     maxAge: 0,
   });
 }
@@ -71,7 +34,7 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
-     0️⃣ חריגה מוחלטת ל־API / Login / Register
+     0️⃣ חריגות מוחלטות
   ======================================================== */
   if (
     pathname.startsWith("/api") ||
@@ -101,116 +64,37 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     3️⃣ Auth – מקור אמת
+     3️⃣ Auth – בדיקה בסיסית בלבד
   ======================================================== */
-  const token = cookies.get("authToken")?.value;
-  const role = cookies.get("role")?.value; // "admin" | "producer" | "user" ...
-  const impersonating = cookies.get("impersonating")?.value === "true";
+  const token =
+    cookies.get("authToken")?.value ||
+    cookies.get("token")?.value ||
+    null;
+
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
   /* ========================================================
-     🔐 חסימת Dashboard ללא token
-     ❗ ניקוי cookies כפוי
+     🔐 חסימת אזורים מוגנים ללא token
   ======================================================== */
-  if (pathname.startsWith("/dashboard") && !token && !hasStripeSession) {
+  if (
+    (pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/producers")) &&
+    !token &&
+    !hasStripeSession
+  ) {
     const res = NextResponse.redirect(new URL("/login", req.url));
     clearAuthCookies(res);
     return res;
   }
 
-  /* ========================================================
-     🔐 חסימת Producers ללא token
-     ❗ ניקוי cookies כפוי
-  ======================================================== */
-  if (pathname.startsWith("/producers") && !token) {
-    const res = NextResponse.redirect(new URL("/login", req.url));
-    clearAuthCookies(res);
-    return res;
-  }
-
-  /* ========================================================
-     🔐 חסימת Admin ללא token
-  ======================================================== */
-  if (pathname.startsWith("/admin") && !token) {
-    const res = NextResponse.redirect(new URL("/login", req.url));
-    clearAuthCookies(res);
-    return res;
-  }
-
-  /* ========================================================
-     4️⃣ ניתוב Admin אוטומטי
-     ❗ רק אם לא בתחזות
-  ======================================================== */
-  if (
-    token &&
-    role === "admin" &&
-    !impersonating &&
-    (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))
-  ) {
-    const url = nextUrl.clone();
-    url.pathname = "/admin";
-    return NextResponse.redirect(url);
-  }
-
-  /* ========================================================
-     4.1️⃣ ✅ ניתוב Producer אוטומטי ל־/producers
-     ❗ רק אם לא בתחזות
-  ======================================================== */
-  if (
-    token &&
-    role === "producer" &&
-    !impersonating &&
-    (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))
-  ) {
-    const url = nextUrl.clone();
-    url.pathname = "/producers";
-    return NextResponse.redirect(url);
-  }
-
-  /* ========================================================
-     4.2️⃣ (אופציונלי אבל מומלץ) חסימת כניסה ל־/producers אם לא Producer/Admin
-     אם את רוצה שגם אדמין יוכל להיכנס לשם - השארתי גם admin.
-  ======================================================== */
-  if (
-    token &&
-    pathname.startsWith("/producers") &&
-    role !== "producer" &&
-    role !== "admin"
-  ) {
-    const url = nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
-
-  /* ========================================================
-     5️⃣ Trial checks – Dashboard בלבד
-  ======================================================== */
-  const isTrial = cookies.get("isTrial")?.value === "true";
-  const trialExpiresAt = cookies.get("trialExpiresAt")?.value;
-
-  if (pathname.startsWith("/dashboard") && token && isTrial) {
-    if (isTrialExpired(trialExpiresAt)) {
-      const url = nextUrl.clone();
-      url.pathname = "/dashboard/upgrade";
-      url.searchParams.set("reason", "trial_expired");
-      return NextResponse.redirect(url);
-    }
-  }
-
-  /* ========================================================
-     6️⃣ חסימת Messages UI אם נגמרה מכסת SMS
-  ======================================================== */
-  if (pathname.startsWith("/dashboard/messages") && token) {
-    const smsUsed = Number(cookies.get("smsUsed")?.value ?? 0);
-    const smsLimit = Number(cookies.get("smsLimit")?.value ?? 0);
-
-    if (smsLimit > 0 && smsUsed >= smsLimit) {
-      const url = nextUrl.clone();
-      url.pathname = "/dashboard/upgrade";
-      url.searchParams.set("reason", "sms_limit");
-      return NextResponse.redirect(url);
-    }
-  }
+  /*
+    ⚠️ שים לב:
+    אין כאן יותר ניתוב לפי role.
+    כל ניתוב role-based נעשה:
+    - בשרת (guards)
+    - ב-AuthContext (/api/me)
+  */
 
   return NextResponse.next();
 }
