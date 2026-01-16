@@ -3,14 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-/* ======================
-   TYPES (קונספטואלית)
-====================== */
 /*
 Conversation:
-- יכול להיות עם זוג / ספק / אולם / אחר
-- תמיד נוצר דרך היומן
-- כאן מוצג כתיעוד בלבד
+- נוצר תמיד דרך לוח שנה
+- כאן מוצג כהיסטוריה / כניסה לתיעוד
+- תיעוד + משימות = במסך פגישה ייעודי
 */
 
 export default function PlanningTab() {
@@ -28,10 +25,9 @@ export default function PlanningTab() {
 
   const [concept, setConcept] = useState("");
 
-  // דוגמאות – בהמשך יגיעו מה-Calendar / DB
   const conversations = [
     {
-      id: 1,
+      id: "c1",
       date: "12.08.2024",
       interactionType: "פגישה",
       entityType: "couple", // couple | supplier | venue | other
@@ -40,7 +36,7 @@ export default function PlanningTab() {
       tasksCreated: 2,
     },
     {
-      id: 2,
+      id: "c2",
       date: "05.08.2024",
       interactionType: "שיחה",
       entityType: "supplier",
@@ -49,7 +45,7 @@ export default function PlanningTab() {
       tasksCreated: 1,
     },
     {
-      id: 3,
+      id: "c3",
       date: "01.08.2024",
       interactionType: "פגישה",
       entityType: "venue",
@@ -62,12 +58,15 @@ export default function PlanningTab() {
   /* ======================
      HANDLERS
   ====================== */
+
+  // מעבר לטאב קלנדר באותו עמוד
   function goToCalendar() {
-    router.push("/events/production/calendar");
+    router.push("/events/production?tab=calendar");
   }
 
+  // פתיחת מסך פגישה ייעודי
   function openConversation(conversationId) {
-    router.push(`/events/production/calendar?open=${conversationId}`);
+    router.push(`/events/production/meeting/${conversationId}`);
   }
 
   function entityBadge(entityType) {
@@ -97,7 +96,7 @@ export default function PlanningTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             className="border rounded-lg p-3"
-            placeholder="מטרת האירוע (לדוגמה: חתונה אינטימית)"
+            placeholder="מטרת האירוע"
             value={eventDefinition.goal}
             onChange={(e) =>
               setEventDefinition({ ...eventDefinition, goal: e.target.value })
@@ -106,7 +105,7 @@ export default function PlanningTab() {
 
           <input
             className="border rounded-lg p-3"
-            placeholder="אופי / וייב (קליל, צעיר, יוקרתי...)"
+            placeholder="אופי / וייב"
             value={eventDefinition.vibe}
             onChange={(e) =>
               setEventDefinition({ ...eventDefinition, vibe: e.target.value })
@@ -125,7 +124,7 @@ export default function PlanningTab() {
           <textarea
             className="border rounded-lg p-3 md:col-span-2"
             rows={3}
-            placeholder="רגישויות / דגשים חשובים (משפחה, רעש, תקציב, לו״ז...)"
+            placeholder="רגישויות / דגשים חשובים"
             value={eventDefinition.notes}
             onChange={(e) =>
               setEventDefinition({ ...eventDefinition, notes: e.target.value })
@@ -143,7 +142,7 @@ export default function PlanningTab() {
         <textarea
           className="border rounded-lg p-3 w-full"
           rows={4}
-          placeholder="תיאור הקונספט העיצובי, השראה, צבעים, תחושה כללית..."
+          placeholder="תיאור הקונספט, השראה, צבעים ותחושה כללית"
           value={concept}
           onChange={(e) => setConcept(e.target.value)}
         />
@@ -168,15 +167,15 @@ export default function PlanningTab() {
 
         {conversations.length === 0 ? (
           <p className="text-sm text-gray-500">
-            עדיין לא תועדו שיחות. כל תיעוד מתחיל מתיאום ביומן.
+            עדיין לא תועדו שיחות. התיעוד מתבצע לאחר קיום הפגישה.
           </p>
         ) : (
           <ul className="space-y-3">
             {conversations.map((c) => (
               <li
                 key={c.id}
-                className="border rounded-xl p-4 flex justify-between items-start hover:bg-gray-50 cursor-pointer"
                 onClick={() => openConversation(c.id)}
+                className="border rounded-xl p-4 flex justify-between items-start hover:bg-gray-50 cursor-pointer"
               >
                 <div className="space-y-1">
                   <p className="font-medium">
@@ -208,8 +207,8 @@ export default function PlanningTab() {
           UX NOTE
       ===================== */}
       <p className="text-xs text-gray-400">
-        תיעוד מלא ויצירת משימות מתבצעים מתוך הפגישה עצמה בלוח השנה.
-        ניהול המשימות מתבצע בטאב "תמונת מצב".
+        תיעוד מלא, החלטות ויצירת משימות מתבצעים במסך הפגישה עצמו.
+        משימות מנוהלות בטאב "תמונת מצב".
       </p>
     </div>
   );
