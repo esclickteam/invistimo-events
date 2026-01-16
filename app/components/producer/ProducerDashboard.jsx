@@ -91,23 +91,32 @@ export default function ProducerDashboard() {
   }, [user?._id]);
 
   /* =========================
-     Impersonation
+     Impersonation (ניהול לקוח)
+     ⬅️ כאן התיקון החשוב
   ========================= */
   const handleManageClient = async (clientId) => {
     try {
       const res = await fetch("/api/producer/impersonate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // 🔴 קריטי כדי שה-cookie יישמר
         body: JSON.stringify({ userId: clientId }),
       });
 
-      const data = await res.json();
-      if (data.success) {
-        window.location.href = "/dashboard";
-      } else {
-        alert("לא ניתן להיכנס למשתמש");
+      if (!res.ok) {
+        alert("שגיאה בכניסה למשתמש");
+        return;
       }
-    } catch {
+
+      const data = await res.json();
+      if (!data.success) {
+        alert("שגיאה בכניסה למשתמש");
+        return;
+      }
+
+      // ✅ כניסה לדשבורד של המשתמש
+      window.location.assign("/dashboard");
+    } catch (err) {
       alert("שגיאה בכניסה למשתמש");
     }
   };
