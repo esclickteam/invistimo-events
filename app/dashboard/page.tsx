@@ -109,11 +109,18 @@ const isDemo = pathname.startsWith("/try");
   /* ============================================================
      Load user
   ============================================================ */
-  async function loadUser() {
-    const res = await fetch("/api/me");
-    const data = await res.json();
-    if (data.success) setUser(data.user);
+ async function loadUser() {
+  const res = await fetch("/api/me", {
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    setUser(data.user);
   }
+}
 
   /* ============================================================
      Load invitation
@@ -492,7 +499,7 @@ console.log("INVITATION:", invitation);
   ניהול האירוע שלך
 </h1>
 
-{user?.createdByProducer === true && (
+{!!user?.createdByProducer && (
   <div className="flex flex-wrap gap-3 mb-6">
     <Link
       href="/events/production"
