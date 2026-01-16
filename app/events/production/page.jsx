@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 
 /* =========================
    ספקים קבועים לחתונה
@@ -22,7 +21,6 @@ const WEDDING_SUPPLIERS = [
 ];
 
 export default function EventProductionPage() {
-  const { id: eventId } = useParams();
 
   const [loading, setLoading] = useState(true);
   const [budgetTotal, setBudgetTotal] = useState(0);
@@ -44,22 +42,34 @@ export default function EventProductionPage() {
      FETCH EVENT
   ========================= */
   useEffect(() => {
-    async function loadEvent() {
-      const res = await fetch(`/api/events/${eventId}`);
-      const event = await res.json();
+  async function loadEvent() {
+    const res = await fetch("/api/events", {
+      credentials: "include",
+      cache: "no-store",
+    });
 
-      if (!event?.producerId) {
-        alert("זה לא אירוע בהפקה");
-        return;
-      }
+    const data = await res.json();
 
-      setBudgetTotal(event.budgetTotal || 0);
-      setGuestCount(event.maxGuests || 0);
+    if (!data.success || !data.event) {
+      alert("לא נמצא אירוע");
       setLoading(false);
+      return;
     }
 
-    loadEvent();
-  }, [eventId]);
+    if (!data.event.producerId) {
+      alert("זה לא אירוע בהפקה");
+      setLoading(false);
+      return;
+    }
+
+    setBudgetTotal(data.event.budgetTotal || 0);
+    setGuestCount(data.event.maxGuests || 0);
+    setLoading(false);
+  }
+
+  loadEvent();
+}, []);
+
 
   /* =========================
      CALCULATIONS
