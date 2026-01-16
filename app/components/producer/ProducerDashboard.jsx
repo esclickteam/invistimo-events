@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  CalendarDays,
-  Users,
-  UserPlus,
-  X,
-  ArrowUpRight,
-} from "lucide-react";
+import { UserPlus, X, ArrowUpRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import CreateClientByProducer from "@/app/components/producer/CreateClientByProducer";
@@ -113,7 +107,7 @@ export default function ProducerDashboard() {
       } else {
         alert("לא ניתן להיכנס למשתמש");
       }
-    } catch (err) {
+    } catch {
       alert("שגיאה בכניסה למשתמש");
     }
   };
@@ -186,7 +180,7 @@ export default function ProducerDashboard() {
         {[
           ["אירועים פעילים", stats.activeCount],
           ["בשבוע הקרוב", stats.upcomingWeekCount],
-          ['סה״כ מוזמנים', stats.totalGuests],
+          ["סה״כ מוזמנים", stats.totalGuests],
           ["אישרו הגעה", stats.totalConfirmed],
         ].map(([label, value], i) => (
           <motion.div
@@ -222,6 +216,9 @@ export default function ProducerDashboard() {
                 <th className="p-4">שם</th>
                 <th className="p-4">אימייל</th>
                 <th className="p-4">טלפון</th>
+                <th className="p-4">תאריך אירוע</th>
+                <th className="p-4">מקום</th>
+                <th className="p-4">אישרו</th>
                 <th className="p-4"></th>
               </tr>
             </thead>
@@ -232,18 +229,33 @@ export default function ProducerDashboard() {
                   key={client._id}
                   className="border-b hover:bg-slate-50"
                 >
-                  <td className="p-4 font-medium">
-                    {client.name}
-                  </td>
+                  <td className="p-4 font-medium">{client.name}</td>
                   <td className="p-4">{client.email}</td>
                   <td className="p-4">{client.phone}</td>
+
+                  <td className="p-4">
+                    {client.event?.date
+                      ? new Date(client.event.date).toLocaleDateString("he-IL")
+                      : <span className="text-slate-400">—</span>}
+                  </td>
+
+                  <td className="p-4">
+                    {client.event?.location || (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+
+                  <td className="p-4 font-medium">
+                    {client.event
+                      ? `${client.event.approvedCount} / ${client.event.totalGuests}`
+                      : <span className="text-slate-400">—</span>}
+                  </td>
+
                   <td className="p-4">
                     <Button
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() =>
-                        handleManageClient(client._id)
-                      }
+                      onClick={() => handleManageClient(client._id)}
                     >
                       ניהול
                       <ArrowUpRight className="w-4 h-4" />
