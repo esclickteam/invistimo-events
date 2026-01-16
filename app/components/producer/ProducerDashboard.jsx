@@ -52,8 +52,10 @@ export default function ProducerDashboard() {
       setEventsLoading(true);
       try {
         const res = await fetch(`/api/events?producerId=${user._id}`, {
-          cache: "no-store",
-        });
+  cache: "no-store",
+  credentials: "include",
+});
+
         const data = await res.json();
         if (data.success) {
           setEvents(Array.isArray(data.events) ? data.events : []);
@@ -76,8 +78,9 @@ export default function ProducerDashboard() {
       setClientsLoading(true);
       try {
         const res = await fetch("/api/producer/clients", {
-          cache: "no-store",
-        });
+  cache: "no-store",
+  credentials: "include",
+});
         const data = await res.json();
         if (data.success) {
           setClients(data.clients || []);
