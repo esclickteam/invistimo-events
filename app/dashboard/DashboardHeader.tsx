@@ -34,7 +34,8 @@ export default function DashboardHeader({
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  const isImpersonating = !!user?.impersonatedByAdmin;
+  const isImpersonating = !!user?.impersonated;
+
 
   /* ============================================================
      חזרה לאדמין (מצב התחזות)
