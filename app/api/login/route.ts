@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     /* ======================================================
-       🔐 JWT – מקור האמת
+       🔐 JWT – מקור אמת
     ====================================================== */
     const token = jwt.sign(
       {
@@ -45,30 +45,37 @@ export async function POST(req: Request) {
       { expiresIn: "1h" }
     );
 
-    const res = NextResponse.json({
-      success: true,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isTrial: user.isTrial,
+    const res = NextResponse.json(
+      {
+        success: true,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isTrial: user.isTrial,
+        },
       },
-    });
+      { headers: { "Cache-Control": "no-store" } }
+    );
 
     /* ======================================================
-       🔥 ניקוי cookies קודמים (מונע הדבקה)
+       🔥 ניקוי cookies ישנים (קריטי!)
     ====================================================== */
-    res.cookies.delete("authToken");
-    res.cookies.delete("role");
-    res.cookies.delete("isTrial");
-    res.cookies.delete("trialExpiresAt");
-    res.cookies.delete("smsUsed");
-    res.cookies.delete("smsLimit");
+    const cleanup = {
+      path: "/",
+      maxAge: 0,
+    };
+
+    res.cookies.set("authToken", "", cleanup);
+    res.cookies.set("role", "", cleanup);
+    res.cookies.set("isTrial", "", cleanup);
+    res.cookies.set("trialExpiresAt", "", cleanup);
+    res.cookies.set("smsUsed", "", cleanup);
+    res.cookies.set("smsLimit", "", cleanup);
 
     /* ======================================================
-       🍪 Cookie בסיס
-       ❗ בלי domain – תואם middleware + logout
+       🍪 Cookie בסיס – תואם לכל המערכת
     ====================================================== */
     const baseCookie = {
       secure: process.env.NODE_ENV === "production",
@@ -86,7 +93,7 @@ export async function POST(req: Request) {
     });
 
     /* ======================================================
-       👤 Role (לא HttpOnly – למידלוור)
+       👤 Role (client-readable)
     ====================================================== */
     res.cookies.set("role", user.role, {
       ...baseCookie,

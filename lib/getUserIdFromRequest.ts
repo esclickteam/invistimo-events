@@ -40,10 +40,8 @@ export async function getUserIdFromRequest(): Promise<AuthPayload | null> {
   try {
     const cookieStore = await getCookieStore();
 
-    const token =
-      cookieStore.get("authToken")?.value ||
-      cookieStore.get("token")?.value ||
-      null;
+    // 🔐 SINGLE SOURCE OF TRUTH
+    const token = cookieStore.get("authToken")?.value ?? null;
 
     if (!token) {
       return null;
@@ -52,7 +50,16 @@ export async function getUserIdFromRequest(): Promise<AuthPayload | null> {
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET!
-    ) as Partial<AuthPayload> & {
+    ) as {
+      userId?: string;
+      role?: AuthRole;
+
+      // impersonation
+      impersonated?: boolean;
+      impersonatedBy?: string;
+      impersonationRole?: "producer" | "admin";
+
+      // backward compatibility (אם יש טוקנים ישנים)
       id?: string;
       _id?: string;
     };

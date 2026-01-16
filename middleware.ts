@@ -11,14 +11,8 @@ function clearAuthCookies(res: NextResponse) {
     secure: process.env.NODE_ENV === "production",
   };
 
+  // 🔐 auth token – מקור אמת יחיד
   res.cookies.set("authToken", "", {
-    ...baseCookie,
-    httpOnly: true,
-    maxAge: 0,
-  });
-
-  // תאימות לאחור אם קיים
-  res.cookies.set("token", "", {
     ...baseCookie,
     httpOnly: true,
     maxAge: 0,
@@ -64,17 +58,13 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     3️⃣ Auth – בדיקה בסיסית בלבד
+     3️⃣ Auth – בדיקה בסיסית
   ======================================================== */
-  const token =
-    cookies.get("authToken")?.value ||
-    cookies.get("token")?.value ||
-    null;
-
+  const token = cookies.get("authToken")?.value ?? null;
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
   /* ========================================================
-     🔐 חסימת אזורים מוגנים ללא token
+     🔐 חסימת אזורים מוגנים ללא התחברות
   ======================================================== */
   if (
     (pathname.startsWith("/dashboard") ||
@@ -89,11 +79,10 @@ export function middleware(req: NextRequest) {
   }
 
   /*
-    ⚠️ שים לב:
-    אין כאן יותר ניתוב לפי role.
-    כל ניתוב role-based נעשה:
-    - בשרת (guards)
-    - ב-AuthContext (/api/me)
+    ℹ️ אין כאן ניתוב לפי role
+    כל Role Guard נעשה:
+    - ב־API
+    - ב־AuthContext (/api/me)
   */
 
   return NextResponse.next();

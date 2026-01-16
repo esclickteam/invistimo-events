@@ -17,10 +17,9 @@ interface User {
   email: string;
   name?: string;
 
-  // role אמיתי מהשרת
   role: "admin" | "user" | "producer" | "client";
 
-  // impersonation (אם קיים)
+  // impersonation
   impersonated?: boolean;
   impersonatedBy?: string;
   impersonationRole?: "admin" | "producer";
@@ -87,9 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       const nextUser: User | null = data?.user ?? null;
 
-      // ❌ אין מצב חוקי בלי role
       if (nextUser && !nextUser.role) {
-        console.error("❌ User without role returned from /api/me");
+        console.error("❌ User without role from /api/me");
         setUser(null);
         sessionStorage.removeItem("auth_user");
         return null;
@@ -109,25 +107,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       sessionStorage.removeItem("auth_user");
       return null;
-    } finally {
-      setLoading(false);
     }
   };
 
   /* --------------------------------------------------
-     🚀 אימות ראשוני
+     🚀 אימות ראשוני (mount)
   -------------------------------------------------- */
   useEffect(() => {
-    refreshUser();
+    refreshUser().finally(() => {
+      setLoading(false);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* --------------------------------------------------
-     🔑 LOGIN – ניתוב לפי ROLE אמיתי בלבד
+     🔑 LOGIN
   -------------------------------------------------- */
   const login = async (email: string, password: string) => {
     try {
-      // 🔥 ניקוי cache ישן (קריטי למובייל)
       sessionStorage.removeItem("auth_user");
 
       const res = await fetch("/api/login", {
@@ -143,22 +140,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // ✅ מקור אמת – טעינה מהשרת
       const nextUser = await refreshUser();
 
       if (!nextUser) {
-        throw new Error("לא הצלחנו לטעון את פרטי המשתמש");
+        throw new Error("לא הצלחנו לטעון את המשתמש");
       }
 
-      // 🔁 ניתוב חד־משמעי
       if (nextUser.role === "admin") {
-  router.replace("/admin");
-} else if (nextUser.role === "producer") {
-  router.replace("/producer/dashboard");
-} else {
-  router.replace("/dashboard");
-}
-
+        router.replace("/admin");
+      } else if (nextUser.role === "producer") {
+        router.replace("/producer/dashboard");
+      } else {
+        router.replace("/dashboard");
+      }
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
@@ -166,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     🚪 LOGOUT – ניקוי מוחלט
+     🚪 LOGOUT
   -------------------------------------------------- */
   const logout = async () => {
     try {
@@ -179,14 +173,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("❌ Logout request failed:", err);
     } finally {
       setUser(null);
-
       sessionStorage.removeItem("auth_user");
-      sessionStorage.clear();
-      localStorage.clear();
-
       router.replace("/login");
     }
   };
+
+  /* --------------------------------------------------
+     ⏳ Guard – לא מציג ילדים לפני אימות
+  -------------------------------------------------- */
+  if (loading) {
+    return null; // או Spinner אם תרצי
+  }
 
   /* --------------------------------------------------
      PROVIDER

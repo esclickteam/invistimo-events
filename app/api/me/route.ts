@@ -13,6 +13,19 @@ async function getCookieStore() {
 }
 
 /* =========================
+   Helpers
+========================= */
+function clearAuthCookie(res: NextResponse) {
+  res.cookies.set("authToken", "", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+  });
+}
+
+/* =========================
    GET /api/me
 ========================= */
 export async function GET() {
@@ -21,10 +34,8 @@ export async function GET() {
 
     const cookieStore = await getCookieStore();
 
-    const token =
-      cookieStore.get("authToken")?.value ||
-      cookieStore.get("token")?.value ||
-      null;
+    // 🔐 מקור אמת יחיד
+    const token = cookieStore.get("authToken")?.value ?? null;
 
     if (!token) {
       return NextResponse.json(
@@ -33,10 +44,20 @@ export async function GET() {
       );
     }
 
-    let decoded: any;
+    let decoded: {
+      userId?: string;
+      id?: string;
+      _id?: string;
+      role?: string;
+
+      // impersonation
+      impersonated?: boolean;
+      impersonatedBy?: string;
+      impersonationRole?: "admin" | "producer";
+    };
 
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+      decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     } catch (err) {
       console.error("❌ JWT לא תקין:", err);
 
@@ -45,16 +66,7 @@ export async function GET() {
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
 
-      // ניקוי cookie
-      res.cookies.set("authToken", "", {
-        path: "/",
-        maxAge: 0,
-      });
-      res.cookies.set("token", "", {
-        path: "/",
-        maxAge: 0,
-      });
-
+      clearAuthCookie(res);
       return res;
     }
 
@@ -62,13 +74,19 @@ export async function GET() {
        Base user lookup
     ========================= */
     const baseUserId =
-      decoded.userId || decoded.id || decoded._id || null;
+      decoded.userId ||
+      decoded.id ||
+      decoded._id ||
+      null;
 
     if (!baseUserId) {
-      return NextResponse.json(
+      const res = NextResponse.json(
         { success: false, user: null },
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
+
+      clearAuthCookie(res);
+      return res;
     }
 
     const user = await User.findById(baseUserId).lean();
@@ -79,15 +97,7 @@ export async function GET() {
         { status: 404, headers: { "Cache-Control": "no-store" } }
       );
 
-      res.cookies.set("authToken", "", {
-        path: "/",
-        maxAge: 0,
-      });
-      res.cookies.set("token", "", {
-        path: "/",
-        maxAge: 0,
-      });
-
+      clearAuthCookie(res);
       return res;
     }
 
@@ -110,8 +120,8 @@ export async function GET() {
           name: user.name,
           email: user.email,
 
-          // 🔑 role מגיע מה-JWT (קריטי בהתחזות)
-          role: decoded.role,
+          // 🔑 role תמיד מה-JWT (קריטי ל-impersonation)
+          role: decoded.role ?? "user",
 
           // 📦 תכנית וחיובים
           plan: user.plan,
@@ -132,7 +142,7 @@ export async function GET() {
           isTrial: user.isTrial,
           isDemoUser: user.isDemoUser,
 
-          // 🕵️‍♂️ impersonation (חדש, כללי)
+          // 🕵️‍♂️ impersonation
           impersonated: !!decoded.impersonated,
           impersonatedBy: decoded.impersonatedBy ?? null,
           impersonationRole: decoded.impersonationRole ?? null,
