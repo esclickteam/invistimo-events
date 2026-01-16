@@ -1,17 +1,17 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { connectDB } from "@/lib/db";
+import { cookies } from "next/headers";
+import dbConnect from "@/lib/db";
 import User from "@/models/User";
 
-export async function POST(req: Request) {
-  await connectDB();
+export async function POST(req: NextRequest) {
+  await dbConnect();
 
   const { userId } = await req.json();
 
   if (!userId) {
     return NextResponse.json(
-      { success: false },
+      { success: false, message: "Missing userId" },
       { status: 400 }
     );
   }
@@ -19,18 +19,27 @@ export async function POST(req: Request) {
   const user = await User.findById(userId);
   if (!user) {
     return NextResponse.json(
-      { success: false },
+      { success: false, message: "User not found" },
       { status: 404 }
     );
   }
 
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET is not defined");
+  }
+
   const token = jwt.sign(
-    { userId: user._id, role: user.role },
-    process.env.JWT_SECRET!,
+    {
+      userId: user._id.toString(),
+      role: "user",        // 👈 מתנהג כיוזר רגיל
+      impersonated: true,  // 👈 סימון התחזות (לא חובה אבל מומלץ)
+    },
+    secret,
     { expiresIn: "7d" }
   );
 
-  // ✅ זה התיקון החשוב
+  // 🔴 זה התיקון הקריטי
   const cookieStore = await cookies();
   cookieStore.set("token", token, {
     httpOnly: true,
