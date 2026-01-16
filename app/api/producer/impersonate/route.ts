@@ -30,7 +30,9 @@ export async function POST(req: Request) {
     { expiresIn: "7d" }
   );
 
-  cookies().set("token", token, {
+  // ✅ זה התיקון החשוב
+  const cookieStore = await cookies();
+  cookieStore.set("token", token, {
     httpOnly: true,
     path: "/",
     sameSite: "lax",
