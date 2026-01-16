@@ -4,37 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /* =========================
-   ספקים קבועים
+   ספקים
 ========================= */
 const WEDDING_SUPPLIERS = [
   { key: "venue", label: "אולם / גן אירועים", type: "perGuest" },
   { key: "dj", label: "DJ", type: "fixed" },
   { key: "photography", label: "צילום", type: "fixed" },
+  { key: "lighting", label: "תאורה והגברה", type: "fixed" },
   { key: "design", label: "עיצוב אולם", type: "fixed" },
   { key: "attractions", label: "אטרקציות", type: "fixed" },
-  { key: "lighting", label: "תאורה והגברה", type: "fixed" },
-  { key: "bridal_dress", label: "שמלת כלה", type: "fixed" },
-  { key: "groom_suit", label: "חליפה", type: "fixed" },
-  { key: "makeup", label: "איפור ושיער", type: "fixed" },
-  { key: "rabbi", label: "רב / חופה", type: "fixed" },
-  { key: "rings", label: "טבעות", type: "fixed" },
-  { key: "transport", label: "הסעות", type: "fixed" },
 ];
 
-/* =========================
-   סטטוסים
-========================= */
-const SUPPLIER_STATUS = {
-  OPEN: "פתוח",
-  CONSIDERING: "בהתלבטות",
-  SELECTED: "סגור",
-};
+const CORE_SUPPLIERS_KEYS = ["venue", "dj", "photography", "lighting"];
 
 export default function EventProductionPage() {
   const router = useRouter();
-
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
 
   const [budgetTotal, setBudgetTotal] = useState(0);
   const [guestCount, setGuestCount] = useState(0);
@@ -42,16 +27,12 @@ export default function EventProductionPage() {
   const [suppliers, setSuppliers] = useState(
     WEDDING_SUPPLIERS.map((s) => ({
       ...s,
-      status: SUPPLIER_STATUS.OPEN,
-      notes: "",
       options: [],
       selectedOptionId: null,
-      isCustom: false,
+      notes: "",
       isOpen: true,
     }))
   );
-
-  const [customSupplierName, setCustomSupplierName] = useState("");
 
   /* =========================
      AUTH
@@ -62,7 +43,6 @@ export default function EventProductionPage() {
         credentials: "include",
         cache: "no-store",
       });
-
       const data = await res.json();
 
       if (!data?.success || !data.user?.createdByProducer) {
@@ -70,7 +50,6 @@ export default function EventProductionPage() {
         return;
       }
 
-      setUser(data.user);
       setGuestCount(data.user.guestCount || 0);
       setLoading(false);
     }
@@ -79,29 +58,25 @@ export default function EventProductionPage() {
   }, [router]);
 
   /* =========================
-     חישובי תקציב
+     חישובים
   ========================= */
   const totalCost = useMemo(() => {
     return suppliers.reduce((sum, s) => {
-      const selected = s.options.find(
+      const sel = s.options.find(
         (o) => o.id === s.selectedOptionId
       );
-      if (!selected) return sum;
+      if (!sel) return sum;
 
       const cost =
         s.type === "perGuest"
-          ? selected.price * guestCount
-          : selected.price;
+          ? sel.price * guestCount
+          : sel.price;
 
       return sum + cost;
     }, 0);
   }, [suppliers, guestCount]);
 
   const remainingBudget = budgetTotal - totalCost;
-
-  const openSuppliersCount = suppliers.filter(
-    (s) => s.status !== SUPPLIER_STATUS.SELECTED
-  ).length;
 
   /* =========================
      HANDLERS
@@ -118,9 +93,8 @@ export default function EventProductionPage() {
                   id: crypto.randomUUID(),
                   name: "",
                   price: 0,
+                  deposit: 0,
                   includes: "",
-                  notes: "",
-                  isRecommended: false,
                 },
               ],
             }
@@ -148,56 +122,10 @@ export default function EventProductionPage() {
     setSuppliers((prev) =>
       prev.map((s) =>
         s.key === supplierKey
-          ? {
-              ...s,
-              selectedOptionId: optionId,
-              status: SUPPLIER_STATUS.SELECTED,
-              isOpen: false,
-            }
+          ? { ...s, selectedOptionId: optionId }
           : s
       )
     );
-  }
-
-  function toggleSupplierOpen(key) {
-    setSuppliers((prev) =>
-      prev.map((s) =>
-        s.key === key ? { ...s, isOpen: !s.isOpen } : s
-      )
-    );
-  }
-
-  function updateSupplierField(key, field, value) {
-    setSuppliers((prev) =>
-      prev.map((s) =>
-        s.key === key ? { ...s, [field]: value } : s
-      )
-    );
-  }
-
-  function removeSupplier(key) {
-    setSuppliers((prev) => prev.filter((s) => s.key !== key));
-  }
-
-  function addCustomSupplier() {
-    if (!customSupplierName.trim()) return;
-
-    setSuppliers((prev) => [
-      ...prev,
-      {
-        key: `custom_${crypto.randomUUID()}`,
-        label: customSupplierName,
-        type: "fixed",
-        status: SUPPLIER_STATUS.OPEN,
-        notes: "",
-        options: [],
-        selectedOptionId: null,
-        isCustom: true,
-        isOpen: true,
-      },
-    ]);
-
-    setCustomSupplierName("");
   }
 
   if (loading) return <div className="p-6">טוען…</div>;
@@ -206,11 +134,11 @@ export default function EventProductionPage() {
      RENDER
   ========================= */
   return (
-    <div className="p-6 space-y-8" dir="rtl">
+    <div className="p-6 space-y-10" dir="rtl">
       <h1 className="text-2xl font-bold">הפקת אירוע</h1>
 
-      {/* ===== תמונת מצב ===== */}
-      <section className="sticky top-0 z-10 bg-white border rounded-xl p-4 grid grid-cols-4 gap-4">
+      {/* ===== סיכום ===== */}
+      <section className="grid grid-cols-4 gap-4 border rounded-xl p-4 bg-white">
         <div>👥 מוזמנים: {guestCount}</div>
         <div>💰 תקציב: ₪{budgetTotal}</div>
         <div>📊 הוצאות: ₪{totalCost}</div>
@@ -221,189 +149,160 @@ export default function EventProductionPage() {
         >
           יתרה: ₪{remainingBudget}
         </div>
-        <div className="col-span-4 text-sm text-gray-500">
-          תחומים פתוחים: {openSuppliersCount}
-        </div>
       </section>
 
       {/* ===== תקציב ===== */}
-      <section className="border rounded-xl p-4 space-y-2">
+      <section className="border rounded-xl p-4">
         <label className="font-semibold">תקציב כולל</label>
         <input
           type="number"
           value={budgetTotal}
-          onChange={(e) => setBudgetTotal(Number(e.target.value))}
-          className="border rounded px-3 py-1 w-48"
+          onChange={(e) => setBudgetTotal(+e.target.value)}
+          className="border rounded px-3 py-1 w-48 block mt-2"
         />
       </section>
 
-      {/* ===== הוספת ספק חופשי ===== */}
-      <section className="border rounded-xl p-4 space-y-3">
-        <h2 className="font-semibold">➕ הוספת תחום ספק</h2>
-        <div className="flex gap-3">
-          <input
-            placeholder="שם התחום"
-            value={customSupplierName}
-            onChange={(e) => setCustomSupplierName(e.target.value)}
-            className="border rounded px-3 py-1 flex-1"
-          />
-          <button
-            onClick={addCustomSupplier}
-            className="bg-black text-white rounded px-4"
-          >
-            הוסף
-          </button>
+      {/* ===== ספקי ליבה ===== */}
+      <section>
+        <h2 className="text-xl font-bold mb-4">ספקים מרכזיים</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {suppliers
+            .filter((s) => CORE_SUPPLIERS_KEYS.includes(s.key))
+            .map((supplier) => {
+              const selected = supplier.options.find(
+                (o) => o.id === supplier.selectedOptionId
+              );
+
+              return (
+                <div
+                  key={supplier.key}
+                  className="border rounded-xl p-4 space-y-4 bg-white"
+                >
+                  <h3 className="font-semibold text-lg">
+                    {supplier.label}
+                  </h3>
+
+                  <button
+                    onClick={() => addOption(supplier.key)}
+                    className="text-sm underline"
+                  >
+                    ➕ הוסף הצעת מפיק
+                  </button>
+
+                  {supplier.options.map((opt) => {
+                    const total =
+                      supplier.type === "perGuest"
+                        ? opt.price * guestCount
+                        : opt.price;
+
+                    const remaining =
+                      total - (opt.deposit || 0);
+
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`border rounded-lg p-3 space-y-3 ${
+                          supplier.selectedOptionId === opt.id
+                            ? "border-green-500 bg-green-50"
+                            : ""
+                        }`}
+                      >
+                        <input
+                          placeholder="שם ספק"
+                          value={opt.name}
+                          onChange={(e) =>
+                            updateOption(
+                              supplier.key,
+                              opt.id,
+                              "name",
+                              e.target.value
+                            )
+                          }
+                          className="border rounded px-2 py-1 w-full"
+                        />
+
+                        <input
+                          type="number"
+                          placeholder={
+                            supplier.type === "perGuest"
+                              ? "מחיר לאורח"
+                              : "מחיר כולל"
+                          }
+                          value={opt.price}
+                          onChange={(e) =>
+                            updateOption(
+                              supplier.key,
+                              opt.id,
+                              "price",
+                              +e.target.value
+                            )
+                          }
+                          className="border rounded px-2 py-1 w-full"
+                        />
+
+                        <input
+                          type="number"
+                          placeholder="מקדמה"
+                          value={opt.deposit}
+                          onChange={(e) =>
+                            updateOption(
+                              supplier.key,
+                              opt.id,
+                              "deposit",
+                              +e.target.value
+                            )
+                          }
+                          className="border rounded px-2 py-1 w-full"
+                        />
+
+                        {/* ===== טבלה כספית ===== */}
+                        <div className="border rounded overflow-hidden text-sm">
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="p-2">מחיר</th>
+                                <th className="p-2">מקדמה</th>
+                                <th className="p-2">
+                                  יתרה לתשלום
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="text-center">
+                                <td className="p-2">
+                                  ₪{total}
+                                </td>
+                                <td className="p-2">
+                                  ₪{opt.deposit || 0}
+                                </td>
+                                <td className="p-2 font-bold">
+                                  ₪{remaining}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            selectOption(
+                              supplier.key,
+                              opt.id
+                            )
+                          }
+                          className="text-green-700 text-sm font-semibold"
+                        >
+                          ✔ בחירת זוג
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
         </div>
       </section>
-
-      {/* ===== ספקים ===== */}
-      {suppliers.map((supplier) => {
-        const selected = supplier.options.find(
-          (o) => o.id === supplier.selectedOptionId
-        );
-
-        return (
-          <section
-            key={supplier.key}
-            className="border rounded-xl p-4 space-y-3"
-          >
-            {/* Header */}
-            <div className="flex justify-between items-center">
-              <div
-                className="cursor-pointer"
-                onClick={() => toggleSupplierOpen(supplier.key)}
-              >
-                <h2 className="font-semibold text-lg">
-                  {supplier.label}{" "}
-                  <span className="text-sm text-gray-500">
-                    ({supplier.status})
-                  </span>
-                </h2>
-
-                {selected && (
-                  <div className="text-sm text-green-600">
-                    ✔ נבחר: {selected.name} – ₪
-                    {supplier.type === "perGuest"
-                      ? selected.price * guestCount
-                      : selected.price}
-                  </div>
-                )}
-              </div>
-
-              {supplier.isCustom && (
-                <button
-                  onClick={() => removeSupplier(supplier.key)}
-                  className="text-red-600 text-sm"
-                >
-                  מחק
-                </button>
-              )}
-            </div>
-
-            {/* תוכן */}
-            {supplier.isOpen && (
-              <>
-                <button
-                  onClick={() => addOption(supplier.key)}
-                  className="text-sm underline"
-                >
-                  ➕ הוסף הצעת מפיק
-                </button>
-
-                {supplier.options.map((opt) => (
-                  <div
-                    key={opt.id}
-                    className="grid grid-cols-7 gap-2 items-center border rounded p-2"
-                  >
-                    <input
-                      placeholder="שם ספק"
-                      value={opt.name}
-                      onChange={(e) =>
-                        updateOption(
-                          supplier.key,
-                          opt.id,
-                          "name",
-                          e.target.value
-                        )
-                      }
-                      className="border rounded px-2 py-1"
-                    />
-
-                    <input
-                      type="number"
-                      placeholder={
-                        supplier.type === "perGuest"
-                          ? "מחיר לאורח"
-                          : "מחיר"
-                      }
-                      value={opt.price}
-                      onChange={(e) =>
-                        updateOption(
-                          supplier.key,
-                          opt.id,
-                          "price",
-                          Number(e.target.value)
-                        )
-                      }
-                      className="border rounded px-2 py-1"
-                    />
-
-                    <input
-                      placeholder="מה כלול"
-                      value={opt.includes}
-                      onChange={(e) =>
-                        updateOption(
-                          supplier.key,
-                          opt.id,
-                          "includes",
-                          e.target.value
-                        )
-                      }
-                      className="border rounded px-2 py-1 col-span-2"
-                    />
-
-                    <input
-                      placeholder="הערות מפיק"
-                      value={opt.notes}
-                      onChange={(e) =>
-                        updateOption(
-                          supplier.key,
-                          opt.id,
-                          "notes",
-                          e.target.value
-                        )
-                      }
-                      className="border rounded px-2 py-1 col-span-2"
-                    />
-
-                    <button
-                      onClick={() =>
-                        selectOption(supplier.key, opt.id)
-                      }
-                      className="text-green-600 text-sm"
-                    >
-                      בחירת זוג
-                    </button>
-                  </div>
-                ))}
-
-                <textarea
-                  placeholder="הערות כלליות לתחום"
-                  value={supplier.notes}
-                  onChange={(e) =>
-                    updateSupplierField(
-                      supplier.key,
-                      "notes",
-                      e.target.value
-                    )
-                  }
-                  className="border rounded w-full p-2 mt-2"
-                />
-              </>
-            )}
-          </section>
-        );
-      })}
     </div>
   );
 }
