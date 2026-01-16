@@ -165,28 +165,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      🔁 EXIT IMPERSONATION  (⭐ הקריטי)
   -------------------------------------------------- */
   const exitImpersonation = async () => {
-    try {
-      await fetch("/api/auth/exit-impersonation", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
+  try {
+    await fetch("/api/auth/exit-impersonation", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
 
-      // ניקוי cache מקומי
-      sessionStorage.removeItem("auth_user");
+    // ❗❗ קריטי:
+    // לא refreshUser
+    // לא router.replace
+    // אלא reload מלא כדי לנקות cookies
+    window.location.href = "/producer/dashboard";
+  } catch (err) {
+    console.error("❌ exitImpersonation failed:", err);
+    alert("שגיאה ביציאה ממצב התחזות");
+  }
+};
 
-      const realUser = await refreshUser();
-
-      if (!realUser || realUser.role !== "producer") {
-        throw new Error("Failed to restore producer session");
-      }
-
-      router.replace("/producer/dashboard");
-    } catch (err) {
-      console.error("❌ exitImpersonation failed:", err);
-      alert("שגיאה ביציאה ממצב התחזות");
-    }
-  };
 
   /* --------------------------------------------------
      🚪 LOGOUT
