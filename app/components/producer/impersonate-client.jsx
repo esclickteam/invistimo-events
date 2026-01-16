@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
  */
 export default function ImpersonateClient({ clientId }) {
   const router = useRouter();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -17,23 +18,29 @@ export default function ImpersonateClient({ clientId }) {
       setLoading(true);
       setError(null);
 
-      const res = await fetch("/api/producer/impersonate-client", {
+      const res = await fetch("/api/producer/impersonate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        // 🔴 קריטי – שולח cookies של המפיק
+        credentials: "include",
+
         body: JSON.stringify({ clientId }),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data?.success) {
-        throw new Error(data?.error || "Impersonation failed");
+        throw new Error(data?.message || "Impersonation failed");
       }
 
-      // מעבר לדשבורד הלקוח
-      router.push("/dashboard");
+      // ✅ מעבר לדשבורד הלקוח
+      router.replace("/dashboard");
       router.refresh();
     } catch (err) {
-      console.error("Impersonate error:", err);
+      console.error("❌ Impersonate error:", err);
       setError("לא ניתן להיכנס לדשבורד הלקוח");
     } finally {
       setLoading(false);
