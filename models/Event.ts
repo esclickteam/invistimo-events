@@ -123,12 +123,19 @@ const EventSchema = new mongoose.Schema(
       default: "wedding",
     },
 
-    title: {
+     title: {
       type: String,
       default: "",
       trim: true,
     },
 
+    /* =========================
+       תקציב הפקה (רק למפיקים)
+    ========================= */
+    budgetTotal: {
+      type: Number,
+      default: 0,
+    },
     /* =========================
        תאריך ושעה
     ========================= */
