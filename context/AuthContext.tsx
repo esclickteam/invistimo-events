@@ -19,7 +19,7 @@ interface User {
 
   role: "admin" | "user" | "producer" | "client";
 
-  // impersonation
+  // impersonation flags (מהשרת)
   impersonated?: boolean;
   impersonatedBy?: string;
   impersonationRole?: "admin" | "producer";
@@ -30,6 +30,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   refreshUser: () => Promise<User | null>;
+  exitImpersonation: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => {},
   refreshUser: async () => null,
+  exitImpersonation: async () => {},
   logout: async () => {},
 });
 
@@ -160,6 +162,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
+     🔁 EXIT IMPERSONATION  (⭐ הקריטי)
+  -------------------------------------------------- */
+  const exitImpersonation = async () => {
+    try {
+      await fetch("/api/auth/exit-impersonation", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      // ניקוי cache מקומי
+      sessionStorage.removeItem("auth_user");
+
+      const realUser = await refreshUser();
+
+      if (!realUser || realUser.role !== "producer") {
+        throw new Error("Failed to restore producer session");
+      }
+
+      router.replace("/producer/dashboard");
+    } catch (err) {
+      console.error("❌ exitImpersonation failed:", err);
+      alert("שגיאה ביציאה ממצב התחזות");
+    }
+  };
+
+  /* --------------------------------------------------
      🚪 LOGOUT
   -------------------------------------------------- */
   const logout = async () => {
@@ -182,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      ⏳ Guard – לא מציג ילדים לפני אימות
   -------------------------------------------------- */
   if (loading) {
-    return null; // או Spinner אם תרצי
+    return null; // או Spinner
   }
 
   /* --------------------------------------------------
@@ -195,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login,
         refreshUser,
+        exitImpersonation,
         logout,
       }}
     >

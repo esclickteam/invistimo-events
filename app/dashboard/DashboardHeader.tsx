@@ -32,34 +32,14 @@ export default function DashboardHeader({
   isDemo = false,
 }: DashboardHeaderProps) {
   const router = useRouter();
-  const { user, logout } = useAuth();
-
-  const isImpersonating = !!user?.impersonated;
-  const impersonationRole = user?.impersonationRole; // "admin" | "producer" | undefined
 
   /* ============================================================
-     חזרה מהתחזות (אדמין / מפיק)
+     Auth
   ============================================================= */
-  const handleReturnFromImpersonation = async () => {
-    try {
-      const endpoint =
-        impersonationRole === "producer"
-          ? "/api/producer/stop-impersonation"
-          : "/api/admin/stop-impersonation";
+  const { user, logout, exitImpersonation } = useAuth();
 
-      await fetch(endpoint, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      window.location.href =
-        impersonationRole === "producer"
-          ? "/producer/dashboard"
-          : "/admin";
-    } catch (err) {
-      console.error("Failed to return from impersonation:", err);
-    }
-  };
+  const isImpersonating = Boolean(user?.impersonated);
+  const impersonationRole = user?.impersonationRole; // "admin" | "producer" | undefined
 
   /* ============================================================
      התנתקות רגילה
@@ -71,25 +51,10 @@ export default function DashboardHeader({
         return;
       }
 
-      await fetch("/api/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-      });
-
-      localStorage.clear();
-      sessionStorage.clear();
-
-      if (typeof logout === "function") {
-        logout();
-      }
-
-      router.replace("/login");
-      router.refresh();
+      // קריאה ל־logout מה־context (כולל ניקוי state + redirect)
+      await logout();
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("❌ Logout failed:", error);
     }
   };
 
@@ -197,7 +162,7 @@ export default function DashboardHeader({
         <div className="flex justify-end">
           {isImpersonating ? (
             <button
-              onClick={handleReturnFromImpersonation}
+              onClick={exitImpersonation}
               className={`
                 font-medium
                 ${HEADER_UI.navText}
