@@ -129,6 +129,8 @@ export async function GET() {
           // 🔑 role תמיד מה-JWT
           role: decoded.role ?? "user",
 
+          createdByProducer: user.createdByProducer === true,
+          
           // 📦 עסקי
           plan: user.plan,
           guests: user.guests,

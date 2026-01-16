@@ -139,10 +139,15 @@ async function loadEvent() {
   });
 
   const data = await res.json();
-  if (data.success) {
+
+  if (data.success && data.event) {
     setEvent(data.event);
+  } else {
+    // ✅ איפוס – מונע “זליגה” בין יוזרים
+    setEvent(null);
   }
 }
+
 
 
   /* ============================================================
@@ -197,17 +202,19 @@ async function deleteGuest(guest: Guest) {
 }
 
 useEffect(() => {
-  // ⭐️ DEMO – אם זה דמו, לא מריצים init אמיתי
   if (isDemo) return;
 
   async function init() {
+    setEvent(null); // ✅ איפוס חד-משמעי לפני טעינה
     await loadUser();
     await loadInvitation();
     await loadEvent();
     setLoading(false);
   }
+
   init();
 }, [isDemo]);
+
 
 useEffect(() => {
   // ⭐️ DEMO – טעינת נתוני דמו בלבד
@@ -449,6 +456,7 @@ useEffect(() => {
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   if (loading) return null;
+  console.log("USER FROM /api/me:", user);
 console.log("INVITATION:", invitation);
 
   /* ============================================================
