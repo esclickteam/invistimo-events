@@ -9,7 +9,7 @@ import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================
-   Cookie helper (קריטי)
+   Cookie helper
 ========================= */
 async function getCookieStore(): Promise<ReadonlyRequestCookies> {
   const store = cookies();
@@ -23,32 +23,22 @@ export async function POST(req: NextRequest) {
   console.log("🟡 [Producer Impersonate] Request received");
 
   await dbConnect();
-  console.log("🟢 DB connected");
 
   /* =========================
-     🔐 Auth
+     🔐 Auth – מפיק אמיתי
   ========================= */
   const auth = await getUserIdFromRequest();
-  console.log("🔎 Auth payload:", auth);
 
   if (!auth?.userId) {
-    console.error("❌ No auth or userId");
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
       { status: 401 }
     );
   }
 
-  /**
-   * ⚠️ תיקון קריטי:
-   * לא סומכים רק על auth.role
-   * בודקים גם את המשתמש במסד
-   */
   const producer = await User.findById(auth.userId);
-  console.log("👤 Producer from DB:", producer?._id, producer?.role);
 
   if (!producer || producer.role !== "producer") {
-    console.error("❌ User is not producer");
     return NextResponse.json(
       { success: false, message: "Forbidden – not producer" },
       { status: 403 }
@@ -58,13 +48,9 @@ export async function POST(req: NextRequest) {
   /* =========================
      📥 Input
   ========================= */
-  const body = await req.json();
-  console.log("📦 Request body:", body);
-
-  const { clientId } = body;
+  const { clientId } = await req.json();
 
   if (!clientId) {
-    console.error("❌ Missing clientId");
     return NextResponse.json(
       { success: false, message: "Missing clientId" },
       { status: 400 }
@@ -75,31 +61,15 @@ export async function POST(req: NextRequest) {
      👤 Client lookup
   ========================= */
   const client = await User.findById(clientId);
-  console.log("👥 Client found:", client?._id, client?.producerId);
 
-  if (!client) {
-    console.error("❌ Client not found");
+  if (!client || !client.producerId) {
     return NextResponse.json(
-      { success: false, message: "Client not found" },
+      { success: false, message: "Client not found / not linked" },
       { status: 404 }
     );
   }
 
-  if (!client.producerId) {
-    console.error("❌ Client has no producerId");
-    return NextResponse.json(
-      { success: false, message: "Client not linked to producer" },
-      { status: 403 }
-    );
-  }
-
   if (client.producerId.toString() !== producer._id.toString()) {
-    console.error(
-      "❌ Client does not belong to producer",
-      client.producerId.toString(),
-      "!==",
-      producer._id.toString()
-    );
     return NextResponse.json(
       { success: false, message: "Not your client" },
       { status: 403 }
@@ -107,9 +77,9 @@ export async function POST(req: NextRequest) {
   }
 
   /* =========================
-     🎭 JWT (Client impersonation)
+     🎭 JWT – לקוח (התחזות)
   ========================= */
-  const token = jwt.sign(
+  const impersonationToken = jwt.sign(
     {
       userId: client._id.toString(),
       role: "client",
@@ -122,29 +92,20 @@ export async function POST(req: NextRequest) {
     { expiresIn: "1h" }
   );
 
-  console.log("🎟️ Impersonation JWT created");
-
   /* =========================
-     🍪 Cookie SET
+     🍪 Cookies
+     ❗ לא נוגעים ב-authToken
   ========================= */
   const cookieStore = await getCookieStore();
 
-  cookieStore.set("authToken", token, {
+  cookieStore.set("impersonationToken", impersonationToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
   });
 
-  // תאימות אם יש קוד שמחפש token
-  cookieStore.set("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
-
-  console.log("🍪 Cookies set – impersonation active");
+  console.log("🍪 impersonationToken set (authToken preserved)");
 
   return NextResponse.json({ success: true });
 }
