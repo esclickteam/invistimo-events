@@ -3,6 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+/* ======================
+   TYPES (קונספטואלית)
+====================== */
+/*
+Conversation:
+- יכול להיות עם זוג / ספק / אולם / אחר
+- תמיד נוצר דרך היומן
+- כאן מוצג כתיעוד בלבד
+*/
+
 export default function PlanningTab() {
   const router = useRouter();
 
@@ -23,18 +33,29 @@ export default function PlanningTab() {
     {
       id: 1,
       date: "12.08.2024",
-      type: "פגישה",
-      with: "הזוג",
+      interactionType: "פגישה",
+      entityType: "couple", // couple | supplier | venue | other
+      entityName: "הזוג",
       summary: "רוצים אירוע קליל, חוששים מתקציב",
       tasksCreated: 2,
     },
     {
       id: 2,
       date: "05.08.2024",
-      type: "שיחה",
-      with: "הזוג",
-      summary: "בדיקת אופציות DJ",
+      interactionType: "שיחה",
+      entityType: "supplier",
+      entityName: "DJ – אופציות",
+      summary: "בדיקת זמינות ומחירים",
       tasksCreated: 1,
+    },
+    {
+      id: 3,
+      date: "01.08.2024",
+      interactionType: "פגישה",
+      entityType: "venue",
+      entityName: "אולם – גן האירועים",
+      summary: "בדיקת תאריך ותפריט",
+      tasksCreated: 3,
     },
   ];
 
@@ -43,6 +64,23 @@ export default function PlanningTab() {
   ====================== */
   function goToCalendar() {
     router.push("/events/production/calendar");
+  }
+
+  function openConversation(conversationId) {
+    router.push(`/events/production/calendar?open=${conversationId}`);
+  }
+
+  function entityBadge(entityType) {
+    switch (entityType) {
+      case "couple":
+        return "👰🤵 זוג";
+      case "supplier":
+        return "🎧 ספק";
+      case "venue":
+        return "🏛️ אולם";
+      default:
+        return "📌 אחר";
+    }
   }
 
   /* ======================
@@ -116,7 +154,9 @@ export default function PlanningTab() {
       ===================== */}
       <section className="border rounded-2xl p-5 space-y-4 bg-white">
         <div className="flex justify-between items-center">
-          <h3 className="font-semibold text-lg">🗣️ שיחות ופגישות עם הזוג</h3>
+          <h3 className="font-semibold text-lg">
+            🗣️ שיחות ופגישות (זוג · ספקים · אולם)
+          </h3>
 
           <button
             onClick={goToCalendar}
@@ -128,22 +168,25 @@ export default function PlanningTab() {
 
         {conversations.length === 0 ? (
           <p className="text-sm text-gray-500">
-            עדיין לא תועדו שיחות. כל שיחה מתחילה מתיאום בלוח שנה.
+            עדיין לא תועדו שיחות. כל תיעוד מתחיל מתיאום ביומן.
           </p>
         ) : (
           <ul className="space-y-3">
             {conversations.map((c) => (
               <li
                 key={c.id}
-                className="border rounded-lg p-4 flex justify-between items-start"
+                className="border rounded-xl p-4 flex justify-between items-start hover:bg-gray-50 cursor-pointer"
+                onClick={() => openConversation(c.id)}
               >
-                <div>
+                <div className="space-y-1">
                   <p className="font-medium">
-                    {c.type} עם {c.with}
+                    {c.interactionType} · {c.entityName}
                   </p>
+
                   <p className="text-sm text-gray-500">
-                    {c.date}
+                    {c.date} · {entityBadge(c.entityType)}
                   </p>
+
                   <p className="text-sm mt-1">{c.summary}</p>
                 </div>
 
@@ -165,7 +208,8 @@ export default function PlanningTab() {
           UX NOTE
       ===================== */}
       <p className="text-xs text-gray-400">
-        משימות שנוצרות משיחות מנוהלות בטאב "תמונת מצב".
+        תיעוד מלא ויצירת משימות מתבצעים מתוך הפגישה עצמה בלוח השנה.
+        ניהול המשימות מתבצע בטאב "תמונת מצב".
       </p>
     </div>
   );
