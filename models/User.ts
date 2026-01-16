@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, models } from "mongoose";
 /* ============================================================
    TYPES
 ============================================================ */
+
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -18,6 +19,7 @@ export interface IUser extends Document {
 
   hasPaid: boolean;
 
+  producerId?: mongoose.Types.ObjectId | null;
   createdByProducer?: mongoose.Types.ObjectId | null;
 
   includeCalls: boolean;
@@ -95,6 +97,13 @@ const UserSchema = new Schema<IUser>(
     paidAmount: { type: Number, default: 0 },
 
     hasPaid: { type: Boolean, default: false, index: true },
+
+    producerId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+  index: true,
+},
 
     createdByProducer: {
       type: mongoose.Schema.Types.ObjectId,

@@ -180,6 +180,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       phone: phone || "",
 
       role: "client",
+      producerId: producer._id,
       createdByProducer: producerId,
 
       needsPasswordSetup: true,
