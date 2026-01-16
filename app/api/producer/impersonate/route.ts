@@ -1,50 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import type { ReadonlyRequestCookies } from
+  "next/dist/server/web/spec-extension/adapters/request-cookies";
+
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
+/* =========================
+   Cookie helper (קריטי)
+========================= */
+async function getCookieStore(): Promise<ReadonlyRequestCookies> {
+  const store = cookies();
+  return store instanceof Promise ? await store : store;
+}
+
+/* =========================
+   POST
+========================= */
 export async function POST(req: NextRequest) {
   await dbConnect();
 
-  const { userId } = await req.json();
-
-  if (!userId) {
+  const auth = await getUserIdFromRequest();
+  if (!auth || auth.role !== "producer") {
     return NextResponse.json(
-      { success: false, message: "Missing userId" },
+      { success: false, message: "Unauthorized" },
+      { status: 403 }
+    );
+  }
+
+  const { clientId } = await req.json();
+  if (!clientId) {
+    return NextResponse.json(
+      { success: false, message: "Missing clientId" },
       { status: 400 }
     );
   }
 
-  const user = await User.findById(userId);
-  if (!user) {
+  const client = await User.findById(clientId);
+  if (!client) {
     return NextResponse.json(
-      { success: false, message: "User not found" },
+      { success: false, message: "Client not found" },
       { status: 404 }
     );
   }
 
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error("JWT_SECRET is not defined");
+  if (client.producerId?.toString() !== auth.userId) {
+    return NextResponse.json(
+      { success: false, message: "Not your client" },
+      { status: 403 }
+    );
   }
 
+  /* =========================
+     JWT
+  ========================= */
   const token = jwt.sign(
     {
-      userId: user._id.toString(),
-      role: "user",        // 👈 מתנהג כיוזר רגיל
-      impersonated: true,  // 👈 סימון התחזות (לא חובה אבל מומלץ)
+      userId: client._id.toString(),
+      role: "client",
+      impersonated: true,
+      impersonatedBy: auth.userId,
+      impersonationRole: "producer",
     },
-    secret,
-    { expiresIn: "7d" }
+    process.env.JWT_SECRET!,
+    { expiresIn: "1h" }
   );
 
-  // 🔴 זה התיקון הקריטי
-  const cookieStore = await cookies();
+  /* =========================
+     Cookie SET (מתוקן)
+  ========================= */
+  const cookieStore = await getCookieStore();
+
   cookieStore.set("token", token, {
     httpOnly: true,
-    path: "/",
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
+    path: "/",
   });
 
   return NextResponse.json({ success: true });

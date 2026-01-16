@@ -92,32 +92,27 @@ export default function ProducerDashboard() {
 
   /* =========================
      Impersonation (ניהול לקוח)
-     ⬅️ כאן התיקון החשוב
   ========================= */
   const handleManageClient = async (clientId) => {
     try {
       const res = await fetch("/api/producer/impersonate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // 🔴 קריטי כדי שה-cookie יישמר
-        body: JSON.stringify({ userId: clientId }),
+        credentials: "include",
+        body: JSON.stringify({ clientId }),
       });
 
-      if (!res.ok) {
-        alert("שגיאה בכניסה למשתמש");
-        return;
-      }
-
       const data = await res.json();
-      if (!data.success) {
-        alert("שגיאה בכניסה למשתמש");
+
+      if (!res.ok || !data.success) {
+        alert("שגיאה בכניסה לדשבורד הלקוח");
         return;
       }
 
-      // ✅ כניסה לדשבורד של המשתמש
-      window.location.assign("/dashboard");
+      window.location.href = "/dashboard";
     } catch (err) {
-      alert("שגיאה בכניסה למשתמש");
+      console.error(err);
+      alert("שגיאה בכניסה לדשבורד הלקוח");
     }
   };
 
@@ -141,7 +136,6 @@ export default function ProducerDashboard() {
 
   return (
     <div className="p-6 space-y-10">
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">
@@ -166,9 +160,7 @@ export default function ProducerDashboard() {
           className="bg-slate-50 border border-slate-200 rounded-2xl shadow-sm p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">
-              יצירת לקוח חדש
-            </h2>
+            <h2 className="text-lg font-semibold">יצירת לקוח חדש</h2>
 
             <button
               onClick={() => setShowCreateClient(false)}
@@ -208,16 +200,12 @@ export default function ProducerDashboard() {
 
       {/* Clients Table */}
       <div className="bg-white border rounded-2xl overflow-hidden">
-        <div className="p-4 font-semibold text-lg">
-          לקוחות
-        </div>
+        <div className="p-4 font-semibold text-lg">לקוחות</div>
 
         {clientsLoading ? (
           <div className="p-6 text-slate-500">טוען לקוחות…</div>
         ) : clients.length === 0 ? (
-          <div className="p-6 text-slate-500">
-            עדיין לא נוצרו לקוחות
-          </div>
+          <div className="p-6 text-slate-500">עדיין לא נוצרו לקוחות</div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b">
