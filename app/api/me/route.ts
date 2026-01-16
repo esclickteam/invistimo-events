@@ -5,18 +5,18 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
 /* =========================
-   Cookie helper (TS-safe)
-========================= */
-async function getCookieStore() {
-  const store = cookies();
-  return store instanceof Promise ? await store : store;
-}
-
-/* =========================
    Helpers
 ========================= */
 function clearAuthCookie(res: NextResponse) {
   res.cookies.set("authToken", "", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+  });
+
+  res.cookies.set("impersonationToken", "", {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
@@ -32,10 +32,16 @@ export async function GET() {
   try {
     await connectDB();
 
-    const cookieStore = await getCookieStore();
+    const cookieStore = await cookies();
 
-    // 🔐 מקור אמת יחיד
-    const token = cookieStore.get("authToken")?.value ?? null;
+    // 🔐 סדר עדיפויות נכון
+    const impersonationToken =
+      cookieStore.get("impersonationToken")?.value ?? null;
+
+    const authToken =
+      cookieStore.get("authToken")?.value ?? null;
+
+    const token = impersonationToken ?? authToken;
 
     if (!token) {
       return NextResponse.json(
@@ -48,9 +54,9 @@ export async function GET() {
       userId?: string;
       id?: string;
       _id?: string;
-      role?: string;
+      role?: "admin" | "producer" | "client" | "user";
 
-      // impersonation
+      // impersonation flags
       impersonated?: boolean;
       impersonatedBy?: string;
       impersonationRole?: "admin" | "producer";
@@ -120,10 +126,10 @@ export async function GET() {
           name: user.name,
           email: user.email,
 
-          // 🔑 role תמיד מה-JWT (קריטי ל-impersonation)
+          // 🔑 role תמיד מה-JWT
           role: decoded.role ?? "user",
 
-          // 📦 תכנית וחיובים
+          // 📦 עסקי
           plan: user.plan,
           guests: user.guests,
           paidAmount: user.paidAmount,
@@ -134,7 +140,7 @@ export async function GET() {
           callsRounds: user.callsRounds,
           callsAddonPrice: user.callsAddonPrice,
 
-          // 💳 מתנות באשראי
+          // 💳 מתנות
           includeCreditGifts: user.includeCreditGifts,
           creditGiftsAddonPrice: user.creditGiftsAddonPrice,
 
