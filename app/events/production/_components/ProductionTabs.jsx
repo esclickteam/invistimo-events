@@ -6,6 +6,7 @@ const TABS = [
   { key: "overview", label: "תמונת מצב" },
   { key: "planning", label: "תכנון וקונספט" },
   { key: "suppliers", label: "ספקים ותקציב" },
+  { key: "calendar", label: "לוח שנה ופגישות" }, // ✅ חדש
   { key: "logistics", label: "לוגיסטיקה" },
 ];
 
@@ -13,12 +14,14 @@ export default function ProductionTabs({
   overview,
   planning,
   suppliers,
+  calendar,   // ✅ חדש
   logistics,
 }) {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
     <div className="space-y-6">
+      {/* Tabs Header */}
       <div className="flex gap-8 border-b">
         {TABS.map((tab) => (
           <button
@@ -35,10 +38,12 @@ export default function ProductionTabs({
         ))}
       </div>
 
+      {/* Tabs Content */}
       <div>
         {activeTab === "overview" && overview}
         {activeTab === "planning" && planning}
         {activeTab === "suppliers" && suppliers}
+        {activeTab === "calendar" && calendar} {/* ✅ חדש */}
         {activeTab === "logistics" && logistics}
       </div>
     </div>

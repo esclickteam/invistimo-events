@@ -4,6 +4,7 @@ import ProductionTabs from "./_components/ProductionTabs";
 import OverviewTab from "./_components/OverviewTab";
 import PlanningTab from "./_components/PlanningTab";
 import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
+import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 
 export default function EventProductionPage() {
@@ -15,6 +16,7 @@ export default function EventProductionPage() {
         overview={<OverviewTab />}
         planning={<PlanningTab />}
         suppliers={<SuppliersBudgetTab />}
+        calendar={<CalendarTab />}
         logistics={<LogisticsTab />}
       />
     </div>
