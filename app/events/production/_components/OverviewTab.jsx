@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 export default function OverviewTab() {
-  // 🔧 בהמשך יגיע מ־DB / Context
+  /* =====================
+     DATA (בהמשך מ־DB)
+  ===================== */
   const budgetTotal = 120000;
   const spent = 86500;
   const remaining = budgetTotal - spent;
@@ -32,21 +34,69 @@ export default function OverviewTab() {
     },
   ];
 
-  const urgentItems = [
-    "הסעות לא סגורות",
-    "DJ – אין מקדמה",
-  ];
+  /* =====================
+     TASKS – זה הלב
+  ===================== */
+  const [tasks, setTasks] = useState([
+    {
+      id: 1,
+      title: "DJ – אין מקדמה",
+      dueDate: "2024-08-12",
+      completed: false,
+    },
+    {
+      id: 2,
+      title: "הסעות לא סגורות",
+      dueDate: "2024-08-20",
+      completed: false,
+    },
+  ]);
+
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDate, setNewTaskDate] = useState("");
+
+  function addTask() {
+    if (!newTaskTitle.trim()) return;
+
+    setTasks((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        title: newTaskTitle,
+        dueDate: newTaskDate || null,
+        completed: false,
+      },
+    ]);
+
+    setNewTaskTitle("");
+    setNewTaskDate("");
+  }
+
+  function toggleTask(id) {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t
+      )
+    );
+  }
+
+  function removeTask(id) {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  const openTasks = tasks.filter((t) => !t.completed);
 
   const progress = Math.round((spent / budgetTotal) * 100);
 
+  /* =====================
+     RENDER
+  ===================== */
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ===== Header ===== */}
       <div className="border rounded-2xl p-5 flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold">
-            חתונה | 14.09
-          </h2>
+          <h2 className="text-lg font-semibold">חתונה | 14.09</h2>
           <p className="text-sm text-gray-500">
             🟢 האירוע בשליטה · 42 ימים לאירוע
           </p>
@@ -57,34 +107,80 @@ export default function OverviewTab() {
         </div>
       </div>
 
-      {/* Middle Grid */}
+      {/* ===== Middle ===== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Urgent */}
-        <div className="border rounded-2xl p-5">
-          <h3 className="font-semibold mb-3">
-            ⚠️ דורש טיפול
-          </h3>
+        {/* ===== Tasks ===== */}
+        <div className="border rounded-2xl p-5 space-y-4">
+          <h3 className="font-semibold">⚠️ משימות פתוחות</h3>
 
-          {urgentItems.length === 0 ? (
+          {/* Add task */}
+          <div className="flex gap-2">
+            <input
+              placeholder="הוסף משימה"
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              className="border rounded px-2 py-1 flex-1 text-sm"
+            />
+
+            <input
+              type="date"
+              value={newTaskDate}
+              onChange={(e) => setNewTaskDate(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            />
+
+            <button
+              onClick={addTask}
+              className="bg-black text-white px-3 rounded text-sm"
+            >
+              הוסף
+            </button>
+          </div>
+
+          {/* Task list */}
+          {openTasks.length === 0 ? (
             <p className="text-sm text-gray-500">
-              אין נושאים דחופים 🎉
+              אין משימות פתוחות 🎉
             </p>
           ) : (
             <ul className="space-y-2 text-sm">
-              {urgentItems.map((item, i) => (
-                <li key={i} className="text-red-600">
-                  • {item}
+              {openTasks.map((task) => (
+                <li
+                  key={task.id}
+                  className="flex items-center justify-between border rounded px-3 py-2"
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={() => toggleTask(task.id)}
+                    />
+                    <span>{task.title}</span>
+                  </label>
+
+                  <div className="flex items-center gap-3">
+                    {task.dueDate && (
+                      <span className="text-xs text-gray-500">
+                        ⏰ {task.dueDate}
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => removeTask(task.id)}
+                      className="text-xs text-red-500"
+                    >
+                      מחק
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        {/* Meetings */}
+        {/* ===== Meetings ===== */}
         <div className="border rounded-2xl p-5">
-          <h3 className="font-semibold mb-3">
-            📅 פגישות קרובות
-          </h3>
+          <h3 className="font-semibold mb-3">📅 פגישות קרובות</h3>
 
           <ul className="space-y-3 text-sm">
             {meetings.map((m) => (
@@ -114,7 +210,7 @@ export default function OverviewTab() {
         </div>
       </div>
 
-      {/* Budget */}
+      {/* ===== Budget ===== */}
       <div className="border rounded-2xl p-5 space-y-3">
         <h3 className="font-semibold">💰 תקציב</h3>
 
