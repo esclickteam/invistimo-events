@@ -481,8 +481,27 @@ console.log("INVITATION:", invitation);
 
 
        <h1 className="text-4xl font-semibold mb-6">
-      ניהול האירוע שלך
-    </h1>
+  ניהול האירוע שלך
+</h1>
+
+{user?.createdByProducer === true && (
+  <div className="flex flex-wrap gap-3 mb-6">
+    <Link
+      href="/events/production"
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+    >
+      🎬 הפקת אירוע
+    </Link>
+
+    <Link
+      href="/events/live"
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+    >
+      🎛️ ניהול אירוע
+    </Link>
+  </div>
+)}
+
 
     {/* תיוג שירות שיחות */}
 {user?.plan === "premium" && (
