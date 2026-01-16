@@ -35,21 +35,29 @@ export default function DashboardHeader({
   const { user, logout } = useAuth();
 
   const isImpersonating = !!user?.impersonated;
-
+  const impersonationRole = user?.impersonationRole; // "admin" | "producer" | undefined
 
   /* ============================================================
-     חזרה לאדמין (מצב התחזות)
+     חזרה מהתחזות (אדמין / מפיק)
   ============================================================= */
-  const handleReturnToAdmin = async () => {
+  const handleReturnFromImpersonation = async () => {
     try {
-      await fetch("/api/admin/stop-impersonation", {
+      const endpoint =
+        impersonationRole === "producer"
+          ? "/api/producer/stop-impersonation"
+          : "/api/admin/stop-impersonation";
+
+      await fetch(endpoint, {
         method: "POST",
         credentials: "include",
       });
 
-      window.location.href = "/admin";
+      window.location.href =
+        impersonationRole === "producer"
+          ? "/producer/dashboard"
+          : "/admin";
     } catch (err) {
-      console.error("Failed to return to admin:", err);
+      console.error("Failed to return from impersonation:", err);
     }
   };
 
@@ -84,6 +92,16 @@ export default function DashboardHeader({
       console.error("Logout failed:", error);
     }
   };
+
+  /* ============================================================
+     Labels
+  ============================================================= */
+  const impersonationLabel =
+    impersonationRole === "producer"
+      ? "מפיק"
+      : impersonationRole === "admin"
+      ? "אדמין"
+      : "";
 
   /* ============================================================
      JSX
@@ -127,7 +145,7 @@ export default function DashboardHeader({
 
             {isImpersonating && (
               <span className="text-[11px] text-amber-600">
-                מחוברת כמשתמש (מצב אדמין)
+                מחוברת כמשתמש (מצב {impersonationLabel})
               </span>
             )}
           </div>
@@ -179,7 +197,7 @@ export default function DashboardHeader({
         <div className="flex justify-end">
           {isImpersonating ? (
             <button
-              onClick={handleReturnToAdmin}
+              onClick={handleReturnFromImpersonation}
               className={`
                 font-medium
                 ${HEADER_UI.navText}
@@ -187,9 +205,9 @@ export default function DashboardHeader({
                 hover:text-blue-700
                 transition
               `}
-              title="חזרה לניהול אדמין"
+              title={`חזרה ל${impersonationLabel}`}
             >
-              🔁 חזרה לאדמין
+              🔁 חזרה ל{impersonationLabel}
             </button>
           ) : (
             <button
