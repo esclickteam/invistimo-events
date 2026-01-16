@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 /* =========================
    ספקים קבועים לחתונה
@@ -21,10 +22,12 @@ const WEDDING_SUPPLIERS = [
 ];
 
 export default function EventProductionPage() {
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [budgetTotal, setBudgetTotal] = useState(0);
   const [guestCount, setGuestCount] = useState(0);
+  const [user, setUser] = useState(null);
 
   const [suppliers, setSuppliers] = useState(
     WEDDING_SUPPLIERS.map((s) => ({
@@ -35,41 +38,31 @@ export default function EventProductionPage() {
     }))
   );
 
-  /* ספק חופשי */
   const [customSupplierName, setCustomSupplierName] = useState("");
 
   /* =========================
-     FETCH EVENT
+     AUTH – תנאי יחיד: מפיק יצר יוזר
   ========================= */
   useEffect(() => {
-  async function loadEvent() {
-    const res = await fetch("/api/events", {
-      credentials: "include",
-      cache: "no-store",
-    });
+    async function loadUser() {
+      const res = await fetch("/api/me", {
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!data.success || !data.event) {
-      alert("לא נמצא אירוע");
+      if (!data?.success || !data.user?.createdByProducer) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setUser(data.user);
       setLoading(false);
-      return;
     }
 
-    if (!data.event.producerId) {
-      alert("זה לא אירוע בהפקה");
-      setLoading(false);
-      return;
-    }
-
-    setBudgetTotal(data.event.budgetTotal || 0);
-    setGuestCount(data.event.maxGuests || 0);
-    setLoading(false);
-  }
-
-  loadEvent();
-}, []);
-
+    loadUser();
+  }, [router]);
 
   /* =========================
      CALCULATIONS
@@ -145,9 +138,6 @@ export default function EventProductionPage() {
     );
   }
 
-  /* =========================
-     ADD CUSTOM SUPPLIER
-  ========================= */
   function addCustomSupplier() {
     if (!customSupplierName.trim()) return;
 
@@ -166,15 +156,16 @@ export default function EventProductionPage() {
     setCustomSupplierName("");
   }
 
-  if (loading) return <div>טוען...</div>;
+  if (loading) return <div>טוען…</div>;
 
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <div className="p-6 space-y-8" dir="rtl">
-      <h1 className="text-2xl font-bold">הפקת חתונה</h1>
+      <h1 className="text-2xl font-bold">הפקת אירוע</h1>
 
-      {/* =========================
-         תקציב
-      ========================= */}
+      {/* תקציב */}
       <section className="border rounded-xl p-4 space-y-2">
         <div className="flex gap-4 items-center">
           <label>תקציב כולל:</label>
@@ -196,15 +187,13 @@ export default function EventProductionPage() {
         </div>
       </section>
 
-      {/* =========================
-         הוספת ספק חופשי
-      ========================= */}
+      {/* הוספת ספק חופשי */}
       <section className="border rounded-xl p-4 space-y-3">
         <h2 className="font-semibold">➕ הוספת ספק חופשי</h2>
 
         <div className="flex gap-3">
           <input
-            placeholder="שם הספק (לדוגמה: זיקוקים, כנר, בלונים)"
+            placeholder="שם הספק"
             value={customSupplierName}
             onChange={(e) => setCustomSupplierName(e.target.value)}
             className="border rounded px-3 py-1 flex-1"
@@ -218,9 +207,7 @@ export default function EventProductionPage() {
         </div>
       </section>
 
-      {/* =========================
-         ספקים
-      ========================= */}
+      {/* ספקים */}
       {suppliers.map((supplier) => (
         <section
           key={supplier.key}
