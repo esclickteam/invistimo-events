@@ -11,26 +11,17 @@ export async function POST(req: Request) {
     const { email, password } = await req.json();
 
     if (!email || !password) {
-      return NextResponse.json(
-        { error: "חסרים פרטי התחברות" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "חסרים פרטי התחברות" }, { status: 400 });
     }
 
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
-      return NextResponse.json(
-        { error: "מייל או סיסמה שגויים" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
     }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      return NextResponse.json(
-        { error: "מייל או סיסמה שגויים" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
     }
 
     /* ======================================================
@@ -60,19 +51,28 @@ export async function POST(req: Request) {
     );
 
     /* ======================================================
+       🍪 Cookie Domain – אחיד כדי שלא יהיה "פעם נמחק פעם לא"
+       (הסיבה: www מול בלי www / סאב-דומיינים)
+    ====================================================== */
+    const cookieDomain =
+      process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+
+    /* ======================================================
        🔥 ניקוי cookies ישנים (קריטי!)
+       חשוב: לנקות עם אותו domain/path
     ====================================================== */
     const cleanup = {
       path: "/",
       maxAge: 0,
+      domain: cookieDomain,
     };
 
-    res.cookies.set("authToken", "", cleanup);
-    res.cookies.set("role", "", cleanup);
-    res.cookies.set("isTrial", "", cleanup);
-    res.cookies.set("trialExpiresAt", "", cleanup);
-    res.cookies.set("smsUsed", "", cleanup);
-    res.cookies.set("smsLimit", "", cleanup);
+    res.cookies.set("authToken", "", { ...cleanup, httpOnly: true });
+    res.cookies.set("role", "", { ...cleanup, httpOnly: false });
+    res.cookies.set("isTrial", "", { ...cleanup, httpOnly: false });
+    res.cookies.set("trialExpiresAt", "", { ...cleanup, httpOnly: false });
+    res.cookies.set("smsUsed", "", { ...cleanup, httpOnly: false });
+    res.cookies.set("smsLimit", "", { ...cleanup, httpOnly: false });
 
     /* ======================================================
        🍪 Cookie בסיס – תואם לכל המערכת
@@ -81,6 +81,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax" as const,
       path: "/",
+      domain: cookieDomain,
       maxAge: 60 * 60, // 1 שעה
     };
 
@@ -109,14 +110,16 @@ export async function POST(req: Request) {
     });
 
     if (user.isTrial && user.trialExpiresAt) {
-      res.cookies.set(
-        "trialExpiresAt",
-        String(user.trialExpiresAt.getTime()),
-        {
-          ...baseCookie,
-          httpOnly: false,
-        }
-      );
+      res.cookies.set("trialExpiresAt", String(user.trialExpiresAt.getTime()), {
+        ...baseCookie,
+        httpOnly: false,
+      });
+    } else {
+      // אם אין טרייל/תאריך – לוודא שאין קוקייה ישנה
+      res.cookies.set("trialExpiresAt", "", {
+        ...cleanup,
+        httpOnly: false,
+      });
     }
 
     /* ======================================================
@@ -127,21 +130,14 @@ export async function POST(req: Request) {
       httpOnly: false,
     });
 
-    res.cookies.set(
-      "smsLimit",
-      String(user.planLimits?.smsLimit ?? 0),
-      {
-        ...baseCookie,
-        httpOnly: false,
-      }
-    );
+    res.cookies.set("smsLimit", String(user.planLimits?.smsLimit ?? 0), {
+      ...baseCookie,
+      httpOnly: false,
+    });
 
     return res;
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    return NextResponse.json(
-      { error: "שגיאה בשרת" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "שגיאה בשרת" }, { status: 500 });
   }
 }
