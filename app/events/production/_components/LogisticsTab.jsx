@@ -33,6 +33,26 @@ const SOURCE_META = {
   manual: { label: "ידני", pill: "bg-purple-50 text-purple-700 ring-1 ring-purple-200" },
 };
 
+// MOCK – בהמשך יגיע מה־API של ספקים
+const MOCK_SUPPLIERS = [
+  {
+    id: "sup1",
+    name: "DJ רועי לוי",
+    phone: "0501234567",
+  },
+  {
+    id: "sup2",
+    name: "צילום – סטודיו פלאש",
+    phone: "0529876543",
+  },
+  {
+    id: "sup3",
+    name: "עיצוב פרחים – בלום",
+    phone: "0544567890",
+  },
+];
+
+
 function GripIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
@@ -277,6 +297,29 @@ const [newItem, setNewItem] = useState({ time: "", title: "", source: "manual", 
     setNewItem({ time: "", title: "", source: "manual", phone: "" });
   };
 
+  const importSuppliers = () => {
+  setTimeline((prev) => {
+    const existingSupplierIds = new Set(
+      prev.filter((i) => i.source === "supplier" && i.supplierId).map((i) => i.supplierId)
+    );
+
+    const newRows = MOCK_SUPPLIERS
+      .filter((s) => !existingSupplierIds.has(s.id))
+      .map((s) => ({
+        id: `supplier-${s.id}`,
+        supplierId: s.id,
+        time: "",                // ⬅️ המפיקה תגדיר
+        title: s.name,
+        phone: s.phone,
+        status: "pending",
+        source: "supplier",
+      }));
+
+    return [...prev, ...newRows];
+  });
+};
+
+
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
     setTimeline((items) => {
@@ -300,15 +343,13 @@ const [newItem, setNewItem] = useState({ time: "", title: "", source: "manual", 
 
           <div className="flex items-center gap-2">
             <button
-              type="button"
-              className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              onClick={() => {
-                // placeholder future: sync suppliers
-                alert("בהמשך: סנכרון מספקים (API) 🙂");
-              }}
-            >
-              סנכרון מספקים
-            </button>
+  type="button"
+  className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+  onClick={importSuppliers}
+>
+  סנכרון מספקים
+</button>
+
             <button
               type="button"
               className="inline-flex items-center rounded-xl bg-purple-600 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-700"
