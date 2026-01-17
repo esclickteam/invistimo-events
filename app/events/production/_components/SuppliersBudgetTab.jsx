@@ -3,193 +3,137 @@
 import { useState } from "react";
 
 /* ======================
-   INITIAL STRUCTURE
+   CONFIG – תחומים ותתי תחומים
 ====================== */
 
-const INITIAL_CATEGORIES = [
+const CATEGORIES = [
   {
     id: "photo",
     name: "צילום",
-    subCategories: [
-      "סטילס",
-      "וידאו",
-      "רחפן",
-      "מגנטים",
-      "סושיאל / רילסים",
-    ],
+    subs: ["סטילס", "וידאו", "מגנטים", "רחפן", "סושיאל"],
   },
   {
     id: "music",
-    name: "מוזיקה ובידור",
-    subCategories: ["DJ", "להקה", "נגן סקסופון", "זמר חופה"],
+    name: "מוזיקה",
+    subs: ["DJ", "להקה", "נגן סקסופון", "זמר חופה"],
   },
   {
     id: "food",
     name: "אוכל ושתייה",
-    subCategories: ["קייטרינג", "בר אלכוהול", "בר קוקטיילים", "קינוחים"],
+    subs: ["קייטרינג", "בר אלכוהול", "קינוחים"],
   },
 ];
 
+/* ======================
+   MOCK ספקים (בהמשך DB)
+====================== */
+
+const SUPPLIERS_DB = {
+  "photo-סטילס": [
+    {
+      id: "s1",
+      name: "עידן לוי",
+      price: 8500,
+      phone: "050-1234567",
+      link: "https://instagram.com/idan",
+    },
+    {
+      id: "s2",
+      name: "רון צילום",
+      price: 9500,
+      phone: "052-7654321",
+      link: "https://ronphoto.co.il",
+    },
+  ],
+  "music-DJ": [
+    {
+      id: "s3",
+      name: "DJ איתי",
+      price: 7000,
+      phone: "054-3332222",
+      link: "https://instagram.com/dj_itay",
+    },
+  ],
+};
+
+/* ======================
+   MAIN COMPONENT
+====================== */
+
 export default function SuppliersTab() {
-  const [categories] = useState(INITIAL_CATEGORIES);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [openPicker, setOpenPicker] = useState(null);
 
-  // ספקים לפי תת־תחום
-  const [suppliers, setSuppliers] = useState({});
-  // ספק נבחר לכל תת־תחום
-  const [selectedSuppliers, setSelectedSuppliers] = useState({});
-  // תתי־תחומים שנבחרו
-  const [enabledSubCategories, setEnabledSubCategories] = useState({});
-
-  /* ======================
-     HANDLERS
-  ====================== */
-
-  function toggleSubCategory(categoryId, sub) {
-    const key = `${categoryId}-${sub}`;
-    setEnabledSubCategories((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+  function openSupplierPicker(rowIndex) {
+    setOpenPicker(rowIndex);
   }
 
-  function addSupplier(subKey, supplier) {
-    setSuppliers((prev) => ({
-      ...prev,
-      [subKey]: [...(prev[subKey] || []), supplier],
-    }));
+  function selectSupplier(rowIndex, supplier) {
+    const updated = [...selectedRows];
+    updated[rowIndex] = {
+      ...updated[rowIndex],
+      supplier,
+      totalPrice: supplier.price,
+    };
+    setSelectedRows(updated);
+    setOpenPicker(null);
   }
 
-  function selectSupplier(subKey, supplier) {
-    setSelectedSuppliers((prev) => ({
+  function addRow(category, sub) {
+    setSelectedRows((prev) => [
       ...prev,
-      [subKey]: supplier,
-    }));
+      {
+        category: category.name,
+        sub,
+        supplier: null,
+        totalPrice: "",
+        advance: "",
+        balance: "",
+        files: [],
+      },
+    ]);
   }
 
-  /* ======================
-     RENDER
-  ====================== */
+  function updateField(index, field, value) {
+    const updated = [...selectedRows];
+    updated[index][field] = value;
+    setSelectedRows(updated);
+  }
 
   return (
-    <div className="space-y-8 max-w-6xl" dir="rtl">
-      {categories.map((cat) => (
-        <section
-          key={cat.id}
-          className="border rounded-2xl p-5 bg-white space-y-4"
-        >
-          <h3 className="text-lg font-semibold">{cat.name}</h3>
-
-          {/* Sub categories selection */}
-          <div className="flex flex-wrap gap-4">
-            {cat.subCategories.map((sub) => {
-              const key = `${cat.id}-${sub}`;
-              return (
-                <label key={key} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={!!enabledSubCategories[key]}
-                    onChange={() => toggleSubCategory(cat.id, sub)}
-                  />
-                  {sub}
-                </label>
-              );
-            })}
-          </div>
-
-          {/* Active sub categories */}
-          {cat.subCategories.map((sub) => {
-            const subKey = `${cat.id}-${sub}`;
-            if (!enabledSubCategories[subKey]) return null;
-
-            const selected = selectedSuppliers[subKey];
-
-            return (
-              <div
-                key={subKey}
-                className="border rounded-xl p-4 bg-gray-50 space-y-3"
-              >
-                <h4 className="font-medium">{sub}</h4>
-
-                {/* Suppliers table */}
-                <table className="w-full text-sm border">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="p-2 text-right">ספק</th>
-                      <th className="p-2 text-right">מחיר</th>
-                      <th className="p-2 text-right">טלפון</th>
-                      <th className="p-2 text-right">קישור</th>
-                      <th className="p-2 text-right">פעולה</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(suppliers[subKey] || []).map((s, i) => {
-                      const isSelected =
-                        selected?.name === s.name;
-
-                      return (
-                        <tr
-                          key={i}
-                          className={`border-t ${
-                            isSelected ? "bg-green-50" : ""
-                          }`}
-                        >
-                          <td className="p-2 font-medium">
-                            {s.name}
-                          </td>
-                          <td className="p-2">₪{s.price}</td>
-                          <td className="p-2">{s.phone}</td>
-                          <td className="p-2">
-                            <a
-                              href={s.link}
-                              target="_blank"
-                              className="text-blue-600 underline"
-                            >
-                              קישור
-                            </a>
-                          </td>
-                          <td className="p-2">
-                            {isSelected ? (
-                              <span className="text-green-600 font-semibold">
-                                נבחר ✓
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() =>
-                                  selectSupplier(subKey, s)
-                                }
-                                className="px-3 py-1 text-sm rounded bg-black text-white"
-                              >
-                                בחר ספק
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {/* Add supplier */}
-                <AddSupplierForm
-                  onAdd={(supplier) =>
-                    addSupplier(subKey, supplier)
-                  }
-                />
-              </div>
-            );
-          })}
-        </section>
-      ))}
+    <div className="space-y-10 max-w-6xl" dir="rtl">
 
       {/* ======================
-          SUMMARY TABLE
+          הוספת שורות לפי תחום
       ====================== */}
-      <section className="border rounded-2xl p-5 bg-white">
+      <section className="bg-white p-5 rounded-2xl border space-y-4">
+        <h3 className="font-semibold text-lg">➕ הוספת ספק לאירוע</h3>
+
+        {CATEGORIES.map((cat) => (
+          <div key={cat.id} className="flex flex-wrap gap-3">
+            <span className="font-medium">{cat.name}:</span>
+            {cat.subs.map((sub) => (
+              <button
+                key={sub}
+                onClick={() => addRow(cat, sub)}
+                className="px-3 py-1 text-sm border rounded hover:bg-gray-100"
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
+        ))}
+      </section>
+
+      {/* ======================
+          טבלת ספקים סגורים
+      ====================== */}
+      <section className="bg-white p-5 rounded-2xl border">
         <h3 className="font-semibold text-lg mb-4">
-          📋 ספקים שנבחרו בפועל
+          📋 ספקים שנבחרו לאירוע
         </h3>
 
-        {Object.keys(selectedSuppliers).length === 0 ? (
+        {selectedRows.length === 0 ? (
           <p className="text-sm text-gray-500">
             עדיין לא נבחרו ספקים
           </p>
@@ -197,90 +141,125 @@ export default function SuppliersTab() {
           <table className="w-full text-sm border">
             <thead className="bg-gray-100">
               <tr>
-                <th className="p-2">תחום / תת־תחום</th>
+                <th className="p-2">תחום</th>
+                <th className="p-2">תת־תחום</th>
                 <th className="p-2">ספק</th>
-                <th className="p-2">מחיר</th>
-                <th className="p-2">טלפון</th>
+                <th className="p-2">מחיר כולל</th>
+                <th className="p-2">מקדמה</th>
+                <th className="p-2">יתרה</th>
+                <th className="p-2">קבצים</th>
+                <th className="p-2">בחירה</th>
               </tr>
             </thead>
+
             <tbody>
-              {Object.entries(selectedSuppliers).map(
-                ([key, s]) => (
-                  <tr key={key} className="border-t">
-                    <td className="p-2">{key}</td>
-                    <td className="p-2">{s.name}</td>
-                    <td className="p-2">₪{s.price}</td>
-                    <td className="p-2">{s.phone}</td>
-                  </tr>
-                )
-              )}
+              {selectedRows.map((row, i) => {
+                const key = `${row.category === "צילום" ? "photo" : "music"}-${row.sub}`;
+                const suppliers = SUPPLIERS_DB[key] || [];
+
+                return (
+                  <>
+                    <tr key={i} className="border-t">
+                      <td className="p-2">{row.category}</td>
+                      <td className="p-2">{row.sub}</td>
+                      <td className="p-2">
+                        {row.supplier ? row.supplier.name : "—"}
+                      </td>
+                      <td className="p-2">
+                        <input
+                          className="border rounded px-2 py-1 w-24"
+                          value={row.totalPrice}
+                          onChange={(e) =>
+                            updateField(i, "totalPrice", e.target.value)
+                          }
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          className="border rounded px-2 py-1 w-24"
+                          value={row.advance}
+                          onChange={(e) =>
+                            updateField(i, "advance", e.target.value)
+                          }
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          className="border rounded px-2 py-1 w-24"
+                          value={row.balance}
+                          onChange={(e) =>
+                            updateField(i, "balance", e.target.value)
+                          }
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input type="file" multiple />
+                      </td>
+                      <td className="p-2">
+                        <button
+                          onClick={() => openSupplierPicker(i)}
+                          className="px-3 py-1 border rounded text-sm"
+                        >
+                          {row.supplier ? "החלף ספק" : "בחר ספק"}
+                        </button>
+                      </td>
+                    </tr>
+
+                    {/* ======================
+                        רשימת בחירה (נפתחת מהטבלה!)
+                    ====================== */}
+                    {openPicker === i && (
+                      <tr className="bg-gray-50">
+                        <td colSpan={8} className="p-3">
+                          <table className="w-full text-sm border">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="p-2">שם</th>
+                                <th className="p-2">מחיר</th>
+                                <th className="p-2">טלפון</th>
+                                <th className="p-2">קישור</th>
+                                <th className="p-2">בחירה</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {suppliers.map((s) => (
+                                <tr key={s.id} className="border-t">
+                                  <td className="p-2">{s.name}</td>
+                                  <td className="p-2">₪{s.price}</td>
+                                  <td className="p-2">{s.phone}</td>
+                                  <td className="p-2">
+                                    <a
+                                      href={s.link}
+                                      target="_blank"
+                                      className="text-blue-600 underline"
+                                    >
+                                      קישור
+                                    </a>
+                                  </td>
+                                  <td className="p-2">
+                                    <button
+                                      onClick={() =>
+                                        selectSupplier(i, s)
+                                      }
+                                      className="bg-black text-white px-3 py-1 rounded"
+                                    >
+                                      בחר
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         )}
       </section>
-    </div>
-  );
-}
-
-/* ======================
-   ADD SUPPLIER FORM
-====================== */
-
-function AddSupplierForm({ onAdd }) {
-  const [form, setForm] = useState({
-    name: "",
-    price: "",
-    phone: "",
-    link: "",
-  });
-
-  function submit() {
-    if (!form.name) return;
-    onAdd(form);
-    setForm({ name: "", price: "", phone: "", link: "" });
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2 text-sm">
-      <input
-        placeholder="שם ספק"
-        className="border rounded px-2 py-1"
-        value={form.name}
-        onChange={(e) =>
-          setForm({ ...form, name: e.target.value })
-        }
-      />
-      <input
-        placeholder="מחיר"
-        className="border rounded px-2 py-1"
-        value={form.price}
-        onChange={(e) =>
-          setForm({ ...form, price: e.target.value })
-        }
-      />
-      <input
-        placeholder="טלפון"
-        className="border rounded px-2 py-1"
-        value={form.phone}
-        onChange={(e) =>
-          setForm({ ...form, phone: e.target.value })
-        }
-      />
-      <input
-        placeholder="קישור"
-        className="border rounded px-2 py-1"
-        value={form.link}
-        onChange={(e) =>
-          setForm({ ...form, link: e.target.value })
-        }
-      />
-
-      <button
-        onClick={submit}
-        className="bg-black text-white px-3 rounded"
-      >
-        הוסף ספק
-      </button>
     </div>
   );
 }
