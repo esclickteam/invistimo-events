@@ -6,86 +6,128 @@ import { useState } from "react";
    INITIAL DATA
 ====================================================== */
 
-const INITIAL_ALCOHOL_TYPES = [
+const INITIAL_BOTTLES = [
   {
-    id: "vodka",
-    type: "וודקה",
-    bottles: [
-      { id: "v1", brand: "Absolut", flavor: "טבעי", total: 6 },
-      { id: "v2", brand: "Van Gogh", flavor: "וניל", total: 6 },
-    ],
-    start: 6,
+    id: "b1",
+    category: "וודקה",
+    brand: "Absolut",
+    flavor: "טבעי",
+    total: 6,
   },
   {
-    id: "whiskey",
-    type: "וויסקי",
-    bottles: [{ id: "w1", brand: "Jameson", flavor: "", total: 6 }],
-    start: 3,
+    id: "b2",
+    category: "וודקה",
+    brand: "Van Gogh",
+    flavor: "וניל",
+    total: 6,
+  },
+  {
+    id: "b3",
+    category: "וויסקי",
+    brand: "Jameson",
+    flavor: "",
+    total: 6,
   },
 ];
 
-const INITIAL_TABLE_REQUESTS = [
+const INITIAL_TABLES = [
   {
     tableNumber: 10,
     guests: 10,
-    bottles: [
-      { bottleId: "v1", qty: 1 },
-      { bottleId: "w1", qty: 1 },
-    ],
-    notes: "חברים של החתן – הרבה אלכוהול",
+    requests: "חברים של החתן – הרבה אלכוהול",
   },
 ];
 
+const LOCATIONS = ["בר", "מחסן"];
+
 /* ======================================================
-   MAIN MODULE
+   MAIN SYSTEM
 ====================================================== */
 
-export default function AlcoholManagementModule() {
-  const [mode, setMode] = useState("planning");
-  const [alcohol, setAlcohol] = useState(INITIAL_ALCOHOL_TYPES);
-  const [tables, setTables] = useState(INITIAL_TABLE_REQUESTS);
+export default function AlcoholManagementSystem() {
+  const [mode, setMode] = useState("planning"); // planning | allocation | live
+  const [bottles, setBottles] = useState(INITIAL_BOTTLES);
+  const [tables, setTables] = useState(INITIAL_TABLES);
 
-  // מחסן לייב
+  // inventory[bottleId][location] = qty
   const [inventory, setInventory] = useState(() => {
     const inv = {};
-    INITIAL_ALCOHOL_TYPES.forEach((t) =>
-      t.bottles.forEach((b) => {
-        inv[b.id] = b.total;
-      })
-    );
+    INITIAL_BOTTLES.forEach((b) => {
+      inv[b.id] = {
+        בר: 0,
+        מחסן: b.total,
+      };
+    });
     return inv;
   });
 
-  const [liveLog, setLiveLog] = useState([]);
+  const [log, setLog] = useState([]);
 
   /* ======================================================
      HELPERS
   ====================================================== */
 
-  function openBottle({ bottleId, location }) {
-    if (inventory[bottleId] <= 0) return;
-
-    setInventory((prev) => ({
-      ...prev,
-      [bottleId]: prev[bottleId] - 1,
-    }));
-
-    setLiveLog((prev) => [
-      {
-        time: new Date().toLocaleTimeString(),
-        bottleId,
-        location,
-      },
+  function addLog(text) {
+    setLog((prev) => [
+      { time: new Date().toLocaleTimeString(), text },
       ...prev,
     ]);
   }
 
-  function getBottleById(id) {
-    for (const t of alcohol) {
-      const b = t.bottles.find((x) => x.id === id);
-      if (b) return { ...b, type: t.type };
-    }
-    return null;
+  function updateBottle(index, field, value) {
+    setBottles((prev) =>
+      prev.map((b, i) => (i === index ? { ...b, [field]: value } : b))
+    );
+  }
+
+  function addBottle() {
+    const id = `b${Date.now()}`;
+    setBottles((prev) => [
+      ...prev,
+      {
+        id,
+        category: "",
+        brand: "",
+        flavor: "",
+        total: 1,
+      },
+    ]);
+    setInventory((prev) => ({
+      ...prev,
+      [id]: { בר: 0, מחסן: 1 },
+    }));
+  }
+
+  function allocateBottle(bottleId, from, to) {
+    if (inventory[bottleId][from] <= 0) return;
+
+    setInventory((prev) => ({
+      ...prev,
+      [bottleId]: {
+        ...prev[bottleId],
+        [from]: prev[bottleId][from] - 1,
+        [to]: prev[bottleId][to] + 1,
+      },
+    }));
+
+    addLog(`הועבר בקבוק מ-${from} ל-${to}`);
+  }
+
+  function openBottle(bottleId, location) {
+    if (inventory[bottleId][location] <= 0) return;
+
+    setInventory((prev) => ({
+      ...prev,
+      [bottleId]: {
+        ...prev[bottleId],
+        [location]: prev[bottleId][location] - 1,
+      },
+    }));
+
+    const bottle = bottles.find((b) => b.id === bottleId);
+    addLog(
+      `נפתח ${bottle.brand} ${bottle.flavor && `(${bottle.flavor})`} ב-${location}`
+    );
   }
 
   /* ======================================================
@@ -96,136 +138,121 @@ export default function AlcoholManagementModule() {
     <div className="space-y-8">
       {/* HEADER */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">🍾 ניהול אלכוהול</h2>
+        <h1 className="text-2xl font-bold">🍾 מערכת ניהול אלכוהול</h1>
 
         <div className="flex gap-2">
-          <ModeButton
-            label="תכנון"
-            active={mode === "planning"}
-            onClick={() => setMode("planning")}
-          />
-          <ModeButton
-            label="לייב"
-            active={mode === "live"}
-            onClick={() => setMode("live")}
-          />
+          <ModeButton label="תכנון" active={mode === "planning"} onClick={() => setMode("planning")} />
+          <ModeButton label="הקצאה" active={mode === "allocation"} onClick={() => setMode("allocation")} />
+          <ModeButton label="לייב" active={mode === "live"} onClick={() => setMode("live")} />
         </div>
       </div>
 
-      {/* ======================================================
-          PLANNING MODE – נשאר כמו שהיה
-      ====================================================== */}
+      {/* =========================
+          PLANNING
+      ========================= */}
       {mode === "planning" && (
-        <div className="space-y-6">
-          <Section title="בקשות זוג / חריגות לפי שולחן">
-            {tables.map((t, ti) => (
-              <Card key={ti}>
-                <b>שולחן {t.tableNumber}</b>
+        <Section title="מלאי בקבוקים">
+          {bottles.map((b, i) => (
+            <Card key={b.id}>
+              <div className="grid grid-cols-5 gap-3">
+                <Input label="קטגוריה" value={b.category} onChange={(v) => updateBottle(i, "category", v)} />
+                <Input label="מותג" value={b.brand} onChange={(v) => updateBottle(i, "brand", v)} />
+                <Input label="טעם" value={b.flavor} onChange={(v) => updateBottle(i, "flavor", v)} />
+                <NumberInput label="סה״כ" value={b.total} onChange={(v) => updateBottle(i, "total", v)} />
+              </div>
+            </Card>
+          ))}
 
-                <textarea
-                  value={t.notes}
-                  className="w-full border rounded-lg p-2 text-sm mt-2"
-                  readOnly
-                />
-
-                <div className="text-sm mt-2">
-                  {t.bottles.map((b, i) => {
-                    const bottle = getBottleById(b.bottleId);
-                    return (
-                      <div key={i}>
-                        {bottle?.type} – {bottle?.brand} × {b.qty}
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            ))}
-          </Section>
-        </div>
+          <button className="btn-primary" onClick={addBottle}>
+            + הוסף בקבוק
+          </button>
+        </Section>
       )}
 
-      {/* ======================================================
-          LIVE MODE – מערכת אמיתית
-      ====================================================== */}
+      {/* =========================
+          ALLOCATION
+      ========================= */}
+      {mode === "allocation" && (
+        <Section title="הקצאה ראשונית">
+          {bottles.map((b) => (
+            <Card key={b.id}>
+              <b>
+                {b.category} – {b.brand} {b.flavor && `(${b.flavor})`}
+              </b>
+
+              <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                {Object.entries(inventory[b.id]).map(([loc, qty]) => (
+                  <div key={loc}>
+                    {loc}: <b>{qty}</b>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => allocateBottle(b.id, "מחסן", "בר")} className="btn-secondary">
+                  העבר לבר
+                </button>
+                {tables.map((t) => (
+                  <button
+                    key={t.tableNumber}
+                    onClick={() => allocateBottle(b.id, "מחסן", `שולחן ${t.tableNumber}`)}
+                    className="btn-secondary"
+                  >
+                    שולחן {t.tableNumber}
+                  </button>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </Section>
+      )}
+
+      {/* =========================
+          LIVE
+      ========================= */}
       {mode === "live" && (
         <div className="grid grid-cols-3 gap-6">
           {/* INVENTORY */}
           <Card>
-            <h3 className="font-semibold mb-2">📦 מחסן</h3>
-            {Object.entries(inventory).map(([id, qty]) => {
-              const b = getBottleById(id);
-              return (
-                <div key={id} className="flex justify-between text-sm">
-                  <span>
-                    {b?.type} – {b?.brand} {b?.flavor && `(${b.flavor})`}
+            <h3 className="font-semibold mb-2">יתרות בזמן אמת</h3>
+            {bottles.map((b) => (
+              <div key={b.id} className="text-sm">
+                <b>{b.brand}</b>:
+                {Object.entries(inventory[b.id]).map(([loc, qty]) => (
+                  <span key={loc} className="mr-2">
+                    {loc} {qty}
                   </span>
-                  <b>{qty}</b>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            ))}
           </Card>
 
           {/* ACTIONS */}
           <div className="col-span-2 space-y-4">
-            <Section title="פתיחת בקבוק">
-              {alcohol.map((t) =>
-                t.bottles.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between border rounded-lg p-3"
-                  >
-                    <div>
-                      <b>{t.type}</b> – {b.brand}{" "}
-                      {b.flavor && `(${b.flavor})`}
-                    </div>
+            {bottles.map((b) => (
+              <Card key={b.id}>
+                <b>{b.brand}</b>
+                <div className="flex gap-2 mt-2">
+                  {Object.keys(inventory[b.id]).map((loc) => (
+                    <button
+                      key={loc}
+                      onClick={() => openBottle(b.id, loc)}
+                      className="btn-primary"
+                    >
+                      פתח ב-{loc}
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            ))}
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          openBottle({
-                            bottleId: b.id,
-                            location: "בר",
-                          })
-                        }
-                        className="px-3 py-1 bg-black text-white rounded text-sm"
-                      >
-                        פתח בבר
-                      </button>
-
-                      {tables.map((t) => (
-                        <button
-                          key={t.tableNumber}
-                          onClick={() =>
-                            openBottle({
-                              bottleId: b.id,
-                              location: `שולחן ${t.tableNumber}`,
-                            })
-                          }
-                          className="px-3 py-1 bg-gray-200 rounded text-sm"
-                        >
-                          שולחן {t.tableNumber}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              )}
-            </Section>
-
-            {/* LIVE LOG */}
-            <Section title="לוג בזמן אמת">
-              {liveLog.length === 0 && (
-                <div className="text-sm text-gray-400">אין פתיחות</div>
-              )}
-
-              {liveLog.map((l, i) => {
-                const b = getBottleById(l.bottleId);
-                return (
-                  <div key={i} className="text-sm">
-                    {l.time} – {b?.brand} ({b?.type}) → {l.location}
-                  </div>
-                );
-              })}
+            <Section title="לוג פעולות">
+              {log.length === 0 && <div className="text-gray-400 text-sm">אין פעולות</div>}
+              {log.map((l, i) => (
+                <div key={i} className="text-sm">
+                  {l.time} – {l.text}
+                </div>
+              ))}
             </Section>
           </div>
         </div>
@@ -235,15 +262,15 @@ export default function AlcoholManagementModule() {
 }
 
 /* ======================================================
-   UI COMPONENTS
+   UI
 ====================================================== */
 
 function ModeButton({ label, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-full text-sm font-semibold ${
-        active ? "bg-black text-white" : "bg-gray-100 text-gray-600"
+      className={`px-4 py-2 rounded-full text-sm ${
+        active ? "bg-black text-white" : "bg-gray-200"
       }`}
     >
       {label}
@@ -254,16 +281,36 @@ function ModeButton({ label, active, onClick }) {
 function Section({ title, children }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">{title}</h3>
+      <h2 className="text-lg font-semibold">{title}</h2>
       {children}
     </div>
   );
 }
 
 function Card({ children }) {
+  return <div className="bg-white border rounded-xl p-4 shadow-sm">{children}</div>;
+}
+
+function Input({ label, value, onChange }) {
   return (
-    <div className="bg-white border rounded-xl p-4 shadow-sm">
-      {children}
+    <div>
+      <div className="text-xs text-gray-500">{label}</div>
+      <input value={value} onChange={(e) => onChange(e.target.value)} className="input" />
+    </div>
+  );
+}
+
+function NumberInput({ label, value, onChange }) {
+  return (
+    <div>
+      <div className="text-xs text-gray-500">{label}</div>
+      <input
+        type="number"
+        value={value}
+        min={0}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="input"
+      />
     </div>
   );
 }
