@@ -3,74 +3,66 @@
 import { useState } from "react";
 
 /* ======================
-   MOCK DATA (בהמשך DB)
+   INITIAL STRUCTURE
 ====================== */
 
 const INITIAL_CATEGORIES = [
   {
     id: "photo",
     name: "צילום",
-    subcategories: [
-      {
-        id: "magnet",
-        name: "מגנטים",
-        selectedVendorId: null,
-        vendors: [
-          {
-            id: "v1",
-            name: "מגנטיקס",
-            price: 7000,
-            phone: "050-1234567",
-            instagram: "https://instagram.com/magnetix",
-            website: "",
-          },
-          {
-            id: "v2",
-            name: "פיקס מגנטים",
-            price: 8500,
-            phone: "050-7654321",
-            instagram: "",
-            website: "https://pixmagnet.co.il",
-          },
-        ],
-      },
-      {
-        id: "still",
-        name: "סטילס",
-        selectedVendorId: null,
-        vendors: [],
-      },
+    subCategories: [
+      "סטילס",
+      "וידאו",
+      "רחפן",
+      "מגנטים",
+      "סושיאל / רילסים",
     ],
+  },
+  {
+    id: "music",
+    name: "מוזיקה ובידור",
+    subCategories: ["DJ", "להקה", "נגן סקסופון", "זמר חופה"],
+  },
+  {
+    id: "food",
+    name: "אוכל ושתייה",
+    subCategories: ["קייטרינג", "בר אלכוהול", "בר קוקטיילים", "קינוחים"],
   },
 ];
 
 export default function SuppliersTab() {
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
-  const [openCategoryId, setOpenCategoryId] = useState(null);
+
+  // ספקים לפי תת־תחום
+  const [suppliers, setSuppliers] = useState({});
+  // ספק נבחר לכל תת־תחום
+  const [selectedSuppliers, setSelectedSuppliers] = useState({});
+  // תתי־תחומים שנבחרו
+  const [enabledSubCategories, setEnabledSubCategories] = useState({});
 
   /* ======================
-     ACTIONS
+     HANDLERS
   ====================== */
 
-  function selectVendor(categoryId, subId, vendorId) {
-    setCategories((prev) =>
-      prev.map((cat) =>
-        cat.id !== categoryId
-          ? cat
-          : {
-              ...cat,
-              subcategories: cat.subcategories.map((sub) =>
-                sub.id !== subId
-                  ? sub
-                  : { ...sub, selectedVendorId: vendorId }
-              ),
-            }
-      )
-    );
+  function toggleSubCategory(categoryId, sub) {
+    setEnabledSubCategories((prev) => ({
+      ...prev,
+      [`${categoryId}-${sub}`]: !prev[`${categoryId}-${sub}`],
+    }));
   }
 
-  function toggleCategory(id) {
-    setOpenCategoryId(openCategoryId === id ? null : id);
+  function addSupplier(subKey, supplier) {
+    setSuppliers((prev) => ({
+      ...prev,
+      [subKey]: [...(prev[subKey] || []), supplier],
+    }));
+  }
+
+  function selectSupplier(subKey, supplier) {
+    setSelectedSuppliers((prev) => ({
+      ...prev,
+      [subKey]: supplier,
+    }));
   }
 
   /* ======================
@@ -78,132 +70,181 @@ export default function SuppliersTab() {
   ====================== */
 
   return (
-    <div className="space-y-6 max-w-5xl" dir="rtl">
-      <h2 className="text-xl font-semibold">📦 ספקים ותקציב</h2>
-
-      {categories.map((category) => (
+    <div className="space-y-8 max-w-6xl" dir="rtl">
+      {categories.map((cat) => (
         <section
-          key={category.id}
-          className="border rounded-2xl bg-white p-5 space-y-4"
+          key={cat.id}
+          className="border rounded-2xl p-5 bg-white space-y-4"
         >
-          {/* Category Header */}
-          <button
-            onClick={() => toggleCategory(category.id)}
-            className="w-full flex justify-between items-center"
-          >
-            <span className="text-lg font-semibold">{category.name}</span>
-            <span className="text-sm text-gray-500">
-              {openCategoryId === category.id ? "סגור" : "פתח"}
-            </span>
-          </button>
+          <h3 className="text-lg font-semibold">{cat.name}</h3>
 
-          {/* Subcategories */}
-          {openCategoryId === category.id && (
-            <div className="space-y-6 pt-2">
-              {category.subcategories.map((sub) => {
-                const selectedVendor = sub.vendors.find(
-                  (v) => v.id === sub.selectedVendorId
-                );
+          {/* Sub categories selection */}
+          <div className="flex flex-wrap gap-4">
+            {cat.subCategories.map((sub) => {
+              const key = `${cat.id}-${sub}`;
+              return (
+                <label key={sub} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!enabledSubCategories[key]}
+                    onChange={() => toggleSubCategory(cat.id, sub)}
+                  />
+                  {sub}
+                </label>
+              );
+            })}
+          </div>
 
-                return (
-                  <div
-                    key={sub.id}
-                    className="border rounded-xl p-4 space-y-3"
-                  >
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-medium">{sub.name}</h4>
+          {/* Active sub categories */}
+          {cat.subCategories.map((sub) => {
+            const subKey = `${cat.id}-${sub}`;
+            if (!enabledSubCategories[subKey]) return null;
 
-                      {selectedVendor && (
-                        <span className="text-green-600 text-sm">
-                          ✔ נבחר: {selectedVendor.name}
-                        </span>
-                      )}
-                    </div>
+            return (
+              <div
+                key={sub}
+                className="border rounded-xl p-4 bg-gray-50 space-y-3"
+              >
+                <h4 className="font-medium">{sub}</h4>
 
-                    {/* Vendors Table */}
-                    {sub.vendors.length === 0 ? (
-                      <p className="text-sm text-gray-400">
-                        עדיין לא נוספו ספקים לתת־תחום זה
-                      </p>
-                    ) : (
-                      <table className="w-full text-sm border-collapse">
-                        <thead>
-                          <tr className="text-gray-500">
-                            <th className="text-right py-2">בחירה</th>
-                            <th className="text-right">שם ספק</th>
-                            <th className="text-right">מחיר</th>
-                            <th className="text-right">יצירת קשר</th>
-                          </tr>
-                        </thead>
+                {/* Suppliers table */}
+                <table className="w-full text-sm border">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="p-2">בחירה</th>
+                      <th className="p-2">שם</th>
+                      <th className="p-2">מחיר</th>
+                      <th className="p-2">טלפון</th>
+                      <th className="p-2">קישור</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(suppliers[subKey] || []).map((s, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="text-center">
+                          <input
+                            type="radio"
+                            checked={selectedSuppliers[subKey]?.name === s.name}
+                            onChange={() => selectSupplier(subKey, s)}
+                          />
+                        </td>
+                        <td>{s.name}</td>
+                        <td>₪{s.price}</td>
+                        <td>{s.phone}</td>
+                        <td>
+                          <a
+                            href={s.link}
+                            target="_blank"
+                            className="text-blue-600 underline"
+                          >
+                            קישור
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
-                        <tbody>
-                          {sub.vendors.map((vendor) => (
-                            <tr
-                              key={vendor.id}
-                              className={`border-t ${
-                                vendor.id === sub.selectedVendorId
-                                  ? "bg-green-50"
-                                  : ""
-                              }`}
-                            >
-                              <td className="py-2">
-                                <input
-                                  type="radio"
-                                  checked={
-                                    vendor.id === sub.selectedVendorId
-                                  }
-                                  onChange={() =>
-                                    selectVendor(
-                                      category.id,
-                                      sub.id,
-                                      vendor.id
-                                    )
-                                  }
-                                />
-                              </td>
-
-                              <td>{vendor.name}</td>
-                              <td>₪{vendor.price.toLocaleString()}</td>
-
-                              <td className="space-x-2">
-                                {vendor.instagram && (
-                                  <a
-                                    href={vendor.instagram}
-                                    target="_blank"
-                                    className="text-blue-600 underline"
-                                  >
-                                    אינסטגרם
-                                  </a>
-                                )}
-                                {vendor.website && (
-                                  <a
-                                    href={vendor.website}
-                                    target="_blank"
-                                    className="text-blue-600 underline"
-                                  >
-                                    אתר
-                                  </a>
-                                )}
-                                <span>{vendor.phone}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                {/* Add supplier */}
+                <AddSupplierForm
+                  onAdd={(supplier) => addSupplier(subKey, supplier)}
+                />
+              </div>
+            );
+          })}
         </section>
       ))}
 
-      {/* UX Hint */}
-      <p className="text-xs text-gray-400">
-        ניתן להוסיף תחומים, תתי־תחומים וספקים דרך ניהול מתקדם (בהמשך).
-        רק ספק אחד ניתן לבחירה בכל תת־תחום.
-      </p>
+      {/* ======================
+          SUMMARY TABLE
+      ====================== */}
+      <section className="border rounded-2xl p-5 bg-white">
+        <h3 className="font-semibold text-lg mb-4">
+          📋 ספקים שנבחרו בפועל
+        </h3>
+
+        {Object.keys(selectedSuppliers).length === 0 ? (
+          <p className="text-sm text-gray-500">
+            עדיין לא נבחרו ספקים
+          </p>
+        ) : (
+          <table className="w-full text-sm border">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-2">תחום</th>
+                <th className="p-2">ספק</th>
+                <th className="p-2">מחיר</th>
+                <th className="p-2">טלפון</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(selectedSuppliers).map(([key, s]) => (
+                <tr key={key} className="border-t">
+                  <td>{key}</td>
+                  <td>{s.name}</td>
+                  <td>₪{s.price}</td>
+                  <td>{s.phone}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/* ======================
+   ADD SUPPLIER FORM
+====================== */
+
+function AddSupplierForm({ onAdd }) {
+  const [form, setForm] = useState({
+    name: "",
+    price: "",
+    phone: "",
+    link: "",
+  });
+
+  function submit() {
+    if (!form.name) return;
+    onAdd(form);
+    setForm({ name: "", price: "", phone: "", link: "" });
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2 text-sm">
+      <input
+        placeholder="שם ספק"
+        className="border rounded px-2 py-1"
+        value={form.name}
+        onChange={(e) => setForm({ ...form, name: e.target.value })}
+      />
+      <input
+        placeholder="מחיר"
+        className="border rounded px-2 py-1"
+        value={form.price}
+        onChange={(e) => setForm({ ...form, price: e.target.value })}
+      />
+      <input
+        placeholder="טלפון"
+        className="border rounded px-2 py-1"
+        value={form.phone}
+        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+      />
+      <input
+        placeholder="קישור"
+        className="border rounded px-2 py-1"
+        value={form.link}
+        onChange={(e) => setForm({ ...form, link: e.target.value })}
+      />
+
+      <button
+        onClick={submit}
+        className="bg-black text-white px-3 rounded"
+      >
+        הוסף ספק
+      </button>
     </div>
   );
 }
