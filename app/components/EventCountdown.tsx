@@ -89,7 +89,10 @@ export default function EventCountdown({ event }: Props) {
       </div>
 
       {/* Countdown */}
-      <div className="flex items-end gap-2">
+      <div
+  className="flex items-end gap-2"
+  dir="ltr"  
+>
         {units.map((u) => (
           <SlotUnit key={u.label} value={u.value} label={u.label} />
         ))}
