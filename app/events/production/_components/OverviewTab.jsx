@@ -52,6 +52,29 @@ export default function OverviewTab() {
     },
   ]);
 
+  /* =====================
+     ADD TASK STATE
+  ===================== */
+  const [newTitle, setNewTitle] = useState("");
+  const [newDate, setNewDate] = useState("");
+
+  function addTask() {
+    if (!newTitle.trim()) return;
+
+    setTasks((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        title: newTitle.trim(),
+        dueDate: newDate || null,
+        status: TASK_STATUS.OPEN,
+      },
+    ]);
+
+    setNewTitle("");
+    setNewDate("");
+  }
+
   function updateTask(id, field, value) {
     setTasks((prev) =>
       prev.map((t) =>
@@ -69,7 +92,7 @@ export default function OverviewTab() {
       {/* HEADER */}
       <div className="bg-white rounded-2xl px-6 py-5 border border-[#E7E3DC] flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-[#2B2B2B]">
+          <h1 className="text-2xl font-semibold">
             הפקת אירוע · 14.09
           </h1>
           <p className="text-sm text-gray-500">
@@ -84,16 +107,10 @@ export default function OverviewTab() {
         </div>
       </div>
 
-      {/* BUDGET CARDS */}
+      {/* BUDGET */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <BudgetCard
-          title="תקציב כולל"
-          value={budget.total}
-        />
-        <BudgetCard
-          title="יצא עד כה"
-          value={budget.spent}
-        />
+        <BudgetCard title="תקציב כולל" value={budget.total} />
+        <BudgetCard title="יצא עד כה" value={budget.spent} />
         <BudgetCard
           title="יתרה"
           value={remaining}
@@ -120,11 +137,12 @@ export default function OverviewTab() {
       </div>
 
       {/* TASKS */}
-      <div className="bg-white rounded-2xl border border-[#E7E3DC] p-6">
-        <h2 className="text-lg font-semibold mb-4">
+      <div className="bg-white rounded-2xl border border-[#E7E3DC] p-6 space-y-4">
+        <h2 className="text-lg font-semibold">
           משימות
         </h2>
 
+        {/* TASK LIST */}
         <div className="divide-y">
           {tasks.map((task) => (
             <div
@@ -145,10 +163,7 @@ export default function OverviewTab() {
                 >
                   {Object.values(TASK_STATUS).map(
                     (s) => (
-                      <option
-                        key={s}
-                        value={s}
-                      >
+                      <option key={s} value={s}>
                         {STATUS_LABEL[s]}
                       </option>
                     )
@@ -159,7 +174,7 @@ export default function OverviewTab() {
                   className={`font-medium ${
                     task.status === TASK_STATUS.DONE
                       ? "line-through text-gray-400"
-                      : "text-[#2B2B2B]"
+                      : ""
                   }`}
                 >
                   {task.title}
@@ -168,7 +183,7 @@ export default function OverviewTab() {
 
               <input
                 type="date"
-                value={task.dueDate}
+                value={task.dueDate || ""}
                 onChange={(e) =>
                   updateTask(
                     task.id,
@@ -180,6 +195,37 @@ export default function OverviewTab() {
               />
             </div>
           ))}
+        </div>
+
+        {/* ADD TASK */}
+        <div className="pt-4 border-t flex flex-col md:flex-row gap-3">
+          <input
+            placeholder="הוסף משימה חדשה…"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) =>
+              e.key === "Enter" && addTask()
+            }
+            className="flex-1 border rounded-lg px-4 py-2 text-sm"
+          />
+
+          <input
+            type="date"
+            value={newDate}
+            onChange={(e) => setNewDate(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm"
+          />
+
+          <button
+            onClick={addTask}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+            style={{
+              background:
+                "linear-gradient(90deg, #6D6AF4, #8B87FF)",
+            }}
+          >
+            הוסף
+          </button>
         </div>
       </div>
     </div>
@@ -208,7 +254,7 @@ function BudgetCard({
       <p className="text-sm text-gray-500 mb-1">
         {title}
       </p>
-      <p className="text-2xl font-semibold text-[#2B2B2B]">
+      <p className="text-2xl font-semibold">
         ₪{value.toLocaleString()}
       </p>
     </div>
