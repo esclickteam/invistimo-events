@@ -46,52 +46,72 @@ export default function ProducerDashboard() {
      Fetch Events (stats only)
   ========================= */
   useEffect(() => {
-    if (!user?._id) return;
+  let isMounted = true;
 
-    const fetchEvents = async () => {
-      setEventsLoading(true);
-      try {
-        const res = await fetch(`/api/events?producerId=${user._id}`, {
-  cache: "no-store",
-  credentials: "include",
-});
+  const fetchEvents = async () => {
+    setEventsLoading(true);
+    try {
+      const res = await fetch("/api/producer/events", {
+        cache: "no-store",
+        credentials: "include",
+      });
 
-        const data = await res.json();
-        if (data.success) {
-          setEvents(Array.isArray(data.events) ? data.events : []);
-        }
-      } finally {
+      const data = await res.json();
+
+      if (isMounted && data.success) {
+        setEvents(Array.isArray(data.events) ? data.events : []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch producer events:", err);
+    } finally {
+      if (isMounted) {
         setEventsLoading(false);
       }
-    };
+    }
+  };
 
-    fetchEvents();
-  }, [user?._id]);
+  fetchEvents();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
+
 
   /* =========================
      Fetch Clients (table)
   ========================= */
   useEffect(() => {
-    if (!user?._id) return;
+  let isMounted = true;
 
-    const fetchClients = async () => {
-      setClientsLoading(true);
-      try {
-        const res = await fetch("/api/producer/clients", {
-  cache: "no-store",
-  credentials: "include",
-});
-        const data = await res.json();
-        if (data.success) {
-          setClients(data.clients || []);
-        }
-      } finally {
+  const fetchClients = async () => {
+    setClientsLoading(true);
+    try {
+      const res = await fetch("/api/producer/clients", {
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (isMounted && data.success) {
+        setClients(Array.isArray(data.clients) ? data.clients : []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch producer clients:", err);
+    } finally {
+      if (isMounted) {
         setClientsLoading(false);
       }
-    };
+    }
+  };
 
-    fetchClients();
-  }, [user?._id]);
+  fetchClients();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
 
   /* =========================
      Impersonation (ניהול לקוח)
