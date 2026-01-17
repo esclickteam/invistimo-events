@@ -3,163 +3,213 @@
 import { useState } from "react";
 
 /* ======================================================
-   DATA MODELS (TEMP – בעתיד DB)
+   INITIAL DATA
 ====================================================== */
 
-const INITIAL_ALCOHOL = [
-  {
-    id: "vodka",
-    label: "וודקה",
-    brands: ["Absolut", "Finlandia"],
-    totalPlanned: 12,
-    startAllocated: 6,
-  },
-  {
-    id: "whiskey",
-    label: "וויסקי",
-    brands: ["Jameson"],
-    totalPlanned: 6,
-    startAllocated: 3,
-  },
-  {
-    id: "wine",
-    label: "יין",
-    brands: ["אדום", "לבן"],
-    totalPlanned: 30,
-    startAllocated: 20,
-  },
+const INITIAL_ALCOHOL_TYPES = [
+  { id: "vodka", label: "וודקה" },
+  { id: "whiskey", label: "וויסקי" },
+  { id: "wine", label: "יין" },
 ];
 
 const INITIAL_TABLES = [
   {
     tableNumber: 10,
     guests: 10,
-    alcohol: [
+    requests: "חברים של החתן",
+    alcoholPlan: [
       { type: "vodka", qty: 2 },
       { type: "whiskey", qty: 1 },
     ],
-    notes: "חברים של החתן",
+    alcoholLive: [],
   },
 ];
+
+const INITIAL_WAREHOUSE = {
+  vodka: 12,
+  whiskey: 6,
+  wine: 30,
+};
 
 /* ======================================================
    MAIN COMPONENT
 ====================================================== */
 
 export default function AlcoholManagementTab() {
-  const [mode, setMode] = useState("planning"); // planning | distribution | live
-  const [alcohol, setAlcohol] = useState(INITIAL_ALCOHOL);
+  const [mode, setMode] = useState("planning"); // planning | live
   const [tables, setTables] = useState(INITIAL_TABLES);
+  const [warehouse, setWarehouse] = useState(INITIAL_WAREHOUSE);
+  const [log, setLog] = useState([]);
 
-  /* =========================
-     DERIVED
-  ========================= */
+  /* ======================================================
+     HELPERS
+  ====================================================== */
 
-  const warehouse = alcohol.map((a) => ({
-    ...a,
-    remaining:
-      a.totalPlanned -
-      a.startAllocated -
-      tables.reduce(
-        (sum, t) =>
-          sum +
-          (t.alcohol.find((x) => x.type === a.id)?.qty || 0),
-        0
-      ),
-  }));
+  function addLog(entry) {
+    setLog((prev) => [
+      { time: new Date().toLocaleTimeString(), entry },
+      ...prev,
+    ]);
+  }
 
-  /* =========================
+  function updateTable(tableIndex, field, value) {
+    setTables((prev) =>
+      prev.map((t, i) => (i === tableIndex ? { ...t, [field]: value } : t))
+    );
+  }
+
+  function updateAlcoholPlan(tableIndex, alcoholIndex, field, value) {
+    setTables((prev) =>
+      prev.map((t, i) =>
+        i === tableIndex
+          ? {
+              ...t,
+              alcoholPlan: t.alcoholPlan.map((a, ai) =>
+                ai === alcoholIndex ? { ...a, [field]: value } : a
+              ),
+            }
+          : t
+      )
+    );
+  }
+
+  function addAlcoholToTable(tableIndex) {
+    setTables((prev) =>
+      prev.map((t, i) =>
+        i === tableIndex
+          ? {
+              ...t,
+              alcoholPlan: [...t.alcoholPlan, { type: "vodka", qty: 1 }],
+            }
+          : t
+      )
+    );
+  }
+
+  /* ======================================================
+     LIVE ACTIONS
+  ====================================================== */
+
+  function openBottle(type, tableIndex) {
+    if (warehouse[type] <= 0) return;
+
+    setWarehouse((prev) => ({
+      ...prev,
+      [type]: prev[type] - 1,
+    }));
+
+    setTables((prev) =>
+      prev.map((t, i) =>
+        i === tableIndex
+          ? {
+              ...t,
+              alcoholLive: [...t.alcoholLive, type],
+            }
+          : t
+      )
+    );
+
+    addLog(`נפתח בקבוק ${type} לשולחן ${tables[tableIndex].tableNumber}`);
+  }
+
+  /* ======================================================
      RENDER
-  ========================= */
+  ====================================================== */
 
   return (
     <div className="space-y-8">
       {/* HEADER */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">ניהול אלכוהול</h2>
+        <h2 className="text-2xl font-bold">🍾 ניהול אלכוהול</h2>
 
         <div className="flex gap-2">
           <ModeButton
             active={mode === "planning"}
-            onClick={() => setMode("planning")}
             label="תכנון"
-          />
-          <ModeButton
-            active={mode === "distribution"}
-            onClick={() => setMode("distribution")}
-            label="הקצאה"
+            onClick={() => setMode("planning")}
           />
           <ModeButton
             active={mode === "live"}
-            onClick={() => setMode("live")}
             label="לייב"
+            onClick={() => setMode("live")}
           />
         </div>
       </div>
 
       {/* =========================
-          🧩 PLANNING
+          PLANNING MODE
       ========================= */}
       {mode === "planning" && (
         <div className="space-y-6">
-          <SectionTitle title="כמויות כלליות" />
-
-          {alcohol.map((item, idx) => (
-            <Card key={item.id}>
-              <div className="grid grid-cols-4 gap-4 items-end">
-                <div>
-                  <Label>סוג</Label>
-                  <div className="font-semibold">{item.label}</div>
-                  <div className="text-xs text-gray-500">
-                    {item.brands.join(", ")}
-                  </div>
-                </div>
-
-                <Field
-                  label="סה״כ מתוכנן"
-                  value={item.totalPlanned}
-                  onChange={(v) =>
-                    updateAlcohol(setAlcohol, idx, "totalPlanned", v)
-                  }
-                />
-
-                <Field
-                  label="להוצאה בתחילת האירוע"
-                  value={item.startAllocated}
-                  onChange={(v) =>
-                    updateAlcohol(setAlcohol, idx, "startAllocated", v)
-                  }
-                />
-
-                <div className="text-sm">
-                  רזרבה:{" "}
-                  <b>{item.totalPlanned - item.startAllocated}</b>
+          {tables.map((table, tableIndex) => (
+            <Card key={tableIndex}>
+              <div className="flex justify-between items-center">
+                <div className="font-bold">
+                  שולחן {table.tableNumber} · {table.guests} אורחים
                 </div>
               </div>
-            </Card>
-          ))}
 
-          <SectionTitle title="שולחנות עם תוספת אלכוהול" />
+              {/* Requests */}
+              <div className="mt-4">
+                <Label>בקשות הזוג</Label>
+                <textarea
+                  value={table.requests}
+                  onChange={(e) =>
+                    updateTable(tableIndex, "requests", e.target.value)
+                  }
+                  className="w-full border rounded-lg p-2 text-sm"
+                  placeholder="לדוגמה: לשים הרבה אלכוהול"
+                />
+              </div>
 
-          {tables.map((table, idx) => (
-            <Card key={idx}>
-              <div className="flex justify-between">
-                <div>
-                  <b>שולחן {table.tableNumber}</b> · {table.guests} אורחים
-                  <div className="text-sm mt-1">
-                    {table.alcohol.map((a, i) => (
-                      <div key={i}>
-                        +{a.qty} {a.type}
-                      </div>
-                    ))}
+              {/* Alcohol Plan */}
+              <div className="mt-4 space-y-2">
+                <Label>אלכוהול מתוכנן לשולחן</Label>
+
+                {table.alcoholPlan.map((a, alcoholIndex) => (
+                  <div key={alcoholIndex} className="flex gap-2">
+                    <select
+                      value={a.type}
+                      onChange={(e) =>
+                        updateAlcoholPlan(
+                          tableIndex,
+                          alcoholIndex,
+                          "type",
+                          e.target.value
+                        )
+                      }
+                      className="border rounded px-2 py-1"
+                    >
+                      {INITIAL_ALCOHOL_TYPES.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="number"
+                      min={1}
+                      value={a.qty}
+                      onChange={(e) =>
+                        updateAlcoholPlan(
+                          tableIndex,
+                          alcoholIndex,
+                          "qty",
+                          Number(e.target.value)
+                        )
+                      }
+                      className="border rounded px-2 py-1 w-20"
+                    />
                   </div>
-                </div>
+                ))}
 
-                {table.notes && (
-                  <div className="text-xs text-gray-500">
-                    {table.notes}
-                  </div>
-                )}
+                <button
+                  onClick={() => addAlcoholToTable(tableIndex)}
+                  className="text-sm text-blue-600"
+                >
+                  + הוסף אלכוהול לשולחן
+                </button>
               </div>
             </Card>
           ))}
@@ -167,72 +217,59 @@ export default function AlcoholManagementTab() {
       )}
 
       {/* =========================
-          📦 DISTRIBUTION
-      ========================= */}
-      {mode === "distribution" && (
-        <div className="space-y-6">
-          <SectionTitle title="מחסן מרכזי" />
-
-          {warehouse.map((item) => (
-            <Card key={item.id}>
-              <div className="flex justify-between items-center">
-                <div>
-                  <b>{item.label}</b>
-                  <div className="text-xs text-gray-500">
-                    נשארו במחסן
-                  </div>
-                </div>
-
-                <div className="text-xl font-bold">
-                  {item.remaining}
-                </div>
-              </div>
-            </Card>
-          ))}
-
-          <SectionTitle title="שולחנות" />
-
-          {tables.map((table, idx) => (
-            <Card key={idx}>
-              <div className="flex justify-between items-center">
-                <div>
-                  <b>שולחן {table.tableNumber}</b>
-                  <div className="text-sm">
-                    {table.alcohol.map((a, i) => (
-                      <span key={i} className="ml-3">
-                        {a.type}: {a.qty}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <span className="px-3 py-1 rounded-full text-xs bg-orange-100 text-orange-700">
-                  חריגה
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* =========================
-          🔴 LIVE (READY)
+          LIVE MODE
       ========================= */}
       {mode === "live" && (
-        <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-6">
+          {/* Warehouse */}
           <Card>
-            <div className="text-center text-gray-600">
-              🔴 מצב לייב ייפתח ביום האירוע
-              <div className="text-sm mt-2">
-                כאן יתבצע:
-                <ul className="list-disc pr-6 text-right mt-2">
-                  <li>פתיחת בקבוק</li>
-                  <li>העברה בין מיקומים</li>
-                  <li>חריגות בזמן אמת</li>
-                  <li>סגירה ודוחות</li>
-                </ul>
+            <h3 className="font-semibold mb-2">📦 מחסן</h3>
+            {Object.entries(warehouse).map(([type, qty]) => (
+              <div key={type} className="flex justify-between">
+                <span>{type}</span>
+                <b>{qty}</b>
               </div>
-            </div>
+            ))}
+          </Card>
+
+          {/* Tables */}
+          <div className="col-span-2 space-y-4">
+            {tables.map((table, tableIndex) => (
+              <Card key={tableIndex}>
+                <div className="font-bold mb-2">
+                  שולחן {table.tableNumber}
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  {INITIAL_ALCOHOL_TYPES.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => openBottle(t.id, tableIndex)}
+                      className="px-3 py-1 rounded bg-black text-white text-sm"
+                    >
+                      נפתח {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="text-sm text-gray-600 mt-2">
+                  נפתחו בפועל: {table.alcoholLive.join(", ") || "—"}
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Log */}
+          <Card className="col-span-3">
+            <h3 className="font-semibold mb-2">📜 לוג פעולות</h3>
+            {log.length === 0 && (
+              <div className="text-sm text-gray-400">אין פעולות עדיין</div>
+            )}
+            {log.map((l, i) => (
+              <div key={i} className="text-sm">
+                <b>{l.time}</b> – {l.entry}
+              </div>
+            ))}
           </Card>
         </div>
       )}
@@ -249,18 +286,12 @@ function ModeButton({ label, active, onClick }) {
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-full text-sm font-semibold ${
-        active
-          ? "bg-black text-white"
-          : "bg-gray-100 text-gray-600"
+        active ? "bg-black text-white" : "bg-gray-100 text-gray-600"
       }`}
     >
       {label}
     </button>
   );
-}
-
-function SectionTitle({ title }) {
-  return <h3 className="text-lg font-semibold">{title}</h3>;
 }
 
 function Card({ children }) {
@@ -272,28 +303,5 @@ function Card({ children }) {
 }
 
 function Label({ children }) {
-  return <div className="text-xs text-gray-500">{children}</div>;
-}
-
-function Field({ label, value, onChange }) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <input
-        type="number"
-        min={0}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="border rounded-lg px-3 py-2 w-full"
-      />
-    </div>
-  );
-}
-
-function updateAlcohol(setAlcohol, idx, field, value) {
-  setAlcohol((prev) =>
-    prev.map((item, i) =>
-      i === idx ? { ...item, [field]: value } : item
-    )
-  );
+  return <div className="text-xs text-gray-500 mb-1">{children}</div>;
 }
