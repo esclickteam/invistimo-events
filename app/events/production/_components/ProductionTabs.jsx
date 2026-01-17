@@ -8,6 +8,7 @@ const TABS = [
   { key: "suppliers", label: "ספקים ותקציב" },
   { key: "calendar", label: "לוח שנה ופגישות" },
   { key: "logistics", label: "לוגיסטיקה" },
+  { key: "alcohol", label: "אלכוהול" }, // 🆕 חדש
 ];
 
 export default function ProductionTabs({
@@ -16,6 +17,7 @@ export default function ProductionTabs({
   suppliers,
   calendar,
   logistics,
+  alcohol, // 🆕 חדש
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,6 +55,7 @@ export default function ProductionTabs({
         {activeTab === "suppliers" && suppliers}
         {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
+        {activeTab === "alcohol" && alcohol} {/* 🆕 */}
       </div>
     </div>
   );
