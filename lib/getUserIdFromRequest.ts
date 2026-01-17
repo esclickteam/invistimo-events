@@ -1,7 +1,5 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import type { ReadonlyRequestCookies } from
-  "next/dist/server/web/spec-extension/adapters/request-cookies";
 
 /* =========================
    Types
@@ -18,19 +16,10 @@ export type AuthPayload = {
   role: AuthRole;
 
   // impersonation (optional)
-  impersonated?: boolean;
+  impersonated: boolean;
   impersonatedBy?: string;
   impersonationRole?: "producer" | "admin";
 };
-
-/* =========================
-   Internal helper
-========================= */
-
-async function getCookieStore(): Promise<ReadonlyRequestCookies> {
-  const store = cookies();
-  return store instanceof Promise ? await store : store;
-}
 
 /* =========================
    Auth helper
@@ -38,28 +27,32 @@ async function getCookieStore(): Promise<ReadonlyRequestCookies> {
 
 export async function getUserIdFromRequest(): Promise<AuthPayload | null> {
   try {
-    const cookieStore = await getCookieStore();
+    const cookieStore = await cookies();
 
-    // 🔐 SINGLE SOURCE OF TRUTH
-    const token = cookieStore.get("authToken")?.value ?? null;
+    // 🔑 PRIORITY: impersonation > auth
+    const impersonationToken =
+      cookieStore.get("impersonationToken")?.value ?? null;
 
-    if (!token) {
+    const authToken =
+      cookieStore.get("authToken")?.value ?? null;
+
+    const tokenToUse = impersonationToken || authToken;
+
+    if (!tokenToUse) {
       return null;
     }
 
     const decoded = jwt.verify(
-      token,
+      tokenToUse,
       process.env.JWT_SECRET!
     ) as {
       userId?: string;
       role?: AuthRole;
 
-      // impersonation
-      impersonated?: boolean;
       impersonatedBy?: string;
       impersonationRole?: "producer" | "admin";
 
-      // backward compatibility (אם יש טוקנים ישנים)
+      // backward compatibility
       id?: string;
       _id?: string;
     };
@@ -78,7 +71,7 @@ export async function getUserIdFromRequest(): Promise<AuthPayload | null> {
       userId: String(userId),
       role: decoded.role ?? "user",
 
-      impersonated: decoded.impersonated,
+      impersonated: Boolean(impersonationToken),
       impersonatedBy: decoded.impersonatedBy,
       impersonationRole: decoded.impersonationRole,
     };
