@@ -1,108 +1,188 @@
 import { useState } from "react";
 
+const STATUS_META = {
+  pending: {
+    label: "מתוכנן",
+    class: "bg-yellow-100 text-yellow-700",
+  },
+  missing: {
+    label: "לא מאושר",
+    class: "bg-red-100 text-red-700",
+  },
+  done: {
+    label: "בוצע",
+    class: "bg-green-100 text-green-700",
+  },
+};
+
 export default function LogisticsTab() {
   const [timeline, setTimeline] = useState([
-    { time: "14:00", title: "הגעת אולם", status: "pending" },
-    { time: "15:30", title: "הגעת DJ", status: "missing" },
-    { time: "16:00", title: "עיצוב שולחנות", status: "pending" },
+    {
+      id: 1,
+      time: "14:00",
+      title: "הגעת אולם",
+      status: "pending",
+      source: "supplier",
+    },
+    {
+      id: 2,
+      time: "15:30",
+      title: "הגעת DJ",
+      status: "missing",
+      source: "supplier",
+    },
+    {
+      id: 3,
+      time: "18:00",
+      title: "קבלת פנים",
+      status: "pending",
+      source: "template",
+    },
+    {
+      id: 4,
+      time: "19:30",
+      title: "חופה",
+      status: "pending",
+      source: "template",
+    },
   ]);
 
-  const [logisticsItems, setLogisticsItems] = useState({
-    הסעות: false,
-    ציוד: true,
-    פרחים: true,
-    השכרות: false,
+  const [newItem, setNewItem] = useState({
+    time: "",
+    title: "",
   });
 
+  const addTimelineItem = () => {
+    if (!newItem.time || !newItem.title) return;
+
+    setTimeline((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        time: newItem.time,
+        title: newItem.title,
+        status: "pending",
+        source: "manual",
+      },
+    ]);
+
+    setNewItem({ time: "", title: "" });
+  };
+
+  const updateItem = (id, field, value) => {
+    setTimeline((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="max-w-5xl space-y-10">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold flex items-center gap-2">
-          🚚 לוגיסטיקה – יום האירוע
+          🚚 לוגיסטיקה – לו״ז יום האירוע
         </h3>
         <span className="text-sm text-gray-500">
-          תכנון ובקרה תפעולית
+          מבוסס ספקים + תבנית אירוע + תוספות מפיק
         </span>
       </div>
 
       {/* Timeline */}
-      <div className="bg-white rounded-xl border p-5 space-y-4">
+      <div className="bg-white rounded-2xl border p-6 space-y-5">
         <h4 className="font-medium text-sm text-gray-700">
-          ⏱ לו״ז יום האירוע
+          ⏱ Timeline תפעולי
         </h4>
 
         <div className="space-y-3">
-          {timeline.map((item, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between rounded-lg border px-4 py-3"
-            >
-              <div className="flex items-center gap-4">
-                <span className="font-mono text-sm text-gray-500">
-                  {item.time}
-                </span>
-                <span className="font-medium">{item.title}</span>
-              </div>
-
-              <span
-                className={`text-xs px-3 py-1 rounded-full font-medium ${
-                  item.status === "pending"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : item.status === "missing"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-green-100 text-green-700"
-                }`}
+          {timeline
+            .sort((a, b) => a.time.localeCompare(b.time))
+            .map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-4 border rounded-xl px-4 py-3"
               >
-                {item.status === "pending"
-                  ? "מתוכנן"
-                  : item.status === "missing"
-                  ? "לא מאושר"
-                  : "בוצע"}
-              </span>
-            </div>
-          ))}
+                {/* Time */}
+                <input
+                  type="time"
+                  value={item.time}
+                  onChange={(e) =>
+                    updateItem(item.id, "time", e.target.value)
+                  }
+                  className="border rounded-lg px-2 py-1 text-sm"
+                />
+
+                {/* Title */}
+                <input
+                  value={item.title}
+                  onChange={(e) =>
+                    updateItem(item.id, "title", e.target.value)
+                  }
+                  className="flex-1 border rounded-lg px-3 py-1 text-sm"
+                />
+
+                {/* Source */}
+                <span className="text-xs text-gray-500">
+                  {item.source === "supplier"
+                    ? "ספק"
+                    : item.source === "template"
+                    ? "תבנית"
+                    : "ידני"}
+                </span>
+
+                {/* Status */}
+                <select
+                  value={item.status}
+                  onChange={(e) =>
+                    updateItem(item.id, "status", e.target.value)
+                  }
+                  className={`text-xs font-medium px-3 py-1 rounded-full ${STATUS_META[item.status].class}`}
+                >
+                  <option value="pending">מתוכנן</option>
+                  <option value="missing">לא מאושר</option>
+                  <option value="done">בוצע</option>
+                </select>
+              </div>
+            ))}
         </div>
-      </div>
 
-      {/* Logistics checklist */}
-      <div className="bg-white rounded-xl border p-5 space-y-4">
-        <h4 className="font-medium text-sm text-gray-700">
-          📦 רכיבים לוגיסטיים
-        </h4>
-
-        <div className="grid grid-cols-2 gap-4">
-          {Object.entries(logisticsItems).map(([item, checked]) => (
-            <label
-              key={item}
-              className="flex items-center justify-between border rounded-lg px-4 py-3 cursor-pointer hover:bg-gray-50"
-            >
-              <span className="font-medium">{item}</span>
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() =>
-                  setLogisticsItems((prev) => ({
-                    ...prev,
-                    [item]: !prev[item],
-                  }))
-                }
-                className="w-4 h-4"
-              />
-            </label>
-          ))}
+        {/* Add new item */}
+        <div className="flex items-center gap-3 pt-4 border-t">
+          <input
+            type="time"
+            value={newItem.time}
+            onChange={(e) =>
+              setNewItem((p) => ({ ...p, time: e.target.value }))
+            }
+            className="border rounded-lg px-2 py-1 text-sm"
+          />
+          <input
+            placeholder="הוסף שלב ללוז (החלפת שמלה, נאום, ריקוד מיוחד...)"
+            value={newItem.title}
+            onChange={(e) =>
+              setNewItem((p) => ({ ...p, title: e.target.value }))
+            }
+            className="flex-1 border rounded-lg px-3 py-1 text-sm"
+          />
+          <button
+            onClick={addTimelineItem}
+            className="bg-purple-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-purple-700"
+          >
+            הוספה
+          </button>
         </div>
       </div>
 
       {/* Notes */}
-      <div className="bg-white rounded-xl border p-5 space-y-3">
+      <div className="bg-white rounded-2xl border p-6 space-y-3">
         <h4 className="font-medium text-sm text-gray-700">
           📝 הערות לוגיסטיות
         </h4>
         <textarea
           rows={4}
-          className="w-full border rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
-          placeholder="כניסת ספקים משער אחורי, חניה מוגבלת אחרי 17:00, גיבוי חשמל…"
+          className="w-full border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+          placeholder="כניסת ספקים משער אחורי, חניה מוגבלת אחרי 17:00, גיבוי חשמל, סדר חופה מיוחד…"
         />
       </div>
     </div>
