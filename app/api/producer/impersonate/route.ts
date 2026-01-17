@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const producer = await User.findById(auth.userId);
+  const producer = await User.findById(auth.userId).select("_id role");
 
   if (!producer || producer.role !== "producer") {
     return NextResponse.json(
@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
   ========================= */
   const client = await User.findOne({
     _id: clientId,
-    producerId: producer._id,
-  });
+    producerId: producer._id, // 🔑 חייב להיות שייך למפיק
+  }).select("_id");
 
   if (!client) {
     return NextResponse.json(
@@ -64,10 +64,11 @@ export async function POST(req: NextRequest) {
 
   /* =========================
      🎭 JWT – התחזות ללקוח
+     userId = הלקוח הפעיל
   ========================= */
   const impersonationToken = jwt.sign(
     {
-      userId: client._id.toString(), // 🔑 זה ה-userId הפעיל
+      userId: client._id.toString(),
       role: "client",
 
       impersonated: true,
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   /* =========================
      🍪 Overwrite authToken
-     ✅ await חובה כאן
+     🔑 זה מה שמפעיל באמת את האימפרסונציה
   ========================= */
   const cookieStore = await cookies();
 
