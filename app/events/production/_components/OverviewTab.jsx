@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 /* =====================
-   סטטוסים
+   STATUS CONFIG
 ===================== */
 const TASK_STATUS = {
   OPEN: "open",
@@ -18,66 +18,43 @@ const STATUS_LABEL = {
 };
 
 const STATUS_STYLE = {
-  open: "bg-red-100 text-red-700",
-  waiting: "bg-yellow-100 text-yellow-700",
-  done: "bg-green-100 text-green-700",
+  open: "bg-red-50 text-red-700",
+  waiting: "bg-yellow-50 text-yellow-700",
+  done: "bg-green-50 text-green-700",
 };
 
 export default function OverviewTab() {
   /* =====================
-     DATA
+     DATA (mock – ready for API)
   ===================== */
-  const budgetTotal = 120000;
-  const spent = 86500;
-  const remaining = budgetTotal - spent;
-  const progress = Math.round((spent / budgetTotal) * 100);
+  const [budget, setBudget] = useState({
+    total: 120000,
+    spent: 86500,
+  });
 
-  const meetings = [
-    { id: 1, title: "פגישה עם הזוג", date: "היום", time: "18:00" },
-    { id: 2, title: "אולם – סגירה", date: "מחר", time: "11:00" },
-    { id: 3, title: "צלם", date: "ה׳", time: "16:00" },
-  ];
+  const remaining = Math.max(budget.total - budget.spent, 0);
+  const progress =
+    budget.total > 0
+      ? Math.min(
+          Math.round((budget.spent / budget.total) * 100),
+          100
+        )
+      : 0;
 
-  /* =====================
-     TASKS
-  ===================== */
   const [tasks, setTasks] = useState([
     {
-      id: 1,
+      id: "1",
       title: "DJ – אין מקדמה",
       dueDate: "2024-08-12",
       status: TASK_STATUS.OPEN,
-      isEditing: false,
     },
     {
-      id: 2,
+      id: "2",
       title: "הסעות לא סגורות",
       dueDate: "2024-08-20",
       status: TASK_STATUS.WAITING,
-      isEditing: false,
     },
   ]);
-
-  const [newTitle, setNewTitle] = useState("");
-  const [newDate, setNewDate] = useState("");
-
-  function addTask() {
-    if (!newTitle.trim()) return;
-
-    setTasks((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        title: newTitle,
-        dueDate: newDate || null,
-        status: TASK_STATUS.OPEN,
-        isEditing: false,
-      },
-    ]);
-
-    setNewTitle("");
-    setNewDate("");
-  }
 
   function updateTask(id, field, value) {
     setTasks((prev) =>
@@ -87,176 +64,160 @@ export default function OverviewTab() {
     );
   }
 
-  function toggleEdit(id) {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, isEditing: !t.isEditing } : t
-      )
-    );
-  }
-
-  function removeTask(id) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  }
-
   /* =====================
-     RENDER
+     UI
   ===================== */
   return (
-    <div className="space-y-6">
-      {/* ===== HEADER ===== */}
-      <div className="bg-gray-900 text-white rounded-xl p-6 flex justify-between">
+    <div
+      className="max-w-6xl mx-auto px-4 py-8 space-y-8"
+      dir="rtl"
+    >
+      {/* HEADER */}
+      <div className="bg-gradient-to-l from-gray-900 to-gray-800 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold">הפקת אירוע · 14.09</h2>
+          <h1 className="text-2xl font-bold">
+            הפקת אירוע · 14.09
+          </h1>
           <p className="text-sm text-gray-300">
-            42 ימים לאירוע · מערכת ניהול
+            42 ימים לאירוע
           </p>
         </div>
-        <div className="text-sm text-gray-300">
-          {tasks.filter((t) => t.status !== TASK_STATUS.DONE).length} משימות פעילות
+        <div className="text-sm text-gray-300 self-end">
+          {
+            tasks.filter(
+              (t) => t.status !== TASK_STATUS.DONE
+            ).length
+          }{" "}
+          משימות פעילות
         </div>
       </div>
 
-      {/* ===== GRID ===== */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* ================= TASKS ================= */}
-        <div className="xl:col-span-2 bg-white border rounded-xl p-6 space-y-4">
-          <h3 className="text-lg font-semibold">ניהול משימות</h3>
+      {/* BUDGET CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <BudgetCard
+          title="תקציב כולל"
+          value={budget.total}
+        />
+        <BudgetCard
+          title="יצא עד כה"
+          value={budget.spent}
+        />
+        <BudgetCard
+          title="יתרה"
+          value={remaining}
+          highlight
+        />
+      </div>
 
-          {/* Add Task */}
-          <div className="flex flex-col md:flex-row gap-2">
-            <input
-              placeholder="מה צריך לטפל?"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              className="border px-3 py-2 rounded flex-1"
-            />
-            <input
-              type="date"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              className="border px-3 py-2 rounded"
-            />
-            <button
-              onClick={addTask}
-              className="bg-gray-900 text-white px-4 py-2 rounded"
+      {/* BUDGET PROGRESS */}
+      <div className="bg-white rounded-xl p-5 border space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">
+            ניצול תקציב
+          </span>
+          <span className="font-medium">
+            {progress}%
+          </span>
+        </div>
+        <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gray-900 transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* TASKS */}
+      <div className="bg-white rounded-2xl border p-6 space-y-4">
+        <h2 className="text-lg font-semibold">
+          משימות
+        </h2>
+
+        <div className="divide-y">
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-4"
             >
-              הוסף
-            </button>
-          </div>
-
-          {/* Task Table */}
-          <div className="border rounded-lg divide-y">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-              >
-                {/* LEFT */}
-                <div className="flex items-center gap-4 flex-1">
-                  {/* Status */}
-                  <select
-                    value={task.status}
-                    onChange={(e) =>
-                      updateTask(task.id, "status", e.target.value)
-                    }
-                    className={`text-xs px-2 py-1 rounded ${STATUS_STYLE[task.status]}`}
-                  >
-                    {Object.values(TASK_STATUS).map((s) => (
-                      <option key={s} value={s}>
+              {/* LEFT */}
+              <div className="flex items-center gap-4">
+                <select
+                  value={task.status}
+                  onChange={(e) =>
+                    updateTask(
+                      task.id,
+                      "status",
+                      e.target.value
+                    )
+                  }
+                  className={`text-xs px-2 py-1 rounded ${STATUS_STYLE[task.status]}`}
+                >
+                  {Object.values(TASK_STATUS).map(
+                    (s) => (
+                      <option
+                        key={s}
+                        value={s}
+                      >
                         {STATUS_LABEL[s]}
                       </option>
-                    ))}
-                  </select>
-
-                  {/* Title */}
-                  {task.isEditing ? (
-                    <input
-                      value={task.title}
-                      onChange={(e) =>
-                        updateTask(task.id, "title", e.target.value)
-                      }
-                      className="border px-2 py-1 rounded flex-1"
-                    />
-                  ) : (
-                    <span
-                      className={`font-medium ${
-                        task.status === TASK_STATUS.DONE
-                          ? "line-through text-gray-400"
-                          : ""
-                      }`}
-                    >
-                      {task.title}
-                    </span>
+                    )
                   )}
-                </div>
+                </select>
 
-                {/* RIGHT */}
-                <div className="flex items-center gap-3 text-sm">
-                  <input
-                    type="date"
-                    value={task.dueDate || ""}
-                    onChange={(e) =>
-                      updateTask(task.id, "dueDate", e.target.value)
-                    }
-                    className="border px-2 py-1 rounded"
-                  />
-
-                  <button
-                    onClick={() => toggleEdit(task.id)}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {task.isEditing ? "שמור" : "ערוך"}
-                  </button>
-
-                  <button
-                    onClick={() => removeTask(task.id)}
-                    className="text-red-600 hover:underline"
-                  >
-                    מחק
-                  </button>
-                </div>
+                <span
+                  className={`font-medium ${
+                    task.status === TASK_STATUS.DONE
+                      ? "line-through text-gray-400"
+                      : ""
+                  }`}
+                >
+                  {task.title}
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* ================= RIGHT ================= */}
-        <div className="space-y-6">
-          {/* Meetings */}
-          <div className="bg-white border rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">פגישות קרובות</h3>
-            <ul className="space-y-3">
-              {meetings.map((m) => (
-                <li key={m.id} className="flex justify-between">
-                  <div>
-                    <p className="font-medium">{m.title}</p>
-                    <p className="text-sm text-gray-500">
-                      {m.date} · {m.time}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Budget */}
-          <div className="bg-gray-50 border rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-2">תקציב</h3>
-            <div className="text-3xl font-bold mb-1">
-              ₪{remaining.toLocaleString()}
-            </div>
-            <p className="text-sm text-gray-500 mb-4">נותר לתכנון</p>
-
-            <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-              <div
-                className="bg-gray-900 h-3"
-                style={{ width: `${progress}%` }}
+              {/* RIGHT */}
+              <input
+                type="date"
+                value={task.dueDate || ""}
+                onChange={(e) =>
+                  updateTask(
+                    task.id,
+                    "dueDate",
+                    e.target.value
+                  )
+                }
+                className="text-sm border rounded px-3 py-1"
               />
             </div>
-          </div>
+          ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* =====================
+   COMPONENTS
+===================== */
+function BudgetCard({
+  title,
+  value,
+  highlight = false,
+}) {
+  return (
+    <div
+      className={`rounded-2xl p-5 border transition ${
+        highlight
+          ? "bg-gray-900 text-white"
+          : "bg-white"
+      }`}
+    >
+      <p className="text-sm opacity-70 mb-1">
+        {title}
+      </p>
+      <p className="text-2xl font-bold">
+        ₪{value.toLocaleString()}
+      </p>
     </div>
   );
 }
