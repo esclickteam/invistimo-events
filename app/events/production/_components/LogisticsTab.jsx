@@ -26,7 +26,7 @@ const STATUS_META = {
   },
 };
 
-function SortableCard({ item, updateItem }) {
+function SortableCard({ item, updateItem, deleteItem }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id });
 
@@ -40,48 +40,54 @@ function SortableCard({ item, updateItem }) {
       <div
         {...attributes}
         {...listeners}
-        className="flex items-center gap-4 border rounded-xl px-4 py-3 bg-white cursor-grab active:cursor-grabbing"
+        className="bg-white border rounded-xl px-4 py-3 shadow-sm cursor-grab active:cursor-grabbing"
       >
-        {/* Time */}
-        <input
-          type="time"
-          value={item.time}
-          onChange={(e) =>
-            updateItem(item.id, "time", e.target.value)
-          }
-          className="border rounded-lg px-2 py-1 text-sm"
-        />
+        <div className="flex items-center gap-3">
+          {/* Time */}
+          <input
+            type="time"
+            value={item.time}
+            onChange={(e) =>
+              updateItem(item.id, "time", e.target.value)
+            }
+            className="border rounded-lg px-2 py-1 text-sm"
+          />
 
-        {/* Title */}
-        <input
-          value={item.title}
-          onChange={(e) =>
-            updateItem(item.id, "title", e.target.value)
-          }
-          className="flex-1 border rounded-lg px-3 py-1 text-sm"
-        />
+          {/* Title */}
+          <input
+            value={item.title}
+            onChange={(e) =>
+              updateItem(item.id, "title", e.target.value)
+            }
+            placeholder="שם השלב (קבלת קהל, טקס, נאומים, הפסקה...)"
+            className="flex-1 border rounded-lg px-3 py-1 text-sm"
+          />
 
-        {/* Source */}
-        <span className="text-xs text-gray-500">
-          {item.source === "supplier"
-            ? "ספק"
-            : item.source === "template"
-            ? "תבנית"
-            : "ידני"}
-        </span>
+          {/* Source */}
+          <span className="text-xs text-gray-400 whitespace-nowrap">
+            {item.source === "supplier"
+              ? "ספק"
+              : item.source === "template"
+              ? "תבנית"
+              : "ידני"}
+          </span>
 
-        {/* Status */}
-        <select
-          value={item.status}
-          onChange={(e) =>
-            updateItem(item.id, "status", e.target.value)
-          }
-          className={`text-xs font-medium px-3 py-1 rounded-full ${STATUS_META[item.status].class}`}
-        >
-          <option value="pending">מתוכנן</option>
-          <option value="missing">לא מאושר</option>
-          <option value="done">בוצע</option>
-        </select>
+          {/* Status */}
+          <span
+            className={`text-xs px-3 py-1 rounded-full ${STATUS_META[item.status].class}`}
+          >
+            {STATUS_META[item.status].label}
+          </span>
+
+          {/* Delete */}
+          <button
+            onClick={() => deleteItem(item.id)}
+            className="text-red-500 hover:text-red-700 text-sm px-2"
+            title="מחק שלב"
+          >
+            ✕
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -89,13 +95,33 @@ function SortableCard({ item, updateItem }) {
 
 export default function LogisticsTab() {
   const [timeline, setTimeline] = useState([
-    { id: "1", time: "14:00", title: "הגעת אולם", status: "pending", source: "supplier" },
-    { id: "2", time: "15:30", title: "הגעת DJ", status: "missing", source: "supplier" },
-    { id: "3", time: "18:00", title: "קבלת פנים", status: "pending", source: "template" },
-    { id: "4", time: "19:30", title: "חופה", status: "pending", source: "template" },
+    {
+      id: "1",
+      time: "14:00",
+      title: "הגעת ספק מרכזי",
+      status: "pending",
+      source: "supplier",
+    },
+    {
+      id: "2",
+      time: "16:00",
+      title: "קליטת משתתפים / קבלת קהל",
+      status: "pending",
+      source: "template",
+    },
+    {
+      id: "3",
+      time: "18:00",
+      title: "שלב מרכזי באירוע",
+      status: "pending",
+      source: "template",
+    },
   ]);
 
-  const [newItem, setNewItem] = useState({ time: "", title: "" });
+  const [newItem, setNewItem] = useState({
+    time: "",
+    title: "",
+  });
 
   const updateItem = (id, field, value) => {
     setTimeline((prev) =>
@@ -103,6 +129,10 @@ export default function LogisticsTab() {
         item.id === id ? { ...item, [field]: value } : item
       )
     );
+  };
+
+  const deleteItem = (id) => {
+    setTimeline((prev) => prev.filter((item) => item.id !== id));
   };
 
   const addTimelineItem = () => {
@@ -118,6 +148,7 @@ export default function LogisticsTab() {
         source: "manual",
       },
     ]);
+
     setNewItem({ time: "", title: "" });
   };
 
@@ -133,18 +164,18 @@ export default function LogisticsTab() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10">
+    <div className="max-w-4xl mx-auto space-y-10">
       {/* Header */}
       <div className="text-center">
-        <h3 className="text-lg font-semibold">
+        <h3 className="text-xl font-semibold">
           🚚 לוגיסטיקה – לו״ז יום האירוע
         </h3>
         <p className="text-sm text-gray-500">
-          גרירה משנה סדר · הציר מתעדכן אוטומטית
+          שלבים גנריים · עריכה חופשית · גרירה משנה סדר
         </p>
       </div>
 
-      {/* Timeline with axis */}
+      {/* Timeline */}
       <div className="relative">
         {/* Axis */}
         <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-200" />
@@ -154,25 +185,28 @@ export default function LogisticsTab() {
             items={timeline.map((i) => i.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-6">
-              {timeline.map((item, index) => (
-                <div key={item.id} className="relative flex items-start gap-6">
-                  {/* Axis dot + time */}
-                  <div className="w-1/4 flex justify-end pr-6">
-                    <div className="text-sm text-gray-500 font-mono">
-                      {item.time}
-                    </div>
+            <div className="space-y-8">
+              {timeline.map((item) => (
+                <div
+                  key={item.id}
+                  className="grid grid-cols-[80px_24px_1fr] items-start gap-4"
+                >
+                  {/* Time column */}
+                  <div className="text-sm text-gray-500 font-mono text-right pt-3">
+                    {item.time}
                   </div>
 
-                  <div className="relative z-10 w-3 h-3 mt-3 rounded-full bg-purple-600" />
+                  {/* Axis dot */}
+                  <div className="flex justify-center">
+                    <div className="w-3 h-3 mt-4 rounded-full bg-purple-600 z-10" />
+                  </div>
 
                   {/* Card */}
-                  <div className="w-3/4">
-                    <SortableCard
-                      item={item}
-                      updateItem={updateItem}
-                    />
-                  </div>
+                  <SortableCard
+                    item={item}
+                    updateItem={updateItem}
+                    deleteItem={deleteItem}
+                  />
                 </div>
               ))}
             </div>
@@ -180,7 +214,7 @@ export default function LogisticsTab() {
         </DndContext>
       </div>
 
-      {/* Add item */}
+      {/* Add new item */}
       <div className="flex items-center gap-3">
         <input
           type="time"
@@ -191,7 +225,7 @@ export default function LogisticsTab() {
           className="border rounded-lg px-2 py-1 text-sm"
         />
         <input
-          placeholder="הוסף שלב ללוז (החלפת שמלה, נאום...)"
+          placeholder="הוסף שלב חדש ללוז (טקס, תוכן, הפסקה, נאום...)"
           value={newItem.title}
           onChange={(e) =>
             setNewItem((p) => ({ ...p, title: e.target.value }))
@@ -207,14 +241,14 @@ export default function LogisticsTab() {
       </div>
 
       {/* Notes */}
-      <div className="bg-white rounded-2xl border p-6 space-y-3">
+      <div className="bg-white border rounded-2xl p-6 space-y-3">
         <h4 className="font-medium text-sm text-gray-700">
           📝 הערות לוגיסטיות
         </h4>
         <textarea
           rows={4}
           className="w-full border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
-          placeholder="כניסת ספקים משער אחורי, חניה מוגבלת, סדר חופה מיוחד…"
+          placeholder="כניסות מיוחדות, רצף לא שגרתי, דרישות טכניות, הערות למפיק…"
         />
       </div>
     </div>
