@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import type { ReadonlyRequestCookies } from
-  "next/dist/server/web/spec-extension/adapters/request-cookies";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-
-/* =========================
-   Cookie helper
-========================= */
-async function getCookieStore(): Promise<ReadonlyRequestCookies> {
-  const store = cookies();
-  return store instanceof Promise ? await store : store;
-}
 
 /* =========================
    POST /api/producer/impersonate
@@ -58,30 +48,26 @@ export async function POST(req: NextRequest) {
   }
 
   /* =========================
-     👤 Client lookup
+     👤 Client lookup + ownership
   ========================= */
-  const client = await User.findById(clientId);
+  const client = await User.findOne({
+    _id: clientId,
+    producerId: producer._id,
+  });
 
-  if (!client || !client.producerId) {
+  if (!client) {
     return NextResponse.json(
-      { success: false, message: "Client not found / not linked" },
-      { status: 404 }
-    );
-  }
-
-  if (client.producerId.toString() !== producer._id.toString()) {
-    return NextResponse.json(
-      { success: false, message: "Not your client" },
+      { success: false, message: "Client not found or not yours" },
       { status: 403 }
     );
   }
 
   /* =========================
-     🎭 JWT – לקוח (התחזות)
+     🎭 JWT – התחזות ללקוח
   ========================= */
   const impersonationToken = jwt.sign(
     {
-      userId: client._id.toString(),
+      userId: client._id.toString(), // 🔑 זה ה-userId הפעיל
       role: "client",
 
       impersonated: true,
@@ -93,19 +79,19 @@ export async function POST(req: NextRequest) {
   );
 
   /* =========================
-     🍪 Cookies
-     ❗ לא נוגעים ב-authToken
+     🍪 Overwrite authToken
+     ✅ await חובה כאן
   ========================= */
-  const cookieStore = await getCookieStore();
+  const cookieStore = await cookies();
 
-  cookieStore.set("impersonationToken", impersonationToken, {
+  cookieStore.set("authToken", impersonationToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
   });
 
-  console.log("🍪 impersonationToken set (authToken preserved)");
+  console.log("🍪 authToken overwritten with impersonation token");
 
   return NextResponse.json({ success: true });
 }
