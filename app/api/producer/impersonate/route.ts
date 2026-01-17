@@ -48,11 +48,11 @@ export async function POST(req: NextRequest) {
   }
 
   /* =========================
-     👤 Client lookup + ownership
+     👤 Client ownership
   ========================= */
   const client = await User.findOne({
     _id: clientId,
-    producerId: producer._id, // 🔑 חייב להיות שייך למפיק
+    producerId: producer._id,
   }).select("_id");
 
   if (!client) {
@@ -63,14 +63,34 @@ export async function POST(req: NextRequest) {
   }
 
   /* =========================
-     🎭 JWT – התחזות ללקוח
-     userId = הלקוח הפעיל
+     🍪 Cookies (MUST await)
+  ========================= */
+  const cookieStore = await cookies();
+
+  const producerAuthToken = cookieStore.get("authToken")?.value;
+
+  if (!producerAuthToken) {
+    return NextResponse.json(
+      { success: false, message: "Missing producer session" },
+      { status: 401 }
+    );
+  }
+
+  // 🧠 שומרים את טוקן המפיק
+  cookieStore.set("producerAuthToken", producerAuthToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+
+  /* =========================
+     🎭 Client token
   ========================= */
   const impersonationToken = jwt.sign(
     {
       userId: client._id.toString(),
       role: "client",
-
       impersonated: true,
       impersonatedBy: producer._id.toString(),
       impersonationRole: "producer",
@@ -79,12 +99,7 @@ export async function POST(req: NextRequest) {
     { expiresIn: "1h" }
   );
 
-  /* =========================
-     🍪 Overwrite authToken
-     🔑 זה מה שמפעיל באמת את האימפרסונציה
-  ========================= */
-  const cookieStore = await cookies();
-
+  // 🔁 overwrite authToken
   cookieStore.set("authToken", impersonationToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -92,7 +107,7 @@ export async function POST(req: NextRequest) {
     path: "/",
   });
 
-  console.log("🍪 authToken overwritten with impersonation token");
+  console.log("🍪 authToken overwritten, producerAuthToken saved");
 
   return NextResponse.json({ success: true });
 }
