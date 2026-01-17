@@ -31,7 +31,7 @@ const INITIAL_CATEGORIES = [
 ];
 
 export default function SuppliersTab() {
-  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+  const [categories] = useState(INITIAL_CATEGORIES);
 
   // ספקים לפי תת־תחום
   const [suppliers, setSuppliers] = useState({});
@@ -45,9 +45,10 @@ export default function SuppliersTab() {
   ====================== */
 
   function toggleSubCategory(categoryId, sub) {
+    const key = `${categoryId}-${sub}`;
     setEnabledSubCategories((prev) => ({
       ...prev,
-      [`${categoryId}-${sub}`]: !prev[`${categoryId}-${sub}`],
+      [key]: !prev[key],
     }));
   }
 
@@ -83,7 +84,7 @@ export default function SuppliersTab() {
             {cat.subCategories.map((sub) => {
               const key = `${cat.id}-${sub}`;
               return (
-                <label key={sub} className="flex items-center gap-2 text-sm">
+                <label key={key} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={!!enabledSubCategories[key]}
@@ -100,9 +101,11 @@ export default function SuppliersTab() {
             const subKey = `${cat.id}-${sub}`;
             if (!enabledSubCategories[subKey]) return null;
 
+            const selected = selectedSuppliers[subKey];
+
             return (
               <div
-                key={sub}
+                key={subKey}
                 className="border rounded-xl p-4 bg-gray-50 space-y-3"
               >
                 <h4 className="font-medium">{sub}</h4>
@@ -111,43 +114,66 @@ export default function SuppliersTab() {
                 <table className="w-full text-sm border">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="p-2">בחירה</th>
-                      <th className="p-2">שם</th>
-                      <th className="p-2">מחיר</th>
-                      <th className="p-2">טלפון</th>
-                      <th className="p-2">קישור</th>
+                      <th className="p-2 text-right">ספק</th>
+                      <th className="p-2 text-right">מחיר</th>
+                      <th className="p-2 text-right">טלפון</th>
+                      <th className="p-2 text-right">קישור</th>
+                      <th className="p-2 text-right">פעולה</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(suppliers[subKey] || []).map((s, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="text-center">
-                          <input
-                            type="radio"
-                            checked={selectedSuppliers[subKey]?.name === s.name}
-                            onChange={() => selectSupplier(subKey, s)}
-                          />
-                        </td>
-                        <td>{s.name}</td>
-                        <td>₪{s.price}</td>
-                        <td>{s.phone}</td>
-                        <td>
-                          <a
-                            href={s.link}
-                            target="_blank"
-                            className="text-blue-600 underline"
-                          >
-                            קישור
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
+                    {(suppliers[subKey] || []).map((s, i) => {
+                      const isSelected =
+                        selected?.name === s.name;
+
+                      return (
+                        <tr
+                          key={i}
+                          className={`border-t ${
+                            isSelected ? "bg-green-50" : ""
+                          }`}
+                        >
+                          <td className="p-2 font-medium">
+                            {s.name}
+                          </td>
+                          <td className="p-2">₪{s.price}</td>
+                          <td className="p-2">{s.phone}</td>
+                          <td className="p-2">
+                            <a
+                              href={s.link}
+                              target="_blank"
+                              className="text-blue-600 underline"
+                            >
+                              קישור
+                            </a>
+                          </td>
+                          <td className="p-2">
+                            {isSelected ? (
+                              <span className="text-green-600 font-semibold">
+                                נבחר ✓
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  selectSupplier(subKey, s)
+                                }
+                                className="px-3 py-1 text-sm rounded bg-black text-white"
+                              >
+                                בחר ספק
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
 
                 {/* Add supplier */}
                 <AddSupplierForm
-                  onAdd={(supplier) => addSupplier(subKey, supplier)}
+                  onAdd={(supplier) =>
+                    addSupplier(subKey, supplier)
+                  }
                 />
               </div>
             );
@@ -171,21 +197,23 @@ export default function SuppliersTab() {
           <table className="w-full text-sm border">
             <thead className="bg-gray-100">
               <tr>
-                <th className="p-2">תחום</th>
+                <th className="p-2">תחום / תת־תחום</th>
                 <th className="p-2">ספק</th>
                 <th className="p-2">מחיר</th>
                 <th className="p-2">טלפון</th>
               </tr>
             </thead>
             <tbody>
-              {Object.entries(selectedSuppliers).map(([key, s]) => (
-                <tr key={key} className="border-t">
-                  <td>{key}</td>
-                  <td>{s.name}</td>
-                  <td>₪{s.price}</td>
-                  <td>{s.phone}</td>
-                </tr>
-              ))}
+              {Object.entries(selectedSuppliers).map(
+                ([key, s]) => (
+                  <tr key={key} className="border-t">
+                    <td className="p-2">{key}</td>
+                    <td className="p-2">{s.name}</td>
+                    <td className="p-2">₪{s.price}</td>
+                    <td className="p-2">{s.phone}</td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         )}
@@ -218,25 +246,33 @@ function AddSupplierForm({ onAdd }) {
         placeholder="שם ספק"
         className="border rounded px-2 py-1"
         value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        onChange={(e) =>
+          setForm({ ...form, name: e.target.value })
+        }
       />
       <input
         placeholder="מחיר"
         className="border rounded px-2 py-1"
         value={form.price}
-        onChange={(e) => setForm({ ...form, price: e.target.value })}
+        onChange={(e) =>
+          setForm({ ...form, price: e.target.value })
+        }
       />
       <input
         placeholder="טלפון"
         className="border rounded px-2 py-1"
         value={form.phone}
-        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+        onChange={(e) =>
+          setForm({ ...form, phone: e.target.value })
+        }
       />
       <input
         placeholder="קישור"
         className="border rounded px-2 py-1"
         value={form.link}
-        onChange={(e) => setForm({ ...form, link: e.target.value })}
+        onChange={(e) =>
+          setForm({ ...form, link: e.target.value })
+        }
       />
 
       <button
