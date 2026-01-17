@@ -6,6 +6,7 @@ import PlanningTab from "./_components/PlanningTab";
 import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
 import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
+import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 
 export default function EventProductionPage() {
   return (
@@ -18,6 +19,7 @@ export default function EventProductionPage() {
         suppliers={<SuppliersBudgetTab />}
         calendar={<CalendarTab />}
         logistics={<LogisticsTab />}
+        alcohol={<AlcoholManagementTab />}
       />
     </div>
   );
