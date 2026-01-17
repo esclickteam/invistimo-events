@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const TABS = [
   { key: "overview", label: "תמונת מצב" },
   { key: "planning", label: "תכנון וקונספט" },
   { key: "suppliers", label: "ספקים ותקציב" },
-  { key: "calendar", label: "לוח שנה ופגישות" }, // ✅ חדש
+  { key: "calendar", label: "לוח שנה ופגישות" },
   { key: "logistics", label: "לוגיסטיקה" },
 ];
 
@@ -14,10 +14,18 @@ export default function ProductionTabs({
   overview,
   planning,
   suppliers,
-  calendar,   // ✅ חדש
+  calendar,
   logistics,
 }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 🔑 הטאב נקבע מה־URL
+  const activeTab = searchParams.get("tab") || "overview";
+
+  function changeTab(tabKey) {
+    router.push(`/events/production?tab=${tabKey}`);
+  }
 
   return (
     <div className="space-y-6">
@@ -26,7 +34,7 @@ export default function ProductionTabs({
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => changeTab(tab.key)}
             className={`pb-3 text-sm font-semibold transition ${
               activeTab === tab.key
                 ? "border-b-2 border-black text-black"
@@ -43,7 +51,7 @@ export default function ProductionTabs({
         {activeTab === "overview" && overview}
         {activeTab === "planning" && planning}
         {activeTab === "suppliers" && suppliers}
-        {activeTab === "calendar" && calendar} {/* ✅ חדש */}
+        {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
       </div>
     </div>

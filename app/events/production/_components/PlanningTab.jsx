@@ -7,7 +7,7 @@ import { useState } from "react";
 Conversation:
 - נוצר תמיד דרך לוח שנה
 - כאן מוצג כהיסטוריה / כניסה לתיעוד
-- תיעוד + משימות = במסך פגישה ייעודי
+- תיעוד + החלטות + משימות = במסך פגישה ייעודי
 */
 
 export default function PlanningTab() {
@@ -30,7 +30,7 @@ export default function PlanningTab() {
       id: "c1",
       date: "12.08.2024",
       interactionType: "פגישה",
-      entityType: "couple", // couple | supplier | venue | other
+      entityType: "couple",
       entityName: "הזוג",
       summary: "רוצים אירוע קליל, חוששים מתקציב",
       tasksCreated: 2,
@@ -50,7 +50,7 @@ export default function PlanningTab() {
       interactionType: "פגישה",
       entityType: "venue",
       entityName: "אולם – גן האירועים",
-      summary: "בדיקת תאריך ותפריט",
+      summary: "בדיקת תאריך, תפריט ותנאים",
       tasksCreated: 3,
     },
   ];
@@ -86,17 +86,17 @@ export default function PlanningTab() {
      RENDER
   ====================== */
   return (
-    <div className="space-y-6 max-w-4xl" dir="rtl">
+    <div className="space-y-8 max-w-4xl" dir="rtl">
       {/* =====================
           EVENT DEFINITION
       ===================== */}
-      <section className="border rounded-2xl p-5 space-y-4 bg-white">
+      <section className="bg-white border rounded-2xl p-6 space-y-4">
         <h3 className="font-semibold text-lg">🎯 הגדרת האירוע</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             className="border rounded-lg p-3"
-            placeholder="מטרת האירוע"
+            placeholder="מטרת האירוע (למשל: חתונה אינטימית)"
             value={eventDefinition.goal}
             onChange={(e) =>
               setEventDefinition({ ...eventDefinition, goal: e.target.value })
@@ -105,7 +105,7 @@ export default function PlanningTab() {
 
           <input
             className="border rounded-lg p-3"
-            placeholder="אופי / וייב"
+            placeholder="אופי / וייב (קליל, יוקרתי, צעיר...)"
             value={eventDefinition.vibe}
             onChange={(e) =>
               setEventDefinition({ ...eventDefinition, vibe: e.target.value })
@@ -124,7 +124,7 @@ export default function PlanningTab() {
           <textarea
             className="border rounded-lg p-3 md:col-span-2"
             rows={3}
-            placeholder="רגישויות / דגשים חשובים"
+            placeholder="רגישויות / דגשים חשובים (משפחה, תקציב, לו״ז, מוזיקה...)"
             value={eventDefinition.notes}
             onChange={(e) =>
               setEventDefinition({ ...eventDefinition, notes: e.target.value })
@@ -136,13 +136,13 @@ export default function PlanningTab() {
       {/* =====================
           CONCEPT
       ===================== */}
-      <section className="border rounded-2xl p-5 space-y-4 bg-white">
+      <section className="bg-white border rounded-2xl p-6 space-y-4">
         <h3 className="font-semibold text-lg">🎨 קונספט ועיצוב</h3>
 
         <textarea
           className="border rounded-lg p-3 w-full"
           rows={4}
-          placeholder="תיאור הקונספט, השראה, צבעים ותחושה כללית"
+          placeholder="קונספט עיצובי, השראה, צבעים, סגנון ותאורה"
           value={concept}
           onChange={(e) => setConcept(e.target.value)}
         />
@@ -151,11 +151,16 @@ export default function PlanningTab() {
       {/* =====================
           CONVERSATIONS
       ===================== */}
-      <section className="border rounded-2xl p-5 space-y-4 bg-white">
+      <section className="bg-white border rounded-2xl p-6 space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="font-semibold text-lg">
-            🗣️ שיחות ופגישות (זוג · ספקים · אולם)
-          </h3>
+          <div>
+            <h3 className="font-semibold text-lg">
+              🗣️ שיחות ופגישות
+            </h3>
+            <p className="text-sm text-gray-500">
+              כל פגישה נקבעת ביומן ומתועדת לאחר קיומה
+            </p>
+          </div>
 
           <button
             onClick={goToCalendar}
@@ -166,16 +171,18 @@ export default function PlanningTab() {
         </div>
 
         {conversations.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            עדיין לא תועדו שיחות. התיעוד מתבצע לאחר קיום הפגישה.
-          </p>
+          <div className="text-sm text-gray-500 border rounded-lg p-4">
+            עדיין לא תועדו שיחות או פגישות.
+            <br />
+            תיאום פגישה מתבצע דרך לוח השנה.
+          </div>
         ) : (
           <ul className="space-y-3">
             {conversations.map((c) => (
               <li
                 key={c.id}
                 onClick={() => openConversation(c.id)}
-                className="border rounded-xl p-4 flex justify-between items-start hover:bg-gray-50 cursor-pointer"
+                className="border rounded-xl p-4 flex justify-between items-start hover:bg-gray-50 cursor-pointer transition"
               >
                 <div className="space-y-1">
                   <p className="font-medium">
@@ -186,14 +193,16 @@ export default function PlanningTab() {
                     {c.date} · {entityBadge(c.entityType)}
                   </p>
 
-                  <p className="text-sm mt-1">{c.summary}</p>
+                  <p className="text-sm mt-1 text-gray-700">
+                    {c.summary}
+                  </p>
                 </div>
 
                 <div className="text-sm text-right">
                   <span className="block text-gray-500">
-                    🛠️ משימות שנוצרו
+                    משימות שנוצרו
                   </span>
-                  <span className="font-semibold">
+                  <span className="font-semibold text-black">
                     {c.tasksCreated}
                   </span>
                 </div>
@@ -207,8 +216,9 @@ export default function PlanningTab() {
           UX NOTE
       ===================== */}
       <p className="text-xs text-gray-400">
-        תיעוד מלא, החלטות ויצירת משימות מתבצעים במסך הפגישה עצמו.
-        משימות מנוהלות בטאב "תמונת מצב".
+        🧠 תיעוד מלא, החלטות ויצירת משימות מתבצעים במסך הפגישה.
+        <br />
+        משימות מנוהלות ומעודכנות בטאב "תמונת מצב".
       </p>
     </div>
   );
