@@ -18,28 +18,24 @@ const STATUS_LABEL = {
 };
 
 const STATUS_STYLE = {
-  open: "bg-red-50 text-red-700",
-  waiting: "bg-yellow-50 text-yellow-700",
+  open: "bg-red-50 text-red-600",
+  waiting: "bg-amber-50 text-amber-700",
   done: "bg-green-50 text-green-700",
 };
 
 export default function OverviewTab() {
   /* =====================
-     DATA (mock – ready for API)
+     DATA
   ===================== */
-  const [budget, setBudget] = useState({
+  const [budget] = useState({
     total: 120000,
     spent: 86500,
   });
 
-  const remaining = Math.max(budget.total - budget.spent, 0);
-  const progress =
-    budget.total > 0
-      ? Math.min(
-          Math.round((budget.spent / budget.total) * 100),
-          100
-        )
-      : 0;
+  const remaining = budget.total - budget.spent;
+  const progress = Math.round(
+    (budget.spent / budget.total) * 100
+  );
 
   const [tasks, setTasks] = useState([
     {
@@ -64,30 +60,26 @@ export default function OverviewTab() {
     );
   }
 
-  /* =====================
-     UI
-  ===================== */
   return (
     <div
-      className="max-w-6xl mx-auto px-4 py-8 space-y-8"
+      className="max-w-6xl mx-auto px-4 py-10 space-y-8"
       dir="rtl"
+      style={{ background: "#F7F4EF" }}
     >
       {/* HEADER */}
-      <div className="bg-gradient-to-l from-gray-900 to-gray-800 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between gap-4">
+      <div className="bg-white rounded-2xl px-6 py-5 border border-[#E7E3DC] flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-semibold text-[#2B2B2B]">
             הפקת אירוע · 14.09
           </h1>
-          <p className="text-sm text-gray-300">
+          <p className="text-sm text-gray-500">
             42 ימים לאירוע
           </p>
         </div>
-        <div className="text-sm text-gray-300 self-end">
-          {
-            tasks.filter(
-              (t) => t.status !== TASK_STATUS.DONE
-            ).length
-          }{" "}
+        <div className="text-sm text-gray-500">
+          {tasks.filter(
+            (t) => t.status !== TASK_STATUS.DONE
+          ).length}{" "}
           משימות פעילות
         </div>
       </div>
@@ -109,27 +101,27 @@ export default function OverviewTab() {
         />
       </div>
 
-      {/* BUDGET PROGRESS */}
-      <div className="bg-white rounded-xl p-5 border space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">
-            ניצול תקציב
-          </span>
-          <span className="font-medium">
-            {progress}%
-          </span>
+      {/* PROGRESS */}
+      <div className="bg-white rounded-xl p-4 border border-[#E7E3DC]">
+        <div className="flex justify-between text-sm mb-2 text-gray-600">
+          <span>ניצול תקציב</span>
+          <span>{progress}%</span>
         </div>
-        <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gray-900 transition-all duration-500"
-            style={{ width: `${progress}%` }}
+            className="h-full rounded-full"
+            style={{
+              width: `${progress}%`,
+              background:
+                "linear-gradient(90deg, #6D6AF4, #8B87FF)",
+            }}
           />
         </div>
       </div>
 
       {/* TASKS */}
-      <div className="bg-white rounded-2xl border p-6 space-y-4">
-        <h2 className="text-lg font-semibold">
+      <div className="bg-white rounded-2xl border border-[#E7E3DC] p-6">
+        <h2 className="text-lg font-semibold mb-4">
           משימות
         </h2>
 
@@ -137,9 +129,8 @@ export default function OverviewTab() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-4"
+              className="py-4 flex flex-col md:flex-row justify-between gap-4"
             >
-              {/* LEFT */}
               <div className="flex items-center gap-4">
                 <select
                   value={task.status}
@@ -168,17 +159,16 @@ export default function OverviewTab() {
                   className={`font-medium ${
                     task.status === TASK_STATUS.DONE
                       ? "line-through text-gray-400"
-                      : ""
+                      : "text-[#2B2B2B]"
                   }`}
                 >
                   {task.title}
                 </span>
               </div>
 
-              {/* RIGHT */}
               <input
                 type="date"
-                value={task.dueDate || ""}
+                value={task.dueDate}
                 onChange={(e) =>
                   updateTask(
                     task.id,
@@ -186,7 +176,7 @@ export default function OverviewTab() {
                     e.target.value
                   )
                 }
-                className="text-sm border rounded px-3 py-1"
+                className="text-sm border rounded-lg px-3 py-1.5"
               />
             </div>
           ))}
@@ -206,16 +196,19 @@ function BudgetCard({
 }) {
   return (
     <div
-      className={`rounded-2xl p-5 border transition ${
-        highlight
-          ? "bg-gray-900 text-white"
-          : "bg-white"
-      }`}
+      className="rounded-2xl p-5 border border-[#E7E3DC]"
+      style={{
+        background: highlight
+          ? "linear-gradient(180deg, #F4F3FF, #FFFFFF)"
+          : "#FFFFFF",
+        boxShadow:
+          "0 6px 18px rgba(0,0,0,0.04)",
+      }}
     >
-      <p className="text-sm opacity-70 mb-1">
+      <p className="text-sm text-gray-500 mb-1">
         {title}
       </p>
-      <p className="text-2xl font-bold">
+      <p className="text-2xl font-semibold text-[#2B2B2B]">
         ₪{value.toLocaleString()}
       </p>
     </div>
