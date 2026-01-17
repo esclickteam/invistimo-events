@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
-/* =====================================================
-   קטלוג קבוע – כל תחומי האירוע
-===================================================== */
+/* ======================
+   INITIAL CATALOG
+====================== */
 
-const CATEGORIES = [
+const INITIAL_CATEGORIES = [
   {
     id: "photo",
     name: "צילום",
@@ -39,81 +39,81 @@ const CATEGORIES = [
   },
 ];
 
-/* =====================================================
-   COMPONENT
-===================================================== */
+/* ======================
+   MAIN
+====================== */
 
 export default function SuppliersTab() {
-  /* -------------------------------------------------
-     יצירת כל שורות הטבלה מראש (UX נכון)
-  -------------------------------------------------- */
-  const initialRows = useMemo(() => {
-    return CATEGORIES.flatMap((cat) =>
-      cat.subs.map((sub) => ({
-        id: `${cat.id}-${sub}`,
-        categoryId: cat.id,
-        category: cat.name,
+  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+  const [rows, setRows] = useState([]);
+  const [openAddModal, setOpenAddModal] = useState(false);
+  const [openSupplierRow, setOpenSupplierRow] = useState(null);
+
+  const [suppliersDB, setSuppliersDB] = useState({});
+
+  /* ======================
+     ADD ROW (EVENT LEVEL)
+  ====================== */
+
+  function addRow({ categoryId, categoryName, sub }) {
+    setRows((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        categoryId,
+        category: categoryName,
         sub,
         supplier: null,
         price: "",
         advance: "",
         balance: "",
         files: [],
-      }))
-    );
-  }, []);
-
-  const [rows, setRows] = useState(initialRows);
-  const [openRowIndex, setOpenRowIndex] = useState(null);
-
-  /* ספקים לפי תחום + תת תחום */
-  const [suppliersDB, setSuppliersDB] = useState({});
-
-  /* -------------------------------------------------
-     פעולות
-  -------------------------------------------------- */
-
-  function updateRow(index, field, value) {
-    setRows((prev) =>
-      prev.map((row, i) =>
-        i === index ? { ...row, [field]: value } : row
-      )
-    );
+      },
+    ]);
   }
 
-  function selectSupplier(index, supplier) {
-    setRows((prev) =>
-      prev.map((row, i) =>
-        i === index
-          ? {
-              ...row,
-              supplier,
-              price: supplier.price || "",
-            }
-          : row
-      )
-    );
-    setOpenRowIndex(null);
+  function updateRow(i, field, value) {
+    const copy = [...rows];
+    copy[i][field] = value;
+    setRows(copy);
+  }
+
+  function selectSupplier(i, supplier) {
+    const copy = [...rows];
+    copy[i].supplier = supplier;
+    copy[i].price = supplier.price;
+    setRows(copy);
+    setOpenSupplierRow(null);
   }
 
   function addSupplier(dbKey, supplier) {
     setSuppliersDB((prev) => ({
       ...prev,
-      [dbKey]: [
-        ...(prev[dbKey] || []),
-        { ...supplier, id: Date.now() },
-      ],
+      [dbKey]: [...(prev[dbKey] || []), { ...supplier, id: Date.now() }],
     }));
   }
 
-  /* -------------------------------------------------
-     UI
-  -------------------------------------------------- */
+  /* ======================
+     RENDER
+  ====================== */
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6" dir="rtl">
-      <h1 className="text-xl font-semibold">ספקים סגורים לאירוע</h1>
+    <div className="max-w-7xl mx-auto space-y-10" dir="rtl">
 
+      {/* HEADER ACTION */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-semibold">ספקים סגורים לאירוע</h1>
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="bg-black text-white px-5 py-2 rounded-xl"
+        >
+          ➕ הוסף ספק / תחום
+        </button>
+      </div>
+
+      {/* ======================
+          TABLE (ALWAYS VISIBLE)
+      ====================== */}
       <div className="bg-white rounded-2xl border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
@@ -126,7 +126,7 @@ export default function SuppliersTab() {
                 "מקדמה",
                 "יתרה",
                 "קבצים",
-                "",
+                "פעולה",
               ].map((h) => (
                 <th
                   key={h}
@@ -139,7 +139,18 @@ export default function SuppliersTab() {
           </thead>
 
           <tbody>
-            {rows.map((row, index) => {
+            {rows.length === 0 && (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="px-6 py-12 text-center text-gray-400"
+                >
+                  עדיין לא נוספו ספקים לאירוע
+                </td>
+              </tr>
+            )}
+
+            {rows.map((row, i) => {
               const dbKey = `${row.categoryId}-${row.sub}`;
               const suppliers = suppliersDB[dbKey] || [];
 
@@ -149,48 +160,43 @@ export default function SuppliersTab() {
                     <td className="px-6 py-4">{row.category}</td>
                     <td className="px-6 py-4">{row.sub}</td>
                     <td className="px-6 py-4 font-medium">
-                      {row.supplier ? row.supplier.name : "לא נבחר"}
+                      {row.supplier?.name || "לא נבחר"}
                     </td>
-
                     <td className="px-6 py-4">
                       <input
                         className="border rounded-lg px-3 py-2 w-28"
                         value={row.price}
                         onChange={(e) =>
-                          updateRow(index, "price", e.target.value)
+                          updateRow(i, "price", e.target.value)
                         }
                       />
                     </td>
-
                     <td className="px-6 py-4">
                       <input
                         className="border rounded-lg px-3 py-2 w-28"
                         value={row.advance}
                         onChange={(e) =>
-                          updateRow(index, "advance", e.target.value)
+                          updateRow(i, "advance", e.target.value)
                         }
                       />
                     </td>
-
                     <td className="px-6 py-4">
                       <input
                         className="border rounded-lg px-3 py-2 w-28"
                         value={row.balance}
                         onChange={(e) =>
-                          updateRow(index, "balance", e.target.value)
+                          updateRow(i, "balance", e.target.value)
                         }
                       />
                     </td>
-
                     <td className="px-6 py-4">
                       <input type="file" multiple />
                     </td>
-
                     <td className="px-6 py-4">
                       <button
                         onClick={() =>
-                          setOpenRowIndex(
-                            openRowIndex === index ? null : index
+                          setOpenSupplierRow(
+                            openSupplierRow === i ? null : i
                           )
                         }
                         className="border px-4 py-2 rounded-lg"
@@ -200,14 +206,13 @@ export default function SuppliersTab() {
                     </td>
                   </tr>
 
-                  {openRowIndex === index && (
+                  {/* SUPPLIER PICKER */}
+                  {openSupplierRow === i && (
                     <tr className="bg-gray-50">
                       <td colSpan={8} className="px-8 py-6">
                         <SupplierPicker
                           suppliers={suppliers}
-                          onSelect={(s) =>
-                            selectSupplier(index, s)
-                          }
+                          onSelect={(s) => selectSupplier(i, s)}
                           onAdd={(s) => addSupplier(dbKey, s)}
                         />
                       </td>
@@ -219,13 +224,150 @@ export default function SuppliersTab() {
           </tbody>
         </table>
       </div>
+
+      {/* ======================
+          ADD MODAL
+      ====================== */}
+      {openAddModal && (
+        <AddRowModal
+          categories={categories}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={(data) => {
+            addRow(data);
+            setOpenAddModal(false);
+          }}
+          onAddCategory={(cat) =>
+            setCategories((prev) => [...prev, cat])
+          }
+          onAddSub={(catId, sub) =>
+            setCategories((prev) =>
+              prev.map((c) =>
+                c.id === catId ? { ...c, subs: [...c.subs, sub] } : c
+              )
+            )
+          }
+        />
+      )}
     </div>
   );
 }
 
-/* =====================================================
-   Supplier Picker – בחירה + הוספה
-===================================================== */
+/* ======================
+   ADD ROW MODAL
+====================== */
+
+function AddRowModal({ categories, onClose, onAdd, onAddCategory, onAddSub }) {
+  const [categoryId, setCategoryId] = useState("");
+  const [sub, setSub] = useState("");
+  const [newCategory, setNewCategory] = useState("");
+  const [newSub, setNewSub] = useState("");
+
+  const category = categories.find((c) => c.id === categoryId);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl w-full max-w-lg p-8 space-y-6">
+        <h3 className="text-lg font-semibold">הוספת ספק / תחום לאירוע</h3>
+
+        <div className="space-y-4">
+          <select
+            className="border rounded-xl px-4 py-3 w-full"
+            value={categoryId}
+            onChange={(e) => {
+              setCategoryId(e.target.value);
+              setSub("");
+            }}
+          >
+            <option value="">בחר תחום</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          {category && (
+            <select
+              className="border rounded-xl px-4 py-3 w-full"
+              value={sub}
+              onChange={(e) => setSub(e.target.value)}
+            >
+              <option value="">בחר תת־תחום</option>
+              {category.subs.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          )}
+
+          <div className="border-t pt-4 space-y-3">
+            <input
+              placeholder="➕ תחום חדש"
+              className="border rounded-xl px-4 py-2 w-full"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+            />
+            <button
+              onClick={() => {
+                if (!newCategory) return;
+                onAddCategory({
+                  id: Date.now().toString(),
+                  name: newCategory,
+                  subs: [],
+                });
+                setNewCategory("");
+              }}
+              className="text-sm underline"
+            >
+              הוסף תחום
+            </button>
+
+            {categoryId && (
+              <>
+                <input
+                  placeholder="➕ תת־תחום חדש"
+                  className="border rounded-xl px-4 py-2 w-full"
+                  value={newSub}
+                  onChange={(e) => setNewSub(e.target.value)}
+                />
+                <button
+                  onClick={() => {
+                    if (!newSub) return;
+                    onAddSub(categoryId, newSub);
+                    setNewSub("");
+                  }}
+                  className="text-sm underline"
+                >
+                  הוסף תת־תחום
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2">
+            ביטול
+          </button>
+          <button
+            onClick={() =>
+              category && sub &&
+              onAdd({
+                categoryId: category.id,
+                categoryName: category.name,
+                sub,
+              })
+            }
+            className="bg-black text-white px-5 py-2 rounded-xl"
+          >
+            הוסף לטבלה
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ======================
+   SUPPLIER PICKER
+====================== */
 
 function SupplierPicker({ suppliers, onSelect, onAdd }) {
   const [form, setForm] = useState({
@@ -236,13 +378,7 @@ function SupplierPicker({ suppliers, onSelect, onAdd }) {
   });
 
   return (
-    <div className="space-y-5">
-      {suppliers.length === 0 && (
-        <div className="text-sm text-gray-500">
-          אין ספקים עדיין בתחום הזה
-        </div>
-      )}
-
+    <div className="space-y-6">
       <div className="grid gap-3">
         {suppliers.map((s) => (
           <div
@@ -266,52 +402,24 @@ function SupplierPicker({ suppliers, onSelect, onAdd }) {
       </div>
 
       <div className="border-t pt-4 space-y-3">
-        <h4 className="font-medium">➕ הוספת ספק חדש</h4>
-
+        <h4 className="font-medium">➕ הוסף ספק חדש</h4>
         <div className="flex flex-wrap gap-3">
-          <input
-            placeholder="שם ספק"
-            className="border rounded-lg px-3 py-2"
-            value={form.name}
-            onChange={(e) =>
-              setForm({ ...form, name: e.target.value })
-            }
-          />
-          <input
-            placeholder="מחיר"
-            className="border rounded-lg px-3 py-2 w-28"
-            value={form.price}
-            onChange={(e) =>
-              setForm({ ...form, price: e.target.value })
-            }
-          />
-          <input
-            placeholder="טלפון"
-            className="border rounded-lg px-3 py-2"
-            value={form.phone}
-            onChange={(e) =>
-              setForm({ ...form, phone: e.target.value })
-            }
-          />
-          <input
-            placeholder="קישור"
-            className="border rounded-lg px-3 py-2"
-            value={form.link}
-            onChange={(e) =>
-              setForm({ ...form, link: e.target.value })
-            }
-          />
-
+          {["name", "price", "phone", "link"].map((f) => (
+            <input
+              key={f}
+              placeholder={f}
+              className="border rounded-lg px-3 py-2"
+              value={form[f]}
+              onChange={(e) =>
+                setForm({ ...form, [f]: e.target.value })
+              }
+            />
+          ))}
           <button
             onClick={() => {
               if (!form.name) return;
               onAdd(form);
-              setForm({
-                name: "",
-                price: "",
-                phone: "",
-                link: "",
-              });
+              setForm({ name: "", price: "", phone: "", link: "" });
             }}
             className="bg-black text-white px-5 py-2 rounded-lg"
           >
