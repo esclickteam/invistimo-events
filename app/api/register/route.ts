@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       includeCreditGifts: includeCreditGiftsBool,
       creditGiftsAddonPrice: 0,
 
-      createdByProducer: Boolean(createdByProducer), // ✅ אופציונלי לשמירה
+      
     });
 
     /* ============================================================
