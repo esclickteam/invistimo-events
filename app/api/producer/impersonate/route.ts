@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================
@@ -63,7 +64,21 @@ export async function POST(req: NextRequest) {
   }
 
   /* =========================
-     🍪 Cookies (MUST await)
+     🎬 Client Event
+  ========================= */
+  const event = await Event.findOne({
+    userId: client._id,
+  }).select("_id");
+
+  if (!event) {
+    return NextResponse.json(
+      { success: false, message: "Event not found for client" },
+      { status: 404 }
+    );
+  }
+
+  /* =========================
+     🍪 Cookies
   ========================= */
   const cookieStore = await cookies();
 
@@ -76,7 +91,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 🧠 שומרים את טוקן המפיק
+  // 🧠 שומרים את session של המפיק
   cookieStore.set("producerAuthToken", producerAuthToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -85,7 +100,7 @@ export async function POST(req: NextRequest) {
   });
 
   /* =========================
-     🎭 Client token
+     🎭 Impersonation token
   ========================= */
   const impersonationToken = jwt.sign(
     {
@@ -109,5 +124,11 @@ export async function POST(req: NextRequest) {
 
   console.log("🍪 authToken overwritten, producerAuthToken saved");
 
-  return NextResponse.json({ success: true });
+  /* =========================
+     ✅ Response
+  ========================= */
+  return NextResponse.json({
+    success: true,
+    eventId: event._id.toString(),
+  });
 }

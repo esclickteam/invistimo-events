@@ -117,27 +117,36 @@ export default function ProducerDashboard() {
      Impersonation (ניהול לקוח)
   ========================= */
   const handleManageClient = async (clientId) => {
-    try {
-      const res = await fetch("/api/producer/impersonate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ clientId }),
-      });
+  try {
+    const res = await fetch("/api/producer/impersonate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ clientId }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        alert("שגיאה בכניסה לדשבורד הלקוח");
-        return;
-      }
-
-      window.location.href = "/dashboard";
-    } catch (err) {
-      console.error(err);
-      alert("שגיאה בכניסה לדשבורד הלקוח");
+    if (!res.ok || !data.success) {
+      alert("שגיאה בכניסה ללקוח");
+      return;
     }
-  };
+
+    // ✅ eventId חייב להגיע מהשרת
+    const eventId = data.eventId;
+
+    if (!eventId) {
+      alert("לא נמצא אירוע ללקוח");
+      return;
+    }
+
+    // 🎬 כניסה ישירה להפקת האירוע
+    window.location.href = `/events/production?eventId=${eventId}`;
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה בכניסה לניהול האירוע");
+  }
+};
 
   /* =========================
      Stats
