@@ -3,79 +3,81 @@
 import { useLiveGuests } from "./LiveGuestsProvider";
 
 export default function GuestListLive() {
-  const { state, setState } = useLiveGuests();
+  const { state, updateGuestStatus } = useLiveGuests();
 
-  async function updateStatus(guestId, arrivalStatus) {
-    try {
-      const res = await fetch(`/api/guests/${guestId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ arrivalStatus }),
-      });
+  if (!state) return null;
 
-      if (!res.ok) {
-        throw new Error("Update failed");
-      }
+  const { guests } = state;
 
-      // עדכון UI מקומי
-      setState((prev) => {
-        const guests = prev.guests.map((g) =>
-          g._id === guestId
-            ? { ...g, arrivalStatus }
-            : g
-        );
-
-        return {
-          ...prev,
-          guests,
-        };
-      });
-    } catch (e) {
-      alert("לא ניתן לעדכן סטטוס אורח");
-    }
+  if (!guests.length) {
+    return (
+      <div className="p-4 text-gray-500">
+        אין אורחים להצגה
+      </div>
+    );
   }
 
   return (
-    <div className="border rounded">
-      {state.guests.map((g) => (
+    <div className="flex-1 overflow-y-auto border rounded">
+      {guests.map((guest) => (
         <div
-          key={g._id}
-          className="flex justify-between p-3 border-b"
+          key={guest._id}
+          className="flex items-center justify-between px-4 py-3 border-b last:border-b-0"
         >
           <div>
-            <div className="font-semibold">{g.name}</div>
-            <div className="text-xs text-gray-500">
-              {g.phone}
-            </div>
+            <div className="font-semibold">{guest.name}</div>
+            {guest.phone && (
+              <div className="text-xs text-gray-500">
+                {guest.phone}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
-            <button
-              onClick={() => updateStatus(g._id, "arrived")}
-              className={`px-2 py-1 text-xs rounded ${
-                g.arrivalStatus === "arrived"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100"
-              }`}
+            <StatusButton
+              active={guest.status === "arrived"}
+              onClick={() =>
+                updateGuestStatus(guest._id, "arrived")
+              }
             >
               הגיע
-            </button>
+            </StatusButton>
 
-            <button
-              onClick={() => updateStatus(g._id, "not-arrived")}
-              className={`px-2 py-1 text-xs rounded ${
-                g.arrivalStatus === "not-arrived"
-                  ? "bg-yellow-500 text-white"
-                  : "bg-gray-100"
-              }`}
+            <StatusButton
+              active={guest.status === "not-arrived"}
+              onClick={() =>
+                updateGuestStatus(guest._id, "not-arrived")
+              }
             >
               לא הגיע
-            </button>
+            </StatusButton>
+
+            <StatusButton
+              active={guest.status === "cancelled"}
+              onClick={() =>
+                updateGuestStatus(guest._id, "cancelled")
+              }
+            >
+              ביטל
+            </StatusButton>
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function StatusButton({ active, children, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1 text-xs rounded border ${
+        active
+          ? "bg-black text-white border-black"
+          : "bg-white text-gray-600 hover:bg-gray-100"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

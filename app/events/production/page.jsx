@@ -12,7 +12,7 @@ import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 import LiveGuestsTab from "./_components/LiveGuestsTab";
-import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
+import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab"; 
 
 export default function EventProductionPage() {
   const { user } = useAuth();
@@ -38,8 +38,8 @@ export default function EventProductionPage() {
       .finally(() => setLoading(false));
   }, [user]);
 
-  if (loading) return <div className="p-6">טוען…</div>;
-  if (!invitation) return <div className="p-6">לא נמצאה הזמנה</div>;
+  if (loading) return <div>טוען...</div>;
+  if (!invitation) return <div>לא נמצאה הזמנה</div>;
 
   return (
     <ProductionTabs
@@ -50,12 +50,10 @@ export default function EventProductionPage() {
       logistics={<LogisticsTab invitation={invitation} />}
       alcohol={<AlcoholManagementTab invitation={invitation} />}
 
-      /* 🆕 לייב – אורחים (שליטה רכה) */
-      liveGuests={
-        <LiveGuestsTab invitationId={invitation._id} />
-      }
+      /* 🆕 לייב – אורחים */
+      liveGuests={<LiveGuestsTab invitation={invitation} />}
 
-      /* 🆕 לייב – הושבה */
+      /* לייב – הושבה */
       liveSeating={
         <LiveSeatingTab invitationId={invitation._id} />
       }
