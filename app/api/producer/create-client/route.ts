@@ -181,8 +181,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
       role: "client",
       producerId: producer._id,
-      createdByProducer: producerId,
-
+      createdByProducer: producer._id,
       needsPasswordSetup: true,
       resetPasswordToken,
       resetPasswordExpires,
