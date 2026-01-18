@@ -8,7 +8,8 @@ const TABS = [
   { key: "suppliers", label: "ספקים ותקציב" },
   { key: "calendar", label: "לוח שנה ופגישות" },
   { key: "logistics", label: "לוגיסטיקה" },
-  { key: "alcohol", label: "אלכוהול" }, // 🆕 חדש
+  { key: "alcohol", label: "אלכוהול" },
+  { key: "live-seating", label: "לייב – הושבה" }, // 🆕 לייב
 ];
 
 export default function ProductionTabs({
@@ -17,7 +18,8 @@ export default function ProductionTabs({
   suppliers,
   calendar,
   logistics,
-  alcohol, // 🆕 חדש
+  alcohol,
+  liveSeating, // 🆕 חדש
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,7 +57,8 @@ export default function ProductionTabs({
         {activeTab === "suppliers" && suppliers}
         {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
-        {activeTab === "alcohol" && alcohol} {/* 🆕 */}
+        {activeTab === "alcohol" && alcohol}
+        {activeTab === "live-seating" && liveSeating} {/* 🆕 */}
       </div>
     </div>
   );
