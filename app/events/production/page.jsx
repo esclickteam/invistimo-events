@@ -16,7 +16,8 @@ import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
 export default function EventProductionPage() {
   const { user } = useAuth();
 
-  const [invitation, setInvitation] = useState<any>(null);
+  // ❌ בלי any ❌ בלי טיפוסים
+  const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export default function EventProductionPage() {
         return res.json();
       })
       .then((data) => {
-        setInvitation(data?.invitation ?? null);
+        setInvitation(data?.invitation || null);
       })
       .catch((err) => {
         console.error("Invitation fetch error:", err);
@@ -41,19 +42,19 @@ export default function EventProductionPage() {
   if (!invitation) return <div>לא נמצאה הזמנה</div>;
 
   return (
-  <ProductionTabs
-    overview={<OverviewTab invitation={invitation} />}
-    planning={<PlanningTab invitation={invitation} />}
-    suppliers={<SuppliersBudgetTab invitation={invitation} />}
-    calendar={<CalendarTab invitation={invitation} />}
-    logistics={<LogisticsTab invitation={invitation} />}
-    alcohol={<AlcoholManagementTab invitation={invitation} />}
+    <ProductionTabs
+      overview={<OverviewTab invitation={invitation} />}
+      planning={<PlanningTab invitation={invitation} />}
+      suppliers={<SuppliersBudgetTab invitation={invitation} />}
+      calendar={<CalendarTab invitation={invitation} />}
+      logistics={<LogisticsTab invitation={invitation} />}
+      alcohol={<AlcoholManagementTab invitation={invitation} />}
 
-    liveSeating={
-      <LiveSeatingTab invitationId={invitation._id} />
-    }
+      liveSeating={
+        <LiveSeatingTab invitationId={invitation._id} />
+      }
 
-    invitation={invitation}
-  />
-);
+      invitation={invitation}
+    />
+  );
 }
