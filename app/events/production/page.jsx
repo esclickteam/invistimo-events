@@ -12,11 +12,11 @@ import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
+import LiveGuestsTab from "./_components/LiveGuests/LiveGuestsTab"; // ✅ ייבוא יחיד
 
 export default function EventProductionPage() {
   const { user } = useAuth();
 
-  // ❌ בלי any ❌ בלי טיפוסים
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,9 +50,10 @@ export default function EventProductionPage() {
       logistics={<LogisticsTab invitation={invitation} />}
       alcohol={<AlcoholManagementTab invitation={invitation} />}
 
-      liveSeating={
-        <LiveSeatingTab invitationId={invitation._id} />
-      }
+      /* 🆕 לייב – אורחים */
+      liveGuests={<LiveGuestsTab invitation={invitation} />}
+
+      liveSeating={<LiveSeatingTab invitationId={invitation._id} />}
 
       invitation={invitation}
     />
