@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LiveGuestsProvider } from "./LiveGuestsProvider";
-import GuestListLive from "./GuestListLive";
+import GuestsTable from "@/app/components/GuestsTable";
 import GuestStatsLive from "./GuestStatsLive";
 
 /* =========================
    Component
 ========================= */
 export default function LiveGuestsTab({ invitationId }) {
-  const [data, setData] = useState(null);
+  const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -21,12 +20,11 @@ export default function LiveGuestsTab({ invitationId }) {
     console.log("🟡 invitationId:", invitationId);
   }, [invitationId]);
 
+  /* =========================
+     Import guests
+  ========================= */
   async function importGuests() {
-    console.log("🔵 importGuests clicked");
-    console.log("🔵 using invitationId:", invitationId);
-
     if (!invitationId) {
-      console.error("🔴 invitationId is missing!");
       setError("אין מזהה הזמנה – לא ניתן לייבא אורחים");
       return;
     }
@@ -35,47 +33,30 @@ export default function LiveGuestsTab({ invitationId }) {
     setError(null);
 
     try {
-      console.log("🔵 calling API...");
       const res = await fetch(
         `/api/live-guests/import?invitationId=${invitationId}`,
         { method: "POST" }
       );
 
-      console.log("🟢 API response status:", res.status);
-
       const json = await res.json();
-      console.log("🟢 API response JSON:", json);
 
       if (!res.ok) {
         throw new Error("ייבוא נכשל");
       }
 
-      setData({
-        guests: json.guests ?? [],
-        stats: json.stats ?? {
-          total: 0,
-          arrived: 0,
-          notArrived: 0,
-          cancelled: 0,
-        },
-      });
+      setGuests(json.guests || []);
     } catch (e) {
       console.error("🔴 import error:", e);
       setError("לא נמצאו נתוני אורחים להזמנה");
     } finally {
       setLoading(false);
-      console.log("🟡 import finished");
     }
   }
 
-  useEffect(() => {
-    console.log("🟣 data state changed:", data);
-  }, [data]);
-
   /* =========================
-     UI
+     UI – before import
   ========================= */
-  if (!data) {
+  if (!guests.length) {
     return (
       <div className="p-6">
         <p className="mb-4">
@@ -97,12 +78,21 @@ export default function LiveGuestsTab({ invitationId }) {
     );
   }
 
+  /* =========================
+     UI – after import
+  ========================= */
   return (
-    <LiveGuestsProvider initial={data}>
-      <div className="flex flex-col h-[70vh] gap-4">
-        <GuestStatsLive />
-        <GuestListLive />
-      </div>
-    </LiveGuestsProvider>
+    <div className="flex flex-col h-[70vh] gap-4">
+      <GuestStatsLive />
+
+      <GuestsTable
+        guests={guests}
+        isDemo={false}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onMessage={() => {}}
+        onSeat={() => {}}
+      />
+    </div>
   );
 }
