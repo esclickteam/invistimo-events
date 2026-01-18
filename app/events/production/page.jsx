@@ -12,7 +12,6 @@ import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 import LiveGuestsTab from "./_components/LiveGuestsTab";
-import LiveGuestsTab from "./_components/LiveGuestsTab";
  
 
 export default function EventProductionPage() {
