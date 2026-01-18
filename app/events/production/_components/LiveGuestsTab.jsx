@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import GuestsTable from "@/app/components/GuestsTable";
-import GuestStatsLive from "./GuestStatsLive";
 
 /* =========================
    Component
@@ -12,20 +11,9 @@ export default function LiveGuestsTab({ invitationId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  /* =========================
-     Logs
-  ========================= */
-  useEffect(() => {
-    console.log("🟡 LiveGuestsTab mounted");
-    console.log("🟡 invitationId:", invitationId);
-  }, [invitationId]);
-
-  /* =========================
-     Import guests
-  ========================= */
   async function importGuests() {
     if (!invitationId) {
-      setError("אין מזהה הזמנה – לא ניתן לייבא אורחים");
+      setError("אין מזהה הזמנה");
       return;
     }
 
@@ -39,33 +27,43 @@ export default function LiveGuestsTab({ invitationId }) {
       );
 
       const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error("ייבוא נכשל");
-      }
+      if (!res.ok) throw new Error();
 
       setGuests(json.guests || []);
-    } catch (e) {
-      console.error("🔴 import error:", e);
-      setError("לא נמצאו נתוני אורחים להזמנה");
+    } catch {
+      setError("לא נמצאו אורחים להזמנה");
     } finally {
       setLoading(false);
     }
   }
 
   /* =========================
-     UI – before import
+     Stats – בדיוק כמו בדשבורד
   ========================= */
+  const stats = useMemo(() => {
+    const totalInvited = guests.reduce(
+      (s, g) => s + (g.guestsCount || 0),
+      0
+    );
+    const arrived = guests.reduce(
+      (s, g) => s + (g.arrivedCount || 0),
+      0
+    );
+
+    return {
+      totalInvited,
+      arrived,
+      no: guests.filter((g) => g.rsvp === "no").length,
+      pending: guests.filter((g) => g.rsvp === "pending").length,
+    };
+  }, [guests]);
+
   if (!guests.length) {
     return (
       <div className="p-6">
-        <p className="mb-4">
-          עדיין לא יובאה רשימת אורחים ללייב
-        </p>
+        <p className="mb-4">עדיין לא יובאה רשימת אורחים ללייב</p>
 
-        {error && (
-          <p className="text-red-600 mb-3">{error}</p>
-        )}
+        {error && <p className="text-red-600 mb-3">{error}</p>}
 
         <button
           onClick={importGuests}
@@ -78,13 +76,17 @@ export default function LiveGuestsTab({ invitationId }) {
     );
   }
 
-  /* =========================
-     UI – after import
-  ========================= */
   return (
-    <div className="flex flex-col h-[70vh] gap-4">
-      <GuestStatsLive />
+    <div className="flex flex-col gap-6">
+      {/* סטטיסטיקות */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat title="סה״כ מוזמנים" value={stats.totalInvited} />
+        <Stat title="הגיעו" value={stats.arrived} color="green" />
+        <Stat title="לא מגיעים" value={stats.no} color="red" />
+        <Stat title="ממתינים" value={stats.pending} color="orange" />
+      </div>
 
+      {/* טבלה זהה לדשבורד */}
       <GuestsTable
         guests={guests}
         isDemo={false}
@@ -93,6 +95,26 @@ export default function LiveGuestsTab({ invitationId }) {
         onMessage={() => {}}
         onSeat={() => {}}
       />
+    </div>
+  );
+}
+
+/* =========================
+   UI helpers
+========================= */
+function Stat({ title, value, color }) {
+  const colors = {
+    green: "text-green-600",
+    red: "text-red-600",
+    orange: "text-orange-500",
+  };
+
+  return (
+    <div className="border p-4 rounded-xl bg-white text-center">
+      <div className="text-gray-500 text-sm">{title}</div>
+      <div className={`text-2xl font-bold ${colors[color] || ""}`}>
+        {value}
+      </div>
     </div>
   );
 }
