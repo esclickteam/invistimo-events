@@ -1,28 +1,56 @@
-import { LiveSeatingProvider } from "./LiveSeatingProvider";
-import GuestListLive from "./GuestListLive";
-import SeatingMapLive from "./SeatingMapLive";
+"use client";
 
-const INITIAL = {
-  tables: [
-    { id: "t1", name: "שולחן 1", capacity: 10 },
-    { id: "t2", name: "שולחן 2", capacity: 8 },
-  ],
-  guests: [
-    {
-      id: "g1",
-      name: "משפחת כהן",
-      phone: "050",
-      tableId: "t1",
-      approved: 5,
-      arrived: 0,
-    },
-  ],
+import { useState } from "react";
+import { LiveSeatingProvider } from "./LiveSeatingProvider";
+import SeatingMapLive from "./SeatingMapLive";
+import GuestListLive from "./GuestListLive";
+import { LiveSeatingState } from "./types";
+
+type Props = {
+  invitationId: string;
 };
 
-export default function Page() {
+export default function LiveSeatingTab({
+  invitationId,
+}: Props) {
+  const [data, setData] = useState<LiveSeatingState | null>(
+    null
+  );
+  const [loading, setLoading] = useState(false);
+
+  async function importData() {
+    setLoading(true);
+
+    const res = await fetch(
+      `/api/live-seating/import?invitationId=${invitationId}`,
+      { method: "POST" }
+    );
+
+    const json: LiveSeatingState = await res.json();
+    setData(json);
+    setLoading(false);
+  }
+
+  if (!data) {
+    return (
+      <div className="p-6">
+        <p className="mb-4">
+          עדיין לא יובאה מפת הושבה ליום האירוע
+        </p>
+        <button
+          onClick={importData}
+          disabled={loading}
+          className="px-4 py-2 bg-black text-white rounded"
+        >
+          {loading ? "מייבא..." : "📥 ייבוא מוזמנים + הושבה"}
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <LiveSeatingProvider initial={INITIAL}>
-      <div style={{ display: "flex", height: "100vh" }}>
+    <LiveSeatingProvider initial={data}>
+      <div className="flex h-[70vh]">
         <SeatingMapLive />
         <GuestListLive />
       </div>

@@ -1,60 +1,35 @@
 "use client";
+
 import { useLiveSeating } from "./LiveSeatingProvider";
-import type { Guest } from "./types";
+import { LiveGuest } from "./types";
 
 export default function GuestListLive() {
-  const { state, markArrival, cancelReservation } = useLiveSeating();
+  const { state, markArrived } = useLiveSeating();
 
   return (
-    <div style={{ width: 340, borderLeft: "1px solid #ddd", padding: 16 }}>
-      <h3>אורחים – לייב</h3>
+    <div className="w-80 border-r p-4">
+      <h3 className="font-bold mb-2">אורחים</h3>
 
-      {state.guests.map((g: Guest) => (
+      {state.guests.map((g: LiveGuest) => (
         <div
           key={g.id}
-          style={{
-            marginBottom: 12,
-            padding: 10,
-            borderRadius: 8,
-            background:
-              g.arrived > 0
-                ? "#e6f7ee"
-                : g.approved > 0
-                ? "#f0f0f0"
-                : "#fff",
-          }}
+          className={`p-2 mb-2 rounded ${
+            g.arrived > 0
+              ? "bg-green-100"
+              : "bg-gray-100"
+          }`}
         >
-          <strong>{g.name}</strong>
-
-          {g.approved > 0 && (
-            <div style={{ marginTop: 6 }}>
-              הגיעו:
-              <input
-                type="number"
-                min={0}
-                max={g.approved}
-                value={g.arrived}
-                onChange={e => markArrival(g.id, +e.target.value)}
-                style={{ width: 60, margin: "0 6px" }}
-              />
-              / {g.approved}
-            </div>
-          )}
-
-          {g.approved > 0 && g.arrived === 0 && (
-            <button
-              onClick={() => cancelReservation(g.id)}
-              style={{
-                marginTop: 6,
-                background: "transparent",
-                border: "none",
-                color: "#c00",
-                cursor: "pointer",
-              }}
-            >
-              ❌ בטל שמירה
-            </button>
-          )}
+          <div>{g.name}</div>
+          <input
+            type="number"
+            min={0}
+            max={g.approved}
+            value={g.arrived}
+            onChange={(e) =>
+              markArrived(g.id, Number(e.target.value))
+            }
+          />
+          / {g.approved}
         </div>
       ))}
     </div>

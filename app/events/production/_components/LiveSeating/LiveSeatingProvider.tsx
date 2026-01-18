@@ -1,53 +1,47 @@
 "use client";
+
 import { createContext, useContext, useState } from "react";
-import type { LiveState, Guest } from "./types";
+import {
+  LiveSeatingState,
+  LiveSeatingContextType,
+} from "./types";
 
-type LiveContextType = {
-  state: LiveState;
-  markArrival: (id: string, arrived: number) => void;
-  cancelReservation: (id: string) => void;
-};
-
-const LiveCtx = createContext<LiveContextType | null>(null);
+const LiveSeatingContext =
+  createContext<LiveSeatingContextType | null>(null);
 
 export function LiveSeatingProvider({
   initial,
   children,
 }: {
-  initial: LiveState;
+  initial: LiveSeatingState;
   children: React.ReactNode;
 }) {
-  const [state, setState] = useState<LiveState>(initial);
+  const [state, setState] = useState<LiveSeatingState>(initial);
 
-  function markArrival(id: string, arrived: number) {
-    setState(s => ({
-      ...s,
-      guests: s.guests.map((g: Guest) =>
-        g.id === id ? { ...g, arrived } : g
-      ),
-    }));
-  }
-
-  function cancelReservation(id: string) {
-    setState(s => ({
-      ...s,
-      guests: s.guests.map((g: Guest) =>
-        g.id === id ? { ...g, approved: 0, arrived: 0 } : g
+  function markArrived(guestId: string, arrived: number) {
+    setState((prev) => ({
+      ...prev,
+      guests: prev.guests.map((g) =>
+        g.id === guestId ? { ...g, arrived } : g
       ),
     }));
   }
 
   return (
-    <LiveCtx.Provider value={{ state, markArrival, cancelReservation }}>
+    <LiveSeatingContext.Provider
+      value={{ state, markArrived }}
+    >
       {children}
-    </LiveCtx.Provider>
+    </LiveSeatingContext.Provider>
   );
 }
 
 export function useLiveSeating() {
-  const ctx = useContext(LiveCtx);
+  const ctx = useContext(LiveSeatingContext);
   if (!ctx) {
-    throw new Error("useLiveSeating must be used inside LiveSeatingProvider");
+    throw new Error(
+      "useLiveSeating must be used inside LiveSeatingProvider"
+    );
   }
   return ctx;
 }
