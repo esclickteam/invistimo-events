@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
-import {
+import React, { createContext, useContext, useMemo, useState } from "react";
+import type {
   LiveSeatingState,
   LiveSeatingContextType,
 } from "./types";
@@ -9,28 +9,40 @@ import {
 const LiveSeatingContext =
   createContext<LiveSeatingContextType | null>(null);
 
-export function LiveSeatingProvider({
-  initial,
-  children,
-}: {
+type ProviderProps = {
   initial: LiveSeatingState;
   children: React.ReactNode;
-}) {
-  const [state, setState] = useState<LiveSeatingState>(initial);
+};
 
+export function LiveSeatingProvider({ initial, children }: ProviderProps) {
+  // 🛡️ בטיחות: גם אם הגיע undefined/חלקי - לא מפילים UI
+  const safeInitial: LiveSeatingState = useMemo(
+    () => ({
+      guests: initial?.guests ?? [],
+      tables: initial?.tables ?? [],
+    }),
+    [initial]
+  );
+
+  const [state, setState] = useState<LiveSeatingState>(safeInitial);
+
+  // ✅ התאמה למבנה החדש: עובדים עם _id (לא id)
   function markArrived(guestId: string, arrived: number) {
     setState((prev) => ({
       ...prev,
-      guests: prev.guests.map((g) =>
-        g.id === guestId ? { ...g, arrived } : g
+      guests: (prev.guests ?? []).map((g: any) =>
+        (g._id ?? g.id) === guestId ? { ...g, arrived } : g
       ),
     }));
   }
 
+  const value = useMemo(
+    () => ({ state, markArrived }),
+    [state]
+  );
+
   return (
-    <LiveSeatingContext.Provider
-      value={{ state, markArrived }}
-    >
+    <LiveSeatingContext.Provider value={value}>
       {children}
     </LiveSeatingContext.Provider>
   );
