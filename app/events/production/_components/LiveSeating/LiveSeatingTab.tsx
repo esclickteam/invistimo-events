@@ -6,16 +6,26 @@ import SeatingMapLive from "./SeatingMapLive";
 import GuestListLive from "./GuestListLive";
 import { LiveSeatingState } from "./types";
 
+/* =========================
+   Types
+========================= */
 type Props = {
   invitationId: string;
 };
 
 export default function LiveSeatingTab({ invitationId }: Props) {
+  // ✅ TS יודע שזה או state תקין או null
   const [data, setData] = useState<LiveSeatingState | null>(null);
-  const [loading, setLoading] = useState(false);
+
+  // ✅ boolean ברור
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // ✅ error יכול להיות string או null
   const [error, setError] = useState<string | null>(null);
 
-  // 🔎 לוג ראשון – האם קיבלנו invitationId
+  /* =========================
+     Logs
+  ========================= */
   useEffect(() => {
     console.log("🟡 LiveSeatingTab mounted");
     console.log("🟡 invitationId:", invitationId);
@@ -43,19 +53,18 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       console.log("🟢 API response status:", res.status);
 
-      const json = await res.json();
+      const json: LiveSeatingState = await res.json();
       console.log("🟢 API response JSON:", json);
 
       if (!res.ok) {
         throw new Error("ייבוא נכשל");
       }
 
+      // ✅ TS יודע שזה LiveSeatingState
       setData({
         guests: json.guests ?? [],
         tables: json.tables ?? [],
       });
-
-      console.log("🟢 setData called");
     } catch (e) {
       console.error("🔴 import error:", e);
       setError("לא נמצאו נתוני הושבה ללקוח");
@@ -65,11 +74,13 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     }
   }
 
-  // 🔎 לוג – מצב data בכל רינדור
   useEffect(() => {
     console.log("🟣 data state changed:", data);
   }, [data]);
 
+  /* =========================
+     UI
+  ========================= */
   if (!data) {
     return (
       <div className="p-6">
