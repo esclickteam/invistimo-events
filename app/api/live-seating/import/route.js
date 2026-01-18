@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
-import SeatingTable from "@/models/SeatingTable";
+
+import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
+import SeatingTable from "@/models/SeatingTable";
 
 /**
- * ייבוא מוזמנים + הושבה מהלקוח
- * יצירת snapshot ללייב הושבה עבור המפיק
+ * ייבוא מוזמנים + הושבה
+ * snapshot ללייב הושבה (צד מפיק)
  */
 export async function POST(req) {
   try {
@@ -21,53 +24,67 @@ export async function POST(req) {
       );
     }
 
-    /* ======================================================
-       1️⃣ שליפת מפת הושבה של הלקוח
-    ====================================================== */
-    const seating = await SeatingTable.findOne({ invitationId });
+    const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
 
     /* ======================================================
-       2️⃣ שליפת מוזמנים שאישרו הגעה
+       1️⃣ שליפת ההזמנה → eventId
+    ====================================================== */
+    const invitation = await Invitation.findById(invitationObjectId).lean();
+
+    if (!invitation || !invitation.eventId) {
+      return NextResponse.json(
+        { guests: [], tables: [] },
+        { status: 200 }
+      );
+    }
+
+    const eventObjectId = new mongoose.Types.ObjectId(invitation.eventId);
+
+    /* ======================================================
+       2️⃣ שליפת מפת הושבה לפי eventId
+    ====================================================== */
+    const seating = await SeatingTable.findOne({
+      eventId: eventObjectId,
+    }).lean();
+
+    /* ======================================================
+       3️⃣ שליפת כל המוזמנים (בלי סינון RSVP)
     ====================================================== */
     const guests = await InvitationGuest.find({
-      invitationId,
-      rsvp: "yes",
-    });
+      invitationId: invitationObjectId,
+    }).lean();
 
     /* ======================================================
-       3️⃣ בניית טבלאות ללייב
+       4️⃣ בניית טבלאות ללייב
     ====================================================== */
     const tables =
       seating?.tables?.map((t) => {
-        const tableId = t._id.toString();
+        const tableCanvasId = t.id; // מזהה קנבס (string)
 
         return {
-          _id: tableId,
-          label: t.name ?? "שולחן",
-          capacity: t.capacity ?? 0,
-          position: t.position ?? { x: 200, y: 200 },
-          guestIds: guests
-            .filter(
-              (g) => g.tableId?.toString() === tableId
-            )
-            .map((g) => g._id.toString()),
+          id: tableCanvasId,
+          name: t.name || "שולחן",
+          seats: t.seats || 0,
+          x: t.x ?? 0,
+          y: t.y ?? 0,
         };
       }) || [];
 
     /* ======================================================
-       4️⃣ בניית מוזמנים ללייב
+       5️⃣ בניית מוזמנים ללייב
     ====================================================== */
     const liveGuests = guests.map((g) => ({
-      _id: g._id.toString(),
-      fullName: g.name,
-      phone: g.phone ?? "",
-      tableId: g.tableId?.toString() ?? null,
-      approvedCount: g.count ?? 1,
-      arrived: 0, // לייב מתחיל מאפס
+      id: g._id.toString(),
+      name: g.name,
+      phone: g.phone || "",
+      tableId: g.tableId ? g.tableId.toString() : null,
+      approved: g.guestsCount ?? 1,
+      arrived: g.arrivedCount ?? 0,
+      rsvp: g.rsvp,
     }));
 
     /* ======================================================
-       5️⃣ החזרת snapshot בטוח ל־UI
+       6️⃣ החזרת snapshot ל־UI
     ====================================================== */
     return NextResponse.json({
       guests: liveGuests,
@@ -76,7 +93,7 @@ export async function POST(req) {
   } catch (err) {
     console.error("LIVE SEATING IMPORT ERROR:", err);
 
-    // גם בשגיאה – לא מפילים את ה־UI
+    // לא מפילים UI גם בשגיאה
     return NextResponse.json(
       { guests: [], tables: [] },
       { status: 200 }
