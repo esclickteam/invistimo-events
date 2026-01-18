@@ -16,7 +16,7 @@ import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
 export default function EventProductionPage() {
   const { user } = useAuth();
 
-  const [invitation, setInvitation] = useState(null);
+  const [invitation, setInvitation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,17 +38,22 @@ export default function EventProductionPage() {
   }, [user]);
 
   if (loading) return <div>טוען...</div>;
+  if (!invitation) return <div>לא נמצאה הזמנה</div>;
 
   return (
-    <ProductionTabs
-      overview={<OverviewTab invitation={invitation} />}
-      planning={<PlanningTab invitation={invitation} />}
-      suppliers={<SuppliersBudgetTab invitation={invitation} />}
-      calendar={<CalendarTab invitation={invitation} />}
-      logistics={<LogisticsTab invitation={invitation} />}
-      alcohol={<AlcoholManagementTab invitation={invitation} />}
-      liveSeating={<LiveSeatingTab invitation={invitation} />}
-      invitation={invitation}
-    />
-  );
+  <ProductionTabs
+    overview={<OverviewTab invitation={invitation} />}
+    planning={<PlanningTab invitation={invitation} />}
+    suppliers={<SuppliersBudgetTab invitation={invitation} />}
+    calendar={<CalendarTab invitation={invitation} />}
+    logistics={<LogisticsTab invitation={invitation} />}
+    alcohol={<AlcoholManagementTab invitation={invitation} />}
+
+    liveSeating={
+      <LiveSeatingTab invitationId={invitation._id} />
+    }
+
+    invitation={invitation}
+  />
+);
 }
