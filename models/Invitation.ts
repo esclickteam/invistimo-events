@@ -103,6 +103,14 @@ const InvitationSchema = new Schema(
       },
     ],
 
+        /* ================= GUESTS IMPORT (PRODUCTION) ================= */
+    guestsImportedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+
     /* ================= LIMITS ================= */
     maxGuests: {
       type: Number,
