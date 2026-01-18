@@ -25,9 +25,8 @@ const LOCATIONS = ["בר", "מחסן"];
 export default function AlcoholManagementSystem() {
   const [mode, setMode] = useState("planning");
   const [bottles, setBottles] = useState(INITIAL_BOTTLES);
-  const [tables, setTables] = useState(INITIAL_TABLES);
+  const [tables] = useState(INITIAL_TABLES);
 
-  // inventory בפועל
   const [inventory, setInventory] = useState(() => {
     const inv = {};
     INITIAL_BOTTLES.forEach((b) => {
@@ -36,19 +35,14 @@ export default function AlcoholManagementSystem() {
     return inv;
   });
 
-  // ✅ הקצאות מתוכננות
   const [allocations, setAllocations] = useState({});
-
   const [log, setLog] = useState([]);
 
-  // לייב
+  /* לייב */
   const [liveFrom, setLiveFrom] = useState("בר");
   const [liveTo, setLiveTo] = useState("");
+  const [liveQty, setLiveQty] = useState(1);
   const [liveNote, setLiveNote] = useState("");
-
-  /* ======================================================
-     HELPERS
-  ====================================================== */
 
   function addLog(text) {
     setLog((prev) => [
@@ -63,15 +57,6 @@ export default function AlcoholManagementSystem() {
     );
   }
 
-  function addBottle() {
-    const id = `b${Date.now()}`;
-    setBottles((prev) => [
-      ...prev,
-      { id, category: "", brand: "", flavor: "", total: 1 },
-    ]);
-    setInventory((prev) => ({ ...prev, [id]: { בר: 0, מחסן: 1 } }));
-  }
-
   function saveAllocations() {
     const newInventory = {};
 
@@ -82,42 +67,37 @@ export default function AlcoholManagementSystem() {
       });
     });
 
-    setInventory((prev) => ({
-      ...prev,
-      ...newInventory,
-    }));
-
-    addLog("נשמרו הקצאות ראשוניות");
+    setInventory((prev) => ({ ...prev, ...newInventory }));
+    addLog("נשמרו הקצאות מתוכננות");
   }
 
   function openBottleLive(bottleId) {
     if (!inventory[bottleId]?.[liveFrom]) return;
 
+    const available = inventory[bottleId][liveFrom];
+    const qty = Math.min(liveQty, available);
+
     setInventory((prev) => ({
       ...prev,
       [bottleId]: {
         ...prev[bottleId],
-        [liveFrom]: prev[bottleId][liveFrom] - 1,
+        [liveFrom]: prev[bottleId][liveFrom] - qty,
       },
     }));
 
     const bottle = bottles.find((b) => b.id === bottleId);
     addLog(
-      `נפתח ${bottle.brand} מ-${liveFrom}${
+      `נפתחו ${qty} × ${bottle.brand} מ-${liveFrom}${
         liveTo ? ` → ${liveTo}` : ""
       }${liveNote ? ` | ${liveNote}` : ""}`
     );
 
     setLiveNote("");
-    setLiveTo("");
   }
-
-  /* ======================================================
-     RENDER
-  ====================================================== */
 
   return (
     <div className="space-y-8">
+
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">🍾 מערכת ניהול אלכוהול</h1>
@@ -134,7 +114,7 @@ export default function AlcoholManagementSystem() {
       {mode === "planning" && (
         <Section title="מלאי בקבוקים">
           {bottles.map((b, i) => (
-            <Card key={b.id}>
+            <Card key={b.id} variant="planning">
               <div className="grid grid-cols-5 gap-3">
                 <Input label="קטגוריה" value={b.category} onChange={(v) => updateBottle(i, "category", v)} />
                 <Input label="מותג" value={b.brand} onChange={(v) => updateBottle(i, "brand", v)} />
@@ -143,7 +123,6 @@ export default function AlcoholManagementSystem() {
               </div>
             </Card>
           ))}
-          <button className="btn-primary" onClick={addBottle}>+ הוסף בקבוק</button>
         </Section>
       )}
 
@@ -151,9 +130,9 @@ export default function AlcoholManagementSystem() {
           ALLOCATION
       ========================= */}
       {mode === "allocation" && (
-        <Section title="הקצאות מתוכננות">
+        <Section title="הקצאות מתוכננות (עריכה)">
           {bottles.map((b) => (
-            <Card key={b.id}>
+            <Card key={b.id} variant="allocation">
               <b>{b.category} – {b.brand}</b>
 
               <div className="grid grid-cols-4 gap-3 mt-3">
@@ -202,12 +181,12 @@ export default function AlcoholManagementSystem() {
       ========================= */}
       {mode === "live" && (
         <div className="grid grid-cols-3 gap-6">
-          <Card>
+          <Card variant="live">
             <h3 className="font-semibold mb-2">יתרות בזמן אמת</h3>
             {bottles.map((b) => (
               <div key={b.id} className="text-sm">
                 <b>{b.brand}</b>:
-                {Object.entries(inventory[b.id] || {}).map(([loc, qty]) => (
+                {Object.entries(inventory[b.id]).map(([loc, qty]) => (
                   <span key={loc} className="mr-2">{loc} {qty}</span>
                 ))}
               </div>
@@ -215,22 +194,28 @@ export default function AlcoholManagementSystem() {
           </Card>
 
           <div className="col-span-2 space-y-4">
-            <Card>
-              <div className="flex gap-3">
-                <select value={liveFrom} onChange={(e) => setLiveFrom(e.target.value)}>
+            <Card variant="live">
+              <div className="grid grid-cols-4 gap-3">
+                <select className="input" value={liveFrom} onChange={(e) => setLiveFrom(e.target.value)}>
                   {Object.keys(inventory[bottles[0].id]).map((l) => (
                     <option key={l}>{l}</option>
                   ))}
                 </select>
-                <input placeholder="לאן (אופציונלי)" value={liveTo} onChange={(e) => setLiveTo(e.target.value)} />
-                <input placeholder="הערה" value={liveNote} onChange={(e) => setLiveNote(e.target.value)} />
+
+                <NumberInput label="כמות" value={liveQty} onChange={setLiveQty} />
+                <Input label="לאן" value={liveTo} onChange={setLiveTo} />
+                <Input label="הערה" value={liveNote} onChange={setLiveNote} />
               </div>
             </Card>
 
             {bottles.map((b) => (
-              <Card key={b.id}>
+              <Card key={b.id} variant="live">
                 <b>{b.brand}</b>
-                <button className="btn-primary mt-2" onClick={() => openBottleLive(b.id)}>
+                <button
+                  className="btn-primary mt-2"
+                  disabled={!inventory[b.id][liveFrom]}
+                  onClick={() => openBottleLive(b.id)}
+                >
                   פתח בקבוק
                 </button>
               </Card>
@@ -256,7 +241,12 @@ export default function AlcoholManagementSystem() {
 
 function ModeButton({ label, active, onClick }) {
   return (
-    <button onClick={onClick} className={`px-4 py-2 rounded-full text-sm ${active ? "bg-black text-white" : "bg-gray-200"}`}>
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 rounded-full text-sm ${
+        active ? "bg-black text-white" : "bg-gray-200"
+      }`}
+    >
       {label}
     </button>
   );
@@ -271,8 +261,15 @@ function Section({ title, children }) {
   );
 }
 
-function Card({ children }) {
-  return <div className="bg-white border rounded-xl p-4 shadow-sm">{children}</div>;
+function Card({ children, variant }) {
+  const variantClass =
+    variant === "allocation"
+      ? "card-allocation"
+      : variant === "live"
+      ? "card-live"
+      : "card-planning";
+
+  return <div className={`bg-white rounded-xl p-4 shadow-sm ${variantClass}`}>{children}</div>;
 }
 
 function Input({ label, value, onChange }) {
@@ -288,7 +285,13 @@ function NumberInput({ label, value, onChange }) {
   return (
     <div>
       <div className="text-xs text-gray-500">{label}</div>
-      <input type="number" min={0} value={value} onChange={(e) => onChange(Number(e.target.value))} className="input" />
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="input"
+      />
     </div>
   );
 }
