@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import dbConnect from "@/lib/db";
+import InvitationGuest from "@/models/InvitationGuest";
 
 export async function POST(req: Request) {
+  await dbConnect();
+
   const { searchParams } = new URL(req.url);
   const invitationId = searchParams.get("invitationId");
-
-  console.log("🟢 API POST /live-guests/import");
-  console.log("🟢 invitationId:", invitationId);
 
   if (!invitationId) {
     return NextResponse.json(
@@ -14,15 +15,20 @@ export async function POST(req: Request) {
     );
   }
 
-  // כרגע מחזירים דאטה דמה – רק כדי לוודא שהחיבור עובד
+  const guests = await InvitationGuest.find({
+    invitationId,
+  }).lean();
+
+  const stats = {
+    total: guests.reduce((s, g) => s + (g.guestsCount || 0), 0),
+    arrived: guests.reduce((s, g) => s + (g.arrivedCount || 0), 0),
+    notArrived: guests.filter((g) => g.rsvp === "no").length,
+    cancelled: guests.filter((g) => g.rsvp === "cancelled").length,
+  };
+
   return NextResponse.json({
     success: true,
-    guests: [],
-    stats: {
-      total: 0,
-      arrived: 0,
-      notArrived: 0,
-      cancelled: 0,
-    },
+    guests,
+    stats,
   });
 }
