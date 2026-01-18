@@ -9,7 +9,7 @@ const TABS = [
   { key: "calendar", label: "לוח שנה ופגישות" },
   { key: "logistics", label: "לוגיסטיקה" },
   { key: "alcohol", label: "אלכוהול" },
-  { key: "live-seating", label: "לייב – הושבה" }, // 🆕 לייב
+  { key: "live-seating", label: "לייב – הושבה" },
 ];
 
 export default function ProductionTabs({
@@ -19,16 +19,32 @@ export default function ProductionTabs({
   calendar,
   logistics,
   alcohol,
-  liveSeating, // 🆕 חדש
+  liveSeating,
+  invitation, // 🆕 נשלח מה־parent component
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 🔑 הטאב נקבע מה־URL
+  // 🔑 הטאב הפעיל
   const activeTab = searchParams.get("tab") || "overview";
 
   function changeTab(tabKey) {
     router.push(`/events/production?tab=${tabKey}`);
+  }
+
+  // 🔹 Guard – אם אין הזמנה, מונע קריסה
+  if (!invitation) {
+    return (
+      <div className="p-8 text-center text-gray-500">
+        <h3 className="text-lg font-semibold mb-2">
+          המשתמש עדיין לא קיבל הזמנה
+        </h3>
+        <p>
+          ההפקה תתאפשר לאחר יצירת הזמנה או אירוע. 
+          אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -58,7 +74,7 @@ export default function ProductionTabs({
         {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
         {activeTab === "alcohol" && alcohol}
-        {activeTab === "live-seating" && liveSeating} {/* 🆕 */}
+        {activeTab === "live-seating" && liveSeating}
       </div>
     </div>
   );

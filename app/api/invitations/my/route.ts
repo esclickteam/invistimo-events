@@ -36,11 +36,12 @@ export async function GET() {
       .lean();
 
     if (!invitation) {
-  return NextResponse.json({
-    success: true,
-    invitation: null,
-  });
-}
+      // ❌ משתמש שנוצר ע"י מפיק או בלי הזמנה עדיין → לא נחשב שגיאה
+      return NextResponse.json({
+        success: true,
+        invitation: null,
+      });
+    }
 
     // ✅ שליפת האירוע לצורך מיקום
     const event = invitation.eventId
@@ -65,12 +66,12 @@ export async function GET() {
   }
 }
 
-
 /* ============================================================
    POST — יצירת הזמנה חדשה
    ✅ אם אין eventId בבקשה:
       1) מחפש אירוע קיים למשתמש
-      2) אם אין — יוצר אירוע חדש אוטומטית (חוקי לסכמה שלך)
+      2) אם אין — יוצר אירוע חדש אוטומטית
+      3) אם משתמש שנוצר ע"י מפיק → יוצר הזמנה זמנית
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
 
     const userId = auth.userId;
 
-    // 🧠 שליפת המשתמש (כדי לקחת email לאירוע החדש + מגבלות)
+    // 🧠 שליפת המשתמש
     const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json(
@@ -101,9 +102,6 @@ export async function POST(req: Request) {
 
     /* ============================================================
        🎯 מציאת/יצירת Event
-       - אם הגיע eventId: חייב להיות שייך למשתמש
-       - אם לא הגיע: נחפש event ראשון למשתמש
-       - אם אין: ניצור event חדש שעובר validation (email/date/status)
     ============================================================ */
     let event: any = null;
 
@@ -121,11 +119,11 @@ export async function POST(req: Request) {
       if (!event) {
         const createdEvent = await Event.create({
           userId,
-          email: user.email || "noemail@placeholder.com", // ✅ required
+          email: user.email || "noemail@placeholder.com",
           title: "אירוע חדש",
           eventType: "wedding",
-          status: "active", // ✅ enum חוקי אצלך (active/archived)
-          date: new Date(), // ✅ required
+          status: "active",
+          date: new Date(),
           time: "00:00",
           maxGuests: 100,
           location: {},
@@ -133,49 +131,44 @@ export async function POST(req: Request) {
           updatedAt: new Date(),
         });
 
-        event = createdEvent; // ✅ אל תעשי .toObject()
-
+        event = createdEvent;
         console.log("✅ נוצר אירוע חדש אוטומטית:", createdEvent._id);
       }
     }
 
-    // אם כבר קיימת הזמנה לאירוע הזה — נחזיר אותה
-    const existing = await Invitation.findOne({
+    /* ============================================================
+       אם כבר קיימת הזמנה → נחזיר אותה
+    ============================================================ */
+    let invitation = await Invitation.findOne({
       ownerId: userId,
       eventId: event._id,
     }).lean();
 
-    if (existing) {
-      return NextResponse.json({
-        success: true,
-        invitation: existing,
+    /* ============================================================
+       אם אין הזמנה קיימת, ניצור חדשה
+       ✅ משתמש שנוצר ע"י מפיק (createdByProducer) יקבל הזמנה זמנית
+    ============================================================ */
+    if (!invitation) {
+      invitation = await Invitation.create({
+        ownerId: userId,
+        eventId: event._id,
+        guests: [],
+        maxGuests: Number(user.guests) || Number(event.maxGuests) || 100,
+        maxMessages: Number(user.maxMessages) || 300,
+        sentSmsCount: 0,
       });
     }
-
-    // 🧮 הגדרות ברירת מחדל
-    const maxGuests = Number(user.guests) || Number(event.maxGuests) || 100;
-    const maxMessages = Number(user.maxMessages) || 300;
-
-    // 🧾 יצירת הזמנה חדשה
-    const created = await Invitation.create({
-      ownerId: userId,
-      eventId: event._id,
-      guests: [],
-      maxGuests,
-      maxMessages,
-      sentSmsCount: 0,
-    });
 
     return NextResponse.json(
       {
         success: true,
         invitation: {
-          _id: created._id,
-          eventId: created.eventId,
-          maxGuests: created.maxGuests,
-          maxMessages: created.maxMessages,
-          remainingMessages: created.remainingMessages,
-          shareId: created.shareId,
+          _id: invitation._id,
+          eventId: invitation.eventId,
+          maxGuests: invitation.maxGuests,
+          maxMessages: invitation.maxMessages,
+          remainingMessages: invitation.remainingMessages,
+          shareId: invitation.shareId,
         },
       },
       { status: 201 }

@@ -1,29 +1,38 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import ProductionTabs from "./_components/ProductionTabs";
 import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
-// שאר ה-imports...
 
 export default function EventProductionPage() {
   const { user } = useAuth();
+  const [invitation, setInvitation] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // ⬅️ זה ה-ID הנכון
-  const invitationId = user?.invitationId;
+  useEffect(() => {
+    if (!user) return;
 
-  if (!invitationId) return null; // או loader
+    fetch("/api/invitations/my")
+      .then((res) => res.json())
+      .then((data) => {
+        setInvitation(data.invitation || null);
+      })
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  if (loading) return <div>טוען...</div>;
 
   return (
     <ProductionTabs
-      overview={<OverviewTab />}
-      planning={<PlanningTab />}
-      suppliers={<SuppliersBudgetTab />}
-      calendar={<CalendarTab />}
-      logistics={<LogisticsTab />}
-      alcohol={<AlcoholManagementTab />}
-      liveSeating={
-        <LiveSeatingTab invitationId={invitationId} />
-      }
+      overview={<OverviewTab invitation={invitation} />}
+      planning={<PlanningTab invitation={invitation} />}
+      suppliers={<SuppliersBudgetTab invitation={invitation} />}
+      calendar={<CalendarTab invitation={invitation} />}
+      logistics={<LogisticsTab invitation={invitation} />}
+      alcohol={<AlcoholManagementTab invitation={invitation} />}
+      liveSeating={<LiveSeatingTab invitation={invitation} />}
+      invitation={invitation} // 🔹 חשוב ל־ProductionTabs
     />
   );
 }
