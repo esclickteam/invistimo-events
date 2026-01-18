@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
-import { getUserFromRequest } from "@/lib/auth";
 
 /* =========================
    Allowed fields per role
 ========================= */
+
+// זמנית – בלי אימות, נאכוף לפי role בצד לקוח
 const CLIENT_FIELDS = [
   "name",
   "phone",
@@ -23,14 +24,6 @@ export async function PATCH(req, { params }) {
   try {
     await connectDB();
 
-    const user = await getUserFromRequest(req);
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     const { guestId } = params;
     const body = await req.json();
 
@@ -42,11 +35,18 @@ export async function PATCH(req, { params }) {
       );
     }
 
-    // 🔐 שליטה רכה: אילו שדות מותר לשנות
-    const allowedFields =
-      user.role === "producer"
-        ? PRODUCER_FIELDS
-        : CLIENT_FIELDS;
+    /**
+     * ⚠️ שליטה רכה – זמנית ללא auth
+     * כרגע אנחנו סומכים על ה־UI שישלח
+     * רק שדות מותרים לפי מסך
+     *
+     * אימות role יתווסף בהמשך
+     */
+
+    const allowedFields = [
+      ...CLIENT_FIELDS,
+      ...PRODUCER_FIELDS,
+    ];
 
     const updates = Object.keys(body);
 
@@ -71,7 +71,10 @@ export async function PATCH(req, { params }) {
 
     await guest.save();
 
-    return NextResponse.json({ success: true, guest });
+    return NextResponse.json({
+      success: true,
+      guest,
+    });
   } catch (err) {
     console.error("❌ PATCH guest error:", err);
     return NextResponse.json(
