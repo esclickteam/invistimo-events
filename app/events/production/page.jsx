@@ -57,7 +57,7 @@ export default function EventProductionPage() {
 
 
       /* לייב – הושבה */
-      liveSeating={
+       liveSeating={
         <LiveSeatingTab invitationId={invitation._id} />
       }
 
