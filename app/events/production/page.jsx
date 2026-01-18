@@ -51,7 +51,10 @@ export default function EventProductionPage() {
       alcohol={<AlcoholManagementTab invitation={invitation} />}
 
       /* 🆕 לייב – אורחים */
-      liveGuests={<LiveGuestsTab invitation={invitation} />}
+      liveGuests={
+  <LiveGuestsTab invitationId={invitation._id} />
+}
+
 
       /* לייב – הושבה */
       liveSeating={

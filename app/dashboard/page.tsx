@@ -95,7 +95,9 @@ const isDemo = pathname.startsWith("/try");
   const [event, setEvent] = useState<EventModel | null>(null);
 
 
+
   const [user, setUser] = useState<any | null>(null);
+
   // ✅ חיפוש
   const [search, setSearch] = useState("");
 
@@ -126,7 +128,21 @@ const isDemo = pathname.startsWith("/try");
      Load invitation
   ============================================================ */
   async function loadInvitation() {
-  const res = await fetch("/api/invitations/my", {
+  if (!user) return;
+
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
+
+  const eventIdFromUrl = params?.get("eventId");
+
+  const url =
+    user.role === "producer" && eventIdFromUrl
+      ? `/api/invitations/by-event/${eventIdFromUrl}`
+      : "/api/invitations/my";
+
+  const res = await fetch(url, {
     credentials: "include", // ⭐️ קריטי
     cache: "no-store",
   });
@@ -136,11 +152,28 @@ const isDemo = pathname.startsWith("/try");
   if (data.success && data.invitation) {
     setInvitation(data.invitation);
     setInvitationId(data.invitation._id);
+  } else {
+    setInvitation(null);
+    setInvitationId("");
   }
 }
 
 async function loadEvent() {
-  const res = await fetch("/api/events", {
+  if (!user) return;
+
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
+
+  const eventIdFromUrl = params?.get("eventId");
+
+  const url =
+    user.role === "producer" && eventIdFromUrl
+      ? `/api/events/${eventIdFromUrl}`
+      : "/api/events";
+
+  const res = await fetch(url, {
     credentials: "include",
     cache: "no-store",
   });
@@ -150,7 +183,6 @@ async function loadEvent() {
   if (data.success && data.event) {
     setEvent(data.event);
   } else {
-    // ✅ איפוס – מונע “זליגה” בין יוזרים
     setEvent(null);
   }
 }
@@ -210,17 +242,29 @@ async function deleteGuest(guest: Guest) {
 
 useEffect(() => {
   if (isDemo) return;
+  loadUser();
+}, [isDemo]);
 
-  async function init() {
-    setEvent(null); // ✅ איפוס חד-משמעי לפני טעינה
-    await loadUser();
+
+useEffect(() => {
+  if (isDemo) return;
+  if (!user) return;
+
+  async function initAfterUser() {
+    setLoading(true);
+
+    // ✅ איפוס מלא – מונע זליגה בין אירועים
+    setEvent(null);
+    setInvitation(null);
+    setInvitationId("");
+
     await loadInvitation();
     await loadEvent();
-    setLoading(false);
   }
 
-  init();
-}, [isDemo]);
+  initAfterUser();
+}, [user, isDemo]);
+
 
 
 useEffect(() => {
@@ -335,13 +379,21 @@ setLoading(false);
 
 }, [isDemo]);
 
+
 useEffect(() => {
   // ⭐️ DEMO – לא טוענים אורחים מהשרת בדמו
   if (isDemo) return;
   if (!invitationId) return;
 
-  loadGuests();
+  async function load() {
+    await loadGuests();
+    setLoading(false); // ✅ סוגרים loading רק אחרי שהאורחים מוכנים
+  }
+
+  load();
 }, [invitationId, isDemo]);
+
+
 
 useEffect(() => {
   // ⭐️ DEMO – לא מפעילים polling בדמו
