@@ -38,7 +38,7 @@ export default function AlcoholManagementSystem() {
   const [allocations, setAllocations] = useState({});
   const [log, setLog] = useState([]);
 
-  /* לייב */
+  /* LIVE */
   const [liveFrom, setLiveFrom] = useState("בר");
   const [liveTo, setLiveTo] = useState("");
   const [liveQty, setLiveQty] = useState(1);
@@ -72,9 +72,9 @@ export default function AlcoholManagementSystem() {
   }
 
   function openBottleLive(bottleId) {
-    if (!inventory[bottleId]?.[liveFrom]) return;
+    const available = inventory[bottleId]?.[liveFrom] || 0;
+    if (available <= 0) return;
 
-    const available = inventory[bottleId][liveFrom];
     const qty = Math.min(liveQty, available);
 
     setInventory((prev) => ({
@@ -96,10 +96,10 @@ export default function AlcoholManagementSystem() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-6xl mx-auto p-6 space-y-8">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">🍾 מערכת ניהול אלכוהול</h1>
         <div className="flex gap-2">
           <ModeButton label="תכנון" active={mode === "planning"} onClick={() => setMode("planning")} />
@@ -114,8 +114,8 @@ export default function AlcoholManagementSystem() {
       {mode === "planning" && (
         <Section title="מלאי בקבוקים">
           {bottles.map((b, i) => (
-            <Card key={b.id} variant="planning">
-              <div className="grid grid-cols-5 gap-3">
+            <Card key={b.id} tone="neutral">
+              <div className="grid grid-cols-4 gap-4">
                 <Input label="קטגוריה" value={b.category} onChange={(v) => updateBottle(i, "category", v)} />
                 <Input label="מותג" value={b.brand} onChange={(v) => updateBottle(i, "brand", v)} />
                 <Input label="טעם" value={b.flavor} onChange={(v) => updateBottle(i, "flavor", v)} />
@@ -130,12 +130,14 @@ export default function AlcoholManagementSystem() {
           ALLOCATION
       ========================= */}
       {mode === "allocation" && (
-        <Section title="הקצאות מתוכננות (עריכה)">
+        <Section title="הקצאות מתוכננות">
           {bottles.map((b) => (
-            <Card key={b.id} variant="allocation">
-              <b>{b.category} – {b.brand}</b>
+            <Card key={b.id} tone="edit">
+              <div className="mb-3 font-semibold text-lg">
+                {b.category} – {b.brand}
+              </div>
 
-              <div className="grid grid-cols-4 gap-3 mt-3">
+              <div className="grid grid-cols-4 gap-4">
                 {LOCATIONS.map((loc) => (
                   <NumberInput
                     key={loc}
@@ -170,7 +172,10 @@ export default function AlcoholManagementSystem() {
             </Card>
           ))}
 
-          <button className="btn-primary" onClick={saveAllocations}>
+          <button
+            onClick={saveAllocations}
+            className="mt-4 px-6 py-3 rounded-xl bg-black text-white font-semibold hover:bg-gray-800"
+          >
             💾 שמור הקצאות
           </button>
         </Section>
@@ -181,27 +186,25 @@ export default function AlcoholManagementSystem() {
       ========================= */}
       {mode === "live" && (
         <div className="grid grid-cols-3 gap-6">
-          <Card variant="live">
-            <h3 className="font-semibold mb-2">יתרות בזמן אמת</h3>
+
+          {/* INVENTORY */}
+          <Card tone="live">
+            <h3 className="font-bold mb-3">יתרות בזמן אמת</h3>
             {bottles.map((b) => (
-              <div key={b.id} className="text-sm">
-                <b>{b.brand}</b>:
+              <div key={b.id} className="text-sm mb-1">
+                <span className="font-semibold">{b.brand}:</span>{" "}
                 {Object.entries(inventory[b.id]).map(([loc, qty]) => (
-                  <span key={loc} className="mr-2">{loc} {qty}</span>
+                  <span key={loc} className="ml-2">{loc} {qty}</span>
                 ))}
               </div>
             ))}
           </Card>
 
+          {/* ACTIONS */}
           <div className="col-span-2 space-y-4">
-            <Card variant="live">
-              <div className="grid grid-cols-4 gap-3">
-                <select className="input" value={liveFrom} onChange={(e) => setLiveFrom(e.target.value)}>
-                  {Object.keys(inventory[bottles[0].id]).map((l) => (
-                    <option key={l}>{l}</option>
-                  ))}
-                </select>
-
+            <Card tone="live">
+              <div className="grid grid-cols-4 gap-4">
+                <Select label="מאיפה" value={liveFrom} onChange={setLiveFrom} options={Object.keys(inventory[bottles[0].id])} />
                 <NumberInput label="כמות" value={liveQty} onChange={setLiveQty} />
                 <Input label="לאן" value={liveTo} onChange={setLiveTo} />
                 <Input label="הערה" value={liveNote} onChange={setLiveNote} />
@@ -209,21 +212,27 @@ export default function AlcoholManagementSystem() {
             </Card>
 
             {bottles.map((b) => (
-              <Card key={b.id} variant="live">
-                <b>{b.brand}</b>
-                <button
-                  className="btn-primary mt-2"
-                  disabled={!inventory[b.id][liveFrom]}
-                  onClick={() => openBottleLive(b.id)}
-                >
-                  פתח בקבוק
-                </button>
+              <Card key={b.id} tone="live">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">{b.brand}</span>
+                  <button
+                    disabled={!inventory[b.id][liveFrom]}
+                    onClick={() => openBottleLive(b.id)}
+                    className={`px-4 py-2 rounded-lg font-semibold ${
+                      inventory[b.id][liveFrom]
+                        ? "bg-black text-white hover:bg-gray-800"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
+                  >
+                    פתח בקבוק
+                  </button>
+                </div>
               </Card>
             ))}
 
             <Section title="לוג פעולות">
               {log.map((l, i) => (
-                <div key={i} className="text-sm">
+                <div key={i} className="text-sm text-gray-700">
                   {l.time} – {l.text}
                 </div>
               ))}
@@ -236,15 +245,17 @@ export default function AlcoholManagementSystem() {
 }
 
 /* ======================================================
-   UI
+   UI COMPONENTS
 ====================================================== */
 
 function ModeButton({ label, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-full text-sm ${
-        active ? "bg-black text-white" : "bg-gray-200"
+      className={`px-5 py-2 rounded-full font-semibold text-sm transition ${
+        active
+          ? "bg-black text-white shadow"
+          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
       }`}
     >
       {label}
@@ -254,44 +265,65 @@ function ModeButton({ label, active, onClick }) {
 
 function Section({ title, children }) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{title}</h2>
+    <section className="space-y-4">
+      <h2 className="text-lg font-bold">{title}</h2>
       {children}
-    </div>
+    </section>
   );
 }
 
-function Card({ children, variant }) {
-  const variantClass =
-    variant === "allocation"
-      ? "card-allocation"
-      : variant === "live"
-      ? "card-live"
-      : "card-planning";
+function Card({ children, tone }) {
+  const toneClass =
+    tone === "edit"
+      ? "bg-[#fffaf3] border-2 border-[#e6cfa8]"
+      : tone === "live"
+      ? "bg-[#f7f3ef] border-2 border-[#c9b18a]"
+      : "bg-white border border-gray-200";
 
-  return <div className={`bg-white rounded-xl p-4 shadow-sm ${variantClass}`}>{children}</div>;
+  return <div className={`rounded-2xl p-5 ${toneClass}`}>{children}</div>;
 }
 
 function Input({ label, value, onChange }) {
   return (
-    <div>
-      <div className="text-xs text-gray-500">{label}</div>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="input" />
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold text-gray-600">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-xl border-2 border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-black"
+      />
     </div>
   );
 }
 
 function NumberInput({ label, value, onChange }) {
   return (
-    <div>
-      <div className="text-xs text-gray-500">{label}</div>
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold text-gray-600">{label}</label>
       <input
         type="number"
         min={0}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="input"
+        className="rounded-xl border-2 border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-black"
       />
+    </div>
+  );
+}
+
+function Select({ label, value, onChange, options }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold text-gray-600">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-xl border-2 border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:border-black"
+      >
+        {options.map((o) => (
+          <option key={o}>{o}</option>
+        ))}
+      </select>
     </div>
   );
 }
