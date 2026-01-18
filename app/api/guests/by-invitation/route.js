@@ -1,19 +1,10 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
-import { getUserFromRequest } from "@/lib/auth";
 
 export async function GET(req) {
   try {
     await connectDB();
-
-    const user = await getUserFromRequest(req);
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
 
     const { searchParams } = new URL(req.url);
     const invitationId = searchParams.get("invitationId");
