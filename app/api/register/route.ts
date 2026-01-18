@@ -93,22 +93,24 @@ export async function POST(req: Request) {
        יצירת המשתמש
     ============================================================ */
     const user = await User.create({
-      name,
-      email,
-      password: hashed,
-      plan: plan || "basic",
-      guests: guestsLevel,
-      paidAmount,
-      planLimits,
+  name,
+  email,
+  password: hashed,
+  plan: plan || "basic",
+  guests: guestsLevel,
+  paidAmount,
+  planLimits,
 
-      includeCalls: includeCallsBool,
-      callsAddonPrice: 0,
+  includeCalls: includeCallsBool,
+  callsAddonPrice: 0,
 
-      includeCreditGifts: includeCreditGiftsBool,
-      creditGiftsAddonPrice: 0,
+  includeCreditGifts: includeCreditGiftsBool,
+  creditGiftsAddonPrice: 0,
 
-      
-    });
+  // 🔹 העדכון הקריטי
+  createdByProducer: createdByProducer || null,
+});
+
 
     /* ============================================================
        🟢 אם נוצר ע"י מפיק – לא מבצעים login
