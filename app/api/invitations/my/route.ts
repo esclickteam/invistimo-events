@@ -36,11 +36,11 @@ export async function GET() {
       .lean();
 
     if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: "NO_INVITATION" },
-        { status: 404 }
-      );
-    }
+  return NextResponse.json({
+    success: true,
+    invitation: null,
+  });
+}
 
     // ✅ שליפת האירוע לצורך מיקום
     const event = invitation.eventId
