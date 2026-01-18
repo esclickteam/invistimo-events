@@ -7,7 +7,8 @@ import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
 
 export default function EventProductionPage() {
   const { user } = useAuth();
-  const [invitation, setInvitation] = useState<any>(null);
+  // 🔹 הסרת <any> כדי שזו תהיה JS רגיל
+  const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
