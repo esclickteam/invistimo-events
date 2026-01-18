@@ -11,8 +11,9 @@ import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
 import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
-import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
-import LiveGuestsTab from "./_components/LiveGuests/LiveGuestsTab"; // ✅ ייבוא יחיד
+import LiveGuestsTab from "./_components/LiveGuestsTab";
+import LiveGuestsTab from "./_components/LiveGuestsTab";
+ 
 
 export default function EventProductionPage() {
   const { user } = useAuth();
