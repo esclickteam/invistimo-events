@@ -207,18 +207,25 @@ function SeatingCanvasInner({
     return null;
   }
 
-  const contentOffset = isViewer && tables.length
-  ? (() => {
-      const xs = tables.map(t => t.x);
-      const ys = tables.map(t => t.y);
-      const minX = Math.min(...xs), maxX = Math.max(...xs);
-      const minY = Math.min(...ys), maxY = Math.max(...ys);
-      return {
-        x: size.width / 2 - (minX + maxX) / 2,
-        y: size.height / 2 - (minY + maxY) / 2,
-      };
-    })()
-  : null;
+  const contentOffset =
+  isViewer &&
+  tables.length &&
+  size.width > 0 &&
+  size.height > 0
+    ? (() => {
+        const xs = tables.map((t) => t.x);
+        const ys = tables.map((t) => t.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+
+        return {
+          x: size.width / 2 - (minX + maxX) / 2,
+          y: size.height / 2 - (minY + maxY) / 2,
+        };
+      })()
+    : null;
 
   /* ================= FINAL RENDER LOG ================= */
   console.log("🎨 [Stage RENDER]", {
