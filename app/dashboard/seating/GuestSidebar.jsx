@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -27,13 +27,18 @@ export default function GuestSidebar({
     : "";
 
   const shouldHighlightFromUrl =
-    (from === "dashboard" || from === "personal") &&
-    !!highlightedGuestId;
+    (from === "dashboard" || from === "personal") && !!highlightedGuestId;
 
   /* ===============================
      Guards
   =============================== */
   if (!Array.isArray(guests) || !Array.isArray(tables)) {
+    console.log("🟠 [GuestSidebar] guards failed", {
+      guestsIsArray: Array.isArray(guests),
+      tablesIsArray: Array.isArray(tables),
+      guests,
+      tables,
+    });
     return null;
   }
 
@@ -54,47 +59,76 @@ export default function GuestSidebar({
     return map;
   }, [tables]);
 
-    /* ===============================
+  /* ===============================
      ✅ הצג רק מי שאישר הגעה (RSVP=YES)
+     (בלי שינוי לוגיקה)
   =============================== */
   const allowedGuests = useMemo(() => {
-  const yesSet = new Set([
-    "yes",
-    "confirmed",
-    "attending",
-    "approved",
-    "true",
-    "כן",
-    "מגיע",
-    "מגיעה",
-    "אישר",
-    "מאשר",
-    "אישר הגעה",
-    "אושר",
-    "מאושר",
-  ]);
+    return guests.filter((g) => {
+      const id = String(g.id ?? g._id ?? "");
+      return (
+        String(g.rsvp ?? "").toLowerCase() === "yes" &&
+        !guestTableMap.has(id)
+      );
+    });
+  }, [guests, guestTableMap]);
 
-  const isYes = (g) => {
-    const raw =
-      g.rsvp ??
-      g.rsvpStatus ??
-      g.status ??
-      g.attendance ??
-      g.replyStatus ??
-      g.confirmationStatus;
+  /* ===============================
+     ✅ LOGS: דיאגנוסטיקה (בלי לשנות לוגיקה)
+  =============================== */
+  useEffect(() => {
+    // מסכמים סטטוסים + למה נכשל סינון
+    const counts = { yes: 0, no: 0, pending: 0, empty: 0, other: 0 };
+    let seatedByMap = 0;
 
-    const v = String(raw ?? "").toLowerCase().trim();
-    return yesSet.has(v);
-  };
+    (guests || []).forEach((g) => {
+      const id = String(g.id ?? g._id ?? "");
+      const r = String(g.rsvp ?? "").toLowerCase().trim();
 
-  return guests.filter((g) => {
-    const id = String(g.id ?? g._id ?? "");
-    return isYes(g) && !guestTableMap.has(id);
-  });
-}, [guests, guestTableMap]);
+      if (r === "yes") counts.yes++;
+      else if (r === "no") counts.no++;
+      else if (r === "pending") counts.pending++;
+      else if (!r) counts.empty++;
+      else counts.other++;
 
+      if (guestTableMap.has(id)) seatedByMap++;
+    });
 
+    console.log("🟦 [GuestSidebar] stats", {
+      guestsTotal: guests.length,
+      allowedGuestsTotal: allowedGuests.length,
+      seatedByMap,
+      rsvpCounts: counts,
+      exampleFirst5: guests.slice(0, 5).map((g) => ({
+        name: g?.name,
+        id: String(g?.id ?? g?._id ?? ""),
+        rsvp: g?.rsvp,
+        tableName: g?.tableName,
+        tableId: g?.tableId,
+      })),
+    });
 
+    // אם הסיידבר ריק – נדפיס "למה"
+    if (allowedGuests.length === 0 && guests.length > 0) {
+      console.log("🟥 [GuestSidebar] allowedGuests is EMPTY. Reasons preview:");
+      guests.slice(0, 25).forEach((g) => {
+        const id = String(g.id ?? g._id ?? "");
+        const rsvp = String(g.rsvp ?? "").toLowerCase().trim();
+        const passRsvp = rsvp === "yes";
+        const passNotSeated = !guestTableMap.has(id);
+
+        console.log("•", {
+          name: g.name,
+          id,
+          rsvp: g.rsvp,
+          passRsvp,
+          passNotSeated,
+          tableName: g.tableName,
+          tableId: g.tableId,
+        });
+      });
+    }
+  }, [guests, allowedGuests, guestTableMap]);
 
   return (
     <div
@@ -103,9 +137,7 @@ export default function GuestSidebar({
         (variant === "desktop"
           ? "hidden md:block w-72 h-full border-l shadow-xl"
           : "") +
-        (variant === "mobile"
-          ? "block md:hidden w-full h-full"
-          : "")
+        (variant === "mobile" ? "block md:hidden w-full h-full" : "")
       }
     >
       {/* כותרת */}
@@ -116,6 +148,12 @@ export default function GuestSidebar({
       {/* רשימה */}
       <ul>
         {allowedGuests.map((guest) => {
+          // ✅ LOG לכל אורח שמופיע בסיידבר
+          console.log("🟩 [GuestSidebar] rendering allowed guest:", {
+            name: guest.name,
+            id: String(guest.id ?? guest._id ?? ""),
+            rsvp: guest.rsvp,
+          });
 
           const guestId = String(guest.id ?? guest._id ?? "");
 
@@ -166,9 +204,7 @@ export default function GuestSidebar({
                 <div
                   className={
                     "font-medium " +
-                    (isHighlighted
-                      ? "text-yellow-900"
-                      : "text-gray-800")
+                    (isHighlighted ? "text-yellow-900" : "text-gray-800")
                   }
                 >
                   {guest.name}
@@ -189,9 +225,7 @@ export default function GuestSidebar({
                       משובץ לשולחן {tableLabel}
                     </span>
                   ) : (
-                    <span className="text-gray-400">
-                      לא משובץ
-                    </span>
+                    <span className="text-gray-400">לא משובץ</span>
                   )}
                 </div>
 
