@@ -20,7 +20,7 @@ function rsvpLabel(rsvp) {
   return map[rsvp] || rsvp || "-";
 }
 
-/* אישרו הגעה = מי שסימן מגיע (RSVP YES) — לא נוגעים בזה בלייב */
+/* אישרו הגעה = מי שסימן מגיע (RSVP YES) לפי מספר המגיעים */
 function confirmedCountForGuest(g) {
   return g?.rsvp === "yes" ? Number(g.guestsCount || 0) : 0;
 }
@@ -37,86 +37,86 @@ export default function LiveGuestsTab({ invitationId }) {
 
   const [openAddModal, setOpenAddModal] = useState(false);
 
-  // ✅ עריכה חוזרת (מודאל פנימי)
+  // ✅ עריכה (מודאל פנימי)
   const [editGuest, setEditGuest] = useState(null);
 
-  const cacheKey = invitationId ? `live-guests-${invitationId}` : null;
-
-  function saveCache(list) {
-    if (!cacheKey) return;
-    sessionStorage.setItem(cacheKey, JSON.stringify(list || []));
-  }
+  // 🔒 arrivedCount של לייב נשמר רק במפיק (לא נוגע במשתמש)
+  const arrivedKey = invitationId ? `live-arrived-${invitationId}` : null;
+  const [arrivedMap, setArrivedMap] = useState({}); // { [guestId]: number }
 
   /* =========================
-     Load cached guests on tab return
+     Load arrivedMap from sessionStorage
   ========================= */
   useEffect(() => {
-    if (!cacheKey) return;
-
-    const cached = sessionStorage.getItem(cacheKey);
+    if (!arrivedKey) return;
+    const cached = sessionStorage.getItem(arrivedKey);
     if (!cached) return;
-
     try {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed)) setGuests(parsed);
+      if (parsed && typeof parsed === "object") setArrivedMap(parsed);
     } catch {}
-  }, [cacheKey]);
+  }, [arrivedKey]);
+
+  function saveArrived(map) {
+    if (!arrivedKey) return;
+    sessionStorage.setItem(arrivedKey, JSON.stringify(map));
+  }
 
   /* =========================
-     Import guests
+     Import guests (READ ONLY from user data)
+     arrivedCount always starts from 0 in LIVE
   ========================= */
   async function importGuests() {
-  if (!invitationId) {
-    setError("אין מזהה הזמנה");
-    return;
+    if (!invitationId) {
+      setError("אין מזהה הזמנה");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(
+        `/api/live-guests/import?invitationId=${invitationId}`,
+        { method: "POST" }
+      );
+
+      const json = await res.json();
+      if (!res.ok) throw new Error();
+
+      const list = json.guests || [];
+      setGuests(list);
+
+      // ✅ בלייב תמיד מתחילים מאפס (למפיק בלבד)
+      setArrivedMap({});
+      saveArrived({});
+    } catch (e) {
+      console.error("❌ importGuests error:", e);
+      setError("לא נמצאו אורחים להזמנה");
+    } finally {
+      setLoading(false);
+    }
   }
-
-  setLoading(true);
-  setError(null);
-
-  try {
-    const res = await fetch(
-      `/api/live-guests/import?invitationId=${invitationId}`,
-      { method: "POST" }
-    );
-
-    const json = await res.json();
-    if (!res.ok) throw new Error();
-
-    // ✅ קריטי: בלייב arrivedCount תמיד מתחיל מ־0
-    const list = (json.guests || []).map((g) => ({
-      ...g,
-      arrivedCount: 0,
-    }));
-
-    setGuests(list);
-    saveCache(list);
-  } catch (e) {
-    console.error("❌ importGuests error:", e);
-    setError("לא נמצאו אורחים להזמנה");
-  } finally {
-    setLoading(false);
-  }
-}
 
   /* =========================
-     Delete guest
+     Delete guest (server)
   ========================= */
   async function deleteGuest(guest) {
     const ok = window.confirm(`האם למחוק את המוזמן "${guest.name}"?`);
     if (!ok) return;
 
     try {
-      const res = await fetch(`/api/guests/${guest._id}`, {
-        method: "DELETE",
-      });
-
+      const res = await fetch(`/api/guests/${guest._id}`, { method: "DELETE" });
       const data = await res.json();
       if (!data?.success) throw new Error("Delete failed");
 
-      setGuests((prev) => {
-        const next = prev.filter((g) => g._id !== guest._id);
-        saveCache(next);
+      setGuests((prev) => prev.filter((g) => g._id !== guest._id));
+
+      // גם מנקים arrivedMap מקומי
+      setArrivedMap((prev) => {
+        const next = { ...prev };
+        delete next[guest._id];
+        saveArrived(next);
         return next;
       });
     } catch (e) {
@@ -126,7 +126,8 @@ export default function LiveGuestsTab({ invitationId }) {
   }
 
   /* =========================
-     Update guest (PATCH, fallback PUT)
+     Update guest (server) - ONLY RSVP/guest fields
+     ❌ לא כותבים arrivedCount כדי לא לעדכן משתמש
   ========================= */
   async function updateGuestOnServer(guestId, payload) {
     let res = await fetch(`/api/guests/${guestId}`, {
@@ -144,64 +145,41 @@ export default function LiveGuestsTab({ invitationId }) {
     }
 
     const data = await res.json();
-    if (!res.ok || !data?.success) {
-      throw new Error(data?.error || "Update failed");
-    }
-
+    if (!res.ok || !data?.success) throw new Error(data?.error || "Update failed");
     return data.guest || payload;
   }
 
-  function applyUpdatedGuest(updated) {
-    setGuests((prev) => {
-      const next = prev.map((g) =>
-        g._id === updated._id ? { ...g, ...updated } : g
-      );
-      saveCache(next);
+  function applyUpdatedGuestLocal(updated) {
+    setGuests((prev) =>
+      prev.map((g) => (g._id === updated._id ? { ...g, ...updated } : g))
+    );
+  }
+
+  /* =========================
+     LIVE arrived (+/-) - LOCAL ONLY
+     ✅ עובד גם אם rsvp=no
+     ✅ לא נוגע במשתמש
+  ========================= */
+  function changeArrivedLocal(guestId, delta) {
+    setArrivedMap((prev) => {
+      const current = Number(prev[guestId] || 0);
+      const nextVal = Math.max(0, current + delta);
+      const next = { ...prev, [guestId]: nextVal };
+      saveArrived(next);
       return next;
     });
   }
 
   /* =========================
-     ✅ הגיעו בפועל ליד כל אורח
-     +1 / -1 על arrivedCount
-     ✅ לא מוגבל לאישרו הגעה (כי גם מי שסימן לא מגיע יכול להגיע)
-     ✅ מינימום 0
-     ✅ אין rollback בלייב
-  ========================= */
-  async function changeArrived(guest, delta) {
-    const prevArrived = Number(guest.arrivedCount || 0);
-    const nextArrived = Math.max(0, prevArrived + delta);
-    if (nextArrived === prevArrived) return;
-
-    // ✅ Optimistic UI (מתעדכן מייד)
-    applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
-
-    try {
-      await updateGuestOnServer(guest._id, { arrivedCount: nextArrived });
-    } catch (e) {
-      console.error("❌ arrivedCount update failed:", e);
-      // ❗ אין rollback בלייב
-    }
-  }
-
-  /* =========================
-     ✅ Stats only (כרטיסיות יחידות)
-     1) אישרו הגעה (rsvp=yes + guestsCount)
-     2) הגיעו בפועל (arrivedCount)
+     Stats cards (ONLY TWO)
+     1) אישרו הגעה (user RSVP)
+     2) הגיעו בפועל (live local)
   ========================= */
   const stats = useMemo(() => {
-    const confirmedTotal = guests.reduce(
-      (s, g) => s + confirmedCountForGuest(g),
-      0
-    );
-
-    const arrivedTotal = guests.reduce(
-      (s, g) => s + Number(g.arrivedCount || 0),
-      0
-    );
-
+    const confirmedTotal = guests.reduce((s, g) => s + confirmedCountForGuest(g), 0);
+    const arrivedTotal = Object.values(arrivedMap).reduce((s, n) => s + Number(n || 0), 0);
     return { confirmedTotal, arrivedTotal };
-  }, [guests]);
+  }, [guests, arrivedMap]);
 
   /* =========================
      BEFORE IMPORT
@@ -210,7 +188,6 @@ export default function LiveGuestsTab({ invitationId }) {
     return (
       <div className="p-6" dir="rtl">
         <p className="mb-4">עדיין לא יובאה רשימת אורחים ללייב</p>
-
         {error && <p className="text-red-600 mb-3">{error}</p>}
 
         <button
@@ -250,11 +227,11 @@ export default function LiveGuestsTab({ invitationId }) {
 
       {/* ✅ Only two cards */}
       <div className="grid grid-cols-2 gap-4">
-        <Stat title="אישרו הגעה" value={stats.confirmedTotal} />
+        <Stat title="אישרו הגעה" value={stats.confirmedTotal} color="green" />
         <Stat title="הגיעו בפועל" value={stats.arrivedTotal} color="green" />
       </div>
 
-      {/* ✅ Live table */}
+      {/* Live table */}
       <div className="w-full overflow-x-auto bg-white border rounded-xl">
         <table className="min-w-[1100px] w-full">
           <thead className="bg-gray-100">
@@ -273,7 +250,7 @@ export default function LiveGuestsTab({ invitationId }) {
           <tbody>
             {guests.map((g) => {
               const confirmed = confirmedCountForGuest(g);
-              const arrived = Number(g.arrivedCount || 0);
+              const arrived = Number(arrivedMap[g._id] || 0);
 
               return (
                 <tr key={g._id} className="border-t">
@@ -284,11 +261,10 @@ export default function LiveGuestsTab({ invitationId }) {
 
                   <td className="p-3 font-semibold">{confirmed}</td>
 
-                  {/* ✅ פלוס/מינוס חופשי (מינימום 0) */}
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => changeArrived(g, -1)}
+                        onClick={() => changeArrivedLocal(g._id, -1)}
                         disabled={arrived <= 0}
                         className="w-8 h-8 rounded-full border border-gray-300 text-lg hover:bg-gray-50 transition disabled:opacity-30"
                         title="הפחת אחד שהגיע"
@@ -296,7 +272,7 @@ export default function LiveGuestsTab({ invitationId }) {
                         −
                       </button>
 
-                      <div className="min-w-[90px] text-center leading-tight">
+                      <div className="min-w-[70px] text-center leading-tight">
                         <div className="text-xs text-gray-500">הגיעו</div>
                         <div className="text-lg font-bold text-green-700">
                           {arrived}
@@ -304,7 +280,7 @@ export default function LiveGuestsTab({ invitationId }) {
                       </div>
 
                       <button
-                        onClick={() => changeArrived(g, +1)}
+                        onClick={() => changeArrivedLocal(g._id, +1)}
                         className="w-8 h-8 rounded-full bg-green-600 text-white text-lg hover:bg-green-700 transition"
                         title="הוסף אחד שהגיע"
                       >
@@ -320,9 +296,7 @@ export default function LiveGuestsTab({ invitationId }) {
                   <td className="p-3">
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() =>
-                          router.push(`/dashboard/messages?guestId=${g._id}`)
-                        }
+                        onClick={() => router.push(`/dashboard/messages?guestId=${g._id}`)}
                         title="הודעות"
                       >
                         💬
@@ -330,16 +304,13 @@ export default function LiveGuestsTab({ invitationId }) {
 
                       <button
                         onClick={() =>
-                          router.push(
-                            `/dashboard/seating?from=personal&guestId=${g._id}`
-                          )
+                          router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
                         }
                         title="הושבה"
                       >
                         🪑
                       </button>
 
-                      {/* ✅ החזרת העריכה */}
                       <button onClick={() => setEditGuest(g)} title="עריכה">
                         ✏️
                       </button>
@@ -360,27 +331,23 @@ export default function LiveGuestsTab({ invitationId }) {
         </table>
       </div>
 
-      {/* ✅ Add */}
+      {/* Add */}
       {openAddModal && (
         <AddGuestModal
           invitationId={invitationId}
           onClose={() => setOpenAddModal(false)}
           onSuccess={(newGuest) => {
             if (!newGuest) return;
-
             setGuests((prev) => {
               if (prev.some((x) => x._id === newGuest._id)) return prev;
-              const next = [...prev, newGuest];
-              saveCache(next);
-              return next;
+              return [...prev, newGuest];
             });
-
             setOpenAddModal(false);
           }}
         />
       )}
 
-      {/* ✅ Edit (inline modal) */}
+      {/* Edit (inline) - does NOT include arrivedCount */}
       {editGuest && (
         <InlineEditGuestModal
           guest={editGuest}
@@ -388,7 +355,7 @@ export default function LiveGuestsTab({ invitationId }) {
           onSave={async (payload) => {
             try {
               const updated = await updateGuestOnServer(editGuest._id, payload);
-              applyUpdatedGuest({ ...editGuest, ...updated, _id: editGuest._id });
+              applyUpdatedGuestLocal({ ...editGuest, ...updated, _id: editGuest._id });
               setEditGuest(null);
             } catch (e) {
               console.error("❌ updateGuest error:", e);
@@ -403,14 +370,14 @@ export default function LiveGuestsTab({ invitationId }) {
 
 /* =========================
    Inline Edit Modal (no imports)
+   ✅ edits RSVP/guest fields only
 ========================= */
 function InlineEditGuestModal({ guest, onClose, onSave }) {
   const [name, setName] = useState(guest?.name || "");
   const [phone, setPhone] = useState(guest?.phone || "");
   const [relation, setRelation] = useState(guest?.relation || "");
   const [notes, setNotes] = useState(guest?.notes || "");
-  const [guestsCount, setGuestsCount] = useState(Number(guest?.guestsCount || 1));
-  const [arrivedCount, setArrivedCount] = useState(Number(guest?.arrivedCount || 0));
+  const [guestsCount, setGuestsCount] = useState(Number(guest?.guestsCount || 0));
   const [rsvp, setRsvp] = useState(guest?.rsvp || "pending");
   const [saving, setSaving] = useState(false);
 
@@ -424,7 +391,6 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
         relation: relation.trim(),
         notes: notes.trim(),
         guestsCount: Math.max(0, Number(guestsCount || 0)),
-        arrivedCount: Math.max(0, Number(arrivedCount || 0)),
         rsvp,
       });
     } finally {
@@ -437,7 +403,9 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden" dir="rtl">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="font-semibold text-lg">✏️ עריכת מוזמן</div>
-          <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-black">
+            ✕
+          </button>
         </div>
 
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -446,7 +414,6 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
-              placeholder="שם מלא"
             />
           </Field>
 
@@ -455,7 +422,6 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
-              placeholder="05XXXXXXXX"
             />
           </Field>
 
@@ -464,26 +430,15 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
               value={relation}
               onChange={(e) => setRelation(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
-              placeholder="משפחה / חברים / עבודה..."
             />
           </Field>
 
-          <Field label="מספר (לפני האירוע)">
+          <Field label="כמה אישר להגיע">
             <input
               type="number"
               min={0}
               value={guestsCount}
               onChange={(e) => setGuestsCount(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </Field>
-
-          <Field label="הגיעו בפועל">
-            <input
-              type="number"
-              min={0}
-              value={arrivedCount}
-              onChange={(e) => setArrivedCount(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
             />
           </Field>
@@ -505,7 +460,6 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 min-h-[90px]"
-              placeholder="הערות..."
             />
           </Field>
         </div>
@@ -514,7 +468,6 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
           <button onClick={onClose} className="px-4 py-2 rounded-lg border" disabled={saving}>
             ביטול
           </button>
-
           <button
             onClick={handleSave}
             className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-60"
@@ -542,7 +495,6 @@ function Field({ label, children, full }) {
 ========================= */
 function Stat({ title, value, color }) {
   const colors = { green: "text-green-600" };
-
   return (
     <div className="border p-5 rounded-xl bg-white shadow-sm text-center">
       <div className="text-gray-500 text-sm mb-1">{title}</div>
