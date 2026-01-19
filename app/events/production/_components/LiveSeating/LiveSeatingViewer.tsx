@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
-import SeatingCanvas from "@/app/components/seating/SeatingCanvas";
-
 
 
 export default function LiveSeatingViewer({
@@ -59,11 +57,11 @@ export default function LiveSeatingViewer({
   return (
     <div className="relative w-full h-full bg-[#faf8f4]">
       {/* 🎧 מפיק – משתמש ב־SeatingCanvas */}
-      <SeatingCanvas
+    
         mode="viewer"
         background={null}
         showStats
-      />
+     
     </div>
   );
 }

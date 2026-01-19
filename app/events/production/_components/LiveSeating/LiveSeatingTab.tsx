@@ -2,36 +2,44 @@
 
 import { useEffect, useState } from "react";
 
-/* TYPES */
+/* Provider + types */
+import { LiveSeatingProvider } from "./LiveSeatingProvider";
 import { LiveSeatingState } from "./types";
 
 /* UI */
 import GuestListLive from "./GuestListLive";
 
-/* 🎧 אותו קנבס בדיוק של הלקוח */
-import SeatingCanvas from "@/app/components/seating/SeatingCanvas";
+/* 🎧 קנבס זהה ללקוח */
 
 /* 🧠 Zustand – מקור אמת */
 import { useSeatingStore } from "@/store/seatingStore";
-import { useZoneStore } from "@/store/zoneStore";
 
 type Props = {
   invitationId: string;
 };
 
 export default function LiveSeatingTab({ invitationId }: Props) {
-  const [imported, setImported] = useState(false);
+  const [data, setData] = useState<LiveSeatingState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* 🔑 הכנסת snapshot ל־store הראשי */
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
-  const setZones = useZoneStore((s) => s.setZones);
 
   /* =========================
-     Import seating snapshot (ONCE)
+     Mount log
+  ========================= */
+  useEffect(() => {
+    console.log("🟡 [LiveSeatingTab] mounted");
+    console.log("🟡 invitationId:", invitationId);
+  }, [invitationId]);
+
+  /* =========================
+     Import seating snapshot
   ========================= */
   async function importData() {
     if (!invitationId) {
+      console.warn("⚠️ missing invitationId");
       setError("אין מזהה הזמנה");
       return;
     }
@@ -51,24 +59,28 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       const json = await res.json();
 
-      console.log("✅ [LiveSeatingTab] snapshot", {
+      console.log("✅ snapshot received", {
         tables: json.tables?.length ?? 0,
         guests: json.guests?.length ?? 0,
         canvasView: json.canvasView ?? null,
       });
 
-      /* 🔑 מקור אמת – seatingStore */
-      importSnapshot({
+      const snapshot: LiveSeatingState = {
         tables: json.tables ?? [],
         guests: json.guests ?? [],
-        background: json.background ?? null,
         canvasView: json.canvasView ?? null,
+      };
+
+      /* 🧠 מקור אמת – seatingStore */
+      importSnapshot({
+        tables: snapshot.tables,
+        guests: snapshot.guests,
+        canvasView: snapshot.canvasView,
+        background: json.background ?? null,
       });
 
-      /* 🔑 zones */
-      setZones(json.zones ?? []);
-
-      setImported(true);
+      /* 🪟 Provider (לא חובה אבל משאיר מבנה קיים) */
+      setData(snapshot);
     } catch (e) {
       console.error("❌ import error", e);
       setError("לא נמצאה מפת הושבה");
@@ -78,9 +90,9 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* =========================
-     Empty / before import
+     Before import
   ========================= */
-  if (!imported) {
+  if (!data) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh]">
         <p className="mb-4">עדיין לא יובאה מפת הושבה</p>
@@ -101,23 +113,27 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* =========================
-     Render – producer viewer (READ ONLY)
+     Render – producer viewer
   ========================= */
   return (
-    <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
-      {/* 🗺️ מפת הושבה – Viewer בלבד */}
-      <div className="flex-1 relative">
-        <SeatingCanvas
-          mode="viewer"       // ❗️אין edit, אין שינוי canvasView
-          background={null}   // מגיע מה־store
-          showStats
-        />
-      </div>
+    <LiveSeatingProvider initial={data}>
+      <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
 
-      {/* 👥 רשימת מוזמנים */}
-      <div className="w-80 border-l bg-white">
-        <GuestListLive />
+        {/* 🗺️ מפת הושבה – Viewer בלבד */}
+        <div className="flex-1 relative">
+          
+            mode="viewer"   // ❗ אין scale, אין edit
+            background={null}
+            showStats
+          
+        </div>
+
+        {/* 👥 רשימת מוזמנים */}
+        <div className="w-80 border-l bg-white">
+          <GuestListLive />
+        </div>
+
       </div>
-    </div>
+    </LiveSeatingProvider>
   );
 }
