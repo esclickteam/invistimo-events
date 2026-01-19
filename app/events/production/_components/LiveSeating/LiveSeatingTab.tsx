@@ -105,7 +105,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
           ) : (
             <SeatingEditor
               background={background?.url || null}
-              readOnly
               showStats
             />
           )}
@@ -113,7 +112,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
         {/* 👥 אורחים – אותו Sidebar כמו אצל הלקוח */}
         <div className="w-80 border-l bg-white hidden md:block">
-          <GuestSidebar />
+          <GuestSidebar onDragStart={startDragGuest} />
+
         </div>
       </div>
 
