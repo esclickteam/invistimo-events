@@ -159,14 +159,18 @@ export async function POST(req: Request) {
         isTest: false,
       });
 
-      await User.findByIdAndUpdate(user._id, {
-        plan: "premium",
-        hasPaid: true,
-        $inc: {
-          guests: targetGuests,
-          paidAmount: amountCharged,
-        },
-      });
+      const MESSAGES_PER_GUEST = 3;
+
+await User.findByIdAndUpdate(user._id, {
+  plan: "premium",
+  hasPaid: true,
+  $inc: {
+    guests: targetGuests,
+    maxMessages: targetGuests * MESSAGES_PER_GUEST,
+    remainingMessages: targetGuests * MESSAGES_PER_GUEST,
+    paidAmount: amountCharged,
+  },
+});
 
       event.maxGuests += targetGuests;
       await event.save();
@@ -280,11 +284,15 @@ export async function POST(req: Request) {
       isTest: false,
     });
 
+    const MESSAGES_PER_GUEST = 3;
+const totalMessages = maxGuests * MESSAGES_PER_GUEST;
+
+
     await User.findByIdAndUpdate(user._id, {
   plan,
   guests: maxGuests,
-  maxMessages: maxGuests,
-  remainingMessages: maxGuests,
+  maxMessages: totalMessages,
+  remainingMessages: totalMessages,
   paidAmount: totalPaid,
   hasPaid: true,
   isTrial: false,
