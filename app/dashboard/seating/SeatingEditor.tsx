@@ -221,15 +221,33 @@ function SeatingEditorInner({
       )}
 
       <Stage
-        width={size.width}
-        height={size.height}
-        scaleX={scale}
-        scaleY={scale}
-        x={stagePos.x}
-        y={stagePos.y}
-        onWheel={handleWheel}
-        onMouseMove={handleMouseMove}
-      >
+  width={size.width}
+  height={size.height}
+  scaleX={scale}
+  scaleY={scale}
+  x={stagePos.x}
+  y={stagePos.y}
+  onWheel={handleWheel}
+  onMouseMove={handleMouseMove}
+
+  onMouseDown={(e) => {
+    if (readOnly) return;
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos) return;
+
+    panStart.current = pos;
+    stageStart.current = { ...stagePos };
+  }}
+
+  onMouseUp={() => {
+    panStart.current = null;
+  }}
+
+  onMouseLeave={() => {
+    panStart.current = null;
+  }}
+>
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
         </Layer>
