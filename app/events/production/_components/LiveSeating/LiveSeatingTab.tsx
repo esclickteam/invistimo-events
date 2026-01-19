@@ -27,9 +27,38 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
   const setZones = useZoneStore((s) => s.setZones);
 
+  const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
+
   useEffect(() => {
     console.log("🟡 [Producer LiveSeatingTab] mounted", invitationId);
   }, [invitationId]);
+
+  /* ===============================
+     ✅ LOAD FROM SESSION (so no re-import when switching tabs)
+  =============================== */
+  useEffect(() => {
+    if (!cacheKey) return;
+
+    const cached = sessionStorage.getItem(cacheKey);
+    if (!cached) return;
+
+    try {
+      const data = JSON.parse(cached);
+
+      importSnapshot({
+        tables: data.tables ?? [],
+        guests: data.guests ?? [],
+        canvasView: data.canvasView ?? null,
+        background: data.background ?? null,
+      });
+
+      setZones(data.zones ?? []);
+      setEventId(data.eventId ?? null);
+      setHasImported(true);
+    } catch (e) {
+      console.warn("⚠️ Failed to load live seating cache", e);
+    }
+  }, [cacheKey, importSnapshot, setZones]);
 
   /* ===============================
      IMPORT SNAPSHOT
@@ -74,7 +103,23 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       /* 🔑 eventId לשמירה */
       setEventId(json.eventId);
 
+      /* ✅ mark imported */
       setHasImported(true);
+
+      /* ✅ cache it so it won't disappear on tab switch */
+      if (cacheKey) {
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            eventId: json.eventId ?? null,
+            tables: json.tables ?? [],
+            guests: json.guests ?? [],
+            zones: json.zones ?? [],
+            canvasView: json.canvasView ?? null,
+            background: json.background ?? null,
+          })
+        );
+      }
     } catch (e) {
       console.error("❌ Producer import error", e);
       setError("לא נמצאה מפת הושבה");
@@ -109,17 +154,28 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
     const data = await res.json();
     alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
+
+    // ✅ update cache after save (so UI stays consistent)
+    if (cacheKey) {
+      sessionStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          eventId,
+          tables,
+          guests,
+          zones,
+          canvasView,
+          background,
+        })
+      );
+    }
   }
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-[#faf8f4]">
       {/* 🔘 HEADER */}
       <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
-        {error && (
-          <span className="text-sm text-red-600 ml-auto">
-            {error}
-          </span>
-        )}
+        {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
         {hasImported && (
           <button
@@ -148,10 +204,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
               טרם יובאה מפת הושבה
             </div>
           ) : (
-            <SeatingEditor
-              background={background?.url || null}
-              showStats
-            />
+            <SeatingEditor background={background?.url || null} showStats />
           )}
         </div>
 
@@ -162,10 +215,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       </div>
 
       {/* 📱 מובייל – אותו רכיב כמו לקוח */}
-      <MobileGuests
-        onDragStart={startDragGuest}
-        onClose={() => {}}
-      />
+      <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
     </div>
   );
 }
