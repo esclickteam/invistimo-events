@@ -179,8 +179,8 @@ function SeatingCanvasInner({
         height={size.height}
         scaleX={scale}
         scaleY={scale}
-        x={stagePos.x}
-        y={stagePos.y}
+        x={isViewer ? size.width / 2 : stagePos.x}
+        y={isViewer ? size.height / 2 : stagePos.y}
         onWheel={handleWheel}
         onMouseMove={handleMouseMove}
       >
