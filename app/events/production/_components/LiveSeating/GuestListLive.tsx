@@ -1,16 +1,17 @@
 "use client";
 
-import { useLiveSeating } from "./LiveSeatingProvider";
+import { useSeatingStore } from "@/store/seatingStore";
 import type { LiveGuest } from "./types";
 
 export default function GuestListLive() {
-  const { state, markArrived } = useLiveSeating();
-
-  const guests = state?.guests ?? [];
+  const guests = useSeatingStore((s) => s.guests);
+  const updateGuestArrived = useSeatingStore(
+    (s) => s.updateGuestArrived
+  );
 
   return (
-    <div className="w-80 border-r p-4">
-      <h3 className="font-bold mb-2">אורחים</h3>
+    <div className="w-80 border-r p-4 overflow-y-auto">
+      <h3 className="font-bold mb-3">אורחים</h3>
 
       {guests.length === 0 ? (
         <div className="text-sm text-gray-500">
@@ -18,37 +19,52 @@ export default function GuestListLive() {
         </div>
       ) : (
         guests.map((g: LiveGuest) => {
-          // ✅ תמיכה גם ב-id ישן וגם ב-_id החדש (כדי שלא יישבר לך כלום)
+          // 🔑 מזהה בטוח
           const guestId = (g as any)._id ?? (g as any).id;
 
-          // ✅ שמות שדות עקביים לתצוגה
-          const name = (g as any).fullName ?? (g as any).name ?? "";
+          // 🧾 שדות עקביים
+          const name =
+            (g as any).fullName ??
+            (g as any).name ??
+            "אורח";
+
           const approved =
-            (g as any).approvedCount ?? (g as any).approved ?? 0;
+            (g as any).approvedCount ??
+            (g as any).approved ??
+            0;
 
           const arrived = (g as any).arrived ?? 0;
 
           return (
             <div
               key={guestId}
-              className={`p-2 mb-2 rounded ${
-                arrived > 0 ? "bg-green-100" : "bg-gray-100"
+              className={`p-3 mb-2 rounded-lg transition ${
+                arrived > 0
+                  ? "bg-green-100"
+                  : "bg-gray-100"
               }`}
             >
-              <div className="font-medium">{name}</div>
+              <div className="font-medium mb-1">
+                {name}
+              </div>
 
-              <div className="mt-1 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min={0}
                   max={approved}
                   value={arrived}
                   onChange={(e) =>
-                    markArrived(guestId, Number(e.target.value))
+                    updateGuestArrived(
+                      guestId,
+                      Number(e.target.value)
+                    )
                   }
-                  className="w-20 rounded border px-2 py-1"
+                  className="w-20 rounded border px-2 py-1 text-sm"
                 />
-                <span className="text-sm text-gray-600">/ {approved}</span>
+                <span className="text-sm text-gray-600">
+                  / {approved}
+                </span>
               </div>
             </div>
           );

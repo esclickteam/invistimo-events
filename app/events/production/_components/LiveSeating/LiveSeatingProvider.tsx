@@ -1,77 +1,34 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
-import type {
-  LiveSeatingState,
-  LiveSeatingContextType,
-} from "./types";
+import React from "react";
 
-const LiveSeatingContext =
-  createContext<LiveSeatingContextType | null>(null);
+/**
+ * ⚠️ הקובץ הזה הושבת בכוונה
+ *
+ * כל הלוגיקה של Live Seating
+ * מנוהלת כיום דרך:
+ * 👉 useSeatingStore (Zustand)
+ *
+ * הקובץ נשאר רק לתאימות לאחור
+ * כדי שלא יישברו imports ישנים
+ */
 
-type ProviderProps = {
-  initial: LiveSeatingState;
-  children: React.ReactNode;
-};
-
+/* =========================
+   Provider (NO-OP)
+========================= */
 export function LiveSeatingProvider({
-  initial,
   children,
-}: ProviderProps) {
-  /**
-   * 🛡️ safeInitial
-   * שומר גם background + canvasView
-   */
-  const safeInitial: LiveSeatingState = useMemo(
-    () => ({
-      guests: initial?.guests ?? [],
-      tables: initial?.tables ?? [],
-      background: initial?.background ?? null,
-      canvasView: initial?.canvasView ?? null,
-    }),
-    [initial]
-  );
-
-  const [state, setState] =
-    useState<LiveSeatingState>(safeInitial);
-
-  /**
-   * ✅ סימון הגעה – ללא שינוי לוגיקה
-   */
-  function markArrived(guestId: string, arrived: number) {
-    setState((prev) => ({
-      ...prev,
-      guests: (prev.guests ?? []).map((g: any) =>
-        (g._id ?? g.id) === guestId
-          ? { ...g, arrived }
-          : g
-      ),
-    }));
-  }
-
-  const value = useMemo(
-    () => ({ state, markArrived }),
-    [state]
-  );
-
-  return (
-    <LiveSeatingContext.Provider value={value}>
-      {children}
-    </LiveSeatingContext.Provider>
-  );
+}: {
+  children: React.ReactNode;
+}) {
+  return <>{children}</>;
 }
 
-export function useLiveSeating() {
-  const ctx = useContext(LiveSeatingContext);
-  if (!ctx) {
-    throw new Error(
-      "useLiveSeating must be used inside LiveSeatingProvider"
-    );
-  }
-  return ctx;
+/* =========================
+   Hook – חסום במפורש
+========================= */
+export function useLiveSeating(): never {
+  throw new Error(
+    "❌ useLiveSeating is deprecated. Use useSeatingStore instead."
+  );
 }

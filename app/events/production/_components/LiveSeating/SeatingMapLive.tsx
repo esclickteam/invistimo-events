@@ -1,13 +1,11 @@
 "use client";
 
-import { useLiveSeating } from "./LiveSeatingProvider";
+import { useSeatingStore } from "@/store/seatingStore";
 import type { LiveGuest, LiveTable } from "./types";
 
 export default function SeatingMapLive() {
-  const { state } = useLiveSeating();
-
-  const tables = state?.tables ?? [];
-  const guests = state?.guests ?? [];
+  const tables = useSeatingStore((s) => s.tables ?? []);
+  const guests = useSeatingStore((s) => s.guests ?? []);
 
   return (
     <div className="flex-1 p-4">
@@ -19,13 +17,10 @@ export default function SeatingMapLive() {
         </div>
       ) : (
         tables.map((t: LiveTable) => {
-          // ✅ תמיכה גם ב-id ישן וגם ב-_id החדש
           const tableId = (t as any)._id ?? (t as any).id;
-
           const tableName =
             (t as any).label ?? (t as any).name ?? "שולחן";
-
-          const capacity = (t as any).capacity ?? 0;
+          const capacity: number = (t as any).capacity ?? 0;
 
           const tableGuests = guests.filter(
             (g: LiveGuest) =>
@@ -33,12 +28,13 @@ export default function SeatingMapLive() {
           );
 
           const arrived = tableGuests.reduce(
-            (sum, g: LiveGuest) => sum + ((g as any).arrived ?? 0),
+            (sum: number, g: LiveGuest) =>
+              sum + ((g as any).arrived ?? 0),
             0
           );
 
           const approved = tableGuests.reduce(
-            (sum, g: LiveGuest) =>
+            (sum: number, g: LiveGuest) =>
               sum +
               ((g as any).approvedCount ??
                 (g as any).approved ??
@@ -53,9 +49,7 @@ export default function SeatingMapLive() {
                 arrived > 0 ? "bg-green-200" : "bg-gray-200"
               }`}
             >
-              <div className="font-medium">
-                {tableName}
-              </div>
+              <div className="font-medium">{tableName}</div>
               <div className="text-sm text-gray-700 mt-1">
                 הגיעו: {arrived} / {approved || capacity}
               </div>
