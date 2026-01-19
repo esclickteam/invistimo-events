@@ -92,7 +92,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         <LiveSeatingViewer />
 
         {/* Empty overlay */}
-        {!tables.length && !loading && (
+        {!tables.length && !loading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
             <p className="mb-4 text-gray-700">
               עדיין לא יובאה מפת הושבה ללייב

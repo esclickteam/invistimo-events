@@ -4,12 +4,8 @@ import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function LiveSeatingViewer() {
-  const {
-    tables,
-    guests,
-    background,
-    canvasView,
-  } = useSeatingStore((s) => ({
+  // 🔹 שליפת נתונים מה‑Zustand store
+  const { tables, guests, background, canvasView } = useSeatingStore((s) => ({
     tables: s.tables,
     guests: s.guests,
     background: s.background,

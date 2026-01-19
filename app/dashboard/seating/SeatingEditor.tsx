@@ -69,7 +69,6 @@ function SeatingEditorInner({
   guests: propGuests,
   canvasView: propCanvasView,
 }: SeatingEditorProps) {
-
   const [bgImage] = useImage(background || "", "anonymous");
 
   /* ================= STORES ================= */
