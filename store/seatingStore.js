@@ -27,6 +27,15 @@ export const useSeatingStore = create((set, get) => ({
   showAddModal: false,
   addGuestTable: null,
 
+  setGuests: (updater) =>
+  set((state) => ({
+    guests:
+      typeof updater === "function"
+        ? updater(state.guests)
+        : updater || [],
+  })),
+
+
   /* ================= ⭐ CANVAS VIEW (ADDED) ================= */
   canvasView: {
     scale: 1,
@@ -510,52 +519,70 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
   assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
   const { tables, guests } = get();
 
-  const table = tables.find((t) => t.id === tableId);
-  const guest = guests.find((g) => g.id === guestId);
-
-  if (!table || !guest) {
-    return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
-  }
-
-  // ✅ תיקון קריטי:
-  // לא לכפות seatIndex = 0
-  // אם לא הגיע seatIndex – נותנים ל-engine לבחור לבד
   const startIndex =
     typeof seatIndex === "number" ? seatIndex : undefined;
 
-  const block = findFreeBlock(table, count, startIndex);
+  let placed = false;
 
-  // guard חובה
-  if (!block || block.length === 0) {
+  const updatedTables = tables.map((t) => {
+    // ניקוי הושבות קודמות
+    const cleanedSeats =
+      t.seatedGuests?.filter(
+        (s) => String(s.guestId) !== String(guestId)
+      ) ?? [];
+
+    if (t.id !== tableId) {
+      return { ...t, seatedGuests: cleanedSeats };
+    }
+
+    const block = findFreeBlock(
+      { ...t, seatedGuests: cleanedSeats },
+      count,
+      startIndex
+    );
+
+    if (!block || block.length === 0) {
+      return { ...t, seatedGuests: cleanedSeats };
+    }
+
+    placed = true;
+
+    return {
+      ...t,
+      seatedGuests: [
+        ...cleanedSeats,
+        ...block.map((seatIndex) => ({
+          guestId,
+          seatIndex,
+        })),
+      ],
+    };
+  });
+
+  if (!placed) {
     return { ok: false, message: "אין מספיק מקומות פנויים" };
   }
 
-  // ניקוי הושבות קודמות של האורח מכל השולחנות
-  tables.forEach((t) => {
-    t.seatedGuests = t.seatedGuests.filter(
-      (s) => s.guestId !== guestId
-    );
-  });
+  const targetTable = updatedTables.find((t) => t.id === tableId);
 
-  // ✅ כאן נוצר seatIndex לכל מושב – זה מה שצובע באפור
-  table.seatedGuests.push(
-    ...block.map((seatIndex) => ({
-      guestId,
-      seatIndex,
-    }))
+  const updatedGuests = guests.map((g) =>
+    String(g.id ?? g._id) === String(guestId)
+      ? {
+          ...g,
+          tableId,
+          tableName: targetTable?.name,
+        }
+      : g
   );
 
-  // עדכון האורח
-  guest.tableId = tableId;
-  guest.tableName = table.name;
-
   set({
-    tables: [...tables],
-    guests: [...guests],
+    tables: updatedTables,
+    guests: updatedGuests,
   });
 
   return { ok: true };
 },
+
 
 
   removeGuestFromTable: (tableId, guestId) => {
