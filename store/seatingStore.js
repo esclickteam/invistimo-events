@@ -6,6 +6,16 @@ export const useSeatingStore = create((set, get) => ({
   tables: [],
   guests: [],
 
+  /* ================= ⭐ SELECTORS ================= */
+getApprovedGuests: () => {
+  return get().guests.filter(
+    (g) =>
+      g.confirmed === true ||
+      g.confirmedGuestsCount > 0
+  );
+},
+
+
   background: null,
 
    demoMode: false, // ⭐ מצב דמו
@@ -235,16 +245,22 @@ background: null,
     })),
 
   /* ---------------- DRAG START / END ---------------- */
-  startDragGuest: (guest) =>
+  startDragGuest: (guest) => {
+  // 🚫 חסימה – לא מאושר
+  if (!guest.confirmed && !guest.confirmedGuestsCount) {
+    return;
+  }
+
   set({
     draggingGuest: {
       ...guest,
-      id: String(guest.id ?? guest._id), // ⭐⭐⭐ השורה הקריטית
+      id: String(guest.id ?? guest._id),
       __isDragging: true,
     },
     highlightedSeats: [],
     highlightedTable: null,
-  }),
+  });
+},
 
 
   endDragGuest: () =>
@@ -300,6 +316,19 @@ dropGuest: () => {
   } = get();
 
   if (!draggingGuest) return;
+
+  // 🚫 אורח שלא אישר – לא ניתן להושיב
+if (
+  !draggingGuest.confirmed &&
+  !draggingGuest.confirmedGuestsCount
+) {
+  return set({
+    draggingGuest: null,
+    highlightedTable: null,
+    highlightedSeats: [],
+  });
+}
+
 
   if (!highlightedTable || highlightedSeats.length === 0) {
     return set({

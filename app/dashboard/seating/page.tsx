@@ -42,7 +42,8 @@ export default function SeatingPage() {
   =============================== */
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
-  const guests = useSeatingStore((s) => s.guests);
+  const guests = useSeatingStore((s) => s.getApprovedGuests());
+
 
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
