@@ -14,13 +14,8 @@ type Props = {
 };
 
 export default function LiveSeatingTab({ invitationId }: Props) {
-  // ✅ TS יודע שזה או state תקין או null
   const [data, setData] = useState<LiveSeatingState | null>(null);
-
-  // ✅ boolean ברור
-  const [loading, setLoading] = useState<boolean>(false);
-
-  // ✅ error יכול להיות string או null
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /* =========================
@@ -31,12 +26,11 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     console.log("🟡 invitationId:", invitationId);
   }, [invitationId]);
 
+  /* =========================
+     Import seating from client dashboard
+  ========================= */
   async function importData() {
-    console.log("🔵 importData clicked");
-    console.log("🔵 using invitationId:", invitationId);
-
     if (!invitationId) {
-      console.error("🔴 invitationId is missing!");
       setError("אין מזהה הזמנה – לא ניתן לייבא");
       return;
     }
@@ -45,47 +39,37 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     setError(null);
 
     try {
-      console.log("🔵 calling API...");
       const res = await fetch(
         `/api/live-seating/import?invitationId=${invitationId}`,
         { method: "POST" }
       );
 
-      console.log("🟢 API response status:", res.status);
-
       const json: LiveSeatingState = await res.json();
-      console.log("🟢 API response JSON:", json);
 
       if (!res.ok) {
-        throw new Error("ייבוא נכשל");
+        throw new Error("Import failed");
       }
 
-      // ✅ TS יודע שזה LiveSeatingState
       setData({
         guests: json.guests ?? [],
         tables: json.tables ?? [],
       });
-    } catch (e) {
-      console.error("🔴 import error:", e);
+    } catch (err) {
+      console.error("❌ Live seating import error:", err);
       setError("לא נמצאו נתוני הושבה ללקוח");
     } finally {
       setLoading(false);
-      console.log("🟡 import finished");
     }
   }
 
-  useEffect(() => {
-    console.log("🟣 data state changed:", data);
-  }, [data]);
-
   /* =========================
-     UI
+     Empty state – like LiveGuests
   ========================= */
   if (!data) {
     return (
-      <div className="p-6">
-        <p className="mb-4">
-          עדיין לא יובאה מפת הושבה ליום האירוע
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+        <p className="mb-4 text-gray-700">
+          עדיין לא יובאה מפת הושבה ללייב
         </p>
 
         {error && (
@@ -95,19 +79,26 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         <button
           onClick={importData}
           disabled={loading}
-          className="px-4 py-2 bg-black text-white rounded"
+          className="px-5 py-2 bg-black text-white rounded-lg flex items-center gap-2"
         >
-          {loading ? "מייבא..." : "📥 ייבוא מוזמנים + הושבה"}
+          {loading ? "מייבא..." : "📥 ייבוא הושבה"}
         </button>
       </div>
     );
   }
 
+  /* =========================
+     Live view
+  ========================= */
   return (
     <LiveSeatingProvider initial={data}>
-      <div className="flex h-[70vh]">
-        <SeatingMapLive />
-        <GuestListLive />
+      <div className="flex h-[70vh] border rounded-xl overflow-hidden">
+        <div className="flex-1">
+          <SeatingMapLive />
+        </div>
+        <div className="w-80 border-l bg-white">
+          <GuestListLive />
+        </div>
       </div>
     </LiveSeatingProvider>
   );
