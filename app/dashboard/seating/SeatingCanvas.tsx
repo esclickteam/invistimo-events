@@ -83,27 +83,53 @@ function SeatingCanvasInner({
       const w = containerRef.current!.offsetWidth;
       const h = containerRef.current!.offsetHeight;
       setSize({ width: w, height: h });
+
+      console.log("📐 [SeatingCanvas] resize", {
+        width: w,
+        height: h,
+        mode,
+      });
     };
 
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, []);
+  }, [mode]);
 
-  /* ================= CANVAS VIEW (EDITOR + VIEWER) ================= */
+  /* ================= CANVAS VIEW ================= */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
-  // ✅ זה השינוי הקריטי: גם viewer וגם editor משתמשים ב-canvasView
   useEffect(() => {
     if (!canvasView) return;
+
+    console.log("🎯 [SeatingCanvas] apply canvasView", {
+      canvasView,
+      mode,
+    });
 
     setScale(canvasView.scale ?? 1);
     setStagePos({
       x: canvasView.x ?? 0,
       y: canvasView.y ?? 0,
     });
-  }, [canvasView]);
+  }, [canvasView, mode]);
+
+  /* ================= GLOBAL DEBUG ================= */
+  useEffect(() => {
+    console.log("🧭 [SeatingCanvas DEBUG]", {
+      mode,
+      isViewer,
+      containerSize: size,
+      canvasViewFromStore: canvasView,
+      localState: {
+        scale,
+        stagePos,
+      },
+      tablesCount: tables.length,
+      guestsCount: guests.length,
+    });
+  }, [mode, isViewer, size, canvasView, scale, stagePos, tables, guests]);
 
   /* ================= EVENTS ================= */
   const handleMouseMove = (e: any) => {
@@ -143,10 +169,16 @@ function SeatingCanvasInner({
       y: pointer.y - mousePointTo.y * newScale,
     };
 
+    console.log("🔍 [SeatingCanvas] zoom", {
+      fromScale: scale,
+      toScale: newScale,
+      fromPos: stagePos,
+      toPos: newPos,
+    });
+
     setScale(newScale);
     setStagePos(newPos);
 
-    // ✅ שומרים canvasView – הלקוח והמפיק רואים אותו דבר
     setCanvasView({
       scale: newScale,
       x: newPos.x,
@@ -161,6 +193,7 @@ function SeatingCanvasInner({
       if (!selectedZoneId) return;
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
+        console.log("🗑️ [SeatingCanvas] delete zone", selectedZoneId);
         removeZone(selectedZoneId);
       }
     }
@@ -169,7 +202,20 @@ function SeatingCanvasInner({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone, isViewer]);
 
-  if (!canvasView) return null;
+  if (!canvasView) {
+    console.warn("⚠️ [SeatingCanvas] canvasView is null – skip render");
+    return null;
+  }
+
+  /* ================= FINAL RENDER LOG ================= */
+  console.log("🎨 [Stage RENDER]", {
+    mode,
+    width: size.width,
+    height: size.height,
+    scale,
+    x: isViewer ? size.width / 2 : stagePos.x,
+    y: isViewer ? size.height / 2 : stagePos.y,
+  });
 
   /* ================= RENDER ================= */
   return (
@@ -203,6 +249,14 @@ function SeatingCanvasInner({
 
             {tables.map((t) => {
               const used = t.seatedGuests?.length ?? 0;
+
+              console.log("🪑 [Table DRAW]", {
+                id: t.id,
+                x: t.x,
+                y: t.y,
+                used,
+                capacity: t.capacity,
+              });
 
               return (
                 <TableRenderer
