@@ -5,9 +5,8 @@ import { LiveSeatingProvider } from "./LiveSeatingProvider";
 import GuestListLive from "./GuestListLive";
 import { LiveSeatingState } from "./types";
 
-/* ✅ ה־Viewer החדש */
+/* ✅ Viewer */
 import LiveSeatingViewer from "@/app/events/production/_components/LiveSeating/LiveSeatingViewer";
-
 
 /* =========================
    Types
@@ -22,7 +21,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   /* =========================
-     Logs
+     Mount logs
   ========================= */
   useEffect(() => {
     console.log("🟡 LiveSeatingTab mounted");
@@ -30,14 +29,16 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }, [invitationId]);
 
   /* =========================
-     Import seating from dashboard snapshot
+     Import seating snapshot
   ========================= */
   async function importData() {
     if (!invitationId) {
+      console.warn("⚠️ No invitationId – abort import");
       setError("אין מזהה הזמנה – לא ניתן לייבא");
       return;
     }
 
+    console.log("📥 Import started", { invitationId });
     setLoading(true);
     setError(null);
 
@@ -47,21 +48,35 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         { method: "POST" }
       );
 
+      console.log("📡 Import response status:", res.status);
+
       if (!res.ok) {
         throw new Error("Import failed");
       }
 
       const json: LiveSeatingState = await res.json();
 
+      console.log("✅ Import raw payload:", json);
+      console.log("📊 tables:", json.tables?.length);
+      console.log("👥 guests:", json.guests?.length);
+      console.log("🗺️ canvasView:", (json as any).canvasView);
+
       setData({
         guests: json.guests ?? [],
         tables: json.tables ?? [],
+        // ⚠️ intentionally not mutating structure – just logging
+        ...(json as any).canvasView && {
+          canvasView: (json as any).canvasView,
+        },
       });
+
+      console.log("🟢 LiveSeatingTab data set");
     } catch (err) {
       console.error("❌ Live seating import error:", err);
       setError("לא נמצאו נתוני הושבה ללקוח");
     } finally {
       setLoading(false);
+      console.log("📥 Import finished");
     }
   }
 
@@ -69,6 +84,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      Empty state – before import
   ========================= */
   if (!data) {
+    console.log("ℹ️ LiveSeatingTab: no data yet");
+
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center">
         <p className="mb-4 text-gray-700">
@@ -91,13 +108,22 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* =========================
+     Before provider render
+  ========================= */
+  console.log("🚀 Rendering LiveSeatingProvider with snapshot:", {
+    tables: data.tables?.length,
+    guests: data.guests?.length,
+    canvasView: (data as any).canvasView,
+  });
+
+  /* =========================
      Live view – REAL UX
   ========================= */
   return (
     <LiveSeatingProvider initial={data}>
       <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
 
-        {/* 🗺️ מפת הושבה – זהה ללקוח */}
+        {/* 🗺️ מפת הושבה */}
         <div className="flex-1 relative">
           <LiveSeatingViewer invitationId={invitationId} />
         </div>
