@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
-import SeatingCanvas from "@/app/dashboard/seating/SeatingCanvas";
+import SeatingCanvas from "@/app/components/seating/SeatingCanvas";
+
 
 
 export default function LiveSeatingViewer({
