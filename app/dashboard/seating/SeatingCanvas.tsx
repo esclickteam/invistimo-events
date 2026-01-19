@@ -67,8 +67,6 @@ function SeatingCanvasInner({
 
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
-  const viewerFittedRef = useRef(false);
-
 
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
@@ -77,9 +75,6 @@ function SeatingCanvasInner({
   /* ================= CONTAINER SIZE ================= */
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
-
-  const WORLD_WIDTH = 3000;
-const WORLD_HEIGHT = 3000;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -118,38 +113,6 @@ const WORLD_HEIGHT = 3000;
     setStagePos({ x: canvasView.x, y: canvasView.y });
   }, [canvasView, isViewer]);
 
-
-  useEffect(() => {
-  if (!isViewer) return;
-  if (!canvasView) return;
-  if (!size.width || !size.height) return;
-  if (viewerFittedRef.current) return;
-
-  const centerX = size.width / 2;
-  const centerY = size.height / 2;
-
-  const worldCenterX = WORLD_WIDTH / 2;
-  const worldCenterY = WORLD_HEIGHT / 2;
-
-  const scale = canvasView.scale ?? 1;
-
-  const x = centerX - worldCenterX * scale;
-  const y = centerY - worldCenterY * scale;
-
-  console.log("👁️ [SeatingCanvas] viewer fit-to-world (ONCE)", {
-    scale,
-    x,
-    y,
-    size,
-  });
-
-  viewerFittedRef.current = true;
-  setCanvasView({ scale, x, y });
-}, [isViewer, size.width, size.height]);
-
-
-
-
   /* ================= DEBUG SNAPSHOT ================= */
   useEffect(() => {
     console.log("🎨 [SeatingCanvas] render snapshot", {
@@ -158,10 +121,10 @@ const WORLD_HEIGHT = 3000;
       guestsCount: guests.length,
       canvasView,
       stage: {
-  scale: canvasView?.scale,
-  x: canvasView?.x,
-  y: canvasView?.y,
-},
+        scale: isViewer ? 1 : scale,
+        x: isViewer ? 0 : stagePos.x,
+        y: isViewer ? 0 : stagePos.y,
+      },
       size,
     });
   }, [mode, tables, guests, canvasView, scale, stagePos, size, isViewer]);
@@ -238,32 +201,28 @@ const WORLD_HEIGHT = 3000;
   return (
     <div ref={containerRef} className="relative w-full h-full">
       <Stage
-  width={size.width}
-  height={size.height}
-  scaleX={canvasView.scale}
-  scaleY={canvasView.scale}
-  x={canvasView.x}
-  y={canvasView.y}
-  onWheel={isViewer ? undefined : handleWheel}
-  onMouseMove={isViewer ? undefined : handleMouseMove}
->
+        width={size.width}
+        height={size.height}
+        scaleX={isViewer ? 1 : scale}
+        scaleY={isViewer ? 1 : scale}
+        x={isViewer ? 0 : stagePos.x}
+        y={isViewer ? 0 : stagePos.y}
+        onWheel={handleWheel}
+        onMouseMove={handleMouseMove}
+      >
         {/* ===== WORLD ===== */}
         <Layer>
           <Group>
-            <GridLayer
-  width={WORLD_WIDTH}
-  height={WORLD_HEIGHT}
-/>
+            <GridLayer width={size.width} height={size.height} />
 
-{bgImage && (
-  <KonvaImage
-    image={bgImage}
-    width={WORLD_WIDTH}
-    height={WORLD_HEIGHT}
-    opacity={0.28}
-  />
-)}
-
+            {bgImage && (
+              <KonvaImage
+                image={bgImage}
+                width={size.width}
+                height={size.height}
+                opacity={0.28}
+              />
+            )}
 
             {zones.map((z) => (
               <ZoneRenderer key={z.id} zone={z} />

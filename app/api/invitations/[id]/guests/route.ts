@@ -8,6 +8,9 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import mongoose from "mongoose";
 import Event from "@/models/Event";
 
+const HARD_GUEST_CAP = 10000;
+
+
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +61,6 @@ const userId = auth.userId;
 
     if (!invitation) {
   const user = await User.findById(userId).lean();
-  const planLimit = user?.planLimits?.maxGuests || 100;
 
   console.log("🟡 No invitation found for user:", userId);
 
@@ -76,7 +78,7 @@ const userId = auth.userId;
       status: "active",
       date: new Date(),
       time: "00:00",
-      maxGuests: planLimit,
+      maxGuests: HARD_GUEST_CAP,
       location: {},
     });
 
@@ -104,7 +106,7 @@ const userId = auth.userId;
     canvasData: {},
     previewImage: "",
     shareId: nanoid(10),
-    maxGuests: planLimit,
+    maxGuests: HARD_GUEST_CAP,
     sentSmsCount: 0,
     guests: [],
   });
@@ -126,38 +128,13 @@ const userId = auth.userId;
       );
     }
 
-    /* ================= בדיקת מכסת אורחים ================= */
-    const guestsAgg = await InvitationGuest.aggregate([
-      {
-        $match: {
-          invitationId: new mongoose.Types.ObjectId(invitation._id),
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$guestsCount" },
-        },
-      },
-    ]);
-
-    const totalGuests = guestsAgg[0]?.total || 0;
     const incomingGuests =
-      typeof guestsCount === "number" && guestsCount > 0
-        ? guestsCount
-        : 1;
+  typeof guestsCount === "number" && guestsCount > 0
+    ? guestsCount
+    : 1;
 
-    if (totalGuests + incomingGuests > invitation.maxGuests) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "הגעת למכסת האורחים המרבית בחבילה שלך",
-          code: "MAX_GUESTS_REACHED",
-          remaining: invitation.maxGuests - totalGuests,
-        },
-        { status: 403 }
-      );
-    }
+
+   
 
     /* ================= יצירת המוזמן ================= */
     const guest = await InvitationGuest.create({
@@ -276,45 +253,7 @@ export async function PUT(
       );
     }
 
-    if (typeof guestsCount === "number" && guestsCount > 0) {
-      const guestsAgg = await InvitationGuest.aggregate([
-        {
-          $match: {
-            invitationId: new mongoose.Types.ObjectId(invitationId),
-            _id: { $ne: new mongoose.Types.ObjectId(guestId) },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: "$guestsCount" },
-          },
-        },
-      ]);
 
-      const totalGuests = guestsAgg[0]?.total || 0;
-      const invitation = await Invitation.findById(invitationId);
-
-      if (!invitation || !invitation.eventId) {
-  return NextResponse.json(
-    { success: false, error: "Invalid invitation" },
-    { status: 400 }
-  );
-}
-
-
-      if (totalGuests + guestsCount > invitation.maxGuests) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "חרגת ממכסת האורחים בחבילה שלך",
-          },
-          { status: 403 }
-        );
-      }
-
-      updates.guestsCount = guestsCount;
-    }
 
     const updated = await InvitationGuest.findByIdAndUpdate(
       guestId,
