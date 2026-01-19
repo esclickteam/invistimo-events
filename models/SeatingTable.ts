@@ -19,26 +19,33 @@ const SeatedGuestSchema = new Schema(
 );
 
 /* ===============================
-   שולחן
+   שולחן (⭐ snapshot ויזואלי מלא)
 =============================== */
 const TableSchema = new Schema(
   {
+    /* מזהה פנימי לקנבס */
     id: {
       type: String,
-      required: true, // מזהה פנימי לקנבס
+      required: true,
     },
+
+    /* מידע כללי */
     name: {
       type: String,
       default: "",
     },
     type: {
       type: String,
-      default: "round",
+      default: "round", // round / rect / long וכו'
     },
+
+    /* כמות מושבים */
     seats: {
       type: Number,
       default: 0,
     },
+
+    /* מיקום בקנבס */
     x: {
       type: Number,
       default: 0,
@@ -47,10 +54,38 @@ const TableSchema = new Schema(
       type: Number,
       default: 0,
     },
+
+    /* סיבוב */
     rotation: {
       type: Number,
       default: 0,
     },
+
+    /* ⭐ גדלים – קריטי ל־1:1 */
+    width: {
+      type: Number,
+      default: 120,
+    },
+    height: {
+      type: Number,
+      default: 120,
+    },
+    radius: {
+      type: Number,
+      default: 60,
+    },
+
+    /* ⭐ ויזואל */
+    color: {
+      type: String,
+      default: "#ffffff",
+    },
+    locked: {
+      type: Boolean,
+      default: false,
+    },
+
+    /* אורחים יושבים */
     seatedGuests: {
       type: [SeatedGuestSchema],
       default: [],
@@ -171,25 +206,25 @@ const SeatingTableSchema = new Schema(
       index: true,
     },
 
-    /** ⭐ רקע אולם */
+    /* ⭐ רקע אולם */
     background: {
       type: BackgroundSchema,
       default: null,
     },
 
-    /** ⭐ שולחנות */
+    /* ⭐ שולחנות – snapshot מלא */
     tables: {
       type: [TableSchema],
       default: [],
     },
 
-    /** ⭐ אזורים */
+    /* ⭐ אזורים */
     zones: {
       type: [ZoneSchema],
       default: [],
     },
 
-    /** ⭐ תצוגת קנבס */
+    /* ⭐ תצוגת קנבס */
     canvasView: {
       type: CanvasViewSchema,
       default: null,

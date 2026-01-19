@@ -7,22 +7,31 @@ import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
 
 /**
- * ייבוא מוזמנים + הושבה
- * snapshot ללייב הושבה (צד מפיק)
+ * 📸 Snapshot מלא של הושבה (כמו אצל הלקוח)
+ * לשימוש בלייב הושבה – צד מפיק (readOnly)
  */
 export async function POST(req: Request) {
   try {
+    console.log("🟡 LIVE SEATING SNAPSHOT – START");
+
     await connectDB();
+    console.log("🟢 DB connected");
 
     const url = new URL(req.url);
     const invitationId = url.searchParams.get("invitationId");
 
-    // אין invitation → snapshot ריק (לא מפילים UI)
+    console.log("📥 invitationId:", invitationId);
+
+    /* ======================================================
+       0️⃣ אין invitationId → snapshot ריק
+    ====================================================== */
     if (!invitationId) {
+      console.warn("⚠️ No invitationId provided");
       return NextResponse.json(
         {
           guests: [],
           tables: [],
+          zones: [],
           background: null,
           canvasView: null,
         },
@@ -33,15 +42,17 @@ export async function POST(req: Request) {
     const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
 
     /* ======================================================
-       1️⃣ שליפת ההזמנה → eventId
+       1️⃣ שליפת Invitation
     ====================================================== */
     const invitation = await Invitation.findById(invitationObjectId).lean();
 
     if (!invitation || !invitation.eventId) {
+      console.warn("⚠️ Invitation not found or missing eventId");
       return NextResponse.json(
         {
           guests: [],
           tables: [],
+          zones: [],
           background: null,
           canvasView: null,
         },
@@ -49,43 +60,50 @@ export async function POST(req: Request) {
       );
     }
 
+    console.log("🟢 Invitation found, eventId:", invitation.eventId.toString());
+
     const eventObjectId = new mongoose.Types.ObjectId(invitation.eventId);
 
     /* ======================================================
-       2️⃣ שליפת מפת הושבה לפי eventId
+       2️⃣ שליפת Seating snapshot לפי eventId
     ====================================================== */
     const seating = await SeatingTable.findOne({
       eventId: eventObjectId,
     }).lean();
 
+    if (!seating) {
+      console.warn("⚠️ No seating snapshot found for event");
+    } else {
+      console.log("🟢 Seating snapshot found");
+      console.log("📐 tables count:", seating.tables?.length ?? 0);
+      console.log("🧱 zones count:", seating.zones?.length ?? 0);
+      console.log("🎨 background:", seating.background ? "YES" : "NO");
+      console.log("🔍 canvasView:", seating.canvasView);
+    }
+
     /* ======================================================
-       3️⃣ שליפת כל המוזמנים
+       3️⃣ שליפת מוזמנים
     ====================================================== */
     const guests = await InvitationGuest.find({
       invitationId: invitationObjectId,
     }).lean();
 
+    console.log("👥 guests found:", guests.length);
+
     /* ======================================================
-       4️⃣ בניית טבלאות ללייב (מותאם ל־SeatingEditor)
+       4️⃣ snapshot – AS IS (⭐ קריטי)
     ====================================================== */
-    const tables =
-      seating?.tables?.map((t: any) => {
-        const tableCanvasId = t.id; // מזהה קנבס (string)
+    const tables = seating?.tables ?? [];
+    const zones = seating?.zones ?? [];
+    const background = seating?.background ?? null;
+    const canvasView = seating?.canvasView ?? null;
 
-        return {
-          _id: tableCanvasId, // UI first
-          id: tableCanvasId,  // תאימות אחורה
-          label: t.name || "שולחן",
-          name: t.name || "שולחן",
-          capacity: t.seats ?? 0,
-          x: t.x ?? 0,
-          y: t.y ?? 0,
-          seatedGuests: t.seatedGuests ?? [], // חשוב לסטטיסטיקות
-        };
-      }) ?? [];
+    console.log("📦 Snapshot tables returned:", tables.length);
+    console.log("🧱 Snapshot zones returned:", zones.length);
+    console.log("🧭 canvasView returned:", canvasView);
 
     /* ======================================================
-       5️⃣ בניית מוזמנים ללייב (מותאם ל־UI)
+       5️⃣ מיפוי מוזמנים (לא חלק מהקנבס)
     ====================================================== */
     const liveGuests = guests.map((g: any) => ({
       _id: g._id.toString(),
@@ -94,28 +112,34 @@ export async function POST(req: Request) {
       phone: g.phone || "",
       tableId: g.tableId ? g.tableId.toString() : null,
       approvedCount: g.guestsCount ?? 1,
-      approved: g.guestsCount ?? 1, // תאימות אחורה
+      approved: g.guestsCount ?? 1,
       arrived: g.arrivedCount ?? 0,
       rsvp: g.rsvp,
     }));
 
+    console.log("👤 liveGuests sample:", liveGuests[0] ?? "NO GUESTS");
+
     /* ======================================================
-       6️⃣ החזרת snapshot מלא ל־UI (⭐ זה החלק החסר!)
+       6️⃣ החזרת snapshot מלא (1:1 לקוח)
     ====================================================== */
+    console.log("✅ LIVE SEATING SNAPSHOT – SUCCESS");
+
     return NextResponse.json({
       guests: liveGuests,
       tables,
-      background: seating?.background ?? null,
-      canvasView: seating?.canvasView ?? null,
+      zones,
+      background,
+      canvasView,
     });
   } catch (err) {
-    console.error("LIVE SEATING IMPORT ERROR:", err);
+    console.error("❌ LIVE SEATING SNAPSHOT ERROR:", err);
 
     // 🛡️ לא מפילים UI גם בשגיאה
     return NextResponse.json(
       {
         guests: [],
         tables: [],
+        zones: [],
         background: null,
         canvasView: null,
       },
