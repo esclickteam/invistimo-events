@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import GuestsTable from "@/app/components/GuestsTable";
-import AddGuestModal from "@/app/dashboard/components/AddGuestModal";
+import AddGuestModal from "@/app/components/AddGuestModal";
+
 
 /* =========================
    Component
