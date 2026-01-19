@@ -31,11 +31,12 @@ export default function LiveSeatingViewer({
 
         // ✅ snapshot מלא (כולל canvasView)
         init(
-          data.tables || [],
-          data.guests || [],
-          data.background ?? null,
-          data.canvasView ?? null
-        );
+  data.tables || [],
+  data.guests || [],
+  data.background ?? null,
+  null // ✅ מבטל zoom/pan אצל המפיק
+);
+        
       } catch (err) {
         console.error("❌ LiveSeatingViewer load error:", err);
       } finally {

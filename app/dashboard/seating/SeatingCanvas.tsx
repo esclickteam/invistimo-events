@@ -97,10 +97,12 @@ function SeatingCanvasInner({
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (!canvasView) return;
-    setScale(canvasView.scale);
-    setStagePos({ x: canvasView.x, y: canvasView.y });
-  }, [canvasView]);
+  if (!canvasView) return;
+  if (isViewer) return;
+
+  setScale(canvasView.scale);
+  setStagePos({ x: canvasView.x, y: canvasView.y });
+}, [canvasView, isViewer]);
 
   const handleMouseMove = (e: any) => {
     if (isViewer) return;
@@ -162,15 +164,15 @@ function SeatingCanvasInner({
   return (
     <div ref={containerRef} className="relative w-full h-full">
       <Stage
-        width={size.width}
-        height={size.height}
-        scaleX={canvasView.scale}
-        scaleY={canvasView.scale}
-        x={canvasView.x}
-        y={canvasView.y}
-        onWheel={handleWheel}
-        onMouseMove={handleMouseMove}
-      >
+  width={size.width}
+  height={size.height}
+  scaleX={isViewer ? 1 : scale}
+  scaleY={isViewer ? 1 : scale}
+  x={isViewer ? 0 : stagePos.x}
+  y={isViewer ? 0 : stagePos.y}
+  onWheel={handleWheel}
+  onMouseMove={handleMouseMove}
+>
         {/* ===== WORLD ===== */}
         <Layer>
           <Group>
