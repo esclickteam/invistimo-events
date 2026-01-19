@@ -115,6 +115,38 @@ const WORLD_HEIGHT = 3000;
     setScale(canvasView.scale);
     setStagePos({ x: canvasView.x, y: canvasView.y });
   }, [canvasView, isViewer]);
+  
+
+  useEffect(() => {
+  if (!canvasView) return;
+  if (!isViewer) return;
+  if (!size.width || !size.height) return;
+
+  // 🎯 fit camera to WORLD center for viewer
+  const centerX = size.width / 2;
+  const centerY = size.height / 2;
+
+  const WORLD_WIDTH = 3000;
+  const WORLD_HEIGHT = 3000;
+
+  const worldCenterX = WORLD_WIDTH / 2;
+  const worldCenterY = WORLD_HEIGHT / 2;
+
+  const newScale = canvasView.scale ?? 1;
+
+  const x = centerX - worldCenterX * newScale;
+  const y = centerY - worldCenterY * newScale;
+
+  console.log("👁️ [SeatingCanvas] viewer fit-to-world", {
+    scale: newScale,
+    x,
+    y,
+    size,
+  });
+
+  setCanvasView({ scale: newScale, x, y });
+}, [isViewer, canvasView, size.width, size.height]);
+
 
   /* ================= DEBUG SNAPSHOT ================= */
   useEffect(() => {
