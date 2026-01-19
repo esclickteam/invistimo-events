@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import GuestsTable from "@/app/components/GuestsTable";
 import AddGuestModal from "@/app/components/AddGuestModal";
+import EditGuestModal from "@/app/dashboard/components/EditGuestModal";
 
 /* =========================
    Component
 ========================= */
 export default function LiveGuestsTab({ invitationId }) {
+  const router = useRouter();
+
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [selectedGuest, setSelectedGuest] = useState(null);
 
   /* =========================
      Load cached guests on tab return
@@ -19,9 +25,7 @@ export default function LiveGuestsTab({ invitationId }) {
   useEffect(() => {
     if (!invitationId) return;
 
-    const cached = sessionStorage.getItem(
-      `live-guests-${invitationId}`
-    );
+    const cached = sessionStorage.getItem(`live-guests-${invitationId}`);
     if (!cached) return;
 
     try {
@@ -54,10 +58,7 @@ export default function LiveGuestsTab({ invitationId }) {
       const list = json.guests || [];
       setGuests(list);
 
-      sessionStorage.setItem(
-        `live-guests-${invitationId}`,
-        JSON.stringify(list)
-      );
+      sessionStorage.setItem(`live-guests-${invitationId}`, JSON.stringify(list));
     } catch (e) {
       console.error("❌ importGuests error:", e);
       setError("לא נמצאו אורחים להזמנה");
@@ -67,18 +68,41 @@ export default function LiveGuestsTab({ invitationId }) {
   }
 
   /* =========================
+     Delete guest (real)
+  ========================= */
+  async function deleteGuest(guest) {
+    const ok = window.confirm(`האם למחוק את המוזמן "${guest.name}"?`);
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`/api/guests/${guest._id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (!data?.success) throw new Error("Delete failed");
+
+      setGuests((prev) => {
+        const next = prev.filter((g) => g._id !== guest._id);
+        sessionStorage.setItem(
+          `live-guests-${invitationId}`,
+          JSON.stringify(next)
+        );
+        return next;
+      });
+    } catch (e) {
+      console.error("❌ deleteGuest error:", e);
+      alert("❌ שגיאה במחיקת מוזמן");
+    }
+  }
+
+  /* =========================
      Stats
   ========================= */
   const stats = useMemo(() => {
     return {
-      totalInvited: guests.reduce(
-        (s, g) => s + (g.guestsCount || 0),
-        0
-      ),
-      arrived: guests.reduce(
-        (s, g) => s + (g.arrivedCount || 0),
-        0
-      ),
+      totalInvited: guests.reduce((s, g) => s + (g.guestsCount || 0), 0),
+      arrived: guests.reduce((s, g) => s + (g.arrivedCount || 0), 0),
       no: guests.filter((g) => g.rsvp === "no").length,
       pending: guests.filter((g) => g.rsvp === "pending").length,
     };
@@ -90,13 +114,9 @@ export default function LiveGuestsTab({ invitationId }) {
   if (!guests.length) {
     return (
       <div className="p-6">
-        <p className="mb-4">
-          עדיין לא יובאה רשימת אורחים ללייב
-        </p>
+        <p className="mb-4">עדיין לא יובאה רשימת אורחים ללייב</p>
 
-        {error && (
-          <p className="text-red-600 mb-3">{error}</p>
-        )}
+        {error && <p className="text-red-600 mb-3">{error}</p>}
 
         <button
           onClick={importGuests}
@@ -141,12 +161,17 @@ export default function LiveGuestsTab({ invitationId }) {
       <GuestsTable
         guests={guests}
         isDemo={false}
-        onEdit={() => {}}
-        onDelete={() => {}}
-        onMessage={() => {}}
-        onSeat={() => {}}
+        onEdit={(g) => setSelectedGuest(g)}
+        onDelete={(g) => deleteGuest(g)}
+        onMessage={(g) =>
+          router.push(`/dashboard/messages?guestId=${g._id}`)
+        }
+        onSeat={(g) =>
+          router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
+        }
       />
 
+      {/* ✅ Add */}
       {openAddModal && (
         <AddGuestModal
           invitationId={invitationId}
@@ -155,9 +180,7 @@ export default function LiveGuestsTab({ invitationId }) {
             if (!newGuest) return;
 
             setGuests((prev) => {
-              if (prev.some((g) => g._id === newGuest._id)) {
-                return prev;
-              }
+              if (prev.some((g) => g._id === newGuest._id)) return prev;
               const next = [...prev, newGuest];
               sessionStorage.setItem(
                 `live-guests-${invitationId}`,
@@ -167,6 +190,20 @@ export default function LiveGuestsTab({ invitationId }) {
             });
 
             setOpenAddModal(false);
+          }}
+        />
+      )}
+
+      {/* ✅ Edit */}
+      {selectedGuest && (
+        <EditGuestModal
+          guest={selectedGuest}
+          userRole="admin"
+          onClose={() => setSelectedGuest(null)}
+          onSuccess={async () => {
+            // אחרי עריכה: רענון מהשרת כדי לקבל את הנתונים המעודכנים
+            await importGuests();
+            setSelectedGuest(null);
           }}
         />
       )}
