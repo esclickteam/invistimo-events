@@ -107,20 +107,33 @@ function SeatingEditorInner({
     };
 
     resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
 
-  /* ================= VIEW (SINGLE SOURCE OF TRUTH) ================= */
-  const scale = canvasView?.scale ?? 1;
-  const stagePos = {
-    x: canvasView?.x ?? 0,
-    y: canvasView?.y ?? 0,
-  };
+    // ✅ VIEWER FIX – resize רק ב-Editor
+    if (!readOnly) {
+      window.addEventListener("resize", resize);
+      return () => window.removeEventListener("resize", resize);
+    }
+  }, [readOnly]);
 
   /* ================= ZOOM & PAN ================= */
+  const [scale, setScale] = useState(1);
+  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // ✅ VIEWER FIX – רק Editor מעתיק ל-state
+  useEffect(() => {
+    if (readOnly) return;
+    if (!canvasView) return;
+
+    setScale(canvasView.scale ?? 1);
+    setStagePos({
+      x: canvasView.x ?? 0,
+      y: canvasView.y ?? 0,
+    });
+  }, [canvasView, readOnly]);
 
   const handleMouseMove = (e: any) => {
     if (readOnly) return;
@@ -132,18 +145,16 @@ function SeatingEditorInner({
     updateGhost(pos);
     evalHover(pos);
 
-    if (panStart.current) {
-      setCanvasView({
+    if (isPanning && panStart.current) {
+      setStagePos({
         x: stageStart.current.x + (pos.x - panStart.current.x),
         y: stageStart.current.y + (pos.y - panStart.current.y),
-        scale,
       });
     }
   };
 
   const handleWheel = (e: any) => {
-    if (readOnly) return;
-
+    if (readOnly) return; // ✅ VIEWER FIX
     e.evt.preventDefault();
 
     const stage = e.target.getStage();
@@ -167,6 +178,8 @@ function SeatingEditorInner({
       y: pointer.y - mousePointTo.y * newScale,
     };
 
+    setScale(newScale);
+    setStagePos(newPos);
     setCanvasView({ ...newPos, scale: newScale });
   };
 
@@ -209,6 +222,8 @@ function SeatingEditorInner({
     );
   }, [tables, guests]);
 
+  if (!canvasView) return null;
+
   return (
     <div ref={containerRef} className="relative w-full h-full">
       {!readOnly && (
@@ -221,33 +236,16 @@ function SeatingEditorInner({
       )}
 
       <Stage
-  width={size.width}
-  height={size.height}
-  scaleX={scale}
-  scaleY={scale}
-  x={stagePos.x}
-  y={stagePos.y}
-  onWheel={handleWheel}
-  onMouseMove={handleMouseMove}
-
-  onMouseDown={(e) => {
-    if (readOnly) return;
-    const stage = e.target.getStage();
-    const pos = stage?.getPointerPosition();
-    if (!pos) return;
-
-    panStart.current = pos;
-    stageStart.current = { ...stagePos };
-  }}
-
-  onMouseUp={() => {
-    panStart.current = null;
-  }}
-
-  onMouseLeave={() => {
-    panStart.current = null;
-  }}
->
+        width={size.width}
+        height={size.height}
+        // ✅ VIEWER FIX – Viewer מצייר ישירות מה-snapshot
+        scaleX={readOnly ? canvasView.scale : scale}
+        scaleY={readOnly ? canvasView.scale : scale}
+        x={readOnly ? canvasView.x : stagePos.x}
+        y={readOnly ? canvasView.y : stagePos.y}
+        onWheel={!readOnly ? handleWheel : undefined}
+        onMouseMove={handleMouseMove}
+      >
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
         </Layer>
