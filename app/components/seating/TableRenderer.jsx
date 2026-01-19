@@ -150,10 +150,17 @@ function getSeatRotation(table, c) {
   return 0;
 }
 
+
+
 /* ============================================================
    TableRenderer
 ============================================================ */
-function TableRenderer({ table }) {
+function TableRenderer({
+  table,
+  openAddGuestModal,
+  statsLabel,
+}) {
+
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
@@ -262,9 +269,10 @@ const guestIdFromUrl = searchParams.get("guestId");
   const handleClick = (e) => {
     e.cancelBubble = true;
     useSeatingStore.setState({ selectedTableId: table.id });
-    if (!draggingGuest && typeof table.openAddGuestModal === "function") {
-      table.openAddGuestModal();
-    }
+    if (!draggingGuest && typeof openAddGuestModal === "function") {
+  openAddGuestModal();
+}
+
   };
 
   /* ====== סיבוב ====== */
@@ -331,7 +339,8 @@ const guestIdFromUrl = searchParams.get("guestId");
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+              text={`${table.name}\n${statsLabel ?? `${occupiedSeatsCount}/${table.seats}`}`}
+
             width={radius * 2}
             height={radius * 2}
             offsetX={radius}
@@ -356,7 +365,7 @@ const guestIdFromUrl = searchParams.get("guestId");
             
           />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+            text={`${table.name}\n${statsLabel ?? `${occupiedSeatsCount}/${table.seats}`}`}
             width={size}
             height={size}
             offsetX={size / 2}
@@ -381,7 +390,8 @@ const guestIdFromUrl = searchParams.get("guestId");
             
           />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+              text={`${table.name}\n${statsLabel ?? `${occupiedSeatsCount}/${table.seats}`}`}
+
             width={width}
             height={height}
             offsetX={width / 2}

@@ -322,25 +322,23 @@ useEffect(() => {
         </Layer>
 
         <Layer>
-          {tables.map((t) => {
-            const used =
-              t.seatedGuests?.length ?? 0;
-            return (
-              <TableRenderer
-  key={t.id}
-  table={{
-    ...t,
-    openAddGuestModal: readOnly
-      ? undefined
-      : () => setAddGuestTable(t),
-    statsLabel: showStats
-      ? `${used} / ${t.capacity ?? "—"}`
-      : undefined,
-  }}
-/>
-            );
-          })}
-        </Layer>
+  {tables.map((t) => {
+    const used = t.seatedGuests?.length ?? 0;
+
+    return (
+      <TableRenderer
+        key={t.id}
+        table={t}
+        openAddGuestModal={
+          readOnly ? undefined : () => setAddGuestTable(t)
+        }
+        statsLabel={
+          showStats ? `${used} / ${t.capacity ?? "—"}` : undefined
+        }
+      />
+    );
+  })}
+</Layer>
 
         {!readOnly && (
           <Layer listening={false}>
