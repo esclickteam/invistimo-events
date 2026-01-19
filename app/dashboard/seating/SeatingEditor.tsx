@@ -297,7 +297,7 @@ useEffect(() => {
         </Layer>
 
         <Layer listening={false}>
-          {bgImage && (
+          {bgImage && size.width > 0 && size.height > 0 && (
             <KonvaImage
               image={bgImage}
               width={size.width}
