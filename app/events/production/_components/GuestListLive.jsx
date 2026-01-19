@@ -1,20 +1,20 @@
 "use client";
 
 import { useLiveGuests } from "./LiveGuestsProvider";
+import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GuestListLive() {
   const { state, updateGuestStatus } = useLiveGuests();
+
+  // ✅ סנכרון ללייב Sidebar דרך Zustand (לא נוגע ב-rsvp)
+  const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 
   if (!state) return null;
 
   const { guests } = state;
 
   if (!guests.length) {
-    return (
-      <div className="p-4 text-gray-500">
-        אין אורחים להצגה
-      </div>
-    );
+    return <div className="p-4 text-gray-500">אין אורחים להצגה</div>;
   }
 
   return (
@@ -27,36 +27,39 @@ export default function GuestListLive() {
           <div>
             <div className="font-semibold">{guest.name}</div>
             {guest.phone && (
-              <div className="text-xs text-gray-500">
-                {guest.phone}
-              </div>
+              <div className="text-xs text-gray-500">{guest.phone}</div>
             )}
           </div>
 
           <div className="flex gap-2">
             <StatusButton
               active={guest.status === "arrived"}
-              onClick={() =>
-                updateGuestStatus(guest._id, "arrived")
-              }
+              onClick={() => {
+                // ✅ ממשיך לעדכן את ה-provider (כמו שהיה)
+                updateGuestStatus(guest._id, "arrived");
+                // ✅ מעדכן את ה-seatingStore כדי שה-sidebar יתעדכן בלייב
+                updateGuestArrived(guest._id, 1);
+              }}
             >
               הגיע
             </StatusButton>
 
             <StatusButton
               active={guest.status === "not-arrived"}
-              onClick={() =>
-                updateGuestStatus(guest._id, "not-arrived")
-              }
+              onClick={() => {
+                updateGuestStatus(guest._id, "not-arrived");
+                updateGuestArrived(guest._id, 0);
+              }}
             >
               לא הגיע
             </StatusButton>
 
             <StatusButton
               active={guest.status === "cancelled"}
-              onClick={() =>
-                updateGuestStatus(guest._id, "cancelled")
-              }
+              onClick={() => {
+                updateGuestStatus(guest._id, "cancelled");
+                updateGuestArrived(guest._id, 0);
+              }}
             >
               ביטל
             </StatusButton>
