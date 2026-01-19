@@ -18,11 +18,12 @@ type Props = {
 
 export default function LiveSeatingTab({ invitationId }: Props) {
   const [loading, setLoading] = useState(false);
+  const [hasImported, setHasImported] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
-  const setZones = useZoneStore((s) => s.setZones);
   const background = useSeatingStore((s) => s.background);
+  const setZones = useZoneStore((s) => s.setZones);
 
   useEffect(() => {
     console.log("🟡 [Producer LiveSeatingTab] mounted", invitationId);
@@ -47,13 +48,14 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       const json = await res.json();
 
-      console.log("✅ Producer snapshot", {
-        tables: json.tables?.length,
-        zones: json.zones?.length,
-        canvasView: json.canvasView,
+      console.log("✅ Producer snapshot imported", {
+        tables: json.tables?.length ?? 0,
+        guests: json.guests?.length ?? 0,
+        zones: json.zones?.length ?? 0,
+        canvasView: json.canvasView ?? null,
       });
 
-      /* 🔑 Zustand – אותו מקור אמת */
+      /* 🔑 מקור אמת – seatingStore */
       importSnapshot({
         tables: json.tables ?? [],
         guests: json.guests ?? [],
@@ -61,7 +63,10 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         background: json.background ?? null,
       });
 
+      /* 🧭 zones */
       setZones(json.zones ?? []);
+
+      setHasImported(true);
     } catch (e) {
       console.error("❌ Producer import error", e);
       setError("לא נמצאה מפת הושבה");
@@ -70,38 +75,48 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     }
   }
 
-  if (loading || error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh]">
-        <p className="mb-4">עדיין לא יובאה מפת הושבה</p>
+  return (
+    <div className="flex flex-col h-[75vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
 
-        {error && <p className="text-red-600 mb-3">{error}</p>}
+      {/* 🔘 HEADER – כפתור ייבוא תמידי */}
+      <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
+        {error && (
+          <span className="text-sm text-red-600 ml-auto">
+            {error}
+          </span>
+        )}
 
         <button
           onClick={importData}
           disabled={loading}
-          className="px-6 py-2 bg-black text-white rounded-lg"
+          className="px-4 py-2 bg-black text-white rounded-lg disabled:opacity-60"
         >
           {loading ? "מייבא..." : "📥 ייבוא הושבה"}
         </button>
       </div>
-    );
-  }
 
-  return (
-    <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
-      
-      {/* 🗺️ אותו Editor – readOnly */}
-      <div className="flex-1 relative">
-        <SeatingEditor
-          background={background?.url || null}
-          readOnly   // ⭐ זה ההבדל היחיד מהלקוח
-        />
-      </div>
+      {/* 🗺️ CONTENT */}
+      <div className="flex flex-row-reverse flex-1 overflow-hidden">
 
-      {/* 👥 אורחים */}
-      <div className="w-80 border-l bg-white">
-        <GuestListLive />
+        {/* 🗺️ מפת הושבה – Viewer */}
+        <div className="flex-1 relative">
+          {!hasImported ? (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              טרם יובאה מפת הושבה
+            </div>
+          ) : (
+            <SeatingEditor
+              background={background?.url || null}
+              readOnly   // ⭐ ההבדל היחיד מהלקוח
+              showStats  // אם את רוצה לראות 1/12 וכו'
+            />
+          )}
+        </div>
+
+        {/* 👥 אורחים */}
+        <div className="w-80 border-l bg-white">
+          <GuestListLive />
+        </div>
       </div>
     </div>
   );
