@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import GuestsTable from "@/app/components/GuestsTable";
 import AddGuestModal from "@/app/components/AddGuestModal";
-import EditGuestModal from "@/app/dashboard/components/EditGuestModal";
+import EditGuestModal from "./components/EditGuestModal";
 
 /* =========================
    Component
