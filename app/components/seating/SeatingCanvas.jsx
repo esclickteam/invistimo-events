@@ -39,6 +39,8 @@ export default function SeatingCanvas({
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
+  const [addGuestTable, setAddGuestTable] = useState(null);
+
 
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
