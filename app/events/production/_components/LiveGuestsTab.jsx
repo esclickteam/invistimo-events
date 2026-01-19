@@ -7,10 +7,6 @@ import AddGuestModal from "@/app/components/AddGuestModal";
 /* =========================
    Helpers
 ========================= */
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
-
 function formatPhone(phone) {
   if (!phone) return "";
   const digits = String(phone).replace(/\D/g, "");
@@ -24,7 +20,7 @@ function rsvpLabel(rsvp) {
   return map[rsvp] || rsvp || "-";
 }
 
-/* אישרו הגעה = רק מי ש-rsvp שלו yes */
+/* אישרו הגעה = מי שסימן מגיע (RSVP YES) — לא נוגעים בזה בלייב */
 function confirmedCountForGuest(g) {
   return g?.rsvp === "yes" ? Number(g.guestsCount || 0) : 0;
 }
@@ -40,6 +36,9 @@ export default function LiveGuestsTab({ invitationId }) {
   const [error, setError] = useState(null);
 
   const [openAddModal, setOpenAddModal] = useState(false);
+
+  // ✅ עריכה חוזרת (מודאל פנימי)
+  const [editGuest, setEditGuest] = useState(null);
 
   const cacheKey = invitationId ? `live-guests-${invitationId}` : null;
 
@@ -159,16 +158,14 @@ export default function LiveGuestsTab({ invitationId }) {
 
   /* =========================
      ✅ הגיעו בפועל ליד כל אורח
-     +1 / -1 על arrivedCount (מוגבל ל"אישרו")
-     ✅ אין rollback אוטומטי (כדי שיעבוד בזמן אמת בלייב)
+     +1 / -1 על arrivedCount
+     ✅ לא מוגבל לאישרו הגעה (כי גם מי שסימן לא מגיע יכול להגיע)
+     ✅ מינימום 0
+     ✅ אין rollback בלייב
   ========================= */
   async function changeArrived(guest, delta) {
     const prevArrived = Number(guest.arrivedCount || 0);
-
-    // ✅ אישרו הגעה בפועל (רק אם rsvp=yes)
-    const confirmed = confirmedCountForGuest(guest);
-
-    const nextArrived = clamp(prevArrived + delta, 0, Math.max(0, confirmed));
+    const nextArrived = Math.max(0, prevArrived + delta);
     if (nextArrived === prevArrived) return;
 
     // ✅ Optimistic UI (מתעדכן מייד)
@@ -184,8 +181,8 @@ export default function LiveGuestsTab({ invitationId }) {
 
   /* =========================
      ✅ Stats only (כרטיסיות יחידות)
-     1) אישרו הגעה (לפי RSVP YES לפני הייבוא)
-     2) הגיעו בפועל (מתעדכן בזמן אמת לפי arrivedCount)
+     1) אישרו הגעה (rsvp=yes + guestsCount)
+     2) הגיעו בפועל (arrivedCount)
   ========================= */
   const stats = useMemo(() => {
     const confirmedTotal = guests.reduce(
@@ -252,7 +249,7 @@ export default function LiveGuestsTab({ invitationId }) {
         <Stat title="הגיעו בפועל" value={stats.arrivedTotal} color="green" />
       </div>
 
-      {/* ✅ Live table with guest + confirmed + arrived realtime */}
+      {/* ✅ Live table */}
       <div className="w-full overflow-x-auto bg-white border rounded-xl">
         <table className="min-w-[1100px] w-full">
           <thead className="bg-gray-100">
@@ -261,10 +258,8 @@ export default function LiveGuestsTab({ invitationId }) {
               <th className="p-3 text-right">טלפון</th>
               <th className="p-3 text-right">קרבה</th>
               <th className="p-3 text-right">סטטוס</th>
-
               <th className="p-3 text-right">אישרו הגעה</th>
               <th className="p-3 text-right">הגיעו בפועל</th>
-
               <th className="p-3 text-right">הערות</th>
               <th className="p-3 text-right">פעולות</th>
             </tr>
@@ -282,10 +277,9 @@ export default function LiveGuestsTab({ invitationId }) {
                   <td className="p-3">{(g.relation || "").trim() || "-"}</td>
                   <td className="p-3">{rsvpLabel(g.rsvp)}</td>
 
-                  {/* ✅ כמה אישרו הגעה (מתוך RSVP לפני הייבוא) */}
                   <td className="p-3 font-semibold">{confirmed}</td>
 
-                  {/* ✅ כמה הגיעו בפועל (מתעדכן בזמן אמת עם + / -) */}
+                  {/* ✅ פלוס/מינוס חופשי (מינימום 0) */}
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <button
@@ -301,14 +295,12 @@ export default function LiveGuestsTab({ invitationId }) {
                         <div className="text-xs text-gray-500">הגיעו</div>
                         <div className="text-lg font-bold text-green-700">
                           {arrived}
-                          <span className="text-gray-400 text-sm"> / {confirmed}</span>
                         </div>
                       </div>
 
                       <button
                         onClick={() => changeArrived(g, +1)}
-                        disabled={arrived >= confirmed}
-                        className="w-8 h-8 rounded-full bg-green-600 text-white text-lg hover:bg-green-700 transition disabled:opacity-30"
+                        className="w-8 h-8 rounded-full bg-green-600 text-white text-lg hover:bg-green-700 transition"
                         title="הוסף אחד שהגיע"
                       >
                         +
@@ -342,6 +334,11 @@ export default function LiveGuestsTab({ invitationId }) {
                         🪑
                       </button>
 
+                      {/* ✅ החזרת העריכה */}
+                      <button onClick={() => setEditGuest(g)} title="עריכה">
+                        ✏️
+                      </button>
+
                       <button
                         onClick={() => deleteGuest(g)}
                         className="text-red-600"
@@ -354,14 +351,6 @@ export default function LiveGuestsTab({ invitationId }) {
                 </tr>
               );
             })}
-
-            {guests.length === 0 && (
-              <tr>
-                <td colSpan={8} className="p-8 text-center text-gray-500">
-                  אין אורחים להצגה
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
@@ -385,6 +374,160 @@ export default function LiveGuestsTab({ invitationId }) {
           }}
         />
       )}
+
+      {/* ✅ Edit (inline modal) */}
+      {editGuest && (
+        <InlineEditGuestModal
+          guest={editGuest}
+          onClose={() => setEditGuest(null)}
+          onSave={async (payload) => {
+            try {
+              const updated = await updateGuestOnServer(editGuest._id, payload);
+              applyUpdatedGuest({ ...editGuest, ...updated, _id: editGuest._id });
+              setEditGuest(null);
+            } catch (e) {
+              console.error("❌ updateGuest error:", e);
+              alert("❌ שגיאה בעריכת מוזמן");
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* =========================
+   Inline Edit Modal (no imports)
+========================= */
+function InlineEditGuestModal({ guest, onClose, onSave }) {
+  const [name, setName] = useState(guest?.name || "");
+  const [phone, setPhone] = useState(guest?.phone || "");
+  const [relation, setRelation] = useState(guest?.relation || "");
+  const [notes, setNotes] = useState(guest?.notes || "");
+  const [guestsCount, setGuestsCount] = useState(Number(guest?.guestsCount || 1));
+  const [arrivedCount, setArrivedCount] = useState(Number(guest?.arrivedCount || 0));
+  const [rsvp, setRsvp] = useState(guest?.rsvp || "pending");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onSave({
+        _id: guest._id,
+        name: name.trim(),
+        phone: phone.trim(),
+        relation: relation.trim(),
+        notes: notes.trim(),
+        guestsCount: Math.max(0, Number(guestsCount || 0)),
+        arrivedCount: Math.max(0, Number(arrivedCount || 0)),
+        rsvp,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden" dir="rtl">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="font-semibold text-lg">✏️ עריכת מוזמן</div>
+          <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
+        </div>
+
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="שם מלא">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="שם מלא"
+            />
+          </Field>
+
+          <Field label="טלפון">
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="05XXXXXXXX"
+            />
+          </Field>
+
+          <Field label="קרבה">
+            <input
+              value={relation}
+              onChange={(e) => setRelation(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="משפחה / חברים / עבודה..."
+            />
+          </Field>
+
+          <Field label="מספר (לפני האירוע)">
+            <input
+              type="number"
+              min={0}
+              value={guestsCount}
+              onChange={(e) => setGuestsCount(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </Field>
+
+          <Field label="הגיעו בפועל">
+            <input
+              type="number"
+              min={0}
+              value={arrivedCount}
+              onChange={(e) => setArrivedCount(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </Field>
+
+          <Field label="סטטוס">
+            <select
+              value={rsvp}
+              onChange={(e) => setRsvp(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 bg-white"
+            >
+              <option value="yes">מגיע</option>
+              <option value="pending">ממתין</option>
+              <option value="no">לא מגיע</option>
+            </select>
+          </Field>
+
+          <Field label="הערות" full>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 min-h-[90px]"
+              placeholder="הערות..."
+            />
+          </Field>
+        </div>
+
+        <div className="p-4 border-t flex items-center justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border" disabled={saving}>
+            ביטול
+          </button>
+
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-60"
+            disabled={saving || !name.trim()}
+          >
+            {saving ? "שומר..." : "שמירה"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children, full }) {
+  return (
+    <div className={full ? "md:col-span-2" : ""}>
+      <div className="text-sm text-gray-600 mb-1">{label}</div>
+      {children}
     </div>
   );
 }
@@ -393,9 +536,7 @@ export default function LiveGuestsTab({ invitationId }) {
    UI helper
 ========================= */
 function Stat({ title, value, color }) {
-  const colors = {
-    green: "text-green-600",
-  };
+  const colors = { green: "text-green-600" };
 
   return (
     <div className="border p-5 rounded-xl bg-white shadow-sm text-center">
