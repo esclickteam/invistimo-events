@@ -80,21 +80,16 @@ function SeatingCanvasInner({
     if (!containerRef.current) return;
 
     const resize = () => {
-      const w = containerRef.current!.offsetWidth;
-      const h = containerRef.current!.offsetHeight;
-      setSize({ width: w, height: h });
-
-      console.log("📐 [SeatingCanvas] resize", {
-        width: w,
-        height: h,
-        mode,
+      setSize({
+        width: containerRef.current!.offsetWidth,
+        height: containerRef.current!.offsetHeight,
       });
     };
 
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, [mode]);
+  }, []);
 
   /* ================= CANVAS VIEW ================= */
   const [scale, setScale] = useState(1);
@@ -103,33 +98,63 @@ function SeatingCanvasInner({
   useEffect(() => {
     if (!canvasView) return;
 
-    console.log("🎯 [SeatingCanvas] apply canvasView", {
-      canvasView,
-      mode,
-    });
-
     setScale(canvasView.scale ?? 1);
     setStagePos({
       x: canvasView.x ?? 0,
       y: canvasView.y ?? 0,
     });
-  }, [canvasView, mode]);
+  }, [canvasView]);
 
-  /* ================= GLOBAL DEBUG ================= */
+  /* ============================================================
+     ✅ AUTO FIT – VIEWER ONLY (זהה ללקוח)
+  ============================================================ */
   useEffect(() => {
-    console.log("🧭 [SeatingCanvas DEBUG]", {
-      mode,
-      isViewer,
-      containerSize: size,
-      canvasViewFromStore: canvasView,
-      localState: {
-        scale,
-        stagePos,
-      },
-      tablesCount: tables.length,
-      guestsCount: guests.length,
-    });
-  }, [mode, isViewer, size, canvasView, scale, stagePos, tables, guests]);
+    if (!isViewer) return;
+    if (!tables.length) return;
+    if (!size.width || !size.height) return;
+
+    const isDefault =
+      !canvasView ||
+      (canvasView.scale === 1 &&
+        canvasView.x === 0 &&
+        canvasView.y === 0);
+
+    if (!isDefault) return;
+
+    const xs = tables.map((t) => t.x);
+    const ys = tables.map((t) => t.y);
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+
+    const PAD = 400;
+
+    const scale = Math.max(
+      0.4,
+      Math.min(
+        3,
+        Math.min(
+          size.width / (contentW + PAD),
+          size.height / (contentH + PAD)
+        )
+      )
+    );
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const x = size.width / 2 - centerX * scale;
+    const y = size.height / 2 - centerY * scale;
+
+    console.log("🟢 [Viewer AutoFit]", { x, y, scale });
+
+    setCanvasView({ x, y, scale });
+  }, [isViewer, tables, size, canvasView, setCanvasView]);
 
   /* ================= EVENTS ================= */
   const handleMouseMove = (e: any) => {
@@ -147,7 +172,6 @@ function SeatingCanvasInner({
     if (isViewer) return;
 
     e.evt.preventDefault();
-
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
@@ -169,21 +193,9 @@ function SeatingCanvasInner({
       y: pointer.y - mousePointTo.y * newScale,
     };
 
-    console.log("🔍 [SeatingCanvas] zoom", {
-      fromScale: scale,
-      toScale: newScale,
-      fromPos: stagePos,
-      toPos: newPos,
-    });
-
     setScale(newScale);
     setStagePos(newPos);
-
-    setCanvasView({
-      scale: newScale,
-      x: newPos.x,
-      y: newPos.y,
-    });
+    setCanvasView({ x: newPos.x, y: newPos.y, scale: newScale });
   };
 
   useEffect(() => {
@@ -193,7 +205,6 @@ function SeatingCanvasInner({
       if (!selectedZoneId) return;
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        console.log("🗑️ [SeatingCanvas] delete zone", selectedZoneId);
         removeZone(selectedZoneId);
       }
     }
@@ -202,41 +213,7 @@ function SeatingCanvasInner({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone, isViewer]);
 
-  if (!canvasView) {
-    console.warn("⚠️ [SeatingCanvas] canvasView is null – skip render");
-    return null;
-  }
-
-  const contentOffset =
-  isViewer &&
-  tables.length &&
-  size.width > 0 &&
-  size.height > 0
-    ? (() => {
-        const xs = tables.map((t) => t.x);
-        const ys = tables.map((t) => t.y);
-        const minX = Math.min(...xs);
-        const maxX = Math.max(...xs);
-        const minY = Math.min(...ys);
-        const maxY = Math.max(...ys);
-
-        return {
-          x: size.width / 2 - (minX + maxX) / 2,
-          y: size.height / 2 - (minY + maxY) / 2,
-        };
-      })()
-    : null;
-
-  /* ================= FINAL RENDER LOG ================= */
-  console.log("🎨 [Stage RENDER]", {
-  mode,
-  width: size.width,
-  height: size.height,
-  scale,
-  x: isViewer && contentOffset ? contentOffset.x : stagePos.x,
-  y: isViewer && contentOffset ? contentOffset.y : stagePos.y,
-  contentOffset,
-});
+  if (!canvasView) return null;
 
   /* ================= RENDER ================= */
   return (
@@ -246,8 +223,8 @@ function SeatingCanvasInner({
         height={size.height}
         scaleX={scale}
         scaleY={scale}
-        x={isViewer && contentOffset ? contentOffset.x : stagePos.x}
-        y={isViewer && contentOffset ? contentOffset.y : stagePos.y}
+        x={stagePos.x}
+        y={stagePos.y}
         onWheel={handleWheel}
         onMouseMove={handleMouseMove}
       >
@@ -270,14 +247,6 @@ function SeatingCanvasInner({
 
             {tables.map((t) => {
               const used = t.seatedGuests?.length ?? 0;
-
-              console.log("🪑 [Table DRAW]", {
-                id: t.id,
-                x: t.x,
-                y: t.y,
-                used,
-                capacity: t.capacity,
-              });
 
               return (
                 <TableRenderer
@@ -309,12 +278,7 @@ function SeatingCanvasInner({
         )}
       </Stage>
 
-      {!isViewer && (
-        <MobileGuests
-          onDragStart={() => {}}
-          onClose={() => {}}
-        />
-      )}
+      {!isViewer && <MobileGuests onDragStart={() => {}} onClose={() => {}} />}
     </div>
   );
 }
