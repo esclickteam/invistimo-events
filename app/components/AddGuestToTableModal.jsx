@@ -22,6 +22,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
 
+
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
   const getPartySize = (g) => {
     const n = Number(g?.confirmedGuestsCount ?? g?.guestsCount ?? g?.count ?? 1);
@@ -71,58 +72,63 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     );
 
     return (tableGuests || []).filter((g) => {
-      const id = getGuestId(g);
-        const hasTable = Boolean(g?.tableName);
-      return !hasTable && !seatedIds.has(id);
-    });
+  const id = getGuestId(g);
+  const hasTable = Boolean(g?.tableName);
+
+  // ✅ רק מי שאישר הגעה
+  const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
+
+  return isYes && !hasTable && !seatedIds.has(id);
+});
+
   }, [tableGuests]);
 
   /* ================= הושבה ================= */
 
   const handleSeatGuest = async (seatIndex, guest) => {
-    if (!tableData) return;
+  if (!tableData) return;
 
-    const count = getPartySize(guest);
-    const res = assignGuestsToTable(
-      tableData.id,
-      guest.id,
-      count,
-      seatIndex
-    );
+  const guestId = getGuestId(guest);
+  const count = getPartySize(guest);
 
-    if (!res?.ok) {
-      setError(res?.message || "לא ניתן להושיב כאן");
-      return;
-    }
+  const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
 
-    // 🔥 סנכרון מונגו
-    await fetch("/api/guests/assign-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestId: guest.id,
-        tableName: tableData.name,
-        seatIndex,
-      }),
-    });
+  if (!res?.ok) {
+    setError(res?.message || "לא ניתן להושיב כאן");
+    return;
+  }
 
-    setError("");
-    setOpenSeat(null);
-  };
+  await fetch("/api/guests/assign-table", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      guestId,
+      tableName: tableData.name,
+      seatIndex,
+    }),
+  });
+
+  setError("");
+  setOpenSeat(null);
+};
+
 
   /* ================= הסרה ================= */
 
   const handleRemoveGuest = async (guest) => {
-    if (!tableData || !guest) return;
+  if (!tableData || !guest) return;
 
-    removeGuestFromTable(tableData.id, guest.id);
+  const guestId = getGuestId(guest);
 
-    await fetch("/api/guests/remove-from-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guestId: guest.id }),
-    });
-  };
+  removeGuestFromTable(tableData.id, guestId);
+
+  await fetch("/api/guests/remove-from-table", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ guestId }),
+  });
+};
+
 
   if (!tableData) return null;
 
