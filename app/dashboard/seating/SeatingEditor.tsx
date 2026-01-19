@@ -111,22 +111,16 @@ function SeatingEditorInner({
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  /* ================= ZOOM & PAN ================= */
-  const [scale, setScale] = useState(1);
-  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
+  /* ================= VIEW (SINGLE SOURCE OF TRUTH) ================= */
+  const scale = canvasView?.scale ?? 1;
+  const stagePos = {
+    x: canvasView?.x ?? 0,
+    y: canvasView?.y ?? 0,
+  };
 
+  /* ================= ZOOM & PAN ================= */
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  useEffect(() => {
-    if (!canvasView) return;
-    setScale(canvasView.scale ?? 1);
-    setStagePos({
-      x: canvasView.x ?? 0,
-      y: canvasView.y ?? 0,
-    });
-  }, [canvasView]);
 
   const handleMouseMove = (e: any) => {
     if (readOnly) return;
@@ -138,15 +132,18 @@ function SeatingEditorInner({
     updateGhost(pos);
     evalHover(pos);
 
-    if (isPanning && panStart.current) {
-      setStagePos({
+    if (panStart.current) {
+      setCanvasView({
         x: stageStart.current.x + (pos.x - panStart.current.x),
         y: stageStart.current.y + (pos.y - panStart.current.y),
+        scale,
       });
     }
   };
 
   const handleWheel = (e: any) => {
+    if (readOnly) return;
+
     e.evt.preventDefault();
 
     const stage = e.target.getStage();
@@ -170,8 +167,6 @@ function SeatingEditorInner({
       y: pointer.y - mousePointTo.y * newScale,
     };
 
-    setScale(newScale);
-    setStagePos(newPos);
     setCanvasView({ ...newPos, scale: newScale });
   };
 
@@ -258,21 +253,20 @@ function SeatingEditorInner({
 
         <Layer>
           {tables.map((t) => {
-            const used =
-              t.seatedGuests?.length ?? 0;
+            const used = t.seatedGuests?.length ?? 0;
             return (
               <TableRenderer
-  key={t.id}
-  table={{
-    ...t,
-    openAddGuestModal: readOnly
-      ? undefined
-      : () => setAddGuestTable(t),
-    statsLabel: showStats
-      ? `${used} / ${t.capacity ?? "—"}`
-      : undefined,
-  }}
-/>
+                key={t.id}
+                table={{
+                  ...t,
+                  openAddGuestModal: readOnly
+                    ? undefined
+                    : () => setAddGuestTable(t),
+                  statsLabel: showStats
+                    ? `${used} / ${t.capacity ?? "—"}`
+                    : undefined,
+                }}
+              />
             );
           })}
         </Layer>
