@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import GuestsTable from "@/app/components/GuestsTable";
 import AddGuestModal from "@/app/components/AddGuestModal";
 
@@ -12,14 +12,14 @@ import { useSeatingStore } from "@/store/seatingStore";
 ========================= */
 export default function LiveGuestsTab({ invitationId }) {
   const guests = useSeatingStore((s) => s.guests);
-const setGuests = useSeatingStore((s) => s.setGuests);
+  const setGuests = useSeatingStore((s) => s.setGuests);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   /* =========================
-     Import guests ONCE
+     Import guests
   ========================= */
   async function importGuests() {
     if (!invitationId) {
@@ -55,6 +55,7 @@ const setGuests = useSeatingStore((s) => s.setGuests);
       (s, g) => s + (g.guestsCount || 0),
       0
     );
+
     const arrived = guests.reduce(
       (s, g) => s + (g.arrivedCount || 0),
       0
@@ -123,17 +124,17 @@ const setGuests = useSeatingStore((s) => s.setGuests);
       />
 
       {/* מודאל הוספת אורח */}
-      <AddGuestModal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        invitationId={invitationId}
-        onCreated={(newGuest) => {
-          // ✅ סנכרון מיידי – מפיק + לקוח
-          setGuests((prev) => [...prev, newGuest]);
-
-
-        }}
-      />
+      {addOpen && (
+        <AddGuestModal
+          invitationId={invitationId}
+          onClose={() => setAddOpen(false)}
+          onSuccess={async (newGuest) => {
+            if (newGuest) {
+              setGuests((prev) => [...prev, newGuest]);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
