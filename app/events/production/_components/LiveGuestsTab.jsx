@@ -11,13 +11,8 @@ import { useSeatingStore } from "@/store/seatingStore";
    Component
 ========================= */
 export default function LiveGuestsTab({ invitationId }) {
-  const {
-    guests,
-    setGuests,
-  } = useSeatingStore((s) => ({
-    guests: s.guests,
-    setGuests: s.setGuests,
-  }));
+  const guests = useSeatingStore((s) => s.guests);
+const setGuests = useSeatingStore((s) => s.setGuests);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
