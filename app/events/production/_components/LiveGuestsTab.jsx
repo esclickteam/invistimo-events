@@ -134,7 +134,8 @@ export default function LiveGuestsTab({ invitationId }) {
         invitationId={invitationId}
         onCreated={(newGuest) => {
           // ✅ סנכרון מיידי – מפיק + לקוח
-          setGuests([...guests, newGuest]);
+          setGuests((prev) => [...prev, newGuest]);
+
 
         }}
       />
