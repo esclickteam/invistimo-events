@@ -57,7 +57,11 @@ export const useSeatingStore = create((set, get) => ({
  init: (tables, guests, background = null, canvasView = null) => {
   set({
     tables: tables || [],
-    guests: guests || [],
+    guests: (guests || []).map((g) => ({
+  ...g,
+  rsvp: g.rsvp ?? "pending",
+})),
+
     background,
     canvasView: canvasView || {
       scale: 1,
@@ -73,7 +77,11 @@ importSnapshot: (snapshot) => {
 
   set({
     tables: snapshot.tables || [],
-    guests: snapshot.guests || [],
+    guests: (snapshot.guests || []).map((g) => ({
+  ...g,
+  rsvp: g.rsvp ?? "pending",
+})),
+
     background: snapshot.background || null,
     canvasView: snapshot.canvasView || {
       scale: 1,
