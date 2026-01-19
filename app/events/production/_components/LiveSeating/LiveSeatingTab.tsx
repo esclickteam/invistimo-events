@@ -18,7 +18,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const init = useSeatingStore((s) => s.init);
-  const tables = useSeatingStore((s) => s.tables); // ✅ קריטי
+  const tables = useSeatingStore((s) => s.tables);
 
   /* =========================
      Mount logs
@@ -26,6 +26,17 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   useEffect(() => {
     console.log("🟡 LiveSeatingTab mounted");
     console.log("🟡 invitationId:", invitationId);
+  }, [invitationId]);
+
+  /* =========================
+     Auto import on first load
+  ========================= */
+  useEffect(() => {
+    if (!invitationId) return;
+    if (tables.length > 0) return; // כבר נטען
+
+    importData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invitationId]);
 
   /* =========================
@@ -56,7 +67,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       console.log("🟢 Live seating snapshot:", json);
 
-      // 🔥 מקור אמת יחיד
+      // 🔥 מקור אמת יחיד – ה־store
       init(
         json.tables ?? [],
         json.guests ?? [],
@@ -72,36 +83,29 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* =========================
-     Empty state
-  ========================= */
-  if (!tables.length) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-        <p className="mb-4 text-gray-700">
-          עדיין לא יובאה מפת הושבה ללייב
-        </p>
-
-        {error && <p className="text-red-600 mb-3">{error}</p>}
-
-        <button
-          onClick={importData}
-          disabled={loading}
-          className="px-5 py-2 bg-black text-white rounded-lg flex items-center gap-2 disabled:opacity-60"
-        >
-          {loading ? "מייבא..." : "📥 ייבוא הושבה"}
-        </button>
-      </div>
-    );
-  }
-
-  /* =========================
-     Live view
+     UI
   ========================= */
   return (
     <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
       {/* 🗺️ מפת הושבה */}
       <div className="flex-1 relative">
         <LiveSeatingViewer />
+
+        {/* Empty overlay */}
+        {!tables.length && !loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+            <p className="mb-4 text-gray-700">
+              עדיין לא יובאה מפת הושבה ללייב
+            </p>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+            <span>מייבא הושבה…</span>
+          </div>
+        )}
       </div>
 
       {/* 👥 אורחים */}
