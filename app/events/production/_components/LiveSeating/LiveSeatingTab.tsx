@@ -76,7 +76,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-[75vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
+    <div className="flex flex-col h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-[#faf8f4]">
+
 
       {/* 🔘 HEADER – כפתור ייבוא תמידי */}
       <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
