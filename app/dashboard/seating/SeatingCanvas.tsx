@@ -201,15 +201,15 @@ function SeatingCanvasInner({
   return (
     <div ref={containerRef} className="relative w-full h-full">
       <Stage
-        width={size.width}
-        height={size.height}
-        scaleX={isViewer ? 1 : scale}
-        scaleY={isViewer ? 1 : scale}
-        x={isViewer ? 0 : stagePos.x}
-        y={isViewer ? 0 : stagePos.y}
-        onWheel={handleWheel}
-        onMouseMove={handleMouseMove}
-      >
+  width={size.width}
+  height={size.height}
+  scaleX={canvasView.scale}
+  scaleY={canvasView.scale}
+  x={canvasView.x}
+  y={canvasView.y}
+  onWheel={isViewer ? undefined : handleWheel}
+  onMouseMove={isViewer ? undefined : handleMouseMove}
+>
         {/* ===== WORLD ===== */}
         <Layer>
           <Group>
