@@ -76,7 +76,12 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       importSnapshot({
         tables: snapshot.tables,
         guests: snapshot.guests,
-        canvasView: snapshot.canvasView,
+        canvasView:
+  snapshot.canvasView &&
+  snapshot.canvasView.scale != null
+    ? snapshot.canvasView
+    : null,
+
         background: json.background ?? null,
       });
 
