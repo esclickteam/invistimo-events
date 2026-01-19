@@ -114,10 +114,11 @@ function SeatingCanvasInner({
     if (!size.width || !size.height) return;
 
     const isDefault =
-      !canvasView ||
-      (canvasView.scale === 1 &&
-        canvasView.x === 0 &&
-        canvasView.y === 0);
+  !canvasView ||
+  canvasView.scale == null ||
+  (canvasView.scale === 1 &&
+   canvasView.x === 0 &&
+   canvasView.y === 0);
 
     if (!isDefault) return;
 
