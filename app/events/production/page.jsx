@@ -17,7 +17,7 @@ import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
 export default function EventProductionPage() {
   const { user } = useAuth();
 
-  const [invitation, setInvitation] = useState<any>(null);
+  const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
