@@ -2,8 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import GuestsTable from "@/app/components/GuestsTable";
 import AddGuestModal from "@/app/components/AddGuestModal";
+
+/* =========================
+   Helpers
+========================= */
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function formatPhone(phone) {
+  if (!phone) return "";
+  const digits = String(phone).replace(/\D/g, "");
+  if (digits.startsWith("0")) return digits;
+  if (digits.length === 9 && digits.startsWith("5")) return "0" + digits;
+  return digits;
+}
 
 /* =========================
    Component
@@ -16,13 +30,7 @@ export default function LiveGuestsTab({ invitationId }) {
   const [error, setError] = useState(null);
 
   const [openAddModal, setOpenAddModal] = useState(false);
-
-  // ✅ מודאל עריכה פנימי (בלי import)
   const [editGuest, setEditGuest] = useState(null);
-
-  // ✅ חיפוש + פילטרים (שורת הכפתורים כמו בדשבורד)
-  const [search, setSearch] = useState("");
-  const [quickFilter, setQuickFilter] = useState("all"); // "all" | "arrived"
 
   const cacheKey = invitationId ? `live-guests-${invitationId}` : null;
 
@@ -141,50 +149,62 @@ export default function LiveGuestsTab({ invitationId }) {
   }
 
   /* =========================
-     Stats  ✅ "הגיעו" = סכום arrivedCount אמיתי
+     ✅ הגיעו ליד כל אורח
+     +1 / -1 על arrivedCount
+  ========================= */
+  async function changeArrived(guest, delta) {
+    const prevArrived = Number(guest.arrivedCount || 0);
+    const invited = Math.max(1, Number(guest.guestsCount || 1));
+    const nextArrived = clamp(prevArrived + delta, 0, invited);
+
+    if (nextArrived === prevArrived) return;
+
+    // ✅ Optimistic UI
+    applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
+
+    try {
+      // ניסיון מינימלי
+      await updateGuestOnServer(guest._id, { arrivedCount: nextArrived });
+    } catch (e1) {
+      try {
+        // fallback: לשלוח גם שדות בסיסיים אם השרת דורש "מסמך מלא"
+        await updateGuestOnServer(guest._id, {
+          name: guest.name,
+          phone: guest.phone,
+          relation: guest.relation,
+          notes: guest.notes,
+          rsvp: guest.rsvp,
+          guestsCount: guest.guestsCount,
+          arrivedCount: nextArrived,
+        });
+      } catch (e2) {
+        console.error("❌ arrivedCount update failed:", e2);
+
+        // Revert UI
+        applyUpdatedGuest({ _id: guest._id, arrivedCount: prevArrived });
+        alert("❌ לא הצלחתי לעדכן 'הגיעו' בשרת");
+      }
+    }
+  }
+
+  /* =========================
+     Stats (סה״כ הגיעו = סכום arrivedCount אמיתי)
   ========================= */
   const stats = useMemo(() => {
     return {
       totalInvited: guests.reduce((s, g) => s + (g.guestsCount || 0), 0),
-      arrived: guests.reduce((s, g) => s + (g.arrivedCount || 0), 0), // ✅ אמיתי
+      arrived: guests.reduce((s, g) => s + (g.arrivedCount || 0), 0),
       no: guests.filter((g) => g.rsvp === "no").length,
       pending: guests.filter((g) => g.rsvp === "pending").length,
     };
   }, [guests]);
 
   /* =========================
-     Display list (פילטר "הגיעו" + חיפוש)
-  ========================= */
-  const displayGuests = useMemo(() => {
-    let list = [...guests];
-
-    // ✅ פילטר הגיעו (לפי arrivedCount בפועל)
-    if (quickFilter === "arrived") {
-      list = list.filter((g) => (g.arrivedCount || 0) > 0);
-    }
-
-    // ✅ חיפוש (שם / טלפון)
-    const q = search.trim().toLowerCase();
-    if (q) {
-      const qDigits = q.replace(/\D/g, "");
-      list = list.filter((g) => {
-        const name = (g.name || "").toLowerCase();
-        const phoneDigits = String(g.phone || "").replace(/\D/g, "");
-        const nameMatch = name.includes(q);
-        const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
-        return nameMatch || phoneMatch;
-      });
-    }
-
-    return list;
-  }, [guests, quickFilter, search]);
-
-  /* =========================
      BEFORE IMPORT
   ========================= */
   if (!guests.length) {
     return (
-      <div className="p-6">
+      <div className="p-6" dir="rtl">
         <p className="mb-4">עדיין לא יובאה רשימת אורחים ללייב</p>
 
         {error && <p className="text-red-600 mb-3">{error}</p>}
@@ -224,7 +244,7 @@ export default function LiveGuestsTab({ invitationId }) {
         </button>
       </div>
 
-      {/* Stats cards */}
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat title='סה״כ מוזמנים' value={stats.totalInvited} />
         <Stat title="הגיעו" value={stats.arrived} color="green" />
@@ -232,71 +252,108 @@ export default function LiveGuestsTab({ invitationId }) {
         <Stat title="ממתינים" value={stats.pending} color="orange" />
       </div>
 
-      {/* ✅ שורה כמו בדשבורד: פילטרים + חיפוש + מציג */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        {/* ✅ פילטרים (כאן בדיוק הכפתור הירוק "הגיעו") */}
-        <div className="flex items-center gap-2 justify-end md:justify-start">
-          <button
-            onClick={() => setQuickFilter("all")}
-            className={`px-4 py-2 rounded-full border text-sm transition ${
-              quickFilter === "all"
-                ? "bg-[#c9b48f] text-white border-[#c9b48f]"
-                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-            }`}
-          >
-            הכל
-          </button>
+      {/* ✅ טבלה ללייב עם כפתור "הגיעו" ליד כל אורח */}
+      <div className="w-full overflow-x-auto bg-white border rounded-xl">
+        <table className="min-w-[1100px] w-full">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-3 text-right">שם</th>
+              <th className="p-3 text-right">טלפון</th>
+              <th className="p-3 text-right">קרבה</th>
+              <th className="p-3 text-right">סטטוס</th>
+              <th className="p-3 text-right">מוזמנים</th>
+              <th className="p-3 text-right">הגיעו בפועל</th>
+              <th className="p-3 text-right">הערות</th>
+              <th className="p-3 text-right">פעולות</th>
+            </tr>
+          </thead>
 
-          <button
-            onClick={() => setQuickFilter("arrived")}
-            className={`px-4 py-2 rounded-full border text-sm transition ${
-              quickFilter === "arrived"
-                ? "bg-green-600 text-white border-green-600"
-                : "bg-white text-green-700 border-green-300 hover:bg-green-50"
-            }`}
-            title="מסכם כמה באמת הגיעו בפועל (arrivedCount)"
-          >
-            הגיעו <span className="font-bold">({stats.arrived})</span>
-          </button>
-        </div>
+          <tbody>
+            {guests.map((g) => {
+              const invited = Math.max(1, Number(g.guestsCount || 1));
+              const arrived = Number(g.arrivedCount || 0);
 
-        {/* ✅ חיפוש (אותה שורה) */}
-        <div className="w-full md:max-w-[420px] relative">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="חיפוש לפי שם או טלפון…"
-            className="w-full border border-gray-300 rounded-full px-5 py-3 outline-none bg-white"
-          />
-          {search.trim() && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
-              type="button"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+              return (
+                <tr key={g._id} className="border-t">
+                  <td className="p-3">{g.name || "-"}</td>
+                  <td className="p-3">{formatPhone(g.phone) || "-"}</td>
+                  <td className="p-3">{(g.relation || "").trim() || "-"}</td>
+                  <td className="p-3">{g.rsvp || "-"}</td>
+                  <td className="p-3 font-semibold">{invited}</td>
 
-        {/* ✅ מציג */}
-        <div className="text-sm text-gray-500 text-center md:text-left md:min-w-[140px]">
-          מציג: <span className="font-semibold">{displayGuests.length}</span> /{" "}
-          {guests.length}
-        </div>
+                  {/* ✅ כאן הכפתור הירוק + המספר ליד כל אורח */}
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => changeArrived(g, +1)}
+                        className="px-3 py-1 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition"
+                        title="הוסף מגיע אחד"
+                      >
+                        הגיעו
+                      </button>
+
+                      <span className="text-sm font-semibold">
+                        {arrived} / {invited}
+                      </span>
+
+                      <button
+                        onClick={() => changeArrived(g, -1)}
+                        className="px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
+                        title="הסר מגיע אחד"
+                        disabled={arrived <= 0}
+                      >
+                        −
+                      </button>
+                    </div>
+                  </td>
+
+                  <td className="p-3 text-sm text-gray-700">
+                    {(g.notes || "").trim() || "-"}
+                  </td>
+
+                  <td className="p-3">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => router.push(`/dashboard/messages?guestId=${g._id}`)}
+                        title="הודעות"
+                      >
+                        💬
+                      </button>
+
+                      <button
+                        onClick={() => router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)}
+                        title="הושבה"
+                      >
+                        🪑
+                      </button>
+
+                      <button onClick={() => setEditGuest(g)} title="עריכה">
+                        ✏️
+                      </button>
+
+                      <button
+                        onClick={() => deleteGuest(g)}
+                        className="text-red-600"
+                        title="מחיקה"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+
+            {guests.length === 0 && (
+              <tr>
+                <td colSpan={8} className="p-8 text-center text-gray-500">
+                  אין אורחים להצגה
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-
-      {/* Table */}
-      <GuestsTable
-        guests={displayGuests}
-        isDemo={false}
-        onEdit={(g) => setEditGuest(g)}
-        onDelete={(g) => deleteGuest(g)}
-        onMessage={(g) => router.push(`/dashboard/messages?guestId=${g._id}`)}
-        onSeat={(g) =>
-          router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
-        }
-      />
 
       {/* ✅ Add */}
       {openAddModal && (
@@ -307,7 +364,7 @@ export default function LiveGuestsTab({ invitationId }) {
             if (!newGuest) return;
 
             setGuests((prev) => {
-              if (prev.some((g) => g._id === newGuest._id)) return prev;
+              if (prev.some((x) => x._id === newGuest._id)) return prev;
               const next = [...prev, newGuest];
               saveCache(next);
               return next;
@@ -348,10 +405,7 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
   const [relation, setRelation] = useState(guest?.relation || "");
   const [notes, setNotes] = useState(guest?.notes || "");
   const [guestsCount, setGuestsCount] = useState(Number(guest?.guestsCount || 1));
-
-  // ✅ מגיעים בפועל
   const [arrivedCount, setArrivedCount] = useState(Number(guest?.arrivedCount || 0));
-
   const [rsvp, setRsvp] = useState(guest?.rsvp || "pending");
   const [saving, setSaving] = useState(false);
 
