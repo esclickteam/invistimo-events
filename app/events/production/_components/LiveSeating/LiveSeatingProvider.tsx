@@ -1,6 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import type {
   LiveSeatingState,
   LiveSeatingContextType,
@@ -14,24 +19,37 @@ type ProviderProps = {
   children: React.ReactNode;
 };
 
-export function LiveSeatingProvider({ initial, children }: ProviderProps) {
-  // 🛡️ בטיחות: גם אם הגיע undefined/חלקי - לא מפילים UI
+export function LiveSeatingProvider({
+  initial,
+  children,
+}: ProviderProps) {
+  /**
+   * 🛡️ safeInitial
+   * שומר גם background + canvasView
+   */
   const safeInitial: LiveSeatingState = useMemo(
     () => ({
       guests: initial?.guests ?? [],
       tables: initial?.tables ?? [],
+      background: initial?.background ?? null,
+      canvasView: initial?.canvasView ?? null,
     }),
     [initial]
   );
 
-  const [state, setState] = useState<LiveSeatingState>(safeInitial);
+  const [state, setState] =
+    useState<LiveSeatingState>(safeInitial);
 
-  // ✅ התאמה למבנה החדש: עובדים עם _id (לא id)
+  /**
+   * ✅ סימון הגעה – ללא שינוי לוגיקה
+   */
   function markArrived(guestId: string, arrived: number) {
     setState((prev) => ({
       ...prev,
       guests: (prev.guests ?? []).map((g: any) =>
-        (g._id ?? g.id) === guestId ? { ...g, arrived } : g
+        (g._id ?? g.id) === guestId
+          ? { ...g, arrived }
+          : g
       ),
     }));
   }
