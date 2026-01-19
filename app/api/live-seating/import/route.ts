@@ -14,9 +14,10 @@ export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const { searchParams } = new URL(req.url);
-    const invitationId = searchParams.get("invitationId");
+    const url = new URL(req.url);
+    const invitationId = url.searchParams.get("invitationId");
 
+    // אין invitation → מחזירים snapshot ריק (לא מפילים UI)
     if (!invitationId) {
       return NextResponse.json(
         { guests: [], tables: [] },
@@ -62,27 +63,27 @@ export async function POST(req: Request) {
         const tableCanvasId = t.id; // מזהה קנבס (string)
 
         return {
-          _id: tableCanvasId,                 // ✅ תאימות ל-UI
-          id: tableCanvasId,                  // אחורה
-          label: t.name || "שולחן",           // מה שה-UI מציג
+          _id: tableCanvasId,      // UI first
+          id: tableCanvasId,       // תאימות אחורה
+          label: t.name || "שולחן",
           name: t.name || "שולחן",
-          capacity: t.seats || 0,             // ✅ חשוב
+          capacity: t.seats ?? 0,
           x: t.x ?? 0,
           y: t.y ?? 0,
         };
-      }) || [];
+      }) ?? [];
 
     /* ======================================================
        5️⃣ בניית מוזמנים ללייב (מותאם ל-UI)
     ====================================================== */
     const liveGuests = guests.map((g: any) => ({
-      _id: g._id.toString(),                  // ✅ UI first
+      _id: g._id.toString(),
       id: g._id.toString(),
       name: g.name,
       phone: g.phone || "",
       tableId: g.tableId ? g.tableId.toString() : null,
-      approvedCount: g.guestsCount ?? 1,      // ✅ UI משתמש בזה
-      approved: g.guestsCount ?? 1,           // תאימות אחורה
+      approvedCount: g.guestsCount ?? 1,
+      approved: g.guestsCount ?? 1, // תאימות אחורה
       arrived: g.arrivedCount ?? 0,
       rsvp: g.rsvp,
     }));
