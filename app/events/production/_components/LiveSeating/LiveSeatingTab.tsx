@@ -95,7 +95,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   ========================= */
   return (
     <LiveSeatingProvider initial={data}>
-      <div className="flex h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
+      <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
+
         {/* 🗺️ מפת הושבה – זהה ללקוח */}
         <div className="flex-1 relative">
           <LiveSeatingViewer invitationId={invitationId} />
