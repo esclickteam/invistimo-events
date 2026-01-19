@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { LiveSeatingProvider } from "./LiveSeatingProvider";
-import SeatingMapLive from "./SeatingMapLive";
 import GuestListLive from "./GuestListLive";
 import { LiveSeatingState } from "./types";
+
+/* ✅ ה־Viewer החדש */
+import LiveSeatingViewer from "@/app/events/production/_components/LiveSeating/LiveSeatingViewer";
+
 
 /* =========================
    Types
@@ -27,7 +30,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }, [invitationId]);
 
   /* =========================
-     Import seating from client dashboard
+     Import seating from dashboard snapshot
   ========================= */
   async function importData() {
     if (!invitationId) {
@@ -44,11 +47,11 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         { method: "POST" }
       );
 
-      const json: LiveSeatingState = await res.json();
-
       if (!res.ok) {
         throw new Error("Import failed");
       }
+
+      const json: LiveSeatingState = await res.json();
 
       setData({
         guests: json.guests ?? [],
@@ -63,7 +66,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* =========================
-     Empty state – like LiveGuests
+     Empty state – before import
   ========================= */
   if (!data) {
     return (
@@ -79,7 +82,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         <button
           onClick={importData}
           disabled={loading}
-          className="px-5 py-2 bg-black text-white rounded-lg flex items-center gap-2"
+          className="px-5 py-2 bg-black text-white rounded-lg flex items-center gap-2 disabled:opacity-60"
         >
           {loading ? "מייבא..." : "📥 ייבוא הושבה"}
         </button>
@@ -88,14 +91,17 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* =========================
-     Live view
+     Live view – REAL UX
   ========================= */
   return (
     <LiveSeatingProvider initial={data}>
-      <div className="flex h-[70vh] border rounded-xl overflow-hidden">
-        <div className="flex-1">
-          <SeatingMapLive />
+      <div className="flex h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
+        {/* 🗺️ מפת הושבה – זהה ללקוח */}
+        <div className="flex-1 relative">
+          <LiveSeatingViewer invitationId={invitationId} />
         </div>
+
+        {/* 👥 רשימת אורחים */}
         <div className="w-80 border-l bg-white">
           <GuestListLive />
         </div>

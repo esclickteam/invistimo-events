@@ -25,6 +25,12 @@ import MobileGuests from "./MobileGuests";
 /* ============================================================
    TYPES
 ============================================================ */
+type SeatingEditorProps = {
+  background: string | null;
+  readOnly?: boolean;
+  showStats?: boolean;
+};
+
 type Guest = {
   id?: string;
   _id?: string;
@@ -39,13 +45,18 @@ type Table = {
   id: string;
   x: number;
   y: number;
+  capacity?: number;
   seatedGuests?: SeatedGuest[];
 };
 
 /* ============================================================
    INNER
 ============================================================ */
-function SeatingEditorInner({ background }: { background: string | null }) {
+function SeatingEditorInner({
+  background,
+  readOnly = false,
+  showStats = false,
+}: SeatingEditorProps) {
   const [bgImage] = useImage(background || "", "anonymous");
 
   /* ================= STORES ================= */
@@ -73,11 +84,11 @@ function SeatingEditorInner({ background }: { background: string | null }) {
   const [showGuests, setShowGuests] = useState(false);
   const demoMode = useSeatingStore((s) => s.demoMode);
 
-useEffect(() => {
-  if (demoMode) {
-    setShowGuests(true); // 🔥 בדמו – פותחים רשימת אורחים אוטומטית
-  }
-}, [demoMode]);
+  useEffect(() => {
+    if (demoMode && !readOnly) {
+      setShowGuests(true);
+    }
+  }, [demoMode, readOnly]);
 
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
@@ -118,6 +129,8 @@ useEffect(() => {
   }, [canvasView]);
 
   const handleMouseMove = (e: any) => {
+    if (readOnly) return;
+
     const stage = e.target.getStage();
     const pos = stage?.getPointerPosition();
     if (!pos) return;
@@ -164,6 +177,8 @@ useEffect(() => {
 
   /* ================= DELETE ZONE ================= */
   useEffect(() => {
+    if (readOnly) return;
+
     function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -173,7 +188,7 @@ useEffect(() => {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedZoneId, removeZone]);
+  }, [selectedZoneId, removeZone, readOnly]);
 
   /* ================= ADD TABLE ================= */
   const handleAddTable = (type: string, seats: number) => {
@@ -200,73 +215,15 @@ useEffect(() => {
   }, [tables, guests]);
 
   return (
-  <div ref={containerRef} className="relative w-full h-full">
-    {demoMode && (
-      <div className="absolute top-4 right-4 z-50 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm shadow">
-        🧪 מצב הדגמה – סידורי הושבה וניהול מלא זמינים לאחר{" "}
-        <a
-          href="https://www.invistimo.com/pricing"
-          className="
-            font-semibold
-            underline
-            underline-offset-2
-            text-amber-700
-            hover:text-amber-900
-            transition
-            whitespace-nowrap
-          "
+    <div ref={containerRef} className="relative w-full h-full">
+      {!readOnly && (
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
         >
-          הצטרפות
-        </a>
-      </div>
-    )}
-
-      {/* ➕ הוסף שולחן */}
-      <button
-        onClick={() => setShowAddModal(true)}
-        className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
-      >
-        ➕ הוסף שולחן
-      </button>
-
-      {/* 👥 רשימת אורחים – מובייל */}
-      <button
-        onClick={() => setShowGuests(true)}
-        className="
-          absolute
-          top-16
-          left-4
-          md:hidden
-          bg-white
-          border
-          border-gray-200
-          text-gray-700
-          px-4
-          py-2
-          rounded-lg
-          shadow
-          z-50
-          flex
-          items-center
-          gap-2
-        "
-      >
-        רשימת אורחים 👥
-      </button>
-
-      {/* ZOOM */}
-      <button
-        onClick={() => setScale((s) => Math.min(s + 0.1, 3))}
-        className="absolute top-28 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
-      >
-        +
-      </button>
-      <button
-        onClick={() => setScale((s) => Math.max(s - 0.1, 0.4))}
-        className="absolute top-44 left-4 bg-white shadow rounded-full w-12 h-12 text-2xl z-50"
-      >
-        −
-      </button>
+          ➕ הוסף שולחן
+        </button>
+      )}
 
       <Stage
         width={size.width}
@@ -277,22 +234,6 @@ useEffect(() => {
         y={stagePos.y}
         onWheel={handleWheel}
         onMouseMove={handleMouseMove}
-        onMouseDown={(e) => {
-          const stage = e.target.getStage();
-          if (e.target === stage) {
-            setSelectedZone(null);
-            setIsPanning(true);
-            const pos = stage.getPointerPosition();
-            if (pos) {
-              panStart.current = pos;
-              stageStart.current = stagePos;
-            }
-          }
-        }}
-        onMouseUp={() => {
-          setIsPanning(false);
-          panStart.current = null;
-        }}
       >
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
@@ -316,29 +257,42 @@ useEffect(() => {
         </Layer>
 
         <Layer>
-          {tables.map((t) => (
-            <TableRenderer
-              key={t.id}
-              table={{
-                ...t,
-                openAddGuestModal: () => setAddGuestTable(t),
-              }}
-            />
-          ))}
+          {tables.map((t) => {
+            const used =
+              t.seatedGuests?.length ?? 0;
+            return (
+              <TableRenderer
+  key={t.id}
+  table={{
+    ...t,
+    openAddGuestModal: readOnly
+      ? undefined
+      : () => setAddGuestTable(t),
+    statsLabel: showStats
+      ? `${used} / ${t.capacity ?? "—"}`
+      : undefined,
+  }}
+/>
+            );
+          })}
         </Layer>
 
-        <Layer listening={false}>
-          <GhostPreview />
-        </Layer>
+        {!readOnly && (
+          <Layer listening={false}>
+            <GhostPreview />
+          </Layer>
+        )}
 
-        <Layer>
-          {tables.map((t) => (
-            <DeleteTableButton key={t.id} table={t} />
-          ))}
-        </Layer>
+        {!readOnly && (
+          <Layer>
+            {tables.map((t) => (
+              <DeleteTableButton key={t.id} table={t} />
+            ))}
+          </Layer>
+        )}
       </Stage>
 
-      {showAddModal && (
+      {!readOnly && showAddModal && (
         <AddTableDrawer
           open
           onClose={() => setShowAddModal(false)}
@@ -349,7 +303,7 @@ useEffect(() => {
         />
       )}
 
-      {addGuestTable && (
+      {!readOnly && addGuestTable && (
         <AddGuestToTableModal
           table={addGuestTable}
           guests={unseatedGuests}
@@ -357,7 +311,7 @@ useEffect(() => {
         />
       )}
 
-      {showGuests && (
+      {!readOnly && showGuests && (
         <MobileGuests
           onDragStart={startDragGuest}
           onClose={() => setShowGuests(false)}
@@ -370,14 +324,10 @@ useEffect(() => {
 /* ============================================================
    EXPORT
 ============================================================ */
-export default function SeatingEditor({
-  background,
-}: {
-  background: string | null;
-}) {
+export default function SeatingEditor(props: SeatingEditorProps) {
   return (
     <Suspense fallback={null}>
-      <SeatingEditorInner background={background} />
+      <SeatingEditorInner {...props} />
     </Suspense>
   );
 }
