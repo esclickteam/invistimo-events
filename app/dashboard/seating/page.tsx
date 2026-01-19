@@ -33,7 +33,6 @@ export default function SeatingPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
-  
 
   /* Drawer אורחים במובייל */
   const [showGuests, setShowGuests] = useState(false);
@@ -43,9 +42,7 @@ export default function SeatingPage() {
   =============================== */
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
-  const guests = useSeatingStore((s) => s.getApprovedGuests());
-const allGuests = useSeatingStore((s) => s.guests);
-
+  const guests = useSeatingStore((s) => s.guests);
 
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
@@ -199,7 +196,7 @@ const allGuests = useSeatingStore((s) => s.guests);
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tables,
-        guests: allGuests, 
+        guests,
         background,
         zones,
         canvasView: cv,

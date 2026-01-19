@@ -11,7 +11,7 @@ export default function GuestSidebar({
   /* ===============================
      Zustand
   =============================== */
-  const guests = useSeatingStore((s) => s.getApprovedGuests());
+  const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
 

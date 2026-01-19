@@ -61,8 +61,7 @@ function SeatingEditorInner({
 
   /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
-const approvedGuests = useSeatingStore((s) => s.getApprovedGuests());
-
+  const guests = useSeatingStore((s) => s.guests) as Guest[];
 
   const draggedGuest = useSeatingStore((s) => s.draggingGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
@@ -263,17 +262,14 @@ useEffect(() => {
 
   /* ================= UNSEATED ================= */
   const unseatedGuests = useMemo(() => {
-  const seated = new Set<string>();
-  tables.forEach((t) =>
-    t.seatedGuests?.forEach((s) =>
-      seated.add(String(s.guestId))
-    )
-  );
-
-  return approvedGuests.filter(
-    (g: Guest) => !seated.has(String(g.id ?? g._id))
-  );
-}, [tables, approvedGuests]);
+    const seated = new Set<string>();
+    tables.forEach((t) =>
+      t.seatedGuests?.forEach((s) => seated.add(String(s.guestId)))
+    );
+    return guests.filter(
+      (g) => !seated.has(String(g.id ?? g._id))
+    );
+  }, [tables, guests]);
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
@@ -298,22 +294,24 @@ useEffect(() => {
     onMouseMove={handleMouseMove}
   >
         <Layer listening={false}>
-  <GridLayer width={size.width} height={size.height} />
+          <GridLayer width={size.width} height={size.height} />
+        </Layer>
 
-  {bgImage &&
-    bgImage.width > 0 &&
-    bgImage.height > 0 &&
-    size.width > 0 &&
-    size.height > 0 && (
-      <KonvaImage
-        image={bgImage}
-        width={size.width}
-        height={size.height}
-        opacity={0.28}
-      />
-    )}
-</Layer>
+        <Layer listening={false}>
+          {bgImage &&
+  bgImage.width > 0 &&
+  bgImage.height > 0 &&
+  size.width > 0 &&
+  size.height > 0 && (
 
+            <KonvaImage
+              image={bgImage}
+              width={size.width}
+              height={size.height}
+              opacity={0.28}
+            />
+          )}
+        </Layer>
 
         <Layer>
           {zones.map((z) => (
@@ -322,23 +320,25 @@ useEffect(() => {
         </Layer>
 
         <Layer>
-  {tables.map((t) => {
-    const used = t.seatedGuests?.length ?? 0;
-
-    return (
-      <TableRenderer
-        key={t.id}
-        table={t}
-        openAddGuestModal={
-          readOnly ? undefined : () => setAddGuestTable(t)
-        }
-        statsLabel={
-          showStats ? `${used} / ${t.capacity ?? "—"}` : undefined
-        }
-      />
-    );
-  })}
-</Layer>
+          {tables.map((t) => {
+            const used =
+              t.seatedGuests?.length ?? 0;
+            return (
+              <TableRenderer
+  key={t.id}
+  table={{
+    ...t,
+    openAddGuestModal: readOnly
+      ? undefined
+      : () => setAddGuestTable(t),
+    statsLabel: showStats
+      ? `${used} / ${t.capacity ?? "—"}`
+      : undefined,
+  }}
+/>
+            );
+          })}
+        </Layer>
 
         {!readOnly && (
           <Layer listening={false}>

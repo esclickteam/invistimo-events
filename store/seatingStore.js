@@ -6,16 +6,6 @@ export const useSeatingStore = create((set, get) => ({
   tables: [],
   guests: [],
 
-  /* ================= ⭐ SELECTORS ================= */
-getApprovedGuests: () => {
-  return get().guests.filter(
-    (g) =>
-      g.confirmed === true ||
-      g.confirmedGuestsCount > 0
-  );
-},
-
-
   background: null,
 
    demoMode: false, // ⭐ מצב דמו
@@ -245,22 +235,16 @@ background: null,
     })),
 
   /* ---------------- DRAG START / END ---------------- */
-  startDragGuest: (guest) => {
-  // 🚫 חסימה – לא מאושר
-  if (!guest.confirmed && !guest.confirmedGuestsCount) {
-    return;
-  }
-
+  startDragGuest: (guest) =>
   set({
     draggingGuest: {
       ...guest,
-      id: String(guest.id ?? guest._id),
+      id: String(guest.id ?? guest._id), // ⭐⭐⭐ השורה הקריטית
       __isDragging: true,
     },
     highlightedSeats: [],
     highlightedTable: null,
-  });
-},
+  }),
 
 
   endDragGuest: () =>
@@ -316,19 +300,6 @@ dropGuest: () => {
   } = get();
 
   if (!draggingGuest) return;
-
-  // 🚫 אורח שלא אישר – לא ניתן להושיב
-if (
-  !draggingGuest.confirmed &&
-  !draggingGuest.confirmedGuestsCount
-) {
-  return set({
-    draggingGuest: null,
-    highlightedTable: null,
-    highlightedSeats: [],
-  });
-}
-
 
   if (!highlightedTable || highlightedSeats.length === 0) {
     return set({
@@ -538,50 +509,45 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
     return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
   }
 
+  // ✅ תיקון קריטי:
+  // לא לכפות seatIndex = 0
+  // אם לא הגיע seatIndex – נותנים ל-engine לבחור לבד
   const startIndex =
     typeof seatIndex === "number" ? seatIndex : undefined;
 
   const block = findFreeBlock(table, count, startIndex);
+
+  // guard חובה
   if (!block || block.length === 0) {
     return { ok: false, message: "אין מספיק מקומות פנויים" };
   }
 
-  // ✅ ניקוי הושבות קודמות – immutable
-  const updatedTables = tables.map((t) => ({
-    ...t,
-    seatedGuests: t.seatedGuests.filter(
+  // ניקוי הושבות קודמות של האורח מכל השולחנות
+  tables.forEach((t) => {
+    t.seatedGuests = t.seatedGuests.filter(
       (s) => s.guestId !== guestId
-    ),
-  }));
+    );
+  });
 
-  // ✅ הוספה לשולחן היעד
-  const finalTables = updatedTables.map((t) =>
-    t.id === tableId
-      ? {
-          ...t,
-          seatedGuests: [
-            ...t.seatedGuests,
-            ...block.map((seatIndex) => ({
-              guestId,
-              seatIndex,
-            })),
-          ],
-        }
-      : t
+  // ✅ כאן נוצר seatIndex לכל מושב – זה מה שצובע באפור
+  table.seatedGuests.push(
+    ...block.map((seatIndex) => ({
+      guestId,
+      seatIndex,
+    }))
   );
 
+  // עדכון האורח
+  guest.tableId = tableId;
+  guest.tableName = table.name;
+
   set({
-    tables: finalTables,
-    guests: guests.map((g) =>
-      g.id === guestId
-        ? { ...g, tableId, tableName: table.name }
-        : g
-    ),
+    tables: [...tables],
+    guests: [...guests],
   });
 
   return { ok: true };
 },
-
 
 
   removeGuestFromTable: (tableId, guestId) => {
