@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import GuestsTable from "@/app/components/GuestsTable";
+import AddGuestModal from "@/app/dashboard/components/AddGuestModal";
 
 /* =========================
    Component
@@ -10,6 +11,8 @@ export default function LiveGuestsTab({ invitationId }) {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const [openAddModal, setOpenAddModal] = useState(false);
 
   async function importGuests() {
     if (!invitationId) {
@@ -27,10 +30,11 @@ export default function LiveGuestsTab({ invitationId }) {
       );
 
       const json = await res.json();
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error("Import failed");
 
       setGuests(json.guests || []);
-    } catch {
+    } catch (e) {
+      console.error("❌ importGuests error:", e);
       setError("לא נמצאו אורחים להזמנה");
     } finally {
       setLoading(false);
@@ -45,6 +49,7 @@ export default function LiveGuestsTab({ invitationId }) {
       (s, g) => s + (g.guestsCount || 0),
       0
     );
+
     const arrived = guests.reduce(
       (s, g) => s + (g.arrivedCount || 0),
       0
@@ -58,6 +63,9 @@ export default function LiveGuestsTab({ invitationId }) {
     };
   }, [guests]);
 
+  /* =========================
+     BEFORE IMPORT UI
+  ========================= */
   if (!guests.length) {
     return (
       <div className="p-6">
@@ -65,19 +73,70 @@ export default function LiveGuestsTab({ invitationId }) {
 
         {error && <p className="text-red-600 mb-3">{error}</p>}
 
-        <button
-          onClick={importGuests}
-          disabled={loading}
-          className="px-4 py-2 bg-black text-white rounded"
-        >
-          {loading ? "מייבא..." : "📥 ייבוא אורחים"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={importGuests}
+            disabled={loading}
+            className="px-4 py-2 bg-black text-white rounded disabled:opacity-60"
+          >
+            {loading ? "מייבא..." : "📥 ייבוא אורחים"}
+          </button>
+
+          {/* ✅ כפתור הוספת מוזמן גם לפני ייבוא */}
+          <button
+            onClick={() => setOpenAddModal(true)}
+            className="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50"
+          >
+            + הוספת מוזמן
+          </button>
+        </div>
+
+        {openAddModal && (
+          <AddGuestModal
+            invitationId={invitationId}
+            onClose={() => setOpenAddModal(false)}
+            onSuccess={(newGuest) => {
+              // ✅ כמו לקוח: מוסיפים מיידית בלי רענון
+              if (newGuest) {
+                setGuests((prev) => {
+                  if (prev.some((g) => g._id === newGuest._id)) return prev;
+                  return [...prev, newGuest];
+                });
+              }
+              setOpenAddModal(false);
+            }}
+          />
+        )}
       </div>
     );
   }
 
+  /* =========================
+     AFTER IMPORT UI
+  ========================= */
   return (
     <div className="flex flex-col gap-6">
+      {/* Header actions */}
+      <div className="flex items-center justify-end gap-3">
+        {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
+
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="px-4 py-2 bg-black text-white rounded"
+        >
+          + הוספת מוזמן
+        </button>
+
+        <button
+          onClick={importGuests}
+          disabled={loading}
+          className="px-4 py-2 bg-white border border-gray-300 rounded disabled:opacity-60"
+          title="ריענון ידני מהשרת"
+        >
+          {loading ? "מייבא..." : "🔄 רענון אורחים"}
+        </button>
+      </div>
+
       {/* סטטיסטיקות */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat title="סה״כ מוזמנים" value={stats.totalInvited} />
@@ -95,6 +154,22 @@ export default function LiveGuestsTab({ invitationId }) {
         onMessage={() => {}}
         onSeat={() => {}}
       />
+
+      {openAddModal && (
+        <AddGuestModal
+          invitationId={invitationId}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={(newGuest) => {
+            if (newGuest) {
+              setGuests((prev) => {
+                if (prev.some((g) => g._id === newGuest._id)) return prev;
+                return [...prev, newGuest];
+              });
+            }
+            setOpenAddModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
