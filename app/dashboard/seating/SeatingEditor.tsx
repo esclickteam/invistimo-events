@@ -282,16 +282,17 @@ useEffect(() => {
         </button>
       )}
 
-      <Stage
-        width={size.width}
-        height={size.height}
-        scaleX={scale}
-        scaleY={scale}
-        x={stagePos.x}
-        y={stagePos.y}
-        onWheel={handleWheel}
-        onMouseMove={handleMouseMove}
-      >
+      {size.width > 0 && size.height > 0 && (
+  <Stage
+    width={size.width}
+    height={size.height}
+    scaleX={scale}
+    scaleY={scale}
+    x={stagePos.x}
+    y={stagePos.y}
+    onWheel={handleWheel}
+    onMouseMove={handleMouseMove}
+  >
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
         </Layer>
@@ -352,7 +353,8 @@ useEffect(() => {
             ))}
           </Layer>
         )}
-      </Stage>
+        </Stage>
+)}
 
       {!readOnly && showAddModal && (
         <AddTableDrawer
