@@ -99,7 +99,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
         {/* 🗺️ מפת הושבה – זהה ללקוח */}
         <div className="flex-1 relative">
-          <LiveSeatingViewer invitationId={invitationId} />
+          <LiveSeatingViewer />
         </div>
 
         {/* 👥 רשימת אורחים */}
