@@ -123,9 +123,13 @@ const userId = auth.userId;
     });
     if (existing) {
       return NextResponse.json(
-        { success: false, error: "Guest already exists", guest: existing },
-        { status: 409 }
-      );
+  {
+    success: false,
+    error: "מוזמן עם מספר הטלפון הזה כבר קיים ברשימה",
+    guest: existing,
+  },
+  { status: 409 }
+);
     }
 
     const incomingGuests =
