@@ -538,45 +538,50 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
     return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
   }
 
-  // ✅ תיקון קריטי:
-  // לא לכפות seatIndex = 0
-  // אם לא הגיע seatIndex – נותנים ל-engine לבחור לבד
   const startIndex =
     typeof seatIndex === "number" ? seatIndex : undefined;
 
   const block = findFreeBlock(table, count, startIndex);
-
-  // guard חובה
   if (!block || block.length === 0) {
     return { ok: false, message: "אין מספיק מקומות פנויים" };
   }
 
-  // ניקוי הושבות קודמות של האורח מכל השולחנות
-  tables.forEach((t) => {
-    t.seatedGuests = t.seatedGuests.filter(
+  // ✅ ניקוי הושבות קודמות – immutable
+  const updatedTables = tables.map((t) => ({
+    ...t,
+    seatedGuests: t.seatedGuests.filter(
       (s) => s.guestId !== guestId
-    );
-  });
+    ),
+  }));
 
-  // ✅ כאן נוצר seatIndex לכל מושב – זה מה שצובע באפור
-  table.seatedGuests.push(
-    ...block.map((seatIndex) => ({
-      guestId,
-      seatIndex,
-    }))
+  // ✅ הוספה לשולחן היעד
+  const finalTables = updatedTables.map((t) =>
+    t.id === tableId
+      ? {
+          ...t,
+          seatedGuests: [
+            ...t.seatedGuests,
+            ...block.map((seatIndex) => ({
+              guestId,
+              seatIndex,
+            })),
+          ],
+        }
+      : t
   );
 
-  // עדכון האורח
-  guest.tableId = tableId;
-  guest.tableName = table.name;
-
   set({
-    tables: [...tables],
-    guests: [...guests],
+    tables: finalTables,
+    guests: guests.map((g) =>
+      g.id === guestId
+        ? { ...g, tableId, tableName: table.name }
+        : g
+    ),
   });
 
   return { ok: true };
 },
+
 
 
   removeGuestFromTable: (tableId, guestId) => {
