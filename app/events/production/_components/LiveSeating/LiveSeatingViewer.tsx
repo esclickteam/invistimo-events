@@ -41,8 +41,9 @@ export default function LiveSeatingViewer({
         useSeatingStore.getState().init([], [], null, null);
 
         const res = await fetch(
-          `/api/live-seating/import?invitationId=${invitationId}`
-        );
+  `/api/live-seating/import?invitationId=${invitationId}`,
+  { method: "POST" }
+);
 
         const data = await res.json();
 
