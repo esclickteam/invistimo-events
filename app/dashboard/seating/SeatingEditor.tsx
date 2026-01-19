@@ -7,7 +7,7 @@ import {
   Suspense,
   useRef,
 } from "react";
-import { Stage, Layer, Image as KonvaImage } from "react-konva";
+import { Stage, Layer, Image as KonvaImage, Group } from "react-konva";
 import useImage from "use-image";
 
 import { useSeatingStore } from "@/store/seatingStore";
@@ -78,7 +78,6 @@ function SeatingEditorInner({
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
-  const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
   /* ================= LOCAL UI STATE ================= */
   const [showGuests, setShowGuests] = useState(false);
@@ -108,7 +107,6 @@ function SeatingEditorInner({
 
     resize();
 
-    // ✅ VIEWER FIX – resize רק ב-Editor
     if (!readOnly) {
       window.addEventListener("resize", resize);
       return () => window.removeEventListener("resize", resize);
@@ -123,7 +121,6 @@ function SeatingEditorInner({
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // ✅ VIEWER FIX – רק Editor מעתיק ל-state
   useEffect(() => {
     if (readOnly) return;
     if (!canvasView) return;
@@ -154,7 +151,7 @@ function SeatingEditorInner({
   };
 
   const handleWheel = (e: any) => {
-    if (readOnly) return; // ✅ VIEWER FIX
+    if (readOnly) return;
     e.evt.preventDefault();
 
     const stage = e.target.getStage();
@@ -194,22 +191,10 @@ function SeatingEditorInner({
         removeZone(selectedZoneId);
       }
     }
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone, readOnly]);
-
-  /* ================= ADD TABLE ================= */
-  const handleAddTable = (type: string, seats: number) => {
-    const view = canvasView ?? { x: 0, y: 0, scale: 1 };
-
-    const centerX = (-view.x + size.width / 2) / view.scale;
-    const centerY = (-view.y + size.height / 2) / view.scale;
-
-    addTable(type, seats, {
-      x: centerX,
-      y: centerY,
-    });
-  };
 
   /* ================= UNSEATED ================= */
   const unseatedGuests = useMemo(() => {
@@ -226,19 +211,9 @@ function SeatingEditorInner({
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
-      {!readOnly && (
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="absolute top-4 left-4 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
-        >
-          ➕ הוסף שולחן
-        </button>
-      )}
-
       <Stage
         width={size.width}
         height={size.height}
-        // ✅ VIEWER FIX – Viewer מצייר ישירות מה-snapshot
         scaleX={readOnly ? canvasView.scale : scale}
         scaleY={readOnly ? canvasView.scale : scale}
         x={readOnly ? canvasView.x : stagePos.x}
@@ -246,45 +221,42 @@ function SeatingEditorInner({
         onWheel={!readOnly ? handleWheel : undefined}
         onMouseMove={handleMouseMove}
       >
-        <Layer listening={false}>
-          <GridLayer width={size.width} height={size.height} />
-        </Layer>
-
-        <Layer listening={false}>
-          {bgImage && (
-            <KonvaImage
-              image={bgImage}
-              width={size.width}
-              height={size.height}
-              opacity={0.28}
-            />
-          )}
-        </Layer>
-
+        {/* ================= WORLD LAYER ================= */}
         <Layer>
-          {zones.map((z) => (
-            <ZoneRenderer key={z.id} zone={z} />
-          ))}
-        </Layer>
+          <Group>
+            <GridLayer width={size.width} height={size.height} />
 
-        <Layer>
-          {tables.map((t) => {
-            const used = t.seatedGuests?.length ?? 0;
-            return (
-              <TableRenderer
-                key={t.id}
-                table={{
-                  ...t,
-                  openAddGuestModal: readOnly
-                    ? undefined
-                    : () => setAddGuestTable(t),
-                  statsLabel: showStats
-                    ? `${used} / ${t.capacity ?? "—"}`
-                    : undefined,
-                }}
+            {bgImage && (
+              <KonvaImage
+                image={bgImage}
+                width={size.width}
+                height={size.height}
+                opacity={0.28}
               />
-            );
-          })}
+            )}
+
+            {zones.map((z) => (
+              <ZoneRenderer key={z.id} zone={z} />
+            ))}
+
+            {tables.map((t) => {
+              const used = t.seatedGuests?.length ?? 0;
+              return (
+                <TableRenderer
+                  key={t.id}
+                  table={{
+                    ...t,
+                    openAddGuestModal: readOnly
+                      ? undefined
+                      : () => setAddGuestTable(t),
+                    statsLabel: showStats
+                      ? `${used} / ${t.capacity ?? "—"}`
+                      : undefined,
+                  }}
+                />
+              );
+            })}
+          </Group>
         </Layer>
 
         {!readOnly && (
@@ -301,25 +273,6 @@ function SeatingEditorInner({
           </Layer>
         )}
       </Stage>
-
-      {!readOnly && showAddModal && (
-        <AddTableDrawer
-          open
-          onClose={() => setShowAddModal(false)}
-          onAdd={({ type, seats }) => {
-            handleAddTable(type, seats);
-            setShowAddModal(false);
-          }}
-        />
-      )}
-
-      {!readOnly && addGuestTable && (
-        <AddGuestToTableModal
-          table={addGuestTable}
-          guests={unseatedGuests}
-          onClose={() => setAddGuestTable(null)}
-        />
-      )}
 
       {!readOnly && showGuests && (
         <MobileGuests
