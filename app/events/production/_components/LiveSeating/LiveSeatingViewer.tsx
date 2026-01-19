@@ -4,25 +4,6 @@ import { useEffect, useState } from "react";
 import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
 import { useSeatingStore } from "@/store/seatingStore";
 
-type TableStatus = "empty" | "partial" | "full";
-
-type TableDTO = {
-  id: string;
-  name: string;
-  capacity: number;
-  x: number;
-  y: number;
-  usedSeats: number;
-  status: TableStatus;
-};
-
-type GuestDTO = {
-  id: string;
-  name: string;
-  tableId?: string | null;
-  approvedCount: number;
-};
-
 export default function LiveSeatingViewer({
   invitationId,
 }: {
@@ -37,21 +18,30 @@ export default function LiveSeatingViewer({
       try {
         setLoading(true);
 
-        // 🧹 ניקוי מלא – viewer תמיד נקי
+        // 🧹 ניקוי מלא – viewer תמיד נטען מ־0
         useSeatingStore.getState().init([], [], null, null);
 
         const res = await fetch(
-  `/api/live-seating/import?invitationId=${invitationId}`,
-  { method: "POST" }
-);
+          `/api/live-seating/import?invitationId=${invitationId}`,
+          { method: "POST" }
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to import live seating");
+        }
 
         const data = await res.json();
 
+        /**
+         * 🔑 החיבור הקריטי:
+         * טוענים גם background וגם canvasView
+         * בדיוק כמו במסך העריכה
+         */
         init(
           data.tables || [],
           data.guests || [],
-          null,
-          null
+          data.background ?? null,
+          data.canvasView ?? null
         );
       } catch (err) {
         console.error("❌ LiveSeatingViewer load error:", err);
@@ -60,7 +50,9 @@ export default function LiveSeatingViewer({
       }
     }
 
-    if (invitationId) load();
+    if (invitationId) {
+      load();
+    }
   }, [invitationId, init]);
 
   if (loading) {
@@ -76,7 +68,8 @@ export default function LiveSeatingViewer({
       <SeatingEditor
         readOnly
         showStats
-        background={null}
+        background={null} 
+        /* background נלקח בפועל מה־store (דרך init) */
       />
     </div>
   );
