@@ -51,11 +51,21 @@ export async function GET(req: NextRequest, context: RouteContext) {
       );
     }
 
+    console.log("📤 LOAD SEATING TABLES:", { userId, eventId });
+
     /* ===============================
        2️⃣ שליפת הושבה לפי eventId
        מסמך אחד = אירוע אחד
     =============================== */
     const record = await SeatingTable.findOne({ eventId }).lean();
+
+    console.log("📦 RECORD FOUND:", {
+      hasRecord: !!record,
+      tables: record?.tables?.length ?? 0,
+      zones: record?.zones?.length ?? 0,
+      hasBackground: !!record?.background,
+      canvasView: record?.canvasView ?? null,
+    });
 
     /* ===============================
        3️⃣ החזרה מלאה לפרונט

@@ -25,6 +25,9 @@ type GuestDTO = {
   rsvp?: "yes" | "no" | "pending";
 };
 
+type TableLite = { x: number; y: number };
+
+
 export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -43,6 +46,10 @@ export default function SeatingPage() {
 
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
+
+    const canvasView = useSeatingStore((s) => s.canvasView);
+  const setCanvasView = useSeatingStore((s) => s.setCanvasView);
+
 
   const setZones = useZoneStore((s) => s.setZones);
 
@@ -110,6 +117,55 @@ export default function SeatingPage() {
     load();
   }, [init, setZones]);
 
+  const tablesLite = tables as unknown as TableLite[];
+
+
+    /* ===============================
+     AUTO FIT (ONE TIME) – only if no saved canvasView
+  =============================== */
+  useEffect(() => {
+  if (!tablesLite?.length) return;
+
+  const isDefault =
+    !canvasView ||
+    (canvasView.scale === 1 && canvasView.x === 0 && canvasView.y === 0);
+
+  if (!isDefault) return;
+
+  const minX = Math.min(...tablesLite.map((t) => t.x));
+  const maxX = Math.max(...tablesLite.map((t) => t.x));
+  const minY = Math.min(...tablesLite.map((t) => t.y));
+  const maxY = Math.max(...tablesLite.map((t) => t.y));
+
+
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+
+    // padding נעים מסביב
+    const PAD = 400;
+
+    // הערכה סבירה למסך (ה־Stage שלך כמעט תמיד סביב זה)
+    const VIEW_W = 1200;
+    const VIEW_H = 700;
+
+    const scale = Math.max(
+      0.4,
+      Math.min(3, Math.min(VIEW_W / (contentW + PAD), VIEW_H / (contentH + PAD)))
+    );
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const x = VIEW_W / 2 - centerX * scale;
+    const y = VIEW_H / 2 - centerY * scale;
+
+    console.log("🟣 AutoFit canvasView:", { x, y, scale });
+
+    setCanvasView({ x, y, scale });
+  }, [tablesLite, canvasView, setCanvasView]);
+
+
+
   /* ===============================
      BACKGROUND
   =============================== */
@@ -132,7 +188,8 @@ export default function SeatingPage() {
     if (!eventId) return;
 
     const zones = useZoneStore.getState().zones;
-    const canvasView = useSeatingStore.getState().canvasView;
+    const cv = useSeatingStore.getState().canvasView;
+
 
     const res = await fetch(`/api/seating/save/${eventId}`, {
       method: "POST",
@@ -142,7 +199,7 @@ export default function SeatingPage() {
         guests,
         background,
         zones,
-        canvasView,
+        canvasView: cv,
       }),
     });
 
