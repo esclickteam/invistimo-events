@@ -10,8 +10,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   // שולחן מעודכן מה־store
   const tableData = useSeatingStore((s) =>
-    s.tables.find((t) => t.id === table.id)
-  );
+  table?.id ? s.tables.find((t) => t.id === table.id) : null
+);
 
   // אורחים מה־store (אם קיים) אחרת מה־props
   const storeGuests = useSeatingStore((s) => s.guests);

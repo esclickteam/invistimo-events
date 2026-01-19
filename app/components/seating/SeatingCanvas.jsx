@@ -270,12 +270,14 @@ export default function SeatingCanvas({
         />
       )}
 
-      {!readOnly && unseatedGuests.length > 0 && (
-        <AddGuestToTableModal
-          guests={unseatedGuests}
-          onClose={() => {}}
-        />
-      )}
+      {mode === "editor" && addGuestTable && (
+  <AddGuestToTableModal
+    table={addGuestTable}
+    guests={unseatedGuests}
+    onClose={() => setAddGuestTable(null)}
+  />
+)}
+
     </div>
   );
 }
