@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import GuestsTable from "@/app/components/GuestsTable";
 import AddGuestModal from "@/app/components/AddGuestModal";
-
 
 /* =========================
    Component
@@ -12,9 +11,28 @@ export default function LiveGuestsTab({ invitationId }) {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
   const [openAddModal, setOpenAddModal] = useState(false);
 
+  /* =========================
+     Load cached guests on tab return
+  ========================= */
+  useEffect(() => {
+    if (!invitationId) return;
+
+    const cached = sessionStorage.getItem(
+      `live-guests-${invitationId}`
+    );
+    if (!cached) return;
+
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) setGuests(parsed);
+    } catch {}
+  }, [invitationId]);
+
+  /* =========================
+     Import guests
+  ========================= */
   async function importGuests() {
     if (!invitationId) {
       setError("אין מזהה הזמנה");
@@ -31,9 +49,15 @@ export default function LiveGuestsTab({ invitationId }) {
       );
 
       const json = await res.json();
-      if (!res.ok) throw new Error("Import failed");
+      if (!res.ok) throw new Error();
 
-      setGuests(json.guests || []);
+      const list = json.guests || [];
+      setGuests(list);
+
+      sessionStorage.setItem(
+        `live-guests-${invitationId}`,
+        JSON.stringify(list)
+      );
     } catch (e) {
       console.error("❌ importGuests error:", e);
       setError("לא נמצאו אורחים להזמנה");
@@ -43,78 +67,54 @@ export default function LiveGuestsTab({ invitationId }) {
   }
 
   /* =========================
-     Stats – בדיוק כמו בדשבורד
+     Stats
   ========================= */
   const stats = useMemo(() => {
-    const totalInvited = guests.reduce(
-      (s, g) => s + (g.guestsCount || 0),
-      0
-    );
-
-    const arrived = guests.reduce(
-      (s, g) => s + (g.arrivedCount || 0),
-      0
-    );
-
     return {
-      totalInvited,
-      arrived,
+      totalInvited: guests.reduce(
+        (s, g) => s + (g.guestsCount || 0),
+        0
+      ),
+      arrived: guests.reduce(
+        (s, g) => s + (g.arrivedCount || 0),
+        0
+      ),
       no: guests.filter((g) => g.rsvp === "no").length,
       pending: guests.filter((g) => g.rsvp === "pending").length,
     };
   }, [guests]);
 
   /* =========================
-     BEFORE IMPORT UI
+     BEFORE IMPORT
   ========================= */
   if (!guests.length) {
     return (
       <div className="p-6">
-        <p className="mb-4">עדיין לא יובאה רשימת אורחים ללייב</p>
+        <p className="mb-4">
+          עדיין לא יובאה רשימת אורחים ללייב
+        </p>
 
-        {error && <p className="text-red-600 mb-3">{error}</p>}
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={importGuests}
-            disabled={loading}
-            className="px-4 py-2 bg-black text-white rounded disabled:opacity-60"
-          >
-            {loading ? "מייבא..." : "📥 ייבוא אורחים"}
-          </button>
-
-         
-        </div>
-
-        {openAddModal && (
-          <AddGuestModal
-            invitationId={invitationId}
-            onClose={() => setOpenAddModal(false)}
-            onSuccess={(newGuest) => {
-              // ✅ כמו לקוח: מוסיפים מיידית בלי רענון
-              if (newGuest) {
-                setGuests((prev) => {
-                  if (prev.some((g) => g._id === newGuest._id)) return prev;
-                  return [...prev, newGuest];
-                });
-              }
-              setOpenAddModal(false);
-            }}
-          />
+        {error && (
+          <p className="text-red-600 mb-3">{error}</p>
         )}
+
+        <button
+          onClick={importGuests}
+          disabled={loading}
+          className="px-4 py-2 bg-black text-white rounded disabled:opacity-60"
+        >
+          {loading ? "מייבא..." : "📥 ייבוא אורחים"}
+        </button>
       </div>
     );
   }
 
   /* =========================
-     AFTER IMPORT UI
+     AFTER IMPORT
   ========================= */
   return (
     <div className="flex flex-col gap-6">
-      {/* Header actions */}
-      <div className="flex items-center justify-end gap-3">
-        {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
-
+      <div className="flex justify-end gap-3">
         <button
           onClick={() => setOpenAddModal(true)}
           className="px-4 py-2 bg-black text-white rounded"
@@ -125,14 +125,12 @@ export default function LiveGuestsTab({ invitationId }) {
         <button
           onClick={importGuests}
           disabled={loading}
-          className="px-4 py-2 bg-white border border-gray-300 rounded disabled:opacity-60"
-          title="ריענון ידני מהשרת"
+          className="px-4 py-2 border rounded disabled:opacity-60"
         >
-          {loading ? "מייבא..." : "🔄 רענון אורחים"}
+          🔄 רענון
         </button>
       </div>
 
-      {/* סטטיסטיקות */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat title="סה״כ מוזמנים" value={stats.totalInvited} />
         <Stat title="הגיעו" value={stats.arrived} color="green" />
@@ -140,7 +138,6 @@ export default function LiveGuestsTab({ invitationId }) {
         <Stat title="ממתינים" value={stats.pending} color="orange" />
       </div>
 
-      {/* טבלה זהה לדשבורד */}
       <GuestsTable
         guests={guests}
         isDemo={false}
@@ -155,12 +152,20 @@ export default function LiveGuestsTab({ invitationId }) {
           invitationId={invitationId}
           onClose={() => setOpenAddModal(false)}
           onSuccess={(newGuest) => {
-            if (newGuest) {
-              setGuests((prev) => {
-                if (prev.some((g) => g._id === newGuest._id)) return prev;
-                return [...prev, newGuest];
-              });
-            }
+            if (!newGuest) return;
+
+            setGuests((prev) => {
+              if (prev.some((g) => g._id === newGuest._id)) {
+                return prev;
+              }
+              const next = [...prev, newGuest];
+              sessionStorage.setItem(
+                `live-guests-${invitationId}`,
+                JSON.stringify(next)
+              );
+              return next;
+            });
+
             setOpenAddModal(false);
           }}
         />
@@ -170,7 +175,7 @@ export default function LiveGuestsTab({ invitationId }) {
 }
 
 /* =========================
-   UI helpers
+   UI helper
 ========================= */
 function Stat({ title, value, color }) {
   const colors = {
