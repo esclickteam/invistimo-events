@@ -1,24 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LiveSeatingProvider } from "./LiveSeatingProvider";
 import GuestListLive from "./GuestListLive";
-import { LiveSeatingState } from "./types";
 
 /* ✅ Viewer */
 import LiveSeatingViewer from "@/app/events/production/_components/LiveSeating/LiveSeatingViewer";
+
+/* Zustand */
+import { useSeatingStore } from "@/store/seatingStore";
 
 type Props = {
   invitationId: string;
 };
 
 export default function LiveSeatingTab({ invitationId }: Props) {
-  const [data, setData] = useState<LiveSeatingState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const init = useSeatingStore((s) => s.init);
+  const tables = useSeatingStore((s) => s.tables); // ✅ קריטי
+
   /* =========================
-     Logs – mount
+     Mount logs
   ========================= */
   useEffect(() => {
     console.log("🟡 LiveSeatingTab mounted");
@@ -51,19 +54,15 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       const json = await res.json();
 
-      /* 🔍 קונסול קריטי */
-      console.log("🟢 Live seating snapshot from API:", json);
-      console.log("🟢 tables:", json.tables);
-      console.log("🟢 guests:", json.guests);
-      console.log("🟢 background:", json.background);
-      console.log("🟢 canvasView:", json.canvasView);
+      console.log("🟢 Live seating snapshot:", json);
 
-      setData({
-        guests: json.guests ?? [],
-        tables: json.tables ?? [],
-        background: json.background ?? null,
-        canvasView: json.canvasView ?? null,
-      });
+      // 🔥 מקור אמת יחיד
+      init(
+        json.tables ?? [],
+        json.guests ?? [],
+        json.background ?? null,
+        json.canvasView ?? null
+      );
     } catch (err) {
       console.error("❌ Live seating import error:", err);
       setError("לא נמצאו נתוני הושבה ללקוח");
@@ -75,7 +74,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   /* =========================
      Empty state
   ========================= */
-  if (!data) {
+  if (!tables.length) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center">
         <p className="mb-4 text-gray-700">
@@ -99,20 +98,16 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      Live view
   ========================= */
   return (
-    <LiveSeatingProvider initial={data}>
-      <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
-
-        {/* 🗺️ מפת הושבה */}
-        <div className="flex-1 relative">
-          <LiveSeatingViewer />
-        </div>
-
-        {/* 👥 אורחים */}
-        <div className="w-80 border-l bg-white">
-          <GuestListLive />
-        </div>
-
+    <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
+      {/* 🗺️ מפת הושבה */}
+      <div className="flex-1 relative">
+        <LiveSeatingViewer />
       </div>
-    </LiveSeatingProvider>
+
+      {/* 👥 אורחים */}
+      <div className="w-80 border-l bg-white">
+        <GuestListLive />
+      </div>
+    </div>
   );
 }
