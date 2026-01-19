@@ -34,12 +34,13 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }, [invitationId]);
 
   /* ===============================
-     ✅ LOAD FROM SESSION (so no re-import when switching tabs)
+     ✅ LOAD FROM LOCAL STORAGE
+     (persists across tab switch + refresh + logout/login)
   =============================== */
   useEffect(() => {
     if (!cacheKey) return;
 
-    const cached = sessionStorage.getItem(cacheKey);
+    const cached = localStorage.getItem(cacheKey);
     if (!cached) return;
 
     try {
@@ -101,14 +102,14 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       setZones(json.zones ?? []);
 
       /* 🔑 eventId לשמירה */
-      setEventId(json.eventId);
+      setEventId(json.eventId ?? null);
 
       /* ✅ mark imported */
       setHasImported(true);
 
-      /* ✅ cache it so it won't disappear on tab switch */
+      /* ✅ cache it so it won't disappear (even after logout/login) */
       if (cacheKey) {
-        sessionStorage.setItem(
+        localStorage.setItem(
           cacheKey,
           JSON.stringify({
             eventId: json.eventId ?? null,
@@ -157,7 +158,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
     // ✅ update cache after save (so UI stays consistent)
     if (cacheKey) {
-      sessionStorage.setItem(
+      localStorage.setItem(
         cacheKey,
         JSON.stringify({
           eventId,
