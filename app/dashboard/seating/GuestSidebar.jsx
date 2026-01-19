@@ -87,6 +87,13 @@ export default function GuestSidebar({
      ✅ LOGS: דיאגנוסטיקה (בלי לשנות לוגיקה)
   =============================== */
   useEffect(() => {
+
+    console.log("🧩 IDs", {
+  firstGuestId: String(guests?.[0]?.id ?? guests?.[0]?._id ?? ""),
+  firstSeatedGuestId: String(tables?.[0]?.seatedGuests?.[0]?.guestId ?? ""),
+  isLiveMode,
+});
+
     // מסכמים סטטוסים + למה נכשל סינון
     const counts = { yes: 0, no: 0, pending: 0, empty: 0, other: 0 };
     let seatedByMap = 0;
@@ -103,6 +110,8 @@ export default function GuestSidebar({
 
       if (guestTableMap.has(id)) seatedByMap++;
     });
+
+
 
     console.log("🟦 [GuestSidebar] stats", {
       guestsTotal: guests.length,
@@ -138,7 +147,8 @@ export default function GuestSidebar({
         });
       });
     }
-  }, [guests, allowedGuests, guestTableMap]);
+  }, [guests, allowedGuests, guestTableMap, tables, isLiveMode]);
+
 
   return (
     <div
