@@ -62,6 +62,23 @@ export const useSeatingStore = create((set, get) => ({
     });
   },
 
+  /* ================= ⭐ SNAPSHOT IMPORT ================= */
+importSnapshot: (snapshot) => {
+  if (!snapshot) return;
+
+  set({
+    tables: snapshot.tables || [],
+    guests: snapshot.guests || [],
+    background: snapshot.background || null,
+    canvasView: snapshot.canvasView || {
+      scale: 1,
+      x: 0,
+      y: 0,
+    },
+  });
+},
+
+
   /* ---------------- DEMO INIT ---------------- */
 initDemo: () => {
   set({
