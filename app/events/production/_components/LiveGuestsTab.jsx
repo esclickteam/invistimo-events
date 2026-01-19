@@ -169,20 +169,27 @@ export default function LiveGuestsTab({ invitationId }) {
      ✅ אין rollback בלייב
   ========================= */
   async function changeArrived(guest, delta) {
-    const prevArrived = Number(guest.arrivedCount || 0);
-    const nextArrived = Math.max(0, prevArrived + delta);
-    if (nextArrived === prevArrived) return;
+  const prevArrived = Number(guest.arrivedCount || 0);
+  const nextArrived = Math.max(0, prevArrived + delta);
+  if (nextArrived === prevArrived) return;
 
-    // ✅ Optimistic UI (מתעדכן מייד)
-    applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
+  // Optimistic UI
+  applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
 
-    try {
-      await updateGuestOnServer(guest._id, { arrivedCount: nextArrived });
-    } catch (e) {
-      console.error("❌ arrivedCount update failed:", e);
-      // ❗ אין rollback בלייב
-    }
+  try {
+    await fetch("/api/live-guests/arrived", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invitationGuestId: guest._id,
+        arrivedCount: nextArrived,
+      }),
+    });
+  } catch (e) {
+    console.error("❌ arrivedCount update failed:", e);
   }
+}
+
 
   /* =========================
      ✅ Stats only (כרטיסיות יחידות)
@@ -410,7 +417,6 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
   const [relation, setRelation] = useState(guest?.relation || "");
   const [notes, setNotes] = useState(guest?.notes || "");
   const [guestsCount, setGuestsCount] = useState(Number(guest?.guestsCount || 1));
-  const [arrivedCount, setArrivedCount] = useState(Number(guest?.arrivedCount || 0));
   const [rsvp, setRsvp] = useState(guest?.rsvp || "pending");
   const [saving, setSaving] = useState(false);
 
@@ -424,7 +430,6 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
         relation: relation.trim(),
         notes: notes.trim(),
         guestsCount: Math.max(0, Number(guestsCount || 0)),
-        arrivedCount: Math.max(0, Number(arrivedCount || 0)),
         rsvp,
       });
     } finally {
@@ -478,15 +483,7 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
             />
           </Field>
 
-          <Field label="הגיעו בפועל">
-            <input
-              type="number"
-              min={0}
-              value={arrivedCount}
-              onChange={(e) => setArrivedCount(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </Field>
+          
 
           <Field label="סטטוס">
             <select
