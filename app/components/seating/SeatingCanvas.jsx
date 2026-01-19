@@ -75,7 +75,6 @@ export default function SeatingCanvas({
   /* ================= ZOOM & PAN ================= */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
 
   const panStart = useRef(null);
   const stageStart = useRef({ x: 0, y: 0 });
@@ -89,7 +88,7 @@ export default function SeatingCanvas({
     });
   }, [canvasView]);
 
-  /* ================= AUTO FIT (ONE TIME) ================= */
+/* ================= AUTO FIT (ONE TIME) ================= */
 useEffect(() => {
   if (!tables.length) return;
   if (!size.width || !size.height) return;
@@ -115,7 +114,7 @@ useEffect(() => {
 
   const PAD = 400;
 
-  const scale = Math.max(
+  const nextScale = Math.max(
     0.4,
     Math.min(
       3,
@@ -129,11 +128,17 @@ useEffect(() => {
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
 
-  const x = size.width / 2 - centerX * scale;
-  const y = size.height / 2 - centerY * scale;
+  const x = size.width / 2 - centerX * nextScale;
+  const y = size.height / 2 - centerY * nextScale;
 
-  setCanvasView({ x, y, scale });
+  // 🔑 STORE
+  setCanvasView({ x, y, scale: nextScale });
+
+  // 🔑 STATE מקומי (זה היה חסר!)
+  setScale(nextScale);
+  setStagePos({ x, y });
 }, [tables, size, canvasView, setCanvasView]);
+
 
 
   const handleMouseMove = (e) => {
