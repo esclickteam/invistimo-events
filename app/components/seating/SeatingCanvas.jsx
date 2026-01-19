@@ -89,6 +89,53 @@ export default function SeatingCanvas({
     });
   }, [canvasView]);
 
+  /* ================= AUTO FIT (ONE TIME) ================= */
+useEffect(() => {
+  if (!tables.length) return;
+  if (!size.width || !size.height) return;
+
+  const isDefault =
+    !canvasView ||
+    (canvasView.scale === 1 &&
+      canvasView.x === 0 &&
+      canvasView.y === 0);
+
+  if (!isDefault) return;
+
+  const xs = tables.map((t) => t.x);
+  const ys = tables.map((t) => t.y);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  const contentW = Math.max(1, maxX - minX);
+  const contentH = Math.max(1, maxY - minY);
+
+  const PAD = 400;
+
+  const scale = Math.max(
+    0.4,
+    Math.min(
+      3,
+      Math.min(
+        size.width / (contentW + PAD),
+        size.height / (contentH + PAD)
+      )
+    )
+  );
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  const x = size.width / 2 - centerX * scale;
+  const y = size.height / 2 - centerY * scale;
+
+  setCanvasView({ x, y, scale });
+}, [tables, size, canvasView, setCanvasView]);
+
+
   const handleMouseMove = (e) => {
     if (readOnly) return;
 
