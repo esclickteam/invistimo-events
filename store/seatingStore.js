@@ -10,8 +10,13 @@ export const useSeatingStore = create((set, get) => ({
 
    demoMode: false, // ⭐ מצב דמו
 
+   isLiveMode: false,
+
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: isDemo }),
+
+  setLiveMode: (val) => set({ isLiveMode: val }),
+
 
   draggingGuest: null,
   ghostPosition: { x: 0, y: 0 },
@@ -486,7 +491,8 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
         ),
       })),
       guests: guests.map((g) =>
-        g.id === guestId
+        String(g.id ?? g._id) === String(guestId)
+
           ? { ...g, tableId: null, tableName: null }
           : g
       ),
@@ -576,4 +582,17 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 
     set({ tables: updatedTables, guests: updatedGuests });
   },
+
+
+updateGuestArrived: (guestId, arrivedCount) =>
+  set((state) => ({
+    guests: state.guests.map((g) =>
+      String(g.id ?? g._id) === String(guestId)
+        ? { ...g, arrivedCount }
+        : g
+    ),
+  })),
+
+
+
 }));
