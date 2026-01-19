@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GuestSidebar({
-  onDragStart = (_guest) => {}, // 👈 מקבל פרמטר
+  onDragStart = (_guest) => {},
   variant = "desktop",
 }) {
   /* ===============================
@@ -15,7 +15,6 @@ export default function GuestSidebar({
   const tables = useSeatingStore((s) => s.tables);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
   const isLiveMode = useSeatingStore((s) => s.isLiveMode);
-
 
   /* ===============================
      Highlight from URL
@@ -62,43 +61,21 @@ export default function GuestSidebar({
   }, [tables]);
 
   /* ===============================
-     ✅ הצג רק מי שאישר הגעה (RSVP=YES)
-     (בלי שינוי לוגיקה)
-  =============================== */
-  const allowedGuests = useMemo(() => {
-  return guests.filter((g) => {
-    const id = String(g.id ?? g._id ?? "");
-
-    // 🎧 לייב – מי שהגיע בפועל
-    if (isLiveMode) {
-      return (g.arrivedCount ?? 0) > 0;
-    }
-
-    // 🧾 רגיל – בדיוק כמו שהיה
-    return (
-      String(g.rsvp ?? "").toLowerCase() === "yes" &&
-      !guestTableMap.has(id)
-    );
-  });
-}, [guests, guestTableMap, isLiveMode]);
-
-
-  /* ===============================
-     ✅ LOGS: דיאגנוסטיקה (בלי לשנות לוגיקה)
+     LOGS – דיאגנוסטיקה בלבד
   =============================== */
   useEffect(() => {
-
     console.log("🧩 IDs", {
-  firstGuestId: String(guests?.[0]?.id ?? guests?.[0]?._id ?? ""),
-  firstSeatedGuestId: String(tables?.[0]?.seatedGuests?.[0]?.guestId ?? ""),
-  isLiveMode,
-});
+      firstGuestId: String(guests?.[0]?.id ?? guests?.[0]?._id ?? ""),
+      firstSeatedGuestId: String(
+        tables?.[0]?.seatedGuests?.[0]?.guestId ?? ""
+      ),
+      isLiveMode,
+    });
 
-    // מסכמים סטטוסים + למה נכשל סינון
     const counts = { yes: 0, no: 0, pending: 0, empty: 0, other: 0 };
     let seatedByMap = 0;
 
-    (guests || []).forEach((g) => {
+    guests.forEach((g) => {
       const id = String(g.id ?? g._id ?? "");
       const r = String(g.rsvp ?? "").toLowerCase().trim();
 
@@ -111,11 +88,8 @@ export default function GuestSidebar({
       if (guestTableMap.has(id)) seatedByMap++;
     });
 
-
-
     console.log("🟦 [GuestSidebar] stats", {
       guestsTotal: guests.length,
-      allowedGuestsTotal: allowedGuests.length,
       seatedByMap,
       rsvpCounts: counts,
       exampleFirst5: guests.slice(0, 5).map((g) => ({
@@ -126,29 +100,7 @@ export default function GuestSidebar({
         tableId: g?.tableId,
       })),
     });
-
-    // אם הסיידבר ריק – נדפיס "למה"
-    if (allowedGuests.length === 0 && guests.length > 0) {
-      console.log("🟥 [GuestSidebar] allowedGuests is EMPTY. Reasons preview:");
-      guests.slice(0, 25).forEach((g) => {
-        const id = String(g.id ?? g._id ?? "");
-        const rsvp = String(g.rsvp ?? "").toLowerCase().trim();
-        const passRsvp = rsvp === "yes";
-        const passNotSeated = !guestTableMap.has(id);
-
-        console.log("•", {
-          name: g.name,
-          id,
-          rsvp: g.rsvp,
-          passRsvp,
-          passNotSeated,
-          tableName: g.tableName,
-          tableId: g.tableId,
-        });
-      });
-    }
-  }, [guests, allowedGuests, guestTableMap, tables, isLiveMode]);
-
+  }, [guests, guestTableMap, tables, isLiveMode]);
 
   return (
     <div
@@ -167,16 +119,8 @@ export default function GuestSidebar({
 
       {/* רשימה */}
       <ul>
-        {allowedGuests.map((guest) => {
-          // ✅ LOG לכל אורח שמופיע בסיידבר
-          console.log("🟩 [GuestSidebar] rendering allowed guest:", {
-            name: guest.name,
-            id: String(guest.id ?? guest._id ?? ""),
-            rsvp: guest.rsvp,
-          });
-
+        {guests.map((guest) => {
           const guestId = String(guest.id ?? guest._id ?? "");
-
           const tableFromStore = guestTableMap.get(guestId) || null;
 
           const tableLabel =
@@ -186,14 +130,9 @@ export default function GuestSidebar({
 
           const isSeated = Boolean(tableLabel);
 
-          const guestIdCandidates = [
-            guest.id != null ? String(guest.id) : null,
-            guest._id != null ? String(guest._id) : null,
-          ].filter(Boolean);
-
           const isHighlighted =
             shouldHighlightFromUrl &&
-            guestIdCandidates.includes(highlightedGuestId);
+            [guest.id, guest._id].map(String).includes(highlightedGuestId);
 
           const itemClassName =
             "p-3 border-b transition flex justify-between items-center select-none " +
@@ -220,7 +159,6 @@ export default function GuestSidebar({
               }}
             >
               <div>
-                {/* שם */}
                 <div
                   className={
                     "font-medium " +
@@ -230,7 +168,6 @@ export default function GuestSidebar({
                   {guest.name}
                 </div>
 
-                {/* כמות מוזמנים */}
                 <div className="text-xs text-gray-500">
                   {(guest.confirmedGuestsCount ??
                     guest.guestsCount ??
@@ -238,7 +175,6 @@ export default function GuestSidebar({
                     1) + " מקומות"}
                 </div>
 
-                {/* סטטוס שיבוץ */}
                 <div className="mt-1 text-xs">
                   {isSeated ? (
                     <span className="text-green-600">
@@ -249,7 +185,6 @@ export default function GuestSidebar({
                   )}
                 </div>
 
-                {/* חיווי אורח נבחר */}
                 {isHighlighted && (
                   <div className="mt-1 text-xs font-semibold text-yellow-700">
                     ← אורח שנבחר
@@ -257,7 +192,6 @@ export default function GuestSidebar({
                 )}
               </div>
 
-              {/* הסרת שיבוץ */}
               {tableFromStore && (
                 <button
                   onClick={() => removeFromSeat(guestId)}
