@@ -83,13 +83,7 @@ export default function LiveGuestsTab({ invitationId }) {
             {loading ? "מייבא..." : "📥 ייבוא אורחים"}
           </button>
 
-          {/* ✅ כפתור הוספת מוזמן גם לפני ייבוא */}
-          <button
-            onClick={() => setOpenAddModal(true)}
-            className="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50"
-          >
-            + הוספת מוזמן
-          </button>
+         
         </div>
 
         {openAddModal && (
