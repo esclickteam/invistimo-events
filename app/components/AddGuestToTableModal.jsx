@@ -8,31 +8,35 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
-  // שולחן מעודכן מה־store
-  const tableData = useSeatingStore((s) =>
-  table?.id ? s.tables.find((t) => t.id === table.id) : null
-);
+  /* ================= SAFE IDS ================= */
+  const tableId = table?.id ?? null;
 
-  // אורחים מה־store (אם קיים) אחרת מה־props
+  const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
+
+  /* ================= TABLE FROM STORE ================= */
+  const tableData = useSeatingStore((s) =>
+    tableId ? s.tables.find((t) => t.id === tableId) : null
+  );
+
+  /* 🛑 חובה – לפני כל רינדור */
+  if (!tableData) return null;
+
+  /* ================= GUESTS ================= */
   const storeGuests = useSeatingStore((s) => s.guests);
   const tableGuests = storeGuests?.length ? storeGuests : guests;
 
-  // ❌ היה: useState<number | null>(null)
-  // ✅ מתוקן:
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
 
-  const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
   const getPartySize = (g) => {
-    const n = Number(g?.confirmedGuestsCount ?? g?.guestsCount ?? g?.count ?? 1);
+    const n = Number(
+      g?.confirmedGuestsCount ?? g?.guestsCount ?? g?.count ?? 1
+    );
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
   };
 
-  /* ================= מושבים ================= */
-
+  /* ================= SEATS ================= */
   const seatsArray = useMemo(() => {
-    if (!tableData) return [];
-
     const arr = Array.from({ length: tableData.seats }, (_, i) => ({
       index: i,
       guest: null,
@@ -61,8 +65,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     0
   );
 
-  /* ================= אורחים זמינים ================= */
-
+  /* ================= AVAILABLE GUESTS ================= */
   const availableGuests = useMemo(() => {
     const seatedIds = new Set(
       (useSeatingStore.getState().tables || []).flatMap((t) =>
@@ -72,20 +75,21 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     return (tableGuests || []).filter((g) => {
       const id = getGuestId(g);
-        const hasTable = Boolean(g?.tableName);
+      const hasTable = Boolean(g?.tableName);
       return !hasTable && !seatedIds.has(id);
     });
   }, [tableGuests]);
 
-  /* ================= הושבה ================= */
-
+  /* ================= ASSIGN ================= */
   const handleSeatGuest = async (seatIndex, guest) => {
-    if (!tableData) return;
+    const guestId = getGuestId(guest);
+    if (!guestId) return;
 
     const count = getPartySize(guest);
+
     const res = assignGuestsToTable(
       tableData.id,
-      guest.id,
+      guestId,
       count,
       seatIndex
     );
@@ -95,12 +99,11 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
       return;
     }
 
-    // 🔥 סנכרון מונגו
     await fetch("/api/guests/assign-table", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        guestId: guest.id,
+        guestId,
         tableName: tableData.name,
         seatIndex,
       }),
@@ -110,24 +113,21 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     setOpenSeat(null);
   };
 
-  /* ================= הסרה ================= */
-
+  /* ================= REMOVE ================= */
   const handleRemoveGuest = async (guest) => {
-    if (!tableData || !guest) return;
+    const guestId = getGuestId(guest);
+    if (!guestId) return;
 
-    removeGuestFromTable(tableData.id, guest.id);
+    removeGuestFromTable(tableData.id, guestId);
 
     await fetch("/api/guests/remove-from-table", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guestId: guest.id }),
+      body: JSON.stringify({ guestId }),
     });
   };
 
-  if (!tableData) return null;
-
   /* ================= UI ================= */
-
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="relative bg-white rounded-2xl shadow-2xl w-[700px] p-8 max-h-[90vh] overflow-y-auto border border-gray-100">
