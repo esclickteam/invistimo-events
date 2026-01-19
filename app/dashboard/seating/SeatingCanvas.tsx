@@ -76,6 +76,9 @@ function SeatingCanvasInner({
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
+  const WORLD_WIDTH = 3000;
+const WORLD_HEIGHT = 3000;
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -213,16 +216,20 @@ function SeatingCanvasInner({
         {/* ===== WORLD ===== */}
         <Layer>
           <Group>
-            <GridLayer width={size.width} height={size.height} />
+            <GridLayer
+  width={WORLD_WIDTH}
+  height={WORLD_HEIGHT}
+/>
 
-            {bgImage && (
-              <KonvaImage
-                image={bgImage}
-                width={size.width}
-                height={size.height}
-                opacity={0.28}
-              />
-            )}
+{bgImage && (
+  <KonvaImage
+    image={bgImage}
+    width={WORLD_WIDTH}
+    height={WORLD_HEIGHT}
+    opacity={0.28}
+  />
+)}
+
 
             {zones.map((z) => (
               <ZoneRenderer key={z.id} zone={z} />
