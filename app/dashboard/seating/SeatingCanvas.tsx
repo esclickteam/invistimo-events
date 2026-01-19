@@ -67,6 +67,8 @@ function SeatingCanvasInner({
 
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
+  const viewerFittedRef = useRef(false);
+
 
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
@@ -115,37 +117,37 @@ const WORLD_HEIGHT = 3000;
     setScale(canvasView.scale);
     setStagePos({ x: canvasView.x, y: canvasView.y });
   }, [canvasView, isViewer]);
-  
+
 
   useEffect(() => {
-  if (!canvasView) return;
   if (!isViewer) return;
+  if (!canvasView) return;
   if (!size.width || !size.height) return;
+  if (viewerFittedRef.current) return;
 
-  // 🎯 fit camera to WORLD center for viewer
   const centerX = size.width / 2;
   const centerY = size.height / 2;
-
-  const WORLD_WIDTH = 3000;
-  const WORLD_HEIGHT = 3000;
 
   const worldCenterX = WORLD_WIDTH / 2;
   const worldCenterY = WORLD_HEIGHT / 2;
 
-  const newScale = canvasView.scale ?? 1;
+  const scale = canvasView.scale ?? 1;
 
-  const x = centerX - worldCenterX * newScale;
-  const y = centerY - worldCenterY * newScale;
+  const x = centerX - worldCenterX * scale;
+  const y = centerY - worldCenterY * scale;
 
-  console.log("👁️ [SeatingCanvas] viewer fit-to-world", {
-    scale: newScale,
+  console.log("👁️ [SeatingCanvas] viewer fit-to-world (ONCE)", {
+    scale,
     x,
     y,
     size,
   });
 
-  setCanvasView({ scale: newScale, x, y });
-}, [isViewer, canvasView, size.width, size.height]);
+  viewerFittedRef.current = true;
+  setCanvasView({ scale, x, y });
+}, [isViewer, size.width, size.height]);
+
+
 
 
   /* ================= DEBUG SNAPSHOT ================= */
@@ -156,10 +158,10 @@ const WORLD_HEIGHT = 3000;
       guestsCount: guests.length,
       canvasView,
       stage: {
-        scale: isViewer ? 1 : scale,
-        x: isViewer ? 0 : stagePos.x,
-        y: isViewer ? 0 : stagePos.y,
-      },
+  scale: canvasView?.scale,
+  x: canvasView?.x,
+  y: canvasView?.y,
+},
       size,
     });
   }, [mode, tables, guests, canvasView, scale, stagePos, size, isViewer]);
