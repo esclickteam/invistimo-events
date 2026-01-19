@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 /* ⭐ אותם רכיבים כמו אצל הלקוח */
 import GuestSidebar from "@/app/dashboard/seating/GuestSidebar";
@@ -24,7 +24,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
   const background = useSeatingStore((s) => s.background);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
-  const setLiveMode = useSeatingStore((s) => s.setLiveMode); // ✅ חדש
+  const setLiveMode = useSeatingStore((s) => s.setLiveMode);
 
   const setZones = useZoneStore((s) => s.setZones);
 
@@ -72,7 +72,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   /* ===============================
      IMPORT SNAPSHOT
   =============================== */
-  async function importData() {
+  const importData = useCallback(async () => {
     if (!invitationId) {
       setError("אין מזהה הזמנה");
       return;
@@ -121,7 +121,20 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [invitationId, importSnapshot, setZones, cacheKey]);
+
+  /* ===============================
+     ✅ AUTO IMPORT FOR PRODUCER
+  =============================== */
+  useEffect(() => {
+    if (!invitationId) return;
+
+    const currentGuests = useSeatingStore.getState().guests;
+
+    if (!hasImported && currentGuests.length === 0) {
+      importData();
+    }
+  }, [invitationId, hasImported, importData]);
 
   /* ===============================
      SAVE
