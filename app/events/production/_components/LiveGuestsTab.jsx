@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import GuestsTable from "@/app/components/GuestsTable";
 import AddGuestModal from "@/app/components/AddGuestModal";
-import EditGuestModal from "./components/EditGuestModal";
 
 /* =========================
    Component
@@ -15,9 +14,12 @@ export default function LiveGuestsTab({ invitationId }) {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
   const [openAddModal, setOpenAddModal] = useState(false);
-  const [selectedGuest, setSelectedGuest] = useState(null);
+
+  // ✅ אם אצלך העריכה היא בדף דינמי - בחרי אחד:
+  // const EDIT_PATH = (id) => `/dashboard/guests/${id}`;          // אופציה 1
+  // const EDIT_PATH = (id) => `/dashboard/guests/edit/${id}`;     // אופציה 2
+  const EDIT_PATH = (id) => `/dashboard/guests/${id}`; // ⬅️ תשני לשביל האמיתי אצלך אם צריך
 
   /* =========================
      Load cached guests on tab return
@@ -84,10 +86,7 @@ export default function LiveGuestsTab({ invitationId }) {
 
       setGuests((prev) => {
         const next = prev.filter((g) => g._id !== guest._id);
-        sessionStorage.setItem(
-          `live-guests-${invitationId}`,
-          JSON.stringify(next)
-        );
+        sessionStorage.setItem(`live-guests-${invitationId}`, JSON.stringify(next));
         return next;
       });
     } catch (e) {
@@ -152,7 +151,7 @@ export default function LiveGuestsTab({ invitationId }) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat title="סה״כ מוזמנים" value={stats.totalInvited} />
+        <Stat title='סה״כ מוזמנים' value={stats.totalInvited} />
         <Stat title="הגיעו" value={stats.arrived} color="green" />
         <Stat title="לא מגיעים" value={stats.no} color="red" />
         <Stat title="ממתינים" value={stats.pending} color="orange" />
@@ -161,14 +160,10 @@ export default function LiveGuestsTab({ invitationId }) {
       <GuestsTable
         guests={guests}
         isDemo={false}
-        onEdit={(g) => setSelectedGuest(g)}
+        onEdit={(g) => router.push(EDIT_PATH(g._id))}
         onDelete={(g) => deleteGuest(g)}
-        onMessage={(g) =>
-          router.push(`/dashboard/messages?guestId=${g._id}`)
-        }
-        onSeat={(g) =>
-          router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
-        }
+        onMessage={(g) => router.push(`/dashboard/messages?guestId=${g._id}`)}
+        onSeat={(g) => router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)}
       />
 
       {/* ✅ Add */}
@@ -182,28 +177,11 @@ export default function LiveGuestsTab({ invitationId }) {
             setGuests((prev) => {
               if (prev.some((g) => g._id === newGuest._id)) return prev;
               const next = [...prev, newGuest];
-              sessionStorage.setItem(
-                `live-guests-${invitationId}`,
-                JSON.stringify(next)
-              );
+              sessionStorage.setItem(`live-guests-${invitationId}`, JSON.stringify(next));
               return next;
             });
 
             setOpenAddModal(false);
-          }}
-        />
-      )}
-
-      {/* ✅ Edit */}
-      {selectedGuest && (
-        <EditGuestModal
-          guest={selectedGuest}
-          userRole="admin"
-          onClose={() => setSelectedGuest(null)}
-          onSuccess={async () => {
-            // אחרי עריכה: רענון מהשרת כדי לקבל את הנתונים המעודכנים
-            await importGuests();
-            setSelectedGuest(null);
           }}
         />
       )}
@@ -224,9 +202,7 @@ function Stat({ title, value, color }) {
   return (
     <div className="border p-4 rounded-xl bg-white text-center">
       <div className="text-gray-500 text-sm">{title}</div>
-      <div className={`text-2xl font-bold ${colors[color] || ""}`}>
-        {value}
-      </div>
+      <div className={`text-2xl font-bold ${colors[color] || ""}`}>{value}</div>
     </div>
   );
 }
