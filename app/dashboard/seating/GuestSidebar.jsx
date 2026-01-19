@@ -54,6 +54,48 @@ export default function GuestSidebar({
     return map;
   }, [tables]);
 
+    /* ===============================
+     ✅ הצג רק מי שאישר הגעה (RSVP=YES)
+  =============================== */
+  const allowedGuests = useMemo(() => {
+  const yesSet = new Set([
+    "yes",
+    "confirmed",
+    "attending",
+    "approved",
+    "true",
+    "כן",
+    "מגיע",
+    "מגיעה",
+    "אישר",
+    "מאשר",
+    "אישר הגעה",
+    "אושר",
+    "מאושר",
+  ]);
+
+  const isYes = (g) => {
+    const raw =
+      g.rsvp ??
+      g.rsvpStatus ??
+      g.status ??
+      g.attendance ??
+      g.replyStatus ??
+      g.confirmationStatus;
+
+    const v = String(raw ?? "").toLowerCase().trim();
+    return yesSet.has(v);
+  };
+
+  return guests.filter((g) => {
+    const id = String(g.id ?? g._id ?? "");
+    return isYes(g) && !guestTableMap.has(id);
+  });
+}, [guests, guestTableMap]);
+
+
+
+
   return (
     <div
       className={
@@ -73,7 +115,8 @@ export default function GuestSidebar({
 
       {/* רשימה */}
       <ul>
-        {guests.map((guest) => {
+        {allowedGuests.map((guest) => {
+
           const guestId = String(guest.id ?? guest._id ?? "");
 
           const tableFromStore = guestTableMap.get(guestId) || null;
