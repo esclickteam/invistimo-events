@@ -207,15 +207,29 @@ function SeatingCanvasInner({
     return null;
   }
 
+  const contentOffset = isViewer && tables.length
+  ? (() => {
+      const xs = tables.map(t => t.x);
+      const ys = tables.map(t => t.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      return {
+        x: size.width / 2 - (minX + maxX) / 2,
+        y: size.height / 2 - (minY + maxY) / 2,
+      };
+    })()
+  : null;
+
   /* ================= FINAL RENDER LOG ================= */
   console.log("🎨 [Stage RENDER]", {
-    mode,
-    width: size.width,
-    height: size.height,
-    scale,
-    x: isViewer ? size.width / 2 : stagePos.x,
-    y: isViewer ? size.height / 2 : stagePos.y,
-  });
+  mode,
+  width: size.width,
+  height: size.height,
+  scale,
+  x: isViewer && contentOffset ? contentOffset.x : stagePos.x,
+  y: isViewer && contentOffset ? contentOffset.y : stagePos.y,
+  contentOffset,
+});
 
   /* ================= RENDER ================= */
   return (
@@ -225,8 +239,8 @@ function SeatingCanvasInner({
         height={size.height}
         scaleX={scale}
         scaleY={scale}
-        x={isViewer ? size.width / 2 : stagePos.x}
-        y={isViewer ? size.height / 2 : stagePos.y}
+        x={isViewer && contentOffset ? contentOffset.x : stagePos.x}
+        y={isViewer && contentOffset ? contentOffset.y : stagePos.y}
         onWheel={handleWheel}
         onMouseMove={handleMouseMove}
       >
