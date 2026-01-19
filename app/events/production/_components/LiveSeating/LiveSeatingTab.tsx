@@ -25,6 +25,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const background = useSeatingStore((s) => s.background);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const setLiveMode = useSeatingStore((s) => s.setLiveMode);
+  const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
+
 
   const setZones = useZoneStore((s) => s.setZones);
 

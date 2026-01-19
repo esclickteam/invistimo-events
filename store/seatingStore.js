@@ -289,10 +289,13 @@ background: null,
       });
     }
 
-    const count =
-      draggingGuest.guestsCount ||
-      draggingGuest.count ||
-      1;
+    const { isLiveMode } = get();
+
+const count = isLiveMode
+  ? Number(draggingGuest.arrivedCount || 0)
+  : Number(draggingGuest.guestsCount || 0);
+
+if (count === 0) return;
 
     const block = findFreeBlock(hoveredTable, count);
 
@@ -375,7 +378,14 @@ assignGuestBlock: ({ guestId, tableId }) => {
   );
   if (!guest) return;
 
-  const count = guest.guestsCount || guest.count || 1;
+  const { isLiveMode } = get();
+
+const count = isLiveMode
+  ? Number(guest.arrivedCount || 0)
+  : Number(guest.guestsCount || 0);
+
+if (count === 0) return;
+
 
   const updatedTables = tables.map((t) => {
     const prevSeats = Array.isArray(t.seatedGuests)
@@ -517,11 +527,25 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
   const { tables, guests } = get();
 
   const table = tables.find((t) => t.id === tableId);
-  const guest = guests.find((g) => g.id === guestId);
+  const guest = guests.find(
+  (g) => String(g.id ?? g._id) === String(guestId)
+);
+
 
   if (!table || !guest) {
     return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
   }
+
+  const { isLiveMode } = get();
+
+const realCount = isLiveMode
+  ? Number(guest.arrivedCount || 0)
+  : Number(guest.guestsCount || 0);
+
+if (realCount === 0) {
+  return { ok: false, message: "האורח לא הגיע בפועל" };
+}
+
 
   // ✅ תיקון קריטי:
   // לא לכפות seatIndex = 0
@@ -529,7 +553,7 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
   const startIndex =
     typeof seatIndex === "number" ? seatIndex : undefined;
 
-  const block = findFreeBlock(table, count, startIndex);
+  const block = findFreeBlock(table, realCount, startIndex);
 
   // guard חובה
   if (!block || block.length === 0) {

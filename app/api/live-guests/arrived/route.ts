@@ -19,10 +19,8 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Guest not found" }, { status: 404 });
   }
 
-  const safeArrived = Math.max(
-    0,
-    Math.min(Number(arrivedCount || 0), guest.guestsCount)
-  );
+  // ✅ בלייב: רק מינימום 0, בלי תלות ב־guestsCount
+  const safeArrived = Math.max(0, Number(arrivedCount || 0));
 
   guest.arrivedCount = safeArrived;
   await guest.save();

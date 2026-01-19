@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AddGuestModal from "@/app/components/AddGuestModal";
+import { useSeatingStore } from "@/store/seatingStore";
+
 
 /* =========================
    Helpers
@@ -30,6 +32,9 @@ function confirmedCountForGuest(g) {
 ========================= */
 export default function LiveGuestsTab({ invitationId }) {
   const router = useRouter();
+
+  const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
+
 
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -173,8 +178,11 @@ export default function LiveGuestsTab({ invitationId }) {
   const nextArrived = Math.max(0, prevArrived + delta);
   if (nextArrived === prevArrived) return;
 
-  // Optimistic UI
+  // ✅ UI מקומי
   applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
+
+  // 🔥 זה החיבור הקריטי להושבה
+  updateGuestArrived(guest._id, nextArrived);
 
   try {
     await fetch("/api/live-guests/arrived", {
@@ -189,6 +197,7 @@ export default function LiveGuestsTab({ invitationId }) {
     console.error("❌ arrivedCount update failed:", e);
   }
 }
+
 
 
   /* =========================
