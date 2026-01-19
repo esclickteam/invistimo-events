@@ -82,6 +82,17 @@ const isDemo = pathname.startsWith("/try");
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
+
+  const handleGuestUpdated = (updatedGuest: Guest) => {
+  setGuests((prev) =>
+    prev.map((g) =>
+      String(g._id) === String(updatedGuest._id)
+        ? { ...g, ...updatedGuest }
+        : g
+    )
+  );
+};
+
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDemoToast, setShowDemoToast] = useState(false);
 
@@ -215,6 +226,8 @@ async function deleteGuest(guest: Guest) {
     alert("מצב דמו – הפעולה לא נשמרת");
     return;
   }
+
+
 
   const ok = window.confirm(
     `האם למחוק את המוזמן "${guest.name}"?\nהפעולה אינה ניתנת לביטול.`
@@ -1030,12 +1043,12 @@ onSeat={(g) =>
 
       {selectedGuest && (
   <EditGuestModal
-    guest={selectedGuest}
-    userRole={user?.role === "admin" ? "admin" : "guest"}
-
-    onClose={() => setSelectedGuest(null)}
-    onSuccess={loadGuests}
-  />
+  guest={selectedGuest}
+  userRole={user?.role === "admin" ? "admin" : "guest"}
+  onClose={() => setSelectedGuest(null)}
+  onSuccess={handleGuestUpdated}
+/>
+  
 )}
 
 {openAddModal && (

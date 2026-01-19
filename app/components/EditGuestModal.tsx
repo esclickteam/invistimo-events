@@ -6,7 +6,7 @@ interface EditGuestModalProps {
   guest: any;
   userRole: "guest" | "admin";
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (updatedGuest: any) => void; // 🔴 שינוי
 }
 
 export default function EditGuestModal({
@@ -76,12 +76,14 @@ export default function EditGuestModal({
       setLoading(false);
 
       if (!res.ok) {
-        alert("❌ שגיאה בעדכון אורח");
-        return;
-      }
+  alert("❌ שגיאה בעדכון אורח");
+  return;
+}
 
-      onSuccess();
-      onClose();
+const data = await res.json();
+onSuccess(data.guest ?? data); // 🔴 מעבירים אורח מעודכן
+onClose();
+
     } catch (err) {
       console.error(err);
       setLoading(false);
