@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* ⭐ אותם רכיבים כמו אצל הלקוח */
 import GuestSidebar from "@/app/dashboard/seating/GuestSidebar";
@@ -29,13 +29,9 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
   const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
 
-  useEffect(() => {
-    console.log("🟡 [Producer LiveSeatingTab] mounted", invitationId);
-  }, [invitationId]);
-
   /* ===============================
-     ✅ LOAD FROM LOCAL STORAGE
-     (persists across tab switch + refresh + logout/login)
+     🧠 LOAD FROM LOCAL STORAGE
+     נשמר גם אחרי רענון / התנתקות
   =============================== */
   useEffect(() => {
     if (!cacheKey) return;
@@ -62,7 +58,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }, [cacheKey, importSnapshot, setZones]);
 
   /* ===============================
-     IMPORT SNAPSHOT
+     📥 IMPORT FROM SERVER (ONE TIME)
   =============================== */
   async function importData() {
     if (!invitationId) {
@@ -83,14 +79,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       const json = await res.json();
 
-      console.log("✅ Producer snapshot imported", {
-        eventId: json.eventId,
-        tables: json.tables?.length ?? 0,
-        guests: json.guests?.length ?? 0,
-        zones: json.zones?.length ?? 0,
-      });
-
-      /* 🔑 מקור אמת – seatingStore */
       importSnapshot({
         tables: json.tables ?? [],
         guests: json.guests ?? [],
@@ -98,16 +86,10 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         background: json.background ?? null,
       });
 
-      /* 🧭 zones */
       setZones(json.zones ?? []);
-
-      /* 🔑 eventId לשמירה */
       setEventId(json.eventId ?? null);
-
-      /* ✅ mark imported */
       setHasImported(true);
 
-      /* ✅ cache it so it won't disappear (even after logout/login) */
       if (cacheKey) {
         localStorage.setItem(
           cacheKey,
@@ -130,47 +112,57 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* ===============================
-     SAVE (אותו save כמו לקוח)
+     💾 AUTO SAVE (NO BUTTON)
+     כל שינוי → נשמר אוטומטית
   =============================== */
-  async function saveSeating() {
-    if (!eventId) return;
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
-    const tables = useSeatingStore.getState().tables;
-    const guests = useSeatingStore.getState().guests;
-    const background = useSeatingStore.getState().background;
-    const canvasView = useSeatingStore.getState().canvasView;
-    const zones = useZoneStore.getState().zones;
+  useEffect(() => {
+    if (!eventId || !cacheKey) return;
 
-    const res = await fetch(`/api/seating/save/${eventId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tables,
-        guests,
-        background,
-        zones,
-        canvasView,
-      }),
+    const unsubscribeSeating = useSeatingStore.subscribe((state) => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current);
+
+      saveTimeout.current = setTimeout(async () => {
+        const tables = state.tables;
+        const guests = state.guests;
+        const background = state.background;
+        const canvasView = state.canvasView;
+        const zones = useZoneStore.getState().zones;
+
+        /* 🔹 localStorage – מיידי */
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            eventId,
+            tables,
+            guests,
+            zones,
+            canvasView,
+            background,
+          })
+        );
+
+        /* 🔹 save לשרת (אותו endpoint קיים) */
+        await fetch(`/api/seating/save/${eventId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tables,
+            guests,
+            background,
+            zones,
+            canvasView,
+          }),
+        });
+      }, 800); // debounce
     });
 
-    const data = await res.json();
-    alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
-
-    // ✅ update cache after save (so UI stays consistent)
-    if (cacheKey) {
-      localStorage.setItem(
-        cacheKey,
-        JSON.stringify({
-          eventId,
-          tables,
-          guests,
-          zones,
-          canvasView,
-          background,
-        })
-      );
-    }
-  }
+    return () => {
+      unsubscribeSeating();
+      if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    };
+  }, [eventId, cacheKey]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-[#faf8f4]">
@@ -178,22 +170,15 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
         {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
-        {hasImported && (
+        {!hasImported && (
           <button
-            onClick={saveSeating}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg"
+            onClick={importData}
+            disabled={loading}
+            className="px-4 py-2 bg-black text-white rounded-lg disabled:opacity-60"
           >
-            💾 שמירת הושבה
+            {loading ? "מייבא..." : "📥 ייבוא הושבה"}
           </button>
         )}
-
-        <button
-          onClick={importData}
-          disabled={loading}
-          className="px-4 py-2 bg-black text-white rounded-lg disabled:opacity-60"
-        >
-          {loading ? "מייבא..." : "📥 ייבוא הושבה"}
-        </button>
       </div>
 
       {/* 🗺️ CONTENT */}
@@ -209,13 +194,13 @@ export default function LiveSeatingTab({ invitationId }: Props) {
           )}
         </div>
 
-        {/* 👥 אורחים – אותו Sidebar כמו לקוח */}
+        {/* 👥 אורחים */}
         <div className="w-80 border-l bg-white hidden md:block">
           <GuestSidebar onDragStart={startDragGuest} />
         </div>
       </div>
 
-      {/* 📱 מובייל – אותו רכיב כמו לקוח */}
+      {/* 📱 מובייל */}
       <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
     </div>
   );
