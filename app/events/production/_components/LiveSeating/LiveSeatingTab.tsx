@@ -1,27 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveSeatingProvider } from "./LiveSeatingProvider";
 import GuestListLive from "./GuestListLive";
+import { LiveSeatingState } from "./types";
 
-/* ✅ Viewer */
+/* ✅ ה־Viewer החדש */
 import LiveSeatingViewer from "@/app/events/production/_components/LiveSeating/LiveSeatingViewer";
 
-/* Zustand */
-import { useSeatingStore } from "@/store/seatingStore";
 
+/* =========================
+   Types
+========================= */
 type Props = {
-  invitationId?: string; // ✅ אפשר שיהיה optional
+  invitationId: string;
 };
 
 export default function LiveSeatingTab({ invitationId }: Props) {
+  const [data, setData] = useState<LiveSeatingState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const init = useSeatingStore((s) => s.init);
-  const tables = useSeatingStore((s) => s.tables);
-
   /* =========================
-     Mount logs
+     Logs
   ========================= */
   useEffect(() => {
     console.log("🟡 LiveSeatingTab mounted");
@@ -29,18 +30,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }, [invitationId]);
 
   /* =========================
-     Auto import on first load
-  ========================= */
-  useEffect(() => {
-    if (!invitationId) return; // אין invitationId – לא נטען עדיין
-    if (tables.length > 0) return; // כבר נטען
-
-    importData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invitationId]);
-
-  /* =========================
-     Import seating snapshot
+     Import seating from dashboard snapshot
   ========================= */
   async function importData() {
     if (!invitationId) {
@@ -52,8 +42,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     setError(null);
 
     try {
-      console.log("🟠 Importing live seating...");
-
       const res = await fetch(
         `/api/live-seating/import?invitationId=${invitationId}`,
         { method: "POST" }
@@ -63,17 +51,12 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         throw new Error("Import failed");
       }
 
-      const json = await res.json();
+      const json: LiveSeatingState = await res.json();
 
-      console.log("🟢 Live seating snapshot:", json);
-
-      // 🔥 מקור אמת יחיד – ה־store
-      init(
-        json.tables ?? [],
-        json.guests ?? [],
-        json.background ?? null,
-        json.canvasView ?? null
-      );
+      setData({
+        guests: json.guests ?? [],
+        tables: json.tables ?? [],
+      });
     } catch (err) {
       console.error("❌ Live seating import error:", err);
       setError("לא נמצאו נתוני הושבה ללקוח");
@@ -83,42 +66,47 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* =========================
-     UI
+     Empty state – before import
+  ========================= */
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+        <p className="mb-4 text-gray-700">
+          עדיין לא יובאה מפת הושבה ללייב
+        </p>
+
+        {error && (
+          <p className="text-red-600 mb-3">{error}</p>
+        )}
+
+        <button
+          onClick={importData}
+          disabled={loading}
+          className="px-5 py-2 bg-black text-white rounded-lg flex items-center gap-2 disabled:opacity-60"
+        >
+          {loading ? "מייבא..." : "📥 ייבוא הושבה"}
+        </button>
+      </div>
+    );
+  }
+
+  /* =========================
+     Live view – REAL UX
   ========================= */
   return (
-    <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
-      {/* 🗺️ מפת הושבה */}
-      <div className="flex-1 relative">
-        <LiveSeatingViewer />
+    <LiveSeatingProvider initial={data}>
+      <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
 
-        {/* Empty overlay */}
-        {!tables.length && !loading && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <p className="mb-4 text-gray-700">
-              עדיין לא יובאה מפת הושבה ללייב
-            </p>
-          </div>
-        )}
+        {/* 🗺️ מפת הושבה – זהה ללקוח */}
+        <div className="flex-1 relative">
+          <LiveSeatingViewer invitationId={invitationId} />
+        </div>
 
-        {/* Loading overlay */}
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/60">
-            <span>מייבא הושבה…</span>
-          </div>
-        )}
-
-        {/* Error overlay */}
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-red-50 p-4 rounded">
-            <p className="text-red-600">{error}</p>
-          </div>
-        )}
+        {/* 👥 רשימת אורחים */}
+        <div className="w-80 border-l bg-white">
+          <GuestListLive />
+        </div>
       </div>
-
-      {/* 👥 אורחים */}
-      <div className="w-80 border-l bg-white">
-        <GuestListLive />
-      </div>
-    </div>
+    </LiveSeatingProvider>
   );
 }

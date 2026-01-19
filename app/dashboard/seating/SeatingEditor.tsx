@@ -25,6 +25,12 @@ import MobileGuests from "./MobileGuests";
 /* ============================================================
    TYPES
 ============================================================ */
+type SeatingEditorProps = {
+  background: string | null;
+  readOnly?: boolean;
+  showStats?: boolean;
+};
+
 type Guest = {
   id?: string;
   _id?: string;
@@ -43,67 +49,48 @@ type Table = {
   seatedGuests?: SeatedGuest[];
 };
 
-type CanvasView = {
-  x: number;
-  y: number;
-  scale: number;
-};
-
-type SeatingEditorProps = {
-  background: string | null;
-  readOnly?: boolean;
-  showStats?: boolean;
-  tables?: Table[];
-  guests?: Guest[];
-  canvasView?: CanvasView | null;
-};
-
 /* ============================================================
-   INNER COMPONENT
+   INNER
 ============================================================ */
 function SeatingEditorInner({
   background,
   readOnly = false,
   showStats = false,
-  tables: propTables,
-  guests: propGuests,
-  canvasView: propCanvasView,
 }: SeatingEditorProps) {
   const [bgImage] = useImage(background || "", "anonymous");
 
   /* ================= STORES ================= */
-  const tablesStore = useSeatingStore((s) => s.tables) as Table[];
-  const guestsStore = useSeatingStore((s) => s.guests) as Guest[];
+  const tables = useSeatingStore((s) => s.tables) as Table[];
+  const guests = useSeatingStore((s) => s.guests) as Guest[];
+
   const draggedGuest = useSeatingStore((s) => s.draggingGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
   const evalHover = useSeatingStore((s) => s.evaluateHover);
+
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
-  const canvasViewStore = useSeatingStore((s) => s.canvasView);
+
+  const canvasView = useSeatingStore((s) => s.canvasView);
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
-  const demoMode = useSeatingStore((s) => s.demoMode);
 
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
-  /* ================= EFFECTIVE ================= */
-  const effectiveTables = propTables ?? tablesStore;
-  const effectiveGuests = propGuests ?? guestsStore;
-  const effectiveCanvasView = propCanvasView ?? canvasViewStore;
-
   /* ================= LOCAL UI STATE ================= */
   const [showGuests, setShowGuests] = useState(false);
-  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
+  const demoMode = useSeatingStore((s) => s.demoMode);
 
   useEffect(() => {
     if (demoMode && !readOnly) {
       setShowGuests(true);
     }
   }, [demoMode, readOnly]);
+
+  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
   /* ================= CONTAINER SIZE ================= */
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,49 +119,15 @@ function SeatingEditorInner({
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  /* ================= CENTER ON SNAPSHOT ================= */
   useEffect(() => {
-    if (!effectiveTables.length) return;
-    if (effectiveCanvasView) return;
-    if (!size.width || !size.height) return;
-
-    const xs = effectiveTables.map((t) => t.x);
-    const ys = effectiveTables.map((t) => t.y);
-
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-
-    const newPos = {
-      x: size.width / 2 - centerX,
-      y: size.height / 2 - centerY,
-    };
-
-    setStagePos(newPos);
-    setScale(1);
-
-    setCanvasView({
-      x: newPos.x,
-      y: newPos.y,
-      scale: 1,
-    });
-  }, [effectiveTables, size.width, size.height, effectiveCanvasView]);
-
-  /* ================= APPLY CANVASVIEW ================= */
-  useEffect(() => {
-    if (!effectiveCanvasView) return;
-    setScale(effectiveCanvasView.scale ?? 1);
+    if (!canvasView) return;
+    setScale(canvasView.scale ?? 1);
     setStagePos({
-      x: effectiveCanvasView.x ?? 0,
-      y: effectiveCanvasView.y ?? 0,
+      x: canvasView.x ?? 0,
+      y: canvasView.y ?? 0,
     });
-  }, [effectiveCanvasView]);
+  }, [canvasView]);
 
-  /* ================= HANDLERS ================= */
   const handleMouseMove = (e: any) => {
     if (readOnly) return;
 
@@ -239,7 +192,7 @@ function SeatingEditorInner({
 
   /* ================= ADD TABLE ================= */
   const handleAddTable = (type: string, seats: number) => {
-    const view = effectiveCanvasView ?? { x: 0, y: 0, scale: 1 };
+    const view = canvasView ?? { x: 0, y: 0, scale: 1 };
 
     const centerX = (-view.x + size.width / 2) / view.scale;
     const centerY = (-view.y + size.height / 2) / view.scale;
@@ -253,15 +206,14 @@ function SeatingEditorInner({
   /* ================= UNSEATED ================= */
   const unseatedGuests = useMemo(() => {
     const seated = new Set<string>();
-    effectiveTables.forEach((t) =>
+    tables.forEach((t) =>
       t.seatedGuests?.forEach((s) => seated.add(String(s.guestId)))
     );
-    return effectiveGuests.filter(
+    return guests.filter(
       (g) => !seated.has(String(g.id ?? g._id))
     );
-  }, [effectiveTables, effectiveGuests]);
+  }, [tables, guests]);
 
-  /* ================= RENDER ================= */
   return (
     <div ref={containerRef} className="relative w-full h-full">
       {!readOnly && (
@@ -305,22 +257,22 @@ function SeatingEditorInner({
         </Layer>
 
         <Layer>
-          {effectiveTables.map((t) => {
+          {tables.map((t) => {
             const used =
               t.seatedGuests?.length ?? 0;
             return (
               <TableRenderer
-                key={t.id}
-                table={{
-                  ...t,
-                  openAddGuestModal: readOnly
-                    ? undefined
-                    : () => setAddGuestTable(t),
-                  statsLabel: showStats
-                    ? `${used} / ${t.capacity ?? "—"}`
-                    : undefined,
-                }}
-              />
+  key={t.id}
+  table={{
+    ...t,
+    openAddGuestModal: readOnly
+      ? undefined
+      : () => setAddGuestTable(t),
+    statsLabel: showStats
+      ? `${used} / ${t.capacity ?? "—"}`
+      : undefined,
+  }}
+/>
             );
           })}
         </Layer>
@@ -333,7 +285,7 @@ function SeatingEditorInner({
 
         {!readOnly && (
           <Layer>
-            {effectiveTables.map((t) => (
+            {tables.map((t) => (
               <DeleteTableButton key={t.id} table={t} />
             ))}
           </Layer>

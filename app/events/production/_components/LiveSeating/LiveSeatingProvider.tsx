@@ -1,34 +1,23 @@
 "use client";
 
-import React from "react";
+import { ReactNode, useEffect } from "react";
+import { useSeatingStore } from "@/store/seatingStore";
+import { LiveSeatingState } from "./types";
 
-/**
- * ⚠️ הקובץ הזה הושבת בכוונה
- *
- * כל הלוגיקה של Live Seating
- * מנוהלת כיום דרך:
- * 👉 useSeatingStore (Zustand)
- *
- * הקובץ נשאר רק לתאימות לאחור
- * כדי שלא יישברו imports ישנים
- */
+type Props = {
+  children: ReactNode;
+  initial?: LiveSeatingState | null;
+};
 
-/* =========================
-   Provider (NO-OP)
-========================= */
-export function LiveSeatingProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function LiveSeatingProvider({ children, initial }: Props) {
+  const importSnapshot = useSeatingStore((s) => s.importSnapshot);
+
+  useEffect(() => {
+    if (initial) {
+      console.log("🟢 LiveSeatingProvider importing snapshot");
+      importSnapshot(initial);
+    }
+  }, [initial, importSnapshot]);
+
   return <>{children}</>;
-}
-
-/* =========================
-   Hook – חסום במפורש
-========================= */
-export function useLiveSeating(): never {
-  throw new Error(
-    "❌ useLiveSeating is deprecated. Use useSeatingStore instead."
-  );
 }
