@@ -10,7 +10,7 @@ import LiveSeatingViewer from "@/app/events/production/_components/LiveSeating/L
 import { useSeatingStore } from "@/store/seatingStore";
 
 type Props = {
-  invitationId: string;
+  invitationId?: string; // ✅ אפשר שיהיה optional
 };
 
 export default function LiveSeatingTab({ invitationId }: Props) {
@@ -32,7 +32,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      Auto import on first load
   ========================= */
   useEffect(() => {
-    if (!invitationId) return;
+    if (!invitationId) return; // אין invitationId – לא נטען עדיין
     if (tables.length > 0) return; // כבר נטען
 
     importData();
@@ -100,10 +100,17 @@ export default function LiveSeatingTab({ invitationId }: Props) {
           </div>
         )}
 
-        {/* Loading */}
+        {/* Loading overlay */}
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/60">
             <span>מייבא הושבה…</span>
+          </div>
+        )}
+
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-red-50 p-4 rounded">
+            <p className="text-red-600">{error}</p>
           </div>
         )}
       </div>
