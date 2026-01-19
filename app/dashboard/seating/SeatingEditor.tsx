@@ -61,7 +61,8 @@ function SeatingEditorInner({
 
   /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
-  const guests = useSeatingStore((s) => s.guests) as Guest[];
+const approvedGuests = useSeatingStore((s) => s.getApprovedGuests());
+
 
   const draggedGuest = useSeatingStore((s) => s.draggingGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
@@ -262,14 +263,17 @@ useEffect(() => {
 
   /* ================= UNSEATED ================= */
   const unseatedGuests = useMemo(() => {
-    const seated = new Set<string>();
-    tables.forEach((t) =>
-      t.seatedGuests?.forEach((s) => seated.add(String(s.guestId)))
-    );
-    return guests.filter(
-      (g) => !seated.has(String(g.id ?? g._id))
-    );
-  }, [tables, guests]);
+  const seated = new Set<string>();
+  tables.forEach((t) =>
+    t.seatedGuests?.forEach((s) =>
+      seated.add(String(s.guestId))
+    )
+  );
+
+  return approvedGuests.filter(
+    (g: Guest) => !seated.has(String(g.id ?? g._id))
+  );
+}, [tables, approvedGuests]);
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
@@ -294,24 +298,22 @@ useEffect(() => {
     onMouseMove={handleMouseMove}
   >
         <Layer listening={false}>
-          <GridLayer width={size.width} height={size.height} />
-        </Layer>
+  <GridLayer width={size.width} height={size.height} />
 
-        <Layer listening={false}>
-          {bgImage &&
-  bgImage.width > 0 &&
-  bgImage.height > 0 &&
-  size.width > 0 &&
-  size.height > 0 && (
+  {bgImage &&
+    bgImage.width > 0 &&
+    bgImage.height > 0 &&
+    size.width > 0 &&
+    size.height > 0 && (
+      <KonvaImage
+        image={bgImage}
+        width={size.width}
+        height={size.height}
+        opacity={0.28}
+      />
+    )}
+</Layer>
 
-            <KonvaImage
-              image={bgImage}
-              width={size.width}
-              height={size.height}
-              opacity={0.28}
-            />
-          )}
-        </Layer>
 
         <Layer>
           {zones.map((z) => (
