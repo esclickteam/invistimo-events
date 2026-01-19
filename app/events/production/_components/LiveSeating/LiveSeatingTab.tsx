@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-/* UI */
-import GuestListLive from "./GuestListLive";
-
-/* ⭐ אותו Editor כמו אצל הלקוח */
+/* ⭐ אותם רכיבים כמו אצל הלקוח */
+import GuestSidebar from "@/app/dashboard/seating/GuestSidebar";
+import MobileGuests from "@/app/dashboard/seating/MobileGuests";
 import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
 
 /* 🧠 Zustand – מקור אמת */
@@ -23,6 +22,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
   const background = useSeatingStore((s) => s.background);
+  const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const setZones = useZoneStore((s) => s.setZones);
 
   useEffect(() => {
@@ -77,9 +77,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-[#faf8f4]">
-
-
-      {/* 🔘 HEADER – כפתור ייבוא תמידי */}
+      {/* 🔘 HEADER */}
       <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
         {error && (
           <span className="text-sm text-red-600 ml-auto">
@@ -98,8 +96,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       {/* 🗺️ CONTENT */}
       <div className="flex flex-row-reverse flex-1 overflow-hidden">
-
-        {/* 🗺️ מפת הושבה – Viewer */}
+        {/* 🗺️ מפת הושבה */}
         <div className="flex-1 relative">
           {!hasImported ? (
             <div className="flex items-center justify-center h-full text-gray-500">
@@ -108,17 +105,23 @@ export default function LiveSeatingTab({ invitationId }: Props) {
           ) : (
             <SeatingEditor
               background={background?.url || null}
-              readOnly   // ⭐ ההבדל היחיד מהלקוח
-              showStats  // אם את רוצה לראות 1/12 וכו'
+              readOnly
+              showStats
             />
           )}
         </div>
 
-        {/* 👥 אורחים */}
-        <div className="w-80 border-l bg-white">
-          <GuestListLive />
+        {/* 👥 אורחים – אותו Sidebar כמו אצל הלקוח */}
+        <div className="w-80 border-l bg-white hidden md:block">
+          <GuestSidebar />
         </div>
       </div>
+
+      {/* 📱 מובייל – אותו רכיב כמו לקוח (עם props חובה) */}
+      <MobileGuests
+        onDragStart={startDragGuest}
+        onClose={() => {}}
+      />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GuestSidebar({
-  onDragStart,
+  onDragStart = () => {}, // ✅ ברירת מחדל
   variant = "desktop", // "desktop" | "mobile"
 }) {
   /* ===============================
