@@ -17,10 +17,15 @@ export async function POST(req: Request) {
     const url = new URL(req.url);
     const invitationId = url.searchParams.get("invitationId");
 
-    // אין invitation → מחזירים snapshot ריק (לא מפילים UI)
+    // אין invitation → snapshot ריק (לא מפילים UI)
     if (!invitationId) {
       return NextResponse.json(
-        { guests: [], tables: [] },
+        {
+          guests: [],
+          tables: [],
+          background: null,
+          canvasView: null,
+        },
         { status: 200 }
       );
     }
@@ -34,7 +39,12 @@ export async function POST(req: Request) {
 
     if (!invitation || !invitation.eventId) {
       return NextResponse.json(
-        { guests: [], tables: [] },
+        {
+          guests: [],
+          tables: [],
+          background: null,
+          canvasView: null,
+        },
         { status: 200 }
       );
     }
@@ -56,25 +66,26 @@ export async function POST(req: Request) {
     }).lean();
 
     /* ======================================================
-       4️⃣ בניית טבלאות ללייב (מותאם ל-UI)
+       4️⃣ בניית טבלאות ללייב (מותאם ל־SeatingEditor)
     ====================================================== */
     const tables =
       seating?.tables?.map((t: any) => {
         const tableCanvasId = t.id; // מזהה קנבס (string)
 
         return {
-          _id: tableCanvasId,      // UI first
-          id: tableCanvasId,       // תאימות אחורה
+          _id: tableCanvasId, // UI first
+          id: tableCanvasId,  // תאימות אחורה
           label: t.name || "שולחן",
           name: t.name || "שולחן",
           capacity: t.seats ?? 0,
           x: t.x ?? 0,
           y: t.y ?? 0,
+          seatedGuests: t.seatedGuests ?? [], // חשוב לסטטיסטיקות
         };
       }) ?? [];
 
     /* ======================================================
-       5️⃣ בניית מוזמנים ללייב (מותאם ל-UI)
+       5️⃣ בניית מוזמנים ללייב (מותאם ל־UI)
     ====================================================== */
     const liveGuests = guests.map((g: any) => ({
       _id: g._id.toString(),
@@ -89,18 +100,25 @@ export async function POST(req: Request) {
     }));
 
     /* ======================================================
-       6️⃣ החזרת snapshot ל־UI
+       6️⃣ החזרת snapshot מלא ל־UI (⭐ זה החלק החסר!)
     ====================================================== */
     return NextResponse.json({
       guests: liveGuests,
       tables,
+      background: seating?.background ?? null,
+      canvasView: seating?.canvasView ?? null,
     });
   } catch (err) {
     console.error("LIVE SEATING IMPORT ERROR:", err);
 
     // 🛡️ לא מפילים UI גם בשגיאה
     return NextResponse.json(
-      { guests: [], tables: [] },
+      {
+        guests: [],
+        tables: [],
+        background: null,
+        canvasView: null,
+      },
       { status: 200 }
     );
   }
