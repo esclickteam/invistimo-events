@@ -66,33 +66,38 @@ export default function LiveGuestsTab({ invitationId }) {
      Import guests
   ========================= */
   async function importGuests() {
-    if (!invitationId) {
-      setError("אין מזהה הזמנה");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(
-        `/api/live-guests/import?invitationId=${invitationId}`,
-        { method: "POST" }
-      );
-
-      const json = await res.json();
-      if (!res.ok) throw new Error();
-
-      const list = json.guests || [];
-      setGuests(list);
-      saveCache(list);
-    } catch (e) {
-      console.error("❌ importGuests error:", e);
-      setError("לא נמצאו אורחים להזמנה");
-    } finally {
-      setLoading(false);
-    }
+  if (!invitationId) {
+    setError("אין מזהה הזמנה");
+    return;
   }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const res = await fetch(
+      `/api/live-guests/import?invitationId=${invitationId}`,
+      { method: "POST" }
+    );
+
+    const json = await res.json();
+    if (!res.ok) throw new Error();
+
+    // ✅ קריטי: בלייב arrivedCount תמיד מתחיל מ־0
+    const list = (json.guests || []).map((g) => ({
+      ...g,
+      arrivedCount: 0,
+    }));
+
+    setGuests(list);
+    saveCache(list);
+  } catch (e) {
+    console.error("❌ importGuests error:", e);
+    setError("לא נמצאו אורחים להזמנה");
+  } finally {
+    setLoading(false);
+  }
+}
 
   /* =========================
      Delete guest
