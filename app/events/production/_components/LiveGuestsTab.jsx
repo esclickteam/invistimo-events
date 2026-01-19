@@ -131,7 +131,9 @@ export default function LiveGuestsTab({ invitationId }) {
 
   function applyUpdatedGuest(updated) {
     setGuests((prev) => {
-      const next = prev.map((g) => (g._id === updated._id ? { ...g, ...updated } : g));
+      const next = prev.map((g) =>
+        g._id === updated._id ? { ...g, ...updated } : g
+      );
       saveCache(next);
       return next;
     });
@@ -203,10 +205,12 @@ export default function LiveGuestsTab({ invitationId }) {
       <GuestsTable
         guests={guests}
         isDemo={false}
-        onEdit={(g) => setEditGuest(g)}          // ✅ עכשיו העריכה תפתח מודאל
+        onEdit={(g) => setEditGuest(g)} // ✅ עריכה פותחת מודאל
         onDelete={(g) => deleteGuest(g)}
         onMessage={(g) => router.push(`/dashboard/messages?guestId=${g._id}`)}
-        onSeat={(g) => router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)}
+        onSeat={(g) =>
+          router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
+        }
       />
 
       {/* ✅ Add */}
@@ -237,7 +241,11 @@ export default function LiveGuestsTab({ invitationId }) {
           onSave={async (payload) => {
             try {
               const updated = await updateGuestOnServer(editGuest._id, payload);
-              applyUpdatedGuest({ ...editGuest, ...updated, _id: editGuest._id });
+              applyUpdatedGuest({
+                ...editGuest,
+                ...updated,
+                _id: editGuest._id,
+              });
               setEditGuest(null);
             } catch (e) {
               console.error("❌ updateGuest error:", e);
@@ -258,9 +266,16 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
   const [phone, setPhone] = useState(guest?.phone || "");
   const [relation, setRelation] = useState(guest?.relation || "");
   const [notes, setNotes] = useState(guest?.notes || "");
-  const [guestsCount, setGuestsCount] = useState(Number(guest?.guestsCount || 1));
-  const [rsvp, setRsvp] = useState(guest?.rsvp || "pending");
+  const [guestsCount, setGuestsCount] = useState(
+    Number(guest?.guestsCount || 1)
+  );
 
+  // ✅ חדש: מגיעים בפועל
+  const [arrivedCount, setArrivedCount] = useState(
+    Number(guest?.arrivedCount || 0)
+  );
+
+  const [rsvp, setRsvp] = useState(guest?.rsvp || "pending");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -273,6 +288,7 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
         relation: relation.trim(),
         notes: notes.trim(),
         guestsCount: Math.max(1, Number(guestsCount || 1)),
+        arrivedCount: Math.max(0, Number(arrivedCount || 0)), // ✅ חדש
         rsvp,
       });
     } finally {
@@ -282,10 +298,15 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden" dir="rtl">
+      <div
+        className="w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden"
+        dir="rtl"
+      >
         <div className="flex items-center justify-between p-4 border-b">
           <div className="font-semibold text-lg">✏️ עריכת מוזמן</div>
-          <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-black">
+            ✕
+          </button>
         </div>
 
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -322,6 +343,17 @@ function InlineEditGuestModal({ guest, onClose, onSave }) {
               min={1}
               value={guestsCount}
               onChange={(e) => setGuestsCount(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </Field>
+
+          {/* ✅ חדש: מגיעים */}
+          <Field label="מגיעים">
+            <input
+              type="number"
+              min={0}
+              value={arrivedCount}
+              onChange={(e) => setArrivedCount(e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
             />
           </Field>
