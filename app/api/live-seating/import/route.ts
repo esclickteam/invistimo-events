@@ -130,6 +130,7 @@ export async function POST(req: Request) {
       zones,
       background,
       canvasView,
+      eventId: invitation.eventId,
     });
   } catch (err) {
     console.error("❌ LIVE SEATING SNAPSHOT ERROR:", err);

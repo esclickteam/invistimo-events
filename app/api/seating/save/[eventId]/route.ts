@@ -100,6 +100,33 @@ export async function POST(req: NextRequest, context: RouteContext) {
         : null;
 
     /* ===============================
+       🔐 הרשאות – לפני כתיבה
+    =============================== */
+    const invitation = await Invitation.findOne({ eventId }).lean();
+
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, error: "INVITATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const isOwner = String(invitation.ownerId) === String(userId);
+
+    const isProducer =
+      Array.isArray(invitation.producers) &&
+      invitation.producers.some(
+        (p: any) => String(p.userId ?? p) === String(userId)
+      );
+
+    if (!isOwner && !isProducer) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* ===============================
        SAVE / UPSERT (לפי eventId)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
@@ -125,36 +152,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
        איפוס מספרי שולחן לאורחים
        (האורחים שייכים להזמנה)
     =============================== */
-    const invitation = await Invitation.findOne({
-      ownerId: userId,
-      eventId,
-    }).lean();
+    await InvitationGuest.updateMany(
+      { invitationId: invitation._id },
+      { $set: { tableNumber: null, tableName: "" } }
+    );
 
-    if (invitation) {
-      await InvitationGuest.updateMany(
-        { invitationId: invitation._id },
-        { $set: { tableNumber: null, tableName: "" } }
-      );
+    /* ===============================
+       שיוך אורחים לשולחנות
+    =============================== */
+    for (const table of tables) {
+      if (!Array.isArray(table.seatedGuests)) continue;
 
-      /* ===============================
-         שיוך אורחים לשולחנות
-      =============================== */
-      for (const table of tables) {
-        if (!Array.isArray(table.seatedGuests)) continue;
+      const tableNumber =
+        typeof table.name === "string"
+          ? Number(table.name.replace(/\D/g, "")) || null
+          : null;
 
-        const tableNumber =
-          typeof table.name === "string"
-            ? Number(table.name.replace(/\D/g, "")) || null
-            : null;
+      for (const seated of table.seatedGuests) {
+        if (!seated?.guestId) continue;
 
-        for (const seated of table.seatedGuests) {
-          if (!seated?.guestId) continue;
-
-          await InvitationGuest.findByIdAndUpdate(seated.guestId, {
-            tableNumber,
-            tableName: table.name ?? "",
-          });
-        }
+        await InvitationGuest.findByIdAndUpdate(seated.guestId, {
+          tableNumber,
+          tableName: table.name ?? "",
+        });
       }
     }
 
