@@ -5,8 +5,8 @@ import { LiveSeatingProvider } from "./LiveSeatingProvider";
 import GuestListLive from "./GuestListLive";
 import { LiveSeatingState } from "./types";
 
-/* ✅ Viewer – ציור בלבד */
-import LiveSeatingViewer from "@/app/events/production/_components/LiveSeating/LiveSeatingViewer";
+/* 🎧 מפיק – ציור אחיד */
+import SeatingCanvas from "@/app/dashboard/seating/SeatingCanvas";
 
 type Props = {
   invitationId: string;
@@ -47,13 +47,16 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         canvasView: json.canvasView ?? null,
       });
     } catch (e) {
+      console.error(e);
       setError("לא נמצאה מפת הושבה");
     } finally {
       setLoading(false);
     }
   }
 
-  /* לפני ייבוא */
+  /* =========================
+     לפני ייבוא
+  ========================= */
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -72,15 +75,20 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     );
   }
 
-  /* תצוגה חיה */
+  /* =========================
+     תצוגה חיה – מפיק
+  ========================= */
   return (
     <LiveSeatingProvider initial={data}>
       <div className="flex flex-row-reverse h-[70vh] border rounded-xl overflow-hidden bg-[#faf8f4]">
-        
-        {/* 🗺️ מפת הושבה */}
-        <div className="flex-1 relative">
-          <LiveSeatingViewer invitationId={invitationId} />
 
+        {/* 🗺️ מפת הושבה – ציור אחיד */}
+        <div className="flex-1 relative">
+          <SeatingCanvas
+            mode="viewer"
+            background={null}
+            showStats
+          />
         </div>
 
         {/* 👥 אורחים */}
