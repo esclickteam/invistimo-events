@@ -46,16 +46,26 @@ export default function EditGuestModal({
   async function save() {
     setLoading(true);
 
+
+
     try {
-      const payload = {
-        name,
-        phone,
-        relation,
-        rsvp,
-        guestsCount: Number(guestsCount),
-        arrivedCount: Number(arrivedCount),
-        notes,
-      };
+  const normalizedRsvp =
+    Number(guestsCount) > 0
+      ? "yes"
+      : rsvp === "no"
+      ? "no"
+      : "pending";
+
+  const payload = {
+    name,
+    phone,
+    relation,
+    rsvp: normalizedRsvp, // 🔴 זה התיקון הקריטי
+    guestsCount: Number(guestsCount),
+    arrivedCount: Number(arrivedCount),
+    notes,
+  };
+
 
       const res = await fetch(`/api/guests/${guest._id}`, {
         method: "PUT",
