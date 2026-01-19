@@ -14,6 +14,8 @@ export default function GuestSidebar({
   const guests = useSeatingStore((s) => s.guests);
   const tables = useSeatingStore((s) => s.tables);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
+  const isLiveMode = useSeatingStore((s) => s.isLiveMode);
+
 
   /* ===============================
      Highlight from URL
@@ -64,14 +66,22 @@ export default function GuestSidebar({
      (בלי שינוי לוגיקה)
   =============================== */
   const allowedGuests = useMemo(() => {
-    return guests.filter((g) => {
-      const id = String(g.id ?? g._id ?? "");
-      return (
-        String(g.rsvp ?? "").toLowerCase() === "yes" &&
-        !guestTableMap.has(id)
-      );
-    });
-  }, [guests, guestTableMap]);
+  return guests.filter((g) => {
+    const id = String(g.id ?? g._id ?? "");
+
+    // 🎧 לייב – מי שהגיע בפועל
+    if (isLiveMode) {
+      return (g.arrivedCount ?? 0) > 0;
+    }
+
+    // 🧾 רגיל – בדיוק כמו שהיה
+    return (
+      String(g.rsvp ?? "").toLowerCase() === "yes" &&
+      !guestTableMap.has(id)
+    );
+  });
+}, [guests, guestTableMap, isLiveMode]);
+
 
   /* ===============================
      ✅ LOGS: דיאגנוסטיקה (בלי לשנות לוגיקה)

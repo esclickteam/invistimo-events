@@ -24,10 +24,19 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
   const background = useSeatingStore((s) => s.background);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
+  const setLiveMode = useSeatingStore((s) => s.setLiveMode); // ✅ חדש
 
   const setZones = useZoneStore((s) => s.setZones);
 
   const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
+
+  /* ===============================
+     ✅ LIVE MODE ON / OFF
+  =============================== */
+  useEffect(() => {
+    setLiveMode(true);
+    return () => setLiveMode(false);
+  }, [setLiveMode]);
 
   useEffect(() => {
     console.log("🟡 [Producer LiveSeatingTab] mounted", invitationId);
@@ -35,7 +44,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
   /* ===============================
      ✅ LOAD FROM LOCAL STORAGE
-     (persists across tab switch + refresh + logout/login)
   =============================== */
   useEffect(() => {
     if (!cacheKey) return;
@@ -83,14 +91,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       const json = await res.json();
 
-      console.log("✅ Producer snapshot imported", {
-        eventId: json.eventId,
-        tables: json.tables?.length ?? 0,
-        guests: json.guests?.length ?? 0,
-        zones: json.zones?.length ?? 0,
-      });
-
-      /* 🔑 מקור אמת – seatingStore */
       importSnapshot({
         tables: json.tables ?? [],
         guests: json.guests ?? [],
@@ -98,16 +98,10 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         background: json.background ?? null,
       });
 
-      /* 🧭 zones */
       setZones(json.zones ?? []);
-
-      /* 🔑 eventId לשמירה */
       setEventId(json.eventId ?? null);
-
-      /* ✅ mark imported */
       setHasImported(true);
 
-      /* ✅ cache it so it won't disappear (even after logout/login) */
       if (cacheKey) {
         localStorage.setItem(
           cacheKey,
@@ -130,7 +124,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   /* ===============================
-     SAVE (אותו save כמו לקוח)
+     SAVE
   =============================== */
   async function saveSeating() {
     if (!eventId) return;
@@ -156,7 +150,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     const data = await res.json();
     alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
 
-    // ✅ update cache after save (so UI stays consistent)
     if (cacheKey) {
       localStorage.setItem(
         cacheKey,
@@ -174,7 +167,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-[#faf8f4]">
-      {/* 🔘 HEADER */}
       <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
         {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
@@ -196,9 +188,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         </button>
       </div>
 
-      {/* 🗺️ CONTENT */}
       <div className="flex flex-row-reverse flex-1 overflow-hidden">
-        {/* 🗺️ מפת הושבה */}
         <div className="flex-1 relative">
           {!hasImported ? (
             <div className="flex items-center justify-center h-full text-gray-500">
@@ -209,13 +199,11 @@ export default function LiveSeatingTab({ invitationId }: Props) {
           )}
         </div>
 
-        {/* 👥 אורחים – אותו Sidebar כמו לקוח */}
         <div className="w-80 border-l bg-white hidden md:block">
           <GuestSidebar onDragStart={startDragGuest} />
         </div>
       </div>
 
-      {/* 📱 מובייל – אותו רכיב כמו לקוח */}
       <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
     </div>
   );
