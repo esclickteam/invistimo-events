@@ -2,15 +2,30 @@
 
 import { useEffect, useMemo, useState } from "react";
 import GuestsTable from "@/app/components/GuestsTable";
+import AddGuestModal from "@/app/components/AddGuestModal";
+
+/* 🧠 Zustand – מקור אמת */
+import { useSeatingStore } from "@/store/seatingStore";
 
 /* =========================
    Component
 ========================= */
 export default function LiveGuestsTab({ invitationId }) {
-  const [guests, setGuests] = useState([]);
+  const {
+    guests,
+    setGuests,
+  } = useSeatingStore((s) => ({
+    guests: s.guests,
+    setGuests: s.setGuests,
+  }));
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
 
+  /* =========================
+     Import guests ONCE
+  ========================= */
   async function importGuests() {
     if (!invitationId) {
       setError("אין מזהה הזמנה");
@@ -38,7 +53,7 @@ export default function LiveGuestsTab({ invitationId }) {
   }
 
   /* =========================
-     Stats – בדיוק כמו בדשבורד
+     Stats
   ========================= */
   const stats = useMemo(() => {
     const totalInvited = guests.reduce(
@@ -58,6 +73,9 @@ export default function LiveGuestsTab({ invitationId }) {
     };
   }, [guests]);
 
+  /* =========================
+     Empty state
+  ========================= */
   if (!guests.length) {
     return (
       <div className="p-6">
@@ -76,8 +94,21 @@ export default function LiveGuestsTab({ invitationId }) {
     );
   }
 
+  /* =========================
+     Main UI
+  ========================= */
   return (
     <div className="flex flex-col gap-6">
+      {/* כפתורים */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setAddOpen(true)}
+          className="bg-black text-white px-4 py-2 rounded"
+        >
+          ➕ הוספת מוזמן
+        </button>
+      </div>
+
       {/* סטטיסטיקות */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Stat title="סה״כ מוזמנים" value={stats.totalInvited} />
@@ -86,7 +117,7 @@ export default function LiveGuestsTab({ invitationId }) {
         <Stat title="ממתינים" value={stats.pending} color="orange" />
       </div>
 
-      {/* טבלה זהה לדשבורד */}
+      {/* טבלה */}
       <GuestsTable
         guests={guests}
         isDemo={false}
@@ -94,6 +125,17 @@ export default function LiveGuestsTab({ invitationId }) {
         onDelete={() => {}}
         onMessage={() => {}}
         onSeat={() => {}}
+      />
+
+      {/* מודאל הוספת אורח */}
+      <AddGuestModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        invitationId={invitationId}
+        onCreated={(newGuest) => {
+          // ✅ סנכרון מיידי – מפיק + לקוח
+          setGuests((prev) => [...prev, newGuest]);
+        }}
       />
     </div>
   );
