@@ -20,11 +20,7 @@ function formatPhone(phone) {
 }
 
 function rsvpLabel(rsvp) {
-  const map = {
-    yes: "מגיע",
-    pending: "ממתין",
-    no: "לא מגיע",
-  };
+  const map = { yes: "מגיע", pending: "ממתין", no: "לא מגיע" };
   return map[rsvp] || rsvp || "-";
 }
 
@@ -164,6 +160,7 @@ export default function LiveGuestsTab({ invitationId }) {
   /* =========================
      ✅ הגיעו בפועל ליד כל אורח
      +1 / -1 על arrivedCount (מוגבל ל"אישרו")
+     ✅ אין rollback אוטומטי (כדי שיעבוד בזמן אמת בלייב)
   ========================= */
   async function changeArrived(guest, delta) {
     const prevArrived = Number(guest.arrivedCount || 0);
@@ -171,42 +168,24 @@ export default function LiveGuestsTab({ invitationId }) {
     // ✅ אישרו הגעה בפועל (רק אם rsvp=yes)
     const confirmed = confirmedCountForGuest(guest);
 
-    // אם לא אישרו בכלל – לא מאפשרים הגיעו
-    const maxAllowed = Math.max(0, confirmed);
-
-    const nextArrived = clamp(prevArrived + delta, 0, maxAllowed);
-
+    const nextArrived = clamp(prevArrived + delta, 0, Math.max(0, confirmed));
     if (nextArrived === prevArrived) return;
 
-    // ✅ Optimistic UI
+    // ✅ Optimistic UI (מתעדכן מייד)
     applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
 
     try {
       await updateGuestOnServer(guest._id, { arrivedCount: nextArrived });
-    } catch (e1) {
-      try {
-        // fallback: מסמך מלא
-        await updateGuestOnServer(guest._id, {
-          name: guest.name,
-          phone: guest.phone,
-          relation: guest.relation,
-          notes: guest.notes,
-          rsvp: guest.rsvp,
-          guestsCount: guest.guestsCount,
-          arrivedCount: nextArrived,
-        });
-      } catch (e2) {
-        console.error("❌ arrivedCount update failed:", e2);
-        applyUpdatedGuest({ _id: guest._id, arrivedCount: prevArrived });
-        alert("❌ לא הצלחתי לעדכן 'הגיעו בפועל' בשרת");
-      }
+    } catch (e) {
+      console.error("❌ arrivedCount update failed:", e);
+      // ❗ אין rollback בלייב
     }
   }
 
   /* =========================
      ✅ Stats only (כרטיסיות יחידות)
-     1) אישרו הגעה
-     2) הגיעו בפועל
+     1) אישרו הגעה (לפי RSVP YES לפני הייבוא)
+     2) הגיעו בפועל (מתעדכן בזמן אמת לפי arrivedCount)
   ========================= */
   const stats = useMemo(() => {
     const confirmedTotal = guests.reduce(
@@ -268,12 +247,12 @@ export default function LiveGuestsTab({ invitationId }) {
       </div>
 
       {/* ✅ Only two cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-        <Stat title="אישרו הגעה" value={stats.confirmedTotal} color="green" />
+      <div className="grid grid-cols-2 gap-4">
+        <Stat title="אישרו הגעה" value={stats.confirmedTotal} />
         <Stat title="הגיעו בפועל" value={stats.arrivedTotal} color="green" />
       </div>
 
-      {/* ✅ Live table with confirmed + arrived */}
+      {/* ✅ Live table with guest + confirmed + arrived realtime */}
       <div className="w-full overflow-x-auto bg-white border rounded-xl">
         <table className="min-w-[1100px] w-full">
           <thead className="bg-gray-100">
@@ -283,8 +262,7 @@ export default function LiveGuestsTab({ invitationId }) {
               <th className="p-3 text-right">קרבה</th>
               <th className="p-3 text-right">סטטוס</th>
 
-              {/* ✅ שני העמודות שביקשת */}
-              <th className="p-3 text-right">אישרו</th>
+              <th className="p-3 text-right">אישרו הגעה</th>
               <th className="p-3 text-right">הגיעו בפועל</th>
 
               <th className="p-3 text-right">הערות</th>
@@ -304,37 +282,37 @@ export default function LiveGuestsTab({ invitationId }) {
                   <td className="p-3">{(g.relation || "").trim() || "-"}</td>
                   <td className="p-3">{rsvpLabel(g.rsvp)}</td>
 
-                  {/* ✅ אישרו הגעה (רק yes) */}
+                  {/* ✅ כמה אישרו הגעה (מתוך RSVP לפני הייבוא) */}
                   <td className="p-3 font-semibold">{confirmed}</td>
 
-                  {/* ✅ הגיעו בפועל: פלוס/מינוס + מספר */}
+                  {/* ✅ כמה הגיעו בפועל (מתעדכן בזמן אמת עם + / -) */}
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => changeArrived(g, -1)}
-                        className="px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition disabled:opacity-40"
                         disabled={arrived <= 0}
+                        className="w-8 h-8 rounded-full border border-gray-300 text-lg hover:bg-gray-50 transition disabled:opacity-30"
                         title="הפחת אחד שהגיע"
                       >
                         −
                       </button>
 
-                      <span className="text-sm font-semibold min-w-[46px] text-center">
-                        {arrived}
-                      </span>
+                      <div className="min-w-[90px] text-center leading-tight">
+                        <div className="text-xs text-gray-500">הגיעו</div>
+                        <div className="text-lg font-bold text-green-700">
+                          {arrived}
+                          <span className="text-gray-400 text-sm"> / {confirmed}</span>
+                        </div>
+                      </div>
 
                       <button
                         onClick={() => changeArrived(g, +1)}
-                        className="px-2 py-1 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition disabled:opacity-40"
                         disabled={arrived >= confirmed}
+                        className="w-8 h-8 rounded-full bg-green-600 text-white text-lg hover:bg-green-700 transition disabled:opacity-30"
                         title="הוסף אחד שהגיע"
                       >
                         +
                       </button>
-
-                      <span className="text-xs text-gray-500">
-                        / {confirmed}
-                      </span>
                     </div>
                   </td>
 
@@ -355,7 +333,9 @@ export default function LiveGuestsTab({ invitationId }) {
 
                       <button
                         onClick={() =>
-                          router.push(`/dashboard/seating?from=personal&guestId=${g._id}`)
+                          router.push(
+                            `/dashboard/seating?from=personal&guestId=${g._id}`
+                          )
                         }
                         title="הושבה"
                       >
@@ -415,8 +395,6 @@ export default function LiveGuestsTab({ invitationId }) {
 function Stat({ title, value, color }) {
   const colors = {
     green: "text-green-600",
-    red: "text-red-600",
-    orange: "text-orange-500",
   };
 
   return (
