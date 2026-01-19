@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useMemo,
   useState,
   Suspense,
   useRef,
@@ -81,29 +80,56 @@ function SeatingCanvasInner({
     if (!containerRef.current) return;
 
     const resize = () => {
-      setSize({
-        width: containerRef.current!.offsetWidth,
-        height: containerRef.current!.offsetHeight,
+      const w = containerRef.current!.offsetWidth;
+      const h = containerRef.current!.offsetHeight;
+
+      setSize({ width: w, height: h });
+
+      console.log("📐 [SeatingCanvas] resize", {
+        width: w,
+        height: h,
+        mode,
       });
     };
 
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, []);
+  }, [mode]);
 
   /* ================= INTERACTION STATE (EDITOR ONLY) ================= */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-  if (!canvasView) return;
-  if (isViewer) return;
+    if (!canvasView) return;
+    if (isViewer) return;
 
-  setScale(canvasView.scale);
-  setStagePos({ x: canvasView.x, y: canvasView.y });
-}, [canvasView, isViewer]);
+    console.log("🎯 [SeatingCanvas] apply canvasView (editor)", {
+      canvasView,
+    });
 
+    setScale(canvasView.scale);
+    setStagePos({ x: canvasView.x, y: canvasView.y });
+  }, [canvasView, isViewer]);
+
+  /* ================= DEBUG SNAPSHOT ================= */
+  useEffect(() => {
+    console.log("🎨 [SeatingCanvas] render snapshot", {
+      mode,
+      tablesCount: tables.length,
+      guestsCount: guests.length,
+      canvasView,
+      stage: {
+        scale: isViewer ? 1 : scale,
+        x: isViewer ? 0 : stagePos.x,
+        y: isViewer ? 0 : stagePos.y,
+      },
+      size,
+    });
+  }, [mode, tables, guests, canvasView, scale, stagePos, size, isViewer]);
+
+  /* ================= EVENTS ================= */
   const handleMouseMove = (e: any) => {
     if (isViewer) return;
     const stage = e.target.getStage();
@@ -139,6 +165,12 @@ function SeatingCanvasInner({
       y: pointer.y - mousePointTo.y * newScale,
     };
 
+    console.log("🔍 [SeatingCanvas] zoom", {
+      from: scale,
+      to: newScale,
+      newPos,
+    });
+
     setScale(newScale);
     setStagePos(newPos);
     setCanvasView({ ...newPos, scale: newScale });
@@ -151,6 +183,7 @@ function SeatingCanvasInner({
       if (!selectedZoneId) return;
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
+        console.log("🗑️ [SeatingCanvas] delete zone", selectedZoneId);
         removeZone(selectedZoneId);
       }
     }
@@ -159,20 +192,24 @@ function SeatingCanvasInner({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedZoneId, removeZone, isViewer]);
 
-  if (!canvasView) return null;
+  if (!canvasView) {
+    console.warn("⚠️ [SeatingCanvas] canvasView is null – nothing to render");
+    return null;
+  }
 
+  /* ================= RENDER ================= */
   return (
     <div ref={containerRef} className="relative w-full h-full">
       <Stage
-  width={size.width}
-  height={size.height}
-  scaleX={isViewer ? 1 : scale}
-  scaleY={isViewer ? 1 : scale}
-  x={isViewer ? 0 : stagePos.x}
-  y={isViewer ? 0 : stagePos.y}
-  onWheel={handleWheel}
-  onMouseMove={handleMouseMove}
->
+        width={size.width}
+        height={size.height}
+        scaleX={isViewer ? 1 : scale}
+        scaleY={isViewer ? 1 : scale}
+        x={isViewer ? 0 : stagePos.x}
+        y={isViewer ? 0 : stagePos.y}
+        onWheel={handleWheel}
+        onMouseMove={handleMouseMove}
+      >
         {/* ===== WORLD ===== */}
         <Layer>
           <Group>
@@ -193,6 +230,15 @@ function SeatingCanvasInner({
 
             {tables.map((t) => {
               const used = t.seatedGuests?.length ?? 0;
+
+              console.log("🪑 [SeatingCanvas] draw table", {
+                id: t.id,
+                x: t.x,
+                y: t.y,
+                used,
+                capacity: t.capacity,
+              });
+
               return (
                 <TableRenderer
                   key={t.id}
@@ -224,12 +270,11 @@ function SeatingCanvasInner({
       </Stage>
 
       {!isViewer && (
-  <MobileGuests
-    onDragStart={() => {}}
-    onClose={() => {}}
-  />
-)}
-
+        <MobileGuests
+          onDragStart={() => {}}
+          onClose={() => {}}
+        />
+      )}
     </div>
   );
 }
