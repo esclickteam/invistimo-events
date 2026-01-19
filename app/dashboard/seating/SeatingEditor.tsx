@@ -15,7 +15,7 @@ type SeatingEditorProps = {
 /* ============================================================
    EXPORT — WRAPPER ONLY
 ============================================================ */
-export default function SeatingEditor({
+ export default function SeatingEditor({
   background,
   readOnly = false,
   showStats = false,
