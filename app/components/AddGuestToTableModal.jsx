@@ -59,12 +59,9 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = (tableData.seatedGuests || []).reduce((sum, sg) => {
-  const g = tableGuests.find(
-    (gg) => getGuestId(gg) === String(sg.guestId)
-  );
-  return sum + getPartySize(g);
-}, 0);
+  const occupied = tableData.seatedGuests?.length ?? 0;
+  
+
 
 const remainingSeats = tableData.seats - occupied;
 
