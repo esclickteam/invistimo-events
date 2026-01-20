@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import InvitationGuest from "@/models/InvitationGuest";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -25,58 +24,21 @@ export async function GET() {
     const producerId = auth.userId;
 
     /* =========================
-       👥 Fetch clients (לא מסננים!)
+       👥 Fetch clients
+       🔑 Single Source of Truth: producerId
     ========================= */
     const clients = await User.find({
       role: "client",
-      producerId,
+      producerId: producerId,
     })
-      .populate({
-        path: "eventId",
-        select: "date location maxGuests",
-      })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    /* =========================
-       📊 חישובי אישרו הגעה
-       ⚠️ רק אם יש event
-    ========================= */
-    const result = await Promise.all(
-      clients.map(async (client) => {
-        let approvedCount = 0;
-
-        if (client.eventId && client.eventId._id) {
-          const guests = await InvitationGuest.find({
-            eventId: client.eventId._id,
-            rsvp: "yes",
-          }).lean();
-
-          approvedCount = guests.reduce(
-            (sum, g) => sum + Number(g.guestsCount || 0),
-            0
-          );
-        }
-
-        return {
-          ...client,
-
-          // 👇 זה בדיוק מה שה־UI מצפה לו
-          event: client.eventId
-            ? {
-                date: client.eventId.date ?? null,
-                location: client.eventId.location ?? null,
-                totalGuests: client.eventId.maxGuests ?? 0,
-                approvedCount,
-              }
-            : null,
-        };
-      })
-    );
+      .select(
+        "name email phone guests includeCalls plan planLimits hasPaid createdAt"
+      )
+      .sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,
-      clients: result,
+      clients,
     });
   } catch (error) {
     console.error("❌ ERROR FETCHING PRODUCER CLIENTS:", error);
