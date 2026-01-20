@@ -10,6 +10,7 @@ import MobileGuests from "./MobileGuests";
 import GroupSidebar from "@/app/components/seating/GroupSidebar";
 
 
+
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 import ExportSeatingPdf from "./ExportSeatingPdf";
@@ -51,6 +52,10 @@ export default function SeatingPage() {
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
   const guests = useSeatingStore((s) => s.guests);
+  const setGroups = useSeatingStore((s) => s.setGroups);
+  const groups = useSeatingStore((s) => s.groups);
+
+
 
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
@@ -102,31 +107,46 @@ export default function SeatingPage() {
       : g.guestsCount || 1,
 }));
 
+
+
         /* 3️⃣ שולחנות + אזורים + קנבס */
         const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
-        if (tRes.status === 403) {
-          setBlocked(true);
-          setShowUpgrade(true);
-          return;
-        }
+if (tRes.status === 403) {
+  setBlocked(true);
+  setShowUpgrade(true);
+  return;
+}
 
-        const tData = await tRes.json();
+const tData = await tRes.json();
 
-        init(
-          tData.tables || [],
-          normalizedGuests,
-          tData.background ?? null,
-          tData.canvasView ?? null
-        );
+/* 3️⃣ INIT – טבלאות + אורחים + קנבס */
+init(
+  tData.tables || [],
+  normalizedGuests,
+  tData.background ?? null,
+  tData.canvasView ?? null
+);
 
-        setZones(tData.zones || []);
+setZones(tData.zones || []);
+
+/* 4️⃣ קבוצות – חייב לבוא אחרי init */
+const grRes = await fetch(`/api/seating/groups/${eventIdFromApi}`);
+if (grRes.ok) {
+  const grData = await grRes.json();
+  setGroups(grData.groups || []);
+}
+
+
+      
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       }
     }
+    
 
     load();
-  }, [init, setZones]);
+  }, [init, setZones, setGroups]);
+
 
   const tablesLite = tables as unknown as TableLite[];
 
@@ -208,6 +228,7 @@ export default function SeatingPage() {
       body: JSON.stringify({
         tables,
         guests,
+        groups,
         background,
         zones,
         canvasView: cv,
