@@ -62,6 +62,9 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     0
   );
 
+  const remainingSeats = tableData.seats - occupied;
+
+
   /* ================= אורחים זמינים ================= */
 
   const availableGuests = useMemo(() => {
@@ -78,7 +81,13 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   // ✅ רק מי שאישר הגעה
   const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
 
-  return isYes && !hasTable && !seatedIds.has(id);
+  return (
+  isYes &&
+  !hasTable &&
+  !seatedIds.has(id) &&
+  getPartySize(g) <= remainingSeats
+);
+
 });
 
   }, [tableGuests]);
@@ -225,8 +234,9 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                           >
                             <span className="truncate">{g2.name}</span>
                             <span className="text-gray-500">
-                              {getPartySize(g2)}
-                            </span>
+  {remainingSeats}
+</span>
+
                           </div>
                         ))
                       )}
