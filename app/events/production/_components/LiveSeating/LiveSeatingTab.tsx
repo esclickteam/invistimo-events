@@ -198,7 +198,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       <div className="flex-1 relative overflow-hidden">
 
   {/* 🔧 ACTION BAR – הוסף שולחן + שמירה */}
-  <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+  <div className="absolute top-16 left-4 z-20 flex items-center gap-2">
+
     
     {/* ➕ הוסף שולחן – כבר קיים אצלך */}
     <button className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-1">
