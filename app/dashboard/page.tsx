@@ -11,7 +11,9 @@ import EventCountdown from "../components/EventCountdown";
 import GuestsMobileList from "./components/GuestsMobileList";
 import { usePathname } from "next/navigation";
 import DemoToast from "../components/DemoToast";
+import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import Link from "next/link";
+
 
 
 type EventModel = {
@@ -37,16 +39,20 @@ type Guest = {
   token: string;
 
   relation?: string;
+
+  /* ⭐ קבוצות */
+  groupId?: string | null;
+
   tableName?: string;
   tableNumber?: number;
 
   rsvp: "yes" | "no" | "pending";
   guestsCount: number;
 
-  arrivedCount?: number; // ✅ נוכחות בפועל
-
+  arrivedCount?: number;
   notes?: string;
 };
+
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
@@ -906,6 +912,8 @@ console.log("INVITATION:", invitation);
         <th className="p-3 text-right">טלפון</th>
         <th className="p-3 text-right">קרבה</th>
 
+        <th className="p-3 text-right">קבוצה</th>
+
         <th
           className="p-3 text-right cursor-pointer select-none"
           onClick={() => toggleSort("rsvp")}
@@ -945,6 +953,22 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.name}</td>
           <td className="p-3">{formatPhone(g.phone)}</td>
           <td className="p-3">{g.relation?.trim() || "-"}</td>
+          <td className="p-3">
+  <GuestGroupSelect
+    value={g.groupId}
+    onChange={(groupId) => {
+      // Client-only update
+      setGuests((prev) =>
+        prev.map((guest) =>
+          guest._id === g._id
+            ? { ...guest, groupId }
+            : guest
+        )
+      );
+    }}
+  />
+</td>
+
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
 
