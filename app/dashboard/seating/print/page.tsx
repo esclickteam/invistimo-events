@@ -91,16 +91,14 @@ export default function SeatingPrintPage() {
               if (!guest) return null;
 
               return {
-                name: guest.name,
-                arrived: guest.arrivedCount ?? 1,
-              };
+  name: guest.name,
+  arrived: 1, // ✅ כל כיסא נספר פעם אחת
+};
             })
             .filter(Boolean) as { name: string; arrived: number }[];
 
-          const arrivedTotal = rows.reduce(
-            (sum, r) => sum + r.arrived,
-            0
-          );
+          const arrivedTotal = rows.length;
+
 
           const capacity = table.seats ?? arrivedTotal;
 
