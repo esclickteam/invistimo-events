@@ -138,30 +138,6 @@ function SeatingEditorInner({
   }, [canvasView]);
 
 
-useEffect(() => {
-  if (!readOnly) return;
-  if (!tables.length) return;
-  if (size.width === 0 || size.height === 0) return;
-
-  // ⭐ אם כבר יש canvasView מה־snapshot – לא נוגעים
-  if (
-    canvasView &&
-    (canvasView.x !== 0 ||
-      canvasView.y !== 0 ||
-      canvasView.scale !== 1)
-  ) {
-    return;
-  }
-
-  fitCanvasToTables(size.width, size.height);
-}, [
-  readOnly,
-  tables,
-  size.width,
-  size.height,
-  canvasView,
-  fitCanvasToTables,
-]);
 
 
 
