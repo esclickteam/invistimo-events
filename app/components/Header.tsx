@@ -103,13 +103,7 @@ export default function Header() {
       חבילות ומחירים
     </Link>
 
-    <Link
-  href="/credit-gifts"
-  onClick={onClick}
-  className="hover:text-[var(--champagne-dark)] transition"
->
-  מתנות באשראי
-</Link>
+
 
 <Link
   href="/event-management"
