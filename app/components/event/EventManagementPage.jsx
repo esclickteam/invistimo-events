@@ -24,7 +24,8 @@ export default function EventManagementPage() {
         <div className="absolute inset-0 bg-black/55" />
 
         <div className="relative z-10 max-w-4xl px-4 text-center text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+
             תכנון והפקת אירועים
           </h1>
           <p className="text-lg md:text-xl opacity-90">
@@ -40,18 +41,7 @@ export default function EventManagementPage() {
         </div>
       </section>
 
-      {/* ליווי מלא */}
-      <section className="max-w-5xl mx-auto px-4 py-20 text-center">
-        <h2 className="text-3xl font-bold text-[#1f3b5c] mb-4">
-          ליווי מלא באירוע
-        </h2>
-        <p className="text-gray-700 max-w-3xl mx-auto leading-relaxed">
-          אנחנו כאן כדי לעזור לכם לעשות את זה כמו שצריך.
-          <br />
-          מניהול משימות, דרך תיאום ספקים ועד תפעול בזמן אמת ביום האירוע –
-          הכל במקום אחד, בצורה מסודרת, חכמה ורגועה.
-        </p>
-      </section>
+
 
       {/* כרטיסים */}
       <section className="bg-gradient-to-b from-[#1f3b5c] to-[#162b45] py-20">
