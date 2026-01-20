@@ -84,7 +84,6 @@ function SeatingEditorInner({
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
-  const didAutoFit = useRef(false);
 
   
 
@@ -139,13 +138,28 @@ function SeatingEditorInner({
 
 useEffect(() => {
   if (!readOnly) return;
-  if (didAutoFit.current) return; // ⭐ פעם אחת בלבד
   if (!tables.length) return;
   if (size.width === 0 || size.height === 0) return;
 
+  // ⭐ אם כבר יש canvasView מה־snapshot – לא נוגעים
+  if (
+    canvasView &&
+    (canvasView.x !== 0 ||
+      canvasView.y !== 0 ||
+      canvasView.scale !== 1)
+  ) {
+    return;
+  }
+
   fitCanvasToTables(size.width, size.height);
-  didAutoFit.current = true;
-}, [readOnly, tables.length, size.width, size.height, fitCanvasToTables]);
+}, [
+  readOnly,
+  tables,
+  size.width,
+  size.height,
+  canvasView,
+  fitCanvasToTables,
+]);
 
 
 
