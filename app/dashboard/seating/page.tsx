@@ -252,7 +252,8 @@ export default function SeatingPage() {
      RENDER
   =============================== */
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden pb-20">
+
       {/* HEADER */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
@@ -266,12 +267,7 @@ export default function SeatingPage() {
               העלאת תבנית אולם
             </button>
 
-            <button
-              onClick={saveSeating}
-              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg"
-            >
-              💾 שמירת הושבה
-            </button>
+            
           </div>
         </div>
 
@@ -328,6 +324,38 @@ export default function SeatingPage() {
           }}
         />
       )}
+
+
+{/* ===============================
+    STICKY SAVE BAR
+=============================== */}
+<div
+  className="
+    fixed bottom-0 inset-x-0 z-40
+    bg-white
+    border-t border-gray-200
+    shadow-[0_-4px_12px_rgba(0,0,0,0.06)]
+  "
+>
+  <div className="max-w-7xl mx-auto px-4 py-3 flex justify-end">
+    <button
+      onClick={saveSeating}
+      className="
+        px-6 py-2 rounded-full
+        bg-green-600 text-white
+        font-semibold
+        hover:bg-green-700
+        transition
+      "
+    >
+      💾 שמירת הושבה
+    </button>
+  </div>
+</div>
+
+
+
+
     </div>
   );
 }
