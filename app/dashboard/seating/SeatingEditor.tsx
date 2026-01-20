@@ -73,8 +73,6 @@ function SeatingEditorInner({
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
-  const stageRef = useRef<any>(null);
-
 
   const canvasView = useSeatingStore((s) => s.canvasView);
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
@@ -122,34 +120,6 @@ function SeatingEditorInner({
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  useEffect(() => {
-  if (!tables.length) return;
-  if (!size.width || !size.height) return;
-
-  // ⛔ אם כבר יש canvasView – לא נוגעים
-  if (canvasView) return;
-
-  // ⛔ אם ה־Stage עוד לא mounted
-  if (!stageRef.current) return;
-
-  // 🔹 מרכז ממוצע של השולחנות
-  const avgX =
-    tables.reduce((sum, t) => sum + t.x, 0) / tables.length;
-  const avgY =
-    tables.reduce((sum, t) => sum + t.y, 0) / tables.length;
-
-  const x = size.width / 2 - avgX;
-  const y = size.height / 2 - avgY;
-
-  setStagePos({ x, y });
-  setScale(1);
-
-  // 🔒 שמירה חד־פעמית
-  setCanvasView({ x, y, scale: 1 });
-}, [tables, size.width, size.height]);
-
-
-
   /* ================= ZOOM & PAN ================= */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
@@ -168,7 +138,30 @@ function SeatingEditorInner({
   }, [canvasView]);
 
 
+useEffect(() => {
+  if (!readOnly) return;
+  if (!tables.length) return;
+  if (size.width === 0 || size.height === 0) return;
 
+  // ⭐ אם כבר יש canvasView מה־snapshot – לא נוגעים
+  if (
+    canvasView &&
+    (canvasView.x !== 0 ||
+      canvasView.y !== 0 ||
+      canvasView.scale !== 1)
+  ) {
+    return;
+  }
+
+  fitCanvasToTables(size.width, size.height);
+}, [
+  readOnly,
+  tables,
+  size.width,
+  size.height,
+  canvasView,
+  fitCanvasToTables,
+]);
 
 
 
@@ -276,16 +269,15 @@ function SeatingEditorInner({
 
       {size.width > 0 && size.height > 0 && (
   <Stage
-  ref={stageRef}
-  width={size.width}
-  height={size.height}
-  scaleX={scale}
-  scaleY={scale}
-  x={stagePos.x}
-  y={stagePos.y}
-  onWheel={handleWheel}
-  onMouseMove={handleMouseMove}
->
+    width={size.width}
+    height={size.height}
+    scaleX={scale}
+    scaleY={scale}
+    x={stagePos.x}
+    y={stagePos.y}
+    onWheel={handleWheel}
+    onMouseMove={handleMouseMove}
+  >
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
         </Layer>
