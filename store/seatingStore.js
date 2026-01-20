@@ -53,6 +53,44 @@ export const useSeatingStore = create((set, get) => ({
       canvasView: view,
     }),
 
+    /* ================= ⭐ AUTO FIT CANVAS ================= */
+fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
+  const { tables } = get();
+  if (!tables || tables.length === 0) return;
+
+  // נקודות קצה של כל השולחנות
+  const xs = tables.map((t) => t.x);
+  const ys = tables.map((t) => t.y);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  const contentWidth = maxX - minX + padding * 2;
+  const contentHeight = maxY - minY + padding * 2;
+
+  const scale = Math.min(
+    stageWidth / contentWidth,
+    stageHeight / contentHeight,
+    1 // לא להגדיל מעבר ל־1
+  );
+
+  const x =
+    stageWidth / 2 - ((minX + maxX) / 2) * scale;
+  const y =
+    stageHeight / 2 - ((minY + maxY) / 2) * scale;
+
+  set({
+    canvasView: {
+      scale,
+      x,
+      y,
+    },
+  });
+},
+
+
   setTables: (tables) =>
     set(() => ({
       tables: tables || [],

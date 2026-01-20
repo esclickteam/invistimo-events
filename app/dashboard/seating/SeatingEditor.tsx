@@ -75,6 +75,11 @@ function SeatingEditorInner({
   const canvasView = useSeatingStore((s) => s.canvasView);
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
+  const fitCanvasToTables = useSeatingStore(
+  (s) => s.fitCanvasToTables
+);
+
+
   const zones = useZoneStore((s) => s.zones);
   const selectedZoneId = useZoneStore((s) => s.selectedZoneId);
   const removeZone = useZoneStore((s) => s.removeZone);
@@ -132,55 +137,18 @@ function SeatingEditorInner({
   }, [canvasView]);
 
 
-/* ===============================
-   AUTO FIT – Producer only (SAFE)
-=============================== */
 useEffect(() => {
   if (!readOnly) return;
-  if (didAutoFit.current) return;
+  if (didAutoFit.current) return; // ⭐ פעם אחת בלבד
   if (!tables.length) return;
   if (size.width === 0 || size.height === 0) return;
 
-  const isDefault =
-    !canvasView ||
-    (canvasView.scale === 1 &&
-      canvasView.x === 0 &&
-      canvasView.y === 0);
-
-  if (!isDefault) return;
-
-  const minX = Math.min(...tables.map((t) => t.x));
-  const maxX = Math.max(...tables.map((t) => t.x));
-  const minY = Math.min(...tables.map((t) => t.y));
-  const maxY = Math.max(...tables.map((t) => t.y));
-
-  const PAD = 400;
-
-  const contentW = Math.max(1, maxX - minX);
-  const contentH = Math.max(1, maxY - minY);
-
-  const scale = Math.max(
-    0.4,
-    Math.min(
-      3,
-      Math.min(
-        size.width / (contentW + PAD),
-        size.height / (contentH + PAD)
-      )
-    )
-  );
-
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  const x = size.width / 2 - centerX * scale;
-  const y = size.height / 2 - centerY * scale;
-
-  console.log("🟣 Producer AutoFit FINAL", { x, y, scale });
-
+  fitCanvasToTables(size.width, size.height);
   didAutoFit.current = true;
-  setCanvasView({ x, y, scale });
-}, [readOnly, tables, canvasView, size, setCanvasView]);
+}, [readOnly, tables.length, size.width, size.height, fitCanvasToTables]);
+
+
+
 
 
 
