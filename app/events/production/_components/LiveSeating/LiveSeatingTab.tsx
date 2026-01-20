@@ -197,7 +197,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       <div className="flex-1 relative overflow-hidden">
 
   {/* 🔧 ACTION BAR – הוסף שולחן + שמירה */}
-  <div className="absolute top-16 left-4 z-20 flex items-center gap-2">
+  <div className="absolute top-24 left-4 z-20 flex items-center gap-2">
+
 
     
  
@@ -230,6 +231,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       background={background?.url || null}
       readOnly={false}
       showStats
+      
     />
   )}
 </div>
