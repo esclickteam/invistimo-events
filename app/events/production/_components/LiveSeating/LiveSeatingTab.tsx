@@ -34,9 +34,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      ✅ LIVE MODE
   =============================== */
   useEffect(() => {
-    setLiveMode(true);
-    return () => setLiveMode(false);
-  }, [setLiveMode]);
+  setLiveMode(true);
+}, [setLiveMode]);
 
   /* ===============================
      ✅ LOAD FROM LOCAL STORAGE
