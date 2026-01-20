@@ -222,8 +222,20 @@ const guestIdFromUrl = searchParams.get("guestId");
   );
 
 
-  const tableFill = isHighlighted ? "#fde047" : "#3b82f6";
-  const tableText = isHighlighted ? "#713f12" : "white";
+  const hasArrived = occupiedSeatsCount > 0;
+
+const tableFill = isHighlighted
+  ? "#fde047"           // מודגש
+  : hasArrived
+  ? "#3b82f6"           // רגיל
+  : "#e5e7eb";          // ריק (אפור בהיר)
+
+const tableText = isHighlighted
+  ? "#713f12"
+  : hasArrived
+  ? "white"
+  : "#374151";          // טקסט כהה לשולחן ריק
+
 
   const layout = useMemo(
     () => getTableLayout(table),
