@@ -301,30 +301,29 @@ const tableLabel =
 
                      <button
   onClick={() => {
-    const guestId = String(g.id ?? g._id);
-
-    console.log("🪑 CLICK GUEST", {
-      guestId,
-      tableId: g.tableId,
-      tableName: g.tableName,
-    });
-
-    // 1️⃣ ניסיון לפי seatedGuests (Live בפועל)
     let tableFromStore =
       guestTableMap.get(String(g.id)) ||
       guestTableMap.get(String(g._id));
 
-    // 2️⃣ fallback – לפי tableId מהאורח
+    // ✅ fallback לפי tableId
     if (!tableFromStore && g.tableId) {
       tableFromStore = tables.find(
         (t) => String(t.id) === String(g.tableId)
       );
     }
 
-    console.log("🔎 FINAL tableFromStore:", tableFromStore);
+    // ✅ fallback אחרון – לפי tableName
+    if (!tableFromStore && g.tableName) {
+      tableFromStore = tables.find(
+        (t) => t.name === g.tableName
+      );
+    }
 
     if (!tableFromStore) {
-      console.warn("❌ NO TABLE FOUND");
+      console.warn("❌ NO TABLE FOUND", {
+        guest: g,
+        tables,
+      });
       return;
     }
 
@@ -336,6 +335,7 @@ const tableLabel =
 >
   🪑
 </button>
+
 
 
 
