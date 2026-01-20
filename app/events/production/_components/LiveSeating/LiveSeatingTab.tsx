@@ -171,7 +171,9 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-[#faf8f4]">
+    <div className="flex flex-col border rounded-xl bg-[#faf8f4]">
+
+
       <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
         {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
@@ -186,8 +188,11 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       
       </div>
 
-      <div className="flex flex-row-reverse flex-1 overflow-hidden">
-        <div className="flex-1 relative">
+      <div className="flex flex-row-reverse min-h-[600px]">
+
+
+        <div className="flex-1 relative overflow-hidden">
+
           {!hasImported ? (
             <div className="flex items-center justify-center h-full text-gray-500">
               טרם יובאה מפת הושבה

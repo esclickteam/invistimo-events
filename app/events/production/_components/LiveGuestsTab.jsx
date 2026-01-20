@@ -199,7 +199,8 @@ if (!guests.length) {
   return (
     <div className="flex flex-col gap-6" dir="rtl">
       {/* Header actions */}
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-3 pt-2">
+
         <button
           onClick={() => setOpenAddModal(true)}
           className="px-4 py-2 bg-black text-white rounded"
