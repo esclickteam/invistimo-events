@@ -13,7 +13,10 @@ function dlog(...args) {
    מחשב סדר מושבים ויזואלי סביב השולחן
 ============================================================ */
 function getVisualOrder(table) {
-  const coords = getSeatCoordinates(table);
+  const seats = Number(table.seats || 0);
+
+  // ⛔ הגנה: לא יותר כיסאות מהמוגדר
+  const coords = getSeatCoordinates(table).slice(0, seats);
 
   const ordered = coords
     .map((c, seatIndex) => ({
@@ -31,6 +34,7 @@ function getVisualOrder(table) {
 
   return ordered.map((o) => o.seatIndex);
 }
+
 
 /* ============================================================
    FIND CONTIGUOUS BLOCK (VISUAL)
