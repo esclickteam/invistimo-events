@@ -7,16 +7,14 @@ import { useEffect } from "react";
 export default function AccessibilityScript() {
   const pathname = usePathname();
 
-  // ✅ רק עמודים ציבוריים
-  const isPublicPage =
-    pathname === "/" ||
-    pathname.startsWith("/invitation") ||
-    pathname.startsWith("/invite") ||
-    pathname.startsWith("/rsvp");
+  const isInternal =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/producer") ||
+    pathname.startsWith("/events");
 
-  // 🔥 ניקוי אם נכנסנו למערכת
+  // 🔥 ניקוי אם נכנסנו לאזור פנימי
   useEffect(() => {
-    if (isPublicPage) return;
+    if (!isInternal) return;
 
     const selectors = [
       'iframe[src*="userway"]',
@@ -36,14 +34,14 @@ export default function AccessibilityScript() {
     delete window.UserWay;
     // @ts-ignore
     delete window._userway_config;
-  }, [isPublicPage]);
+  }, [isInternal]);
 
-  // ❌ כל מערכת פנימית – אין נגישות
-  if (!isPublicPage) {
+  // ❌ אזור מערכת – אין נגישות
+  if (isInternal) {
     return null;
   }
 
-  // ✅ רק ציבורי
+  // ✅ רק באתר הציבורי
   return (
     <Script
       id="userway-widget"
