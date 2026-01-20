@@ -25,14 +25,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
   const getPartySize = (g) => {
-  const n = Number(
-    g?.arrivedCount ??
-    g?.confirmedGuestsCount ??
-    g?.guestsCount ??
-    g?.count ??
-    1
-  );
-
+  const n = Number(g?.guestsCount ?? 1);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
 };
 
