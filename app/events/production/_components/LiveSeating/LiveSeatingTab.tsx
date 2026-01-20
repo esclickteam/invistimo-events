@@ -10,6 +10,8 @@ import { useSearchParams } from "next/navigation";
 import type { SeatingTable } from "@/types/seating";
 import { useRouter } from "next/navigation";
 
+import type { SeatingGuest } from "@/types/seating";
+
 
 
 
@@ -36,6 +38,8 @@ const tables = useSeatingStore((s) => s.tables);
 const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
 
+const guests = useSeatingStore((s) => s.guests);
+const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
@@ -53,6 +57,18 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
   useEffect(() => {
   setLiveMode(true);
 }, [setLiveMode]);
+
+useEffect(() => {
+  if (!guests || guests.length === 0) return;
+
+  guests.forEach((g: SeatingGuest) => {
+    const guestId = String(g.id ?? g._id);
+    const arrivedCount = Number(g.arrivedCount ?? 0);
+
+    syncArrivedSeats(guestId, arrivedCount);
+  });
+}, [guests, syncArrivedSeats]);
+
 
   /* ===============================
      ✅ LOAD FROM LOCAL STORAGE
