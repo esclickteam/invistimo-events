@@ -6,6 +6,10 @@ import { useEffect, useState, useCallback } from "react";
 import GuestSidebar from "@/app/dashboard/seating/GuestSidebar";
 import MobileGuests from "@/app/dashboard/seating/MobileGuests";
 import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
+import { useSearchParams } from "next/navigation";
+import type { SeatingTable } from "@/types/seating";
+
+
 
 /* 🧠 Zustand – מקור אמת */
 import { useSeatingStore } from "@/store/seatingStore";
@@ -20,6 +24,14 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const [hasImported, setHasImported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+const focusTableId = searchParams.get("focusTableId");
+
+const tables = useSeatingStore((s) => s.tables);
+const setCanvasView = useSeatingStore((s) => s.setCanvasView);
+
+
+
 
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
   const background = useSeatingStore((s) => s.background);
@@ -125,6 +137,35 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   if (!invitationId || hasImported) return;
   importData();
 }, [invitationId, hasImported, importData]);
+
+useEffect(() => {
+  if (!focusTableId || !hasImported) return;
+
+  const table = tables.find(
+  (t: SeatingTable) => String(t.id) === String(focusTableId)
+);
+  if (!table) return;
+
+  // ⭐ סימון שולחן
+  useSeatingStore.setState({ highlightedTable: table.id });
+
+  // ⭐ פוקוס קנבס
+  if (typeof table.x === "number" && typeof table.y === "number") {
+    setCanvasView({
+      scale: 1,
+      x: -table.x + window.innerWidth / 2,
+      y: -table.y + window.innerHeight / 2,
+    });
+  }
+
+  const timeout = setTimeout(() => {
+    useSeatingStore.setState({ highlightedTable: null });
+  }, 2500);
+
+  return () => clearTimeout(timeout);
+}, [focusTableId, hasImported, tables, setCanvasView]);
+
+
 
 
   /* ===============================

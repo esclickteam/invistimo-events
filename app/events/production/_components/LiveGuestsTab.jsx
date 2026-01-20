@@ -302,7 +302,7 @@ const tableLabel =
                       <button
                         onClick={() =>
                           router.push(
-                            `/dashboard/seating?from=personal&guestId=${g._id}`
+                            `/events/production?tab=live-seating&focusTableId=${table.id}`
                           )
                         }
                         title="הושבה"
