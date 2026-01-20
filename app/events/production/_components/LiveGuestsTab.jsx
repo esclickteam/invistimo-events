@@ -33,7 +33,6 @@ function confirmedCountForGuest(g) {
 export default function LiveGuestsTab({ invitationId }) {
   const router = useRouter();
 
-  const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 
 
   const [loading, setLoading] = useState(false);
@@ -42,6 +41,10 @@ export default function LiveGuestsTab({ invitationId }) {
 
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
+
+const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
+const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
+
 
 
 
@@ -130,8 +133,11 @@ setGuests(next);
   // ✅ UI מקומי
   applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
 
-  // 🔥 זה החיבור הקריטי להושבה
+  // ✅ עדכון אורח
   updateGuestArrived(guest._id, nextArrived);
+
+  // 🔥🔥🔥 זה מה שצובע את הכיסאות
+  syncArrivedSeats(guest._id, nextArrived);
 
   try {
     await fetch("/api/live-guests/arrived", {
@@ -146,6 +152,7 @@ setGuests(next);
     console.error("❌ arrivedCount update failed:", e);
   }
 }
+
 
 
 

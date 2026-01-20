@@ -1,4 +1,8 @@
-// src/types/seating.ts
+export type SeatedGuest = {
+  guestId: string;
+  seatIndex: number;
+  arrived?: boolean; // ⭐ חובה
+};
 
 export type SeatingTable = {
   id: string;
@@ -8,8 +12,5 @@ export type SeatingTable = {
   type: "round" | "square" | "rectangle";
   seats: number;
   rotation?: number;
-  seatedGuests?: {
-    guestId: string;
-    seatIndex: number;
-  }[];
+  seatedGuests?: SeatedGuest[];
 };

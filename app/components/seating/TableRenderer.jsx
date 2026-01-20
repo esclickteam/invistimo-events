@@ -201,16 +201,24 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const seatInfoMap = useMemo(() => {
   const map = new Map();
+
   assigned.forEach((s) => {
     const g = guests.find(
       (guest) =>
-        String(guest.id) === String(s.guestId) ||
-        String(guest._id) === String(s.guestId)
+        String(guest.id ?? guest._id) === String(s.guestId)
     );
-    if (g) map.set(s.seatIndex, { guest: g });
+
+    if (g) {
+      map.set(s.seatIndex, {
+        guest: g,
+        arrived: Boolean(s.arrived), // ⭐ קריטי
+      });
+    }
   });
+
   return map;
 }, [assigned, guests]);
+
 
   const isHighlighted =
   highlightedTable === table.id ||
@@ -435,14 +443,30 @@ const tableText = isHighlighted
 
       {/* כסאות */}
 {seatsCoords.map((c, i) => {
-  const guest = seatInfoMap.get(i)?.guest;
+  const seatInfo = seatInfoMap.get(i); // ⭐ כולל arrived
   const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-  // 🎨 צבעים
-  const isOccupied = Boolean(guest); // אם יש אורח שיושב
-  const seatTopFill = isOccupied ? "#bdbdbd" : "#bfdbfe";   // אפור אם תפוס
-  const seatBodyFill = isOccupied ? "#9e9e9e" : "#3b82f6";  // אפור כהה אם תפוס
-  const seatStroke = isOccupied ? "#8a8a8a" : "#2563eb";    // קו תואם
+  const isSeated = Boolean(seatInfo);               // הושיבו
+  const isArrived = seatInfo?.arrived === true;     // הגיע בפועל
+
+  const seatTopFill = isArrived
+    ? "#bfdbfe"        // 🔵 הגיע
+    : isSeated
+    ? "#e5e7eb"        // ⚪ הושיבו אבל לא הגיע
+    : "#bfdbfe";       // פנוי
+
+  const seatBodyFill = isArrived
+    ? "#3b82f6"
+    : isSeated
+    ? "#9ca3af"
+    : "#3b82f6";
+
+  const seatStroke = isArrived
+    ? "#2563eb"
+    : isSeated
+    ? "#6b7280"
+    : "#2563eb";
+  // קו תואם
 
   return (
     <Group key={i} x={c.x} y={c.y} rotation={rotation}>

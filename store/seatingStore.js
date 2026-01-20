@@ -659,6 +659,42 @@ updateGuestArrived: (guestId, arrivedCount) =>
     ),
   })),
 
+  
+syncArrivedSeats: (guestId, arrivedCount) =>
+  set((state) => {
+    const tables = state.tables.map((table) => {
+      if (!Array.isArray(table.seatedGuests)) return table;
+
+      // כל הכיסאות של האורח – מסודרים לפי seatIndex
+      const guestSeats = table.seatedGuests
+        .filter((sg) => String(sg.guestId) === String(guestId))
+        .sort((a, b) => a.seatIndex - b.seatIndex);
+
+      if (guestSeats.length === 0) return table;
+
+      let arrivedLeft = Number(arrivedCount) || 0;
+
+      const updatedSeats = table.seatedGuests.map((sg) => {
+        if (String(sg.guestId) !== String(guestId)) return sg;
+
+        const isArrived = arrivedLeft > 0;
+        if (isArrived) arrivedLeft--;
+
+        return {
+          ...sg,
+          arrived: isArrived,
+        };
+      });
+
+      return {
+        ...table,
+        seatedGuests: updatedSeats,
+      };
+    });
+
+    return { tables };
+  }),
+
 
 
 }));
