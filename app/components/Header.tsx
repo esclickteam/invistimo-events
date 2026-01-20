@@ -104,20 +104,30 @@ export default function Header() {
     </Link>
 
     <Link
-      href="/credit-gifts"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      מתנות באשראי
-    </Link>
+  href="/credit-gifts"
+  onClick={onClick}
+  className="hover:text-[var(--champagne-dark)] transition"
+>
+  מתנות באשראי
+</Link>
 
-    <Link
-      href="/contact"
-      onClick={onClick}
-      className="hover:text-[var(--champagne-dark)] transition"
-    >
-      צור קשר
-    </Link>
+<Link
+  href="/event-management"
+  onClick={onClick}
+  className="hover:text-[var(--champagne-dark)] transition"
+>
+  ניהול והפקת אירוע
+</Link>
+
+<Link
+  href="/contact"
+  onClick={onClick}
+  className="hover:text-[var(--champagne-dark)] transition"
+>
+  צור קשר
+</Link>
+
+
   </>
 );
 
