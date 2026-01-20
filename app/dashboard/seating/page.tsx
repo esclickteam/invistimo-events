@@ -256,7 +256,8 @@ export default function SeatingPage() {
      RENDER
   =============================== */
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden pb-20">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+
 
       {/* HEADER */}
 <div className="bg-white shadow-sm border-b sticky top-0 z-30">
