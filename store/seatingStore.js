@@ -677,33 +677,39 @@ syncArrivedSeats: (guestId, arrivedCount) =>
     const tables = state.tables.map((table) => {
       if (!table.seatedGuests) return table;
 
-      // כל הכיסאות של האורח – ממוינים
+      // כל הכיסאות של האורח – ממוינים לפי seatIndex
       const guestSeats = table.seatedGuests
         .filter((sg) => String(sg.guestId) === String(guestId))
         .sort((a, b) => a.seatIndex - b.seatIndex);
 
       if (!guestSeats.length) return table;
 
-      const arrivedSeatIds = new Set(
-  guestSeats.slice(0, arrivedCount).map((s) => s)
-);
+      // ✂️ משאירים רק arrivedCount כיסאות
+      const seatsToKeep = guestSeats.slice(0, arrivedCount);
 
+      const updatedSeats = table.seatedGuests.filter((sg) => {
+        if (String(sg.guestId) !== String(guestId)) return true;
 
-      const updatedSeats = table.seatedGuests.map((sg) => {
-  if (String(sg.guestId) !== String(guestId)) return sg;
+        // רק הכיסאות שנשארו
+        return seatsToKeep.includes(sg);
+      });
 
-  return {
-    ...sg,
-    arrived: arrivedSeatIds.has(sg),
-  };
-});
+      // מסמנים arrived=true רק לאלה שנשארו
+      const finalSeats = updatedSeats.map((sg) => {
+        if (String(sg.guestId) !== String(guestId)) return sg;
 
+        return {
+          ...sg,
+          arrived: true,
+        };
+      });
 
-      return { ...table, seatedGuests: updatedSeats };
+      return { ...table, seatedGuests: finalSeats };
     });
 
     return { tables };
   }),
+
 
 
 
