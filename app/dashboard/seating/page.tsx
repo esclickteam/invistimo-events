@@ -35,6 +35,8 @@ export default function SeatingPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
 
   /* Drawer אורחים במובייל */
   const [showGuests, setShowGuests] = useState(false);
@@ -298,24 +300,46 @@ export default function SeatingPage() {
 
       {/* CONTENT */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
-        <div className="flex-1 relative">
-          <SeatingEditor background={background?.url || null} />
-        </div>
 
-        <aside className="hidden md:block w-72 bg-white border-l">
-          <Suspense
-            fallback={
-              <div className="p-4 text-sm text-gray-400">
-                טוען אורחים...
-              </div>
-            }
-          >
-            <GuestSidebar
-              variant="desktop"
-              onDragStart={handleDragStart}
-            />
-          </Suspense>
-        </aside>
+  {/* 🔘 כפתור הצגה / הסתרה של הסיידבר */}
+  <button
+    onClick={() => setSidebarOpen((v) => !v)}
+    className="
+      absolute top-24 right-2 z-40
+      bg-white border rounded-full
+      w-9 h-9 flex items-center justify-center
+      shadow hover:bg-gray-50
+      transition
+    "
+    title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
+  >
+    {sidebarOpen ? "›" : "‹"}
+  </button>
+
+  {/* 🎨 קנבס */}
+  <div className="flex-1 relative">
+    <SeatingEditor background={background?.url || null} />
+  </div>
+
+  {/* 🧾 סיידבר אורחים */}
+  {sidebarOpen && (
+    <aside className="hidden md:block w-72 bg-white border-l">
+      <Suspense
+        fallback={
+          <div className="p-4 text-sm text-gray-400">
+            טוען אורחים...
+          </div>
+        }
+      >
+        <GuestSidebar
+          variant="desktop"
+          onDragStart={handleDragStart}
+        />
+      </Suspense>
+    </aside>
+)}
+
+
 
         <button
           onClick={() => setShowGuests(true)}
