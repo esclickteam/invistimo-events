@@ -82,7 +82,8 @@ export default function SeatingPrintPage() {
         סידור הושבה
       </h1>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 print:grid-cols-2 gap-6">
+
         {tables.map((table) => {
           const rows = table.seatedGuests
             .map((sg) => {
