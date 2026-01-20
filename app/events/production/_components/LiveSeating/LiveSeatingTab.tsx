@@ -186,14 +186,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
             💾 שמירת הושבה
           </button>
         )}
-
-        <button
-          onClick={importData}
-          disabled={loading}
-          className="px-4 py-2 bg-black text-white rounded-lg disabled:opacity-60"
-        >
-          {loading ? "מייבא..." : "📥 ייבוא הושבה"}
-        </button>
+      
       </div>
 
       <div className="flex flex-row-reverse flex-1 overflow-hidden">
