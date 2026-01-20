@@ -62,10 +62,14 @@ useEffect(() => {
   if (!guests || guests.length === 0) return;
 
   guests.forEach((g: SeatingGuest) => {
+
     const guestId = String(g.id ?? g._id);
     const arrivedCount = Number(g.arrivedCount ?? 0);
 
-    syncArrivedSeats(guestId, arrivedCount);
+    // ⭐️ קריטי: לא לגעת בכיסאות אם לא הגיעו
+    if (arrivedCount > 0) {
+      syncArrivedSeats(guestId, arrivedCount);
+    }
   });
 }, [guests, syncArrivedSeats]);
 
