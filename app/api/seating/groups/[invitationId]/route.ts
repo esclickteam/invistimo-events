@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Group from "@/models/Group";
 
@@ -6,13 +6,13 @@ import Group from "@/models/Group";
    GET /api/seating/groups/:invitationId
 =============================== */
 export async function GET(
-  req: Request,
-  { params }: { params: { invitationId: string } }
+  request: NextRequest,
+  context: { params: Promise<{ invitationId: string }> }
 ) {
   try {
     await dbConnect();
 
-    const { invitationId } = params;
+    const { invitationId } = await context.params;
 
     if (!invitationId) {
       return NextResponse.json(
