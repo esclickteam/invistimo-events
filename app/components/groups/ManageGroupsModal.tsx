@@ -7,22 +7,75 @@ import { useGroupStore } from "@/store/groupStore";
 type Props = {
   open: boolean;
   onClose: () => void;
+  invitationId: string; // ⭐ חובה לשמירה
 };
 
-export default function ManageGroupsModal({ open, onClose }: Props) {
+export default function ManageGroupsModal({
+  open,
+  onClose,
+  invitationId,
+}: Props) {
   const groups = useGroupStore((s) => s.groups);
-  const addGroup = useGroupStore((s) => s.addGroup);
-  const updateGroup = useGroupStore((s) => s.updateGroup);
-  const removeGroup = useGroupStore((s) => s.removeGroup);
+  const setGroups = useGroupStore((s) => s.setGroups);
 
   const [newGroupName, setNewGroupName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   if (!open) return null;
 
-  const handleAdd = () => {
-    if (!newGroupName.trim()) return;
-    addGroup(newGroupName.trim());
-    setNewGroupName("");
+  /* ===============================
+     ➕ יצירת קבוצה
+  =============================== */
+  const handleAdd = async () => {
+    if (!newGroupName.trim() || !invitationId) return;
+
+    setSaving(true);
+
+    try {
+      const res = await fetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invitationId,
+          name: newGroupName.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) return;
+
+      setGroups([...groups, data.group]);
+      setNewGroupName("");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ===============================
+     ✏️ עדכון שם קבוצה
+  =============================== */
+  const handleRename = async (id: string, name: string) => {
+    // UX מיידי
+    setGroups(
+      groups.map((g) => (g._id === id ? { ...g, name } : g))
+    );
+
+    await fetch(`/api/groups/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  };
+
+  /* ===============================
+     🗑️ מחיקת קבוצה
+  =============================== */
+  const handleDelete = async (id: string) => {
+    setGroups(groups.filter((g) => g._id !== id));
+
+    await fetch(`/api/groups/${id}`, {
+      method: "DELETE",
+    });
   };
 
   return (
@@ -43,12 +96,13 @@ export default function ManageGroupsModal({ open, onClose }: Props) {
             placeholder="שם קבוצה"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
-            className="flex-1 rounded-full border px-4 py-2 text-sm outline-none"
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            className="flex-1 rounded-full border px-4 py-2 text-sm outline-none"
           />
           <button
             onClick={handleAdd}
-            className="flex items-center gap-1 rounded-full bg-[#EAD3C4] px-4 py-2 text-sm font-medium"
+            disabled={saving}
+            className="flex items-center gap-1 rounded-full bg-[#EAD3C4] px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             הוסף
@@ -72,13 +126,13 @@ export default function ManageGroupsModal({ open, onClose }: Props) {
                 type="text"
                 value={group.name}
                 onChange={(e) =>
-                  updateGroup(group._id, { name: e.target.value })
+                  handleRename(group._id, e.target.value)
                 }
                 className="flex-1 bg-transparent text-sm outline-none"
               />
 
               <button
-                onClick={() => removeGroup(group._id)}
+                onClick={() => handleDelete(group._id)}
                 className="text-gray-400 hover:text-red-500"
                 title="מחיקת קבוצה"
               >

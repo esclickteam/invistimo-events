@@ -1176,6 +1176,7 @@ onSeat={(g) =>
 <ManageGroupsModal
   open={openGroupModal}
   onClose={() => setOpenGroupModal(false)}
+  invitationId={invitationId}
 />
 
 
