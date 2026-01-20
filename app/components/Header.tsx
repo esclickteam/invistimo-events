@@ -29,6 +29,7 @@ export default function Header() {
           bg-[#f5eee7]
           bg-[url('/noise.png')] bg-repeat
           border-b border-[#e2d6c8]
+          print:hidden
         "
       >
         <div className="h-full px-4 md:px-10 grid grid-cols-[1fr_auto_1fr] items-center">
@@ -130,6 +131,7 @@ export default function Header() {
           bg-[url('/noise.png')] bg-repeat
           border-b border-[#e2d6c8]
           shadow-sm
+          print:hidden
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
@@ -228,7 +230,8 @@ export default function Header() {
 
       {/* ================= MOBILE DRAWER (רק מחוץ לדשבורד) ================= */}
       {!isDashboard && mobileOpen && (
-        <div className="fixed inset-0 z-[60] md:hidden">
+          <div className="fixed inset-0 z-[60] md:hidden print:hidden">
+
           {/* overlay */}
           <div
             className="absolute inset-0 bg-black/40"

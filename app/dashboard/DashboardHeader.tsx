@@ -47,8 +47,12 @@ export default function DashboardHeader({
      ⬅️ Producer Header Override (בלי לשנות לוגיקה)
   ============================================================ */
   if (role === "producer") {
-    return <ProducerDashboardHeader />;
-  }
+  return (
+    <div className="print:hidden">
+      <ProducerDashboardHeader />
+    </div>
+  );
+}
 
   /* ============================================================
      התנתקות רגילה
@@ -89,6 +93,7 @@ export default function DashboardHeader({
         border-b border-[#e2d6c8]
         bg-[#f5eee7]
         bg-[url('/noise.png')] bg-repeat
+        print:hidden
       `}
     >
       <div
