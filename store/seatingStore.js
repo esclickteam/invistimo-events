@@ -108,15 +108,22 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
-  const { guests } = get();
+  const { guests, isLiveMode } = get();
 
   return guests
     .filter((g) => g.groupId === groupId)
     .reduce(
-      (sum, g) => sum + Number(g.guestsCount || 0),
+      (sum, g) =>
+        sum +
+        Number(
+          isLiveMode
+            ? g.arrivedCount || 0
+            : g.guestsCount || 0
+        ),
       0
     );
 },
+
 
 
   /* ================= ⭐ GROUPS ================= */
@@ -160,10 +167,19 @@ seatGroup: (groupId, tableId) => {
     (g) => g.groupId === groupId
   );
 
-  const totalCount = groupGuests.reduce(
-    (sum, g) => sum + Number(g.guestsCount || 0),
-    0
-  );
+  const { isLiveMode } = get();
+
+const totalCount = groupGuests.reduce(
+  (sum, g) =>
+    sum +
+    Number(
+      isLiveMode
+        ? g.arrivedCount || 0
+        : g.guestsCount || 0
+    ),
+  0
+);
+
 
   if (totalCount === 0) {
     return { ok: false, message: "אין מוזמנים בקבוצה" };
@@ -196,16 +212,21 @@ seatGroup: (groupId, tableId) => {
   let cursor = 0;
 
   const newSeats = groupGuests.flatMap((guest) => {
-    const count = Number(guest.guestsCount || 0);
+    const count = Number(
+  isLiveMode
+    ? guest.arrivedCount || 0
+    : guest.guestsCount || 0
+);
+
     const seats = block.slice(cursor, cursor + count);
     cursor += count;
 
     return seats.map((seatIndex) => ({
-      guestId: String(guest.id ?? guest._id),
-      seatIndex,
-      arrived: false,
-      groupId,
-    }));
+  guestId: String(guest.id ?? guest._id),
+  seatIndex,
+  arrived: isLiveMode,
+  groupId,
+}));
   });
 
   updatedTables = updatedTables.map((t) =>
