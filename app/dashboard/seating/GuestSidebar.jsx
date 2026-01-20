@@ -127,7 +127,8 @@ export default function GuestSidebar({
           const isSeated = Boolean(tableLabel);
 
           /* ⭐ מקור אמת למספר מקומות (ללקוח) */
-          const effectiveSeats = guest.guestsCount ?? 0;
+          const effectiveSeats = guest.arrivedCount ?? 0;
+
 
 
           const isHighlighted =

@@ -24,9 +24,10 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
 
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
+
   const getPartySize = (g) => {
-  const n = Number(g?.guestsCount ?? 1);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+  const n = Number(g?.arrivedCount ?? 0);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 };
 
 
@@ -58,8 +59,15 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = tableData.seatedGuests?.length || 0;
+  const occupied = (tableData.seatedGuests || []).reduce((sum, sg) => {
+  const g = tableGuests.find(
+    (gg) => getGuestId(gg) === String(sg.guestId)
+  );
+  return sum + getPartySize(g);
+}, 0);
+
 const remainingSeats = tableData.seats - occupied;
+
 
 
   /* ================= אורחים זמינים ================= */
