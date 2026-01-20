@@ -61,8 +61,8 @@ export default function ProductionTabs({
             onClick={() => changeTab(tab.key)}
             className={`pb-3 text-sm font-semibold transition ${
               activeTab === tab.key
-                ? "border-b-2 border-black text-black"
-                : "text-gray-400 hover:text-gray-600"
+  ? "border-b-2 border-black text-black"
+  : "text-black opacity-70 hover:opacity-100"
             }`}
           >
             {tab.label}
