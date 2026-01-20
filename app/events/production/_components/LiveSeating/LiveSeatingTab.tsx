@@ -188,7 +188,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       
       </div>
 
-      <div className="flex flex-row-reverse min-h-[600px]">
+      <div className="flex flex-row-reverse h-[calc(100vh-160px)] min-h-[600px]">
+
 
 
         <div className="flex-1 relative overflow-hidden">
@@ -198,7 +199,12 @@ export default function LiveSeatingTab({ invitationId }: Props) {
               טרם יובאה מפת הושבה
             </div>
           ) : (
-            <SeatingEditor background={background?.url || null} showStats />
+            <SeatingEditor
+  background={background?.url || null}
+  readOnly
+  showStats
+/>
+
           )}
         </div>
 
