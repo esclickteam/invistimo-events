@@ -296,12 +296,21 @@ const tableText = isHighlighted
   };
 
   const handleClick = (e) => {
-    e.cancelBubble = true;
-    useSeatingStore.setState({ selectedTableId: table.id });
-    if (!draggingGuest && typeof table.openAddGuestModal === "function") {
-      table.openAddGuestModal();
-    }
-  };
+  e.cancelBubble = true;
+
+  // תמיד לבחור שולחן
+  useSeatingStore.setState({ selectedTableId: table.id });
+
+  // אם גוררים אורח – לא לפתוח מודאל
+  if (draggingGuest) return;
+
+  // אם אין callback – לא לעשות כלום
+  if (typeof table.openAddGuestModal !== "function") return;
+
+  // ✅ פתיחת מודאל הוספת אורח
+  table.openAddGuestModal();
+};
+
 
   /* ====== סיבוב ====== */
   const startRotate = (e) => {
@@ -360,7 +369,6 @@ const tableText = isHighlighted
   onMouseUp={handleDrop}
   onClick={handleClick}      // דסקטופ
   onTap={handleClick}        // ✅ מובייל
-  listening={!rotating}
 >
       {/* שולחן */}
       {layout.type === "round" && (
