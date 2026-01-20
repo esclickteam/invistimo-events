@@ -119,7 +119,10 @@ export default function GuestSidebar({
           const tableLabel =
             (tableFromStore && tableFromStore.name) ||
             guest.tableName ||
-            (tableFromStore ? `שולחן ${tableFromStore.id}` : null);
+            (tableFromStore
+  ? `שולחן ${tableFromStore.number ?? tableFromStore.name ?? tableFromStore.id}`
+  : null);
+
 
           const isSeated = Boolean(tableLabel);
 
