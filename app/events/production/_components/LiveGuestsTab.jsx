@@ -197,18 +197,9 @@ if (!guests.length) {
      AFTER IMPORT
   ========================= */
   return (
-    <div className="flex flex-col gap-6" dir="rtl">
-      {/* Header actions */}
-      <div className="flex justify-end gap-3 pt-2">
+    <div className="relative flex flex-col gap-6 pb-24" dir="rtl">
 
-        <button
-          onClick={() => setOpenAddModal(true)}
-          className="px-4 py-2 bg-black text-white rounded"
-        >
-          + הוספת מוזמן
-        </button>
       
-      </div>
 
       {/* ✅ Only two cards */}
       <div className="grid grid-cols-2 gap-4">
@@ -363,14 +354,18 @@ setOpenAddModal(false);
       )}
 
       {/* ✅ Edit (inline modal) */}
-      {editGuest && (
+           {editGuest && (
         <InlineEditGuestModal
           guest={editGuest}
           onClose={() => setEditGuest(null)}
           onSave={async (payload) => {
             try {
               const updated = await updateGuestOnServer(editGuest._id, payload);
-              applyUpdatedGuest({ ...editGuest, ...updated, _id: editGuest._id });
+              applyUpdatedGuest({
+                ...editGuest,
+                ...updated,
+                _id: editGuest._id,
+              });
               setEditGuest(null);
             } catch (e) {
               console.error("❌ updateGuest error:", e);
@@ -379,9 +374,21 @@ setOpenAddModal(false);
           }}
         />
       )}
+
+      {/* 🔒 Sticky bottom action – כפתור תמיד נראה */}
+      <div className="sticky bottom-0 z-20 bg-white border-t p-4 flex justify-end">
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="px-6 py-3 bg-black text-white rounded-lg shadow-md"
+        >
+          + הוספת מוזמן
+        </button>
+      </div>
+
     </div>
   );
 }
+
 
 /* =========================
    Inline Edit Modal (no imports)
