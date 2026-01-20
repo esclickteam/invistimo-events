@@ -306,7 +306,7 @@ export default function SeatingPage() {
   <button
   onClick={() => setSidebarOpen((v) => !v)}
   className={`
-    absolute top-24 z-40
+    absolute top-1/2 -translate-y-1/2 z-40
     ${sidebarOpen ? "right-[18rem]" : "right-0"}
     translate-x-1/2
     bg-white border rounded-full
