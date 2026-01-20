@@ -54,13 +54,23 @@ export const useSeatingStore = create((set, get) => ({
     }),
 
     /* ================= ⭐ AUTO FIT CANVAS ================= */
-fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
+fitCanvasToTables: (stageWidth, stageHeight, padding = 60) => {
   const { tables } = get();
   if (!tables || tables.length === 0) return;
 
   // נקודות קצה של כל השולחנות
-  const xs = tables.map((t) => t.x);
-  const ys = tables.map((t) => t.y);
+  const TABLE_RADIUS = 140; // עגול/מרובע ממוצע
+
+const xs = tables.flatMap((t) => [
+  t.x - TABLE_RADIUS,
+  t.x + TABLE_RADIUS,
+]);
+
+const ys = tables.flatMap((t) => [
+  t.y - TABLE_RADIUS,
+  t.y + TABLE_RADIUS,
+]);
+
 
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
