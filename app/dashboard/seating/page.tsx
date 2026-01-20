@@ -269,7 +269,8 @@ export default function SeatingPage() {
         העלאת תבנית אולם
       </button>
 
-      <ExportSeatingPdf />
+      <ExportSeatingPdf eventId={eventId} />
+
     </div>
   </div>
 

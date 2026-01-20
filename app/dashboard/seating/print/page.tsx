@@ -1,59 +1,64 @@
 "use client";
 
-import "./print.css"; // ✅ ייבוא CSS מקומי
-
-import { useEffect } from "react";
+import "./print.css";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useSeatingStore } from "@/store/seatingStore";
 
-/* ============================================================
-   Types (Print only)
-============================================================ */
-type PrintGuest = {
-  id: string;
+type Guest = {
+  guestId: string;
   name: string;
 };
 
-type PrintTable = {
+type Table = {
   id: string;
-  label: string;
-  guests: PrintGuest[];
+  name: string;
+  seatedGuests: Guest[];
 };
 
-/* ============================================================
-   Component
-============================================================ */
 export default function SeatingPrintPage() {
   const params = useSearchParams();
-  const invitationId = params.get("invitationId");
+  const eventId = params.get("eventId");
 
-  const tables = useSeatingStore(
-    (s) => s.tables as PrintTable[]
-  );
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // נותן לדפדפן לטעון ואז פותח Print
-    const t = setTimeout(() => window.print(), 500);
-    return () => clearTimeout(t);
-  }, []);
+    if (!eventId) return;
+
+    async function load() {
+      const res = await fetch(`/api/seating/tables/${eventId}`);
+      const data = await res.json();
+
+      setTables(data.tables || []);
+      setLoading(false);
+
+      setTimeout(() => window.print(), 500);
+    }
+
+    load();
+  }, [eventId]);
+
+  if (loading) {
+    return <div className="print-root">טוען הושבה…</div>;
+  }
 
   return (
     <div className="print-root">
-      <h1 className="title">סידור הושבה – קרן וניקיטה</h1>
+      <h1 className="title">סידור הושבה</h1>
 
       <div className="grid">
         {tables.map((table) => (
           <div key={table.id} className="table-box">
-            <h3>שולחן {table.label}</h3>
+            <h3>{table.name}</h3>
 
             <ul>
-              {table.guests.map((g) => (
-                <li key={g.id}>{g.name}</li>
+              {table.seatedGuests.map((sg, i) => (
+                <li key={i}>{sg.guestId}</li>
               ))}
             </ul>
 
             <div className="count">
-              סה״כ: {table.guests.length}
+              סה״כ: {table.seatedGuests.length}
             </div>
           </div>
         ))}
