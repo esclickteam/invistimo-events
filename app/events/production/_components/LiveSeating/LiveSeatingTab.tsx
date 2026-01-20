@@ -171,7 +171,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   return (
-  <div className="fixed inset-0 flex flex-col bg-[#faf8f4] z-0">
+  <div className="fixed top-[64px] left-0 right-0 bottom-0 flex flex-col bg-[#faf8f4] z-0">
+
     {/* TOP BAR */}
     <div className="flex items-center justify-end gap-3 p-3 border-b bg-white shrink-0">
       {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
@@ -196,10 +197,10 @@ export default function LiveSeatingTab({ invitationId }: Props) {
           </div>
         ) : (
           <SeatingEditor
-            background={background?.url || null}
-            readOnly
-            showStats
-          />
+  background={background?.url || null}
+  readOnly={false}
+  showStats
+/>
         )}
       </div>
 
