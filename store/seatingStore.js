@@ -124,13 +124,20 @@ importSnapshot: (snapshot) => {
   if (!snapshot) return;
 
   set({
-    tables: snapshot.tables || [],
+    tables: (snapshot.tables || []).map((t) => ({
+      ...t,
+      seatedGuests: (t.seatedGuests || []).map((sg) => ({
+        ...sg,
+        arrived: sg.arrived ?? false, // ⭐⭐ זה החסר
+      })),
+    })),
+
     guests: (snapshot.guests || []).map((g) => ({
-  ...g,
-  rsvp: g.rsvp ?? "pending",
-  guestsCount: g.guestsCount ?? g.approvedCount ?? 0,
-  arrivedCount: g.arrivedCount ?? g.arrived ?? 0,
-})),
+      ...g,
+      rsvp: g.rsvp ?? "pending",
+      guestsCount: g.guestsCount ?? g.approvedCount ?? 0,
+      arrivedCount: g.arrivedCount ?? g.arrived ?? 0,
+    })),
 
     background: snapshot.background || null,
     canvasView: snapshot.canvasView || {
@@ -140,6 +147,7 @@ importSnapshot: (snapshot) => {
     },
   });
 },
+
 
 
   /* ---------------- DEMO INIT ---------------- */
@@ -388,6 +396,7 @@ dropGuest: () => {
         ...highlightedSeats.map((seatIndex) => ({
           guestId,
           seatIndex,
+          arrived: false,
         })),
       ],
     };
@@ -460,6 +469,7 @@ if (count === 0) return;
         ...block.map((seatIndex) => ({
           guestId: String(guestId),
           seatIndex,
+          arrived: false,
         })),
       ],
     };
@@ -508,6 +518,7 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
         {
           guestId: String(guestId),
           seatIndex,
+          arrived: false,
         },
       ],
     };
@@ -614,6 +625,7 @@ if (realCount === 0) {
     ...block.map((seatIndex) => ({
       guestId,
       seatIndex,
+      arrived: false,
     }))
   );
 
@@ -663,37 +675,34 @@ updateGuestArrived: (guestId, arrivedCount) =>
 syncArrivedSeats: (guestId, arrivedCount) =>
   set((state) => {
     const tables = state.tables.map((table) => {
-      if (!Array.isArray(table.seatedGuests)) return table;
+      if (!table.seatedGuests) return table;
 
-      // כל הכיסאות של האורח – מסודרים לפי seatIndex
+      // כל הכיסאות של האורח – ממוינים
       const guestSeats = table.seatedGuests
         .filter((sg) => String(sg.guestId) === String(guestId))
         .sort((a, b) => a.seatIndex - b.seatIndex);
 
-      if (guestSeats.length === 0) return table;
+      if (!guestSeats.length) return table;
 
-      let arrivedLeft = Number(arrivedCount) || 0;
+      const arrivedSeatIndexes = new Set(
+        guestSeats.slice(0, arrivedCount).map((s) => s.seatIndex)
+      );
 
       const updatedSeats = table.seatedGuests.map((sg) => {
         if (String(sg.guestId) !== String(guestId)) return sg;
 
-        const isArrived = arrivedLeft > 0;
-        if (isArrived) arrivedLeft--;
-
         return {
           ...sg,
-          arrived: isArrived,
+          arrived: arrivedSeatIndexes.has(sg.seatIndex),
         };
       });
 
-      return {
-        ...table,
-        seatedGuests: updatedSeats,
-      };
+      return { ...table, seatedGuests: updatedSeats };
     });
 
     return { tables };
   }),
+
 
 
 
