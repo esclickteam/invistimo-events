@@ -171,49 +171,48 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }
 
   return (
-    <div className="flex flex-col border rounded-xl bg-[#faf8f4]">
+  <div className="fixed inset-0 flex flex-col bg-[#faf8f4] z-0">
+    {/* TOP BAR */}
+    <div className="flex items-center justify-end gap-3 p-3 border-b bg-white shrink-0">
+      {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
-
-      <div className="flex items-center justify-end gap-3 p-3 border-b bg-white">
-        {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
-
-        {hasImported && (
-          <button
-            onClick={saveSeating}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg"
-          >
-            💾 שמירת הושבה
-          </button>
-        )}
-      
-      </div>
-
-      <div className="flex flex-row-reverse h-[calc(100vh-160px)] min-h-[600px]">
-
-
-
-        <div className="flex-1 relative overflow-hidden">
-
-          {!hasImported ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
-              טרם יובאה מפת הושבה
-            </div>
-          ) : (
-            <SeatingEditor
-  background={background?.url || null}
-  readOnly
-  showStats
-/>
-
-          )}
-        </div>
-
-        <div className="w-80 border-l bg-white hidden md:block">
-          <GuestSidebar onDragStart={startDragGuest} />
-        </div>
-      </div>
-
-      <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
+      {hasImported && (
+        <button
+          onClick={saveSeating}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg"
+        >
+          💾 שמירת הושבה
+        </button>
+      )}
     </div>
-  );
+
+    {/* MAIN AREA */}
+    <div className="flex flex-row-reverse flex-1 min-h-0">
+      {/* CANVAS */}
+      <div className="flex-1 relative overflow-hidden">
+        {!hasImported ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            טרם יובאה מפת הושבה
+          </div>
+        ) : (
+          <SeatingEditor
+            background={background?.url || null}
+            readOnly
+            showStats
+          />
+        )}
+      </div>
+
+      {/* SIDEBAR */}
+      <div className="w-80 border-l bg-white hidden md:block shrink-0">
+        <GuestSidebar onDragStart={startDragGuest} />
+      </div>
+    </div>
+
+    {/* MOBILE */}
+    <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
+  </div>
+);
+
+
 }
