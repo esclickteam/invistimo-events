@@ -234,9 +234,21 @@ const guestTableMap = useMemo(() => {
   const map = new Map();
 
   (tables || []).forEach((table) => {
+    const tableNumber = table.number;
+    const tableName = table.name;
+
     table.seatedGuests?.forEach((sg) => {
-      const key = sg?.invitationGuestId ?? sg?.guestId ?? sg?._id;
-      if (key) map.set(String(key), table);
+      const guestKey =
+        sg.invitationGuestId ??
+        sg.guestId ??
+        sg._id;
+
+      if (guestKey) {
+        map.set(String(guestKey), {
+          number: tableNumber,
+          name: tableName,
+        });
+      }
     });
   });
 
