@@ -92,13 +92,6 @@ export default function GuestSidebar({
       guestsTotal: guests.length,
       seatedByMap,
       rsvpCounts: counts,
-      exampleFirst5: guests.slice(0, 5).map((g) => ({
-        name: g?.name,
-        id: String(g?.id ?? g?._id ?? ""),
-        rsvp: g?.rsvp,
-        tableName: g?.tableName,
-        tableId: g?.tableId,
-      })),
     });
   }, [guests, guestTableMap, tables, isLiveMode]);
 
@@ -129,6 +122,13 @@ export default function GuestSidebar({
             (tableFromStore ? `שולחן ${tableFromStore.id}` : null);
 
           const isSeated = Boolean(tableLabel);
+
+          /* ⭐ מקור אמת למספר מקומות (ללקוח) */
+          const effectiveSeats =
+            guest.arrivedCount !== undefined &&
+            guest.arrivedCount !== null
+              ? guest.arrivedCount
+              : guest.guestsCount ?? 0;
 
           const isHighlighted =
             shouldHighlightFromUrl &&
@@ -168,11 +168,9 @@ export default function GuestSidebar({
                   {guest.name}
                 </div>
 
-                {/* ⭐ כמות מקומות – לפי Live Mode */}
+                {/* ✅ תצוגה מתוקנת */}
                 <div className="text-xs text-gray-500">
-                  {(isLiveMode
-                    ? guest.arrivedCount ?? 0
-                    : guest.guestsCount ?? 0) + " מקומות"}
+                  {effectiveSeats} מקומות
                 </div>
 
                 <div className="mt-1 text-xs">
