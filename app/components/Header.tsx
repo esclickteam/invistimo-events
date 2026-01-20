@@ -13,6 +13,61 @@ export default function Header() {
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
 
+  
+
+  const isProducer =
+  pathname.startsWith("/producer") ||
+  pathname.startsWith("/events/production");
+
+    if (isProducer) {
+    return (
+      <header
+        dir="rtl"
+        className="
+          fixed top-0 inset-x-0 z-50
+          h-16
+          bg-[#f5eee7]
+          bg-[url('/noise.png')] bg-repeat
+          border-b border-[#e2d6c8]
+        "
+      >
+        <div className="h-full px-4 md:px-10 grid grid-cols-[1fr_auto_1fr] items-center">
+          {/* ימין – ראשי */}
+          <div className="flex justify-start">
+            <Link
+              href="/producer/dashboard"
+              className="text-[#4a413a] font-medium text-[18px] hover:text-[var(--champagne-dark)] transition"
+            >
+              🏠 ראשי
+            </Link>
+          </div>
+
+          {/* מרכז – לוגו */}
+          <div className="flex justify-center" dir="ltr">
+            <img
+              src="/invistimo-logo.png"
+              alt="Invistimo Logo"
+              className="h-10 w-auto object-contain scale-[4]"
+              draggable={false}
+            />
+          </div>
+
+          {/* שמאל – התנתקות */}
+          <div className="flex justify-end">
+            <button
+              onClick={logout}
+              className="text-red-600 font-medium text-[18px] hover:text-red-700 transition"
+            >
+              🚪 התנתקות
+            </button>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+
+
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
   <>
     <Link
