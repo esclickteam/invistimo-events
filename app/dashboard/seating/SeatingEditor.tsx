@@ -185,34 +185,33 @@ useEffect(() => {
   };
 
   const handleWheel = (e: any) => {
-    if (readOnly) return; 
-    e.evt.preventDefault();
+  e.evt.preventDefault();
 
-    const stage = e.target.getStage();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
+  const stage = e.target.getStage();
+  const pointer = stage.getPointerPosition();
+  if (!pointer) return;
 
-    const scaleBy = 1.05;
-    const direction = e.evt.deltaY > 0 ? -1 : 1;
-    const newScale =
-      direction > 0
-        ? Math.min(scale * scaleBy, 3)
-        : Math.max(scale / scaleBy, 0.4);
+  const scaleBy = 1.05;
+  const direction = e.evt.deltaY > 0 ? -1 : 1;
+  const newScale =
+    direction > 0
+      ? Math.min(scale * scaleBy, 3)
+      : Math.max(scale / scaleBy, 0.4);
 
-    const mousePointTo = {
-      x: (pointer.x - stagePos.x) / scale,
-      y: (pointer.y - stagePos.y) / scale,
-    };
-
-    const newPos = {
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-    };
-
-    setScale(newScale);
-    setStagePos(newPos);
-    setCanvasView({ ...newPos, scale: newScale });
+  const mousePointTo = {
+    x: (pointer.x - stagePos.x) / scale,
+    y: (pointer.y - stagePos.y) / scale,
   };
+
+  const newPos = {
+    x: pointer.x - mousePointTo.x * newScale,
+    y: pointer.y - mousePointTo.y * newScale,
+  };
+
+  setScale(newScale);
+  setStagePos(newPos);
+  setCanvasView({ ...newPos, scale: newScale });
+};
 
   /* ================= DELETE ZONE ================= */
   useEffect(() => {
