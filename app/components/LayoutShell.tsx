@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 type LayoutShellProps = {
   children: ReactNode;
   header?: ReactNode;
-  footer?: ReactNode;
+  footer?: ReactNode | null;
 };
 
 export default function LayoutShell({
@@ -27,10 +27,15 @@ export default function LayoutShell({
     pathname.startsWith("/rsvp/") ||
     pathname.startsWith("/invitation/");
 
-  // ❌ דשבורד (אמיתי + דמו) – בלי Header ובלי Footer של האתר
+  // ❌ דשבורדים – בלי Header/Footer של האתר
   const isDashboard =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/try/dashboard");
+
+  // ❌ אזור מפיק – בלי Header/Footer של האתר
+  const isProducer =
+    pathname.startsWith("/producer") ||
+    pathname.startsWith("/events/production");
 
   // ❌ עורך הזמנות – בלי Footer בלבד
   const hideFooterOnly =
@@ -40,28 +45,37 @@ export default function LayoutShell({
     pathname.startsWith("/dashboard/edit-invite/");
 
   /* =========================================================
+     החלטות תצוגה
+  ========================================================= */
+  const shouldHideHeader =
+    hideHeaderAndFooter || isDashboard || isProducer;
+
+  const shouldHideFooter =
+    hideHeaderAndFooter || hideFooterOnly || isDashboard || isProducer;
+
+  /* =========================================================
      Render
   ========================================================= */
-
-  const shouldHideHeader = hideHeaderAndFooter || isDashboard;
-  const shouldHideFooter =
-    hideHeaderAndFooter || hideFooterOnly || isDashboard;
-
   return (
-    <>
-      {/* Header של האתר */}
-      {!shouldHideHeader && header}
+    <div className="min-h-screen flex flex-col">
+      {/* HEADER */}
+      {!shouldHideHeader && header && (
+        <div className="shrink-0">{header}</div>
+      )}
 
+      {/* CONTENT */}
       <main
-        className={`min-h-screen ${
+        className={`flex-1 ${
           !shouldHideHeader && header ? "pt-[64px]" : ""
         }`}
       >
         {children}
       </main>
 
-      {/* Footer של האתר */}
-      {!shouldHideFooter && footer}
-    </>
+      {/* FOOTER */}
+      {!shouldHideFooter && footer && (
+        <div className="shrink-0">{footer}</div>
+      )}
+    </div>
   );
 }
