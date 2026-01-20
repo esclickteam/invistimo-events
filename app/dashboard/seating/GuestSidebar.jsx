@@ -168,13 +168,12 @@ export default function GuestSidebar({
                   {guest.name}
                 </div>
 
+                {/* ⭐ כמות מקומות – לפי Live Mode */}
                 <div className="text-xs text-gray-500">
-  {(
-    isLiveMode
-      ? guest.arrivedCount ?? 0
-      : guest.guestsCount ?? 0
-  ) + " מקומות"}
-</div>
+                  {(isLiveMode
+                    ? guest.arrivedCount ?? 0
+                    : guest.guestsCount ?? 0) + " מקומות"}
+                </div>
 
                 <div className="mt-1 text-xs">
                   {isSeated ? (
