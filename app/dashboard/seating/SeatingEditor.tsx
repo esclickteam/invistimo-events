@@ -29,6 +29,7 @@ type SeatingEditorProps = {
   background: string | null;
   readOnly?: boolean;
   showStats?: boolean;
+  onSave?: () => void; // ✅ הוספה
 };
 
 type Guest = {
@@ -56,6 +57,7 @@ function SeatingEditorInner({
   background,
   readOnly = false,
   showStats = false,
+  onSave,
 }: SeatingEditorProps) {
   const [bgImage] = useImage(background || "", "anonymous");
 
@@ -254,16 +256,30 @@ useEffect(() => {
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
+
       {!readOnly && (
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="absolute top-20 left-4 -translate-y-10 bg-green-600 text-white px-4 py-2 rounded-lg z-50"
+  <div className="absolute top-20 left-4 z-50 flex flex-col items-start gap-2">
+    {/* ➕ הוסף שולחן */}
+    <button
+      onClick={() => setShowAddModal(true)}
+      className="bg-green-600 text-white px-4 py-2 rounded-lg"
+    >
+      ➕ הוסף שולחן
+    </button>
 
+    {/* 💾 שמירה – מתחת */}
+    {onSave && (
+      <button
+        onClick={onSave}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+      >
+        💾 שמירה
+      </button>
+    )}
+  </div>
+)}
 
-        >
-          ➕ הוסף שולחן
-        </button>
-      )}
+      
 
       {size.width > 0 && size.height > 0 && (
   <Stage
