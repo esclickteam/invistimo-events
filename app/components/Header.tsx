@@ -48,7 +48,7 @@ export default function Header() {
             <img
               src="/invistimo-logo.png"
               alt="Invistimo Logo"
-              className="h-8 md:h-9 w-auto object-contain"
+              className="h-10 w-auto object-contain scale-[4]"
               draggable={false}
             />
           </div>
@@ -172,7 +172,7 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
-                  className="h-8 md:h-9 w-auto object-contain"
+                  className="h-10 w-auto object-contain scale-[4] origin-center"
                 />
               </Link>
             </div>
