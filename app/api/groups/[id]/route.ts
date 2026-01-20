@@ -4,15 +4,20 @@ import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 type RouteContext = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
+/* ============================================
+   PATCH — עדכון קבוצה
+============================================ */
 export async function PATCH(
   req: NextRequest,
   { params }: RouteContext
 ) {
   try {
     await connectDB();
+
+    const { id } = await params;
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
@@ -22,7 +27,7 @@ export async function PATCH(
     const data = await req.json();
 
     const group = await Group.findByIdAndUpdate(
-      params.id,
+      id,
       data,
       { new: true }
     );
@@ -37,6 +42,9 @@ export async function PATCH(
   }
 }
 
+/* ============================================
+   DELETE — מחיקת קבוצה
+============================================ */
 export async function DELETE(
   req: NextRequest,
   { params }: RouteContext
@@ -44,12 +52,14 @@ export async function DELETE(
   try {
     await connectDB();
 
+    const { id } = await params;
+
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    await Group.findByIdAndDelete(params.id);
+    await Group.findByIdAndDelete(id);
 
     return NextResponse.json({ success: true });
   } catch (err) {
