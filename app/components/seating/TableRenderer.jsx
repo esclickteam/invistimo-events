@@ -153,7 +153,10 @@ function getSeatRotation(table, c) {
 /* ============================================================
    TableRenderer
 ============================================================ */
-function TableRenderer({ table }) {
+
+  function TableRenderer({ table, hideSeats = false }) {
+
+
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
@@ -161,15 +164,16 @@ function TableRenderer({ table }) {
   const rotateActiveRef = useRef(false);
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
+
   const demoMode = useSeatingStore((s) => s.demoMode);
-
-
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
+
+    
 
   const searchParams = useSearchParams();
 const from = searchParams.get("from");
@@ -442,55 +446,57 @@ const tableText = isHighlighted
       </Group>
 
       {/* כסאות */}
-{seatsCoords.map((c, i) => {
-  const seatInfo = seatInfoMap.get(i); // ⭐ כולל arrived
-  const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+{/* כסאות – מוסתרים במפיק */}
+{!hideSeats &&
+  seatsCoords.map((c, i) => {
+    const seatInfo = seatInfoMap.get(i);
+    const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-  const isSeated = Boolean(seatInfo);               // הושיבו
-  const isArrived = seatInfo?.arrived === true;     // הגיע בפועל
+    const isSeated = Boolean(seatInfo);
+    const isArrived = seatInfo?.arrived === true;
 
-  const seatTopFill = isArrived
-    ? "#bfdbfe"        // 🔵 הגיע
-    : isSeated
-    ? "#e5e7eb"        // ⚪ הושיבו אבל לא הגיע
-    : "#bfdbfe";       // פנוי
+    const seatTopFill = isArrived
+      ? "#bfdbfe"
+      : isSeated
+      ? "#e5e7eb"
+      : "#bfdbfe";
 
-  const seatBodyFill = isArrived
-    ? "#3b82f6"
-    : isSeated
-    ? "#9ca3af"
-    : "#3b82f6";
+    const seatBodyFill = isArrived
+      ? "#3b82f6"
+      : isSeated
+      ? "#9ca3af"
+      : "#3b82f6";
 
-  const seatStroke = isArrived
-    ? "#2563eb"
-    : isSeated
-    ? "#6b7280"
-    : "#2563eb";
-  // קו תואם
+    const seatStroke = isArrived
+      ? "#2563eb"
+      : isSeated
+      ? "#6b7280"
+      : "#2563eb";
 
-  return (
-    <Group key={i} x={c.x} y={c.y} rotation={rotation}>
-      <Rect
-        x={-5}
-        y={-16}
-        width={10}
-        height={6}
-        cornerRadius={3}
-        fill={seatTopFill}
-      />
-      <Rect
-        x={-7}
-        y={-10}
-        width={14}
-        height={10}
-        cornerRadius={4}
-        fill={seatBodyFill}
-        stroke={seatStroke}
-        strokeWidth={1}
-      />
-    </Group>
-  );
-})}
+    return (
+      <Group key={i} x={c.x} y={c.y} rotation={rotation}>
+        <Rect
+          x={-5}
+          y={-16}
+          width={10}
+          height={6}
+          cornerRadius={3}
+          fill={seatTopFill}
+        />
+        <Rect
+          x={-7}
+          y={-10}
+          width={14}
+          height={10}
+          cornerRadius={4}
+          fill={seatBodyFill}
+          stroke={seatStroke}
+          strokeWidth={1}
+        />
+      </Group>
+    );
+  })}
+
 
 
 

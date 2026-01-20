@@ -29,6 +29,7 @@ type SeatingEditorProps = {
   background: string | null;
   readOnly?: boolean;
   showStats?: boolean;
+  hideSeats?: boolean; // ⭐ חדש
 };
 
 type Guest = {
@@ -56,6 +57,7 @@ function SeatingEditorInner({
   background,
   readOnly = false,
   showStats = false,
+  hideSeats = false, // ⭐ חדש
 }: SeatingEditorProps) {
   const [bgImage] = useImage(background || "", "anonymous");
 
@@ -318,6 +320,7 @@ useEffect(() => {
       ? `${used} / ${t.capacity ?? "—"}`
       : undefined,
   }}
+  hideSeats={hideSeats} // ⭐ זה השורה החשובה
 />
             );
           })}

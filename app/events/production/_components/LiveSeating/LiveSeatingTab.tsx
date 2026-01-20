@@ -285,6 +285,7 @@ useEffect(() => {
       background={background?.url || null}
       readOnly={false}
       showStats
+      hideSeats 
       
     />
   )}
