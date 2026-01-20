@@ -43,6 +43,13 @@ export function findFreeBlock(table, needed) {
   const used = new Set((table.seatedGuests || []).map((s) => s.seatIndex));
   const seats = Number(table.seats || 0);
 
+  // ⛔ אי אפשר לבקש יותר מהמקומות
+  if (needed > seats) {
+    dlog("❌ needed > seats", { needed, seats });
+    return null;
+  }
+
+
   dlog("findFreeBlock()", {
     tableId: table._id || table.id,
     type: table.type,
@@ -180,5 +187,11 @@ export function getSeatCoordinates(table) {
     }
   }
 
-  return coords;
+  // ⛔ SAFETY: never render more seats than defined
+if (coords.length > seats) {
+  coords.length = seats;
+}
+
+return coords;
+
 }
