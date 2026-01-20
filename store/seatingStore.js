@@ -550,9 +550,10 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
     set({
       tables: tables.map((t) => ({
         ...t,
-        seatedGuests: t.seatedGuests.filter(
-          (s) => s.guestId !== guestId
-        ),
+        seatedGuests: (t.seatedGuests || []).filter(
+  (s) => s.guestId !== guestId
+),
+
       })),
       guests: guests.map((g) =>
         String(g.id ?? g._id) === String(guestId)
@@ -625,9 +626,9 @@ const block = findFreeBlock(cleanTable, realCount);
   // ניקוי הושבות קודמות של האורח מכל השולחנות
   const updatedTables = tables.map((t) => ({
   ...t,
-  seatedGuests: t.seatedGuests.filter(
-    (s) => s.guestId !== guestId
-  ),
+  seatedGuests: (t.seatedGuests || []).filter(
+  (s) => s.guestId !== guestId
+),
 }));
 
 
