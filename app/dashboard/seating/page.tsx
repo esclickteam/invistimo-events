@@ -130,7 +130,9 @@ init(
 setZones(tData.zones || []);
 
 /* 4️⃣ קבוצות – חייב לבוא אחרי init */
-const grRes = await fetch(`/api/seating/groups/${eventIdFromApi}`);
+const invitationId = invData.invitation._id;
+
+const grRes = await fetch(`/api/seating/groups/${invitationId}`);
 if (grRes.ok) {
   const grData = await grRes.json();
   setGroups(grData.groups || []);
