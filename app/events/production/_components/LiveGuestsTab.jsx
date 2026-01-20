@@ -39,6 +39,8 @@ export default function LiveGuestsTab({ invitationId }) {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const tables = useSeatingStore((s) => s.tables);
+
 
   const [openAddModal, setOpenAddModal] = useState(false);
 
@@ -219,6 +221,22 @@ export default function LiveGuestsTab({ invitationId }) {
     return { confirmedTotal, arrivedTotal };
   }, [guests]);
 
+
+const guestTableMap = useMemo(() => {
+  const map = new Map();
+
+  (tables || []).forEach((table) => {
+    table.seatedGuests?.forEach((sg) => {
+      if (sg?.guestId) {
+        map.set(String(sg.guestId), table);
+      }
+    });
+  });
+
+  return map;
+}, [tables]);
+
+
   /* =========================
      BEFORE IMPORT
   ========================= */
@@ -281,6 +299,7 @@ export default function LiveGuestsTab({ invitationId }) {
               <th className="p-3 text-right">סטטוס</th>
               <th className="p-3 text-right">אישרו הגעה</th>
               <th className="p-3 text-right">הגיעו בפועל</th>
+              <th className="p-3 text-right">מס' שולחן</th>
               <th className="p-3 text-right">הערות</th>
               <th className="p-3 text-right">פעולות</th>
             </tr>
@@ -290,6 +309,15 @@ export default function LiveGuestsTab({ invitationId }) {
             {guests.map((g) => {
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
+
+              const tableFromStore = guestTableMap.get(String(g._id)) || null;
+
+const tableLabel =
+  tableFromStore?.name ??
+  (tableFromStore?.number != null
+    ? `שולחן ${tableFromStore.number}`
+    : "-");
+
 
               return (
                 <tr key={g._id} className="border-t">
@@ -328,6 +356,12 @@ export default function LiveGuestsTab({ invitationId }) {
                       </button>
                     </div>
                   </td>
+
+                  {/* ⭐ מס' שולחן */}
+<td className="p-3 font-medium text-green-700">
+  {tableLabel}
+</td>
+
 
                   <td className="p-3 text-sm text-gray-700">
                     {(g.notes || "").trim() || "-"}
