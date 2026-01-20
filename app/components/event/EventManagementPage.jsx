@@ -27,11 +27,13 @@ export default function EventManagementPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#143A5A]/90 to-[#0F2A44]/95" />
 
         <div className="relative z-10 max-w-4xl px-4 text-center text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">
+
             תכנון והפקת אירועים
           </h1>
 
-          <p className="text-lg md:text-xl text-white/90">
+          <p className="text-lg md:text-xl text-white">
+
             חוסכים לכם זמן, כסף וכאב ראש – עם ניהול חכם ומדויק של האירוע
           </p>
 
