@@ -230,7 +230,7 @@ const remainingSeats = tableData.seats - occupied;
                           >
                             <span className="truncate">{g2.name}</span>
                             <span className="text-gray-500">
-  {remainingSeats}
+  {getPartySize(g2)}
 </span>
 
                           </div>
