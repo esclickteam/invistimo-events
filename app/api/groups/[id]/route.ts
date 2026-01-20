@@ -1,24 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
-/* ============================================================
-   PATCH /api/groups/:id
-============================================================ */
+type RouteContext = {
+  params: { id: string };
+};
+
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: RouteContext
 ) {
   try {
     await connectDB();
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false }, { status: 401 });
     }
 
     const data = await req.json();
@@ -29,16 +27,9 @@ export async function PATCH(
       { new: true }
     );
 
-    if (!group) {
-      return NextResponse.json(
-        { success: false, error: "Group not found" },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({ success: true, group });
   } catch (err) {
-    console.error("PATCH /api/groups/:id error:", err);
+    console.error("PATCH /groups/[id] error:", err);
     return NextResponse.json(
       { success: false },
       { status: 500 }
@@ -46,36 +37,23 @@ export async function PATCH(
   }
 }
 
-/* ============================================================
-   DELETE /api/groups/:id
-============================================================ */
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: RouteContext
 ) {
   try {
     await connectDB();
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    const group = await Group.findByIdAndDelete(params.id);
-
-    if (!group) {
-      return NextResponse.json(
-        { success: false, error: "Group not found" },
-        { status: 404 }
-      );
-    }
+    await Group.findByIdAndDelete(params.id);
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("DELETE /api/groups/:id error:", err);
+    console.error("DELETE /groups/[id] error:", err);
     return NextResponse.json(
       { success: false },
       { status: 500 }
