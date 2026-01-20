@@ -61,10 +61,13 @@ export default function ManageGroupsModal({
     );
 
     await fetch(`/api/groups/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
+  method: "PATCH",
+  credentials: "include", // ⭐ חובה – אחרת אין auth
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ name }),
+});
   };
 
   /* ===============================
