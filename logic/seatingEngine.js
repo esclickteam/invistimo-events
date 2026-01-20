@@ -12,25 +12,40 @@ function dlog(...args) {
    VISUAL ORDER
    מחשב סדר מושבים ויזואלי סביב השולחן
 ============================================================ */
-function getVisualOrder(table) {
+function getVisualOrder(table, bySides = false) {
   const coords = getSeatCoordinates(table);
 
-  const ordered = coords
+  if (table.type === "square") {
+    const sides = { top: [], right: [], bottom: [], left: [] };
+
+    coords.forEach((c, seatIndex) => {
+      if (Math.abs(c.y) > Math.abs(c.x)) {
+        c.y < 0 ? sides.top.push(seatIndex) : sides.bottom.push(seatIndex);
+      } else {
+        c.x > 0 ? sides.right.push(seatIndex) : sides.left.push(seatIndex);
+      }
+    });
+
+    Object.values(sides).forEach((arr) => arr.sort((a, b) => a - b));
+
+    if (bySides) {
+      return [sides.top, sides.right, sides.bottom, sides.left];
+    }
+
+    return [...sides.top, ...sides.right, ...sides.bottom, ...sides.left];
+  }
+
+  // ברירת מחדל
+  return coords
     .map((c, seatIndex) => ({
       seatIndex,
       angle: Math.atan2(c.y, c.x),
-      x: c.x,
-      y: c.y,
     }))
-    .sort((a, b) => a.angle - b.angle);
-
-  dlog(
-    "visual order:",
-    ordered.map((o) => o.seatIndex)
-  );
-
-  return ordered.map((o) => o.seatIndex);
+    .sort((a, b) => a.angle - b.angle)
+    .map((o) => o.seatIndex);
 }
+
+
 
 /* ============================================================
    FIND CONTIGUOUS BLOCK (VISUAL)
@@ -49,9 +64,27 @@ export function findFreeBlock(table, needed) {
 
   if (!seats || needed <= 0) return null;
 
+  // 🟦 מרובע – בדיקה לפי צדדים בלבד
+  if (table.type === "square") {
+    const sides = getVisualOrder(table, true);
+
+    for (const side of sides) {
+      for (let i = 0; i <= side.length - needed; i++) {
+        const block = side.slice(i, i + needed);
+        if (block.every((idx) => !used.has(idx))) {
+          dlog("✅ found block in one side", block);
+          return block;
+        }
+      }
+    }
+
+    dlog("❌ no block in single side");
+    return null;
+  }
+
+  // 🟦 שאר הצורות
   const visualOrder = getVisualOrder(table);
 
-  // מאפשר wrap (עגול / מסביב)
   const extended =
     table.type === "round"
       ? [...visualOrder, ...visualOrder.slice(0, needed - 1)]
@@ -60,12 +93,9 @@ export function findFreeBlock(table, needed) {
   for (let i = 0; i <= extended.length - needed; i++) {
     const block = extended.slice(i, i + needed);
 
-    // בלי חזרות
     if (new Set(block).size !== needed) continue;
 
-    const ok = block.every((idx) => !used.has(idx));
-
-    if (ok) {
+    if (block.every((idx) => !used.has(idx))) {
       dlog("✅ found visual contiguous block", block);
       return block;
     }
@@ -74,6 +104,7 @@ export function findFreeBlock(table, needed) {
   dlog("❌ no visual contiguous block found");
   return null;
 }
+
 
 /* ============================================================
    SEAT COORDINATES
