@@ -24,10 +24,16 @@ export async function GET() {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    /* ================= USERS (PAID ONLY) ================= */
+    /* =========================================================
+       USERS – כל מי שיש לו גישה בתשלום (לא דמו)
+       ========================================================= */
     const users = await User.find({
-      hasPaid: true,
       isDemoUser: { $ne: true },
+      $or: [
+        { hasPaid: true },                    // שילם ישירות
+        { plan: "premium" },                  // חבילת פרימיום פעילה
+        { createdByProducer: { $ne: null } }, // נוצר ע״י מפיק ששילם
+      ],
     })
       .select(`
         email
@@ -39,33 +45,43 @@ export async function GET() {
         includeCalls
         includeCreditGifts
         createdAt
+        hasPaid
+        createdByProducer
       `)
       .sort({ createdAt: -1 })
       .lean();
 
-    /* ================= TOTAL REVENUE ================= */
+    /* =========================================================
+       TOTAL REVENUE – חישוב נכון
+       ========================================================= */
     const revenueAgg = await User.aggregate([
       {
         $match: {
-          hasPaid: true,
           isDemoUser: { $ne: true },
+          $or: [
+            { hasPaid: true },
+            { plan: "premium" },
+          ],
         },
       },
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: "$paidAmount" },
+          totalRevenue: {
+            $sum: { $ifNull: ["$paidAmount", 0] },
+          },
         },
       },
     ]);
 
     const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json(
       {
         success: true,
         users,
-        totalRevenue, // ✅ זה המספר שצריך להופיע בכרטיס
+        totalRevenue,
       },
       {
         headers: {
