@@ -606,7 +606,16 @@ if (realCount === 0) {
   const startIndex =
     typeof seatIndex === "number" ? seatIndex : undefined;
 
-  const block = findFreeBlock(table, realCount, startIndex);
+  // ⭐️ שולחן נקי – בלי המושבים הקודמים של האורח
+const cleanTable = {
+  ...table,
+  seatedGuests: table.seatedGuests.filter(
+    (s) => String(s.guestId) !== String(guestId)
+  ),
+};
+
+const block = findFreeBlock(cleanTable, realCount);
+
 
   // guard חובה
   if (!block || block.length === 0) {
@@ -614,29 +623,37 @@ if (realCount === 0) {
   }
 
   // ניקוי הושבות קודמות של האורח מכל השולחנות
-  tables.forEach((t) => {
-    t.seatedGuests = t.seatedGuests.filter(
-      (s) => s.guestId !== guestId
-    );
-  });
+  const updatedTables = tables.map((t) => ({
+  ...t,
+  seatedGuests: t.seatedGuests.filter(
+    (s) => s.guestId !== guestId
+  ),
+}));
 
-  // ✅ כאן נוצר seatIndex לכל מושב – זה מה שצובע באפור
-  table.seatedGuests.push(
-    ...block.map((seatIndex) => ({
-      guestId,
-      seatIndex,
-      arrived: false,
-    }))
-  );
+
 
   // עדכון האורח
   guest.tableId = tableId;
   guest.tableName = table.name;
 
   set({
-    tables: [...tables],
-    guests: [...guests],
-  });
+  tables: updatedTables.map((t) =>
+    t.id === tableId
+      ? {
+          ...t,
+          seatedGuests: [
+            ...t.seatedGuests,
+            ...block.map((seatIndex) => ({
+              guestId,
+              seatIndex,
+              arrived: false,
+            })),
+          ],
+        }
+      : t
+  ),
+  guests: [...guests],
+});
 
   return { ok: true };
 },
