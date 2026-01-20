@@ -301,7 +301,10 @@ const tableLabel =
 
                       <button
   onClick={() => {
-    const tableFromStore = guestTableMap.get(String(g._id));
+    const tableFromStore =
+  guestTableMap.get(String(g.id)) ||
+  guestTableMap.get(String(g._id));
+
     if (!tableFromStore) return;
 
     router.push(
