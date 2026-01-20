@@ -302,7 +302,7 @@ const tableLabel =
                       <button
   onClick={() =>
     router.push(
-      `/producer/dashboard/seating/live?guestId=${g._id}`
+     `/producer/dashboard/seating?tab=live&guestId=${g._id}`
     )
   }
   title="הושבה אישית (לייב)"
