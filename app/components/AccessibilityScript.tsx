@@ -7,13 +7,16 @@ import { useEffect } from "react";
 export default function AccessibilityScript() {
   const pathname = usePathname();
 
-  const isDashboard =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/producer");
+  // ✅ רק עמודים ציבוריים
+  const isPublicPage =
+    pathname === "/" ||
+    pathname.startsWith("/invitation") ||
+    pathname.startsWith("/invite") ||
+    pathname.startsWith("/rsvp");
 
-  // 🔥 ניקוי UserWay אם נכנסנו לדשבורד
+  // 🔥 ניקוי אם נכנסנו למערכת
   useEffect(() => {
-    if (!isDashboard) return;
+    if (isPublicPage) return;
 
     const selectors = [
       'iframe[src*="userway"]',
@@ -29,19 +32,18 @@ export default function AccessibilityScript() {
       document.querySelectorAll(selector).forEach((el) => el.remove());
     });
 
-    // ניקוי משתנים גלובליים
     // @ts-ignore
     delete window.UserWay;
     // @ts-ignore
     delete window._userway_config;
-  }, [isDashboard]);
+  }, [isPublicPage]);
 
-  // ❌ בדשבורד – לא טוענים
-  if (isDashboard) {
+  // ❌ כל מערכת פנימית – אין נגישות
+  if (!isPublicPage) {
     return null;
   }
 
-  // ✅ רק באתר הציבורי
+  // ✅ רק ציבורי
   return (
     <Script
       id="userway-widget"
