@@ -83,9 +83,10 @@ export default function ProducerDashboard() {
   ========================= */
   useEffect(() => {
   let isMounted = true;
+  let intervalId;
+
 
   const fetchClients = async () => {
-    setClientsLoading(true);
     try {
       const res = await fetch("/api/producer/clients", {
         cache: "no-store",
@@ -99,19 +100,20 @@ export default function ProducerDashboard() {
       }
     } catch (err) {
       console.error("Failed to fetch producer clients:", err);
-    } finally {
-      if (isMounted) {
-        setClientsLoading(false);
-      }
     }
   };
 
   fetchClients();
 
+  // 🔁 ריפרוש כל 30 שניות
+  intervalId = setInterval(fetchClients, 30000);
+
   return () => {
     isMounted = false;
+    clearInterval(intervalId);
   };
 }, []);
+
 
   /* =========================
      Impersonation (ניהול לקוח)
