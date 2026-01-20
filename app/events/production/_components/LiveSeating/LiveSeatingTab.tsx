@@ -26,22 +26,17 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const setLiveMode = useSeatingStore((s) => s.setLiveMode);
 
-
   const setZones = useZoneStore((s) => s.setZones);
 
   const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
 
   /* ===============================
-     ✅ LIVE MODE ON / OFF
+     ✅ LIVE MODE
   =============================== */
   useEffect(() => {
     setLiveMode(true);
     return () => setLiveMode(false);
   }, [setLiveMode]);
-
-  useEffect(() => {
-    console.log("🟡 [Producer LiveSeatingTab] mounted", invitationId);
-  }, [invitationId]);
 
   /* ===============================
      ✅ LOAD FROM LOCAL STORAGE
@@ -71,7 +66,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   }, [cacheKey, importSnapshot, setZones]);
 
   /* ===============================
-     IMPORT SNAPSHOT
+     📥 IMPORT – פעם אחת בלבד
   =============================== */
   const importData = useCallback(async () => {
     if (!invitationId) {
@@ -117,56 +112,27 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         );
       }
     } catch (e) {
-      console.error("❌ Producer import error", e);
+      console.error("❌ Import error", e);
       setError("לא נמצאה מפת הושבה");
     } finally {
       setLoading(false);
     }
   }, [invitationId, importSnapshot, setZones, cacheKey]);
 
-
-
   /* ===============================
-     ✅ AUTO IMPORT FOR PRODUCER
+     ✅ AUTO IMPORT – רק אם ריק
   =============================== */
   useEffect(() => {
     if (!invitationId) return;
 
     const currentGuests = useSeatingStore.getState().guests;
-
     if (!hasImported && currentGuests.length === 0) {
       importData();
     }
   }, [invitationId, hasImported, importData]);
 
-  useEffect(() => {
-  if (!hasImported || !invitationId) return;
-
-  const interval = setInterval(async () => {
-    try {
-      const res = await fetch(
-        `/api/live-seating/import?invitationId=${invitationId}`,
-        { method: "POST" }
-      );
-      if (!res.ok) return;
-
-      const json = await res.json();
-
-      // ✅ עדכון אורחים בלבד
-      useSeatingStore.getState().setGuests(json.guests ?? []);
-    } catch (e) {
-      console.warn("⚠️ Auto refresh failed", e);
-    }
-  }, 5000);
-
-  return () => clearInterval(interval);
-}, [hasImported, invitationId]);
-
-
-  
-
   /* ===============================
-     SAVE
+     💾 SAVE
   =============================== */
   async function saveSeating() {
     if (!eventId) return;
