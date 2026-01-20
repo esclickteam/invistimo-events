@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation"; // ➕ נוסף
 
 /* ⭐ אותם רכיבים כמו אצל הלקוח */
 import GuestSidebar from "@/app/dashboard/seating/GuestSidebar";
@@ -31,11 +32,17 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
 
   /* ===============================
+     ➕ READ guestId FROM URL
+  =============================== */
+  const searchParams = useSearchParams();
+  const guestId = searchParams.get("guestId");
+
+  /* ===============================
      ✅ LIVE MODE
   =============================== */
   useEffect(() => {
-  setLiveMode(true);
-}, [setLiveMode]);
+    setLiveMode(true);
+  }, [setLiveMode]);
 
   /* ===============================
      ✅ LOAD FROM LOCAL STORAGE
@@ -122,131 +129,137 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      ✅ AUTO IMPORT – רק אם ריק
   =============================== */
   useEffect(() => {
-  if (!invitationId || hasImported) return;
-  importData();
-}, [invitationId, hasImported, importData]);
+    if (!invitationId || hasImported) return;
+    importData();
+  }, [invitationId, hasImported, importData]);
 
+  /* ===============================
+     ➕ PERSONAL SEATING ENTRY (producer)
+     סימון אורח + קפיצה לשולחן אם יש
+  =============================== */
+  useEffect(() => {
+    if (!guestId) return;
+
+    const state = useSeatingStore.getState();
+    const { tables } = state;
+
+    // סימון אורח (אם קיים ב-store)
+    state.setSelectedGuestId?.(guestId);
+
+    // חיפוש שולחן של האורח
+    const table = tables.find((t: any) =>
+  t.seatedGuests?.some(
+    (s: any) => String(s.guestId) === String(guestId)
+  )
+);
+
+
+    if (!table) return;
+
+    // קפיצה לשולחן
+    state.setCanvasView?.({
+      scale: 1.2,
+      x: -table.x + 300,
+      y: -table.y + 200,
+    });
+  }, [guestId]);
 
   /* ===============================
      💾 SAVE
   =============================== */
- async function saveSeating() {
-  if (!eventId || loading) return;
+  async function saveSeating() {
+    if (!eventId || loading) return;
 
-  setLoading(true); // ✅ הוספה
+    setLoading(true);
 
-  try {
-    const tables = useSeatingStore.getState().tables;
-    const guests = useSeatingStore.getState().guests;
-    const background = useSeatingStore.getState().background;
-    const canvasView = useSeatingStore.getState().canvasView;
-    const zones = useZoneStore.getState().zones;
+    try {
+      const tables = useSeatingStore.getState().tables;
+      const guests = useSeatingStore.getState().guests;
+      const background = useSeatingStore.getState().background;
+      const canvasView = useSeatingStore.getState().canvasView;
+      const zones = useZoneStore.getState().zones;
 
-    const res = await fetch(`/api/seating/save/${eventId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tables,
-        guests,
-        background,
-        zones,
-        canvasView,
-      }),
-    });
-
-    const data = await res.json();
-    alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
-
-    if (cacheKey) {
-      localStorage.setItem(
-        cacheKey,
-        JSON.stringify({
-          eventId,
+      const res = await fetch(`/api/seating/save/${eventId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           tables,
           guests,
+          background,
           zones,
           canvasView,
-          background,
-        })
-      );
-    }
-  } finally {
-    setLoading(false); // ✅ הוספה
-  }
-}
+        }),
+      });
 
+      const data = await res.json();
+      alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
+
+      if (cacheKey) {
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            eventId,
+            tables,
+            guests,
+            zones,
+            canvasView,
+            background,
+          })
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-  <div className="fixed top-[64px] left-0 right-0 bottom-0 flex flex-col bg-[#faf8f4] z-0">
-
-    {/* TOP BAR */}
-    <div className="flex items-center justify-between gap-3 p-3 border-b bg-white shrink-0">
-
-      {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
-
-
-
-
-    </div>
-
-    {/* MAIN AREA */}
-    <div className="flex flex-row-reverse flex-1 min-h-0">
-      {/* CANVAS */}
-     
-
-      <div className="flex-1 relative overflow-hidden">
-
-  {/* 🔧 ACTION BAR – הוסף שולחן + שמירה */}
-  <div className="absolute top-24 left-4 z-20 flex items-center gap-2">
-
-
-    
- 
-
-    {/* 💾 שמירת הושבה */}
-    {hasImported && (
-      <button
-        onClick={saveSeating}
-        disabled={!eventId || loading}
-        className={`px-4 py-2 rounded-lg font-medium transition
-          ${
-            !eventId || loading
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
-          }
-        `}
-      >
-        {loading ? "שומר..." : "💾 שמירה"}
-      </button>
-    )}
-
-  </div>
-
-  {!hasImported ? (
-    <div className="flex items-center justify-center h-full text-gray-500">
-      טרם יובאה מפת הושבה
-    </div>
-  ) : (
-    <SeatingEditor
-      background={background?.url || null}
-      readOnly={false}
-      showStats
-      
-    />
-  )}
-</div>
-
-
-      {/* SIDEBAR */}
-      <div className="w-80 border-l bg-white hidden md:block shrink-0">
-        <GuestSidebar onDragStart={startDragGuest} />
+    <div className="fixed top-[64px] left-0 right-0 bottom-0 flex flex-col bg-[#faf8f4] z-0">
+      {/* TOP BAR */}
+      <div className="flex items-center justify-between gap-3 p-3 border-b bg-white shrink-0">
+        {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
       </div>
+
+      {/* MAIN AREA */}
+      <div className="flex flex-row-reverse flex-1 min-h-0">
+        <div className="flex-1 relative overflow-hidden">
+          {/* ACTION BAR */}
+          <div className="absolute top-24 left-4 z-20 flex items-center gap-2">
+            {hasImported && (
+              <button
+                onClick={saveSeating}
+                disabled={!eventId || loading}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  !eventId || loading
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                }`}
+              >
+                {loading ? "שומר..." : "💾 שמירה"}
+              </button>
+            )}
+          </div>
+
+          {!hasImported ? (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              טרם יובאה מפת הושבה
+            </div>
+          ) : (
+            <SeatingEditor
+              background={background?.url || null}
+              readOnly={false}
+              showStats
+            />
+          )}
+        </div>
+
+        {/* SIDEBAR */}
+        <div className="w-80 border-l bg-white hidden md:block shrink-0">
+          <GuestSidebar onDragStart={startDragGuest} />
+        </div>
+      </div>
+
+      {/* MOBILE */}
+      <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
     </div>
-
-    {/* MOBILE */}
-    <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
-  </div>
-);
-
-
+  );
 }
