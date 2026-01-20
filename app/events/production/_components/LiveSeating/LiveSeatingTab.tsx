@@ -25,7 +25,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const background = useSeatingStore((s) => s.background);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const setLiveMode = useSeatingStore((s) => s.setLiveMode);
-  const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 
 
   const setZones = useZoneStore((s) => s.setZones);
@@ -125,6 +124,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     }
   }, [invitationId, importSnapshot, setZones, cacheKey]);
 
+
+
   /* ===============================
      ✅ AUTO IMPORT FOR PRODUCER
   =============================== */
@@ -137,6 +138,32 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       importData();
     }
   }, [invitationId, hasImported, importData]);
+
+  useEffect(() => {
+  if (!hasImported || !invitationId) return;
+
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(
+        `/api/live-seating/import?invitationId=${invitationId}`,
+        { method: "POST" }
+      );
+      if (!res.ok) return;
+
+      const json = await res.json();
+
+      // ✅ עדכון אורחים בלבד
+      useSeatingStore.getState().setGuests(json.guests ?? []);
+    } catch (e) {
+      console.warn("⚠️ Auto refresh failed", e);
+    }
+  }, 5000);
+
+  return () => clearInterval(interval);
+}, [hasImported, invitationId]);
+
+
+  
 
   /* ===============================
      SAVE

@@ -106,16 +106,16 @@ export async function POST(req: Request) {
        5️⃣ מיפוי מוזמנים (לא חלק מהקנבס)
     ====================================================== */
     const liveGuests = guests.map((g: any) => ({
-      _id: g._id.toString(),
-      id: g._id.toString(),
-      name: g.name,
-      phone: g.phone || "",
-      tableId: g.tableId ? g.tableId.toString() : null,
-      approvedCount: g.guestsCount ?? 1,
-      approved: g.guestsCount ?? 1,
-      arrived: g.arrivedCount ?? 0,
-      rsvp: g.rsvp,
-    }));
+  _id: g._id.toString(),
+  id: g._id.toString(),
+  name: g.name,
+  phone: g.phone || "",
+  tableId: g.tableId ? g.tableId.toString() : null,
+
+  guestsCount: g.guestsCount ?? 1,
+  arrivedCount: g.arrivedCount ?? 0,
+  rsvp: g.rsvp,
+}));
 
     console.log("👤 liveGuests sample:", liveGuests[0] ?? "NO GUESTS");
 

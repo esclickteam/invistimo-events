@@ -85,6 +85,8 @@ importSnapshot: (snapshot) => {
     guests: (snapshot.guests || []).map((g) => ({
   ...g,
   rsvp: g.rsvp ?? "pending",
+  guestsCount: g.guestsCount ?? g.approvedCount ?? 0,
+  arrivedCount: g.arrivedCount ?? g.arrived ?? 0,
 })),
 
     background: snapshot.background || null,
