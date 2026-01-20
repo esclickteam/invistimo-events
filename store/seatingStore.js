@@ -293,9 +293,8 @@ background: null,
 
     const { isLiveMode } = get();
 
-const count = isLiveMode
-  ? Number(draggingGuest.arrivedCount || 0)
-  : Number(draggingGuest.guestsCount || 0);
+const count = Number(draggingGuest.arrivedCount || 0);
+
 
 if (count === 0) return;
 
@@ -382,9 +381,8 @@ assignGuestBlock: ({ guestId, tableId }) => {
 
   const { isLiveMode } = get();
 
-const count = isLiveMode
-  ? Number(guest.arrivedCount || 0)
-  : Number(guest.guestsCount || 0);
+const count = Number(guest.arrivedCount || 0);
+
 
 if (count === 0) return;
 
@@ -540,9 +538,8 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 
   const { isLiveMode } = get();
 
-const realCount = isLiveMode
-  ? Number(guest.arrivedCount || 0)
-  : Number(guest.guestsCount || 0);
+const realCount = Number(guest.arrivedCount || 0);
+
 
 if (realCount === 0) {
   return { ok: false, message: "האורח לא הגיע בפועל" };

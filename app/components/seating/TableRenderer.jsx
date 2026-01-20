@@ -183,9 +183,21 @@ const guestIdFromUrl = searchParams.get("guestId");
   const assigned = table.seatedGuests || [];
 
   const occupiedSeatsCount = useMemo(() => {
-    const indices = new Set(assigned.map((s) => s.seatIndex));
-    return indices.size;
-  }, [assigned]);
+  const perGuest = new Map();
+
+  assigned.forEach((s) => {
+    const g = guests.find(
+      (guest) =>
+        String(guest.id ?? guest._id) === String(s.guestId)
+    );
+    if (!g) return;
+
+    const count = Number(g.arrivedCount || 0);
+    perGuest.set(String(s.guestId), count);
+  });
+
+  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
+}, [assigned, guests]);
 
   const seatInfoMap = useMemo(() => {
   const map = new Map();
