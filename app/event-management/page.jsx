@@ -1,4 +1,4 @@
-import EventManagementPage from "@/components/event/EventManagementPage";
+import EventManagementPage from "@/app/components/event/EventManagementPage";
 
 
 export default function Page() {
