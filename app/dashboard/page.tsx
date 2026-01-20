@@ -12,6 +12,9 @@ import GuestsMobileList from "./components/GuestsMobileList";
 import { usePathname } from "next/navigation";
 import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
+import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
+import { useGroupStore } from "@/store/groupStore";
+
 import Link from "next/link";
 
 
@@ -86,6 +89,9 @@ const isDemo = pathname.startsWith("/try");
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const groups = useGroupStore((s) => s.groups);
+
+
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
 
@@ -110,6 +116,9 @@ const isDemo = pathname.startsWith("/try");
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
   const [event, setEvent] = useState<EventModel | null>(null);
+const [openGroupModal, setOpenGroupModal] = useState(false);
+const [selectedGroupId, setSelectedGroupId] = useState("");
+
 
 
 
@@ -845,6 +854,30 @@ console.log("INVITATION:", invitation);
     )}
   </div>
 
+  {/* Filter by group + manage */}
+<div className="flex items-center gap-2">
+  <select
+    value={selectedGroupId}
+    onChange={(e) => setSelectedGroupId(e.target.value)}
+    className="rounded-full border px-4 py-2 text-sm bg-white"
+  >
+    <option value="">כל הקבוצות</option>
+    {groups.map((g) => (
+      <option key={g._id} value={g._id}>
+        {g.name}
+      </option>
+    ))}
+  </select>
+
+  <button
+    onClick={() => setOpenGroupModal(true)}
+    className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
+  >
+    + הוספת קבוצה
+  </button>
+</div>
+
+
 
         {/* Quick filters */}
 <div
@@ -1106,6 +1139,12 @@ onSeat={(g) =>
   open={showDemoToast}
   onClose={() => setShowDemoToast(false)}
 />
+
+<ManageGroupsModal
+  open={openGroupModal}
+  onClose={() => setOpenGroupModal(false)}
+/>
+
 
 
     </div>
