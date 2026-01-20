@@ -281,7 +281,7 @@ useEffect(() => {
       טרם יובאה מפת הושבה
     </div>
   ) : (
-    <SeatingEditor
+     <SeatingEditor
       background={background?.url || null}
       readOnly={false}
       showStats

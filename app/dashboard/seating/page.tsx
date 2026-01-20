@@ -10,6 +10,8 @@ import MobileGuests from "./MobileGuests";
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
+import ExportSeatingPdf from "./ExportSeatingPdf";
+
 
 /* ⭐ קומפוננטות עליונות */
 import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
@@ -255,26 +257,27 @@ export default function SeatingPage() {
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden pb-20">
 
       {/* HEADER */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-30">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
-          <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
+<div className="bg-white shadow-sm border-b sticky top-0 z-30">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
+    <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
 
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={() => setShowUpload(true)}
-              className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
-            >
-              העלאת תבנית אולם
-            </button>
+    <div className="flex flex-col sm:flex-row gap-2">
+      <button
+        onClick={() => setShowUpload(true)}
+        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
+      >
+        העלאת תבנית אולם
+      </button>
 
-            
-          </div>
-        </div>
+      <ExportSeatingPdf />
+    </div>
+  </div>
 
-        <div className="w-full overflow-x-auto scrollbar-hide">
-          <ZonesToolbar />
-        </div>
-      </div>
+  {/* ⬅️ זה ה־div שחייב להיסגר */}
+  <div className="w-full overflow-x-auto scrollbar-hide">
+    <ZonesToolbar />
+  </div>
+</div>
 
       {/* CONTENT */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
