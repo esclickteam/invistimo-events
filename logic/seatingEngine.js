@@ -13,10 +13,7 @@ function dlog(...args) {
    מחשב סדר מושבים ויזואלי סביב השולחן
 ============================================================ */
 function getVisualOrder(table) {
-  const seats = Number(table.seats || 0);
-
-  // ⛔ הגנה: לא יותר כיסאות מהמוגדר
-  const coords = getSeatCoordinates(table).slice(0, seats);
+  const coords = getSeatCoordinates(table);
 
   const ordered = coords
     .map((c, seatIndex) => ({
@@ -35,20 +32,12 @@ function getVisualOrder(table) {
   return ordered.map((o) => o.seatIndex);
 }
 
-
 /* ============================================================
    FIND CONTIGUOUS BLOCK (VISUAL)
 ============================================================ */
 export function findFreeBlock(table, needed) {
   const used = new Set((table.seatedGuests || []).map((s) => s.seatIndex));
   const seats = Number(table.seats || 0);
-
-  // ⛔ אי אפשר לבקש יותר מהמקומות
-  if (needed > seats) {
-    dlog("❌ needed > seats", { needed, seats });
-    return null;
-  }
-
 
   dlog("findFreeBlock()", {
     tableId: table._id || table.id,
@@ -187,14 +176,5 @@ export function getSeatCoordinates(table) {
     }
   }
 
-  // ⛔ SAFETY: never render more seats than defined
-if (coords.length > seats) {
-  coords.length = seats;
-}
-
-dlog("FINAL SEATS:", seats, "FINAL COORDS:", coords.length);
-
-
-return coords;
-
+  return coords;
 }
