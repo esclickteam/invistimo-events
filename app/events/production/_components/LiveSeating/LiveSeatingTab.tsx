@@ -8,6 +8,8 @@ import MobileGuests from "@/app/dashboard/seating/MobileGuests";
 import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
 import { useSearchParams } from "next/navigation";
 import type { SeatingTable } from "@/types/seating";
+import { useRouter } from "next/navigation";
+
 
 
 
@@ -25,7 +27,10 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const searchParams = useSearchParams();
-const focusTableId = searchParams.get("focusTableId");
+const focusGuestId = searchParams.get("focusGuestId");
+const router = useRouter();
+
+
 
 const tables = useSeatingStore((s) => s.tables);
 const setCanvasView = useSeatingStore((s) => s.setCanvasView);
@@ -138,32 +143,40 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
   importData();
 }, [invitationId, hasImported, importData]);
 
+
 useEffect(() => {
-  if (!focusTableId || !hasImported) return;
+  if (!focusGuestId || !hasImported) return;
 
-  const table = tables.find(
-  (t: SeatingTable) => String(t.id) === String(focusTableId)
-);
-  if (!table) return;
+  const table = tables.find((t: SeatingTable) =>
+    t.seatedGuests?.some(
+      (sg) => String(sg.guestId) === String(focusGuestId)
+    )
+  );
 
-  // ⭐ סימון שולחן
+  if (!table) {
+    console.warn("❌ NO TABLE FOR GUEST", focusGuestId);
+    return;
+  }
+
   useSeatingStore.setState({ highlightedTable: table.id });
 
-  // ⭐ פוקוס קנבס
-  if (typeof table.x === "number" && typeof table.y === "number") {
-    setCanvasView({
-      scale: 1,
-      x: -table.x + window.innerWidth / 2,
-      y: -table.y + window.innerHeight / 2,
-    });
-  }
+  setCanvasView({
+    scale: 1,
+    x: -table.x + window.innerWidth / 2,
+    y: -table.y + window.innerHeight / 2,
+  });
 
   const timeout = setTimeout(() => {
     useSeatingStore.setState({ highlightedTable: null });
   }, 2500);
 
+  // ⭐ ניקוי URL
+  router.replace("/events/production?tab=live-seating");
+
   return () => clearTimeout(timeout);
-}, [focusTableId, hasImported, tables, setCanvasView]);
+}, [focusGuestId, hasImported, tables, setCanvasView, router]);
+
+
 
 
 

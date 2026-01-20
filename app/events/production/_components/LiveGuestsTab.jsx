@@ -301,40 +301,15 @@ const tableLabel =
 
                      <button
   onClick={() => {
-    let tableFromStore =
-      guestTableMap.get(String(g.id)) ||
-      guestTableMap.get(String(g._id));
-
-    // ✅ fallback לפי tableId
-    if (!tableFromStore && g.tableId) {
-      tableFromStore = tables.find(
-        (t) => String(t.id) === String(g.tableId)
-      );
-    }
-
-    // ✅ fallback אחרון – לפי tableName
-    if (!tableFromStore && g.tableName) {
-      tableFromStore = tables.find(
-        (t) => t.name === g.tableName
-      );
-    }
-
-    if (!tableFromStore) {
-      console.warn("❌ NO TABLE FOUND", {
-        guest: g,
-        tables,
-      });
-      return;
-    }
-
     router.push(
-      `/events/production?tab=live-seating&focusTableId=${tableFromStore.id}`
+      `/events/production?tab=live-seating&focusGuestId=${g._id}`
     );
   }}
   title="הושבה"
 >
   🪑
 </button>
+
 
 
 
