@@ -6,6 +6,10 @@ export const useSeatingStore = create((set, get) => ({
   tables: [],
   guests: [],
 
+  groups: [],
+draggingGroup: null,
+
+
   background: null,
 
    demoMode: false, // ⭐ מצב דמו
@@ -101,6 +105,168 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
     guests: guests || [],
   })),
 
+  /* ================= ⭐ GROUP UTILS ================= */
+
+getGroupSize: (groupId) => {
+  const { guests } = get();
+
+  return guests
+    .filter((g) => g.groupId === groupId)
+    .reduce(
+      (sum, g) => sum + Number(g.guestsCount || 0),
+      0
+    );
+},
+
+
+  /* ================= ⭐ GROUPS ================= */
+
+setGroups: (groups) =>
+  set(() => ({
+    groups: groups || [],
+  })),
+
+addGroup: (group) =>
+  set((state) => ({
+    groups: [...state.groups, group],
+  })),
+
+updateGroup: (groupId, patch) =>
+  set((state) => ({
+    groups: state.groups.map((g) =>
+      g._id === groupId ? { ...g, ...patch } : g
+    ),
+  })),
+
+removeGroup: (groupId) =>
+  set((state) => ({
+    groups: state.groups.filter((g) => g._id !== groupId),
+    guests: state.guests.map((guest) =>
+      guest.groupId === groupId
+        ? { ...guest, groupId: null }
+        : guest
+    ),
+  })),
+
+  /* ================= ⭐ GROUP SEATING ================= */
+
+seatGroup: (groupId, tableId) => {
+  const { groups, guests, tables } = get();
+
+  const group = groups.find((g) => g._id === groupId);
+  if (!group) return { ok: false };
+
+  const groupGuests = guests.filter(
+    (g) => g.groupId === groupId
+  );
+
+  const totalCount = groupGuests.reduce(
+    (sum, g) => sum + Number(g.guestsCount || 0),
+    0
+  );
+
+  if (totalCount === 0) {
+    return { ok: false, message: "אין מוזמנים בקבוצה" };
+  }
+
+  // ניקוי קודם של הקבוצה מכל השולחנות
+  let updatedTables = tables.map((t) => ({
+    ...t,
+    seatedGuests: (t.seatedGuests || []).filter(
+      (sg) =>
+        !groupGuests.some(
+          (g) =>
+            String(g.id ?? g._id) === String(sg.guestId)
+        )
+    ),
+  }));
+
+  const targetTable = updatedTables.find(
+    (t) => t.id === tableId
+  );
+  if (!targetTable) {
+    return { ok: false, message: "שולחן לא נמצא" };
+  }
+
+  const block = findFreeBlock(targetTable, totalCount);
+  if (!block) {
+    return { ok: false, message: "אין מספיק מקומות פנויים" };
+  }
+
+  let cursor = 0;
+
+  const newSeats = groupGuests.flatMap((guest) => {
+    const count = Number(guest.guestsCount || 0);
+    const seats = block.slice(cursor, cursor + count);
+    cursor += count;
+
+    return seats.map((seatIndex) => ({
+      guestId: String(guest.id ?? guest._id),
+      seatIndex,
+      arrived: false,
+      groupId,
+    }));
+  });
+
+  updatedTables = updatedTables.map((t) =>
+    t.id === tableId
+      ? {
+          ...t,
+          seatedGuests: [
+            ...t.seatedGuests,
+            ...newSeats,
+          ],
+        }
+      : t
+  );
+
+  set({
+    tables: updatedTables,
+    guests: guests.map((g) =>
+      g.groupId === groupId
+        ? {
+            ...g,
+            tableId,
+            tableName: targetTable.name,
+          }
+        : g
+    ),
+    groups: groups.map((g) =>
+      g._id === groupId
+        ? { ...g, tableId, isSeated: true }
+        : g
+    ),
+  });
+
+  return { ok: true };
+},
+
+
+unseatGroup: (groupId) => {
+  const { tables, guests, groups } = get();
+
+  set({
+    tables: tables.map((t) => ({
+      ...t,
+      seatedGuests: (t.seatedGuests || []).filter(
+        (sg) => sg.groupId !== groupId
+      ),
+    })),
+    guests: guests.map((g) =>
+      g.groupId === groupId
+        ? { ...g, tableId: null, tableName: null }
+        : g
+    ),
+    groups: groups.map((g) =>
+      g._id === groupId
+        ? { ...g, tableId: null, isSeated: false }
+        : g
+    ),
+  });
+},
+
+
+
   /* ---------------- INIT ---------------- */
  init: (tables, guests, background = null, canvasView = null) => {
   set({
@@ -138,6 +304,8 @@ importSnapshot: (snapshot) => {
       guestsCount: g.guestsCount ?? g.approvedCount ?? 0,
       arrivedCount: g.arrivedCount ?? g.arrived ?? 0,
     })),
+
+    groups: snapshot.groups || [],
 
     background: snapshot.background || null,
     canvasView: snapshot.canvasView || {

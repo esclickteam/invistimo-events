@@ -7,6 +7,8 @@ import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
+import GroupSidebar from "@/app/components/seating/GroupSidebar";
+
 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -36,6 +38,8 @@ export default function SeatingPage() {
   const [eventId, setEventId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState<"guests" | "groups">("guests");
+
 
 
   /* Drawer אורחים במובייל */
@@ -326,21 +330,45 @@ export default function SeatingPage() {
 
   {/* 🧾 סיידבר אורחים */}
   {sidebarOpen && (
-    <aside className="hidden md:block w-72 bg-white border-l">
-      <Suspense
-        fallback={
-          <div className="p-4 text-sm text-gray-400">
-            טוען אורחים...
-          </div>
-        }
+  <aside className="hidden md:block w-72 bg-white border-l">
+    {/* Tabs */}
+    <div className="flex border-b">
+      <button
+        onClick={() => setSidebarTab("guests")}
+        className={`flex-1 p-2 text-sm ${
+          sidebarTab === "guests"
+            ? "bg-gray-100 font-semibold"
+            : "text-gray-500"
+        }`}
       >
+        אורחים
+      </button>
+
+      <button
+        onClick={() => setSidebarTab("groups")}
+        className={`flex-1 p-2 text-sm ${
+          sidebarTab === "groups"
+            ? "bg-gray-100 font-semibold"
+            : "text-gray-500"
+        }`}
+      >
+        קבוצות
+      </button>
+    </div>
+
+    <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
+      {sidebarTab === "guests" ? (
         <GuestSidebar
           variant="desktop"
           onDragStart={handleDragStart}
         />
-      </Suspense>
-    </aside>
+      ) : (
+        <GroupSidebar variant="desktop" />
+      )}
+    </Suspense>
+  </aside>
 )}
+
 
 
 
