@@ -14,7 +14,8 @@ export default function GuestGroupSelect({ value, onChange }: Props) {
     <select
       value={value || ""}
       onChange={(e) => onChange(e.target.value || null)}
-      className="rounded-md border px-2 py-1 text-sm bg-white"
+        className="rounded-md border px-2 py-1 text-sm bg-white w-full"
+
     >
       <option value="">ללא קבוצה</option>
 
