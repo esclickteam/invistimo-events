@@ -6,8 +6,11 @@ import { usePathname } from "next/navigation";
 export default function AccessibilityScript() {
   const pathname = usePathname();
 
-  // ❌ לא בדשבורד
-  if (pathname.startsWith("/dashboard")) {
+  // ❌ לא מציגים נגישות בדשבורדים (מפיק / לקוח)
+  if (
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/producer")
+  ) {
     return null;
   }
 
