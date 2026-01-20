@@ -123,13 +123,10 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      ✅ AUTO IMPORT – רק אם ריק
   =============================== */
   useEffect(() => {
-    if (!invitationId) return;
+  if (!invitationId || hasImported) return;
+  importData();
+}, [invitationId, hasImported, importData]);
 
-    const currentGuests = useSeatingStore.getState().guests;
-    if (!hasImported && currentGuests.length === 0) {
-      importData();
-    }
-  }, [invitationId, hasImported, importData]);
 
   /* ===============================
      💾 SAVE
