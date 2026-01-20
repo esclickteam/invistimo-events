@@ -131,9 +131,12 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   /* ===============================
      💾 SAVE
   =============================== */
-  async function saveSeating() {
-    if (!eventId) return;
+ async function saveSeating() {
+  if (!eventId || loading) return;
 
+  setLoading(true); // ✅ הוספה
+
+  try {
     const tables = useSeatingStore.getState().tables;
     const guests = useSeatingStore.getState().guests;
     const background = useSeatingStore.getState().background;
@@ -168,23 +171,37 @@ export default function LiveSeatingTab({ invitationId }: Props) {
         })
       );
     }
+  } finally {
+    setLoading(false); // ✅ הוספה
   }
+}
+
 
   return (
   <div className="fixed top-[64px] left-0 right-0 bottom-0 flex flex-col bg-[#faf8f4] z-0">
 
     {/* TOP BAR */}
-    <div className="flex items-center justify-end gap-3 p-3 border-b bg-white shrink-0">
+    <div className="flex items-center justify-between gap-3 p-3 border-b bg-white shrink-0">
+
       {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
       {hasImported && (
-        <button
-          onClick={saveSeating}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg"
-        >
-          💾 שמירת הושבה
-        </button>
-      )}
+  <button
+    onClick={saveSeating}
+    disabled={!eventId || loading}
+    className={`px-4 py-2 rounded-lg font-medium transition
+      ${
+        !eventId || loading
+          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+          : "bg-green-600 hover:bg-green-700 text-white"
+      }
+    `}
+  >
+    {loading ? "שומר..." : "💾 שמירת הושבה"}
+  </button>
+)}
+
+
     </div>
 
     {/* MAIN AREA */}
