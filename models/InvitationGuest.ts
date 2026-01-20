@@ -25,13 +25,24 @@ const InvitationGuestSchema = new Schema(
     },
 
     name: { type: String, required: true },
+
     phone: {
-  type: String,
-  default: null,
-},
+      type: String,
+      default: null,
+    },
 
     relation: { type: String, default: "" },
     notes: { type: String, default: "" },
+
+    /* ===============================
+       ⭐ שיוך לקבוצה
+    =============================== */
+    groupId: {
+      type: Schema.Types.ObjectId,
+      ref: "Group",
+      default: null,
+      index: true,
+    },
 
     rsvp: {
       type: String,
@@ -64,6 +75,7 @@ const InvitationGuestSchema = new Schema(
 
     tableNumber: { type: Number, default: null },
     tableName: { type: String, default: "" },
+
     tableId: {
       type: Schema.Types.ObjectId,
       ref: "SeatingTable",
