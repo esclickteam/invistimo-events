@@ -684,18 +684,20 @@ syncArrivedSeats: (guestId, arrivedCount) =>
 
       if (!guestSeats.length) return table;
 
-      const arrivedSeatIndexes = new Set(
-        guestSeats.slice(0, arrivedCount).map((s) => s.seatIndex)
-      );
+      const arrivedSeatIds = new Set(
+  guestSeats.slice(0, arrivedCount).map((s) => s)
+);
+
 
       const updatedSeats = table.seatedGuests.map((sg) => {
-        if (String(sg.guestId) !== String(guestId)) return sg;
+  if (String(sg.guestId) !== String(guestId)) return sg;
 
-        return {
-          ...sg,
-          arrived: arrivedSeatIndexes.has(sg.seatIndex),
-        };
-      });
+  return {
+    ...sg,
+    arrived: arrivedSeatIds.has(sg),
+  };
+});
+
 
       return { ...table, seatedGuests: updatedSeats };
     });
