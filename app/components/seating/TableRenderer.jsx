@@ -199,21 +199,6 @@ const guestIdFromUrl = searchParams.get("guestId");
   return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
 }, [assigned, guests]);
 
-const visibleSeatIndexes = useMemo(() => {
-  const arrived = new Set();
-
-  assigned.forEach((s) => {
-    if (s.arrived === true) {
-      arrived.add(s.seatIndex);
-    }
-  });
-
-  return arrived;
-}, [assigned]);
-
-
-
-
   const seatInfoMap = useMemo(() => {
   const map = new Map();
 
@@ -270,16 +255,14 @@ const tableText = isHighlighted
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
   if (tableRef.current) {
-    tableRef.current.clearCache();
     tableRef.current.cache();
     tableRef.current.getLayer()?.batchDraw();
   }
 }, [
   layout.type,
   table.seats,
-  visibleSeatIndexes, // ⭐⭐⭐ זה מה שחסר
+  table.seatedGuests, // 🔥 זה מה שחסר
 ]);
-
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -460,8 +443,6 @@ const tableText = isHighlighted
 
       {/* כסאות */}
 {seatsCoords.map((c, i) => {
-  if (!visibleSeatIndexes.has(i)) return null;
-
   const seatInfo = seatInfoMap.get(i); // ⭐ כולל arrived
   const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
