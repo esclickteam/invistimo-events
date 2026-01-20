@@ -300,15 +300,18 @@ const tableLabel =
                       </button>
 
                       <button
-                        onClick={() =>
-                          router.push(
-                            `/events/production?tab=live-seating&focusTableId=${table.id}`
-                          )
-                        }
-                        title="הושבה"
-                      >
-                        🪑
-                      </button>
+  onClick={() => {
+    const tableFromStore = guestTableMap.get(String(g._id));
+    if (!tableFromStore) return;
+
+    router.push(
+      `/events/production?tab=live-seating&focusTableId=${tableFromStore.id}`
+    );
+  }}
+  title="הושבה"
+>
+  🪑
+</button>
 
                       {/* ✅ החזרת העריכה */}
                       <button onClick={() => setEditGuest(g)} title="עריכה">
