@@ -57,12 +57,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = seatsArray.reduce(
-    (sum, s) => sum + (s.guest ? 1 : 0),
-    0
-  );
-
-  const remainingSeats = tableData.seats - occupied;
+  const occupied = tableData.seatedGuests?.length || 0;
+const remainingSeats = tableData.seats - occupied;
 
 
   /* ================= אורחים זמינים ================= */
