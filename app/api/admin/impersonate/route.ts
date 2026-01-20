@@ -70,21 +70,19 @@ export async function POST(req: Request) {
        🎭 JWT התחזות (מודל אחיד)
     ====================================================== */
     const impersonationToken = jwt.sign(
-      {
-        userId: user._id.toString(),
+  {
+    userId: user._id.toString(),
 
-        // 🔑 role של המשתמש שמתחזים אליו
-        role: user.role,
+    // ✅ כופה role חוקי לדשבורד
+    role: "client",
 
-        // 🎭 flags כלליים (admin / producer)
-        impersonated: true,
-        impersonatedBy: decoded.userId,
-        impersonationRole: "admin",
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: "30m" }
-    );
-
+    impersonated: true,
+    impersonatedBy: decoded.userId,
+    impersonationRole: "admin",
+  },
+  process.env.JWT_SECRET!,
+  { expiresIn: "30m" }
+);
     /* ======================================================
        🍪 Cookies
     ====================================================== */
