@@ -2,15 +2,42 @@
 
 import { usePathname } from "next/navigation";
 import Script from "next/script";
+import { useEffect } from "react";
 
 export default function AccessibilityScript() {
   const pathname = usePathname();
 
-  // ❌ לא בדשבורד של מפיקים
-  if (
+  const isDashboard =
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/producer")
-  ) {
+    pathname.startsWith("/producer");
+
+  // 🔥 ניקוי UserWay אם נכנסנו לדשבורד
+  useEffect(() => {
+    if (!isDashboard) return;
+
+    const selectors = [
+      'iframe[src*="userway"]',
+      'iframe[title*="UserWay"]',
+      'div.userway',
+      '.uwy',
+      '#userway-widget',
+      'script[src*="userway"]',
+      'style[id*="userway"]',
+    ];
+
+    selectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((el) => el.remove());
+    });
+
+    // ניקוי משתנים גלובליים
+    // @ts-ignore
+    delete window.UserWay;
+    // @ts-ignore
+    delete window._userway_config;
+  }, [isDashboard]);
+
+  // ❌ בדשבורד – לא טוענים
+  if (isDashboard) {
     return null;
   }
 
