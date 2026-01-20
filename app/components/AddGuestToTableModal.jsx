@@ -21,6 +21,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   // ✅ מתוקן:
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
+  const tables = useSeatingStore((s) => s.tables);
+
 
 
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
@@ -48,9 +50,10 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }));
 
     for (const s of tableData.seatedGuests || []) {
-      const g = tableGuests.find(
-        (gg) => getGuestId(gg) === String(s.guestId)
-      );
+      const seatedKey = String(s?.invitationGuestId ?? s?.guestId ?? s?._id ?? "");
+const g = tableGuests.find((gg) => getGuestId(gg) === seatedKey);
+
+
       if (!g) continue;
 
       if (
@@ -65,36 +68,48 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = tableData.seatedGuests?.length || 0;
-const remainingSeats = tableData.seats - occupied;
+  const occupiedSeats = useMemo(() => {
+  if (!tableData) return 0;
+
+  // אם כל מושב נרשם כ־seatIndex → הכי מדויק
+  const usedSeatIndexes = new Set(
+    (tableData.seatedGuests || [])
+      .map((sg) => sg.seatIndex)
+      .filter((i) => typeof i === "number")
+  );
+
+  return usedSeatIndexes.size;
+}, [tableData]);
+
+const remainingSeats = tableData.seats - occupiedSeats;
+
 
 
   /* ================= אורחים זמינים ================= */
 
   const availableGuests = useMemo(() => {
-    const seatedIds = new Set(
-      (useSeatingStore.getState().tables || []).flatMap((t) =>
-        (t.seatedGuests || []).map((sg) => String(sg.guestId))
-      )
+  const seatedIds = new Set(
+    (tables || []).flatMap((t) =>
+      (t.seatedGuests || [])
+        .map((sg) => String(sg?.invitationGuestId ?? sg?.guestId ?? sg?._id ?? ""))
+        .filter(Boolean)
+    )
+  );
+
+  return (tableGuests || []).filter((g) => {
+    const id = getGuestId(g);
+    const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
+
+    return (
+      isYes &&
+      !seatedIds.has(id) &&
+      getPartySize(g) <= remainingSeats
     );
+  });
+}, [tableGuests, remainingSeats, tables]);
 
-    return (tableGuests || []).filter((g) => {
-  const id = getGuestId(g);
-  const hasTable = Boolean(g?.tableName);
 
-  // ✅ רק מי שאישר הגעה
-  const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
 
-  return (
-  isYes &&
-  !hasTable &&
-  !seatedIds.has(id) &&
-  getPartySize(g) <= remainingSeats
-);
-
-});
-
-  }, [tableGuests]);
 
   /* ================= הושבה ================= */
 
@@ -163,7 +178,8 @@ const remainingSeats = tableData.seats - occupied;
         </h2>
 
         <p className="text-sm text-gray-500 text-center mb-5">
-          {occupied}/{tableData.seats} מקומות תפוסים
+          {occupiedSeats}/{tableData.seats} מקומות תפוסים
+
         </p>
 
         {error && (
