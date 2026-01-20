@@ -15,22 +15,72 @@ function dlog(...args) {
 function getVisualOrder(table) {
   const coords = getSeatCoordinates(table);
 
+  // ✅ SQUARE: סדר פרימטרי (מסביב לשולחן) ולא לפי atan2
+  if (table.type === "square") {
+    const xs = coords.map((c) => c.x);
+    const ys = coords.map((c) => c.y);
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    // סף קטן כדי לשייך נקודות לצלע (כי יש עיגולים/שברים)
+    const EPS = 6;
+
+    const top = [];
+    const right = [];
+    const bottom = [];
+    const left = [];
+
+    coords.forEach((c, seatIndex) => {
+      const nearTop = Math.abs(c.y - minY) <= EPS;
+      const nearBottom = Math.abs(c.y - maxY) <= EPS;
+      const nearRight = Math.abs(c.x - maxX) <= EPS;
+      const nearLeft = Math.abs(c.x - minX) <= EPS;
+
+      // סדר סביב השולחן: TOP -> RIGHT -> BOTTOM -> LEFT
+      if (nearTop) top.push({ seatIndex, x: c.x, y: c.y });
+      else if (nearRight) right.push({ seatIndex, x: c.x, y: c.y });
+      else if (nearBottom) bottom.push({ seatIndex, x: c.x, y: c.y });
+      else if (nearLeft) left.push({ seatIndex, x: c.x, y: c.y });
+      else {
+        // fallback אם משהו "נפל בין הכיסאות"
+        // נשים לפי זווית כדי לא להחזיר מערך חסר
+        top.push({ seatIndex, x: c.x, y: c.y });
+      }
+    });
+
+    // מיון לאורך כל צלע כדי שהרצף יהיה “ליד ליד”
+    top.sort((a, b) => a.x - b.x);        // שמאל -> ימין
+    right.sort((a, b) => a.y - b.y);      // למעלה -> למטה
+    bottom.sort((a, b) => b.x - a.x);     // ימין -> שמאל
+    left.sort((a, b) => b.y - a.y);       // למטה -> למעלה
+
+    const order = [
+      ...top.map((o) => o.seatIndex),
+      ...right.map((o) => o.seatIndex),
+      ...bottom.map((o) => o.seatIndex),
+      ...left.map((o) => o.seatIndex),
+    ];
+
+    dlog("visual order (square)", order);
+    return order;
+  }
+
+  // ✅ ROUND/BANQUET/others: לפי זווית
   const ordered = coords
     .map((c, seatIndex) => ({
       seatIndex,
       angle: Math.atan2(c.y, c.x),
-      x: c.x,
-      y: c.y,
     }))
-    .sort((a, b) => a.angle - b.angle);
+    .sort((a, b) => a.angle - b.angle)
+    .map((o) => o.seatIndex);
 
-  dlog(
-    "visual order:",
-    ordered.map((o) => o.seatIndex)
-  );
-
-  return ordered.map((o) => o.seatIndex);
+  dlog("visual order (angle)", ordered);
+  return ordered;
 }
+
 
 /* ============================================================
    FIND CONTIGUOUS BLOCK (VISUAL)
