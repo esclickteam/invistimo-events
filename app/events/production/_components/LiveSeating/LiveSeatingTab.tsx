@@ -185,21 +185,7 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
       {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
-      {hasImported && (
-  <button
-    onClick={saveSeating}
-    disabled={!eventId || loading}
-    className={`px-4 py-2 rounded-lg font-medium transition
-      ${
-        !eventId || loading
-          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-          : "bg-green-600 hover:bg-green-700 text-white"
-      }
-    `}
-  >
-    {loading ? "שומר..." : "💾 שמירת הושבה"}
-  </button>
-)}
+
 
 
     </div>
@@ -207,19 +193,50 @@ export default function LiveSeatingTab({ invitationId }: Props) {
     {/* MAIN AREA */}
     <div className="flex flex-row-reverse flex-1 min-h-0">
       {/* CANVAS */}
+     
+
       <div className="flex-1 relative overflow-hidden">
-        {!hasImported ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            טרם יובאה מפת הושבה
-          </div>
-        ) : (
-          <SeatingEditor
-  background={background?.url || null}
-  readOnly={false}
-  showStats
-/>
-        )}
-      </div>
+
+  {/* 🔧 ACTION BAR – הוסף שולחן + שמירה */}
+  <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+    
+    {/* ➕ הוסף שולחן – כבר קיים אצלך */}
+    <button className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-1">
+      ➕ הוסף שולחן
+    </button>
+
+    {/* 💾 שמירת הושבה */}
+    {hasImported && (
+      <button
+        onClick={saveSeating}
+        disabled={!eventId || loading}
+        className={`px-4 py-2 rounded-lg font-medium transition
+          ${
+            !eventId || loading
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          }
+        `}
+      >
+        {loading ? "שומר..." : "💾 שמירה"}
+      </button>
+    )}
+
+  </div>
+
+  {!hasImported ? (
+    <div className="flex items-center justify-center h-full text-gray-500">
+      טרם יובאה מפת הושבה
+    </div>
+  ) : (
+    <SeatingEditor
+      background={background?.url || null}
+      readOnly={false}
+      showStats
+    />
+  )}
+</div>
+
 
       {/* SIDEBAR */}
       <div className="w-80 border-l bg-white hidden md:block shrink-0">
