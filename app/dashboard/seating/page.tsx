@@ -341,7 +341,11 @@ export default function SeatingPage() {
     shadow-[0_-4px_12px_rgba(0,0,0,0.06)]
   "
 >
-  <div className="max-w-7xl px-4 py-3 flex justify-start">
+  <div
+  dir="ltr"
+  className="max-w-7xl px-4 py-3 flex justify-start"
+>
+
 
 
 
