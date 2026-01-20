@@ -3,6 +3,7 @@
 import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import ProducerDashboardHeader from "./ProducerDashboardHeader";
 
 /* ============================================================
    Types
@@ -35,15 +36,23 @@ export default function DashboardHeader({
 
   /* ============================================================
      Auth
-  ============================================================= */
+  ============================================================ */
   const { user, logout, exitImpersonation } = useAuth();
 
+  const role = user?.role; // "producer" | "client" | "admin"
   const isImpersonating = Boolean(user?.impersonated);
   const impersonationRole = user?.impersonationRole; // "admin" | "producer" | undefined
 
   /* ============================================================
+     ⬅️ Producer Header Override (בלי לשנות לוגיקה)
+  ============================================================ */
+  if (role === "producer") {
+    return <ProducerDashboardHeader />;
+  }
+
+  /* ============================================================
      התנתקות רגילה
-  ============================================================= */
+  ============================================================ */
   const handleLogout = async () => {
     try {
       if (isDemo) {
@@ -60,7 +69,7 @@ export default function DashboardHeader({
 
   /* ============================================================
      Labels
-  ============================================================= */
+  ============================================================ */
   const impersonationLabel =
     impersonationRole === "producer"
       ? "מפיק"
@@ -69,8 +78,8 @@ export default function DashboardHeader({
       : "";
 
   /* ============================================================
-     JSX
-  ============================================================= */
+     JSX – Header כללי (Client / Demo / Fallback)
+  ============================================================ */
   return (
     <header
       dir="rtl"
