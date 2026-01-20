@@ -192,6 +192,9 @@ if (coords.length > seats) {
   coords.length = seats;
 }
 
+dlog("FINAL SEATS:", seats, "FINAL COORDS:", coords.length);
+
+
 return coords;
 
 }
