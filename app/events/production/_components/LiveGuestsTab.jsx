@@ -40,6 +40,8 @@ export default function LiveGuestsTab({ invitationId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const tables = useSeatingStore((s) => s.tables);
+  const importSnapshot = useSeatingStore((s) => s.importSnapshot);
+
 
 
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -53,6 +55,12 @@ export default function LiveGuestsTab({ invitationId }) {
     if (!cacheKey) return;
     sessionStorage.setItem(cacheKey, JSON.stringify(list || []));
   }
+
+  useEffect(() => {
+  if (!invitationId) return;
+  importSnapshot(invitationId);
+}, [invitationId, importSnapshot]);
+
 
   /* =========================
      Load cached guests on tab return
@@ -227,14 +235,14 @@ const guestTableMap = useMemo(() => {
 
   (tables || []).forEach((table) => {
     table.seatedGuests?.forEach((sg) => {
-      if (sg?.guestId) {
-        map.set(String(sg.guestId), table);
-      }
+      const key = sg?.invitationGuestId ?? sg?.guestId ?? sg?._id;
+      if (key) map.set(String(key), table);
     });
   });
 
   return map;
 }, [tables]);
+
 
 
   /* =========================
