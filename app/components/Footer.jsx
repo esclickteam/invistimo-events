@@ -1,18 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 export default function Footer() {
-  const pathname = usePathname();
-
-  // ❌ לא מציגים פוטר במפיק / הפקה
-  const hideFooter =
-    pathname.startsWith("/producer") ||
-    pathname.startsWith("/events/production");
-
-  if (hideFooter) return null;
-
   return (
     <footer className="mt-40 border-t border-[#e2d6c8] bg-[#f5eee7]">
       <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6 text-[#6a5440]">
@@ -24,6 +14,7 @@ export default function Footer() {
 
         {/* ניווט משפטי ומידע */}
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">
+          
           <Link
             href="/faq"
             className="hover:underline hover:text-[#5c4632] transition"
@@ -58,6 +49,7 @@ export default function Footer() {
           >
             יצירת קשר
           </Link>
+
         </nav>
       </div>
     </footer>
