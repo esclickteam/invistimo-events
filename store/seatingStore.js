@@ -58,6 +58,11 @@ export const useSeatingStore = create((set, get) => ({
       tables: tables || [],
     })),
 
+    setGuests: (guests) =>
+  set(() => ({
+    guests: guests || [],
+  })),
+
   /* ---------------- INIT ---------------- */
  init: (tables, guests, background = null, canvasView = null) => {
   set({
