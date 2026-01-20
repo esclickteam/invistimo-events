@@ -73,6 +73,8 @@ function SeatingEditorInner({
   const showAddModal = useSeatingStore((s) => s.showAddModal);
   const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
   const addTable = useSeatingStore((s) => s.addTable);
+  const stageRef = useRef<any>(null);
+
 
   const canvasView = useSeatingStore((s) => s.canvasView);
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
@@ -120,6 +122,34 @@ function SeatingEditorInner({
     return () => window.removeEventListener("resize", resize);
   }, []);
 
+  useEffect(() => {
+  if (!tables.length) return;
+  if (!size.width || !size.height) return;
+
+  // ⛔ אם כבר יש canvasView – לא נוגעים
+  if (canvasView) return;
+
+  // ⛔ אם ה־Stage עוד לא mounted
+  if (!stageRef.current) return;
+
+  // 🔹 מרכז ממוצע של השולחנות
+  const avgX =
+    tables.reduce((sum, t) => sum + t.x, 0) / tables.length;
+  const avgY =
+    tables.reduce((sum, t) => sum + t.y, 0) / tables.length;
+
+  const x = size.width / 2 - avgX;
+  const y = size.height / 2 - avgY;
+
+  setStagePos({ x, y });
+  setScale(1);
+
+  // 🔒 שמירה חד־פעמית
+  setCanvasView({ x, y, scale: 1 });
+}, [tables, size.width, size.height]);
+
+
+
   /* ================= ZOOM & PAN ================= */
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
@@ -139,28 +169,7 @@ function SeatingEditorInner({
 
 
 
-useEffect(() => {
-  if (!tables.length) return;
-  if (!size.width || !size.height) return;
 
-  // ⭐ אם כבר יש canvasView שמור – לא נוגעים
-  if (canvasView) return;
-
-  // ⭐ חישוב מרכז פשוט (בלי scale)
-  const avgX =
-    tables.reduce((sum, t) => sum + t.x, 0) / tables.length;
-  const avgY =
-    tables.reduce((sum, t) => sum + t.y, 0) / tables.length;
-
-  const centerX = size.width / 2 - avgX;
-  const centerY = size.height / 2 - avgY;
-
-  setStagePos({ x: centerX, y: centerY });
-  setScale(1);
-
-  // ⭐ שומרים פעם אחת בלבד
-  setCanvasView({ x: centerX, y: centerY, scale: 1 });
-}, [tables, size.width, size.height]);
 
 
 
@@ -267,15 +276,16 @@ useEffect(() => {
 
       {size.width > 0 && size.height > 0 && (
   <Stage
-    width={size.width}
-    height={size.height}
-    scaleX={scale}
-    scaleY={scale}
-    x={stagePos.x}
-    y={stagePos.y}
-    onWheel={handleWheel}
-    onMouseMove={handleMouseMove}
-  >
+  ref={stageRef}
+  width={size.width}
+  height={size.height}
+  scaleX={scale}
+  scaleY={scale}
+  x={stagePos.x}
+  y={stagePos.y}
+  onWheel={handleWheel}
+  onMouseMove={handleMouseMove}
+>
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
         </Layer>
