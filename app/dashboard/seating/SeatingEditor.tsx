@@ -139,6 +139,28 @@ function SeatingEditorInner({
 
 
 
+useEffect(() => {
+  if (!tables.length) return;
+  if (!size.width || !size.height) return;
+
+  // ⭐ אם כבר יש canvasView שמור – לא נוגעים
+  if (canvasView) return;
+
+  // ⭐ חישוב מרכז פשוט (בלי scale)
+  const avgX =
+    tables.reduce((sum, t) => sum + t.x, 0) / tables.length;
+  const avgY =
+    tables.reduce((sum, t) => sum + t.y, 0) / tables.length;
+
+  const centerX = size.width / 2 - avgX;
+  const centerY = size.height / 2 - avgY;
+
+  setStagePos({ x: centerX, y: centerY });
+  setScale(1);
+
+  // ⭐ שומרים פעם אחת בלבד
+  setCanvasView({ x: centerX, y: centerY, scale: 1 });
+}, [tables, size.width, size.height]);
 
 
 
