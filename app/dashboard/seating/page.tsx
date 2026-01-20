@@ -28,6 +28,7 @@ type GuestDTO = {
   guestsCount?: number;
   arrivedCount?: number;
   rsvp?: "yes" | "no" | "pending";
+  groupId?: string | null; // ⭐ זה התיקון
 };
 
 type TableLite = { x: number; y: number };
@@ -101,6 +102,7 @@ export default function SeatingPage() {
   rsvp: g.rsvp,              // ✅ זה היה חסר
   guestsCount: g.guestsCount,
   arrivedCount: g.arrivedCount,
+  groupId: g.groupId ?? null,
   count:
     g.rsvp === "yes"
       ? g.arrivedCount || g.guestsCount || 1
