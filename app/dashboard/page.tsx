@@ -94,6 +94,8 @@ const isDemo = pathname.startsWith("/try");
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
+  const loadGroups = useGroupStore((s) => s.loadGroups);
+
 
   const handleGuestUpdated = (updatedGuest: Guest) => {
   setGuests((prev) =>
@@ -421,6 +423,14 @@ useEffect(() => {
   load();
 }, [invitationId, isDemo]);
 
+useEffect(() => {
+  if (isDemo) return;
+  if (!invitationId) return;
+
+  loadGroups(invitationId);
+}, [invitationId, isDemo, loadGroups]);
+
+
 
 
 useEffect(() => {
@@ -503,6 +513,12 @@ useEffect(() => {
       });
     }
 
+    // ⭐ פילטר לפי קבוצה
+if (selectedGroupId) {
+  list = list.filter((g) => g.groupId === selectedGroupId);
+}
+
+
     // 3) Sort
     const rsvpOrder: Record<Guest["rsvp"], number> = { yes: 0, pending: 1, no: 2 };
 
@@ -528,7 +544,15 @@ useEffect(() => {
     });
 
     return list;
-  }, [guests, quickFilter, search, sortKey, sortDir]);
+  }, [
+  guests,
+  quickFilter,
+  search,
+  sortKey,
+  sortDir,
+  selectedGroupId, // ⭐ חובה
+]);
+
 
   const toggleSort = (key: SortKey) => {
     if (sortKey !== key) {
@@ -989,8 +1013,8 @@ console.log("INVITATION:", invitation);
           <td className="p-3">
   <GuestGroupSelect
     value={g.groupId}
-    onChange={(groupId) => {
-      // Client-only update
+    onChange={async (groupId) => {
+      // ✅ עדכון מיידי ב-UI
       setGuests((prev) =>
         prev.map((guest) =>
           guest._id === g._id
@@ -998,6 +1022,15 @@ console.log("INVITATION:", invitation);
             : guest
         )
       );
+
+      // ✅ שמירה ל-DB
+      await fetch(`/api/guests/${g._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ groupId }),
+      });
     }}
   />
 </td>

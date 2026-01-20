@@ -7,37 +7,50 @@ type GroupStore = {
 
   /* CRUD */
   setGroups: (groups: Group[]) => void;
-  addGroup: (name: string, invitationId?: string) => void;
+  addGroup: (name: string) => void;
   updateGroup: (id: string, data: Partial<Group>) => void;
   removeGroup: (id: string) => void;
 
-  /* Order */
-  reorderGroups: (orderedIds: string[]) => void;
-
-  /* Helpers */
-  getGroupById: (id?: string | null) => Group | undefined;
+  /* DB */
+  loadGroups: (invitationId: string) => Promise<void>;
 };
 
 export const useGroupStore = create<GroupStore>((set, get) => ({
   groups: [],
 
-  /* ================= CRUD ================= */
+  /* ================= SET ================= */
+  setGroups: (groups) => set({ groups }),
 
-  setGroups: (groups) =>
-    set({
-      groups: [...groups].sort((a, b) => a.order - b.order),
-    }),
+  /* ================= LOAD FROM DB ================= */
+  loadGroups: async (invitationId: string) => {
+    try {
+      const res = await fetch(
+        `/api/groups?invitationId=${invitationId}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
-  addGroup: (name, invitationId = "") =>
+      const data = await res.json();
+      if (data.success) {
+        set({ groups: data.groups || [] });
+      }
+    } catch (err) {
+      console.error("❌ loadGroups failed:", err);
+    }
+  },
+
+  /* ================= CRUD (LOCAL + API HOOK READY) ================= */
+  addGroup: (name) =>
     set((state) => ({
       groups: [
         ...state.groups,
         {
           _id: nanoid(),
-          invitationId,
+          invitationId: "",
           name,
           order: state.groups.length,
-          createdAt: new Date().toISOString(),
         },
       ],
     })),
@@ -51,28 +64,6 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
 
   removeGroup: (id) =>
     set((state) => ({
-      groups: state.groups
-        .filter((g) => g._id !== id)
-        .map((g, index) => ({ ...g, order: index })), // שמירה על סדר תקין
+      groups: state.groups.filter((g) => g._id !== id),
     })),
-
-  /* ================= ORDER ================= */
-
-  reorderGroups: (orderedIds) =>
-    set((state) => ({
-      groups: orderedIds
-        .map((id, index) => {
-          const g = state.groups.find((x) => x._id === id);
-          if (!g) return null;
-          return { ...g, order: index };
-        })
-        .filter(Boolean) as Group[],
-    })),
-
-  /* ================= HELPERS ================= */
-
-  getGroupById: (id) => {
-    if (!id) return undefined;
-    return get().groups.find((g) => g._id === id);
-  },
 }));

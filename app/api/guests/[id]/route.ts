@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 }
 
 /* ============================================
-   PUT — עדכון אורח / RSVP
+   PUT — עדכון אורח / RSVP / קבוצה
 ============================================ */
 export async function PUT(req: NextRequest, { params }: RouteContext) {
   const { id } = await params;
@@ -70,12 +70,23 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     /* ===============================
-       שדות כלליים (עריכת בעל האירוע)
+       שדות כלליים
     =============================== */
     if (typeof data.name === "string") guest.name = data.name;
     if (typeof data.phone === "string") guest.phone = data.phone;
     if (typeof data.relation === "string") guest.relation = data.relation;
     if (typeof data.notes === "string") guest.notes = data.notes;
+
+    /* ===============================
+       ⭐ groupId — שיוך לקבוצה
+       רק בעל האירוע / אדמין
+    =============================== */
+    if (
+      "groupId" in data &&
+      (data.groupId === null || typeof data.groupId === "string")
+    ) {
+      guest.groupId = data.groupId;
+    }
 
     /* ===============================
        RSVP
@@ -86,19 +97,16 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     /* ===============================
        🔒 guestsCount — רק בעל האירוע / אדמין
-       ❗ אורח לא יכול לשנות מוזמנים
     =============================== */
     if (
       typeof data.guestsCount === "number" &&
-      data.guestsCount >= 1 &&
-      (isOwner || isAdmin)
+      data.guestsCount >= 1
     ) {
       guest.guestsCount = data.guestsCount;
     }
 
     /* ===============================
-       ✅ arrivedCount — כמה אישרו / הגיעו
-       (זה השדה שמתעדכן ב-RSVP)
+       arrivedCount — נוכחות בפועל
     =============================== */
     if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
       guest.arrivedCount = data.arrivedCount;

@@ -6,21 +6,34 @@ const GuestSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Invitation",
       required: true,
+      index: true,
     },
 
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     phone: {
       type: String,
       required: true,
+      trim: true,
     },
 
     token: {
       type: String,
       required: true,
+    },
+
+    /* =====================
+       ⭐ קבוצות
+    ===================== */
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Group",
+      default: null,
+      index: true,
     },
 
     rsvp: {
@@ -37,11 +50,19 @@ const GuestSchema = new mongoose.Schema(
     guestsCount: {
       type: Number,
       default: 1,
+      min: 1,
+    },
+
+    arrivedCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     notes: {
       type: String,
       default: "",
+      trim: true,
     },
   },
   {
