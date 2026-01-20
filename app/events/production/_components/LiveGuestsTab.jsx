@@ -240,10 +240,12 @@ if (!guests.length) {
               const tableFromStore = guestTableMap.get(String(g._id)) || null;
 
 const tableLabel =
-  tableFromStore?.name ??
+  g.tableName ||
+  tableFromStore?.name ||
   (tableFromStore?.number != null
     ? `שולחן ${tableFromStore.number}`
     : "-");
+
 
 
               return (
