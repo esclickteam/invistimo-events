@@ -36,10 +36,13 @@ export default function LiveGuestsTab({ invitationId }) {
   const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 
 
-  const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const tables = useSeatingStore((s) => s.tables);
+
+  const guests = useSeatingStore((s) => s.guests);
+const setGuests = useSeatingStore((s) => s.setGuests);
+
 
 
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -47,64 +50,9 @@ export default function LiveGuestsTab({ invitationId }) {
   // ✅ עריכה חוזרת (מודאל פנימי)
   const [editGuest, setEditGuest] = useState(null);
 
-  const cacheKey = invitationId ? `live-guests-${invitationId}` : null;
 
-  function saveCache(list) {
-    if (!cacheKey) return;
-    sessionStorage.setItem(cacheKey, JSON.stringify(list || []));
-  }
 
-  /* =========================
-     Load cached guests on tab return
-  ========================= */
-  useEffect(() => {
-    if (!cacheKey) return;
-
-    const cached = sessionStorage.getItem(cacheKey);
-    if (!cached) return;
-
-    try {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed)) setGuests(parsed);
-    } catch {}
-  }, [cacheKey]);
-
-  /* =========================
-     Import guests
-  ========================= */
-  async function importGuests() {
-  if (!invitationId) {
-    setError("אין מזהה הזמנה");
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-
-  try {
-    const res = await fetch(
-      `/api/live-guests/import?invitationId=${invitationId}`,
-      { method: "POST" }
-    );
-
-    const json = await res.json();
-    if (!res.ok) throw new Error();
-
-    // ✅ קריטי: בלייב arrivedCount תמיד מתחיל מ־0
-    const list = (json.guests || []).map((g) => ({
-      ...g,
-      arrivedCount: 0,
-    }));
-
-    setGuests(list);
-    saveCache(list);
-  } catch (e) {
-    console.error("❌ importGuests error:", e);
-    setError("לא נמצאו אורחים להזמנה");
-  } finally {
-    setLoading(false);
-  }
-}
+  
 
   /* =========================
      Delete guest
@@ -123,7 +71,6 @@ export default function LiveGuestsTab({ invitationId }) {
 
       setGuests((prev) => {
         const next = prev.filter((g) => g._id !== guest._id);
-        saveCache(next);
         return next;
       });
     } catch (e) {
@@ -163,7 +110,6 @@ export default function LiveGuestsTab({ invitationId }) {
       const next = prev.map((g) =>
         g._id === updated._id ? { ...g, ...updated } : g
       );
-      saveCache(next);
       return next;
     });
   }
@@ -237,26 +183,14 @@ const guestTableMap = useMemo(() => {
 }, [tables]);
 
 
-  /* =========================
-     BEFORE IMPORT
-  ========================= */
-  if (!guests.length) {
-    return (
-      <div className="p-6" dir="rtl">
-        <p className="mb-4">עדיין לא יובאה רשימת אורחים ללייב</p>
+if (!guests.length) {
+  return (
+    <div className="p-6 text-center text-gray-500">
+      עדיין אין אורחים לאירוע
+    </div>
+  );
+}
 
-        {error && <p className="text-red-600 mb-3">{error}</p>}
-
-        <button
-          onClick={importGuests}
-          disabled={loading}
-          className="px-4 py-2 bg-black text-white rounded disabled:opacity-60"
-        >
-          {loading ? "מייבא..." : "📥 ייבוא אורחים"}
-        </button>
-      </div>
-    );
-  }
 
   /* =========================
      AFTER IMPORT
@@ -271,15 +205,7 @@ const guestTableMap = useMemo(() => {
         >
           + הוספת מוזמן
         </button>
-
-        <button
-          onClick={importGuests}
-          disabled={loading}
-          className="px-4 py-2 border rounded disabled:opacity-60"
-          title="רענון מהשרת"
-        >
-          🔄 רענון
-        </button>
+      
       </div>
 
       {/* ✅ Only two cards */}
@@ -421,7 +347,6 @@ const tableLabel =
             setGuests((prev) => {
               if (prev.some((x) => x._id === newGuest._id)) return prev;
               const next = [...prev, newGuest];
-              saveCache(next);
               return next;
             });
 
