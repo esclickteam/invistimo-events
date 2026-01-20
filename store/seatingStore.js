@@ -526,75 +526,68 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 
   /* ---------------- ⭐️ עדכון למודאל ---------------- */
   assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
-  const { tables, guests, isLiveMode } = get();
+  const { tables, guests } = get();
 
+  const table = tables.find((t) => t.id === tableId);
   const guest = guests.find(
-    (g) => String(g.id ?? g._id) === String(guestId)
-  );
-  if (!guest) return { ok: false };
+  (g) => String(g.id ?? g._id) === String(guestId)
+);
 
-  const realCount = isLiveMode
-    ? Number(guest.arrivedCount || 0)
-    : Number(guest.guestsCount || 0);
 
-  if (realCount === 0) {
-    return { ok: false, message: "האורח לא הגיע בפועל" };
+  if (!table || !guest) {
+    return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
   }
 
-  let targetTableName = null;
+  const { isLiveMode } = get();
 
-  const updatedTables = tables.map((t) => {
-    const cleanedSeats =
-      t.seatedGuests?.filter(
-        (s) => String(s.guestId) !== String(guestId)
-      ) ?? [];
+const realCount = isLiveMode
+  ? Number(guest.arrivedCount || 0)
+  : Number(guest.guestsCount || 0);
 
-    if (t.id !== tableId) {
-      return { ...t, seatedGuests: cleanedSeats };
-    }
+if (realCount === 0) {
+  return { ok: false, message: "האורח לא הגיע בפועל" };
+}
 
-    const block = findFreeBlock(
-      { ...t, seatedGuests: cleanedSeats },
-      realCount,
-      typeof seatIndex === "number" ? seatIndex : undefined
+
+  // ✅ תיקון קריטי:
+  // לא לכפות seatIndex = 0
+  // אם לא הגיע seatIndex – נותנים ל-engine לבחור לבד
+  const startIndex =
+    typeof seatIndex === "number" ? seatIndex : undefined;
+
+  const block = findFreeBlock(table, realCount, startIndex);
+
+  // guard חובה
+  if (!block || block.length === 0) {
+    return { ok: false, message: "אין מספיק מקומות פנויים" };
+  }
+
+  // ניקוי הושבות קודמות של האורח מכל השולחנות
+  tables.forEach((t) => {
+    t.seatedGuests = t.seatedGuests.filter(
+      (s) => s.guestId !== guestId
     );
-
-    if (!block || block.length === 0) {
-      return { ...t, seatedGuests: cleanedSeats };
-    }
-
-    targetTableName = t.name;
-
-    return {
-      ...t,
-      seatedGuests: [
-        ...cleanedSeats,
-        ...block.map((seatIndex) => ({
-          guestId: String(guestId),
-          seatIndex,
-        })),
-      ],
-    };
   });
 
-  const updatedGuests = guests.map((g) =>
-    String(g.id ?? g._id) === String(guestId)
-      ? {
-          ...g,
-          tableId,
-          tableName: targetTableName,
-        }
-      : g
+  // ✅ כאן נוצר seatIndex לכל מושב – זה מה שצובע באפור
+  table.seatedGuests.push(
+    ...block.map((seatIndex) => ({
+      guestId,
+      seatIndex,
+    }))
   );
 
+  // עדכון האורח
+  guest.tableId = tableId;
+  guest.tableName = table.name;
+
   set({
-    tables: updatedTables,
-    guests: updatedGuests,
+    tables: [...tables],
+    guests: [...guests],
   });
 
   return { ok: true };
 },
-
 
 
   removeGuestFromTable: (tableId, guestId) => {
