@@ -64,35 +64,19 @@ export function findFreeBlock(table, needed) {
 
   if (!seats || needed <= 0) return null;
 
-  // 🟦 מרובע – בדיקה לפי צדדים בלבד
-  if (table.type === "square") {
-    const sides = getVisualOrder(table, true);
-
-    for (const side of sides) {
-      for (let i = 0; i <= side.length - needed; i++) {
-        const block = side.slice(i, i + needed);
-        if (block.every((idx) => !used.has(idx))) {
-          dlog("✅ found block in one side", block);
-          return block;
-        }
-      }
-    }
-
-    dlog("❌ no block in single side");
-    return null;
-  }
-
-  // 🟦 שאר הצורות
+  // 🔁 סדר ויזואלי אחיד לכל הצורות
   const visualOrder = getVisualOrder(table);
 
+  // 🟦 עגול + מרובע → מאפשר מעבר רציף (כולל פינה)
   const extended =
-    table.type === "round"
+    table.type === "round" || table.type === "square"
       ? [...visualOrder, ...visualOrder.slice(0, needed - 1)]
       : visualOrder;
 
   for (let i = 0; i <= extended.length - needed; i++) {
     const block = extended.slice(i, i + needed);
 
+    // מונע wrap כפול (אותו מושב פעמיים)
     if (new Set(block).size !== needed) continue;
 
     if (block.every((idx) => !used.has(idx))) {
@@ -104,6 +88,7 @@ export function findFreeBlock(table, needed) {
   dlog("❌ no visual contiguous block found");
   return null;
 }
+
 
 
 /* ============================================================
