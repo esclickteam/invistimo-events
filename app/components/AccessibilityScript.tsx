@@ -2,38 +2,19 @@
 
 import { usePathname } from "next/navigation";
 import Script from "next/script";
-import { useEffect } from "react";
 
 export default function AccessibilityScript() {
   const pathname = usePathname();
 
-  const isDashboard =
+  // ❌ לא בדשבורד של מפיקים
+  if (
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/producer");
-
-  /* 🔥 ניקוי UserWay אם נכנסנו לדשבורד */
-  useEffect(() => {
-    if (!isDashboard) return;
-
-    // הסרת iframe של UserWay
-    const widget = document.querySelector(
-      'iframe[src*="userway"], div#userway-widget'
-    );
-    if (widget) {
-      widget.remove();
-    }
-
-    // ניקוי משתנים גלובליים
-    // @ts-ignore
-    delete window.UserWay;
-  }, [isDashboard]);
-
-  // ❌ בדשבורד – לא טוענים בכלל
-  if (isDashboard) {
+    pathname.startsWith("/producer")
+  ) {
     return null;
   }
 
-  // ✅ באתר הציבורי – כן טוענים
+  // ✅ רק באתר הציבורי
   return (
     <Script
       id="userway-widget"
