@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useSeatingStore } from "@/store/seatingStore";
 
 import ProductionTabs from "./_components/ProductionTabs";
 
@@ -17,9 +18,14 @@ import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
 export default function EventProductionPage() {
   const { user } = useAuth();
 
+  const importSnapshot = useSeatingStore((s) => s.importSnapshot);
+
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  /* =========================
+     Load invitation
+  ========================= */
   useEffect(() => {
     if (!user) return;
 
@@ -37,6 +43,40 @@ export default function EventProductionPage() {
       })
       .finally(() => setLoading(false));
   }, [user]);
+
+  /* =========================
+     Load LIVE snapshot (guests + seating)
+     ⭐ מקור אמת יחיד
+  ========================= */
+  useEffect(() => {
+    if (!invitation?._id) return;
+
+    let cancelled = false;
+
+    async function loadLiveSnapshot() {
+      try {
+        const res = await fetch(
+          `/api/live-snapshot?invitationId=${invitation._id}`
+        );
+
+        if (!res.ok) throw new Error("Failed to load live snapshot");
+
+        const snapshot = await res.json();
+
+        if (!cancelled) {
+          importSnapshot(snapshot);
+        }
+      } catch (err) {
+        console.error("Live snapshot load error:", err);
+      }
+    }
+
+    loadLiveSnapshot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [invitation?._id, importSnapshot]);
 
   /* 🔒 חשוב: לא להוריד את הקומפוננטה */
   if (loading) {
