@@ -127,11 +127,8 @@ export default function GuestSidebar({
           const isSeated = Boolean(tableLabel);
 
           /* ⭐ מקור אמת למספר מקומות (ללקוח) */
-          const effectiveSeats =
-            guest.arrivedCount !== undefined &&
-            guest.arrivedCount !== null
-              ? guest.arrivedCount
-              : guest.guestsCount ?? 0;
+          const effectiveSeats = guest.guestsCount ?? 0;
+
 
           const isHighlighted =
             shouldHighlightFromUrl &&
