@@ -304,18 +304,20 @@ export default function SeatingPage() {
 
   {/* 🔘 כפתור הצגה / הסתרה של הסיידבר */}
   <button
-    onClick={() => setSidebarOpen((v) => !v)}
-    className="
-      absolute top-24 right-2 z-40
-      bg-white border rounded-full
-      w-9 h-9 flex items-center justify-center
-      shadow hover:bg-gray-50
-      transition
-    "
-    title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
-  >
-    {sidebarOpen ? "›" : "‹"}
-  </button>
+  onClick={() => setSidebarOpen((v) => !v)}
+  className={`
+    absolute top-24 z-40
+    ${sidebarOpen ? "right-[18rem]" : "right-0"}
+    translate-x-1/2
+    bg-white border rounded-full
+    w-9 h-9 flex items-center justify-center
+    shadow hover:bg-gray-50
+    transition-all duration-300
+  `}
+  title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
+>
+  {sidebarOpen ? "›" : "‹"}
+</button>
 
   {/* 🎨 קנבס */}
   <div className="flex-1 relative">
