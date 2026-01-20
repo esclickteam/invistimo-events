@@ -279,11 +279,7 @@ export default function SeatingPage() {
       {/* CONTENT */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
         <div className="flex-1 relative">
-          <SeatingEditor
-  background={background?.url || null}
-  onSave={saveSeating}
-/>
-
+          <SeatingEditor background={background?.url || null} />
         </div>
 
         <aside className="hidden md:block w-72 bg-white border-l">
@@ -330,8 +326,32 @@ export default function SeatingPage() {
       )}
 
 
-
-
+{/* ===============================
+    STICKY SAVE BAR
+=============================== */}
+<div
+  className="
+    fixed bottom-0 inset-x-0 z-40
+    bg-white
+    border-t border-gray-200
+    shadow-[0_-4px_12px_rgba(0,0,0,0.06)]
+  "
+>
+  <div className="max-w-7xl mx-auto px-4 py-3 flex justify-end">
+    <button
+      onClick={saveSeating}
+      className="
+        px-6 py-2 rounded-full
+        bg-green-600 text-white
+        font-semibold
+        hover:bg-green-700
+        transition
+      "
+    >
+      💾 שמירת הושבה
+    </button>
+  </div>
+</div>
 
 
 
