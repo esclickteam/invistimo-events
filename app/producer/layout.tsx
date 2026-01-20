@@ -1,7 +1,6 @@
 import ProducerDashboardHeader from "@/app/dashboard/ProducerDashboardHeader";
 
-
-export default function ProducerDashboardLayout({
+export default function ProducerLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -9,7 +8,7 @@ export default function ProducerDashboardLayout({
   return (
     <>
       <ProducerDashboardHeader />
-      <main className="pt-16">
+      <main className="pt-16 min-h-screen bg-[#faf6f1]">
         {children}
       </main>
     </>
