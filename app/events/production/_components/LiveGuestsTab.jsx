@@ -301,39 +301,32 @@ const tableLabel =
 
                      <button
   onClick={() => {
-    const guestId = String(g.id ?? "");
-    const guestMongoId = String(g._id ?? "");
+    const guestId = String(g.id ?? g._id);
 
-    console.log("🪑 CLICK GUEST:", {
-      id: guestId,
-      _id: guestMongoId,
+    console.log("🪑 CLICK GUEST", {
+      guestId,
+      tableId: g.tableId,
       tableName: g.tableName,
     });
 
-    console.log(
-      "🗺️ guestTableMap keys:",
-      Array.from(guestTableMap.keys())
-    );
+    // 1️⃣ ניסיון לפי seatedGuests (Live בפועל)
+    let tableFromStore =
+      guestTableMap.get(String(g.id)) ||
+      guestTableMap.get(String(g._id));
 
-    const tableFromStore =
-      guestTableMap.get(guestId) ||
-      guestTableMap.get(guestMongoId);
-
-    console.log("🔎 tableFromStore:", tableFromStore);
-
-    if (!tableFromStore) {
-      console.warn(
-        "❌ NO TABLE FOUND FOR GUEST",
-        guestId,
-        guestMongoId
+    // 2️⃣ fallback – לפי tableId מהאורח
+    if (!tableFromStore && g.tableId) {
+      tableFromStore = tables.find(
+        (t) => String(t.id) === String(g.tableId)
       );
-      return;
     }
 
-    console.log(
-      "✅ NAVIGATE TO TABLE:",
-      tableFromStore.id
-    );
+    console.log("🔎 FINAL tableFromStore:", tableFromStore);
+
+    if (!tableFromStore) {
+      console.warn("❌ NO TABLE FOUND");
+      return;
+    }
 
     router.push(
       `/events/production?tab=live-seating&focusTableId=${tableFromStore.id}`
@@ -343,6 +336,7 @@ const tableLabel =
 >
   🪑
 </button>
+
 
 
                       {/* ✅ החזרת העריכה */}
