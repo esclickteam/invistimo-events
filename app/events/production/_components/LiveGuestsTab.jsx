@@ -299,13 +299,41 @@ const tableLabel =
                         💬
                       </button>
 
-                      <button
+                     <button
   onClick={() => {
-    const tableFromStore =
-  guestTableMap.get(String(g.id)) ||
-  guestTableMap.get(String(g._id));
+    const guestId = String(g.id ?? "");
+    const guestMongoId = String(g._id ?? "");
 
-    if (!tableFromStore) return;
+    console.log("🪑 CLICK GUEST:", {
+      id: guestId,
+      _id: guestMongoId,
+      tableName: g.tableName,
+    });
+
+    console.log(
+      "🗺️ guestTableMap keys:",
+      Array.from(guestTableMap.keys())
+    );
+
+    const tableFromStore =
+      guestTableMap.get(guestId) ||
+      guestTableMap.get(guestMongoId);
+
+    console.log("🔎 tableFromStore:", tableFromStore);
+
+    if (!tableFromStore) {
+      console.warn(
+        "❌ NO TABLE FOUND FOR GUEST",
+        guestId,
+        guestMongoId
+      );
+      return;
+    }
+
+    console.log(
+      "✅ NAVIGATE TO TABLE:",
+      tableFromStore.id
+    );
 
     router.push(
       `/events/production?tab=live-seating&focusTableId=${tableFromStore.id}`
@@ -315,6 +343,7 @@ const tableLabel =
 >
   🪑
 </button>
+
 
                       {/* ✅ החזרת העריכה */}
                       <button onClick={() => setEditGuest(g)} title="עריכה">
