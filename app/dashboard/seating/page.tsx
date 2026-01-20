@@ -261,17 +261,33 @@ export default function SeatingPage() {
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
     <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
 
-    <div className="flex flex-col sm:flex-row gap-2">
-      <button
-        onClick={() => setShowUpload(true)}
-        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
-      >
-        העלאת תבנית אולם
-      </button>
+<div className="flex flex-col sm:flex-row gap-2">
+  <button
+    onClick={() => setShowUpload(true)}
+    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
+  >
+    העלאת תבנית אולם
+  </button>
 
-      <ExportSeatingPdf eventId={eventId} />
+  <ExportSeatingPdf eventId={eventId} />
 
-    </div>
+  <button
+    onClick={saveSeating}
+    className="
+      px-4 py-2 text-sm
+      bg-green-600 text-white
+      rounded-lg
+      font-semibold
+      hover:bg-green-700
+      transition
+      whitespace-nowrap
+    "
+  >
+    💾 שמירה
+  </button>
+</div>
+
+
   </div>
 
   {/* ⬅️ זה ה־div שחייב להיסגר */}
@@ -330,44 +346,12 @@ export default function SeatingPage() {
       )}
 
 
-{/* ===============================
-    STICKY SAVE BAR
-=============================== */}
-<div
-  className="
-    fixed bottom-0 inset-x-0 z-40
-    bg-white
-    border-t border-gray-200
-    shadow-[0_-4px_12px_rgba(0,0,0,0.06)]
-  "
->
-  <div
-  dir="ltr"
-  className="max-w-7xl px-4 py-3 flex justify-start"
->
 
-
-
-
-
-    <button
-      onClick={saveSeating}
-      className="
-        px-6 py-2 rounded-full
-        bg-green-600 text-white
-        font-semibold
-        hover:bg-green-700
-        transition
-      "
-    >
-      💾 שמירת הושבה
-    </button>
-  </div>
-</div>
 
 
 
 
     </div>
+    
   );
 }
