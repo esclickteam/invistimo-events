@@ -69,10 +69,10 @@ const setGuests = useSeatingStore((s) => s.setGuests);
       const data = await res.json();
       if (!data?.success) throw new Error("Delete failed");
 
-      setGuests((prev) => {
-        const next = prev.filter((g) => g._id !== guest._id);
-        return next;
-      });
+      const current = useSeatingStore.getState().guests;
+const next = current.filter((g) => g._id !== guest._id);
+setGuests(next);
+
     } catch (e) {
       console.error("❌ deleteGuest error:", e);
       alert("❌ שגיאה במחיקת מוזמן");
@@ -106,13 +106,14 @@ const setGuests = useSeatingStore((s) => s.setGuests);
   }
 
   function applyUpdatedGuest(updated) {
-    setGuests((prev) => {
-      const next = prev.map((g) =>
-        g._id === updated._id ? { ...g, ...updated } : g
-      );
-      return next;
-    });
-  }
+  const current = useSeatingStore.getState().guests;
+
+  const next = current.map(g =>
+    g._id === updated._id ? { ...g, ...updated } : g
+  );
+
+  setGuests(next);
+}
 
   /* =========================
      ✅ הגיעו בפועל ליד כל אורח
@@ -344,11 +345,14 @@ const tableLabel =
           onSuccess={(newGuest) => {
             if (!newGuest) return;
 
-            setGuests((prev) => {
-              if (prev.some((x) => x._id === newGuest._id)) return prev;
-              const next = [...prev, newGuest];
-              return next;
-            });
+            const current = useSeatingStore.getState().guests;
+
+if (!current.some((x) => x._id === newGuest._id)) {
+  setGuests([...current, newGuest]);
+}
+
+setOpenAddModal(false);
+
 
             setOpenAddModal(false);
           }}
