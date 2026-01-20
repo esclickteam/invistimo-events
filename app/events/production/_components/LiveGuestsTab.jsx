@@ -300,16 +300,15 @@ const tableLabel =
                       </button>
 
                       <button
-  onClick={() =>
-    router.push(
-     `/producer/dashboard/seating?tab=live&guestId=${g._id}`
-    )
-  }
-  title="הושבה אישית (לייב)"
->
-  🪑
-</button>
-
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/seating?from=personal&guestId=${g._id}`
+                          )
+                        }
+                        title="הושבה"
+                      >
+                        🪑
+                      </button>
 
                       {/* ✅ החזרת העריכה */}
                       <button onClick={() => setEditGuest(g)} title="עריכה">
