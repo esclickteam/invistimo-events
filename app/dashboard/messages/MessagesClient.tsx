@@ -218,6 +218,9 @@ if (testData.success) {
   );
   const guestsData = await guestsRes.json();
   setGuests(guestsData.guests || []);
+
+  console.log("GUESTS FROM API:", guestsData.guests);
+
 }
 
 } finally {
