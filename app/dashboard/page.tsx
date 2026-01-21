@@ -283,18 +283,19 @@ useEffect(() => {
   async function initAfterUser() {
     setLoading(true);
 
-    // ✅ איפוס מלא – מונע זליגה בין אירועים
     setEvent(null);
     setInvitation(null);
     setInvitationId("");
 
     await loadInvitation();
     await loadEvent();
+
+    // ✅ הוסיפי את השורה הזו
+    setLoading(false);
   }
 
   initAfterUser();
 }, [user, isDemo]);
-
 
 
 useEffect(() => {
