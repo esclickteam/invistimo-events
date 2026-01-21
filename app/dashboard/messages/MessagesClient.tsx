@@ -258,10 +258,17 @@ useEffect(() => {
 
   /* ================= LOGIC ================= */
 
+  const smsLength = message.length;
+const smsParts = Math.max(1, Math.ceil(smsLength / 160));
+
+
   const guestsToSend = useMemo(() => {
     return guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
       if (filter === "withTable") return !!g.tableName || !!g.tableNumber;
+
+    
+
 
       return true;
     });
@@ -625,27 +632,47 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       )}
 
       {/* CHANNEL */}
-      <div className="flex gap-4 mb-6">
-        <button
-          onClick={() => setChannel("whatsapp")}
-          className={`px-4 py-2 rounded-full border ${
-            channel === "whatsapp" ? "bg-blue-600 text-white" : ""
-          }`}
-        >
-          WhatsApp
-        </button>
+      {/* ================= STEP 1: CHANNEL ================= */}
+{/* ================= STEP 3: MESSAGE ================= */}
+<section className="w-[90%] md:w-[600px] mb-10">
+  <div className="mb-4">
+    <h2 className="text-lg font-semibold text-[#4a413a]">
+      3️⃣ תוכן ההודעה
+    </h2>
+    <p className="text-sm text-gray-500">
+      בחרו תבנית או ערכו את ההודעה לפני השליחה
+    </p>
+  </div>
 
-        <button
-  disabled={!hasInvitation && !isDemo}
-  onClick={() => setChannel("sms")}
-  className={`px-4 py-2 rounded-full border ${
-    channel === "sms" ? "bg-blue-600 text-white" : ""
-  } ${!hasInvitation && !isDemo ? "opacity-40 cursor-not-allowed" : ""}`}
->
-  SMS
-</button>
 
-      </div>
+  <div className="flex gap-4">
+    <button
+      onClick={() => setChannel("whatsapp")}
+      className={`px-4 py-2 rounded-full border ${
+        channel === "whatsapp" ? "bg-blue-600 text-white" : ""
+      }`}
+    >
+      WhatsApp
+    </button>
+
+    <button
+      disabled={!hasInvitation && !isDemo}
+      onClick={() => setChannel("sms")}
+      className={`px-4 py-2 rounded-full border ${
+        channel === "sms" ? "bg-blue-600 text-white" : ""
+      } ${!hasInvitation && !isDemo ? "opacity-40 cursor-not-allowed" : ""}`}
+    >
+      SMS
+    </button>
+  </div>
+
+  {/* טקסט הכוונה מקצועי */}
+  <p className="text-xs text-gray-500 mt-2">
+    💡 SMS – פתיחה גבוהה להזמנות | WhatsApp – שליחה אישית
+  </p>
+</section>
+
+
 
       {channel === "whatsapp" && (
         <div className="w-[90%] md:w-[600px] mb-6">
@@ -661,9 +688,17 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         </div>
       )}
 
-      {channel === "sms" && (
-  <div className="mb-6 w-[90%] md:w-[600px]">
-    <label className="block mb-2">למי לשלוח:</label>
+      {/* ================= STEP 2: AUDIENCE ================= */}
+{channel === "sms" && (
+  <section className="w-[90%] md:w-[600px] mb-10">
+    <div className="mb-4">
+      <h2 className="text-lg font-semibold text-[#4a413a]">
+        2️⃣ קהל יעד
+      </h2>
+      <p className="text-sm text-gray-500">
+        בחרו אילו אורחים יקבלו את ההודעה
+      </p>
+    </div>
 
     <select
       value={filter}
@@ -684,13 +719,39 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       </option>
     </select>
 
+    {/* חיווי בטחון */}
+    <div className="mt-3">
+      <p className="text-sm text-[#4a413a]">
+        יישלח ל־<strong>{guestsToSend.length}</strong> אורחים
+      </p>
+
+      {filter === "pending" && (
+        <p className="text-xs text-green-600 mt-1">
+          ✔ מומלץ – מגדיל שיעור אישורי הגעה
+        </p>
+      )}
+
+      {filter === "withTable" && (
+        <p className="text-xs text-blue-600 mt-1">
+          ℹ️ רק אורחים ששובצו לשולחן יקבלו הודעה
+        </p>
+      )}
+
+      {filter === "all" && (
+        <p className="text-xs text-orange-600 mt-1">
+          ⚠️ כולל גם אורחים שכבר ענו
+        </p>
+      )}
+    </div>
+
     {isDemo && (
       <p className="text-xs text-gray-500 mt-2">
         🧪 בדמו ניתן לצפות בפילוחים – שליחה פעילה לאחר פתיחת אירוע
       </p>
     )}
-  </div>
+  </section>
 )}
+
 
 
       <div className="w-[90%] md:w-[600px] mb-2">
@@ -721,12 +782,28 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         ))}
       </select>
 
+      {templateKey === "table" && filter !== "withTable" && (
+  <p className="text-xs text-red-600 mt-2">
+    ❌ הודעת מספר שולחן זמינה רק לשליחה לאורחים עם שולחן
+  </p>
+)}
+
+
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         rows={6}
         className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
       />
+
+      <p
+  className={`text-xs mt-1 text-left ${
+    smsParts > 1 ? "text-orange-600" : "text-gray-500"
+  }`}
+>
+  {smsLength} תווים · {smsParts} SMS
+</p>
+
 
       {/* ================= CREDIT GIFT LINK ================= */}
 <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
@@ -840,76 +917,99 @@ const progress = max > 0 ? (used / max) * 100 : 0;
  {/* ================= MESSAGE TIMING ================= */}
 {channel === "sms" && !isDemo && (
 
-  <div className="w-[90%] md:w-[600px] mb-6">
-    <label className="block font-semibold text-[#4a413a] mb-2">
-      ⏱️ תזמון ההודעה
+  <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
+  <label className="block font-semibold text-[#4a413a] mb-3">
+    ⏱️ תזמון ההודעה
+  </label>
+
+  {/* בחירת סוג שליחה */}
+  <div className="flex flex-col gap-3 mb-4">
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="radio"
+        checked={sendTiming === "now"}
+        onChange={() => setSendTiming("now")}
+      />
+      <span className="font-medium">שליחה מיידית</span>
     </label>
 
-    <div className="flex gap-6 mb-4">
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          checked={sendTiming === "now"}
-          onChange={() => setSendTiming("now")}
-        />
-        שליחה מיידית
-      </label>
-
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          checked={sendTiming === "scheduled"}
-          onChange={() => setSendTiming("scheduled")}
-        />
-        שליחה מתוזמנת
-      </label>
-    </div>
-
-    {sendTiming === "scheduled" && (
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <label className="text-sm text-gray-600">תאריך שליחה</label>
-          <input
-            type="date"
-            min={new Date().toLocaleDateString("en-CA")}
-            value={scheduledDate}
-            onChange={(e) => setScheduledDate(e.target.value)}
-            className="w-full border rounded-xl p-3"
-          />
-        </div>
-
-        <div className="flex-1">
-          <label className="text-sm text-gray-600">שעת שליחה</label>
-          <input
-            type="time"
-            value={scheduledTime}
-            onChange={(e) => setScheduledTime(e.target.value)}
-            className="w-full border rounded-xl p-3"
-          />
-        </div>
-      </div>
+    {sendTiming === "now" && (
+      <p className="text-xs text-orange-600 mr-6">
+        ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל את השליחה
+      </p>
     )}
 
-    {sendTiming === "scheduled" && scheduledAt && (
-      <p className="text-xs text-gray-500 mt-2">
-        📅 ההודעה תישלח בתאריך{" "}
-        <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
-        בשעה{" "}
-        <strong>
-          {scheduledAt.toLocaleTimeString("he-IL", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </strong>
+    <label className="flex items-center gap-2 cursor-pointer mt-2">
+      <input
+        type="radio"
+        checked={sendTiming === "scheduled"}
+        onChange={() => setSendTiming("scheduled")}
+      />
+      <span className="font-medium">שליחה מתוזמנת</span>
+    </label>
+
+    {sendTiming === "scheduled" && (
+      <p className="text-xs text-green-600 mr-6">
+        ✔ ניתן לערוך או לבטל את ההודעה עד מועד השליחה
       </p>
     )}
   </div>
+
+  {/* תאריך ושעה */}
+  {sendTiming === "scheduled" && (
+    <div className="flex gap-4 mb-2">
+      <div className="flex-1">
+        <label className="text-sm text-gray-600 block mb-1">
+          תאריך שליחה
+        </label>
+        <input
+          type="date"
+          min={new Date().toLocaleDateString("en-CA")}
+          value={scheduledDate}
+          onChange={(e) => setScheduledDate(e.target.value)}
+          className="w-full border rounded-xl p-3"
+        />
+      </div>
+
+      <div className="flex-1">
+        <label className="text-sm text-gray-600 block mb-1">
+          שעת שליחה
+        </label>
+        <input
+          type="time"
+          value={scheduledTime}
+          onChange={(e) => setScheduledTime(e.target.value)}
+          className="w-full border rounded-xl p-3"
+        />
+      </div>
+    </div>
+  )}
+
+  {/* סיכום קטן */}
+  {sendTiming === "scheduled" && scheduledAt && (
+    <p className="text-xs text-gray-500 mt-2">
+      📅 ההודעה תישלח ב־
+      <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
+      בשעה{" "}
+      <strong>
+        {scheduledAt.toLocaleTimeString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </strong>
+    </p>
+  )}
+</div>
+
 )}
 
 
 
 
+
+
       {/* כפתור שליחה ראשי */}
+{/* כפתור שליחה ראשי */}
 <button
   onClick={sendToAll}
   disabled={
