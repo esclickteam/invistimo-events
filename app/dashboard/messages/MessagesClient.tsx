@@ -974,10 +974,6 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   </div>
 </div>
 
-{/* ================= TEST SMS BALANCE ================= */}
-{channel === "sms" && !isDemo && (
-  <SmsTestBalance />
-)}
 
 
 {/* ================= TEST MESSAGE ================= */}
