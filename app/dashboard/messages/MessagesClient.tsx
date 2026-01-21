@@ -222,6 +222,32 @@ if (balanceData.success) {
 }, [isDemo]);
 
 
+useEffect(() => {
+  if (channel !== "sms" || isDemo) return;
+
+  async function loadTestBalance() {
+    try {
+      const res = await fetch("/api/sms/test/balance", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (typeof data.used === "number") {
+        setTestSmsUsed(data.used);
+      }
+    } catch (err) {
+      console.error("❌ Failed to load test SMS balance", err);
+    }
+  }
+
+  loadTestBalance();
+}, [channel, isDemo]);
+
+
 
   /* ================= 🔄 REFRESH AFTER UPGRADE ================= */
 
