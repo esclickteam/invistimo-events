@@ -212,14 +212,13 @@ if (testData.success) {
 
   // 🔹 אורחים – רק אם יש הזמנה
   if (invData.invitation?._id) {
-    const guestsRes = await fetch(
-      `/api/guests?invitation=${invData.invitation._id}`
-    );
-    const guestsData = await guestsRes.json();
-    setGuests(guestsData.guests || []);
-  } else {
-    setGuests([]);
-  }
+  const guestsRes = await fetch(
+    `/api/guests?invitation=${invData.invitation._id}`
+  );
+  const guestsData = await guestsRes.json();
+  setGuests(guestsData.guests || []);
+}
+
 } finally {
   setLoading(false);
 }
@@ -994,6 +993,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     <h3 className="text-sm font-semibold text-[#4a413a] mb-2">
       🧪 שליחת הודעה לבדיקה
     </h3>
+
 
     <p className="text-xs text-gray-500 mb-3">
       ההודעה תישלח למספר זה בלבד · לא נספר כחיוב מלא
