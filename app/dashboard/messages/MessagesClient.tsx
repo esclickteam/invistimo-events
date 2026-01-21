@@ -104,7 +104,8 @@ const MESSAGE_TEMPLATES: Record<
   const [testPhone, setTestPhone] = useState("");
 const [sendingTest, setSendingTest] = useState(false);
 const MAX_TEST_SMS = 10;
-const [testSmsUsed, setTestSmsUsed] = useState<number | null>(null);
+const [testSmsUsed, setTestSmsUsed] = useState<number>(0);
+
 
 
 
