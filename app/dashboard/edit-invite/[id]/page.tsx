@@ -207,7 +207,8 @@ export default function EditInvitePage() {
           />
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0 relative">
+        <div className="flex-1 flex min-h-0 relative">
+
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
             <button
               onClick={() => uploadInputRef.current?.click()}
@@ -232,18 +233,29 @@ export default function EditInvitePage() {
 
             <div className="flex-1" />
 
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className={`px-5 py-2 rounded-full text-white text-sm ${
-                saving
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-            >
-              {saving ? "שומר..." : "💾 שמור"}
-            </button>
+<div className="flex items-center gap-2">
+  <button
+    onClick={() =>
+      window.open(`/rsvp/event/${invite._id}`, "_blank")
+    }
+    className="px-5 py-2 rounded-full border border-gray-300 bg-white text-gray-700 text-sm hover:bg-gray-50"
+  >
+    👁️ תצוגה מקדימה
+  </button>
+
+  <button
+    onClick={handleSave}
+    disabled={saving}
+    className={`px-5 py-2 rounded-full text-white text-sm ${
+      saving
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-600 hover:bg-blue-700"
+    }`}
+  >
+    {saving ? "שומר..." : "💾 שמור"}
+  </button>
           </div>
+          </div> 
 
           <div className="flex-1 relative bg-gray-100">
             <EditorCanvas
@@ -289,6 +301,6 @@ export default function EditInvitePage() {
           </MobileBottomSheet>
         </div>
       </div>
-    </QueryClientProvider>
+     </QueryClientProvider>
   );
 }
