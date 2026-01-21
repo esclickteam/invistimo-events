@@ -17,24 +17,25 @@ export async function POST(req: Request) {
     await dbConnect();
 
     /* ================= AUTH ================= */
-    const token = cookies().get("authToken")?.value;
+    const cookieStore = await cookies();
+const token = cookieStore.get("authToken")?.value;
 
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+if (!token) {
+  return NextResponse.json(
+    { success: false, error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
 
-    let decoded: any;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    } catch {
-      return NextResponse.json(
-        { success: false, error: "INVALID_TOKEN" },
-        { status: 401 }
-      );
-    }
+let decoded: any;
+try {
+  decoded = jwt.verify(token, process.env.JWT_SECRET!);
+} catch {
+  return NextResponse.json(
+    { success: false, error: "INVALID_TOKEN" },
+    { status: 401 }
+  );
+}
 
     const user = await User.findById(decoded.userId);
     if (!user) {
