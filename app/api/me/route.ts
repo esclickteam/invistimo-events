@@ -23,6 +23,15 @@ function clearAuthCookie(res: NextResponse) {
     secure: process.env.NODE_ENV === "production",
     maxAge: 0,
   });
+
+  // תאימות לאחור
+  res.cookies.set("token", "", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+  });
 }
 
 /* =========================
@@ -32,14 +41,19 @@ export async function GET() {
   try {
     await connectDB();
 
+    // ✅ חובה await
     const cookieStore = await cookies();
 
-    // 🔐 סדר עדיפויות נכון
+    /* =========================
+       🔐 Token priority
+    ========================= */
     const impersonationToken =
       cookieStore.get("impersonationToken")?.value ?? null;
 
     const authToken =
-      cookieStore.get("authToken")?.value ?? null;
+      cookieStore.get("authToken")?.value ??
+      cookieStore.get("token")?.value ??
+      null;
 
     const token = impersonationToken ?? authToken;
 
@@ -56,10 +70,11 @@ export async function GET() {
       _id?: string;
       role?: "admin" | "producer" | "client" | "user";
 
-      // impersonation flags
       impersonated?: boolean;
       impersonatedBy?: string;
       impersonationRole?: "admin" | "producer";
+
+      legacyRole?: string;
     };
 
     try {
@@ -107,11 +122,17 @@ export async function GET() {
       return res;
     }
 
+    /* =========================
+       🧠 Role normalization
+    ========================= */
+    const rawRole = decoded.role ?? "user";
+    const normalizedRole = rawRole === "client" ? "user" : rawRole;
+
     console.log(
       "✅ ME:",
       user.email,
       "| role:",
-      decoded.role,
+      normalizedRole,
       decoded.impersonated ? "| impersonated" : ""
     );
 
@@ -126,34 +147,37 @@ export async function GET() {
           name: user.name,
           email: user.email,
 
-          // 🔑 role תמיד מה-JWT
-          role: decoded.role ?? "user",
+          /* 🔑 AUTH */
+          role: normalizedRole,
+          legacyRole: rawRole !== normalizedRole ? rawRole : undefined,
+
+          impersonated: !!decoded.impersonated,
+          impersonatedBy: decoded.impersonatedBy ?? null,
+          impersonationRole: decoded.impersonationRole ?? null,
 
           createdByProducer: !!user.createdByProducer,
 
-          // 📦 עסקי
+          /* 📦 BUSINESS */
           plan: user.plan,
+          subscriptionPlan: user.plan,   // alias
           guests: user.guests,
           paidAmount: user.paidAmount,
+          hasPaid: user.hasPaid,
+          isPaid: user.hasPaid,           // alias
           planLimits: user.planLimits,
 
-          // 📞 שיחות
+          /* 📞 CALLS */
           includeCalls: user.includeCalls,
           callsRounds: user.callsRounds,
           callsAddonPrice: user.callsAddonPrice,
 
-          // 💳 מתנות
+          /* 💳 GIFTS */
           includeCreditGifts: user.includeCreditGifts,
           creditGiftsAddonPrice: user.creditGiftsAddonPrice,
 
-          // 🧪 סטטוסים
+          /* 🧪 STATUS */
           isTrial: user.isTrial,
           isDemoUser: user.isDemoUser,
-
-          // 🕵️‍♂️ impersonation
-          impersonated: !!decoded.impersonated,
-          impersonatedBy: decoded.impersonatedBy ?? null,
-          impersonationRole: decoded.impersonationRole ?? null,
 
           createdAt: user.createdAt,
         },

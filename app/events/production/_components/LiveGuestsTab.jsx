@@ -30,7 +30,7 @@ function confirmedCountForGuest(g) {
 /* =========================
    Component
 ========================= */
-export default function LiveGuestsTab({ invitationId }) {
+ export default function LiveGuestsTab({ invitationId }) {
   const router = useRouter();
 
 
