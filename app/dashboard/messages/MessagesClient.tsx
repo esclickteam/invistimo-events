@@ -103,6 +103,9 @@ const MESSAGE_TEMPLATES: Record<
   const [giftLink, setGiftLink] = useState("");
   const [testPhone, setTestPhone] = useState("");
 const [sendingTest, setSendingTest] = useState(false);
+const MAX_TEST_SMS = 10;
+const [testSmsUsed, setTestSmsUsed] = useState<number | null>(null);
+
 
 
 
@@ -193,6 +196,18 @@ const balanceData = await balanceRes.json();
 if (balanceData.success) {
   setBalance(balanceData);
 }
+
+// 🔹 טוענים שימוש בבדיקות SMS (X מתוך 10)
+const testRes = await fetch("/api/sms/test/usage", {
+  credentials: "include",
+  cache: "no-store",
+});
+
+const testData = await testRes.json();
+if (testData.success) {
+  setTestSmsUsed(testData.used);
+}
+
 
 
   // 🔹 אורחים – רק אם יש הזמנה
@@ -484,6 +499,11 @@ const sendTestMessage = async () => {
 
     alert("✅ הודעת בדיקה נשלחה בהצלחה");
     setTestPhone("");
+
+    setTestSmsUsed((prev) =>
+  typeof prev === "number" ? prev + 1 : prev
+);
+
   } catch (err) {
     alert("❌ שגיאה בשליחת הודעת בדיקה");
   } finally {
@@ -979,6 +999,22 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       ההודעה תישלח למספר זה בלבד · לא נספר כחיוב מלא
     </p>
 
+    {testSmsUsed !== null && (
+  <p
+    className={`text-xs mb-3 ${
+      MAX_TEST_SMS - testSmsUsed === 0
+        ? "text-red-600"
+        : "text-gray-600"
+    }`}
+  >
+    בדיקות שנשארו:{" "}
+    <strong>
+      {MAX_TEST_SMS - testSmsUsed} / {MAX_TEST_SMS}
+    </strong>
+  </p>
+)}
+
+
     <div className="flex gap-3">
       <input
         type="tel"
@@ -989,10 +1025,13 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       />
 
       <button
-        onClick={sendTestMessage}
-        disabled={sendingTest}
-        className="px-4 py-3 rounded-xl bg-gray-200 text-gray-800 text-sm font-medium disabled:opacity-50"
-      >
+  onClick={sendTestMessage}
+  disabled={
+    sendingTest ||
+    testSmsUsed !== null && testSmsUsed >= MAX_TEST_SMS
+  }
+  className="px-4 py-3 rounded-xl bg-gray-200 text-gray-800 text-sm font-medium disabled:opacity-50"
+>
         {sendingTest ? "שולח..." : "שלח לבדיקה"}
       </button>
     </div>
