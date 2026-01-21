@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import SmsTestBalance from "@/app/components/SmsTestBalance";
 import Link from "next/link";
 
 
@@ -100,6 +101,9 @@ const MESSAGE_TEMPLATES: Record<
   const [showScheduled, setShowScheduled] = useState(false);
   const [includeGiftLink, setIncludeGiftLink] = useState(false);
   const [giftLink, setGiftLink] = useState("");
+  const [testPhone, setTestPhone] = useState("");
+const [sendingTest, setSendingTest] = useState(false);
+
 
 
 
@@ -442,6 +446,48 @@ if (balanceData.success) {
   } catch (err) {
     console.error("💥 SMS SEND ERROR:", err);
     alert("❌ שגיאה בשליחת SMS");
+  }
+};
+
+
+const sendTestMessage = async () => {
+  if (!testPhone) {
+    alert("נא להזין מספר טלפון לבדיקה");
+    return;
+  }
+
+  try {
+    setSendingTest(true);
+
+    const res = await fetch("/api/sms/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        phone: testPhone,
+        message: buildMessage(
+          guests[0] ??
+            ({
+              name: "בדיקה",
+              token: "test",
+            } as Guest)
+        ),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      alert("שליחת הודעת בדיקה נכשלה");
+      return;
+    }
+
+    alert("✅ הודעת בדיקה נשלחה בהצלחה");
+    setTestPhone("");
+  } catch (err) {
+    alert("❌ שגיאה בשליחת הודעת בדיקה");
+  } finally {
+    setSendingTest(false);
   }
 };
 
@@ -863,6 +909,8 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   }
 >
 
+  
+
 
       {/* Header */}
       <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
@@ -913,6 +961,44 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     </div>
   </div>
 </div>
+
+{/* ================= TEST SMS BALANCE ================= */}
+{channel === "sms" && !isDemo && (
+  <SmsTestBalance />
+)}
+
+
+{/* ================= TEST MESSAGE ================= */}
+{channel === "sms" && !isDemo && (
+  <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
+    <h3 className="text-sm font-semibold text-[#4a413a] mb-2">
+      🧪 שליחת הודעה לבדיקה
+    </h3>
+
+    <p className="text-xs text-gray-500 mb-3">
+      ההודעה תישלח למספר זה בלבד · לא נספר כחיוב מלא
+    </p>
+
+    <div className="flex gap-3">
+      <input
+        type="tel"
+        placeholder="05XXXXXXXX"
+        value={testPhone}
+        onChange={(e) => setTestPhone(e.target.value)}
+        className="flex-1 border rounded-xl p-3"
+      />
+
+      <button
+        onClick={sendTestMessage}
+        disabled={sendingTest}
+        className="px-4 py-3 rounded-xl bg-gray-200 text-gray-800 text-sm font-medium disabled:opacity-50"
+      >
+        {sendingTest ? "שולח..." : "שלח לבדיקה"}
+      </button>
+    </div>
+  </div>
+)}
+
 
  {/* ================= MESSAGE TIMING ================= */}
 {channel === "sms" && !isDemo && (

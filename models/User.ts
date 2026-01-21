@@ -39,6 +39,8 @@ export interface IUser extends Document {
   maxMessages: number;
   remainingMessages: number;
   smsUsed: number;
+  testSmsUsed: number;
+
 
   isTrial: boolean;
   trialStartedAt?: Date;
@@ -128,6 +130,9 @@ const UserSchema = new Schema<IUser>(
 
     maxMessages: { type: Number, default: 0 },
     smsUsed: { type: Number, default: 0 },
+
+    testSmsUsed: { type: Number, default: 0 },
+
 
     isTrial: { type: Boolean, default: false },
     trialStartedAt: Date,
