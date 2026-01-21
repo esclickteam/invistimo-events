@@ -18,36 +18,34 @@ export async function POST(req: Request) {
 
     /* ================= AUTH ================= */
     const cookieStore = await cookies();
-const token = cookieStore.get("authToken")?.value;
+    const token = cookieStore.get("authToken")?.value;
 
-if (!token) {
-  return NextResponse.json(
-    { success: false, error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-let decoded: any;
-try {
-  decoded = jwt.verify(token, process.env.JWT_SECRET!);
-} catch {
-  return NextResponse.json(
-    { success: false, error: "INVALID_TOKEN" },
-    { status: 401 }
-  );
-}
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "INVALID_TOKEN" },
+        { status: 401 }
+      );
+    }
 
     const user = await User.findById(decoded.userId);
     if (!user) {
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
-        { status: 401 }
+        { status: 404 }
       );
     }
 
-    /* ======================================================
-       RATE LIMIT – בדיקה אחת לדקה
-    ====================================================== */
+    /* ================= RATE LIMIT ================= */
     const now = Date.now();
     const last = lastTestByUser.get(user._id.toString());
 
@@ -64,20 +62,10 @@ try {
 
     lastTestByUser.set(user._id.toString(), now);
 
-    /* ======================================================
-       ATOMIC TEST LIMIT (10 בדיקות חינם)
-       לא משנה לוגיקה — רק מונע race condition
-    ====================================================== */
-    const updatedUser = await User.findOneAndUpdate(
-      {
-        _id: user._id,
-        testSmsUsed: { $lt: MAX_TEST_SMS },
-      },
-      { $inc: { testSmsUsed: 1 } },
-      { new: true }
-    );
+    /* ================= TEST LIMIT ================= */
+    const used = user.testSmsUsed ?? 0;
 
-    if (!updatedUser) {
+    if (used >= MAX_TEST_SMS) {
       return NextResponse.json(
         {
           success: false,
@@ -88,12 +76,7 @@ try {
       );
     }
 
-    const remaining =
-      MAX_TEST_SMS - (updatedUser.testSmsUsed ?? 0);
-
-    /* ======================================================
-       BODY
-    ====================================================== */
+    /* ================= BODY ================= */
     const body = await req.json();
     const { phone, message } = body as {
       phone?: string;
@@ -107,9 +90,7 @@ try {
       );
     }
 
-    /* ======================================================
-       PHONE NORMALIZE
-    ====================================================== */
+    /* ================= PHONE NORMALIZE ================= */
     let normalizedPhone = phone.replace(/\D/g, "");
     if (normalizedPhone.startsWith("0")) {
       normalizedPhone = "972" + normalizedPhone.slice(1);
@@ -117,9 +98,7 @@ try {
       normalizedPhone = "972" + normalizedPhone;
     }
 
-    /* ======================================================
-       SEND SMS – אותו ספק, אותה לוגיקה
-    ====================================================== */
+    /* ================= SEND SMS ================= */
     const res = await fetch(
       "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
       {
@@ -143,9 +122,13 @@ try {
       );
     }
 
+    /* ================= INCREMENT AFTER SUCCESS ================= */
+    user.testSmsUsed = used + 1;
+    await user.save();
+
     return NextResponse.json({
       success: true,
-      remaining,
+      remaining: MAX_TEST_SMS - user.testSmsUsed,
     });
   } catch (err) {
     console.error("❌ SMS TEST ERROR:", err);
