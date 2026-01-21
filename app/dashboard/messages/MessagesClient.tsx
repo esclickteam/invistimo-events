@@ -198,17 +198,6 @@ if (balanceData.success) {
   setBalance(balanceData);
 }
 
-// 🔹 טוענים שימוש בבדיקות SMS (X מתוך 10)
-const testRes = await fetch("/api/sms/test/usage", {
-  credentials: "include",
-  cache: "no-store",
-});
-
-const testData = await testRes.json();
-if (testData.success) {
-  setTestSmsUsed(testData.used);
-}
-
 
 
   // 🔹 אורחים – רק אם יש הזמנה
