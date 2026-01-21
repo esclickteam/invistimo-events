@@ -38,6 +38,9 @@ export default function EditInvitePage() {
   const params = useParams();
   const inviteId = params?.id as string | undefined;
 
+  console.log("🧩 EditInvitePage mounted");
+  console.log("🆔 inviteId from useParams:", inviteId);
+
   /* ================= Refs ================= */
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -46,7 +49,6 @@ export default function EditInvitePage() {
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
   const [selectedObject, setSelectedObject] =
     useState<EditorObject | null>(null);
@@ -62,38 +64,64 @@ export default function EditInvitePage() {
      Load invitation (GET)
   ========================================================= */
   useEffect(() => {
+    console.log("🔁 useEffect(loadInvitation) triggered");
+
     if (!inviteId) {
+      console.error("❌ inviteId is missing");
       setLoading(false);
       return;
     }
 
     async function loadInvitation() {
       try {
+        console.log(
+          "➡️ Fetching invitation:",
+          `/api/invitations/${inviteId}`
+        );
+
         const res = await fetch(`/api/invitations/${inviteId}`, {
           credentials: "include",
         });
 
+        console.log("⬅️ Response status:", res.status);
+
         const data = await res.json();
+        console.log("📦 Response JSON:", data);
 
         if (!data.success || !data.invitation) {
+          console.error("❌ Invalid invitation response", data);
           alert("❌ שגיאה בטעינת ההזמנה");
           return;
         }
 
         const canvasData = data.invitation.canvasData || { objects: [] };
 
-        canvasData.objects = canvasData.objects.map((obj: any) => ({
-          ...obj,
-          image: undefined,
-        }));
+        console.log(
+          "🖼 Canvas objects count:",
+          canvasData.objects?.length ?? 0
+        );
+
+        canvasData.objects = canvasData.objects.map(
+          (obj: any, i: number) => {
+            console.log("✏️ Canvas object", i, obj.type);
+            return {
+              ...obj,
+              image: undefined,
+            };
+          }
+        );
 
         setInvite({
           ...data.invitation,
           canvasData,
         });
+
+        console.log("✅ Invitation loaded into state");
       } catch (err) {
+        console.error("🔥 Error while loading invitation:", err);
         alert("❌ שגיאה בטעינת ההזמנה");
       } finally {
+        console.log("⏹ Finished loading invitation");
         setLoading(false);
       }
     }
@@ -105,12 +133,19 @@ export default function EditInvitePage() {
      Save invitation (PUT)
   ========================================================= */
   const handleSave = async () => {
-    if (!inviteId || !canvasRef.current?.getCanvasData) return;
+    if (!inviteId || !canvasRef.current?.getCanvasData) {
+      console.warn(
+        "⚠️ Save aborted – missing inviteId or canvasRef"
+      );
+      return;
+    }
 
     try {
       setSaving(true);
+      console.log("💾 Saving invitation", inviteId);
 
       const canvasData = canvasRef.current.getCanvasData();
+      console.log("📤 Canvas data to save:", canvasData);
 
       const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
@@ -123,6 +158,7 @@ export default function EditInvitePage() {
       });
 
       const result = await res.json();
+      console.log("⬅️ Save response:", result);
 
       if (!result.success) {
         alert("❌ שגיאה בשמירה");
@@ -132,6 +168,7 @@ export default function EditInvitePage() {
       setInvite(result.invitation);
       alert("✅ ההזמנה עודכנה בהצלחה!");
     } catch (err) {
+      console.error("🔥 Error while saving invitation:", err);
       alert("❌ שגיאת שרת");
     } finally {
       setSaving(false);
@@ -139,9 +176,15 @@ export default function EditInvitePage() {
   };
 
   /* =========================================================
-     Loading
+     Loading state
   ========================================================= */
   if (loading || !invite) {
+    console.log(
+      "⏳ Still loading… loading:",
+      loading,
+      "invite:",
+      invite
+    );
     return (
       <div className="p-10 text-center text-xl">
         טוען את ההזמנה...
@@ -149,13 +192,14 @@ export default function EditInvitePage() {
     );
   }
 
+  console.log("🎨 Rendering editor with invite:", invite._id);
+
   /* =========================================================
      Render
   ========================================================= */
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
-        {/* Sidebar */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar
             canvasRef={canvasRef}
@@ -163,9 +207,7 @@ export default function EditInvitePage() {
           />
         </div>
 
-        {/* Main */}
         <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* Header */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
             <button
               onClick={() => uploadInputRef.current?.click()}
@@ -190,15 +232,6 @@ export default function EditInvitePage() {
 
             <div className="flex-1" />
 
-            {/* Preview toggle */}
-            <button
-              onClick={() => setShowPreview((v) => !v)}
-              className="px-4 py-2 rounded-full border text-sm"
-            >
-              👁 תצוגה מקדימה
-            </button>
-
-            {/* Save */}
             <button
               onClick={handleSave}
               disabled={saving}
@@ -212,7 +245,6 @@ export default function EditInvitePage() {
             </button>
           </div>
 
-          {/* Canvas */}
           <div className="flex-1 relative bg-gray-100">
             <EditorCanvas
               key={invite._id}
@@ -224,21 +256,8 @@ export default function EditInvitePage() {
             <div className="absolute top-4 right-4 z-50">
               <ZoomControl canvasRef={canvasRef} />
             </div>
-
-            {/* ✅ Preview – UX only, no logic changes */}
-            {showPreview && (
-  <div className="absolute top-4 left-4 z-40 w-[260px] aspect-[9/16] bg-white rounded-xl shadow-lg border overflow-hidden pointer-events-none">
-    <EditorCanvas
-      key={`preview-${invite._id}`}
-      initialData={invite.canvasData}
-      onSelect={() => {}}
-    />
-  </div>
-)}
-
           </div>
 
-          {/* Mobile */}
           <MobileBottomNav
             active={mobileTab}
             onChange={setMobileTab}
