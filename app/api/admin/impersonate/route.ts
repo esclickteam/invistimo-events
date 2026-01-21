@@ -67,26 +67,22 @@ export async function POST(req: Request) {
     }
 
     /* ======================================================
-       🎭 JWT התחזות (מודל אחיד + תאימות לאחור)
+       🎭 JWT התחזות (מודל אחיד)
     ====================================================== */
     const impersonationToken = jwt.sign(
-      {
-        userId: user._id.toString(),
+  {
+    userId: user._id.toString(),
 
-        // 🔥 ROLE אחיד שהדשבורד מכיר
-        role: "user",
+    // ✅ כופה role חוקי לדשבורד
+    role: "client",
 
-        // 🧩 תאימות לאחור – לא מוחקים כלום
-        legacyRole: "client",
-
-        impersonated: true,
-        impersonatedBy: decoded.userId,
-        impersonationRole: "admin",
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: "30m" }
-    );
-
+    impersonated: true,
+    impersonatedBy: decoded.userId,
+    impersonationRole: "admin",
+  },
+  process.env.JWT_SECRET!,
+  { expiresIn: "30m" }
+);
     /* ======================================================
        🍪 Cookies
     ====================================================== */
