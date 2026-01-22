@@ -176,6 +176,23 @@ const EventSchema = new mongoose.Schema(
       default: [],
     },
 
+    planning: {
+  eventDefinition: {
+    goal: { type: String, default: "" },
+    vibe: { type: String, default: "" },
+    size: { type: String, default: "" },
+    notes: { type: String, default: "" },
+  },
+  concept: {
+    type: String,
+    default: "",
+  },
+  updatedAt: {
+    type: Date,
+  },
+},
+
+
     /* =========================
        מגבלות חבילה
     ========================= */
