@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -25,20 +26,55 @@ export async function GET() {
 
     /* =========================
        👥 Fetch clients
-       🔑 Single Source of Truth: producerId
     ========================= */
     const clients = await User.find({
       role: "client",
-      producerId: producerId,
+      producerId,
     })
-      .select(
-        "name email phone guests includeCalls plan planLimits hasPaid createdAt"
-      )
-      .sort({ createdAt: -1 });
+      .select("name email phone createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const clientIds = clients.map((c) => c._id);
+
+    /* =========================
+       🎉 Fetch events
+    ========================= */
+    const events = await Event.find({
+      userId: { $in: clientIds },
+    })
+      .select("userId date location maxGuests approvedGuestsCount")
+      .lean();
+
+    const eventsByUserId = Object.fromEntries(
+      events.map((e) => [String(e.userId), e])
+    );
+
+    /* =========================
+       🔗 Merge
+    ========================= */
+    const result = clients.map((client) => {
+      const event = eventsByUserId[String(client._id)];
+
+      return {
+        ...client,
+        event: event
+          ? {
+              date: event.date,
+              location:
+                typeof event.location === "object"
+                  ? event.location.address
+                  : event.location,
+              approvedCount: event.approvedGuestsCount || 0,
+              totalGuests: event.maxGuests || 0,
+            }
+          : null,
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      clients,
+      clients: result,
     });
   } catch (error) {
     console.error("❌ ERROR FETCHING PRODUCER CLIENTS:", error);
