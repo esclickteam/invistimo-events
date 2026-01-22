@@ -119,7 +119,7 @@ export default function AddMeetingModal({
             ביטול
           </button>
 
-          <button
+           <button
             onClick={handleSave}
             disabled={saving}
             className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
