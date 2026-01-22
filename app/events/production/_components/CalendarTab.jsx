@@ -5,7 +5,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-
+import heLocale from "@fullcalendar/core/locales/he";
 import AddMeetingModal from "./AddMeetingModal";
 
 export default function CalendarTab({ eventId }) {
@@ -66,6 +66,7 @@ export default function CalendarTab({ eventId }) {
           selectable
           height="auto"
           events={meetings}
+          locale={heLocale} 
           dateClick={(info) => setSelectedDate(info.date)}
         />
       )}
