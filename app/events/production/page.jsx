@@ -117,16 +117,16 @@ export default function EventProductionPage() {
      Render
   ========================= */
   return (
-    <ProductionTabs
-      overview={<OverviewTab eventId={eventId} />}
-      planning={<PlanningTab invitation={invitation} />}
-      suppliers={<SuppliersBudgetTab invitation={invitation} />}
-      calendar={<CalendarTab invitation={invitation} />}
-      logistics={<LogisticsTab invitation={invitation} />}
-      alcohol={<AlcoholManagementTab invitation={invitation} />}
-      liveGuests={<LiveGuestsTab invitationId={invitation._id} />}
-      liveSeating={<LiveSeatingTab invitationId={invitation._id} />}
-      invitation={invitation}
-    />
+  <ProductionTabs
+    overview={<OverviewTab eventId={eventId} />}
+    planning={<PlanningTab eventId={eventId} />}
+    suppliers={<SuppliersBudgetTab eventId={eventId} />}
+    calendar={<CalendarTab eventId={eventId} />}
+    logistics={<LogisticsTab eventId={eventId} />}
+    alcohol={<AlcoholManagementTab eventId={eventId} />}
+    liveGuests={<LiveGuestsTab invitationId={invitation._id} />}
+    liveSeating={<LiveSeatingTab invitationId={invitation._id} />}
+    invitation={invitation}
+  />
   );
 }
