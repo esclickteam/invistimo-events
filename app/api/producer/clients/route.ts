@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import User from "@/models/User";
+import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export async function GET() {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – מפיק מחובר
+       🔐 Auth – Producer only
     ========================= */
     const auth = await getUserIdFromRequest();
 
@@ -24,21 +24,26 @@ export async function GET() {
     const producerId = auth.userId;
 
     /* =========================
-       👥 Fetch clients
-       🔑 Single Source of Truth: producerId
+       📩 Fetch Invitations (SOURCE OF TRUTH)
     ========================= */
-    const clients = await User.find({
-      role: "client",
-      producerId: producerId,
+    const invitations = await Invitation.find({
+      producerId,
     })
-      .select(
-        "name email phone guests includeCalls plan planLimits hasPaid createdAt"
-      )
-      .sort({ createdAt: -1 });
+      .select(`
+        fullName
+        email
+        phone
+        eventDate
+        eventLocation
+        status
+        createdAt
+      `)
+      .sort({ createdAt: -1 })
+      .lean();
 
     return NextResponse.json({
       success: true,
-      clients,
+      clients: invitations,
     });
   } catch (error) {
     console.error("❌ ERROR FETCHING PRODUCER CLIENTS:", error);
