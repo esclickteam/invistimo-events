@@ -254,13 +254,17 @@ export default function PlanningTab({ eventId }) {
         )}
 
         <button
-          onClick={() =>
-            router.push(`/events/production/${eventId}?tab=calendar`)
-          }
-          className="bg-black text-white px-4 py-2 rounded-lg text-sm"
-        >
-          ➕ קבע שיחה / פגישה
-        </button>
+  onClick={() =>
+    router.replace(
+      `/events/production/${eventId}?tab=calendar`,
+      { scroll: false }
+    )
+  }
+  className="bg-black text-white px-4 py-2 rounded-lg text-sm"
+>
+  ➕ קבע שיחה / פגישה
+</button>
+
       </section>
 
       <p className="text-xs text-gray-400">
