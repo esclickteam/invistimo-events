@@ -180,15 +180,12 @@ const EventSchema = new mongoose.Schema(
   eventDefinition: {
     goal: { type: String, default: "" },
     vibe: { type: String, default: "" },
-    size: { type: String, default: "" },
+    size: { type: String, default: "" }, // או Number
     notes: { type: String, default: "" },
   },
   concept: {
     type: String,
     default: "",
-  },
-  updatedAt: {
-    type: Date,
   },
 },
 
