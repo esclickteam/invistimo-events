@@ -13,7 +13,7 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
+  const { id: rowId } = await context.params;
 
   try {
     await db();
@@ -25,8 +25,6 @@ export async function PATCH(
         { status: 401 }
       );
     }
-
-    const { id: rowId } = await context.params;
 
     const body = await req.json();
 
@@ -53,7 +51,6 @@ export async function PATCH(
 
     if (supplierId !== undefined) {
       if (supplierId === null) {
-        // הסרת ספק
         row.supplierId = null;
         row.supplierName = undefined;
         row.supplierPhone = undefined;

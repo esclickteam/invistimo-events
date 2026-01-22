@@ -27,8 +27,6 @@ export async function POST(
       );
     }
 
-    const { id: rowId } = await context.params;
-
     const body = await req.json();
 
     const {
@@ -99,11 +97,7 @@ export async function POST(
       supplierName: supplierSnapshot.supplierName,
       supplierPhone: supplierSnapshot.supplierPhone,
 
-      price:
-        price ??
-        supplierSnapshot.basePrice ??
-        null,
-
+      price: price ?? supplierSnapshot.basePrice ?? null,
       advance: advance ?? 0,
       notes: notes ?? "",
 
