@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-
-import Invitation from "@/models/Invitation";
-import Event from "@/models/Event";
 import User from "@/models/User";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +10,7 @@ export async function GET() {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – Producer only
+       🔐 Auth – מפיק מחובר
     ========================= */
     const auth = await getUserIdFromRequest();
 
@@ -27,45 +24,17 @@ export async function GET() {
     const producerId = auth.userId;
 
     /* =========================
-       📩 Fetch Invitations (clients source)
+       👥 Fetch clients
+       🔑 Single Source of Truth: producerId
     ========================= */
-    const invitations = await Invitation.find({ producerId })
-      .populate({
-        path: "userId", // optional – אם קיים יוזר
-        select: "hasPaid plan planLimits",
-        model: User,
-      })
-      .populate({
-        path: "eventId",
-        select: "date location status",
-        model: Event,
-      })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    /* =========================
-       🧩 Normalize for frontend
-    ========================= */
-    const clients = invitations.map((inv) => ({
-      id: inv._id,
-
-      // 👤 Client (Invitation)
-      name: inv.fullName,
-      email: inv.email,
-      phone: inv.phone,
-
-      // 📅 Event
-      eventDate: inv.eventId?.date || null,
-      eventLocation: inv.eventId?.location || null,
-      eventStatus: inv.eventId?.status || "draft",
-
-      // 💳 User (if exists)
-      hasPaid: inv.userId?.hasPaid || false,
-      plan: inv.userId?.plan || "none",
-      planLimits: inv.userId?.planLimits || null,
-
-      createdAt: inv.createdAt,
-    }));
+    const clients = await User.find({
+      role: "client",
+      producerId: producerId,
+    })
+      .select(
+        "name email phone guests includeCalls plan planLimits hasPaid createdAt"
+      )
+      .sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,

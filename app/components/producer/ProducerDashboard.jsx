@@ -51,8 +51,7 @@ export default function ProducerDashboard() {
   const fetchEvents = async () => {
     setEventsLoading(true);
     try {
-      const res = await fetch("/api/producer/create-event", {
-
+      const res = await fetch("/api/producer/events", {
         cache: "no-store",
         credentials: "include",
       });
