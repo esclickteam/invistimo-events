@@ -11,8 +11,10 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
+
   try {
     await db();
 
@@ -24,7 +26,8 @@ export async function PATCH(
       );
     }
 
-    const rowId = params.id;
+    const { id: rowId } = await context.params;
+
     const body = await req.json();
 
     const {

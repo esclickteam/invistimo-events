@@ -12,8 +12,10 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id: eventId } = await context.params;
+
   try {
     await db();
 
@@ -25,7 +27,8 @@ export async function POST(
       );
     }
 
-    const eventId = params.id;
+    const { id: rowId } = await context.params;
+
     const body = await req.json();
 
     const {
