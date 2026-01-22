@@ -1,42 +1,38 @@
-// models/Supplier.ts
-import mongoose, { Schema, models } from "mongoose";
+import mongoose, { Schema, models, model } from "mongoose";
 
-export type SupplierStatus = "pending" | "closed" | "done";
+/* =========================
+   Supplier Interface
+========================= */
 
-const SupplierSchema = new Schema(
+export interface ISupplier {
+  name: string;                         // שם הספק
+  phone?: string;                       // טלפון
+  email?: string;                       // מייל (אופציונלי)
+  link?: string;                        // אתר / אינסטגרם / וואטסאפ
+  notes?: string;                      // הערות פנימיות
+
+  categoryId: mongoose.Types.ObjectId;  // תחום ראשי
+  sub: string;                          // תת־תחום
+
+  basePrice?: number;                  // מחיר ברירת מחדל (לאירועים חדשים)
+
+  createdBy: mongoose.Types.ObjectId;   // מי הוסיף את הספק (משתמש / מפיק)
+  businessId?: mongoose.Types.ObjectId; // אם הספק הוא עסק רשום במערכת
+
+  isArchived?: boolean;                // ספק לא פעיל
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/* =========================
+   Schema
+========================= */
+
+const SupplierSchema = new Schema<ISupplier>(
   {
-    eventId: {
-      type: Schema.Types.ObjectId,
-      ref: "Event",
-      required: true,
-      index: true,
-    },
-
-    /* ספק */
     name: {
       type: String,
       required: true,
-      trim: true,
-    },
-
-    category: {
-      type: String,
-      required: true,
-      enum: [
-        "venue",
-        "catering",
-        "dj",
-        "photography",
-        "lighting",
-        "design",
-        "production",
-        "other",
-      ],
-    },
-
-    /* איש קשר */
-    contactName: {
-      type: String,
       trim: true,
     },
 
@@ -45,34 +41,54 @@ const SupplierSchema = new Schema(
       trim: true,
     },
 
-    /* כסף */
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-
-    paidAmount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-
-    /* לו״ז */
-    arrivalTime: {
-      type: Date,
-    },
-
-    /* סטטוס */
-    status: {
+    email: {
       type: String,
-      enum: ["pending", "closed", "done"],
-      default: "pending",
+      trim: true,
+      lowercase: true,
+    },
+
+    link: {
+      type: String,
+      trim: true,
     },
 
     notes: {
       type: String,
       trim: true,
+    },
+
+    categoryId: {
+      type: Schema.Types.ObjectId,
+      ref: "SupplierCategory",
+      required: true,
+    },
+
+    sub: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    basePrice: {
+      type: Number,
+      default: null,
+    },
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    businessId: {
+      type: Schema.Types.ObjectId,
+      ref: "Business",
+      default: null,
+    },
+
+    isArchived: {
+      type: Boolean,
+      default: false,
     },
   },
   {
@@ -80,4 +96,27 @@ const SupplierSchema = new Schema(
   }
 );
 
-export default models.Supplier || mongoose.model("Supplier", SupplierSchema);
+/* =========================
+   Indexes
+========================= */
+
+// חיפוש ספקים לפי שם
+SupplierSchema.index({ name: 1 });
+
+// חיפוש לפי תחום + תת־תחום
+SupplierSchema.index({ categoryId: 1, sub: 1 });
+
+// מניעת כפילות ספק לאותו משתמש
+SupplierSchema.index(
+  { name: 1, phone: 1, createdBy: 1 },
+  { unique: true, sparse: true }
+);
+
+/* =========================
+   Export
+========================= */
+
+const Supplier =
+  models.Supplier || model<ISupplier>("Supplier", SupplierSchema);
+
+export default Supplier;
