@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+
+import Invitation from "@/models/Invitation";
+import Event from "@/models/Event";
+import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
@@ -24,26 +27,49 @@ export async function GET() {
     const producerId = auth.userId;
 
     /* =========================
-       📩 Fetch Invitations (SOURCE OF TRUTH)
+       📩 Fetch Invitations (clients source)
     ========================= */
-    const invitations = await Invitation.find({
-      producerId,
-    })
-      .select(`
-        fullName
-        email
-        phone
-        eventDate
-        eventLocation
-        status
-        createdAt
-      `)
+    const invitations = await Invitation.find({ producerId })
+      .populate({
+        path: "userId", // optional – אם קיים יוזר
+        select: "hasPaid plan planLimits",
+        model: User,
+      })
+      .populate({
+        path: "eventId",
+        select: "date location status",
+        model: Event,
+      })
       .sort({ createdAt: -1 })
       .lean();
 
+    /* =========================
+       🧩 Normalize for frontend
+    ========================= */
+    const clients = invitations.map((inv) => ({
+      id: inv._id,
+
+      // 👤 Client (Invitation)
+      name: inv.fullName,
+      email: inv.email,
+      phone: inv.phone,
+
+      // 📅 Event
+      eventDate: inv.eventId?.date || null,
+      eventLocation: inv.eventId?.location || null,
+      eventStatus: inv.eventId?.status || "draft",
+
+      // 💳 User (if exists)
+      hasPaid: inv.userId?.hasPaid || false,
+      plan: inv.userId?.plan || "none",
+      planLimits: inv.userId?.planLimits || null,
+
+      createdAt: inv.createdAt,
+    }));
+
     return NextResponse.json({
       success: true,
-      clients: invitations,
+      clients,
     });
   } catch (error) {
     console.error("❌ ERROR FETCHING PRODUCER CLIENTS:", error);
