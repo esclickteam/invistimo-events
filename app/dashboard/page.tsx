@@ -721,7 +721,8 @@ console.log("INVITATION:", invitation);
         : "/dashboard/create-invite"
     );
   }}
-  className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+  className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#bfa97f] active:scale-95 transition-all"
+
 >
   🪑 סידורי הושבה
 </button>
@@ -788,7 +789,8 @@ console.log("INVITATION:", invitation);
   onClick={() => {
     setOpenAddModal(true);
   }}
-  className="bg-black text-white px-6 py-3 rounded-full"
+  className="bg-black text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-gray-900 active:scale-95 transition-all"
+
 >
   + הוספת מוזמן
 </button>
@@ -797,7 +799,8 @@ console.log("INVITATION:", invitation);
 
     <button
       onClick={() => setShowImportModal(true)}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+      className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
+
       title="ייבוא רשימת מוזמנים מאקסל"
     >
       📥 ייבוא מאקסל
