@@ -6,9 +6,9 @@ import Event from "@/models/Event";
 import EventConversation from "@/models/EventConversation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
-/* =========================================================
+/* =========================
    GET – Load conversations
-========================================================= */
+========================= */
 export async function GET(
   req: NextRequest,
   { params }: { params: { eventId: string } }
@@ -49,7 +49,10 @@ export async function GET(
       .sort({ date: -1, createdAt: -1 })
       .lean();
 
-    return NextResponse.json({ success: true, conversations });
+    return NextResponse.json({
+      success: true,
+      conversations,
+    });
   } catch (err) {
     console.error("❌ GET conversations failed:", err);
     return NextResponse.json(
@@ -59,9 +62,9 @@ export async function GET(
   }
 }
 
-/* =========================================================
-   POST – Create meeting / conversation
-========================================================= */
+/* =========================
+   POST – Create meeting
+========================= */
 export async function POST(
   req: NextRequest,
   { params }: { params: { eventId: string } }
