@@ -160,7 +160,8 @@ export default function EditInvitePage() {
   ========================================================= */
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
+      <div className="h-[100dvh] flex bg-gray-100">
+
         {/* Sidebar */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar
@@ -170,7 +171,8 @@ export default function EditInvitePage() {
         </div>
 
         {/* Main */}
-        <div className="flex-1 flex flex-col min-h-0 relative">
+        <div className="flex-1 flex flex-col min-h-0 relative pb-[72px] md:pb-0">
+
           {/* Header */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
             <button
@@ -219,7 +221,8 @@ export default function EditInvitePage() {
           </div>
 
           {/* Canvas */}
-          <div className="flex-1 relative bg-gray-100">
+          <div className="flex-1 relative bg-gray-100 overflow-hidden">
+
             <EditorCanvas
               key={invite._id}
               ref={canvasRef}
