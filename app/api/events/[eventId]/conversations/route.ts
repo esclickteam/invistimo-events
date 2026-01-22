@@ -11,7 +11,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 ========================= */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const { eventId } = params;
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
@@ -67,7 +67,7 @@ export async function GET(
 ========================= */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
@@ -80,7 +80,7 @@ export async function POST(
       );
     }
 
-    const { eventId } = params;
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
