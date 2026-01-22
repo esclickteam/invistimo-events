@@ -17,61 +17,104 @@ export default function SuppliersBudgetTab({ eventId }) {
   useEffect(() => {
     if (!eventId) return;
 
-    fetch(`/api/events/${eventId}/suppliers`)
-      .then((r) => r.json())
-      .then((data) => setRows(data.suppliers || []))
-      .catch(() => setRows([]));
+    let cancelled = false;
+
+    async function loadEventSuppliers() {
+      try {
+        const res = await fetch(`/api/events/${eventId}/suppliers`);
+
+        if (!res.ok) {
+          console.error("❌ Suppliers fetch failed", res.status);
+          return;
+        }
+
+        const data = await res.json();
+
+        if (!cancelled) {
+          setRows(Array.isArray(data.suppliers) ? data.suppliers : []);
+        }
+      } catch (err) {
+        console.error("❌ Suppliers fetch error", err);
+      }
+    }
+
+    loadEventSuppliers();
+
+    return () => {
+      cancelled = true;
+    };
   }, [eventId]);
 
   /* ======================
      UPDATE ROW (PATCH)
   ====================== */
   async function updateRow(rowId, patch) {
-    const res = await fetch(`/api/event-suppliers/${rowId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
+    try {
+      const res = await fetch(`/api/event-suppliers/${rowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
 
-    const data = await res.json();
-    if (data.success) {
-      setRows((prev) =>
-        prev.map((r) => (r._id === rowId ? data.row : r))
-      );
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (data?.success && data.row) {
+        setRows((prev) =>
+          prev.map((r) => (r._id === rowId ? data.row : r))
+        );
+      }
+    } catch (err) {
+      console.error("❌ updateRow failed", err);
     }
   }
 
   /* ======================
-     LOAD SUPPLIERS (Picker)
+     LOAD SUPPLIERS (PICKER)
   ====================== */
-  async function loadSuppliers(categoryId, sub) {
+  async function loadPickerSuppliers(categoryId, sub) {
     const key = `${categoryId}-${sub}`;
     if (suppliersCache[key]) return;
 
-    const res = await fetch(
-      `/api/suppliers?categoryId=${categoryId}&sub=${encodeURIComponent(sub)}`
-    );
-    const data = await res.json();
+    try {
+      const res = await fetch(
+        `/api/suppliers?categoryId=${categoryId}&sub=${encodeURIComponent(sub)}`
+      );
 
-    setSuppliersCache((prev) => ({
-      ...prev,
-      [key]: data.suppliers || [],
-    }));
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      setSuppliersCache((prev) => ({
+        ...prev,
+        [key]: Array.isArray(data.suppliers) ? data.suppliers : [],
+      }));
+    } catch (err) {
+      console.error("❌ Picker suppliers fetch error", err);
+    }
   }
 
   /* ======================
      ADD EVENT SUPPLIER
   ====================== */
   async function addRow({ categoryId, sub }) {
-    const res = await fetch(`/api/events/${eventId}/suppliers`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ categoryId, sub }),
-    });
+    try {
+      const res = await fetch(`/api/events/${eventId}/suppliers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categoryId, sub }),
+      });
 
-    const data = await res.json();
-    if (data.success) {
-      setRows((prev) => [...prev, data.row]);
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (data?.success && data.row) {
+        setRows((prev) => [...prev, data.row]);
+      }
+    } catch (err) {
+      console.error("❌ addRow failed", err);
     }
   }
 
@@ -103,8 +146,8 @@ export default function SuppliersBudgetTab({ eventId }) {
               const suppliers = suppliersCache[key] || [];
 
               return (
-                <>
-                  <tr key={row._id} className="border-t">
+                <tbody key={row._id}>
+                  <tr className="border-t">
                     <td className="px-4 py-2">{row.categoryName}</td>
                     <td className="px-4 py-2">{row.sub}</td>
                     <td className="px-4 py-2">
@@ -114,10 +157,10 @@ export default function SuppliersBudgetTab({ eventId }) {
                     <td className="px-4 py-2">
                       <input
                         className="border px-2 py-1 w-24"
-                        value={row.price || ""}
+                        value={row.price ?? ""}
                         onChange={(e) =>
                           updateRow(row._id, {
-                            price: Number(e.target.value),
+                            price: Number(e.target.value) || 0,
                           })
                         }
                       />
@@ -126,23 +169,23 @@ export default function SuppliersBudgetTab({ eventId }) {
                     <td className="px-4 py-2">
                       <input
                         className="border px-2 py-1 w-24"
-                        value={row.advance || ""}
+                        value={row.advance ?? ""}
                         onChange={(e) =>
                           updateRow(row._id, {
-                            advance: Number(e.target.value),
+                            advance: Number(e.target.value) || 0,
                           })
                         }
                       />
                     </td>
 
                     <td className="px-4 py-2">
-                      ₪{row.balance || 0}
+                      ₪{row.balance ?? 0}
                     </td>
 
                     <td className="px-4 py-2">
                       <button
                         onClick={() => {
-                          loadSuppliers(row.categoryId, row.sub);
+                          loadPickerSuppliers(row.categoryId, row.sub);
                           setOpenSupplierRow(
                             openSupplierRow === i ? null : i
                           );
@@ -163,27 +206,41 @@ export default function SuppliersBudgetTab({ eventId }) {
                             updateRow(row._id, { supplierId: s._id })
                           }
                           onAdd={async (form) => {
-                            const res = await fetch("/api/suppliers", {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                              },
-                              body: JSON.stringify({
-                                ...form,
-                                categoryId: row.categoryId,
-                                sub: row.sub,
-                              }),
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                              loadSuppliers(row.categoryId, row.sub);
+                            try {
+                              const res = await fetch("/api/suppliers", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  ...form,
+                                  categoryId: row.categoryId,
+                                  sub: row.sub,
+                                }),
+                              });
+
+                              if (!res.ok) return;
+
+                              const data = await res.json();
+                              if (data?.success) {
+                                setSuppliersCache((prev) => ({
+                                  ...prev,
+                                  [key]: undefined,
+                                }));
+                                loadPickerSuppliers(
+                                  row.categoryId,
+                                  row.sub
+                                );
+                              }
+                            } catch (err) {
+                              console.error("❌ add supplier failed", err);
                             }
                           }}
                         />
                       </td>
                     </tr>
                   )}
-                </>
+                </tbody>
               );
             })}
           </tbody>
@@ -214,7 +271,7 @@ function SupplierPicker({ suppliers, onSelect, onAdd }) {
           <div>
             <div className="font-medium">{s.name}</div>
             <div className="text-xs text-gray-500">
-              ₪{s.basePrice || "—"} · {s.phone}
+              ₪{s.basePrice || "—"} · {s.phone || "—"}
             </div>
           </div>
           <button
@@ -252,7 +309,15 @@ function SupplierPicker({ suppliers, onSelect, onAdd }) {
           }
         />
         <button
-          onClick={() => onAdd(form)}
+          onClick={() => {
+            if (!form.name) return;
+            onAdd({
+              name: form.name,
+              phone: form.phone,
+              basePrice: Number(form.basePrice) || null,
+            });
+            setForm({ name: "", phone: "", basePrice: "" });
+          }}
           className="bg-black text-white px-4 py-2 rounded"
         >
           הוסף ספק
