@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import Event from "@/models/Event";
+import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
@@ -12,7 +13,7 @@ export async function GET() {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – מפיק מחובר
+       🔐 Auth – Producer
     ========================= */
     const auth = await getUserIdFromRequest();
 
@@ -26,7 +27,7 @@ export async function GET() {
     const producerId = auth.userId;
 
     /* =========================
-       👥 Fetch clients
+       👥 Clients
     ========================= */
     const clients = await User.find({
       role: "client",
@@ -36,14 +37,14 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
-    if (clients.length === 0) {
+    if (!clients.length) {
       return NextResponse.json({ success: true, clients: [] });
     }
 
-    const clientIds = clients.map((c) => c._id);
+    const clientIds = clients.map(c => c._id);
 
     /* =========================
-       🎉 Fetch events
+       🎉 Events
     ========================= */
     const events = await Event.find({
       userId: { $in: clientIds },
@@ -52,35 +53,53 @@ export async function GET() {
       .lean();
 
     const eventsByUserId = Object.fromEntries(
-      events.map((e) => [String(e.userId), e])
+      events.map(e => [String(e.userId), e])
     );
 
-    const eventIds = events.map((e) => e._id);
+    const eventIds = events.map(e => e._id);
 
     /* =========================
-       📊 RSVP stats (SOURCE OF TRUTH)
+       ✉️ Invitations
+    ========================= */
+    const invitations = await Invitation.find({
+      eventId: { $in: eventIds },
+    })
+      .select("_id eventId")
+      .lean();
+
+    const invitationIds = invitations.map(i => i._id);
+
+    const invitationsByEventId = invitations.reduce((acc, inv) => {
+      const key = String(inv.eventId);
+      acc[key] = acc[key] || [];
+      acc[key].push(inv._id);
+      return acc;
+    }, {});
+
+    /* =========================
+       📊 RSVP from InvitationGuest
     ========================= */
     const guestStats = await InvitationGuest.aggregate([
       {
         $match: {
-          eventId: { $in: eventIds },
+          invitationId: { $in: invitationIds },
         },
       },
       {
         $group: {
-          _id: "$eventId",
-          totalGuests: { $sum: 1 },
+          _id: "$invitationId",
+          totalGuests: { $sum: "$guestsCount" },
           approvedCount: {
             $sum: {
-              $cond: [{ $eq: ["$rsvp", "approved"] }, 1, 0],
+              $cond: [{ $eq: ["$rsvp", "yes"] }, "$guestsCount", 0],
             },
           },
         },
       },
     ]);
 
-    const statsByEventId = Object.fromEntries(
-      guestStats.map((g) => [
+    const statsByInvitationId = Object.fromEntries(
+      guestStats.map(g => [
         String(g._id),
         {
           totalGuests: g.totalGuests,
@@ -90,25 +109,36 @@ export async function GET() {
     );
 
     /* =========================
-       🔗 Merge to final response
+       🔗 Merge to client
     ========================= */
-    const result = clients.map((client) => {
+    const result = clients.map(client => {
       const event = eventsByUserId[String(client._id)];
-      const stats = event ? statsByEventId[String(event._id)] : null;
+      if (!event) return { ...client, event: null };
+
+      const invIds = invitationsByEventId[String(event._id)] || [];
+
+      let totalGuests = 0;
+      let approvedCount = 0;
+
+      for (const invId of invIds) {
+        const stats = statsByInvitationId[String(invId)];
+        if (stats) {
+          totalGuests += stats.totalGuests;
+          approvedCount += stats.approvedCount;
+        }
+      }
 
       return {
         ...client,
-        event: event
-          ? {
-              date: event.date,
-              location:
-                typeof event.location === "object"
-                  ? event.location.address
-                  : event.location,
-              approvedCount: stats?.approvedCount || 0,
-              totalGuests: stats?.totalGuests || 0,
-            }
-          : null,
+        event: {
+          date: event.date,
+          location:
+            typeof event.location === "object"
+              ? event.location.address
+              : event.location,
+          totalGuests,
+          approvedCount,
+        },
       };
     });
 
