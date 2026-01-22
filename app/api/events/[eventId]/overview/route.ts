@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import db from "@/lib/db";
@@ -10,8 +10,8 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
    GET – Overview לאירוע
 ========================================================= */
 export async function GET(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  req: NextRequest,
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
@@ -27,7 +27,10 @@ export async function GET(
       );
     }
 
-    const { eventId } = params;
+    /* =========================
+       Params (⚠️ Promise!)
+    ========================= */
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
@@ -37,15 +40,14 @@ export async function GET(
     }
 
     /* =========================
-       Load Event
-       ✔️ בעלים או מפיק
+       Load Event (Owner / Producer)
     ========================= */
     const event = await Event.findOne({
       _id: eventId,
       status: "active",
       $or: [
-        { userId: auth.userId },      // לקוח
-        { producerId: auth.userId },  // מפיק (אימפרסונציה)
+        { userId: auth.userId },
+        { producerId: auth.userId },
       ],
     })
       .select("title date budgetTotal userId producerId")
@@ -60,29 +62,19 @@ export async function GET(
 
     /* =========================
        Load Tasks
-       ✔️ רק פעילות
     ========================= */
     const tasks = await EventTask.find({
       eventId: event._id,
       archived: false,
     })
       .sort({ order: 1, dueDate: 1, createdAt: 1 })
-      .select("title dueDate status order createdAt")
       .lean();
 
-    /* =========================
-       Budget
-       (כרגע spent = 0)
-    ========================= */
     const budgetTotal = Number(event.budgetTotal) || 0;
     const spent = 0;
 
-    /* =========================
-       Response
-    ========================= */
     return NextResponse.json({
       success: true,
-
       event: {
         id: event._id,
         title: event.title || "הפקת אירוע",
@@ -91,13 +83,11 @@ export async function GET(
         producerId: event.producerId,
         budgetTotal,
       },
-
       budget: {
         total: budgetTotal,
         spent,
         remaining: budgetTotal - spent,
       },
-
       tasks,
     });
   } catch (err) {
