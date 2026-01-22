@@ -1,33 +1,42 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+async function getCookieStore() {
+  const store = cookies();
+  return store instanceof Promise ? await store : store;
+}
 
 export async function POST() {
-  // 🔑 חייב await כאן
-  const cookieStore = await cookies();
+  const cookieStore = await getCookieStore();
 
-  // 🔑 מחזיקים את ה-token המקורי של מפיק / אדמין
-  const backupToken =
-    cookieStore.get("producerAuthToken")?.value ??
-    cookieStore.get("adminAuthToken")?.value;
+  const adminToken = cookieStore.get("adminToken")?.value;
 
-  if (!backupToken) {
-    return NextResponse.json({
-      success: false,
-      message: "No original session found",
-    }, { status: 400 });
+  if (!adminToken) {
+    return NextResponse.json(
+      { success: false, error: "No admin token" },
+      { status: 400 }
+    );
   }
 
-  // 🔁 מחזירים את המשתמש המקורי ל-authToken
-  cookieStore.set("authToken", backupToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+  const res = NextResponse.json({ success: true });
+
+  // 🔁 שחזור אדמין
+  res.cookies.set("authToken", adminToken, {
     path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
   });
 
-  // 🧹 מנקים את ה-backup כדי למנוע כפילות
-  cookieStore.delete({ name: "producerAuthToken", path: "/" });
-  cookieStore.delete({ name: "adminAuthToken", path: "/" });
+  res.cookies.set("token", adminToken, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 
-  return NextResponse.json({ success: true });
+  // 🧹 ניקוי
+  res.cookies.delete("adminToken");
+
+  return res;
 }
