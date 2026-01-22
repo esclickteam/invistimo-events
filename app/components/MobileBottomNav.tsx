@@ -41,14 +41,17 @@ export default function MobileBottomNav({
 
   return (
     <div
-      className="
-        md:hidden
-        fixed bottom-0 left-0 right-0 z-50
-        bg-white/95 backdrop-blur
-        border-t border-gray-200
-        pb-[env(safe-area-inset-bottom)]
-      "
-    >
+  className="
+    md:hidden
+    fixed bottom-0 left-0 right-0
+    z-[9999]
+    pointer-events-auto
+    bg-white/95 backdrop-blur
+    border-t border-gray-200
+    pb-[env(safe-area-inset-bottom)]
+  "
+>
+
       <div className="flex items-stretch justify-between px-2">
         {items.map(({ id, label, Icon }) => {
           const isActive = active === id;
