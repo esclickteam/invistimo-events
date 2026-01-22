@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
 
 /* =====================
    STATUS CONFIG
@@ -24,8 +23,7 @@ const STATUS_STYLE = {
   done: "bg-green-50 text-green-700",
 };
 
-export default function OverviewTab() {
-  const { eventId } = useParams();
+export default function OverviewTab({ eventId }) {
 
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
@@ -39,35 +37,38 @@ export default function OverviewTab() {
      LOAD DATA
   ===================== */
   useEffect(() => {
-    if (!eventId) return;
+  if (!eventId) {
+    setLoading(false);
+    setError("NO_EVENT_ID");
+    return;
+  }
 
-    async function load() {
-      setLoading(true);
-      setError("");
+  async function load() {
+    setLoading(true);
+    setError("");
 
-      try {
-        const res = await fetch(`/api/events/${eventId}/overview`, {
-          cache: "no-store",
-        });
-        const data = await res.json();
+    try {
+      const res = await fetch(`/api/events/${eventId}/overview`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
 
-        if (!res.ok || !data.success) {
-          setError(data?.error || "LOAD_FAILED");
-          setLoading(false);
-          return;
-        }
-
-        setEvent(data.event);
-        setTasks(data.tasks || []);
-      } catch (e) {
-        setError("NETWORK_ERROR");
-      } finally {
-        setLoading(false);
+      if (!res.ok || !data.success) {
+        setError(data?.error || "LOAD_FAILED");
+        return;
       }
-    }
 
-    load();
-  }, [eventId]);
+      setEvent(data.event);
+      setTasks(data.tasks || []);
+    } catch (e) {
+      setError("NETWORK_ERROR");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  load();
+}, [eventId]);
 
   /* =====================
      DERIVED
@@ -167,8 +168,15 @@ export default function OverviewTab() {
   }
 
   if (!event) {
-    return <div className="p-10 text-red-600">שגיאה בטעינת האירוע</div>;
-  }
+  return (
+    <div className="p-10 text-red-600">
+      {error === "NO_EVENT_ID"
+        ? "לא התקבל מזהה אירוע"
+        : "שגיאה בטעינת האירוע"}
+    </div>
+  );
+}
+
 
   /* =====================
      RENDER

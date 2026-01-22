@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -17,7 +17,6 @@ import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
 
 export default function EventProductionPage() {
   const { user } = useAuth();
-
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
 
   const [invitation, setInvitation] = useState(null);
@@ -43,6 +42,20 @@ export default function EventProductionPage() {
       })
       .finally(() => setLoading(false));
   }, [user]);
+
+  /* =========================
+     Extract eventId (מקור אמת)
+  ========================= */
+  const eventId = useMemo(() => {
+    if (!invitation) return null;
+
+    return (
+      invitation.eventId ||
+      invitation.event?._id ||
+      invitation._id || // fallback אחרון
+      null
+    );
+  }, [invitation]);
 
   /* =========================
      Load LIVE snapshot (guests + seating)
@@ -78,7 +91,9 @@ export default function EventProductionPage() {
     };
   }, [invitation?._id, importSnapshot]);
 
-  /* 🔒 חשוב: לא להוריד את הקומפוננטה */
+  /* =========================
+     Loading state
+  ========================= */
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -87,38 +102,30 @@ export default function EventProductionPage() {
     );
   }
 
+  /* =========================
+     Safety fallback
+  ========================= */
+  if (!invitation || !eventId) {
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-red-600">
+        לא נמצא אירוע / הזמנה
+      </div>
+    );
+  }
+
+  /* =========================
+     Render
+  ========================= */
   return (
     <ProductionTabs
-      overview={
-        invitation ? <OverviewTab invitation={invitation} /> : null
-      }
-      planning={
-        invitation ? <PlanningTab invitation={invitation} /> : null
-      }
-      suppliers={
-        invitation ? <SuppliersBudgetTab invitation={invitation} /> : null
-      }
-      calendar={
-        invitation ? <CalendarTab invitation={invitation} /> : null
-      }
-      logistics={
-        invitation ? <LogisticsTab invitation={invitation} /> : null
-      }
-      alcohol={
-        invitation ? (
-          <AlcoholManagementTab invitation={invitation} />
-        ) : null
-      }
-      liveGuests={
-        invitation ? (
-          <LiveGuestsTab invitationId={invitation._id} />
-        ) : null
-      }
-      liveSeating={
-        invitation ? (
-          <LiveSeatingTab invitationId={invitation._id} />
-        ) : null
-      }
+      overview={<OverviewTab eventId={eventId} />}
+      planning={<PlanningTab invitation={invitation} />}
+      suppliers={<SuppliersBudgetTab invitation={invitation} />}
+      calendar={<CalendarTab invitation={invitation} />}
+      logistics={<LogisticsTab invitation={invitation} />}
+      alcohol={<AlcoholManagementTab invitation={invitation} />}
+      liveGuests={<LiveGuestsTab invitationId={invitation._id} />}
+      liveSeating={<LiveSeatingTab invitationId={invitation._id} />}
       invitation={invitation}
     />
   );
