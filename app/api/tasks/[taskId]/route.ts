@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import db from "@/lib/db";
@@ -10,8 +10,8 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
    PATCH – עדכון משימה
 ========================================================= */
 export async function PATCH(
-  req: Request,
-  { params }: { params: { taskId: string } }
+  req: NextRequest,
+  context: { params: Promise<{ taskId: string }> }
 ) {
   try {
     await db();
@@ -27,7 +27,10 @@ export async function PATCH(
       );
     }
 
-    const { taskId } = params;
+    /* =========================
+       Params (⚠️ Promise!)
+    ========================= */
+    const { taskId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(taskId)) {
       return NextResponse.json(
@@ -36,6 +39,9 @@ export async function PATCH(
       );
     }
 
+    /* =========================
+       Body
+    ========================= */
     const updates = await req.json();
 
     /* =========================
@@ -47,9 +53,10 @@ export async function PATCH(
       "status",
       "order",
       "archived",
-    ];
+    ] as const;
 
-    const safeUpdates: Record<string, any> = {};
+    const safeUpdates: Partial<Record<(typeof allowedFields)[number], any>> =
+      {};
 
     for (const key of allowedFields) {
       if (key in updates) {
@@ -77,6 +84,7 @@ export async function PATCH(
 
     /* =========================
        Verify Event Ownership
+       (לקוח או מפיק)
     ========================= */
     const event = await Event.findOne({
       _id: task.eventId,

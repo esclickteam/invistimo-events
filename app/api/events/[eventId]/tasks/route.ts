@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import db from "@/lib/db";
@@ -7,11 +7,11 @@ import EventTask from "@/models/EventTask";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
-   POST – יצירת משימה חדשה לאירוע
+   POST – יצירת משימה חדשה
 ========================================================= */
 export async function POST(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  req: NextRequest,
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
@@ -27,7 +27,10 @@ export async function POST(
       );
     }
 
-    const { eventId } = params;
+    /* =========================
+       Params (⚠️ Promise!)
+    ========================= */
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
@@ -36,6 +39,9 @@ export async function POST(
       );
     }
 
+    /* =========================
+       Body
+    ========================= */
     const body = await req.json();
     const { title, dueDate } = body;
 
@@ -47,7 +53,7 @@ export async function POST(
     }
 
     /* =========================
-       Load Event (Owner / Producer)
+       Load Event (owner / producer)
     ========================= */
     const event = await Event.findOne({
       _id: eventId,
@@ -77,7 +83,7 @@ export async function POST(
       title: title.trim(),
       dueDate: typeof dueDate === "string" ? dueDate : "",
       status: "open",
-      order: Date.now(), // סדר בסיסי לפי יצירה
+      order: Date.now(), // סדר בסיסי
     });
 
     return NextResponse.json({
