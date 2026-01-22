@@ -8,6 +8,11 @@ export default function AddMeetingModal({
   onClose,
   onSave,
 }) {
+  // תאריך פגישה – תמיד ניתן לשינוי
+  const [meetingDate, setMeetingDate] = useState(
+    new Date(date)
+  );
+
   const [entityName, setEntityName] = useState("");
   const [time, setTime] = useState("12:00");
   const [entityType, setEntityType] = useState("couple");
@@ -26,7 +31,7 @@ export default function AddMeetingModal({
 
     try {
       // בניית תאריך yyyy-mm-dd
-      const d = new Date(date);
+      const d = meetingDate;
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
@@ -54,7 +59,7 @@ export default function AddMeetingModal({
         throw new Error(data?.error || "CREATE_FAILED");
       }
 
-      // מחזירים את ה־conversation שנוצר
+      // מחזירים conversation מהשרת
       onSave(data.conversation);
       onClose();
     } catch (err) {
@@ -70,15 +75,17 @@ export default function AddMeetingModal({
       <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
         <h4 className="font-semibold text-lg">פגישה חדשה</h4>
 
-        {/* Entity name */}
+        {/* תאריך */}
         <input
+          type="date"
           className="border rounded p-2 w-full"
-          placeholder="עם מי / נושא הפגישה"
-          value={entityName}
-          onChange={(e) => setEntityName(e.target.value)}
+          value={meetingDate.toISOString().slice(0, 10)}
+          onChange={(e) =>
+            setMeetingDate(new Date(e.target.value))
+          }
         />
 
-        {/* Time (UI בלבד, לא נשמר כרגע) */}
+        {/* שעה (כרגע UI בלבד) */}
         <input
           type="time"
           className="border rounded p-2 w-full"
@@ -86,7 +93,15 @@ export default function AddMeetingModal({
           onChange={(e) => setTime(e.target.value)}
         />
 
-        {/* Entity type */}
+        {/* נושא / עם מי */}
+        <input
+          className="border rounded p-2 w-full"
+          placeholder="עם מי / נושא הפגישה"
+          value={entityName}
+          onChange={(e) => setEntityName(e.target.value)}
+        />
+
+        {/* סוג פגישה */}
         <select
           className="border rounded p-2 w-full"
           value={entityType}
@@ -98,7 +113,7 @@ export default function AddMeetingModal({
           <option value="other">אחר</option>
         </select>
 
-        {/* Summary */}
+        {/* סיכום */}
         <textarea
           className="border rounded p-2 w-full"
           placeholder="סיכום / הערות"
@@ -119,7 +134,7 @@ export default function AddMeetingModal({
             ביטול
           </button>
 
-           <button
+          <button
             onClick={handleSave}
             disabled={saving}
             className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
