@@ -1,268 +1,219 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-/* ======================================================
-   SuppliersBudgetTab – DEBUG VERSION
-====================================================== */
+/* ======================
+   INITIAL CATALOG
+====================== */
 
-export default function SuppliersBudgetTab({ eventId }) {
-  console.log("🟢 SuppliersBudgetTab render", { eventId });
+const INITIAL_CATEGORIES = [
+  {
+    id: "photo",
+    name: "צילום",
+    subs: ["סטילס", "וידאו", "מגנטים", "רחפן", "סושיאל"],
+  },
+  {
+    id: "music",
+    name: "מוזיקה ובידור",
+    subs: ["DJ", "להקה", "נגן", "זמר חופה"],
+  },
+  {
+    id: "food",
+    name: "אוכל ושתייה",
+    subs: ["אולם", "קייטרינג", "בר אלכוהול", "קינוחים"],
+  },
+  {
+    id: "design",
+    name: "עיצוב והפקה",
+    subs: ["חופה", "שולחנות", "פרחים", "תאורה", "הגברה"],
+  },
+  {
+    id: "extras",
+    name: "אטרקציות",
+    subs: ["מגנטים מיוחדים", "360", "עשן כבד", "זיקוקים"],
+  },
+  {
+    id: "content",
+    name: "תוכן וניהול",
+    subs: ["רב / מנחה", "מפיק יום", "סידורי הושבה"],
+  },
+];
 
+/* ======================
+   MAIN
+====================== */
+
+export default function SuppliersTab() {
+  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [rows, setRows] = useState([]);
+  const [openAddModal, setOpenAddModal] = useState(false);
   const [openSupplierRow, setOpenSupplierRow] = useState(null);
-  const [suppliersCache, setSuppliersCache] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  /* ======================================================
-     LOAD EVENT SUPPLIERS
-  ====================================================== */
-  useEffect(() => {
-    console.log("🟡 useEffect triggered", { eventId });
+  const [suppliersDB, setSuppliersDB] = useState({});
 
-    if (!eventId) {
-      console.warn("⚠️ No eventId – skipping suppliers load");
-      return;
-    }
+  /* ======================
+     ADD ROW (EVENT LEVEL)
+  ====================== */
 
-    let cancelled = false;
-
-    async function loadEventSuppliers() {
-      console.log("🚀 loadEventSuppliers start");
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const res = await fetch(`/api/events/${eventId}/suppliers`);
-        console.log("📡 suppliers response", res.status);
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        console.log("📦 suppliers data", data);
-
-        if (!cancelled) {
-          setRows(Array.isArray(data.suppliers) ? data.suppliers : []);
-        }
-      } catch (err) {
-        console.error("❌ loadEventSuppliers error", err);
-        if (!cancelled) {
-          setError("שגיאה בטעינת ספקים");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadEventSuppliers();
-
-    return () => {
-      cancelled = true;
-      console.log("🧹 cleanup loadEventSuppliers");
-    };
-  }, [eventId]);
-
-  /* ======================================================
-     UPDATE EVENT SUPPLIER ROW
-  ====================================================== */
-  async function updateRow(rowId, patch) {
-    console.log("✏️ updateRow", { rowId, patch });
-
-    try {
-      const res = await fetch(`/api/event-suppliers/${rowId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-
-      console.log("📡 PATCH response", res.status);
-
-      if (!res.ok) {
-        throw new Error(`PATCH failed ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("📦 PATCH data", data);
-
-      if (data?.success) {
-        setRows((prev) =>
-          prev.map((r) => (r._id === rowId ? data.row : r))
-        );
-      }
-    } catch (err) {
-      console.error("❌ updateRow error", err);
-    }
+  function addRow({ categoryId, categoryName, sub }) {
+    setRows((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        categoryId,
+        category: categoryName,
+        sub,
+        supplier: null,
+        price: "",
+        advance: "",
+        balance: "",
+        files: [],
+      },
+    ]);
   }
 
-  /* ======================================================
-     LOAD SUPPLIERS FOR PICKER
-  ====================================================== */
-  async function loadPickerSuppliers(categoryId, sub) {
-    const key = `${categoryId}-${sub}`;
-
-    console.log("🔍 loadPickerSuppliers", { categoryId, sub });
-
-    if (suppliersCache[key]) {
-      console.log("🧠 suppliers from cache", key);
-      return;
-    }
-
-    try {
-      const res = await fetch(
-        `/api/suppliers?categoryId=${categoryId}&sub=${encodeURIComponent(sub)}`
-      );
-
-      console.log("📡 picker suppliers response", res.status);
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("📦 picker suppliers data", data);
-
-      setSuppliersCache((prev) => ({
-        ...prev,
-        [key]: Array.isArray(data.suppliers) ? data.suppliers : [],
-      }));
-    } catch (err) {
-      console.error("❌ loadPickerSuppliers error", err);
-    }
+  function updateRow(i, field, value) {
+    const copy = [...rows];
+    copy[i][field] = value;
+    setRows(copy);
   }
 
-  /* ======================================================
-     ADD EVENT SUPPLIER ROW
-  ====================================================== */
-  async function addRow({ categoryId, sub }) {
-    console.log("➕ addRow", { categoryId, sub });
-
-    try {
-      const res = await fetch(`/api/events/${eventId}/suppliers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryId, sub }),
-      });
-
-      console.log("📡 addRow response", res.status);
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("📦 addRow data", data);
-
-      if (data?.success) {
-        setRows((prev) => [...prev, data.row]);
-      }
-    } catch (err) {
-      console.error("❌ addRow error", err);
-    }
+  function selectSupplier(i, supplier) {
+    const copy = [...rows];
+    copy[i].supplier = supplier;
+    copy[i].price = supplier.price;
+    setRows(copy);
+    setOpenSupplierRow(null);
   }
 
-  /* ======================================================
+  function addSupplier(dbKey, supplier) {
+    setSuppliersDB((prev) => ({
+      ...prev,
+      [dbKey]: [...(prev[dbKey] || []), { ...supplier, id: Date.now() }],
+    }));
+  }
+
+  /* ======================
      RENDER
-  ====================================================== */
+  ====================== */
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <h2 className="text-lg font-semibold">ספקים ותקציב (DEBUG)</h2>
+    <div className="max-w-7xl mx-auto space-y-10" dir="rtl">
 
-      <pre className="bg-gray-100 p-2 text-xs rounded">
-        {JSON.stringify(
-          {
-            eventId,
-            rowsCount: rows.length,
-            loading,
-            error,
-          },
-          null,
-          2
-        )}
-      </pre>
+      {/* HEADER ACTION */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-semibold">ספקים סגורים לאירוע</h1>
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="bg-black text-white px-5 py-2 rounded-xl"
+        >
+          ➕ הוסף ספק / תחום
+        </button>
+      </div>
 
-      {loading && <div>טוען ספקים…</div>}
-      {error && <div className="text-red-600">{error}</div>}
-
-      <div className="bg-white border rounded overflow-hidden">
+      {/* ======================
+          TABLE (ALWAYS VISIBLE)
+      ====================== */}
+      <div className="bg-white rounded-2xl border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              {["תחום", "תת־תחום", "ספק", "מחיר", "מקדמה", "יתרה", ""].map(
-                (h) => (
-                  <th key={h} className="px-3 py-2 text-right">
-                    {h}
-                  </th>
-                )
-              )}
+              {[
+                "תחום",
+                "תת־תחום",
+                "ספק",
+                "מחיר כולל",
+                "מקדמה",
+                "יתרה",
+                "קבצים",
+                "פעולה",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="px-6 py-4 text-right font-medium text-gray-600"
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
 
           <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="px-6 py-12 text-center text-gray-400"
+                >
+                  עדיין לא נוספו ספקים לאירוע
+                </td>
+              </tr>
+            )}
+
             {rows.map((row, i) => {
-              const key = `${row.categoryId}-${row.sub}`;
-              const suppliers = suppliersCache[key] || [];
+              const dbKey = `${row.categoryId}-${row.sub}`;
+              const suppliers = suppliersDB[dbKey] || [];
 
               return (
                 <>
-                  <tr key={row._id} className="border-t">
-                    <td className="px-3 py-2">{row.categoryName}</td>
-                    <td className="px-3 py-2">{row.sub}</td>
-                    <td className="px-3 py-2">
-                      {row.supplierName || "—"}
+                  <tr key={row.id} className="border-t">
+                    <td className="px-6 py-4">{row.category}</td>
+                    <td className="px-6 py-4">{row.sub}</td>
+                    <td className="px-6 py-4 font-medium">
+                      {row.supplier?.name || "לא נבחר"}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
-                        className="border px-2 py-1 w-24"
-                        value={row.price ?? ""}
+                        className="border rounded-lg px-3 py-2 w-28"
+                        value={row.price}
                         onChange={(e) =>
-                          updateRow(row._id, {
-                            price: Number(e.target.value),
-                          })
+                          updateRow(i, "price", e.target.value)
                         }
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
-                        className="border px-2 py-1 w-24"
-                        value={row.advance ?? ""}
+                        className="border rounded-lg px-3 py-2 w-28"
+                        value={row.advance}
                         onChange={(e) =>
-                          updateRow(row._id, {
-                            advance: Number(e.target.value),
-                          })
+                          updateRow(i, "advance", e.target.value)
                         }
                       />
                     </td>
-                    <td className="px-3 py-2">₪{row.balance ?? 0}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
+                      <input
+                        className="border rounded-lg px-3 py-2 w-28"
+                        value={row.balance}
+                        onChange={(e) =>
+                          updateRow(i, "balance", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <input type="file" multiple />
+                    </td>
+                    <td className="px-6 py-4">
                       <button
-                        className="underline text-sm"
-                        onClick={() => {
-                          loadPickerSuppliers(row.categoryId, row.sub);
+                        onClick={() =>
                           setOpenSupplierRow(
                             openSupplierRow === i ? null : i
-                          );
-                        }}
+                          )
+                        }
+                        className="border px-4 py-2 rounded-lg"
                       >
-                        בחר ספק
+                        {row.supplier ? "החלף ספק" : "בחר ספק"}
                       </button>
                     </td>
                   </tr>
 
+                  {/* SUPPLIER PICKER */}
                   {openSupplierRow === i && (
                     <tr className="bg-gray-50">
-                      <td colSpan={7} className="p-3">
+                      <td colSpan={8} className="px-8 py-6">
                         <SupplierPicker
                           suppliers={suppliers}
-                          onSelect={(s) =>
-                            updateRow(row._id, { supplierId: s._id })
-                          }
+                          onSelect={(s) => selectSupplier(i, s)}
+                          onAdd={(s) => addSupplier(dbKey, s)}
                         />
                       </td>
                     </tr>
@@ -273,41 +224,209 @@ export default function SuppliersBudgetTab({ eventId }) {
           </tbody>
         </table>
       </div>
+
+      {/* ======================
+          ADD MODAL
+      ====================== */}
+      {openAddModal && (
+        <AddRowModal
+          categories={categories}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={(data) => {
+            addRow(data);
+            setOpenAddModal(false);
+          }}
+          onAddCategory={(cat) =>
+            setCategories((prev) => [...prev, cat])
+          }
+          onAddSub={(catId, sub) =>
+            setCategories((prev) =>
+              prev.map((c) =>
+                c.id === catId ? { ...c, subs: [...c.subs, sub] } : c
+              )
+            )
+          }
+        />
+      )}
     </div>
   );
 }
 
-/* ======================================================
-   SupplierPicker – DEBUG
-====================================================== */
+/* ======================
+   ADD ROW MODAL
+====================== */
 
-function SupplierPicker({ suppliers, onSelect }) {
-  console.log("🟣 SupplierPicker render", suppliers.length);
+function AddRowModal({ categories, onClose, onAdd, onAddCategory, onAddSub }) {
+  const [categoryId, setCategoryId] = useState("");
+  const [sub, setSub] = useState("");
+  const [newCategory, setNewCategory] = useState("");
+  const [newSub, setNewSub] = useState("");
+
+  const category = categories.find((c) => c.id === categoryId);
 
   return (
-    <div className="space-y-2">
-      {suppliers.map((s) => (
-        <div
-          key={s._id}
-          className="flex justify-between items-center border p-2 rounded"
-        >
-          <div>
-            <div className="font-medium">{s.name}</div>
-            <div className="text-xs text-gray-500">
-              ₪{s.basePrice ?? "—"} · {s.phone}
-            </div>
-          </div>
-          <button
-            className="bg-black text-white px-3 py-1 rounded"
-            onClick={() => {
-              console.log("✅ supplier selected", s._id);
-              onSelect(s);
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl w-full max-w-lg p-8 space-y-6">
+        <h3 className="text-lg font-semibold">הוספת ספק / תחום לאירוע</h3>
+
+        <div className="space-y-4">
+          <select
+            className="border rounded-xl px-4 py-3 w-full"
+            value={categoryId}
+            onChange={(e) => {
+              setCategoryId(e.target.value);
+              setSub("");
             }}
           >
-            בחר
+            <option value="">בחר תחום</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          {category && (
+            <select
+              className="border rounded-xl px-4 py-3 w-full"
+              value={sub}
+              onChange={(e) => setSub(e.target.value)}
+            >
+              <option value="">בחר תת־תחום</option>
+              {category.subs.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          )}
+
+          <div className="border-t pt-4 space-y-3">
+            <input
+              placeholder="➕ תחום חדש"
+              className="border rounded-xl px-4 py-2 w-full"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+            />
+            <button
+              onClick={() => {
+                if (!newCategory) return;
+                onAddCategory({
+                  id: Date.now().toString(),
+                  name: newCategory,
+                  subs: [],
+                });
+                setNewCategory("");
+              }}
+              className="text-sm underline"
+            >
+              הוסף תחום
+            </button>
+
+            {categoryId && (
+              <>
+                <input
+                  placeholder="➕ תת־תחום חדש"
+                  className="border rounded-xl px-4 py-2 w-full"
+                  value={newSub}
+                  onChange={(e) => setNewSub(e.target.value)}
+                />
+                <button
+                  onClick={() => {
+                    if (!newSub) return;
+                    onAddSub(categoryId, newSub);
+                    setNewSub("");
+                  }}
+                  className="text-sm underline"
+                >
+                  הוסף תת־תחום
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2">
+            ביטול
+          </button>
+          <button
+            onClick={() =>
+              category && sub &&
+              onAdd({
+                categoryId: category.id,
+                categoryName: category.name,
+                sub,
+              })
+            }
+            className="bg-black text-white px-5 py-2 rounded-xl"
+          >
+            הוסף לטבלה
           </button>
         </div>
-      ))}
+      </div>
+    </div>
+  );
+}
+
+/* ======================
+   SUPPLIER PICKER
+====================== */
+
+function SupplierPicker({ suppliers, onSelect, onAdd }) {
+  const [form, setForm] = useState({
+    name: "",
+    price: "",
+    phone: "",
+    link: "",
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-3">
+        {suppliers.map((s) => (
+          <div
+            key={s.id}
+            className="flex justify-between items-center border rounded-xl px-5 py-4"
+          >
+            <div>
+              <div className="font-medium">{s.name}</div>
+              <div className="text-xs text-gray-500">
+                ₪{s.price} · {s.phone}
+              </div>
+            </div>
+            <button
+              onClick={() => onSelect(s)}
+              className="bg-black text-white px-4 py-2 rounded-lg"
+            >
+              בחר
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t pt-4 space-y-3">
+        <h4 className="font-medium">➕ הוסף ספק חדש</h4>
+        <div className="flex flex-wrap gap-3">
+          {["name", "price", "phone", "link"].map((f) => (
+            <input
+              key={f}
+              placeholder={f}
+              className="border rounded-lg px-3 py-2"
+              value={form[f]}
+              onChange={(e) =>
+                setForm({ ...form, [f]: e.target.value })
+              }
+            />
+          ))}
+          <button
+            onClick={() => {
+              if (!form.name) return;
+              onAdd(form);
+              setForm({ name: "", price: "", phone: "", link: "" });
+            }}
+            className="bg-black text-white px-5 py-2 rounded-lg"
+          >
+            הוסף
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
