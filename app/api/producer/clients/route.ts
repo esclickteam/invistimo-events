@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import Event from "@/models/Event";
+import InvitationGuest from "@/models/InvitationGuest";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,10 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
+    if (clients.length === 0) {
+      return NextResponse.json({ success: true, clients: [] });
+    }
+
     const clientIds = clients.map((c) => c._id);
 
     /* =========================
@@ -43,18 +48,53 @@ export async function GET() {
     const events = await Event.find({
       userId: { $in: clientIds },
     })
-      .select("userId date location maxGuests approvedGuestsCount")
+      .select("_id userId date location")
       .lean();
 
     const eventsByUserId = Object.fromEntries(
       events.map((e) => [String(e.userId), e])
     );
 
+    const eventIds = events.map((e) => e._id);
+
     /* =========================
-       🔗 Merge
+       📊 RSVP stats (SOURCE OF TRUTH)
+    ========================= */
+    const guestStats = await InvitationGuest.aggregate([
+      {
+        $match: {
+          eventId: { $in: eventIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$eventId",
+          totalGuests: { $sum: 1 },
+          approvedCount: {
+            $sum: {
+              $cond: [{ $eq: ["$rsvp", "approved"] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const statsByEventId = Object.fromEntries(
+      guestStats.map((g) => [
+        String(g._id),
+        {
+          totalGuests: g.totalGuests,
+          approvedCount: g.approvedCount,
+        },
+      ])
+    );
+
+    /* =========================
+       🔗 Merge to final response
     ========================= */
     const result = clients.map((client) => {
       const event = eventsByUserId[String(client._id)];
+      const stats = event ? statsByEventId[String(event._id)] : null;
 
       return {
         ...client,
@@ -65,8 +105,8 @@ export async function GET() {
                 typeof event.location === "object"
                   ? event.location.address
                   : event.location,
-              approvedCount: event.approvedGuestsCount || 0,
-              totalGuests: event.maxGuests || 0,
+              approvedCount: stats?.approvedCount || 0,
+              totalGuests: stats?.totalGuests || 0,
             }
           : null,
       };
