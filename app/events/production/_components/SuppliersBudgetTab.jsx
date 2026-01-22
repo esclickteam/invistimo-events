@@ -2,39 +2,61 @@
 
 import { useEffect, useState } from "react";
 
-/* ======================
-   MAIN
-====================== */
+/* ======================================================
+   SuppliersBudgetTab – DEBUG VERSION
+====================================================== */
 
 export default function SuppliersBudgetTab({ eventId }) {
+  console.log("🟢 SuppliersBudgetTab render", { eventId });
+
   const [rows, setRows] = useState([]);
   const [openSupplierRow, setOpenSupplierRow] = useState(null);
   const [suppliersCache, setSuppliersCache] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  /* ======================
+  /* ======================================================
      LOAD EVENT SUPPLIERS
-  ====================== */
+  ====================================================== */
   useEffect(() => {
-    if (!eventId) return;
+    console.log("🟡 useEffect triggered", { eventId });
+
+    if (!eventId) {
+      console.warn("⚠️ No eventId – skipping suppliers load");
+      return;
+    }
 
     let cancelled = false;
 
     async function loadEventSuppliers() {
+      console.log("🚀 loadEventSuppliers start");
+
+      setLoading(true);
+      setError(null);
+
       try {
         const res = await fetch(`/api/events/${eventId}/suppliers`);
+        console.log("📡 suppliers response", res.status);
 
         if (!res.ok) {
-          console.error("❌ Suppliers fetch failed", res.status);
-          return;
+          throw new Error(`HTTP ${res.status}`);
         }
 
         const data = await res.json();
+        console.log("📦 suppliers data", data);
 
         if (!cancelled) {
           setRows(Array.isArray(data.suppliers) ? data.suppliers : []);
         }
       } catch (err) {
-        console.error("❌ Suppliers fetch error", err);
+        console.error("❌ loadEventSuppliers error", err);
+        if (!cancelled) {
+          setError("שגיאה בטעינת ספקים");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -42,13 +64,16 @@ export default function SuppliersBudgetTab({ eventId }) {
 
     return () => {
       cancelled = true;
+      console.log("🧹 cleanup loadEventSuppliers");
     };
   }, [eventId]);
 
-  /* ======================
-     UPDATE ROW (PATCH)
-  ====================== */
+  /* ======================================================
+     UPDATE EVENT SUPPLIER ROW
+  ====================================================== */
   async function updateRow(rowId, patch) {
+    console.log("✏️ updateRow", { rowId, patch });
+
     try {
       const res = await fetch(`/api/event-suppliers/${rowId}`, {
         method: "PATCH",
@@ -56,49 +81,67 @@ export default function SuppliersBudgetTab({ eventId }) {
         body: JSON.stringify(patch),
       });
 
-      if (!res.ok) return;
+      console.log("📡 PATCH response", res.status);
+
+      if (!res.ok) {
+        throw new Error(`PATCH failed ${res.status}`);
+      }
 
       const data = await res.json();
+      console.log("📦 PATCH data", data);
 
-      if (data?.success && data.row) {
+      if (data?.success) {
         setRows((prev) =>
           prev.map((r) => (r._id === rowId ? data.row : r))
         );
       }
     } catch (err) {
-      console.error("❌ updateRow failed", err);
+      console.error("❌ updateRow error", err);
     }
   }
 
-  /* ======================
-     LOAD SUPPLIERS (PICKER)
-  ====================== */
+  /* ======================================================
+     LOAD SUPPLIERS FOR PICKER
+  ====================================================== */
   async function loadPickerSuppliers(categoryId, sub) {
     const key = `${categoryId}-${sub}`;
-    if (suppliersCache[key]) return;
+
+    console.log("🔍 loadPickerSuppliers", { categoryId, sub });
+
+    if (suppliersCache[key]) {
+      console.log("🧠 suppliers from cache", key);
+      return;
+    }
 
     try {
       const res = await fetch(
         `/api/suppliers?categoryId=${categoryId}&sub=${encodeURIComponent(sub)}`
       );
 
-      if (!res.ok) return;
+      console.log("📡 picker suppliers response", res.status);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
 
       const data = await res.json();
+      console.log("📦 picker suppliers data", data);
 
       setSuppliersCache((prev) => ({
         ...prev,
         [key]: Array.isArray(data.suppliers) ? data.suppliers : [],
       }));
     } catch (err) {
-      console.error("❌ Picker suppliers fetch error", err);
+      console.error("❌ loadPickerSuppliers error", err);
     }
   }
 
-  /* ======================
-     ADD EVENT SUPPLIER
-  ====================== */
+  /* ======================================================
+     ADD EVENT SUPPLIER ROW
+  ====================================================== */
   async function addRow({ categoryId, sub }) {
+    console.log("➕ addRow", { categoryId, sub });
+
     try {
       const res = await fetch(`/api/events/${eventId}/suppliers`, {
         method: "POST",
@@ -106,33 +149,54 @@ export default function SuppliersBudgetTab({ eventId }) {
         body: JSON.stringify({ categoryId, sub }),
       });
 
-      if (!res.ok) return;
+      console.log("📡 addRow response", res.status);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
 
       const data = await res.json();
+      console.log("📦 addRow data", data);
 
-      if (data?.success && data.row) {
+      if (data?.success) {
         setRows((prev) => [...prev, data.row]);
       }
     } catch (err) {
-      console.error("❌ addRow failed", err);
+      console.error("❌ addRow error", err);
     }
   }
 
-  /* ======================
+  /* ======================================================
      RENDER
-  ====================== */
+  ====================================================== */
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <h2 className="text-lg font-semibold">ספקים ותקציב</h2>
+    <div className="space-y-4" dir="rtl">
+      <h2 className="text-lg font-semibold">ספקים ותקציב (DEBUG)</h2>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <pre className="bg-gray-100 p-2 text-xs rounded">
+        {JSON.stringify(
+          {
+            eventId,
+            rowsCount: rows.length,
+            loading,
+            error,
+          },
+          null,
+          2
+        )}
+      </pre>
+
+      {loading && <div>טוען ספקים…</div>}
+      {error && <div className="text-red-600">{error}</div>}
+
+      <div className="bg-white border rounded overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
               {["תחום", "תת־תחום", "ספק", "מחיר", "מקדמה", "יתרה", ""].map(
                 (h) => (
-                  <th key={h} className="px-4 py-3 text-right">
+                  <th key={h} className="px-3 py-2 text-right">
                     {h}
                   </th>
                 )
@@ -146,51 +210,45 @@ export default function SuppliersBudgetTab({ eventId }) {
               const suppliers = suppliersCache[key] || [];
 
               return (
-                <tbody key={row._id}>
-                  <tr className="border-t">
-                    <td className="px-4 py-2">{row.categoryName}</td>
-                    <td className="px-4 py-2">{row.sub}</td>
-                    <td className="px-4 py-2">
+                <>
+                  <tr key={row._id} className="border-t">
+                    <td className="px-3 py-2">{row.categoryName}</td>
+                    <td className="px-3 py-2">{row.sub}</td>
+                    <td className="px-3 py-2">
                       {row.supplierName || "—"}
                     </td>
-
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2">
                       <input
                         className="border px-2 py-1 w-24"
                         value={row.price ?? ""}
                         onChange={(e) =>
                           updateRow(row._id, {
-                            price: Number(e.target.value) || 0,
+                            price: Number(e.target.value),
                           })
                         }
                       />
                     </td>
-
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2">
                       <input
                         className="border px-2 py-1 w-24"
                         value={row.advance ?? ""}
                         onChange={(e) =>
                           updateRow(row._id, {
-                            advance: Number(e.target.value) || 0,
+                            advance: Number(e.target.value),
                           })
                         }
                       />
                     </td>
-
-                    <td className="px-4 py-2">
-                      ₪{row.balance ?? 0}
-                    </td>
-
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2">₪{row.balance ?? 0}</td>
+                    <td className="px-3 py-2">
                       <button
+                        className="underline text-sm"
                         onClick={() => {
                           loadPickerSuppliers(row.categoryId, row.sub);
                           setOpenSupplierRow(
                             openSupplierRow === i ? null : i
                           );
                         }}
-                        className="text-sm underline"
                       >
                         בחר ספק
                       </button>
@@ -199,48 +257,17 @@ export default function SuppliersBudgetTab({ eventId }) {
 
                   {openSupplierRow === i && (
                     <tr className="bg-gray-50">
-                      <td colSpan={7} className="p-4">
+                      <td colSpan={7} className="p-3">
                         <SupplierPicker
                           suppliers={suppliers}
                           onSelect={(s) =>
                             updateRow(row._id, { supplierId: s._id })
                           }
-                          onAdd={async (form) => {
-                            try {
-                              const res = await fetch("/api/suppliers", {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                  ...form,
-                                  categoryId: row.categoryId,
-                                  sub: row.sub,
-                                }),
-                              });
-
-                              if (!res.ok) return;
-
-                              const data = await res.json();
-                              if (data?.success) {
-                                setSuppliersCache((prev) => ({
-                                  ...prev,
-                                  [key]: undefined,
-                                }));
-                                loadPickerSuppliers(
-                                  row.categoryId,
-                                  row.sub
-                                );
-                              }
-                            } catch (err) {
-                              console.error("❌ add supplier failed", err);
-                            }
-                          }}
                         />
                       </td>
                     </tr>
                   )}
-                </tbody>
+                </>
               );
             })}
           </tbody>
@@ -250,79 +277,37 @@ export default function SuppliersBudgetTab({ eventId }) {
   );
 }
 
-/* ======================
-   SUPPLIER PICKER
-====================== */
+/* ======================================================
+   SupplierPicker – DEBUG
+====================================================== */
 
-function SupplierPicker({ suppliers, onSelect, onAdd }) {
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    basePrice: "",
-  });
+function SupplierPicker({ suppliers, onSelect }) {
+  console.log("🟣 SupplierPicker render", suppliers.length);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {suppliers.map((s) => (
         <div
           key={s._id}
-          className="flex justify-between items-center border p-3 rounded"
+          className="flex justify-between items-center border p-2 rounded"
         >
           <div>
             <div className="font-medium">{s.name}</div>
             <div className="text-xs text-gray-500">
-              ₪{s.basePrice || "—"} · {s.phone || "—"}
+              ₪{s.basePrice ?? "—"} · {s.phone}
             </div>
           </div>
           <button
-            onClick={() => onSelect(s)}
             className="bg-black text-white px-3 py-1 rounded"
+            onClick={() => {
+              console.log("✅ supplier selected", s._id);
+              onSelect(s);
+            }}
           >
             בחר
           </button>
         </div>
       ))}
-
-      <div className="border-t pt-3 space-y-2">
-        <input
-          placeholder="שם ספק"
-          className="border px-2 py-1 w-full"
-          value={form.name}
-          onChange={(e) =>
-            setForm({ ...form, name: e.target.value })
-          }
-        />
-        <input
-          placeholder="טלפון"
-          className="border px-2 py-1 w-full"
-          value={form.phone}
-          onChange={(e) =>
-            setForm({ ...form, phone: e.target.value })
-          }
-        />
-        <input
-          placeholder="מחיר בסיס"
-          className="border px-2 py-1 w-full"
-          value={form.basePrice}
-          onChange={(e) =>
-            setForm({ ...form, basePrice: e.target.value })
-          }
-        />
-        <button
-          onClick={() => {
-            if (!form.name) return;
-            onAdd({
-              name: form.name,
-              phone: form.phone,
-              basePrice: Number(form.basePrice) || null,
-            });
-            setForm({ name: "", phone: "", basePrice: "" });
-          }}
-          className="bg-black text-white px-4 py-2 rounded"
-        >
-          הוסף ספק
-        </button>
-      </div>
     </div>
   );
 }
