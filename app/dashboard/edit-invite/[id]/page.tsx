@@ -237,9 +237,12 @@ export default function EditInvitePage() {
 
           {/* Mobile */}
           <MobileBottomNav
-            active={mobileTab}
-            onChange={setMobileTab}
-          />
+  active={mobileTab}
+  onChange={(tab) => {
+    setMobileTab(tab);
+    setSheetOpen(true);
+  }}
+/>
 
           <MobileBottomSheet
             open={sheetOpen}
