@@ -27,7 +27,10 @@ export default function MobileBottomSheet({
           border-t border-gray-200
           transition-transform duration-200
           pb-[env(safe-area-inset-bottom)]
-          ${open ? "translate-y-0" : "translate-y-full"}
+          ${open 
+  ? "translate-y-0 pointer-events-auto" 
+  : "translate-y-full pointer-events-none"}
+
         `}
         style={{ height }}
       >
