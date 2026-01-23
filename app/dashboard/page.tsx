@@ -1,15 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
-import UpgradeToPremium from "../components/UpgradeToPremium";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import ImportExcelModal from "../components/ImportExcelModal"; 
 import EventCountdown from "../components/EventCountdown";
 import GuestsMobileList from "./components/GuestsMobileList";
-import { usePathname } from "next/navigation";
 import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
@@ -90,6 +88,21 @@ const isDemo = pathname.startsWith("/try");
   const [loading, setLoading] = useState(true);
 
   const groups = useGroupStore((s) => s.groups);
+  const searchParams = useSearchParams();
+  const eventIdFromUrl = searchParams.get("eventId");
+
+  const [user, setUser] = useState<any | null>(null);
+
+
+  useEffect(() => {
+  if (isDemo) return;
+  if (!user) return;
+
+  if (user.role === "producer" && !eventIdFromUrl) {
+    console.error("Producer dashboard loaded without eventId");
+    router.replace("/events");
+  }
+}, [user?.role, eventIdFromUrl, router, isDemo]);
 
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
@@ -124,7 +137,6 @@ const [selectedGroupId, setSelectedGroupId] = useState("");
 
 
 
-  const [user, setUser] = useState<any | null>(null);
 
   // ✅ חיפוש
   const [search, setSearch] = useState("");
@@ -158,20 +170,13 @@ const [selectedGroupId, setSelectedGroupId] = useState("");
   async function loadInvitation() {
   if (!user) return;
 
-  const params =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search)
-      : null;
-
-  const eventIdFromUrl = params?.get("eventId");
-
   const url =
     user.role === "producer" && eventIdFromUrl
       ? `/api/invitations/by-event/${eventIdFromUrl}`
       : "/api/invitations/my";
 
   const res = await fetch(url, {
-    credentials: "include", // ⭐️ קריטי
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -188,13 +193,6 @@ const [selectedGroupId, setSelectedGroupId] = useState("");
 
 async function loadEvent() {
   if (!user) return;
-
-  const params =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search)
-      : null;
-
-  const eventIdFromUrl = params?.get("eventId");
 
   const url =
     user.role === "producer" && eventIdFromUrl
@@ -269,6 +267,8 @@ async function deleteGuest(guest: Guest) {
     alert("❌ שגיאת שרת");
   }
 }
+
+
 
 useEffect(() => {
   if (isDemo) return;
@@ -607,23 +607,24 @@ console.log("INVITATION:", invitation);
   הוספת מוזמנים, שליחת הודעות וסידורי הושבה
 </p>
 
-{!!user?.createdByProducer && (
+{!!user?.createdByProducer && eventIdFromUrl && (
   <div className="flex flex-wrap gap-3 mb-6">
     <Link
-      href="/events/production"
+      href={`/events/production?eventId=${eventIdFromUrl}`}
       className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
     >
       🎬 הפקת אירוע
     </Link>
 
     <Link
-      href="/events/live"
+      href={`/events/live?eventId=${eventIdFromUrl}`}
       className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
     >
       🎛️ ניהול אירוע
     </Link>
   </div>
 )}
+
 
     {/* תיוג שירות שיחות */}
 {user?.plan === "premium" && (

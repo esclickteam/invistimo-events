@@ -12,7 +12,7 @@ import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
 import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
-import LiveGuestsTab from "./_components/LiveGuestsTab";
+import DashboardPage from "@/app/dashboard/page";
 import LiveSeatingTab from "./_components/LiveSeating/LiveSeatingTab";
 
 export default function EventProductionPage() {
@@ -26,36 +26,53 @@ export default function EventProductionPage() {
      Load invitation
   ========================= */
   useEffect(() => {
-    if (!user) return;
+  if (!user) return;
 
-    fetch("/api/invitations/my")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch invitation");
-        return res.json();
-      })
-      .then((data) => {
-        setInvitation(data?.invitation || null);
-      })
-      .catch((err) => {
-        console.error("Invitation fetch error:", err);
-        setInvitation(null);
-      })
-      .finally(() => setLoading(false));
-  }, [user]);
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
+
+  const eventIdFromUrl = params?.get("eventId");
+
+  const url =
+    user.role === "producer" && eventIdFromUrl
+      ? `/api/invitations/by-event/${eventIdFromUrl}`
+      : "/api/invitations/my";
+
+  fetch(url, { credentials: "include", cache: "no-store" })
+    .then((res) => {
+      if (!res.ok) throw new Error("Failed to fetch invitation");
+      return res.json();
+    })
+    .then((data) => {
+      setInvitation(data?.invitation || null);
+    })
+    .catch((err) => {
+      console.error("Invitation fetch error:", err);
+      setInvitation(null);
+    })
+    .finally(() => setLoading(false));
+}, [user]);
 
   /* =========================
      Extract eventId (מקור אמת)
   ========================= */
   const eventId = useMemo(() => {
-    if (!invitation) return null;
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
 
-    return (
-      invitation.eventId ||
-      invitation.event?._id ||
-      invitation._id || // fallback אחרון
-      null
-    );
-  }, [invitation]);
+  const eventIdFromUrl = params?.get("eventId");
+
+  return (
+    eventIdFromUrl ||
+    invitation?.eventId ||
+    invitation?.event?._id ||
+    null
+  );
+}, [invitation]);
 
   /* =========================
      Load LIVE snapshot (guests + seating)
@@ -124,7 +141,10 @@ export default function EventProductionPage() {
     calendar={<CalendarTab eventId={eventId} />}
     logistics={<LogisticsTab eventId={eventId} />}
     alcohol={<AlcoholManagementTab eventId={eventId} />}
-    liveGuests={<LiveGuestsTab invitationId={invitation._id} />}
+    liveGuests={
+  <DashboardPage />
+}
+
     liveSeating={<LiveSeatingTab invitationId={invitation._id} />}
     invitation={invitation}
   />
