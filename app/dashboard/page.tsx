@@ -629,7 +629,7 @@ console.log("INVITATION:", invitation);
 
 
     {/* תיוג שירות שיחות */}
-{user?.plan === "premium" && !user?.createdByProducer && (
+{user?.plan === "premium" && user.role !== "producer" && (
   <div className="mb-8">
     {user.includeCalls ? (
       <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
@@ -646,7 +646,7 @@ console.log("INVITATION:", invitation);
 {/* תיוג מתנות באשראי */}
 {user?.plan === "premium" &&
   user.includeCreditGifts &&
-  !user?.createdByProducer && (
+  user.role !== "producer" && (
     <div className="mb-8 flex flex-col gap-2">
       <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
         💳 כולל מתנות באשראי לאורחים
