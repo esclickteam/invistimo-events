@@ -92,7 +92,12 @@ const isDemo = pathname.startsWith("/try");
   const eventIdFromUrl = searchParams.get("eventId");
 
   const [user, setUser] = useState<any | null>(null);
-  const isRealClient = user?.role === "client";
+
+  const isProducerView =
+  user?.role === "producer" || user?.impersonated === true;
+
+const isClientView = !isProducerView;
+
 
 
   useEffect(() => {
@@ -303,8 +308,7 @@ useEffect(() => {
   // ⭐️ DEMO – טעינת נתוני דמו בלבד
   if (!isDemo) return;
 
-  setUser({ plan: "premium", role: "client" });
- // או basic
+  setUser({ plan: "premium" }); // או basic
   setInvitation({
     _id: "demo",
     shareId: "demo",
@@ -570,8 +574,6 @@ if (selectedGroupId) {
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   if (loading) return null;
-  if (!isRealClient) return null;
-
   console.log("USER FROM /api/me:", user);
 console.log("INVITATION:", invitation);
 
@@ -604,216 +606,213 @@ console.log("INVITATION:", invitation);
     )}
 
 
-       <h1 className="text-3xl font-semibold mb-1">
-  ניהול האירוע
-</h1>
-<p className="text-gray-500 mb-6">
-  הוספת מוזמנים, שליחת הודעות וסידורי הושבה
-</p>
+       {isClientView && (
+  <>
+    {/* ===================== ניהול האירוע ===================== */}
+    <h1 className="text-3xl font-semibold mb-1">
+      ניהול האירוע
+    </h1>
+    <p className="text-gray-500 mb-6">
+      הוספת מוזמנים, שליחת הודעות וסידורי הושבה
+    </p>
 
+    {!!user?.createdByProducer && eventIdFromUrl && (
+      <div className="flex flex-wrap gap-3 mb-6">
+        <Link
+          href={`/events/production?eventId=${eventIdFromUrl}`}
+          className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+        >
+          🎬 הפקת אירוע
+        </Link>
 
-
-    {/* תיוג שירות שיחות */}
-{isRealClient && user?.plan === "premium" && (
-  <div className="mb-8">
-    {user.includeCalls ? (
-      <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
-        ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
-      </div>
-    ) : (
-      <div className="inline-flex items-center gap-2 bg-[#fff7e6] text-[#b67c00] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
-        ⚠️ ללא שירות שיחות טלפוניים
+        <Link
+          href={`/events/live?eventId=${eventIdFromUrl}`}
+          className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+        >
+          🎛️ ניהול אירוע
+        </Link>
       </div>
     )}
-  </div>
-)}
 
-{/* תיוג מתנות באשראי */}
-{isRealClient && user?.plan === "premium" && user.includeCreditGifts && (
-  <div className="mb-8 flex flex-col gap-2">
-    <a
-      href="https://ktzr.io/giftInvistimoSignup"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 w-fit bg-[#138b55] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#0f6f45] transition"
-    >
-      🔗 קישור הרשמה למתנות באשראי
-    </a>
+    {/* תיוג שירות שיחות */}
+    {user?.plan === "premium" && (
+      <div className="mb-8">
+        {user.includeCalls ? (
+          <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+            ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 bg-[#fff7e6] text-[#b67c00] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+            ⚠️ ללא שירות שיחות טלפוניים
+          </div>
+        )}
+      </div>
+    )}
 
-    <div className="text-xs text-gray-500">
-      שתפו את הקישור עם האורחים כדי לאפשר מתנות באשראי
-    </div>
-  </div>
-)}
+    {/* תיוג מתנות באשראי */}
+    {user?.plan === "premium" && user.includeCreditGifts && (
+      <div className="mb-8 flex flex-col gap-2">
+        <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+          💳 כולל מתנות באשראי לאורחים
+        </div>
 
+        <a
+          href="https://ktzr.io/giftInvistimoSignup"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 w-fit bg-[#138b55] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#0f6f45] transition"
+        >
+          🔗 קישור הרשמה למתנות באשראי
+        </a>
 
+        <div className="text-xs text-gray-500">
+          שתפו את הקישור עם האורחים כדי לאפשר מתנות באשראי
+        </div>
+      </div>
+    )}
 
-  
-
-    {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
+    {/* ספירה לאחור */}
     {event && (
-  <div className="flex items-center justify-between mb-4">
-    <div className="text-lg font-semibold">
-      {event.date ? (
-        <EventCountdown event={event} />
-      ) : (
-        <span className="text-gray-500">
-          📅 טרם הוגדר תאריך לאירוע
-        </span>
-      )}
+      <div className="flex items-center justify-between mb-6">
+        <div className="text-lg font-semibold">
+          {event.date ? (
+            <EventCountdown event={event} />
+          ) : (
+            <span className="text-gray-500">
+              📅 טרם הוגדר תאריך לאירוע
+            </span>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* ===================== רשימת מוזמנים ===================== */}
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+      <h2 className="text-2xl font-semibold">
+        רשימת מוזמנים
+      </h2>
+
+      {/* דסקטופ */}
+      <div className="hidden md:flex flex-wrap gap-3">
+        <button
+          onClick={() => {
+            if (isDemo) {
+              handleDemoBlockedAction();
+              return;
+            }
+            router.push(
+              invitation
+                ? `/dashboard/edit-invite/${invitationId}`
+                : "/dashboard/create-invite"
+            );
+          }}
+          className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50"
+        >
+          {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+        </button>
+
+        {invitation && (
+          <button
+            onClick={() =>
+              isDemo
+                ? handleDemoBlockedAction()
+                : window.open(
+                    `https://www.invistimo.com/invite/${invitation.shareId}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+            }
+            className="bg-white border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-50 flex items-center gap-2"
+          >
+            👁️ צפייה בהזמנה
+          </button>
+        )}
+
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="bg-black text-white px-6 py-3 rounded-full font-semibold"
+        >
+          + הוספת מוזמן
+        </button>
+
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="bg-white border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-50"
+        >
+          📥 ייבוא מאקסל
+        </button>
+
+        <button
+          onClick={() =>
+            router.push(isDemo ? "/try/dashboard/messages" : "/dashboard/messages")
+          }
+          className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold"
+        >
+          💬 שליחת הודעות
+        </button>
+
+        <button
+          onClick={() =>
+            router.push(
+              isDemo
+                ? "/try/dashboard/seating"
+                : invitation
+                ? "/dashboard/seating"
+                : "/dashboard/create-invite"
+            )
+          }
+          className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+        >
+          🪑 סידורי הושבה
+        </button>
+
+        <button
+          onClick={() =>
+            isDemo
+              ? handleDemoBlockedAction()
+              : router.push("/dashboard/event")
+          }
+          className="bg-white border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-50"
+        >
+          🛠️ עריכת פרטי האירוע
+        </button>
+      </div>
+
+      {/* מובייל */}
+      <div className="flex md:hidden flex-col gap-3">
+        <button
+          onClick={() =>
+            isDemo
+              ? handleDemoBlockedAction()
+              : router.push(
+                  invitation
+                    ? `/dashboard/edit-invite/${invitationId}`
+                    : "/dashboard/create-invite"
+                )
+          }
+          className="border border-gray-300 px-6 py-3 rounded-full"
+        >
+          {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+        </button>
+
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="bg-black text-white px-6 py-3 rounded-full"
+        >
+          + הוספת מוזמן
+        </button>
+
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="border border-gray-300 px-6 py-3 rounded-full"
+        >
+          📥 ייבוא מאקסל
+        </button>
+      </div>
     </div>
-  </div>
+  </>
 )}
 
-
-
-{/* ⬇⬇⬇ רק עכשיו – שורת רשימת מוזמנים ⬇⬇⬇ */}
-<div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-  <h2 className="text-2xl font-semibold">
-    רשימת מוזמנים
-  </h2>
-
-  {/* ===================== דסקטופ בלבד ===================== */}
-  <div className="hidden md:flex flex-wrap gap-3">
-  {/* ✏️ יצירת / עריכת הזמנה */}
-  <button
-    onClick={() => {
-      if (isDemo) {
-        handleDemoBlockedAction();
-        return;
-      }
-
-      router.push(
-        invitation
-          ? `/dashboard/edit-invite/${invitationId}`
-          : "/dashboard/create-invite"
-      );
-    }}
-    className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
-  >
-    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-  </button>
-
-  {/* 👁️ צפייה בהזמנה */}
-  {invitation && (
-    <button
-      onClick={() => {
-        if (isDemo) {
-          handleDemoBlockedAction();
-        } else {
-          window.open(
-            `https://www.invistimo.com/invite/${invitation.shareId}`,
-            "_blank",
-            "noopener,noreferrer"
-          );
-        }
-      }}
-      className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-2"
-    >
-      👁️ צפייה בהזמנה
-    </button>
-  )}
-
-  {/* ➕ הוספת מוזמן */}
-  <button
-    onClick={() => setOpenAddModal(true)}
-    className="bg-black text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-gray-900 active:scale-95 transition-all"
-  >
-    + הוספת מוזמן
-  </button>
-
-  {/* 📥 ייבוא מאקסל */}
-  <button
-    onClick={() => setShowImportModal(true)}
-    className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
-    title="ייבוא רשימת מוזמנים מאקסל"
-  >
-    📥 ייבוא מאקסל
-  </button>
-
-  {/* 💬 שליחת הודעות (PRIMARY) */}
-  <button
-    onClick={() => {
-      router.push(isDemo ? "/try/dashboard/messages" : "/dashboard/messages");
-    }}
-    className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold shadow-md hover:bg-green-700 hover:shadow-lg active:scale-95 transition-all"
-  >
-    💬 שליחת הודעות
-  </button>
-
-  {/* 🪑 סידורי הושבה */}
-  <button
-    onClick={() => {
-      router.push(
-        isDemo
-          ? "/try/dashboard/seating"
-          : invitation
-          ? "/dashboard/seating"
-          : "/dashboard/create-invite"
-      );
-    }}
-    className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#bfa97f] active:scale-95 transition-all"
-  >
-    🪑 סידורי הושבה
-  </button>
-
-  {/* 🛠️ עריכת פרטי האירוע */}
-  <button
-    onClick={() => {
-      if (isDemo) {
-        handleDemoBlockedAction();
-      } else {
-        router.push("/dashboard/event");
-      }
-    }}
-    className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
-  >
-    🛠️ עריכת פרטי האירוע
-  </button>
-</div>
-
-
-  {/* ===================== מובייל בלבד ===================== */}
-  <div className="flex md:hidden flex-col gap-3">
-
-  {/* ✏️ יצירת / עריכת הזמנה – ראשון */}
-  <button
-    onClick={() => {
-      if (isDemo) {
-        handleDemoBlockedAction(); // 🧪 Toast דמו
-      } else {
-        router.push(
-          invitation
-            ? `/dashboard/edit-invite/${invitationId}`
-            : "/dashboard/create-invite"
-        );
-      }
-    }}
-    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-  >
-    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-  </button>
-
-  {/* ➕ הוספת מוזמן – שני */}
-  <button
-    onClick={() => setOpenAddModal(true)}
-    className="bg-black text-white px-6 py-3 rounded-full"
-  >
-    + הוספת מוזמן
-  </button>
-
-  {/* 📥 ייבוא מאקסל – שלישי */}
-  <button
-    onClick={() => setShowImportModal(true)}
-    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-  >
-    📥 ייבוא מאקסל
-  </button>
-
-</div>
-
-  
-</div>
 
 
 
