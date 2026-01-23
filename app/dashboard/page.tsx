@@ -608,27 +608,10 @@ console.log("INVITATION:", invitation);
   הוספת מוזמנים, שליחת הודעות וסידורי הושבה
 </p>
 
-{!!user?.createdByProducer && eventIdFromUrl && (
-  <div className="flex flex-wrap gap-3 mb-6">
-    <Link
-      href={`/events/production?eventId=${eventIdFromUrl}`}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
-    >
-      🎬 הפקת אירוע
-    </Link>
-
-    <Link
-      href={`/events/live?eventId=${eventIdFromUrl}`}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
-    >
-      🎛️ ניהול אירוע
-    </Link>
-  </div>
-)}
 
 
     {/* תיוג שירות שיחות */}
-{user?.plan === "premium" && (
+{isRealClient && user?.plan === "premium" && (
   <div className="mb-8">
     {user.includeCalls ? (
       <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
