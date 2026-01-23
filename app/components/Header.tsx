@@ -25,7 +25,7 @@ export default function Header() {
         dir="rtl"
         className="
           fixed top-0 inset-x-0 z-50
-          h-16
+          h-12 md:h-14
           bg-[#f5eee7]
           bg-[url('/noise.png')] bg-repeat
           border-b border-[#e2d6c8]
@@ -46,11 +46,15 @@ export default function Header() {
           {/* מרכז – לוגו */}
           <div className="flex justify-center" dir="ltr">
             <img
-              src="/invistimo-logo.png"
-              alt="Invistimo Logo"
-              className="h-10 w-auto object-contain scale-[4]"
-              draggable={false}
-            />
+                src="/invistimo-logo.png"
+  alt="Invistimo Logo"
+  className="
+    h-7 md:h-8
+    w-auto
+    object-contain
+  "
+  draggable={false}
+/>
           </div>
 
           {/* שמאל – התנתקות */}
@@ -139,11 +143,12 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
+          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-12 md:h-14">
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
-              <nav className="hidden md:flex items-center gap-8 text-[#4a413a] font-medium text-[18px] tracking-wide whitespace-nowrap">
+              <nav className="hidden md:flex items-center gap-5 text-[#4a413a] font-medium text-[16px] tracking-normal whitespace-nowrap">
+
 
                 <NavLinks />
               </nav>
@@ -166,7 +171,8 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
-                  className="h-10 w-auto object-contain scale-[4] origin-center"
+                  className="h-7 md:h-8 w-auto object-contain"
+
                 />
               </Link>
             </div>
