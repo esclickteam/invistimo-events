@@ -93,8 +93,8 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
-  const isProducer =
-    user?.role === "producer" || !!user?.createdByProducer;
+  const isProducer = user?.role === "producer";
+
 
 
   useEffect(() => {
