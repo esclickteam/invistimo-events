@@ -45,7 +45,8 @@ const [invitationId, setInvitationId] = useState(null);
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
 const setTables = useSeatingStore((s) => s.setTables);
-const loadGroups = useGroupStore((s) => s.loadGroups);
+const loadGroupsByEvent = useGroupStore((s) => s.loadGroupsByEvent);
+
 
 const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
@@ -63,41 +64,69 @@ const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
   async function loadEventData() {
     setLoading(true);
+    setError(null);
 
-    // 🔥 אורחים – לפי EVENT
-    const guestsRes = await fetch(
-      `/api/events/${eventId}/guests`,
-      { credentials: "include", cache: "no-store" }
-    );
-    const guestsData = await guestsRes.json();
-    setGuests(guestsData.guests || []);
+    try {
+      /* =========================
+         🔥 אורחים – InvitationGuests לפי EVENT
+      ========================= */
+      const guestsRes = await fetch(
+        `/api/events/${eventId}/invitation-guests`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
-    // 🔥 שולחנות – לפי EVENT
-    const seatingRes = await fetch(
-      `/api/events/${eventId}/seating`,
-      { credentials: "include", cache: "no-store" }
-    );
-    const seatingData = await seatingRes.json();
-    setTables(seatingData.tables || []);
+      const guestsData = await guestsRes.json();
+      setGuests(guestsData.invitationGuests || []);
 
-    // 🔥 קבוצות – לפי EVENT
-    loadGroupsByEvent(eventId);
+      /* =========================
+         🔥 שולחנות – לפי EVENT
+      ========================= */
+      const seatingRes = await fetch(
+        `/api/events/${eventId}/seating`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
-    // 🟡 invitation רק לצרכים משניים
-    const invRes = await fetch(
-      `/api/invitations?eventId=${eventId}`,
-      { credentials: "include", cache: "no-store" }
-    );
-    const invData = await invRes.json();
-    if (invData?.success) {
-      setInvitationId(invData.invitation._id);
+      const seatingData = await seatingRes.json();
+      setTables(seatingData.tables || []);
+
+      /* =========================
+         🔥 קבוצות – לפי EVENT
+      ========================= */
+      await loadGroupsByEvent(eventId);
+
+
+      /* =========================
+         🟡 invitationId – לצרכים משניים (AddGuest וכו׳)
+      ========================= */
+      const invRes = await fetch(
+        `/api/invitations?eventId=${eventId}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const invData = await invRes.json();
+      if (invData?.success && invData.invitation?._id) {
+        setInvitationId(invData.invitation._id);
+      }
+    } catch (err) {
+      console.error("❌ loadEventData failed:", err);
+      setError("שגיאה בטעינת נתוני האירוע");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   loadEventData();
-}, [eventId]);
+}, [eventId, loadGroupsByEvent]);
+
 
 
 
@@ -112,7 +141,8 @@ const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
     if (!ok) return;
 
     try {
-      const res = await fetch(`/api/guests/${guest._id}`, {
+      const res = await fetch(`/api/invitation-guests/${guest._id}`, {
+
         method: "DELETE",
       });
 
@@ -133,14 +163,16 @@ setGuests(next);
      Update guest (PATCH, fallback PUT)
   ========================= */
   async function updateGuestOnServer(guestId, payload) {
-    let res = await fetch(`/api/guests/${guestId}`, {
+    let res = await fetch(`/api/invitation-guests/${guestId}`, {
+
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
     if (res.status === 405) {
-      res = await fetch(`/api/guests/${guestId}`, {
+        res = await fetch(`/api/invitation-guests/${guestId}`, {
+
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -187,14 +219,15 @@ setGuests(next);
   syncArrivedSeats(guest._id, nextArrived);
 
   try {
-    await fetch("/api/live-guests/arrived", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        invitationGuestId: guest._id,
-        arrivedCount: nextArrived,
-      }),
-    });
+    await fetch("/api/invitation-guests/arrived", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    invitationGuestId: guest._id,
+    arrivedCount: nextArrived,
+  }),
+});
+
   } catch (e) {
     console.error("❌ arrivedCount update failed:", e);
   }
