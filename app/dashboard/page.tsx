@@ -303,7 +303,8 @@ useEffect(() => {
   // ⭐️ DEMO – טעינת נתוני דמו בלבד
   if (!isDemo) return;
 
-  setUser({ plan: "premium" }); // או basic
+  setUser({ plan: "premium", role: "client" });
+ // או basic
   setInvitation({
     _id: "demo",
     shareId: "demo",
@@ -569,6 +570,8 @@ if (selectedGroupId) {
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   if (loading) return null;
+  if (!isRealClient) return null;
+
   console.log("USER FROM /api/me:", user);
 console.log("INVITATION:", invitation);
 
