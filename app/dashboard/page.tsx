@@ -92,6 +92,7 @@ const isDemo = pathname.startsWith("/try");
   const eventIdFromUrl = searchParams.get("eventId");
 
   const [user, setUser] = useState<any | null>(null);
+  const isRealClient = user?.role === "client";
 
 
   useEffect(() => {
@@ -642,12 +643,8 @@ console.log("INVITATION:", invitation);
 )}
 
 {/* תיוג מתנות באשראי */}
-{user?.plan === "premium" && user.includeCreditGifts && (
+{isRealClient && user?.plan === "premium" && user.includeCreditGifts && (
   <div className="mb-8 flex flex-col gap-2">
-    <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
-      💳 כולל מתנות באשראי לאורחים
-    </div>
-
     <a
       href="https://ktzr.io/giftInvistimoSignup"
       target="_blank"
