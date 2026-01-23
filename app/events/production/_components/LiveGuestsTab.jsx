@@ -65,10 +65,13 @@ const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
     setLoading(true);
 
     // 1️⃣ invitation לפי eventId
-    const invRes = await fetch(`/api/invitations/by-event/${eventId}`, {
-      credentials: "include",
-      cache: "no-store",
-    });
+    const invRes = await fetch(
+  `/api/invitations?eventId=${eventId}`,
+  {
+    credentials: "include",
+    cache: "no-store",
+  }
+);
     const invData = await invRes.json();
 
     if (!invData?.success) {
