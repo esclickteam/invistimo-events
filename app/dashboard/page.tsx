@@ -84,6 +84,14 @@ export default function DashboardPage() {
   const pathname = usePathname();
 const isDemo = pathname.startsWith("/try");
 
+const searchParams =
+  typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+
+const eventId = searchParams?.get("eventId") || "";
+
+
   const router = useRouter();
 
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -94,7 +102,8 @@ const isDemo = pathname.startsWith("/try");
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [openAddModal, setOpenAddModal] = useState(false);
-  const loadGroups = useGroupStore((s) => s.loadGroups);
+  const loadGroupsByEvent = useGroupStore((s) => s.loadGroupsByEvent);
+
 
 
   const handleGuestUpdated = (updatedGuest: Guest) => {
@@ -426,10 +435,10 @@ useEffect(() => {
 
 useEffect(() => {
   if (isDemo) return;
-  if (!invitationId) return;
+  if (!eventId) return;
 
-  loadGroups(invitationId);
-}, [invitationId, isDemo, loadGroups]);
+  loadGroupsByEvent(eventId);
+}, [eventId, isDemo, loadGroupsByEvent]);
 
 
 
