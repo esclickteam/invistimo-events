@@ -5,16 +5,14 @@ import { nanoid } from "nanoid";
 type GroupStore = {
   groups: Group[];
 
-  /* ===== State ===== */
+  /* CRUD */
   setGroups: (groups: Group[]) => void;
-
-  /* ===== DB ===== */
-  loadGroupsByEvent: (eventId: string) => Promise<void>;
-
-  /* ===== CRUD (local-first) ===== */
-  addGroup: (eventId: string, name: string) => void;
+  addGroup: (name: string) => void;
   updateGroup: (id: string, data: Partial<Group>) => void;
   removeGroup: (id: string) => void;
+
+  /* DB */
+  loadGroups: (invitationId: string) => Promise<void>;
 };
 
 export const useGroupStore = create<GroupStore>((set, get) => ({
@@ -24,12 +22,10 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
   setGroups: (groups) => set({ groups }),
 
   /* ================= LOAD FROM DB ================= */
-  loadGroupsByEvent: async (eventId: string) => {
-    if (!eventId) return;
-
+  loadGroups: async (invitationId: string) => {
     try {
       const res = await fetch(
-        `/api/events/${eventId}/groups`,
+        `/api/groups?invitationId=${invitationId}`,
         {
           credentials: "include",
           cache: "no-store",
@@ -37,26 +33,24 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
       );
 
       const data = await res.json();
-
-      if (data?.success) {
+      if (data.success) {
         set({ groups: data.groups || [] });
       }
     } catch (err) {
-      console.error("❌ loadGroupsByEvent failed:", err);
+      console.error("❌ loadGroups failed:", err);
     }
   },
 
-  /* ================= CRUD (LOCAL) ================= */
-  addGroup: (eventId, name) =>
+  /* ================= CRUD (LOCAL + API HOOK READY) ================= */
+  addGroup: (name) =>
     set((state) => ({
       groups: [
         ...state.groups,
         {
-          _id: nanoid(),      // temp id (יוחלף אחרי שמירה ל־DB)
-          eventId,            // ✅ שייך לאירוע
+          _id: nanoid(),
+          invitationId: "",
           name,
           order: state.groups.length,
-          color: null,
         },
       ],
     })),

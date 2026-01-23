@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AddGuestModal from "@/app/components/AddGuestModal";
 import { useSeatingStore } from "@/store/seatingStore";
-import { useGroupStore } from "@/store/groupStore";
-
 
 
 /* =========================
@@ -32,20 +30,20 @@ function confirmedCountForGuest(g) {
 /* =========================
    Component
 ========================= */
- export default function LiveGuestsTab({ eventId }) {
+ export default function LiveGuestsTab({ invitationId }) {
   const router = useRouter();
 
 
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const tables = useSeatingStore((s) => s.tables);
 
-const [invitationId, setInvitationId] = useState(null);
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
-const loadGroupsByEvent = useGroupStore((s) => s.loadGroupsByEvent);
 
-
+const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
+const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
 
@@ -54,65 +52,6 @@ const loadGroupsByEvent = useGroupStore((s) => s.loadGroupsByEvent);
 
   // ✅ עריכה חוזרת (מודאל פנימי)
   const [editGuest, setEditGuest] = useState(null);
-
-  useEffect(() => {
-  if (!eventId) return;
-
-  async function loadEventData() {
-    setLoading(true);
-    setError(null);
-
-    try {
-      /* =========================
-         🔥 אורחים – InvitationGuests לפי EVENT
-      ========================= */
-      const guestsRes = await fetch(
-        `/api/events/${eventId}/invitation-guests`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
-
-      const guestsData = await guestsRes.json();
-      setGuests(guestsData.invitationGuests || []);
-
-     
-
-
-      /* =========================
-         🔥 קבוצות – לפי EVENT
-      ========================= */
-      await loadGroupsByEvent(eventId);
-
-
-      /* =========================
-         🟡 invitationId – לצרכים משניים (AddGuest וכו׳)
-      ========================= */
-      const invRes = await fetch(
-        `/api/invitations?eventId=${eventId}`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
-
-      const invData = await invRes.json();
-      if (invData?.success && invData.invitation?._id) {
-        setInvitationId(invData.invitation._id);
-      }
-    } catch (err) {
-      console.error("❌ loadEventData failed:", err);
-      setError("שגיאה בטעינת נתוני האירוע");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  loadEventData();
-}, [eventId, loadGroupsByEvent]);
-
-
 
 
 
@@ -126,8 +65,7 @@ const loadGroupsByEvent = useGroupStore((s) => s.loadGroupsByEvent);
     if (!ok) return;
 
     try {
-      const res = await fetch(`/api/invitation-guests/${guest._id}`, {
-
+      const res = await fetch(`/api/guests/${guest._id}`, {
         method: "DELETE",
       });
 
@@ -148,16 +86,14 @@ setGuests(next);
      Update guest (PATCH, fallback PUT)
   ========================= */
   async function updateGuestOnServer(guestId, payload) {
-    let res = await fetch(`/api/invitation-guests/${guestId}`, {
-
+    let res = await fetch(`/api/guests/${guestId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
     if (res.status === 405) {
-        res = await fetch(`/api/invitation-guests/${guestId}`, {
-
+      res = await fetch(`/api/guests/${guestId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -198,19 +134,20 @@ setGuests(next);
   applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
 
   // ✅ עדכון אורח
+  updateGuestArrived(guest._id, nextArrived);
 
   // 🔥🔥🔥 זה מה שצובע את הכיסאות
+  syncArrivedSeats(guest._id, nextArrived);
 
   try {
-    await fetch("/api/invitation-guests/arrived", {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    invitationGuestId: guest._id,
-    arrivedCount: nextArrived,
-  }),
-});
-
+    await fetch("/api/live-guests/arrived", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invitationGuestId: guest._id,
+        arrivedCount: nextArrived,
+      }),
+    });
   } catch (e) {
     console.error("❌ arrivedCount update failed:", e);
   }
@@ -239,16 +176,20 @@ setGuests(next);
   }, [guests]);
 
 
+const guestTableMap = useMemo(() => {
+  const map = new Map();
 
+  (tables || []).forEach((table) => {
+    table.seatedGuests?.forEach((sg) => {
+      if (sg?.guestId) {
+        map.set(String(sg.guestId), table);
+      }
+    });
+  });
 
+  return map;
+}, [tables]);
 
-if (loading) {
-  return (
-    <div className="p-6 text-center text-gray-500">
-      טוען נתוני אירוע…
-    </div>
-  );
-}
 
 if (!guests.length) {
   return (
@@ -295,9 +236,14 @@ if (!guests.length) {
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
 
-              const tableLabel =
-  g.tableName?.trim() ||
-  (g.tableNumber != null ? `שולחן ${g.tableNumber}` : "-");
+              const tableFromStore = guestTableMap.get(String(g._id)) || null;
+
+const tableLabel =
+  g.tableName ||
+  tableFromStore?.name ||
+  (tableFromStore?.number != null
+    ? `שולחן ${tableFromStore.number}`
+    : "-");
 
 
 
@@ -397,18 +343,21 @@ if (!guests.length) {
       </div>
 
       {/* ✅ Add */}
-      {openAddModal && invitationId && (
-  <AddGuestModal
-    invitationId={invitationId}
-    onClose={() => setOpenAddModal(false)}
-    onSuccess={(newGuest) => {
-      if (!newGuest) return;
+      {openAddModal && (
+        <AddGuestModal
+          invitationId={invitationId}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={(newGuest) => {
+            if (!newGuest) return;
 
             const current = useSeatingStore.getState().guests;
 
 if (!current.some((x) => x._id === newGuest._id)) {
   setGuests([...current, newGuest]);
 }
+
+setOpenAddModal(false);
+
 
             setOpenAddModal(false);
           }}

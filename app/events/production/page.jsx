@@ -69,9 +69,8 @@ export default function EventProductionPage() {
     async function loadLiveSnapshot() {
       try {
         const res = await fetch(
-  `/api/live-snapshot?eventId=${eventId}`,
-  { cache: "no-store" }
-);
+          `/api/live-snapshot?invitationId=${invitation._id}`
+        );
 
         if (!res.ok) throw new Error("Failed to load live snapshot");
 
