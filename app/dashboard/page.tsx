@@ -93,7 +93,8 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
-  const isProducer = user?.role === "producer";
+  const isClient = user?.role === "client";
+
 
 
 
@@ -695,7 +696,7 @@ console.log("INVITATION:", invitation);
 
   {/* ===================== דסקטופ בלבד ===================== */}
   {/* ===================== דסקטופ בלבד (רק ללקוח) ===================== */}
-{!isProducer && (
+{isClient && (
   <div className="hidden md:flex flex-wrap gap-3">
     {/* ✏️ יצירת / עריכת הזמנה */}
     <button
@@ -796,7 +797,7 @@ console.log("INVITATION:", invitation);
 )}
 
 {/* ===================== מובייל בלבד (רק ללקוח) ===================== */}
-{!isProducer && (
+{isClient && (
   <div className="flex md:hidden flex-col gap-3">
     {/* ✏️ יצירת / עריכת הזמנה – ראשון */}
     <button
