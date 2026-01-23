@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
@@ -17,19 +17,20 @@ function serverError(err: unknown) {
 
 /* ============================================================
    GET – כל הקבוצות של אירוע
-   GET /api/events/:eventId/groups
 ============================================================ */
 export async function GET(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params;
+
     await dbConnect();
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) return unauthorized();
 
-    const groups = await Group.find({ eventId: params.eventId })
+    const groups = await Group.find({ eventId })
       .sort({ order: 1 })
       .lean();
 
@@ -40,21 +41,21 @@ export async function GET(
 }
 
 /* ============================================================
-   POST – יצירת קבוצה חדשה
-   POST /api/events/:eventId/groups
-   body: { name: string, color?: string }
+   POST – יצירת קבוצה
 ============================================================ */
 export async function POST(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params;
+
     await dbConnect();
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) return unauthorized();
 
-    const body = await req.json();
+    const body = await request.json();
     const name = String(body?.name || "").trim();
     const color = body?.color ?? null;
 
@@ -65,12 +66,10 @@ export async function POST(
       );
     }
 
-    const order = await Group.countDocuments({
-      eventId: params.eventId,
-    });
+    const order = await Group.countDocuments({ eventId });
 
     const group = await Group.create({
-      eventId: params.eventId,
+      eventId,
       name,
       color,
       order,
@@ -89,21 +88,21 @@ export async function POST(
 }
 
 /* ============================================================
-   PATCH – עדכון קבוצה (שם / צבע / סדר)
-   PATCH /api/events/:eventId/groups
-   body: { groupId, name?, color?, order? }
+   PATCH – עדכון קבוצה
 ============================================================ */
 export async function PATCH(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params;
+
     await dbConnect();
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) return unauthorized();
 
-    const body = await req.json();
+    const body = await request.json();
     const { groupId, name, color, order } = body || {};
 
     if (!groupId) {
@@ -119,7 +118,7 @@ export async function PATCH(
     if (typeof order === "number") update.order = order;
 
     const group = await Group.findOneAndUpdate(
-      { _id: groupId, eventId: params.eventId },
+      { _id: groupId, eventId },
       { $set: update },
       { new: true }
     );
@@ -139,20 +138,20 @@ export async function PATCH(
 
 /* ============================================================
    DELETE – מחיקת קבוצה
-   DELETE /api/events/:eventId/groups
-   body: { groupId }
 ============================================================ */
 export async function DELETE(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
+    const { eventId } = await params;
+
     await dbConnect();
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) return unauthorized();
 
-    const body = await req.json();
+    const body = await request.json();
     const { groupId } = body || {};
 
     if (!groupId) {
@@ -162,10 +161,7 @@ export async function DELETE(
       );
     }
 
-    const res = await Group.deleteOne({
-      _id: groupId,
-      eventId: params.eventId,
-    });
+    const res = await Group.deleteOne({ _id: groupId, eventId });
 
     if (res.deletedCount === 0) {
       return NextResponse.json(
