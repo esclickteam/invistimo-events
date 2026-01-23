@@ -93,10 +93,6 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
-  const isClient = user?.role === "client";
-
-
-
 
   useEffect(() => {
   if (isDemo) return;
@@ -695,146 +691,143 @@ console.log("INVITATION:", invitation);
   </h2>
 
   {/* ===================== דסקטופ בלבד ===================== */}
-  {/* ===================== דסקטופ בלבד (רק ללקוח) ===================== */}
-{isClient && (
   <div className="hidden md:flex flex-wrap gap-3">
-    {/* ✏️ יצירת / עריכת הזמנה */}
+  {/* ✏️ יצירת / עריכת הזמנה */}
+  <button
+    onClick={() => {
+      if (isDemo) {
+        handleDemoBlockedAction();
+        return;
+      }
+
+      router.push(
+        invitation
+          ? `/dashboard/edit-invite/${invitationId}`
+          : "/dashboard/create-invite"
+      );
+    }}
+    className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
+  >
+    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+  </button>
+
+  {/* 👁️ צפייה בהזמנה */}
+  {invitation && (
     <button
       onClick={() => {
         if (isDemo) {
           handleDemoBlockedAction();
-          return;
+        } else {
+          window.open(
+            `https://www.invistimo.com/invite/${invitation.shareId}`,
+            "_blank",
+            "noopener,noreferrer"
+          );
         }
+      }}
+      className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-2"
+    >
+      👁️ צפייה בהזמנה
+    </button>
+  )}
 
+  {/* ➕ הוספת מוזמן */}
+  <button
+    onClick={() => setOpenAddModal(true)}
+    className="bg-black text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-gray-900 active:scale-95 transition-all"
+  >
+    + הוספת מוזמן
+  </button>
+
+  {/* 📥 ייבוא מאקסל */}
+  <button
+    onClick={() => setShowImportModal(true)}
+    className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
+    title="ייבוא רשימת מוזמנים מאקסל"
+  >
+    📥 ייבוא מאקסל
+  </button>
+
+  {/* 💬 שליחת הודעות (PRIMARY) */}
+  <button
+    onClick={() => {
+      router.push(isDemo ? "/try/dashboard/messages" : "/dashboard/messages");
+    }}
+    className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold shadow-md hover:bg-green-700 hover:shadow-lg active:scale-95 transition-all"
+  >
+    💬 שליחת הודעות
+  </button>
+
+  {/* 🪑 סידורי הושבה */}
+  <button
+    onClick={() => {
+      router.push(
+        isDemo
+          ? "/try/dashboard/seating"
+          : invitation
+          ? "/dashboard/seating"
+          : "/dashboard/create-invite"
+      );
+    }}
+    className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#bfa97f] active:scale-95 transition-all"
+  >
+    🪑 סידורי הושבה
+  </button>
+
+  {/* 🛠️ עריכת פרטי האירוע */}
+  <button
+    onClick={() => {
+      if (isDemo) {
+        handleDemoBlockedAction();
+      } else {
+        router.push("/dashboard/event");
+      }
+    }}
+    className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
+  >
+    🛠️ עריכת פרטי האירוע
+  </button>
+</div>
+
+
+  {/* ===================== מובייל בלבד ===================== */}
+  <div className="flex md:hidden flex-col gap-3">
+
+  {/* ✏️ יצירת / עריכת הזמנה – ראשון */}
+  <button
+    onClick={() => {
+      if (isDemo) {
+        handleDemoBlockedAction(); // 🧪 Toast דמו
+      } else {
         router.push(
           invitation
             ? `/dashboard/edit-invite/${invitationId}`
             : "/dashboard/create-invite"
         );
-      }}
-      className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
-    >
-      {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-    </button>
+      }
+    }}
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+  >
+    {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+  </button>
 
-    {/* 👁️ צפייה בהזמנה */}
-    {invitation && (
-      <button
-        onClick={() => {
-          if (isDemo) {
-            handleDemoBlockedAction();
-          } else {
-            window.open(
-              `https://www.invistimo.com/invite/${invitation.shareId}`,
-              "_blank",
-              "noopener,noreferrer"
-            );
-          }
-        }}
-        className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-2"
-      >
-        👁️ צפייה בהזמנה
-      </button>
-    )}
+  {/* ➕ הוספת מוזמן – שני */}
+  <button
+    onClick={() => setOpenAddModal(true)}
+    className="bg-black text-white px-6 py-3 rounded-full"
+  >
+    + הוספת מוזמן
+  </button>
 
-    {/* ➕ הוספת מוזמן */}
-    <button
-      onClick={() => setOpenAddModal(true)}
-      className="bg-black text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-gray-900 active:scale-95 transition-all"
-    >
-      + הוספת מוזמן
-    </button>
+  {/* 📥 ייבוא מאקסל – שלישי */}
+  <button
+    onClick={() => setShowImportModal(true)}
+    className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
+  >
+    📥 ייבוא מאקסל
+  </button>
 
-    {/* 📥 ייבוא מאקסל */}
-    <button
-      onClick={() => setShowImportModal(true)}
-      className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
-      title="ייבוא רשימת מוזמנים מאקסל"
-    >
-      📥 ייבוא מאקסל
-    </button>
-
-    {/* 💬 שליחת הודעות */}
-    <button
-      onClick={() => {
-        router.push(isDemo ? "/try/dashboard/messages" : "/dashboard/messages");
-      }}
-      className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold shadow-md hover:bg-green-700 hover:shadow-lg active:scale-95 transition-all"
-    >
-      💬 שליחת הודעות
-    </button>
-
-    {/* 🪑 סידורי הושבה */}
-    <button
-      onClick={() => {
-        router.push(
-          isDemo
-            ? "/try/dashboard/seating"
-            : invitation
-            ? "/dashboard/seating"
-            : "/dashboard/create-invite"
-        );
-      }}
-      className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#bfa97f] active:scale-95 transition-all"
-    >
-      🪑 סידורי הושבה
-    </button>
-
-    {/* 🛠️ עריכת פרטי האירוע */}
-    <button
-      onClick={() => {
-        if (isDemo) {
-          handleDemoBlockedAction();
-        } else {
-          router.push("/dashboard/event");
-        }
-      }}
-      className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50 active:scale-95 transition-all"
-    >
-      🛠️ עריכת פרטי האירוע
-    </button>
-  </div>
-)}
-
-{/* ===================== מובייל בלבד (רק ללקוח) ===================== */}
-{isClient && (
-  <div className="flex md:hidden flex-col gap-3">
-    {/* ✏️ יצירת / עריכת הזמנה – ראשון */}
-    <button
-      onClick={() => {
-        if (isDemo) {
-          handleDemoBlockedAction();
-        } else {
-          router.push(
-            invitation
-              ? `/dashboard/edit-invite/${invitationId}`
-              : "/dashboard/create-invite"
-          );
-        }
-      }}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-    >
-      {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-    </button>
-
-    {/* ➕ הוספת מוזמן – שני */}
-    <button
-      onClick={() => setOpenAddModal(true)}
-      className="bg-black text-white px-6 py-3 rounded-full"
-    >
-      + הוספת מוזמן
-    </button>
-
-    {/* 📥 ייבוא מאקסל – שלישי */}
-    <button
-      onClick={() => setShowImportModal(true)}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100"
-    >
-      📥 ייבוא מאקסל
-    </button>
-  </div>
-)}
-
+</div>
 
   
 </div>
