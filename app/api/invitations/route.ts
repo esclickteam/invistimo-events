@@ -150,3 +150,58 @@ export async function POST(req: Request) {
     );
   }
 }
+
+/* ============================================================
+   GET — קבלת הזמנה לפי eventId
+============================================================ */
+export async function GET(req: Request) {
+  try {
+    await db();
+
+    /* 🔐 אימות */
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const userId = auth.userId;
+
+    /* 🔎 eventId מה-query */
+    const { searchParams } = new URL(req.url);
+    const eventId = searchParams.get("eventId");
+
+    if (!eventId) {
+      return NextResponse.json(
+        { success: false, error: "EVENT_ID_REQUIRED" },
+        { status: 400 }
+      );
+    }
+
+    /* 🎯 מציאת ההזמנה */
+    const invitation = await Invitation.findOne({
+      eventId,
+      ownerId: userId,
+    }).lean();
+
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, error: "INVITATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true, invitation },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("❌ Error fetching invitation:", err);
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
+}
