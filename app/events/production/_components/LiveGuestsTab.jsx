@@ -419,9 +419,6 @@ if (!current.some((x) => x._id === newGuest._id)) {
   setGuests([...current, newGuest]);
 }
 
-setOpenAddModal(false);
-
-
             setOpenAddModal(false);
           }}
         />
