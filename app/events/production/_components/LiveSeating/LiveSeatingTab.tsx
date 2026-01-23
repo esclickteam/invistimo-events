@@ -6,9 +6,12 @@ import { useEffect, useState, useCallback } from "react";
 import GuestSidebar from "@/app/dashboard/seating/GuestSidebar";
 import MobileGuests from "@/app/dashboard/seating/MobileGuests";
 import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
-
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import type { SeatingTable } from "@/types/seating";
+import { useRouter } from "next/navigation";
+
+
+
 
 /* 🧠 Zustand – מקור אמת */
 import { useSeatingStore } from "@/store/seatingStore";
@@ -23,13 +26,17 @@ export default function LiveSeatingTab({ invitationId }: Props) {
   const [hasImported, setHasImported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
-
   const searchParams = useSearchParams();
-  const focusGuestId = searchParams.get("focusGuestId");
-  const router = useRouter();
+const focusGuestId = searchParams.get("focusGuestId");
+const router = useRouter();
 
-  const tables = useSeatingStore((s) => s.tables);
-  const setCanvasView = useSeatingStore((s) => s.setCanvasView);
+
+
+const tables = useSeatingStore((s) => s.tables);
+const setCanvasView = useSeatingStore((s) => s.setCanvasView);
+
+
+
 
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
   const background = useSeatingStore((s) => s.background);
@@ -44,8 +51,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      ✅ LIVE MODE
   =============================== */
   useEffect(() => {
-    setLiveMode(true);
-  }, [setLiveMode]);
+  setLiveMode(true);
+}, [setLiveMode]);
 
   /* ===============================
      ✅ LOAD FROM LOCAL STORAGE
@@ -62,7 +69,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       importSnapshot({
         tables: data.tables ?? [],
         guests: data.guests ?? [],
-        groups: data.groups ?? [], // 🔥 חשוב
         canvasView: data.canvasView ?? null,
         background: data.background ?? null,
       });
@@ -89,7 +95,8 @@ export default function LiveSeatingTab({ invitationId }: Props) {
 
     try {
       const res = await fetch(
-        `/api/live-snapshot?invitationId=${invitationId}`
+        `/api/live-seating/import?invitationId=${invitationId}`,
+        { method: "POST" }
       );
 
       if (!res.ok) throw new Error("Import failed");
@@ -99,7 +106,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
       importSnapshot({
         tables: json.tables ?? [],
         guests: json.guests ?? [],
-        groups: json.groups ?? [], // 🔥 החיבור הקריטי
         canvasView: json.canvasView ?? null,
         background: json.background ?? null,
       });
@@ -115,7 +121,6 @@ export default function LiveSeatingTab({ invitationId }: Props) {
             eventId: json.eventId ?? null,
             tables: json.tables ?? [],
             guests: json.guests ?? [],
-            groups: json.groups ?? [], // 🔥
             zones: json.zones ?? [],
             canvasView: json.canvasView ?? null,
             background: json.background ?? null,
@@ -134,150 +139,169 @@ export default function LiveSeatingTab({ invitationId }: Props) {
      ✅ AUTO IMPORT – רק אם ריק
   =============================== */
   useEffect(() => {
-    if (!invitationId || hasImported) return;
-    importData();
-  }, [invitationId, hasImported, importData]);
+  if (!invitationId || hasImported) return;
+  importData();
+}, [invitationId, hasImported, importData]);
 
-  /* ===============================
-     🎯 FOCUS GUEST
-  =============================== */
-  useEffect(() => {
-    if (!focusGuestId || !hasImported) return;
 
-    const table = tables.find((t: SeatingTable) =>
-      t.seatedGuests?.some(
-        (sg) => String(sg.guestId) === String(focusGuestId)
-      )
-    );
+useEffect(() => {
+  if (!focusGuestId || !hasImported) return;
 
-    if (!table) {
-      console.warn("❌ NO TABLE FOR GUEST", focusGuestId);
-      return;
-    }
+  const table = tables.find((t: SeatingTable) =>
+    t.seatedGuests?.some(
+      (sg) => String(sg.guestId) === String(focusGuestId)
+    )
+  );
 
-    useSeatingStore.setState({ highlightedTable: table.id });
+  if (!table) {
+    console.warn("❌ NO TABLE FOR GUEST", focusGuestId);
+    return;
+  }
 
-    setCanvasView({
-      scale: 1,
-      x: -table.x + window.innerWidth / 2,
-      y: -table.y + window.innerHeight / 2,
-    });
+  useSeatingStore.setState({ highlightedTable: table.id });
 
-    const timeout = setTimeout(() => {
-      useSeatingStore.setState({ highlightedTable: null });
-    }, 2500);
+  setCanvasView({
+    scale: 1,
+    x: -table.x + window.innerWidth / 2,
+    y: -table.y + window.innerHeight / 2,
+  });
 
-    router.replace("/events/production?tab=live-seating");
+  const timeout = setTimeout(() => {
+    useSeatingStore.setState({ highlightedTable: null });
+  }, 2500);
 
-    return () => clearTimeout(timeout);
-  }, [focusGuestId, hasImported, tables, setCanvasView, router]);
+  // ⭐ ניקוי URL
+  router.replace("/events/production?tab=live-seating");
+
+  return () => clearTimeout(timeout);
+}, [focusGuestId, hasImported, tables, setCanvasView, router]);
+
+
+
+
+
 
   /* ===============================
      💾 SAVE
   =============================== */
-  async function saveSeating() {
-    if (!eventId || loading) return;
+ async function saveSeating() {
+  if (!eventId || loading) return;
 
-    setLoading(true);
+  setLoading(true); // ✅ הוספה
 
-    try {
-      const tables = useSeatingStore.getState().tables;
-      const guests = useSeatingStore.getState().guests;
-      const groups = useSeatingStore.getState().groups; // 🔥
-      const background = useSeatingStore.getState().background;
-      const canvasView = useSeatingStore.getState().canvasView;
-      const zones = useZoneStore.getState().zones;
+  try {
+    const tables = useSeatingStore.getState().tables;
+    const guests = useSeatingStore.getState().guests;
+    const background = useSeatingStore.getState().background;
+    const canvasView = useSeatingStore.getState().canvasView;
+    const zones = useZoneStore.getState().zones;
 
-      const res = await fetch(`/api/seating/save/${eventId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    const res = await fetch(`/api/seating/save/${eventId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tables,
+        guests,
+        background,
+        zones,
+        canvasView,
+      }),
+    });
+
+    const data = await res.json();
+    alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
+
+    if (cacheKey) {
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          eventId,
           tables,
           guests,
-          groups, // 🔥
-          background,
           zones,
           canvasView,
-        }),
-      });
-
-      const data = await res.json();
-      alert(data.success ? "🎉 הושבה נשמרה" : "❌ שגיאה בשמירה");
-
-      if (cacheKey) {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            eventId,
-            tables,
-            guests,
-            groups, // 🔥
-            zones,
-            canvasView,
-            background,
-          })
-        );
-      }
-    } finally {
-      setLoading(false);
+          background,
+        })
+      );
     }
+  } finally {
+    setLoading(false); // ✅ הוספה
   }
+}
 
-  /* ===============================
-     🖼️ RENDER
-  =============================== */
+
   return (
-    <div className="fixed top-[64px] left-0 right-0 bottom-0 flex flex-col bg-[#faf8f4] z-0">
-      {/* TOP BAR */}
-      <div className="flex items-center justify-between gap-3 p-3 border-b bg-white shrink-0">
-        {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
-      </div>
+  <div className="fixed top-[64px] left-0 right-0 bottom-0 flex flex-col bg-[#faf8f4] z-0">
 
-      {/* MAIN AREA */}
-      <div className="flex flex-row-reverse flex-1 min-h-0">
-        {/* CANVAS */}
-        <div className="flex-1 relative overflow-hidden">
-          {/* ACTION BAR */}
-          <div className="absolute top-24 left-4 z-20 flex items-center gap-2">
-            {hasImported && (
-              <button
-                onClick={saveSeating}
-                disabled={!eventId || loading}
-                className={`px-4 py-2 rounded-lg font-medium transition
-                  ${
-                    !eventId || loading
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 text-white"
-                  }
-                `}
-              >
-                {loading ? "שומר..." : "💾 שמירה"}
-              </button>
-            )}
-          </div>
+    {/* TOP BAR */}
+    <div className="flex items-center justify-between gap-3 p-3 border-b bg-white shrink-0">
 
-          {!hasImported ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
-              טרם יובאה מפת הושבה
-            </div>
-          ) : (
-            <SeatingEditor
-              background={background?.url || null}
-              readOnly={false}
-              showStats
-              hideSeats
-            />
-          )}
-        </div>
+      {error && <span className="text-sm text-red-600 ml-auto">{error}</span>}
 
-        {/* SIDEBAR */}
-        <div className="w-80 border-l bg-white hidden md:block shrink-0">
-          <GuestSidebar onDragStart={startDragGuest} />
-        </div>
-      </div>
 
-      {/* MOBILE */}
-      <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
+
+
     </div>
-  );
+
+    {/* MAIN AREA */}
+    <div className="flex flex-row-reverse flex-1 min-h-0">
+      {/* CANVAS */}
+     
+
+      <div className="flex-1 relative overflow-hidden">
+
+  {/* 🔧 ACTION BAR – הוסף שולחן + שמירה */}
+  <div className="absolute top-24 left-4 z-20 flex items-center gap-2">
+
+
+    
+ 
+
+    {/* 💾 שמירת הושבה */}
+    {hasImported && (
+      <button
+        onClick={saveSeating}
+        disabled={!eventId || loading}
+        className={`px-4 py-2 rounded-lg font-medium transition
+          ${
+            !eventId || loading
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          }
+        `}
+      >
+        {loading ? "שומר..." : "💾 שמירה"}
+      </button>
+    )}
+
+  </div>
+
+  {!hasImported ? (
+    <div className="flex items-center justify-center h-full text-gray-500">
+      טרם יובאה מפת הושבה
+    </div>
+  ) : (
+     <SeatingEditor
+      background={background?.url || null}
+      readOnly={false}
+      showStats
+      hideSeats 
+      
+    />
+  )}
+</div>
+
+
+      {/* SIDEBAR */}
+      <div className="w-80 border-l bg-white hidden md:block shrink-0">
+        <GuestSidebar onDragStart={startDragGuest} />
+      </div>
+    </div>
+
+    {/* MOBILE */}
+    <MobileGuests onDragStart={startDragGuest} onClose={() => {}} />
+  </div>
+);
+
+
 }

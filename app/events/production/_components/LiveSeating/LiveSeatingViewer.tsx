@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 
-/* ⭐ אותו קנבס כמו בדשבורד */
-import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
 
 export default function LiveSeatingViewer({
   invitationId,
@@ -21,29 +19,23 @@ export default function LiveSeatingViewer({
         setLoading(true);
 
         // 🧹 ניקוי מלא – viewer תמיד נקי
-        useSeatingStore.getState().init(
-          [], // tables
-          [], // guests
-          [], // groups
-          null,
-          null
-        );
+        useSeatingStore.getState().init([], [], null, null);
 
-        // ✅ מקור אמת אחיד
         const res = await fetch(
-          `/api/live-snapshot?invitationId=${invitationId}`
+          `/api/live-seating/import?invitationId=${invitationId}`,
+          { method: "POST" }
         );
 
         const data = await res.json();
 
-        // ✅ init עם snapshot מלא (כולל groups)
+        // ✅ snapshot מלא (כולל canvasView)
         init(
-          data.tables || [],
-          data.guests || [],
-          data.groups || [],        // 🔥 סנכרון קבוצות
-          data.background ?? null,
-          null                      // מבטל zoom/pan אצל מפיק
-        );
+  data.tables || [],
+  data.guests || [],
+  data.background ?? null,
+  null // ✅ מבטל zoom/pan אצל המפיק
+);
+        
       } catch (err) {
         console.error("❌ LiveSeatingViewer load error:", err);
       } finally {
@@ -64,12 +56,12 @@ export default function LiveSeatingViewer({
 
   return (
     <div className="relative w-full h-full bg-[#faf8f4]">
-      {/* 🎧 מפיק – תצוגת צפייה בלבד */}
-      <SeatingEditor
+      {/* 🎧 מפיק – משתמש ב־SeatingCanvas */}
+    
+        mode="viewer"
         background={null}
-        readOnly
         showStats
-      />
+     
     </div>
   );
 }

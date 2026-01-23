@@ -1,7 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
-import Group from "@/models/Group";
 
 export async function GET(req) {
   try {
@@ -32,20 +31,12 @@ export async function GET(req) {
     }).lean();
 
     /* =========================
-       🔥 Load groups (MODEL קיים!)
-    ========================= */
-    const groups = await Group.find({
-      invitationId,
-    }).lean();
-
-    /* =========================
        Return LIVE snapshot
     ========================= */
     return Response.json({
       guests: guests || [],
       tables: tables || [],
-      groups: groups || [],
-      background: null,
+      background: null, // אם יש לך בעתיד – תוסיף
       canvasView: {
         scale: 1,
         x: 0,
