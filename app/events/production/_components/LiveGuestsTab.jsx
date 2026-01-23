@@ -61,50 +61,42 @@ const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
   useEffect(() => {
   if (!eventId) return;
 
-  async function syncFromEvent() {
+  async function loadEventData() {
     setLoading(true);
 
-    // 1️⃣ invitation לפי eventId
-    const invRes = await fetch(
-  `/api/invitations?eventId=${eventId}`,
-  {
-    credentials: "include",
-    cache: "no-store",
-  }
-);
-    const invData = await invRes.json();
-
-    if (!invData?.success) {
-      setLoading(false);
-      return;
-    }
-
-    const invId = invData.invitation._id;
-    setInvitationId(invId);
-
-    // 2️⃣ אורחים
+    // 🔥 אורחים – לפי EVENT
     const guestsRes = await fetch(
-      `/api/guests?invitation=${invId}`,
+      `/api/events/${eventId}/guests`,
       { credentials: "include", cache: "no-store" }
     );
     const guestsData = await guestsRes.json();
     setGuests(guestsData.guests || []);
 
-    // 3️⃣ שולחנות
+    // 🔥 שולחנות – לפי EVENT
     const seatingRes = await fetch(
-      `/api/seating?invitation=${invId}`,
+      `/api/events/${eventId}/seating`,
       { credentials: "include", cache: "no-store" }
     );
     const seatingData = await seatingRes.json();
     setTables(seatingData.tables || []);
 
-    // 4️⃣ קבוצות
-    loadGroups(invId);
+    // 🔥 קבוצות – לפי EVENT
+    loadGroupsByEvent(eventId);
+
+    // 🟡 invitation רק לצרכים משניים
+    const invRes = await fetch(
+      `/api/invitations?eventId=${eventId}`,
+      { credentials: "include", cache: "no-store" }
+    );
+    const invData = await invRes.json();
+    if (invData?.success) {
+      setInvitationId(invData.invitation._id);
+    }
 
     setLoading(false);
   }
 
-  syncFromEvent();
+  loadEventData();
 }, [eventId]);
 
 

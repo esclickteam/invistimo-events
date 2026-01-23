@@ -5,14 +5,16 @@ import { nanoid } from "nanoid";
 type GroupStore = {
   groups: Group[];
 
-  /* CRUD */
+  /* ===== State ===== */
   setGroups: (groups: Group[]) => void;
-  addGroup: (name: string) => void;
+
+  /* ===== DB ===== */
+  loadGroupsByEvent: (eventId: string) => Promise<void>;
+
+  /* ===== CRUD (local-first) ===== */
+  addGroup: (eventId: string, name: string) => void;
   updateGroup: (id: string, data: Partial<Group>) => void;
   removeGroup: (id: string) => void;
-
-  /* DB */
-  loadGroups: (invitationId: string) => Promise<void>;
 };
 
 export const useGroupStore = create<GroupStore>((set, get) => ({
@@ -22,39 +24,39 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
   setGroups: (groups) => set({ groups }),
 
   /* ================= LOAD FROM DB ================= */
-  loadGroups: async (invitationId: string) => {
-  if (!invitationId) return;
+  loadGroupsByEvent: async (eventId: string) => {
+    if (!eventId) return;
 
-  try {
-    const res = await fetch(
-      `/api/groups?invitation=${invitationId}`,
-      {
-        credentials: "include",
-        cache: "no-store",
+    try {
+      const res = await fetch(
+        `/api/events/${eventId}/groups`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+
+      if (data?.success) {
+        set({ groups: data.groups || [] });
       }
-    );
-
-    const data = await res.json();
-
-    if (data.success) {
-      set({ groups: data.groups || [] });
+    } catch (err) {
+      console.error("❌ loadGroupsByEvent failed:", err);
     }
-  } catch (err) {
-    console.error("❌ loadGroups failed:", err);
-  }
-},
+  },
 
-
-  /* ================= CRUD (LOCAL + API HOOK READY) ================= */
-  addGroup: (name) =>
+  /* ================= CRUD (LOCAL) ================= */
+  addGroup: (eventId, name) =>
     set((state) => ({
       groups: [
         ...state.groups,
         {
-          _id: nanoid(),
-          invitationId: "",
+          _id: nanoid(),      // temp id (יוחלף אחרי שמירה ל־DB)
+          eventId,            // ✅ שייך לאירוע
           name,
           order: state.groups.length,
+          color: null,
         },
       ],
     })),

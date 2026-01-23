@@ -1,15 +1,24 @@
 import mongoose, { Schema, Types } from "mongoose";
 
 /* ============================================================
-   Group Schema
+   Group Schema (EVENT = Source of Truth)
 ============================================================ */
 const GroupSchema = new Schema(
   {
+    /* ✅ מקור אמת */
+    eventId: {
+      type: Types.ObjectId,
+      ref: "Event",
+      required: true,
+      index: true,
+    },
+
+    /* 🟡 Legacy – לא להשתמש יותר בלוגיקה */
     invitationId: {
       type: Types.ObjectId,
       ref: "Invitation",
-      required: true,
       index: true,
+      default: null,
     },
 
     name: {
@@ -36,11 +45,14 @@ const GroupSchema = new Schema(
 /* ============================================================
    Indexes
 ============================================================ */
-// מונע כפילויות שם קבוצה לאותה הזמנה
+// ✅ מונע כפילויות שם קבוצה לאותו אירוע
 GroupSchema.index(
-  { invitationId: 1, name: 1 },
+  { eventId: 1, name: 1 },
   { unique: true }
 );
+
+// 🟡 אינדקס ישן – אפשר להשאיר זמנית אם יש דאטה קיים
+// GroupSchema.index({ invitationId: 1, name: 1 });
 
 /* ============================================================
    Model Export (Next.js safe)
