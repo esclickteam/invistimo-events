@@ -608,7 +608,8 @@ console.log("INVITATION:", invitation);
     )}
 
 
-       {isClientView && (
+       {(isClientView || isProducerView) && (
+
   <>
     {/* ===================== ניהול האירוע ===================== */}
     <h1 className="text-3xl font-semibold mb-1">
