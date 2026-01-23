@@ -5,18 +5,36 @@ import type { NextRequest } from "next/server";
    HELPERS
 ======================================================== */
 function clearAuthCookies(res: NextResponse) {
+  const cookieDomain =
+    process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+
   const baseCookie = {
     path: "/",
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
+    domain: cookieDomain,
   };
 
-  // 🔐 auth token – מקור אמת יחיד
-  res.cookies.set("authToken", "", {
+  const delHttpOnly = {
     ...baseCookie,
     httpOnly: true,
     maxAge: 0,
-  });
+  };
+
+  const delClient = {
+    ...baseCookie,
+    httpOnly: false,
+    maxAge: 0,
+  };
+
+  // 🔐 TOKENS – חובה למחוק את כולם
+  res.cookies.set("authToken", "", delHttpOnly);
+  res.cookies.set("producerAuthToken", "", delHttpOnly);
+
+  // 👤 STATE
+  res.cookies.set("role", "", delClient);
+  res.cookies.set("isTrial", "", delClient);
+  res.cookies.set("trialExpiresAt", "", delClient);
 }
 
 /* ========================================================
@@ -39,7 +57,7 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     1️⃣ Stripe Webhook
+     1️⃣ Stripe Webhook (חייב להיות לפני הכל)
   ======================================================== */
   if (
     pathname.startsWith("/api/stripe/webhook") ||
@@ -51,20 +69,37 @@ export function middleware(req: NextRequest) {
   /* ========================================================
      2️⃣ כפיית WWW
   ======================================================== */
-  if (hostname === "invistimo.com") {
+  if (
+    process.env.NODE_ENV === "production" &&
+    hostname === "invistimo.com"
+  ) {
     const url = nextUrl.clone();
     url.hostname = "www.invistimo.com";
     return NextResponse.redirect(url);
   }
 
   /* ========================================================
-     3️⃣ Auth – בדיקה בסיסית
+     3️⃣ Auth – מקור אמת יחיד
   ======================================================== */
-  const token = cookies.get("authToken")?.value ?? null;
+  const authToken = cookies.get("authToken")?.value ?? null;
+  const producerToken = cookies.get("producerAuthToken")?.value ?? null;
+
+  // producer גובר אם קיים
+  const token = producerToken ?? authToken;
+
   const hasStripeSession = nextUrl.searchParams.has("session_id");
 
   /* ========================================================
-     🔐 חסימת אזורים מוגנים ללא התחברות
+     🚨 מצב לא חוקי – שני טוקנים יחד
+  ======================================================== */
+  if (authToken && producerToken) {
+    const res = NextResponse.redirect(new URL("/login", req.url));
+    clearAuthCookies(res);
+    return res;
+  }
+
+  /* ========================================================
+     🔐 חסימת אזורים מוגנים
   ======================================================== */
   if (
     (pathname.startsWith("/dashboard") ||
@@ -77,13 +112,6 @@ export function middleware(req: NextRequest) {
     clearAuthCookies(res);
     return res;
   }
-
-  /*
-    ℹ️ אין כאן ניתוב לפי role
-    כל Role Guard נעשה:
-    - ב־API
-    - ב־AuthContext (/api/me)
-  */
 
   return NextResponse.next();
 }

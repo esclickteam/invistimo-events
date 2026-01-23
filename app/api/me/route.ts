@@ -7,22 +7,26 @@ import User from "@/models/User";
 /* =========================
    Helpers
 ========================= */
-function clearAuthCookie(res: NextResponse) {
-  res.cookies.set("authToken", "", {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 0,
-  });
+function clearAuthCookies(res: NextResponse) {
+  const cookieDomain =
+    process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 
-  res.cookies.set("impersonationToken", "", {
+  const baseCookie = {
     path: "/",
-    httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
+    domain: cookieDomain,
+  };
+
+  const delHttpOnly = {
+    ...baseCookie,
+    httpOnly: true,
     maxAge: 0,
-  });
+  };
+
+  // 🔐 מוחקים את כל טוקני האימות
+  res.cookies.set("authToken", "", delHttpOnly);
+  res.cookies.set("producerAuthToken", "", delHttpOnly);
 }
 
 /* =========================
@@ -34,14 +38,16 @@ export async function GET() {
 
     const cookieStore = await cookies();
 
-    // 🔐 סדר עדיפויות נכון
-    const impersonationToken =
-      cookieStore.get("impersonationToken")?.value ?? null;
+    /* =====================================================
+       🔐 מקור אמת יחיד – producer גובר
+    ===================================================== */
+    const producerToken =
+      cookieStore.get("producerAuthToken")?.value ?? null;
 
     const authToken =
       cookieStore.get("authToken")?.value ?? null;
 
-    const token = impersonationToken ?? authToken;
+    const token = producerToken ?? authToken;
 
     if (!token) {
       return NextResponse.json(
@@ -50,13 +56,25 @@ export async function GET() {
       );
     }
 
+    /* =====================================================
+       🚨 מצב לא חוקי – שני טוקנים יחד
+    ===================================================== */
+    if (producerToken && authToken) {
+      const res = NextResponse.json(
+        { success: false, user: null },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
+      clearAuthCookies(res);
+      return res;
+    }
+
     let decoded: {
       userId?: string;
       id?: string;
       _id?: string;
       role?: "admin" | "producer" | "client" | "user";
 
-      // impersonation flags
+      // impersonation flags (לוגיים בלבד)
       impersonated?: boolean;
       impersonatedBy?: string;
       impersonationRole?: "admin" | "producer";
@@ -72,7 +90,7 @@ export async function GET() {
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
 
-      clearAuthCookie(res);
+      clearAuthCookies(res);
       return res;
     }
 
@@ -91,7 +109,7 @@ export async function GET() {
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
 
-      clearAuthCookie(res);
+      clearAuthCookies(res);
       return res;
     }
 
@@ -103,7 +121,7 @@ export async function GET() {
         { status: 404, headers: { "Cache-Control": "no-store" } }
       );
 
-      clearAuthCookie(res);
+      clearAuthCookies(res);
       return res;
     }
 
@@ -150,7 +168,7 @@ export async function GET() {
           isTrial: user.isTrial,
           isDemoUser: user.isDemoUser,
 
-          // 🕵️‍♂️ impersonation
+          // 🕵️‍♂️ impersonation (לוגי בלבד)
           impersonated: !!decoded.impersonated,
           impersonatedBy: decoded.impersonatedBy ?? null,
           impersonationRole: decoded.impersonationRole ?? null,
