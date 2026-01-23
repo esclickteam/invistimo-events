@@ -171,7 +171,7 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
-                  className="h-9 md:h-14 w-auto object-contain"
+                  className="h-20 md:h-30 w-auto object-contain"
 
 
                 />
