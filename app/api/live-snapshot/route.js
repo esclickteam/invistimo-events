@@ -17,11 +17,15 @@ export async function GET(req) {
     await connectDB();
 
     /* =========================
-       Load guests
+       Load guests + GROUP (🔥 הקריטי)
     ========================= */
-    const guests = await InvitationGuest.find({
-      invitationId,
-    }).lean();
+    const guests = await InvitationGuest
+      .find({ invitationId })
+      .populate({
+        path: "group",          // ⚠️ אם אצלך זה groupId – תשני ל־groupId
+        select: "name color",   // מספיק ללייב
+      })
+      .lean();
 
     /* =========================
        Load seating tables
@@ -36,7 +40,7 @@ export async function GET(req) {
     return Response.json({
       guests: guests || [],
       tables: tables || [],
-      background: null, // אם יש לך בעתיד – תוסיף
+      background: null,
       canvasView: {
         scale: 1,
         x: 0,
