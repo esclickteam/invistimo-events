@@ -37,10 +37,12 @@ export default function GuestsControls({
   displayCount,
 }: Props) {
   return (
-    <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:gap-3 md:flex-nowrap">
+
 
       {/* 🔍 ימין – חיפוש */}
-      <div className="w-full md:max-w-[420px] relative">
+      <div className="w-full md:w-[360px] relative">
+
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -63,7 +65,8 @@ export default function GuestsControls({
       </div>
 
       {/* 🧩 אמצע – קבוצות + פילטרים */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 whitespace-nowrap">
+
 
         {/* קבוצות */}
         <select
@@ -115,7 +118,8 @@ export default function GuestsControls({
       </div>
 
       {/* 🔢 שמאל – מונה */}
-      <div className="text-sm text-gray-500 text-center md:text-left md:min-w-[140px]">
+      <div className="text-sm text-gray-500 whitespace-nowrap md:min-w-[120px]">
+
         מציג:{" "}
         <span className="font-semibold">{displayCount}</span> / {totalCount}
       </div>
