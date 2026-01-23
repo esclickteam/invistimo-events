@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import Invitation from "@/models/Invitation";
+
 
 /* ============================================================
    GET — שליפת קבוצות לפי invitationId
@@ -67,13 +69,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ⭐ שליפת eventId מהזמנה
+    const invitation = await Invitation
+      .findById(invitationId)
+      .select("eventId");
+
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, error: "Invitation not found" },
+        { status: 404 }
+      );
+    }
+
     const count = await Group.countDocuments({ invitationId });
 
     const group = await Group.create({
       invitationId,
+      eventId: invitation.eventId, // ⭐ זה התיקון הקריטי
       name: name.trim(),
       color: color || null,
-      order: count, // שומר סדר יצירה
+      order: count,
     });
 
     return NextResponse.json({ success: true, group });
@@ -85,3 +100,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
