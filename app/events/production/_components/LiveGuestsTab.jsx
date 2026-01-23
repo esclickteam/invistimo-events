@@ -39,17 +39,13 @@ function confirmedCountForGuest(g) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const tables = useSeatingStore((s) => s.tables);
 
 const [invitationId, setInvitationId] = useState(null);
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
-const setTables = useSeatingStore((s) => s.setTables);
 const loadGroupsByEvent = useGroupStore((s) => s.loadGroupsByEvent);
 
 
-const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
-const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
 
@@ -81,19 +77,8 @@ const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
       const guestsData = await guestsRes.json();
       setGuests(guestsData.invitationGuests || []);
 
-      /* =========================
-         🔥 שולחנות – לפי EVENT
-      ========================= */
-      const seatingRes = await fetch(
-        `/api/events/${eventId}/seating`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
+     
 
-      const seatingData = await seatingRes.json();
-      setTables(seatingData.tables || []);
 
       /* =========================
          🔥 קבוצות – לפי EVENT
@@ -213,10 +198,8 @@ setGuests(next);
   applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
 
   // ✅ עדכון אורח
-  updateGuestArrived(guest._id, nextArrived);
 
   // 🔥🔥🔥 זה מה שצובע את הכיסאות
-  syncArrivedSeats(guest._id, nextArrived);
 
   try {
     await fetch("/api/invitation-guests/arrived", {
@@ -256,19 +239,7 @@ setGuests(next);
   }, [guests]);
 
 
-const guestTableMap = useMemo(() => {
-  const map = new Map();
 
-  (tables || []).forEach((table) => {
-    table.seatedGuests?.forEach((sg) => {
-      if (sg?.guestId) {
-        map.set(String(sg.guestId), table);
-      }
-    });
-  });
-
-  return map;
-}, [tables]);
 
 
 if (loading) {
@@ -324,14 +295,9 @@ if (!guests.length) {
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
 
-              const tableFromStore = guestTableMap.get(String(g._id)) || null;
-
-const tableLabel =
-  g.tableName ||
-  tableFromStore?.name ||
-  (tableFromStore?.number != null
-    ? `שולחן ${tableFromStore.number}`
-    : "-");
+              const tableLabel =
+  g.tableName?.trim() ||
+  (g.tableNumber != null ? `שולחן ${g.tableNumber}` : "-");
 
 
 
