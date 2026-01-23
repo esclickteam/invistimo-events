@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 import type { LiveGuest } from "./types";
-import { useGroupStore } from "@/store/groupStore";
 
 /* =========================
    TYPES
@@ -25,9 +24,6 @@ export default function GuestListLive() {
     (s) => s.updateGuestArrived
   );
 
-  /* 🟢 קבוצות – מקור אמת */
-  const groups = useGroupStore((s) => s.groups);
-
   /* =====================================================
      🔑 MAP: guestId -> table (מקור אמת)
   ===================================================== */
@@ -48,17 +44,6 @@ export default function GuestListLive() {
 
     return map;
   }, [tables]);
-
-  /* =====================================================
-     🔑 MAP: groupId -> group
-  ===================================================== */
-  const groupMap = useMemo(() => {
-    const map = new Map<string, any>();
-    groups.forEach((g) => {
-      map.set(String(g._id), g);
-    });
-    return map;
-  }, [groups]);
 
   return (
     <div className="w-80 border-r p-4 overflow-y-auto">
@@ -102,14 +87,7 @@ export default function GuestListLive() {
           const tableInfo = guestToTableMap.get(
             String(guestId)
           );
-
-          /* ===============================
-             👨‍👩‍👧‍👦 קבוצה (לפי groupId של האורח)
-          =============================== */
-          const groupId = (g as any).groupId;
-          const group = groupId
-            ? groupMap.get(String(groupId))
-            : null;
+          const isSeated = !!tableInfo;
 
           return (
             <div
@@ -125,20 +103,13 @@ export default function GuestListLive() {
                 {name}
               </div>
 
-              {/* קבוצה */}
-              {group && (
-                <div className="text-xs text-gray-500 mb-1">
-                  קבוצה: {group.name}
-                </div>
-              )}
-
               {/* שיבוץ */}
               <div className="text-xs mb-2">
-                {tableInfo ? (
+                {isSeated ? (
                   <span className="text-green-700">
                     משויך לשולחן{" "}
-                    {tableInfo.tableName ??
-                      tableInfo.tableId}
+                    {tableInfo?.tableName ??
+                      tableInfo?.tableId}
                   </span>
                 ) : (
                   <span className="text-gray-400">

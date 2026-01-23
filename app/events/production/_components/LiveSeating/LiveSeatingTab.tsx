@@ -9,7 +9,7 @@ import SeatingEditor from "@/app/dashboard/seating/SeatingEditor";
 import { useSearchParams } from "next/navigation";
 import type { SeatingTable } from "@/types/seating";
 import { useRouter } from "next/navigation";
-import { useGroupStore } from "@/store/groupStore";
+
 
 
 
@@ -37,7 +37,7 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
 
 
-const loadGroups = useGroupStore((s) => s.loadGroups);
+
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
   const background = useSeatingStore((s) => s.background);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
@@ -53,14 +53,6 @@ const loadGroups = useGroupStore((s) => s.loadGroups);
   useEffect(() => {
   setLiveMode(true);
 }, [setLiveMode]);
-
-/* ===============================
-     🟢 LOAD GROUPS – LIVE SYNC
-  =============================== */
-  useEffect(() => {
-    if (!invitationId) return;
-    loadGroups(invitationId);
-  }, [invitationId, loadGroups]);
 
   /* ===============================
      ✅ LOAD FROM LOCAL STORAGE
