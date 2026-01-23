@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AddGuestModal from "@/app/components/AddGuestModal";
 import { useSeatingStore } from "@/store/seatingStore";
+import { useGroupStore } from "@/store/groupStore";
+
 
 
 /* =========================
@@ -30,7 +32,7 @@ function confirmedCountForGuest(g) {
 /* =========================
    Component
 ========================= */
- export default function LiveGuestsTab({ invitationId }) {
+ export default function LiveGuestsTab({ eventId }) {
   const router = useRouter();
 
 
@@ -39,8 +41,11 @@ function confirmedCountForGuest(g) {
   const [error, setError] = useState(null);
   const tables = useSeatingStore((s) => s.tables);
 
+const [invitationId, setInvitationId] = useState(null);
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
+const setTables = useSeatingStore((s) => s.setTables);
+const loadGroups = useGroupStore((s) => s.loadGroups);
 
 const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
@@ -52,6 +57,53 @@ const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
   // ✅ עריכה חוזרת (מודאל פנימי)
   const [editGuest, setEditGuest] = useState(null);
+
+  useEffect(() => {
+  if (!eventId) return;
+
+  async function syncFromEvent() {
+    setLoading(true);
+
+    // 1️⃣ invitation לפי eventId
+    const invRes = await fetch(`/api/invitations/by-event/${eventId}`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    const invData = await invRes.json();
+
+    if (!invData?.success) {
+      setLoading(false);
+      return;
+    }
+
+    const invId = invData.invitation._id;
+    setInvitationId(invId);
+
+    // 2️⃣ אורחים
+    const guestsRes = await fetch(
+      `/api/guests?invitation=${invId}`,
+      { credentials: "include", cache: "no-store" }
+    );
+    const guestsData = await guestsRes.json();
+    setGuests(guestsData.guests || []);
+
+    // 3️⃣ שולחנות
+    const seatingRes = await fetch(
+      `/api/seating?invitation=${invId}`,
+      { credentials: "include", cache: "no-store" }
+    );
+    const seatingData = await seatingRes.json();
+    setTables(seatingData.tables || []);
+
+    // 4️⃣ קבוצות
+    loadGroups(invId);
+
+    setLoading(false);
+  }
+
+  syncFromEvent();
+}, [eventId]);
+
 
 
 
@@ -190,6 +242,14 @@ const guestTableMap = useMemo(() => {
   return map;
 }, [tables]);
 
+
+if (loading) {
+  return (
+    <div className="p-6 text-center text-gray-500">
+      טוען נתוני אירוע…
+    </div>
+  );
+}
 
 if (!guests.length) {
   return (
@@ -343,12 +403,12 @@ const tableLabel =
       </div>
 
       {/* ✅ Add */}
-      {openAddModal && (
-        <AddGuestModal
-          invitationId={invitationId}
-          onClose={() => setOpenAddModal(false)}
-          onSuccess={(newGuest) => {
-            if (!newGuest) return;
+      {openAddModal && invitationId && (
+  <AddGuestModal
+    invitationId={invitationId}
+    onClose={() => setOpenAddModal(false)}
+    onSuccess={(newGuest) => {
+      if (!newGuest) return;
 
             const current = useSeatingStore.getState().guests;
 
