@@ -6,7 +6,7 @@ interface EditGuestModalProps {
   guest: any;
   userRole: "guest" | "admin";
   onClose: () => void;
-  onSuccess: (updatedGuest: any) => void; // 🔴 שינוי
+  onSuccess: (updatedGuest: any) => void;
 }
 
 export default function EditGuestModal({
@@ -20,10 +20,7 @@ export default function EditGuestModal({
   const [relation, setRelation] = useState("");
   const [rsvp, setRsvp] = useState<"pending" | "yes" | "no">("pending");
   const [guestsCount, setGuestsCount] = useState<number>(1);
-
-  // ✅ מגיעים – שדה יחיד
   const [arrivedCount, setArrivedCount] = useState<number>(0);
-
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -46,26 +43,23 @@ export default function EditGuestModal({
   async function save() {
     setLoading(true);
 
-
-
     try {
-  const normalizedRsvp =
-    Number(guestsCount) > 0
-      ? "yes"
-      : rsvp === "no"
-      ? "no"
-      : "pending";
+      const normalizedRsvp =
+        Number(guestsCount) > 0
+          ? "yes"
+          : rsvp === "no"
+          ? "no"
+          : "pending";
 
-  const payload = {
-    name,
-    phone,
-    relation,
-    rsvp: normalizedRsvp, // 🔴 זה התיקון הקריטי
-    guestsCount: Number(guestsCount),
-    arrivedCount: Number(arrivedCount),
-    notes,
-  };
-
+      const payload = {
+        name,
+        phone,
+        relation,
+        rsvp: normalizedRsvp,
+        guestsCount: Number(guestsCount),
+        arrivedCount: Number(arrivedCount),
+        notes,
+      };
 
       const res = await fetch(`/api/guests/${guest._id}`, {
         method: "PUT",
@@ -73,115 +67,155 @@ export default function EditGuestModal({
         body: JSON.stringify(payload),
       });
 
-      setLoading(false);
-
       if (!res.ok) {
-  alert("❌ שגיאה בעדכון אורח");
-  return;
-}
+        alert("❌ שגיאה בעדכון אורח");
+        setLoading(false);
+        return;
+      }
 
-const data = await res.json();
-onSuccess(data.guest ?? data); // 🔴 מעבירים אורח מעודכן
-onClose();
-
+      const data = await res.json();
+      onSuccess(data.guest ?? data);
+      onClose();
     } catch (err) {
       console.error(err);
-      setLoading(false);
       alert("❌ שגיאת שרת");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       dir="rtl"
     >
-      <div className="bg-white p-6 rounded-xl w-[420px] shadow-xl">
-        <h2 className="text-xl font-bold mb-4">עריכת אורח</h2>
+      <div
+        className="
+          bg-white
+          w-full max-w-[420px]
+          max-h-[85vh]
+          rounded-2xl
+          shadow-xl
+          flex flex-col
+        "
+      >
+        {/* ================= CONTENT (SCROLLABLE) ================= */}
+        <div className="px-6 py-5 overflow-y-auto">
+          <h2 className="text-xl font-bold mb-5">עריכת אורח</h2>
 
-        <label className="text-sm">שם מלא</label>
-        <input
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+          <Field label="שם מלא">
+            <input
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
 
-        <label className="text-sm">טלפון</label>
-        <input
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
+          <Field label="טלפון">
+            <input
+              className="input"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </Field>
 
-        <label className="text-sm">קרבה</label>
-        <input
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={relation}
-          onChange={(e) => setRelation(e.target.value)}
-        />
+          <Field label="קרבה">
+            <input
+              className="input"
+              value={relation}
+              onChange={(e) => setRelation(e.target.value)}
+            />
+          </Field>
 
-        <label className="text-sm">סטטוס</label>
-        <select
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={rsvp}
-          onChange={(e) => setRsvp(e.target.value as any)}
-        >
-          <option value="pending">לא השיב</option>
-          <option value="yes">מגיע</option>
-          <option value="no">לא מגיע</option>
-        </select>
+          <Field label="סטטוס">
+            <select
+              className="input"
+              value={rsvp}
+              onChange={(e) => setRsvp(e.target.value as any)}
+            >
+              <option value="pending">לא השיב</option>
+              <option value="yes">מגיע</option>
+              <option value="no">לא מגיע</option>
+            </select>
+          </Field>
 
-        <label className="text-sm">מוזמנים</label>
-        <input
-          type="number"
-          min={1}
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={guestsCount}
-          onChange={(e) => setGuestsCount(Number(e.target.value))}
-        />
+          <Field label="מוזמנים">
+            <input
+              type="number"
+              min={1}
+              className="input"
+              value={guestsCount}
+              onChange={(e) => setGuestsCount(Number(e.target.value))}
+            />
+          </Field>
 
-        {/* ✅ מגיעים – השדה היחיד */}
-        <label className="text-sm">מגיעים</label>
-        <input
-          type="number"
-          min={0}
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={arrivedCount}
-          onChange={(e) => setArrivedCount(Number(e.target.value))}
-        />
+          <Field label="מגיעים">
+            <input
+              type="number"
+              min={0}
+              className="input"
+              value={arrivedCount}
+              onChange={(e) => setArrivedCount(Number(e.target.value))}
+            />
+          </Field>
 
-        <label className="text-sm">מספר שולחן</label>
-        <input
-          className="w-full border rounded px-3 py-2 mb-4 bg-gray-50 text-gray-700"
-          value={tableName}
-          readOnly
-        />
+          <Field label="מספר שולחן">
+            <input
+              className="input bg-gray-50 text-gray-600"
+              value={tableName}
+              readOnly
+            />
+          </Field>
 
-        <label className="text-sm">הערות</label>
-        <textarea
-          className="w-full border rounded px-3 py-2 mb-4"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-        />
+          <Field label="הערות">
+            <textarea
+              className="input resize-none"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+        </div>
 
-        <div className="flex justify-between mt-4">
+        {/* ================= FOOTER (FIXED) ================= */}
+        <div className="px-6 py-4 border-t flex justify-between bg-white rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 rounded"
+            className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
           >
             ביטול
           </button>
 
           <button
             onClick={save}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
             disabled={loading}
+            className="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? "שומר..." : "שמור"}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* =======================
+   Helper components
+======================= */
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
