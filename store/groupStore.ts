@@ -23,23 +23,27 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
 
   /* ================= LOAD FROM DB ================= */
   loadGroups: async (invitationId: string) => {
-    try {
-      const res = await fetch(
-        `/api/groups?invitationId=${invitationId}`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
+  if (!invitationId) return;
 
-      const data = await res.json();
-      if (data.success) {
-        set({ groups: data.groups || [] });
+  try {
+    const res = await fetch(
+      `/api/groups?invitation=${invitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
       }
-    } catch (err) {
-      console.error("❌ loadGroups failed:", err);
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      set({ groups: data.groups || [] });
     }
-  },
+  } catch (err) {
+    console.error("❌ loadGroups failed:", err);
+  }
+},
+
 
   /* ================= CRUD (LOCAL + API HOOK READY) ================= */
   addGroup: (name) =>
