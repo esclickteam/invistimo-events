@@ -608,8 +608,9 @@ console.log("INVITATION:", invitation);
     )}
 
 
-       {(isClientView || isProducerView) && (
+       {isClientView && (
 
+        
   <>
     {/* ===================== ניהול האירוע ===================== */}
     <h1 className="text-3xl font-semibold mb-1">
@@ -731,14 +732,12 @@ console.log("INVITATION:", invitation);
           </button>
         )}
 
-        {(isClientView || isProducerView) && (
-  <button
-    onClick={() => setOpenAddModal(true)}
-    className="bg-black text-white px-6 py-3 rounded-full font-semibold"
-  >
-    + הוספת מוזמן
-  </button>
-)}
+        <button
+          onClick={() => setOpenAddModal(true)}
+          className="bg-black text-white px-6 py-3 rounded-full font-semibold"
+        >
+          + הוספת מוזמן
+        </button>
 
         <button
           onClick={() => setShowImportModal(true)}
@@ -816,6 +815,17 @@ console.log("INVITATION:", invitation);
       </div>
     </div>
   </>
+)}
+
+{isProducerView && (
+  <div className="hidden md:flex mb-6">
+    <button
+      onClick={() => setOpenAddModal(true)}
+      className="bg-black text-white px-6 py-3 rounded-full font-semibold"
+    >
+      + הוספת מוזמן
+    </button>
+  </div>
 )}
 
 
