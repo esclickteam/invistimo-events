@@ -4,12 +4,22 @@ export type LiveGuest = {
   tableId: string | null;
   approved: number;
   arrived: number;
+
+  /** 🆕 שיוך לקבוצה */
+  groupId?: string | null;
 };
 
 export type LiveTable = {
   id: string;
   name: string;
   capacity: number;
+};
+
+/** 🆕 קבוצה (כמו בדשבורד) */
+export type LiveGroup = {
+  id: string;
+  name: string;
+  color?: string;
 };
 
 /**
@@ -30,6 +40,9 @@ export type LiveCanvasView = {
 export type LiveSeatingState = {
   tables: LiveTable[];
   guests: LiveGuest[];
+
+  /** 🆕 קבוצות */
+  groups: LiveGroup[];
 
   /** 🆕 */
   background?: LiveBackground | null;

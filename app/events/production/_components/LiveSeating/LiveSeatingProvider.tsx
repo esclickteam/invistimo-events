@@ -12,14 +12,19 @@ type Props = {
 export function LiveSeatingProvider({ children, initial }: Props) {
   const importSnapshot = useSeatingStore((s) => s.importSnapshot);
 
-  // ✅ מונע ייבוא כפול
+  // ✅ מונע ייבוא כפול (חשוב בלייב)
   const importedRef = useRef(false);
 
   useEffect(() => {
     if (!initial) return;
     if (importedRef.current) return;
 
-    console.log("🟢 LiveSeatingProvider importing snapshot (once)");
+    console.log("🟢 LiveSeatingProvider importing snapshot", {
+      guests: initial.guests?.length,
+      tables: initial.tables?.length,
+      groups: initial.groups?.length, // 👈 חשוב
+    });
+
     importSnapshot(initial);
     importedRef.current = true;
   }, [initial, importSnapshot]);
