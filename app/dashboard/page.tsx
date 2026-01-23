@@ -11,7 +11,9 @@ import GuestsMobileList from "./components/GuestsMobileList";
 import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
+import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
+
 
 import Link from "next/link";
 
@@ -843,108 +845,21 @@ console.log("INVITATION:", invitation);
   />
 </div>
 
-
-      {/* ✅ Controls row (search + filters) */}
-<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-  
-  {/* Search */}
-  <div className="w-full md:max-w-[520px] relative">
-    <input
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      placeholder="חיפוש לפי שם או טלפון…"
-      className="
-        w-full border border-gray-300 rounded-full
-        px-5 py-3 outline-none
-        focus:ring-2 focus:ring-[#c9b48f]
-        bg-white
-      "
-    />
-    {search.trim() && (
-      <button
-        onClick={() => setSearch("")}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
-      >
-        ✕
-      </button>
-    )}
-  </div>
-
-  {/* Filter by group + manage */}
-<div className="flex items-center gap-2">
-  <select
-    value={selectedGroupId}
-    onChange={(e) => setSelectedGroupId(e.target.value)}
-    className="rounded-full border px-4 py-2 text-sm bg-white"
-  >
-    <option value="">כל הקבוצות</option>
-    {groups.map((g) => (
-      <option key={g._id} value={g._id}>
-        {g.name}
-      </option>
-    ))}
-  </select>
-
-  <button
-    onClick={() => setOpenGroupModal(true)}
-    className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
-  >
-    + הוספת קבוצה
-  </button>
-</div>
+<GuestsControls
+  search={search}
+  setSearch={setSearch}
+  groups={groups}
+  selectedGroupId={selectedGroupId}
+  setSelectedGroupId={setSelectedGroupId}
+  onManageGroups={() => setOpenGroupModal(true)}
+  quickFilter={quickFilter}
+  setQuickFilter={setQuickFilter}
+  totalCount={guests.length}
+  displayCount={displayGuests.length}
+/>
 
 
 
-        {/* Quick filters */}
-<div
-  className="
-    grid grid-cols-3 gap-2
-    md:flex md:flex-wrap md:gap-2 md:justify-start
-  "
->
-  <FilterPill
-    active={quickFilter === "all"}
-    onClick={() => setQuickFilter("all")}
-    label="הכל"
-  />
-
-  <FilterPill
-    active={quickFilter === "yes"}
-    onClick={() => setQuickFilter("yes")}
-    label="מגיעים"
-  />
-
-  <FilterPill
-    active={quickFilter === "pending"}
-    onClick={() => setQuickFilter("pending")}
-    label="ממתינים"
-  />
-
-  {/* שורה שנייה – ממורכז */}
-  <div className="col-span-3 flex justify-center gap-2 md:contents">
-    <FilterPill
-      active={quickFilter === "no"}
-      onClick={() => setQuickFilter("no")}
-      label="לא מגיעים"
-    />
-    <FilterPill
-      active={quickFilter === "noTable"}
-      onClick={() => setQuickFilter("noTable")}
-      label="בלי שולחן"
-    />
-  </div>
-</div>
-
-
-
-
-
-        {/* Count */}
-        <div className="text-sm text-gray-500 text-center md:text-left md:min-w-[140px]">
-
-          מציג: <span className="font-semibold">{displayGuests.length}</span> / {guests.length}
-        </div>
-      </div>
 
       {/* ===================== DESKTOP TABLE ===================== */}
 <div className="hidden md:block w-full overflow-x-auto">
