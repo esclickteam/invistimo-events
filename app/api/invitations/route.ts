@@ -182,9 +182,8 @@ export async function GET(req: Request) {
 
     /* 🎯 מציאת ההזמנה */
     const invitation = await Invitation.findOne({
-      eventId,
-      ownerId: userId,
-    }).lean();
+  eventId,
+}).lean();
 
     if (!invitation) {
       return NextResponse.json(
