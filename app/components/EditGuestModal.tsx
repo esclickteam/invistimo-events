@@ -69,7 +69,6 @@ export default function EditGuestModal({
 
       if (!res.ok) {
         alert("❌ שגיאה בעדכון אורח");
-        setLoading(false);
         return;
       }
 
@@ -105,7 +104,7 @@ export default function EditGuestModal({
 
           <Field label="שם מלא">
             <input
-              className="input"
+              className={inputClass}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -113,7 +112,7 @@ export default function EditGuestModal({
 
           <Field label="טלפון">
             <input
-              className="input"
+              className={inputClass}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
@@ -121,7 +120,7 @@ export default function EditGuestModal({
 
           <Field label="קרבה">
             <input
-              className="input"
+              className={inputClass}
               value={relation}
               onChange={(e) => setRelation(e.target.value)}
             />
@@ -129,7 +128,7 @@ export default function EditGuestModal({
 
           <Field label="סטטוס">
             <select
-              className="input"
+              className={inputClass}
               value={rsvp}
               onChange={(e) => setRsvp(e.target.value as any)}
             >
@@ -143,7 +142,7 @@ export default function EditGuestModal({
             <input
               type="number"
               min={1}
-              className="input"
+              className={inputClass}
               value={guestsCount}
               onChange={(e) => setGuestsCount(Number(e.target.value))}
             />
@@ -153,7 +152,7 @@ export default function EditGuestModal({
             <input
               type="number"
               min={0}
-              className="input"
+              className={inputClass}
               value={arrivedCount}
               onChange={(e) => setArrivedCount(Number(e.target.value))}
             />
@@ -161,7 +160,7 @@ export default function EditGuestModal({
 
           <Field label="מספר שולחן">
             <input
-              className="input bg-gray-50 text-gray-600"
+              className={`${inputClass} bg-gray-50 text-gray-600`}
               value={tableName}
               readOnly
             />
@@ -169,15 +168,15 @@ export default function EditGuestModal({
 
           <Field label="הערות">
             <textarea
-              className="input resize-none"
               rows={3}
+              className={`${inputClass} resize-none`}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </Field>
         </div>
 
-        {/* ================= FOOTER (FIXED) ================= */}
+        {/* ================= FOOTER ================= */}
         <div className="px-6 py-4 border-t flex justify-between bg-white rounded-b-2xl">
           <button
             onClick={onClose}
@@ -199,9 +198,21 @@ export default function EditGuestModal({
   );
 }
 
-/* =======================
-   Helper components
-======================= */
+/* =========================
+   Helpers
+========================= */
+
+const inputClass = `
+  w-full
+  border border-gray-300
+  rounded-lg
+  px-3 py-2
+  text-sm
+  bg-white
+  focus:outline-none
+  focus:ring-2
+  focus:ring-[#c9b48f]
+`;
 
 function Field({
   label,
