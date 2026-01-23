@@ -642,33 +642,36 @@ console.log("INVITATION:", invitation);
 )}
 
 {/* תיוג מתנות באשראי */}
-{user?.plan === "premium" && user.includeCreditGifts && (
-  <div className="mb-8 flex flex-col gap-2">
-    <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
-      💳 כולל מתנות באשראי לאורחים
-    </div>
+{user?.plan === "premium" &&
+  user.includeCreditGifts &&
+  !user?.createdByProducer && (
+    <div className="mb-8 flex flex-col gap-2">
+      <div className="inline-flex items-center gap-2 bg-[#e6f7f1] text-[#138b55] px-4 py-2 rounded-full text-sm font-medium shadow-sm">
+        💳 כולל מתנות באשראי לאורחים
+      </div>
 
-    <a
-      href="https://ktzr.io/giftInvistimoSignup"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 w-fit bg-[#138b55] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#0f6f45] transition"
-    >
-      🔗 קישור הרשמה למתנות באשראי
-    </a>
+      <a
+        href="https://ktzr.io/giftInvistimoSignup"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-2 w-fit bg-[#138b55] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#0f6f45] transition"
+      >
+        🔗 קישור הרשמה למתנות באשראי
+      </a>
 
-    <div className="text-xs text-gray-500">
-      שתפו את הקישור עם האורחים כדי לאפשר מתנות באשראי
+      <div className="text-xs text-gray-500">
+        שתפו את הקישור עם האורחים כדי לאפשר מתנות באשראי
+      </div>
     </div>
-  </div>
 )}
+
 
 
 
   
 
     {/* ⬇⬇⬇ ספירה לאחור + עריכת פרטי אירוע ⬇⬇⬇ */}
-    {event && (
+    {event && !user?.createdByProducer && (
   <div className="flex items-center justify-between mb-4">
     <div className="text-lg font-semibold">
       {event.date ? (

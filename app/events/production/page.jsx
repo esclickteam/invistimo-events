@@ -3,9 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useSeatingStore } from "@/store/seatingStore";
-
 import ProductionTabs from "./_components/ProductionTabs";
-
 import OverviewTab from "./_components/OverviewTab";
 import PlanningTab from "./_components/PlanningTab";
 import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
