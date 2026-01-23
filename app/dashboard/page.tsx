@@ -600,12 +600,14 @@ console.log("INVITATION:", invitation);
     )}
 
 
-       <h1 className="text-3xl font-semibold mb-1">
-  ניהול האירוע
-</h1>
-<p className="text-gray-500 mb-6">
-  הוספת מוזמנים, שליחת הודעות וסידורי הושבה
-</p>
+       {!user?.createdByProducer && (
+  <>
+    <h1 className="text-3xl font-semibold mb-1">ניהול האירוע</h1>
+    <p className="text-gray-500 mb-6">
+      הוספת מוזמנים, שליחת הודעות וסידורי הושבה
+    </p>
+  </>
+)}
 
 {!!user?.createdByProducer && eventIdFromUrl && (
   <div className="flex flex-wrap gap-3 mb-6">
