@@ -70,10 +70,13 @@ export default function OverviewTab({ eventId }) {
 
 
         setTasks(data.tasks || []);
-        setBudget(data.budget || null); // ✅ חשוב
-        if (!isEditingBudget) {
-  setBudgetDraft(data.event?.budgetTotal || 0);
-}
+setBudget(data.budget || null);
+
+// 🛑 לא לדרוס draft אם המשתמש באמצע עריכה
+setBudgetDraft((prev) => {
+  if (isEditingBudget) return prev;
+  return data.event?.budgetTotal || 0;
+});
 
       } catch (e) {
         setError("NETWORK_ERROR");
