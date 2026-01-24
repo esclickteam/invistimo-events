@@ -29,7 +29,9 @@ export default function ProductionTabs({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get("tab") || "overview";
+  const activeTab =
+  (searchParams.get("tab") || "overview").split("/")[0];
+
 
   const changeTab = (tabKey) => {
   const params = new URLSearchParams(searchParams.toString());
