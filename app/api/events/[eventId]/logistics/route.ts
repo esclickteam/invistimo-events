@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import db from "@/lib/db";
-import EventLogistics from "@/models/EventLogistics";
+import EventLogisticsStep from "@/models/EventLogisticsStep";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
-/* =========================
-   GET – Logistics
-========================= */
+/* =========================================================
+   GET – Logistics Steps for Event
+========================================================= */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
 
+    /* =========================
+       Auth
+    ========================= */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -22,7 +25,10 @@ export async function GET(
       );
     }
 
-    const { eventId } = params;
+    /* =========================
+       Params
+    ========================= */
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
@@ -31,7 +37,10 @@ export async function GET(
       );
     }
 
-    const steps = await EventLogistics.find({ eventId })
+    /* =========================
+       Load logistics steps
+    ========================= */
+    const steps = await EventLogisticsStep.find({ eventId })
       .sort({ order: 1 })
       .lean();
 
@@ -40,7 +49,7 @@ export async function GET(
       steps,
     });
   } catch (err) {
-    console.error("❌ GET logistics failed:", err);
+    console.error("❌ GET /logistics failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }

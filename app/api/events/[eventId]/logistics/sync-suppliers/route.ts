@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import db from "@/lib/db";
-
 import EventSupplier from "@/models/EventSupplier";
 import EventLogisticsStep from "@/models/EventLogisticsStep";
 
