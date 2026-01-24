@@ -64,6 +64,11 @@ export default function OverviewTab({ eventId }) {
         }
 
         setEvent(data.event);
+
+        
+
+
+
         setTasks(data.tasks || []);
         setBudget(data.budget || null); // ✅ חשוב
         setBudgetDraft(data.event?.budgetTotal || 0); // נשאר
@@ -188,7 +193,20 @@ export default function OverviewTab({ eventId }) {
       }
 
       setEvent(data.event);
-      setIsEditingBudget(false);
+
+setBudget((prev) =>
+  prev
+    ? {
+        ...prev,
+        total: Number(data.event.budgetTotal) || 0,
+        remaining:
+          (Number(data.event.budgetTotal) || 0) - (prev.spent || 0),
+      }
+    : prev
+);
+
+setIsEditingBudget(false);
+
     } catch (e) {
       setError("שגיאה בשמירת התקציב");
     } finally {
@@ -232,10 +250,23 @@ export default function OverviewTab({ eventId }) {
 
       {/* BUDGET */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <BudgetCard title="תקציב כולל" value={budgetTotal} />
-        <BudgetCard title="יצא עד כה" value={spent} />
-        <BudgetCard title="יתרה" value={remaining} highlight />
-      </div>
+  <EditableBudgetCard
+    title="תקציב מתוכנן"
+    value={budgetDraft}
+    isEditing={isEditingBudget}
+    loading={savingBudget}
+    onEdit={() => setIsEditingBudget(true)}
+    onCancel={() => {
+      setBudgetDraft(event.budgetTotal || 0);
+      setIsEditingBudget(false);
+    }}
+    onChange={setBudgetDraft}
+    onSave={saveBudget}
+  />
+
+  <BudgetCard title="יצא עד כה" value={spent} />
+  <BudgetCard title="יתרה" value={remaining} highlight />
+</div>
 
       {/* PROGRESS */}
       <div className="bg-white rounded-xl p-4 border border-[#E7E3DC]">
