@@ -32,8 +32,13 @@ export default function ProductionTabs({
   const activeTab = searchParams.get("tab") || "overview";
 
   const changeTab = (tabKey) => {
-    router.push(`/events/production?tab=${tabKey}`);
-  };
+  const params = new URLSearchParams(searchParams.toString());
+
+  // משנים רק tab, משאירים eventId וכל שאר הפרמטרים
+  params.set("tab", tabKey);
+
+  router.push(`/events/production?${params.toString()}`);
+};
 
   // Guard – נשאר כמו שהוא (לא שיניתי לוגיקה)
   if (!invitation && activeTab === "overview") {
