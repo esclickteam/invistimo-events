@@ -32,10 +32,8 @@ export default function EventProductionPage() {
 
   const eventIdFromUrl = params?.get("eventId");
 
-  const url =
-    user.role === "producer" && eventIdFromUrl
-      ? `/api/invitations/by-event/${eventIdFromUrl}`
-      : "/api/invitations/my";
+  const url = "/api/invitations/my";
+
 
   fetch(url, { credentials: "include", cache: "no-store" })
     .then((res) => {
