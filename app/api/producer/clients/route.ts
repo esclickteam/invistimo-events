@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import Event from "@/models/Event";
@@ -8,14 +8,14 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
 
     /* =========================
        🔐 Auth – Producer
     ========================= */
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
 
     if (!auth?.userId || auth.role !== "producer") {
       return NextResponse.json(
@@ -41,7 +41,7 @@ export async function GET() {
       return NextResponse.json({ success: true, clients: [] });
     }
 
-    const clientIds = clients.map(c => c._id);
+    const clientIds = clients.map((c) => c._id);
 
     /* =========================
        🎉 Events
@@ -53,10 +53,10 @@ export async function GET() {
       .lean();
 
     const eventsByUserId = Object.fromEntries(
-      events.map(e => [String(e.userId), e])
+      events.map((e) => [String(e.userId), e])
     );
 
-    const eventIds = events.map(e => e._id);
+    const eventIds = events.map((e) => e._id);
 
     /* =========================
        ✉️ Invitations
@@ -67,9 +67,9 @@ export async function GET() {
       .select("_id eventId")
       .lean();
 
-    const invitationIds = invitations.map(i => i._id);
+    const invitationIds = invitations.map((i) => i._id);
 
-    const invitationsByEventId = invitations.reduce((acc, inv) => {
+    const invitationsByEventId = invitations.reduce((acc: any, inv: any) => {
       const key = String(inv.eventId);
       acc[key] = acc[key] || [];
       acc[key].push(inv._id);
@@ -99,7 +99,7 @@ export async function GET() {
     ]);
 
     const statsByInvitationId = Object.fromEntries(
-      guestStats.map(g => [
+      guestStats.map((g: any) => [
         String(g._id),
         {
           totalGuests: g.totalGuests,
@@ -111,7 +111,7 @@ export async function GET() {
     /* =========================
        🔗 Merge to client
     ========================= */
-    const result = clients.map(client => {
+    const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
       if (!event) return { ...client, event: null };
 
