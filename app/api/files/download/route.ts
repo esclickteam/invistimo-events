@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "nodejs"; // ⭐ חובה!
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
@@ -10,7 +12,14 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Missing file url", { status: 400 });
   }
 
-  const cloudinaryRes = await fetch(fileUrl);
+  const cloudinaryRes = await fetch(fileUrl, {
+    headers: {
+      Accept: "*/*",
+      "User-Agent": "Mozilla/5.0",
+    },
+    cache: "no-store",
+  });
+
   if (!cloudinaryRes.ok) {
     return new NextResponse("Failed to fetch file", { status: 500 });
   }
@@ -19,8 +28,12 @@ export async function GET(req: NextRequest) {
 
   return new NextResponse(buffer, {
     headers: {
-      "Content-Type": cloudinaryRes.headers.get("content-type") || "application/octet-stream",
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      "Content-Type":
+        cloudinaryRes.headers.get("content-type") ||
+        "application/octet-stream",
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(
+        fileName
+      )}`,
       "Cache-Control": "no-store",
     },
   });
