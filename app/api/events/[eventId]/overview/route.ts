@@ -74,18 +74,24 @@ export async function GET(
     const suppliers = await EventSupplier.find({
       eventId: event._id,
     })
-      .select("price")
+      .select("price advance")
+
 
       .lean();
 
     const budgetTotal = Number(event.budgetTotal) || 0;
 
-    const spent = suppliers.reduce(
+    const commitments = suppliers.reduce(
   (sum, s) => sum + Number(s.price || 0),
   0
 );
 
-    const remaining = Math.max(budgetTotal - spent, 0);
+const paid = suppliers.reduce(
+  (sum, s) => sum + Number(s.advance || 0),
+  0
+);
+
+const available = Math.max(budgetTotal - commitments, 0);
 
     return NextResponse.json({
       success: true,
@@ -98,10 +104,11 @@ export async function GET(
         budgetTotal, // מקור אמת לתקציב
       },
       budget: {
-        total: budgetTotal,   // ✅ 100,000
-        spent,               // ✅ 3,500
-        remaining,           // ✅ 96,500
-      },
+  total: budgetTotal,      // תקציב מתוכנן
+  commitments,             // התחייבויות (price)
+  paid,                    // שולם בפועל (advance)
+  available,               // יתרה זמינה
+},
       tasks,
     });
   } catch (err) {

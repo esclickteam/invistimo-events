@@ -91,10 +91,10 @@ setBudgetDraft((prev) => {
   /* =====================
      DERIVED (🔴 פה היה הבאג)
   ===================== */
-  const budgetTotal = event?.budgetTotal || 0;
-
-  const spent = budget?.spent || 0;
-  const remaining = Math.max(budgetTotal - spent, 0);
+  const budgetTotal = budget?.total ?? 0;
+const commitments = budget?.commitments ?? 0;
+const paid = budget?.paid ?? 0;
+const available = budget?.available ?? 0;
 
 
   const progress = budgetTotal
@@ -274,8 +274,9 @@ setBudgetDraft((prev) => {
     onSave={saveBudget}
   />
 
-  <BudgetCard title="יצא עד כה" value={spent} />
-  <BudgetCard title="יתרה" value={remaining} highlight />
+  <BudgetCard title="התחייבויות" value={commitments} />
+<BudgetCard title="שולם בפועל" value={paid} />
+<BudgetCard title="יתרה זמינה" value={available} highlight />
 </div>
 
       {/* PROGRESS */}
