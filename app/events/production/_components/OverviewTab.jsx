@@ -163,39 +163,34 @@ export default function OverviewTab({ eventId }) {
 
   /* 🆕 SAVE BUDGET */
   async function saveBudget() {
-    if (!eventId) return;
+  if (!eventId) return;
 
-    setSavingBudget(true);
-    setError("");
+  setSavingBudget(true);
+  setError("");
 
-    setEvent((prev) => ({
-      ...prev,
-      budgetTotal: Number(budgetDraft) || 0,
-    }));
+  try {
+    const res = await fetch(`/api/events/${eventId}/overview`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        budgetTotal: Number(budgetDraft) || 0,
+      }),
+    });
 
-    try {
-      const res = await fetch(`/api/events/${eventId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          budgetTotal: Number(budgetDraft) || 0,
-        }),
-      });
+    const data = await res.json();
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error("SAVE_BUDGET_FAILED");
-      }
-
-      setEvent(data.event);
-      setIsEditingBudget(false);
-    } catch (e) {
-      setError("שגיאה בשמירת התקציב");
-    } finally {
-      setSavingBudget(false);
+    if (!res.ok || !data.success) {
+      throw new Error("SAVE_BUDGET_FAILED");
     }
+
+    setEvent(data.event);
+    setIsEditingBudget(false);
+  } catch (e) {
+    setError("שגיאה בשמירת התקציב");
+  } finally {
+    setSavingBudget(false);
   }
+}
 
   /* =====================
      UI STATES
