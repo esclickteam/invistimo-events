@@ -8,6 +8,7 @@ import PlanningTab from "./_components/PlanningTab";
 import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
 import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
+import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 import DashboardPage from "@/app/dashboard/page";
 import SeatingPage from "@/app/dashboard/seating/page";
 
@@ -104,6 +105,7 @@ export default function EventProductionPage() {
     suppliers={<SuppliersBudgetTab eventId={eventId} />}
     calendar={<CalendarTab eventId={eventId} />}
     logistics={<LogisticsTab eventId={eventId} />}
+    alcohol={<AlcoholManagementTab eventId={eventId} />}
     liveGuests={<DashboardPage />}
     liveSeating={<SeatingPage />}
     invitation={invitation}
