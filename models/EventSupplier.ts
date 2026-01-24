@@ -1,5 +1,4 @@
 import mongoose, { Types } from "mongoose";
-import Event from "@/models/Event";
 
 /* =========================================================
    Types
@@ -11,6 +10,7 @@ type EventSupplierDoc = {
 
 /* =========================================================
    Helper – Sync Event Budget from Suppliers
+   ⚠️ חישוב בלבד – לא מעדכן Event
 ========================================================= */
 async function syncEventBudget(eventId: Types.ObjectId) {
   if (!eventId) return;
@@ -21,14 +21,22 @@ async function syncEventBudget(eventId: Types.ObjectId) {
     .select("price")
     .lean()) as EventSupplierDoc[];
 
-  const total = suppliers.reduce(
+  const totalCommitments = suppliers.reduce(
     (sum, s) => sum + Number(s.price || 0),
     0
   );
 
-  await Event.findByIdAndUpdate(eventId, {
-    $set: { budgetTotal: total },
-  });
+  // ❌ לא נוגעים ב־Event.budgetTotal
+  // budgetTotal נשלט ידנית בלבד דרך /api/events/[eventId]/overview
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("🟡 EventSupplier sync (calculated commitments only):", {
+      eventId: String(eventId),
+      totalCommitments,
+    });
+  }
+
+  return totalCommitments;
 }
 
 /* =========================================================
@@ -79,9 +87,9 @@ const EventSupplierSchema = new mongoose.Schema(
     },
 
     supplierName: {
-  type: String,
-  trim: true,
-},
+      type: String,
+      trim: true,
+    },
 
     /* =========================
        💰 תמחור
@@ -120,7 +128,7 @@ const EventSupplierSchema = new mongoose.Schema(
 );
 
 /* =========================================================
-   🔄 Auto Sync Event Budget
+   🔄 Hooks – חישוב בלבד (לא דריסה!)
 ========================================================= */
 EventSupplierSchema.post("save", async function () {
   await syncEventBudget(this.eventId as Types.ObjectId);

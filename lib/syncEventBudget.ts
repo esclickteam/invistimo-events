@@ -1,9 +1,9 @@
 import { Types } from "mongoose";
 import EventSupplier from "@/models/EventSupplier";
-import Event from "@/models/Event";
 
 /* =========================================================
    Sync Event Budget from Suppliers
+   ⚠️ חישוב בלבד – לא מעדכן Event
 ========================================================= */
 export async function syncEventBudget(eventId: Types.ObjectId) {
   if (!eventId) return;
@@ -12,12 +12,20 @@ export async function syncEventBudget(eventId: Types.ObjectId) {
     .select("price")
     .lean<{ price?: number }[]>();
 
-  const total = suppliers.reduce(
+  const totalCommitments = suppliers.reduce(
     (sum, s) => sum + Number(s.price || 0),
     0
   );
 
-  await Event.findByIdAndUpdate(eventId, {
-    $set: { budgetTotal: total },
-  });
+  // 🟡 intentionally no Event update here
+  // budgetTotal הוא ידני ונשלט רק ע"י PATCH /overview
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("🟡 syncEventBudget (calculated only):", {
+      eventId: String(eventId),
+      totalCommitments,
+    });
+  }
+
+  return totalCommitments;
 }
