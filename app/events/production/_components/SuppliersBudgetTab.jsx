@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 
 /* ======================
    MAIN
@@ -19,29 +19,40 @@ export default function SuppliersTab({ eventId }) {
 
   useEffect(() => {
     async function load() {
-      setLoading(true);
+      try {
+        setLoading(true);
 
-      const [cats, eventSuppliers] = await Promise.all([
-        fetch("/api/suppliers/categories").then(r => r.json()),
-        fetch(`/api/events/${eventId}/suppliers`).then(r => r.json()),
-      ]);
+        const [catsRes, rowsRes] = await Promise.all([
+          fetch("/api/suppliers/categories"),
+          fetch(`/api/events/${eventId}/suppliers`),
+        ]);
 
-      setCategories(cats);
-      setRows(
-        eventSuppliers.map(r => ({
-          id: r._id,
-          categoryId: r.categoryId,
-          category: r.category,
-          sub: r.sub,
-          supplier: r.supplierId,
-          price: r.price || "",
-          advance: r.advance || "",
-          balance: r.balance || "",
-          files: r.files || [],
-        }))
-      );
+        if (!catsRes.ok || !rowsRes.ok) {
+          throw new Error("Failed loading suppliers data");
+        }
 
-      setLoading(false);
+        const cats = await catsRes.json();
+        const eventSuppliers = await rowsRes.json();
+
+        setCategories(cats);
+        setRows(
+          eventSuppliers.map(r => ({
+            id: r._id,
+            categoryId: r.categoryId,
+            category: r.category,
+            sub: r.sub,
+            supplier: r.supplierId,
+            price: r.price || "",
+            advance: r.advance || "",
+            balance: r.balance || "",
+            files: r.files || [],
+          }))
+        );
+      } catch (err) {
+        console.error("SuppliersTab load error:", err);
+      } finally {
+        setLoading(false);
+      }
     }
 
     load();
@@ -55,11 +66,7 @@ export default function SuppliersTab({ eventId }) {
     const res = await fetch(`/api/events/${eventId}/suppliers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        categoryId,
-        category: categoryName,
-        sub,
-      }),
+      body: JSON.stringify({ categoryId, category: categoryName, sub }),
     });
 
     const created = await res.json();
@@ -81,16 +88,13 @@ export default function SuppliersTab({ eventId }) {
   }
 
   /* ======================
-     UPDATE ROW (PATCH)
+     UPDATE ROW
   ====================== */
 
   async function updateRow(i, field, value) {
     const row = rows[i];
 
-    const updatedRow = {
-      ...row,
-      [field]: value,
-    };
+    const updatedRow = { ...row, [field]: value };
 
     if (field === "price" || field === "advance") {
       const price = Number(field === "price" ? value : row.price);
@@ -155,8 +159,7 @@ export default function SuppliersTab({ eventId }) {
 
   async function removeRow(i) {
     const row = rows[i];
-
-    setRows(prev => prev.filter((_, index) => index !== i));
+    setRows(prev => prev.filter((_, idx) => idx !== i));
 
     await fetch(`/api/events/${eventId}/suppliers/${row.id}`, {
       method: "DELETE",
@@ -164,39 +167,30 @@ export default function SuppliersTab({ eventId }) {
   }
 
   /* ======================
-   UPLOAD FILES
-====================== */
+     FILE UPLOAD
+  ====================== */
 
-async function handleFiles(rowIndex, fileList) {
-  if (!fileList || fileList.length === 0) return;
+  async function handleFiles(rowIndex, fileList) {
+    if (!fileList || fileList.length === 0) return;
 
-  const formData = new FormData();
-  Array.from(fileList).forEach((file) => {
-    formData.append("files", file);
-  });
+    const formData = new FormData();
+    Array.from(fileList).forEach(file => formData.append("files", file));
 
-  const row = rows[rowIndex];
+    const row = rows[rowIndex];
 
-  const res = await fetch(
-    `/api/events/${eventId}/suppliers/${row.id}/files`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
+    const res = await fetch(
+      `/api/events/${eventId}/suppliers/${row.id}/files`,
+      { method: "POST", body: formData }
+    );
 
-  const savedFiles = await res.json();
+    const savedFiles = await res.json();
 
-  setRows((prev) => {
-    const copy = [...prev];
-    copy[rowIndex] = {
-      ...copy[rowIndex],
-      files: savedFiles,
-    };
-    return copy;
-  });
-}
-
+    setRows(prev => {
+      const copy = [...prev];
+      copy[rowIndex] = { ...copy[rowIndex], files: savedFiles };
+      return copy;
+    });
+  }
 
   if (loading) {
     return <div className="py-20 text-center text-gray-400">טוען ספקים…</div>;
@@ -209,20 +203,17 @@ async function handleFiles(rowIndex, fileList) {
   return (
     <div className="max-w-7xl mx-auto space-y-10" dir="rtl">
 
-      {/* HEADER */}
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-semibold">ספקים סגורים לאירוע</h1>
         <button
-  onClick={() => setOpenAddModal(true)}
-  disabled={categories.length === 0}
-  className="bg-black text-white px-5 py-2 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
->
-
+          onClick={() => setOpenAddModal(true)}
+          disabled={categories.length === 0}
+          className="bg-black text-white px-5 py-2 rounded-xl disabled:opacity-40"
+        >
           ➕ הוסף ספק / תחום
         </button>
       </div>
 
-      {/* TABLE */}
       <div className="bg-white rounded-2xl border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
@@ -245,12 +236,18 @@ async function handleFiles(rowIndex, fileList) {
             )}
 
             {rows.map((row, i) => (
-              <>
-                <tr key={row.id} className="border-t">
+              <Fragment key={row.id}>
+                <tr className="border-t">
                   <td className="px-6 py-4">{row.category}</td>
                   <td className="px-6 py-4">{row.sub}</td>
+
                   <td className="px-6 py-4 font-medium">
-                    {row.supplier?.name || "לא נבחר"}
+                    <button
+                      onClick={() => setOpenSupplierRow(i)}
+                      className="underline text-blue-600"
+                    >
+                      {row.supplier?.name || "בחר ספק"}
+                    </button>
                   </td>
 
                   {["price","advance","balance"].map(f => (
@@ -265,48 +262,33 @@ async function handleFiles(rowIndex, fileList) {
                   ))}
 
                   <td className="px-6 py-4 space-y-2">
+                    {row.files?.map((file, idx) => (
+                      <a
+                        key={idx}
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-sm text-blue-600 underline"
+                      >
+                        ⬇️ {file.name || "קובץ"}
+                      </a>
+                    ))}
 
-  {/* קבצים קיימים – הורדה */}
-  {row.files && row.files.length > 0 && (
-    <div className="flex flex-col gap-1">
-      {row.files.map((file, idx) => (
-        <a
-          key={idx}
-          href={file.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          download
-          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-        >
-          ⬇️ הורדת {file.name || "קובץ"}
-        </a>
-      ))}
-    </div>
-  )}
+                    <label className="block cursor-pointer text-xs underline">
+                      העלאת קובץ
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={e => handleFiles(i, e.target.files)}
+                      />
+                    </label>
+                  </td>
 
-  {/* העלאת קובץ חדש */}
-  <label className="inline-block cursor-pointer">
-    <span className="text-xs text-gray-600 underline hover:text-gray-800">
-      העלאת קובץ חדש
-    </span>
-    <input
-      type="file"
-      multiple
-      className="hidden"
-      onChange={(e) => handleFiles(i, e.target.files)}
-    />
-  </label>
-
-</td>
-
-
-
-                  <td className="px-6 py-4 space-y-2">
-                   
-
+                  <td className="px-6 py-4">
                     <button
                       onClick={() => removeRow(i)}
-                      className="text-red-600 text-sm underline w-full"
+                      className="text-red-600 text-sm underline"
                     >
                       הסר מהאירוע
                     </button>
@@ -324,29 +306,25 @@ async function handleFiles(rowIndex, fileList) {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
       </div>
 
       {openAddModal && (
-  <AddRowModal
-    categories={categories}
-    onClose={() => {
-      setOpenAddModal(false);
-    }}
-    onAdd={data => {
-      addRow(data);
-      setOpenAddModal(false);
-    }}
-  />
-)}
-
+        <AddRowModal
+          categories={categories}
+          onClose={() => setOpenAddModal(false)}
+          onAdd={data => {
+            addRow(data);
+            setOpenAddModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
-
 
 /* ======================
    ADD ROW MODAL
@@ -356,16 +334,7 @@ function AddRowModal({ categories, onClose, onAdd }) {
   const [categoryId, setCategoryId] = useState("");
   const [sub, setSub] = useState("");
 
-  // ✅ GUARD – אם הקטגוריות עוד לא נטענו
-  if (!categories || categories.length === 0) {
-    return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl w-full max-w-lg p-8 text-center">
-          טוען תחומים…
-        </div>
-      </div>
-    );
-  }
+  if (!categories.length) return null;
 
   const category = categories.find(c => c._id === categoryId);
 
@@ -378,19 +347,14 @@ function AddRowModal({ categories, onClose, onAdd }) {
         <select
           className="border rounded-xl px-4 py-3 w-full"
           value={categoryId}
-          onChange={(e) => {
+          onChange={e => {
             setCategoryId(e.target.value);
             setSub("");
           }}
         >
-          <option value="" disabled>
-            בחר תחום
-          </option>
-
+          <option value="" disabled>בחר תחום</option>
           {categories.map(c => (
-            <option key={c._id} value={c._id}>
-              {c.name}
-            </option>
+            <option key={c._id} value={c._id}>{c.name}</option>
           ))}
         </select>
 
@@ -398,16 +362,11 @@ function AddRowModal({ categories, onClose, onAdd }) {
           <select
             className="border rounded-xl px-4 py-3 w-full"
             value={sub}
-            onChange={(e) => setSub(e.target.value)}
+            onChange={e => setSub(e.target.value)}
           >
-            <option value="" disabled>
-              בחר תת־תחום
-            </option>
-
+            <option value="" disabled>בחר תת־תחום</option>
             {category.subs.map(s => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
         )}
@@ -415,15 +374,12 @@ function AddRowModal({ categories, onClose, onAdd }) {
         <div className="flex justify-end gap-3">
           <button onClick={onClose}>ביטול</button>
           <button
-            onClick={() =>
-              category && sub &&
-              onAdd({
-                categoryId: category._id,
-                categoryName: category.name,
-                sub,
-              })
-            }
             className="bg-black text-white px-5 py-2 rounded-xl"
+            onClick={() => category && sub && onAdd({
+              categoryId: category._id,
+              categoryName: category.name,
+              sub,
+            })}
           >
             הוסף
           </button>
@@ -432,7 +388,6 @@ function AddRowModal({ categories, onClose, onAdd }) {
     </div>
   );
 }
-
 
 /* ======================
    SUPPLIER PICKER
