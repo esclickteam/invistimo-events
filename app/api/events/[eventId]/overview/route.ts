@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 import Event from "@/models/Event";
 import EventTask from "@/models/EventTask";
+import EventSupplier from "@/models/EventSupplier";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
@@ -70,8 +71,24 @@ export async function GET(
       .sort({ order: 1, dueDate: 1, createdAt: 1 })
       .lean();
 
-    const budgetTotal = Number(event.budgetTotal) || 0;
-    const spent = 0;
+    /* =========================
+       Load Suppliers (Budget Sync)
+    ========================= */
+    const suppliers = await EventSupplier.find({
+      eventId: event._id,
+    }).lean();
+
+    const budgetTotal = suppliers.reduce(
+      (sum, s) => sum + Number(s.price || 0),
+      0
+    );
+
+    const spent = suppliers.reduce(
+      (sum, s) => sum + Number(s.advance || 0),
+      0
+    );
+
+    const remaining = budgetTotal - spent;
 
     return NextResponse.json({
       success: true,
@@ -81,12 +98,14 @@ export async function GET(
         date: event.date,
         userId: event.userId,
         producerId: event.producerId,
-        budgetTotal,
+
+        // ⚠️ נשאר בשביל תאימות לאחור
+        budgetTotal: Number(event.budgetTotal) || 0,
       },
       budget: {
         total: budgetTotal,
         spent,
-        remaining: budgetTotal - spent,
+        remaining,
       },
       tasks,
     });
@@ -100,7 +119,7 @@ export async function GET(
 }
 
 /* =========================================================
-   PATCH – עדכון Overview (תקציב)
+   PATCH – עדכון Overview (תקציב ידני – נשאר)
 ========================================================= */
 export async function PATCH(
   req: NextRequest,

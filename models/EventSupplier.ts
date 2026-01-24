@@ -1,6 +1,39 @@
-// models/EventSupplier.js
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
+import Event from "@/models/Event";
 
+/* =========================================================
+   Types
+========================================================= */
+type EventSupplierDoc = {
+  eventId: Types.ObjectId;
+  price?: number;
+};
+
+/* =========================================================
+   Helper – Sync Event Budget from Suppliers
+========================================================= */
+async function syncEventBudget(eventId: Types.ObjectId) {
+  if (!eventId) return;
+
+  const suppliers = (await mongoose
+    .model<EventSupplierDoc>("EventSupplier")
+    .find({ eventId })
+    .select("price")
+    .lean()) as EventSupplierDoc[];
+
+  const total = suppliers.reduce(
+    (sum, s) => sum + Number(s.price || 0),
+    0
+  );
+
+  await Event.findByIdAndUpdate(eventId, {
+    $set: { budgetTotal: total },
+  });
+}
+
+/* =========================================================
+   Schema
+========================================================= */
 const EventSupplierSchema = new mongoose.Schema(
   {
     /* =========================
@@ -14,7 +47,7 @@ const EventSupplierSchema = new mongoose.Schema(
     },
 
     /* =========================
-       🗂 קטגוריה (CRITICAL)
+       🗂 קטגוריה
     ========================= */
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -23,7 +56,6 @@ const EventSupplierSchema = new mongoose.Schema(
       index: true,
     },
 
-    // שם לתצוגה (נשאר – טוב ל־UI ול־historical data)
     category: {
       type: String,
       required: true,
@@ -37,7 +69,7 @@ const EventSupplierSchema = new mongoose.Schema(
     },
 
     /* =========================
-       🧑 ספק נבחר
+       🧑 ספק
     ========================= */
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -68,36 +100,47 @@ const EventSupplierSchema = new mongoose.Schema(
     },
 
     /* =========================
-       📎 קבצים (Cloudinary)
+       📎 קבצים
     ========================= */
     files: [
       {
-        name: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        url: {
-          type: String,
-          required: true,
-        },
-        publicId: {
-          type: String,
-          required: true,
-        },
-        type: {
-          type: String, // pdf / image / docx וכו'
-        },
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        publicId: { type: String, required: true },
+        type: String,
       },
     ],
   },
-  {
-    timestamps: true,
+  { timestamps: true }
+);
+
+/* =========================================================
+   🔄 Auto Sync Event Budget
+========================================================= */
+EventSupplierSchema.post("save", async function () {
+  await syncEventBudget(this.eventId as Types.ObjectId);
+});
+
+EventSupplierSchema.post(
+  "findOneAndUpdate",
+  async function (doc: EventSupplierDoc | null) {
+    if (doc?.eventId) {
+      await syncEventBudget(doc.eventId);
+    }
   }
 );
 
-/**
- * ⚠️ חובה ב־Next.js App Router (HMR-safe)
- */
+EventSupplierSchema.post(
+  "findOneAndDelete",
+  async function (doc: EventSupplierDoc | null) {
+    if (doc?.eventId) {
+      await syncEventBudget(doc.eventId);
+    }
+  }
+);
+
+/* =========================================================
+   Export (HMR-safe)
+========================================================= */
 export default mongoose.models.EventSupplier ||
   mongoose.model("EventSupplier", EventSupplierSchema);
