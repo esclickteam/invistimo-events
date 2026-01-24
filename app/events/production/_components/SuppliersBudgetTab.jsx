@@ -278,9 +278,11 @@ async function updateSupplierName(i, value) {
 
                   <td className="px-6 py-4">
   <input
+    dir="rtl"
     className="
       border rounded-lg px-3 py-2
       w-full min-w-[200px]
+      text-right
     "
     placeholder="שם הספק"
     value={row.supplierName || ""}
