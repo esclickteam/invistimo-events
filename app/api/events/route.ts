@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Event from "@/models/Event";
 import User from "@/models/User";
@@ -29,7 +29,7 @@ export async function GET() {
 /* =========================
    POST – יצירה או עדכון כולל (UPSERT)
 ========================= */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
@@ -59,7 +59,6 @@ export async function POST(req: Request) {
         : { address: "", lat: null, lng: null },
     };
 
-    // אם יש budgetTotal במשלוח – נוסיף ל payload
     if (typeof body.budgetTotal === "number") {
       payload.budgetTotal = body.budgetTotal;
     }
@@ -90,8 +89,8 @@ export async function POST(req: Request) {
    PATCH – עדכון שדות ספציפיים (תקציב)
 ========================= */
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } } // ✅ טיפוס ברור
+  req: NextRequest,
+  context: { params: Record<string, string> } // ✅ טיפוס נכון ל־Next.js
 ) {
   try {
     await connectDB();
@@ -104,7 +103,7 @@ export async function PATCH(
     const body = await req.json();
     const { budgetTotal } = body;
 
-    const eventId = params.id;
+    const eventId = context.params.id; // עכשיו תקין
     const event = await Event.findById(eventId);
     if (!event) {
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
