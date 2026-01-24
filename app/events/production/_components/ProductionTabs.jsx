@@ -29,38 +29,55 @@ export default function ProductionTabs({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab =
-  (searchParams.get("tab") || "overview").split("/")[0];
 
+  const rawTab = searchParams.get("tab");
+  const activeTab = (rawTab || "overview").split("/")[0];
+
+  // ✅ DEBUG: מצב כללי של הטאב + URL
+  console.log("🧭 ProductionTabs state:", {
+    rawTab,
+    activeTab,
+    search: searchParams.toString(),
+    url: typeof window !== "undefined" ? window.location.href : "server",
+    eventIdProp: eventId || null,
+  });
 
   const changeTab = (tabKey) => {
-  const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams.toString());
 
-  // אם חסר eventId ב-URL, נשלים מה-prop
-  if (eventId && !params.get("eventId")) {
-    params.set("eventId", eventId);
-  }
+    // אם חסר eventId ב-URL, נשלים מה-prop
+    if (eventId && !params.get("eventId")) {
+      params.set("eventId", eventId);
+    }
 
-  // משנים רק tab, משאירים כל השאר
-  params.set("tab", tabKey);
+    // משנים רק tab, משאירים כל השאר
+    params.set("tab", tabKey);
 
-  router.push(`/events/production?${params.toString()}`);
-};
+    const nextUrl = `/events/production?${params.toString()}`;
+
+    // ✅ DEBUG: מה הולכים לנווט אליו
+    console.log("➡️ changeTab()", {
+      clickedTabKey: tabKey,
+      before: searchParams.toString(),
+      after: params.toString(),
+      nextUrl,
+    });
+
+    router.push(nextUrl);
+  };
 
   // Guard – נשאר כמו שהוא (לא שיניתי לוגיקה)
   if (!invitation && activeTab === "overview") {
-  return (
-    <div className="p-10 text-center text-gray-500">
-      <h3 className="text-lg font-semibold mb-2">
-        המשתמש עדיין לא קיבל הזמנה
-      </h3>
-      <p>
-        ההפקה תתאפשר לאחר יצירת הזמנה או אירוע.
-        אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
-      </p>
-    </div>
-  );
-}
+    return (
+      <div className="p-10 text-center text-gray-500">
+        <h3 className="text-lg font-semibold mb-2">המשתמש עדיין לא קיבל הזמנה</h3>
+        <p>
+          ההפקה תתאפשר לאחר יצירת הזמנה או אירוע. אם זה משתמש שנוצר ע״י מפיק,
+          ההזמנה תיווצר אוטומטית.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -71,6 +88,16 @@ export default function ProductionTabs({
             {TABS.map((tab) => {
               const isActive = activeTab === tab.key;
 
+              // ✅ DEBUG נקודתי: רק לטאב אלכוהול
+              if (tab.key === "alcohol") {
+                console.log("🍾 Alcohol button check:", {
+                  tabKey: tab.key,
+                  activeTab,
+                  isActive,
+                  rawTab,
+                });
+              }
+
               return (
                 <button
                   key={tab.key}
@@ -79,16 +106,8 @@ export default function ProductionTabs({
                   className={`
                     px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
                     transition
-                    ${
-                      isActive
-                        ? "bg-black text-white"
-                        : "text-black/70 hover:bg-black/5"
-                    }
-                    ${
-                      tab.live && !isActive
-                        ? "border border-black/20"
-                        : ""
-                    }
+                    ${isActive ? "bg-black text-white" : "text-black/70 hover:bg-black/5"}
+                    ${tab.live && !isActive ? "border border-black/20" : ""}
                   `}
                 >
                   {tab.label}
