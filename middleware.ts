@@ -67,22 +67,19 @@ export function middleware(req: NextRequest) {
 
   // Client area
   if (pathname.startsWith("/dashboard")) {
-    if (!isAuthed) return redirectToLogin(req);
-    // אם יש role — נוודא שזה client (או admin שמותר לו הכל)
-    if (role && role !== "client" && role !== "admin") return redirectToLogin(req);
-  }
+  if (!isAuthed) return redirectToLogin(req);
+}
 
   // Producer area
   if (pathname.startsWith("/producer")) {
-    if (!isAuthed) return redirectToLogin(req);
-    if (role && role !== "producer" && role !== "admin") return redirectToLogin(req);
-  }
+  if (!isAuthed) return redirectToLogin(req);
+}
 
   // Admin area
   if (pathname.startsWith("/admin")) {
-    if (!isAuthed) return redirectToLogin(req);
-    if (role !== "admin") return redirectToLogin(req);
-  }
+  if (!isAuthed) return redirectToLogin(req);
+}
+
 
   return NextResponse.next();
 }
