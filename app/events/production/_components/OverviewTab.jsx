@@ -27,7 +27,6 @@ export default function OverviewTab({ eventId }) {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [budget, setBudget] = useState(null); // ✅ חדש
   const [error, setError] = useState("");
 
   const [newTitle, setNewTitle] = useState("");
@@ -70,12 +69,14 @@ export default function OverviewTab({ eventId }) {
 
 
         setTasks(data.tasks || []);
-setBudget(data.budget || null);
 
 // 🛑 לא לדרוס draft אם המשתמש באמצע עריכה
 setBudgetDraft((prev) => {
-  if (isEditingBudget) return prev;
-  return data.event?.budgetTotal || 0;
+  // אם כבר יש ערך – לא לגעת
+  if (prev && prev > 0) return prev;
+
+  // אתחול פעם אחת בלבד
+  return data.event?.budgetTotal ?? 0;
 });
 
       } catch (e) {
@@ -88,13 +89,19 @@ setBudgetDraft((prev) => {
     load();
   }, [eventId]);
 
-  /* =====================
-     DERIVED (🔴 פה היה הבאג)
-  ===================== */
-  const budgetTotal = budget?.total ?? 0;
-const commitments = budget?.commitments ?? 0;
-const paid = budget?.paid ?? 0;
-const available = budget?.available ?? 0;
+const budgetTotal = event?.budgetTotal ?? 0;
+
+const commitments = useMemo(() => {
+  return tasks.reduce((sum, t) => sum + (t.commitment || 0), 0);
+}, [tasks]);
+
+const paid = useMemo(() => {
+  return tasks.reduce((sum, t) => sum + (t.paid || 0), 0);
+}, [tasks]);
+
+const available = budgetTotal - commitments - paid;
+
+
 
 
   const progress = budgetTotal
@@ -173,7 +180,6 @@ const available = budget?.available ?? 0;
       const data = await res.json();
       if (data?.success) {
         setTasks(data.tasks || []);
-        setBudget(data.budget || null); // ✅ סנכרון חוזר
       }
       setError("FAILED_TO_UPDATE_TASK");
     }
@@ -217,6 +223,8 @@ const available = budget?.available ?? 0;
 
     // ✅ עדכון event בלבד – budget מחושב מהשרת
     setEvent(data.event);
+    setBudgetDraft(data.event.budgetTotal);
+
   } catch (e) {
     setError("שגיאה בשמירת התקציב");
   } finally {
