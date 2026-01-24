@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import connectDB from "@/lib/db";
 import Event from "@/models/Event";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
-/* =========================
-   PATCH – update event
-========================= */
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -17,8 +14,10 @@ export async function PATCH(
 
     const { id } = await context.params;
 
-    const auth = await getUserIdFromRequest();
-    if (!auth?.userId) {
+    const cookieStore = await cookies();
+const userId = cookieStore.get("userId")?.value;
+
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
@@ -29,7 +28,7 @@ export async function PATCH(
     const { budgetTotal } = body;
 
     const event = await Event.findOneAndUpdate(
-      { _id: id, userId: auth.userId },
+      { _id: id, userId },
       { $set: { budgetTotal: Number(budgetTotal) || 0 } },
       { new: true }
     );
