@@ -1,27 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import EventSupplier from "@/models/EventSupplier";
 
 /* =========================================================
    PATCH – עדכון ספק לאירוע
-   מאפשר:
-   - supplierId
-   - price
-   - advance
-   - balance
-   - files
 ========================================================= */
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { eventId: string; supplierRowId: string } }
+  request: NextRequest,
+  context: {
+    params: Promise<{
+      eventId: string;
+      supplierRowId: string;
+    }>;
+  }
 ) {
   try {
     await db();
 
-    const body = await req.json();
+    const { eventId, supplierRowId } = await context.params;
+    const body = await request.json();
 
-    // חסימת עדכון שדות אסורים (ביטחון בסיסי)
     const allowedFields = [
       "supplierId",
       "price",
@@ -31,7 +30,6 @@ export async function PATCH(
     ];
 
     const updateData: Record<string, any> = {};
-
     for (const key of allowedFields) {
       if (key in body) {
         updateData[key] = body[key];
@@ -46,10 +44,7 @@ export async function PATCH(
     }
 
     const updated = await EventSupplier.findOneAndUpdate(
-      {
-        _id: params.supplierRowId,
-        eventId: params.eventId,
-      },
+      { _id: supplierRowId, eventId },
       { $set: updateData },
       { new: true }
     ).populate("supplierId");
@@ -62,8 +57,8 @@ export async function PATCH(
     }
 
     return NextResponse.json(updated);
-  } catch (err) {
-    console.error("PATCH event supplier error:", err);
+  } catch (error) {
+    console.error("PATCH event supplier error:", error);
     return NextResponse.json(
       { error: "Failed to update event supplier" },
       { status: 500 }
@@ -73,19 +68,25 @@ export async function PATCH(
 
 /* =========================================================
    DELETE – הסרת ספק מהאירוע
-   ⚠️ לא מוחק את הספק הגלובלי
 ========================================================= */
 
 export async function DELETE(
-  _req: Request,
-  { params }: { params: { eventId: string; supplierRowId: string } }
+  _request: NextRequest,
+  context: {
+    params: Promise<{
+      eventId: string;
+      supplierRowId: string;
+    }>;
+  }
 ) {
   try {
     await db();
 
+    const { eventId, supplierRowId } = await context.params;
+
     const deleted = await EventSupplier.findOneAndDelete({
-      _id: params.supplierRowId,
-      eventId: params.eventId,
+      _id: supplierRowId,
+      eventId,
     });
 
     if (!deleted) {
@@ -96,8 +97,8 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("DELETE event supplier error:", err);
+  } catch (error) {
+    console.error("DELETE event supplier error:", error);
     return NextResponse.json(
       { error: "Failed to delete event supplier" },
       { status: 500 }
