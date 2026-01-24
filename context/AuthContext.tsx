@@ -8,6 +8,8 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+
 
 /* =====================================================
    TYPES
@@ -68,6 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [loading, setLoading] = useState(true);
+
+  const pathname = usePathname();
+
+const PUBLIC_ROUTES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+];
+
 
   /* --------------------------------------------------
      🔐 מקור אמת יחיד – השרת
@@ -202,10 +213,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      ⏳ Guard – לא מציג ילדים לפני אימות
   -------------------------------------------------- */
   if (loading) {
-    return null; // או Spinner
-  }
+  return null;
+}
 
-  if (!user) {
+const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+
+if (!user && !isPublicRoute) {
   router.replace("/login");
   return null;
 }
