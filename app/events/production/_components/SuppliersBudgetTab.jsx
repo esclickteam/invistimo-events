@@ -266,8 +266,7 @@ export default function SuppliersTab({ eventId }) {
 
                       <a
   href={`${file.url}?fl_attachment=${encodeURIComponent(file.name)}`}
-  target="_blank"
-  rel="noopener noreferrer"
+  className="underline text-blue-600 text-sm"
 >
   ⬇️ הורדת {file.name}
 </a>
