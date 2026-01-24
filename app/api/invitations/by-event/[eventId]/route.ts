@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> } // ✅ Promise
 ) {
   try {
     await connectDB();
@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const { eventId } = params;
+    const { eventId } = await params; // ✅ await
     if (!eventId) {
       return NextResponse.json(
         { success: false, error: "MISSING_EVENT_ID" },
@@ -45,15 +45,11 @@ export async function GET(
 
     /* =========================
        Authorization
-       - Owner
-       - Producer (createdByProducer)
-       - Admin
     ========================= */
     const isOwner = String(event.userId) === String(auth.userId);
     const isProducer =
       auth.role === "producer" &&
       String(event.createdByProducer) === String(auth.userId);
-
     const isAdmin = auth.role === "admin";
 
     if (!isOwner && !isProducer && !isAdmin) {
@@ -68,16 +64,9 @@ export async function GET(
     ========================= */
     const invitation = await Invitation.findOne({ eventId }).lean();
 
-    if (!invitation) {
-      return NextResponse.json({
-        success: true,
-        invitation: null,
-      });
-    }
-
     return NextResponse.json({
       success: true,
-      invitation,
+      invitation: invitation || null,
     });
   } catch (err) {
     console.error("❌ GET /api/invitations/by-event failed:", err);
