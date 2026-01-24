@@ -36,8 +36,11 @@ export async function POST(
             folder: `events/suppliers/${supplierRowId}`,
             resource_type: "raw",
 
-            // ⭐⭐⭐ העיקר כאן ⭐⭐⭐
-            filename_override: file.name, // שומר שם + סיומת (.pdf)
+            // ⭐⭐ השינויים החשובים ⭐⭐
+            access_mode: "public",          // ⬅️ מבטל 401
+            flags: "attachment",            // מאפשר שליטה בתצוגה
+
+            filename_override: file.name,   // שומר שם קובץ + סיומת
             use_filename: false,
             unique_filename: false,
           },
@@ -49,11 +52,17 @@ export async function POST(
         .end(buffer);
     });
 
+    // 🔧 הפיכת ה-URL ל-inline לצפייה בדפדפן
+    const inlineUrl = result.secure_url.replace(
+      "/raw/upload/",
+      "/raw/upload/fl_inline/"
+    );
+
     uploadedFiles.push({
-      name: file.name,              // למשל: "הסכם ספק.pdf"
-      url: result.secure_url,       // URL תקין
-      publicId: result.public_id,   // כולל .pdf
-      type: file.type,              // application/pdf
+      name: file.name,
+      url: inlineUrl,          // ⬅️ URL לצפייה
+      publicId: result.public_id,
+      type: file.type,
     });
   }
 
