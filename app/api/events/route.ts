@@ -89,7 +89,10 @@ export async function POST(req: Request) {
 /* =========================
    PATCH – עדכון שדות ספציפיים (תקציב)
 ========================= */
-export async function PATCH(req: Request, { params }) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string } } // ✅ טיפוס ברור
+) {
   try {
     await connectDB();
 
@@ -101,7 +104,6 @@ export async function PATCH(req: Request, { params }) {
     const body = await req.json();
     const { budgetTotal } = body;
 
-    // ✅ שימוש ב־params.id במקום userId
     const eventId = params.id;
     const event = await Event.findById(eventId);
     if (!event) {
