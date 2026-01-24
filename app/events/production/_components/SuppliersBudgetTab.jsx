@@ -280,6 +280,7 @@ export default function SuppliersTab({ eventId }) {
   
 
 
+
   setPreviewFile(file);
 }}
 
