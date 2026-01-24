@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Fragment } from "react";
+import { useEffect, useState, Fragment, useRef } from "react";
 
 /* ======================
    MAIN
@@ -12,6 +12,8 @@ export default function SuppliersTab({ eventId }) {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openSupplierRow, setOpenSupplierRow] = useState(null);
   const [loading, setLoading] = useState(true);
+  const supplierNameTimeout = useRef(null);
+
 
   // ✅ Preview state (בלי לשנות לוגיקה קיימת)
   const [previewFile, setPreviewFile] = useState(null);
@@ -133,7 +135,7 @@ export default function SuppliersTab({ eventId }) {
    UPDATE SUPPLIER NAME
 ====================== */
 
-async function updateSupplierName(i, value) {
+function updateSupplierName(i, value) {
   const row = rows[i];
 
   // UI מיידי
@@ -143,14 +145,18 @@ async function updateSupplierName(i, value) {
     return copy;
   });
 
-  // שמירה בשרת
-  await fetch(`/api/events/${eventId}/suppliers/${row.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      supplierName: value,
-    }),
-  });
+  // ⏱️ debounce לשמירה בשרת
+  if (supplierNameTimeout.current) {
+    clearTimeout(supplierNameTimeout.current);
+  }
+
+  supplierNameTimeout.current = setTimeout(async () => {
+    await fetch(`/api/events/${eventId}/suppliers/${row.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ supplierName: value }),
+    });
+  }, 400);
 }
 
 
