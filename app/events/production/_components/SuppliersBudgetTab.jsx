@@ -271,7 +271,19 @@ export default function SuppliersTab({ eventId }) {
                         key={idx}
                         type="button"
                         className="block text-sm text-blue-600 underline text-right"
-                        onClick={() => setPreviewFile(file)}
+                        onClick={() => {
+  const name = file?.name || "";
+  const isPdf =
+    (file?.type || "").includes("pdf") || name.toLowerCase().endsWith(".pdf");
+
+  if (isPdf) {
+    window.open(file.url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  setPreviewFile(file);
+}}
+
                       >
                         👁️ {file.name || "קובץ"}
                       </button>
@@ -488,29 +500,38 @@ function FilePreviewModal({ file, onClose }) {
         {/* Body */}
         <div className="h-[75vh] bg-gray-50">
           {isPdf ? (
-            <iframe src={url} title={name} className="w-full h-full" />
-          ) : isImage ? (
-            <div className="w-full h-full flex items-center justify-center p-6">
-              <img
-                src={url}
-                alt={name}
-                className="max-h-full max-w-full rounded-xl shadow"
-              />
-            </div>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-4">
-              <div className="text-gray-700 font-medium">
-                אין תצוגה מקדימה לסוג הקובץ הזה
-              </div>
-              <button
-                type="button"
-                className="bg-black text-white px-5 py-2 rounded-xl"
-                onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
-              >
-                פתח בטאב חדש
-              </button>
-            </div>
-          )}
+  <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-4">
+    <div className="text-gray-700 font-medium">קובץ PDF נפתח בטאב חדש</div>
+    <button
+      type="button"
+      className="bg-black text-white px-5 py-2 rounded-xl"
+      onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+    >
+      פתח PDF
+    </button>
+  </div>
+) : isImage ? (
+  <div className="w-full h-full flex items-center justify-center p-6">
+    <img
+      src={url}
+      alt={name}
+      className="max-h-full max-w-full rounded-xl shadow"
+    />
+  </div>
+) : (
+  <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-4">
+    <div className="text-gray-700 font-medium">אין תצוגה מקדימה לסוג הקובץ הזה</div>
+    <button
+      type="button"
+      className="bg-black text-white px-5 py-2 rounded-xl"
+      onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+    >
+      פתח בטאב חדש
+    </button>
+  </div>
+)}
+
+
         </div>
       </div>
     </div>
