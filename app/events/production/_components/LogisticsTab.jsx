@@ -213,24 +213,7 @@ export default function LogisticsTab({ eventId }) {
     }
   }
 
-  async function syncSuppliers() {
-    try {
-      const res = await fetch(
-        `/api/events/${eventId}/logistics/sync-suppliers`,
-        { method: "POST" }
-      );
-
-      if (!res.ok) {
-        console.error("❌ sync suppliers failed:", res.status);
-        return;
-      }
-
-      const data = await res.json();
-      if (data.success) setSteps(data.steps);
-    } catch (err) {
-      console.error("❌ sync suppliers error:", err);
-    }
-  }
+  
 
   /* ---------- Drag ---------- */
   async function handleDragEnd({ active, over }) {
@@ -260,12 +243,7 @@ export default function LogisticsTab({ eventId }) {
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex justify-between">
         <h2 className="text-xl font-semibold">לו״ז לוגיסטי</h2>
-        <button
-          onClick={syncSuppliers}
-          className="border rounded px-3 py-1"
-        >
-          סנכרון מספקים
-        </button>
+        
       </div>
 
       <DndContext
