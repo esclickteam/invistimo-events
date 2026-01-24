@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, useRef } from "react";
 /* ======================================================
    MAIN
 ====================================================== */
@@ -11,6 +10,8 @@ export default function AlcoholManagementSystem({ eventId }) {
   const [bottles, setBottles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [log, setLog] = useState([]);
+  const bottleFieldTimeout = useRef({});
+
 
   /* ======================================================
      LOAD FROM API
@@ -123,6 +124,28 @@ export default function AlcoholManagementSystem({ eventId }) {
     updateBottle(bottle._id, updated);
   }
 
+  function updateBottleField(i, field, value) {
+  const bottle = bottles[i];
+
+  // UI מיידי
+  setBottles((prev) => {
+    const copy = [...prev];
+    copy[i] = { ...copy[i], [field]: value };
+    return copy;
+  });
+
+  // debounce לשמירה בשרת
+  const key = `${bottle._id}-${field}`;
+  if (bottleFieldTimeout.current[key]) {
+    clearTimeout(bottleFieldTimeout.current[key]);
+  }
+
+  bottleFieldTimeout.current[key] = setTimeout(() => {
+    updateBottle(bottle._id, { [field]: value });
+  }, 400);
+}
+
+
   async function openBottle(bottle, allocationIndex) {
     const allocations = [...bottle.allocations];
     const a = allocations[allocationIndex];
@@ -157,28 +180,28 @@ export default function AlcoholManagementSystem({ eventId }) {
       {/* ================= PLANNING ================= */}
       {mode === "planning" && (
         <>
-          {bottles.filter(Boolean).map((b) => (
+          {bottles.filter(Boolean).map((b, i) => (
   <Card key={b._id}>
     <div className="grid grid-cols-5 gap-3 items-end">
       <Input
         label="קטגוריה"
         value={b.category ?? ""}
-        onChange={(v) => updateBottle(b._id, { category: v })}
+        onChange={(v) => updateBottleField(i, "category", v)}
       />
       <Input
         label="מותג"
         value={b.brand ?? ""}
-        onChange={(v) => updateBottle(b._id, { brand: v })}
+        onChange={(v) => updateBottleField(i, "brand", v)}
       />
       <Input
         label="טעם"
         value={b.flavor ?? ""}
-        onChange={(v) => updateBottle(b._id, { flavor: v })}
+        onChange={(v) => updateBottleField(i, "flavor", v)}
       />
       <NumberInput
         label="סה״כ בקבוקים"
         value={b.total ?? 0}
-        onChange={(v) => updateBottle(b._id, { total: v })}
+        onChange={(v) => updateBottleField(i, "total", Number(v) || 0)}
       />
       <button onClick={() => removeBottle(b._id)} className="text-red-600 text-sm">
         מחיקה
