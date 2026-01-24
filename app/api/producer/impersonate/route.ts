@@ -7,128 +7,159 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
+/* =========================================================
+   Cookie helpers
+========================================================= */
+function getCookieDomain() {
+  return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+}
+
+function httpOnlyCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    domain: getCookieDomain(),
+  };
+}
+
 /* =========================
    POST /api/producer/impersonate
 ========================= */
 export async function POST(req: NextRequest) {
   console.log("🟡 [Producer Impersonate] Request received");
 
-  await dbConnect();
+  try {
+    await dbConnect();
 
-  /* =========================
-     🔐 Auth – מפיק אמיתי
-  ========================= */
-  const auth = await getUserIdFromRequest();
+    /* =========================
+       🔐 Auth – מפיק אמיתי
+    ========================= */
+    const auth = await getUserIdFromRequest();
 
-  if (!auth?.userId) {
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const producer = await User.findById(auth.userId)
+      .select("_id role")
+      .lean();
+
+    if (!producer || producer.role !== "producer") {
+      return NextResponse.json(
+        { success: false, message: "Forbidden – not producer" },
+        { status: 403 }
+      );
+    }
+
+    /* =========================
+       📥 Input
+    ========================= */
+    const body = await req.json().catch(() => ({}));
+    const clientId = body?.clientId;
+
+    if (!clientId) {
+      return NextResponse.json(
+        { success: false, message: "Missing clientId" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       👤 Client ownership
+    ========================= */
+    const client = await User.findOne({
+      _id: clientId,
+      producerId: producer._id,
+    })
+      .select("_id")
+      .lean();
+
+    if (!client) {
+      return NextResponse.json(
+        { success: false, message: "Client not found or not yours" },
+        { status: 403 }
+      );
+    }
+
+    /* =========================
+       🎬 Client Event
+    ========================= */
+    const event = await Event.findOne({
+      userId: client._id,
+    })
+      .select("_id")
+      .lean();
+
+    if (!event) {
+      return NextResponse.json(
+        { success: false, message: "Event not found for client" },
+        { status: 404 }
+      );
+    }
+
+    /* =========================
+       🍪 Cookies (read)
+    ========================= */
+    const cookieStore = await cookies();
+
+    // זה הטוקן של המפיק כרגע (לפני התחזות)
+    const currentAuthToken = cookieStore.get("authToken")?.value || null;
+    const existingProducerToken =
+      cookieStore.get("producerAuthToken")?.value || null;
+
+    if (!currentAuthToken) {
+      return NextResponse.json(
+        { success: false, message: "Missing producer session" },
+        { status: 401 }
+      );
+    }
+
+    /* =========================
+       🎭 Impersonation token
+    ========================= */
+    const impersonationToken = jwt.sign(
+      {
+        userId: client._id.toString(),
+        role: "client",
+        impersonated: true,
+        impersonatedBy: producer._id.toString(),
+        impersonationRole: "producer",
+      },
+      process.env.JWT_SECRET!,
+      { expiresIn: "1h" }
+    );
+
+    /* =========================
+       ✅ Response + Set-Cookies
+    ========================= */
+    const res = NextResponse.json(
+      { success: true, eventId: event._id.toString() },
+      { status: 200 }
+    );
+
+    const opts = httpOnlyCookieOptions();
+
+    // ✅ שומרים producerAuthToken פעם אחת (לא לדרוס אם קיים)
+    if (!existingProducerToken) {
+      res.cookies.set("producerAuthToken", currentAuthToken, opts);
+    }
+
+    // ✅ מחליפים authToken לטוקן התחזות
+    res.cookies.set("authToken", impersonationToken, opts);
+
+    console.log("🍪 authToken overwritten; producerAuthToken preserved");
+
+    return res;
+  } catch (err) {
+    console.error("❌ [Producer Impersonate] Error:", err);
     return NextResponse.json(
-      { success: false, message: "Unauthorized" },
-      { status: 401 }
+      { success: false, message: "Server error" },
+      { status: 500 }
     );
   }
-
-  const producer = await User.findById(auth.userId).select("_id role");
-
-  if (!producer || producer.role !== "producer") {
-    return NextResponse.json(
-      { success: false, message: "Forbidden – not producer" },
-      { status: 403 }
-    );
-  }
-
-  /* =========================
-     📥 Input
-  ========================= */
-  const { clientId } = await req.json();
-
-  if (!clientId) {
-    return NextResponse.json(
-      { success: false, message: "Missing clientId" },
-      { status: 400 }
-    );
-  }
-
-  /* =========================
-     👤 Client ownership
-  ========================= */
-  const client = await User.findOne({
-    _id: clientId,
-    producerId: producer._id,
-  }).select("_id");
-
-  if (!client) {
-    return NextResponse.json(
-      { success: false, message: "Client not found or not yours" },
-      { status: 403 }
-    );
-  }
-
-  /* =========================
-     🎬 Client Event
-  ========================= */
-  const event = await Event.findOne({
-    userId: client._id,
-  }).select("_id");
-
-  if (!event) {
-    return NextResponse.json(
-      { success: false, message: "Event not found for client" },
-      { status: 404 }
-    );
-  }
-
-  /* =========================
-     🍪 Cookies
-  ========================= */
-  const cookieStore = await cookies();
-
-  const producerAuthToken = cookieStore.get("authToken")?.value;
-
-  if (!producerAuthToken) {
-    return NextResponse.json(
-      { success: false, message: "Missing producer session" },
-      { status: 401 }
-    );
-  }
-
-  // 🧠 שומרים את session של המפיק
-  cookieStore.set("producerAuthToken", producerAuthToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
-
-  /* =========================
-     🎭 Impersonation token
-  ========================= */
-  const impersonationToken = jwt.sign(
-    {
-      userId: client._id.toString(),
-      role: "client",
-      impersonated: true,
-      impersonatedBy: producer._id.toString(),
-      impersonationRole: "producer",
-    },
-    process.env.JWT_SECRET!,
-    { expiresIn: "1h" }
-  );
-
-  // 🔁 overwrite authToken
-  cookieStore.set("authToken", impersonationToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
-
-  console.log("🍪 authToken overwritten, producerAuthToken saved");
-
-  /* =========================
-     ✅ Response
-  ========================= */
-  return NextResponse.json({
-    success: true,
-    eventId: event._id.toString(),
-  });
 }
