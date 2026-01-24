@@ -101,7 +101,11 @@ export async function GET(
       0
     );
 
-    const available = Math.max(budgetTotal - commitments - paid, 0);
+    const available = Math.max(
+  budgetTotal - commitments,
+  0
+);
+
 
     console.log("🟢 GET /overview – calculated budget:", {
       budgetTotal,
