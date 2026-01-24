@@ -27,12 +27,13 @@ export default function OverviewTab({ eventId }) {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [budget, setBudget] = useState(null); // ✅ חדש
   const [error, setError] = useState("");
 
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState("");
 
-  /* 🆕 budget edit */
+  /* 🆕 budget edit (נשאר לתאימות) */
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState(0);
   const [savingBudget, setSavingBudget] = useState(false);
@@ -64,7 +65,8 @@ export default function OverviewTab({ eventId }) {
 
         setEvent(data.event);
         setTasks(data.tasks || []);
-        setBudgetDraft(data.event?.budgetTotal || 0);
+        setBudget(data.budget || null); // ✅ חשוב
+        setBudgetDraft(data.event?.budgetTotal || 0); // נשאר
       } catch (e) {
         setError("NETWORK_ERROR");
       } finally {
@@ -76,11 +78,12 @@ export default function OverviewTab({ eventId }) {
   }, [eventId]);
 
   /* =====================
-     DERIVED
+     DERIVED (🔴 פה היה הבאג)
   ===================== */
-  const budgetTotal = event?.budgetTotal || 0;
-  const spent = 0;
-  const remaining = budgetTotal - spent;
+  const budgetTotal = budget?.total || 0;
+  const spent = budget?.spent || 0;
+  const remaining = budget?.remaining || 0;
+
   const progress = budgetTotal
     ? Math.round((spent / budgetTotal) * 100)
     : 0;
@@ -156,48 +159,47 @@ export default function OverviewTab({ eventId }) {
       const data = await res.json();
       if (data?.success) {
         setTasks(data.tasks || []);
+        setBudget(data.budget || null); // ✅ סנכרון חוזר
       }
       setError("FAILED_TO_UPDATE_TASK");
     }
   }
 
-  /* 🆕 SAVE BUDGET */
+  /* 🆕 SAVE BUDGET – נשאר כמו שהוא */
   async function saveBudget() {
-  if (!eventId) return;
+    if (!eventId) return;
 
-  setSavingBudget(true);
-  setError("");
+    setSavingBudget(true);
+    setError("");
 
-  try {
-    const res = await fetch(`/api/events/${eventId}/overview`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        budgetTotal: Number(budgetDraft) || 0,
-      }),
-    });
+    try {
+      const res = await fetch(`/api/events/${eventId}/overview`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budgetTotal: Number(budgetDraft) || 0,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok || !data.success) {
-      throw new Error("SAVE_BUDGET_FAILED");
+      if (!res.ok || !data.success) {
+        throw new Error("SAVE_BUDGET_FAILED");
+      }
+
+      setEvent(data.event);
+      setIsEditingBudget(false);
+    } catch (e) {
+      setError("שגיאה בשמירת התקציב");
+    } finally {
+      setSavingBudget(false);
     }
-
-    setEvent(data.event);
-    setIsEditingBudget(false);
-  } catch (e) {
-    setError("שגיאה בשמירת התקציב");
-  } finally {
-    setSavingBudget(false);
   }
-}
 
   /* =====================
      UI STATES
   ===================== */
-  if (loading) {
-    return <div className="p-10">טוען…</div>;
-  }
+  if (loading) return <div className="p-10">טוען…</div>;
 
   if (!event) {
     return (
@@ -230,20 +232,7 @@ export default function OverviewTab({ eventId }) {
 
       {/* BUDGET */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <EditableBudgetCard
-          title="תקציב כולל"
-          value={budgetDraft}
-          isEditing={isEditingBudget}
-          loading={savingBudget}
-          onEdit={() => setIsEditingBudget(true)}
-          onCancel={() => {
-            setBudgetDraft(event.budgetTotal || 0);
-            setIsEditingBudget(false);
-          }}
-          onChange={setBudgetDraft}
-          onSave={saveBudget}
-        />
-
+        <BudgetCard title="תקציב כולל" value={budgetTotal} />
         <BudgetCard title="יצא עד כה" value={spent} />
         <BudgetCard title="יתרה" value={remaining} highlight />
       </div>
@@ -270,9 +259,7 @@ export default function OverviewTab({ eventId }) {
       <div className="bg-white rounded-2xl border border-[#E7E3DC] p-6 space-y-4">
         <h2 className="text-lg font-semibold">משימות</h2>
 
-        {error && (
-          <div className="text-sm text-red-600">{error}</div>
-        )}
+        {error && <div className="text-sm text-red-600">{error}</div>}
 
         <div className="divide-y">
           {tasks.map((task) => (
@@ -366,66 +353,6 @@ function BudgetCard({ title, value, highlight = false }) {
       <p className="text-2xl font-semibold">
         ₪{value.toLocaleString()}
       </p>
-    </div>
-  );
-}
-
-function EditableBudgetCard({
-  title,
-  value,
-  isEditing,
-  onEdit,
-  onCancel,
-  onChange,
-  onSave,
-  loading,
-}) {
-  return (
-    <div className="rounded-2xl p-5 border border-[#E7E3DC] bg-white relative">
-      <p className="text-sm text-gray-500 mb-1">{title}</p>
-
-      {!isEditing ? (
-        <>
-          <p className="text-2xl font-semibold">
-            ₪{Number(value).toLocaleString()}
-          </p>
-          <button
-            onClick={onEdit}
-            className="absolute top-4 left-4 text-xs text-[#6D6AF4]"
-          >
-            עריכה
-          </button>
-        </>
-      ) : (
-        <div className="space-y-3">
-          <input
-            type="number"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2 text-lg"
-            min={0}
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={onSave}
-              disabled={loading}
-              className="flex-1 rounded-lg py-2 text-white text-sm"
-              style={{
-                background:
-                  "linear-gradient(90deg, #6D6AF4, #8B87FF)",
-              }}
-            >
-              {loading ? "שומר…" : "שמור"}
-            </button>
-            <button
-              onClick={onCancel}
-              className="flex-1 rounded-lg py-2 text-sm border"
-            >
-              ביטול
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
