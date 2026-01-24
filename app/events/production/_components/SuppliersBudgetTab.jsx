@@ -163,6 +163,41 @@ export default function SuppliersTab({ eventId }) {
     });
   }
 
+  /* ======================
+   UPLOAD FILES
+====================== */
+
+async function handleFiles(rowIndex, fileList) {
+  if (!fileList || fileList.length === 0) return;
+
+  const formData = new FormData();
+  Array.from(fileList).forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const row = rows[rowIndex];
+
+  const res = await fetch(
+    `/api/events/${eventId}/suppliers/${row.id}/files`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const savedFiles = await res.json();
+
+  setRows((prev) => {
+    const copy = [...prev];
+    copy[rowIndex] = {
+      ...copy[rowIndex],
+      files: savedFiles,
+    };
+    return copy;
+  });
+}
+
+
   if (loading) {
     return <div className="py-20 text-center text-gray-400">טוען ספקים…</div>;
   }
@@ -230,7 +265,12 @@ export default function SuppliersTab({ eventId }) {
                   ))}
 
                   <td className="px-6 py-4">
-                    <input type="file" multiple />
+                    <input
+  type="file"
+  multiple
+  onChange={(e) => handleFiles(i, e.target.files)}
+/>
+
                   </td>
 
                   <td className="px-6 py-4 space-y-2">
