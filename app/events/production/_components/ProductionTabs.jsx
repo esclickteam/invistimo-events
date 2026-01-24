@@ -71,7 +71,7 @@ export default function ProductionTabs({
                         : "text-black/70 hover:bg-black/5"
                     }
                     ${
-                      tab.live && !isActive
+                       tab.live && !isActive
                         ? "border border-black/20"
                         : ""
                     }

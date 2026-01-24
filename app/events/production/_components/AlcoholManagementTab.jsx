@@ -22,7 +22,6 @@ export default function AlcoholManagementSystem() {
 
   // allocations[bottleId] = [{ id, location, qty, opened }]
   const [allocations, setAllocations] = useState({});
-
   const [log, setLog] = useState([]);
 
   /* ======================================================
@@ -30,17 +29,11 @@ export default function AlcoholManagementSystem() {
   ====================================================== */
 
   function addLog(text) {
-    setLog((prev) => [
-      { time: new Date().toLocaleTimeString(), text },
-      ...prev,
-    ]);
+    setLog((prev) => [{ time: new Date().toLocaleTimeString(), text }, ...prev]);
   }
 
   function totalAllocated(bottleId) {
-    return (allocations[bottleId] || []).reduce(
-      (sum, r) => sum + r.qty,
-      0
-    );
+    return (allocations[bottleId] || []).reduce((sum, r) => sum + r.qty, 0);
   }
 
   function remainingUnallocated(bottle) {
@@ -109,24 +102,17 @@ export default function AlcoholManagementSystem() {
 
     setAllocations((prev) => ({
       ...prev,
-      [bottle.id]: prev[bottle.id].map((a) =>
-        a.id === allocation.id
-          ? { ...a, opened: a.opened + 1 }
-          : a
+      [bottle.id]: (prev[bottle.id] || []).map((a) =>
+        a.id === allocation.id ? { ...a, opened: a.opened + 1 } : a
       ),
     }));
 
-    addLog(
-      `${bottle.brand} – נפתח בקבוק (${allocation.location})`
-    );
+    addLog(`${bottle.brand} – נפתח בקבוק (${allocation.location})`);
   }
 
   function openExtraBottle(bottle, location) {
     if (!location) return;
-
-    addLog(
-      `${bottle.brand} – נפתח בקבוק נוסף → ${location}`
-    );
+    addLog(`${bottle.brand} – נפתח בקבוק נוסף → ${location}`);
   }
 
   /* ======================================================
@@ -135,14 +121,25 @@ export default function AlcoholManagementSystem() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
-
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">🍾 מערכת ניהול אלכוהול</h1>
         <div className="flex gap-2">
-          <ModeButton label="תכנון" active={mode === "planning"} onClick={() => setMode("planning")} />
-          <ModeButton label="הקצאות" active={mode === "allocation"} onClick={() => setMode("allocation")} />
-          <ModeButton label="לייב" active={mode === "live"} onClick={() => setMode("live")} />
+          <ModeButton
+            label="תכנון"
+            active={mode === "planning"}
+            onClick={() => setMode("planning")}
+          />
+          <ModeButton
+            label="הקצאות"
+            active={mode === "allocation"}
+            onClick={() => setMode("allocation")}
+          />
+          <ModeButton
+            label="לייב"
+            active={mode === "live"}
+            onClick={() => setMode("live")}
+          />
         </div>
       </div>
 
@@ -152,18 +149,42 @@ export default function AlcoholManagementSystem() {
           {bottles.map((b, i) => (
             <Card key={b.id}>
               <div className="grid grid-cols-5 gap-3 items-end">
-                <Input label="קטגוריה" value={b.category} onChange={(v) => updateBottle(i, "category", v)} />
-                <Input label="מותג" value={b.brand} onChange={(v) => updateBottle(i, "brand", v)} />
-                <Input label="טעם" value={b.flavor} onChange={(v) => updateBottle(i, "flavor", v)} />
-                <NumberInput label="סה״כ בקבוקים" value={b.total} onChange={(v) => updateBottle(i, "total", v)} />
-                <button onClick={() => removeBottle(b.id)} className="text-red-600 text-sm">
+                <Input
+                  label="קטגוריה"
+                  value={b.category}
+                  onChange={(v) => updateBottle(i, "category", v)}
+                />
+                <Input
+                  label="מותג"
+                  value={b.brand}
+                  onChange={(v) => updateBottle(i, "brand", v)}
+                />
+                <Input
+                  label="טעם"
+                  value={b.flavor}
+                  onChange={(v) => updateBottle(i, "flavor", v)}
+                />
+                <NumberInput
+                  label="סה״כ בקבוקים"
+                  value={b.total}
+                  onChange={(v) => updateBottle(i, "total", v)}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeBottle(b.id)}
+                  className="text-red-600 text-sm"
+                >
                   מחיקה
                 </button>
               </div>
             </Card>
           ))}
 
-          <button onClick={addBottle} className="px-5 py-2 bg-black text-white rounded-lg">
+          <button
+            type="button"
+            onClick={addBottle}
+            className="px-5 py-2 bg-black text-white rounded-lg"
+          >
             ➕ הוסף סוג אלכוהול
           </button>
         </>
@@ -196,18 +217,22 @@ export default function AlcoholManagementSystem() {
       {/* ================= LIVE ================= */}
       {mode === "live" && (
         <div className="grid grid-cols-3 gap-6">
-
           <div className="col-span-2 space-y-4">
             {bottles.map((b) => (
               <Card key={b.id}>
                 <div className="font-bold mb-2">{b.brand}</div>
 
                 {(allocations[b.id] || []).map((a) => (
-                  <div key={a.id} className="flex justify-between items-center text-sm mb-1">
+                  <div
+                    key={a.id}
+                    className="flex justify-between items-center text-sm mb-1"
+                  >
                     <span>
-                      {a.location} | הוקצו: {a.qty} | נפתחו: {a.opened} | נותרו: {a.qty - a.opened}
+                      {a.location} | הוקצו: {a.qty} | נפתחו: {a.opened} | נותרו:{" "}
+                      {a.qty - a.opened}
                     </span>
                     <button
+                      type="button"
                       disabled={a.opened >= a.qty}
                       onClick={() => openBottle(b, a)}
                       className="px-3 py-1 bg-black text-white rounded disabled:bg-gray-300"
@@ -243,6 +268,7 @@ export default function AlcoholManagementSystem() {
 function ModeButton({ label, active, onClick }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`px-4 py-2 rounded-full ${
         active ? "bg-black text-white" : "bg-gray-200"
@@ -261,7 +287,11 @@ function Input({ label, value, onChange }) {
   return (
     <div>
       <div className="text-xs">{label}</div>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="border rounded px-2 py-1 w-full" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border rounded px-2 py-1 w-full"
+      />
     </div>
   );
 }
@@ -270,7 +300,13 @@ function NumberInput({ label, value, onChange }) {
   return (
     <div>
       <div className="text-xs">{label}</div>
-      <input type="number" min={0} value={value} onChange={(e) => onChange(+e.target.value)} className="border rounded px-2 py-1 w-full" />
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(+e.target.value)}
+        className="border rounded px-2 py-1 w-full"
+      />
     </div>
   );
 }
@@ -284,6 +320,7 @@ function AllocationAdder({ max, onAdd }) {
       <Input label="מיקום (בר / מחסן / שולחן 10)" value={location} onChange={setLocation} />
       <NumberInput label="כמות" value={qty} onChange={setQty} />
       <button
+        type="button"
         disabled={qty > max}
         onClick={() => {
           onAdd(location, qty);
@@ -304,7 +341,11 @@ function ExtraOpen({ onOpen }) {
   return (
     <div className="mt-2 flex gap-2">
       <Input label="פתיחה נוספת → לאן" value={location} onChange={setLocation} />
-      <button onClick={() => onOpen(location)} className="px-3 bg-gray-800 text-white rounded">
+      <button
+        type="button"
+        onClick={() => onOpen(location)}
+        className="px-3 bg-gray-800 text-white rounded"
+      >
         פתח בקבוק נוסף
       </button>
     </div>
