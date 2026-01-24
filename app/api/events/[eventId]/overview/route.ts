@@ -17,11 +17,14 @@ export async function GET(
   try {
     await db();
 
+    console.log("🔵 GET /overview – start");
+
     /* =========================
        Auth
     ========================= */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
+      console.warn("⛔ GET /overview – UNAUTHORIZED");
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
@@ -29,11 +32,13 @@ export async function GET(
     }
 
     /* =========================
-       Params (⚠️ Promise!)
+       Params
     ========================= */
     const { eventId } = await context.params;
+    console.log("🔵 GET /overview – eventId:", eventId);
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      console.warn("⛔ GET /overview – INVALID_EVENT_ID:", eventId);
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
@@ -41,7 +46,7 @@ export async function GET(
     }
 
     /* =========================
-       Load Event (Owner / Producer)
+       Load Event
     ========================= */
     const event = await Event.findOne({
       _id: eventId,
@@ -52,11 +57,14 @@ export async function GET(
       .lean();
 
     if (!event) {
+      console.warn("⛔ GET /overview – EVENT_NOT_FOUND:", eventId);
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
       );
     }
+
+    console.log("🟢 GET /overview – event.budgetTotal from DB:", event.budgetTotal);
 
     /* =========================
        Load Tasks
@@ -68,30 +76,39 @@ export async function GET(
       .sort({ order: 1, dueDate: 1, createdAt: 1 })
       .lean();
 
+    console.log("🔵 GET /overview – tasks count:", tasks.length);
+
     /* =========================
-       Load Suppliers (Actual Spend)
+       Load Suppliers
     ========================= */
     const suppliers = await EventSupplier.find({
       eventId: event._id,
     })
       .select("price advance")
-
-
       .lean();
+
+    console.log("🔵 GET /overview – suppliers count:", suppliers.length);
 
     const budgetTotal = Number(event.budgetTotal) || 0;
 
     const commitments = suppliers.reduce(
-  (sum, s) => sum + Number(s.price || 0),
-  0
-);
+      (sum, s) => sum + Number(s.price || 0),
+      0
+    );
 
-const paid = suppliers.reduce(
-  (sum, s) => sum + Number(s.advance || 0),
-  0
-);
+    const paid = suppliers.reduce(
+      (sum, s) => sum + Number(s.advance || 0),
+      0
+    );
 
-const available = Math.max(budgetTotal - commitments, 0);
+    const available = Math.max(budgetTotal - commitments - paid, 0);
+
+    console.log("🟢 GET /overview – calculated budget:", {
+      budgetTotal,
+      commitments,
+      paid,
+      available,
+    });
 
     return NextResponse.json({
       success: true,
@@ -101,14 +118,14 @@ const available = Math.max(budgetTotal - commitments, 0);
         date: event.date,
         userId: event.userId,
         producerId: event.producerId,
-        budgetTotal, // מקור אמת לתקציב
+        budgetTotal,
       },
       budget: {
-  total: budgetTotal,      // תקציב מתוכנן
-  commitments,             // התחייבויות (price)
-  paid,                    // שולם בפועל (advance)
-  available,               // יתרה זמינה
-},
+        total: budgetTotal,
+        commitments,
+        paid,
+        available,
+      },
       tasks,
     });
   } catch (err) {
@@ -121,7 +138,7 @@ const available = Math.max(budgetTotal - commitments, 0);
 }
 
 /* =========================================================
-   PATCH – עדכון Overview (תקציב ידני – נשאר)
+   PATCH – עדכון Overview (תקציב)
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
@@ -130,11 +147,14 @@ export async function PATCH(
   try {
     await db();
 
+    console.log("🟡 PATCH /overview – start");
+
     /* =========================
        Auth
     ========================= */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
+      console.warn("⛔ PATCH /overview – UNAUTHORIZED");
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
@@ -145,8 +165,10 @@ export async function PATCH(
        Params
     ========================= */
     const { eventId } = await context.params;
+    console.log("🟡 PATCH /overview – eventId:", eventId);
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      console.warn("⛔ PATCH /overview – INVALID_EVENT_ID:", eventId);
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
@@ -157,15 +179,18 @@ export async function PATCH(
        Body
     ========================= */
     const body = await req.json();
+    console.log("🟡 PATCH /overview – body received:", body);
 
-    // 🛑 אין שינוי תקציב → לא עושים כלום
     if (!Object.prototype.hasOwnProperty.call(body, "budgetTotal")) {
+      console.log("🟡 PATCH /overview – no budgetTotal, skipping update");
       return NextResponse.json({ success: true });
     }
 
     const budgetTotal = Number(body.budgetTotal);
+    console.log("🟡 PATCH /overview – parsed budgetTotal:", budgetTotal);
 
     if (!Number.isFinite(budgetTotal) || budgetTotal < 0) {
+      console.warn("⛔ PATCH /overview – INVALID_BUDGET:", body.budgetTotal);
       return NextResponse.json(
         { success: false, error: "INVALID_BUDGET" },
         { status: 400 }
@@ -186,11 +211,14 @@ export async function PATCH(
     ).select("title date budgetTotal userId producerId");
 
     if (!event) {
+      console.warn("⛔ PATCH /overview – EVENT_NOT_FOUND:", eventId);
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
       );
     }
+
+    console.log("🟢 PATCH /overview – budget saved to DB:", event.budgetTotal);
 
     return NextResponse.json({
       success: true,
