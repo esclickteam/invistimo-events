@@ -34,7 +34,12 @@ export default function ProductionTabs({
   const changeTab = (tabKey) => {
   const params = new URLSearchParams(searchParams.toString());
 
-  // משנים רק tab, משאירים eventId וכל שאר הפרמטרים
+  // אם חסר eventId ב-URL, נשלים מה-prop
+  if (eventId && !params.get("eventId")) {
+    params.set("eventId", eventId);
+  }
+
+  // משנים רק tab, משאירים כל השאר
   params.set("tab", tabKey);
 
   router.push(`/events/production?${params.toString()}`);
