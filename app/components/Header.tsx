@@ -46,17 +46,17 @@ export default function Header() {
           {/* מרכז – לוגו */}
           <div className="flex justify-center" dir="ltr">
   <Link
-  href="/"
-  aria-label="Invistimo Home"
->
-  <img
-    src="/invistimo-logo.png"
-    alt="Invistimo Logo"
-    className="h-16 w-auto select-none"
-    draggable={false}
-  />
-</Link>
-
+    href="/"
+    aria-label="Invistimo Home"
+    className="scale-[4]"
+  >
+    <img
+      src="/invistimo-logo.png"
+      alt="Invistimo Logo"
+      className="h-10 w-auto select-none"
+      draggable={false}
+    />
+  </Link>
 </div>
 
           {/* שמאל – התנתקות */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import AlcoholManagementTab from "./AlcoholManagementTab";
 
 const TABS = [
   { key: "overview", label: "תמונת מצב" },
@@ -125,7 +126,10 @@ export default function ProductionTabs({
         {activeTab === "suppliers" && suppliers}
         {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
-        {activeTab === "alcohol" && alcohol}
+        {activeTab === "alcohol" && (
+  <AlcoholManagementTab eventId={eventId} />
+)}
+
         {activeTab === "live-guests" && liveGuests}
         {activeTab === "live-seating" && liveSeating}
       </div>
