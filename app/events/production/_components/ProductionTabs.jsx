@@ -67,7 +67,8 @@ export default function ProductionTabs({
       {/* ================= TABS ================= */}
       <div className="sticky top-16 z-20 bg-[#f7f2ec] border-b border-[#e5dccf]">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar py-3">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-3 pb-2">
+
             {TABS.map((tab) => {
               const isActive = activeTab === tab.key;
 
