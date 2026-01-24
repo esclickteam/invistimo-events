@@ -98,7 +98,8 @@ const available = budget?.available ?? 0;
 
 
   const progress = budgetTotal
-    ? Math.round((spent / budgetTotal) * 100)
+    ? Math.round((commitments / budgetTotal) * 100)
+
     : 0;
 
   const activeTasks = useMemo(
