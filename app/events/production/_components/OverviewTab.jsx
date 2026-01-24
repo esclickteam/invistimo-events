@@ -87,7 +87,8 @@ export default function OverviewTab({ eventId }) {
   ===================== */
   const budgetTotal = budget?.total || 0;
   const spent = budget?.spent || 0;
-  const remaining = budget?.remaining || 0;
+  const remaining = Math.max(budgetTotal - spent, 0);
+
 
   const progress = budgetTotal
     ? Math.round((spent / budgetTotal) * 100)
