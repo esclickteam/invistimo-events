@@ -25,7 +25,7 @@ export default function Header() {
         dir="rtl"
         className="
           fixed top-0 inset-x-0 z-50
-          h-12 md:h-14
+          h-16
           bg-[#f5eee7]
           bg-[url('/noise.png')] bg-repeat
           border-b border-[#e2d6c8]
@@ -45,17 +45,19 @@ export default function Header() {
 
           {/* מרכז – לוגו */}
           <div className="flex justify-center" dir="ltr">
-            <img
-                src="/invistimo-logo.png"
-  alt="Invistimo Logo"
-  className="
-    h-8 md:h-10
-    w-auto
-    object-contain
-  "
-  draggable={false}
-/>
-          </div>
+  <Link
+    href="/"
+    aria-label="Invistimo Home"
+    className="scale-[4]"
+  >
+    <img
+      src="/invistimo-logo.png"
+      alt="Invistimo Logo"
+      className="h-10 w-auto select-none"
+      draggable={false}
+    />
+  </Link>
+</div>
 
           {/* שמאל – התנתקות */}
           <div className="flex justify-end">
@@ -143,7 +145,8 @@ export default function Header() {
         "
       >
         <div className="w-full px-4 md:px-10" dir="rtl">
-          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-12 md:h-14">
+          <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center h-16">
+
             {/* ימין – ניווט / המבורגר */}
             <div className="flex items-center justify-start">
               {/* דסקטופ */}
@@ -167,16 +170,20 @@ export default function Header() {
 
             {/* מרכז – לוגו */}
             <div className="flex justify-center" dir="ltr">
-              <Link href="/" className="flex items-center">
-                <img
-                  src="/invistimo-logo.png"
-                  alt="Invistimo Logo"
-                  className="h-9 md:h-25 w-auto object-contain"
+  <Link
+    href="/"
+    aria-label="Invistimo Home"
+    className="scale-[4]"
+  >
+    <img
+      src="/invistimo-logo.png"
+      alt="Invistimo Logo"
+      className="h-10 w-auto select-none"
+      draggable={false}
+    />
+  </Link>
+</div>
 
-
-                />
-              </Link>
-            </div>
 
             {/* שמאל – כפתורים (דסקטופ בלבד) */}
             <div className="hidden md:flex justify-end items-center gap-3">
