@@ -265,8 +265,7 @@ export default function SuppliersTab({ eventId }) {
                     {row.files?.map((file, idx) => (
 
                       <a
-  href={file.url}
-  download={file.name}   // ← חשוב!!
+  href={`${file.url}?fl_attachment=${encodeURIComponent(file.name)}`}
   target="_blank"
   rel="noopener noreferrer"
 >

@@ -47,11 +47,11 @@ export async function POST(
     });
 
     uploadedFiles.push({
-      name: file.name || result.original_filename || "file",
-      url: result.secure_url,
-      publicId: result.public_id,
-      type: file.type || undefined,
-    });
+  name: file.name, // חשוב: כולל .pdf
+  url: result.secure_url,
+  publicId: result.public_id,
+  type: file.type,
+});
   }
 
   const row = await EventSupplier.findByIdAndUpdate(
