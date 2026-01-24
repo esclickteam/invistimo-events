@@ -263,15 +263,16 @@ export default function SuppliersTab({ eventId }) {
 
                   <td className="px-6 py-4 space-y-2">
                     {row.files?.map((file, idx) => (
+
                       <a
-                        key={idx}
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block text-sm text-blue-600 underline"
-                      >
-                        ⬇️ {file.name || "קובץ"}
-                      </a>
+  href={file.url}
+  download={file.name}   // ← חשוב!!
+  target="_blank"
+  rel="noopener noreferrer"
+>
+  ⬇️ הורדת {file.name}
+</a>
+                      
                     ))}
 
                     <label className="block cursor-pointer text-xs underline">
