@@ -278,12 +278,13 @@ async function updateSupplierName(i, value) {
 
                   <td className="px-6 py-4">
   <input
-    className="border rounded-lg px-3 py-2 w-40"
+    className="
+      border rounded-lg px-3 py-2
+      w-full min-w-[200px]
+    "
     placeholder="שם הספק"
     value={row.supplierName || ""}
-    onChange={(e) =>
-      updateSupplierName(i, e.target.value)
-    }
+    onChange={(e) => updateSupplierName(i, e.target.value)}
   />
 </td>
 
