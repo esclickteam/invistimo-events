@@ -65,7 +65,8 @@ export default function ProductionTabs({
   return (
     <div className="space-y-8">
       {/* ================= TABS ================= */}
-      <div className="sticky top-16 z-20 bg-[#f7f2ec] border-b border-[#e5dccf]">
+      <div className="sticky top-16 z-50 bg-[#f7f2ec] border-b border-[#e5dccf]">
+
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-2 overflow-x-auto no-scrollbar py-3 pb-2">
 
