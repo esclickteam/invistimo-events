@@ -59,14 +59,7 @@ export async function GET() {
     /* =====================================================
        🚨 מצב לא חוקי – שני טוקנים יחד
     ===================================================== */
-    if (producerToken && authToken) {
-      const res = NextResponse.json(
-        { success: false, user: null },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
-      );
-      clearAuthCookies(res);
-      return res;
-    }
+    
 
     let decoded: {
       userId?: string;
@@ -145,7 +138,7 @@ export async function GET() {
           email: user.email,
 
           // 🔑 role תמיד מה-JWT
-          role: decoded.role ?? "user",
+          role: decoded.role ?? (user.role as any) ?? "user",
 
           createdByProducer: !!user.createdByProducer,
 
