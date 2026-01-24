@@ -99,19 +99,16 @@ export default function EventProductionPage() {
   ========================= */
   return (
   <ProductionTabs
+    eventId={eventId}   // ✅ זה כל הסיפור
     overview={<OverviewTab eventId={eventId} />}
     planning={<PlanningTab eventId={eventId} />}
     suppliers={<SuppliersBudgetTab eventId={eventId} />}
     calendar={<CalendarTab eventId={eventId} />}
     logistics={<LogisticsTab eventId={eventId} />}
     alcohol={<AlcoholManagementTab eventId={eventId} />}
-    liveGuests={
-  <DashboardPage />
-}
-
+    liveGuests={<DashboardPage />}
     liveSeating={<SeatingPage />}
-
     invitation={invitation}
   />
-  );
+);
 }
