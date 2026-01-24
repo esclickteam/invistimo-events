@@ -188,16 +188,34 @@ const [selectedGroupId, setSelectedGroupId] = useState("");
     cache: "no-store",
   });
 
-  const data = await res.json();
 
-  if (data.success && data.invitation) {
-    setInvitation(data.invitation);
-    setInvitationId(data.invitation._id);
-  } else {
+
+    if (!res.ok) {
+    console.error("❌ loadInvitation failed:", res.status);
     setInvitation(null);
     setInvitationId("");
+    return;
   }
+
+  const data = await res.json();
+
+  if (data.success) {
+    const inv =
+      user.role === "producer"
+        ? data.invitations?.[0] // ⭐️ כאן התיקון
+        : data.invitation;
+
+    if (inv) {
+      setInvitation(inv);
+      setInvitationId(inv._id);
+      return;
+    }
+  }
+
+  setInvitation(null);
+  setInvitationId("");
 }
+
 
 async function loadEvent() {
   if (!user) return;
@@ -211,6 +229,14 @@ async function loadEvent() {
     credentials: "include",
     cache: "no-store",
   });
+
+    if (!res.ok) {
+    console.error("❌ loadEvent failed:", res.status);
+    setEvent(null);
+    return;
+  }
+
+
 
   const data = await res.json();
 
@@ -298,8 +324,6 @@ useEffect(() => {
     await loadInvitation();
     await loadEvent();
 
-    // ✅ הוסיפי את השורה הזו
-    setLoading(false);
   }
 
   initAfterUser();
