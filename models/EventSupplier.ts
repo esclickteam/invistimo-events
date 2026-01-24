@@ -78,6 +78,11 @@ const EventSupplierSchema = new mongoose.Schema(
       index: true,
     },
 
+    supplierName: {
+  type: String,
+  trim: true,
+},
+
     /* =========================
        💰 תמחור
     ========================= */

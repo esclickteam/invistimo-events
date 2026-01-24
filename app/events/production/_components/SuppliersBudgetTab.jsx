@@ -39,18 +39,21 @@ export default function SuppliersTab({ eventId }) {
 
         setCategories(cats);
         setRows(
-          eventSuppliers.map((r) => ({
-            id: r._id,
-            categoryId: r.categoryId,
-            category: r.category,
-            sub: r.sub,
-            supplier: r.supplierId,
-            price: r.price || "",
-            advance: r.advance || "",
-            balance: r.balance || "",
-            files: r.files || [],
-          }))
-        );
+  eventSuppliers.map((r) => ({
+    id: r._id,
+    categoryId: r.categoryId,
+    category: r.category,
+    sub: r.sub,
+
+    // ✅ זה החסר
+    supplierName: r.supplierName || "",
+
+    price: r.price || "",
+    advance: r.advance || "",
+    balance: r.balance || "",
+    files: r.files || [],
+  }))
+);
       } catch (err) {
         console.error("SuppliersTab load error:", err);
       } finally {
@@ -75,19 +78,22 @@ export default function SuppliersTab({ eventId }) {
     const created = await res.json();
 
     setRows((prev) => [
-      ...prev,
-      {
-        id: created._id,
-        categoryId,
-        category: categoryName,
-        sub,
-        supplier: null,
-        price: "",
-        advance: "",
-        balance: "",
-        files: [],
-      },
-    ]);
+  ...prev,
+  {
+    id: created._id,
+    categoryId,
+    category: categoryName,
+    sub,
+
+    // ✅ init
+    supplierName: "",
+
+    price: "",
+    advance: "",
+    balance: "",
+    files: [],
+  },
+]);
   }
 
   /* ======================
@@ -122,6 +128,31 @@ export default function SuppliersTab({ eventId }) {
       }),
     });
   }
+
+  /* ======================
+   UPDATE SUPPLIER NAME
+====================== */
+
+async function updateSupplierName(i, value) {
+  const row = rows[i];
+
+  // UI מיידי
+  setRows((prev) => {
+    const copy = [...prev];
+    copy[i] = { ...copy[i], supplierName: value };
+    return copy;
+  });
+
+  // שמירה בשרת
+  await fetch(`/api/events/${eventId}/suppliers/${row.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      supplierName: value,
+    }),
+  });
+}
+
 
   /* ======================
      SELECT SUPPLIER
@@ -245,14 +276,16 @@ export default function SuppliersTab({ eventId }) {
                   <td className="px-6 py-4">{row.category}</td>
                   <td className="px-6 py-4">{row.sub}</td>
 
-                  <td className="px-6 py-4 font-medium">
-                    <button
-                      onClick={() => setOpenSupplierRow(i)}
-                      className="underline text-blue-600"
-                    >
-                      {row.supplier?.name || "בחר ספק"}
-                    </button>
-                  </td>
+                  <td className="px-6 py-4">
+  <input
+    className="border rounded-lg px-3 py-2 w-40"
+    placeholder="שם הספק"
+    value={row.supplierName || ""}
+    onChange={(e) =>
+      updateSupplierName(i, e.target.value)
+    }
+  />
+</td>
 
                   {["price", "advance", "balance"].map((f) => (
                     <td key={f} className="px-6 py-4">
