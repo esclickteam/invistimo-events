@@ -267,12 +267,8 @@ export default function SuppliersTab({ eventId }) {
                       <button
   className="underline text-blue-600 text-sm"
   onClick={() => {
-    const link = document.createElement("a");
-    link.href = `${file.url}?fl_attachment=${encodeURIComponent(file.name)}`;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.location.href =
+      `/api/files/download?url=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name)}`;
   }}
 >
   ⬇️ הורדת {file.name}
