@@ -71,7 +71,10 @@ export default function OverviewTab({ eventId }) {
 
         setTasks(data.tasks || []);
         setBudget(data.budget || null); // ✅ חשוב
-        setBudgetDraft(data.event?.budgetTotal || 0); // נשאר
+        if (!isEditingBudget) {
+  setBudgetDraft(data.event?.budgetTotal || 0);
+}
+
       } catch (e) {
         setError("NETWORK_ERROR");
       } finally {
@@ -173,47 +176,49 @@ export default function OverviewTab({ eventId }) {
 
   /* 🆕 SAVE BUDGET – נשאר כמו שהוא */
   async function saveBudget() {
-    if (!eventId) return;
+  // 🛑 לא שומרים אם לא באמת בעריכה
+  if (!isEditingBudget) return;
 
-    setSavingBudget(true);
-    setError("");
+  const nextBudget = Number(budgetDraft);
 
-    try {
-      const res = await fetch(`/api/events/${eventId}/overview`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          budgetTotal: Number(budgetDraft) || 0,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error("SAVE_BUDGET_FAILED");
-      }
-
-      setEvent(data.event);
-
-setBudget((prev) =>
-  prev
-    ? {
-        ...prev,
-        total: Number(data.event.budgetTotal) || 0,
-        remaining:
-          (Number(data.event.budgetTotal) || 0) - (prev.spent || 0),
-      }
-    : prev
-);
-
-setIsEditingBudget(false);
-
-    } catch (e) {
-      setError("שגיאה בשמירת התקציב");
-    } finally {
-      setSavingBudget(false);
-    }
+  // 🛑 הגנות קריטיות
+  if (
+    Number.isNaN(nextBudget) ||
+    nextBudget <= 0 ||
+    nextBudget === event?.budgetTotal
+  ) {
+    setIsEditingBudget(false);
+    setBudgetDraft(event?.budgetTotal || 0);
+    return;
   }
+
+  setSavingBudget(true);
+  setError("");
+
+  try {
+    const res = await fetch(`/api/events/${eventId}/overview`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        budgetTotal: nextBudget,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error("SAVE_BUDGET_FAILED");
+    }
+
+    // ✅ עדכון event בלבד – budget מחושב מהשרת
+    setEvent(data.event);
+  } catch (e) {
+    setError("שגיאה בשמירת התקציב");
+  } finally {
+    setSavingBudget(false);
+    setIsEditingBudget(false);
+  }
+}
 
   /* =====================
      UI STATES
