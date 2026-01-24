@@ -46,10 +46,7 @@ export async function GET(
     const event = await Event.findOne({
       _id: eventId,
       status: "active",
-      $or: [
-        { userId: auth.userId },
-        { producerId: auth.userId },
-      ],
+      $or: [{ userId: auth.userId }, { producerId: auth.userId }],
     })
       .select("title date budgetTotal userId producerId")
       .lean();
@@ -72,23 +69,22 @@ export async function GET(
       .lean();
 
     /* =========================
-       Load Suppliers (Budget Sync)
+       Load Suppliers (Actual Spend)
     ========================= */
     const suppliers = await EventSupplier.find({
       eventId: event._id,
-    }).lean();
+    })
+      .select("advance")
+      .lean();
 
-    const budgetTotal = suppliers.reduce(
-      (sum, s) => sum + Number(s.price || 0),
-      0
-    );
+    const budgetTotal = Number(event.budgetTotal) || 0;
 
     const spent = suppliers.reduce(
       (sum, s) => sum + Number(s.advance || 0),
       0
     );
 
-    const remaining = budgetTotal - spent;
+    const remaining = Math.max(budgetTotal - spent, 0);
 
     return NextResponse.json({
       success: true,
@@ -98,14 +94,12 @@ export async function GET(
         date: event.date,
         userId: event.userId,
         producerId: event.producerId,
-
-        // ⚠️ נשאר בשביל תאימות לאחור
-        budgetTotal: Number(event.budgetTotal) || 0,
+        budgetTotal, // מקור אמת לתקציב
       },
       budget: {
-        total: budgetTotal,
-        spent,
-        remaining,
+        total: budgetTotal,   // ✅ 100,000
+        spent,               // ✅ 3,500
+        remaining,           // ✅ 96,500
       },
       tasks,
     });
@@ -171,14 +165,9 @@ export async function PATCH(
       {
         _id: eventId,
         status: "active",
-        $or: [
-          { userId: auth.userId },
-          { producerId: auth.userId },
-        ],
+        $or: [{ userId: auth.userId }, { producerId: auth.userId }],
       },
-      {
-        $set: { budgetTotal },
-      },
+      { $set: { budgetTotal } },
       { new: true }
     ).select("title date budgetTotal userId producerId");
 
