@@ -33,21 +33,29 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  context: {
-    params: Promise<{
-      eventId: string;
-    }>;
-  }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   await db();
 
   const { eventId } = await context.params;
   const body = await request.json();
 
+  const { categoryId, category, sub } = body;
+
+  if (!categoryId || !category || !sub) {
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 }
+    );
+  }
+
   const row = await EventSupplier.create({
-    ...body,
     eventId,
+    categoryId,
+    category,
+    sub,
   });
 
   return NextResponse.json(row);
 }
+
