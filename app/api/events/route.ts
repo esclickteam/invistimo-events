@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
         : { address: "", lat: null, lng: null },
     };
 
+    // אם יש budgetTotal במשלוח – נוסיף ל payload
     if (typeof body.budgetTotal === "number") {
       payload.budgetTotal = body.budgetTotal;
     }
@@ -88,10 +89,7 @@ export async function POST(req: NextRequest) {
 /* =========================
    PATCH – עדכון שדות ספציפיים (תקציב)
 ========================= */
-export async function PATCH(
-  req: NextRequest,
-  context: { params: Record<string, string> } // ✅ טיפוס נכון ל־Next.js
-) {
+export async function PATCH(req: NextRequest, context: any) {
   try {
     await connectDB();
 
@@ -103,7 +101,9 @@ export async function PATCH(
     const body = await req.json();
     const { budgetTotal } = body;
 
-    const eventId = context.params.id; // עכשיו תקין
+    // ❗️ שימוש ב־params.id מה־URL
+    const eventId = context.params.id as string;
+
     const event = await Event.findById(eventId);
     if (!event) {
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
