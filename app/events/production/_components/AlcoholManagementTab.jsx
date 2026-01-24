@@ -20,11 +20,17 @@ export default function AlcoholManagementSystem({ eventId }) {
     if (!eventId) return;
 
     fetch(`/api/events/${eventId}/alcohol`)
-      .then((res) => res.json())
-      .then((data) => {
-        setBottles(data.alcohol || []);
-        setLoading(false);
-      });
+  .then((res) => {
+    if (!res.ok) throw new Error("Failed to load alcohol");
+    return res.json();
+  })
+
+  .then((data) => {
+    setBottles(Array.isArray(data?.alcohol) ? data.alcohol.filter(Boolean) : []);
+  })
+  .catch(() => setBottles([]))
+  .finally(() => setLoading(false));
+
   }, [eventId]);
 
   if (!eventId || loading) {
@@ -62,33 +68,42 @@ export default function AlcoholManagementSystem({ eventId }) {
   ====================================================== */
 
   async function addBottle() {
-    const res = await fetch(`/api/events/${eventId}/alcohol`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        category: "",
-        brand: "",
-        flavor: "",
-        total: 1,
-      }),
-    });
+  const res = await fetch(`/api/events/${eventId}/alcohol`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      category: "",
+      brand: "",
+      flavor: "",
+      total: 1,
+    }),
+  });
 
-    const data = await res.json();
-    setBottles((prev) => [...prev, data.alcohol]);
+  if (!res.ok) return; // או throw
+
+  const data = await res.json();
+  if (data?.alcohol) {
+    setBottles((prev) => [...prev, data.alcohol].filter(Boolean));
   }
+}
+
 
   async function updateBottle(id, patch) {
-    const res = await fetch(`/api/events/alcohol/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
+  const res = await fetch(`/api/events/alcohol/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
 
-    const data = await res.json();
-    setBottles((prev) =>
-      prev.map((b) => (b._id === id ? data.alcohol : b))
-    );
-  }
+  if (!res.ok) return;
+
+  const data = await res.json();
+  setBottles((prev) =>
+    prev
+      .filter(Boolean)
+      .map((b) => (b._id === id ? (data?.alcohol ?? b) : b))
+  );
+}
 
   async function removeBottle(id) {
     await fetch(`/api/events/alcohol/${id}`, { method: "DELETE" });
@@ -142,19 +157,36 @@ export default function AlcoholManagementSystem({ eventId }) {
       {/* ================= PLANNING ================= */}
       {mode === "planning" && (
         <>
-          {bottles.map((b) => (
-            <Card key={b._id}>
-              <div className="grid grid-cols-5 gap-3 items-end">
-                <Input label="קטגוריה" value={b.category} onChange={(v) => updateBottle(b._id, { category: v })} />
-                <Input label="מותג" value={b.brand} onChange={(v) => updateBottle(b._id, { brand: v })} />
-                <Input label="טעם" value={b.flavor || ""} onChange={(v) => updateBottle(b._id, { flavor: v })} />
-                <NumberInput label="סה״כ בקבוקים" value={b.total} onChange={(v) => updateBottle(b._id, { total: v })} />
-                <button onClick={() => removeBottle(b._id)} className="text-red-600 text-sm">
-                  מחיקה
-                </button>
-              </div>
-            </Card>
-          ))}
+          {bottles.filter(Boolean).map((b) => (
+  <Card key={b._id}>
+    <div className="grid grid-cols-5 gap-3 items-end">
+      <Input
+        label="קטגוריה"
+        value={b.category ?? ""}
+        onChange={(v) => updateBottle(b._id, { category: v })}
+      />
+      <Input
+        label="מותג"
+        value={b.brand ?? ""}
+        onChange={(v) => updateBottle(b._id, { brand: v })}
+      />
+      <Input
+        label="טעם"
+        value={b.flavor ?? ""}
+        onChange={(v) => updateBottle(b._id, { flavor: v })}
+      />
+      <NumberInput
+        label="סה״כ בקבוקים"
+        value={b.total ?? 0}
+        onChange={(v) => updateBottle(b._id, { total: v })}
+      />
+      <button onClick={() => removeBottle(b._id)} className="text-red-600 text-sm">
+        מחיקה
+      </button>
+    </div>
+  </Card>
+))}
+
 
           <button onClick={addBottle} className="px-5 py-2 bg-black text-white rounded-lg">
             ➕ הוסף סוג אלכוהול
@@ -165,7 +197,7 @@ export default function AlcoholManagementSystem({ eventId }) {
       {/* ================= ALLOCATION ================= */}
       {mode === "allocation" && (
         <>
-          {bottles.map((b) => (
+          {bottles.filter(Boolean).map((b) => (
             <Card key={b._id}>
               <div className="font-semibold mb-2">
                 {b.brand} | סה״כ: {b.total} | נותר: {remainingUnallocated(b)}
@@ -190,7 +222,7 @@ export default function AlcoholManagementSystem({ eventId }) {
       {mode === "live" && (
         <div className="grid grid-cols-3 gap-6">
           <div className="col-span-2 space-y-4">
-            {bottles.map((b) => (
+            {bottles.filter(Boolean).map((b) => (
               <Card key={b._id}>
                 <div className="font-bold mb-2">{b.brand}</div>
 
