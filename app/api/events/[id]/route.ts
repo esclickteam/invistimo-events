@@ -10,10 +10,12 @@ export const dynamic = "force-dynamic";
 ========================= */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
+
+    const { id } = await context.params;
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
@@ -27,7 +29,7 @@ export async function PATCH(
     const { budgetTotal } = body;
 
     const event = await Event.findOneAndUpdate(
-      { _id: params.id, userId: auth.userId },
+      { _id: id, userId: auth.userId },
       { $set: { budgetTotal: Number(budgetTotal) || 0 } },
       { new: true }
     );
