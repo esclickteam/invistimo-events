@@ -18,7 +18,12 @@ export async function POST(
     return NextResponse.json([], { status: 200 });
   }
 
-  const uploadedUrls: string[] = [];
+  const uploadedFiles: Array<{
+    name: string;
+    url: string;
+    publicId: string;
+    type?: string;
+  }> = [];
 
   for (const file of files) {
     const bytes = await file.arrayBuffer();
@@ -29,7 +34,7 @@ export async function POST(
         .upload_stream(
           {
             folder: `events/suppliers/${supplierRowId}`,
-            resource_type: "raw", // 🔥 קריטי – אחרת 401
+            resource_type: "raw",
             use_filename: true,
             unique_filename: true,
           },
@@ -41,15 +46,19 @@ export async function POST(
         .end(buffer);
     });
 
-    // ✅ שומרים רק URL (תואם ל־Schema)
-    uploadedUrls.push(result.secure_url);
+    uploadedFiles.push({
+      name: file.name || result.original_filename || "file",
+      url: result.secure_url,
+      publicId: result.public_id,
+      type: file.type || undefined,
+    });
   }
 
   const row = await EventSupplier.findByIdAndUpdate(
     supplierRowId,
     {
       $push: {
-        files: { $each: uploadedUrls },
+        files: { $each: uploadedFiles },
       },
     },
     { new: true }
