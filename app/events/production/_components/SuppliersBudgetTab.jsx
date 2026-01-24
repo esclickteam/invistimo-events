@@ -234,14 +234,7 @@ export default function SuppliersTab({ eventId }) {
                   </td>
 
                   <td className="px-6 py-4 space-y-2">
-                    <button
-                      onClick={() =>
-                        setOpenSupplierRow(openSupplierRow === i ? null : i)
-                      }
-                      className="border px-4 py-2 rounded-lg w-full"
-                    >
-                      {row.supplier ? "החלף ספק" : "בחר ספק"}
-                    </button>
+                   
 
                     <button
                       onClick={() => removeRow(i)}
