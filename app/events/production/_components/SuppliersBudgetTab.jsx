@@ -265,33 +265,40 @@ async function handleFiles(rowIndex, fileList) {
                   ))}
 
                   <td className="px-6 py-4 space-y-2">
-  {/* קבצים קיימים */}
+
+  {/* קבצים קיימים – הורדה */}
   {row.files && row.files.length > 0 && (
-    <ul className="space-y-1">
+    <div className="flex flex-col gap-1">
       {row.files.map((file, idx) => (
-        <li key={idx} className="flex items-center gap-2 text-sm">
-          <span>📎</span>
-          <a
-            href={file.url}
-            download
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 underline hover:text-blue-800"
-          >
-            {file.name}
-          </a>
-        </li>
+        <a
+          key={idx}
+          href={file.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          download
+          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+        >
+          ⬇️ הורדת {file.name || "קובץ"}
+        </a>
       ))}
-    </ul>
+    </div>
   )}
 
   {/* העלאת קובץ חדש */}
-  <input
-    type="file"
-    multiple
-    onChange={(e) => handleFiles(i, e.target.files)}
-  />
+  <label className="inline-block cursor-pointer">
+    <span className="text-xs text-gray-600 underline hover:text-gray-800">
+      העלאת קובץ חדש
+    </span>
+    <input
+      type="file"
+      multiple
+      className="hidden"
+      onChange={(e) => handleFiles(i, e.target.files)}
+    />
+  </label>
+
 </td>
+
 
 
                   <td className="px-6 py-4 space-y-2">
