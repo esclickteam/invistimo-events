@@ -24,7 +24,6 @@ const STATUS_STYLE = {
 };
 
 export default function OverviewTab({ eventId }) {
-
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -33,42 +32,48 @@ export default function OverviewTab({ eventId }) {
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState("");
 
+  /* 🆕 budget edit */
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [budgetDraft, setBudgetDraft] = useState(0);
+  const [savingBudget, setSavingBudget] = useState(false);
+
   /* =====================
      LOAD DATA
   ===================== */
   useEffect(() => {
-  if (!eventId) {
-    setLoading(false);
-    setError("NO_EVENT_ID");
-    return;
-  }
-
-  async function load() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch(`/api/events/${eventId}/overview`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data?.error || "LOAD_FAILED");
-        return;
-      }
-
-      setEvent(data.event);
-      setTasks(data.tasks || []);
-    } catch (e) {
-      setError("NETWORK_ERROR");
-    } finally {
+    if (!eventId) {
       setLoading(false);
+      setError("NO_EVENT_ID");
+      return;
     }
-  }
 
-  load();
-}, [eventId]);
+    async function load() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await fetch(`/api/events/${eventId}/overview`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          setError(data?.error || "LOAD_FAILED");
+          return;
+        }
+
+        setEvent(data.event);
+        setTasks(data.tasks || []);
+        setBudgetDraft(data.event?.budgetTotal || 0);
+      } catch (e) {
+        setError("NETWORK_ERROR");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [eventId]);
 
   /* =====================
      DERIVED
@@ -111,7 +116,6 @@ export default function OverviewTab({ eventId }) {
         return;
       }
 
-      // optimistic append
       setTasks((prev) => [...prev, data.task]);
       setNewTitle("");
       setNewDate("");
@@ -121,7 +125,6 @@ export default function OverviewTab({ eventId }) {
   }
 
   async function updateTask(taskId, field, value) {
-    // optimistic update
     setTasks((prev) =>
       prev.map((t) =>
         t._id === taskId ? { ...t, [field]: value } : t
@@ -141,14 +144,12 @@ export default function OverviewTab({ eventId }) {
         throw new Error("PATCH_FAILED");
       }
 
-      // align with server (if returned)
       if (data.task) {
         setTasks((prev) =>
           prev.map((t) => (t._id === taskId ? data.task : t))
         );
       }
     } catch (e) {
-      // rollback by reload
       const res = await fetch(`/api/events/${eventId}/overview`, {
         cache: "no-store",
       });
@@ -160,6 +161,42 @@ export default function OverviewTab({ eventId }) {
     }
   }
 
+  /* 🆕 SAVE BUDGET */
+  async function saveBudget() {
+    if (!eventId) return;
+
+    setSavingBudget(true);
+    setError("");
+
+    setEvent((prev) => ({
+      ...prev,
+      budgetTotal: Number(budgetDraft) || 0,
+    }));
+
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budgetTotal: Number(budgetDraft) || 0,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error("SAVE_BUDGET_FAILED");
+      }
+
+      setEvent(data.event);
+      setIsEditingBudget(false);
+    } catch (e) {
+      setError("שגיאה בשמירת התקציב");
+    } finally {
+      setSavingBudget(false);
+    }
+  }
+
   /* =====================
      UI STATES
   ===================== */
@@ -168,15 +205,14 @@ export default function OverviewTab({ eventId }) {
   }
 
   if (!event) {
-  return (
-    <div className="p-10 text-red-600">
-      {error === "NO_EVENT_ID"
-        ? "לא התקבל מזהה אירוע"
-        : "שגיאה בטעינת האירוע"}
-    </div>
-  );
-}
-
+    return (
+      <div className="p-10 text-red-600">
+        {error === "NO_EVENT_ID"
+          ? "לא התקבל מזהה אירוע"
+          : "שגיאה בטעינת האירוע"}
+      </div>
+    );
+  }
 
   /* =====================
      RENDER
@@ -189,11 +225,9 @@ export default function OverviewTab({ eventId }) {
     >
       {/* HEADER */}
       <div className="bg-white rounded-2xl px-6 py-5 border border-[#E7E3DC] flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {event.title} · {event.date}
-          </h1>
-        </div>
+        <h1 className="text-2xl font-semibold">
+          {event.title} · {event.date}
+        </h1>
         <div className="text-sm text-gray-500">
           {activeTasks} משימות פעילות
         </div>
@@ -201,7 +235,20 @@ export default function OverviewTab({ eventId }) {
 
       {/* BUDGET */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <BudgetCard title="תקציב כולל" value={budgetTotal} />
+        <EditableBudgetCard
+          title="תקציב כולל"
+          value={budgetDraft}
+          isEditing={isEditingBudget}
+          loading={savingBudget}
+          onEdit={() => setIsEditingBudget(true)}
+          onCancel={() => {
+            setBudgetDraft(event.budgetTotal || 0);
+            setIsEditingBudget(false);
+          }}
+          onChange={setBudgetDraft}
+          onSave={saveBudget}
+        />
+
         <BudgetCard title="יצא עד כה" value={spent} />
         <BudgetCard title="יתרה" value={remaining} highlight />
       </div>
@@ -242,11 +289,7 @@ export default function OverviewTab({ eventId }) {
                 <select
                   value={task.status}
                   onChange={(e) =>
-                    updateTask(
-                      task._id,
-                      "status",
-                      e.target.value
-                    )
+                    updateTask(task._id, "status", e.target.value)
                   }
                   className={`text-xs px-2 py-1 rounded ${STATUS_STYLE[task.status]}`}
                 >
@@ -272,11 +315,7 @@ export default function OverviewTab({ eventId }) {
                 type="date"
                 value={task.dueDate || ""}
                 onChange={(e) =>
-                  updateTask(
-                    task._id,
-                    "dueDate",
-                    e.target.value
-                  )
+                  updateTask(task._id, "dueDate", e.target.value)
                 }
                 className="text-sm border rounded-lg px-3 py-1.5"
               />
@@ -292,14 +331,12 @@ export default function OverviewTab({ eventId }) {
             onChange={(e) => setNewTitle(e.target.value)}
             className="flex-1 border rounded-lg px-4 py-2 text-sm"
           />
-
           <input
             type="date"
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
             className="border rounded-lg px-3 py-2 text-sm"
           />
-
           <button
             onClick={addTask}
             className="px-4 py-2 rounded-lg text-sm font-medium text-white"
@@ -334,6 +371,66 @@ function BudgetCard({ title, value, highlight = false }) {
       <p className="text-2xl font-semibold">
         ₪{value.toLocaleString()}
       </p>
+    </div>
+  );
+}
+
+function EditableBudgetCard({
+  title,
+  value,
+  isEditing,
+  onEdit,
+  onCancel,
+  onChange,
+  onSave,
+  loading,
+}) {
+  return (
+    <div className="rounded-2xl p-5 border border-[#E7E3DC] bg-white relative">
+      <p className="text-sm text-gray-500 mb-1">{title}</p>
+
+      {!isEditing ? (
+        <>
+          <p className="text-2xl font-semibold">
+            ₪{Number(value).toLocaleString()}
+          </p>
+          <button
+            onClick={onEdit}
+            className="absolute top-4 left-4 text-xs text-[#6D6AF4]"
+          >
+            עריכה
+          </button>
+        </>
+      ) : (
+        <div className="space-y-3">
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2 text-lg"
+            min={0}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={onSave}
+              disabled={loading}
+              className="flex-1 rounded-lg py-2 text-white text-sm"
+              style={{
+                background:
+                  "linear-gradient(90deg, #6D6AF4, #8B87FF)",
+              }}
+            >
+              {loading ? "שומר…" : "שמור"}
+            </button>
+            <button
+              onClick={onCancel}
+              className="flex-1 rounded-lg py-2 text-sm border"
+            >
+              ביטול
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
