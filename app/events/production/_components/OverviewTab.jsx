@@ -387,3 +387,70 @@ function BudgetCard({ title, value, highlight = false }) {
     </div>
   );
 }
+
+
+function EditableBudgetCard({
+  title,
+  value,
+  isEditing,
+  loading,
+  onEdit,
+  onCancel,
+  onChange,
+  onSave,
+}) {
+  return (
+    <div
+      className="rounded-2xl p-5 border border-[#E7E3DC]"
+      style={{
+        background: "#FFFFFF",
+        boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
+      }}
+    >
+      <p className="text-sm text-gray-500 mb-2">{title}</p>
+
+      {isEditing ? (
+        <div className="flex gap-2 items-center">
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="flex-1 border rounded-lg px-3 py-2 text-lg"
+          />
+
+          <button
+            onClick={onSave}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg text-white text-sm"
+            style={{
+              background:
+                "linear-gradient(90deg, #6D6AF4, #8B87FF)",
+            }}
+          >
+            שמור
+          </button>
+
+          <button
+            onClick={onCancel}
+            className="px-3 py-2 rounded-lg text-sm border"
+          >
+            ביטול
+          </button>
+        </div>
+      ) : (
+        <div className="flex justify-between items-center">
+          <p className="text-2xl font-semibold">
+            ₪{value.toLocaleString()}
+          </p>
+
+          <button
+            onClick={onEdit}
+            className="text-sm text-[#6D6AF4] hover:underline"
+          >
+            עריכה
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
