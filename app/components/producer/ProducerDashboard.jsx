@@ -51,22 +51,31 @@ export default function ProducerDashboard() {
   const fetchEvents = async () => {
     setEventsLoading(true);
     try {
-      const res = await fetch("/api/producer/events", {
+      const res = await fetch("/api/invitations/my", {
         cache: "no-store",
         credentials: "include",
       });
 
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Failed to fetch invitation:", res.status, text.slice(0, 200));
+        return;
+      }
+
       const data = await res.json();
 
-      if (isMounted && data.success) {
-        setEvents(Array.isArray(data.events) ? data.events : []);
-      }
+      if (!isMounted) return;
+
+      const event =
+        data?.invitation?.event ||
+        (data?.invitation?.eventId ? { _id: data.invitation.eventId } : null);
+
+      setEvents(event ? [event] : []);
     } catch (err) {
       console.error("Failed to fetch producer events:", err);
+      if (isMounted) setEvents([]);
     } finally {
-      if (isMounted) {
-        setEventsLoading(false);
-      }
+      if (isMounted) setEventsLoading(false);
     }
   };
 
@@ -78,6 +87,7 @@ export default function ProducerDashboard() {
 }, []);
 
 
+
   /* =========================
      Fetch Clients (table)
   ========================= */
@@ -85,21 +95,41 @@ export default function ProducerDashboard() {
   let isMounted = true;
   let intervalId;
 
-
   const fetchClients = async () => {
+    if (isMounted) setClientsLoading(true);
+
     try {
       const res = await fetch("/api/producer/clients", {
         cache: "no-store",
         credentials: "include",
       });
 
+      // ✅ guard לפני json
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(
+          "Failed to fetch producer clients:",
+          res.status,
+          text.slice(0, 200)
+        );
+        if (isMounted) setClients([]);
+        return;
+      }
+
       const data = await res.json();
 
-      if (isMounted && data.success) {
+      if (!isMounted) return;
+
+      if (data?.success) {
         setClients(Array.isArray(data.clients) ? data.clients : []);
+      } else {
+        setClients([]);
       }
     } catch (err) {
       console.error("Failed to fetch producer clients:", err);
+      if (isMounted) setClients([]);
+    } finally {
+      if (isMounted) setClientsLoading(false);
     }
   };
 
@@ -113,6 +143,7 @@ export default function ProducerDashboard() {
     clearInterval(intervalId);
   };
 }, []);
+
 
 
   /* =========================
