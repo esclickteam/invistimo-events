@@ -28,6 +28,7 @@ export default function OverviewTab({ eventId }) {
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [error, setError] = useState("");
+  
 
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState("");
@@ -36,6 +37,8 @@ export default function OverviewTab({ eventId }) {
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState(0);
   const [savingBudget, setSavingBudget] = useState(false);
+  const [budget, setBudget] = useState(null);
+
 
   /* =====================
      LOAD DATA
@@ -63,12 +66,10 @@ export default function OverviewTab({ eventId }) {
         }
 
         setEvent(data.event);
-
-        
-
-
-
         setTasks(data.tasks || []);
+
+        setBudget(data.budget);
+
 
 // 🛑 לא לדרוס draft אם המשתמש באמצע עריכה
 setBudgetDraft((prev) => {
@@ -89,17 +90,17 @@ setBudgetDraft((prev) => {
     load();
   }, [eventId]);
 
-const budgetTotal = event?.budgetTotal ?? 0;
+  const budgetTotal =
+  budget?.total ?? event?.budgetTotal ?? 0;
 
-const commitments = useMemo(() => {
-  return tasks.reduce((sum, t) => sum + (t.commitment || 0), 0);
-}, [tasks]);
+const commitments =
+  budget?.commitments ?? 0;
 
-const paid = useMemo(() => {
-  return tasks.reduce((sum, t) => sum + (t.paid || 0), 0);
-}, [tasks]);
+const paid =
+  budget?.paid ?? 0;
 
-const available = budgetTotal - commitments - paid;
+const available =
+  budget?.available ?? budgetTotal;
 
 
 
@@ -271,7 +272,7 @@ const available = budgetTotal - commitments - paid;
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
   <EditableBudgetCard
   title="תקציב מתוכנן"
-  value={isEditingBudget ? budgetDraft : event.budgetTotal}
+  value={isEditingBudget ? budgetDraft : budgetTotal}
   isEditing={isEditingBudget}
   loading={savingBudget}
   onEdit={() => {
