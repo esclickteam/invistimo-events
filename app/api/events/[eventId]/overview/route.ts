@@ -157,9 +157,15 @@ export async function PATCH(
        Body
     ========================= */
     const body = await req.json();
+
+    // 🛑 אין שינוי תקציב → לא עושים כלום
+    if (!Object.prototype.hasOwnProperty.call(body, "budgetTotal")) {
+      return NextResponse.json({ success: true });
+    }
+
     const budgetTotal = Number(body.budgetTotal);
 
-    if (Number.isNaN(budgetTotal) || budgetTotal < 0) {
+    if (!Number.isFinite(budgetTotal) || budgetTotal < 0) {
       return NextResponse.json(
         { success: false, error: "INVALID_BUDGET" },
         { status: 400 }
@@ -167,7 +173,7 @@ export async function PATCH(
     }
 
     /* =========================
-       Update Event (Owner / Producer)
+       Update Event
     ========================= */
     const event = await Event.findOneAndUpdate(
       {
