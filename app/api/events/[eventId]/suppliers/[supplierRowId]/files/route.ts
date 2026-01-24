@@ -35,8 +35,11 @@ export async function POST(
           {
             folder: `events/suppliers/${supplierRowId}`,
             resource_type: "raw",
-            use_filename: true,
-            unique_filename: true,
+
+            // ⭐⭐⭐ העיקר כאן ⭐⭐⭐
+            filename_override: file.name, // שומר שם + סיומת (.pdf)
+            use_filename: false,
+            unique_filename: false,
           },
           (error, result) => {
             if (error) reject(error);
@@ -47,11 +50,11 @@ export async function POST(
     });
 
     uploadedFiles.push({
-  name: file.name, // חשוב: כולל .pdf
-  url: result.secure_url,
-  publicId: result.public_id,
-  type: file.type,
-});
+      name: file.name,              // למשל: "הסכם ספק.pdf"
+      url: result.secure_url,       // URL תקין
+      publicId: result.public_id,   // כולל .pdf
+      type: file.type,              // application/pdf
+    });
   }
 
   const row = await EventSupplier.findByIdAndUpdate(
