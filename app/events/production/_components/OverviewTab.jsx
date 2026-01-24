@@ -276,11 +276,13 @@ const available =
   isEditing={isEditingBudget}
   loading={savingBudget}
   onEdit={() => {
-    setBudgetDraft(event.budgetTotal || 0);
+    setBudgetDraft(budgetTotal);
+
     setIsEditingBudget(true);
   }}
   onCancel={() => {
-    setBudgetDraft(event.budgetTotal || 0);
+    setBudgetDraft(budgetTotal);
+
     setIsEditingBudget(false);
   }}
   onChange={setBudgetDraft}
