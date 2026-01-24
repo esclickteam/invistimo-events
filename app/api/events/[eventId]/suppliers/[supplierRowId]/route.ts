@@ -29,12 +29,13 @@ export async function PATCH(
     const body = await request.json();
 
     const allowedFields = [
-      "supplierId",
-      "price",
-      "advance",
-      "balance",
-      "files",
-    ] as const;
+  "supplierId",
+  "supplierName", // ✅ זה החסר
+  "price",
+  "advance",
+  "balance",
+  "files",
+] as const;
 
     const updateData: Partial<
       Record<(typeof allowedFields)[number], any>
