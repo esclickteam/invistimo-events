@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import EventSupplier from "@/models/EventSupplier";
 import db from "@/lib/db";
+
+import EventSupplier from "@/models/EventSupplier";
+import Supplier from "@/models/Supplier"; // ✅ חובה בשביל populate
 
 /* =========================================================
    GET – כל הספקים של האירוע
@@ -19,7 +21,7 @@ export async function GET(
   const { eventId } = await context.params;
 
   const rows = await EventSupplier.find({ eventId })
-    .populate("supplierId")
+    .populate("supplierId") // עכשיו Supplier רשום
     .lean();
 
   return NextResponse.json(rows);

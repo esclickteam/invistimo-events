@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+
 import EventSupplier from "@/models/EventSupplier";
+import Supplier from "@/models/Supplier"; // ✅ חובה בשביל populate
 
 /* =========================================================
    PATCH – עדכון ספק לאירוע
@@ -27,9 +29,10 @@ export async function PATCH(
       "advance",
       "balance",
       "files",
-    ];
+    ] as const;
 
-    const updateData: Record<string, any> = {};
+    const updateData: Partial<Record<(typeof allowedFields)[number], any>> = {};
+
     for (const key of allowedFields) {
       if (key in body) {
         updateData[key] = body[key];
@@ -47,7 +50,9 @@ export async function PATCH(
       { _id: supplierRowId, eventId },
       { $set: updateData },
       { new: true }
-    ).populate("supplierId");
+    )
+      .populate("supplierId") // עובד כי Supplier מיובא
+      .lean();
 
     if (!updated) {
       return NextResponse.json(
