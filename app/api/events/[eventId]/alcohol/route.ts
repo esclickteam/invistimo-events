@@ -2,35 +2,56 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import EventAlcohol from "@/models/EventAlcohol";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
-  await connectDB();
+  try {
+    await connectDB();
 
-  const alcohol = await EventAlcohol.find({ eventId: params.eventId })
-    .sort({ createdAt: 1 })
-    .lean();
+    const { eventId } = await params;
 
-  return NextResponse.json({ success: true, alcohol });
+    const alcohol = await EventAlcohol.find({ eventId })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    return NextResponse.json({ success: true, alcohol }, { status: 200 });
+  } catch (err) {
+    console.error("❌ GET /api/events/[eventId]/alcohol failed:", err);
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
-  await connectDB();
+  try {
+    await connectDB();
 
-  const body = await req.json();
+    const { eventId } = await params;
+    const body = await req.json();
 
-  const doc = await EventAlcohol.create({
-    eventId: params.eventId,
-    category: body.category,
-    brand: body.brand,
-    flavor: body.flavor,
-    total: body.total,
-    allocations: [],
-  });
+    const doc = await EventAlcohol.create({
+      eventId,
+      category: body.category ?? "",
+      brand: body.brand ?? "",
+      flavor: body.flavor ?? "",
+      total: Number(body.total ?? 1),
+      allocations: [],
+    });
 
-  return NextResponse.json({ success: true, alcohol: doc });
+    return NextResponse.json({ success: true, alcohol: doc }, { status: 201 });
+  } catch (err) {
+    console.error("❌ POST /api/events/[eventId]/alcohol failed:", err);
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
 }
