@@ -88,7 +88,8 @@ export default function OverviewTab({ eventId }) {
   /* =====================
      DERIVED (🔴 פה היה הבאג)
   ===================== */
-  const budgetTotal = budget?.total || 0;
+  const budgetTotal = event?.budgetTotal || 0;
+
   const spent = budget?.spent || 0;
   const remaining = Math.max(budgetTotal - spent, 0);
 
