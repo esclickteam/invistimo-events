@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
+/**
+ * ⚠️ Side-effect imports
+ * חובה בשביל populate ב-Next.js
+ */
+import "@/models/Supplier";
+import "@/models/EventSupplier";
+
 import EventSupplier from "@/models/EventSupplier";
-import Supplier from "@/models/Supplier"; // ✅ חובה בשביל populate
 
 /* =========================================================
    PATCH – עדכון ספק לאירוע
 ========================================================= */
-
 export async function PATCH(
   request: NextRequest,
   context: {
@@ -31,10 +36,18 @@ export async function PATCH(
       "files",
     ] as const;
 
-    const updateData: Partial<Record<(typeof allowedFields)[number], any>> = {};
+    const updateData: Partial<
+      Record<(typeof allowedFields)[number], any>
+    > = {};
 
     for (const key of allowedFields) {
-      if (key in body) {
+      if (!(key in body)) continue;
+
+      // 🔐 CAST NUMBERS SAFELY
+      if (key === "price" || key === "advance" || key === "balance") {
+        const value = Number(body[key]);
+        updateData[key] = Number.isFinite(value) ? value : 0;
+      } else {
         updateData[key] = body[key];
       }
     }
@@ -51,7 +64,7 @@ export async function PATCH(
       { $set: updateData },
       { new: true }
     )
-      .populate("supplierId") // עובד כי Supplier מיובא
+      .populate("supplierId")
       .lean();
 
     if (!updated) {
@@ -74,7 +87,6 @@ export async function PATCH(
 /* =========================================================
    DELETE – הסרת ספק מהאירוע
 ========================================================= */
-
 export async function DELETE(
   _request: NextRequest,
   context: {
