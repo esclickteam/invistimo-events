@@ -13,6 +13,9 @@ export default function SuppliersTab({ eventId }) {
   const [openSupplierRow, setOpenSupplierRow] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ✅ Preview state (בלי לשנות לוגיקה קיימת)
+  const [previewFile, setPreviewFile] = useState(null);
+
   /* ======================
      LOAD DATA
   ====================== */
@@ -36,7 +39,7 @@ export default function SuppliersTab({ eventId }) {
 
         setCategories(cats);
         setRows(
-          eventSuppliers.map(r => ({
+          eventSuppliers.map((r) => ({
             id: r._id,
             categoryId: r.categoryId,
             category: r.category,
@@ -71,7 +74,7 @@ export default function SuppliersTab({ eventId }) {
 
     const created = await res.json();
 
-    setRows(prev => [
+    setRows((prev) => [
       ...prev,
       {
         id: created._id,
@@ -102,7 +105,7 @@ export default function SuppliersTab({ eventId }) {
       updatedRow.balance = Math.max(price - advance, 0);
     }
 
-    setRows(prev => {
+    setRows((prev) => {
       const copy = [...prev];
       copy[i] = updatedRow;
       return copy;
@@ -127,7 +130,7 @@ export default function SuppliersTab({ eventId }) {
   async function selectSupplier(i, supplier) {
     const row = rows[i];
 
-    setRows(prev => {
+    setRows((prev) => {
       const copy = [...prev];
       copy[i] = {
         ...copy[i],
@@ -159,7 +162,7 @@ export default function SuppliersTab({ eventId }) {
 
   async function removeRow(i) {
     const row = rows[i];
-    setRows(prev => prev.filter((_, idx) => idx !== i));
+    setRows((prev) => prev.filter((_, idx) => idx !== i));
 
     await fetch(`/api/events/${eventId}/suppliers/${row.id}`, {
       method: "DELETE",
@@ -174,18 +177,18 @@ export default function SuppliersTab({ eventId }) {
     if (!fileList || fileList.length === 0) return;
 
     const formData = new FormData();
-    Array.from(fileList).forEach(file => formData.append("files", file));
+    Array.from(fileList).forEach((file) => formData.append("files", file));
 
     const row = rows[rowIndex];
 
-    const res = await fetch(
-      `/api/events/${eventId}/suppliers/${row.id}/files`,
-      { method: "POST", body: formData }
-    );
+    const res = await fetch(`/api/events/${eventId}/suppliers/${row.id}/files`, {
+      method: "POST",
+      body: formData,
+    });
 
     const savedFiles = await res.json();
 
-    setRows(prev => {
+    setRows((prev) => {
       const copy = [...prev];
       copy[rowIndex] = { ...copy[rowIndex], files: savedFiles };
       return copy;
@@ -202,7 +205,6 @@ export default function SuppliersTab({ eventId }) {
 
   return (
     <div className="max-w-7xl mx-auto space-y-10" dir="rtl">
-
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-semibold">ספקים סגורים לאירוע</h1>
         <button
@@ -218,11 +220,13 @@ export default function SuppliersTab({ eventId }) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              {["תחום","תת־תחום","ספק","מחיר","מקדמה","יתרה","קבצים","פעולה"].map(h => (
-                <th key={h} className="px-6 py-4 text-right font-medium text-gray-600">
-                  {h}
-                </th>
-              ))}
+              {["תחום", "תת־תחום", "ספק", "מחיר", "מקדמה", "יתרה", "קבצים", "פעולה"].map(
+                (h) => (
+                  <th key={h} className="px-6 py-4 text-right font-medium text-gray-600">
+                    {h}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
 
@@ -250,31 +254,27 @@ export default function SuppliersTab({ eventId }) {
                     </button>
                   </td>
 
-                  {["price","advance","balance"].map(f => (
+                  {["price", "advance", "balance"].map((f) => (
                     <td key={f} className="px-6 py-4">
                       <input
                         disabled={f === "balance"}
                         className="border rounded-lg px-3 py-2 w-28 disabled:bg-gray-100"
                         value={row[f]}
-                        onChange={e => updateRow(i, f, e.target.value)}
+                        onChange={(e) => updateRow(i, f, e.target.value)}
                       />
                     </td>
                   ))}
 
                   <td className="px-6 py-4 space-y-2">
                     {row.files?.map((file, idx) => (
-
                       <button
-  className="underline text-blue-600 text-sm"
-  onClick={() => {
-    window.location.href =
-      `/api/files/download?url=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name)}`;
-  }}
->
-  ⬇️ הורדת {file.name}
-</button>
-
-                      
+                        key={idx}
+                        type="button"
+                        className="block text-sm text-blue-600 underline text-right"
+                        onClick={() => setPreviewFile(file)}
+                      >
+                        👁️ {file.name || "קובץ"}
+                      </button>
                     ))}
 
                     <label className="block cursor-pointer text-xs underline">
@@ -283,7 +283,7 @@ export default function SuppliersTab({ eventId }) {
                         type="file"
                         multiple
                         className="hidden"
-                        onChange={e => handleFiles(i, e.target.files)}
+                        onChange={(e) => handleFiles(i, e.target.files)}
                       />
                     </label>
                   </td>
@@ -304,7 +304,7 @@ export default function SuppliersTab({ eventId }) {
                       <SupplierPicker
                         categoryId={row.categoryId}
                         sub={row.sub}
-                        onSelect={s => selectSupplier(i, s)}
+                        onSelect={(s) => selectSupplier(i, s)}
                       />
                     </td>
                   </tr>
@@ -319,11 +319,16 @@ export default function SuppliersTab({ eventId }) {
         <AddRowModal
           categories={categories}
           onClose={() => setOpenAddModal(false)}
-          onAdd={data => {
+          onAdd={(data) => {
             addRow(data);
             setOpenAddModal(false);
           }}
         />
+      )}
+
+      {/* ✅ Preview Modal (לא משנה שום לוגיקה של טבלאות/שמירות) */}
+      {previewFile && (
+        <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
       )}
     </div>
   );
@@ -339,25 +344,28 @@ function AddRowModal({ categories, onClose, onAdd }) {
 
   if (!categories.length) return null;
 
-  const category = categories.find(c => c._id === categoryId);
+  const category = categories.find((c) => c._id === categoryId);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl w-full max-w-lg p-8 space-y-6">
-
         <h3 className="text-lg font-semibold">הוספת תחום לאירוע</h3>
 
         <select
           className="border rounded-xl px-4 py-3 w-full"
           value={categoryId}
-          onChange={e => {
+          onChange={(e) => {
             setCategoryId(e.target.value);
             setSub("");
           }}
         >
-          <option value="" disabled>בחר תחום</option>
-          {categories.map(c => (
-            <option key={c._id} value={c._id}>{c.name}</option>
+          <option value="" disabled>
+            בחר תחום
+          </option>
+          {categories.map((c) => (
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
           ))}
         </select>
 
@@ -365,11 +373,15 @@ function AddRowModal({ categories, onClose, onAdd }) {
           <select
             className="border rounded-xl px-4 py-3 w-full"
             value={sub}
-            onChange={e => setSub(e.target.value)}
+            onChange={(e) => setSub(e.target.value)}
           >
-            <option value="" disabled>בחר תת־תחום</option>
-            {category.subs.map(s => (
-              <option key={s} value={s}>{s}</option>
+            <option value="" disabled>
+              בחר תת־תחום
+            </option>
+            {category.subs.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         )}
@@ -378,11 +390,15 @@ function AddRowModal({ categories, onClose, onAdd }) {
           <button onClick={onClose}>ביטול</button>
           <button
             className="bg-black text-white px-5 py-2 rounded-xl"
-            onClick={() => category && sub && onAdd({
-              categoryId: category._id,
-              categoryName: category.name,
-              sub,
-            })}
+            onClick={() =>
+              category &&
+              sub &&
+              onAdd({
+                categoryId: category._id,
+                categoryName: category.name,
+                sub,
+              })
+            }
           >
             הוסף
           </button>
@@ -401,13 +417,13 @@ function SupplierPicker({ categoryId, sub, onSelect }) {
 
   useEffect(() => {
     fetch(`/api/suppliers?categoryId=${categoryId}&sub=${sub}`)
-      .then(r => r.json())
+      .then((r) => r.json())
       .then(setSuppliers);
   }, [categoryId, sub]);
 
   return (
     <div className="space-y-4">
-      {suppliers.map(s => (
+      {suppliers.map((s) => (
         <div key={s._id} className="flex justify-between border rounded-xl px-5 py-4">
           <div>
             <div className="font-medium">{s.name}</div>
@@ -423,6 +439,80 @@ function SupplierPicker({ categoryId, sub, onSelect }) {
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ======================
+   FILE PREVIEW MODAL
+   Cloudinary-friendly Preview
+====================== */
+
+function FilePreviewModal({ file, onClose }) {
+  const name = file?.name || "קובץ";
+  const url = file?.url;
+
+  const isPdf =
+    (file?.type || "").includes("pdf") || String(name).toLowerCase().endsWith(".pdf");
+
+  const isImage =
+    (file?.type || "").startsWith("image/") ||
+    /\.(png|jpe?g|gif|webp)$/i.test(String(name));
+
+  if (!url) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b">
+          <div className="font-medium truncate">{name}</div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="text-sm underline text-gray-600"
+              onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+            >
+              פתיחה בטאב חדש
+            </button>
+            <button
+              type="button"
+              className="text-sm bg-black text-white px-4 py-2 rounded-xl"
+              onClick={onClose}
+            >
+              סגור
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="h-[75vh] bg-gray-50">
+          {isPdf ? (
+            <iframe src={url} title={name} className="w-full h-full" />
+          ) : isImage ? (
+            <div className="w-full h-full flex items-center justify-center p-6">
+              <img
+                src={url}
+                alt={name}
+                className="max-h-full max-w-full rounded-xl shadow"
+              />
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-4">
+              <div className="text-gray-700 font-medium">
+                אין תצוגה מקדימה לסוג הקובץ הזה
+              </div>
+              <button
+                type="button"
+                className="bg-black text-white px-5 py-2 rounded-xl"
+                onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+              >
+                פתח בטאב חדש
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
