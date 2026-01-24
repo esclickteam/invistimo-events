@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-
 import "@/models/EventLogisticsStep";
 import EventLogisticsStep from "@/models/EventLogisticsStep";
 

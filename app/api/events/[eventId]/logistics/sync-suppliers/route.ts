@@ -1,20 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import db from "@/lib/db";
+
 import EventSupplier from "@/models/EventSupplier";
 import EventLogisticsStep from "@/models/EventLogisticsStep";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
-   POST – סנכרון ספקים ללוז
+   POST – Sync suppliers into logistics timeline
 ========================================================= */
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
 
-    const { eventId } = params;
+    /* =========================
+       Auth
+    ========================= */
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    /* =========================
+       Params
+    ========================= */
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
@@ -28,36 +44,29 @@ export async function POST(
     ========================= */
     const suppliers = await EventSupplier.find({ eventId }).lean();
 
-    /* =========================
-       Existing logistics steps
-    ========================= */
     const existingSteps = await EventLogisticsStep.find({
       eventId,
       source: "supplier",
     }).lean();
 
     const existingSupplierIds = new Set(
-      existingSteps
-        .filter((s) => s.supplierId)
-        .map((s) => String(s.supplierId))
+      existingSteps.map((s) => String(s.supplierId))
     );
 
     const baseOrder = await EventLogisticsStep.countDocuments({ eventId });
 
-    /* =========================
-       Build new steps
-    ========================= */
     const toInsert = suppliers
       .filter(
         (s) =>
-          s._id && !existingSupplierIds.has(String(s._id))
+          s.supplierId &&
+          !existingSupplierIds.has(String(s.supplierId))
       )
       .map((s, index) => ({
         eventId,
-        title: s.name || s.supplierName || "ספק",
+        title: s.supplierName || s.name || "ספק",
         phone: s.phone || "",
         source: "supplier",
-        supplierId: s._id,
+        supplierId: s.supplierId,
         status: "pending",
         order: baseOrder + index,
       }));
@@ -66,9 +75,6 @@ export async function POST(
       await EventLogisticsStep.insertMany(toInsert);
     }
 
-    /* =========================
-       Return updated timeline
-    ========================= */
     const steps = await EventLogisticsStep.find({ eventId })
       .sort({ order: 1 })
       .lean();
@@ -78,7 +84,7 @@ export async function POST(
       steps,
     });
   } catch (err) {
-    console.error("❌ POST /logistics/sync-suppliers failed:", err);
+    console.error("❌ POST sync-suppliers failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
