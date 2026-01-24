@@ -7,7 +7,8 @@ export default function FilePreviewModal({ file, onClose }) {
   const url = file?.url;
 
   const isPdf =
-    (file?.type || "").includes("pdf") || String(name).toLowerCase().endsWith(".pdf");
+    (file?.type || "").includes("pdf") ||
+    String(name).toLowerCase().endsWith(".pdf");
 
   const isImage =
     (file?.type || "").startsWith("image/") ||
@@ -25,7 +26,9 @@ export default function FilePreviewModal({ file, onClose }) {
             <button
               type="button"
               className="text-sm underline text-gray-600"
-              onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+              onClick={() =>
+                window.open(url, "_blank", "noopener,noreferrer")
+              }
             >
               פתיחה בטאב חדש
             </button>
@@ -40,7 +43,7 @@ export default function FilePreviewModal({ file, onClose }) {
         </div>
 
         {/* Body */}
-        <div className="h-[75vh] bg-gray-50 overflow-auto">
+        <div className="h-[75vh] bg-gray-50 overflow-hidden">
           {isPdf ? (
             <PdfViewer url={url} />
           ) : isImage ? (
@@ -59,7 +62,9 @@ export default function FilePreviewModal({ file, onClose }) {
               <button
                 type="button"
                 className="bg-black text-white px-5 py-2 rounded-xl"
-                onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+                onClick={() =>
+                  window.open(url, "_blank", "noopener,noreferrer")
+                }
               >
                 פתח בטאב חדש
               </button>
