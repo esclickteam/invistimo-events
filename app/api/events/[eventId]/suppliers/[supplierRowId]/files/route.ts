@@ -8,6 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string; supplierRowId: string }> }
 ) {
   await db();
+
   const { supplierRowId } = await params;
 
   const formData = await request.formData();
@@ -17,7 +18,7 @@ export async function POST(
     return NextResponse.json([], { status: 200 });
   }
 
-  const uploadedFiles = [];
+  const uploadedUrls: string[] = [];
 
   for (const file of files) {
     const bytes = await file.arrayBuffer();
@@ -28,7 +29,9 @@ export async function POST(
         .upload_stream(
           {
             folder: `events/suppliers/${supplierRowId}`,
-            resource_type: "auto",
+            resource_type: "raw", // 🔥 קריטי – אחרת 401
+            use_filename: true,
+            unique_filename: true,
           },
           (error, result) => {
             if (error) reject(error);
@@ -38,17 +41,17 @@ export async function POST(
         .end(buffer);
     });
 
-    uploadedFiles.push({
-      name: result.original_filename,
-      url: result.secure_url,
-      publicId: result.public_id,
-      type: result.resource_type,
-    });
+    // ✅ שומרים רק URL (תואם ל־Schema)
+    uploadedUrls.push(result.secure_url);
   }
 
   const row = await EventSupplier.findByIdAndUpdate(
     supplierRowId,
-    { $push: { files: { $each: uploadedFiles } } },
+    {
+      $push: {
+        files: { $each: uploadedUrls },
+      },
+    },
     { new: true }
   ).lean();
 
