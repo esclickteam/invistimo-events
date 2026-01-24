@@ -60,6 +60,7 @@ export default function ProductionTabs({
 
               return (
                 <button
+                type="button" 
                   key={tab.key}
                   onClick={() => changeTab(tab.key)}
                   className={`
