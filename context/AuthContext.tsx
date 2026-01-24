@@ -149,12 +149,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (nextUser.role === "admin") {
-        router.replace("/admin");
-      } else if (nextUser.role === "producer") {
-        router.replace("/producer/dashboard");
-      } else {
-        router.replace("/dashboard");
-      }
+  router.replace("/admin");
+  router.refresh();
+} else if (nextUser.role === "producer") {
+  router.replace("/producer/dashboard");
+  router.refresh();
+} else {
+  router.replace("/dashboard");
+  router.refresh();
+}
+
+
+
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
