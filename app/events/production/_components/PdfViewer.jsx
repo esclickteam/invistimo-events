@@ -1,64 +1,90 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 
-/**
- * ✅ Next.js fix:
- * אין יותר pdf.worker.entry בגרסאות החדשות.
- * לכן מגדירים workerSrc ל-CDN לפי הגרסה של pdfjs-dist שמותקנת אצלך.
- */
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// ✅ WORKER יציב (4.x עובד מצוין)
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://unpkg.com/pdfjs-dist@4.2.67/build/pdf.worker.min.js";
 
 export default function PdfViewer({ url }) {
   const canvasRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!url) return;
 
     let cancelled = false;
-    let loadingTask = null;
+    let loadingTask;
 
     async function renderPdf() {
-      loadingTask = pdfjsLib.getDocument(url);
-      const pdf = await loadingTask.promise;
-      if (cancelled) return;
+      try {
+        setLoading(true);
+        setError(false);
 
-      // עמוד ראשון (אפשר להרחיב אחר כך לעמודים/זום)
-      const page = await pdf.getPage(1);
-      if (cancelled) return;
+        loadingTask = pdfjsLib.getDocument({
+          url,
+          withCredentials: false,
+        });
 
-      const viewport = page.getViewport({ scale: 1.4 });
+        const pdf = await loadingTask.promise;
+        if (cancelled) return;
 
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+        const page = await pdf.getPage(1);
+        if (cancelled) return;
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+        const viewport = page.getViewport({ scale: 1.2 });
 
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        setLoading(false);
+      } catch (err) {
+        console.error("PdfViewer error:", err);
+        setError(true);
+        setLoading(false);
+      }
     }
 
-    renderPdf().catch((err) => {
-      // לרוב זה יופיע אם יש CORS/URL לא נגיש (למשל Cloudinary raw)
-      console.error("PdfViewer render error:", err);
-    });
+    renderPdf();
 
     return () => {
       cancelled = true;
       try {
-        if (loadingTask && typeof loadingTask.destroy === "function") {
-          loadingTask.destroy();
-        }
-      } catch (_) {}
+        loadingTask?.destroy();
+      } catch {}
     };
   }, [url]);
 
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center text-gray-500">
+        טוען PDF…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
+        <div className="text-red-600 font-medium">לא ניתן לטעון PDF</div>
+        <button
+          className="bg-black text-white px-5 py-2 rounded-xl"
+          onClick={() => window.open(url, "_blank")}
+        >
+          פתיחה בטאב חדש
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-auto">
+    <div className="overflow-auto flex justify-center">
       <canvas ref={canvasRef} />
     </div>
   );
