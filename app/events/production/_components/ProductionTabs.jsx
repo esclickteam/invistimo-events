@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import AlcoholManagementSystem from "./AlcoholManagementSystem"; // ⬅️ לוודא שיש import
 
 const TABS = [
   { key: "overview", label: "תמונת מצב" },
@@ -25,6 +26,7 @@ export default function ProductionTabs({
   liveGuests,
   liveSeating,
   invitation,
+  eventId, // ⬅️ כבר קיים – רק משתמשים בו נכון
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,7 +36,7 @@ export default function ProductionTabs({
     router.push(`/events/production?tab=${tabKey}`);
   };
 
-  // Guard
+  // Guard – נשאר כמו שהוא (לא שיניתי לוגיקה)
   if (!invitation) {
     return (
       <div className="p-10 text-center text-gray-500">
@@ -60,8 +62,8 @@ export default function ProductionTabs({
 
               return (
                 <button
-                type="button" 
                   key={tab.key}
+                  type="button"
                   onClick={() => changeTab(tab.key)}
                   className={`
                     px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
@@ -72,7 +74,7 @@ export default function ProductionTabs({
                         : "text-black/70 hover:bg-black/5"
                     }
                     ${
-                       tab.live && !isActive
+                      tab.live && !isActive
                         ? "border border-black/20"
                         : ""
                     }
@@ -93,7 +95,11 @@ export default function ProductionTabs({
         {activeTab === "suppliers" && suppliers}
         {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
-        {activeTab === "alcohol" && alcohol}
+
+        {activeTab === "alcohol" && (
+          <AlcoholManagementSystem eventId={eventId} />
+        )}
+
         {activeTab === "live-guests" && liveGuests}
         {activeTab === "live-seating" && liveSeating}
       </div>
