@@ -73,44 +73,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      🔐 מקור אמת יחיד – השרת
   -------------------------------------------------- */
   const refreshUser = async (): Promise<User | null> => {
-    try {
-      const res = await fetch("/api/me", {
-        credentials: "include",
-        cache: "no-store",
-      });
+  try {
+    const res = await fetch("/api/me", {
+      credentials: "include",
+      cache: "no-store",
+    });
 
-      if (!res.ok) {
-        setUser(null);
-        sessionStorage.removeItem("auth_user");
-        return null;
-      }
-
-      const data = await res.json();
-      const nextUser: User | null = data?.user ?? null;
-
-      if (nextUser && !nextUser.role) {
-        console.error("❌ User without role from /api/me");
-        setUser(null);
-        sessionStorage.removeItem("auth_user");
-        return null;
-      }
-
-      setUser(nextUser);
-
-      if (nextUser) {
-        sessionStorage.setItem("auth_user", JSON.stringify(nextUser));
-      } else {
-        sessionStorage.removeItem("auth_user");
-      }
-
-      return nextUser;
-    } catch (err) {
-      console.error("❌ refreshUser error:", err);
-      setUser(null);
-      sessionStorage.removeItem("auth_user");
-      return null;
+    if (!res.ok) {
+      console.warn("⚠️ /api/me failed");
+      return user;
     }
-  };
+
+    const data = await res.json();
+    const nextUser = data?.user ?? null;
+
+    if (!nextUser?.role) {
+      console.error("❌ Invalid user from /api/me");
+      return user;
+    }
+
+    setUser(nextUser);
+    sessionStorage.setItem("auth_user", JSON.stringify(nextUser));
+    return nextUser;
+  } catch (err) {
+    console.error("❌ refreshUser error:", err);
+    return user;
+  }
+};
+
 
   /* --------------------------------------------------
      🚀 אימות ראשוני (mount)
@@ -214,6 +204,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (loading) {
     return null; // או Spinner
   }
+
+  if (!user) {
+  router.replace("/login");
+  return null;
+}
 
   /* --------------------------------------------------
      PROVIDER
