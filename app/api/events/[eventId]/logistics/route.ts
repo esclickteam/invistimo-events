@@ -4,6 +4,8 @@ import db from "@/lib/db";
 import EventLogisticsStep from "@/models/EventLogisticsStep";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
+export const dynamic = "force-dynamic";
+
 /* =========================================================
    GET – Logistics Steps for Event
 ========================================================= */
@@ -14,6 +16,7 @@ export async function GET(
   try {
     await db();
 
+    // Auth
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -22,8 +25,8 @@ export async function GET(
       );
     }
 
+    // Params
     const { eventId } = params;
-
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
@@ -31,13 +34,14 @@ export async function GET(
       );
     }
 
+    // Load
     const steps = await EventLogisticsStep.find({ eventId })
       .sort({ order: 1 })
       .lean();
 
     return NextResponse.json({ success: true, steps });
   } catch (err) {
-    console.error("❌ GET /logistics failed:", err);
+    console.error("❌ GET /api/events/[eventId]/logistics failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
@@ -55,6 +59,7 @@ export async function POST(
   try {
     await db();
 
+    // Auth
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -63,6 +68,7 @@ export async function POST(
       );
     }
 
+    // Params
     const { eventId } = params;
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
@@ -71,8 +77,10 @@ export async function POST(
       );
     }
 
-    const body = await req.json();
-    const { title, time } = body;
+    // Body
+    const body = await req.json().catch(() => null);
+    const title = String(body?.title || "").trim();
+    const time = String(body?.time || "").trim();
 
     if (!title) {
       return NextResponse.json(
@@ -81,23 +89,21 @@ export async function POST(
       );
     }
 
+    // Order (append to end)
     const order = await EventLogisticsStep.countDocuments({ eventId });
 
     const step = await EventLogisticsStep.create({
       eventId,
       title,
-      time: time || "",
+      time,
       status: "pending",
       order,
       createdBy: auth.userId,
     });
 
-    return NextResponse.json({
-      success: true,
-      step,
-    });
+    return NextResponse.json({ success: true, step });
   } catch (err) {
-    console.error("❌ POST /logistics failed:", err);
+    console.error("❌ POST /api/events/[eventId]/logistics failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
