@@ -72,11 +72,11 @@ export default function AlcoholManagementSystem({ eventId }) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      category: "",
-      brand: "",
-      flavor: "",
-      total: 1,
-    }),
+  category: "לא נבחר",
+  brand: "חדש",
+  flavor: "",
+  total: 1,
+}),
   });
 
   if (!res.ok) return; // או throw
