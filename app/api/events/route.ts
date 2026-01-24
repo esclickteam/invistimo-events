@@ -89,7 +89,7 @@ export async function POST(req: Request) {
 /* =========================
    PATCH – עדכון שדות ספציפיים (תקציב)
 ========================= */
-export async function PATCH(req: Request) {
+export async function PATCH(req: Request, { params }) {
   try {
     await connectDB();
 
@@ -101,7 +101,9 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { budgetTotal } = body;
 
-    const event = await Event.findOne({ userId: auth.userId });
+    // ✅ שימוש ב־params.id במקום userId
+    const eventId = params.id;
+    const event = await Event.findById(eventId);
     if (!event) {
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
     }
