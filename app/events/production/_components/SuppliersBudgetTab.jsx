@@ -264,12 +264,20 @@ export default function SuppliersTab({ eventId }) {
                   <td className="px-6 py-4 space-y-2">
                     {row.files?.map((file, idx) => (
 
-                      <a
-  href={`${file.url}?fl_attachment=${encodeURIComponent(file.name)}`}
+                      <button
   className="underline text-blue-600 text-sm"
+  onClick={() => {
+    const link = document.createElement("a");
+    link.href = `${file.url}?fl_attachment=${encodeURIComponent(file.name)}`;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }}
 >
   ⬇️ הורדת {file.name}
-</a>
+</button>
+
                       
                     ))}
 
