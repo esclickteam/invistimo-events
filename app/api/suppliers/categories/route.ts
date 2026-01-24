@@ -1,17 +1,27 @@
-// app/api/suppliers/categories/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import SupplierCategory from "@/models/SupplierCategory";
 import db from "@/lib/db";
 
-export async function GET() {
+/* =========================================================
+   GET – כל תחומי הספקים
+========================================================= */
+
+export async function GET(_request: NextRequest) {
   await db();
+
   const categories = await SupplierCategory.find().lean();
   return NextResponse.json(categories);
 }
 
-export async function POST(req: Request) {
+/* =========================================================
+   POST – הוספת תחום חדש
+========================================================= */
+
+export async function POST(request: NextRequest) {
   await db();
-  const body = await req.json();
+
+  const body = await request.json();
   const cat = await SupplierCategory.create(body);
+
   return NextResponse.json(cat);
 }

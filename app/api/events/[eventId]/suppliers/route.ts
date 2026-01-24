@@ -1,29 +1,51 @@
-// app/api/events/[eventId]/suppliers/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import EventSupplier from "@/models/EventSupplier";
 import db from "@/lib/db";
 
+/* =========================================================
+   GET – כל הספקים של האירוע
+========================================================= */
+
 export async function GET(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  _request: NextRequest,
+  context: {
+    params: Promise<{
+      eventId: string;
+    }>;
+  }
 ) {
   await db();
-  const rows = await EventSupplier.find({ eventId: params.eventId })
+
+  const { eventId } = await context.params;
+
+  const rows = await EventSupplier.find({ eventId })
     .populate("supplierId")
     .lean();
 
   return NextResponse.json(rows);
 }
 
+/* =========================================================
+   POST – הוספת שורת ספק לאירוע
+========================================================= */
+
 export async function POST(
-  req: Request,
-  { params }: { params: { eventId: string } }
+  request: NextRequest,
+  context: {
+    params: Promise<{
+      eventId: string;
+    }>;
+  }
 ) {
   await db();
-  const body = await req.json();
+
+  const { eventId } = await context.params;
+  const body = await request.json();
+
   const row = await EventSupplier.create({
     ...body,
-    eventId: params.eventId,
+    eventId,
   });
+
   return NextResponse.json(row);
 }
