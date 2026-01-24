@@ -8,8 +8,6 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { usePathname } from "next/navigation";
-
 
 /* =====================================================
    TYPES
@@ -71,47 +69,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [loading, setLoading] = useState(true);
 
-  const pathname = usePathname();
-
-const PUBLIC_ROUTES = [
-  "/login",
-  "/register",
-  "/forgot-password",
-];
-
-
   /* --------------------------------------------------
      🔐 מקור אמת יחיד – השרת
   -------------------------------------------------- */
   const refreshUser = async (): Promise<User | null> => {
-  try {
-    const res = await fetch("/api/me", {
-      credentials: "include",
-      cache: "no-store",
-    });
+    try {
+      const res = await fetch("/api/me", {
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    if (!res.ok) {
-      console.warn("⚠️ /api/me failed");
-      return user;
+      if (!res.ok) {
+        setUser(null);
+        sessionStorage.removeItem("auth_user");
+        return null;
+      }
+
+      const data = await res.json();
+      const nextUser: User | null = data?.user ?? null;
+
+      if (nextUser && !nextUser.role) {
+        console.error("❌ User without role from /api/me");
+        setUser(null);
+        sessionStorage.removeItem("auth_user");
+        return null;
+      }
+
+      setUser(nextUser);
+
+      if (nextUser) {
+        sessionStorage.setItem("auth_user", JSON.stringify(nextUser));
+      } else {
+        sessionStorage.removeItem("auth_user");
+      }
+
+      return nextUser;
+    } catch (err) {
+      console.error("❌ refreshUser error:", err);
+      setUser(null);
+      sessionStorage.removeItem("auth_user");
+      return null;
     }
-
-    const data = await res.json();
-    const nextUser = data?.user ?? null;
-
-    if (!nextUser?.role) {
-      console.error("❌ Invalid user from /api/me");
-      return user;
-    }
-
-    setUser(nextUser);
-    sessionStorage.setItem("auth_user", JSON.stringify(nextUser));
-    return nextUser;
-  } catch (err) {
-    console.error("❌ refreshUser error:", err);
-    return user;
-  }
-};
-
+  };
 
   /* --------------------------------------------------
      🚀 אימות ראשוני (mount)
@@ -213,15 +212,8 @@ const PUBLIC_ROUTES = [
      ⏳ Guard – לא מציג ילדים לפני אימות
   -------------------------------------------------- */
   if (loading) {
-  return null;
-}
-
-const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-
-if (!user && !isPublicRoute) {
-  router.replace("/login");
-  return null;
-}
+    return null; // או Spinner
+  }
 
   /* --------------------------------------------------
      PROVIDER
