@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -18,99 +18,19 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-/* -----------------------------
-   UI meta
------------------------------ */
+/* =====================
+   UI META
+===================== */
 const STATUS_META = {
-  pending: { label: "מתוכנן", pill: "bg-amber-50 text-amber-700 ring-1 ring-amber-200" },
-  missing: { label: "לא מאושר", pill: "bg-rose-50 text-rose-700 ring-1 ring-rose-200" },
-  done: { label: "בוצע", pill: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" },
+  pending: { label: "מתוכנן" },
+  missing: { label: "לא מאושר" },
+  done: { label: "בוצע" },
 };
 
-const SOURCE_META = {
-  supplier: { label: "ספק", pill: "bg-slate-50 text-slate-600 ring-1 ring-slate-200" },
-  template: { label: "תבנית", pill: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200" },
-  manual: { label: "ידני", pill: "bg-purple-50 text-purple-700 ring-1 ring-purple-200" },
-};
-
-// MOCK – בהמשך יגיע מה־API של ספקים
-const MOCK_SUPPLIERS = [
-  {
-    id: "sup1",
-    name: "DJ רועי לוי",
-    phone: "0501234567",
-  },
-  {
-    id: "sup2",
-    name: "צילום – סטודיו פלאש",
-    phone: "0529876543",
-  },
-  {
-    id: "sup3",
-    name: "עיצוב פרחים – בלום",
-    phone: "0544567890",
-  },
-];
-
-
-function GripIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="5" cy="4" r="1.1" />
-      <circle cx="11" cy="4" r="1.1" />
-      <circle cx="5" cy="8" r="1.1" />
-      <circle cx="11" cy="8" r="1.1" />
-      <circle cx="5" cy="12" r="1.1" />
-      <circle cx="11" cy="12" r="1.1" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M9 3h6m-7 4h8m-9 0 1 14h8l1-14"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PhoneIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M22 16.9v3a2 2 0 0 1-2.18 2
-        19.8 19.8 0 0 1-8.63-3.07
-        19.5 19.5 0 0 1-6-6
-        19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3
-        a2 2 0 0 1 2 1.72
-        12.8 12.8 0 0 0 .7 2.81
-        2 2 0 0 1-.45 2.11L8.09 9.91
-        a16 16 0 0 0 6 6l1.27-1.27
-        a2 2 0 0 1 2.11-.45
-        12.8 12.8 0 0 0 2.81.7
-        A2 2 0 0 1 22 16.9z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-
-/* -----------------------------
-   Sortable row
------------------------------ */
-function SortableRow({ item, updateItem, deleteItem }) {
+/* =====================
+   Sortable Row
+===================== */
+function SortableRow({ item, onUpdate, onDelete }) {
   const {
     setNodeRef,
     setActivatorNodeRef,
@@ -118,356 +38,229 @@ function SortableRow({ item, updateItem, deleteItem }) {
     listeners,
     transform,
     transition,
-    isDragging,
-  } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.85 : 1,
-  };
+  } = useSortable({ id: item._id });
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className="grid grid-cols-[84px_24px_1fr] items-start gap-4"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className="grid grid-cols-[80px_1fr] gap-4 items-start"
     >
-      {/* time column (visual) */}
-      <div className="pt-4 text-right font-mono text-sm text-slate-500">
-        {item.time || "--:--"}
-      </div>
+      <div className="text-sm text-slate-500 pt-4">{item.time || "--:--"}</div>
 
-      {/* axis */}
-      <div className="relative flex justify-center">
-        <div className="mt-5 h-3 w-3 rounded-full bg-purple-600 shadow-[0_0_0_4px_rgba(147,51,234,0.12)]" />
-      </div>
-
-      {/* card */}
-      <div className="group rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-        <div className="flex items-center gap-3 px-4 py-3">
-          {/* drag handle (only here) */}
+      <div className="rounded-2xl border bg-white p-4 space-y-2">
+        <div className="flex gap-2 items-center">
           <button
-            type="button"
             ref={setActivatorNodeRef}
             {...attributes}
             {...listeners}
-            className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-grab active:cursor-grabbing"
-            title="גרור לשינוי סדר"
+            className="cursor-grab px-2"
           >
-            <GripIcon />
+            ⠿
           </button>
 
-          {/* editable time */}
           <input
             type="time"
-            value={item.time}
-            onChange={(e) => updateItem(item.id, "time", e.target.value)}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-200"
+            value={item.time || ""}
+            onChange={(e) => onUpdate(item._id, { time: e.target.value })}
+            className="border rounded px-2"
           />
 
-          {/* title */}
           <input
             value={item.title}
-            onChange={(e) => updateItem(item.id, "title", e.target.value)}
-            onPointerDown={(e) => e.stopPropagation()}
-            placeholder="שם השלב (טקס, תוכן, הפסקה...)"
-            className="h-9 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-200"
+            onChange={(e) => onUpdate(item._id, { title: e.target.value })}
+            className="flex-1 border rounded px-2"
           />
 
-{/* phone */}
-<input
-  value={item.phone || ""}
-  onChange={(e) => updateItem(item.id, "phone", e.target.value)}
-  onPointerDown={(e) => e.stopPropagation()}
-  placeholder="טלפון"
-  className="h-9 w-36 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-200"
-/>
-
-{/* quick call */}
-{item.phone && (
-  <a
-    href={`tel:${item.phone}`}
-    onPointerDown={(e) => e.stopPropagation()}
-    className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-emerald-600 hover:bg-emerald-50"
-    title="חיוג מהיר"
-  >
-    <PhoneIcon />
-  </a>
-)}
-
-          {/* source */}
-          <span
-            className={`hidden sm:inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${SOURCE_META[item.source]?.pill}`}
-          >
-            {SOURCE_META[item.source]?.label}
-          </span>
-
-          {/* status */}
           <select
             value={item.status}
-            onChange={(e) => updateItem(item.id, "status", e.target.value)}
-            onPointerDown={(e) => e.stopPropagation()}
-            className={`h-9 rounded-xl px-3 text-xs font-semibold ${STATUS_META[item.status]?.pill} focus:outline-none focus:ring-2 focus:ring-purple-200`}
+            onChange={(e) => onUpdate(item._id, { status: e.target.value })}
+            className="border rounded px-2"
           >
-            <option value="pending">מתוכנן</option>
-            <option value="missing">לא מאושר</option>
-            <option value="done">בוצע</option>
+            {Object.keys(STATUS_META).map((s) => (
+              <option key={s} value={s}>
+                {STATUS_META[s].label}
+              </option>
+            ))}
           </select>
 
-          {/* delete */}
           <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteItem(item.id);
-            }}
-            className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-rose-600 hover:bg-rose-50"
-            title="מחק שלב"
+            onClick={() => onDelete(item._id)}
+            className="text-red-500"
           >
-            <TrashIcon />
+            🗑
           </button>
         </div>
 
-        {/* small footer row (optional polish) */}
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-          <span className="truncate">
-            טיפ: גרירה רק דרך הידית • כדי למנוע בלבול עם עריכה
-          </span>
-          <span className="hidden sm:inline">ID: {item.id}</span>
-        </div>
+        {item.phone && (
+          <div className="text-xs text-slate-500">
+            📞 <a href={`tel:${item.phone}`}>{item.phone}</a>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-/* -----------------------------
+/* =====================
    Main
------------------------------ */
-export default function LogisticsTab() {
-  const [timeline, setTimeline] = useState([
-    { id: "1", time: "14:00", title: "הגעת ספק מרכזי", status: "pending", source: "supplier" },
-    { id: "2", time: "16:00", title: "קליטת משתתפים / קבלת קהל", status: "pending", source: "template" },
-    { id: "3", time: "18:00", title: "שלב מרכזי באירוע", status: "missing", source: "template" },
-  ]);
+===================== */
+export default function LogisticsTab({ eventId }) {
+  const [steps, setSteps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newItem, setNewItem] = useState({ time: "", title: "" });
 
-const [newItem, setNewItem] = useState({ time: "", title: "", source: "manual", phone: "" });
+  /* ---------- Load ---------- */
+  useEffect(() => {
+    if (!eventId) return;
 
+    async function load() {
+      setLoading(true);
+      const res = await fetch(`/api/events/${eventId}/logistics`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (data.success) setSteps(data.steps);
+      setLoading(false);
+    }
 
-  // Sensors = זה מה שמחזיר לך Drag יציב (ובעיקר עם handle)
+    load();
+  }, [eventId]);
+
+  /* ---------- Sensors ---------- */
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
 
-  const ids = useMemo(() => timeline.map((t) => t.id), [timeline]);
+  const ids = useMemo(() => steps.map((s) => s._id), [steps]);
 
-  const stats = useMemo(() => {
-    const total = timeline.length;
-    const missing = timeline.filter((x) => x.status === "missing").length;
-    const done = timeline.filter((x) => x.status === "done").length;
-    const next = timeline
-      .filter((x) => x.status !== "done")
-      .sort((a, b) => (a.time || "").localeCompare(b.time || ""))[0];
-    return { total, missing, done, next };
-  }, [timeline]);
+  /* ---------- API Actions ---------- */
+  async function addStep() {
+    if (!newItem.title) return;
 
-  const updateItem = (id, field, value) => {
-    setTimeline((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
-  };
+    const res = await fetch(`/api/events/${eventId}/logistics`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newItem),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setSteps((p) => [...p, data.step]);
+      setNewItem({ time: "", title: "" });
+    }
+  }
 
-  const deleteItem = (id) => {
-    setTimeline((prev) => prev.filter((it) => it.id !== id));
-  };
-
-  const addTimelineItem = () => {
-    if (!newItem.time || !newItem.title) return;
-    setTimeline((prev) => [
-      ...prev,
-      {
-  id: Date.now().toString(),
-  time: newItem.time,
-  title: newItem.title,
-  status: "pending",
-  source: newItem.source,
-  phone: newItem.phone || "",
-},
-    ]);
-    setNewItem({ time: "", title: "", source: "manual", phone: "" });
-  };
-
-  const importSuppliers = () => {
-  setTimeline((prev) => {
-    const existingSupplierIds = new Set(
-      prev.filter((i) => i.source === "supplier" && i.supplierId).map((i) => i.supplierId)
+  async function updateStep(id, patch) {
+    setSteps((p) =>
+      p.map((s) => (s._id === id ? { ...s, ...patch } : s))
     );
 
-    const newRows = MOCK_SUPPLIERS
-      .filter((s) => !existingSupplierIds.has(s.id))
-      .map((s) => ({
-        id: `supplier-${s.id}`,
-        supplierId: s.id,
-        time: "",                // ⬅️ המפיקה תגדיר
-        title: s.name,
-        phone: s.phone,
-        status: "pending",
-        source: "supplier",
-      }));
-
-    return [...prev, ...newRows];
-  });
-};
-
-
-  const handleDragEnd = ({ active, over }) => {
-    if (!over || active.id === over.id) return;
-    setTimeline((items) => {
-      const oldIndex = items.findIndex((i) => i.id === active.id);
-      const newIndex = items.findIndex((i) => i.id === over.id);
-      return arrayMove(items, oldIndex, newIndex);
+    await fetch(`/api/logistics/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
     });
-  };
+  }
 
+  async function deleteStep(id) {
+    setSteps((p) => p.filter((s) => s._id !== id));
+    await fetch(`/api/logistics/${id}`, { method: "DELETE" });
+  }
+
+  async function syncSuppliers() {
+    const res = await fetch(
+      `/api/events/${eventId}/logistics/sync-suppliers`,
+      { method: "POST" }
+    );
+    const data = await res.json();
+    if (data.success) setSteps(data.steps);
+  }
+
+  /* ---------- Drag ---------- */
+  async function handleDragEnd({ active, over }) {
+    if (!over || active.id === over.id) return;
+
+    setSteps((items) => {
+      const oldIndex = items.findIndex((i) => i._id === active.id);
+      const newIndex = items.findIndex((i) => i._id === over.id);
+      const reordered = arrayMove(items, oldIndex, newIndex);
+
+      reordered.forEach((s, i) => {
+        fetch(`/api/logistics/${s._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: i }),
+        });
+      });
+
+      return reordered;
+    });
+  }
+
+  if (loading) return <div className="p-10">טוען לוז…</div>;
+
+  /* ---------- Render ---------- */
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-12">
-      {/* SaaS header */}
-      <div className="sticky top-0 z-10 -mx-4 mb-6 border-b border-slate-200 bg-[#f7f4ef]/80 backdrop-blur px-4 py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">לוגיסטיקה · לו״ז יום האירוע</h2>
-            <p className="text-sm text-slate-600">
-              גרירה לסדר · עריכה חופשית · מחיקה · מתאים לכל סוג אירוע
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-  type="button"
-  className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-  onClick={importSuppliers}
->
-  סנכרון מספקים
-</button>
-
-            <button
-              type="button"
-              className="inline-flex items-center rounded-xl bg-purple-600 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-700"
-              onClick={() => {
-                const el = document.getElementById("add-row-title");
-                el?.focus?.();
-              }}
-            >
-              הוסף שלב
-            </button>
-          </div>
-        </div>
-
-        {/* summary row */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
-            <div className="text-xs text-slate-500">שלבים</div>
-            <div className="mt-1 text-lg font-semibold text-slate-900">{stats.total}</div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
-            <div className="text-xs text-slate-500">לא מאושרים</div>
-            <div className="mt-1 text-lg font-semibold text-rose-700">{stats.missing}</div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3">
-            <div className="text-xs text-slate-500">הבא בתור</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">
-              {stats.next ? `${stats.next.time} · ${stats.next.title}` : "הכל בוצע 🎉"}
-            </div>
-          </div>
-        </div>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="flex justify-between">
+        <h2 className="text-xl font-semibold">לו״ז לוגיסטי</h2>
+        <button
+          onClick={syncSuppliers}
+          className="border rounded px-3 py-1"
+        >
+          סנכרון מספקים
+        </button>
       </div>
 
-      {/* Timeline area */}
-      <div className="relative rounded-3xl border border-slate-200 bg-white/60 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-        {/* axis */}
-        <div className="pointer-events-none absolute left-1/2 top-6 bottom-6 w-px bg-slate-200" />
-
-        {timeline.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-            <div className="text-lg font-semibold text-slate-900">אין עדיין שלבים בלו״ז</div>
-            <div className="mt-1 text-sm text-slate-600">הוסיפי שלב ראשון, או סנכרני מספקים</div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {steps.map((item) => (
+              <SortableRow
+                key={item._id}
+                item={item}
+                onUpdate={updateStep}
+                onDelete={deleteStep}
+              />
+            ))}
           </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <div className="space-y-6">
-                {timeline.map((item) => (
-                  <SortableRow
-                    key={item.id}
-                    item={item}
-                    updateItem={updateItem}
-                    deleteItem={deleteItem}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
+        </SortableContext>
+      </DndContext>
 
-        {/* Add row */}
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-2 text-sm font-semibold text-slate-900">הוספת שלב חדש</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_1fr_220px_160px_120px] sm:items-center">
-            <input
-              type="time"
-              value={newItem.time}
-              onChange={(e) => setNewItem((p) => ({ ...p, time: e.target.value }))}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-            />
-            <input
-              id="add-row-title"
-              value={newItem.title}
-              onChange={(e) => setNewItem((p) => ({ ...p, title: e.target.value }))}
-              placeholder="לדוגמה: טקס / תוכן / הפסקה / תדרוך צוות / החלפה..."
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-            />
-            <input
-  value={newItem.phone}
-  onChange={(e) => setNewItem((p) => ({ ...p, phone: e.target.value }))}
-  placeholder="טלפון (רשות)"
-  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-/>
-
-            <select
-              value={newItem.source}
-              onChange={(e) => setNewItem((p) => ({ ...p, source: e.target.value }))}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-            >
-              <option value="manual">ידני</option>
-              <option value="template">תבנית</option>
-              <option value="supplier">ספק</option>
-            </select>
-            <button
-              type="button"
-              onClick={addTimelineItem}
-              className="h-10 rounded-xl bg-purple-600 px-4 text-sm font-semibold text-white hover:bg-purple-700"
-            >
-              הוספה
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Notes */}
-      <div className="mt-8 rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate-900">📝 הערות לוגיסטיות</h4>
-          <span className="text-xs text-slate-500">טיפים, דגשים, כניסות, חניה, גיבויים…</span>
-        </div>
-        <textarea
-          rows={4}
-          className="mt-3 w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-200"
-          placeholder="כניסת ספקים משער אחורי, חניה מוגבלת, סדר טקס מיוחד, דרישות טכניות…"
+      <div className="border rounded p-4 space-y-2">
+        <h4 className="font-medium">הוספת שלב</h4>
+        <input
+          type="time"
+          value={newItem.time}
+          onChange={(e) =>
+            setNewItem((p) => ({ ...p, time: e.target.value }))
+          }
+          className="border rounded px-2"
         />
+        <input
+          value={newItem.title}
+          onChange={(e) =>
+            setNewItem((p) => ({ ...p, title: e.target.value }))
+          }
+          className="border rounded px-2 w-full"
+          placeholder="שם השלב"
+        />
+        <button
+          onClick={addStep}
+          className="bg-purple-600 text-white rounded px-3 py-1"
+        >
+          הוסף
+        </button>
       </div>
     </div>
   );
