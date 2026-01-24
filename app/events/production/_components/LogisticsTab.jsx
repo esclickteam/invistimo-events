@@ -49,7 +49,9 @@ function SortableRow({ item, onUpdate, onDelete }) {
       }}
       className="grid grid-cols-[80px_1fr] gap-4 items-start"
     >
-      <div className="text-sm text-slate-500 pt-4">{item.time || "--:--"}</div>
+      <div className="text-sm text-slate-500 pt-4">
+        {item.time || "--:--"}
+      </div>
 
       <div className="rounded-2xl border bg-white p-4 space-y-2">
         <div className="flex gap-2 items-center">
@@ -65,19 +67,25 @@ function SortableRow({ item, onUpdate, onDelete }) {
           <input
             type="time"
             value={item.time || ""}
-            onChange={(e) => onUpdate(item._id, { time: e.target.value })}
+            onChange={(e) =>
+              onUpdate(item._id, { time: e.target.value })
+            }
             className="border rounded px-2"
           />
 
           <input
             value={item.title}
-            onChange={(e) => onUpdate(item._id, { title: e.target.value })}
+            onChange={(e) =>
+              onUpdate(item._id, { title: e.target.value })
+            }
             className="flex-1 border rounded px-2"
           />
 
           <select
             value={item.status}
-            onChange={(e) => onUpdate(item._id, { status: e.target.value })}
+            onChange={(e) =>
+              onUpdate(item._id, { status: e.target.value })
+            }
             className="border rounded px-2"
           >
             {Object.keys(STATUS_META).map((s) => (
@@ -119,12 +127,23 @@ export default function LogisticsTab({ eventId }) {
 
     async function load() {
       setLoading(true);
-      const res = await fetch(`/api/events/${eventId}/logistics`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (data.success) setSteps(data.steps);
-      setLoading(false);
+      try {
+        const res = await fetch(`/api/events/${eventId}/logistics`, {
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          console.error("❌ logistics GET failed:", res.status);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.success) setSteps(data.steps);
+      } catch (err) {
+        console.error("❌ logistics load error:", err);
+      } finally {
+        setLoading(false);
+      }
     }
 
     load();
@@ -149,6 +168,7 @@ export default function LogisticsTab({ eventId }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newItem),
     });
+
     const data = await res.json();
     if (data.success) {
       setSteps((p) => [...p, data.step]);
@@ -161,25 +181,55 @@ export default function LogisticsTab({ eventId }) {
       p.map((s) => (s._id === id ? { ...s, ...patch } : s))
     );
 
-    await fetch(`/api/logistics/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
+    try {
+      const res = await fetch(`/api/logistics/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+
+      if (!res.ok) {
+        console.error("❌ updateStep failed:", res.status);
+      }
+    } catch (err) {
+      console.error("❌ updateStep error:", err);
+    }
   }
 
   async function deleteStep(id) {
+    // optimistic delete
     setSteps((p) => p.filter((s) => s._id !== id));
-    await fetch(`/api/logistics/${id}`, { method: "DELETE" });
+
+    try {
+      const res = await fetch(`/api/logistics/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        console.error("❌ deleteStep failed:", res.status);
+      }
+    } catch (err) {
+      console.error("❌ deleteStep error:", err);
+    }
   }
 
   async function syncSuppliers() {
-    const res = await fetch(
-      `/api/events/${eventId}/logistics/sync-suppliers`,
-      { method: "POST" }
-    );
-    const data = await res.json();
-    if (data.success) setSteps(data.steps);
+    try {
+      const res = await fetch(
+        `/api/events/${eventId}/logistics/sync-suppliers`,
+        { method: "POST" }
+      );
+
+      if (!res.ok) {
+        console.error("❌ sync suppliers failed:", res.status);
+        return;
+      }
+
+      const data = await res.json();
+      if (data.success) setSteps(data.steps);
+    } catch (err) {
+      console.error("❌ sync suppliers error:", err);
+    }
   }
 
   /* ---------- Drag ---------- */
@@ -239,6 +289,7 @@ export default function LogisticsTab({ eventId }) {
 
       <div className="border rounded p-4 space-y-2">
         <h4 className="font-medium">הוספת שלב</h4>
+
         <input
           type="time"
           value={newItem.time}
@@ -247,6 +298,7 @@ export default function LogisticsTab({ eventId }) {
           }
           className="border rounded px-2"
         />
+
         <input
           value={newItem.title}
           onChange={(e) =>
@@ -255,6 +307,7 @@ export default function LogisticsTab({ eventId }) {
           className="border rounded px-2 w-full"
           placeholder="שם השלב"
         />
+
         <button
           onClick={addStep}
           className="bg-purple-600 text-white rounded px-3 py-1"
