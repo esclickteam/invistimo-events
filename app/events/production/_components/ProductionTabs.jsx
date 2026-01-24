@@ -37,19 +37,19 @@ export default function ProductionTabs({
   };
 
   // Guard – נשאר כמו שהוא (לא שיניתי לוגיקה)
-  if (!invitation) {
-    return (
-      <div className="p-10 text-center text-gray-500">
-        <h3 className="text-lg font-semibold mb-2">
-          המשתמש עדיין לא קיבל הזמנה
-        </h3>
-        <p>
-          ההפקה תתאפשר לאחר יצירת הזמנה או אירוע.
-          אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
-        </p>
-      </div>
-    );
-  }
+  if (!invitation && activeTab === "overview") {
+  return (
+    <div className="p-10 text-center text-gray-500">
+      <h3 className="text-lg font-semibold mb-2">
+        המשתמש עדיין לא קיבל הזמנה
+      </h3>
+      <p>
+        ההפקה תתאפשר לאחר יצירת הזמנה או אירוע.
+        אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
+      </p>
+    </div>
+  );
+}
 
   return (
     <div className="space-y-8">
