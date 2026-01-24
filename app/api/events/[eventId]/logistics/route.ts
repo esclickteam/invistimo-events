@@ -11,12 +11,11 @@ export const dynamic = "force-dynamic";
 ========================================================= */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
 
-    // Auth
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -25,8 +24,8 @@ export async function GET(
       );
     }
 
-    // Params
-    const { eventId } = params;
+    const { eventId } = await context.params;
+
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
@@ -34,14 +33,13 @@ export async function GET(
       );
     }
 
-    // Load
     const steps = await EventLogisticsStep.find({ eventId })
       .sort({ order: 1 })
       .lean();
 
     return NextResponse.json({ success: true, steps });
   } catch (err) {
-    console.error("❌ GET /api/events/[eventId]/logistics failed:", err);
+    console.error("❌ GET /logistics failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
@@ -54,12 +52,11 @@ export async function GET(
 ========================================================= */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
 
-    // Auth
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -68,8 +65,8 @@ export async function POST(
       );
     }
 
-    // Params
-    const { eventId } = params;
+    const { eventId } = await context.params;
+
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
@@ -77,7 +74,6 @@ export async function POST(
       );
     }
 
-    // Body
     const body = await req.json().catch(() => null);
     const title = String(body?.title || "").trim();
     const time = String(body?.time || "").trim();
@@ -89,7 +85,6 @@ export async function POST(
       );
     }
 
-    // Order (append to end)
     const order = await EventLogisticsStep.countDocuments({ eventId });
 
     const step = await EventLogisticsStep.create({
@@ -103,7 +98,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, step });
   } catch (err) {
-    console.error("❌ POST /api/events/[eventId]/logistics failed:", err);
+    console.error("❌ POST /logistics failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
