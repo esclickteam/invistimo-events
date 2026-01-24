@@ -74,15 +74,16 @@ export async function GET(
     const suppliers = await EventSupplier.find({
       eventId: event._id,
     })
-      .select("advance")
+      .select("price")
+
       .lean();
 
     const budgetTotal = Number(event.budgetTotal) || 0;
 
     const spent = suppliers.reduce(
-      (sum, s) => sum + Number(s.advance || 0),
-      0
-    );
+  (sum, s) => sum + Number(s.price || 0),
+  0
+);
 
     const remaining = Math.max(budgetTotal - spent, 0);
 
