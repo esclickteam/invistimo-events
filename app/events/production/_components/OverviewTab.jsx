@@ -270,18 +270,21 @@ const available = budgetTotal - commitments - paid;
       {/* BUDGET */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
   <EditableBudgetCard
-    title="תקציב מתוכנן"
-    value={budgetDraft}
-    isEditing={isEditingBudget}
-    loading={savingBudget}
-    onEdit={() => setIsEditingBudget(true)}
-    onCancel={() => {
-      setBudgetDraft(event.budgetTotal || 0);
-      setIsEditingBudget(false);
-    }}
-    onChange={setBudgetDraft}
-    onSave={saveBudget}
-  />
+  title="תקציב מתוכנן"
+  value={isEditingBudget ? budgetDraft : event.budgetTotal}
+  isEditing={isEditingBudget}
+  loading={savingBudget}
+  onEdit={() => {
+    setBudgetDraft(event.budgetTotal || 0);
+    setIsEditingBudget(true);
+  }}
+  onCancel={() => {
+    setBudgetDraft(event.budgetTotal || 0);
+    setIsEditingBudget(false);
+  }}
+  onChange={setBudgetDraft}
+  onSave={saveBudget}
+/>
 
   <BudgetCard title="התחייבויות" value={commitments} />
 <BudgetCard title="שולם בפועל" value={paid} />
