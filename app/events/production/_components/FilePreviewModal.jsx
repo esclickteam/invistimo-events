@@ -1,7 +1,5 @@
 "use client";
 
-import PdfViewer from "./PdfViewer";
-
 export default function FilePreviewModal({ file, onClose }) {
   const name = file?.name || "קובץ";
   const url = file?.url;
@@ -45,7 +43,20 @@ export default function FilePreviewModal({ file, onClose }) {
         {/* Body */}
         <div className="h-[75vh] bg-gray-50 overflow-hidden">
           {isPdf ? (
-            <PdfViewer url={url} />
+            <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
+              <div className="text-gray-700 font-medium">
+                מסמך PDF
+              </div>
+              <button
+                type="button"
+                className="bg-black text-white px-6 py-3 rounded-xl"
+                onClick={() =>
+                  window.open(url, "_blank", "noopener,noreferrer")
+                }
+              >
+                פתיחה בטאב חדש
+              </button>
+            </div>
           ) : isImage ? (
             <div className="w-full h-full flex items-center justify-center p-6">
               <img
