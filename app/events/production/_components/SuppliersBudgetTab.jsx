@@ -178,9 +178,11 @@ export default function SuppliersTab({ eventId }) {
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-semibold">ספקים סגורים לאירוע</h1>
         <button
-          onClick={() => setOpenAddModal(true)}
-          className="bg-black text-white px-5 py-2 rounded-xl"
-        >
+  onClick={() => setOpenAddModal(true)}
+  disabled={categories.length === 0}
+  className="bg-black text-white px-5 py-2 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+>
+
           ➕ הוסף ספק / תחום
         </button>
       </div>
@@ -268,18 +270,22 @@ export default function SuppliersTab({ eventId }) {
       </div>
 
       {openAddModal && (
-        <AddRowModal
-          categories={categories}
-          onClose={() => setOpenAddModal(false)}
-          onAdd={data => {
-            addRow(data);
-            setOpenAddModal(false);
-          }}
-        />
-      )}
+  <AddRowModal
+    categories={categories}
+    onClose={() => {
+      setOpenAddModal(false);
+    }}
+    onAdd={data => {
+      addRow(data);
+      setOpenAddModal(false);
+    }}
+  />
+)}
+
     </div>
   );
 }
+
 
 /* ======================
    ADD ROW MODAL
@@ -288,6 +294,17 @@ export default function SuppliersTab({ eventId }) {
 function AddRowModal({ categories, onClose, onAdd }) {
   const [categoryId, setCategoryId] = useState("");
   const [sub, setSub] = useState("");
+
+  // ✅ GUARD – אם הקטגוריות עוד לא נטענו
+  if (!categories || categories.length === 0) {
+    return (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl w-full max-w-lg p-8 text-center">
+          טוען תחומים…
+        </div>
+      </div>
+    );
+  }
 
   const category = categories.find(c => c._id === categoryId);
 
@@ -300,14 +317,19 @@ function AddRowModal({ categories, onClose, onAdd }) {
         <select
           className="border rounded-xl px-4 py-3 w-full"
           value={categoryId}
-          onChange={e => {
+          onChange={(e) => {
             setCategoryId(e.target.value);
             setSub("");
           }}
         >
-          <option value="">בחר תחום</option>
+          <option value="" disabled>
+            בחר תחום
+          </option>
+
           {categories.map(c => (
-            <option key={c._id} value={c._id}>{c.name}</option>
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
           ))}
         </select>
 
@@ -315,11 +337,16 @@ function AddRowModal({ categories, onClose, onAdd }) {
           <select
             className="border rounded-xl px-4 py-3 w-full"
             value={sub}
-            onChange={e => setSub(e.target.value)}
+            onChange={(e) => setSub(e.target.value)}
           >
-            <option value="">בחר תת־תחום</option>
+            <option value="" disabled>
+              בחר תת־תחום
+            </option>
+
             {category.subs.map(s => (
-              <option key={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         )}
@@ -344,6 +371,7 @@ function AddRowModal({ categories, onClose, onAdd }) {
     </div>
   );
 }
+
 
 /* ======================
    SUPPLIER PICKER
