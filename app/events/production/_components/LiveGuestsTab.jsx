@@ -201,10 +201,10 @@ setGuests(next);
   if (next === prev) return;
 
   // ✅ לייב בלבד
-  setLiveArrived(guest._id, next);
-
+  setLiveArrived(guest, next);
   // 🎨 צביעת כיסאות
   syncArrivedSeats(guest._id, next);
+
 
   try {
     await fetch("/api/live-guests/arrived", {
