@@ -258,7 +258,8 @@ const stats = useMemo(() => {
     confirmedTotal,
     arrivedTotal,
   };
-}, [guests]);
+}, [guests, liveArrivals]);
+
 
 
 
