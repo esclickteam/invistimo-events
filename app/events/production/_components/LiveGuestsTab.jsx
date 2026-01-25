@@ -38,6 +38,8 @@ function confirmedCountForGuest(g) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const tables = useSeatingStore((s) => s.tables);
+  const [search, setSearch] = useState("");
+
 
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
@@ -190,6 +192,20 @@ const guestTableMap = useMemo(() => {
   return map;
 }, [tables]);
 
+const filteredGuests = useMemo(() => {
+  if (!search.trim()) return guests;
+
+  const q = search.trim();
+
+  return guests.filter((g) => {
+    return (
+      g.name?.includes(q) ||
+      g.phone?.includes(q)
+    );
+  });
+}, [guests, search]);
+
+
 
 if (!guests.length) {
   return (
@@ -204,15 +220,24 @@ if (!guests.length) {
      AFTER IMPORT
   ========================= */
   return (
-    <div className="relative flex flex-col gap-6 pb-24" dir="rtl">
+  <div className="relative flex flex-col gap-6 pb-24" dir="rtl">
 
-      
+    {/* 🔍 חיפוש – לייב אורחים */}
+    <div className="max-w-md">
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="חיפוש לפי שם או טלפון"
+        className="w-full border rounded-lg px-4 py-2"
+      />
+    </div>
 
-      {/* ✅ Only two cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <Stat title="אישרו הגעה" value={stats.confirmedTotal} />
-        <Stat title="הגיעו בפועל" value={stats.arrivedTotal} color="green" />
-      </div>
+    {/* ✅ Only two cards */}
+    <div className="grid grid-cols-2 gap-4">
+      <Stat title="אישרו הגעה" value={stats.confirmedTotal} />
+      <Stat title="הגיעו בפועל" value={stats.arrivedTotal} color="green" />
+    </div>
+
 
       {/* ✅ Live table */}
       <div className="w-full overflow-x-auto bg-white border rounded-xl">
@@ -232,7 +257,8 @@ if (!guests.length) {
           </thead>
 
           <tbody>
-            {guests.map((g) => {
+            {filteredGuests.map((g) => {
+
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
 
