@@ -879,28 +879,33 @@ console.log("INVITATION:", invitation);
   </div>
 )}
 
+{isClientView && (
+  <GuestsControls
+    search={search}
+    setSearch={setSearch}
+    groups={groups}
+    selectedGroupId={selectedGroupId}
+    setSelectedGroupId={setSelectedGroupId}
+    onManageGroups={() => setOpenGroupModal(true)}
+    quickFilter={quickFilter}
+    setQuickFilter={setQuickFilter}
+    totalCount={guests.length}
+    displayCount={displayGuests.length}
+  />
+)}
 
-<GuestsControls
-  search={search}
-  setSearch={setSearch}
-
-  /* 👤 Client בלבד */
-  groups={isClientView ? groups : []}
-  selectedGroupId={isClientView ? selectedGroupId : ""}
-  setSelectedGroupId={isClientView ? setSelectedGroupId : () => {}}
-  onManageGroups={
-  isClientView ? () => setOpenGroupModal(true) : () => {}
-}
-
-
-  /* 👤 Client בלבד – סינונים */
-  quickFilter={isClientView ? quickFilter : "all"}
-  setQuickFilter={isClientView ? setQuickFilter : () => {}}
-
-  totalCount={guests.length}
-  displayCount={displayGuests.length}
-/>
-
+{isProducerView && (
+  <GuestsControls
+    search={search}
+    setSearch={setSearch}
+    groups={groups.slice(0, 0)}   // ✅ תיקון TS
+    selectedGroupId=""
+    setSelectedGroupId={() => {}}
+    onManageGroups={() => {}}
+    totalCount={guests.length}
+    displayCount={displayGuests.length}
+  />
+)}
 
 
 
