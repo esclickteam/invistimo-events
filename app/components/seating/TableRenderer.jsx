@@ -203,25 +203,6 @@ const guestIdFromUrl = searchParams.get("guestId");
   return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
 }, [assigned, guests]);
 
-  const seatInfoMap = useMemo(() => {
-  const map = new Map();
-
-  assigned.forEach((s) => {
-    const g = guests.find(
-      (guest) =>
-        String(guest.id ?? guest._id) === String(s.guestId)
-    );
-
-    if (g) {
-      map.set(s.seatIndex, {
-        guest: g,
-        arrived: Boolean(s.arrived), // ⭐ קריטי
-      });
-    }
-  });
-
-  return map;
-}, [assigned, guests]);
 
 
   const isHighlighted =
@@ -457,11 +438,11 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const seatInfo = seatInfoMap.get(i);
+    const isArrived = i < occupiedSeatsCount;
+    const isSeated = i < (table.seats || 0);
+
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-    const isSeated = Boolean(seatInfo);
-    const isArrived = seatInfo?.arrived === true;
 
     const seatTopFill = isArrived
       ? "#bfdbfe"

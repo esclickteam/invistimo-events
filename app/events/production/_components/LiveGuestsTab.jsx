@@ -85,11 +85,12 @@ const guestTableMap = useMemo(() => {
       if (Array.isArray(data.guests)) {
   const liveGuests = data.guests.map(g => ({
     ...g,
-    arrivedCount: 0, // 🔥 לייב מתחיל תמיד מ־0
+    arrivedCount: Number(g.arrivedCount || 0), // ✅ שומר מהשרת
   }));
 
   setGuests(liveGuests);
 }
+
 
 
 
