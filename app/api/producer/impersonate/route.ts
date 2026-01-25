@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+
+
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
