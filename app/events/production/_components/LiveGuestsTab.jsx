@@ -48,6 +48,23 @@ function confirmedCountForGuest(g) {
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
 
+const tables = useSeatingStore((s) => s.tables);
+
+const guestTableMap = useMemo(() => {
+  const map = new Map();
+
+  (tables || []).forEach((table) => {
+    table.seatedGuests?.forEach((sg) => {
+      if (sg?.guestId) {
+        map.set(String(sg.guestId), table);
+      }
+    });
+  });
+
+  return map;
+}, [tables]);
+
+
   useEffect(() => {
   if (!invitationId) return;
 
