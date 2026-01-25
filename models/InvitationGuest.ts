@@ -85,5 +85,21 @@ const InvitationGuestSchema = new Schema(
   { timestamps: true }
 );
 
+/* ===========================================================
+   🔹 Static helper to increment/decrement arrivedCount
+=========================================================== */
+InvitationGuestSchema.statics.updateArrived = async function (
+  guestId: string,
+  increment: number
+) {
+  const guest = await this.findById(guestId);
+  if (!guest) throw new Error("Guest not found");
+
+  guest.arrivedCount = Math.max(0, (guest.arrivedCount || 0) + increment);
+  await guest.save();
+
+  return guest.arrivedCount;
+};
+
 export default models.InvitationGuest ||
   mongoose.model("InvitationGuest", InvitationGuestSchema);
