@@ -41,7 +41,6 @@ function confirmedCountForGuest(g) {
 
 
   const [error, setError] = useState(null);
-  const tables = useSeatingStore((s) => s.tables);
   const [search, setSearch] = useState("");
   
 
@@ -239,19 +238,7 @@ const stats = useMemo(() => {
   };
 }, [guests]);
 
-const guestTableMap = useMemo(() => {
-  const map = new Map();
 
-  (tables || []).forEach((table) => {
-    table.seatedGuests?.forEach((sg) => {
-      if (sg?.guestId) {
-        map.set(String(sg.guestId), table);
-      }
-    });
-  });
-
-  return map;
-}, [tables]);
 
 
 const filteredGuests = useMemo(() => {
@@ -325,15 +312,9 @@ if (loading) {
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
 
-              const tableFromStore = guestTableMap.get(String(g._id)) || null;
-
-const tableLabel =
+              const tableLabel =
   g.tableName ||
-  tableFromStore?.name ||
-  (tableFromStore?.number != null
-    ? `שולחן ${tableFromStore.number}`
-    : "-");
-
+  (g.tableNumber != null ? `שולחן ${g.tableNumber}` : "-");
 
 
               return (
