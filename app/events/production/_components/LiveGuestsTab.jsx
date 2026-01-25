@@ -36,6 +36,10 @@ function confirmedCountForGuest(g) {
 
 
   const [loading, setLoading] = useState(true);
+
+
+
+
   const [error, setError] = useState(null);
   const tables = useSeatingStore((s) => s.tables);
   const [search, setSearch] = useState("");
@@ -192,24 +196,40 @@ setGuests(next);
 
 
   /* =========================
-     ✅ Stats only (כרטיסיות יחידות)
-     1) אישרו הגעה (rsvp=yes + guestsCount)
-     2) הגיעו בפועל (arrivedCount)
-  ========================= */
-  const stats = useMemo(() => {
-    const confirmedTotal = guests.reduce(
-      (s, g) => s + confirmedCountForGuest(g),
-      0
-    );
+   ✅ Stats (לייב – קריאה בלבד)
+   1) סה״כ מוזמנים        = guestsCount (כולם)
+   2) אישרו הגעה          = RSVP YES × guestsCount
+   3) הגיעו בפועל         = arrivedCount (מתחיל תמיד מ־0)
+   ❗ arrivedCount לא תלוי ב-RSVP
+========================= */
+const stats = useMemo(() => {
+  // 🟦 סה״כ מוזמנים
+  const totalInvited = guests.reduce(
+    (sum, g) => sum + Number(g.guestsCount || 0),
+    0
+  );
 
-    const arrivedTotal = guests.reduce(
-      (s, g) => s + Number(g.arrivedCount || 0),
-      0
-    );
+  // 🟨 אישרו הגעה (לפני האירוע)
+  const confirmedTotal = guests.reduce(
+    (sum, g) =>
+      g.rsvp === "yes"
+        ? sum + Number(g.guestsCount || 0)
+        : sum,
+    0
+  );
 
-    return { confirmedTotal, arrivedTotal };
-  }, [guests]);
+  // 🟩 הגיעו בפועל (בלייב – תמיד מ־arrivedCount)
+  const arrivedTotal = guests.reduce(
+    (sum, g) => sum + Number(g.arrivedCount || 0),
+    0
+  );
 
+  return {
+    totalInvited,
+    confirmedTotal,
+    arrivedTotal,
+  };
+}, [guests]);
 
 const guestTableMap = useMemo(() => {
   const map = new Map();
@@ -225,17 +245,17 @@ const guestTableMap = useMemo(() => {
   return map;
 }, [tables]);
 
+
 const filteredGuests = useMemo(() => {
   if (!search.trim()) return guests;
 
-  const q = search.trim();
+  const q = search.trim().toLowerCase();
 
-  return guests.filter((g) => {
-    return (
-      g.name?.includes(q) ||
+  return guests.filter(
+    (g) =>
+      g.name?.toLowerCase().includes(q) ||
       g.phone?.includes(q)
-    );
-  });
+  );
 }, [guests, search]);
 
 if (loading) {
@@ -247,15 +267,6 @@ if (loading) {
 }
 
 
-
-
-if (!guests.length) {
-  return (
-    <div className="p-6 text-center text-gray-500">
-      עדיין אין אורחים לאירוע
-    </div>
-  );
-}
 
 
   /* =========================
@@ -275,10 +286,12 @@ if (!guests.length) {
     </div>
 
     {/* ✅ Only two cards */}
-    <div className="grid grid-cols-2 gap-4">
-      <Stat title="אישרו הגעה" value={stats.confirmedTotal} />
-      <Stat title="הגיעו בפועל" value={stats.arrivedTotal} color="green" />
-    </div>
+    <div className="grid grid-cols-3 gap-4">
+  <Stat title="סה״כ מוזמנים" value={stats.totalInvited} />
+  <Stat title="אישרו הגעה" value={stats.confirmedTotal} />
+  <Stat title="הגיעו בפועל" value={stats.arrivedTotal} color="green" />
+</div>
+
 
 
       {/* ✅ Live table */}
