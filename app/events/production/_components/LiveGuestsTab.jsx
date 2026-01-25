@@ -216,16 +216,16 @@ setGuests(next);
   }
 }
 
+const invitationGuests = useMemo(() => {
+  if (!invitationId) return [];
+  return guests.filter(
+    (g) => String(g.invitationId) === String(invitationId)
+  );
+}, [guests, invitationId]);
 
 
 
-  /* =========================
-   ✅ Stats (לייב – קריאה בלבד)
-   1) סה״כ מוזמנים        = guestsCount (כולם)
-   2) אישרו הגעה          = RSVP YES × guestsCount
-   3) הגיעו בפועל         = arrivedCount (מתחיל תמיד מ־0)
-   ❗ arrivedCount לא תלוי ב-RSVP
-========================= */
+ 
 const stats = useMemo(() => {
   const totalInvited = invitationGuests.reduce(
     (sum, g) => sum + Number(g.guestsCount || 0),
@@ -266,12 +266,6 @@ const filteredGuests = useMemo(() => {
   );
 }, [guests, search]);
 
-const invitationGuests = useMemo(() => {
-  if (!invitationId) return [];
-  return guests.filter(
-    (g) => String(g.invitationId) === String(invitationId)
-  );
-}, [guests, invitationId]);
 
 
 if (loading) {
