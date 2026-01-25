@@ -241,6 +241,49 @@ async function loadEvent() {
   setGuests(data.guests || []);
 }
 
+async function updateArrivedCount(
+  guestId: string,
+  delta: 1 | -1
+) {
+  // 🟡 DEMO – לא שומרים
+  if (isDemo) {
+    setGuests((prev) =>
+      prev.map((g) => {
+        if (g._id !== guestId) return g;
+
+        const max = g.guestsCount || 0;
+        const current = g.arrivedCount || 0;
+        const next = Math.max(0, Math.min(max, current + delta));
+
+        return { ...g, arrivedCount: next };
+      })
+    );
+    return;
+  }
+
+  // ✅ עדכון מיידי ב־UI
+  setGuests((prev) =>
+    prev.map((g) => {
+      if (g._id !== guestId) return g;
+
+      const max = g.guestsCount || 0;
+      const current = g.arrivedCount || 0;
+      const next = Math.max(0, Math.min(max, current + delta));
+
+      return { ...g, arrivedCount: next };
+    })
+  );
+
+  // ✅ שמירה אוטומטית ל־Mongo
+  await fetch(`/api/guests/${guestId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      arrivedCountDelta: delta,
+    }),
+  });
+}
+
 
 
 async function deleteGuest(guest: Guest) {
@@ -249,6 +292,8 @@ async function deleteGuest(guest: Guest) {
     alert("מצב דמו – הפעולה לא נשמרת");
     return;
   }
+
+  
 
 
 
@@ -944,7 +989,7 @@ console.log("INVITATION:", invitation);
           className="p-3 text-right cursor-pointer select-none"
           onClick={() => toggleSort("coming")}
         >
-          מגיעים{sortArrow("coming")}
+         הגיעו בפועל{sortArrow("coming")}
         </th>
 
         <th
@@ -993,9 +1038,34 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
 
-          <td className="p-3 font-semibold">
-  {g.arrivedCount || 0}
+          <td className="p-3">
+  {isProducerView ? (
+    <div className="flex items-center gap-2 justify-center">
+      <button
+        onClick={() => updateArrivedCount(g._id, -1)}
+        className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
+      >
+        −
+      </button>
+
+      <span className="font-semibold min-w-[20px] text-center">
+        {g.arrivedCount || 0}
+      </span>
+
+      <button
+        onClick={() => updateArrivedCount(g._id, +1)}
+        className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
+      >
+        +
+      </button>
+    </div>
+  ) : (
+    <span className="font-semibold">
+      {g.arrivedCount || 0}
+    </span>
+  )}
 </td>
+
 
           <td className="p-3">
   {g.tableName
