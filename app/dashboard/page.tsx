@@ -889,8 +889,9 @@ console.log("INVITATION:", invitation);
   selectedGroupId={isClientView ? selectedGroupId : ""}
   setSelectedGroupId={isClientView ? setSelectedGroupId : () => {}}
   onManageGroups={
-    isClientView ? () => setOpenGroupModal(true) : undefined
-  }
+  isClientView ? () => setOpenGroupModal(true) : () => {}
+}
+
 
   /* 👤 Client בלבד – סינונים */
   quickFilter={isClientView ? quickFilter : "all"}
