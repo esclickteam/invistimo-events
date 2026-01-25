@@ -958,26 +958,39 @@ console.log("INVITATION:", invitation);
 <div className="hidden md:block w-full overflow-x-auto">
   <table className="min-w-[900px] w-full border rounded-xl overflow-hidden bg-white">
     <thead className="bg-gray-100">
-      <tr>
-        <th
-          className="p-3 text-right cursor-pointer select-none"
-          onClick={() => toggleSort("name")}
-        >
-          שם מלא{sortArrow("name")}
-        </th>
+  <tr>
+    <th
+      className="p-3 text-right cursor-pointer select-none"
+      onClick={() => toggleSort("name")}
+    >
+      שם מלא{sortArrow("name")}
+    </th>
 
-        <th className="p-3 text-right">טלפון</th>
-        <th className="p-3 text-right">קרבה</th>
+    <th className="p-3 text-right">טלפון</th>
 
-        <th className="p-3 text-right">קבוצה</th>
+    {isProducerView && (
+      <th className="p-3 text-right">קרבה</th>
+    )}
 
-        <th
-          className="p-3 text-right cursor-pointer select-none"
-          onClick={() => toggleSort("rsvp")}
-        >
-          סטטוס{sortArrow("rsvp")}
-        </th>
+    <th className="p-3 text-right">קבוצה</th>
 
+    <th
+      className="p-3 text-right cursor-pointer select-none"
+      onClick={() => toggleSort("rsvp")}
+    >
+      סטטוס{sortArrow("rsvp")}
+    </th>
+
+    {/* 👤 לקוח – רק מגיעים (RSVP yes) */}
+    {isClientView && (
+      <th className="p-3 text-right">
+        מגיעים
+      </th>
+    )}
+
+    {/* 🎬 מפיק בלבד */}
+    {isProducerView && (
+      <>
         <th
           className="p-3 text-right cursor-pointer select-none"
           onClick={() => toggleSort("invited")}
@@ -989,145 +1002,140 @@ console.log("INVITATION:", invitation);
           className="p-3 text-right cursor-pointer select-none"
           onClick={() => toggleSort("coming")}
         >
-         הגיעו בפועל{sortArrow("coming")}
+          הגיעו בפועל{sortArrow("coming")}
         </th>
+      </>
+    )}
 
-        <th
-          className="p-3 text-right cursor-pointer select-none"
-          onClick={() => toggleSort("table")}
-        >
-          מס' שולחן{sortArrow("table")}
-        </th>
+    <th
+      className="p-3 text-right cursor-pointer select-none"
+      onClick={() => toggleSort("table")}
+    >
+      מס' שולחן{sortArrow("table")}
+    </th>
 
-        <th className="p-3 text-right">הערות</th>
-        <th className="p-3 text-right">פעולות</th>
-      </tr>
-    </thead>
+    <th className="p-3 text-right">הערות</th>
+    <th className="p-3 text-right">פעולות</th>
+  </tr>
+</thead>
+
 
     <tbody>
-      {displayGuests.map((g) => (
-        <tr key={g._id} className="border-b">
-          <td className="p-3">{g.name}</td>
-          <td className="p-3">{formatPhone(g.phone)}</td>
-          <td className="p-3">{g.relation?.trim() || "-"}</td>
-          <td className="p-3">
-  <GuestGroupSelect
-    value={g.groupId}
-    onChange={async (groupId) => {
-      // ✅ עדכון מיידי ב-UI
-      setGuests((prev) =>
-        prev.map((guest) =>
-          guest._id === g._id
-            ? { ...guest, groupId }
-            : guest
-        )
-      );
+  {displayGuests.map((g) => (
+    <tr key={g._id} className="border-b">
+      <td className="p-3">{g.name}</td>
+      <td className="p-3">{formatPhone(g.phone)}</td>
 
-      // ✅ שמירה ל-DB
-      await fetch(`/api/guests/${g._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ groupId }),
-      });
-    }}
-  />
-</td>
+      {/* רק למפיק: קרבה */}
+      {isProducerView && <td className="p-3">{g.relation?.trim() || "-"}</td>}
 
+      <td className="p-3">
+        <GuestGroupSelect
+          value={g.groupId}
+          onChange={async (groupId) => {
+            setGuests((prev) =>
+              prev.map((guest) =>
+                guest._id === g._id ? { ...guest, groupId } : guest
+              )
+            );
+            await fetch(`/api/guests/${g._id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ groupId }),
+            });
+          }}
+        />
+      </td>
+
+      {/* לקוח: עמודת "מגיעים" בלבד */}
+      {isClientView && (
+        <td className="p-3 font-semibold text-center">
+          {g.rsvp === "yes" ? g.guestsCount : 0}
+        </td>
+      )}
+
+      {/* מפיק: סטטוס, מוזמנים, הגיעו בפועל */}
+      {isProducerView && (
+        <>
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
-
           <td className="p-3">
-  {isProducerView && g.rsvp === "yes" ? (
-
-    <div className="flex items-center gap-2 justify-center">
-      <button
-        onClick={() => updateArrivedCount(g._id, -1)}
-        className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
-      >
-        −
-      </button>
-
-      <span className="font-semibold min-w-[20px] text-center">
-        {g.arrivedCount || 0}
-      </span>
-
-      <button
-        onClick={() => updateArrivedCount(g._id, +1)}
-        className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
-      >
-        +
-      </button>
-    </div>
-  ) : (
-    <span className="font-semibold">
-      {g.arrivedCount || 0}
-    </span>
-  )}
-</td>
-
-
-          <td className="p-3">
-  {g.tableName
-    ? g.tableName
-    : g.tableNumber
-    ? `שולחן ${g.tableNumber}`
-    : "-"}
-</td>
-
-          <td className="p-3 text-sm text-gray-700">
-            {g.notes?.trim() || "-"}
+            <div className="flex items-center gap-2 justify-center">
+              <button
+                onClick={() => updateArrivedCount(g._id, -1)}
+                className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
+              >
+                −
+              </button>
+              <span className="font-semibold min-w-[20px] text-center">
+                {g.arrivedCount || 0}
+              </span>
+              <button
+                onClick={() => updateArrivedCount(g._id, +1)}
+                className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
+              >
+                +
+              </button>
+            </div>
           </td>
-
-          <td className="p-3 flex gap-3">
-            
-            <button
-  onClick={() =>
-    router.push(
-      isDemo
-        ? `/try/dashboard/messages?guestId=${g._id}`
-        : `/dashboard/messages?guestId=${g._id}`
-    )
-  }
->
-  💬
-</button>
-
-<button
-  onClick={() =>
-    router.push(
-      isDemo
-        ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-        : `/dashboard/seating?from=personal&guestId=${g._id}`
-    )
-  }
->
-  🪑
-</button>
-
-            <button onClick={() => setSelectedGuest(g)}>
-              ✏️
-            </button>
-
-            <button
-              onClick={() => deleteGuest(g)}
-              className="text-red-600"
-            >
-              🗑️
-            </button>
-          </td>
-        </tr>
-      ))}
-
-      {displayGuests.length === 0 && (
-        <tr>
-          <td colSpan={9} className="p-8 text-center text-gray-500">
-            לא נמצאו תוצאות.
-          </td>
-        </tr>
+        </>
       )}
-    </tbody>
+
+      <td className="p-3">
+        {g.tableName
+          ? g.tableName
+          : g.tableNumber
+          ? `שולחן ${g.tableNumber}`
+          : "-"}
+      </td>
+
+      <td className="p-3 text-sm text-gray-700">
+        {g.notes?.trim() || "-"}
+      </td>
+
+      <td className="p-3 flex gap-3">
+        <button
+          onClick={() =>
+            router.push(
+              isDemo
+                ? `/try/dashboard/messages?guestId=${g._id}`
+                : `/dashboard/messages?guestId=${g._id}`
+            )
+          }
+        >
+          💬
+        </button>
+
+        <button
+          onClick={() =>
+            router.push(
+              isDemo
+                ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+                : `/dashboard/seating?from=personal&guestId=${g._id}`
+            )
+          }
+        >
+          🪑
+        </button>
+
+        <button onClick={() => setSelectedGuest(g)}>✏️</button>
+        <button onClick={() => deleteGuest(g)} className="text-red-600">
+          🗑️
+        </button>
+      </td>
+    </tr>
+  ))}
+
+  {displayGuests.length === 0 && (
+    <tr>
+      <td colSpan={isProducerView ? 10 : 7} className="p-8 text-center text-gray-500">
+        לא נמצאו תוצאות.
+      </td>
+    </tr>
+  )}
+</tbody>
+
+
   </table>
 </div>
 
