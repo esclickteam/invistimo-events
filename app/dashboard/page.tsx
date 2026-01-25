@@ -1039,7 +1039,8 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.guestsCount}</td>
 
           <td className="p-3">
-  {isProducerView ? (
+  {isProducerView && g.rsvp === "yes" ? (
+
     <div className="flex items-center gap-2 justify-center">
       <button
         onClick={() => updateArrivedCount(g._id, -1)}
