@@ -24,7 +24,7 @@ function rsvpLabel(rsvp) {
 
 /* אישרו הגעה = מי שסימן מגיע (RSVP YES) — לא נוגעים בזה בלייב */
 function confirmedCountForGuest(g) {
-  return g?.rsvp === "yes" ? Number(g.guestsCount || 0) : 0;
+  return g?.rsvp === "yes" ? 1 : 0;
 }
 
 /* =========================
@@ -85,11 +85,12 @@ const guestTableMap = useMemo(() => {
       if (Array.isArray(data.guests)) {
   const liveGuests = data.guests.map(g => ({
     ...g,
-    arrivedCount: 0, // 🔥 לייב מתחיל תמיד מ־0
+    arrivedCount: Number(g.arrivedCount ?? 0), // ✅ שומר נתון קיים
   }));
 
   setGuests(liveGuests);
 }
+
 
 
 
@@ -232,11 +233,9 @@ const stats = useMemo(() => {
     0
   );
 
-  const confirmedTotal = invitationGuests.reduce(
-    (sum, g) =>
-      g.rsvp === "yes" ? sum + Number(g.guestsCount || 0) : sum,
-    0
-  );
+  const confirmedTotal = invitationGuests.filter(
+  (g) => g.rsvp === "yes"
+).length;
 
   const arrivedTotal = invitationGuests.reduce(
     (sum, g) => sum + Number(g.arrivedCount || 0),
