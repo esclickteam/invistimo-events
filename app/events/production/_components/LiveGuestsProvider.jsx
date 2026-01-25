@@ -1,62 +1,38 @@
 "use client";
 
-import { createContext, useContext, useState, useMemo } from "react";
+import { createContext, useContext, useState } from "react";
 
 const LiveGuestsContext = createContext(null);
 
 export function LiveGuestsProvider({ initial, children }) {
-  const [guests, setGuests] = useState(initial?.guests ?? []);
+  const [state, setState] = useState(initial);
 
-  /**
-   * 🔴 פעולה יחידה בלייב:
-   * עדכון כמה הגיעו בפועל
-   * 0 ≤ arrived ≤ approved
-   */
-  function markArrived(guestId, arrived) {
-    setGuests((prev) =>
-      prev.map((g) =>
-        g._id === guestId
-          ? {
-              ...g,
-              arrived: Math.max(
-                0,
-                Math.min(arrived, g.approved)
-              ),
-            }
-          : g
-      )
-    );
+  function updateGuestStatus(guestId, status) {
+    setState((prev) => {
+      const guests = prev.guests.map((g) =>
+        g._id === guestId ? { ...g, status } : g
+      );
+
+      return {
+        ...prev,
+        guests,
+        stats: {
+          total: guests.length,
+          arrived: guests.filter((g) => g.status === "arrived").length,
+          notArrived: guests.filter(
+            (g) => g.status === "not-arrived"
+          ).length,
+          cancelled: guests.filter(
+            (g) => g.status === "cancelled"
+          ).length,
+        },
+      };
+    });
   }
-
-  /**
-   * 🧮 סיכומים – נגזרים מהאורחים
-   * (לא state נפרד!)
-   */
-  const stats = useMemo(() => {
-    const approvedTotal = guests.reduce(
-      (sum, g) => sum + (g.approved ?? 0),
-      0
-    );
-
-    const arrivedTotal = guests.reduce(
-      (sum, g) => sum + (g.arrived ?? 0),
-      0
-    );
-
-    return {
-      approvedTotal,
-      arrivedTotal,
-    };
-  }, [guests]);
 
   return (
     <LiveGuestsContext.Provider
-      value={{
-        guests,
-        setGuests,
-        markArrived,
-        stats,
-      }}
+      value={{ state, setState, updateGuestStatus }}
     >
       {children}
     </LiveGuestsContext.Provider>

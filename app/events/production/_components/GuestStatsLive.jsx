@@ -7,20 +7,14 @@ export default function GuestStatsLive() {
 
   if (!state) return null;
 
-  const totalApproved = state.guests.reduce(
-    (sum, g) => sum + g.approved,
-    0
-  );
-
-  const totalArrived = state.guests.reduce(
-    (sum, g) => sum + g.arrived,
-    0
-  );
+  const { total, arrived, notArrived, cancelled } = state.stats;
 
   return (
     <div className="flex gap-4 p-4 bg-gray-50 rounded border">
-      <Stat label="אישרו הגעה" value={totalApproved} />
-      <Stat label="הגיעו בפועל" value={totalArrived} />
+      <Stat label="סה״כ" value={total} />
+      <Stat label="הגיעו" value={arrived} />
+      <Stat label="לא הגיעו" value={notArrived} />
+      <Stat label="ביטלו" value={cancelled} />
     </div>
   );
 }
