@@ -33,8 +33,8 @@ export default function GuestListLive() {
       { tableId: string; tableName?: string }
     >();
 
-    tables.forEach((table: SeatingTable) => {
-      table.seatedGuests?.forEach((sg: SeatedGuest) => {
+    tables.forEach((table) => {
+      table.seatedGuests?.forEach((sg) => {
         map.set(String(sg.guestId), {
           tableId: table.id,
           tableName: table.name,
@@ -89,11 +89,16 @@ export default function GuestListLive() {
           );
           const isSeated = !!tableInfo;
 
+          const canDecrease = arrived > 0;
+          const canIncrease = arrived < approved;
+
           return (
             <div
               key={guestId}
               className={`p-3 mb-2 rounded-lg transition ${
-                arrived > 0
+                arrived === approved && approved > 0
+                  ? "bg-green-200"
+                  : arrived > 0
                   ? "bg-green-100"
                   : "bg-gray-100"
               }`}
@@ -118,23 +123,40 @@ export default function GuestListLive() {
                 )}
               </div>
 
-              {/* הגיעו */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  max={approved}
-                  value={arrived}
-                  onChange={(e) =>
+              {/* לייב – הגיעו בפועל */}
+              <div className="flex items-center gap-3">
+                <button
+                  disabled={!canDecrease}
+                  onClick={() =>
                     updateGuestArrived(
                       guestId,
-                      Number(e.target.value)
+                      arrived - 1
                     )
                   }
-                  className="w-20 rounded border px-2 py-1 text-sm"
-                />
-                <span className="text-sm text-gray-600">
-                  / {approved}
+                  className="w-7 h-7 rounded border text-sm disabled:opacity-40"
+                >
+                  −
+                </button>
+
+                <span className="w-6 text-center font-semibold">
+                  {arrived}
+                </span>
+
+                <button
+                  disabled={!canIncrease}
+                  onClick={() =>
+                    updateGuestArrived(
+                      guestId,
+                      arrived + 1
+                    )
+                  }
+                  className="w-7 h-7 rounded border text-sm disabled:opacity-40"
+                >
+                  +
+                </button>
+
+                <span className="text-xs text-gray-500">
+                  / {approved} אישרו
                 </span>
               </div>
             </div>
