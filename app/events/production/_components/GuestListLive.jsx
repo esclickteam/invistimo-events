@@ -4,19 +4,19 @@ import { useLiveGuests } from "./LiveGuestsProvider";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function GuestListLive() {
-  const { state, markArrived } = useLiveGuests();
+  const { guests, markArrived } = useLiveGuests();
 
-  // 🔄 סנכרון ללייב Seating
+  // 🔄 סנכרון ללייב Seating (צרכן בלבד)
   const updateGuestArrived = useSeatingStore(
     (s) => s.updateGuestArrived
   );
 
-  if (!state) return null;
-
-  const { guests } = state;
-
-  if (!guests.length) {
-    return <div className="p-4 text-gray-500">אין אורחים להצגה</div>;
+  if (!guests || !guests.length) {
+    return (
+      <div className="p-4 text-gray-500">
+        אין אורחים להצגה
+      </div>
+    );
   }
 
   return (
