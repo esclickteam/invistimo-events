@@ -96,15 +96,7 @@ const guestTableMap = useMemo(() => {
 
       if (Array.isArray(data.guests)) {
   setGuests(data.guests);
-
-  const arrivedMap = {};
-  data.guests.forEach(g => {
-    if (Number(g.arrivedCount) > 0) {
-      arrivedMap[g._id] = Number(g.arrivedCount);
-    }
-  });
-
-  setLiveArrivalsBulk(arrivedMap); // ✅ זה הקסם
+  resetLiveArrivals(); // 🔒 הגיעו בפועל תמיד מתחיל מ־0
 }
 
 
