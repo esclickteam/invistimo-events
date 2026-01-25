@@ -457,29 +457,31 @@ useEffect(() => {
   /* ============================================================
      Stats (על כל האורחים)
   ============================================================ */
-  const stats = useMemo(() => {
-  // 🟦 מוזמנים – קבועים
+ const stats = useMemo(() => {
+  // 🟦 סה"כ מוזמנים (כמות אנשים)
   const totalInvited = guests.reduce(
-    (s, g) => s + (g.guestsCount || 0),
+    (sum, g) => sum + (g.guestsCount || 0),
     0
   );
 
-  // 🟩 מגיעים בפועל – אך ורק arrivedCount
+  // 🟢 סה"כ אישרו הגעה (RSVP = yes)
+  const totalConfirmed = guests
+    .filter((g) => g.rsvp === "yes")
+    .reduce((sum, g) => sum + (g.guestsCount || 0), 0);
+
+  // 🟩 סה"כ הגיעו בפועל (check-in אמיתי)
   const totalArrived = guests.reduce(
-    (s, g) => s + (g.arrivedCount || 0),
+    (sum, g) => sum + (g.arrivedCount || 0),
     0
   );
-
-  const totalNo = guests.filter((g) => g.rsvp === "no").length;
-  const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
-    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
-    notComing: totalNo,
-    noResponse: totalPending,
+    totalInvited,
+    totalConfirmed,
+    totalArrived,
   };
 }, [guests]);
+
 
 
   /* ============================================================
@@ -831,32 +833,52 @@ console.log("INVITATION:", invitation);
 
 
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-  <Box
-    title="סה״כ מוזמנים"
-    value={stats.totalGuests}
-    onClick={() => setQuickFilter("all")}
-  />
-  <Box
-    title="סה״כ מגיעים"
-    value={stats.comingGuests}
-    color="green"
-    onClick={() => setQuickFilter("yes")}
-  />
-  <Box
-    title="לא מגיעים"
-    value={stats.notComing}
-    color="red"
-    onClick={() => setQuickFilter("no")}
-  />
-  <Box
-    title="טרם השיבו"
-    value={stats.noResponse}
-    color="orange"
-    onClick={() => setQuickFilter("pending")}
-  />
-</div>
+      {/* ===================== Stats ===================== */}
+{isProducerView ? (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+    <Box
+      title="סה״כ מוזמנים"
+      value={stats.totalInvited}
+    />
+    <Box
+      title="סה״כ אישרו הגעה"
+      value={stats.totalConfirmed}
+      color="green"
+    />
+    <Box
+      title="סה״כ הגיעו בפועל"
+      value={stats.totalArrived}
+      color="green"
+    />
+  </div>
+) : (
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+    <Box
+      title="סה״כ מוזמנים"
+      value={stats.totalInvited}
+      onClick={() => setQuickFilter("all")}
+    />
+    <Box
+      title="סה״כ מגיעים"
+      value={stats.totalConfirmed}
+      color="green"
+      onClick={() => setQuickFilter("yes")}
+    />
+    <Box
+      title="לא מגיעים"
+      value={guests.filter((g) => g.rsvp === "no").length}
+      color="red"
+      onClick={() => setQuickFilter("no")}
+    />
+    <Box
+      title="טרם השיבו"
+      value={guests.filter((g) => g.rsvp === "pending").length}
+      color="orange"
+      onClick={() => setQuickFilter("pending")}
+    />
+  </div>
+)}
+
 
 <GuestsControls
   search={search}
