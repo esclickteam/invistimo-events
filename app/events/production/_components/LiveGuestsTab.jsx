@@ -73,12 +73,12 @@ const guestTableMap = useMemo(() => {
       setLoading(true);
 
       const res = await fetch(
-        `/api/guests?invitation=${invitationId}`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
+  `/api/guests?invitation=${invitationId}&mode=live`,
+  {
+    credentials: "include",
+    cache: "no-store",
+  }
+);
 
       const data = await res.json();
 

@@ -39,10 +39,14 @@ export async function GET(request: Request) {
     const userId = auth.userId;
 
     /* ===============================
-       invitationId מה-URL (⭐ חובה)
+       Params
     =============================== */
     const { searchParams } = new URL(request.url);
     const invitationId = searchParams.get("invitation");
+
+    // ⭐ מאפשר להחזיר arrivedCount אמיתי רק בלייב
+    const mode = searchParams.get("mode");
+    const isLive = mode === "live";
 
     if (!invitationId) {
       console.log("⛔ No invitationId");
@@ -50,12 +54,12 @@ export async function GET(request: Request) {
     }
 
     /* ===============================
-       בדיקת הרשאה להזמנה
+       Permission check
     =============================== */
     const invitation = await Invitation.findOne({
       _id: invitationId,
       $or: [
-        { ownerId: userId },    // לקוח
+        { ownerId: userId }, // לקוח
         { producerId: userId }, // מפיק
       ],
     })
@@ -67,10 +71,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ guests: [] });
     }
 
-    console.log("📩 Invitation OK:", invitation._id.toString());
+    console.log("📩 Invitation OK:", invitation._id.toString(), "isLive:", isLive);
 
     /* ===============================
-       אורחים – רק להזמנה הזו
+       Guests for this invitation
     =============================== */
     const guests = await InvitationGuest.find({
       invitationId: invitation._id,
@@ -79,7 +83,7 @@ export async function GET(request: Request) {
     console.log("👥 Guests:", guests.length);
 
     /* ===============================
-       הושבה – לפי EVENT ID
+       Seating by eventId
     =============================== */
     const seating = await SeatingTable.findOne({
       eventId: invitation.eventId,
@@ -88,11 +92,11 @@ export async function GET(request: Request) {
     console.log("🪑 Seating found:", !!seating);
 
     /* ===============================
-       חיבור אורח ← שולחן
+       Join guest -> tableName
     =============================== */
     let withTable = 0;
 
-    const guestsWithTable = guests.map((guest) => {
+    const guestsWithTable = guests.map((guest: any) => {
       let tableName: string | null = null;
 
       if (seating?.tables?.length) {
@@ -111,7 +115,9 @@ export async function GET(request: Request) {
 
       return {
         ...guest,
-        tableName, // ⭐ לשימוש במפיק ובלייב בלבד
+        // ✅ מחוץ ללייב תמיד 0; בלייב מפיק - אמת מהDB
+        arrivedCount: isLive ? Number(guest?.arrivedCount ?? 0) : 0,
+        tableName, // ⭐ לשימוש במפיק ובלייב
       };
     });
 
