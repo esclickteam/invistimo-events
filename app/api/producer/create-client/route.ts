@@ -124,42 +124,54 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
-    if (existingUser.needsPasswordSetup) {
-      const resetPasswordToken = crypto.randomBytes(32).toString("hex");
-      const resetPasswordExpires = new Date(
-        Date.now() + 1000 * 60 * 60 * 24
-      );
+  const resetPasswordToken = crypto.randomBytes(32).toString("hex");
+  const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
-      existingUser.resetPasswordToken = resetPasswordToken;
-      existingUser.resetPasswordExpires = resetPasswordExpires;
-      await existingUser.save();
+  existingUser.resetPasswordToken = resetPasswordToken;
+  existingUser.resetPasswordExpires = resetPasswordExpires;
+  existingUser.needsPasswordSetup = true;
 
-      const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
+  // ✅ מומלץ: לאפס סיסמה כדי שהסטטוס יהיה עקבי
+  existingUser.password = undefined as any;
 
-      console.log("📧 Sending magic link to existing user:", email);
+  await existingUser.save();
 
-      await resend.emails.send({
-        from: "Invistimo <noreply@invistimo.com>",
-        to: email,
-        subject: "הגדרת סיסמה לחשבון שלך",
-        html: `
-          <div style="font-family:Heebo,Arial,sans-serif;direction:rtl;text-align:right">
-            <h2>ברוך הבא לאינויסטימו 🎉</h2>
-            <p>נשלח אליך שוב קישור להגדרת סיסמה:</p>
-            <a href="${magicLink}"
-              style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
-              הגדר סיסמה
-            </a>
-            <p style="margin-top:16px;font-size:14px;color:#555">
-              הקישור תקף ל־24 שעות.
-            </p>
-          </div>
-        `,
-      });
-    }
+  const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
 
-    return NextResponse.json({ success: true, user: existingUser });
+  console.log("📧 Sending magic link to existing user (producer flow):", email);
+
+  try {
+    await resend.emails.send({
+      from: "Invistimo <noreply@invistimo.com>",
+      to: email,
+      subject: "הגדרת סיסמה לחשבון שלך",
+      html: `
+        <div style="font-family:Heebo,Arial,sans-serif;direction:rtl;text-align:right">
+          <h2>ברוך הבא לאינויסטימו 🎉</h2>
+          <p>המפיק שלך יצר או עדכן עבורך חשבון.</p>
+          <p>להגדרת סיסמה:</p>
+          <a href="${magicLink}"
+            style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
+            הגדר סיסמה
+          </a>
+          <p style="margin-top:16px;font-size:14px;color:#555">
+            הקישור תקף ל־24 שעות.
+          </p>
+        </div>
+      `,
+    });
+  } catch (mailErr) {
+    console.error("❌ Resend failed (existing user):", mailErr);
+    return NextResponse.json(
+      { error: "Failed to send email" },
+      { status: 500 }
+    );
   }
+
+  return NextResponse.json({ success: true, user: existingUser });
+}
+
+
 
   /* ================= CREATE USER ================= */
   try {
