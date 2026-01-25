@@ -241,49 +241,6 @@ async function loadEvent() {
   setGuests(data.guests || []);
 }
 
-async function updateArrivedCount(
-  guestId: string,
-  delta: 1 | -1
-) {
-  // 🟡 DEMO – לא שומרים
-  if (isDemo) {
-    setGuests((prev) =>
-      prev.map((g) => {
-        if (g._id !== guestId) return g;
-
-        const max = g.guestsCount || 0;
-        const current = g.arrivedCount || 0;
-        const next = Math.max(0, Math.min(max, current + delta));
-
-        return { ...g, arrivedCount: next };
-      })
-    );
-    return;
-  }
-
-  // ✅ עדכון מיידי ב־UI
-  setGuests((prev) =>
-    prev.map((g) => {
-      if (g._id !== guestId) return g;
-
-      const max = g.guestsCount || 0;
-      const current = g.arrivedCount || 0;
-      const next = Math.max(0, Math.min(max, current + delta));
-
-      return { ...g, arrivedCount: next };
-    })
-  );
-
-  // ✅ שמירה אוטומטית ל־Mongo
-  await fetch(`/api/guests/${guestId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      arrivedCountDelta: delta,
-    }),
-  });
-}
-
 
 
 async function deleteGuest(guest: Guest) {
@@ -292,8 +249,6 @@ async function deleteGuest(guest: Guest) {
     alert("מצב דמו – הפעולה לא נשמרת");
     return;
   }
-
-  
 
 
 
@@ -502,31 +457,29 @@ useEffect(() => {
   /* ============================================================
      Stats (על כל האורחים)
   ============================================================ */
- const stats = useMemo(() => {
-  // 🟦 סה"כ מוזמנים (כמות אנשים)
+  const stats = useMemo(() => {
+  // 🟦 מוזמנים – קבועים
   const totalInvited = guests.reduce(
-    (sum, g) => sum + (g.guestsCount || 0),
+    (s, g) => s + (g.guestsCount || 0),
     0
   );
 
-  // 🟢 סה"כ אישרו הגעה (RSVP = yes)
-  const totalConfirmed = guests
-    .filter((g) => g.rsvp === "yes")
-    .reduce((sum, g) => sum + (g.guestsCount || 0), 0);
-
-  // 🟩 סה"כ הגיעו בפועל (check-in אמיתי)
+  // 🟩 מגיעים בפועל – אך ורק arrivedCount
   const totalArrived = guests.reduce(
-    (sum, g) => sum + (g.arrivedCount || 0),
+    (s, g) => s + (g.arrivedCount || 0),
     0
   );
+
+  const totalNo = guests.filter((g) => g.rsvp === "no").length;
+  const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalInvited,
-    totalConfirmed,
-    totalArrived,
+    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
+    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
+    notComing: totalNo,
+    noResponse: totalPending,
   };
 }, [guests]);
-
 
 
   /* ============================================================
@@ -878,79 +831,46 @@ console.log("INVITATION:", invitation);
 
 
 
-      {/* ===================== Stats ===================== */}
-{isProducerView ? (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-    <Box
-      title="סה״כ מוזמנים"
-      value={stats.totalInvited}
-    />
-    <Box
-      title="סה״כ אישרו הגעה"
-      value={stats.totalConfirmed}
-      color="green"
-    />
-    <Box
-      title="סה״כ הגיעו בפועל"
-      value={stats.totalArrived}
-      color="green"
-    />
-  </div>
-) : (
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-    <Box
-      title="סה״כ מוזמנים"
-      value={stats.totalInvited}
-      onClick={() => setQuickFilter("all")}
-    />
-    <Box
-      title="סה״כ מגיעים"
-      value={stats.totalConfirmed}
-      color="green"
-      onClick={() => setQuickFilter("yes")}
-    />
-    <Box
-      title="לא מגיעים"
-      value={guests.filter((g) => g.rsvp === "no").length}
-      color="red"
-      onClick={() => setQuickFilter("no")}
-    />
-    <Box
-      title="טרם השיבו"
-      value={guests.filter((g) => g.rsvp === "pending").length}
-      color="orange"
-      onClick={() => setQuickFilter("pending")}
-    />
-  </div>
-)}
-
-{isClientView && (
-  <GuestsControls
-    search={search}
-    setSearch={setSearch}
-    groups={groups}
-    selectedGroupId={selectedGroupId}
-    setSelectedGroupId={setSelectedGroupId}
-    onManageGroups={() => setOpenGroupModal(true)}
-    quickFilter={quickFilter}
-    setQuickFilter={setQuickFilter}
-    totalCount={guests.length}
-    displayCount={displayGuests.length}
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+  <Box
+    title="סה״כ מוזמנים"
+    value={stats.totalGuests}
+    onClick={() => setQuickFilter("all")}
   />
-)}
-
-{isProducerView && (
-  <GuestsControls
-    search={search}
-    setSearch={setSearch}
-    groups={groups.slice(0, 0)}   // ✅ תיקון TS
-    selectedGroupId=""
-    setSelectedGroupId={() => {}}
-    onManageGroups={() => {}}
-    totalCount={guests.length}
-    displayCount={displayGuests.length}
+  <Box
+    title="סה״כ מגיעים"
+    value={stats.comingGuests}
+    color="green"
+    onClick={() => setQuickFilter("yes")}
   />
-)}
+  <Box
+    title="לא מגיעים"
+    value={stats.notComing}
+    color="red"
+    onClick={() => setQuickFilter("no")}
+  />
+  <Box
+    title="טרם השיבו"
+    value={stats.noResponse}
+    color="orange"
+    onClick={() => setQuickFilter("pending")}
+  />
+</div>
+
+<GuestsControls
+  search={search}
+  setSearch={setSearch}
+  groups={groups}
+  selectedGroupId={selectedGroupId}
+  setSelectedGroupId={setSelectedGroupId}
+  onManageGroups={() => setOpenGroupModal(true)}
+  quickFilter={quickFilter}
+  setQuickFilter={setQuickFilter}
+  totalCount={guests.length}
+  displayCount={displayGuests.length}
+/>
+
 
 
 
@@ -958,39 +878,26 @@ console.log("INVITATION:", invitation);
 <div className="hidden md:block w-full overflow-x-auto">
   <table className="min-w-[900px] w-full border rounded-xl overflow-hidden bg-white">
     <thead className="bg-gray-100">
-  <tr>
-    <th
-      className="p-3 text-right cursor-pointer select-none"
-      onClick={() => toggleSort("name")}
-    >
-      שם מלא{sortArrow("name")}
-    </th>
+      <tr>
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("name")}
+        >
+          שם מלא{sortArrow("name")}
+        </th>
 
-    <th className="p-3 text-right">טלפון</th>
+        <th className="p-3 text-right">טלפון</th>
+        <th className="p-3 text-right">קרבה</th>
 
-    {isProducerView && (
-      <th className="p-3 text-right">קרבה</th>
-    )}
+        <th className="p-3 text-right">קבוצה</th>
 
-    <th className="p-3 text-right">קבוצה</th>
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("rsvp")}
+        >
+          סטטוס{sortArrow("rsvp")}
+        </th>
 
-    <th
-      className="p-3 text-right cursor-pointer select-none"
-      onClick={() => toggleSort("rsvp")}
-    >
-      סטטוס{sortArrow("rsvp")}
-    </th>
-
-    {/* 👤 לקוח – רק מגיעים (RSVP yes) */}
-    {isClientView && (
-      <th className="p-3 text-right">
-        מגיעים
-      </th>
-    )}
-
-    {/* 🎬 מפיק בלבד */}
-    {isProducerView && (
-      <>
         <th
           className="p-3 text-right cursor-pointer select-none"
           onClick={() => toggleSort("invited")}
@@ -1002,140 +909,119 @@ console.log("INVITATION:", invitation);
           className="p-3 text-right cursor-pointer select-none"
           onClick={() => toggleSort("coming")}
         >
-          הגיעו בפועל{sortArrow("coming")}
+          מגיעים{sortArrow("coming")}
         </th>
-      </>
-    )}
 
-    <th
-      className="p-3 text-right cursor-pointer select-none"
-      onClick={() => toggleSort("table")}
-    >
-      מס' שולחן{sortArrow("table")}
-    </th>
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("table")}
+        >
+          מס' שולחן{sortArrow("table")}
+        </th>
 
-    <th className="p-3 text-right">הערות</th>
-    <th className="p-3 text-right">פעולות</th>
-  </tr>
-</thead>
-
+        <th className="p-3 text-right">הערות</th>
+        <th className="p-3 text-right">פעולות</th>
+      </tr>
+    </thead>
 
     <tbody>
-  {displayGuests.map((g) => (
-    <tr key={g._id} className="border-b">
-      <td className="p-3">{g.name}</td>
-      <td className="p-3">{formatPhone(g.phone)}</td>
+      {displayGuests.map((g) => (
+        <tr key={g._id} className="border-b">
+          <td className="p-3">{g.name}</td>
+          <td className="p-3">{formatPhone(g.phone)}</td>
+          <td className="p-3">{g.relation?.trim() || "-"}</td>
+          <td className="p-3">
+  <GuestGroupSelect
+    value={g.groupId}
+    onChange={async (groupId) => {
+      // ✅ עדכון מיידי ב-UI
+      setGuests((prev) =>
+        prev.map((guest) =>
+          guest._id === g._id
+            ? { ...guest, groupId }
+            : guest
+        )
+      );
 
-      {/* רק למפיק: קרבה */}
-      {isProducerView && <td className="p-3">{g.relation?.trim() || "-"}</td>}
+      // ✅ שמירה ל-DB
+      await fetch(`/api/guests/${g._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ groupId }),
+      });
+    }}
+  />
+</td>
 
-      <td className="p-3">
-        <GuestGroupSelect
-          value={g.groupId}
-          onChange={async (groupId) => {
-            setGuests((prev) =>
-              prev.map((guest) =>
-                guest._id === g._id ? { ...guest, groupId } : guest
-              )
-            );
-            await fetch(`/api/guests/${g._id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ groupId }),
-            });
-          }}
-        />
-      </td>
-
-      {/* לקוח: עמודת "מגיעים" בלבד */}
-      {isClientView && (
-        <td className="p-3 font-semibold text-center">
-          {g.rsvp === "yes" ? g.guestsCount : 0}
-        </td>
-      )}
-
-      {/* מפיק: סטטוס, מוזמנים, הגיעו בפועל */}
-      {isProducerView && (
-        <>
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
+
+          <td className="p-3 font-semibold">
+  {g.arrivedCount || 0}
+</td>
+
           <td className="p-3">
-            <div className="flex items-center gap-2 justify-center">
-              <button
-                onClick={() => updateArrivedCount(g._id, -1)}
-                className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
-              >
-                −
-              </button>
-              <span className="font-semibold min-w-[20px] text-center">
-                {g.arrivedCount || 0}
-              </span>
-              <button
-                onClick={() => updateArrivedCount(g._id, +1)}
-                className="w-7 h-7 rounded-full border text-lg leading-none hover:bg-gray-100"
-              >
-                +
-              </button>
-            </div>
+  {g.tableName
+    ? g.tableName
+    : g.tableNumber
+    ? `שולחן ${g.tableNumber}`
+    : "-"}
+</td>
+
+          <td className="p-3 text-sm text-gray-700">
+            {g.notes?.trim() || "-"}
           </td>
-        </>
+
+          <td className="p-3 flex gap-3">
+            
+            <button
+  onClick={() =>
+    router.push(
+      isDemo
+        ? `/try/dashboard/messages?guestId=${g._id}`
+        : `/dashboard/messages?guestId=${g._id}`
+    )
+  }
+>
+  💬
+</button>
+
+<button
+  onClick={() =>
+    router.push(
+      isDemo
+        ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+        : `/dashboard/seating?from=personal&guestId=${g._id}`
+    )
+  }
+>
+  🪑
+</button>
+
+            <button onClick={() => setSelectedGuest(g)}>
+              ✏️
+            </button>
+
+            <button
+              onClick={() => deleteGuest(g)}
+              className="text-red-600"
+            >
+              🗑️
+            </button>
+          </td>
+        </tr>
+      ))}
+
+      {displayGuests.length === 0 && (
+        <tr>
+          <td colSpan={9} className="p-8 text-center text-gray-500">
+            לא נמצאו תוצאות.
+          </td>
+        </tr>
       )}
-
-      <td className="p-3">
-        {g.tableName
-          ? g.tableName
-          : g.tableNumber
-          ? `שולחן ${g.tableNumber}`
-          : "-"}
-      </td>
-
-      <td className="p-3 text-sm text-gray-700">
-        {g.notes?.trim() || "-"}
-      </td>
-
-      <td className="p-3 flex gap-3">
-        <button
-          onClick={() =>
-            router.push(
-              isDemo
-                ? `/try/dashboard/messages?guestId=${g._id}`
-                : `/dashboard/messages?guestId=${g._id}`
-            )
-          }
-        >
-          💬
-        </button>
-
-        <button
-          onClick={() =>
-            router.push(
-              isDemo
-                ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-                : `/dashboard/seating?from=personal&guestId=${g._id}`
-            )
-          }
-        >
-          🪑
-        </button>
-
-        <button onClick={() => setSelectedGuest(g)}>✏️</button>
-        <button onClick={() => deleteGuest(g)} className="text-red-600">
-          🗑️
-        </button>
-      </td>
-    </tr>
-  ))}
-
-  {displayGuests.length === 0 && (
-    <tr>
-      <td colSpan={isProducerView ? 10 : 7} className="p-8 text-center text-gray-500">
-        לא נמצאו תוצאות.
-      </td>
-    </tr>
-  )}
-</tbody>
-
-
+    </tbody>
   </table>
 </div>
 
