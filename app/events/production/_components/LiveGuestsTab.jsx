@@ -35,14 +35,47 @@ function confirmedCountForGuest(g) {
 
 
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const tables = useSeatingStore((s) => s.tables);
   const [search, setSearch] = useState("");
+  
 
 
   const guests = useSeatingStore((s) => s.guests);
 const setGuests = useSeatingStore((s) => s.setGuests);
+
+  useEffect(() => {
+  if (!invitationId) return;
+
+  async function loadGuestsForLive() {
+    try {
+      setLoading(true);
+
+      const res = await fetch(
+        `/api/guests?invitation=${invitationId}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+
+      if (Array.isArray(data.guests)) {
+        setGuests(data.guests);
+      }
+    } catch (e) {
+      console.error("❌ Live guests load failed:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadGuestsForLive();
+}, [invitationId, setGuests]);
+
+
 
 const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
@@ -204,6 +237,15 @@ const filteredGuests = useMemo(() => {
     );
   });
 }, [guests, search]);
+
+if (loading) {
+  return (
+    <div className="p-6 text-center text-gray-500">
+      טוען אורחים…
+    </div>
+  );
+}
+
 
 
 
