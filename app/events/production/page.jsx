@@ -12,8 +12,6 @@ import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 import DashboardPage from "@/app/dashboard/page";
 import SeatingPage from "@/app/dashboard/seating/page";
 
-/* 🔥 הוספה */
-import LiveGuestsTab from "./_components/LiveGuestsTab";
 
 export default function EventProductionPage() {
   const { user } = useAuth();
@@ -25,50 +23,54 @@ export default function EventProductionPage() {
      Load invitation
   ========================= */
   useEffect(() => {
-    if (!user) return;
+  if (!user) return;
 
-    const params =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search)
-        : null;
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
 
-    const eventIdFromUrl = params?.get("eventId");
+  const eventIdFromUrl = params?.get("eventId");
 
-    const url = "/api/invitations/my";
+  const url = "/api/invitations/my";
 
-    fetch(url, { credentials: "include", cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch invitation");
-        return res.json();
-      })
-      .then((data) => {
-        setInvitation(data?.invitation || null);
-      })
-      .catch((err) => {
-        console.error("Invitation fetch error:", err);
-        setInvitation(null);
-      })
-      .finally(() => setLoading(false));
-  }, [user]);
+
+  fetch(url, { credentials: "include", cache: "no-store" })
+    .then((res) => {
+      if (!res.ok) throw new Error("Failed to fetch invitation");
+      return res.json();
+    })
+    .then((data) => {
+      setInvitation(data?.invitation || null);
+    })
+    .catch((err) => {
+      console.error("Invitation fetch error:", err);
+      setInvitation(null);
+    })
+    .finally(() => setLoading(false));
+}, [user]);
 
   /* =========================
      Extract eventId (מקור אמת)
   ========================= */
   const eventId = useMemo(() => {
-    const params =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search)
-        : null;
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
 
-    const eventIdFromUrl = params?.get("eventId");
+  const eventIdFromUrl = params?.get("eventId");
 
-    return (
-      eventIdFromUrl ||
-      invitation?.eventId ||
-      invitation?.event?._id ||
-      null
-    );
-  }, [invitation]);
+  return (
+    eventIdFromUrl ||
+    invitation?.eventId ||
+    invitation?.event?._id ||
+    null
+  );
+}, [invitation]);
+
+
+ 
 
   /* =========================
      Loading state
@@ -96,20 +98,17 @@ export default function EventProductionPage() {
      Render
   ========================= */
   return (
-    <ProductionTabs
-      eventId={eventId}
-      overview={<OverviewTab eventId={eventId} />}
-      planning={<PlanningTab eventId={eventId} />}
-      suppliers={<SuppliersBudgetTab eventId={eventId} />}
-      calendar={<CalendarTab eventId={eventId} />}
-      logistics={<LogisticsTab eventId={eventId} />}
-      alcohol={<AlcoholManagementTab eventId={eventId} />}
-
-      /* ✅ כאן החיבור ללייב אורחים */
-      liveGuests={<LiveGuestsTab invitationId={invitation._id} />}
-
-      liveSeating={<SeatingPage />}
-      invitation={invitation}
-    />
-  );
+  <ProductionTabs
+    eventId={eventId}   // ✅ זה כל הסיפור
+    overview={<OverviewTab eventId={eventId} />}
+    planning={<PlanningTab eventId={eventId} />}
+    suppliers={<SuppliersBudgetTab eventId={eventId} />}
+    calendar={<CalendarTab eventId={eventId} />}
+    logistics={<LogisticsTab eventId={eventId} />}
+    alcohol={<AlcoholManagementTab eventId={eventId} />}
+    liveGuests={<DashboardPage />}
+    liveSeating={<SeatingPage />}
+    invitation={invitation}
+  />
+);
 }
