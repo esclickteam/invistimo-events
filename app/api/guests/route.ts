@@ -8,6 +8,9 @@ import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
+/* ============================================================
+   Types
+============================================================ */
 type SeatedGuest = {
   guestId: Types.ObjectId;
   seatIndex: number;
@@ -19,16 +22,14 @@ type TableItem = {
   seatedGuests?: SeatedGuest[];
 };
 
-type SeatingDoc = {
-  eventId: Types.ObjectId;
-  tables?: TableItem[];
-};
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await db();
     console.log("✅ MongoDB connected");
 
+    /* ===============================
+       Auth
+    =============================== */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       console.log("⛔ No auth");
@@ -38,42 +39,53 @@ export async function GET() {
     const userId = auth.userId;
 
     /* ===============================
-       הזמנות (לקוח + מפיק)
+       invitationId מה-URL (⭐ חובה)
     =============================== */
-    const invitations = await Invitation.find({
-      $or: [{ ownerId: userId }, { producerId: userId }],
+    const { searchParams } = new URL(request.url);
+    const invitationId = searchParams.get("invitation");
+
+    if (!invitationId) {
+      console.log("⛔ No invitationId");
+      return NextResponse.json({ guests: [] });
+    }
+
+    /* ===============================
+       בדיקת הרשאה להזמנה
+    =============================== */
+    const invitation = await Invitation.findOne({
+      _id: invitationId,
+      $or: [
+        { ownerId: userId },    // לקוח
+        { producerId: userId }, // מפיק
+      ],
     })
       .select("_id eventId")
       .lean();
 
-    console.log("📩 Invitations:", invitations.length);
-
-    if (!invitations.length) {
+    if (!invitation) {
+      console.log("⛔ Invitation not found / no permission");
       return NextResponse.json({ guests: [] });
     }
 
-    const invitationIds = invitations.map((i) => i._id);
-    const eventIds = invitations
-      .map((i) => i.eventId)
-      .filter(Boolean);
+    console.log("📩 Invitation OK:", invitation._id.toString());
 
     /* ===============================
-       אורחים
+       אורחים – רק להזמנה הזו
     =============================== */
     const guests = await InvitationGuest.find({
-      invitationId: { $in: invitationIds },
+      invitationId: invitation._id,
     }).lean();
 
     console.log("👥 Guests:", guests.length);
 
     /* ===============================
-       הושבות – לפי EVENT ID (⭐ תיקון קריטי)
+       הושבה – לפי EVENT ID
     =============================== */
-    const seatings = (await SeatingTable.find({
-      eventId: { $in: eventIds },
-    }).lean()) as SeatingDoc[];
+    const seating = await SeatingTable.findOne({
+      eventId: invitation.eventId,
+    }).lean();
 
-    console.log("🪑 Seatings:", seatings.length);
+    console.log("🪑 Seating found:", !!seating);
 
     /* ===============================
        חיבור אורח ← שולחן
@@ -83,18 +95,11 @@ export async function GET() {
     const guestsWithTable = guests.map((guest) => {
       let tableName: string | null = null;
 
-      const invitation = invitations.find(
-        (i) => i._id.toString() === guest.invitationId.toString()
-      );
-
-      const seating = seatings.find(
-        (s) => s.eventId?.toString() === invitation?.eventId?.toString()
-      );
-
       if (seating?.tables?.length) {
-        const table = seating.tables.find((t) =>
+        const table = seating.tables.find((t: TableItem) =>
           t.seatedGuests?.some(
-            (sg) => sg.guestId.toString() === guest._id.toString()
+            (sg: SeatedGuest) =>
+              sg.guestId.toString() === guest._id.toString()
           )
         );
 
@@ -106,7 +111,7 @@ export async function GET() {
 
       return {
         ...guest,
-        tableName,
+        tableName, // ⭐ לשימוש במפיק ובלייב בלבד
       };
     });
 
