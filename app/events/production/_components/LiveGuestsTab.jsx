@@ -312,9 +312,15 @@ if (loading) {
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
 
-              const tableLabel =
+              const tableFromStore = guestTableMap.get(String(g._id)) || null;
+
+const tableLabel =
   g.tableName ||
-  (g.tableNumber != null ? `שולחן ${g.tableNumber}` : "-");
+  tableFromStore?.name ||
+  (tableFromStore?.number != null
+    ? `שולחן ${tableFromStore.number}`
+    : "-");
+
 
 
               return (
