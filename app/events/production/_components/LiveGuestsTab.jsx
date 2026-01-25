@@ -51,6 +51,13 @@ function confirmedCountForGuest(g) {
 const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
 const resetLiveArrivals = useSeatingStore((s) => s.resetLiveArrivals);
 
+const setLiveMode = useSeatingStore((s) => s.setLiveMode);
+
+  useEffect(() => {
+    setLiveMode(true);
+    return () => setLiveMode(false);
+  }, [setLiveMode]);
+
 
 
 const setGuests = useSeatingStore((s) => s.setGuests);
@@ -72,6 +79,8 @@ const guestTableMap = useMemo(() => {
       }
     });
   });
+
+  
 
   return map;
 }, [tables]);
