@@ -880,20 +880,25 @@ console.log("INVITATION:", invitation);
 )}
 
 
-{isClientView && (
-  <GuestsControls
-    search={search}
-    setSearch={setSearch}
-    groups={groups}
-    selectedGroupId={selectedGroupId}
-    setSelectedGroupId={setSelectedGroupId}
-    onManageGroups={() => setOpenGroupModal(true)}
-    quickFilter={quickFilter}
-    setQuickFilter={setQuickFilter}
-    totalCount={guests.length}
-    displayCount={displayGuests.length}
-  />
-)}
+<GuestsControls
+  search={search}
+  setSearch={setSearch}
+
+  /* 👤 Client בלבד */
+  groups={isClientView ? groups : []}
+  selectedGroupId={isClientView ? selectedGroupId : ""}
+  setSelectedGroupId={isClientView ? setSelectedGroupId : () => {}}
+  onManageGroups={
+    isClientView ? () => setOpenGroupModal(true) : undefined
+  }
+
+  /* 👤 Client בלבד – סינונים */
+  quickFilter={isClientView ? quickFilter : "all"}
+  setQuickFilter={isClientView ? setQuickFilter : () => {}}
+
+  totalCount={guests.length}
+  displayCount={displayGuests.length}
+/>
 
 
 
