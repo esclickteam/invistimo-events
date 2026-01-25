@@ -880,18 +880,20 @@ console.log("INVITATION:", invitation);
 )}
 
 
-<GuestsControls
-  search={search}
-  setSearch={setSearch}
-  groups={groups}
-  selectedGroupId={selectedGroupId}
-  setSelectedGroupId={setSelectedGroupId}
-  onManageGroups={() => setOpenGroupModal(true)}
-  quickFilter={quickFilter}
-  setQuickFilter={setQuickFilter}
-  totalCount={guests.length}
-  displayCount={displayGuests.length}
-/>
+{isClientView && (
+  <GuestsControls
+    search={search}
+    setSearch={setSearch}
+    groups={groups}
+    selectedGroupId={selectedGroupId}
+    setSelectedGroupId={setSelectedGroupId}
+    onManageGroups={() => setOpenGroupModal(true)}
+    quickFilter={quickFilter}
+    setQuickFilter={setQuickFilter}
+    totalCount={guests.length}
+    displayCount={displayGuests.length}
+  />
+)}
 
 
 
