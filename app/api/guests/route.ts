@@ -45,9 +45,14 @@ const userId = auth.userId;
     /* ===============================
        כל ההזמנות של המשתמש
     =============================== */
-    const invitations = await Invitation.find({ ownerId: userId })
-      .select("_id")
-      .lean();
+    const invitations = await Invitation.find({
+  $or: [
+    { ownerId: userId },     // לקוח
+    { producerId: userId },  // מפיק
+  ],
+})
+  .select("_id")
+  .lean();
 
     if (!invitations.length) {
       return NextResponse.json({ guests: [] });
