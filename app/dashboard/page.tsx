@@ -241,43 +241,6 @@ async function loadEvent() {
   setGuests(data.guests || []);
 }
 
-// ✅ עדכון מגיעים בפועל (arrivedCount)
-async function updateArrivedCount(guestId: string, increment: number) {
-  if (isDemo) {
-    // בדמו רק מעדכנים UI
-    setGuests(prev =>
-      prev.map(g =>
-        g._id === guestId
-          ? { ...g, arrivedCount: Math.max(0, (g.arrivedCount || 0) + increment) }
-          : g
-      )
-    );
-    return;
-  }
-
-  try {
-    const res = await fetch("/api/guests/updateArrived", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guestId, increment }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      // ✅ עדכון מיידי ב‑UI
-      setGuests(prev =>
-        prev.map(g =>
-          g._id === guestId ? { ...g, arrivedCount: data.arrivedCount } : g
-        )
-      );
-    } else {
-      console.error("Failed to update arrivedCount:", data.message);
-    }
-  } catch (err) {
-    console.error("Error updating arrivedCount:", err);
-  }
-}
-
-
 
 
 async function deleteGuest(guest: Guest) {
@@ -1030,22 +993,9 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
 
-          <td className="p-3 flex items-center gap-2 font-semibold">
-  <button
-    className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-    onClick={() => updateArrivedCount(g._id, -1)}
-  >
-    -
-  </button>
-  <span>{g.arrivedCount || 0}</span>
-  <button
-    className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-    onClick={() => updateArrivedCount(g._id, 1)}
-  >
-    +
-  </button>
+          <td className="p-3 font-semibold">
+  {g.arrivedCount || 0}
 </td>
-
 
           <td className="p-3">
   {g.tableName
