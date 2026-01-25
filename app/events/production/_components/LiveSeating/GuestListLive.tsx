@@ -24,9 +24,9 @@ export default function GuestListLive() {
     (s) => s.updateGuestArrived
   );
 
-  /* =====================================================
-     🔑 MAP: guestId -> table (מקור אמת)
-  ===================================================== */
+  /* =========================
+     MAP guestId -> table
+  ========================= */
   const guestToTableMap = useMemo(() => {
     const map = new Map<
       string,
@@ -55,25 +55,16 @@ export default function GuestListLive() {
         </div>
       ) : (
         guests.map((g) => {
-          /* ===============================
-             🔑 מזהה אורח אחיד
-          =============================== */
           const guestId =
             (g as any)._id ??
             (g as any).id ??
             (g as any).guestId;
 
-          /* ===============================
-             🧾 שם
-          =============================== */
           const name =
             (g as any).fullName ??
             (g as any).name ??
             "אורח";
 
-          /* ===============================
-             👥 מאושרים / הגיעו
-          =============================== */
           const approved =
             (g as any).approvedCount ??
             (g as any).approved ??
@@ -81,13 +72,9 @@ export default function GuestListLive() {
 
           const arrived = (g as any).arrived ?? 0;
 
-          /* ===============================
-             🪑 שיבוץ לשולחן
-          =============================== */
           const tableInfo = guestToTableMap.get(
             String(guestId)
           );
-          const isSeated = !!tableInfo;
 
           const canDecrease = arrived > 0;
           const canIncrease = arrived < approved;
@@ -103,18 +90,16 @@ export default function GuestListLive() {
                   : "bg-gray-100"
               }`}
             >
-              {/* שם */}
               <div className="font-medium mb-1">
                 {name}
               </div>
 
-              {/* שיבוץ */}
               <div className="text-xs mb-2">
-                {isSeated ? (
+                {tableInfo ? (
                   <span className="text-green-700">
                     משויך לשולחן{" "}
-                    {tableInfo?.tableName ??
-                      tableInfo?.tableId}
+                    {tableInfo.tableName ??
+                      tableInfo.tableId}
                   </span>
                 ) : (
                   <span className="text-gray-400">
@@ -123,7 +108,6 @@ export default function GuestListLive() {
                 )}
               </div>
 
-              {/* לייב – הגיעו בפועל */}
               <div className="flex items-center gap-3">
                 <button
                   disabled={!canDecrease}
