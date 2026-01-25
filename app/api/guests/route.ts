@@ -8,9 +8,6 @@ import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
-/* ============================================================
-   טיפוסים מקומיים
-============================================================ */
 type SeatedGuest = {
   guestId: Types.ObjectId;
   seatIndex: number;
@@ -19,94 +16,79 @@ type SeatedGuest = {
 type TableItem = {
   id: string;
   name?: string;
-  number?: number;
   seatedGuests?: SeatedGuest[];
 };
 
 type SeatingDoc = {
-  invitationId: Types.ObjectId;
+  eventId: Types.ObjectId;
   tables?: TableItem[];
 };
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    console.log("🟢 /api/guests GET called");
-
     await db();
-    console.log("🟢 DB connected");
+    console.log("✅ MongoDB connected");
 
-    /* ===============================
-       Auth
-    =============================== */
     const auth = await getUserIdFromRequest();
-
     if (!auth?.userId) {
-      console.warn("🟠 No auth user");
+      console.log("⛔ No auth");
       return NextResponse.json({ guests: [] });
     }
 
     const userId = auth.userId;
-    console.log("🟢 userId:", userId);
 
     /* ===============================
-       Query params
+       הזמנות (לקוח + מפיק)
     =============================== */
-    const { searchParams } = new URL(request.url);
-    const invitationParam = searchParams.get("invitation");
+    const invitations = await Invitation.find({
+      $or: [{ ownerId: userId }, { producerId: userId }],
+    })
+      .select("_id eventId")
+      .lean();
 
-    console.log("🟢 invitation param:", invitationParam);
+    console.log("📩 Invitations:", invitations.length);
 
-    let invitationIds: Types.ObjectId[] = [];
-
-    if (invitationParam) {
-      // 👈 מצב לייב / מסך ספציפי
-      invitationIds = [new Types.ObjectId(invitationParam)];
-      console.log("🟢 Using single invitationId");
-    } else {
-      // 👈 מצב כללי (לקוח / מפיק)
-      const invitations = await Invitation.find({
-        $or: [{ ownerId: userId }, { producerId: userId }],
-      })
-        .select("_id")
-        .lean();
-
-      invitationIds = invitations.map((i) => i._id);
-      console.log("🟢 Invitations found:", invitationIds.length);
-    }
-
-    if (!invitationIds.length) {
-      console.warn("🟠 No invitationIds resolved");
+    if (!invitations.length) {
       return NextResponse.json({ guests: [] });
     }
 
+    const invitationIds = invitations.map((i) => i._id);
+    const eventIds = invitations
+      .map((i) => i.eventId)
+      .filter(Boolean);
+
     /* ===============================
-       Guests
+       אורחים
     =============================== */
     const guests = await InvitationGuest.find({
       invitationId: { $in: invitationIds },
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+    }).lean();
 
-    console.log("🟢 Guests loaded:", guests.length);
+    console.log("👥 Guests:", guests.length);
 
     /* ===============================
-       Seating tables
+       הושבות – לפי EVENT ID (⭐ תיקון קריטי)
     =============================== */
     const seatings = (await SeatingTable.find({
-      invitationId: { $in: invitationIds },
+      eventId: { $in: eventIds },
     }).lean()) as SeatingDoc[];
 
-    console.log("🟢 Seating docs loaded:", seatings.length);
+    console.log("🪑 Seatings:", seatings.length);
 
     /* ===============================
-       Attach table name to guest
+       חיבור אורח ← שולחן
     =============================== */
+    let withTable = 0;
+
     const guestsWithTable = guests.map((guest) => {
       let tableName: string | null = null;
 
+      const invitation = invitations.find(
+        (i) => i._id.toString() === guest.invitationId.toString()
+      );
+
       const seating = seatings.find(
-        (s) => s.invitationId.toString() === guest.invitationId.toString()
+        (s) => s.eventId?.toString() === invitation?.eventId?.toString()
       );
 
       if (seating?.tables?.length) {
@@ -116,13 +98,10 @@ export async function GET(request: Request) {
           )
         );
 
-        tableName =
-          table?.name ??
-          (table?.number != null ? `שולחן ${table.number}` : null);
-      }
-
-      if (!tableName) {
-        console.log("🟠 Guest without table:", guest._id.toString());
+        if (table) {
+          tableName = table.name || "-";
+          withTable++;
+        }
       }
 
       return {
@@ -131,14 +110,11 @@ export async function GET(request: Request) {
       };
     });
 
-    console.log(
-      "🟢 Guests with table:",
-      guestsWithTable.filter((g) => g.tableName).length
-    );
+    console.log("✅ Guests with table:", withTable);
 
     return NextResponse.json({ guests: guestsWithTable });
   } catch (err) {
-    console.error("🔥 ERROR in GET /api/guests:", err);
+    console.error("🔥 ERROR in /api/guests:", err);
     return NextResponse.json({ guests: [] });
   }
 }
