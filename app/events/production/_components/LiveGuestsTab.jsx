@@ -24,7 +24,7 @@ function rsvpLabel(rsvp) {
 
 /* אישרו הגעה = מי שסימן מגיע (RSVP YES) — לא נוגעים בזה בלייב */
 function confirmedCountForGuest(g) {
-  return g?.rsvp === "yes" ? 1 : 0;
+  return g?.rsvp === "yes" ? Number(g.guestsCount || 0) : 0;
 }
 
 /* =========================
@@ -73,24 +73,23 @@ const guestTableMap = useMemo(() => {
       setLoading(true);
 
       const res = await fetch(
-  `/api/guests?invitation=${invitationId}&mode=live`,
-  {
-    credentials: "include",
-    cache: "no-store",
-  }
-);
+        `/api/guests?invitation=${invitationId}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
       const data = await res.json();
 
       if (Array.isArray(data.guests)) {
   const liveGuests = data.guests.map(g => ({
     ...g,
-    arrivedCount: Number(g.arrivedCount ?? 0), // ✅ שומר נתון קיים
+    arrivedCount: 0, // 🔥 לייב מתחיל תמיד מ־0
   }));
 
   setGuests(liveGuests);
 }
-
 
 
 
@@ -217,27 +216,34 @@ setGuests(next);
   }
 }
 
-const invitationGuests = useMemo(() => {
-  if (!invitationId) return [];
-  return guests.filter(
-    (g) => String(g.invitationId) === String(invitationId)
-  );
-}, [guests, invitationId]);
 
 
 
- 
+  /* =========================
+   ✅ Stats (לייב – קריאה בלבד)
+   1) סה״כ מוזמנים        = guestsCount (כולם)
+   2) אישרו הגעה          = RSVP YES × guestsCount
+   3) הגיעו בפועל         = arrivedCount (מתחיל תמיד מ־0)
+   ❗ arrivedCount לא תלוי ב-RSVP
+========================= */
 const stats = useMemo(() => {
-  const totalInvited = invitationGuests.reduce(
+  // 🟦 סה״כ מוזמנים
+  const totalInvited = guests.reduce(
     (sum, g) => sum + Number(g.guestsCount || 0),
     0
   );
 
-  const confirmedTotal = invitationGuests.filter(
-  (g) => g.rsvp === "yes"
-).length;
+  // 🟨 אישרו הגעה (לפני האירוע)
+  const confirmedTotal = guests.reduce(
+    (sum, g) =>
+      g.rsvp === "yes"
+        ? sum + Number(g.guestsCount || 0)
+        : sum,
+    0
+  );
 
-  const arrivedTotal = invitationGuests.reduce(
+  // 🟩 הגיעו בפועל (בלייב – תמיד מ־arrivedCount)
+  const arrivedTotal = guests.reduce(
     (sum, g) => sum + Number(g.arrivedCount || 0),
     0
   );
@@ -247,8 +253,7 @@ const stats = useMemo(() => {
     confirmedTotal,
     arrivedTotal,
   };
-}, [invitationGuests]);
-
+}, [guests]);
 
 
 
@@ -264,8 +269,6 @@ const filteredGuests = useMemo(() => {
       g.phone?.includes(q)
   );
 }, [guests, search]);
-
-
 
 if (loading) {
   return (
@@ -321,10 +324,7 @@ if (loading) {
           </thead>
 
           <tbody>
-            {filteredGuests
-  .filter(g => String(g.invitationId) === String(invitationId))
-  .map((g) => {
-
+            {filteredGuests.map((g) => {
 
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
