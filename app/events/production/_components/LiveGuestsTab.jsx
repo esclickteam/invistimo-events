@@ -227,23 +227,18 @@ setGuests(next);
    ❗ arrivedCount לא תלוי ב-RSVP
 ========================= */
 const stats = useMemo(() => {
-  // 🟦 סה״כ מוזמנים
-  const totalInvited = guests.reduce(
+  const totalInvited = invitationGuests.reduce(
     (sum, g) => sum + Number(g.guestsCount || 0),
     0
   );
 
-  // 🟨 אישרו הגעה (לפני האירוע)
-  const confirmedTotal = guests.reduce(
+  const confirmedTotal = invitationGuests.reduce(
     (sum, g) =>
-      g.rsvp === "yes"
-        ? sum + Number(g.guestsCount || 0)
-        : sum,
+      g.rsvp === "yes" ? sum + Number(g.guestsCount || 0) : sum,
     0
   );
 
-  // 🟩 הגיעו בפועל (בלייב – תמיד מ־arrivedCount)
-  const arrivedTotal = guests.reduce(
+  const arrivedTotal = invitationGuests.reduce(
     (sum, g) => sum + Number(g.arrivedCount || 0),
     0
   );
@@ -253,7 +248,8 @@ const stats = useMemo(() => {
     confirmedTotal,
     arrivedTotal,
   };
-}, [guests]);
+}, [invitationGuests]);
+
 
 
 
@@ -269,6 +265,14 @@ const filteredGuests = useMemo(() => {
       g.phone?.includes(q)
   );
 }, [guests, search]);
+
+const invitationGuests = useMemo(() => {
+  if (!invitationId) return [];
+  return guests.filter(
+    (g) => String(g.invitationId) === String(invitationId)
+  );
+}, [guests, invitationId]);
+
 
 if (loading) {
   return (
@@ -324,7 +328,10 @@ if (loading) {
           </thead>
 
           <tbody>
-            {filteredGuests.map((g) => {
+            {filteredGuests
+  .filter(g => String(g.invitationId) === String(invitationId))
+  .map((g) => {
+
 
               const confirmed = confirmedCountForGuest(g);
               const arrived = Number(g.arrivedCount || 0);
