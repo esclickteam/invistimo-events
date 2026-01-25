@@ -67,8 +67,16 @@ const setGuests = useSeatingStore((s) => s.setGuests);
       const data = await res.json();
 
       if (Array.isArray(data.guests)) {
-        setGuests(data.guests);
-      }
+  const liveGuests = data.guests.map(g => ({
+    ...g,
+    arrivedCount: 0, // 🔥 לייב מתחיל תמיד מ־0
+  }));
+
+  setGuests(liveGuests);
+}
+
+
+
     } catch (e) {
       console.error("❌ Live guests load failed:", e);
     } finally {
