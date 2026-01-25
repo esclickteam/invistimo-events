@@ -1,117 +1,115 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
+import ProductionTabs from "./_components/ProductionTabs";
+import OverviewTab from "./_components/OverviewTab";
+import PlanningTab from "./_components/PlanningTab";
+import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
+import CalendarTab from "./_components/CalendarTab";
+import LogisticsTab from "./_components/LogisticsTab";
+import AlcoholManagementTab from "./_components/AlcoholManagementTab";
+import DashboardPage from "@/app/dashboard/page";
+import SeatingPage from "@/app/dashboard/seating/page";
 
-const TABS = [
-  { key: "overview", label: "תמונת מצב" },
-  { key: "planning", label: "תכנון וקונספט" },
-  { key: "suppliers", label: "ספקים ותקציב" },
-  { key: "calendar", label: "לוח שנה ופגישות" },
-  { key: "logistics", label: "לוגיסטיקה" },
-  { key: "alcohol", label: "אלכוהול" },
+/* 🔥 הוספה */
+import LiveGuestsTab from "./_components/LiveGuestsTab";
 
-  // לייב
-  { key: "live-guests", label: "לייב – אורחים", live: true },
-  { key: "live-seating", label: "לייב – הושבה", live: true },
-];
+export default function EventProductionPage() {
+  const { user } = useAuth();
 
-export default function ProductionTabs({
-  overview,
-  planning,
-  suppliers,
-  calendar,
-  logistics,
-  alcohol,
-  liveGuests,
-  liveSeating,
-  invitation,
-  eventId, // ⬅️ כבר קיים – רק משתמשים בו נכון
-}) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const activeTab =
-  (searchParams.get("tab") || "overview").split("/")[0];
+  const [invitation, setInvitation] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  /* =========================
+     Load invitation
+  ========================= */
+  useEffect(() => {
+    if (!user) return;
 
-  const changeTab = (tabKey) => {
-  const params = new URLSearchParams(searchParams.toString());
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : null;
 
-  // אם חסר eventId ב-URL, נשלים מה-prop
-  if (eventId && !params.get("eventId")) {
-    params.set("eventId", eventId);
+    const eventIdFromUrl = params?.get("eventId");
+
+    const url = "/api/invitations/my";
+
+    fetch(url, { credentials: "include", cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch invitation");
+        return res.json();
+      })
+      .then((data) => {
+        setInvitation(data?.invitation || null);
+      })
+      .catch((err) => {
+        console.error("Invitation fetch error:", err);
+        setInvitation(null);
+      })
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  /* =========================
+     Extract eventId (מקור אמת)
+  ========================= */
+  const eventId = useMemo(() => {
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : null;
+
+    const eventIdFromUrl = params?.get("eventId");
+
+    return (
+      eventIdFromUrl ||
+      invitation?.eventId ||
+      invitation?.event?._id ||
+      null
+    );
+  }, [invitation]);
+
+  /* =========================
+     Loading state
+  ========================= */
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        טוען נתוני אירוע…
+      </div>
+    );
   }
 
-  // משנים רק tab, משאירים כל השאר
-  params.set("tab", tabKey);
-
-  router.push(`/events/production?${params.toString()}`);
-};
-
-  // Guard – נשאר כמו שהוא (לא שיניתי לוגיקה)
-  if (!invitation && activeTab === "overview") {
-  return (
-    <div className="p-10 text-center text-gray-500">
-      <h3 className="text-lg font-semibold mb-2">
-        המשתמש עדיין לא קיבל הזמנה
-      </h3>
-      <p>
-        ההפקה תתאפשר לאחר יצירת הזמנה או אירוע.
-        אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
-      </p>
-    </div>
-  );
-}
-
-  return (
-    <div className="space-y-8">
-      {/* ================= TABS ================= */}
-      <div className="sticky top-16 z-50 bg-[#f7f2ec] border-b border-[#e5dccf]">
-
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar py-3 pb-2">
-
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => changeTab(tab.key)}
-                  className={`
-                    px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
-                    transition
-                    ${
-                      isActive
-                        ? "bg-black text-white"
-                        : "text-black/70 hover:bg-black/5"
-                    }
-                    ${
-                      tab.live && !isActive
-                        ? "border border-black/20"
-                        : ""
-                    }
-                  `}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+  /* =========================
+     Safety fallback
+  ========================= */
+  if (!invitation || !eventId) {
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-red-600">
+        לא נמצא אירוע / הזמנה
       </div>
+    );
+  }
 
-      {/* ================= CONTENT ================= */}
-      <div className="max-w-7xl mx-auto px-4">
-        {activeTab === "overview" && overview}
-        {activeTab === "planning" && planning}
-        {activeTab === "suppliers" && suppliers}
-        {activeTab === "calendar" && calendar}
-        {activeTab === "logistics" && logistics}
-        {activeTab === "alcohol" && alcohol}
-        {activeTab === "live-guests" && liveGuests}
-        {activeTab === "live-seating" && liveSeating}
-      </div>
-    </div>
+  /* =========================
+     Render
+  ========================= */
+  return (
+    <ProductionTabs
+      eventId={eventId}
+      overview={<OverviewTab eventId={eventId} />}
+      planning={<PlanningTab eventId={eventId} />}
+      suppliers={<SuppliersBudgetTab eventId={eventId} />}
+      calendar={<CalendarTab eventId={eventId} />}
+      logistics={<LogisticsTab eventId={eventId} />}
+      alcohol={<AlcoholManagementTab eventId={eventId} />}
+
+      /* ✅ כאן החיבור ללייב אורחים */
+      liveGuests={<LiveGuestsTab invitationId={invitation._id} />}
+
+      liveSeating={<SeatingPage />}
+      invitation={invitation}
+    />
   );
 }
