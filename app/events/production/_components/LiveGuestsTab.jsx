@@ -6,6 +6,7 @@ import AddGuestModal from "@/app/components/AddGuestModal";
 import { useSeatingStore } from "@/store/seatingStore";
 
 
+
 /* =========================
    Helpers
 ========================= */
@@ -46,7 +47,18 @@ function confirmedCountForGuest(g) {
 
 
   const guests = useSeatingStore((s) => s.guests);
+  const liveArrivals = useSeatingStore((s) => s.liveArrivals);
+const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
+const resetLiveArrivals = useSeatingStore((s) => s.resetLiveArrivals);
+
+
+
 const setGuests = useSeatingStore((s) => s.setGuests);
+
+const setLiveArrivalsBulk = useSeatingStore(
+  (s) => s.setLiveArrivalsBulk
+);
+
 
 const tables = useSeatingStore((s) => s.tables);
 
@@ -83,15 +95,17 @@ const guestTableMap = useMemo(() => {
       const data = await res.json();
 
       if (Array.isArray(data.guests)) {
-  const liveGuests = data.guests.map(g => ({
-    ...g,
-    arrivedCount: Number(g.arrivedCount || 0), // ✅ שומר מהשרת
-  }));
+  setGuests(data.guests);
 
-  setGuests(liveGuests);
+  const arrivedMap = {};
+  data.guests.forEach(g => {
+    if (Number(g.arrivedCount) > 0) {
+      arrivedMap[g._id] = Number(g.arrivedCount);
+    }
+  });
+
+  setLiveArrivalsBulk(arrivedMap); // ✅ זה הקסם
 }
-
-
 
 
     } catch (e) {
@@ -190,18 +204,15 @@ setGuests(next);
      ✅ אין rollback בלייב
   ========================= */
   async function changeArrived(guest, delta) {
-  const prevArrived = Number(guest.arrivedCount || 0);
-  const nextArrived = Math.max(0, prevArrived + delta);
-  if (nextArrived === prevArrived) return;
+  const prev = liveArrivals[guest._id] ?? 0;
+  const next = Math.max(0, prev + delta);
+  if (next === prev) return;
 
-  // ✅ UI מקומי
-  applyUpdatedGuest({ _id: guest._id, arrivedCount: nextArrived });
+  // ✅ לייב בלבד
+  setLiveArrived(guest._id, next);
 
-  // ✅ עדכון אורח
-  updateGuestArrived(guest._id, nextArrived);
-
-  // 🔥🔥🔥 זה מה שצובע את הכיסאות
-  syncArrivedSeats(guest._id, nextArrived);
+  // 🎨 צביעת כיסאות
+  syncArrivedSeats(guest._id, next);
 
   try {
     await fetch("/api/live-guests/arrived", {
@@ -209,13 +220,14 @@ setGuests(next);
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         invitationGuestId: guest._id,
-        arrivedCount: nextArrived,
+        arrivedCount: next,
       }),
     });
   } catch (e) {
     console.error("❌ arrivedCount update failed:", e);
   }
 }
+
 
 
 
@@ -244,10 +256,10 @@ const stats = useMemo(() => {
   );
 
   // 🟩 הגיעו בפועל (בלייב – תמיד מ־arrivedCount)
-  const arrivedTotal = guests.reduce(
-    (sum, g) => sum + Number(g.arrivedCount || 0),
-    0
-  );
+  const arrivedTotal = Object.values(liveArrivals || {}).reduce(
+  (a, b) => a + Number(b || 0),
+  0
+);
 
   return {
     totalInvited,
@@ -328,7 +340,8 @@ if (loading) {
             {filteredGuests.map((g) => {
 
               const confirmed = confirmedCountForGuest(g);
-              const arrived = Number(g.arrivedCount || 0);
+              const arrived = liveArrivals[g._id] ?? 0;
+
 
               const tableFromStore = guestTableMap.get(String(g._id)) || null;
 

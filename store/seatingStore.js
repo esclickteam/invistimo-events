@@ -5,6 +5,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
   tables: [],
   guests: [],
+  liveArrivals: {},
 
   groups: [],
 draggingGroup: null,
@@ -94,6 +95,21 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
   });
 },
 
+setLiveArrived: (guestId, count) =>
+  set((state) => ({
+    liveArrivals: {
+      ...state.liveArrivals,
+      [guestId]: count,
+    },
+  })),
+
+setLiveArrivalsBulk: (map) =>
+  set({ liveArrivals: map }),
+
+resetLiveArrivals: () =>
+  set({ liveArrivals: {} }),
+
+
 
   setTables: (tables) =>
     set(() => ({
@@ -108,7 +124,7 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
-  const { guests, isLiveMode } = get();
+  const { guests, isLiveMode, liveArrivals } = get();
 
   return guests
     .filter((g) => g.groupId === groupId)
@@ -117,12 +133,13 @@ getGroupSize: (groupId) => {
         sum +
         Number(
           isLiveMode
-            ? g.arrivedCount || 0
+            ? liveArrivals[g._id] ?? 0
             : g.guestsCount || 0
         ),
       0
     );
 },
+
 
 
 
@@ -169,16 +186,19 @@ seatGroup: (groupId, tableId) => {
 
   const { isLiveMode } = get();
 
+const { liveArrivals } = get();
+
 const totalCount = groupGuests.reduce(
   (sum, g) =>
     sum +
     Number(
       isLiveMode
-        ? g.arrivedCount || 0
+        ? liveArrivals[g._id] ?? 0
         : g.guestsCount || 0
     ),
   0
 );
+
 
 
   if (totalCount === 0) {
@@ -212,9 +232,11 @@ const totalCount = groupGuests.reduce(
   let cursor = 0;
 
   const newSeats = groupGuests.flatMap((guest) => {
-    const count = Number(
+    const { liveArrivals } = get();
+
+const count = Number(
   isLiveMode
-    ? guest.arrivedCount || 0
+    ? liveArrivals[guest._id] ?? 0
     : guest.guestsCount || 0
 );
 
@@ -533,7 +555,12 @@ background: null,
 
     const { isLiveMode } = get();
 
-const count = Number(draggingGuest.arrivedCount || 0);
+const { liveArrivals } = get();
+
+const count = Number(
+  liveArrivals[draggingGuest._id] ?? 0
+);
+
 
 
 if (count === 0) return;
@@ -622,7 +649,8 @@ assignGuestBlock: ({ guestId, tableId }) => {
 
   const { isLiveMode } = get();
 
-const count = Number(guest.arrivedCount || 0);
+const { liveArrivals } = get();
+const count = Number(liveArrivals[guest._id] ?? 0);
 
 
 if (count === 0) return;
@@ -782,7 +810,12 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 
   const { isLiveMode } = get();
 
-const realCount = Number(guest.arrivedCount || 0);
+const { liveArrivals } = get();
+
+const realCount = Number(
+  liveArrivals[guest._id] ?? 0
+);
+
 
 
 if (realCount === 0) {
@@ -790,11 +823,8 @@ if (realCount === 0) {
 }
 
 
-  // ✅ תיקון קריטי:
-  // לא לכפות seatIndex = 0
-  // אם לא הגיע seatIndex – נותנים ל-engine לבחור לבד
-  const startIndex =
-    typeof seatIndex === "number" ? seatIndex : undefined;
+
+
 
   // ⭐️ שולחן נקי – בלי המושבים הקודמים של האורח
 const cleanTable = {
@@ -869,20 +899,16 @@ const block = findFreeBlock(cleanTable, realCount);
   },
 
 
-updateGuestArrived: (guestId, arrivedCount) =>
-  set((state) => ({
-    guests: state.guests.map((g) =>
-      String(g.id ?? g._id) === String(guestId)
-        ? { ...g, arrivedCount }
-        : g
-    ),
-  })),
 
   
-syncArrivedSeats: (guestId, arrivedCount) =>
+syncArrivedSeats: (guestId) =>
   set((state) => {
+    const arrivedCount =
+      state.liveArrivals[guestId] ?? 0;
+
     const tables = state.tables.map((table) => {
       if (!table.seatedGuests) return table;
+
 
       // כל הכיסאות של האורח – ממוינים לפי seatIndex
       const guestSeats = table.seatedGuests
@@ -903,13 +929,13 @@ syncArrivedSeats: (guestId, arrivedCount) =>
 
       // מסמנים arrived=true רק לאלה שנשארו
       const finalSeats = updatedSeats.map((sg) => {
-        if (String(sg.guestId) !== String(guestId)) return sg;
+  if (String(sg.guestId) !== String(guestId)) return sg;
 
-        return {
-          ...sg,
-          arrived: true,
-        };
-      });
+  return {
+    ...sg,
+    arrived: seatsToKeep.includes(sg),
+  };
+});
 
       return { ...table, seatedGuests: finalSeats };
     });
