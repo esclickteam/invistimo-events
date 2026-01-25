@@ -201,7 +201,8 @@ setGuests(next);
   if (next === prev) return;
 
   // ✅ לייב בלבד
-  setLiveArrived(guest, next);
+  setLiveArrived(guest._id, next);
+
   // 🎨 צביעת כיסאות
   syncArrivedSeats(guest._id, next);
 
