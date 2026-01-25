@@ -95,13 +95,15 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
   });
 },
 
-setLiveArrived: (guestId, count) =>
+setLiveArrived: (guestId, count) => {
+  if (!get().isLiveMode) return; // 🔒 לקוח לא יכול לעדכן הגעה
   set((state) => ({
     liveArrivals: {
       ...state.liveArrivals,
       [guestId]: count,
     },
-  })),
+  }));
+},
 
 setLiveArrivalsBulk: (map) =>
   set({ liveArrivals: map }),
@@ -127,27 +129,26 @@ getGroupSize: (groupId) => {
   const { guests, isLiveMode, liveArrivals } = get();
 
   return guests
-    .filter((g) => g.groupId === groupId)
-    .reduce(
-      (sum, g) =>
-        sum +
-        Number(
-          isLiveMode
-            ? liveArrivals[g._id] ?? 0
-            : g.guestsCount || 0
-        ),
-      0
-    );
+  .filter((g) => g.groupId === groupId)
+  .reduce(
+    (sum, g) =>
+      sum +
+      Number(
+        isLiveMode
+          ? liveArrivals[g._id] ?? 0
+          : 0
+      ),
+    0
+  );
+
 },
 
 getGuestSeatCount: (guest) => {
   const { isLiveMode, liveArrivals } = get();
 
-  return Number(
-    isLiveMode
-      ? liveArrivals[guest._id] ?? 0   // 👷 מפיק (לייב)
-      : guest.guestsCount || 0         // 👤 לקוח
-  );
+  if (!isLiveMode) return 0; // 🔒 לקוח – הגיעו בפועל תמיד 0
+
+  return Number(liveArrivals[guest._id] ?? 0);
 },
 
 
@@ -244,7 +245,7 @@ const newSeats = groupGuests.flatMap((guest) => {
   return seats.map((seatIndex) => ({
     guestId: String(guest.id ?? guest._id),
     seatIndex,
-    arrived: get().isLiveMode,
+    arrived: false,
     groupId,
   }));
 });
@@ -340,12 +341,7 @@ importSnapshot: (snapshot) => {
       })),
     })),
 
-    guests: (snapshot.guests || []).map((g) => ({
-      ...g,
-      rsvp: g.rsvp ?? "pending",
-      guestsCount: g.guestsCount ?? g.approvedCount ?? 0,
-      arrivedCount: g.arrivedCount ?? g.arrived ?? 0,
-    })),
+    
 
     groups: snapshot.groups || [],
 
