@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import crypto from "crypto";
 import { Resend } from "resend";
@@ -70,16 +70,11 @@ function getAmountByGuests(maxGuests: number) {
 /* =========================================================
    CREATE CLIENT BY PRODUCER
 ========================================================= */
-export async function POST(req: Request): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log("🟢 create-client API hit");
 
   /* ================= AUTH ================= */
-  const cookieHeader = req.headers.get("cookie") || "";
-  const token =
-    cookieHeader
-      .split(";")
-      .find((c) => c.trim().startsWith("authToken="))
-      ?.split("=")[1] || null;
+  const token = req.cookies.get("authToken")?.value || null;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -129,7 +124,6 @@ export async function POST(req: Request): Promise<NextResponse> {
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
-    // אם המשתמש קיים ועדיין לא הגדיר סיסמה – שליחת קישור מחדש
     if (existingUser.needsPasswordSetup) {
       const resetPasswordToken = crypto.randomBytes(32).toString("hex");
       const resetPasswordExpires = new Date(
@@ -197,9 +191,6 @@ export async function POST(req: Request): Promise<NextResponse> {
       isDemoUser: false,
     });
 
-   
-
-    /* ================= SEND MAGIC LINK ================= */
     const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
 
     console.log("📧 Sending magic link to new user:", email);
@@ -227,7 +218,6 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({
       success: true,
       user: newUser,
-      
     });
   } catch (err) {
     console.error("❌ create-client error:", err);
