@@ -8,9 +8,6 @@ import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
-/* ============================================================
-   Types
-============================================================ */
 type SeatedGuest = {
   guestId: Types.ObjectId;
   seatIndex: number;
@@ -22,14 +19,16 @@ type TableItem = {
   seatedGuests?: SeatedGuest[];
 };
 
-export async function GET(request: Request) {
+type SeatingDoc = {
+  eventId: Types.ObjectId;
+  tables?: TableItem[];
+};
+
+export async function GET() {
   try {
     await db();
     console.log("✅ MongoDB connected");
 
-    /* ===============================
-       Auth
-    =============================== */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       console.log("⛔ No auth");
@@ -39,71 +38,63 @@ export async function GET(request: Request) {
     const userId = auth.userId;
 
     /* ===============================
-       Params
+       הזמנות (לקוח + מפיק)
     =============================== */
-    const { searchParams } = new URL(request.url);
-    const invitationId = searchParams.get("invitation");
-
-    // ⭐ מאפשר להחזיר arrivedCount אמיתי רק בלייב
-    const mode = searchParams.get("mode");
-    const isLive = mode === "live";
-
-    if (!invitationId) {
-      console.log("⛔ No invitationId");
-      return NextResponse.json({ guests: [] });
-    }
-
-    /* ===============================
-       Permission check
-    =============================== */
-    const invitation = await Invitation.findOne({
-      _id: invitationId,
-      $or: [
-        { ownerId: userId }, // לקוח
-        { producerId: userId }, // מפיק
-      ],
+    const invitations = await Invitation.find({
+      $or: [{ ownerId: userId }, { producerId: userId }],
     })
       .select("_id eventId")
       .lean();
 
-    if (!invitation) {
-      console.log("⛔ Invitation not found / no permission");
+    console.log("📩 Invitations:", invitations.length);
+
+    if (!invitations.length) {
       return NextResponse.json({ guests: [] });
     }
 
-    console.log("📩 Invitation OK:", invitation._id.toString(), "isLive:", isLive);
+    const invitationIds = invitations.map((i) => i._id);
+    const eventIds = invitations
+      .map((i) => i.eventId)
+      .filter(Boolean);
 
     /* ===============================
-       Guests for this invitation
+       אורחים
     =============================== */
     const guests = await InvitationGuest.find({
-      invitationId: invitation._id,
+      invitationId: { $in: invitationIds },
     }).lean();
 
     console.log("👥 Guests:", guests.length);
 
     /* ===============================
-       Seating by eventId
+       הושבות – לפי EVENT ID (⭐ תיקון קריטי)
     =============================== */
-    const seating = await SeatingTable.findOne({
-      eventId: invitation.eventId,
-    }).lean();
+    const seatings = (await SeatingTable.find({
+      eventId: { $in: eventIds },
+    }).lean()) as SeatingDoc[];
 
-    console.log("🪑 Seating found:", !!seating);
+    console.log("🪑 Seatings:", seatings.length);
 
     /* ===============================
-       Join guest -> tableName
+       חיבור אורח ← שולחן
     =============================== */
     let withTable = 0;
 
-    const guestsWithTable = guests.map((guest: any) => {
+    const guestsWithTable = guests.map((guest) => {
       let tableName: string | null = null;
 
+      const invitation = invitations.find(
+        (i) => i._id.toString() === guest.invitationId.toString()
+      );
+
+      const seating = seatings.find(
+        (s) => s.eventId?.toString() === invitation?.eventId?.toString()
+      );
+
       if (seating?.tables?.length) {
-        const table = seating.tables.find((t: TableItem) =>
+        const table = seating.tables.find((t) =>
           t.seatedGuests?.some(
-            (sg: SeatedGuest) =>
-              sg.guestId.toString() === guest._id.toString()
+            (sg) => sg.guestId.toString() === guest._id.toString()
           )
         );
 
@@ -115,9 +106,7 @@ export async function GET(request: Request) {
 
       return {
         ...guest,
-        // ✅ מחוץ ללייב תמיד 0; בלייב מפיק - אמת מהDB
-        arrivedCount: isLive ? Number(guest?.arrivedCount ?? 0) : 0,
-        tableName, // ⭐ לשימוש במפיק ובלייב
+        tableName,
       };
     });
 
