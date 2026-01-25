@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import ProductionTabs from "./_components/ProductionTabs";
 import OverviewTab from "./_components/OverviewTab";
 import PlanningTab from "./_components/PlanningTab";
-import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
+import SuppliersBudgetTab from "./SuppliersBudgetTab";
 import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
