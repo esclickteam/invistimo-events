@@ -126,21 +126,14 @@ resetLiveArrivals: () =>
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
-  const { guests, isLiveMode, liveArrivals } = get();
+  const { guests } = get();
 
   return guests
-  .filter((g) => g.groupId === groupId)
-  .reduce(
-    (sum, g) =>
-      sum +
-      Number(
-        isLiveMode
-          ? liveArrivals[g._id] ?? 0
-          : 0
-      ),
-    0
-  );
-
+    .filter((g) => g.groupId === groupId)
+    .reduce(
+      (sum, g) => sum + get().getSeatingCountForGuest(g),
+      0
+    );
 },
 
 getGuestSeatCount: (guest) => {
@@ -148,6 +141,18 @@ getGuestSeatCount: (guest) => {
 
   if (!isLiveMode) return 0; // 🔒 לקוח – הגיעו בפועל תמיד 0
 
+  return Number(liveArrivals[guest._id] ?? 0);
+},
+
+getSeatingCountForGuest: (guest) => {
+  const { isLiveMode, liveArrivals } = get();
+
+  // 👤 לקוח / לפני לייב
+  if (!isLiveMode) {
+    return Number(guest.guestsCount || 0);
+  }
+
+  // 👷 לייב – רק מי שהגיע בפועל
   return Number(liveArrivals[guest._id] ?? 0);
 },
 
@@ -199,7 +204,7 @@ seatGroup: (groupId, tableId) => {
 
 
 const totalCount = groupGuests.reduce(
-  (sum, g) => sum + get().getGuestSeatCount(g),
+  (sum, g) => sum + get().getSeatingCountForGuest(g),
   0
 );
 
@@ -237,7 +242,8 @@ const totalCount = groupGuests.reduce(
   let cursor = 0;
 
 const newSeats = groupGuests.flatMap((guest) => {
-  const count = get().getGuestSeatCount(guest);
+  const count = get().getSeatingCountForGuest(guest)
+
 
   const seats = block.slice(cursor, cursor + count);
   cursor += count;
@@ -552,7 +558,8 @@ background: null,
 
 const { liveArrivals } = get();
 
-const count = get().getGuestSeatCount(draggingGuest);
+const count = get().getSeatingCountForGuest(draggingGuest);
+
 
 
 
@@ -643,7 +650,8 @@ assignGuestBlock: ({ guestId, tableId }) => {
 
   const { isLiveMode } = get();
 
-const count = get().getGuestSeatCount(guest);
+const count = get().getSeatingCountForGuest(guest);
+
 
 
 if (count === 0) return;
@@ -805,7 +813,8 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 
 const { liveArrivals } = get();
 
-const realCount = get().getGuestSeatCount(guest);
+const realCount = get().getSeatingCountForGuest(guest);
+
 
 if (get().isLiveMode && realCount === 0) {
   return { ok: false, message: "האורח לא הגיע בפועל" };
