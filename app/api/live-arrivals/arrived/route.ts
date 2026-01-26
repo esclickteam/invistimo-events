@@ -14,13 +14,20 @@ export async function PATCH(req: NextRequest) {
     await dbConnect();
 
     // 🔐 אימות – חייב להיות מחובר
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
+    const auth = await getUserIdFromRequest(req);
+    if (!auth || !auth.userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    // ⭐ קובעים מי באמת מעדכן:
+    // אם יש אימפרסונציה → המפיק
+    const updatedBy =
+      auth.impersonated && auth.impersonatedBy
+        ? auth.impersonatedBy
+        : auth.userId;
 
     const body = (await req.json()) as PatchBody;
     const { invitationId, guestId, arrivedCount } = body;
@@ -40,7 +47,7 @@ export async function PATCH(req: NextRequest) {
         $set: {
           arrivedCount: count,
           arrivedAt: count > 0 ? new Date() : null,
-          updatedBy: userId,
+          updatedBy, // ✅ ObjectId תקין
         },
       },
       {
