@@ -140,7 +140,6 @@ const guestTableMap = useMemo(() => {
 
 
 
-const updateGuestArrived = useSeatingStore((s) => s.updateGuestArrived);
 const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
@@ -228,26 +227,35 @@ setGuests(next);
   const next = Math.max(0, prev + delta);
   if (next === prev) return;
 
-  // ✅ לייב בלבד
+  // 🟢 עדכון מיידי ל-UI (אופטימי)
   setLiveArrived(guest._id, next);
-
-  // 🎨 צביעת כיסאות
-  syncArrivedSeats(guest._id, next);
-
+  syncArrivedSeats(guest._id);
 
   try {
-    await fetch("/api/live-arrivals/arrived", {
-
+    const res = await fetch("/api/live-arrivals/arrived", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: "include", // ⭐ קריטי לאימות
       body: JSON.stringify({
-  invitationId,
-  guestId: guest._id,
-  arrivedCount: next,
-}),
+        invitationId,
+        guestId: guest._id,
+        arrivedCount: next,
+      }),
     });
+
+    const data = await res.json();
+
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.error || "LiveArrival update failed");
+    }
+
   } catch (e) {
-    console.error("❌ arrivedCount update failed:", e);
+    console.error("❌ arrivedCount save failed:", e);
+
+    // 🔴 rollback אם השרת נכשל
+    setLiveArrived(guest._id, prev);
+    syncArrivedSeats(guest._id);
+    alert("❌ שמירת ההגעה נכשלה");
   }
 }
 
