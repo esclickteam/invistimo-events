@@ -15,7 +15,9 @@ draggingGroup: null,
 
    demoMode: false, // ⭐ מצב דמו
 
-   isLiveMode: false,
+   seatingMode: "regular", // "regular" | "live"
+setSeatingMode: (mode) => set({ seatingMode: mode }),
+
 
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: isDemo }),
@@ -96,7 +98,7 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
 },
 
 setLiveArrived: (guestId, count) => {
-  if (!get().isLiveMode) return; // 🔒 לקוח לא יכול לעדכן הגעה
+  if (get().seatingMode !== "live") return;
   set((state) => ({
     liveArrivals: {
       ...state.liveArrivals,
@@ -104,6 +106,7 @@ setLiveArrived: (guestId, count) => {
     },
   }));
 },
+
 
 setLiveArrivalsBulk: (map) =>
   set({ liveArrivals: map }),
@@ -137,25 +140,22 @@ getGroupSize: (groupId) => {
 },
 
 getGuestSeatCount: (guest) => {
-  const { isLiveMode, liveArrivals } = get();
+  const { seatingMode, liveArrivals } = get();
 
-  if (!isLiveMode) return 0; // 🔒 לקוח – הגיעו בפועל תמיד 0
-
+  if (seatingMode !== "live") return 0;
   return Number(liveArrivals[guest._id] ?? 0);
 },
+
 
 getSeatingCountForGuest: (guest) => {
-  const { isLiveMode, liveArrivals } = get();
+  const { seatingMode, liveArrivals } = get();
 
-  // 👤 לקוח / לפני לייב
-  if (!isLiveMode) {
-    return Number(guest.guestsCount || 0);
+  if (seatingMode === "live") {
+    return Number(liveArrivals[guest._id] ?? 0);
   }
 
-  // 👷 לייב – רק מי שהגיע בפועל
-  return Number(liveArrivals[guest._id] ?? 0);
+  return Number(guest.guestsCount || 0);
 },
-
 
 
 
@@ -546,17 +546,13 @@ background: null,
         t.type === "round" ? 90 : t.type === "square" ? 110 : 160;
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
-
+    
     if (!hoveredTable) {
-      return set({
-        highlightedTable: null,
-        highlightedSeats: [],
-      });
-    }
-
-    const { isLiveMode } = get();
-
-const { liveArrivals } = get();
+  return set({
+    highlightedTable: null,
+    highlightedSeats: [],
+  });
+}
 
 const count = get().getSeatingCountForGuest(draggingGuest);
 
@@ -816,7 +812,7 @@ const { liveArrivals } = get();
 const realCount = get().getSeatingCountForGuest(guest);
 
 
-if (get().isLiveMode && realCount === 0) {
+if (get().seatingMode === "live" && realCount === 0) {
   return { ok: false, message: "האורח לא הגיע בפועל" };
 }
 
