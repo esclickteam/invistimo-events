@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -458,14 +458,15 @@ useEffect(() => {
      Stats (על כל האורחים)
   ============================================================ */
   const stats = useMemo(() => {
+  // 🟦 מוזמנים – קבועים
   const totalInvited = guests.reduce(
     (s, g) => s + (g.guestsCount || 0),
     0
   );
 
-  // ✅ מגיעים = מי שאישר הגעה (RSVP YES)
-  const totalComing = guests.reduce(
-    (s, g) => s + (g.rsvp === "yes" ? g.guestsCount : 0),
+  // 🟩 מגיעים בפועל – אך ורק arrivedCount
+  const totalArrived = guests.reduce(
+    (s, g) => s + (g.arrivedCount || 0),
     0
   );
 
@@ -473,13 +474,12 @@ useEffect(() => {
   const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalGuests: totalInvited,
-    comingGuests: totalComing,
+    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
+    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
     notComing: totalNo,
     noResponse: totalPending,
   };
 }, [guests]);
-
 
 
   /* ============================================================
@@ -536,11 +536,8 @@ if (selectedGroupId) {
   if (sortKey === "table") return (g.tableName || "").toLowerCase();
   if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
   if (sortKey === "invited") return g.guestsCount || 0;
-  if (sortKey === "coming") {
-    return g.rsvp === "yes" ? g.guestsCount : 0;
-  }
-
-  return 0; // ✅ fallback חובה
+  // coming = נוכחות אמיתית
+  return g.arrivedCount || 0;
 };
 
     list.sort((a, b) => {
@@ -962,9 +959,8 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.guestsCount}</td>
 
           <td className="p-3 font-semibold">
-  {g.rsvp === "yes" ? g.guestsCount : 0}
+  {g.arrivedCount || 0}
 </td>
-
 
           <td className="p-3">
   {g.tableName
