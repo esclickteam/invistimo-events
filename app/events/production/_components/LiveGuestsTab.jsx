@@ -91,43 +91,49 @@ const guestTableMap = useMemo(() => {
   if (!invitationId) return;
 
   async function loadGuestsForLive() {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const res = await fetch(
-        `/api/guests?invitation=${invitationId}`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
+    // 1️⃣ טעינת אורחים (RSVP בלבד – לקוח)
+    const res = await fetch(
+      `/api/guests?invitation=${invitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (Array.isArray(data.guests)) {
-  setGuests(data.guests);
-
-  const arrivedMap = {};
-  data.guests.forEach((g) => {
-    if (typeof g.arrivedCount === "number" && g.arrivedCount > 0) {
-      arrivedMap[g._id] = g.arrivedCount;
+    if (Array.isArray(data.guests)) {
+      setGuests(data.guests);
     }
-  });
 
-  if (Object.keys(arrivedMap).length > 0) {
-    setLiveArrivalsBulk(arrivedMap); // יש נתונים → שומרים
-  } else {
-    resetLiveArrivals(); // אין נתונים → מתחילים מ-0
+    // 2️⃣ 🔹 הגעה בפועל – מפיק בלבד (LiveArrival)
+    const liveRes = await fetch(
+      `/api/live-arrivals?invitationId=${invitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
+
+    const liveData = await liveRes.json();
+
+    const arrivedMap = {};
+    (liveData || []).forEach((row) => {
+      arrivedMap[row.guestId] = row.arrivedCount;
+    });
+
+    setLiveArrivalsBulk(arrivedMap);
+
+  } catch (e) {
+    console.error("❌ Live guests load failed:", e);
+  } finally {
+    setLoading(false);
   }
 }
 
-
-    } catch (e) {
-      console.error("❌ Live guests load failed:", e);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   loadGuestsForLive();
 }, [invitationId, setGuests, resetLiveArrivals, setLiveArrivalsBulk]);
@@ -230,13 +236,15 @@ setGuests(next);
 
 
   try {
-    await fetch("/api/live-guests/arrived", {
+    await fetch("/api/live-arrivals/arrived", {
+
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        invitationGuestId: guest._id,
-        arrivedCount: next,
-      }),
+  invitationId,
+  guestId: guest._id,
+  arrivedCount: next,
+}),
     });
   } catch (e) {
     console.error("❌ arrivedCount update failed:", e);

@@ -134,7 +134,7 @@ getGroupSize: (groupId) => {
   return guests
     .filter((g) => g.groupId === groupId)
     .reduce(
-      (sum, g) => sum + get().getSeatingCountForGuest(g),
+      (sum, g) => sum + get().getPlannedSeatCount(g),
       0
     );
 },
@@ -157,6 +157,9 @@ getSeatingCountForGuest: (guest) => {
   return Number(guest.guestsCount || 0);
 },
 
+getPlannedSeatCount: (guest) => {
+  return Number(guest.guestsCount || 0);
+},
 
 
 
@@ -242,7 +245,8 @@ const totalCount = groupGuests.reduce(
   let cursor = 0;
 
 const newSeats = groupGuests.flatMap((guest) => {
-  const count = get().getSeatingCountForGuest(guest)
+  const count = get().getPlannedSeatCount(guest)
+
 
 
   const seats = block.slice(cursor, cursor + count);
@@ -554,7 +558,7 @@ background: null,
   });
 }
 
-const count = get().getSeatingCountForGuest(draggingGuest);
+const count = get().getPlannedSeatCount(draggingGuest);
 
 
 
@@ -646,7 +650,8 @@ assignGuestBlock: ({ guestId, tableId }) => {
 
   const { isLiveMode } = get();
 
-const count = get().getSeatingCountForGuest(guest);
+const count = get().getPlannedSeatCount(guest)
+
 
 
 
@@ -809,7 +814,8 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 
 const { liveArrivals } = get();
 
-const realCount = get().getSeatingCountForGuest(guest);
+const realCount = get().getPlannedSeatCount(guest)
+
 
 
 if (get().seatingMode === "live" && realCount === 0) {
