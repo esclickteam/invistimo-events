@@ -105,7 +105,19 @@ const guestTableMap = useMemo(() => {
 
       if (Array.isArray(data.guests)) {
   setGuests(data.guests);
-  resetLiveArrivals(); // 🔒 הגיעו בפועל תמיד מתחיל מ־0
+
+  const arrivedMap = {};
+  data.guests.forEach((g) => {
+    if (typeof g.arrivedCount === "number" && g.arrivedCount > 0) {
+      arrivedMap[g._id] = g.arrivedCount;
+    }
+  });
+
+  if (Object.keys(arrivedMap).length > 0) {
+    setLiveArrivalsBulk(arrivedMap); // יש נתונים → שומרים
+  } else {
+    resetLiveArrivals(); // אין נתונים → מתחילים מ-0
+  }
 }
 
 
@@ -117,7 +129,7 @@ const guestTableMap = useMemo(() => {
   }
 
   loadGuestsForLive();
-}, [invitationId, setGuests]);
+}, [invitationId, setGuests, resetLiveArrivals, setLiveArrivalsBulk]);
 
 
 
