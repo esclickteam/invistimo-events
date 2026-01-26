@@ -105,12 +105,6 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       guest.guestsCount = data.guestsCount;
     }
 
-    /* ===============================
-       arrivedCount — נוכחות בפועל
-    =============================== */
-    if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
-      guest.arrivedCount = data.arrivedCount;
-    }
 
     await guest.save();
 
