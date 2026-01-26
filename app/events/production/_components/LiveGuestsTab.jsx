@@ -51,12 +51,13 @@ function confirmedCountForGuest(g) {
 const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
 const resetLiveArrivals = useSeatingStore((s) => s.resetLiveArrivals);
 
-const setLiveMode = useSeatingStore((s) => s.setLiveMode);
+const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
-  useEffect(() => {
-    setLiveMode(true);
-    return () => setLiveMode(false);
-  }, [setLiveMode]);
+useEffect(() => {
+  setSeatingMode("live");
+  return () => setSeatingMode("regular");
+}, [setSeatingMode]);
+
 
 
 
