@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest) {
   try {
     await dbConnect();
 
-    // 🔐 אימות
+    // 🔐 אימות – חייב להיות מחובר
     const auth = await getUserIdFromRequest(req);
     if (!auth || !auth.userId) {
       return NextResponse.json(
@@ -22,7 +22,8 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // ⭐ מי באמת מעדכן (מפיק באימפרסונציה)
+    // ⭐ קובעים מי באמת מעדכן:
+    // אם יש אימפרסונציה → המפיק
     const updatedBy =
       auth.impersonated && auth.impersonatedBy
         ? auth.impersonatedBy
@@ -40,40 +41,28 @@ export async function PATCH(req: NextRequest) {
 
     const count = Math.max(0, Number(arrivedCount || 0));
 
-    // 🔄 עדכון / יצירה
-    await LiveArrival.findOneAndUpdate(
+    const doc = await LiveArrival.findOneAndUpdate(
       { invitationId, guestId },
       {
         $set: {
           arrivedCount: count,
           arrivedAt: count > 0 ? new Date() : null,
-          updatedBy,
+          updatedBy, // ✅ ObjectId תקין
         },
       },
       {
         upsert: true,
+        new: true,
         setDefaultsOnInsert: true,
       }
-    );
-
-    // 📊 שליפה מחודשת של כל ההגעות (סנכרון שולחנות)
-    const rows = await LiveArrival.find({ invitationId })
-      .select("guestId arrivedCount -_id")
-      .lean();
-
-    // ✅ Map מוכן ל־UI
-    const arrivalMap: Record<string, number> = {};
-    for (const r of rows) {
-      arrivalMap[String(r.guestId)] =
-        typeof r.arrivedCount === "number" ? r.arrivedCount : 0;
-    }
+    ).lean();
 
     return NextResponse.json({
       success: true,
-      arrivalMap,
+      arrivedCount: doc?.arrivedCount ?? 0,
     });
   } catch (e) {
-    console.error("❌ PATCH /api/live-arrivals failed:", e);
+    console.error("❌ PATCH /api/live-arrivals/arrived failed:", e);
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }

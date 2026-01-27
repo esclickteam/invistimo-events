@@ -43,7 +43,6 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const setLiveMode = useSeatingStore((s) => s.setLiveMode);
 
-
   const setZones = useZoneStore((s) => s.setZones);
 
   const cacheKey = invitationId ? `live-seating-${invitationId}` : null;
@@ -53,7 +52,6 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
   =============================== */
   useEffect(() => {
   setLiveMode(true);
-  return () => setLiveMode(false);
 }, [setLiveMode]);
 
   /* ===============================
@@ -136,46 +134,6 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
       setLoading(false);
     }
   }, [invitationId, importSnapshot, setZones, cacheKey]);
-
-  useEffect(() => {
-  if (!invitationId || !hasImported) return;
-
-  let cancelled = false;
-
-  async function loadLiveArrivals() {
-    try {
-      const res = await fetch(
-        `/api/live-arrivals?invitationId=${invitationId}`,
-        { cache: "no-store" }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.success) return;
-
-      if (cancelled) return;
-
-      const store = useSeatingStore.getState();
-
-      // ✅ 1) לשמור את ה-map ב-Zustand
-      store.setLiveArrivalsBulk(data.arrivalMap || {});
-
-      // ✅ 2) לסנכרן כיסאות בפועל לפי arrivedCount
-      Object.keys(data.arrivalMap || {}).forEach((guestId) => {
-        store.syncArrivedSeats(String(guestId));
-      });
-    } catch (e) {
-      console.error("❌ loadLiveArrivals failed:", e);
-    }
-  }
-
-  loadLiveArrivals();
-
-  return () => {
-    cancelled = true;
-  };
-}, [invitationId, hasImported]);
-
 
   /* ===============================
      ✅ AUTO IMPORT – רק אם ריק

@@ -7,8 +7,6 @@ export const useSeatingStore = create((set, get) => ({
   guests: [],
   liveArrivals: {},
 
-  seatingMode: "regular",
-
   groups: [],
 draggingGroup: null,
 
@@ -17,14 +15,14 @@ draggingGroup: null,
 
    demoMode: false, // ⭐ מצב דמו
 
-   setLiveMode: (val) =>
-  set({ seatingMode: val ? "live" : "regular" }),
-
+   seatingMode: "regular", // "regular" | "live"
+setSeatingMode: (mode) => set({ seatingMode: mode }),
 
 
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: isDemo }),
 
+  setLiveMode: (val) => set({ isLiveMode: val }),
 
 
   draggingGuest: null,
@@ -141,18 +139,23 @@ getGroupSize: (groupId) => {
     );
 },
 
+getGuestSeatCount: (guest) => {
+  const { seatingMode, liveArrivals } = get();
+
+  if (seatingMode !== "live") return 0;
+  return Number(liveArrivals[guest._id] ?? 0);
+},
+
+
 getSeatingCountForGuest: (guest) => {
   const { seatingMode, liveArrivals } = get();
-  const gid = String(guest.id ?? guest._id);
 
   if (seatingMode === "live") {
-    return Number(liveArrivals[gid] ?? 0);
+    return Number(liveArrivals[guest._id] ?? 0);
   }
 
   return Number(guest.guestsCount || 0);
 },
-
-
 
 getPlannedSeatCount: (guest) => {
   return Number(guest.guestsCount || 0);
@@ -344,18 +347,22 @@ importSnapshot: (snapshot) => {
       ...t,
       seatedGuests: (t.seatedGuests || []).map((sg) => ({
         ...sg,
-        arrived: sg.arrived ?? false,
+        arrived: sg.arrived ?? false, // ⭐⭐ זה החסר
       })),
     })),
-    groups: snapshot.groups || [],
-    background: snapshot.background || null,
-    canvasView: snapshot.canvasView || { scale: 1, x: 0, y: 0 },
 
-    // ⭐ חובה
-    liveArrivals: {},
+    
+
+    groups: snapshot.groups || [],
+
+    background: snapshot.background || null,
+    canvasView: snapshot.canvasView || {
+      scale: 1,
+      x: 0,
+      y: 0,
+    },
   });
 },
-
 
 
 

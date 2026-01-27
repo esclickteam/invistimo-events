@@ -187,38 +187,22 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
-const liveArrivals = useSeatingStore((s) => s.liveArrivals);
-const seatingMode = useSeatingStore((s) => s.seatingMode);
+  const occupiedSeatsCount = useMemo(() => {
+  const perGuest = new Map();
 
-const occupiedSeatsCount = useMemo(() => {
-  // ✅ Live – לפי liveArrivals
-  if (seatingMode === "live") {
-    let sum = 0;
-    assigned.forEach((s) => {
-      const gid = String(s.guestId);
-      sum += Number(liveArrivals[gid] ?? 0);
-    });
-    return sum;
-  }
-
-  // ✅ Regular – לפי guestsCount (מתוכנן)
-  let sum = 0;
   assigned.forEach((s) => {
     const g = guests.find(
-      (guest) => String(guest.id ?? guest._id) === String(s.guestId)
+      (guest) =>
+        String(guest.id ?? guest._id) === String(s.guestId)
     );
-    sum += Number(g?.guestsCount ?? 0);
-  });
-  return sum;
-}, [assigned, liveArrivals, seatingMode, guests]);
+    if (!g) return;
 
-const arrivedSeatIndexes = useMemo(() => {
-  return new Set(
-    (assigned || [])
-      .filter((s) => s.arrived)
-      .map((s) => s.seatIndex)
-  );
-}, [assigned]);
+    const count = Number(g.arrivedCount || 0);
+    perGuest.set(String(s.guestId), count);
+  });
+
+  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
+}, [assigned, guests]);
 
 
 
@@ -459,10 +443,11 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isArrived = arrivedSeatIndexes.has(i);
-    const isSeated = assigned.some((s) => s.seatIndex === i);
+    const isArrived = i < occupiedSeatsCount;
+    const isSeated = i < (table.seats || 0);
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+
 
     const seatTopFill = isArrived
       ? "#bfdbfe"
@@ -505,7 +490,6 @@ const tableText = isHighlighted
       </Group>
     );
   })}
-
 
 
 
