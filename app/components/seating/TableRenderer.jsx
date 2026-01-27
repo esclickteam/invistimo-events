@@ -181,11 +181,6 @@ function getSeatRotation(table, c) {
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
 
-  const liveArrivalsByGuestId = useSeatingStore((s) => s.liveArrivals);
-
-  useEffect(() => {
-  console.log("LIVE ARRIVALS", liveArrivalsByGuestId);
-}, [liveArrivalsByGuestId]);
 
 
 
@@ -211,18 +206,17 @@ const isProducer = viewMode === "producer";
   );
 }, [table.seatedGuests, table.seats]);
 
+const liveArrivalsByGuestId = useSeatingStore((s) => s.liveArrivals);
+
 const arrivedSeatsCount = useMemo(() => {
-  const perGuest = new Map();
+  // ⛔ בלקוח אין live arrivals
+  if (!isProducer) return 0;
 
-  (table.seatedGuests || []).forEach((s) => {
-    const guestId = String(s.guestId);
-    const count = Number(liveArrivalsByGuestId?.[guestId] || 0);
+  return (table.seatedGuests || []).reduce((sum, s) => {
+    return sum + Number(liveArrivalsByGuestId[s.guestId] ?? 0);
+  }, 0);
+}, [isProducer, table.seatedGuests, liveArrivalsByGuestId]);
 
-    perGuest.set(guestId, count);
-  });
-
-  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
-}, [table.seatedGuests, liveArrivalsByGuestId]);
 
 
 const occupiedSeatsCount = isProducer
