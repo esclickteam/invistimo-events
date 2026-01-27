@@ -305,39 +305,27 @@ useEffect(() => {
         </Layer>
 
         <Layer>
-          {tables.map((t) => {
+  {tables.map((t) => {
+    const used = t.seatedGuests?.length ?? 0;
 
-            const used =
-  t.seatedGuests?.reduce((sum, sg) => {
-    const guest = guests.find(
-      (g) => String(g._id ?? g.id) === String(sg.guestId)
+    return (
+      <TableRenderer
+        key={t.id}
+        table={{
+          ...t,
+          openAddGuestModal: readOnly
+            ? undefined
+            : () => setAddGuestTable(t),
+          statsLabel: showStats
+            ? `${used} / ${t.capacity ?? "—"}`
+            : undefined,
+        }}
+        hideSeats={hideSeats} // ⭐ זה נשאר
+      />
     );
+  })}
+</Layer>
 
-    if (!guest) return sum;
-
-    return sum +
-      (typeof (guest as any).arrivedCount === "number"
-        ? (guest as any).arrivedCount
-        : ((guest as any).guestsCount || 0));
-  }, 0) ?? 0;
-
-            return (
-              <TableRenderer
-  key={t.id}
-  table={{
-    ...t,
-    openAddGuestModal: readOnly
-      ? undefined
-      : () => setAddGuestTable(t),
-    statsLabel: showStats
-      ? `${used} / ${t.capacity ?? "—"}`
-      : undefined,
-  }}
-  hideSeats={hideSeats} // ⭐ זה השורה החשובה
-/>
-            );
-          })}
-        </Layer>
 
         {!readOnly && (
           <Layer listening={false}>

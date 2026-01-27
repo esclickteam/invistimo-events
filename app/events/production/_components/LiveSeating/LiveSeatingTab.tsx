@@ -58,28 +58,30 @@ const setCanvasView = useSeatingStore((s) => s.setCanvasView);
      ✅ LOAD FROM LOCAL STORAGE
   =============================== */
   useEffect(() => {
-    if (!cacheKey) return;
+  if (!cacheKey) return;
 
-    const cached = localStorage.getItem(cacheKey);
-    if (!cached) return;
+  const cached = localStorage.getItem(cacheKey);
+  if (!cached) return;
 
-    try {
-      const data = JSON.parse(cached);
+  try {
+    const data = JSON.parse(cached);
 
-      importSnapshot({
-        tables: data.tables ?? [],
-        guests: data.guests ?? [],
-        canvasView: data.canvasView ?? null,
-        background: data.background ?? null,
-      });
+    // ❌ בלייב לא טוענים tables מה־cache
+    importSnapshot({
+      tables: [], // ⭐ חשוב!
+      guests: data.guests ?? [],
+      canvasView: data.canvasView ?? null,
+      background: data.background ?? null,
+    });
 
-      setZones(data.zones ?? []);
-      setEventId(data.eventId ?? null);
-      setHasImported(true);
-    } catch (e) {
-      console.warn("⚠️ Failed to load live seating cache", e);
-    }
-  }, [cacheKey, importSnapshot, setZones]);
+    setZones(data.zones ?? []);
+    setEventId(data.eventId ?? null);
+    setHasImported(true);
+  } catch (e) {
+    console.warn("⚠️ Failed to load live seating cache", e);
+  }
+}, [cacheKey, importSnapshot, setZones]);
+
 
   /* ===============================
      📥 IMPORT – פעם אחת בלבד

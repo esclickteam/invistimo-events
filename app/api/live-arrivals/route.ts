@@ -7,9 +7,9 @@ export async function GET(req: NextRequest) {
   try {
     await dbConnect();
 
-    // 🔐 אימות בסיסי – חייב להיות מחובר
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
+    // 🔐 אימות – חייב להיות מחובר
+    const auth = await getUserIdFromRequest(req);
+    if (!auth || !auth.userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
 
     // 📥 פרמטרים
     const invitationId = req.nextUrl.searchParams.get("invitationId");
-
     if (!invitationId) {
       return NextResponse.json(
         { error: "Missing invitationId" },
@@ -26,12 +25,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 📊 שליפת הגעה בפועל (LiveArrival – מפיק בלבד)
+    // 📊 שליפת הגעה בפועל
     const rows = await LiveArrival.find({ invitationId })
       .select("guestId arrivedCount -_id")
       .lean();
 
-    return NextResponse.json(rows);
+    return NextResponse.json({
+      success: true,
+      arrivals: rows,
+    });
   } catch (e) {
     console.error("❌ GET /api/live-arrivals failed:", e);
     return NextResponse.json(
