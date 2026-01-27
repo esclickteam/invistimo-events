@@ -22,6 +22,7 @@ setSeatingMode: (mode) => set({ seatingMode: mode }),
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: isDemo }),
 
+  setLiveMode: (val) => set({ isLiveMode: val }),
 
 
   draggingGuest: null,
@@ -98,18 +99,12 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
 
 setLiveArrived: (guestId, count) => {
   if (get().seatingMode !== "live") return;
-
-  console.log("🟡 setLiveArrived", { guestId, count });
-
   set((state) => ({
     liveArrivals: {
       ...state.liveArrivals,
       [guestId]: count,
     },
   }));
-
-  console.log("🟢 calling syncArrivedSeats", guestId);
-  get().syncArrivedSeats(guestId);
 },
 
 
@@ -145,25 +140,24 @@ getGroupSize: (groupId) => {
 },
 
 getGuestSeatCount: (guest) => {
-  if (get().seatingMode === "live") {
-    return Number(get().liveArrivals[guest._id] ?? 0);
-  }
-  return Number(guest.guestsCount || 0);
+  const { seatingMode, liveArrivals } = get();
+
+  if (seatingMode !== "live") return 0;
+  return Number(liveArrivals[guest._id] ?? 0);
 },
 
 
 getSeatingCountForGuest: (guest) => {
-  if (get().seatingMode === "live") {
-    return Number(get().liveArrivals[guest._id] ?? 0);
+  const { seatingMode, liveArrivals } = get();
+
+  if (seatingMode === "live") {
+    return Number(liveArrivals[guest._id] ?? 0);
   }
 
   return Number(guest.guestsCount || 0);
 },
 
 getPlannedSeatCount: (guest) => {
-  if (get().seatingMode === "live") {
-    return Number(get().liveArrivals[guest._id] ?? 0);
-  }
   return Number(guest.guestsCount || 0);
 },
 
@@ -654,6 +648,7 @@ assignGuestBlock: ({ guestId, tableId }) => {
   );
   if (!guest) return;
 
+  const { isLiveMode } = get();
 
 const count = get().getPlannedSeatCount(guest)
 
@@ -815,6 +810,7 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
     return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
   }
 
+  const { isLiveMode } = get();
 
 const { liveArrivals } = get();
 
@@ -908,45 +904,45 @@ const block = findFreeBlock(cleanTable, realCount);
   
 syncArrivedSeats: (guestId) =>
   set((state) => {
-    const arrivedCount = state.liveArrivals[guestId] ?? 0;
-
-    console.log("🔵 syncArrivedSeats", {
-      guestId,
-      arrivedCount,
-    });
+    const arrivedCount =
+      state.liveArrivals[guestId] ?? 0;
 
     const tables = state.tables.map((table) => {
-      const guestSeats = (table.seatedGuests || []).filter(
-        (sg) => String(sg.guestId) === String(guestId)
-      );
+      if (!table.seatedGuests) return table;
+
+
+      // כל הכיסאות של האורח – ממוינים לפי seatIndex
+      const guestSeats = table.seatedGuests
+        .filter((sg) => String(sg.guestId) === String(guestId))
+        .sort((a, b) => a.seatIndex - b.seatIndex);
 
       if (!guestSeats.length) return table;
 
-      console.log("🪑 BEFORE", {
-        table: table.name,
-        seats: guestSeats.length,
-      });
+      // ✂️ משאירים רק arrivedCount כיסאות
+      const seatsToKeep = guestSeats.slice(0, arrivedCount);
 
-      const seatsToKeep = guestSeats
-        .sort((a, b) => a.seatIndex - b.seatIndex)
-        .slice(0, arrivedCount);
-
-      console.log("✂️ KEEP", {
-        table: table.name,
-        keep: seatsToKeep.length,
-      });
-
-      const finalSeats = table.seatedGuests.filter((sg) => {
+      const updatedSeats = table.seatedGuests.filter((sg) => {
         if (String(sg.guestId) !== String(guestId)) return true;
+
+        // רק הכיסאות שנשארו
         return seatsToKeep.includes(sg);
       });
+
+      // מסמנים arrived=true רק לאלה שנשארו
+      const finalSeats = updatedSeats.map((sg) => {
+  if (String(sg.guestId) !== String(guestId)) return sg;
+
+  return {
+    ...sg,
+    arrived: seatsToKeep.includes(sg),
+  };
+});
 
       return { ...table, seatedGuests: finalSeats };
     });
 
     return { tables };
   }),
-
 
 
 

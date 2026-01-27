@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AddGuestModal from "@/app/components/AddGuestModal";
 import { useSeatingStore } from "@/store/seatingStore";
-import { useParams } from "next/navigation";
-
 
 
 
@@ -35,8 +33,6 @@ function confirmedCountForGuest(g) {
 ========================= */
  export default function LiveGuestsTab({ invitationId }) {
   const router = useRouter();
-  const { eventId } = useParams();
-
 
 
 
@@ -57,9 +53,6 @@ const resetLiveArrivals = useSeatingStore((s) => s.resetLiveArrivals);
 
 const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
-const setTables = useSeatingStore((s) => s.setTables);
-
-
 useEffect(() => {
   setSeatingMode("live");
   return () => setSeatingMode("regular");
@@ -73,8 +66,6 @@ const setGuests = useSeatingStore((s) => s.setGuests);
 const setLiveArrivalsBulk = useSeatingStore(
   (s) => s.setLiveArrivalsBulk
 );
-
-const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
 const tables = useSeatingStore((s) => s.tables);
@@ -103,79 +94,53 @@ const guestTableMap = useMemo(() => {
   try {
     setLoading(true);
 
-      // 1️⃣ טעינת אורחים
-      const res = await fetch(
-        `/api/guests?invitation=${invitationId}`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
-
-      const data = await res.json();
-      if (Array.isArray(data.guests)) {
-        setGuests(data.guests);
+    // 1️⃣ טעינת אורחים (RSVP בלבד – לקוח)
+    const res = await fetch(
+      `/api/guests?invitation=${invitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
       }
+    );
 
-      // 2️⃣ הגעה בפועל
-      const liveRes = await fetch(
-        `/api/live-arrivals?invitationId=${invitationId}`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
+    const data = await res.json();
 
-      const liveData = await liveRes.json();
-      const arrivedMap = {};
-      (liveData || []).forEach((row) => {
-        arrivedMap[row.guestId] = row.arrivedCount;
-      });
+    if (Array.isArray(data.guests)) {
+      setGuests(data.guests);
+    }
 
-      setLiveArrivalsBulk(arrivedMap);
+    // 2️⃣ 🔹 הגעה בפועל – מפיק בלבד (LiveArrival)
+    const liveRes = await fetch(
+      `/api/live-arrivals?invitationId=${invitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
 
-      // 3️⃣ 🔴 טעינת שולחנות (חובה בשביל syncArrivedSeats)
-      const tablesRes = await fetch(
-  `/api/seating/tables?invitationId=${invitationId}`,
-  {
-    credentials: "include",
-    cache: "no-store",
-  }
-);
+    const liveData = await liveRes.json();
 
-      const tablesData = await tablesRes.json();
-
-      console.log("🪑 TABLES LOADED", tablesData.tables);
-
-  if (Array.isArray(tablesData.tables)) {
-  setTables(tablesData.tables);
-
-  // ✅ לחכות לפריים הבא אחרי שה־state נטמע
-  requestAnimationFrame(() => {
-    Object.keys(arrivedMap).forEach((guestId) => {
-      syncArrivedSeats(guestId);
+    const arrivedMap = {};
+    (liveData || []).forEach((row) => {
+      arrivedMap[row.guestId] = row.arrivedCount;
     });
-  });
+
+    setLiveArrivalsBulk(arrivedMap);
+
+  } catch (e) {
+    console.error("❌ Live guests load failed:", e);
+  } finally {
+    setLoading(false);
+  }
 }
 
 
-    } catch (e) {
-      console.error("❌ Live guests load failed:", e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   loadGuestsForLive();
-}, [
-  invitationId,
-  setGuests,
-  setLiveArrivalsBulk,
-  setTables,
-  syncArrivedSeats,
-]);
+}, [invitationId, setGuests, resetLiveArrivals, setLiveArrivalsBulk]);
 
 
+
+const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
 
@@ -264,17 +229,7 @@ setGuests(next);
 
   // 🟢 עדכון מיידי ל-UI (אופטימי)
   setLiveArrived(guest._id, next);
-
-console.log(
-  "AFTER SYNC",
-  useSeatingStore
-    .getState()
-    .tables
-    .map(t => ({
-      table: t.name,
-      count: t.seatedGuests.length
-    }))
-);
+  syncArrivedSeats(guest._id);
 
   try {
     const res = await fetch("/api/live-arrivals/arrived", {

@@ -5,7 +5,6 @@ import { connectDB } from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
-import LiveArrival from "@/models/LiveArrival";
 
 /**
  * 📸 Snapshot מלא של הושבה (כמו אצל הלקוח)
@@ -35,7 +34,6 @@ export async function POST(req: Request) {
           zones: [],
           background: null,
           canvasView: null,
-          liveArrivals: {}, // ⭐ חדש
         },
         { status: 200 }
       );
@@ -57,7 +55,6 @@ export async function POST(req: Request) {
           zones: [],
           background: null,
           canvasView: null,
-          liveArrivals: {}, // ⭐ חדש
         },
         { status: 200 }
       );
@@ -94,24 +91,6 @@ export async function POST(req: Request) {
     console.log("👥 guests found:", guests.length);
 
     /* ======================================================
-       3️⃣.5 שליפת הגעות בפועל (LiveArrival) + בניית map
-    ====================================================== */
-    const arrivals = await LiveArrival.find({
-      invitationId: invitationObjectId,
-    })
-      .select("guestId arrivedCount")
-      .lean();
-
-    const liveArrivals = Object.fromEntries(
-      (arrivals || []).map((a: any) => [
-        String(a.guestId),
-        Math.max(0, Number(a.arrivedCount || 0)),
-      ])
-    );
-
-    console.log("🚶 liveArrivals keys:", Object.keys(liveArrivals).length);
-
-    /* ======================================================
        4️⃣ snapshot – AS IS (⭐ קריטי)
     ====================================================== */
     const tables = seating?.tables ?? [];
@@ -127,21 +106,21 @@ export async function POST(req: Request) {
        5️⃣ מיפוי מוזמנים (לא חלק מהקנבס)
     ====================================================== */
     const liveGuests = guests.map((g: any) => ({
-      _id: g._id.toString(),
-      id: g._id.toString(),
-      name: g.name,
-      phone: g.phone || "",
-      tableId: g.tableId ? g.tableId.toString() : null,
+  _id: g._id.toString(),
+  id: g._id.toString(),
+  name: g.name,
+  phone: g.phone || "",
+  tableId: g.tableId ? g.tableId.toString() : null,
 
-      guestsCount: g.guestsCount ?? 1,
-      arrivedCount: g.arrivedCount ?? 0,
-      rsvp: g.rsvp,
-    }));
+  guestsCount: g.guestsCount ?? 1,
+  arrivedCount: g.arrivedCount ?? 0,
+  rsvp: g.rsvp,
+}));
 
     console.log("👤 liveGuests sample:", liveGuests[0] ?? "NO GUESTS");
 
     /* ======================================================
-       6️⃣ החזרת snapshot מלא (1:1 לקוח) + liveArrivals
+       6️⃣ החזרת snapshot מלא (1:1 לקוח)
     ====================================================== */
     console.log("✅ LIVE SEATING SNAPSHOT – SUCCESS");
 
@@ -152,7 +131,6 @@ export async function POST(req: Request) {
       background,
       canvasView,
       eventId: invitation.eventId,
-      liveArrivals, // ⭐ חדש
     });
   } catch (err) {
     console.error("❌ LIVE SEATING SNAPSHOT ERROR:", err);
@@ -165,7 +143,6 @@ export async function POST(req: Request) {
         zones: [],
         background: null,
         canvasView: null,
-        liveArrivals: {}, // ⭐ חדש
       },
       { status: 200 }
     );

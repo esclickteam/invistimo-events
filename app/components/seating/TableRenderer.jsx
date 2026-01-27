@@ -173,9 +173,6 @@ function getSeatRotation(table, c) {
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
-const seatingMode = useSeatingStore((s) => s.seatingMode);
-const liveArrivals = useSeatingStore((s) => s.liveArrivals);
-const isProducer = useSeatingStore((s) => s.isProducer); // או role === "producer"
 
     
 
@@ -190,25 +187,12 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
-const occupiedSeatsCount = useMemo(() => {
-  if (seatingMode === "live") {
-    return Math.min(
-      (table.seatedGuests || []).filter((s) => s.arrived).length,
-      Number(table.seats || 0)
-    );
-  }
-
-  // מצב רגיל – לפי הושבה
+ const occupiedSeatsCount = useMemo(() => {
   return Math.min(
-    table.seatedGuests?.length || 0,
+    (table.seatedGuests || []).length,
     Number(table.seats || 0)
   );
-}, [
-  table.seatedGuests,
-  table.seats,
-  seatingMode,
-]);
-
+}, [table.seatedGuests, table.seats]);
 
 
 
