@@ -180,7 +180,8 @@ function getSeatRotation(table, c) {
 const from = searchParams.get("from");
 const guestIdFromUrl = searchParams.get("guestId");
 
-const isProducer = from === "producer";
+const isProducer = !hideSeats;
+
 
 
   const deleteTable =
