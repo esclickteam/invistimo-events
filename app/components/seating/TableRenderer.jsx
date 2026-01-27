@@ -180,6 +180,9 @@ function getSeatRotation(table, c) {
 const from = searchParams.get("from");
 const guestIdFromUrl = searchParams.get("guestId");
 
+const isProducer = from === "producer";
+
+
   const deleteTable =
     useSeatingStore((s) => s.deleteTable) ||
     useSeatingStore((s) => s.removeTable) ||
@@ -187,14 +190,34 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
- const occupiedSeatsCount = useMemo(() => {
+ const assignedSeatsCount = useMemo(() => {
   return Math.min(
     (table.seatedGuests || []).length,
     Number(table.seats || 0)
   );
 }, [table.seatedGuests, table.seats]);
 
+const arrivedSeatsCount = useMemo(() => {
+  const perGuest = new Map();
 
+  (table.seatedGuests || []).forEach((s) => {
+    const g = guests.find(
+      (guest) =>
+        String(guest.id ?? guest._id) === String(s.guestId)
+    );
+    if (!g) return;
+
+    const count = Number(g.arrivedCount || 0);
+    perGuest.set(String(s.guestId), count);
+  });
+
+  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
+}, [table.seatedGuests, guests]);
+
+
+const occupiedSeatsCount = isProducer
+  ? arrivedSeatsCount
+  : assignedSeatsCount;
 
 
   const isHighlighted =
