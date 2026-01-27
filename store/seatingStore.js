@@ -22,7 +22,6 @@ setSeatingMode: (mode) => set({ seatingMode: mode }),
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: isDemo }),
 
-  setLiveMode: (val) => set({ isLiveMode: val }),
 
 
   draggingGuest: null,
@@ -140,18 +139,14 @@ getGroupSize: (groupId) => {
 },
 
 getGuestSeatCount: (guest) => {
-  const { seatingMode, liveArrivals } = get();
-
-  if (seatingMode !== "live") return 0;
-  return Number(liveArrivals[guest._id] ?? 0);
+  if (get().seatingMode !== "live") return 0;
+  return Number(get().liveArrivals[guest._id] ?? 0);
 },
 
 
 getSeatingCountForGuest: (guest) => {
-  const { seatingMode, liveArrivals } = get();
-
-  if (seatingMode === "live") {
-    return Number(liveArrivals[guest._id] ?? 0);
+  if (get().seatingMode === "live") {
+    return Number(get().liveArrivals[guest._id] ?? 0);
   }
 
   return Number(guest.guestsCount || 0);
@@ -648,7 +643,6 @@ assignGuestBlock: ({ guestId, tableId }) => {
   );
   if (!guest) return;
 
-  const { isLiveMode } = get();
 
 const count = get().getPlannedSeatCount(guest)
 
@@ -810,7 +804,6 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
     return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
   }
 
-  const { isLiveMode } = get();
 
 const { liveArrivals } = get();
 
