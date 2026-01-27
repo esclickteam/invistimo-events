@@ -6,7 +6,6 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useSearchParams } from "next/navigation";
 
-
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
 ============================================================ */
@@ -155,15 +154,7 @@ function getSeatRotation(table, c) {
    TableRenderer
 ============================================================ */
 
-
-
-
-  function TableRenderer({
-  table,
-  hideSeats = false,
-  viewMode = "producer", // ⭐ ברירת מחדל
-}) {
-
+  function TableRenderer({ table, hideSeats = false }) {
 
 
 
@@ -175,83 +166,38 @@ function getSeatRotation(table, c) {
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
 
+  const demoMode = useSeatingStore((s) => s.demoMode);
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
+  const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
+    
 
-
-
-    const searchParams = useSearchParams();
+  const searchParams = useSearchParams();
 const from = searchParams.get("from");
 const guestIdFromUrl = searchParams.get("guestId");
 
+  const deleteTable =
+    useSeatingStore((s) => s.deleteTable) ||
+    useSeatingStore((s) => s.removeTable) ||
+    (() => {});
 
+  const assigned = table.seatedGuests || [];
 
-
-const isProducer = viewMode === "producer";
-
-
-
-
- 
-
-
- const assignedSeatsCount = useMemo(() => {
+ const occupiedSeatsCount = useMemo(() => {
   return Math.min(
     (table.seatedGuests || []).length,
     Number(table.seats || 0)
   );
 }, [table.seatedGuests, table.seats]);
 
-const liveArrivalsByGuestId = useSeatingStore((s) => s.liveArrivals);
-
-const arrivedSeatsCount = useMemo(() => {
-  // ⛔ בלקוח אין live arrivals
-  if (!isProducer) return 0;
-
-  return (table.seatedGuests || []).reduce((sum, s) => {
-    return sum + Number(liveArrivalsByGuestId[s.guestId] ?? 0);
-  }, 0);
-}, [isProducer, table.seatedGuests, liveArrivalsByGuestId]);
 
 
 
-const occupiedSeatsCount = isProducer
-  ? arrivedSeatsCount
-  : assignedSeatsCount;
-
-  useEffect(() => {
-  console.log("🪑 TableRenderer DEBUG", {
-    tableId: table.id,
-    hideSeats,
-    isProducer,
-    assignedSeatsCount,
-    arrivedSeatsCount,
-    occupiedSeatsCount,
-    seatedGuestsRaw: table.seatedGuests,
-    guests: guests.map(g => ({
-      id: g.id ?? g._id,
-      arrivedCount: g.arrivedCount,
-    })),
-  });
-}, [
-  hideSeats,
-  isProducer,
-  assignedSeatsCount,
-  arrivedSeatsCount,
-  occupiedSeatsCount,
-  table.seatedGuests,
-  guests,
-]);
-
-
-
-  const assigned = table.seatedGuests || [];
-
-const isHighlighted =
+  const isHighlighted =
   highlightedTable === table.id ||
   assigned.some((s) => String(s.guestId) === String(selectedGuestId)) ||
   (
@@ -387,9 +333,6 @@ const tableText = isHighlighted
 
   const { size, width, height, radius } = layout;
 
-  let arrivedLeft = isProducer ? occupiedSeatsCount : 0;
-
-
   return (
     <Group
   ref={tableRef}
@@ -487,18 +430,15 @@ const tableText = isHighlighted
   </Group>
 )}
 
-
       {/* כסאות */}
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isArrived = isProducer
-      ? arrivedLeft-- > 0
-      : i < assignedSeatsCount;
-
+    const isArrived = i < occupiedSeatsCount;
     const isSeated = i < (table.seats || 0);
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+
 
     const seatTopFill = isArrived
       ? "#bfdbfe"
@@ -541,7 +481,6 @@ const tableText = isHighlighted
       </Group>
     );
   })}
-
 
 
 

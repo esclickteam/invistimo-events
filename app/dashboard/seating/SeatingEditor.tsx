@@ -65,8 +65,6 @@ function SeatingEditorInner({
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const guests = useSeatingStore((s) => s.guests) as Guest[];
 
-  const viewMode = readOnly ? "client" : "producer";
-
   const draggedGuest = useSeatingStore((s) => s.draggingGuest);
   const startDragGuest = useSeatingStore((s) => s.startDragGuest);
   const updateGhost = useSeatingStore((s) => s.updateGhostPosition);
@@ -335,8 +333,7 @@ useEffect(() => {
       ? `${used} / ${t.capacity ?? "—"}`
       : undefined,
   }}
-  hideSeats={hideSeats} 
-  viewMode={viewMode} // ⭐ זה השורה החשובה
+  hideSeats={hideSeats} // ⭐ זה השורה החשובה
 />
             );
           })}
