@@ -7,11 +7,40 @@ import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
 import LiveArrival from "@/models/LiveArrival";
 
+function sanitizeTablesByArrivals(
+  tables: any[],
+  arrivalMap: Map<string, number>
+) {
+  return tables.map((table) => {
+    if (!Array.isArray(table.seatedGuests)) return table;
 
-/**
- * 📸 Snapshot מלא של הושבה (כמו אצל הלקוח)
- * לשימוש בלייב הושבה – צד מפיק (readOnly)
- */
+    const counter = new Map<string, number>();
+    const newSeatedGuests = [];
+
+    for (const sg of table.seatedGuests) {
+      const guestId = String(sg.guestId);
+      const allowed = arrivalMap.get(guestId) ?? 0;
+
+      if (allowed <= 0) continue;
+
+      const current = counter.get(guestId) ?? 0;
+
+      if (current < allowed) {
+        newSeatedGuests.push(sg);
+        counter.set(guestId, current + 1);
+      }
+      // אחרת: מדלגים → הכיסא העודף נמחק
+    }
+
+    return {
+      ...table,
+      seatedGuests: newSeatedGuests,
+    };
+  });
+}
+
+
+
 export async function POST(req: Request) {
   try {
     console.log("🟡 LIVE SEATING SNAPSHOT – START");
@@ -107,7 +136,13 @@ const arrivalMap = new Map(
     /* ======================================================
        4️⃣ snapshot – AS IS (⭐ קריטי)
     ====================================================== */
-    const tables = seating?.tables ?? [];
+    const rawTables = seating?.tables ?? [];
+
+const tables = sanitizeTablesByArrivals(
+  rawTables,
+  arrivalMap
+);
+
     const zones = seating?.zones ?? [];
     const background = seating?.background ?? null;
     const canvasView = seating?.canvasView ?? null;
