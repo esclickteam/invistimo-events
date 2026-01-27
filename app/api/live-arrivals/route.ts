@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     await dbConnect();
 
-    // 🔐 אימות בסיסי – חייב להיות מחובר
+    // 🔐 אימות – חייב להיות מחובר (מפיק)
     const userId = await getUserIdFromRequest(req);
     if (!userId) {
       return NextResponse.json(
@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
 
     // 📥 פרמטרים
     const invitationId = req.nextUrl.searchParams.get("invitationId");
-
     if (!invitationId) {
       return NextResponse.json(
         { error: "Missing invitationId" },
@@ -26,12 +25,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 📊 שליפת הגעה בפועל (LiveArrival – מפיק בלבד)
+    // 📊 שליפת הגעה בפועל
     const rows = await LiveArrival.find({ invitationId })
       .select("guestId arrivedCount -_id")
       .lean();
 
-    return NextResponse.json(rows);
+    // ✅ המרה ל־Map: { [guestId]: arrivedCount }
+    const arrivalMap: Record<string, number> = {};
+
+    for (const row of rows) {
+      arrivalMap[String(row.guestId)] =
+        typeof row.arrivedCount === "number" ? row.arrivedCount : 0;
+    }
+
+    return NextResponse.json({
+      success: true,
+      arrivalMap,
+    });
   } catch (e) {
     console.error("❌ GET /api/live-arrivals failed:", e);
     return NextResponse.json(

@@ -49,14 +49,13 @@ function confirmedCountForGuest(g) {
   const guests = useSeatingStore((s) => s.guests);
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
-const resetLiveArrivals = useSeatingStore((s) => s.resetLiveArrivals);
 
-const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
+const setLiveMode = useSeatingStore((s) => s.setLiveMode);
 
 useEffect(() => {
-  setSeatingMode("live");
-  return () => setSeatingMode("regular");
-}, [setSeatingMode]);
+  setLiveMode(true);
+  return () => setLiveMode(false);
+}, [setLiveMode]);
 
 
 
@@ -120,12 +119,15 @@ const guestTableMap = useMemo(() => {
 
     const liveData = await liveRes.json();
 
-    const arrivedMap = {};
-    (liveData || []).forEach((row) => {
-      arrivedMap[row.guestId] = row.arrivedCount;
-    });
+if (liveData?.success && liveData.arrivalMap) {
+  setLiveArrivalsBulk(liveData.arrivalMap);
 
-    setLiveArrivalsBulk(arrivedMap);
+  // ⭐ סנכרון הכיסאות בפועל
+  Object.keys(liveData.arrivalMap).forEach((guestId) => {
+    syncArrivedSeats(String(guestId));
+  });
+}
+
 
   } catch (e) {
     console.error("❌ Live guests load failed:", e);
