@@ -95,10 +95,14 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
-  const isProducerView =
-  user?.role === "producer" || user?.impersonated === true;
+  const isAdmin = user?.role === "admin";
+const isProducer = user?.role === "producer";
+const isClient = user?.role === "client";
 
-const isClientView = !isProducerView;
+// אדמין רואה הכל
+const isProducerView = isAdmin || isProducer;
+const isClientView = isAdmin || isClient || user?.impersonated === true;
+
 
 
 
