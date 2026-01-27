@@ -389,6 +389,9 @@ const tableText = isHighlighted
 
   const { size, width, height, radius } = layout;
 
+  let arrivedLeft = isProducer ? occupiedSeatsCount : 0;
+
+
   return (
     <Group
   ref={tableRef}
@@ -486,15 +489,18 @@ const tableText = isHighlighted
   </Group>
 )}
 
+
       {/* כסאות */}
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isArrived = i < occupiedSeatsCount;
+    const isArrived = isProducer
+      ? arrivedLeft-- > 0
+      : i < assignedSeatsCount;
+
     const isSeated = i < (table.seats || 0);
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
-
 
     const seatTopFill = isArrived
       ? "#bfdbfe"
@@ -537,6 +543,7 @@ const tableText = isHighlighted
       </Group>
     );
   })}
+
 
 
 
