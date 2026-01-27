@@ -186,7 +186,7 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
- const occupiedSeatsCount = useMemo(() => {
+  const occupiedSeatsCount = useMemo(() => {
   const perGuest = new Map();
 
   assigned.forEach((s) => {
@@ -196,14 +196,11 @@ const guestIdFromUrl = searchParams.get("guestId");
     );
     if (!g) return;
 
-    const count = Number(g.confirmedCount || 0);
+    const count = Number(g.arrivedCount || 0);
     perGuest.set(String(s.guestId), count);
   });
 
-  return Array.from(perGuest.values()).reduce(
-    (a, b) => a + b,
-    0
-  );
+  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
 }, [assigned, guests]);
 
 

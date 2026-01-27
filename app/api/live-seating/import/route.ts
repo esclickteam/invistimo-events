@@ -5,42 +5,11 @@ import { connectDB } from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
-import LiveArrival from "@/models/LiveArrival";
 
-function sanitizeTablesByArrivals(
-  tables: any[],
-  arrivalMap: Map<string, number>
-) {
-  return tables.map((table) => {
-    if (!Array.isArray(table.seatedGuests)) return table;
-
-    const counter = new Map<string, number>();
-    const newSeatedGuests = [];
-
-    for (const sg of table.seatedGuests) {
-      const guestId = String(sg.guestId);
-      const allowed = arrivalMap.get(guestId) ?? 0;
-
-      if (allowed <= 0) continue;
-
-      const current = counter.get(guestId) ?? 0;
-
-      if (current < allowed) {
-        newSeatedGuests.push(sg);
-        counter.set(guestId, current + 1);
-      }
-      // אחרת: מדלגים → הכיסא העודף נמחק
-    }
-
-    return {
-      ...table,
-      seatedGuests: newSeatedGuests,
-    };
-  });
-}
-
-
-
+/**
+ * 📸 Snapshot מלא של הושבה (כמו אצל הלקוח)
+ * לשימוש בלייב הושבה – צד מפיק (readOnly)
+ */
 export async function POST(req: Request) {
   try {
     console.log("🟡 LIVE SEATING SNAPSHOT – START");
@@ -121,28 +90,10 @@ export async function POST(req: Request) {
 
     console.log("👥 guests found:", guests.length);
 
-    const liveArrivals = await LiveArrival.find({
-  invitationId: invitationObjectId,
-}).lean();
-
-const arrivalMap = new Map(
-  liveArrivals.map((a: any) => [
-    String(a.guestId),
-    a.arrivedCount,
-  ])
-);
-
-
     /* ======================================================
        4️⃣ snapshot – AS IS (⭐ קריטי)
     ====================================================== */
-    const rawTables = seating?.tables ?? [];
-
-const tables = sanitizeTablesByArrivals(
-  rawTables,
-  arrivalMap
-);
-
+    const tables = seating?.tables ?? [];
     const zones = seating?.zones ?? [];
     const background = seating?.background ?? null;
     const canvasView = seating?.canvasView ?? null;
@@ -154,21 +105,17 @@ const tables = sanitizeTablesByArrivals(
     /* ======================================================
        5️⃣ מיפוי מוזמנים (לא חלק מהקנבס)
     ====================================================== */
-    const liveGuests = guests.map((g: any) => {
-  const arrivedCount =
-    arrivalMap.get(String(g._id)) ?? 0;
+    const liveGuests = guests.map((g: any) => ({
+  _id: g._id.toString(),
+  id: g._id.toString(),
+  name: g.name,
+  phone: g.phone || "",
+  tableId: g.tableId ? g.tableId.toString() : null,
 
-  return {
-    _id: g._id.toString(),
-    id: g._id.toString(),
-    name: g.name,
-    phone: g.phone || "",
-    tableId: g.tableId ? g.tableId.toString() : null,
-    confirmedCount: arrivedCount,
-    arrivedCount: arrivedCount,  // ⭐ אמת אחת
-    rsvp: g.rsvp,
-  };
-});
+  guestsCount: g.guestsCount ?? 1,
+  arrivedCount: g.arrivedCount ?? 0,
+  rsvp: g.rsvp,
+}));
 
     console.log("👤 liveGuests sample:", liveGuests[0] ?? "NO GUESTS");
 
