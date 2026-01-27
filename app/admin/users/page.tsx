@@ -96,6 +96,14 @@ export default function AdminUsersPage() {
     }
   }
 
+  function removeUserFromView(userId: string) {
+  const ok = window.confirm("להסיר את המשתמש מהתצוגה?");
+  if (!ok) return;
+
+  setUsers((prev) => prev.filter((u) => u._id !== userId));
+}
+
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -160,6 +168,16 @@ export default function AdminUsersPage() {
                         : "כניסה כמשתמש"}
                     </button>
                   )}
+
+                  {u.role !== "admin" && (
+  <button
+    onClick={() => removeUserFromView(u._id)}
+    className="px-4 py-2 rounded-full bg-red-600 text-white text-xs hover:opacity-90"
+  >
+    הסר מהתצוגה
+  </button>
+)}
+
                 </td>
               </tr>
             ))}
