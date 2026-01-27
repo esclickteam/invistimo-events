@@ -11,7 +11,6 @@ import { useSearchParams } from "next/navigation";
 ============================================================ */
 function getTableLayout(rawTable) {
   const seats = Math.max(0, Number(rawTable.seats || 0));
-
   const type =
     rawTable.type === "rectangle" || rawTable.type === "rect"
       ? "banquet"
@@ -187,25 +186,22 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
-const seatsToDisplay = useMemo(() => {
-  // 👤 תצוגת לקוח – לפי guestsCount (תכנון)
-  if (from === "personal") {
-    return (table.seatedGuests || []).reduce((sum, s) => {
-      const g = guests.find(
-        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
-      );
-      return sum + (Number(g?.guestsCount) || 0);
-    }, 0);
-  }
+  const occupiedSeatsCount = useMemo(() => {
+  const perGuest = new Map();
 
-  // 🎧 תצוגת מפיק – לפי arrivedCount (LIVE)
-  return (table.seatedGuests || []).reduce((sum, s) => {
-    return sum + (Number(s.arrivedCount) || 0);
-  }, 0);
-}, [from, table.seatedGuests, guests]);
+  assigned.forEach((s) => {
+    const g = guests.find(
+      (guest) =>
+        String(guest.id ?? guest._id) === String(s.guestId)
+    );
+    if (!g) return;
 
+    const count = Number(g.arrivedCount || 0);
+    perGuest.set(String(s.guestId), count);
+  });
 
-
+  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
+}, [assigned, guests]);
 
 
 
@@ -219,8 +215,7 @@ const seatsToDisplay = useMemo(() => {
   );
 
 
-  const hasArrived = seatsToDisplay > 0;
-
+  const hasArrived = occupiedSeatsCount > 0;
 
 const tableFill = isHighlighted
   ? "#fde047"           // מודגש
@@ -236,27 +231,23 @@ const tableText = isHighlighted
 
 
   const layout = useMemo(
-  () => getTableLayout({ type: table.type, seats: table.seats }),
-  [table.type, table.seats]
-);
-
-
+    () => getTableLayout(table),
+    [table.type, table.seats]
+  );
 
   const seatsCoords = layout.coords;
 
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
   if (tableRef.current) {
-    tableRef.current.clearCache();
     tableRef.current.cache();
     tableRef.current.getLayer()?.batchDraw();
   }
 }, [
   layout.type,
   table.seats,
-  seatsToDisplay, // ⭐ חובה
+  table.seatedGuests, // 🔥 זה מה שחסר
 ]);
-
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -365,10 +356,7 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${table.name}\n${seatsToDisplay}/${table.seats}
-`}
-
-
+            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
             width={radius * 2}
             height={radius * 2}
             offsetX={radius}
@@ -393,8 +381,7 @@ const tableText = isHighlighted
             
           />
           <Text
-  text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
-
+            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
             width={size}
             height={size}
             offsetX={size / 2}
@@ -419,8 +406,7 @@ const tableText = isHighlighted
             
           />
           <Text
-  text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
-
+            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
             width={width}
             height={height}
             offsetX={width / 2}
@@ -452,16 +438,29 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const maxSeats = table.selectedSeats ?? table.seats;
-const isSeated = i < Math.min(seatsToDisplay, maxSeats);
-
-
+    const isArrived = i < occupiedSeatsCount;
+    const isSeated = i < (table.seats || 0);
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-    const seatTopFill = isSeated ? "#bfdbfe" : "#e5e7eb";
-    const seatBodyFill = isSeated ? "#3b82f6" : "#9ca3af";
-    const seatStroke   = isSeated ? "#2563eb" : "#6b7280";
+
+    const seatTopFill = isArrived
+      ? "#bfdbfe"
+      : isSeated
+      ? "#e5e7eb"
+      : "#bfdbfe";
+
+    const seatBodyFill = isArrived
+      ? "#3b82f6"
+      : isSeated
+      ? "#9ca3af"
+      : "#3b82f6";
+
+    const seatStroke = isArrived
+      ? "#2563eb"
+      : isSeated
+      ? "#6b7280"
+      : "#2563eb";
 
     return (
       <Group key={i} x={c.x} y={c.y} rotation={rotation}>
@@ -486,7 +485,6 @@ const isSeated = i < Math.min(seatsToDisplay, maxSeats);
       </Group>
     );
   })}
-
 
 
 

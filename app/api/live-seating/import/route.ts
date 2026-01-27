@@ -66,7 +66,6 @@ export async function POST(req: Request) {
 
     /* ======================================================
        2️⃣ שליפת Seating snapshot לפי eventId
-       ⭐ AS IS — לא בונים מחדש, לא מחשבים arrived
     ====================================================== */
     const seating = await SeatingTable.findOne({
       eventId: eventObjectId,
@@ -78,10 +77,12 @@ export async function POST(req: Request) {
       console.log("🟢 Seating snapshot found");
       console.log("📐 tables count:", seating.tables?.length ?? 0);
       console.log("🧱 zones count:", seating.zones?.length ?? 0);
+      console.log("🎨 background:", seating.background ? "YES" : "NO");
+      console.log("🔍 canvasView:", seating.canvasView);
     }
 
     /* ======================================================
-       3️⃣ שליפת מוזמנים (מידע צדדי – לא מקור אמת להגעה)
+       3️⃣ שליפת מוזמנים
     ====================================================== */
     const guests = await InvitationGuest.find({
       invitationId: invitationObjectId,
@@ -90,25 +91,31 @@ export async function POST(req: Request) {
     console.log("👥 guests found:", guests.length);
 
     /* ======================================================
-       4️⃣ snapshot – AS IS (קריטי ללייב)
+       4️⃣ snapshot – AS IS (⭐ קריטי)
     ====================================================== */
     const tables = seating?.tables ?? [];
     const zones = seating?.zones ?? [];
     const background = seating?.background ?? null;
     const canvasView = seating?.canvasView ?? null;
 
+    console.log("📦 Snapshot tables returned:", tables.length);
+    console.log("🧱 Snapshot zones returned:", zones.length);
+    console.log("🧭 canvasView returned:", canvasView);
+
     /* ======================================================
-       5️⃣ מיפוי מוזמנים (בלי arrivedCount ❗)
+       5️⃣ מיפוי מוזמנים (לא חלק מהקנבס)
     ====================================================== */
     const liveGuests = guests.map((g: any) => ({
-      _id: g._id.toString(),
-      id: g._id.toString(),
-      name: g.name,
-      phone: g.phone || "",
-      tableId: g.tableId ? g.tableId.toString() : null,
-      guestsCount: g.guestsCount ?? 1,
-      rsvp: g.rsvp,
-    }));
+  _id: g._id.toString(),
+  id: g._id.toString(),
+  name: g.name,
+  phone: g.phone || "",
+  tableId: g.tableId ? g.tableId.toString() : null,
+
+  guestsCount: g.guestsCount ?? 1,
+  arrivedCount: g.arrivedCount ?? 0,
+  rsvp: g.rsvp,
+}));
 
     console.log("👤 liveGuests sample:", liveGuests[0] ?? "NO GUESTS");
 
