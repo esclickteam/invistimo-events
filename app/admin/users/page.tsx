@@ -23,6 +23,8 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [impersonating, setImpersonating] = useState<string | null>(null);
+  const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
+
 
   /* =========================
      Load users
@@ -100,13 +102,26 @@ export default function AdminUsersPage() {
   const ok = window.confirm("להסיר את המשתמש מהתצוגה?");
   if (!ok) return;
 
-  setUsers((prev) => prev.filter((u) => u._id !== userId));
+  setHiddenUserIds((prev) => {
+    const updated = [...prev, userId];
+    sessionStorage.setItem(
+      "adminHiddenUsers",
+      JSON.stringify(updated)
+    );
+    return updated;
+  });
 }
 
 
+
   useEffect(() => {
-    loadUsers();
-  }, []);
+  const stored = sessionStorage.getItem("adminHiddenUsers");
+  if (stored) {
+    setHiddenUserIds(JSON.parse(stored));
+  }
+
+  loadUsers();
+}, []);
 
   if (loading) {
     return <div className="text-gray-500">טוען משתמשים…</div>;
@@ -130,7 +145,10 @@ export default function AdminUsersPage() {
           </thead>
 
           <tbody>
-            {users.map((u) => (
+            {users
+  .filter((u) => !hiddenUserIds.includes(u._id))
+  .map((u) => (
+
               <tr key={u._id} className="border-t text-sm">
                 <td className="p-3">{u.name || "-"}</td>
                 <td className="p-3">{u.email}</td>
