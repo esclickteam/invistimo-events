@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 ============================================================ */
 function getTableLayout(rawTable) {
   const seats = Math.max(0, Number(rawTable.seats || 0));
+
   const type =
     rawTable.type === "rectangle" || rawTable.type === "rect"
       ? "banquet"
@@ -187,21 +188,15 @@ const guestIdFromUrl = searchParams.get("guestId");
   const assigned = table.seatedGuests || [];
 
   const occupiedSeatsCount = useMemo(() => {
-  const perGuest = new Map();
-
-  assigned.forEach((s) => {
+  return (table.seatedGuests || []).reduce((sum, s) => {
     const g = guests.find(
-      (guest) =>
-        String(guest.id ?? guest._id) === String(s.guestId)
+      (guest) => String(guest.id ?? guest._id) === String(s.guestId)
     );
-    if (!g) return;
+    return sum + (Number(g?.arrivedCount) || 0);
+  }, 0);
+}, [table.seatedGuests, guests]);
 
-    const count = Number(g.arrivedCount || 0);
-    perGuest.set(String(s.guestId), count);
-  });
 
-  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
-}, [assigned, guests]);
 
 
 
@@ -231,9 +226,11 @@ const tableText = isHighlighted
 
 
   const layout = useMemo(
-    () => getTableLayout(table),
-    [table.type, table.seats]
-  );
+  () => getTableLayout({ ...table, seats: occupiedSeatsCount }),
+  [table.type, occupiedSeatsCount]
+);
+
+
 
   const seatsCoords = layout.coords;
 
@@ -245,9 +242,9 @@ const tableText = isHighlighted
   }
 }, [
   layout.type,
-  table.seats,
-  table.seatedGuests, // 🔥 זה מה שחסר
+  table.seatedGuests, // ⭐ זה הטריגר האמיתי לשינוי כיסאות בלייב
 ]);
+
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
@@ -356,7 +353,8 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+            text={`${table.name}\n${occupiedSeatsCount}/${table.capacity}`}
+
             width={radius * 2}
             height={radius * 2}
             offsetX={radius}
@@ -381,7 +379,8 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+            text={`${table.name}\n${occupiedSeatsCount}/${table.capacity}`}
+
             width={size}
             height={size}
             offsetX={size / 2}
@@ -406,7 +405,8 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+              text={`${table.name}\n${occupiedSeatsCount}/${table.capacity}`}
+
             width={width}
             height={height}
             offsetX={width / 2}
@@ -438,29 +438,12 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isArrived = i < occupiedSeatsCount;
-    const isSeated = i < (table.seats || 0);
-
+    const isSeated = i < occupiedSeatsCount;
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-
-    const seatTopFill = isArrived
-      ? "#bfdbfe"
-      : isSeated
-      ? "#e5e7eb"
-      : "#bfdbfe";
-
-    const seatBodyFill = isArrived
-      ? "#3b82f6"
-      : isSeated
-      ? "#9ca3af"
-      : "#3b82f6";
-
-    const seatStroke = isArrived
-      ? "#2563eb"
-      : isSeated
-      ? "#6b7280"
-      : "#2563eb";
+    const seatTopFill = isSeated ? "#bfdbfe" : "#e5e7eb";
+    const seatBodyFill = isSeated ? "#3b82f6" : "#9ca3af";
+    const seatStroke   = isSeated ? "#2563eb" : "#6b7280";
 
     return (
       <Group key={i} x={c.x} y={c.y} rotation={rotation}>
@@ -485,6 +468,7 @@ const tableText = isHighlighted
       </Group>
     );
   })}
+
 
 
 
