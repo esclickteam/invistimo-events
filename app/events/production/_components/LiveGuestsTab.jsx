@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AddGuestModal from "@/app/components/AddGuestModal";
 import { useSeatingStore } from "@/store/seatingStore";
+import { useParams } from "next/navigation";
+
 
 
 
@@ -33,6 +35,8 @@ function confirmedCountForGuest(g) {
 ========================= */
  export default function LiveGuestsTab({ invitationId }) {
   const router = useRouter();
+  const { eventId } = useParams();
+
 
 
 
@@ -53,6 +57,9 @@ const resetLiveArrivals = useSeatingStore((s) => s.resetLiveArrivals);
 
 const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
+const setTables = useSeatingStore((s) => s.setTables);
+
+
 useEffect(() => {
   setSeatingMode("live");
   return () => setSeatingMode("regular");
@@ -66,6 +73,8 @@ const setGuests = useSeatingStore((s) => s.setGuests);
 const setLiveArrivalsBulk = useSeatingStore(
   (s) => s.setLiveArrivalsBulk
 );
+
+const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
 const tables = useSeatingStore((s) => s.tables);
@@ -93,54 +102,75 @@ const guestTableMap = useMemo(() => {
   async function loadGuestsForLive() {
   try {
     setLoading(true);
+    resetLiveArrivals();
 
-    // 1️⃣ טעינת אורחים (RSVP בלבד – לקוח)
-    const res = await fetch(
-      `/api/guests?invitation=${invitationId}`,
-      {
-        credentials: "include",
-        cache: "no-store",
+      // 1️⃣ טעינת אורחים
+      const res = await fetch(
+        `/api/guests?invitation=${invitationId}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+      if (Array.isArray(data.guests)) {
+        setGuests(data.guests);
       }
-    );
 
-    const data = await res.json();
+      // 2️⃣ הגעה בפועל
+      const liveRes = await fetch(
+        `/api/live-arrivals?invitationId=${invitationId}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
-    if (Array.isArray(data.guests)) {
-      setGuests(data.guests);
-    }
+      const liveData = await liveRes.json();
+      const arrivedMap = {};
+      (liveData || []).forEach((row) => {
+        arrivedMap[row.guestId] = row.arrivedCount;
+      });
 
-    // 2️⃣ 🔹 הגעה בפועל – מפיק בלבד (LiveArrival)
-    const liveRes = await fetch(
-      `/api/live-arrivals?invitationId=${invitationId}`,
-      {
-        credentials: "include",
-        cache: "no-store",
-      }
-    );
+      setLiveArrivalsBulk(arrivedMap);
 
-    const liveData = await liveRes.json();
-
-    const arrivedMap = {};
-    (liveData || []).forEach((row) => {
-      arrivedMap[row.guestId] = row.arrivedCount;
-    });
-
-    setLiveArrivalsBulk(arrivedMap);
-
-  } catch (e) {
-    console.error("❌ Live guests load failed:", e);
-  } finally {
-    setLoading(false);
+      // 3️⃣ 🔴 טעינת שולחנות (חובה בשביל syncArrivedSeats)
+      const tablesRes = await fetch(
+  `/api/seating/${eventId}`,
+  {
+    credentials: "include",
+    cache: "no-store",
   }
+);
+
+      const tablesData = await tablesRes.json();
+      if (Array.isArray(tablesData.tables)) {
+  setTables(tablesData.tables);
+
+  // 🔁 סנכרון ראשוני: הגיעו בפועל → הושבה
+  Object.keys(arrivedMap).forEach((guestId) => {
+    syncArrivedSeats(guestId);
+  });
 }
 
+    } catch (e) {
+      console.error("❌ Live guests load failed:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   loadGuestsForLive();
-}, [invitationId, setGuests, resetLiveArrivals, setLiveArrivalsBulk]);
+}, [
+  invitationId,
+  setGuests,
+  setLiveArrivalsBulk,
+  setTables,
+  syncArrivedSeats,
+]);
 
 
-
-const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
 

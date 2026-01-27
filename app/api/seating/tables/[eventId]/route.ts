@@ -57,7 +57,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
        2️⃣ שליפת הושבה לפי eventId
        מסמך אחד = אירוע אחד
     =============================== */
-    const record = await SeatingTable.findOne({ eventId }).lean();
+const record =
+  (await SeatingTable.findOne({ eventId }).lean()) ||
+  (await SeatingTable.findOne({ invitationId: eventId }).lean());
 
     console.log("📦 RECORD FOUND:", {
       hasRecord: !!record,
