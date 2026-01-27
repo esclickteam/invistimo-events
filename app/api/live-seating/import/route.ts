@@ -5,6 +5,8 @@ import { connectDB } from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
+import LiveArrival from "@/models/LiveArrival";
+
 
 /**
  * 📸 Snapshot מלא של הושבה (כמו אצל הלקוח)
@@ -90,6 +92,18 @@ export async function POST(req: Request) {
 
     console.log("👥 guests found:", guests.length);
 
+    const liveArrivals = await LiveArrival.find({
+  invitationId: invitationObjectId,
+}).lean();
+
+const arrivalMap = new Map(
+  liveArrivals.map((a: any) => [
+    String(a.guestId),
+    a.arrivedCount,
+  ])
+);
+
+
     /* ======================================================
        4️⃣ snapshot – AS IS (⭐ קריטי)
     ====================================================== */
@@ -105,17 +119,22 @@ export async function POST(req: Request) {
     /* ======================================================
        5️⃣ מיפוי מוזמנים (לא חלק מהקנבס)
     ====================================================== */
-    const liveGuests = guests.map((g: any) => ({
-  _id: g._id.toString(),
-  id: g._id.toString(),
-  name: g.name,
-  phone: g.phone || "",
-  tableId: g.tableId ? g.tableId.toString() : null,
+    const liveGuests = guests.map((g: any) => {
+  const arrivedCount =
+    arrivalMap.get(String(g._id)) ?? 0;
 
-  guestsCount: g.guestsCount ?? 1,
-  arrivedCount: g.arrivedCount ?? 0,
-  rsvp: g.rsvp,
-}));
+  return {
+    _id: g._id.toString(),
+    id: g._id.toString(),
+    name: g.name,
+    phone: g.phone || "",
+    tableId: g.tableId ? g.tableId.toString() : null,
+
+    guestsCount: arrivedCount,   // ⭐ קובע כיסאות
+    arrivedCount: arrivedCount,  // ⭐ אמת אחת
+    rsvp: g.rsvp,
+  };
+});
 
     console.log("👤 liveGuests sample:", liveGuests[0] ?? "NO GUESTS");
 
