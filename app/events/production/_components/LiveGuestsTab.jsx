@@ -137,7 +137,7 @@ const guestTableMap = useMemo(() => {
 
       // 3️⃣ 🔴 טעינת שולחנות (חובה בשביל syncArrivedSeats)
       const tablesRes = await fetch(
-  `/api/seating/${eventId}`,
+  `/api/seating/tables?invitationId=${invitationId}`,
   {
     credentials: "include",
     cache: "no-store",
@@ -145,6 +145,9 @@ const guestTableMap = useMemo(() => {
 );
 
       const tablesData = await tablesRes.json();
+
+      console.log("🪑 TABLES LOADED", tablesData.tables);
+
       if (Array.isArray(tablesData.tables)) {
   setTables(tablesData.tables);
 
@@ -164,7 +167,6 @@ const guestTableMap = useMemo(() => {
   loadGuestsForLive();
 }, [
   invitationId,
-  eventId,         
   setGuests,
   setLiveArrivalsBulk,
   setTables,
