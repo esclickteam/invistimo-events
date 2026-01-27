@@ -102,7 +102,6 @@ const guestTableMap = useMemo(() => {
   async function loadGuestsForLive() {
   try {
     setLoading(true);
-    resetLiveArrivals();
 
       // 1️⃣ טעינת אורחים
       const res = await fetch(
@@ -148,14 +147,17 @@ const guestTableMap = useMemo(() => {
 
       console.log("🪑 TABLES LOADED", tablesData.tables);
 
-      if (Array.isArray(tablesData.tables)) {
+  if (Array.isArray(tablesData.tables)) {
   setTables(tablesData.tables);
 
-  // 🔁 סנכרון ראשוני: הגיעו בפועל → הושבה
-  Object.keys(arrivedMap).forEach((guestId) => {
-    syncArrivedSeats(guestId);
+  // ✅ לחכות לפריים הבא אחרי שה־state נטמע
+  requestAnimationFrame(() => {
+    Object.keys(arrivedMap).forEach((guestId) => {
+      syncArrivedSeats(guestId);
+    });
   });
 }
+
 
     } catch (e) {
       console.error("❌ Live guests load failed:", e);
@@ -262,7 +264,6 @@ setGuests(next);
 
   // 🟢 עדכון מיידי ל-UI (אופטימי)
   setLiveArrived(guest._id, next);
-syncArrivedSeats(guest._id);
 
 console.log(
   "AFTER SYNC",
