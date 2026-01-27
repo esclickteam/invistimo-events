@@ -98,12 +98,18 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
 
 setLiveArrived: (guestId, count) => {
   if (get().seatingMode !== "live") return;
+
+  console.log("🟡 setLiveArrived", { guestId, count });
+
   set((state) => ({
     liveArrivals: {
       ...state.liveArrivals,
       [guestId]: count,
     },
   }));
+
+  console.log("🟢 calling syncArrivedSeats", guestId);
+  get().syncArrivedSeats(guestId);
 },
 
 
@@ -897,45 +903,45 @@ const block = findFreeBlock(cleanTable, realCount);
   
 syncArrivedSeats: (guestId) =>
   set((state) => {
-    const arrivedCount =
-      state.liveArrivals[guestId] ?? 0;
+    const arrivedCount = state.liveArrivals[guestId] ?? 0;
+
+    console.log("🔵 syncArrivedSeats", {
+      guestId,
+      arrivedCount,
+    });
 
     const tables = state.tables.map((table) => {
-      if (!table.seatedGuests) return table;
-
-
-      // כל הכיסאות של האורח – ממוינים לפי seatIndex
-      const guestSeats = table.seatedGuests
-        .filter((sg) => String(sg.guestId) === String(guestId))
-        .sort((a, b) => a.seatIndex - b.seatIndex);
+      const guestSeats = (table.seatedGuests || []).filter(
+        (sg) => String(sg.guestId) === String(guestId)
+      );
 
       if (!guestSeats.length) return table;
 
-      // ✂️ משאירים רק arrivedCount כיסאות
-      const seatsToKeep = guestSeats.slice(0, arrivedCount);
-
-      const updatedSeats = table.seatedGuests.filter((sg) => {
-        if (String(sg.guestId) !== String(guestId)) return true;
-
-        // רק הכיסאות שנשארו
-        return seatsToKeep.includes(sg);
+      console.log("🪑 BEFORE", {
+        table: table.name,
+        seats: guestSeats.length,
       });
 
-      // מסמנים arrived=true רק לאלה שנשארו
-      const finalSeats = updatedSeats.map((sg) => {
-  if (String(sg.guestId) !== String(guestId)) return sg;
+      const seatsToKeep = guestSeats
+        .sort((a, b) => a.seatIndex - b.seatIndex)
+        .slice(0, arrivedCount);
 
-  return {
-    ...sg,
-    arrived: seatsToKeep.includes(sg),
-  };
-});
+      console.log("✂️ KEEP", {
+        table: table.name,
+        keep: seatsToKeep.length,
+      });
+
+      const finalSeats = table.seatedGuests.filter((sg) => {
+        if (String(sg.guestId) !== String(guestId)) return true;
+        return seatsToKeep.includes(sg);
+      });
 
       return { ...table, seatedGuests: finalSeats };
     });
 
     return { tables };
   }),
+
 
 
 
