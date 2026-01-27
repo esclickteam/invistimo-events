@@ -220,6 +220,31 @@ const occupiedSeatsCount = isProducer
   ? arrivedSeatsCount
   : assignedSeatsCount;
 
+  useEffect(() => {
+  console.log("🪑 TableRenderer DEBUG", {
+    tableId: table.id,
+    hideSeats,
+    isProducer,
+    assignedSeatsCount,
+    arrivedSeatsCount,
+    occupiedSeatsCount,
+    seatedGuestsRaw: table.seatedGuests,
+    guests: guests.map(g => ({
+      id: g.id ?? g._id,
+      arrivedCount: g.arrivedCount,
+    })),
+  });
+}, [
+  hideSeats,
+  isProducer,
+  assignedSeatsCount,
+  arrivedSeatsCount,
+  occupiedSeatsCount,
+  table.seatedGuests,
+  guests,
+]);
+
+
 
   const isHighlighted =
   highlightedTable === table.id ||
