@@ -191,15 +191,14 @@ const guestIdFromUrl = searchParams.get("guestId");
   const assigned = table.seatedGuests || [];
 
 const occupiedSeatsCount = useMemo(() => {
-  // 🎬 מפיק + לייב → מציירים רק מה שסונכרן בפועל
-  if (isProducer && seatingMode === "live") {
+  if (seatingMode === "live") {
     return Math.min(
-      table.seatedGuests?.length || 0,
+      (table.seatedGuests || []).filter((s) => s.arrived).length,
       Number(table.seats || 0)
     );
   }
 
-  // 👤 מצב רגיל – הושבה רגילה
+  // מצב רגיל – לפי הושבה
   return Math.min(
     table.seatedGuests?.length || 0,
     Number(table.seats || 0)
@@ -208,7 +207,6 @@ const occupiedSeatsCount = useMemo(() => {
   table.seatedGuests,
   table.seats,
   seatingMode,
-  isProducer,
 ]);
 
 
