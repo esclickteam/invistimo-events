@@ -229,7 +229,18 @@ setGuests(next);
 
   // 🟢 עדכון מיידי ל-UI (אופטימי)
   setLiveArrived(guest._id, next);
-  syncArrivedSeats(guest._id);
+syncArrivedSeats(guest._id);
+
+console.log(
+  "AFTER SYNC",
+  useSeatingStore
+    .getState()
+    .tables
+    .map(t => ({
+      table: t.name,
+      count: t.seatedGuests.length
+    }))
+);
 
   try {
     const res = await fetch("/api/live-arrivals/arrived", {
