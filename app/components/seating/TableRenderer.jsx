@@ -441,7 +441,9 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isSeated = i < table.seats && i < occupiedSeatsCount;
+    const maxSeats = table.selectedSeats ?? table.seats;
+const isSeated = i < Math.min(occupiedSeatsCount, maxSeats);
+
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
