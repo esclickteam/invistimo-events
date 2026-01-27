@@ -6,6 +6,7 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useSearchParams } from "next/navigation";
 
+
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
 ============================================================ */
@@ -154,7 +155,15 @@ function getSeatRotation(table, c) {
    TableRenderer
 ============================================================ */
 
-  function TableRenderer({ table, hideSeats = false }) {
+
+
+
+  function TableRenderer({
+  table,
+  hideSeats = false,
+  viewMode = "producer", // ⭐ ברירת מחדל
+}) {
+
 
 
 
@@ -166,30 +175,26 @@ function getSeatRotation(table, c) {
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
 
-  const demoMode = useSeatingStore((s) => s.demoMode);
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
-  const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
-    
-
-  const searchParams = useSearchParams();
+    const searchParams = useSearchParams();
 const from = searchParams.get("from");
 const guestIdFromUrl = searchParams.get("guestId");
 
-const isProducer = !hideSeats;
 
 
 
-  const deleteTable =
-    useSeatingStore((s) => s.deleteTable) ||
-    useSeatingStore((s) => s.removeTable) ||
-    (() => {});
+const isProducer = viewMode === "producer";
 
-  const assigned = table.seatedGuests || [];
+
+
+
+ 
+
 
  const assignedSeatsCount = useMemo(() => {
   return Math.min(
@@ -246,7 +251,9 @@ const occupiedSeatsCount = isProducer
 
 
 
-  const isHighlighted =
+  const assigned = table.seatedGuests || [];
+
+const isHighlighted =
   highlightedTable === table.id ||
   assigned.some((s) => String(s.guestId) === String(selectedGuestId)) ||
   (
