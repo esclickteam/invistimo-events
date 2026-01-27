@@ -187,14 +187,23 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
-  const occupiedSeatsCount = useMemo(() => {
+const seatsToDisplay = useMemo(() => {
+  // 👤 תצוגת לקוח – לפי guestsCount (תכנון)
+  if (from === "personal") {
+    return (table.seatedGuests || []).reduce((sum, s) => {
+      const g = guests.find(
+        (guest) => String(guest.id ?? guest._id) === String(s.guestId)
+      );
+      return sum + (Number(g?.guestsCount) || 0);
+    }, 0);
+  }
+
+  // 🎧 תצוגת מפיק – לפי arrivedCount (LIVE)
   return (table.seatedGuests || []).reduce((sum, s) => {
-    const g = guests.find(
-      (guest) => String(guest.id ?? guest._id) === String(s.guestId)
-    );
-    return sum + (Number(g?.arrivedCount) || 0);
+    return sum + (Number(s.arrivedCount) || 0);
   }, 0);
-}, [table.seatedGuests, guests]);
+}, [from, table.seatedGuests, guests]);
+
 
 
 
@@ -210,7 +219,8 @@ const guestIdFromUrl = searchParams.get("guestId");
   );
 
 
-  const hasArrived = occupiedSeatsCount > 0;
+  const hasArrived = seatsToDisplay > 0;
+
 
 const tableFill = isHighlighted
   ? "#fde047"           // מודגש
@@ -237,14 +247,14 @@ const tableText = isHighlighted
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
   if (tableRef.current) {
-    tableRef.current.clearCache(); // ⭐ חשוב
+    tableRef.current.clearCache();
     tableRef.current.cache();
     tableRef.current.getLayer()?.batchDraw();
   }
 }, [
   layout.type,
   table.seats,
-  occupiedSeatsCount,
+  seatsToDisplay, // ⭐ חובה
 ]);
 
   const updatePositionInStore = () => {
@@ -355,7 +365,8 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+            text={`${table.name}\n${seatsToDisplay}/${table.seats}
+`}
 
 
             width={radius * 2}
@@ -442,7 +453,8 @@ const tableText = isHighlighted
 {!hideSeats &&
   seatsCoords.map((c, i) => {
     const maxSeats = table.selectedSeats ?? table.seats;
-const isSeated = i < Math.min(occupiedSeatsCount, maxSeats);
+const isSeated = i < Math.min(seatsToDisplay, maxSeats);
+
 
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
