@@ -420,19 +420,21 @@ const tableText = isHighlighted
       )}
 
       {/* כפתור סיבוב */}
-      <Group y={-radius - 35} onMouseDown={startRotate}>
-        <Circle radius={12} fill="#64748b" />
-        <Text
-          text="↻"
-          width={24}
-          height={24}
-          offsetX={12}
-          offsetY={12}
-          align="center"
-          verticalAlign="middle"
-          fill="white"
-        />
-      </Group>
+     {!hideSeats && (
+  <Group y={-radius - 35} onMouseDown={startRotate}>
+    <Circle radius={12} fill="#64748b" />
+    <Text
+      text="↻"
+      width={24}
+      height={24}
+      offsetX={12}
+      offsetY={12}
+      align="center"
+      verticalAlign="middle"
+      fill="white"
+    />
+  </Group>
+)}
 
       {/* כסאות */}
 {/* כסאות – מוסתרים במפיק */}
