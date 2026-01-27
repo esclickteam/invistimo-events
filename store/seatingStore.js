@@ -22,8 +22,7 @@ setSeatingMode: (mode) => set({ seatingMode: mode }),
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: isDemo }),
 
-  setLiveMode: (val) =>
-  set({ seatingMode: val ? "live" : "regular" }),
+  setLiveMode: (val) => set({ isLiveMode: val }),
 
 
   draggingGuest: null,
@@ -159,15 +158,8 @@ getSeatingCountForGuest: (guest) => {
 },
 
 getPlannedSeatCount: (guest) => {
-  const { seatingMode, liveArrivals } = get();
-
-  if (seatingMode === "live") {
-    return Number(liveArrivals[guest._id] ?? guest.guestsCount ?? 0);
-  }
-
   return Number(guest.guestsCount || 0);
 },
-
 
 
 
@@ -355,25 +347,22 @@ importSnapshot: (snapshot) => {
       ...t,
       seatedGuests: (t.seatedGuests || []).map((sg) => ({
         ...sg,
-        arrived: sg.arrived ?? false,
+        arrived: sg.arrived ?? false, // ⭐⭐ זה החסר
       })),
     })),
 
-    guests: snapshot.guests || [],
-
-    liveArrivals: Object.fromEntries(
-      (snapshot.guests || []).map((g) => [
-        g._id,
-        g.arrivedCount ?? 0,
-      ])
-    ),
+    
 
     groups: snapshot.groups || [],
+
     background: snapshot.background || null,
-    canvasView: snapshot.canvasView || { scale: 1, x: 0, y: 0 },
+    canvasView: snapshot.canvasView || {
+      scale: 1,
+      x: 0,
+      y: 0,
+    },
   });
 },
-
 
 
 
