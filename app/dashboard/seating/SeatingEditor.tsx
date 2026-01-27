@@ -315,10 +315,7 @@ useEffect(() => {
 
     if (!guest) return sum;
 
-    return sum +
-      (typeof (guest as any).arrivedCount === "number"
-        ? (guest as any).arrivedCount
-        : ((guest as any).guestsCount || 0));
+    return sum + ((guest as any).confirmedCount || 0);
   }, 0) ?? 0;
 
             return (
