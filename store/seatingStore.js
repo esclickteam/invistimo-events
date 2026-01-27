@@ -145,8 +145,10 @@ getGroupSize: (groupId) => {
 },
 
 getGuestSeatCount: (guest) => {
-  if (get().seatingMode !== "live") return 0;
-  return Number(get().liveArrivals[guest._id] ?? 0);
+  if (get().seatingMode === "live") {
+    return Number(get().liveArrivals[guest._id] ?? 0);
+  }
+  return Number(guest.guestsCount || 0);
 },
 
 
@@ -159,6 +161,9 @@ getSeatingCountForGuest: (guest) => {
 },
 
 getPlannedSeatCount: (guest) => {
+  if (get().seatingMode === "live") {
+    return Number(get().liveArrivals[guest._id] ?? 0);
+  }
   return Number(guest.guestsCount || 0);
 },
 
