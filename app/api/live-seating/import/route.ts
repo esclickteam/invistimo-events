@@ -164,8 +164,7 @@ const tables = sanitizeTablesByArrivals(
     name: g.name,
     phone: g.phone || "",
     tableId: g.tableId ? g.tableId.toString() : null,
-
-    guestsCount: arrivedCount,   // ⭐ קובע כיסאות
+    confirmedCount: arrivedCount,
     arrivedCount: arrivedCount,  // ⭐ אמת אחת
     rsvp: g.rsvp,
   };
