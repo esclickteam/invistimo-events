@@ -226,8 +226,8 @@ const tableText = isHighlighted
 
 
   const layout = useMemo(
-  () => getTableLayout({ ...table, seats: occupiedSeatsCount }),
-  [table.type, occupiedSeatsCount]
+  () => getTableLayout({ type: table.type, seats: table.seats }),
+  [table.type, table.seats]
 );
 
 
@@ -237,12 +237,14 @@ const tableText = isHighlighted
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
   if (tableRef.current) {
+    tableRef.current.clearCache(); // ⭐ חשוב
     tableRef.current.cache();
     tableRef.current.getLayer()?.batchDraw();
   }
 }, [
   layout.type,
-  table.seatedGuests, // ⭐ זה הטריגר האמיתי לשינוי כיסאות בלייב
+  table.seats,
+  occupiedSeatsCount,
 ]);
 
   const updatePositionInStore = () => {
@@ -353,7 +355,8 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.capacity}`}
+            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+
 
             width={radius * 2}
             height={radius * 2}
@@ -379,7 +382,7 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.capacity}`}
+  text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
 
             width={size}
             height={size}
@@ -405,7 +408,7 @@ const tableText = isHighlighted
             
           />
           <Text
-              text={`${table.name}\n${occupiedSeatsCount}/${table.capacity}`}
+  text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
 
             width={width}
             height={height}
@@ -438,7 +441,8 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isSeated = i < occupiedSeatsCount;
+    const isSeated = i < table.seats && i < occupiedSeatsCount;
+
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
     const seatTopFill = isSeated ? "#bfdbfe" : "#e5e7eb";
