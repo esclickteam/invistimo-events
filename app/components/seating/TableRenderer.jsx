@@ -187,22 +187,13 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
-  const occupiedSeatsCount = useMemo(() => {
-  const perGuest = new Map();
+ const occupiedSeatsCount = useMemo(() => {
+  return Math.min(
+    (table.seatedGuests || []).length,
+    Number(table.seats || 0)
+  );
+}, [table.seatedGuests, table.seats]);
 
-  assigned.forEach((s) => {
-    const g = guests.find(
-      (guest) =>
-        String(guest.id ?? guest._id) === String(s.guestId)
-    );
-    if (!g) return;
-
-    const count = Number(g.arrivedCount || 0);
-    perGuest.set(String(s.guestId), count);
-  });
-
-  return Array.from(perGuest.values()).reduce((a, b) => a + b, 0);
-}, [assigned, guests]);
 
 
 
