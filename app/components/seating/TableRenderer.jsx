@@ -156,8 +156,6 @@ function getSeatRotation(table, c) {
 
   function TableRenderer({ table, hideSeats = false }) {
 
-      console.log("hideSeats in TableRenderer =", hideSeats);
-
 
 
   const tableRef = useRef(null);

@@ -8,6 +8,8 @@ import UpgradePlanModal from "./UpgradePlanModal";
 import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
 import GroupSidebar from "@/app/components/seating/GroupSidebar";
+import { usePathname } from "next/navigation";
+
 
 
 
@@ -41,6 +43,10 @@ export default function SeatingPage() {
   const [blocked, setBlocked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarTab, setSidebarTab] = useState<"guests" | "groups">("guests");
+
+  const pathname = usePathname();
+const isProducer = pathname.includes("/events/production");
+
 
 
 
@@ -350,7 +356,11 @@ if (grRes.ok) {
 
   {/* 🎨 קנבס */}
   <div className="flex-1 relative">
-    <SeatingEditor background={background?.url || null} />
+    <SeatingEditor
+  background={background?.url || null}
+  hideSeats={isProducer}
+/>
+
   </div>
 
   {/* 🧾 סיידבר אורחים */}
