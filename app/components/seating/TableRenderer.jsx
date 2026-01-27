@@ -190,32 +190,27 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
- const occupiedSeatsCount = useMemo(() => {
-  // 🎬 מפיק + מצב הגיעו בפועל
+const occupiedSeatsCount = useMemo(() => {
+  // 🎬 מפיק + לייב → מציירים רק מה שסונכרן בפועל
   if (isProducer && seatingMode === "live") {
-    const uniqueGuests = new Set(
-      (table.seatedGuests || []).map((sg) => String(sg.guestId))
+    return Math.min(
+      table.seatedGuests?.length || 0,
+      Number(table.seats || 0)
     );
-
-    const arrived = Array.from(uniqueGuests).reduce((sum, guestId) => {
-      return sum + (liveArrivals?.[guestId] || 0);
-    }, 0);
-
-    return Math.min(arrived, Number(table.seats || 0));
   }
 
-  // 👤 מצב רגיל – לפי הושבה
+  // 👤 מצב רגיל – הושבה רגילה
   return Math.min(
-    (table.seatedGuests || []).length,
+    table.seatedGuests?.length || 0,
     Number(table.seats || 0)
   );
 }, [
   table.seatedGuests,
   table.seats,
   seatingMode,
-  liveArrivals,
   isProducer,
 ]);
+
 
 
 
