@@ -240,13 +240,15 @@ const tableText = isHighlighted
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
   if (tableRef.current) {
+    tableRef.current.clearCache();
     tableRef.current.cache();
     tableRef.current.getLayer()?.batchDraw();
   }
 }, [
   layout.type,
   table.seats,
-  table.seatedGuests, // 🔥 זה מה שחסר
+  table.seatedGuests,
+  hideSeats,
 ]);
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
