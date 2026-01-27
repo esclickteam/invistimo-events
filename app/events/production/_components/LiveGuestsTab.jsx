@@ -164,6 +164,7 @@ const guestTableMap = useMemo(() => {
   loadGuestsForLive();
 }, [
   invitationId,
+  eventId,         
   setGuests,
   setLiveArrivalsBulk,
   setTables,
