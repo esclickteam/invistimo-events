@@ -53,8 +53,8 @@ const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
 const setLiveMode = useSeatingStore((s) => s.setLiveMode);
 
 useEffect(() => {
-  setLiveMode(true);
-  return () => setLiveMode(false);
+  setLiveMode("live");
+  return () => setLiveMode("regular");
 }, [setLiveMode]);
 
 
@@ -86,63 +86,49 @@ const guestTableMap = useMemo(() => {
 }, [tables]);
 
 
-  useEffect(() => {
+  const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
+
+useEffect(() => {
   if (!invitationId) return;
 
   async function loadGuestsForLive() {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    // 1️⃣ טעינת אורחים (RSVP בלבד – לקוח)
-    const res = await fetch(
-      `/api/guests?invitation=${invitationId}`,
-      {
-        credentials: "include",
-        cache: "no-store",
+      const res = await fetch(
+        `/api/guests?invitation=${invitationId}`,
+        { credentials: "include", cache: "no-store" }
+      );
+
+      const data = await res.json();
+      if (Array.isArray(data.guests)) {
+        setGuests(data.guests);
       }
-    );
 
-    const data = await res.json();
+      const liveRes = await fetch(
+        `/api/live-arrivals?invitationId=${invitationId}`,
+        { credentials: "include", cache: "no-store" }
+      );
 
-    if (Array.isArray(data.guests)) {
-      setGuests(data.guests);
+      const liveData = await liveRes.json();
+
+      if (liveData?.success && liveData.arrivalMap) {
+        setLiveArrivalsBulk(liveData.arrivalMap);
+
+        Object.keys(liveData.arrivalMap).forEach((guestId) => {
+          syncArrivedSeats(String(guestId));
+        });
+      }
+    } catch (e) {
+      console.error("❌ Live guests load failed:", e);
+    } finally {
+      setLoading(false);
     }
-
-    // 2️⃣ 🔹 הגעה בפועל – מפיק בלבד (LiveArrival)
-    const liveRes = await fetch(
-      `/api/live-arrivals?invitationId=${invitationId}`,
-      {
-        credentials: "include",
-        cache: "no-store",
-      }
-    );
-
-    const liveData = await liveRes.json();
-
-if (liveData?.success && liveData.arrivalMap) {
-  setLiveArrivalsBulk(liveData.arrivalMap);
-
-  // ⭐ סנכרון הכיסאות בפועל
-  Object.keys(liveData.arrivalMap).forEach((guestId) => {
-    syncArrivedSeats(String(guestId));
-  });
-}
-
-
-  } catch (e) {
-    console.error("❌ Live guests load failed:", e);
-  } finally {
-    setLoading(false);
   }
-}
-
 
   loadGuestsForLive();
-}, [invitationId, setGuests, resetLiveArrivals, setLiveArrivalsBulk]);
+}, [invitationId, setGuests, setLiveArrivalsBulk, syncArrivedSeats]);
 
-
-
-const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
 
 
 
