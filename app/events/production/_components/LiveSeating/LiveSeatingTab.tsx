@@ -294,7 +294,7 @@ useEffect(() => {
 
       {/* SIDEBAR */}
       <div className="w-80 border-l bg-white hidden md:block shrink-0">
-        <GuestSidebar onDragStart={startDragGuest} />
+        <GuestSidebar />
       </div>
     </div>
 
