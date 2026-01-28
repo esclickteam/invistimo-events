@@ -3,9 +3,8 @@
 import { useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 
-/* ===============================
-   TYPES
-=============================== */
+/* ================= TYPES ================= */
+
 type Guest = {
   id: string;
   name: string;
@@ -15,80 +14,61 @@ type Guest = {
 type Group = {
   _id: string;
   name: string;
-  tableId?: string | null;
-};
-
-type SeatedGuest = {
-  guestId: string;
 };
 
 type Table = {
   id: string;
   name: string;
   seats: number;
-  seatedGuests?: SeatedGuest[];
+  seatedGuests?: { guestId: string }[];
 };
 
-type FilterType = "all" | "seated" | "unseated";
-
-/* ===============================
-   COMPONENT
-=============================== */
 export default function SeatingSidebar() {
+  /* ===== STORE ===== */
   const guests = useSeatingStore((s) => s.guests) as Guest[];
   const groups = useSeatingStore((s) => s.groups) as Group[];
   const tables = useSeatingStore((s) => s.tables) as Table[];
 
-  const seatGuest = useSeatingStore((s) => s.seatGuest);
-  const seatGroup = useSeatingStore((s) => s.seatGroup);
-  const unseatGroup = useSeatingStore((s) => s.unseatGroup);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
-  const getGroupSize = useSeatingStore((s) => s.getGroupSize);
+  const seatGuestsOnTable = useSeatingStore(
+    (s) => s.seatGuestsOnTable
+  );
 
+  /* ===== UI STATE ===== */
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterType>("all");
+  const [filter, setFilter] = useState<"all" | "seated" | "unseated">("all");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  /* ===============================
-     אורח → שולחן
-  =============================== */
+  /* ===== guest → table ===== */
   const guestTableMap = useMemo(() => {
     const map = new Map<string, Table>();
     tables.forEach((t) =>
-      t.seatedGuests?.forEach((sg) =>
-        map.set(String(sg.guestId), t)
-      )
+      t.seatedGuests?.forEach((sg) => map.set(sg.guestId, t))
     );
     return map;
   }, [tables]);
 
-  /* ===============================
-     קיבוץ אורחים לפי קבוצה
-  =============================== */
+  /* ===== group guests ===== */
   const groupedGuests = useMemo(() => {
     const map: Record<string, Guest[]> = {};
-
     guests.forEach((g) => {
-      const key = g.groupId || "__no_group__";
+      const key = g.groupId ?? "__no_group__";
       if (!map[key]) map[key] = [];
       map[key].push(g);
     });
-
     return map;
   }, [guests]);
 
-  /* ===============================
-     סינון אורח
-  =============================== */
+  /* ===== filters ===== */
   function isGuestVisible(g: Guest) {
     const q = search.toLowerCase();
-    const isSeated = guestTableMap.has(String(g.id));
+    const seated = guestTableMap.has(g.id);
 
-    if (filter === "seated" && !isSeated) return false;
-    if (filter === "unseated" && isSeated) return false;
+    if (filter === "seated" && !seated) return false;
+    if (filter === "unseated" && seated) return false;
 
     const groupName =
-      groups.find((gr) => gr._id === g.groupId)?.name || "";
+      groups.find((gr) => gr._id === g.groupId)?.name ?? "";
 
     return (
       g.name.toLowerCase().includes(q) ||
@@ -96,12 +76,11 @@ export default function SeatingSidebar() {
     );
   }
 
-  /* ===============================
-     RENDER
-  =============================== */
+  /* ================= RENDER ================= */
+
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* 🔍 חיפוש */}
+      {/* Search */}
       <div className="p-3 border-b">
         <input
           value={search}
@@ -111,94 +90,75 @@ export default function SeatingSidebar() {
         />
       </div>
 
-      {/* 🎛 פילטרים */}
+      {/* Filters */}
       <div className="flex gap-1 p-2 border-b">
         {[
-          { id: "all", label: "הכל" },
-          { id: "seated", label: "משובצים" },
-          { id: "unseated", label: "לא משובצים" },
-        ].map((f) => (
+          ["all", "הכל"],
+          ["seated", "משובצים"],
+          ["unseated", "לא משובצים"],
+        ].map(([id, label]) => (
           <button
-            key={f.id}
-            onClick={() => setFilter(f.id as FilterType)}
+            key={id}
+            onClick={() => setFilter(id as any)}
             className={`flex-1 text-xs p-2 rounded ${
-              filter === f.id
-                ? "bg-gray-200 font-semibold"
-                : "text-gray-500"
+              filter === id ? "bg-gray-200 font-semibold" : "text-gray-500"
             }`}
           >
-            {f.label}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* 📂 רשימה */}
+      {/* List */}
       <div className="flex-1 overflow-y-auto">
         {Object.entries(groupedGuests).map(([groupId, list]) => {
+          const visible = list.filter(isGuestVisible);
+          if (!visible.length) return null;
+
           const group =
             groupId !== "__no_group__"
               ? groups.find((g) => g._id === groupId)
               : null;
 
-          const visibleGuests = list.filter(isGuestVisible);
-          if (!visibleGuests.length) return null;
-
           const isOpen = openGroups[groupId];
 
           return (
             <div key={groupId} className="border-b">
-              {/* כותרת קבוצה */}
+              {/* Group header */}
               <div
                 className="p-3 bg-gray-50 flex justify-between items-center cursor-pointer"
                 onClick={() =>
-                  setOpenGroups((o) => ({
-                    ...o,
-                    [groupId]: !o[groupId],
-                  }))
+                  setOpenGroups((o) => ({ ...o, [groupId]: !o[groupId] }))
                 }
               >
                 <span className="font-medium text-sm">
-                  {group ? group.name : "ללא קבוצה"} (
-                  {visibleGuests.length})
+                  {group ? group.name : "ללא קבוצה"} ({visible.length})
                 </span>
 
-                {/* הושבת קבוצה */}
                 {group && (
                   <select
                     className="text-xs border rounded"
-                    value={group.tableId || ""}
                     onChange={(e) => {
                       const tableId = e.target.value;
-                      if (!tableId) unseatGroup(group._id);
-                      else seatGroup(group._id, tableId);
+                      visible.forEach((g) => removeFromSeat(g.id));
+                      if (tableId)
+                        seatGuestsOnTable(tableId, visible);
                     }}
                   >
-                    <option value="">ללא שולחן</option>
-                    {tables.map((t) => {
-                      const free =
-                        t.seats -
-                        (t.seatedGuests?.length || 0);
-
-                      return (
-                        <option
-                          key={t.id}
-                          value={t.id}
-                          disabled={
-                            free < getGroupSize(group._id)
-                          }
-                        >
-                          {t.name} ({t.seatedGuests?.length || 0}/{t.seats})
-                        </option>
-                      );
-                    })}
+                    <option value="">בחר שולחן</option>
+                    {tables.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
                   </select>
                 )}
               </div>
 
-              {/* אורחים בודדים */}
+              {/* Guests */}
               {isOpen &&
-                visibleGuests.map((g) => {
-                  const table = guestTableMap.get(String(g.id));
+                visible.map((g) => {
+                  const table = guestTableMap.get(g.id);
                   return (
                     <div
                       key={g.id}
@@ -207,37 +167,26 @@ export default function SeatingSidebar() {
                       <div>
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-400">
-                          {table
-                            ? `שולחן ${table.name}`
-                            : "לא משובץ"}
+                          {table ? table.name : "לא משובץ"}
                         </div>
                       </div>
 
                       <select
                         className="text-xs border rounded"
-                        value={table?.id || ""}
+                        value={table?.id ?? ""}
                         onChange={(e) => {
                           const tableId = e.target.value;
-                          if (!tableId)
-                            removeFromSeat(String(g.id));
-                          else seatGuest(String(g.id), tableId);
+                          removeFromSeat(g.id);
+                          if (tableId)
+                            seatGuestsOnTable(tableId, [g]);
                         }}
                       >
                         <option value="">ללא</option>
-                        {tables.map((t) => {
-                          const free =
-                            t.seats -
-                            (t.seatedGuests?.length || 0);
-                          return (
-                            <option
-                              key={t.id}
-                              value={t.id}
-                              disabled={free < 1}
-                            >
-                              {t.name}
-                            </option>
-                          );
-                        })}
+                        {tables.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   );
