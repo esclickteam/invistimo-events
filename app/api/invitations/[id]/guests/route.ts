@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import mongoose from "mongoose";
 import Event from "@/models/Event";
+import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 
 const HARD_GUEST_CAP = 10000;
 
@@ -37,7 +38,8 @@ if (!auth?.userId) {
 
 const userId = auth.userId;
 
-    const { name, phone, relation, rsvp, guestsCount, tableNumber } =
+    const { name, phone, relation, rsvp, guestsCount, tableNumber, groupId } =
+
       await req.json();
 
     if (!name || !phone) {
@@ -148,10 +150,17 @@ const userId = auth.userId;
       relation: relation || "",
       rsvp: rsvp || "pending",
       guestsCount: incomingGuests,
+       groupId: groupId || null, 
       tableName: tableNumber ? `שולחן ${tableNumber}` : undefined,
       notes: "",
       token: nanoid(12),
     });
+
+    // ✅ עדכון expectedCount לקבוצה (אם האורח שייך לקבוצה)
+if (guest.groupId) {
+  await recalcGroupExpectedCount(String(guest.groupId));
+}
+
 
     invitation.guests.push(guest._id);
 
@@ -177,6 +186,8 @@ if (!invitation.eventId) {
     );
   }
 }
+
+
 
 
 /* ============================================================
@@ -259,13 +270,29 @@ export async function PUT(
 
 
 
-    const updated = await InvitationGuest.findByIdAndUpdate(
-      guestId,
-      updates,
-      { new: true }
-    );
+    const before = await InvitationGuest.findById(guestId).lean();
 
-    return NextResponse.json({ success: true, guest: updated });
+const updated = await InvitationGuest.findByIdAndUpdate(
+  guestId,
+  {
+    ...updates,
+    ...(typeof guestsCount === "number" ? { guestsCount } : {}),
+  },
+  { new: true }
+).lean();
+
+// ✅ אם השתנתה קבוצה / RSVP / guestsCount → מחשבים מחדש לקבוצה הישנה והחדשה
+const affected = new Set<string>();
+
+if (before?.groupId) affected.add(String(before.groupId));
+if (updated?.groupId) affected.add(String(updated.groupId));
+
+for (const gid of affected) {
+  await recalcGroupExpectedCount(gid);
+}
+
+return NextResponse.json({ success: true, guest: updated });
+
   } catch (err) {
     console.error("❌ PUT error:", err);
     return NextResponse.json(
@@ -296,16 +323,21 @@ export async function DELETE(
     }
 
     const deleted = await InvitationGuest.findOneAndDelete({
-      _id: guestId,
-      invitationId,
-    });
+  _id: guestId,
+  invitationId,
+});
 
-    if (!deleted) {
-      return NextResponse.json(
-        { success: false, error: "Guest not found" },
-        { status: 404 }
-      );
-    }
+if (!deleted) {
+  return NextResponse.json(
+    { success: false, error: "Guest not found" },
+    { status: 404 }
+  );
+}
+
+// ✅ עדכון expectedCount לקבוצה אחרי מחיקה
+if (deleted.groupId) {
+  await recalcGroupExpectedCount(String(deleted.groupId));
+}
 
     await Invitation.findByIdAndUpdate(invitationId, {
       $pull: { guests: deleted._id },
