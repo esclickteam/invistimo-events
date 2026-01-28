@@ -216,10 +216,8 @@ seatGroup: (groupId, tableId) => {
 
 
 
-const totalCount = groupGuests.reduce(
-  (sum, g) => sum + get().getSeatingCountForGuest(g),
-  0
-);
+const totalCount = get().getGroupSize(groupId);
+
 
 
 
