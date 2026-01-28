@@ -97,11 +97,10 @@ const isDemo = pathname.startsWith("/try");
 
   const isAdmin = user?.role === "admin";
 const isProducer = user?.role === "producer";
-const isClient = user?.role === "client";
+const isUser = user?.role === "user";
 
 // אדמין רואה הכל
-
-const canManageEvent = isAdmin || isProducer || isClient;
+const canManageEvent = isAdmin || isProducer || isUser;
 
 
 
@@ -313,7 +312,7 @@ useEffect(() => {
   // ⭐️ DEMO – טעינת נתוני דמו בלבד
   if (!isDemo) return;
 
-  setUser({ plan: "premium" }); // או basic
+setUser({ role: "user", plan: "premium" });
   setInvitation({
     _id: "demo",
     shareId: "demo",
