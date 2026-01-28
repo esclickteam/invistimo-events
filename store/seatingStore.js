@@ -139,6 +139,11 @@ getGroupSize: (groupId) => {
     );
 },
 
+// ⭐️ ספירת מושבים להושבה מה-SIDEBAR (תכנון, לא live)
+getSidebarSeatCount: (guest) => {
+  return Number(guest.guestsCount ?? 1);
+},
+
 getGuestSeatCount: (guest) => {
   const { seatingMode, liveArrivals } = get();
 
