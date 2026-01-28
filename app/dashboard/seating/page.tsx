@@ -5,9 +5,8 @@ import { useState, useEffect, Suspense } from "react";
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
-import GuestSidebar from "./GuestSidebar";
 import MobileGuests from "./MobileGuests";
-import GroupSidebar from "@/app/components/seating/GroupSidebar";
+import SeatingSidebar from "./SeatingSidebar";
 import { usePathname } from "next/navigation";
 
 
@@ -42,7 +41,7 @@ export default function SeatingPage() {
   const [eventId, setEventId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState<"guests" | "groups">("guests");
+  
 
   const pathname = usePathname();
 const isProducer = pathname.includes("/events/production");
@@ -364,44 +363,14 @@ if (grRes.ok) {
   </div>
 
   {/* 🧾 סיידבר אורחים */}
-  {sidebarOpen && (
-  <aside className="hidden md:block w-72 bg-white border-l">
-    {/* Tabs */}
-    <div className="flex border-b">
-      <button
-        onClick={() => setSidebarTab("guests")}
-        className={`flex-1 p-2 text-sm ${
-          sidebarTab === "guests"
-            ? "bg-gray-100 font-semibold"
-            : "text-gray-500"
-        }`}
-      >
-        אורחים
-      </button>
-
-      <button
-        onClick={() => setSidebarTab("groups")}
-        className={`flex-1 p-2 text-sm ${
-          sidebarTab === "groups"
-            ? "bg-gray-100 font-semibold"
-            : "text-gray-500"
-        }`}
-      >
-        קבוצות
-      </button>
-    </div>
-
+  {/* 🧾 סיידבר הושבה מאוחד */}
+{sidebarOpen && (
+  <aside className="hidden md:block w-80 bg-white border-l">
     <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
-      {sidebarTab === "guests" ? (
-  <GuestSidebar variant="desktop" />
-) : (
-  <GroupSidebar variant="desktop" />
-)}
-
+      <SeatingSidebar />
     </Suspense>
   </aside>
 )}
-
 
 
 
