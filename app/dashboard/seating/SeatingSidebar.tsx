@@ -6,7 +6,7 @@ import { useSeatingStore } from "@/store/seatingStore";
 /* ================= TYPES ================= */
 
 type Guest = {
-  id?: string;
+  id?: string; // ✅ זה ה-ID שמשמש את ההושבה (guestId ב-seatedGuests)
   _id: string;
   name: string;
   phone?: string;
@@ -20,7 +20,7 @@ type Group = {
 };
 
 type Table = {
-  id: string;
+  id: string; // ✅ זה ה-ID של השולחן (UUID) – תואם ל-DB שלך
   name: string;
   seats: number;
   seatedGuests: { guestId: string }[];
@@ -44,6 +44,12 @@ export default function SeatingSidebar() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  /* ===== Helper: ID אחיד לאורח בהושבה ===== */
+  function seatGuestId(g: Guest) {
+    // אם יש id (UUID של אורח ההזמנה) זה המפתח שמופיע ב-seatedGuests.guestId
+    return String(g.id ?? g._id);
+  }
 
   /* ===== MAP אורח → שולחן ===== */
   const guestTableMap = useMemo(() => {
@@ -70,13 +76,13 @@ export default function SeatingSidebar() {
   /* ===== FILTER + SEARCH ===== */
   function guestVisible(g: Guest) {
     const q = search.trim().toLowerCase();
-    const isSeated = guestTableMap.has(String(g._id));
+    const gid = seatGuestId(g);
+    const isSeated = guestTableMap.has(gid);
 
     if (filter === "seated" && !isSeated) return false;
     if (filter === "unseated" && isSeated) return false;
 
-    const groupName =
-      groups.find((gr) => gr._id === g.groupId)?.name || "";
+    const groupName = groups.find((gr) => gr._id === g.groupId)?.name || "";
 
     return (
       g.name?.toLowerCase().includes(q) ||
@@ -89,9 +95,7 @@ export default function SeatingSidebar() {
     <aside className="h-full w-[340px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
       {/* ===== Header ===== */}
       <div className="p-4 border-b border-[#ead8cc]">
-        <div className="font-semibold text-base mb-2">
-          הקצאת מקומות
-        </div>
+        <div className="font-semibold text-base mb-2">הקצאת מקומות</div>
 
         <input
           value={search}
@@ -125,9 +129,7 @@ export default function SeatingSidebar() {
       <div className="flex-1 overflow-y-auto">
         {Object.entries(groupedGuests).map(([groupId, list]) => {
           const group =
-            groupId !== "__no_group__"
-              ? groups.find((g) => g._id === groupId)
-              : null;
+            groupId !== "__no_group__" ? groups.find((g) => g._id === groupId) : null;
 
           const visibleGuests = list.filter(guestVisible);
           if (!visibleGuests.length) return null;
@@ -147,8 +149,7 @@ export default function SeatingSidebar() {
                 }
               >
                 <div className="text-sm font-medium">
-                  {group ? group.name : "ללא קבוצה"} (
-                  {visibleGuests.length})
+                  {group ? group.name : "ללא קבוצה"} ({visibleGuests.length})
                 </div>
 
                 {group && (
@@ -163,8 +164,7 @@ export default function SeatingSidebar() {
                   >
                     <option value="">בחר שולחן</option>
                     {tables.map((t) => {
-                      const free =
-                        t.seats - (t.seatedGuests?.length ?? 0);
+                      const free = t.seats - (t.seatedGuests?.length ?? 0);
                       return (
                         <option
                           key={t.id}
@@ -182,7 +182,8 @@ export default function SeatingSidebar() {
               {/* ===== Guests ===== */}
               {isOpen &&
                 visibleGuests.map((g) => {
-                  const table = guestTableMap.get(String(g._id));
+                  const gid = seatGuestId(g);
+                  const table = guestTableMap.get(gid);
 
                   return (
                     <div
@@ -202,10 +203,10 @@ export default function SeatingSidebar() {
                         onChange={(e) => {
                           const tableId = e.target.value;
                           if (!tableId) {
-                            removeFromSeat(String(g._id));
+                            removeFromSeat(gid); // ✅ השתמשי ב-ID של ההושבה
                           } else {
                             assignGuestBlock({
-                              guestId: String(g._id),
+                              guestId: gid, // ✅ השתמשי ב-ID של ההושבה
                               tableId,
                             });
                           }
@@ -213,14 +214,9 @@ export default function SeatingSidebar() {
                       >
                         <option value="">ללא</option>
                         {tables.map((t) => {
-                          const free =
-                            t.seats - (t.seatedGuests?.length ?? 0);
+                          const free = t.seats - (t.seatedGuests?.length ?? 0);
                           return (
-                            <option
-                              key={t.id}
-                              value={t.id}
-                              disabled={free < 1}
-                            >
+                            <option key={t.id} value={t.id} disabled={free < 1}>
                               {t.name}
                             </option>
                           );
