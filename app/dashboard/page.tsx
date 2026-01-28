@@ -100,9 +100,8 @@ const isProducer = user?.role === "producer";
 const isClient = user?.role === "client";
 
 // אדמין רואה הכל
-const isProducerView = isAdmin || isProducer;
-const isClientView = isAdmin || isClient || user?.impersonated === true;
 
+const canManageEvent = isAdmin || isProducer || isClient;
 
 
 
@@ -183,9 +182,9 @@ const [selectedGroupId, setSelectedGroupId] = useState("");
   if (!user) return;
 
   const url =
-    user.role === "producer" && eventIdFromUrl
-      ? `/api/invitations/by-event/${eventIdFromUrl}`
-      : "/api/invitations/my";
+  eventIdFromUrl
+    ? `/api/invitations/by-event/${eventIdFromUrl}`
+    : "/api/invitations/my";
 
   const res = await fetch(url, {
     credentials: "include",
@@ -207,9 +206,9 @@ async function loadEvent() {
   if (!user) return;
 
   const url =
-    user.role === "producer" && eventIdFromUrl
-      ? `/api/events/${eventIdFromUrl}`
-      : "/api/events";
+  eventIdFromUrl
+    ? `/api/events/${eventIdFromUrl}`
+    : "/api/events";
 
   const res = await fetch(url, {
     credentials: "include",
@@ -612,7 +611,8 @@ console.log("INVITATION:", invitation);
     )}
 
 
-       {isClientView && (
+       {canManageEvent && (
+
 
         
   <>
@@ -624,23 +624,25 @@ console.log("INVITATION:", invitation);
       הוספת מוזמנים, שליחת הודעות וסידורי הושבה
     </p>
 
-    {!!user?.createdByProducer && eventIdFromUrl && (
-      <div className="flex flex-wrap gap-3 mb-6">
-        <Link
-          href={`/events/production?eventId=${eventIdFromUrl}`}
-          className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
-        >
-          🎬 הפקת אירוע
-        </Link>
 
-        <Link
-          href={`/events/live?eventId=${eventIdFromUrl}`}
-          className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
-        >
-          🎛️ ניהול אירוע
-        </Link>
-      </div>
-    )}
+      {eventIdFromUrl && (
+  <div className="flex flex-wrap gap-3 mb-6">
+    <Link
+      href={`/events/production?eventId=${eventIdFromUrl}`}
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+    >
+      🎬 הפקת אירוע
+    </Link>
+
+    <Link
+      href={`/events/live?eventId=${eventIdFromUrl}`}
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+    >
+      🎛️ ניהול אירוע
+    </Link>
+  </div>
+)}
+    
 
     {/* תיוג שירות שיחות */}
     {user?.plan === "premium" && (
@@ -821,16 +823,6 @@ console.log("INVITATION:", invitation);
   </>
 )}
 
-{isProducerView && (
-  <div className="hidden md:flex mb-6">
-    <button
-      onClick={() => setOpenAddModal(true)}
-      className="bg-black text-white px-6 py-3 rounded-full font-semibold"
-    >
-      + הוספת מוזמן
-    </button>
-  </div>
-)}
 
 
 
@@ -1058,7 +1050,7 @@ onSeat={(g) =>
       {selectedGuest && (
   <EditGuestModal
   guest={selectedGuest}
-  userRole={user?.role === "admin" ? "admin" : "guest"}
+  userRole={user?.role}
   onClose={() => setSelectedGuest(null)}
   onSuccess={handleGuestUpdated}
 />
