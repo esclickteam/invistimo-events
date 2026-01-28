@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
 
-const NOTES_OPTIONS = ["כשר", "טבעוני", "אלרגיות", "נגישות", "אחר"];
+const NOTES_OPTIONS = ["מחפוד", "טבעוני", "אלרגיות", "נגישות", "אחר"];
 
 export default function PublicInvitePage({ params }: any) {
   const router = useRouter();
