@@ -167,12 +167,13 @@ export async function POST(req: Request) {
     /* ================= QUERY ================= */
     const query: any = { invitationId };
     if (filter === "pending") query.rsvp = "pending";
+
     if (filter === "withTable") {
-      query.$or = [
-        { tableName: { $exists: true, $ne: "" } },
-        { tableNumber: { $exists: true } },
-      ];
-    }
+  query.$or = [
+    { tableName: { $exists: true, $ne: "" } },
+    { tableNumber: { $ne: null } },
+  ];
+}
 
     const location = invitation.eventLocation ?? event?.location;
     const hasLocation = !!(location?.lat && location?.lng);
