@@ -295,6 +295,16 @@ useEffect(() => {
 
   /* ================= LOGIC ================= */
 
+  const buildTestMessage = () => {
+  return message
+    .replace(/היי\s*{{name}},?\s*\n?/g, "היי!\n")
+    .replace(/{{name}}/g, "")
+    .replace(/{{rsvpLink}}/g, "https://www.invistimo.com")
+    .replace(/{{tableName}}/g, "שולחן לדוגמה")
+    .replace(/{{navigationLink}}/g, "");
+};
+
+
   const smsLength = message.length;
 const smsParts = Math.max(1, Math.ceil(smsLength / 160));
 
@@ -498,13 +508,10 @@ const sendTestMessage = async () => {
       credentials: "include",
       body: JSON.stringify({
         phone: testPhone,
-        message: buildMessage(
-          guests[0] ??
-            ({
-              name: "בדיקה",
-              token: "test",
-            } as Guest)
-        ),
+
+        message: buildTestMessage(),
+
+
       }),
     });
 
