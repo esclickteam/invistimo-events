@@ -297,11 +297,9 @@ useEffect(() => {
 
   const buildTestMessage = () => {
   return message
-    .replace(/היי\s*{{name}},?\s*\n?/g, "היי!\n")
-    .replace(/{{name}}/g, "")
-    .replace(/{{rsvpLink}}/g, "https://www.invistimo.com")
-    .replace(/{{tableName}}/g, "שולחן לדוגמה")
-    .replace(/{{navigationLink}}/g, "");
+    // מסיר רק את השם ומשאיר מבנה זהה
+    .replace(/היי\s*{{name}},?\s*\n?/g, "היי\n")
+    .replace(/{{name}}/g, "");
 };
 
 
