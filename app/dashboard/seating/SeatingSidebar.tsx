@@ -75,21 +75,26 @@ export default function SeatingSidebar() {
 
   /* ===== FILTER + SEARCH ===== */
   function guestVisible(g: Guest) {
-    const q = search.trim().toLowerCase();
-    const gid = seatGuestId(g);
-    const isSeated = guestTableMap.has(gid);
+  const q = search.trim().toLowerCase();
+  const gid = seatGuestId(g);
+  const isSeated = guestTableMap.has(gid);
 
-    if (filter === "seated" && !isSeated) return false;
-    if (filter === "unseated" && isSeated) return false;
+  if (filter === "seated" && !isSeated) return false;
+  if (filter === "unseated" && isSeated) return false;
 
-    const groupName = groups.find((gr) => gr._id === g.groupId)?.name || "";
+  // ✅ שם קבוצה מסונכרן (מונע בעיות String/ObjectId)
+  const groupName =
+    groups.find((gr) => String(gr._id) === String(g.groupId))?.name || "";
 
-    return (
-      g.name?.toLowerCase().includes(q) ||
-      g.phone?.includes(q) ||
-      groupName.toLowerCase().includes(q)
-    );
-  }
+  if (!q) return true;
+
+  const nameMatch = (g.name || "").toLowerCase().includes(q);
+  const phoneMatch = String(g.phone || "").includes(q);
+  const groupMatch = groupName.toLowerCase().includes(q);
+
+  return nameMatch || phoneMatch || groupMatch;
+}
+
 
   return (
     <aside className="h-full w-[340px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
