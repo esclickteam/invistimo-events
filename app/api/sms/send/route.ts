@@ -51,9 +51,7 @@ export async function POST(req: Request) {
   try {
     await dbConnect();
 
-    /* ======================================================
-       AUTH
-    ====================================================== */
+    /* ================= AUTH ================= */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -82,9 +80,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ======================================================
-       BALANCE
-    ====================================================== */
+    /* ================= BALANCE ================= */
     const isTrial = !!user.isTrial;
 
     const maxMessages = isTrial
@@ -105,9 +101,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ======================================================
-       BODY
-    ====================================================== */
+    /* ================= BODY ================= */
     const body = (await req.json()) as {
       invitationId?: string;
       filter?: FilterType;
@@ -115,6 +109,7 @@ export async function POST(req: Request) {
       scheduledAt?: string;
       includeGiftLink?: boolean;
       giftLink?: string;
+      messageOverride?: string;
     };
 
     const {
@@ -124,6 +119,7 @@ export async function POST(req: Request) {
       scheduledAt,
       includeGiftLink,
       giftLink,
+      messageOverride,
     } = body;
 
     if (!invitationId || !templateKey) {
@@ -148,9 +144,14 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ======================================================
-       INVITATION + EVENT
-    ====================================================== */
+    /* ⭐️ בחירת מקור הטקסט */
+    const baseTemplateText =
+      messageOverride &&
+      messageOverride.trim() !== template.content.trim()
+        ? messageOverride
+        : template.content;
+
+    /* ================= INVITATION ================= */
     const invitation = await Invitation.findById(invitationId).lean();
     if (!invitation) {
       return NextResponse.json(
@@ -163,12 +164,9 @@ export async function POST(req: Request) {
       ? await Event.findById(invitation.eventId).lean()
       : null;
 
-    /* ======================================================
-       QUERY
-    ====================================================== */
+    /* ================= QUERY ================= */
     const query: any = { invitationId };
     if (filter === "pending") query.rsvp = "pending";
-
     if (filter === "withTable") {
       query.$or = [
         { tableName: { $exists: true, $ne: "" } },
@@ -176,9 +174,13 @@ export async function POST(req: Request) {
       ];
     }
 
-    /* ======================================================
-       SCHEDULE
-    ====================================================== */
+    const location = invitation.eventLocation ?? event?.location;
+    const hasLocation = !!(location?.lat && location?.lng);
+    const navigationLink = hasLocation
+      ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
+      : "";
+
+    /* ================= SCHEDULE ================= */
     if (scheduledAt) {
       const guestsCount = await InvitationGuest.countDocuments(query);
 
@@ -189,44 +191,32 @@ export async function POST(req: Request) {
         );
       }
 
-      const location = invitation.eventLocation ?? event?.location;
-const hasLocation = !!(location?.lat && location?.lng);
+      let messageContent = baseTemplateText
+        .replace(/{{name}}/g, "{{name}}")
+        .replace(
+          /{{rsvpLink}}/g,
+          `https://www.invistimo.com/invite/${invitation.shareId}?token={{token}}`
+        )
+        .replace(/{{tableName}}/g, "{{tableName}}")
+        .replace(/{{navigationLink}}/g, navigationLink);
 
-const navigationLink = hasLocation
-  ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-  : "";
-
-let messageContent = template.content
-  .replace(/{{name}}/g, "{{name}}")
-  .replace(
-    /{{rsvpLink}}/g,
-    `https://www.invistimo.com/invite/${invitation.shareId}?token={{token}}`
-  )
-  .replace(/{{tableName}}/g, "{{tableName}}")
-  .replace(/{{navigationLink}}/g, navigationLink);
-
-if (includeGiftLink && giftLink) {
-  messageContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-}
-
-
-     
+      if (includeGiftLink && giftLink) {
+        messageContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+      }
 
       await ScheduledMessage.create({
-  invitationId,
-  userId: user._id,
-  channel: "sms",
-  filter,
-  templateKey,
-  scheduledAt: new Date(scheduledAt),
-  guestsCount,
-  status: "scheduled",
-
-  // ⭐️ חדש – שומרים לוגיקה, לא טקסט
-  includeGiftLink: !!includeGiftLink,
-  giftLink: giftLink || null,
-  messageContent,
-});
+        invitationId,
+        userId: user._id,
+        channel: "sms",
+        filter,
+        templateKey,
+        scheduledAt: new Date(scheduledAt),
+        guestsCount,
+        status: "scheduled",
+        includeGiftLink: !!includeGiftLink,
+        giftLink: giftLink || null,
+        messageContent,
+      });
 
       return NextResponse.json({
         success: true,
@@ -235,89 +225,77 @@ if (includeGiftLink && giftLink) {
       });
     }
 
-    /* ======================================================
-       SEND NOW
-    ====================================================== */
+    /* ================= SEND NOW ================= */
     const guests = await InvitationGuest.find(query).lean();
     if (!guests.length) {
       return NextResponse.json({ success: true, sent: 0, total: 0 });
     }
 
-    const location = invitation.eventLocation ?? event?.location;
-const hasLocation = !!(location?.lat && location?.lng);
+    const baseMessage = baseTemplateText
+      .replace(/{{name}}/g, "{{name}}")
+      .replace(
+        /{{rsvpLink}}/g,
+        `https://www.invistimo.com/invite/${invitation.shareId}?token={{token}}`
+      )
+      .replace(/{{tableName}}/g, "{{tableName}}")
+      .replace(/{{navigationLink}}/g, navigationLink);
 
-const navigationLink = hasLocation
-  ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-  : "";
+    let sent = 0;
 
-// ✉️ בסיס טקסט אחיד (כמו בתזמון)
-const baseMessage = template.content
-  .replace(/{{name}}/g, "{{name}}")
-  .replace(
-    /{{rsvpLink}}/g,
-    `https://www.invistimo.com/invite/${invitation.shareId}?token={{token}}`
-  )
-  .replace(/{{tableName}}/g, "{{tableName}}")
-  .replace(/{{navigationLink}}/g, navigationLink);
+    for (const guest of guests) {
+      if (sent >= remainingMessages) break;
 
-let sent = 0;
-
-for (const guest of guests) {
-  if (sent >= remainingMessages) break;
-
-  if (
-    template.requiresTable &&
-    !guest.tableName &&
-    typeof guest.tableNumber !== "number"
-  ) {
-    continue;
-  }
-
-  const tableName =
-    guest.tableName ||
-    (typeof guest.tableNumber === "number"
-      ? `שולחן ${guest.tableNumber}`
-      : "");
-
-  let phone = (guest.phone || "").replace(/\D/g, "");
-  if (!phone) continue;
-
-  if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-  else if (!phone.startsWith("972")) phone = "972" + phone;
-
-  // 🔁 החלפת placeholders לאורח בפועל
-  let finalText = baseMessage
-    .replace(/{{name}}/g, guest.name || "")
-    .replace(/{{token}}/g, guest.token || "")
-    .replace(/{{tableName}}/g, tableName);
-
-  if (includeGiftLink && giftLink) {
-    finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-  }
-
-  try {
-    const res = await fetch(
-      "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key: process.env.SMS4FREE_KEY,
-          user: process.env.SMS4FREE_USER,
-          pass: process.env.SMS4FREE_PASS,
-          sender: process.env.SMS4FREE_SENDER,
-          recipient: phone,
-          msg: finalText,
-        }),
+      if (
+        template.requiresTable &&
+        !guest.tableName &&
+        typeof guest.tableNumber !== "number"
+      ) {
+        continue;
       }
-    );
 
-    if (res.ok) sent++;
-  } catch (smsErr) {
-    console.error("❌ SMS SEND ERROR:", smsErr);
-  }
-}
+      const tableName =
+        guest.tableName ||
+        (typeof guest.tableNumber === "number"
+          ? `שולחן ${guest.tableNumber}`
+          : "");
 
+      let phone = (guest.phone || "").replace(/\D/g, "");
+      if (!phone) continue;
+
+      if (phone.startsWith("0")) phone = "972" + phone.slice(1);
+      else if (!phone.startsWith("972")) phone = "972" + phone;
+
+      let finalText = baseMessage
+        .replace(/{{name}}/g, guest.name || "")
+        .replace(/{{token}}/g, guest.token || "")
+        .replace(/{{tableName}}/g, tableName);
+
+      if (includeGiftLink && giftLink) {
+        finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+      }
+
+      try {
+        const res = await fetch(
+          "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              key: process.env.SMS4FREE_KEY,
+              user: process.env.SMS4FREE_USER,
+              pass: process.env.SMS4FREE_PASS,
+              sender: process.env.SMS4FREE_SENDER,
+              recipient: phone,
+              msg: finalText,
+            }),
+          }
+        );
+
+        if (res.ok) sent++;
+      } catch (err) {
+        console.error("❌ SMS SEND ERROR:", err);
+      }
+    }
 
     if (sent > 0) {
       await User.findByIdAndUpdate(user._id, {
@@ -333,13 +311,8 @@ for (const guest of guests) {
     });
   } catch (err: any) {
     console.error("❌ SMS API CRASH:", err);
-
     return NextResponse.json(
-      {
-        success: false,
-        error: "SMS_SEND_FAILED",
-        message: err?.message || "Unknown error",
-      },
+      { success: false, error: "SMS_SEND_FAILED" },
       { status: 500 }
     );
   }

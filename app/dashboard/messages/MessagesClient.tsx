@@ -450,6 +450,7 @@ const loadScheduledMessages = async () => {
   scheduledAt,
   includeGiftLink,
   giftLink,
+  messageOverride: message,
 }),
 });
 
