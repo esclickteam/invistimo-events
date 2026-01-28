@@ -36,6 +36,13 @@ const GroupSchema = new Schema(
       type: Number,
       default: 0,
     },
+
+    /* ✅ NEW: כמות אנשים כוללת בקבוצה (לא תלוי בכמות invitationGuests) */
+    expectedCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
@@ -46,10 +53,7 @@ const GroupSchema = new Schema(
    Indexes
 ============================================================ */
 // ✅ מונע כפילויות שם קבוצה לאותו אירוע
-GroupSchema.index(
-  { eventId: 1, name: 1 },
-  { unique: true }
-);
+GroupSchema.index({ eventId: 1, name: 1 }, { unique: true });
 
 // 🟡 אינדקס ישן – אפשר להשאיר זמנית אם יש דאטה קיים
 // GroupSchema.index({ invitationId: 1, name: 1 });
@@ -57,7 +61,6 @@ GroupSchema.index(
 /* ============================================================
    Model Export (Next.js safe)
 ============================================================ */
-const Group =
-  mongoose.models.Group || mongoose.model("Group", GroupSchema);
+const Group = mongoose.models.Group || mongoose.model("Group", GroupSchema);
 
 export default Group;

@@ -128,14 +128,9 @@ resetLiveArrivals: () =>
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
-  const { guests } = get();
-
-  return guests
-    .filter((g) => g.groupId === groupId)
-    .reduce(
-      (sum, g) => sum + Number(g.guestsCount ?? 0),
-      0
-    );
+  const { groups } = get();
+  const group = groups.find((g) => String(g._id) === String(groupId));
+  return Number(group?.expectedCount ?? 0);
 },
 
 // ⭐️ ספירת מושבים להושבה מה-SIDEBAR (תכנון, לא live)
@@ -216,7 +211,16 @@ seatGroup: (groupId, tableId) => {
 
 
 
+
+
 const totalCount = get().getGroupSize(groupId);
+
+const realCount = groupGuests.reduce(
+  (sum, g) => sum + get().getPlannedSeatCount(g),
+  0
+);
+
+const missingCount = Math.max(0, totalCount - realCount);
 
 
 
@@ -227,16 +231,13 @@ const totalCount = get().getGroupSize(groupId);
   }
 
   // ניקוי קודם של הקבוצה מכל השולחנות
-  let updatedTables = tables.map((t) => ({
-    ...t,
-    seatedGuests: (t.seatedGuests || []).filter(
-      (sg) =>
-        !groupGuests.some(
-          (g) =>
-            String(g.id ?? g._id) === String(sg.guestId)
-        )
-    ),
-  }));
+ let updatedTables = tables.map((t) => ({
+  ...t,
+  seatedGuests: (t.seatedGuests || []).filter(
+    (sg) =>
+      sg.groupId !== groupId // ⬅️ זה השינוי
+  ),
+}));
 
   const targetTable = updatedTables.find(
     (t) => t.id === tableId
@@ -252,21 +253,32 @@ const totalCount = get().getGroupSize(groupId);
 
   let cursor = 0;
 
-const newSeats = groupGuests.flatMap((guest) => {
-  const count = get().getPlannedSeatCount(guest)
+const newSeats = [
+  // 👤 אורחים אמיתיים
+  ...groupGuests.flatMap((guest) => {
+    const count = get().getPlannedSeatCount(guest);
+    const seats = block.slice(cursor, cursor + count);
+    cursor += count;
 
+    return seats.map((seatIndex) => ({
+      guestId: String(guest.id ?? guest._id),
+      seatIndex,
+      arrived: false,
+      groupId,
+    }));
+  }),
 
-
-  const seats = block.slice(cursor, cursor + count);
-  cursor += count;
-
-  return seats.map((seatIndex) => ({
-    guestId: String(guest.id ?? guest._id),
+  // 👥 השלמה וירטואלית לפי expectedCount
+  ...block.slice(cursor, cursor + missingCount).map((seatIndex) => ({
+    guestId: `group:${groupId}`,
     seatIndex,
     arrived: false,
     groupId,
-  }));
-});
+    isVirtual: true,
+  })),
+];
+
+
 
 
   updatedTables = updatedTables.map((t) =>
@@ -919,7 +931,12 @@ syncArrivedSeats: (guestId) =>
 
       // כל הכיסאות של האורח – ממוינים לפי seatIndex
       const guestSeats = table.seatedGuests
-        .filter((sg) => String(sg.guestId) === String(guestId))
+        .filter(
+  (sg) =>
+    !sg.isVirtual &&
+    String(sg.guestId) === String(guestId)
+)
+
         .sort((a, b) => a.seatIndex - b.seatIndex);
 
       if (!guestSeats.length) return table;
