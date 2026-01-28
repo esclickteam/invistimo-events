@@ -445,12 +445,19 @@ const loadScheduledMessages = async () => {
 
   body: JSON.stringify({
   invitationId: invitation._id,
+
+  // ⛔️ filter כבר לא קריטי כשהולכים לפי IDs
+  // אפשר להשאיר או להסיר – השרת יתעלם ממנו אם יש guestIds
   filter,
+
   templateKey,
   scheduledAt,
   includeGiftLink,
   giftLink,
   messageOverride: message,
+
+  // ⭐️ זה החלק הקריטי
+  guestIds: guestsToSend.map((g) => g._id),
 }),
 });
 

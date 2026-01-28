@@ -103,24 +103,27 @@ export async function POST(req: Request) {
 
     /* ================= BODY ================= */
     const body = (await req.json()) as {
-      invitationId?: string;
-      filter?: FilterType;
-      templateKey?: MessageTemplateKey;
-      scheduledAt?: string;
-      includeGiftLink?: boolean;
-      giftLink?: string;
-      messageOverride?: string;
-    };
+  invitationId?: string;
+  filter?: FilterType;
+  templateKey?: MessageTemplateKey;
+  scheduledAt?: string;
+  includeGiftLink?: boolean;
+  giftLink?: string;
+  messageOverride?: string;
+
+  guestIds?: string[]; // ⭐️ חדש – מקור האמת
+};
 
     const {
-      invitationId,
-      filter = "all",
-      templateKey,
-      scheduledAt,
-      includeGiftLink,
-      giftLink,
-      messageOverride,
-    } = body;
+  invitationId,
+  filter = "all",
+  templateKey,
+  scheduledAt,
+  includeGiftLink,
+  giftLink,
+  messageOverride,
+  guestIds,
+} = body;
 
     if (!invitationId || !templateKey) {
       return NextResponse.json(
@@ -175,6 +178,21 @@ export async function POST(req: Request) {
   ];
 }
 
+/* ================= TARGET GUESTS ================= */
+let guestsQuery: any;
+
+if (Array.isArray(guestIds) && guestIds.length > 0) {
+  // ⭐️ מקור אמת מה־UI
+  guestsQuery = {
+    _id: { $in: guestIds },
+    invitationId,
+  };
+} else {
+  // fallback – התנהגות ישנה
+  guestsQuery = query;
+}
+
+
     const location = invitation.eventLocation ?? event?.location;
     const hasLocation = !!(location?.lat && location?.lng);
     const navigationLink = hasLocation
@@ -183,7 +201,8 @@ export async function POST(req: Request) {
 
     /* ================= SCHEDULE ================= */
     if (scheduledAt) {
-      const guestsCount = await InvitationGuest.countDocuments(query);
+      const guestsCount = await InvitationGuest.countDocuments(guestsQuery);
+
 
       if (guestsCount > remainingMessages) {
         return NextResponse.json(
@@ -227,7 +246,8 @@ export async function POST(req: Request) {
     }
 
     /* ================= SEND NOW ================= */
-    const guests = await InvitationGuest.find(query).lean();
+    const guests = await InvitationGuest.find(guestsQuery).lean();
+
     if (!guests.length) {
       return NextResponse.json({ success: true, sent: 0, total: 0 });
     }
