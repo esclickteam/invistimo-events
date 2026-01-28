@@ -393,13 +393,11 @@ if (grRes.ok) {
 
     <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
       {sidebarTab === "guests" ? (
-        <GuestSidebar
-          variant="desktop"
-          onDragStart={handleDragStart}
-        />
-      ) : (
-        <GroupSidebar variant="desktop" />
-      )}
+  <GuestSidebar variant="desktop" />
+) : (
+  <GroupSidebar variant="desktop" />
+)}
+
     </Suspense>
   </aside>
 )}
