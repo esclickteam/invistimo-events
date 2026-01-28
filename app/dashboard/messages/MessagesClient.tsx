@@ -295,14 +295,6 @@ useEffect(() => {
 
   /* ================= LOGIC ================= */
 
-  const buildTestMessage = () => {
-  return message
-    // מסיר רק את השם ומשאיר מבנה זהה
-    .replace(/היי\s*{{name}},?\s*\n?/g, "היי\n")
-    .replace(/{{name}}/g, "");
-};
-
-
   const smsLength = message.length;
 const smsParts = Math.max(1, Math.ceil(smsLength / 160));
 
@@ -365,6 +357,15 @@ const smsParts = Math.max(1, Math.ceil(smsLength / 160));
 
   return finalMessage.trim();
 };
+
+const buildTestMessage = () => {
+  if (!guests[0]) return "";
+
+  return buildMessage(guests[0])
+    // מסיר רק את השם מהפתיח, בלי לגעת בשום דבר אחר
+    .replace(/היי\s*[^,\n]+,?\s*\n?/g, "היי\n");
+};
+
 
 
 
@@ -506,7 +507,7 @@ const sendTestMessage = async () => {
       credentials: "include",
       body: JSON.stringify({
         phone: testPhone,
-
+        
         message: buildTestMessage(),
 
 
