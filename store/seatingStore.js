@@ -133,7 +133,7 @@ getGroupSize: (groupId) => {
   return guests
     .filter((g) => g.groupId === groupId)
     .reduce(
-      (sum, g) => sum + get().getPlannedSeatCount(g),
+      (sum, g) => sum + Number(g.guestsCount ?? 0),
       0
     );
 },
