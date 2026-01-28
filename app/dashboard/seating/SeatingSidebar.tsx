@@ -11,8 +11,6 @@ type Guest = {
   name: string;
   phone?: string;
   groupId?: string | null;
-  tableId?: string | null;
-  guestsCount?: number;
 };
 
 type Group = {
@@ -31,6 +29,7 @@ type Table = {
 type Filter = "all" | "seated" | "unseated";
 
 export default function SeatingSidebar() {
+  /* ===== STORE ===== */
   const guests = useSeatingStore((s) => s.guests) as Guest[];
   const groups = useSeatingStore((s) => s.groups) as Group[];
   const tables = useSeatingStore((s) => s.tables) as Table[];
@@ -41,22 +40,23 @@ export default function SeatingSidebar() {
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
   const getGroupSize = useSeatingStore((s) => s.getGroupSize);
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  /* ===== UI STATE ===== */
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  /* ================= MAP אורח → שולחן ================= */
+  /* ===== MAP אורח → שולחן ===== */
   const guestTableMap = useMemo(() => {
     const map = new Map<string, Table>();
     tables.forEach((t) =>
-      t.seatedGuests.forEach((sg) => {
+      (t.seatedGuests || []).forEach((sg) => {
         map.set(String(sg.guestId), t);
       })
     );
     return map;
   }, [tables]);
 
-  /* ================= GROUP אורחים ================= */
+  /* ===== GROUP אורחים ===== */
   const groupedGuests = useMemo(() => {
     const map: Record<string, Guest[]> = {};
     guests.forEach((g) => {
@@ -67,7 +67,7 @@ export default function SeatingSidebar() {
     return map;
   }, [guests]);
 
-  /* ================= FILTER + SEARCH ================= */
+  /* ===== FILTER + SEARCH ===== */
   function guestVisible(g: Guest) {
     const q = search.trim().toLowerCase();
     const isSeated = guestTableMap.has(String(g._id));
@@ -86,9 +86,9 @@ export default function SeatingSidebar() {
   }
 
   return (
-    <aside className="h-full w-80 flex flex-col bg-[#fdf9f6] border-l">
+    <aside className="h-full w-[340px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
       {/* ===== Header ===== */}
-      <div className="p-4 border-b">
+      <div className="p-4 border-b border-[#ead8cc]">
         <div className="font-semibold text-base mb-2">
           הקצאת מקומות
         </div>
@@ -97,10 +97,10 @@ export default function SeatingSidebar() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="חיפוש אורח / טלפון / קבוצה"
-          className="w-full rounded-lg border px-3 py-2 text-sm bg-white"
+          className="w-full rounded-xl border border-[#e6c3ad] px-3 py-2 text-sm bg-white focus:outline-none"
         />
 
-        <div className="flex gap-1 mt-2">
+        <div className="flex gap-1 mt-3">
           {[
             { id: "all", label: "הכל" },
             { id: "seated", label: "משובצים" },
@@ -109,10 +109,10 @@ export default function SeatingSidebar() {
             <button
               key={f.id}
               onClick={() => setFilter(f.id as Filter)}
-              className={`flex-1 text-xs py-1 rounded-full ${
+              className={`flex-1 text-xs py-1 rounded-full transition ${
                 filter === f.id
                   ? "bg-[#e6c3ad] text-black font-semibold"
-                  : "bg-white text-gray-500 border"
+                  : "bg-white text-gray-500 border border-[#ead8cc]"
               }`}
             >
               {f.label}
@@ -135,7 +135,7 @@ export default function SeatingSidebar() {
           const isOpen = openGroups[groupId];
 
           return (
-            <div key={groupId} className="border-b">
+            <div key={groupId} className="border-b border-[#ead8cc]">
               {/* ===== Group Header ===== */}
               <div
                 className="px-4 py-3 flex justify-between items-center cursor-pointer bg-[#f6ede8]"
@@ -152,35 +152,30 @@ export default function SeatingSidebar() {
                 </div>
 
                 {group && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="text-xs border rounded px-2 py-1 bg-white"
-                      value={group.tableId ?? ""}
-                      onChange={(e) => {
-                        const tableId = e.target.value;
-                        if (!tableId) {
-                          unseatGroup(group._id);
-                        } else {
-                          seatGroup(group._id, tableId);
-                        }
-                      }}
-                    >
-                      <option value="">בחר שולחן</option>
-                      {tables.map((t) => {
-                        const free =
-                          t.seats - (t.seatedGuests?.length ?? 0);
-                        return (
-                          <option
-                            key={t.id}
-                            value={t.id}
-                            disabled={free < getGroupSize(group._id)}
-                          >
-                            {t.name} ({t.seatedGuests.length}/{t.seats})
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
+                  <select
+                    className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
+                    value={group.tableId ?? ""}
+                    onChange={(e) => {
+                      const tableId = e.target.value;
+                      if (!tableId) unseatGroup(group._id);
+                      else seatGroup(group._id, tableId);
+                    }}
+                  >
+                    <option value="">בחר שולחן</option>
+                    {tables.map((t) => {
+                      const free =
+                        t.seats - (t.seatedGuests?.length ?? 0);
+                      return (
+                        <option
+                          key={t.id}
+                          value={t.id}
+                          disabled={free < getGroupSize(group._id)}
+                        >
+                          {t.name} ({t.seatedGuests.length}/{t.seats})
+                        </option>
+                      );
+                    })}
+                  </select>
                 )}
               </div>
 
@@ -202,7 +197,7 @@ export default function SeatingSidebar() {
                       </div>
 
                       <select
-                        className="text-xs border rounded px-2 py-1 bg-white"
+                        className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
                         value={table?.id ?? ""}
                         onChange={(e) => {
                           const tableId = e.target.value;
