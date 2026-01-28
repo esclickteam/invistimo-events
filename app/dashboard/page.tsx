@@ -20,8 +20,9 @@ import Link from "next/link";
 
 
 type EventModel = {
+  _id: string; // ⭐ חובה
   title?: string;
-  date?: string; // YYYY-MM-DD
+  date?: string;
   time?: string;
   location?: {
     address?: string;
@@ -29,6 +30,7 @@ type EventModel = {
     lng?: number | null;
   };
 };
+
 
 
 
@@ -102,31 +104,37 @@ const isUser = user?.role === "user";
 // ⭐ מצב יום האירוע (LIVE)
 const [isLiveDay, setIsLiveDay] = useState(false);
 
+
+// ⭐ state של event – חייב להיות לפני שימוש
+const [event, setEvent] = useState<EventModel | null>(null);
+
+// ⭐ מזהה אירוע אפקטיבי
+const effectiveEventId = eventIdFromUrl || event?._id;
+
 // אדמין רואה הכל
 const canManageEvent = isAdmin || isProducer || isUser;
 
 const toggleLiveDay = async () => {
-  if (!eventIdFromUrl) return;
+  if (!effectiveEventId) {
+    alert("לא נמצא אירוע לעדכון");
+    return;
+  }
 
   const prev = isLiveDay;
   const next = !prev;
 
-  // UI מיידי
   setIsLiveDay(next);
 
   try {
-    const res = await fetch(`/api/events/${eventIdFromUrl}/live-day`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ isLiveDay: next }),
-});
+    const res = await fetch(`/api/events/${effectiveEventId}/live-day`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isLiveDay: next }),
+    });
 
-    if (!res.ok) {
-      throw new Error("Failed");
-    }
+    if (!res.ok) throw new Error("Failed");
   } catch (err) {
-    console.error("Failed to update live day", err);
-    setIsLiveDay(prev); // 🔙 rollback
+    setIsLiveDay(prev);
     alert("❌ לא ניתן לעדכן מצב יום האירוע");
   }
 };
@@ -168,7 +176,7 @@ const toggleLiveDay = async () => {
 
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
-  const [event, setEvent] = useState<EventModel | null>(null);
+  
 const [openGroupModal, setOpenGroupModal] = useState(false);
 const [selectedGroupId, setSelectedGroupId] = useState("");
 
