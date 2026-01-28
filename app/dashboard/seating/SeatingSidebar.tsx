@@ -149,8 +149,10 @@ export default function SeatingSidebar() {
                 }
               >
                 <div className="text-sm font-medium">
-                  {group ? group.name : "ללא קבוצה"} ({visibleGuests.length})
-                </div>
+  {group
+    ? `${group.name} (${getGroupSize(group._id)} אנשים · ${visibleGuests.length} אורחים)`
+    : `ללא קבוצה (${visibleGuests.length})`}
+</div>
 
                 {group && (
                   <select
