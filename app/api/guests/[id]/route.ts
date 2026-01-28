@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,9 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
+    // ✅ נשמור את groupId הקודם כדי לחשב expectedCount לקבוצה הישנה והחדשה
+    const beforeGroupId = guest.groupId ? String(guest.groupId) : null;
+
     /* ===============================
        שדות כלליים
     =============================== */
@@ -98,10 +102,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     /* ===============================
        🔒 guestsCount — רק בעל האירוע / אדמין
     =============================== */
-    if (
-      typeof data.guestsCount === "number" &&
-      data.guestsCount >= 1
-    ) {
+    if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
       guest.guestsCount = data.guestsCount;
     }
 
@@ -113,6 +114,17 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     await guest.save();
+
+    // ✅ סנכרון expectedCount: רק למי שמגיעים (recalc מסנן rsvp:"yes")
+    const afterGroupId = guest.groupId ? String(guest.groupId) : null;
+
+    const affected = new Set<string>();
+    if (beforeGroupId) affected.add(beforeGroupId);
+    if (afterGroupId) affected.add(afterGroupId);
+
+    for (const gid of affected) {
+      await recalcGroupExpectedCount(gid);
+    }
 
     return NextResponse.json({ success: true, guest });
   } catch (error) {
@@ -144,8 +156,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     }
 
     const auth = await getUserIdFromRequest();
-    const isOwner =
-      auth?.userId?.toString() === invitation.ownerId.toString();
+    const isOwner = auth?.userId?.toString() === invitation.ownerId.toString();
     const isAdmin = auth?.role === "admin";
 
     if (!isOwner && !isAdmin) {
@@ -155,7 +166,14 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       );
     }
 
+    // ✅ נשמור קבוצה לפני מחיקה כדי לעדכן expectedCount
+    const groupId = guest.groupId ? String(guest.groupId) : null;
+
     await guest.deleteOne();
+
+    if (groupId) {
+      await recalcGroupExpectedCount(groupId);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
