@@ -120,7 +120,7 @@ const canManageEvent = isAdmin || isProducer || isUser;
   const loadGroups = useGroupStore((s) => s.loadGroups);
 
 
-  const handleGuestUpdated = (updatedGuest: Guest) => {
+  const handleGuestUpdated = async (updatedGuest: Guest) => {
   setGuests((prev) =>
     prev.map((g) =>
       String(g._id) === String(updatedGuest._id)
@@ -128,6 +128,10 @@ const canManageEvent = isAdmin || isProducer || isUser;
         : g
     )
   );
+
+  if (invitationId) {
+    await loadGroups(invitationId);
+  }
 };
 
   const [showImportModal, setShowImportModal] = useState(false);
@@ -927,27 +931,32 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.relation?.trim() || "-"}</td>
           <td className="p-3">
   <GuestGroupSelect
-    value={g.groupId}
-    onChange={async (groupId) => {
-      // ✅ עדכון מיידי ב-UI
-      setGuests((prev) =>
-        prev.map((guest) =>
-          guest._id === g._id
-            ? { ...guest, groupId }
-            : guest
-        )
-      );
+  value={g.groupId}
+  onChange={async (groupId) => {
+    // UI
+    setGuests((prev) =>
+      prev.map((guest) =>
+        guest._id === g._id
+          ? { ...guest, groupId }
+          : guest
+      )
+    );
 
-      // ✅ שמירה ל-DB
-      await fetch(`/api/guests/${g._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ groupId }),
-      });
-    }}
-  />
+    // DB
+    await fetch(`/api/guests/${g._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ groupId }),
+    });
+
+    // ⭐️ חובה
+    await loadGroups(invitationId);
+  }}
+/>
+
+
 </td>
 
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
