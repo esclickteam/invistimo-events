@@ -149,3 +149,4 @@ export default function GroupSidebar({ variant = "desktop" }) {
     </div>
   );
 }
+
