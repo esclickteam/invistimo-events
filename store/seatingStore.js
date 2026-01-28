@@ -158,7 +158,11 @@ getSeatingCountForGuest: (guest) => {
 },
 
 getPlannedSeatCount: (guest) => {
-  return Number(guest.guestsCount || 0);
+  return Number(
+    guest.arrivedCount ??
+    guest.guestsCount ??
+    0
+  );
 },
 
 
