@@ -307,19 +307,8 @@ useEffect(() => {
         <Layer>
           {tables.map((t) => {
 
-            const used =
-  t.seatedGuests?.reduce((sum, sg) => {
-    const guest = guests.find(
-      (g) => String(g._id ?? g.id) === String(sg.guestId)
-    );
+            const used = t.seatedGuests?.length ?? 0;
 
-    if (!guest) return sum;
-
-    return sum +
-      (typeof (guest as any).arrivedCount === "number"
-        ? (guest as any).arrivedCount
-        : ((guest as any).guestsCount || 0));
-  }, 0) ?? 0;
 
             return (
               <TableRenderer
