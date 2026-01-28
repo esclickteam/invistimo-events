@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 
 /* ================= TYPES ================= */
@@ -95,6 +95,22 @@ export default function SeatingSidebar() {
   return nameMatch || phoneMatch || groupMatch;
 }
 
+useEffect(() => {
+  const q = search.trim().toLowerCase();
+  if (!q) return;
+
+  setOpenGroups((prev) => {
+    const next = { ...prev };
+    for (const [groupId, list] of Object.entries(groupedGuests)) {
+      const hasVisible = list.some(guestVisible);
+      if (hasVisible) next[groupId] = true; // ✅ פותח קבוצות עם תוצאות
+    }
+    return next;
+  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [search, groupedGuests]);
+
+
 
   return (
     <aside className="h-full w-[340px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
@@ -134,7 +150,10 @@ export default function SeatingSidebar() {
       <div className="flex-1 overflow-y-auto">
         {Object.entries(groupedGuests).map(([groupId, list]) => {
           const group =
-            groupId !== "__no_group__" ? groups.find((g) => g._id === groupId) : null;
+  groupId !== "__no_group__"
+    ? groups.find((g) => String(g._id) === String(groupId))
+    : null;
+
 
           const visibleGuests = list.filter(guestVisible);
           if (!visibleGuests.length) return null;
