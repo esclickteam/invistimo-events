@@ -23,17 +23,20 @@ export interface ScheduledMessageDocument {
 
   filter: "all" | "pending" | "withTable";
 
+  // ⭐️ מקור אמת לקהל (חדש – בלי שינוי לוגיקה)
+  guestIds?: Types.ObjectId[];
+
   // 🧠 לוגיקה (נשמר לצורכי בקרה / סטטיסטיקה)
   templateKey: MessageTemplateKey;
 
-  // ✉️ מקור אמת – הטקסט הסופי שנשלח (וניתן לעריכה)
+  // ✉️ מקור אמת – הטקסט הסופי שנשלח
   messageContent: string;
 
   // 🎁 מתנה באשראי
   includeGiftLink: boolean;
   giftLink?: string | null;
 
-  // ⚠️ LEGACY – לא בשימוש, נשמר לאחור בלבד
+  // ⚠️ LEGACY – לא בשימוש
   text?: string;
 
   scheduledAt: Date;
@@ -84,8 +87,16 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
       required: true,
     },
 
+    // ⭐️ חדש – קהל נעול לתזמון
+    guestIds: {
+      type: [Schema.Types.ObjectId],
+      ref: "InvitationGuest",
+      default: [],
+      index: true,
+    },
+
     /* ======================
-       TEMPLATE META (לא מקור אמת)
+       TEMPLATE META
     ====================== */
     templateKey: {
       type: String,
@@ -116,7 +127,6 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     /* ======================
        LEGACY / DEBUG
-       (לא בשימוש בלוגיקה)
     ====================== */
     text: {
       type: String,
@@ -161,22 +171,19 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 );
 
 /* ======================================================
-   INDEXES – PERFORMANCE / CRON
+   INDEXES
 ====================================================== */
 
-// הודעות מוכנות לשליחה
 ScheduledMessageSchema.index({
   status: 1,
   scheduledAt: 1,
 });
 
-// היסטוריה לפי הזמנה
 ScheduledMessageSchema.index({
   invitationId: 1,
   createdAt: -1,
 });
 
-// היסטוריה לפי משתמש
 ScheduledMessageSchema.index({
   userId: 1,
   createdAt: -1,

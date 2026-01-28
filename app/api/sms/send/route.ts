@@ -225,18 +225,21 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
       }
 
       await ScheduledMessage.create({
-        invitationId,
-        userId: user._id,
-        channel: "sms",
-        filter,
-        templateKey,
-        scheduledAt: new Date(scheduledAt),
-        guestsCount,
-        status: "scheduled",
-        includeGiftLink: !!includeGiftLink,
-        giftLink: giftLink || null,
-        messageContent,
-      });
+  invitationId,
+  userId: user._id,
+  channel: "sms",
+  filter,
+  templateKey,
+  scheduledAt: new Date(scheduledAt),
+  guestsCount,
+  status: "scheduled",
+  includeGiftLink: !!includeGiftLink,
+  giftLink: giftLink || null,
+  messageContent,
+
+  // ⭐️ קריטי
+  guestIds: Array.isArray(guestIds) ? guestIds : [],
+});
 
       return NextResponse.json({
         success: true,
