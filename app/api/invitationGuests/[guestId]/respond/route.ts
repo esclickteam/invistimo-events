@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
+import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 
 export const dynamic = "force-dynamic"; // מבטל cache של Next.js
 
@@ -45,6 +46,9 @@ export async function POST(request: Request, context: any) {
     /* -------------------------------
        🔧 עדכון אורח בהזמנה
     -------------------------------- */
+    // ✅ שומרים מצב קודם כדי לחשב גם לקבוצה הישנה וגם לחדשה (אם תשתנה בעתיד)
+    const before = await InvitationGuest.findById(guestId).lean();
+
     const updatedGuest = await InvitationGuest.findByIdAndUpdate(
       guestId,
       {
@@ -53,7 +57,7 @@ export async function POST(request: Request, context: any) {
         notes: notes || "",
       },
       { new: true }
-    );
+    ).lean();
 
     if (!updatedGuest) {
       return NextResponse.json(
@@ -62,7 +66,22 @@ export async function POST(request: Request, context: any) {
       );
     }
 
-    console.log("✅ RSVP updated:", updatedGuest);
+    // ✅ סנכרון expectedCount בקבוצה (רק מי שמגיעים)
+    const affected = new Set<string>();
+    if (before?.groupId) affected.add(String(before.groupId));
+    if (updatedGuest?.groupId) affected.add(String(updatedGuest.groupId));
+
+    for (const gid of affected) {
+      await recalcGroupExpectedCount(gid);
+    }
+
+    console.log("✅ RSVP updated:", {
+      guestId: String(updatedGuest._id),
+      rsvp: updatedGuest.rsvp,
+      guestsCount: updatedGuest.guestsCount,
+      groupId: updatedGuest.groupId ? String(updatedGuest.groupId) : null,
+      affectedGroups: [...affected],
+    });
 
     return NextResponse.json(
       {
@@ -73,9 +92,6 @@ export async function POST(request: Request, context: any) {
     );
   } catch (err) {
     console.error("❌ Error updating RSVP:", err);
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
