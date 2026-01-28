@@ -56,20 +56,31 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         GUEST QUERY (LIVE RSVP)
+         GUESTS – SOURCE OF TRUTH
       ====================================================== */
-      const query: any = { invitationId: msg.invitationId };
+      let guests: any[] = [];
 
-      if (msg.filter === "pending") query.rsvp = "pending";
+      if (Array.isArray(msg.guestIds) && msg.guestIds.length > 0) {
+        // ⭐️ מקור אמת – קהל נעול
+        guests = await InvitationGuest.find({
+          _id: { $in: msg.guestIds },
+          invitationId: msg.invitationId,
+        }).lean();
+      } else {
+        // 🔁 fallback להודעות ישנות בלבד
+        const query: any = { invitationId: msg.invitationId };
 
-      if (msg.filter === "withTable") {
-        query.$or = [
-          { tableName: { $exists: true, $ne: "" } },
-          { tableNumber: { $exists: true } },
-        ];
+        if (msg.filter === "pending") query.rsvp = "pending";
+
+        if (msg.filter === "withTable") {
+          query.$or = [
+            { tableName: { $exists: true, $ne: "" } },
+            { tableNumber: { $exists: true } },
+          ];
+        }
+
+        guests = await InvitationGuest.find(query).lean();
       }
-
-      const guests = await InvitationGuest.find(query).lean();
 
       if (!guests.length) {
         msg.status = "sent";
@@ -130,7 +141,6 @@ export async function sendScheduledSms() {
             ? `שולחן ${guest.tableNumber}`
             : "");
 
-        // ✅ SOURCE OF TRUTH
         let finalText = msg.messageContent
           .replace(/{{name}}/g, guest.name || "")
           .replace(/{{token}}/g, guest.token || "")
