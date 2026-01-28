@@ -105,6 +105,31 @@ const [isLiveDay, setIsLiveDay] = useState(false);
 // אדמין רואה הכל
 const canManageEvent = isAdmin || isProducer || isUser;
 
+const toggleLiveDay = async () => {
+  if (!eventIdFromUrl) return;
+
+  const prev = isLiveDay;
+  const next = !prev;
+
+  // UI מיידי
+  setIsLiveDay(next);
+
+  try {
+    const res = await fetch(`/api/events/${eventIdFromUrl}/live-day`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isLiveDay: next }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed");
+    }
+  } catch (err) {
+    console.error("Failed to update live day", err);
+    setIsLiveDay(prev); // 🔙 rollback
+    alert("❌ לא ניתן לעדכן מצב יום האירוע");
+  }
+};
 
 
   useEffect(() => {
@@ -208,9 +233,9 @@ async function loadEvent() {
   if (!user) return;
 
   const url =
-  eventIdFromUrl
-    ? `/api/events/${eventIdFromUrl}`
-    : "/api/events";
+    eventIdFromUrl
+      ? `/api/events/${eventIdFromUrl}`
+      : "/api/events";
 
   const res = await fetch(url, {
     credentials: "include",
@@ -221,10 +246,14 @@ async function loadEvent() {
 
   if (data.success && data.event) {
     setEvent(data.event);
+
+    // ⭐️ זה החלק החדש
+    setIsLiveDay(!!data.event.isLiveDay);
   } else {
     setEvent(null);
   }
 }
+
 
 
 
@@ -833,7 +862,13 @@ console.log("INVITATION:", invitation);
 {/* מצב יום האירוע – Toggle מערכת */}
 <div className="flex justify-end mb-4">
   <button
-    onClick={() => setIsLiveDay(v => !v)}
+    onClick={() => {
+      if (isDemo) {
+        handleDemoBlockedAction();
+        return;
+      }
+      toggleLiveDay();
+    }}
     className={`
       px-3 py-1.5 rounded-full text-xs font-semibold border
       transition
@@ -845,6 +880,7 @@ console.log("INVITATION:", invitation);
     {isLiveDay ? "🔴 יום האירוע פעיל" : "מצב יום האירוע"}
   </button>
 </div>
+
 
 
 
