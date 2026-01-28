@@ -17,8 +17,8 @@ export async function PATCH(
 
     const { isLiveDay } = await req.json();
 
-    const event = await Event.findOneAndUpdate(
-      { _id: params.eventId },
+    const event = await Event.findByIdAndUpdate(
+      params.eventId,
       { isLiveDay: Boolean(isLiveDay) },
       { new: true }
     );
@@ -27,7 +27,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, event });
+    return NextResponse.json({ success: true, isLiveDay: event.isLiveDay });
   } catch (err) {
     console.error("LIVE DAY PATCH ERROR:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

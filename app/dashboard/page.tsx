@@ -116,10 +116,10 @@ const toggleLiveDay = async () => {
 
   try {
     const res = await fetch(`/api/events/${eventIdFromUrl}/live-day`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isLiveDay: next }),
-    });
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ isLiveDay: next }),
+});
 
     if (!res.ok) {
       throw new Error("Failed");
