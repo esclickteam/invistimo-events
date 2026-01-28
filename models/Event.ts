@@ -94,7 +94,7 @@ const EventSchema = new mongoose.Schema(
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: undefined,
+      default: undefined, // ❌ לא null
       index: true,
     },
 
@@ -123,7 +123,7 @@ const EventSchema = new mongoose.Schema(
       default: "wedding",
     },
 
-    title: {
+     title: {
       type: String,
       default: "",
       trim: true,
@@ -136,7 +136,6 @@ const EventSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-
     /* =========================
        תאריך ושעה
     ========================= */
@@ -151,14 +150,6 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-       ⭐️ מצב יום האירוע (LIVE)
-    ========================= */
-    isLiveDay: {
-      type: Boolean,
-      default: false,
-    },
-
-    /* =========================
        מיקום
     ========================= */
     location: {
@@ -169,11 +160,11 @@ const EventSchema = new mongoose.Schema(
       },
       lat: {
         type: Number,
-        default: undefined,
+        default: undefined, // ❌ לא null
       },
       lng: {
         type: Number,
-        default: undefined,
+        default: undefined, // ❌ לא null
       },
     },
 
@@ -185,21 +176,19 @@ const EventSchema = new mongoose.Schema(
       default: [],
     },
 
-    /* =========================
-       תכנון
-    ========================= */
     planning: {
-      eventDefinition: {
-        goal: { type: String, default: "" },
-        vibe: { type: String, default: "" },
-        size: { type: String, default: "" },
-        notes: { type: String, default: "" },
-      },
-      concept: {
-        type: String,
-        default: "",
-      },
-    },
+  eventDefinition: {
+    goal: { type: String, default: "" },
+    vibe: { type: String, default: "" },
+    size: { type: String, default: "" }, // או Number
+    notes: { type: String, default: "" },
+  },
+  concept: {
+    type: String,
+    default: "",
+  },
+},
+
 
     /* =========================
        מגבלות חבילה
@@ -210,7 +199,9 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-       Stripe
+       Stripe (חד־פעמי)
+       ⚠️ אין default, אין index, אין unique
+       ⚠️ האינדקס מנוהל רק בדאטאבייס
     ========================= */
     stripeSessionId: {
       type: String,

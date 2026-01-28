@@ -2,10 +2,6 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-/**
- * 🔹 טאבים "אמיתיים" בלבד
- * LIVE מנוהל בתוך המסכים עצמם (לא כטאב)
- */
 const TABS = [
   { key: "overview", label: "תמונת מצב" },
   { key: "planning", label: "תכנון וקונספט" },
@@ -13,6 +9,10 @@ const TABS = [
   { key: "calendar", label: "לוח שנה ופגישות" },
   { key: "logistics", label: "לוגיסטיקה" },
   { key: "alcohol", label: "אלכוהול" },
+
+  // לייב
+  { key: "live-guests", label: "לייב – אורחים", live: true },
+  { key: "live-seating", label: "לייב – הושבה", live: true },
 ];
 
 export default function ProductionTabs({
@@ -22,59 +22,54 @@ export default function ProductionTabs({
   calendar,
   logistics,
   alcohol,
-
-  // 🧠 נשארים בפרופס אבל לא בשימוש כרגע
   liveGuests,
   liveSeating,
-
   invitation,
-  eventId,
+  eventId, // ⬅️ כבר קיים – רק משתמשים בו נכון
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const rawTab = (searchParams.get("tab") || "overview").split("/")[0];
-
-  /**
-   * 🚧 Guard:
-   * אם מישהו מנסה להגיע ל-live דרך URL ישן
-   * מחזירים אותו לטאב בטוח
-   */
   const activeTab =
-    rawTab.startsWith("live-") ? "overview" : rawTab;
+  (searchParams.get("tab") || "overview").split("/")[0];
+
 
   const changeTab = (tabKey) => {
-    const params = new URLSearchParams(searchParams.toString());
+  const params = new URLSearchParams(searchParams.toString());
 
-    if (eventId && !params.get("eventId")) {
-      params.set("eventId", eventId);
-    }
-
-    params.set("tab", tabKey);
-    router.push(`/events/production?${params.toString()}`);
-  };
-
-  // Guard קיים – נשאר כמו שהוא
-  if (!invitation && activeTab === "overview") {
-    return (
-      <div className="p-10 text-center text-gray-500">
-        <h3 className="text-lg font-semibold mb-2">
-          המשתמש עדיין לא קיבל הזמנה
-        </h3>
-        <p>
-          ההפקה תתאפשר לאחר יצירת הזמנה או אירוע.
-          אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
-        </p>
-      </div>
-    );
+  // אם חסר eventId ב-URL, נשלים מה-prop
+  if (eventId && !params.get("eventId")) {
+    params.set("eventId", eventId);
   }
+
+  // משנים רק tab, משאירים כל השאר
+  params.set("tab", tabKey);
+
+  router.push(`/events/production?${params.toString()}`);
+};
+
+  // Guard – נשאר כמו שהוא (לא שיניתי לוגיקה)
+  if (!invitation && activeTab === "overview") {
+  return (
+    <div className="p-10 text-center text-gray-500">
+      <h3 className="text-lg font-semibold mb-2">
+        המשתמש עדיין לא קיבל הזמנה
+      </h3>
+      <p>
+        ההפקה תתאפשר לאחר יצירת הזמנה או אירוע.
+        אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
+      </p>
+    </div>
+  );
+}
 
   return (
     <div className="space-y-8">
       {/* ================= TABS ================= */}
       <div className="sticky top-16 z-50 bg-[#f7f2ec] border-b border-[#e5dccf]">
+
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-2 overflow-x-auto no-scrollbar py-3 pb-2">
+
             {TABS.map((tab) => {
               const isActive = activeTab === tab.key;
 
@@ -90,6 +85,11 @@ export default function ProductionTabs({
                       isActive
                         ? "bg-black text-white"
                         : "text-black/70 hover:bg-black/5"
+                    }
+                    ${
+                      tab.live && !isActive
+                        ? "border border-black/20"
+                        : ""
                     }
                   `}
                 >
@@ -109,6 +109,8 @@ export default function ProductionTabs({
         {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
         {activeTab === "alcohol" && alcohol}
+        {activeTab === "live-guests" && liveGuests}
+        {activeTab === "live-seating" && liveSeating}
       </div>
     </div>
   );
