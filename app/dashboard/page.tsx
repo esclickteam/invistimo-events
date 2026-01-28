@@ -706,20 +706,6 @@ console.log("INVITATION:", invitation);
   <h2 className="text-2xl font-semibold">
     רשימת מוזמנים
   </h2>
-
-  <button
-  onClick={() => setIsLiveDay(v => !v)}
-  className={`
-    px-3 py-1.5 rounded-full text-xs font-semibold border
-    transition
-    ${isLiveDay
-      ? "bg-red-600 text-white border-red-600"
-      : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"}
-  `}
->
-  {isLiveDay ? "🔴 יום האירוע פעיל" : "מצב יום האירוע"}
-</button>
-
 </div>
 
 
@@ -844,6 +830,21 @@ console.log("INVITATION:", invitation);
   </>
 )}
 
+{/* מצב יום האירוע – Toggle מערכת */}
+<div className="flex justify-end mb-4">
+  <button
+    onClick={() => setIsLiveDay(v => !v)}
+    className={`
+      px-3 py-1.5 rounded-full text-xs font-semibold border
+      transition
+      ${isLiveDay
+        ? "bg-red-600 text-white border-red-600"
+        : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"}
+    `}
+  >
+    {isLiveDay ? "🔴 יום האירוע פעיל" : "מצב יום האירוע"}
+  </button>
+</div>
 
 
 
