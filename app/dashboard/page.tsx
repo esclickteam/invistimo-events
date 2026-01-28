@@ -451,13 +451,15 @@ useEffect(() => {
   // ⭐️ DEMO – לא מפעילים polling בדמו
   if (isDemo) return;
   if (!invitationId) return;
+  if (isLiveDay) return; // ⭐⭐ זה התיקון – ביום האירוע לא מרעננים
 
   const interval = setInterval(() => {
     loadGuests();
-  }, 5000); // כל 5 שניות
+  }, 5000);
 
   return () => clearInterval(interval);
-}, [invitationId, isDemo]);
+}, [invitationId, isDemo, isLiveDay]);
+
 
   /* ============================================================
      Stats (על כל האורחים)
@@ -706,16 +708,18 @@ console.log("INVITATION:", invitation);
   </h2>
 
   <button
-    onClick={() => setIsLiveDay(v => !v)}
-    className={`
-      px-4 py-2 rounded-full text-sm font-semibold
-      ${isLiveDay
-        ? "bg-red-600 text-white"
-        : "bg-gray-200 text-gray-700"}
-    `}
-  >
-    {isLiveDay ? "🔴 יום האירוע פעיל" : "מעבר ליום האירוע"}
-  </button>
+  onClick={() => setIsLiveDay(v => !v)}
+  className={`
+    px-3 py-1.5 rounded-full text-xs font-semibold border
+    transition
+    ${isLiveDay
+      ? "bg-red-600 text-white border-red-600"
+      : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"}
+  `}
+>
+  {isLiveDay ? "🔴 יום האירוע פעיל" : "מצב יום האירוע"}
+</button>
+
 </div>
 
 
