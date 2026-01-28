@@ -99,6 +99,9 @@ const isDemo = pathname.startsWith("/try");
 const isProducer = user?.role === "producer";
 const isUser = user?.role === "user";
 
+// ⭐ מצב יום האירוע (LIVE)
+const [isLiveDay, setIsLiveDay] = useState(false);
+
 // אדמין רואה הכל
 const canManageEvent = isAdmin || isProducer || isUser;
 
@@ -697,9 +700,24 @@ console.log("INVITATION:", invitation);
 
     {/* ===================== רשימת מוזמנים ===================== */}
     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-      <h2 className="text-2xl font-semibold">
-        רשימת מוזמנים
-      </h2>
+      <div className="flex items-center gap-4">
+  <h2 className="text-2xl font-semibold">
+    רשימת מוזמנים
+  </h2>
+
+  <button
+    onClick={() => setIsLiveDay(v => !v)}
+    className={`
+      px-4 py-2 rounded-full text-sm font-semibold
+      ${isLiveDay
+        ? "bg-red-600 text-white"
+        : "bg-gray-200 text-gray-700"}
+    `}
+  >
+    {isLiveDay ? "🔴 יום האירוע פעיל" : "מעבר ליום האירוע"}
+  </button>
+</div>
+
 
       {/* דסקטופ */}
       <div className="hidden md:flex flex-wrap gap-3">
@@ -953,9 +971,90 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
 
-          <td className="p-3 font-semibold">
-  {g.arrivedCount || 0}
+         <td className="p-3 font-semibold">
+  {!isLiveDay ? (
+    g.arrivedCount || 0
+  ) : (
+    <div className="flex items-center gap-2">
+      <button
+        className="px-2 py-1 border rounded"
+        onClick={async () => {
+          if (isDemo) {
+            handleDemoBlockedAction();
+            return;
+          }
+
+          const next = Math.max(0, (g.arrivedCount || 0) - 1);
+
+          setGuests(prev =>
+            prev.map(guest =>
+              guest._id === g._id
+                ? { ...guest, arrivedCount: next }
+                : guest
+            )
+          );
+
+          await fetch("/api/live-arrivals/arrived", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              invitationId,
+              guestId: g._id,
+              arrivedCount: next,
+            }),
+          });
+        }}
+      >
+        −
+      </button>
+
+      <span
+        className={
+          (g.arrivedCount || 0) > g.guestsCount
+
+            ? "text-red-600 font-bold"
+            : ""
+        }
+      >
+        {g.arrivedCount || 0}
+      </span>
+
+      <button
+        className="px-2 py-1 border rounded"
+        onClick={async () => {
+          if (isDemo) {
+            handleDemoBlockedAction();
+            return;
+          }
+
+          const next = (g.arrivedCount || 0) + 1;
+
+          setGuests(prev =>
+            prev.map(guest =>
+              guest._id === g._id
+                ? { ...guest, arrivedCount: next }
+                : guest
+            )
+          );
+
+          await fetch("/api/live-arrivals/arrived", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              invitationId,
+              guestId: g._id,
+              arrivedCount: next,
+            }),
+          });
+        }}
+      >
+        +
+      </button>
+    </div>
+  )}
 </td>
+
+
 
           <td className="p-3">
   {g.tableName
