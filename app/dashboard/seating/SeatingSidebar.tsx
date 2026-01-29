@@ -242,10 +242,15 @@ export default function SeatingSidebar() {
               {/* ===== Guests ===== */}
               {isOpen &&
                 visibleGuests.map((g) => {
-                  const gid = seatGuestId(g);
-                  const table = guestTableMap.get(gid);
+  const gid = seatGuestId(g);
+  const table = guestTableMap.get(gid);
 
-                  return (
+  const plannedCount =
+    useSeatingStore
+      .getState()
+      .getPlannedSeatCount(g);
+
+  return (
                     <div
                       key={g._id}
                       className="px-5 py-2 flex justify-between items-center"
@@ -253,10 +258,12 @@ export default function SeatingSidebar() {
                       <div>
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
-                          {table
-                              ? tableLabel(table)
-                            : "לא משובץ"}
-                        </div>
+  {table
+    ? tableLabel(table)
+    : `לא משובץ · צריך לשבץ: ${plannedCount}`}
+</div>
+
+
                       </div>
 
                       <select
