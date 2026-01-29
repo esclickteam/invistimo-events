@@ -212,7 +212,6 @@ const selectedTable = group?.tableId
     else seatGroup(group._id, tableId);
   }}
 >
-  <option value="">ללא שולחן</option>
 
 
 
@@ -260,7 +259,8 @@ const selectedTable = group?.tableId
 
                       <select
   className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-  value={table?.id ?? ""}
+  value={table?.id}
+
   onChange={(e) => {
     const tableId = e.target.value;
     if (!tableId) {
@@ -270,7 +270,6 @@ const selectedTable = group?.tableId
     }
   }}
 >
-  <option value="">ללא שולחן</option>
 
   {tables.map((t) => {
     const free = t.seats - (t.seatedGuests?.length ?? 0);
