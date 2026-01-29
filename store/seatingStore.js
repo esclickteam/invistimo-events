@@ -166,38 +166,6 @@ getPlannedSeatCount: (guest) => {
   );
 },
 
-getTableDisplayName: (tableId) => {
-  const { tables, groups, guests } = get();
-
-  const table = tables.find((t) => t.id === tableId);
-  if (!table) return "";
-
-  // 1️⃣ קבוצה שמוגדרת ישירות על השולחן
-  const directGroup = groups.find(
-    (g) => String(g.tableId) === String(tableId)
-  );
-  if (directGroup) return directGroup.name;
-
-  // 2️⃣ קבוצה לפי אורחים שיושבים בפועל
-  const seatedGuestIds = (table.seatedGuests || [])
-    .filter((sg) => !sg.isVirtual)
-    .map((sg) => String(sg.guestId));
-
-  const seatedGuests = guests.filter((g) =>
-    seatedGuestIds.includes(String(g.id ?? g._id))
-  );
-
-  const groupId = seatedGuests.find((g) => g.groupId)?.groupId;
-  if (groupId) {
-    const group = groups.find(
-      (g) => String(g._id) === String(groupId)
-    );
-    if (group) return group.name;
-  }
-
-  // 3️⃣ fallback – שם השולחן המקורי
-  return table.name;
-},
 
 
 
@@ -388,12 +356,14 @@ unseatGroup: (groupId) => {
   /* ---------------- INIT ---------------- */
  init: (tables, guests, background = null, canvasView = null) => {
   set({
-    tables: tables || [],
+    tables: (tables || []).map((t) => ({
+      ...t,
+      displayName: t.displayName || "", // ⭐️ חובה
+    })),
     guests: (guests || []).map((g) => ({
-  ...g,
-  rsvp: g.rsvp ?? "pending",
-})),
-
+      ...g,
+      rsvp: g.rsvp ?? "pending",
+    })),
     background,
     canvasView: canvasView || {
       scale: 1,
@@ -410,6 +380,7 @@ importSnapshot: (snapshot) => {
   set({
     tables: (snapshot.tables || []).map((t) => ({
       ...t,
+      displayName: t.displayName || "",
       seatedGuests: (t.seatedGuests || []).map((sg) => ({
         ...sg,
         arrived: sg.arrived ?? false, // ⭐⭐ זה החסר
@@ -551,15 +522,16 @@ background: null,
   const { tables } = get();
 
   const newTable = {
-    id: crypto.randomUUID(), // ✅ קריטי – ID ייחודי באמת
-    name: `שולחן ${tables.length + 1}`,
-    type,
-    seats,
-    x: position?.x ?? 0,     // ✅ מיקום גמיש
-    y: position?.y ?? 0,
-    rotation: 0,
-    seatedGuests: [],
-  };
+  id: crypto.randomUUID(),
+  name: `שולחן ${tables.length + 1}`,
+  displayName: "",          // ⭐️ חדש
+  type,
+  seats,
+  x: position?.x ?? 0,
+  y: position?.y ?? 0,
+  rotation: 0,
+  seatedGuests: [],
+};
 
   set({
     tables: [...tables, newTable], // ✅ append אמיתי
@@ -567,6 +539,17 @@ background: null,
 
   return newTable; // אופציונלי, אבל שימושי ל-auto pan
 },
+
+/* ---------------- UPDATE TABLE DISPLAY NAME ---------------- */
+updateTableDisplayName: (tableId, displayName) =>
+  set((state) => ({
+    tables: state.tables.map((t) =>
+      t.id === tableId
+        ? { ...t, displayName }
+        : t
+    ),
+  })),
+
 
   /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
