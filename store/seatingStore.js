@@ -344,6 +344,17 @@ const newSeats = [
     ),
   });
 
+  fetch(`/api/groups/${groupId}`, {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    tableId,
+    isSeated: true,
+  }),
+});
+
+
   return { ok: true };
 },
 
@@ -715,6 +726,8 @@ dropGuest: () => {
   });
 },
 
+
+
 assignGuestBlock: ({ guestId, tableId }) => {
   const { tables, guests } = get();
 
@@ -948,6 +961,8 @@ const block = findFreeBlock(cleanTable, realCount);
   ),
   guests: [...guests],
 });
+
+
 
   return { ok: true };
 },
