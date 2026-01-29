@@ -418,7 +418,6 @@ unseatGroup: (groupId) => {
 importSnapshot: (snapshot) => {
   if (!snapshot) return;
 
-  // 1) טוענים את הסנאפשוט כמו שהיה
   set({
     tables: (snapshot.tables || []).map((t) => ({
       ...t,
@@ -436,16 +435,6 @@ importSnapshot: (snapshot) => {
       x: 0,
       y: 0,
     },
-  });
-
-  // 2) ⭐️ ריהיידרציה לקבוצות שיושבות לשולחן:
-  // זה יבנה מחדש seatedGuests עם groupId/isVirtual ויחזיר את שם הקבוצה על השולחן
-  const { groups } = get();
-
-  (groups || []).forEach((gr) => {
-    if (gr?.tableId) {
-      get().seatGroup(String(gr._id), String(gr.tableId));
-    }
   });
 },
 
