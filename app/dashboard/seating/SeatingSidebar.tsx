@@ -73,6 +73,11 @@ export default function SeatingSidebar() {
     return map;
   }, [guests]);
 
+  function tableLabel(t: Table, groupName: string) {
+  return `${t.name} – ${groupName} (${t.seatedGuests.length}/${t.seats})`;
+}
+
+
   /* ===== FILTER + SEARCH ===== */
   function guestVisible(g: Guest) {
   const q = search.trim().toLowerCase();
@@ -160,6 +165,14 @@ useEffect(() => {
 
           const isOpen = openGroups[groupId];
 
+          const groupName = group?.name || "";
+const selectedTable = group?.tableId
+  ? tables.find((t) => String(t.id) === String(group.tableId))
+  : null;
+
+
+
+
           return (
             <div key={groupId} className="border-b border-[#ead8cc]">
               {/* ===== Group Header ===== */}
@@ -179,29 +192,39 @@ useEffect(() => {
 </div>
 
                 {group && (
+
                   <select
-                    className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-                    value={group.tableId ?? ""}
-                    onChange={(e) => {
-                      const tableId = e.target.value;
-                      if (!tableId) unseatGroup(group._id);
-                      else seatGroup(group._id, tableId);
-                    }}
-                  >
-                    <option value="">בחר שולחן</option>
-                    {tables.map((t) => {
-                      const free = t.seats - (t.seatedGuests?.length ?? 0);
-                      return (
-                        <option
-                          key={t.id}
-                          value={t.id}
-                          disabled={free < getGroupSize(group._id)}
-                        >
-                          {t.name} ({t.seatedGuests.length}/{t.seats})
-                        </option>
-                      );
-                    })}
-                  </select>
+  className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
+  value={group.tableId ?? ""}
+  onChange={(e) => {
+    const tableId = e.target.value;
+    if (!tableId) unseatGroup(group._id);
+    else seatGroup(group._id, tableId);
+  }}
+>
+  <option value="">
+  {selectedTable ? tableLabel(selectedTable, groupName) : "ללא שולחן"}
+</option>
+
+
+  {tables.map((t) => {
+    const free = t.seats - (t.seatedGuests?.length ?? 0);
+    const label = tableLabel(t, groupName);
+
+
+    return (
+      <option
+        key={t.id}
+        value={t.id}
+        disabled={free < getGroupSize(group._id)}
+      >
+        {label}
+      </option>
+    );
+  })}
+</select>
+
+
                 )}
               </div>
 
@@ -219,7 +242,18 @@ useEffect(() => {
                       <div>
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
-                          {table ? `שולחן ${table.name}` : "לא משובץ"}
+
+                          {table
+  ? (() => {
+      const gName =
+        g.groupId
+          ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name
+          : null;
+
+      return gName ? `${gName} · שולחן ${table.name}` : `שולחן ${table.name}`;
+    })()
+  : "לא משובץ"}
+
                         </div>
                       </div>
 
@@ -243,8 +277,8 @@ useEffect(() => {
                           const free = t.seats - (t.seatedGuests?.length ?? 0);
                           return (
                             <option key={t.id} value={t.id} disabled={free < 1}>
-                              {t.name}
-                            </option>
+  {t.name} ({t.seatedGuests.length}/{t.seats})
+</option>
                           );
                         })}
                       </select>
