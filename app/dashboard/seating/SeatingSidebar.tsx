@@ -6,7 +6,7 @@ import { useSeatingStore } from "@/store/seatingStore";
 /* ================= TYPES ================= */
 
 type Guest = {
-  id?: string;
+  id?: string; // ✅ זה ה-ID שמשמש את ההושבה (guestId ב-seatedGuests)
   _id: string;
   name: string;
   phone?: string;
@@ -24,6 +24,7 @@ type Table = {
   name: string;
   seats: number;
   seatedGuests: { guestId: string }[];
+  groupId?: string | null; // 👈 חובה
 };
 
 type Filter = "all" | "seated" | "unseated";
@@ -45,23 +46,10 @@ export default function SeatingSidebar() {
   const [filter, setFilter] = useState<Filter>("all");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  /* ===== Helper ===== */
+  /* ===== Helper: ID אחיד לאורח בהושבה ===== */
   function seatGuestId(g: Guest) {
+    // אם יש id (UUID של אורח ההזמנה) זה המפתח שמופיע ב-seatedGuests.guestId
     return String(g.id ?? g._id);
-  }
-
-  /* ===== GROUP ↔ TABLE helpers ===== */
-
-  function getGroupForTable(tableId: string) {
-    return groups.find(
-      (g) => g.tableId && String(g.tableId) === String(tableId)
-    );
-  }
-
-  function tableLabel(t: Table) {
-    const group = getGroupForTable(t.id);
-    if (!group) return ""; // לא אמור להופיע בדרופדאון
-    return `${t.name} – ${group.name} (${t.seatedGuests.length}/${t.seats})`;
   }
 
   /* ===== MAP אורח → שולחן ===== */
@@ -86,118 +74,229 @@ export default function SeatingSidebar() {
     return map;
   }, [guests]);
 
+  function tableLabel(t: Table) {
+  const groupName =
+    t.groupId
+      ? groups.find((g) => String(g._id) === String(t.groupId))?.name
+      : null;
+
+  const name = groupName && groupName.trim() ? groupName : "ללא קבוצה";
+
+  return `${t.name} – ${name} (${t.seatedGuests.length}/${t.seats})`;
+}
+
+
+
   /* ===== FILTER + SEARCH ===== */
   function guestVisible(g: Guest) {
-    const q = search.trim().toLowerCase();
-    const gid = seatGuestId(g);
-    const isSeated = guestTableMap.has(gid);
+  const q = search.trim().toLowerCase();
+  const gid = seatGuestId(g);
+  const isSeated = guestTableMap.has(gid);
 
-    if (filter === "seated" && !isSeated) return false;
-    if (filter === "unseated" && isSeated) return false;
+  if (filter === "seated" && !isSeated) return false;
+  if (filter === "unseated" && isSeated) return false;
 
-    const groupName =
-      groups.find((gr) => String(gr._id) === String(g.groupId))?.name || "";
+  // ✅ שם קבוצה מסונכרן (מונע בעיות String/ObjectId)
+  const groupName =
+    groups.find((gr) => String(gr._id) === String(g.groupId))?.name || "";
 
-    if (!q) return true;
+  if (!q) return true;
 
-    return (
-      g.name.toLowerCase().includes(q) ||
-      String(g.phone || "").includes(q) ||
-      groupName.toLowerCase().includes(q)
-    );
-  }
+  const nameMatch = (g.name || "").toLowerCase().includes(q);
+  const phoneMatch = String(g.phone || "").includes(q);
+  const groupMatch = groupName.toLowerCase().includes(q);
 
-  useEffect(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return;
+  return nameMatch || phoneMatch || groupMatch;
+}
 
-    setOpenGroups((prev) => {
-      const next = { ...prev };
-      for (const [groupId, list] of Object.entries(groupedGuests)) {
-        if (list.some(guestVisible)) next[groupId] = true;
-      }
-      return next;
-    });
-  }, [search, groupedGuests]);
+useEffect(() => {
+  const q = search.trim().toLowerCase();
+  if (!q) return;
 
-  /* ================= RENDER ================= */
+  setOpenGroups((prev) => {
+    const next = { ...prev };
+    for (const [groupId, list] of Object.entries(groupedGuests)) {
+      const hasVisible = list.some(guestVisible);
+      if (hasVisible) next[groupId] = true; // ✅ פותח קבוצות עם תוצאות
+    }
+    return next;
+  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [search, groupedGuests]);
+
+
 
   return (
     <aside className="h-full w-[340px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
+      {/* ===== Header ===== */}
+      <div className="p-4 border-b border-[#ead8cc]">
+        <div className="font-semibold text-base mb-2">הקצאת מקומות</div>
+
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש אורח / טלפון / קבוצה"
+          className="w-full rounded-xl border border-[#e6c3ad] px-3 py-2 text-sm bg-white focus:outline-none"
+        />
+
+        <div className="flex gap-1 mt-3">
+          {[
+            { id: "all", label: "הכל" },
+            { id: "seated", label: "משובצים" },
+            { id: "unseated", label: "לא משובצים" },
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id as Filter)}
+              className={`flex-1 text-xs py-1 rounded-full transition ${
+                filter === f.id
+                  ? "bg-[#e6c3ad] text-black font-semibold"
+                  : "bg-white text-gray-500 border border-[#ead8cc]"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ===== List ===== */}
       <div className="flex-1 overflow-y-auto">
         {Object.entries(groupedGuests).map(([groupId, list]) => {
           const group =
-            groupId !== "__no_group__"
-              ? groups.find((g) => String(g._id) === String(groupId))
-              : null;
+  groupId !== "__no_group__"
+    ? groups.find((g) => String(g._id) === String(groupId))
+    : null;
 
-          if (!group) return null;
 
           const visibleGuests = list.filter(guestVisible);
           if (!visibleGuests.length) return null;
 
+          const isOpen = openGroups[groupId];
+
+          const groupName = group?.name || "";
+const selectedTable = group?.tableId
+  ? tables.find((t) => String(t.id) === String(group.tableId))
+  : null;
+
+
+
+
           return (
             <div key={groupId} className="border-b border-[#ead8cc]">
-              <div className="px-4 py-3 flex justify-between items-center bg-[#f6ede8]">
+              {/* ===== Group Header ===== */}
+              <div
+                className="px-4 py-3 flex justify-between items-center cursor-pointer bg-[#f6ede8]"
+                onClick={() =>
+                  setOpenGroups((o) => ({
+                    ...o,
+                    [groupId]: !o[groupId],
+                  }))
+                }
+              >
                 <div className="text-sm font-medium">
-                  {group.name} ({getGroupSize(group._id)} אנשים)
-                </div>
+  {group
+    ? `${group.name} (${getGroupSize(group._id)} אנשים · ${visibleGuests.length} אורחים)`
+    : `ללא קבוצה (${visibleGuests.length})`}
+</div>
 
-                <select
-                  className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-                  value={group.tableId ?? ""}
-                  onChange={(e) => {
-                    const tableId = e.target.value;
-                    if (!tableId) unseatGroup(group._id);
-                    else seatGroup(group._id, tableId);
-                  }}
-                >
-                  {tables
-                    .filter((t) => getGroupForTable(t.id))
-                    .map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {tableLabel(t)}
-                      </option>
-                    ))}
-                </select>
+                {group && (
+
+                  <select
+  className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
+    value={group.tableId ? String(group.tableId) : ""}
+
+  onChange={(e) => {
+    const tableId = e.target.value;
+    if (!tableId) unseatGroup(group._id);
+    else seatGroup(group._id, tableId);
+  }}
+>
+  <option value="">ללא שולחן</option>
+
+
+
+  {tables.map((t) => {
+    const free = t.seats - (t.seatedGuests?.length ?? 0);
+    const label = tableLabel(t);
+
+
+
+    return (
+      <option
+        key={t.id}
+        value={t.id}
+        disabled={free < getGroupSize(group._id)}
+      >
+        {label}
+      </option>
+    );
+  })}
+</select>
+
+
+                )}
               </div>
 
-              {visibleGuests.map((g) => {
-                const table = guestTableMap.get(seatGuestId(g));
+              {/* ===== Guests ===== */}
+              {isOpen &&
+                visibleGuests.map((g) => {
+                  const gid = seatGuestId(g);
+                  const table = guestTableMap.get(gid);
 
-                return (
-                  <div
-                    key={g._id}
-                    className="px-5 py-2 flex justify-between items-center"
-                  >
-                    <div>
-                      <div className="text-sm">{g.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {table ? tableLabel(table) : "לא משובץ"}
-                      </div>
-                    </div>
-
-                    <select
-                      className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-                      value={table?.id ?? ""}
-                      onChange={(e) =>
-                        assignGuestBlock({
-                          guestId: seatGuestId(g),
-                          tableId: e.target.value,
-                        })
-                      }
+                  return (
+                    <div
+                      key={g._id}
+                      className="px-5 py-2 flex justify-between items-center hover:bg-[#f2e6de]"
                     >
-                      {tables
-                        .filter((t) => getGroupForTable(t.id))
-                        .map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {tableLabel(t)}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                );
-              })}
+                      <div>
+                        <div className="text-sm">{g.name}</div>
+                        <div className="text-xs text-gray-500">
+  {table ? tableLabel(table) : "לא משובץ"}
+
+</div>
+
+                      </div>
+
+                      <select
+  className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
+  value={table?.id ?? ""}
+  onChange={(e) => {
+    const tableId = e.target.value;
+    if (!tableId) {
+      removeFromSeat(gid);
+    } else {
+      assignGuestBlock({ guestId: gid, tableId });
+    }
+  }}
+>
+  <option value="">ללא שולחן</option>
+
+  {tables.map((t) => {
+    const free = t.seats - (t.seatedGuests?.length ?? 0);
+
+    // ✅ אם האורח שייך לקבוצה – נציג "שולחן X – שם קבוצה (6/12)"
+    const groupNameForGuest =
+  g.groupId
+    ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name
+    : undefined;
+
+const label = tableLabel(t);
+
+
+
+    return (
+      <option key={t.id} value={t.id} disabled={free < 1}>
+        {label}
+      </option>
+    );
+  })}
+</select>
+
+
+                    </div>
+                  );
+                })}
             </div>
           );
         })}
