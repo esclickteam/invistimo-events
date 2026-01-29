@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React from "react";
 import { useRef, useMemo, useState, useEffect } from "react";
@@ -174,14 +174,12 @@ function getSeatRotation(table, c) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
-  const groups = useSeatingStore((s) => s.groups);
+const groups = useSeatingStore((s) => s.groups);
 
 
-    const getTableDisplayName = useSeatingStore(
-  (s) => s.getTableDisplayName
-);
+  const displayName = table.name; // תמיד "שולחן X"
 
-const displayName = getTableDisplayName(table.id);
+
 
 
 
@@ -205,20 +203,10 @@ const guestIdFromUrl = searchParams.get("guestId");
 
 const seatsTotal = Number(table.seats || 0);
 
-const groupId =
-  assigned.length > 0 ? assigned[0]?.groupId : null;
-
 const groupName =
-  groupId ? groups?.find((g) => String(g._id) === String(groupId))?.name : null;
+  groups.find((g) => String(g.tableId) === String(table.id))?.name || "";
 
-// ✅ מניעת כפילות
-const middleLine =
-  groupName && groupName !== displayName ? `\n${groupName}` : "";
-
-const tableLabel =
-  occupiedSeatsCount > 0
-    ? `${displayName}${middleLine}\n${occupiedSeatsCount}/${seatsTotal}`
-    : `${displayName}\n${occupiedSeatsCount}/${seatsTotal}`;
+const tableLabel = `${displayName}\n${groupName}\n${occupiedSeatsCount}/${seatsTotal}`;
 
 
 
