@@ -206,10 +206,16 @@ const seatsTotal = Number(table.seats || 0);
 
 const tableNumberLine = table.name;
 const displayFromStore = getTableDisplayName(table.id);
-const middleLine = displayFromStore !== table.name ? displayFromStore : "";
 
+// מציגים שם קבוצה אם קיים ושונה משם השולחן
+const middleLine =
+  displayFromStore && displayFromStore !== table.name
+    ? displayFromStore
+    : "";
 
-const tableLabel = `${tableNumberLine}\n${middleLine}\n${occupiedSeatsCount}/${seatsTotal}`;
+const tableLabel = middleLine
+  ? `${tableNumberLine}\n${middleLine}\n${occupiedSeatsCount}/${seatsTotal}`
+  : `${tableNumberLine}\n${occupiedSeatsCount}/${seatsTotal}`;
 
 
 

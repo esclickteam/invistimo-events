@@ -441,17 +441,28 @@ if (tableId) {
 
 
   /* ---------------- INIT ---------------- */
- init: (eventId, tables, guests, background = null, canvasView = null) => {
-
+ init: (
+  eventId,
+  tables,
+  guests,
+  groups = [],          // ⬅️ חדש
+  background = null,
+  canvasView = null
+) => {
   set({
     eventId,
+
     tables: tables || [],
+
     guests: (guests || []).map((g) => ({
-  ...g,
-  rsvp: g.rsvp ?? "pending",
-})),
+      ...g,
+      rsvp: g.rsvp ?? "pending",
+    })),
+
+    groups: groups || [], // ⬅️ קריטי – זה מה שמחזיר את "חברים הדר"
 
     background,
+
     canvasView: canvasView || {
       scale: 1,
       x: 0,
@@ -459,6 +470,7 @@ if (tableId) {
     },
   });
 },
+
 
   /* ================= ⭐ SNAPSHOT IMPORT ================= */
 importSnapshot: (snapshot) => {
