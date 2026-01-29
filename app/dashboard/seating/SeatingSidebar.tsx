@@ -280,9 +280,8 @@ const selectedTable = group?.tableId
         ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name || ""
         : "";
 
-    const label = groupNameForGuest
-      ? `${t.name} – ${groupNameForGuest} (${t.seatedGuests.length}/${t.seats})`
-      : `${t.name} (${t.seatedGuests.length}/${t.seats})`;
+    const label = `${t.name}${groupNameForGuest ? ` – ${groupNameForGuest}` : ""} (${t.seatedGuests.length}/${t.seats})`;
+
 
     return (
       <option key={t.id} value={t.id} disabled={free < 1}>
