@@ -69,9 +69,31 @@ export default function SeatingSidebar() {
   }, [guests]);
 
   const tableLabel = (t: Table) => {
-  const tableGroup = groups.find(
+  // ניסיון 1: קבוצה שמוגדרת ישירות על השולחן
+  let tableGroup = groups.find(
     (g) => String(g.tableId) === String(t.id)
   );
+
+  // ניסיון 2: קבוצה לפי האורחים שיושבים בשולחן
+  if (!tableGroup) {
+    const seatedGuestIds = t.seatedGuests.map(
+      (sg) => String(sg.guestId)
+    );
+
+    const seatedGuests = guests.filter((g) =>
+      seatedGuestIds.includes(String(g.id ?? g._id))
+    );
+
+    const groupId = seatedGuests.find(
+      (g) => g.groupId
+    )?.groupId;
+
+    if (groupId) {
+      tableGroup = groups.find(
+        (g) => String(g._id) === String(groupId)
+      );
+    }
+  }
 
   if (tableGroup) {
     return `${t.name} – ${tableGroup.name} (${t.seatedGuests.length}/${t.seats})`;
@@ -79,6 +101,7 @@ export default function SeatingSidebar() {
 
   return `${t.name} (${t.seatedGuests.length}/${t.seats})`;
 };
+
 
 
   function guestVisible(g: Guest) {
