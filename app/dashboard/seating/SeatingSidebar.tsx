@@ -196,7 +196,8 @@ const selectedTable = group?.tableId
 
                   <select
   className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-  value={group.tableId ?? ""}
+    value={group.tableId ? String(group.tableId) : ""}
+
   onChange={(e) => {
     const tableId = e.target.value;
     if (!tableId) unseatGroup(group._id);
