@@ -356,10 +356,7 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-              text={`${table.name}\n${displayName !== table.name ? displayName + "\n" : ""}${occupiedSeatsCount}/${table.seats}`}
-
-
-
+            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
 
             width={radius * 2}
             height={radius * 2}
@@ -385,10 +382,7 @@ const tableText = isHighlighted
             
           />
           <Text
-              text={`${table.name}\n${displayName !== table.name ? displayName + "\n" : ""}${occupiedSeatsCount}/${table.seats}`}
-
-
-
+            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
 
             width={size}
             height={size}
@@ -414,10 +408,7 @@ const tableText = isHighlighted
             
           />
           <Text
-              text={`${table.name}\n${displayName !== table.name ? displayName + "\n" : ""}${occupiedSeatsCount}/${table.seats}`}
-
-
-
+            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
 
             width={width}
             height={height}
