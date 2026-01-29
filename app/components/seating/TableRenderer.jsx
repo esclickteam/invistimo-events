@@ -211,9 +211,13 @@ const groupId =
 const groupName =
   groupId ? groups?.find((g) => String(g._id) === String(groupId))?.name : null;
 
+// ✅ מניעת כפילות
+const middleLine =
+  groupName && groupName !== displayName ? `\n${groupName}` : "";
+
 const tableLabel =
-  occupiedSeatsCount > 0 && groupName
-    ? `${displayName}\n${groupName}\n${occupiedSeatsCount}/${seatsTotal}`
+  occupiedSeatsCount > 0
+    ? `${displayName}${middleLine}\n${occupiedSeatsCount}/${seatsTotal}`
     : `${displayName}\n${occupiedSeatsCount}/${seatsTotal}`;
 
 
