@@ -69,6 +69,21 @@ export default function SeatingSidebar() {
     return map;
   }, [guests]);
 
+  const getGroupTableId = (groupId: string) => {
+  const table = tables.find((t) =>
+    t.seatedGuests?.some((sg) => {
+      const guest = guests.find(
+        (g) => String(g.id ?? g._id) === String(sg.guestId)
+      );
+
+      return String(guest?.groupId) === String(groupId);
+    })
+  );
+
+  return table?.id ?? "";
+};
+
+
   const tableLabel = (t: Table) => {
   const count = t.seatedGuests?.length ?? 0;
 
@@ -167,7 +182,8 @@ export default function SeatingSidebar() {
                 <select
                   onClick={(e) => e.stopPropagation()}
                   className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-                  value={group?.tableId ?? ""}
+                  value={group ? getGroupTableId(group._id) : ""}
+
                   onChange={(e) => {
                     const tableId = e.target.value;
                     console.log("🟦 GROUP SELECT CHANGE", {
