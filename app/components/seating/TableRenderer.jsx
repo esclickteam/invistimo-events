@@ -177,7 +177,7 @@ function getSeatRotation(table, c) {
 const groups = useSeatingStore((s) => s.groups);
 
 
-  const displayName = table.name; // תמיד "שולחן X"
+const getTableDisplayName = useSeatingStore((s) => s.getTableDisplayName);
 
 
 
@@ -203,20 +203,15 @@ const guestIdFromUrl = searchParams.get("guestId");
 
 const seatsTotal = Number(table.seats || 0);
 
-const groupName = useMemo(() => {
-  const groupId =
-    table.seatedGuests?.find((sg) => sg.groupId)?.groupId;
 
-  if (!groupId) return "";
-
-  return (
-    groups.find((g) => String(g._id) === String(groupId))?.name || ""
-  );
-}, [table.seatedGuests, groups]);
+const tableNumberLine = table.name;
+const displayFromStore = getTableDisplayName(table.id);
+const middleLine = displayFromStore !== table.name ? displayFromStore : "";
 
 
+const tableLabel = `${tableNumberLine}\n${middleLine}\n${occupiedSeatsCount}/${seatsTotal}`;
 
-const tableLabel = `${displayName}\n${groupName}\n${occupiedSeatsCount}/${seatsTotal}`;
+
 
 
 
