@@ -668,8 +668,13 @@ dropGuest: () => {
   });
 
   const targetTable = updatedTables.find(
-    (t) => t.id === highlightedTable
-  );
+  (t) => t.id === highlightedTable
+);
+
+// ⭐ אם לשולחן אין displayName – נשתמש בשם הקבוצה
+if (targetTable && !targetTable.displayName) {
+  targetTable.displayName = group.name;
+}
 
   set({
     tables: updatedTables,
