@@ -167,19 +167,37 @@ getPlannedSeatCount: (guest) => {
 },
 
 getTableDisplayName: (tableId) => {
-  const { groups } = get();
+  const { tables, groups, guests } = get();
 
-  if (!tableId) return "";
+  const table = tables.find((t) => t.id === tableId);
+  if (!table) return "";
 
-  const group = groups.find(
-    (g) =>
-      g.tableId &&
-      String(g.tableId) === String(tableId)
+  // 1️⃣ קבוצה שמוגדרת ישירות על השולחן
+  const directGroup = groups.find(
+    (g) => String(g.tableId) === String(tableId)
+  );
+  if (directGroup) return directGroup.name;
+
+  // 2️⃣ קבוצה לפי אורחים שיושבים בפועל
+  const seatedGuestIds = (table.seatedGuests || [])
+    .filter((sg) => !sg.isVirtual)
+    .map((sg) => String(sg.guestId));
+
+  const seatedGuests = guests.filter((g) =>
+    seatedGuestIds.includes(String(g.id ?? g._id))
   );
 
-  return group?.name || "";
-},
+  const groupId = seatedGuests.find((g) => g.groupId)?.groupId;
+  if (groupId) {
+    const group = groups.find(
+      (g) => String(g._id) === String(groupId)
+    );
+    if (group) return group.name;
+  }
 
+  // 3️⃣ fallback – שם השולחן המקורי
+  return table.name;
+},
 
 
 
@@ -326,17 +344,6 @@ const newSeats = [
     ),
   });
 
-  fetch(`/api/groups/${groupId}`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify({
-    tableId,
-    isSeated: true,
-  }),
-});
-
-
   return { ok: true };
 },
 
@@ -405,9 +412,11 @@ importSnapshot: (snapshot) => {
       ...t,
       seatedGuests: (t.seatedGuests || []).map((sg) => ({
         ...sg,
-        arrived: sg.arrived ?? false,
+        arrived: sg.arrived ?? false, // ⭐⭐ זה החסר
       })),
     })),
+
+    
 
     groups: snapshot.groups || [],
 
@@ -419,7 +428,6 @@ importSnapshot: (snapshot) => {
     },
   });
 },
-
 
 
 
@@ -539,30 +547,25 @@ background: null,
 
 
   /* ---------------- ADD TABLE ---------------- */
-  addTable: async (type, seats, position) => {
-  const res = await fetch("/api/tables", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({
-      type,
-      seats,
-      x: position?.x ?? 0,
-      y: position?.y ?? 0,
-    }),
+  addTable: (type, seats, position) => {
+  const { tables } = get();
+
+  const newTable = {
+    id: crypto.randomUUID(), // ✅ קריטי – ID ייחודי באמת
+    name: `שולחן ${tables.length + 1}`,
+    type,
+    seats,
+    x: position?.x ?? 0,     // ✅ מיקום גמיש
+    y: position?.y ?? 0,
+    rotation: 0,
+    seatedGuests: [],
+  };
+
+  set({
+    tables: [...tables, newTable], // ✅ append אמיתי
   });
 
-  if (!res.ok) {
-    throw new Error("Failed to create table");
-  }
-
-  const tableFromDB = await res.json();
-
-  set((state) => ({
-    tables: [...state.tables, tableFromDB],
-  }));
-
-  return tableFromDB;
+  return newTable; // אופציונלי, אבל שימושי ל-auto pan
 },
 
   /* ---------------- DELETE TABLE ---------------- */
@@ -701,8 +704,6 @@ dropGuest: () => {
     highlightedTable: null,
   });
 },
-
-
 
 assignGuestBlock: ({ guestId, tableId }) => {
   const { tables, guests } = get();
@@ -937,8 +938,6 @@ const block = findFreeBlock(cleanTable, realCount);
   ),
   guests: [...guests],
 });
-
-
 
   return { ok: true };
 },
