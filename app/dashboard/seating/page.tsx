@@ -79,8 +79,7 @@ const isProducer = pathname.includes("/events/production");
     async function load() {
       try {
         /* 🧹 איפוס מוחלט לפני טעינה */
-        useSeatingStore.getState().init(null, [], [], null, null);
-
+        useSeatingStore.getState().init([], [], null, null);
         useZoneStore.getState().setZones([]);
 
         /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
@@ -119,18 +118,17 @@ const isProducer = pathname.includes("/events/production");
 
         /* 3️⃣ שולחנות + אזורים + קנבס */
         const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
-const tData = await tRes.json();
+if (tRes.status === 403) {
+  setBlocked(true);
+  setShowUpgrade(true);
+  return;
+}
 
-/* ⭐ נרמול טבלאות – חובה */
-const normalizedTables = (tData.tables || []).map((t: any) => ({
-  ...t,
-  id: t.id ?? t._id, // ⬅️ השורה הקריטית
-}));
+const tData = await tRes.json();
 
 /* 3️⃣ INIT – טבלאות + אורחים + קנבס */
 init(
-  eventIdFromApi,          // ✅ זה היה חסר
-  normalizedTables,
+  tData.tables || [],
   normalizedGuests,
   tData.background ?? null,
   tData.canvasView ?? null
