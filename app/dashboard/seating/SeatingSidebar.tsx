@@ -80,7 +80,8 @@ export default function SeatingSidebar() {
       ? groups.find((g) => String(g._id) === String(t.groupId))?.name
       : null;
 
-  const name = groupName && groupName.trim() ? groupName : "ללא קבוצה";
+  const name = groupName ?? "";
+
 
   return `${t.name} – ${name} (${t.seatedGuests.length}/${t.seats})`;
 }
@@ -215,7 +216,10 @@ const selectedTable = group?.tableId
 
 
 
-  {tables.map((t) => {
+  {tables
+  .filter((t) => t.groupId) // 👈 רק שולחנות עם קבוצה
+  .map((t) => {
+
     const free = t.seats - (t.seatedGuests?.length ?? 0);
     const label = tableLabel(t);
 
@@ -271,7 +275,10 @@ const selectedTable = group?.tableId
   }}
 >
 
-  {tables.map((t) => {
+  {tables
+  .filter((t) => t.groupId) // 👈 רק שולחנות עם קבוצה
+  .map((t) => {
+
     const free = t.seats - (t.seatedGuests?.length ?? 0);
 
     // ✅ אם האורח שייך לקבוצה – נציג "שולחן X – שם קבוצה (6/12)"
