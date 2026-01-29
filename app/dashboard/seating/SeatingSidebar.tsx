@@ -68,10 +68,18 @@ export default function SeatingSidebar() {
     return map;
   }, [guests]);
 
-  const tableLabel = (t: Table, groupName?: string) => {
-    const name = groupName?.trim() || "ללא קבוצה";
-    return `${t.name} – ${name} (${t.seatedGuests.length}/${t.seats})`;
-  };
+  const tableLabel = (t: Table) => {
+  const tableGroup = groups.find(
+    (g) => String(g.tableId) === String(t.id)
+  );
+
+  if (tableGroup) {
+    return `${t.name} – ${tableGroup.name} (${t.seatedGuests.length}/${t.seats})`;
+  }
+
+  return `${t.name} (${t.seatedGuests.length}/${t.seats})`;
+};
+
 
   function guestVisible(g: Guest) {
     const q = search.trim().toLowerCase();
@@ -200,7 +208,8 @@ export default function SeatingSidebar() {
                         value={t.id}
                         disabled={free < requiredSeats}
                       >
-                        {tableLabel(t, group?.name)}
+                        {tableLabel(t)}
+
                       </option>
                     );
                   })}
@@ -222,7 +231,7 @@ export default function SeatingSidebar() {
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
                           {table
-                            ? tableLabel(table, group?.name)
+                              ? tableLabel(table)
                             : "לא משובץ"}
                         </div>
                       </div>
@@ -260,7 +269,8 @@ export default function SeatingSidebar() {
                               value={t.id}
                               disabled={free < 1}
                             >
-                              {tableLabel(t, group?.name)}
+                             {tableLabel(t)}
+
                             </option>
                           );
                         })}
