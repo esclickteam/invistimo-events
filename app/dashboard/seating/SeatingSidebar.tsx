@@ -258,30 +258,41 @@ const selectedTable = group?.tableId
                       </div>
 
                       <select
-                        className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-                        value={table?.id ?? ""}
-                        onChange={(e) => {
-                          const tableId = e.target.value;
-                          if (!tableId) {
-                            removeFromSeat(gid); // ✅ השתמשי ב-ID של ההושבה
-                          } else {
-                            assignGuestBlock({
-                              guestId: gid, // ✅ השתמשי ב-ID של ההושבה
-                              tableId,
-                            });
-                          }
-                        }}
-                      >
-                        <option value="">ללא</option>
-                        {tables.map((t) => {
-                          const free = t.seats - (t.seatedGuests?.length ?? 0);
-                          return (
-                            <option key={t.id} value={t.id} disabled={free < 1}>
-  {t.name} ({t.seatedGuests.length}/{t.seats})
-</option>
-                          );
-                        })}
-                      </select>
+  className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
+  value={table?.id ?? ""}
+  onChange={(e) => {
+    const tableId = e.target.value;
+    if (!tableId) {
+      removeFromSeat(gid);
+    } else {
+      assignGuestBlock({ guestId: gid, tableId });
+    }
+  }}
+>
+  <option value="">ללא שולחן</option>
+
+  {tables.map((t) => {
+    const free = t.seats - (t.seatedGuests?.length ?? 0);
+
+    // ✅ אם האורח שייך לקבוצה – נציג "שולחן X – שם קבוצה (6/12)"
+    const groupNameForGuest =
+      g.groupId
+        ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name || ""
+        : "";
+
+    const label = groupNameForGuest
+      ? `${t.name} – ${groupNameForGuest} (${t.seatedGuests.length}/${t.seats})`
+      : `${t.name} (${t.seatedGuests.length}/${t.seats})`;
+
+    return (
+      <option key={t.id} value={t.id} disabled={free < 1}>
+        {label}
+      </option>
+    );
+  })}
+</select>
+
+
                     </div>
                   );
                 })}
