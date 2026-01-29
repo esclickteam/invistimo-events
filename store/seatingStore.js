@@ -167,37 +167,19 @@ getPlannedSeatCount: (guest) => {
 },
 
 getTableDisplayName: (tableId) => {
-  const { tables, groups, guests } = get();
+  const { groups } = get();
 
-  const table = tables.find((t) => t.id === tableId);
-  if (!table) return "";
+  if (!tableId) return "";
 
-  // 1️⃣ קבוצה שמוגדרת ישירות על השולחן
-  const directGroup = groups.find(
-    (g) => String(g.tableId) === String(tableId)
-  );
-  if (directGroup) return directGroup.name;
-
-  // 2️⃣ קבוצה לפי אורחים שיושבים בפועל
-  const seatedGuestIds = (table.seatedGuests || [])
-    .filter((sg) => !sg.isVirtual)
-    .map((sg) => String(sg.guestId));
-
-  const seatedGuests = guests.filter((g) =>
-    seatedGuestIds.includes(String(g.id ?? g._id))
+  const group = groups.find(
+    (g) =>
+      g.tableId &&
+      String(g.tableId) === String(tableId)
   );
 
-  const groupId = seatedGuests.find((g) => g.groupId)?.groupId;
-  if (groupId) {
-    const group = groups.find(
-      (g) => String(g._id) === String(groupId)
-    );
-    if (group) return group.name;
-  }
-
-  // 3️⃣ fallback – שם השולחן המקורי
-  return table.name;
+  return group?.name || "";
 },
+
 
 
 
