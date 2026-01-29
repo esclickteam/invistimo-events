@@ -73,8 +73,9 @@ export default function SeatingSidebar() {
     return map;
   }, [guests]);
 
-  function tableLabel(t: Table, groupName: string) {
-  return `${t.name} – ${groupName} (${t.seatedGuests.length}/${t.seats})`;
+  function tableLabel(t: Table, groupName?: string) {
+  const name = groupName && groupName.trim() ? groupName : "ללא קבוצה";
+  return `${t.name} – ${name} (${t.seatedGuests.length}/${t.seats})`;
 }
 
 
@@ -242,19 +243,18 @@ const selectedTable = group?.tableId
                       <div>
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
+  {table
+    ? (() => {
+        const gName =
+          g.groupId
+            ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name
+            : undefined;
 
-                          {table
-  ? (() => {
-      const gName =
-        g.groupId
-          ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name
-          : null;
+        return tableLabel(table, gName);
+      })()
+    : "לא משובץ"}
+</div>
 
-      return gName ? `${gName} · שולחן ${table.name}` : `שולחן ${table.name}`;
-    })()
-  : "לא משובץ"}
-
-                        </div>
                       </div>
 
                       <select
@@ -276,11 +276,11 @@ const selectedTable = group?.tableId
 
     // ✅ אם האורח שייך לקבוצה – נציג "שולחן X – שם קבוצה (6/12)"
     const groupNameForGuest =
-      g.groupId
-        ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name || ""
-        : "";
+  g.groupId
+    ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name
+    : undefined;
 
-    const label = `${t.name}${groupNameForGuest ? ` – ${groupNameForGuest}` : ""} (${t.seatedGuests.length}/${t.seats})`;
+const label = tableLabel(t, groupNameForGuest);
 
 
     return (
