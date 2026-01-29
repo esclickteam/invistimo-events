@@ -37,9 +37,9 @@ const TableGroupSchema = new Schema(
       type: Number,
       default: 0,
       set: (v: unknown) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-},
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      },
     },
   },
   { _id: false }
@@ -61,6 +61,14 @@ const TableSchema = new Schema(
       type: String,
       default: "",
     },
+
+    /* ⭐ שם תצוגה לשולחן (חברים הדר / חברים בן וכו') */
+    displayName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     type: {
       type: String,
       default: "round", // round / rect / long וכו'
@@ -77,9 +85,9 @@ const TableSchema = new Schema(
       type: Number,
       default: 0,
       set: (v: unknown) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-},
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      },
     },
 
     /* מיקום בקנבס */
