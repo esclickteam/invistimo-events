@@ -38,6 +38,10 @@ export default function SeatingSidebar() {
   const seatGroup = useSeatingStore((s) => s.seatGroup);
   const unseatGroup = useSeatingStore((s) => s.unseatGroup);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
+  const openSeatGuestModal = useSeatingStore(
+  (s) => s.openSeatGuestModal
+);
+
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
   const getGroupSize = useSeatingStore((s) => s.getGroupSize);
 
@@ -177,9 +181,7 @@ const getNoGroupTableId = (list: Guest[]) => {
           if (!visibleGuests.length) return null;
 
           const isOpen = openGroups[groupId];
-          const requiredSeats = group
-            ? getGroupSize(group._id)
-            : visibleGuests.length;
+
 
           return (
             <div key={groupId} className="border-b border-[#ead8cc]">
@@ -196,11 +198,13 @@ const getNoGroupTableId = (list: Guest[]) => {
 
   return (
     <div className="text-sm font-medium">
-      {group
-        ? `${group.name} (${requiredSeats}) · ${
-            table?.displayName || table?.name || "ללא שולחן"
-          }`
-        : `ללא קבוצה (${visibleGuests.length})`}
+       {group
+  ? `${group.name} · ${
+      table?.displayName || table?.name || "ללא שולחן"
+    }`
+  : `ללא קבוצה (${visibleGuests.length})`}
+
+
     </div>
   );
 })()}
@@ -253,16 +257,21 @@ const getNoGroupTableId = (list: Guest[]) => {
                 >
                   <option value="">ללא שולחן</option>
                   {tables.map((t) => {
-                    const free = t.seats - t.seatedGuests.length;
+                 
                     return (
-                      <option
-                        key={t.id}
-                        value={t.id}
-                        disabled={free < requiredSeats}
-                      >
-                        {tableLabel(t)}
-
-                      </option>
+                    <option
+  key={t.id}
+  value={t.id}
+  disabled={
+    group
+      ? !useSeatingStore
+          .getState()
+          .canSeatGroupAtTable(t.id, group._id)
+      : false
+  }
+>
+  {tableLabel(t)}
+</option>
                     );
                   })}
                 </select>
@@ -281,9 +290,19 @@ const getNoGroupTableId = (list: Guest[]) => {
 
   return (
                     <div
-                      key={g._id}
-                      className="px-5 py-2 flex justify-between items-center"
-                    >
+  key={g._id}
+  className="px-5 py-2 flex justify-between items-center cursor-pointer hover:bg-[#f3e7e0]"
+  onClick={() =>
+    useSeatingStore.getState().openSeatGuestModal({
+      guestId: seatGuestId(g),
+      plannedSeats: useSeatingStore
+        .getState()
+        .getPlannedSeatCount(g),
+    })
+  }
+>
+
+
                       <div>
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
@@ -321,13 +340,20 @@ const getNoGroupTableId = (list: Guest[]) => {
                       >
                         <option value="">ללא שולחן</option>
                         {tables.map((t) => {
-                          const free = t.seats - t.seatedGuests.length;
+                      
                           return (
                             <option
-                              key={t.id}
-                              value={t.id}
-                              disabled={free < 1}
-                            >
+  key={t.id}
+  value={t.id}
+  disabled={
+    !useSeatingStore
+      .getState()
+      .canSeatGuestAtTable(t.id, g)
+  }
+>
+
+
+                      
                              {tableLabel(t)}
 
                             </option>

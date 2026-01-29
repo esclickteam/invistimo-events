@@ -166,6 +166,54 @@ getPlannedSeatCount: (guest) => {
   );
 },
 
+getFreeSeats: (tableId) => {
+  const table = get().tables.find((t) => t.id === tableId);
+  if (!table) return 0;
+
+  const occupied = table.seatedGuests?.length ?? 0;
+  return Math.max(0, table.seats - occupied);
+},
+
+
+canSeatGuestAtTable: (tableId, guest) => {
+  const needed = get().getPlannedSeatCount(guest);
+  if (needed <= 0) return false;
+
+  const free = get().getFreeSeats(tableId);
+  return free >= needed;
+},
+
+
+canSeatGroupAtTable: (tableId, groupId) => {
+  const { guests } = get();
+
+  const groupGuests = guests.filter(
+    (g) => String(g.groupId) === String(groupId)
+  );
+
+  if (!groupGuests.length) return false;
+
+  const needed = groupGuests.reduce(
+    (sum, g) => sum + get().getPlannedSeatCount(g),
+    0
+  );
+
+  const free = get().getFreeSeats(tableId);
+  return free >= needed;
+},
+
+canSeatGuests: (tableId, guest) => {
+  const { tables } = get();
+  const table = tables.find((t) => t.id === tableId);
+  if (!table) return false;
+
+  const count = get().getPlannedSeatCount(guest);
+  if (!count || count <= 0) return false;
+
+  const block = findFreeBlock(table, count);
+  return !!block;
+},
+
 
 
 
