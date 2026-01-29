@@ -203,9 +203,8 @@ const selectedTable = group?.tableId
     else seatGroup(group._id, tableId);
   }}
 >
-  <option value="">
-  {selectedTable ? tableLabel(selectedTable, groupName) : "ללא שולחן"}
-</option>
+  <option value="">ללא שולחן</option>
+
 
 
   {tables.map((t) => {
