@@ -22,6 +22,7 @@ type Group = {
 type Table = {
   id: string;
   name: string;
+  displayName?: string; // ⭐ להוסיף
   seats: number;
   seatedGuests: { guestId: string }[];
 };
@@ -69,39 +70,15 @@ export default function SeatingSidebar() {
   }, [guests]);
 
   const tableLabel = (t: Table) => {
-  // ניסיון 1: קבוצה שמוגדרת ישירות על השולחן
-  let tableGroup = groups.find(
-    (g) => String(g.tableId) === String(t.id)
-  );
+  const count = t.seatedGuests?.length ?? 0;
 
-  // ניסיון 2: קבוצה לפי האורחים שיושבים בשולחן
-  if (!tableGroup) {
-    const seatedGuestIds = t.seatedGuests.map(
-      (sg) => String(sg.guestId)
-    );
+  const main =
+    t.displayName && t.displayName.trim()
+      ? `${t.name} – ${t.displayName}`
+      : t.name;
 
-    const seatedGuests = guests.filter((g) =>
-      seatedGuestIds.includes(String(g.id ?? g._id))
-    );
-
-    const groupId = seatedGuests.find(
-      (g) => g.groupId
-    )?.groupId;
-
-    if (groupId) {
-      tableGroup = groups.find(
-        (g) => String(g._id) === String(groupId)
-      );
-    }
-  }
-
-  if (tableGroup) {
-    return `${t.name} – ${tableGroup.name} (${t.seatedGuests.length}/${t.seats})`;
-  }
-
-  return `${t.name} (${t.seatedGuests.length}/${t.seats})`;
+  return `${main} (${count}/${t.seats})`;
 };
-
 
 
   function guestVisible(g: Guest) {
@@ -178,10 +155,14 @@ export default function SeatingSidebar() {
                 }
               >
                 <div className="text-sm font-medium">
-                  {group
-                    ? `${group.name} (${requiredSeats} אנשים)`
-                    : `ללא קבוצה (${visibleGuests.length})`}
-                </div>
+  {group
+    ? `${group.name} (${requiredSeats}) · ${
+        tables.find((t) => t.id === group.tableId)?.displayName ||
+        tables.find((t) => t.id === group.tableId)?.name ||
+        "ללא שולחן"
+      }`
+    : `ללא קבוצה (${visibleGuests.length})`}
+</div>
 
                 <select
                   onClick={(e) => e.stopPropagation()}
