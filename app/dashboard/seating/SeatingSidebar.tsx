@@ -260,7 +260,7 @@ export default function SeatingSidebar() {
                         <div className="text-xs text-gray-500">
   {table
     ? tableLabel(table)
-    : `לא משובץ · צריך לשבץ: ${plannedCount}`}
+    : `לא משובץ · ${plannedCount} מקומות`}
 </div>
 
 
