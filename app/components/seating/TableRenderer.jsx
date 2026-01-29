@@ -201,6 +201,7 @@ const guestIdFromUrl = searchParams.get("guestId");
 }, [table.seatedGuests, table.seats]);
 
 
+const tableLabel = `${displayName} חברים בן ${occupiedSeatsCount}/${table.seats}`;
 
 
   const isHighlighted =
@@ -356,7 +357,8 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
+            text={tableLabel}
+
 
             width={radius * 2}
             height={radius * 2}
@@ -382,7 +384,8 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
+            text={tableLabel}
+
 
             width={size}
             height={size}
@@ -408,7 +411,8 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
+            text={tableLabel}
+
 
             width={width}
             height={height}
