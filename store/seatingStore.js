@@ -162,7 +162,7 @@ getPlannedSeatCount: (guest) => {
   return Number(
     guest.arrivedCount ??
     guest.guestsCount ??
-    0
+    1   // ⬅️ ברירת מחדל קריטית
   );
 },
 
