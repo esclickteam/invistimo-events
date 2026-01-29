@@ -20,10 +20,11 @@ type Group = {
 };
 
 type Table = {
-  id: string; // ✅ זה ה-ID של השולחן (UUID) – תואם ל-DB שלך
+  id: string;
   name: string;
   seats: number;
   seatedGuests: { guestId: string }[];
+  groupId?: string | null; // 👈 חובה
 };
 
 type Filter = "all" | "seated" | "unseated";
@@ -73,10 +74,17 @@ export default function SeatingSidebar() {
     return map;
   }, [guests]);
 
-  function tableLabel(t: Table, groupName?: string) {
+  function tableLabel(t: Table) {
+  const groupName =
+    t.groupId
+      ? groups.find((g) => String(g._id) === String(t.groupId))?.name
+      : null;
+
   const name = groupName && groupName.trim() ? groupName : "ללא קבוצה";
+
   return `${t.name} – ${name} (${t.seatedGuests.length}/${t.seats})`;
 }
+
 
 
   /* ===== FILTER + SEARCH ===== */
@@ -210,7 +218,8 @@ const selectedTable = group?.tableId
 
   {tables.map((t) => {
     const free = t.seats - (t.seatedGuests?.length ?? 0);
-    const label = tableLabel(t, groupName);
+    const label = tableLabel(t);
+
 
 
     return (
@@ -243,16 +252,8 @@ const selectedTable = group?.tableId
                       <div>
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
-  {table
-    ? (() => {
-        const gName =
-          g.groupId
-            ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name
-            : undefined;
+  {table ? tableLabel(table) : "לא משובץ"}
 
-        return tableLabel(table, gName);
-      })()
-    : "לא משובץ"}
 </div>
 
                       </div>
@@ -280,7 +281,8 @@ const selectedTable = group?.tableId
     ? groups.find((gr) => String(gr._id) === String(g.groupId))?.name
     : undefined;
 
-const label = tableLabel(t, groupNameForGuest);
+const label = tableLabel(t);
+
 
 
     return (
