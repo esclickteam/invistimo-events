@@ -118,17 +118,17 @@ const isProducer = pathname.includes("/events/production");
 
         /* 3️⃣ שולחנות + אזורים + קנבס */
         const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
-if (tRes.status === 403) {
-  setBlocked(true);
-  setShowUpgrade(true);
-  return;
-}
-
 const tData = await tRes.json();
+
+/* ⭐ נרמול טבלאות – חובה */
+const normalizedTables = (tData.tables || []).map((t: any) => ({
+  ...t,
+  id: t.id ?? t._id, // ⬅️ השורה הקריטית
+}));
 
 /* 3️⃣ INIT – טבלאות + אורחים + קנבס */
 init(
-  tData.tables || [],
+  normalizedTables,
   normalizedGuests,
   tData.background ?? null,
   tData.canvasView ?? null

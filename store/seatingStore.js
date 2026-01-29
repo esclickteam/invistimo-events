@@ -539,25 +539,30 @@ background: null,
 
 
   /* ---------------- ADD TABLE ---------------- */
-  addTable: (type, seats, position) => {
-  const { tables } = get();
-
-  const newTable = {
-    id: crypto.randomUUID(), // ✅ קריטי – ID ייחודי באמת
-    name: `שולחן ${tables.length + 1}`,
-    type,
-    seats,
-    x: position?.x ?? 0,     // ✅ מיקום גמיש
-    y: position?.y ?? 0,
-    rotation: 0,
-    seatedGuests: [],
-  };
-
-  set({
-    tables: [...tables, newTable], // ✅ append אמיתי
+  addTable: async (type, seats, position) => {
+  const res = await fetch("/api/tables", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      type,
+      seats,
+      x: position?.x ?? 0,
+      y: position?.y ?? 0,
+    }),
   });
 
-  return newTable; // אופציונלי, אבל שימושי ל-auto pan
+  if (!res.ok) {
+    throw new Error("Failed to create table");
+  }
+
+  const tableFromDB = await res.json();
+
+  set((state) => ({
+    tables: [...state.tables, tableFromDB],
+  }));
+
+  return tableFromDB;
 },
 
   /* ---------------- DELETE TABLE ---------------- */
