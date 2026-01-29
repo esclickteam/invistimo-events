@@ -105,6 +105,8 @@ export default function SeatingSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+  /* ================= RENDER ================= */
+
   return (
     <aside className="h-full w-[340px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
       {/* ===== Header ===== */}
@@ -117,26 +119,6 @@ export default function SeatingSidebar() {
           placeholder="חיפוש אורח / טלפון / קבוצה"
           className="w-full rounded-xl border border-[#e6c3ad] px-3 py-2 text-sm bg-white"
         />
-
-        <div className="flex gap-1 mt-3">
-          {[
-            { id: "all", label: "הכל" },
-            { id: "seated", label: "משובצים" },
-            { id: "unseated", label: "לא משובצים" },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id as Filter)}
-              className={`flex-1 text-xs py-1 rounded-full ${
-                filter === f.id
-                  ? "bg-[#e6c3ad] font-semibold"
-                  : "bg-white border border-[#ead8cc] text-gray-500"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* ===== List ===== */}
@@ -171,22 +153,42 @@ export default function SeatingSidebar() {
                 </div>
 
                 <select
+                  onClick={(e) => e.stopPropagation()}
                   className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
                   value={group?.tableId ?? ""}
                   onChange={(e) => {
                     const tableId = e.target.value;
+                    console.log("🟦 GROUP SELECT CHANGE", {
+                      groupId,
+                      tableId,
+                      hasGroup: !!group,
+                      visibleGuests,
+                      tables,
+                    });
 
                     if (!group) {
                       visibleGuests.forEach((g) => {
                         const gid = seatGuestId(g);
+                        console.log("➡️ assignGuestBlock (no group)", {
+                          guestId: gid,
+                          tableId,
+                        });
                         if (!tableId) removeFromSeat(gid);
                         else assignGuestBlock({ guestId: gid, tableId });
                       });
                       return;
                     }
 
-                    if (!tableId) unseatGroup(group._id);
-                    else seatGroup(group._id, tableId);
+                    if (!tableId) {
+                      console.log("⬅️ unseatGroup", group._id);
+                      unseatGroup(group._id);
+                    } else {
+                      console.log("➡️ seatGroup", {
+                        groupId: group._id,
+                        tableId,
+                      });
+                      seatGroup(group._id, tableId);
+                    }
                   }}
                 >
                   <option value="">ללא שולחן</option>
@@ -220,10 +222,7 @@ export default function SeatingSidebar() {
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
                           {table
-                            ? tableLabel(
-                                table,
-                                group?.name
-                              )
+                            ? tableLabel(table, group?.name)
                             : "לא משובץ"}
                         </div>
                       </div>
@@ -233,8 +232,23 @@ export default function SeatingSidebar() {
                         value={table?.id ?? ""}
                         onChange={(e) => {
                           const tableId = e.target.value;
-                          if (!tableId) removeFromSeat(gid);
-                          else assignGuestBlock({ guestId: gid, tableId });
+                          console.log("🟩 GUEST SELECT CHANGE", {
+                            guest: g,
+                            guestId: gid,
+                            tableId,
+                            tables,
+                          });
+
+                          if (!tableId) {
+                            console.log("⬅️ removeFromSeat", gid);
+                            removeFromSeat(gid);
+                          } else {
+                            console.log("➡️ assignGuestBlock", {
+                              guestId: gid,
+                              tableId,
+                            });
+                            assignGuestBlock({ guestId: gid, tableId });
+                          }
                         }}
                       >
                         <option value="">ללא שולחן</option>
