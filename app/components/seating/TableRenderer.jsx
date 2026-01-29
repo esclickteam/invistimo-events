@@ -203,8 +203,18 @@ const guestIdFromUrl = searchParams.get("guestId");
 
 const seatsTotal = Number(table.seats || 0);
 
-const groupName =
-  groups.find((g) => String(g.tableId) === String(table.id))?.name || "";
+const groupName = useMemo(() => {
+  const groupId =
+    table.seatedGuests?.find((sg) => sg.groupId)?.groupId;
+
+  if (!groupId) return "";
+
+  return (
+    groups.find((g) => String(g._id) === String(groupId))?.name || ""
+  );
+}, [table.seatedGuests, groups]);
+
+
 
 const tableLabel = `${displayName}\n${groupName}\n${occupiedSeatsCount}/${seatsTotal}`;
 
