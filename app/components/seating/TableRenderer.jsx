@@ -201,7 +201,8 @@ const guestIdFromUrl = searchParams.get("guestId");
 }, [table.seatedGuests, table.seats]);
 
 
-const tableLabel = `${displayName} חברים בן ${occupiedSeatsCount}/${table.seats}`;
+const tableLabel = `${displayName}\nחברים בן\n${occupiedSeatsCount}/${table.seats}`;
+
 
 
   const isHighlighted =
