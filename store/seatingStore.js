@@ -283,16 +283,18 @@ const newSeats = [
 
 
   updatedTables = updatedTables.map((t) =>
-    t.id === tableId
-      ? {
-          ...t,
-          seatedGuests: [
-            ...t.seatedGuests,
-            ...newSeats,
-          ],
-        }
-      : t
-  );
+  t.id === tableId
+    ? {
+        ...t,
+        seatedGuests: [
+          ...t.seatedGuests,
+          ...newSeats,
+        ],
+        // ⭐ זה השורה הקריטית
+        displayName: t.displayName || group.name,
+      }
+    : t
+);
 
   set({
     tables: updatedTables,
@@ -667,14 +669,7 @@ dropGuest: () => {
     };
   });
 
-  const targetTable = updatedTables.find(
-  (t) => t.id === highlightedTable
-);
-
-// ⭐ אם לשולחן אין displayName – נשתמש בשם הקבוצה
-if (targetTable && !targetTable.displayName) {
-  targetTable.displayName = group.name;
-}
+  
 
   set({
     tables: updatedTables,
