@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Group from "@/models/Group";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Invitation from "@/models/Invitation";
-
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* ============================================================
    GET — שליפת קבוצות לפי invitationId
@@ -60,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { invitationId, name, color } = body;
+    const { invitationId, name, color, expectedCount = 0 } = body;
 
     if (!invitationId || !name?.trim()) {
       return NextResponse.json(
@@ -69,7 +68,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ⭐ שליפת eventId מהזמנה
+    // שליפת eventId מהזמנה
     const invitation = await Invitation
       .findById(invitationId)
       .select("eventId");
@@ -81,14 +80,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const count = await Group.countDocuments({ invitationId });
+    const order = await Group.countDocuments({ invitationId });
 
     const group = await Group.create({
       invitationId,
-      eventId: invitation.eventId, // ⭐ זה התיקון הקריטי
+      eventId: invitation.eventId,
       name: name.trim(),
       color: color || null,
-      order: count,
+      expectedCount,
+      order,
     });
 
     return NextResponse.json({ success: true, group });
@@ -101,3 +101,52 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/* ============================================================
+   PATCH — שיבוץ / הסרת קבוצה לשולחן
+============================================================ */
+export async function PATCH(req: NextRequest) {
+  try {
+    await connectDB();
+
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { groupId, tableId } = await req.json();
+
+    if (!groupId) {
+      return NextResponse.json(
+        { success: false, error: "Missing groupId" },
+        { status: 400 }
+      );
+    }
+
+    const group = await Group.findByIdAndUpdate(
+      groupId,
+      {
+        tableId: tableId || null,
+        isSeated: !!tableId,
+      },
+      { new: true }
+    ).lean();
+
+    if (!group) {
+      return NextResponse.json(
+        { success: false, error: "Group not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, group });
+  } catch (err) {
+    console.error("PATCH /api/groups error:", err);
+    return NextResponse.json(
+      { success: false, error: "Server error" },
+      { status: 500 }
+    );
+  }
+}

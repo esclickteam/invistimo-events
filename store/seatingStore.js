@@ -369,7 +369,19 @@ unseatGroup: (groupId) => {
         : g
     ),
   });
+
+  // 🔴 זה החסר – הוספה כאן בדיוק
+  fetch(`/api/groups/${groupId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      tableId: null,
+      isSeated: false,
+    }),
+  });
 },
+
 
 
 

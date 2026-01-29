@@ -21,6 +21,7 @@ const GroupSchema = new Schema(
       default: null,
     },
 
+    /* ✅ שם הקבוצה */
     name: {
       type: String,
       required: true,
@@ -37,11 +38,24 @@ const GroupSchema = new Schema(
       default: 0,
     },
 
-    /* ✅ NEW: כמות אנשים כוללת בקבוצה (לא תלוי בכמות invitationGuests) */
+    /* ✅ כמות אנשים כוללת בקבוצה */
     expectedCount: {
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    /* ⭐️⭐️⭐️ קריטי – שיוך קבוצה לשולחן */
+    tableId: {
+      type: String, // UUID של השולחן (לא ObjectId!)
+      default: null,
+      index: true,
+    },
+
+    /* ⭐️ סטטוס הושבה (אופציונלי אבל מומלץ) */
+    isSeated: {
+      type: Boolean,
+      default: false,
     },
   },
   {
@@ -55,12 +69,10 @@ const GroupSchema = new Schema(
 // ✅ מונע כפילויות שם קבוצה לאותו אירוע
 GroupSchema.index({ eventId: 1, name: 1 }, { unique: true });
 
-// 🟡 אינדקס ישן – אפשר להשאיר זמנית אם יש דאטה קיים
-// GroupSchema.index({ invitationId: 1, name: 1 });
-
 /* ============================================================
    Model Export (Next.js safe)
 ============================================================ */
-const Group = mongoose.models.Group || mongoose.model("Group", GroupSchema);
+const Group =
+  mongoose.models.Group || mongoose.model("Group", GroupSchema);
 
 export default Group;
