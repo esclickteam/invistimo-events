@@ -70,18 +70,39 @@ export default function SeatingSidebar() {
   }, [guests]);
 
   const getGroupTableId = (groupId: string) => {
-  const table = tables.find((t) =>
-    t.seatedGuests?.some((sg) => {
-      const guest = guests.find(
-        (g) => String(g.id ?? g._id) === String(sg.guestId)
-      );
+  // מוצאים אורח מהקבוצה שיושב בפועל
+  const guest = guests.find(
+    (g) =>
+      String(g.groupId) === String(groupId) &&
+      guestTableMap.has(String(g.id ?? g._id))
+  );
 
-      return String(guest?.groupId) === String(groupId);
-    })
+  if (!guest) return "";
+
+  const table = guestTableMap.get(
+    String(guest.id ?? guest._id)
   );
 
   return table?.id ?? "";
 };
+
+const getNoGroupTableId = (list: Guest[]) => {
+  if (!list.length) return "";
+
+  const first = list.find((g) =>
+    guestTableMap.has(String(g.id ?? g._id))
+  );
+
+  if (!first) return "";
+
+  const table = guestTableMap.get(
+    String(first.id ?? first._id)
+  );
+
+  return table?.id ?? "";
+};
+
+
 
 
   const tableLabel = (t: Table) => {
@@ -169,20 +190,31 @@ export default function SeatingSidebar() {
                   setOpenGroups((o) => ({ ...o, [groupId]: !o[groupId] }))
                 }
               >
-                <div className="text-sm font-medium">
-  {group
-    ? `${group.name} (${requiredSeats}) · ${
-        tables.find((t) => t.id === group.tableId)?.displayName ||
-        tables.find((t) => t.id === group.tableId)?.name ||
-        "ללא שולחן"
-      }`
-    : `ללא קבוצה (${visibleGuests.length})`}
-</div>
+                {(() => {
+  const tableId = group ? getGroupTableId(group._id) : "";
+  const table = tables.find((t) => t.id === tableId);
+
+  return (
+    <div className="text-sm font-medium">
+      {group
+        ? `${group.name} (${requiredSeats}) · ${
+            table?.displayName || table?.name || "ללא שולחן"
+          }`
+        : `ללא קבוצה (${visibleGuests.length})`}
+    </div>
+  );
+})()}
+
 
                 <select
                   onClick={(e) => e.stopPropagation()}
                   className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
-                  value={group ? getGroupTableId(group._id) : ""}
+                  value={
+  group
+    ? getGroupTableId(group._id)
+    : getNoGroupTableId(visibleGuests)
+}
+
 
                   onChange={(e) => {
                     const tableId = e.target.value;
