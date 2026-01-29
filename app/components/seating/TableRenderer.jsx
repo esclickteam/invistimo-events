@@ -178,10 +178,8 @@ function getSeatRotation(table, c) {
   (s) => s.getTableDisplayName
 );
 
-const displayName = useMemo(
-  () => getTableDisplayName(table.id),
-  [getTableDisplayName, table.id]
-);
+const displayName = getTableDisplayName(table.id);
+
 
 
   const searchParams = useSearchParams();
