@@ -174,7 +174,15 @@ function getSeatRotation(table, c) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
-    
+    const getTableDisplayName = useSeatingStore(
+  (s) => s.getTableDisplayName
+);
+
+const displayName = useMemo(
+  () => getTableDisplayName(table.id),
+  [getTableDisplayName, table.id]
+);
+
 
   const searchParams = useSearchParams();
 const from = searchParams.get("from");
@@ -350,7 +358,8 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
+
             width={radius * 2}
             height={radius * 2}
             offsetX={radius}
@@ -375,7 +384,8 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
+
             width={size}
             height={size}
             offsetX={size / 2}
@@ -400,7 +410,8 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={`${table.name}\n${occupiedSeatsCount}/${table.seats}`}
+            text={`${displayName}\n${occupiedSeatsCount}/${table.seats}`}
+
             width={width}
             height={height}
             offsetX={width / 2}
