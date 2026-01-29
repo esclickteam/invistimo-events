@@ -314,6 +314,16 @@ const newSeats = [
     ),
   });
 
+  console.log("🟢 seatGroup AFTER set");
+console.table(
+  updatedTables.map((t) => ({
+    id: t.id,
+    name: t.name,
+    displayName: t.displayName,
+  }))
+);
+
+
   return { ok: true };
 },
 
@@ -357,6 +367,16 @@ unseatGroup: (groupId) => {
 
   /* ---------------- INIT ---------------- */
  init: (tables, guests, background = null, canvasView = null) => {
+
+  console.log("🟡 INIT tables from server");
+console.table(
+  (tables || []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    displayName: t.displayName,
+  }))
+);
+
   set({
     tables: (tables || []).map((t) => ({
       ...t,
@@ -378,6 +398,16 @@ unseatGroup: (groupId) => {
   /* ================= ⭐ SNAPSHOT IMPORT ================= */
 importSnapshot: (snapshot) => {
   if (!snapshot) return;
+
+  console.log("🔵 IMPORT SNAPSHOT tables");
+console.table(
+  (snapshot.tables || []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    displayName: t.displayName,
+  }))
+);
+
 
   set({
     tables: (snapshot.tables || []).map((t) => ({
