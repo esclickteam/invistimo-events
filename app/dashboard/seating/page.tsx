@@ -79,7 +79,8 @@ const isProducer = pathname.includes("/events/production");
     async function load() {
       try {
         /* 🧹 איפוס מוחלט לפני טעינה */
-        useSeatingStore.getState().init([], [], null, null);
+        useSeatingStore.getState().init(null, [], [], null, null);
+
         useZoneStore.getState().setZones([]);
 
         /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
@@ -128,6 +129,7 @@ const normalizedTables = (tData.tables || []).map((t: any) => ({
 
 /* 3️⃣ INIT – טבלאות + אורחים + קנבס */
 init(
+  eventIdFromApi,          // ✅ זה היה חסר
   normalizedTables,
   normalizedGuests,
   tData.background ?? null,
