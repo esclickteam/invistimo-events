@@ -19,6 +19,33 @@ const SeatedGuestSchema = new Schema(
 );
 
 /* ===============================
+   ⭐ Snapshot של קבוצה על שולחן (לריענון/קנבס)
+=============================== */
+const TableGroupSchema = new Schema(
+  {
+    id: {
+      type: Schema.Types.ObjectId,
+      ref: "Group",
+      default: null,
+    },
+    name: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    expectedCount: {
+      type: Number,
+      default: 0,
+      set: (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+},
+    },
+  },
+  { _id: false }
+);
+
+/* ===============================
    שולחן (⭐ snapshot ויזואלי מלא)
 =============================== */
 const TableSchema = new Schema(
@@ -39,10 +66,20 @@ const TableSchema = new Schema(
       default: "round", // round / rect / long וכו'
     },
 
+    /* ⭐ SNAPSHOT של קבוצה (כדי שלא ייעלם אחרי ריענון) */
+    group: {
+      type: TableGroupSchema,
+      default: null,
+    },
+
     /* כמות מושבים */
     seats: {
       type: Number,
       default: 0,
+      set: (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+},
     },
 
     /* מיקום בקנבס */

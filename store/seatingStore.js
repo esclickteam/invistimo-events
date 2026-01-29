@@ -3,6 +3,10 @@ import { findFreeBlock } from "../logic/seatingEngine";
 
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
+eventId: null,
+setEventId: (eventId) => set({ eventId }),
+
+
   tables: [],
   guests: [],
   liveArrivals: {},
@@ -266,11 +270,14 @@ const missingCount = Math.max(0, totalCount - realCount);
   // ניקוי קודם של הקבוצה מכל השולחנות
  let updatedTables = tables.map((t) => ({
   ...t,
+  group:
+    String(t.group?.id ?? "") === String(groupId)
+      ? null
+      : t.group ?? null,
   seatedGuests: (t.seatedGuests || []).filter(
-    (sg) =>
-      sg.groupId !== groupId // ⬅️ זה השינוי
+    (sg) => sg.groupId !== groupId
   ),
-}));
+}));  
 
   const targetTable = updatedTables.find(
     (t) => t.id === tableId
@@ -315,16 +322,18 @@ const newSeats = [
 
 
   updatedTables = updatedTables.map((t) =>
-    t.id === tableId
-      ? {
-          ...t,
-          seatedGuests: [
-            ...t.seatedGuests,
-            ...newSeats,
-          ],
-        }
-      : t
-  );
+  t.id === tableId
+    ? {
+        ...t,
+        group: {
+          id: group._id,
+          name: group.name,
+          expectedCount: group.expectedCount,
+        },
+        seatedGuests: [...t.seatedGuests, ...newSeats],
+      }
+    : t
+);
 
   set({
     tables: updatedTables,
@@ -344,6 +353,19 @@ const newSeats = [
     ),
   });
 
+  // 🔵 שמירה לשרת – snapshot של קבוצה על שולחן
+fetch("/api/seating/assign-group", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    eventId: get().eventId, // חייב להיות קיים ב-store
+    tableId,
+    groupId,
+  }),
+});
+
+
   return { ok: true };
 },
 
@@ -351,24 +373,39 @@ const newSeats = [
 unseatGroup: (groupId) => {
   const { tables, guests, groups } = get();
 
+    const tableWithGroup = tables.find(
+    (t) => String(t.group?.id ?? "") === String(groupId)
+  );
+  const tableId = tableWithGroup?.id || null;
+
+
   set({
-    tables: tables.map((t) => ({
+  tables: tables.map((t) => {
+    const hasThisGroup =
+      String(t.group?.id ?? "") === String(groupId);
+
+    return {
       ...t,
+      group: hasThisGroup ? null : (t.group ?? null), // ✅ ניקוי snapshot של הקבוצה
       seatedGuests: (t.seatedGuests || []).filter(
         (sg) => sg.groupId !== groupId
       ),
-    })),
-    guests: guests.map((g) =>
-      g.groupId === groupId
-        ? { ...g, tableId: null, tableName: null }
-        : g
-    ),
-    groups: groups.map((g) =>
-      g._id === groupId
-        ? { ...g, tableId: null, isSeated: false }
-        : g
-    ),
-  });
+    };
+  }),
+
+  guests: guests.map((g) =>
+    g.groupId === groupId
+      ? { ...g, tableId: null, tableName: null }
+      : g
+  ),
+
+  groups: groups.map((g) =>
+    g._id === groupId
+      ? { ...g, tableId: null, isSeated: false }
+      : g
+  ),
+});
+
 
   // 🔴 זה החסר – הוספה כאן בדיוק
   fetch(`/api/groups/${groupId}`, {
@@ -380,14 +417,34 @@ unseatGroup: (groupId) => {
       isSeated: false,
     }),
   });
+
+// 🔵 ניקוי snapshot מהשולחן ב-SeatingTable
+if (tableId) {
+  fetch("/api/seating/assign-group", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      eventId: get().eventId,
+      tableId,
+      groupId,
+    }),
+  });
+}
+
+
 },
 
 
 
 
+
+
   /* ---------------- INIT ---------------- */
- init: (tables, guests, background = null, canvasView = null) => {
+ init: (eventId, tables, guests, background = null, canvasView = null) => {
+
   set({
+    eventId,
     tables: tables || [],
     guests: (guests || []).map((g) => ({
   ...g,
