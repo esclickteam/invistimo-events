@@ -200,8 +200,8 @@ const guestIdFromUrl = searchParams.get("guestId");
   );
 }, [table.seatedGuests, table.seats]);
 
-
-const tableLabel = `${displayName}\nחברים בן\n${occupiedSeatsCount}/${table.seats}`;
+const seatsTotal = Number(table.seats || 0);
+const tableLabel = `${displayName}\nחברים בן\n${occupiedSeatsCount}/${seatsTotal}`;
 
 
 
@@ -429,7 +429,17 @@ const tableText = isHighlighted
 
       {/* כפתור סיבוב */}
      {!hideSeats && (
-  <Group y={-radius - 35} onMouseDown={startRotate}>
+  <Group
+  y={
+    layout.type === "round"
+      ? -radius - 35
+      : layout.type === "square"
+      ? -size / 2 - 35
+      : -height / 2 - 35
+  }
+  onMouseDown={startRotate}
+>
+
     <Circle radius={12} fill="#64748b" />
     <Text
       text="↻"
@@ -448,29 +458,23 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isArrived = i < occupiedSeatsCount;
-    const isSeated = i < (table.seats || 0);
+    const isOccupied = i < occupiedSeatsCount;
+
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
 
-    const seatTopFill = isArrived
-      ? "#bfdbfe"
-      : isSeated
-      ? "#e5e7eb"
-      : "#bfdbfe";
+    const seatTopFill = isOccupied
+  ? "#e5e7eb"   // אפור – תפוס
+  : "#bfdbfe";  // כחול בהיר – פנוי
 
-    const seatBodyFill = isArrived
-      ? "#3b82f6"
-      : isSeated
-      ? "#9ca3af"
-      : "#3b82f6";
+const seatBodyFill = isOccupied
+  ? "#9ca3af"   // אפור – תפוס
+  : "#3b82f6";  // כחול – פנוי
 
-    const seatStroke = isArrived
-      ? "#2563eb"
-      : isSeated
-      ? "#6b7280"
-      : "#2563eb";
+const seatStroke = isOccupied
+  ? "#6b7280"   // אפור – תפוס
+  : "#2563eb";  // כחול – פנוי
 
     return (
       <Group key={i} x={c.x} y={c.y} rotation={rotation}>
