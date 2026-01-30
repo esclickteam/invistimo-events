@@ -75,16 +75,22 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const isProducerRole = auth.role === "producer";
 
     // ✅ מפיק לפי ההזמנה (גם אם נכנס בתור client בדשבורד לקוח)
-    const isProducerByInvitation =
-      !!invitation.producerId &&
-      auth.userId.toString() === invitation.producerId.toString();
+    const producerIdStr = invitation.producerId?.toString?.() || null;
+
+const isProducerByInvitation =
+  !!producerIdStr &&
+  (auth.userId.toString() === producerIdStr ||
+    auth.impersonatedBy?.toString?.() === producerIdStr);
 
     console.log("🔐 Permissions:", {
-      isOwner,
-      isAdmin,
-      isProducerRole,
-      isProducerByInvitation,
-    });
+  isOwner,
+  isAdmin,
+  isProducerRole,
+  isProducerByInvitation,
+  producerIdStr,
+  userId: auth.userId?.toString?.(),
+  impersonatedBy: auth.impersonatedBy?.toString?.(),
+});
 
     // הרשאה כללית לעדכן אורח
     if (!isOwner && !isAdmin && !isProducerRole && !isProducerByInvitation) {
@@ -137,23 +143,25 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       data.actualArrivedCount >= 0
     ) {
       console.log("🟦 actualArrivedCount update requested", {
-        guestId: guest._id.toString(),
-        value: data.actualArrivedCount,
-        role: auth.role,
-        userId: auth.userId.toString(),
-        invitationProducerId: invitation.producerId?.toString?.(),
-        invitationOwnerId: invitation.ownerId.toString(),
-      });
+  guestId: guest._id.toString(),
+  value: data.actualArrivedCount,
+  role: auth.role,
+  userId: auth.userId.toString(),
+  impersonatedBy: auth.impersonatedBy?.toString?.(),
+  invitationProducerId: invitation.producerId?.toString?.(),
+  invitationOwnerId: invitation.ownerId.toString(),
+});
 
       const canUpdateActualArrived =
         isAdmin || isProducerRole || isProducerByInvitation;
 
       if (!canUpdateActualArrived) {
         console.warn("⛔ Blocked actualArrivedCount update", {
-          role: auth.role,
-          userId: auth.userId.toString(),
-          invitationProducerId: invitation.producerId?.toString?.(),
-        });
+  role: auth.role,
+  userId: auth.userId.toString(),
+  impersonatedBy: auth.impersonatedBy?.toString?.(),
+  invitationProducerId: invitation.producerId?.toString?.(),
+});
 
         return NextResponse.json(
           { error: "Not authorized to update actualArrivedCount" },
