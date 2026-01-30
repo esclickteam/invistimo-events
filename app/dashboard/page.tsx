@@ -312,31 +312,25 @@ useEffect(() => {
 
 useEffect(() => {
   if (isDemo) return;
+  if (!user) return;
 
-  // רק מפיק
-  if (user?.role !== "producer") return;
+  // ⭐️ אם כבר התחזינו – לא לגעת
+  if (user.impersonated) return;
 
-  // חייב להיות invitation טעון
+  if (user.role !== "producer") return;
   if (!invitation?._id) return;
 
-  // clientId = ownerId של ההזמנה
   const clientId = invitation.ownerId;
   if (!clientId) return;
-
-  // ⭐ הגנה מריצה כפולה
-  if ((window as any).__impersonated) return;
-  (window as any).__impersonated = true;
 
   fetch("/api/producer/impersonate", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ clientId }),
-  }).catch((e) => {
-    console.error("impersonate failed", e);
-    (window as any).__impersonated = false;
   });
-}, [isDemo, user?.role, invitation?._id]);
+}, [isDemo, user, invitation?._id]);
+
 
 
 

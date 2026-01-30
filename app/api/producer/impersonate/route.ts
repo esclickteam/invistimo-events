@@ -1,6 +1,5 @@
 export const runtime = "nodejs";
 
-
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
@@ -39,12 +38,21 @@ export async function POST(req: NextRequest) {
     /* =========================
        🔐 Auth – מפיק אמיתי
     ========================= */
-    const auth = await getUserIdFromRequest();
+    const auth: any = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // ⭐️ אם כבר בהתחזות – לא עושים כלום
+    if (auth.impersonated) {
+      console.log("🟢 Already impersonated – skip");
+      return NextResponse.json(
+        { success: true, alreadyImpersonated: true },
+        { status: 200 }
       );
     }
 
@@ -110,7 +118,7 @@ export async function POST(req: NextRequest) {
     ========================= */
     const cookieStore = await cookies();
 
-    // זה הטוקן של המפיק כרגע (לפני התחזות)
+    // זה הטוקן של המפיק לפני התחזות
     const currentAuthToken = cookieStore.get("authToken")?.value || null;
     const existingProducerToken =
       cookieStore.get("producerAuthToken")?.value || null;
@@ -129,6 +137,7 @@ export async function POST(req: NextRequest) {
       {
         userId: client._id.toString(),
         role: "client",
+
         impersonated: true,
         impersonatedBy: producer._id.toString(),
         impersonationRole: "producer",
@@ -147,7 +156,7 @@ export async function POST(req: NextRequest) {
 
     const opts = httpOnlyCookieOptions();
 
-    // ✅ שומרים producerAuthToken פעם אחת (לא לדרוס אם קיים)
+    // ✅ שומרים את טוקן המפיק פעם אחת בלבד
     if (!existingProducerToken) {
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
