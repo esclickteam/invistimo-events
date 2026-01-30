@@ -13,7 +13,6 @@ import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
-import ArrivalControl from "@/app/components/guests/ArrivalControl";
 
 
 import Link from "next/link";
@@ -916,11 +915,15 @@ console.log("INVITATION:", invitation);
         </th>
 
         <th
-          className="p-3 text-right cursor-pointer select-none"
-          onClick={() => toggleSort("coming")}
-        >
-          מגיעים{sortArrow("coming")}
-        </th>
+  className="p-3 text-center cursor-pointer select-none"
+  onClick={() => toggleSort("coming")}
+>
+  <div className="flex flex-col items-center leading-tight">
+    <span>מגיעים</span>
+    <span className="text-xs text-gray-500">הגיעו בפועל</span>
+    <span className="text-xs">{sortArrow("coming")}</span>
+  </div>
+</th>
 
         <th
           className="p-3 text-right cursor-pointer select-none"
@@ -935,115 +938,145 @@ console.log("INVITATION:", invitation);
     </thead>
 
     <tbody>
-      {displayGuests.map((g) => (
-        <tr key={g._id} className="border-b">
-          <td className="p-3">{g.name}</td>
-          <td className="p-3">{formatPhone(g.phone)}</td>
-          <td className="p-3">{g.relation?.trim() || "-"}</td>
+  {displayGuests.map((g) => (
+    <tr key={g._id} className="border-b">
+      {/* שם */}
+      <td className="p-3">{g.name}</td>
 
-          <td className="p-3">
-  <GuestGroupSelect
-  value={g.groupId}
-  onChange={async (groupId) => {
-    // UI
-    setGuests((prev) =>
-      prev.map((guest) =>
-        guest._id === g._id
-          ? { ...guest, groupId }
-          : guest
-      )
-    );
+      {/* טלפון */}
+      <td className="p-3">{formatPhone(g.phone)}</td>
 
-    // DB
-    await fetch(`/api/guests/${g._id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ groupId }),
-    });
+      {/* קרבה */}
+      <td className="p-3">{g.relation?.trim() || "-"}</td>
 
-    // ⭐️ חובה
-    await loadGroups(invitationId);
-  }}
-/>
+      {/* קבוצה */}
+      <td className="p-3">
+        <GuestGroupSelect
+          value={g.groupId}
+          onChange={async (groupId) => {
+            // UI
+            setGuests((prev) =>
+              prev.map((guest) =>
+                guest._id === g._id
+                  ? { ...guest, groupId }
+                  : guest
+              )
+            );
+
+            // DB
+            await fetch(`/api/guests/${g._id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ groupId }),
+            });
+
+            await loadGroups(invitationId);
+          }}
+        />
+      </td>
+
+      {/* סטטוס RSVP */}
+      <td className="p-3">
+        {RSVP_LABELS[g.rsvp]}
+      </td>
+
+      {/* מוזמנים */}
+      <td className="p-3 text-center">
+        {g.guestsCount}
+      </td>
+
+      {/* 🔥 הגיעו בפועל + פלוס מינוס */}
+      <td className="p-3 text-center">
+        <div className="flex flex-col items-center gap-1">
+          <div className="font-bold text-green-700">
+            {g.arrivedCount || 0}
+          </div>
+
+          {isLive && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => changeArrived(g, -1)}
+                disabled={(g.arrivedCount || 0) <= 0}
+                className="w-7 h-7 rounded-full border text-gray-700 disabled:opacity-40"
+              >
+                −
+              </button>
+
+              <button
+                onClick={() => changeArrived(g, +1)}
+                className="w-7 h-7 rounded-full bg-green-600 text-white"
+              >
+                +
+              </button>
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* שולחן */}
+      <td className="p-3">
+        {g.tableName
+          ? g.tableName
+          : g.tableNumber
+          ? `שולחן ${g.tableNumber}`
+          : "-"}
+      </td>
+
+      {/* הערות */}
+      <td className="p-3 text-sm text-gray-700">
+        {g.notes?.trim() || "-"}
+      </td>
+
+      {/* פעולות */}
+      <td className="p-3 flex gap-3">
+        <button
+          onClick={() =>
+            router.push(
+              isDemo
+                ? `/try/dashboard/messages?guestId=${g._id}`
+                : `/dashboard/messages?guestId=${g._id}`
+            )
+          }
+        >
+          💬
+        </button>
+
+        <button
+          onClick={() =>
+            router.push(
+              isDemo
+                ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+                : `/dashboard/seating?from=personal&guestId=${g._id}`
+            )
+          }
+        >
+          🪑
+        </button>
+
+        <button onClick={() => setSelectedGuest(g)}>
+          ✏️
+        </button>
+
+        <button
+          onClick={() => deleteGuest(g)}
+          className="text-red-600"
+        >
+          🗑️
+        </button>
+      </td>
+    </tr>
+  ))}
+
+  {displayGuests.length === 0 && (
+    <tr>
+      <td colSpan={10} className="p-8 text-center text-gray-500">
+        לא נמצאו תוצאות.
+      </td>
+    </tr>
+  )}
+</tbody>
 
 
-</td>
-
-          <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
-          <td className="p-3">{g.guestsCount}</td>
-
-          <td className="p-3">
-  <ArrivalControl
-    value={g.arrivedCount || 0}
-    isLive={isLive}
-    onChange={(delta: number) => changeArrived(g, delta)}
-
-  />
-</td>
-
-
-          <td className="p-3">
-  {g.tableName
-    ? g.tableName
-    : g.tableNumber
-    ? `שולחן ${g.tableNumber}`
-    : "-"}
-</td>
-
-          <td className="p-3 text-sm text-gray-700">
-            {g.notes?.trim() || "-"}
-          </td>
-
-          <td className="p-3 flex gap-3">
-            
-            <button
-  onClick={() =>
-    router.push(
-      isDemo
-        ? `/try/dashboard/messages?guestId=${g._id}`
-        : `/dashboard/messages?guestId=${g._id}`
-    )
-  }
->
-  💬
-</button>
-
-<button
-  onClick={() =>
-    router.push(
-      isDemo
-        ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-        : `/dashboard/seating?from=personal&guestId=${g._id}`
-    )
-  }
->
-  🪑
-</button>
-
-            <button onClick={() => setSelectedGuest(g)}>
-              ✏️
-            </button>
-
-            <button
-              onClick={() => deleteGuest(g)}
-              className="text-red-600"
-            >
-              🗑️
-            </button>
-          </td>
-        </tr>
-      ))}
-
-      {displayGuests.length === 0 && (
-        <tr>
-          <td colSpan={9} className="p-8 text-center text-gray-500">
-            לא נמצאו תוצאות.
-          </td>
-        </tr>
-      )}
-    </tbody>
   </table>
 </div>
 
