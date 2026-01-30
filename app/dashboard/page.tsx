@@ -587,8 +587,8 @@ if (selectedGroupId) {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
-  const showActionButtons =
-  user?.role === "producer" || Boolean(invitation?.producerId);
+  const showActionButtons = true;
+
 
 
   if (loading) return null;
