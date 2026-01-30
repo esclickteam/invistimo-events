@@ -171,6 +171,15 @@ function getSeatRotation(table, c) {
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
+
+  const guestsById = useMemo(() => {
+  const map = new Map();
+  guests.forEach((g) => {
+    map.set(String(g.id ?? g._id), g);
+  });
+  return map;
+}, [guests]);
+
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
@@ -216,15 +225,20 @@ const guestIdFromUrl = searchParams.get("guestId");
   let sum = 0;
 
   byGuest.forEach((seatCount, guestId) => {
-    const guest = guests.find(
-      (g) => String(g.id ?? g._id) === guestId
-    );
-    if (!guest) return;
+  const guest = guestsById.get(guestId);
+  if (!guest) return;
 
-    const arrived = Number(guest.actualArrivedCount ?? 0);
+  const arrived = Number(guest.actualArrivedCount ?? 0);
+  sum += Math.min(seatCount, arrived);
+});
 
-    sum += Math.min(seatCount, arrived);
-  });
+
+console.log("LIVE DEBUG", {
+  table: table.name,
+  byGuest: Array.from(byGuest.entries()),
+  sum,
+});
+
 
   return Math.min(sum, Number(table.seats || 0));
 }, [
@@ -277,7 +291,13 @@ const tableText = isHighlighted
     [table.type, table.seats]
   );
 
-  const seatsCoords = layout.coords;
+  const visibleSeatsCount =
+  seatingMode === "live"
+    ? occupiedSeatsCount
+    : layout.coords.length;
+
+const seatsCoords = layout.coords.slice(0, visibleSeatsCount);
+
 
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
@@ -500,7 +520,8 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isOccupied = i < occupiedSeatsCount;
+    const isOccupied = true; // כל כיסא שמצויר בלייב = הגיע בפועל
+
 
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
