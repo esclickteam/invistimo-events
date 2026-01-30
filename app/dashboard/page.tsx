@@ -95,12 +95,7 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
-  const isAdmin = user?.role === "admin";
-const isProducer = user?.role === "producer";
-const isUser = user?.role === "user";
 
-// אדמין רואה הכל
-const canManageEvent = isAdmin || isProducer || isUser;
 
 
 
@@ -144,6 +139,9 @@ const canManageEvent = isAdmin || isProducer || isUser;
 
   const [invitation, setInvitation] = useState<any | null>(null);
   const [invitationId, setInvitationId] = useState<string>("");
+
+  const canManageEvent = Boolean(invitationId);
+
   const [event, setEvent] = useState<EventModel | null>(null);
 const [openGroupModal, setOpenGroupModal] = useState(false);
 const [selectedGroupId, setSelectedGroupId] = useState("");
