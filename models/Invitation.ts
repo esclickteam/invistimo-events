@@ -5,25 +5,10 @@ import { nanoid } from "nanoid";
 
 const LocationSchema = new Schema(
   {
-    name: {
-      type: String,
-      default: "",
-    },
-
-    address: {
-      type: String,
-      default: "",
-    },
-
-    lat: {
-      type: Number,
-      default: null,
-    },
-
-    lng: {
-      type: Number,
-      default: null,
-    },
+    name: { type: String, default: "" },
+    address: { type: String, default: "" },
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null },
   },
   { _id: false }
 );
@@ -40,12 +25,21 @@ const InvitationSchema = new Schema(
       index: true,
     },
 
+    /* ================= PRODUCER (NEW) ================= */
+    // ⭐ מי המפיק שמנהל את ההזמנה/אירוע (לא חובה תמיד)
+    producerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
     /* ================= EVENT LINK ================= */
     eventId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Event",
-  required: true,
-},
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Event",
+      required: true,
+    },
 
     /* ================= EVENT SNAPSHOT ================= */
     title: {
@@ -128,5 +122,4 @@ InvitationSchema.index({ eventId: 1 }, { unique: true });
 
 /* ================= MODEL ================= */
 
-export default models.Invitation ||
-  model("Invitation", InvitationSchema);
+export default models.Invitation || model("Invitation", InvitationSchema);

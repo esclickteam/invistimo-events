@@ -587,6 +587,10 @@ if (selectedGroupId) {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
+  const showActionButtons =
+  user?.role === "producer" || Boolean(invitation?.producerId);
+
+
   if (loading) return null;
   console.log("USER FROM /api/me:", user);
 console.log("INVITATION:", invitation);
@@ -620,7 +624,7 @@ console.log("INVITATION:", invitation);
     )}
 
 
-       {canManageEvent && (
+       {showActionButtons && (
 
 
         
