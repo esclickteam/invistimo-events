@@ -84,18 +84,21 @@ export async function POST(req: NextRequest) {
        👤 Client ownership
     ========================= */
     const client = await User.findOne({
-      _id: clientId,
-      producerId: producer._id,
-    })
-      .select("_id")
-      .lean();
+  _id: clientId,
+  $or: [
+    { producerId: producer._id },
+    { createdByProducer: producer._id },
+  ],
+})
+  .select("_id")
+  .lean();
 
-    if (!client) {
-      return NextResponse.json(
-        { success: false, message: "Client not found or not yours" },
-        { status: 403 }
-      );
-    }
+if (!client) {
+  return NextResponse.json(
+    { success: false, message: "Client not found or not yours" },
+    { status: 403 }
+  );
+}
 
     /* =========================
        🎬 Client Event
