@@ -124,10 +124,11 @@ if (
   typeof data.actualArrivedCount === "number" &&
   data.actualArrivedCount >= 0
 ) {
-  const isProducer =
+  const isProducerByRole = auth.role === "producer";
+  const isProducerByInvitation =
     invitation.producerId?.toString() === auth.userId.toString();
 
-  if (!isProducer && !isAdmin) {
+  if (!isProducerByRole && !isProducerByInvitation && !isAdmin) {
     return NextResponse.json(
       { error: "Not authorized to update actualArrivedCount" },
       { status: 403 }
