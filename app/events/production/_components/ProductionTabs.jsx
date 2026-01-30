@@ -11,7 +11,6 @@ const TABS = [
   { key: "alcohol", label: "אלכוהול" },
 
   // לייב
-  { key: "live-guests", label: "לייב – אורחים", live: true },
   { key: "live-seating", label: "לייב – הושבה", live: true },
 ];
 

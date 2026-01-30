@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 
 /* =====================
    STATUS CONFIG
@@ -39,6 +41,7 @@ export default function OverviewTab({ eventId }) {
   const [savingBudget, setSavingBudget] = useState(false);
   const [budget, setBudget] = useState(null);
 
+const router = useRouter();
 
   /* =====================
      LOAD DATA
@@ -259,14 +262,30 @@ const available =
       style={{ background: "#F7F4EF" }}
     >
       {/* HEADER */}
-      <div className="bg-white rounded-2xl px-6 py-5 border border-[#E7E3DC] flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">
-          {event.title} · {event.date}
-        </h1>
-        <div className="text-sm text-gray-500">
-          {activeTasks} משימות פעילות
-        </div>
-      </div>
+      {/* HEADER */}
+<div className="bg-white rounded-2xl px-6 py-5 border border-[#E7E3DC] flex justify-between items-center">
+  <div>
+    <h1 className="text-2xl font-semibold">
+      {event.title} · {event.date}
+    </h1>
+    <div className="text-sm text-gray-500">
+      {activeTasks} משימות פעילות
+    </div>
+  </div>
+
+  {/* 🔥 מעבר לדשבורד לקוח */}
+  <button
+    onClick={() =>
+      router.push(
+        `/producer/events/${eventId}/guests?eventId=${eventId}`
+      )
+    }
+    className="px-4 py-2 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50"
+  >
+    👤 צפייה כדשבורד לקוח
+  </button>
+</div>
+
 
       {/* BUDGET */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
