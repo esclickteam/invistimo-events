@@ -11,10 +11,6 @@ import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 import SeatingPage from "@/app/dashboard/seating/page";
 
-/* ✅ לייב אורחים – זה החיבור הנכון */
-import GuestsDashboard from "./_components/GuestsDashboard";
-
-
 export default function EventProductionPage() {
   const { user } = useAuth();
 
@@ -27,9 +23,10 @@ export default function EventProductionPage() {
   useEffect(() => {
     if (!user) return;
 
-    const url = "/api/invitations/my";
-
-    fetch(url, { credentials: "include", cache: "no-store" })
+    fetch("/api/invitations/my", {
+      credentials: "include",
+      cache: "no-store",
+    })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch invitation");
         return res.json();
@@ -45,16 +42,14 @@ export default function EventProductionPage() {
   }, [user]);
 
   /* =========================
-     Extract eventId (מקור אמת)
+     Extract eventId (source of truth)
   ========================= */
   const eventId = useMemo(() => {
     if (typeof window === "undefined") return null;
 
     const params = new URLSearchParams(window.location.search);
-    const eventIdFromUrl = params.get("eventId");
-
     return (
-      eventIdFromUrl ||
+      params.get("eventId") ||
       invitation?.eventId ||
       invitation?.event?._id ||
       null
@@ -62,7 +57,7 @@ export default function EventProductionPage() {
   }, [invitation]);
 
   /* =========================
-     Loading state
+     Loading
   ========================= */
   if (loading) {
     return (
@@ -73,7 +68,7 @@ export default function EventProductionPage() {
   }
 
   /* =========================
-     Safety fallback
+     Safety
   ========================= */
   if (!invitation || !eventId) {
     return (
@@ -84,29 +79,18 @@ export default function EventProductionPage() {
   }
 
   /* =========================
-     Render
+     Render – מסך הפקה בלבד
   ========================= */
   return (
     <ProductionTabs
       eventId={eventId}
       invitation={invitation}
-
       overview={<OverviewTab eventId={eventId} />}
       planning={<PlanningTab eventId={eventId} />}
       suppliers={<SuppliersBudgetTab eventId={eventId} />}
       calendar={<CalendarTab eventId={eventId} />}
       logistics={<LogisticsTab eventId={eventId} />}
       alcohol={<AlcoholManagementTab eventId={eventId} />}
-
-      /* 🔥 זה כל הסיפור – לייב אורחים אמיתי */
-      liveGuests={
-  <GuestsDashboard
-    invitationId={invitation._id}
-    mode="live"
-  />
-}
-
-
       liveSeating={<SeatingPage />}
     />
   );
