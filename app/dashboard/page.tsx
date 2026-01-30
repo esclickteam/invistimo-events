@@ -1025,14 +1025,16 @@ console.log("INVITATION:", invitation);
 <td className="p-3 text-center">
   <div className="flex flex-col items-center gap-1">
     <div className="font-bold text-green-700">
-      {g.arrivedCount || 0}
+      {g.arrivedCount ?? 0}
+
     </div>
 
     {isLive && (
       <div className="flex gap-2">
         <button
           onClick={() => changeArrived(g, -1)}
-          disabled={(g.arrivedCount || 0) <= 0}
+          disabled={(g.arrivedCount ?? 0) <= 0}
+
           className="w-7 h-7 rounded-full border disabled:opacity-40"
         >
           −
@@ -1040,7 +1042,8 @@ console.log("INVITATION:", invitation);
 
         <button
           onClick={() => changeArrived(g, +1)}
-          disabled={(g.arrivedCount || 0) >= g.guestsCount}
+          disabled={(g.arrivedCount ?? 0) >= g.guestsCount}
+
           className="w-7 h-7 rounded-full bg-green-600 text-white disabled:opacity-40"
         >
           +
