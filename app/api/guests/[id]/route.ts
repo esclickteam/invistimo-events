@@ -62,7 +62,8 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const auth: any = await getUserIdFromRequest();
+    const auth: any = await getUserIdFromRequest(req);
+
     console.log("👤 Auth:", auth);
 
     if (!auth?.userId) {
@@ -222,7 +223,8 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const auth: any = await getUserIdFromRequest();
+    const auth: any = await getUserIdFromRequest(req);
+
     const isOwner = auth?.userId?.toString() === invitation.ownerId.toString();
     const isAdmin = auth?.role === "admin";
 
