@@ -649,13 +649,14 @@ if (selectedGroupId) {
   );
 
   // ✅ חובה – עדכון ההושבה
-  setSeatingGuests((prev: any[]) =>
-    prev.map((g) =>
-      g._id === guestId
-        ? { ...g, actualArrivedCount: next }
-        : g
-    )
-  );
+  setGuests((prev) =>
+  prev.map((g) =>
+    g._id === guestId
+      ? { ...g, actualArrivedCount: next }
+      : g
+  )
+);
+
 
   const res = await fetch(`/api/guests/${guestId}`, {
     method: "PUT",
