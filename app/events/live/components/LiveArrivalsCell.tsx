@@ -6,7 +6,7 @@ type Props = {
   guestId: string;
   invitationId: string;
   fallback: number; // guestsCount
-  onChange?: (guestId: string, arrivedCount: number) => void; // ⭐ חדש
+  onChange?: (guestId: string, arrivedCount: number) => void;
 };
 
 export default function LiveArrivalsCell({
@@ -19,15 +19,22 @@ export default function LiveArrivalsCell({
   const [loading, setLoading] = useState(false);
 
   /* ===============================
-     טעינה ראשונית (מגיעים בפועל)
+     טעינה ראשונית – הגיעו בפועל
+     ⭐ רק ביום אירוע
   =============================== */
   useEffect(() => {
+    if (!guestId || !invitationId) return;
+
     async function load() {
       try {
         const res = await fetch(
-          `/api/livearrivals/one?guestId=${guestId}&invitation=${invitationId}`,
-          { cache: "no-store" }
+          `/api/live-arrivals/one?guestId=${guestId}&invitationId=${invitationId}`,
+          {
+            cache: "no-store",
+            credentials: "include", // ⭐ חשוב
+          }
         );
+
         const data = await res.json();
 
         if (data.success && typeof data.arrivedCount === "number") {
@@ -35,7 +42,7 @@ export default function LiveArrivalsCell({
           onChange?.(guestId, data.arrivedCount); // ⭐ סנכרון למעלה
         }
       } catch (err) {
-        console.error("LiveArrivalsCell load error:", err);
+        console.error("❌ LiveArrivalsCell load error:", err);
       }
     }
 
@@ -43,28 +50,37 @@ export default function LiveArrivalsCell({
   }, [guestId, invitationId, onChange]);
 
   /* ===============================
-     עדכון נוכחות
+     עדכון הגיעו בפועל
   =============================== */
   async function update(newCount: number) {
     const safe = Math.max(0, newCount);
 
+    // 🟢 UI אופטימי
     setCount(safe);
-    onChange?.(guestId, safe); // ⭐ עדכון מיידי ל־UI
+    onChange?.(guestId, safe);
 
     try {
       setLoading(true);
 
-      await fetch("/api/livearrivals", {
-        method: "POST",
+      const res = await fetch("/api/live-arrivals/arrived", {
+        method: "PATCH", // ⭐ תואם ל־API שלך
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           guestId,
           invitationId,
           arrivedCount: safe,
         }),
       });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error("Live arrival update failed");
+      }
     } catch (err) {
-      console.error("LiveArrivalsCell update error:", err);
+      console.error("❌ LiveArrivalsCell update error:", err);
+      // אין rollback – זה לייב
     } finally {
       setLoading(false);
     }
@@ -74,14 +90,16 @@ export default function LiveArrivalsCell({
     <div className="flex items-center gap-2">
       <button
         type="button"
-        disabled={loading}
+        disabled={loading || count <= 0}
         onClick={() => update(count - 1)}
-        className="px-2 border rounded disabled:opacity-50"
+        className="w-8 h-8 rounded-full border border-gray-300 text-lg
+                   hover:bg-gray-50 transition disabled:opacity-30"
+        title="הפחת אחד שהגיע"
       >
         −
       </button>
 
-      <span className="min-w-[24px] text-center font-semibold">
+      <span className="min-w-[32px] text-center font-semibold">
         {count}
       </span>
 
@@ -89,7 +107,9 @@ export default function LiveArrivalsCell({
         type="button"
         disabled={loading}
         onClick={() => update(count + 1)}
-        className="px-2 border rounded disabled:opacity-50"
+        className="w-8 h-8 rounded-full bg-green-600 text-white text-lg
+                   hover:bg-green-700 transition disabled:opacity-40"
+        title="הוסף אחד שהגיע"
       >
         +
       </button>
