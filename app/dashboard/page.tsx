@@ -509,10 +509,9 @@ useEffect(() => {
     0
   );
 
-  const totalComing = guests.reduce(
-    (s, g) => (g.rsvp === "yes" ? s + g.guestsCount : s),
-    0
-  );
+  const totalComing = guests.filter(
+  (g) => g.rsvp === "yes"
+).length;
 
   const totalArrived = guests.reduce(
     (s, g) => s + (g.arrivedCount || 0),
