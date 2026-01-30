@@ -854,7 +854,8 @@ console.log("INVITATION:", invitation);
 
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+
   <Box
     title="סה״כ מוזמנים"
     value={stats.totalGuests}
@@ -866,6 +867,13 @@ console.log("INVITATION:", invitation);
     color="green"
     onClick={() => setQuickFilter("yes")}
   />
+
+  <Box
+  title="הגיעו בפועל"
+  value={stats.arrivedGuests}
+  color="green"
+/>
+
   <Box
     title="לא מגיעים"
     value={stats.notComing}
