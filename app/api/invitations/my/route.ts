@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /* ============================================================
    GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
-   ✅ תומך גם בלקוח שנוצר ע״י מפיק (impersonation)
+   ✅ תומך גם בלקוח שנוצר ע״י מפיק (createdByProducer)
 ============================================================ */
 export async function GET() {
   try {
@@ -23,11 +23,19 @@ export async function GET() {
       );
     }
 
-    // ✅ אם המשתמש בתוך דשבורד לקוח דרך מפיק → נחפש גם לפי producerId
+    const userId = auth.userId;
+
+    // ✅ מביאים את המפיק שיצר את הלקוח (אם קיים)
+    const user = await User.findById(userId)
+      .select("createdByProducer")
+      .lean();
+
+    const createdByProducerId = user?.createdByProducer || null;
+
     const invitation = await Invitation.findOne({
       $or: [
-        { ownerId: auth.userId },
-        ...(auth.impersonatedBy ? [{ producerId: auth.impersonatedBy }] : []),
+        { ownerId: userId },
+        ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
       ],
     })
       .select(`
@@ -74,7 +82,7 @@ export async function GET() {
    ✅ אם אין eventId בבקשה:
       1) מחפש אירוע קיים למשתמש
       2) אם אין — יוצר אירוע חדש אוטומטית
-   ✅ תומך גם בלקוח שנוצר ע״י מפיק (impersonation) וממלא producerId
+   ✅ לקוח שנוצר ע״י מפיק → producerId נלקח מ-User.createdByProducer
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -90,17 +98,23 @@ export async function POST(req: Request) {
 
     const userId = auth.userId;
 
-    // ✅ אם זה לקוח שנכנס דרך מפיק (impersonation) — זה המפיק בפועל
-    const producerId =
-      auth.role === "producer" ? userId : auth.impersonatedBy || null;
+    // ✅ שליפת המשתמש + מי יצר אותו (אם רלוונטי)
+    const user = await User.findById(userId)
+      .select("email guests maxMessages createdByProducer role")
+      .lean();
 
-    const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
         { status: 404 }
       );
     }
+
+    // ✅ producerId נקבע כך:
+    // - אם מחובר כמפיק אמיתי → הוא המפיק
+    // - אחרת (לקוח) → אם נוצר ע"י מפיק → המפיק נמצא ב-createdByProducer
+    const producerId =
+      auth.role === "producer" ? userId : user.createdByProducer || null;
 
     const body = await req.json().catch(() => ({} as any));
     let { eventId } = body;
@@ -159,7 +173,7 @@ export async function POST(req: Request) {
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: userId,
-        producerId, // ✅ NEW
+        producerId, // ✅ כאן התיקון
 
         eventId: event._id,
         guests: [],

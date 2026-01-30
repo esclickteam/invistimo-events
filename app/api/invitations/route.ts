@@ -31,13 +31,23 @@ export async function POST(req: Request) {
     /* ===============================
        🧠 טעינת משתמש
     =============================== */
-    const user = await User.findById(userId).lean();
+    const user = await User.findById(userId)
+      .select("email createdByProducer")
+      .lean();
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
         { status: 404 }
       );
     }
+
+    // ✅ כאן התיקון: producerId נקבע לפי המצב העסקי
+    // - אם היוצר הוא מפיק → הוא ה-producerId
+    // - אם זה לקוח שנוצר ע"י מפיק → producerId = user.createdByProducer
+    // - אחרת → null
+    const producerId =
+      auth.role === "producer" ? userId : user.createdByProducer || null;
 
     /* ===============================
        📦 גוף הבקשה
@@ -83,11 +93,13 @@ export async function POST(req: Request) {
     }
 
     /* ===============================
-       🔒 בדיקה אם כבר קיימת הזמנה לאירוע הזה (לאותו משתמש)
+       🔒 בדיקה אם כבר קיימת הזמנה לאירוע הזה
+       ✅ גם אם ההזמנה משויכת למפיק (producerId)
     =============================== */
     const existing = await Invitation.findOne({
       eventId: event._id,
       ownerId: userId,
+      ...(producerId ? { producerId } : {}),
     }).lean();
 
     if (existing) {
@@ -109,9 +121,7 @@ export async function POST(req: Request) {
     =============================== */
     const newInvite = await Invitation.create({
       ownerId: userId,
-
-      // ✅ NEW: אם היוצר הוא מפיק – נשמור producerId
-      producerId: auth.role === "producer" ? userId : null,
+      producerId, // ✅ כאן התיקון
 
       eventId: event._id,
 
@@ -140,6 +150,7 @@ export async function POST(req: Request) {
       ownerId: userId,
       producerId: cleanInvite.producerId ?? null,
       role: auth.role,
+      userCreatedByProducer: user.createdByProducer ?? null,
     });
 
     return NextResponse.json(
@@ -162,7 +173,6 @@ export async function GET(req: Request) {
   try {
     await db();
 
-    /* 🔐 אימות */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -173,7 +183,13 @@ export async function GET(req: Request) {
 
     const userId = auth.userId;
 
-    /* 🔎 eventId מה-query */
+    // ✅ מביאים createdByProducer כדי לאפשר ללקוח שנוצר ע"י מפיק לראות/לגשת
+    const user = await User.findById(userId)
+      .select("createdByProducer")
+      .lean();
+
+    const createdByProducerId = user?.createdByProducer || null;
+
     const { searchParams } = new URL(req.url);
     const eventId = searchParams.get("eventId");
 
@@ -184,13 +200,15 @@ export async function GET(req: Request) {
       );
     }
 
-    /* 🎯 מציאת ההזמנה */
-    // ✅ NEW: מחזירים רק אם המשתמש הוא owner או producer של ההזמנה (או admin)
+    // ✅ מחזירים אם המשתמש הוא owner
+    // או אם הוא המפיק עצמו
+    // או אם הוא לקוח שנוצר ע"י מפיק וההזמנה משויכת לאותו מפיק
     const invitation = await Invitation.findOne({
       eventId,
       $or: [
         { ownerId: userId },
         { producerId: userId },
+        ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
       ],
     }).lean();
 
@@ -201,10 +219,7 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json(
-      { success: true, invitation },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, invitation }, { status: 200 });
   } catch (err) {
     console.error("❌ Error fetching invitation:", err);
     return NextResponse.json(

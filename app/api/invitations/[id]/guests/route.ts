@@ -38,8 +38,9 @@ if (!auth?.userId) {
 
 const userId = auth.userId;
 
-const producerId =
-  auth.role === "producer" ? userId : auth.impersonatedBy || null;
+const userDoc = await User.findById(userId).select("createdByProducer").lean();
+const producerId = userDoc?.createdByProducer || null;
+
 
 
     const { name, phone, relation, rsvp, guestsCount, tableNumber, groupId } =
