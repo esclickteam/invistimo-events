@@ -19,15 +19,17 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   try {
     await db();
+    console.log("📥 GET /api/guests/[id]", id);
 
     const guest = await InvitationGuest.findById(id);
     if (!guest) {
+      console.warn("⚠️ Guest not found", id);
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, guest });
   } catch (error) {
-    console.error("GET /guests/[id] error:", error);
+    console.error("❌ GET /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -40,15 +42,20 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
   try {
     await db();
+    console.log("🚀 PUT /api/guests/[id] HIT", id);
+
     const data = await req.json();
+    console.log("📦 Payload:", data);
 
     const guest = await InvitationGuest.findById(id);
     if (!guest) {
+      console.warn("⚠️ Guest not found", id);
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
 
     const invitation = await Invitation.findById(guest.invitationId);
     if (!invitation) {
+      console.warn("⚠️ Invitation not found", guest.invitationId);
       return NextResponse.json(
         { error: "Invitation not found" },
         { status: 404 }
@@ -56,7 +63,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     const auth = await getUserIdFromRequest();
+    console.log("👤 Auth:", auth);
+
     if (!auth?.userId) {
+      console.warn("⛔ Unauthorized – no userId");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -64,16 +74,21 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const isAdmin = auth.role === "admin";
     const isProducer = auth.role === "producer";
 
+    console.log("🔐 Permissions:", {
+      isOwner,
+      isAdmin,
+      isProducer,
+    });
 
     if (!isOwner && !isAdmin && !isProducer) {
-
+      console.warn("⛔ Not authorized to update guest");
       return NextResponse.json(
         { error: "Not authorized to update this guest" },
         { status: 403 }
       );
     }
 
-    // ✅ נשמור את groupId הקודם כדי לחשב expectedCount לקבוצה הישנה והחדשה
+    // ⭐ groupId קודם
     const beforeGroupId = guest.groupId ? String(guest.groupId) : null;
 
     /* ===============================
@@ -84,10 +99,6 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (typeof data.relation === "string") guest.relation = data.relation;
     if (typeof data.notes === "string") guest.notes = data.notes;
 
-    /* ===============================
-       ⭐ groupId — שיוך לקבוצה
-       רק בעל האירוע / אדמין
-    =============================== */
     if (
       "groupId" in data &&
       (data.groupId === null || typeof data.groupId === "string")
@@ -95,66 +106,62 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       guest.groupId = data.groupId;
     }
 
-    /* ===============================
-       RSVP
-    =============================== */
     if (["yes", "no", "pending"].includes(data.rsvp)) {
       guest.rsvp = data.rsvp;
     }
 
-    /* ===============================
-       🔒 guestsCount — רק בעל האירוע / אדמין
-    =============================== */
     if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
       guest.guestsCount = data.guestsCount;
     }
 
-    /* ===============================
-       arrivedCount — נוכחות בפועל
-    =============================== */
     if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
       guest.arrivedCount = data.arrivedCount;
     }
 
     /* ===============================
-   ⭐ actualArrivedCount — מגיעים בפועל
-   רק מפיק / אדמין
-=============================== */
-if (
-  typeof data.actualArrivedCount === "number" &&
-  data.actualArrivedCount >= 0
-) {
-  const isProducerByRole = auth.role === "producer";
-  const isProducerByInvitation =
-    invitation.producerId?.toString() === auth.userId.toString();
+       ⭐ actualArrivedCount — מגיעים בפועל
+    =============================== */
+    if (
+      typeof data.actualArrivedCount === "number" &&
+      data.actualArrivedCount >= 0
+    ) {
+      console.log("🟦 actualArrivedCount update requested");
 
-  if (!isProducerByRole && !isProducerByInvitation && !isAdmin) {
-    return NextResponse.json(
-      { error: "Not authorized to update actualArrivedCount" },
-      { status: 403 }
-    );
-  }
+      if (!isProducer && !isAdmin) {
+        console.warn("⛔ Blocked actualArrivedCount update");
+        return NextResponse.json(
+          { error: "Not authorized to update actualArrivedCount" },
+          { status: 403 }
+        );
+      }
 
-  guest.actualArrivedCount = data.actualArrivedCount;
-}
+      console.log(
+        "✅ Updating actualArrivedCount:",
+        guest.actualArrivedCount,
+        "→",
+        data.actualArrivedCount
+      );
 
+      guest.actualArrivedCount = data.actualArrivedCount;
+    }
 
     await guest.save();
+    console.log("💾 Guest saved", guest._id);
 
-    // ✅ סנכרון expectedCount: רק למי שמגיעים (recalc מסנן rsvp:"yes")
+    // 🔁 סנכרון קבוצות
     const afterGroupId = guest.groupId ? String(guest.groupId) : null;
-
     const affected = new Set<string>();
     if (beforeGroupId) affected.add(beforeGroupId);
     if (afterGroupId) affected.add(afterGroupId);
 
     for (const gid of affected) {
+      console.log("🔄 Recalc expectedCount for group", gid);
       await recalcGroupExpectedCount(gid);
     }
 
     return NextResponse.json({ success: true, guest });
   } catch (error) {
-    console.error("PUT /guests/[id] error:", error);
+    console.error("❌ PUT /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -167,6 +174,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
   try {
     await db();
+    console.log("🗑️ DELETE /api/guests/[id]", id);
 
     const guest = await InvitationGuest.findById(id);
     if (!guest) {
@@ -192,10 +200,9 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // ✅ נשמור קבוצה לפני מחיקה כדי לעדכן expectedCount
     const groupId = guest.groupId ? String(guest.groupId) : null;
-
     await guest.deleteOne();
+    console.log("🗑️ Guest deleted", id);
 
     if (groupId) {
       await recalcGroupExpectedCount(groupId);
@@ -203,7 +210,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("DELETE /guests/[id] error:", error);
+    console.error("❌ DELETE /guests/[id] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
