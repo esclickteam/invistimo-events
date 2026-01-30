@@ -31,7 +31,11 @@ function confirmedCountForGuest(g) {
 /* =========================
    Component
 ========================= */
- export default function LiveGuestsTab({ invitationId }) {
+ export default function GuestsDashboard({
+  invitationId,
+  mode = "view", // "view" | "live"
+}) {
+
   const router = useRouter();
 
 
@@ -44,6 +48,8 @@ function confirmedCountForGuest(g) {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   
+    const isLive = mode === "live";
+
 
 
   const guests = useSeatingStore((s) => s.guests);
@@ -54,9 +60,12 @@ const resetLiveArrivals = useSeatingStore((s) => s.resetLiveArrivals);
 const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
 useEffect(() => {
+  if (!isLive) return;
+
   setSeatingMode("live");
   return () => setSeatingMode("regular");
-}, [setSeatingMode]);
+}, [isLive, setSeatingMode]);
+
 
 
 
@@ -110,22 +119,24 @@ const guestTableMap = useMemo(() => {
     }
 
     // 2️⃣ 🔹 הגעה בפועל – מפיק בלבד (LiveArrival)
-    const liveRes = await fetch(
-      `/api/live-arrivals?invitationId=${invitationId}`,
-      {
-        credentials: "include",
-        cache: "no-store",
-      }
-    );
+    if (isLive) {
+  const liveRes = await fetch(
+    `/api/live-arrivals?invitationId=${invitationId}`,
+    {
+      credentials: "include",
+      cache: "no-store",
+    }
+  );
 
-    const liveData = await liveRes.json();
+  const liveData = await liveRes.json();
 
-    const arrivedMap = {};
-    (liveData || []).forEach((row) => {
-      arrivedMap[row.guestId] = row.arrivedCount;
-    });
+  const arrivedMap = {};
+  (liveData || []).forEach((row) => {
+    arrivedMap[row.guestId] = row.arrivedCount;
+  });
 
-    setLiveArrivalsBulk(arrivedMap);
+  setLiveArrivalsBulk(arrivedMap);
+}
 
   } catch (e) {
     console.error("❌ Live guests load failed:", e);
@@ -136,7 +147,14 @@ const guestTableMap = useMemo(() => {
 
 
   loadGuestsForLive();
-}, [invitationId, setGuests, resetLiveArrivals, setLiveArrivalsBulk]);
+}, [
+  invitationId,
+  isLive,
+  setGuests,
+  resetLiveArrivals,
+  setLiveArrivalsBulk,
+]);
+
 
 
 
@@ -396,33 +414,33 @@ const tableLabel =
                   <td className="p-3 font-semibold">{confirmed}</td>
 
                   {/* ✅ פלוס/מינוס חופשי (מינימום 0) */}
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => changeArrived(g, -1)}
-                        disabled={arrived <= 0}
-                        className="w-8 h-8 rounded-full border border-gray-300 text-lg hover:bg-gray-50 transition disabled:opacity-30"
-                        title="הפחת אחד שהגיע"
-                      >
-                        −
-                      </button>
+                <td className="p-3">
+  {isLive ? (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => changeArrived(g, -1)}
+        disabled={arrived <= 0}
+        className="w-8 h-8 rounded-full border"
+      >
+        −
+      </button>
 
-                      <div className="min-w-[90px] text-center leading-tight">
-                        <div className="text-xs text-gray-500">הגיעו</div>
-                        <div className="text-lg font-bold text-green-700">
-                          {arrived}
-                        </div>
-                      </div>
+      <div className="min-w-[60px] text-center font-bold text-green-700">
+        {arrived}
+      </div>
 
-                      <button
-                        onClick={() => changeArrived(g, +1)}
-                        className="w-8 h-8 rounded-full bg-green-600 text-white text-lg hover:bg-green-700 transition"
-                        title="הוסף אחד שהגיע"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </td>
+      <button
+        onClick={() => changeArrived(g, +1)}
+        className="w-8 h-8 rounded-full bg-green-600 text-white"
+      >
+        +
+      </button>
+    </div>
+  ) : (
+    <span className="font-semibold">{arrived}</span>
+  )}
+</td>
+
 
                   {/* ⭐ מס' שולחן */}
 <td className="p-3 font-medium text-green-700">

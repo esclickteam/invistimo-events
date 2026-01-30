@@ -12,7 +12,8 @@ import AlcoholManagementTab from "./_components/AlcoholManagementTab";
 import SeatingPage from "@/app/dashboard/seating/page";
 
 /* ✅ לייב אורחים – זה החיבור הנכון */
-import LiveGuestsTab from "./_components/LiveGuestsTab";
+import GuestsDashboard from "./_components/GuestsDashboard";
+
 
 export default function EventProductionPage() {
   const { user } = useAuth();
@@ -99,8 +100,12 @@ export default function EventProductionPage() {
 
       /* 🔥 זה כל הסיפור – לייב אורחים אמיתי */
       liveGuests={
-        <LiveGuestsTab invitationId={invitation._id} />
-      }
+  <GuestsDashboard
+    invitationId={invitation._id}
+    mode="live"
+  />
+}
+
 
       liveSeating={<SeatingPage />}
     />
