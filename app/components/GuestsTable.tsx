@@ -218,15 +218,14 @@ export default function GuestsTable({
 
       {/* Mobile */}
       <div className="md:hidden">
-  <GuestsMobileList
-    guests={displayGuests}
-    isLive={false}   // ⭐️ הוספה חובה
-    onEdit={onEdit}
-    onDelete={onDelete}
-    onMessage={onMessage}
-    onSeat={onSeat}
-  />
-</div>
+        <GuestsMobileList
+          guests={displayGuests}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onMessage={onMessage}
+          onSeat={onSeat}
+        />
+      </div>
     </>
   );
 }

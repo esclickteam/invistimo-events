@@ -57,14 +57,7 @@ type Guest = {
 };
 
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
-type SortKey =
-  | "name"
-  | "rsvp"
-  | "table"
-  | "invited"   // מוזמנים
-  | "coming"    // מגיעים (RSVP = yes)
-  | "arrived";      // הגיעו בפועל
-
+type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
 
 
@@ -91,8 +84,6 @@ export default function DashboardPage() {
   const pathname = usePathname();
 const isDemo = pathname.startsWith("/try");
 
-
-
   const router = useRouter();
 
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -104,10 +95,6 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
-
-  const isLive = useMemo(() => {
-  return user?.role === "producer" && Boolean(eventIdFromUrl);
-}, [user?.role, eventIdFromUrl]);
 
 
 
@@ -255,37 +242,8 @@ async function loadEvent() {
   );
 
   const data = await res.json();
-  setGuests(
-  (data.guests || []).map((g: Guest) => ({
-    ...g,
-    arrivedCount: g.arrivedCount ?? 0,
-  }))
-);
-
+  setGuests(data.guests || []);
 }
-
-async function changeArrived(guest: Guest, delta: number) {
-  // ❌ בדמו – לא שומרים
-  if (isDemo) return;
-
-  const current = guest.arrivedCount || 0;
-  const next = Math.max(0, current + delta);
-
-  // UI מיידי
-  setGuests((prev) =>
-    prev.map((g) =>
-      g._id === guest._id ? { ...g, arrivedCount: next } : g
-    )
-  );
-
-  // DB
-  await fetch(`/api/guests/${guest._id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ arrivedCount: next }),
-  });
-}
-
 
 
 
@@ -504,15 +462,13 @@ useEffect(() => {
      Stats (על כל האורחים)
   ============================================================ */
   const stats = useMemo(() => {
+  // 🟦 מוזמנים – קבועים
   const totalInvited = guests.reduce(
     (s, g) => s + (g.guestsCount || 0),
     0
   );
 
-  const totalComing = guests.filter(
-  (g) => g.rsvp === "yes"
-).length;
-
+  // 🟩 מגיעים בפועל – אך ורק arrivedCount
   const totalArrived = guests.reduce(
     (s, g) => s + (g.arrivedCount || 0),
     0
@@ -522,14 +478,12 @@ useEffect(() => {
   const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalGuests: totalInvited,     // מוזמנים
-    comingGuests: totalComing,     // מגיעים (RSVP yes)
-    arrivedGuests: totalArrived,   // הגיעו בפועל
+    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
+    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
     notComing: totalNo,
     noResponse: totalPending,
   };
 }, [guests]);
-
 
 
   /* ============================================================
@@ -586,9 +540,8 @@ if (selectedGroupId) {
   if (sortKey === "table") return (g.tableName || "").toLowerCase();
   if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
   if (sortKey === "invited") return g.guestsCount || 0;
-  if (sortKey === "coming")
-    return g.rsvp === "yes" ? g.guestsCount : 0;
-  if (sortKey === "arrived") return g.arrivedCount || 0;
+  // coming = נוכחות אמיתית
+  return g.arrivedCount || 0;
 };
 
     list.sort((a, b) => {
@@ -615,16 +568,13 @@ if (selectedGroupId) {
 
 
   const toggleSort = (key: SortKey) => {
-  if (key === "arrived" && !isLive) return;
-
-  if (sortKey !== key) {
-    setSortKey(key);
-    setSortDir("asc");
-    return;
-  }
-  setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-};
-
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+      return;
+    }
+    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+  };
 
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
@@ -676,6 +626,23 @@ console.log("INVITATION:", invitation);
     </p>
 
 
+      {eventIdFromUrl && (
+  <div className="flex flex-wrap gap-3 mb-6">
+    <Link
+      href={`/events/production?eventId=${eventIdFromUrl}`}
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+    >
+      🎬 הפקת אירוע
+    </Link>
+
+    <Link
+      href={`/events/live?eventId=${eventIdFromUrl}`}
+      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
+    >
+      🎛️ ניהול אירוע
+    </Link>
+  </div>
+)}
     
 
     {/* תיוג שירות שיחות */}
@@ -862,8 +829,7 @@ console.log("INVITATION:", invitation);
 
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
-
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
   <Box
     title="סה״כ מוזמנים"
     value={stats.totalGuests}
@@ -875,15 +841,6 @@ console.log("INVITATION:", invitation);
     color="green"
     onClick={() => setQuickFilter("yes")}
   />
-
-  {isLive && (
-  <Box
-    title="הגיעו בפועל"
-    value={stats.arrivedGuests}
-    color="green"
-  />
-)}
-
   <Box
     title="לא מגיעים"
     value={stats.notComing}
@@ -938,34 +895,19 @@ console.log("INVITATION:", invitation);
           סטטוס{sortArrow("rsvp")}
         </th>
 
-       
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("invited")}
+        >
+          מוזמנים{sortArrow("invited")}
+        </th>
 
-        {/* מגיעים */}
-<th
-  className="p-3 text-center cursor-pointer select-none"
-  onClick={() => toggleSort("invited")}
->
-  מוזמנים{sortArrow("invited")}
-</th>
-
-{/* מגיעים (לפי RSVP = yes) */}
-<th
-  className="p-3 text-center cursor-pointer select-none"
-  onClick={() => toggleSort("coming")}
->
-  מגיעים{sortArrow("coming")}
-</th>
-
-{/* הגיעו בפועל */}
-{isLive && (
-  <th
-    className="p-3 text-center cursor-pointer select-none"
-    onClick={() => toggleSort("arrived")}
-  >
-    הגיעו בפועל{sortArrow("arrived")}
-  </th>
-)}
-
+        <th
+          className="p-3 text-right cursor-pointer select-none"
+          onClick={() => toggleSort("coming")}
+        >
+          מגיעים{sortArrow("coming")}
+        </th>
 
         <th
           className="p-3 text-right cursor-pointer select-none"
@@ -980,183 +922,132 @@ console.log("INVITATION:", invitation);
     </thead>
 
     <tbody>
-  {displayGuests.map((g) => (
-    <tr key={g._id} className="border-b">
-      {/* שם */}
-      <td className="p-3">{g.name}</td>
+      {displayGuests.map((g) => (
+        <tr key={g._id} className="border-b">
+          <td className="p-3">{g.name}</td>
+          <td className="p-3">{formatPhone(g.phone)}</td>
+          <td className="p-3">{g.relation?.trim() || "-"}</td>
+          <td className="p-3">
+  <GuestGroupSelect
+  value={g.groupId}
+  onChange={async (groupId) => {
+    // UI
+    setGuests((prev) =>
+      prev.map((guest) =>
+        guest._id === g._id
+          ? { ...guest, groupId }
+          : guest
+      )
+    );
 
-      {/* טלפון */}
-      <td className="p-3">{formatPhone(g.phone)}</td>
+    // DB
+    await fetch(`/api/guests/${g._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ groupId }),
+    });
 
-      {/* קרבה */}
-      <td className="p-3">{g.relation?.trim() || "-"}</td>
+    // ⭐️ חובה
+    await loadGroups(invitationId);
+  }}
+/>
 
-      {/* קבוצה */}
-      <td className="p-3">
-        <GuestGroupSelect
-          value={g.groupId}
-          onChange={async (groupId) => {
-            // UI
-            setGuests((prev) =>
-              prev.map((guest) =>
-                guest._id === g._id
-                  ? { ...guest, groupId }
-                  : guest
-              )
-            );
 
-            // DB
-            await fetch(`/api/guests/${g._id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ groupId }),
-            });
-
-            await loadGroups(invitationId);
-          }}
-        />
-      </td>
-
-      {/* סטטוס RSVP */}
-      <td className="p-3">
-        {RSVP_LABELS[g.rsvp]}
-      </td>
-
-      {/* מוזמנים */}
-      <td className="p-3 text-center">
-        {g.guestsCount}
-      </td>
-
-      {/* מגיעים (RSVP = yes) */}
-<td className="p-3 text-center">
-  {g.rsvp === "yes" ? g.guestsCount : 0}
 </td>
 
+          <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
+          <td className="p-3">{g.guestsCount}</td>
 
+          <td className="p-3 font-semibold">
+  {g.arrivedCount || 0}
+</td>
 
-{isLive && (
-  <td className="p-3 text-center">
-    <div className="flex flex-col items-center gap-1">
-      <div className="font-bold text-green-700">
-        {g.arrivedCount ?? 0}
-      </div>
+          <td className="p-3">
+  {g.tableName
+    ? g.tableName
+    : g.tableNumber
+    ? `שולחן ${g.tableNumber}`
+    : "-"}
+</td>
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => changeArrived(g, -1)}
-          disabled={(g.arrivedCount ?? 0) <= 0}
-          className="w-7 h-7 rounded-full border disabled:opacity-40"
-        >
-          −
-        </button>
+          <td className="p-3 text-sm text-gray-700">
+            {g.notes?.trim() || "-"}
+          </td>
 
-        <button
-          onClick={() => changeArrived(g, +1)}
-          disabled={(g.arrivedCount ?? 0) >= g.guestsCount}
-          className="w-7 h-7 rounded-full bg-green-600 text-white disabled:opacity-40"
-        >
-          +
-        </button>
-      </div>
-    </div>
-  </td>
-)}
-
-
-
-      {/* שולחן */}
-      <td className="p-3">
-        {g.tableName
-          ? g.tableName
-          : g.tableNumber
-          ? `שולחן ${g.tableNumber}`
-          : "-"}
-      </td>
-
-      {/* הערות */}
-      <td className="p-3 text-sm text-gray-700">
-        {g.notes?.trim() || "-"}
-      </td>
-
-      {/* פעולות */}
-      <td className="p-3 flex gap-3">
-        <button
-          onClick={() =>
-            router.push(
-              isDemo
-                ? `/try/dashboard/messages?guestId=${g._id}`
-                : `/dashboard/messages?guestId=${g._id}`
-            )
-          }
-        >
-          💬
-        </button>
-
-        <button
-          onClick={() =>
-            router.push(
-              isDemo
-                ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-                : `/dashboard/seating?from=personal&guestId=${g._id}`
-            )
-          }
-        >
-          🪑
-        </button>
-
-        <button onClick={() => setSelectedGuest(g)}>
-          ✏️
-        </button>
-
-        <button
-          onClick={() => deleteGuest(g)}
-          className="text-red-600"
-        >
-          🗑️
-        </button>
-      </td>
-    </tr>
-  ))}
-
-  {displayGuests.length === 0 && (
-    <tr>
-      <td colSpan={12} className="p-8 text-center text-gray-500">
-
-
-        לא נמצאו תוצאות.
-      </td>
-    </tr>
-  )}
-</tbody>
-
-
-  </table>
-</div>
-
-{/* ===================== MOBILE LIST ===================== */}
-<div className="md:hidden">
-  <GuestsMobileList
-  guests={displayGuests}
-  isLive={isLive}   // ⭐️ חשוב
-  onEdit={(g) => setSelectedGuest(g)}
-  onDelete={(g) => deleteGuest(g)}
-  onMessage={(g) =>
+          <td className="p-3 flex gap-3">
+            
+            <button
+  onClick={() =>
     router.push(
       isDemo
         ? `/try/dashboard/messages?guestId=${g._id}`
         : `/dashboard/messages?guestId=${g._id}`
     )
   }
-  onSeat={(g) =>
+>
+  💬
+</button>
+
+<button
+  onClick={() =>
     router.push(
       isDemo
         ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
         : `/dashboard/seating?from=personal&guestId=${g._id}`
     )
   }
-/>
+>
+  🪑
+</button>
 
+            <button onClick={() => setSelectedGuest(g)}>
+              ✏️
+            </button>
 
+            <button
+              onClick={() => deleteGuest(g)}
+              className="text-red-600"
+            >
+              🗑️
+            </button>
+          </td>
+        </tr>
+      ))}
+
+      {displayGuests.length === 0 && (
+        <tr>
+          <td colSpan={9} className="p-8 text-center text-gray-500">
+            לא נמצאו תוצאות.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
+{/* ===================== MOBILE LIST ===================== */}
+<div className="md:hidden">
+  <GuestsMobileList
+    guests={displayGuests}
+    onEdit={(g) => setSelectedGuest(g)}
+    onDelete={(g) => deleteGuest(g)}
+    onMessage={(g) =>
+  router.push(
+    isDemo
+      ? `/try/dashboard/messages?guestId=${g._id}`
+      : `/dashboard/messages?guestId=${g._id}`
+  )
+}
+onSeat={(g) =>
+  router.push(
+    isDemo
+      ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+      : `/dashboard/seating?from=personal&guestId=${g._id}`
+  )
+}
+  />
 </div>
 
 

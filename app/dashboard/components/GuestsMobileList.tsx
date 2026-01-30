@@ -20,7 +20,6 @@ export type Guest = {
 
 type Props = {
   guests: Guest[];
-  isLive: boolean; // ⭐️ חדש – רק למפיק
   onEdit: (guest: Guest) => void;
   onDelete: (guest: Guest) => void;
   onMessage: (guest: Guest) => void;
@@ -51,7 +50,6 @@ function StatusBadge({ rsvp }: { rsvp: Guest["rsvp"] }) {
 ============================================================ */
 export default function GuestsMobileList({
   guests,
-  isLive,
   onEdit,
   onDelete,
   onMessage,
@@ -93,43 +91,30 @@ export default function GuestsMobileList({
             </div>
           )}
 
-          {/* ================= Stats ================= */}
-          <div
-            className={`grid gap-3 mt-3 text-center ${
-              isLive ? "grid-cols-4" : "grid-cols-3"
-            }`}
-          >
-            {/* מוזמנים */}
+          {/* ================= Stats (כמו עמודות) ================= */}
+          <div className="grid grid-cols-3 gap-3 mt-3 text-center">
             <div className="bg-gray-50 rounded-lg py-2">
-              <div className="text-[11px] text-gray-500">מוזמנים</div>
+              <div className="text-[11px] text-gray-500">
+                מוזמנים
+              </div>
               <div className="font-semibold text-sm">
                 {g.guestsCount}
               </div>
             </div>
 
-            {/* מגיעים */}
             <div className="bg-gray-50 rounded-lg py-2">
-              <div className="text-[11px] text-gray-500">מגיעים</div>
+              <div className="text-[11px] text-gray-500">
+                מגיעים
+              </div>
               <div className="font-semibold text-sm">
                 {g.rsvp === "yes" ? g.guestsCount : 0}
               </div>
             </div>
 
-            {/* הגיעו בפועל – רק למפיק */}
-            {isLive && (
-              <div className="bg-green-50 rounded-lg py-2">
-                <div className="text-[11px] text-gray-500">
-                  הגיעו בפועל
-                </div>
-                <div className="font-semibold text-sm text-green-700">
-                  {g.arrivedCount ?? 0}
-                </div>
-              </div>
-            )}
-
-            {/* שולחן */}
             <div className="bg-gray-50 rounded-lg py-2">
-              <div className="text-[11px] text-gray-500">שולחן</div>
+              <div className="text-[11px] text-gray-500">
+                שולחן
+              </div>
               <div className="font-semibold text-sm">
                 {g.tableName || "—"}
               </div>
