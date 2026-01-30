@@ -7,16 +7,14 @@ export type AuthRole = "admin" | "user" | "producer" | "client";
 export type AuthPayload = {
   userId: string;
   role: AuthRole;
-
   impersonated: boolean;
   impersonatedBy?: string;
   impersonationRole?: "producer" | "admin";
 };
 
 /* =========================
-   Helpers
+   Cookie helpers
 ========================= */
-
 function getCookieFromReq(req: NextRequest | undefined, name: string) {
   try {
     return req?.cookies?.get(name)?.value ?? null;
@@ -27,7 +25,7 @@ function getCookieFromReq(req: NextRequest | undefined, name: string) {
 
 async function getCookieFromHeadersStore(name: string) {
   try {
-    const cookieStore = await cookies(); // ⭐ await חובה
+    const cookieStore = await cookies();
     return cookieStore.get(name)?.value ?? null;
   } catch {
     return null;
@@ -35,60 +33,41 @@ async function getCookieFromHeadersStore(name: string) {
 }
 
 /* =========================
-   Auth helper
+   Auth helper (FIXED)
 ========================= */
-
 export async function getUserIdFromRequest(
   req?: NextRequest
 ): Promise<AuthPayload | null> {
   try {
+    // ⭐️ אותו סדר כמו /api/me
+    const producerToken =
+      getCookieFromReq(req, "producerAuthToken") ??
+      (await getCookieFromHeadersStore("producerAuthToken"));
+
     const authToken =
       getCookieFromReq(req, "authToken") ??
       (await getCookieFromHeadersStore("authToken"));
 
-    if (!authToken) return null;
+    const token = producerToken ?? authToken;
+    if (!token) return null;
 
-    const authDecoded = jwt.verify(
-      authToken,
+    const decoded = jwt.verify(
+      token,
       process.env.JWT_SECRET!
     ) as any;
 
-    const baseUserId =
-      authDecoded.userId || authDecoded.id || authDecoded._id;
-
-    if (!baseUserId) return null;
-
-    // 🎭 impersonation
-    const impersonationToken =
-      getCookieFromReq(req, "impersonationToken") ??
-      (await getCookieFromHeadersStore("impersonationToken"));
-
-    if (!impersonationToken) {
-      // 👤 רגיל – בלי התחזות
-      return {
-        userId: String(baseUserId),
-        role: authDecoded.role ?? "user",
-        impersonated: false,
-      };
-    }
-
-    // 🧑‍💼 מי שמתחזה (producer / admin)
-    const impersonationDecoded = jwt.verify(
-      impersonationToken,
-      process.env.JWT_SECRET!
-    ) as any;
-
-    const impersonatorId =
-      impersonationDecoded.userId ||
-      impersonationDecoded.id ||
-      impersonationDecoded._id;
+    const userId =
+      decoded.userId || decoded.id || decoded._id;
+    if (!userId) return null;
 
     return {
-      userId: String(baseUserId),          // הלקוח
-      role: "client",                      // תמיד client בהתחזות
-      impersonated: true,
-      impersonatedBy: String(impersonatorId),
-      impersonationRole: impersonationDecoded.role,
+      userId: String(userId),
+      role: decoded.role ?? "user",
+      impersonated: !!decoded.impersonated,
+      impersonatedBy: decoded.impersonatedBy
+        ? String(decoded.impersonatedBy)
+        : undefined,
+      impersonationRole: decoded.impersonationRole,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);
