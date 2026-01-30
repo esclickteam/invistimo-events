@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 /* ============================================================
    GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
+   ✅ תומך גם בלקוח שנוצר ע״י מפיק (impersonation)
 ============================================================ */
 export async function GET() {
   try {
@@ -22,8 +23,12 @@ export async function GET() {
       );
     }
 
+    // ✅ אם המשתמש בתוך דשבורד לקוח דרך מפיק → נחפש גם לפי producerId
     const invitation = await Invitation.findOne({
-      ownerId: auth.userId,
+      $or: [
+        { ownerId: auth.userId },
+        ...(auth.impersonatedBy ? [{ producerId: auth.impersonatedBy }] : []),
+      ],
     })
       .select(`
         _id
@@ -32,22 +37,20 @@ export async function GET() {
         maxMessages
         remainingMessages
         shareId
+        producerId
+        ownerId
       `)
       .lean();
 
     if (!invitation) {
-      // ❌ משתמש שנוצר ע"י מפיק או בלי הזמנה עדיין → לא נחשב שגיאה
       return NextResponse.json({
         success: true,
         invitation: null,
       });
     }
 
-    // ✅ שליפת האירוע לצורך מיקום
     const event = invitation.eventId
-      ? await Event.findById(invitation.eventId)
-          .select("location")
-          .lean()
+      ? await Event.findById(invitation.eventId).select("location").lean()
       : null;
 
     return NextResponse.json({
@@ -71,7 +74,7 @@ export async function GET() {
    ✅ אם אין eventId בבקשה:
       1) מחפש אירוע קיים למשתמש
       2) אם אין — יוצר אירוע חדש אוטומטית
-      3) אם משתמש שנוצר ע"י מפיק → יוצר הזמנה זמנית
+   ✅ תומך גם בלקוח שנוצר ע״י מפיק (impersonation) וממלא producerId
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -87,7 +90,10 @@ export async function POST(req: Request) {
 
     const userId = auth.userId;
 
-    // 🧠 שליפת המשתמש
+    // ✅ אם זה לקוח שנכנס דרך מפיק (impersonation) — זה המפיק בפועל
+    const producerId =
+      auth.role === "producer" ? userId : auth.impersonatedBy || null;
+
     const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json(
@@ -96,13 +102,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 📦 פרטי הבקשה
     const body = await req.json().catch(() => ({} as any));
     let { eventId } = body;
 
-    /* ============================================================
+    /* ===============================
        🎯 מציאת/יצירת Event
-    ============================================================ */
+    =============================== */
     let event: any = null;
 
     if (eventId) {
@@ -136,21 +141,26 @@ export async function POST(req: Request) {
       }
     }
 
-    /* ============================================================
+    /* ===============================
        אם כבר קיימת הזמנה → נחזיר אותה
-    ============================================================ */
+       ✅ גם לפי producerId אם יש
+    =============================== */
     let invitation = await Invitation.findOne({
-      ownerId: userId,
       eventId: event._id,
+      $or: [
+        { ownerId: userId },
+        ...(producerId ? [{ producerId }] : []),
+      ],
     }).lean();
 
-    /* ============================================================
+    /* ===============================
        אם אין הזמנה קיימת, ניצור חדשה
-       ✅ משתמש שנוצר ע"י מפיק (createdByProducer) יקבל הזמנה זמנית
-    ============================================================ */
+    =============================== */
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: userId,
+        producerId, // ✅ NEW
+
         eventId: event._id,
         guests: [],
         maxGuests: Number(user.guests) || Number(event.maxGuests) || 100,
@@ -169,6 +179,7 @@ export async function POST(req: Request) {
           maxMessages: invitation.maxMessages,
           remainingMessages: invitation.remainingMessages,
           shareId: invitation.shareId,
+          producerId: (invitation as any).producerId ?? null,
         },
       },
       { status: 201 }

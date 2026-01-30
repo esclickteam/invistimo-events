@@ -56,7 +56,6 @@ export async function POST(req: Request) {
       event = await Event.findOne({ userId }).lean();
 
       if (!event) {
-        // 🆕 ניצור אירוע חדש אם אין (לפי הסכמה שלך: email+date חובה, status enum רק active/archived)
         const createdEvent = await Event.create({
           userId,
           email: user.email || "noemail@placeholder.com",
@@ -110,6 +109,10 @@ export async function POST(req: Request) {
     =============================== */
     const newInvite = await Invitation.create({
       ownerId: userId,
+
+      // ✅ NEW: אם היוצר הוא מפיק – נשמור producerId
+      producerId: auth.role === "producer" ? userId : null,
+
       eventId: event._id,
 
       // 📸 snapshot מה־Event
@@ -127,7 +130,6 @@ export async function POST(req: Request) {
 
       maxGuests,
       maxMessages,
-      
     });
 
     const cleanInvite = JSON.parse(JSON.stringify(newInvite));
@@ -136,6 +138,8 @@ export async function POST(req: Request) {
       inviteId: cleanInvite._id,
       eventId: event._id,
       ownerId: userId,
+      producerId: cleanInvite.producerId ?? null,
+      role: auth.role,
     });
 
     return NextResponse.json(
@@ -181,9 +185,14 @@ export async function GET(req: Request) {
     }
 
     /* 🎯 מציאת ההזמנה */
+    // ✅ NEW: מחזירים רק אם המשתמש הוא owner או producer של ההזמנה (או admin)
     const invitation = await Invitation.findOne({
-  eventId,
-}).lean();
+      eventId,
+      $or: [
+        { ownerId: userId },
+        { producerId: userId },
+      ],
+    }).lean();
 
     if (!invitation) {
       return NextResponse.json(

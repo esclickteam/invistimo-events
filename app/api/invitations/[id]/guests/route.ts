@@ -38,6 +38,10 @@ if (!auth?.userId) {
 
 const userId = auth.userId;
 
+const producerId =
+  auth.role === "producer" ? userId : auth.impersonatedBy || null;
+
+
     const { name, phone, relation, rsvp, guestsCount, tableNumber, groupId } =
 
       await req.json();
@@ -99,19 +103,23 @@ const userId = auth.userId;
 
   // 4️⃣ עכשיו ליצור Invitation עם eventId תקין
   invitation = await Invitation.create({
-    ownerId: userId,
-    eventId: event._id, // ✅ החלק הקריטי
-    title: "הזמנה חדשה",
-    eventType: "wedding",
-    eventDate: event.date || null,
-    eventTime: event.time || "",
-    canvasData: {},
-    previewImage: "",
-    shareId: nanoid(10),
-    maxGuests: HARD_GUEST_CAP,
-    sentSmsCount: 0,
-    guests: [],
-  });
+  ownerId: userId,
+
+  // ⭐️ זה התיקון
+  producerId: producerId,
+
+  eventId: event._id,
+  title: "הזמנה חדשה",
+  eventType: "wedding",
+  eventDate: event.date || null,
+  eventTime: event.time || "",
+  canvasData: {},
+  previewImage: "",
+  shareId: nanoid(10),
+  maxGuests: HARD_GUEST_CAP,
+  sentSmsCount: 0,
+  guests: [],
+});
 
   console.log("✅ Invitation created successfully with eventId:", event._id);
 }
