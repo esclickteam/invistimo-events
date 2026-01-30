@@ -138,7 +138,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       userId: auth.userId.toString(),
     });
 
-    return NextResponse.json(
+     return NextResponse.json(
       { error: "Not authorized to update actualArrivedCount" },
       { status: 403 }
     );
