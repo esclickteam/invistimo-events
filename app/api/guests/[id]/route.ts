@@ -130,24 +130,44 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     value: data.actualArrivedCount,
     role: auth.role,
     userId: auth.userId.toString(),
+    invitationProducerId: invitation.producerId?.toString(),
+    invitationOwnerId: invitation.ownerId.toString(),
   });
 
-  if (auth.role !== "producer" && auth.role !== "admin") {
+  const isAdmin = auth.role === "admin";
+
+  // מפיק שמחובר ישירות להזמנה
+  const isProducerByInvitation =
+    invitation.producerId &&
+    invitation.producerId.toString() === auth.userId.toString();
+
+  // לקוח שנוצר ע"י מפיק ופועל בדשבורד של ההזמנה
+  const isClientCreatedByProducer =
+    auth.role === "client" &&
+    invitation.producerId &&
+    invitation.ownerId.toString() === auth.userId.toString();
+
+  if (!isAdmin && !isProducerByInvitation && !isClientCreatedByProducer) {
     console.warn("⛔ Blocked actualArrivedCount update", {
       role: auth.role,
       userId: auth.userId.toString(),
+      invitationProducerId: invitation.producerId?.toString(),
     });
 
-     return NextResponse.json(
+    return NextResponse.json(
       { error: "Not authorized to update actualArrivedCount" },
       { status: 403 }
     );
   }
 
-  console.log("✅ actualArrivedCount updated");
+  console.log("✅ actualArrivedCount updated", {
+    guestId: guest._id.toString(),
+    newValue: data.actualArrivedCount,
+  });
 
   guest.actualArrivedCount = data.actualArrivedCount;
 }
+
 
     await guest.save();
     console.log("💾 Guest saved", guest._id);
