@@ -245,7 +245,7 @@ console.log("LIVE DEBUG", {
   seatingMode,
   table.seatedGuests,
   table.seats,
-  guests,
+  guestsById, // ⭐️ זה מה שבאמת בשימוש
 ]);
 
 
