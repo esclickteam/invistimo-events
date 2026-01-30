@@ -13,6 +13,7 @@ import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
+import ArrivalControl from "@/app/components/guests/ArrivalControl";
 
 
 import Link from "next/link";
@@ -84,6 +85,8 @@ export default function DashboardPage() {
   const pathname = usePathname();
 const isDemo = pathname.startsWith("/try");
 
+
+
   const router = useRouter();
 
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -95,6 +98,10 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
+
+  const isLive = useMemo(() => {
+  return user?.role === "producer" && Boolean(eventIdFromUrl);
+}, [user?.role, eventIdFromUrl]);
 
 
 
@@ -244,6 +251,29 @@ async function loadEvent() {
   const data = await res.json();
   setGuests(data.guests || []);
 }
+
+async function changeArrived(guest: Guest, delta: number) {
+  // ❌ בדמו – לא שומרים
+  if (isDemo) return;
+
+  const current = guest.arrivedCount || 0;
+  const next = Math.max(0, current + delta);
+
+  // UI מיידי
+  setGuests((prev) =>
+    prev.map((g) =>
+      g._id === guest._id ? { ...g, arrivedCount: next } : g
+    )
+  );
+
+  // DB
+  await fetch(`/api/guests/${guest._id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ arrivedCount: next }),
+  });
+}
+
 
 
 
@@ -927,6 +957,7 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.name}</td>
           <td className="p-3">{formatPhone(g.phone)}</td>
           <td className="p-3">{g.relation?.trim() || "-"}</td>
+
           <td className="p-3">
   <GuestGroupSelect
   value={g.groupId}
@@ -960,9 +991,15 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
 
-          <td className="p-3 font-semibold">
-  {g.arrivedCount || 0}
+          <td className="p-3">
+  <ArrivalControl
+    value={g.arrivedCount || 0}
+    isLive={isLive}
+    onChange={(delta: number) => changeArrived(g, delta)}
+
+  />
 </td>
+
 
           <td className="p-3">
   {g.tableName
