@@ -475,15 +475,22 @@ useEffect(() => {
     0
   );
 
+  const totalActualArrived = guests.reduce(
+  (s, g) => s + (g.actualArrivedCount || 0),
+  0
+);
+
+
   const totalNo = guests.filter((g) => g.rsvp === "no").length;
   const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
-    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
-    notComing: totalNo,
-    noResponse: totalPending,
-  };
+  totalGuests: totalInvited,
+  comingGuests: totalArrived,
+  actualArrivedGuests: totalActualArrived, // ⭐ חדש
+  notComing: totalNo,
+  noResponse: totalPending,
+};
 }, [guests]);
 
 
@@ -830,7 +837,7 @@ console.log("INVITATION:", invitation);
 
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
   <Box
     title="סה״כ מוזמנים"
     value={stats.totalGuests}
@@ -842,6 +849,14 @@ console.log("INVITATION:", invitation);
     color="green"
     onClick={() => setQuickFilter("yes")}
   />
+  {user?.role === "producer" && (
+  <Box
+    title="מגיעים בפועל"
+    value={stats.actualArrivedGuests}
+    color="blue"
+  />
+)}
+
   <Box
     title="לא מגיעים"
     value={stats.notComing}
