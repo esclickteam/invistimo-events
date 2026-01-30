@@ -105,9 +105,10 @@ export async function GET() {
       }
 
       return {
-        ...guest,
-        tableName,
-      };
+  ...guest,
+  actualArrivedCount: guest.actualArrivedCount ?? 0,
+  tableName,
+};
     });
 
     console.log("✅ Guests with table:", withTable);
