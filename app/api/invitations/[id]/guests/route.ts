@@ -221,6 +221,7 @@ export async function GET(
   rsvp
   guestsCount
   arrivedCount
+  actualArrivedCount
   relation
   notes
   tableName

@@ -453,11 +453,14 @@ useEffect(() => {
   if (!invitationId) return;
 
   const interval = setInterval(() => {
+  if (user?.role !== "producer") {
     loadGuests();
-  }, 5000); // כל 5 שניות
+  }
+}, 5000);
 
   return () => clearInterval(interval);
-}, [invitationId, isDemo]);
+}, [invitationId, isDemo, user?.role]);
+
 
   /* ============================================================
      Stats (על כל האורחים)
@@ -588,6 +591,54 @@ if (selectedGroupId) {
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   const showActionButtons = true;
+
+  const updateActualArrived = async (guestId: string, next: number) => {
+  if (!eventIdFromUrl) {
+    await loadGuests();
+    return;
+  }
+
+  // optimistic UI
+  setGuests((prev) =>
+    prev.map((x) =>
+      x._id === guestId ? { ...x, actualArrivedCount: next } : x
+    )
+  );
+
+  const doUpdate = async () =>
+    fetch(`/api/guests/${guestId}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actualArrivedCount: next }),
+    });
+
+  let res = await doUpdate();
+
+  // אם האימפרסונציה פגה / אין הרשאה → מנסים לחדש ואז לעדכן שוב
+  if (res.status === 401 || res.status === 403) {
+  if (!invitation?.ownerId) {
+    await loadGuests();
+    return;
+  }
+
+  await fetch(`/api/producer/impersonate`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId: invitation.ownerId }),
+  });
+
+  res = await doUpdate();
+}
+
+
+  if (!res.ok) {
+    // rollback אם נכשל
+    await loadGuests();
+  }
+};
+
 
 
 
@@ -953,55 +1004,30 @@ console.log("INVITATION:", invitation);
 {user?.role === "producer" && (
   <td className="p-3">
     <div className="flex items-center gap-2">
+
       <button
-        onClick={async () => {
-          const next = Math.max(0, (g.actualArrivedCount || 0) - 1);
-
-          setGuests((prev) =>
-            prev.map((x) =>
-              x._id === g._id
-                ? { ...x, actualArrivedCount: next }
-                : x
-            )
-          );
-
-          await fetch(`/api/guests/${g._id}`, {
-            method: "PUT",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ actualArrivedCount: next }),
-          });
-        }}
-      >
-        −
-      </button>
+  onClick={() => {
+    const next = Math.max(0, (g.actualArrivedCount || 0) - 1);
+    updateActualArrived(g._id, next);
+  }}
+>
+  −
+</button>
 
       <span className="font-semibold">
         {g.actualArrivedCount || 0}
       </span>
 
       <button
-        onClick={async () => {
-          const next = (g.actualArrivedCount || 0) + 1;
+  onClick={() => {
+    const next = (g.actualArrivedCount || 0) + 1;
+    updateActualArrived(g._id, next);
+  }}
+>
+  +
+</button>
 
-          setGuests((prev) =>
-            prev.map((x) =>
-              x._id === g._id
-                ? { ...x, actualArrivedCount: next }
-                : x
-            )
-          );
 
-          await fetch(`/api/guests/${g._id}`, {
-            method: "PUT",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ actualArrivedCount: next }),
-          });
-        }}
-      >
-        +
-      </button>
     </div>
   </td>
 )}
