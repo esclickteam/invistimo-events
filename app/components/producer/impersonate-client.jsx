@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 /**
  * Impersonate Client Button
- * Producer → Client Dashboard
+ * Producer → Client Production Dashboard
  */
 export default function ImpersonateClient({ clientId }) {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function ImpersonateClient({ clientId }) {
           "Content-Type": "application/json",
         },
 
-        // 🔴 קריטי – שולח cookies של המפיק
+        // ⭐ קריטי – שולח cookies (authToken / producerAuthToken)
         credentials: "include",
 
         body: JSON.stringify({ clientId }),
@@ -36,9 +36,18 @@ export default function ImpersonateClient({ clientId }) {
         throw new Error(data?.message || "Impersonation failed");
       }
 
-      // ✅ מעבר לדשבורד הלקוח
-      router.replace("/dashboard");
-      router.refresh();
+      // ⭐⭐⭐ התיקון הקריטי ⭐⭐⭐
+      // מעבר לדשבורד ההפקה עם eventId
+      if (data.eventId) {
+        router.replace(
+          `/dashboard/production?eventId=${data.eventId}`
+        );
+        router.refresh();
+        return;
+      }
+
+      // fallback (לא אמור לקרות)
+      throw new Error("Missing eventId from impersonation");
     } catch (err) {
       console.error("❌ Impersonate error:", err);
       setError("לא ניתן להיכנס לדשבורד הלקוח");
