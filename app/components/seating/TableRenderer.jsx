@@ -193,12 +193,47 @@ const guestIdFromUrl = searchParams.get("guestId");
 
   const assigned = table.seatedGuests || [];
 
+  const seatingMode = useSeatingStore((s) => s.seatingMode);
+
+
  const occupiedSeatsCount = useMemo(() => {
-  return Math.min(
-    (table.seatedGuests || []).length,
-    Number(table.seats || 0)
-  );
-}, [table.seatedGuests, table.seats]);
+  // 🟦 תכנון רגיל – כמו שהיה
+  if (seatingMode !== "live") {
+    return Math.min(
+      (table.seatedGuests || []).length,
+      Number(table.seats || 0)
+    );
+  }
+
+  // 🟥 LIVE — לפי מגיעים בפועל, בלי כפילויות
+  const byGuest = new Map();
+
+  (table.seatedGuests || []).forEach((sg) => {
+    const guestId = String(sg.guestId);
+    byGuest.set(guestId, (byGuest.get(guestId) || 0) + 1);
+  });
+
+  let sum = 0;
+
+  byGuest.forEach((seatCount, guestId) => {
+    const guest = guests.find(
+      (g) => String(g.id ?? g._id) === guestId
+    );
+    if (!guest) return;
+
+    const arrived = Number(guest.actualArrivedCount ?? 0);
+
+    sum += Math.min(seatCount, arrived);
+  });
+
+  return Math.min(sum, Number(table.seats || 0));
+}, [
+  seatingMode,
+  table.seatedGuests,
+  table.seats,
+  guests,
+]);
+
 
 const seatsTotal = Number(table.seats || 0);
 
