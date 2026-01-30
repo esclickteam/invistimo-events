@@ -122,28 +122,32 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
        ⭐ actualArrivedCount — מגיעים בפועל
     =============================== */
     if (
-      typeof data.actualArrivedCount === "number" &&
-      data.actualArrivedCount >= 0
-    ) {
-      console.log("🟦 actualArrivedCount update requested");
+  typeof data.actualArrivedCount === "number" &&
+  data.actualArrivedCount >= 0
+) {
+  console.log("🟦 actualArrivedCount update requested", {
+    guestId: guest._id.toString(),
+    value: data.actualArrivedCount,
+    role: auth.role,
+    userId: auth.userId.toString(),
+  });
 
-      if (!isProducer && !isAdmin) {
-        console.warn("⛔ Blocked actualArrivedCount update");
-        return NextResponse.json(
-          { error: "Not authorized to update actualArrivedCount" },
-          { status: 403 }
-        );
-      }
+  if (auth.role !== "producer" && auth.role !== "admin") {
+    console.warn("⛔ Blocked actualArrivedCount update", {
+      role: auth.role,
+      userId: auth.userId.toString(),
+    });
 
-      console.log(
-        "✅ Updating actualArrivedCount:",
-        guest.actualArrivedCount,
-        "→",
-        data.actualArrivedCount
-      );
+    return NextResponse.json(
+      { error: "Not authorized to update actualArrivedCount" },
+      { status: 403 }
+    );
+  }
 
-      guest.actualArrivedCount = data.actualArrivedCount;
-    }
+  console.log("✅ actualArrivedCount updated");
+
+  guest.actualArrivedCount = data.actualArrivedCount;
+}
 
     await guest.save();
     console.log("💾 Guest saved", guest._id);
