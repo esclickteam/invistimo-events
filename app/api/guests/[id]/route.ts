@@ -72,11 +72,22 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const isOwner = auth.userId.toString() === invitation.ownerId.toString();
     const isAdmin = auth.role === "admin";
-    const isProducer = auth.role === "producer";
+    const isProducerRole = auth.role === "producer";
 
-    console.log("🔐 Permissions:", { isOwner, isAdmin, isProducer });
+    // ✅ מפיק לפי ההזמנה (גם אם נכנס בתור client בדשבורד לקוח)
+    const isProducerByInvitation =
+      !!invitation.producerId &&
+      auth.userId.toString() === invitation.producerId.toString();
 
-    if (!isOwner && !isAdmin && !isProducer) {
+    console.log("🔐 Permissions:", {
+      isOwner,
+      isAdmin,
+      isProducerRole,
+      isProducerByInvitation,
+    });
+
+    // הרשאה כללית לעדכן אורח
+    if (!isOwner && !isAdmin && !isProducerRole && !isProducerByInvitation) {
       console.warn("⛔ Not authorized to update guest");
       return NextResponse.json(
         { error: "Not authorized to update this guest" },
@@ -118,9 +129,8 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
        ⭐ actualArrivedCount — מגיעים בפועל
        הרשאה:
        - admin תמיד
-       - producer אמיתי (role=producer) תמיד
-       - producer בהתחזות (role=client + auth.impersonatedBy) רק אם
-         impersonatedBy == invitation.producerId
+       - producer role תמיד
+       - producer של ההזמנה (userId === invitation.producerId) גם אם role=client
     =============================== */
     if (
       typeof data.actualArrivedCount === "number" &&
@@ -131,22 +141,17 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         value: data.actualArrivedCount,
         role: auth.role,
         userId: auth.userId.toString(),
-        impersonatedBy: auth.impersonatedBy?.toString?.(),
         invitationProducerId: invitation.producerId?.toString?.(),
         invitationOwnerId: invitation.ownerId.toString(),
       });
 
-      const isImpersonatedProducer =
-        auth.role === "client" &&
-        !!auth.impersonatedBy &&
-        !!invitation.producerId &&
-        invitation.producerId.toString() === auth.impersonatedBy.toString();
+      const canUpdateActualArrived =
+        isAdmin || isProducerRole || isProducerByInvitation;
 
-      if (!isAdmin && !isProducer && !isImpersonatedProducer) {
+      if (!canUpdateActualArrived) {
         console.warn("⛔ Blocked actualArrivedCount update", {
           role: auth.role,
           userId: auth.userId.toString(),
-          impersonatedBy: auth.impersonatedBy?.toString?.(),
           invitationProducerId: invitation.producerId?.toString?.(),
         });
 
@@ -159,7 +164,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       console.log("✅ actualArrivedCount updated", {
         guestId: guest._id.toString(),
         newValue: data.actualArrivedCount,
-        mode: isImpersonatedProducer ? "impersonated-producer" : "direct",
+        mode: isProducerByInvitation ? "producer-by-invitation" : "role",
       });
 
       guest.actualArrivedCount = data.actualArrivedCount;
@@ -213,6 +218,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     const isOwner = auth?.userId?.toString() === invitation.ownerId.toString();
     const isAdmin = auth?.role === "admin";
 
+    // (לא משנה את מדיניות המחיקה אצלך)
     if (!isOwner && !isAdmin) {
       return NextResponse.json(
         { error: "Not authorized to delete this guest" },
