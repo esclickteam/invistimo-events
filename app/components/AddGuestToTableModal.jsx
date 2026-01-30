@@ -17,19 +17,16 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const storeGuests = useSeatingStore((s) => s.guests);
   const tableGuests = storeGuests?.length ? storeGuests : guests;
 
-  // ❌ היה: useState<number | null>(null)
-  // ✅ מתוקן:
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
-
+  const [searchTerm, setSearchTerm] = useState(""); // 🔍 חיפוש
 
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
 
   const getPartySize = (g) => {
-  const n = Number(g?.arrivedCount ?? 0);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-};
-
+    const n = Number(g?.arrivedCount ?? 0);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  };
 
   /* ================= מושבים ================= */
 
@@ -60,12 +57,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   }, [tableData, tableGuests]);
 
   const occupied = tableData.seatedGuests?.length ?? 0;
-  
-
-
-const remainingSeats = tableData.seats - occupied;
-
-
+  const remainingSeats = tableData.seats - occupied;
 
   /* ================= אורחים זמינים ================= */
 
@@ -77,69 +69,76 @@ const remainingSeats = tableData.seats - occupied;
     );
 
     return (tableGuests || []).filter((g) => {
-  const id = getGuestId(g);
-  const hasTable = Boolean(g?.tableName);
+      const id = getGuestId(g);
+      const hasTable = Boolean(g?.tableName);
+      const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
 
-  // ✅ רק מי שאישר הגעה
-  const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
+      const matchesSearch =
+        !searchTerm ||
+        String(g?.name ?? "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
 
-  return (
-  isYes &&
-  !hasTable &&
-  !seatedIds.has(id) &&
-  getPartySize(g) <= remainingSeats
-);
-
-});
-
-  }, [tableGuests]);
+      return (
+        isYes &&
+        !hasTable &&
+        !seatedIds.has(id) &&
+        getPartySize(g) <= remainingSeats &&
+        matchesSearch
+      );
+    });
+  }, [tableGuests, searchTerm, remainingSeats]);
 
   /* ================= הושבה ================= */
 
   const handleSeatGuest = async (seatIndex, guest) => {
-  if (!tableData) return;
+    if (!tableData) return;
 
-  const guestId = getGuestId(guest);
-  const count = getPartySize(guest);
+    const guestId = getGuestId(guest);
+    const count = getPartySize(guest);
 
-  const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
-
-  if (!res?.ok) {
-    setError(res?.message || "לא ניתן להושיב כאן");
-    return;
-  }
-
-  await fetch("/api/guests/assign-table", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    const res = assignGuestsToTable(
+      tableData.id,
       guestId,
-      tableName: tableData.name,
-      seatIndex,
-    }),
-  });
+      count,
+      seatIndex
+    );
 
-  setError("");
-  setOpenSeat(null);
-};
+    if (!res?.ok) {
+      setError(res?.message || "לא ניתן להושיב כאן");
+      return;
+    }
 
+    await fetch("/api/guests/assign-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestId,
+        tableName: tableData.name,
+        seatIndex,
+      }),
+    });
+
+    setError("");
+    setOpenSeat(null);
+    setSearchTerm("");
+  };
 
   /* ================= הסרה ================= */
 
   const handleRemoveGuest = async (guest) => {
-  if (!tableData || !guest) return;
+    if (!tableData || !guest) return;
 
-  const guestId = getGuestId(guest);
+    const guestId = getGuestId(guest);
 
-  removeGuestFromTable(tableData.id, guestId);
+    removeGuestFromTable(tableData.id, guestId);
 
-  await fetch("/api/guests/remove-from-table", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ guestId }),
-  });
-};
-
+    await fetch("/api/guests/remove-from-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guestId }),
+    });
+  };
 
   if (!tableData) return null;
 
@@ -151,7 +150,6 @@ const remainingSeats = tableData.seats - occupied;
         <button
           onClick={onClose}
           className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
-          aria-label="סגור"
         >
           <X size={22} />
         </button>
@@ -188,6 +186,7 @@ const remainingSeats = tableData.seats - occupied;
                       if (g) handleRemoveGuest(g);
                       else {
                         setOpenSeat(isOpen ? null : i);
+                        setSearchTerm("");
                         setError("");
                       }
                     }}
@@ -218,9 +217,15 @@ const remainingSeats = tableData.seats - occupied;
                   </div>
 
                   {isOpen && !g && (
-                    <div className="absolute top-[95%] mt-2 bg-white border shadow-xl rounded-lg w-52 z-50 max-h-64 overflow-y-auto">
-                      <div className="sticky top-0 bg-white border-b p-2 text-[11px] text-gray-500">
-                        לבחור אורח (לא משובץ)
+                    <div className="absolute top-[95%] mt-2 bg-white border shadow-xl rounded-lg w-60 z-50 max-h-72 overflow-y-auto">
+                      <div className="sticky top-0 bg-white border-b p-2">
+                        <input
+                          type="text"
+                          placeholder="חיפוש לפי שם…"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full px-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        />
                       </div>
 
                       {availableGuests.length === 0 ? (
@@ -236,9 +241,8 @@ const remainingSeats = tableData.seats - occupied;
                           >
                             <span className="truncate">{g2.name}</span>
                             <span className="text-gray-500">
-  {getPartySize(g2)}
-</span>
-
+                              {getPartySize(g2)}
+                            </span>
                           </div>
                         ))
                       )}
