@@ -44,22 +44,17 @@ export default function EditGuestModal({
     setLoading(true);
 
     try {
-      const normalizedRsvp =
-        Number(guestsCount) > 0
-          ? "yes"
-          : rsvp === "no"
-          ? "no"
-          : "pending";
+      
 
       const payload = {
-        name,
-        phone,
-        relation,
-        rsvp: normalizedRsvp,
-        guestsCount: Number(guestsCount),
-        arrivedCount: Number(arrivedCount),
-        notes,
-      };
+  name,
+  phone,
+  relation,
+  rsvp, // ✅ כמו שבחרת בדרופדאון
+  guestsCount: Number(guestsCount),
+  arrivedCount: Number(arrivedCount),
+  notes,
+};
 
       const res = await fetch(`/api/guests/${guest._id}`, {
         method: "PUT",
