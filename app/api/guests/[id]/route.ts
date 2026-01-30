@@ -62,7 +62,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const auth = await getUserIdFromRequest();
+    const auth: any = await getUserIdFromRequest();
     console.log("👤 Auth:", auth);
 
     if (!auth?.userId) {
@@ -74,11 +74,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const isAdmin = auth.role === "admin";
     const isProducer = auth.role === "producer";
 
-    console.log("🔐 Permissions:", {
-      isOwner,
-      isAdmin,
-      isProducer,
-    });
+    console.log("🔐 Permissions:", { isOwner, isAdmin, isProducer });
 
     if (!isOwner && !isAdmin && !isProducer) {
       console.warn("⛔ Not authorized to update guest");
@@ -88,7 +84,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // ⭐ groupId קודם
+    // ⭐ groupId קודם (לריקלוקולציה)
     const beforeGroupId = guest.groupId ? String(guest.groupId) : null;
 
     /* ===============================
@@ -120,59 +116,59 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     /* ===============================
        ⭐ actualArrivedCount — מגיעים בפועל
+       הרשאה:
+       - admin תמיד
+       - producer אמיתי (role=producer) תמיד
+       - producer בהתחזות (role=client + auth.impersonatedBy) רק אם
+         impersonatedBy == invitation.producerId
     =============================== */
     if (
-  typeof data.actualArrivedCount === "number" &&
-  data.actualArrivedCount >= 0
-) {
-  console.log("🟦 actualArrivedCount update requested", {
-    guestId: guest._id.toString(),
-    value: data.actualArrivedCount,
-    role: auth.role,
-    userId: auth.userId.toString(),
-    invitationProducerId: invitation.producerId?.toString(),
-    invitationOwnerId: invitation.ownerId.toString(),
-  });
+      typeof data.actualArrivedCount === "number" &&
+      data.actualArrivedCount >= 0
+    ) {
+      console.log("🟦 actualArrivedCount update requested", {
+        guestId: guest._id.toString(),
+        value: data.actualArrivedCount,
+        role: auth.role,
+        userId: auth.userId.toString(),
+        impersonatedBy: auth.impersonatedBy?.toString?.(),
+        invitationProducerId: invitation.producerId?.toString?.(),
+        invitationOwnerId: invitation.ownerId.toString(),
+      });
 
-  const isAdmin = auth.role === "admin";
+      const isImpersonatedProducer =
+        auth.role === "client" &&
+        !!auth.impersonatedBy &&
+        !!invitation.producerId &&
+        invitation.producerId.toString() === auth.impersonatedBy.toString();
 
-  // מפיק שמחובר ישירות להזמנה
-  const isProducerByInvitation =
-    invitation.producerId &&
-    invitation.producerId.toString() === auth.userId.toString();
+      if (!isAdmin && !isProducer && !isImpersonatedProducer) {
+        console.warn("⛔ Blocked actualArrivedCount update", {
+          role: auth.role,
+          userId: auth.userId.toString(),
+          impersonatedBy: auth.impersonatedBy?.toString?.(),
+          invitationProducerId: invitation.producerId?.toString?.(),
+        });
 
-  // לקוח שנוצר ע"י מפיק ופועל בדשבורד של ההזמנה
-  const isClientCreatedByProducer =
-    auth.role === "client" &&
-    invitation.producerId &&
-    invitation.ownerId.toString() === auth.userId.toString();
+        return NextResponse.json(
+          { error: "Not authorized to update actualArrivedCount" },
+          { status: 403 }
+        );
+      }
 
-  if (!isAdmin && !isProducerByInvitation && !isClientCreatedByProducer) {
-    console.warn("⛔ Blocked actualArrivedCount update", {
-      role: auth.role,
-      userId: auth.userId.toString(),
-      invitationProducerId: invitation.producerId?.toString(),
-    });
+      console.log("✅ actualArrivedCount updated", {
+        guestId: guest._id.toString(),
+        newValue: data.actualArrivedCount,
+        mode: isImpersonatedProducer ? "impersonated-producer" : "direct",
+      });
 
-    return NextResponse.json(
-      { error: "Not authorized to update actualArrivedCount" },
-      { status: 403 }
-    );
-  }
-
-  console.log("✅ actualArrivedCount updated", {
-    guestId: guest._id.toString(),
-    newValue: data.actualArrivedCount,
-  });
-
-  guest.actualArrivedCount = data.actualArrivedCount;
-}
-
+      guest.actualArrivedCount = data.actualArrivedCount;
+    }
 
     await guest.save();
     console.log("💾 Guest saved", guest._id);
 
-    // 🔁 סנכרון קבוצות
+    // 🔁 סנכרון קבוצות (expectedCount)
     const afterGroupId = guest.groupId ? String(guest.groupId) : null;
     const affected = new Set<string>();
     if (beforeGroupId) affected.add(beforeGroupId);
@@ -213,7 +209,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const auth = await getUserIdFromRequest();
+    const auth: any = await getUserIdFromRequest();
     const isOwner = auth?.userId?.toString() === invitation.ownerId.toString();
     const isAdmin = auth?.role === "admin";
 

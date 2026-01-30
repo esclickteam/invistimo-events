@@ -2,17 +2,12 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 
-/* =========================
-   Types
-========================= */
-
 export type AuthRole = "admin" | "user" | "producer" | "client";
 
 export type AuthPayload = {
   userId: string;
   role: AuthRole;
 
-  // impersonation (optional)
   impersonated: boolean;
   impersonatedBy?: string;
   impersonationRole?: "producer" | "admin";
@@ -32,7 +27,7 @@ function getCookieFromReq(req: NextRequest | undefined, name: string) {
 
 async function getCookieFromHeadersStore(name: string) {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = await cookies(); // ⭐ await חובה
     return cookieStore.get(name)?.value ?? null;
   } catch {
     return null;
@@ -47,41 +42,53 @@ export async function getUserIdFromRequest(
   req?: NextRequest
 ): Promise<AuthPayload | null> {
   try {
-    // same logic: impersonationToken > authToken
-    const impersonationToken =
-      getCookieFromReq(req, "impersonationToken") ??
-      (await getCookieFromHeadersStore("impersonationToken"));
-
     const authToken =
       getCookieFromReq(req, "authToken") ??
       (await getCookieFromHeadersStore("authToken"));
 
-    const tokenToUse = impersonationToken || authToken;
+    if (!authToken) return null;
 
-    if (!tokenToUse) return null;
+    const authDecoded = jwt.verify(
+      authToken,
+      process.env.JWT_SECRET!
+    ) as any;
 
-    const decoded = jwt.verify(tokenToUse, process.env.JWT_SECRET!) as {
-      userId?: string;
-      role?: AuthRole;
+    const baseUserId =
+      authDecoded.userId || authDecoded.id || authDecoded._id;
 
-      impersonatedBy?: string;
-      impersonationRole?: "producer" | "admin";
+    if (!baseUserId) return null;
 
-      // backward compatibility
-      id?: string;
-      _id?: string;
-    };
+    // 🎭 impersonation
+    const impersonationToken =
+      getCookieFromReq(req, "impersonationToken") ??
+      (await getCookieFromHeadersStore("impersonationToken"));
 
-    const userId = decoded.userId || decoded.id || decoded._id || null;
-    if (!userId) return null;
+    if (!impersonationToken) {
+      // 👤 רגיל – בלי התחזות
+      return {
+        userId: String(baseUserId),
+        role: authDecoded.role ?? "user",
+        impersonated: false,
+      };
+    }
+
+    // 🧑‍💼 מי שמתחזה (producer / admin)
+    const impersonationDecoded = jwt.verify(
+      impersonationToken,
+      process.env.JWT_SECRET!
+    ) as any;
+
+    const impersonatorId =
+      impersonationDecoded.userId ||
+      impersonationDecoded.id ||
+      impersonationDecoded._id;
 
     return {
-      userId: String(userId),
-      role: decoded.role ?? "user",
-
-      impersonated: Boolean(impersonationToken),
-      impersonatedBy: decoded.impersonatedBy,
-      impersonationRole: decoded.impersonationRole,
+      userId: String(baseUserId),          // הלקוח
+      role: "client",                      // תמיד client בהתחזות
+      impersonated: true,
+      impersonatedBy: String(impersonatorId),
+      impersonationRole: impersonationDecoded.role,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);
