@@ -66,6 +66,13 @@ const InvitationGuestSchema = new Schema(
       set: (v: unknown) => toNumber(v, 0),
     },
 
+    actualArrivedCount: {
+  type: Number,
+  default: 0,
+  min: 0,
+  set: (v: unknown) => toNumber(v, 0),
+},
+
     token: {
       type: String,
       required: true,

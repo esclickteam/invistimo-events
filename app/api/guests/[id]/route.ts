@@ -62,8 +62,11 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const isOwner = auth.userId.toString() === invitation.ownerId.toString();
     const isAdmin = auth.role === "admin";
+    const isProducer = auth.role === "producer";
 
-    if (!isOwner && !isAdmin) {
+
+    if (!isOwner && !isAdmin && !isProducer) {
+
       return NextResponse.json(
         { error: "Not authorized to update this guest" },
         { status: 403 }
@@ -112,6 +115,27 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
       guest.arrivedCount = data.arrivedCount;
     }
+
+    /* ===============================
+   ⭐ actualArrivedCount — מגיעים בפועל
+   רק מפיק / אדמין
+=============================== */
+if (
+  typeof data.actualArrivedCount === "number" &&
+  data.actualArrivedCount >= 0
+) {
+  const isProducer = auth.role === "producer";
+
+  if (!isProducer && !isAdmin) {
+    return NextResponse.json(
+      { error: "Not authorized to update actualArrivedCount" },
+      { status: 403 }
+    );
+  }
+
+  guest.actualArrivedCount = data.actualArrivedCount;
+}
+
 
     await guest.save();
 

@@ -53,6 +53,7 @@ type Guest = {
   guestsCount: number;
 
   arrivedCount?: number;
+  actualArrivedCount?: number;
   notes?: string;
 };
 
@@ -909,6 +910,11 @@ console.log("INVITATION:", invitation);
           מגיעים{sortArrow("coming")}
         </th>
 
+        {user?.role === "producer" && (
+  <th className="p-3 text-right">מגיעים בפועל</th>
+)}
+
+
         <th
           className="p-3 text-right cursor-pointer select-none"
           onClick={() => toggleSort("table")}
@@ -943,6 +949,7 @@ console.log("INVITATION:", invitation);
     // DB
     await fetch(`/api/guests/${g._id}`, {
       method: "PUT",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -964,13 +971,70 @@ console.log("INVITATION:", invitation);
   {g.arrivedCount || 0}
 </td>
 
-          <td className="p-3">
+{user?.role === "producer" && (
+  <td className="p-3">
+    <div className="flex items-center gap-2">
+      <button
+        onClick={async () => {
+          const next = Math.max(0, (g.actualArrivedCount || 0) - 1);
+
+          setGuests((prev) =>
+            prev.map((x) =>
+              x._id === g._id
+                ? { ...x, actualArrivedCount: next }
+                : x
+            )
+          );
+
+          await fetch(`/api/guests/${g._id}`, {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ actualArrivedCount: next }),
+          });
+        }}
+      >
+        −
+      </button>
+
+      <span className="font-semibold">
+        {g.actualArrivedCount || 0}
+      </span>
+
+      <button
+        onClick={async () => {
+          const next = (g.actualArrivedCount || 0) + 1;
+
+          setGuests((prev) =>
+            prev.map((x) =>
+              x._id === g._id
+                ? { ...x, actualArrivedCount: next }
+                : x
+            )
+          );
+
+          await fetch(`/api/guests/${g._id}`, {
+            method: "PUT",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ actualArrivedCount: next }),
+          });
+        }}
+      >
+        +
+      </button>
+    </div>
+  </td>
+)}
+
+<td className="p-3">
   {g.tableName
     ? g.tableName
     : g.tableNumber
     ? `שולחן ${g.tableNumber}`
     : "-"}
 </td>
+
 
           <td className="p-3 text-sm text-gray-700">
             {g.notes?.trim() || "-"}
@@ -1018,7 +1082,8 @@ console.log("INVITATION:", invitation);
 
       {displayGuests.length === 0 && (
         <tr>
-          <td colSpan={9} className="p-8 text-center text-gray-500">
+          <td colSpan={user?.role === "producer" ? 10 : 9} className="p-8 text-center text-gray-500">
+
             לא נמצאו תוצאות.
           </td>
         </tr>
