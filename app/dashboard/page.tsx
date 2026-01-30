@@ -13,6 +13,7 @@ import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
+import LiveArrivalsCell from "@/app/events/live/components/LiveArrivalsCell";
 
 
 import Link from "next/link";
@@ -80,9 +81,10 @@ function formatPhone(phone?: string) {
 
 
 export default function DashboardPage() {
-
   const pathname = usePathname();
-const isDemo = pathname.startsWith("/try");
+
+  const isDemo = pathname.startsWith("/try");
+  const isLiveEvent = pathname.startsWith("/events/live");
 
   const router = useRouter();
 
@@ -962,9 +964,20 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{RSVP_LABELS[g.rsvp]}</td>
           <td className="p-3">{g.guestsCount}</td>
 
-          <td className="p-3 font-semibold">
-  {g.arrivedCount || 0}
+          <td className="p-3">
+  {isLiveEvent ? (
+    <LiveArrivalsCell
+      guestId={g._id}
+      invitationId={invitationId}
+      fallback={g.guestsCount}
+    />
+  ) : (
+    <span className="font-semibold">
+      {g.guestsCount}
+    </span>
+  )}
 </td>
+
 
           <td className="p-3">
   {g.tableName
