@@ -616,13 +616,16 @@ if (selectedGroupId) {
 
 
   const toggleSort = (key: SortKey) => {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDir("asc");
-      return;
-    }
-    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-  };
+  if (key === "arrived" && !isLive) return;
+
+  if (sortKey !== key) {
+    setSortKey(key);
+    setSortDir("asc");
+    return;
+  }
+  setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+};
+
 
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
@@ -874,11 +877,13 @@ console.log("INVITATION:", invitation);
     onClick={() => setQuickFilter("yes")}
   />
 
+  {isLive && (
   <Box
-  title="הגיעו בפועל"
-  value={stats.arrivedGuests}
-  color="green"
-/>
+    title="הגיעו בפועל"
+    value={stats.arrivedGuests}
+    color="green"
+  />
+)}
 
   <Box
     title="לא מגיעים"
@@ -953,12 +958,14 @@ console.log("INVITATION:", invitation);
 </th>
 
 {/* הגיעו בפועל */}
-<th
-  className="p-3 text-center cursor-pointer select-none"
-  onClick={() => toggleSort("arrived")}
->
-  הגיעו בפועל{sortArrow("arrived")}
-</th>
+{isLive && (
+  <th
+    className="p-3 text-center cursor-pointer select-none"
+    onClick={() => toggleSort("arrived")}
+  >
+    הגיעו בפועל{sortArrow("arrived")}
+  </th>
+)}
 
 
         <th
@@ -1028,19 +1035,17 @@ console.log("INVITATION:", invitation);
 
 
 
-<td className="p-3 text-center">
-  <div className="flex flex-col items-center gap-1">
-    <div className="font-bold text-green-700">
-      {g.arrivedCount ?? 0}
+{isLive && (
+  <td className="p-3 text-center">
+    <div className="flex flex-col items-center gap-1">
+      <div className="font-bold text-green-700">
+        {g.arrivedCount ?? 0}
+      </div>
 
-    </div>
-
-    {isLive && (
       <div className="flex gap-2">
         <button
           onClick={() => changeArrived(g, -1)}
           disabled={(g.arrivedCount ?? 0) <= 0}
-
           className="w-7 h-7 rounded-full border disabled:opacity-40"
         >
           −
@@ -1049,15 +1054,15 @@ console.log("INVITATION:", invitation);
         <button
           onClick={() => changeArrived(g, +1)}
           disabled={(g.arrivedCount ?? 0) >= g.guestsCount}
-
           className="w-7 h-7 rounded-full bg-green-600 text-white disabled:opacity-40"
         >
           +
         </button>
       </div>
-    )}
-  </div>
-</td>
+    </div>
+  </td>
+)}
+
 
 
       {/* שולחן */}
@@ -1132,24 +1137,27 @@ console.log("INVITATION:", invitation);
 {/* ===================== MOBILE LIST ===================== */}
 <div className="md:hidden">
   <GuestsMobileList
-    guests={displayGuests}
-    onEdit={(g) => setSelectedGuest(g)}
-    onDelete={(g) => deleteGuest(g)}
-    onMessage={(g) =>
-  router.push(
-    isDemo
-      ? `/try/dashboard/messages?guestId=${g._id}`
-      : `/dashboard/messages?guestId=${g._id}`
-  )
-}
-onSeat={(g) =>
-  router.push(
-    isDemo
-      ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-      : `/dashboard/seating?from=personal&guestId=${g._id}`
-  )
-}
-  />
+  guests={displayGuests}
+  isLive={isLive}   // ⭐️ חשוב
+  onEdit={(g) => setSelectedGuest(g)}
+  onDelete={(g) => deleteGuest(g)}
+  onMessage={(g) =>
+    router.push(
+      isDemo
+        ? `/try/dashboard/messages?guestId=${g._id}`
+        : `/dashboard/messages?guestId=${g._id}`
+    )
+  }
+  onSeat={(g) =>
+    router.push(
+      isDemo
+        ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+        : `/dashboard/seating?from=personal&guestId=${g._id}`
+    )
+  }
+/>
+
+
 </div>
 
 
