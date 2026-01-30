@@ -124,7 +124,8 @@ if (
   typeof data.actualArrivedCount === "number" &&
   data.actualArrivedCount >= 0
 ) {
-  const isProducer = auth.role === "producer";
+  const isProducer =
+    invitation.producerId?.toString() === auth.userId.toString();
 
   if (!isProducer && !isAdmin) {
     return NextResponse.json(

@@ -634,23 +634,6 @@ console.log("INVITATION:", invitation);
     </p>
 
 
-      {eventIdFromUrl && (
-  <div className="flex flex-wrap gap-3 mb-6">
-    <Link
-      href={`/events/production?eventId=${eventIdFromUrl}`}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
-    >
-      🎬 הפקת אירוע
-    </Link>
-
-    <Link
-      href={`/events/live?eventId=${eventIdFromUrl}`}
-      className="border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-100 transition"
-    >
-      🎛️ ניהול אירוע
-    </Link>
-  </div>
-)}
     
 
     {/* תיוג שירות שיחות */}
