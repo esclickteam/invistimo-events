@@ -255,7 +255,13 @@ async function loadEvent() {
   );
 
   const data = await res.json();
-  setGuests(data.guests || []);
+  setGuests(
+  (data.guests || []).map((g: Guest) => ({
+    ...g,
+    arrivedCount: g.arrivedCount ?? 0,
+  }))
+);
+
 }
 
 async function changeArrived(guest: Guest, delta: number) {
