@@ -57,7 +57,14 @@ type Guest = {
 };
 
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
-type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
+type SortKey =
+  | "name"
+  | "rsvp"
+  | "table"
+  | "invited"   // מוזמנים
+  | "coming"    // מגיעים (RSVP = yes)
+  | "arrived";      // הגיעו בפועל
+
 type SortDir = "asc" | "desc";
 
 
@@ -491,13 +498,16 @@ useEffect(() => {
      Stats (על כל האורחים)
   ============================================================ */
   const stats = useMemo(() => {
-  // 🟦 מוזמנים – קבועים
   const totalInvited = guests.reduce(
     (s, g) => s + (g.guestsCount || 0),
     0
   );
 
-  // 🟩 מגיעים בפועל – אך ורק arrivedCount
+  const totalComing = guests.reduce(
+    (s, g) => (g.rsvp === "yes" ? s + g.guestsCount : s),
+    0
+  );
+
   const totalArrived = guests.reduce(
     (s, g) => s + (g.arrivedCount || 0),
     0
@@ -507,12 +517,14 @@ useEffect(() => {
   const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
-    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
+    totalGuests: totalInvited,     // מוזמנים
+    comingGuests: totalComing,     // מגיעים (RSVP yes)
+    arrivedGuests: totalArrived,   // הגיעו בפועל
     notComing: totalNo,
     noResponse: totalPending,
   };
 }, [guests]);
+
 
 
   /* ============================================================
@@ -569,8 +581,9 @@ if (selectedGroupId) {
   if (sortKey === "table") return (g.tableName || "").toLowerCase();
   if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
   if (sortKey === "invited") return g.guestsCount || 0;
-  // coming = נוכחות אמיתית
-  return g.arrivedCount || 0;
+  if (sortKey === "coming")
+    return g.rsvp === "yes" ? g.guestsCount : 0;
+  if (sortKey === "arrived") return g.arrivedCount || 0;
 };
 
     list.sort((a, b) => {
@@ -907,23 +920,32 @@ console.log("INVITATION:", invitation);
           סטטוס{sortArrow("rsvp")}
         </th>
 
-        <th
-          className="p-3 text-right cursor-pointer select-none"
-          onClick={() => toggleSort("invited")}
-        >
-          מוזמנים{sortArrow("invited")}
-        </th>
+       
 
-        <th
+        {/* מגיעים */}
+<th
+  className="p-3 text-center cursor-pointer select-none"
+  onClick={() => toggleSort("invited")}
+>
+  מוזמנים{sortArrow("invited")}
+</th>
+
+{/* מגיעים (לפי RSVP = yes) */}
+<th
   className="p-3 text-center cursor-pointer select-none"
   onClick={() => toggleSort("coming")}
 >
-  <div className="flex flex-col items-center leading-tight">
-    <span>מגיעים</span>
-    <span className="text-xs text-gray-500">הגיעו בפועל</span>
-    <span className="text-xs">{sortArrow("coming")}</span>
-  </div>
+  מגיעים{sortArrow("coming")}
 </th>
+
+{/* הגיעו בפועל */}
+<th
+  className="p-3 text-center cursor-pointer select-none"
+  onClick={() => toggleSort("arrived")}
+>
+  הגיעו בפועל{sortArrow("arrived")}
+</th>
+
 
         <th
           className="p-3 text-right cursor-pointer select-none"
@@ -985,33 +1007,41 @@ console.log("INVITATION:", invitation);
         {g.guestsCount}
       </td>
 
-      {/* 🔥 הגיעו בפועל + פלוס מינוס */}
-      <td className="p-3 text-center">
-        <div className="flex flex-col items-center gap-1">
-          <div className="font-bold text-green-700">
-            {g.arrivedCount || 0}
-          </div>
+      {/* מגיעים (RSVP = yes) */}
+<td className="p-3 text-center">
+  {g.rsvp === "yes" ? g.guestsCount : 0}
+</td>
 
-          {isLive && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => changeArrived(g, -1)}
-                disabled={(g.arrivedCount || 0) <= 0}
-                className="w-7 h-7 rounded-full border text-gray-700 disabled:opacity-40"
-              >
-                −
-              </button>
 
-              <button
-                onClick={() => changeArrived(g, +1)}
-                className="w-7 h-7 rounded-full bg-green-600 text-white"
-              >
-                +
-              </button>
-            </div>
-          )}
-        </div>
-      </td>
+
+<td className="p-3 text-center">
+  <div className="flex flex-col items-center gap-1">
+    <div className="font-bold text-green-700">
+      {g.arrivedCount || 0}
+    </div>
+
+    {isLive && (
+      <div className="flex gap-2">
+        <button
+          onClick={() => changeArrived(g, -1)}
+          disabled={(g.arrivedCount || 0) <= 0}
+          className="w-7 h-7 rounded-full border disabled:opacity-40"
+        >
+          −
+        </button>
+
+        <button
+          onClick={() => changeArrived(g, +1)}
+          disabled={(g.arrivedCount || 0) >= g.guestsCount}
+          className="w-7 h-7 rounded-full bg-green-600 text-white disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+    )}
+  </div>
+</td>
+
 
       {/* שולחן */}
       <td className="p-3">
@@ -1069,7 +1099,9 @@ console.log("INVITATION:", invitation);
 
   {displayGuests.length === 0 && (
     <tr>
-      <td colSpan={10} className="p-8 text-center text-gray-500">
+      <td colSpan={12} className="p-8 text-center text-gray-500">
+
+
         לא נמצאו תוצאות.
       </td>
     </tr>
