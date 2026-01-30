@@ -13,6 +13,8 @@ import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
+import { useSeatingStore } from "@/store/seatingStore";
+
 
 
 import Link from "next/link";
@@ -148,6 +150,11 @@ const [openGroupModal, setOpenGroupModal] = useState(false);
 const [selectedGroupId, setSelectedGroupId] = useState("");
 
 
+const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
+const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
+const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
+
+const setSeatingGuests = useSeatingStore((s) => s.setGuests);
 
 
 
@@ -237,13 +244,17 @@ async function loadEvent() {
   const res = await fetch(
     `/api/guests?invitation=${invitationId}`,
     {
-      credentials: "include", // ⭐️ חובה עם cookies
-      cache: "no-store",      // ⭐️ מונע קאש בין מכשירים
+      credentials: "include",
+      cache: "no-store",
     }
   );
 
   const data = await res.json();
+
   setGuests(data.guests || []);
+
+  // ⭐️ זה החיבור שחסר
+  setSeatingGuests(data.guests || []);
 }
 
 
@@ -309,6 +320,13 @@ useEffect(() => {
 
   initAfterUser();
 }, [user, isDemo]);
+
+useEffect(() => {
+  if (user?.role === "producer") {
+    setSeatingMode("live");
+  }
+}, [user?.role, setSeatingMode]);
+
 
 useEffect(() => {
   if (isDemo) return;
@@ -497,9 +515,9 @@ useEffect(() => {
 
   // 🟩 מגיעים בפועל – אך ורק arrivedCount
   const totalArrived = guests.reduce(
-    (s, g) => s + (g.arrivedCount || 0),
-    0
-  );
+  (s, g) => s + (g.actualArrivedCount || 0),
+  0
+);
 
   const totalActualArrived = guests.reduce(
   (s, g) => s + (g.actualArrivedCount || 0),
@@ -575,7 +593,8 @@ if (selectedGroupId) {
   if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
   if (sortKey === "invited") return g.guestsCount || 0;
   // coming = נוכחות אמיתית
-  return g.arrivedCount || 0;
+  return g.actualArrivedCount || 0;
+
 };
 
     list.sort((a, b) => {
@@ -616,36 +635,41 @@ if (selectedGroupId) {
   const showActionButtons = true;
 
   const updateActualArrived = async (guestId: string, next: number) => {
-  if (!eventIdFromUrl) {
-    await loadGuests();
-    return;
-  }
+  // ⭐️ חיבור מיידי להושבה בלייב
+  setLiveArrived(guestId, next);
+  syncArrivedSeats(guestId);
 
-  // optimistic UI
+  // ✅ חובה – עדכון הדשבורד
   setGuests((prev) =>
-    prev.map((x) =>
-      x._id === guestId ? { ...x, actualArrivedCount: next } : x
+    prev.map((g) =>
+      g._id === guestId
+        ? { ...g, actualArrivedCount: next }
+        : g
     )
   );
 
-  const doUpdate = async () =>
-    fetch(`/api/guests/${guestId}`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualArrivedCount: next }),
-    });
+  // ✅ חובה – עדכון ההושבה
+  setSeatingGuests((prev: any[]) =>
+    prev.map((g) =>
+      g._id === guestId
+        ? { ...g, actualArrivedCount: next }
+        : g
+    )
+  );
 
-  let res = await doUpdate();
-
- 
-
+  const res = await fetch(`/api/guests/${guestId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actualArrivedCount: next }),
+  });
 
   if (!res.ok) {
-    // rollback אם נכשל
-    await loadGuests();
+    await loadGuests(); // rollback
   }
 };
+
+
 
 
 
