@@ -838,38 +838,15 @@ console.log("INVITATION:", invitation);
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
-  <Box
-    title="סה״כ מוזמנים"
-    value={stats.totalGuests}
-    onClick={() => setQuickFilter("all")}
-  />
-  <Box
-    title="סה״כ מגיעים"
-    value={stats.comingGuests}
-    color="green"
-    onClick={() => setQuickFilter("yes")}
-  />
+  <Box title="סה״כ מוזמנים" value={stats.totalGuests} />
+  <Box title="סה״כ מגיעים" value={stats.comingGuests} color="green" />
   {user?.role === "producer" && (
-  <Box
-    title="מגיעים בפועל"
-    value={stats.actualArrivedGuests}
-    color="blue"
-  />
-)}
-
-  <Box
-    title="לא מגיעים"
-    value={stats.notComing}
-    color="red"
-    onClick={() => setQuickFilter("no")}
-  />
-  <Box
-    title="טרם השיבו"
-    value={stats.noResponse}
-    color="orange"
-    onClick={() => setQuickFilter("pending")}
-  />
+    <Box title="מגיעים בפועל" value={stats.actualArrivedGuests} color="blue" />
+  )}
+  <Box title="לא מגיעים" value={stats.notComing} color="red" />
+  <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
 </div>
+
 
 <GuestsControls
   search={search}
@@ -1237,10 +1214,11 @@ function Box({
   onClick?: () => void;
 }) {
   const colors: Record<string, string> = {
-    green: "text-green-600",
-    red: "text-red-600",
-    orange: "text-orange-500",
-  };
+  green: "text-green-600",
+  blue: "text-blue-600",
+  red: "text-red-600",
+  orange: "text-orange-500",
+};
 
   return (
     <div
