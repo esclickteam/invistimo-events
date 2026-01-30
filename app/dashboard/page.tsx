@@ -91,6 +91,11 @@ export default function DashboardPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
+
+  // ⭐️ LIVE arrivals (יום האירוע בלבד)
+const [liveArrivalsMap, setLiveArrivalsMap] =
+  useState<Record<string, number>>({});
+
   const groups = useGroupStore((s) => s.groups);
   const searchParams = useSearchParams();
   const eventIdFromUrl = searchParams.get("eventId");
@@ -462,6 +467,32 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, [invitationId, isDemo]);
 
+// ⭐️ LIVE – טעינת מגיעים בפועל (יום האירוע בלבד)
+useEffect(() => {
+  if (!isLiveEvent) return;
+  if (!invitationId) return;
+
+  async function loadLiveArrivals() {
+    const res = await fetch(
+      `/api/livearrivals?invitation=${invitationId}`,
+      { cache: "no-store" }
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      const map: Record<string, number> = {};
+      data.liveArrivals.forEach((l: any) => {
+        map[l.guestId] = l.arrivedCount;
+      });
+      setLiveArrivalsMap(map);
+    }
+  }
+
+  loadLiveArrivals();
+}, [isLiveEvent, invitationId]);
+
+
   /* ============================================================
      Stats (על כל האורחים)
   ============================================================ */
@@ -473,10 +504,10 @@ useEffect(() => {
   );
 
   // 🟩 מגיעים בפועל – אך ורק arrivedCount
-  const totalArrived = guests.reduce(
-    (s, g) => s + (g.arrivedCount || 0),
-    0
-  );
+  const totalArrived = isLiveEvent
+  ? Object.values(liveArrivalsMap).reduce((s, n) => s + n, 0)
+  : guests.reduce((s, g) => s + (g.guestsCount || 0), 0);
+
 
   const totalNo = guests.filter((g) => g.rsvp === "no").length;
   const totalPending = guests.filter((g) => g.rsvp === "pending").length;
@@ -487,7 +518,8 @@ useEffect(() => {
     notComing: totalNo,
     noResponse: totalPending,
   };
-}, [guests]);
+}, [guests, isLiveEvent, liveArrivalsMap]);
+
 
 
   /* ============================================================
@@ -544,8 +576,13 @@ if (selectedGroupId) {
   if (sortKey === "table") return (g.tableName || "").toLowerCase();
   if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
   if (sortKey === "invited") return g.guestsCount || 0;
-  // coming = נוכחות אמיתית
-  return g.arrivedCount || 0;
+
+if (sortKey === "coming") {
+  return isLiveEvent
+    ? liveArrivalsMap[g._id] || 0
+    : g.guestsCount || 0;
+}
+
 };
 
     list.sort((a, b) => {
@@ -567,7 +604,9 @@ if (selectedGroupId) {
   search,
   sortKey,
   sortDir,
-  selectedGroupId, // ⭐ חובה
+  selectedGroupId, 
+  isLiveEvent,
+  liveArrivalsMap,
 ]);
 
 
@@ -967,10 +1006,18 @@ console.log("INVITATION:", invitation);
           <td className="p-3">
   {isLiveEvent ? (
     <LiveArrivalsCell
-      guestId={g._id}
-      invitationId={invitationId}
-      fallback={g.guestsCount}
-    />
+  guestId={g._id}
+  invitationId={invitationId}
+  fallback={g.guestsCount}
+  onChange={(guestId, arrivedCount) => {
+    setLiveArrivalsMap((prev) => ({
+      ...prev,
+      [guestId]: arrivedCount,
+    }));
+  }}
+/>
+
+
   ) : (
     <span className="font-semibold">
       {g.guestsCount}
