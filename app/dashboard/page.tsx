@@ -95,6 +95,11 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
+  const isLive = useMemo(() => {
+  return user?.role === "producer" && Boolean(eventIdFromUrl);
+}, [user?.role, eventIdFromUrl]);
+
+
 
 
 
@@ -462,13 +467,15 @@ useEffect(() => {
      Stats (על כל האורחים)
   ============================================================ */
   const stats = useMemo(() => {
-  // 🟦 מוזמנים – קבועים
   const totalInvited = guests.reduce(
     (s, g) => s + (g.guestsCount || 0),
     0
   );
 
-  // 🟩 מגיעים בפועל – אך ורק arrivedCount
+  const totalComing = guests.filter(
+    (g) => g.rsvp === "yes"
+  ).length;
+
   const totalArrived = guests.reduce(
     (s, g) => s + (g.arrivedCount || 0),
     0
@@ -478,12 +485,14 @@ useEffect(() => {
   const totalPending = guests.filter((g) => g.rsvp === "pending").length;
 
   return {
-    totalGuests: totalInvited,   // 🟦 סה״כ מוזמנים
-    comingGuests: totalArrived,  // 🟩 סה״כ מגיעים
+    totalGuests: totalInvited,        // סה״כ מוזמנים
+    comingGuests: totalComing,        // מגיעים (RSVP yes)
+    arrivedGuests: totalArrived,      // הגיעו בפועל (למפיק בלבד)
     notComing: totalNo,
     noResponse: totalPending,
   };
 }, [guests]);
+
 
 
   /* ============================================================
@@ -829,24 +838,36 @@ console.log("INVITATION:", invitation);
 
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div className={`grid gap-4 mb-10 ${isLive ? "md:grid-cols-5" : "md:grid-cols-4"} grid-cols-2`}>
+
   <Box
     title="סה״כ מוזמנים"
     value={stats.totalGuests}
     onClick={() => setQuickFilter("all")}
   />
+
   <Box
     title="סה״כ מגיעים"
     value={stats.comingGuests}
     color="green"
     onClick={() => setQuickFilter("yes")}
   />
+
+  {isLive && (
+    <Box
+      title="הגיעו בפועל"
+      value={stats.arrivedGuests}
+      color="green"
+    />
+  )}
+
   <Box
     title="לא מגיעים"
     value={stats.notComing}
     color="red"
     onClick={() => setQuickFilter("no")}
   />
+
   <Box
     title="טרם השיבו"
     value={stats.noResponse}
@@ -854,6 +875,7 @@ console.log("INVITATION:", invitation);
     onClick={() => setQuickFilter("pending")}
   />
 </div>
+
 
 <GuestsControls
   search={search}
