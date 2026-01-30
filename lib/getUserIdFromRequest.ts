@@ -2,19 +2,26 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 
+/* =========================
+   Types
+========================= */
+
 export type AuthRole = "admin" | "user" | "producer" | "client";
 
 export type AuthPayload = {
   userId: string;
   role: AuthRole;
+
+  // impersonation (optional)
   impersonated: boolean;
   impersonatedBy?: string;
   impersonationRole?: "producer" | "admin";
 };
 
 /* =========================
-   Cookie helpers
+   Helpers
 ========================= */
+
 function getCookieFromReq(req: NextRequest | undefined, name: string) {
   try {
     return req?.cookies?.get(name)?.value ?? null;
@@ -33,40 +40,47 @@ async function getCookieFromHeadersStore(name: string) {
 }
 
 /* =========================
-   Auth helper (FIXED)
+   Auth helper
 ========================= */
+
 export async function getUserIdFromRequest(
   req?: NextRequest
 ): Promise<AuthPayload | null> {
   try {
-    // ⭐️ אותו סדר כמו /api/me
-    const producerToken =
-      getCookieFromReq(req, "producerAuthToken") ??
-      (await getCookieFromHeadersStore("producerAuthToken"));
+    // same logic: impersonationToken > authToken
+    const impersonationToken =
+      getCookieFromReq(req, "impersonationToken") ??
+      (await getCookieFromHeadersStore("impersonationToken"));
 
     const authToken =
       getCookieFromReq(req, "authToken") ??
       (await getCookieFromHeadersStore("authToken"));
 
-    const token = producerToken ?? authToken;
-    if (!token) return null;
+    const tokenToUse = impersonationToken || authToken;
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET!
-    ) as any;
+    if (!tokenToUse) return null;
 
-    const userId =
-      decoded.userId || decoded.id || decoded._id;
+    const decoded = jwt.verify(tokenToUse, process.env.JWT_SECRET!) as {
+      userId?: string;
+      role?: AuthRole;
+
+      impersonatedBy?: string;
+      impersonationRole?: "producer" | "admin";
+
+      // backward compatibility
+      id?: string;
+      _id?: string;
+    };
+
+    const userId = decoded.userId || decoded.id || decoded._id || null;
     if (!userId) return null;
 
     return {
       userId: String(userId),
       role: decoded.role ?? "user",
-      impersonated: !!decoded.impersonated,
-      impersonatedBy: decoded.impersonatedBy
-        ? String(decoded.impersonatedBy)
-        : undefined,
+
+      impersonated: Boolean(impersonationToken),
+      impersonatedBy: decoded.impersonatedBy,
       impersonationRole: decoded.impersonationRole,
     };
   } catch (error) {

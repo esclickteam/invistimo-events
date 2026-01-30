@@ -174,8 +174,7 @@ export default function ProducerDashboard() {
     }
 
     // 🎬 כניסה ישירה להפקת האירוע
-    window.location.href = `/dashboard/production?eventId=${eventId}`;
-
+    window.location.href = `/events/production?eventId=${eventId}`;
   } catch (err) {
     console.error(err);
     alert("שגיאה בכניסה לניהול האירוע");
