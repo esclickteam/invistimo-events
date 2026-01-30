@@ -11,7 +11,6 @@ const TABS = [
   { key: "alcohol", label: "אלכוהול" },
 
   // לייב
-  { key: "live-seating", label: "לייב – הושבה", live: true },
 ];
 
 export default function ProductionTabs({
