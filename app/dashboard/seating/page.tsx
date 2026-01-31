@@ -28,6 +28,7 @@ type GuestDTO = {
   name: string;
   guestsCount?: number;
   arrivedCount?: number;
+  actualArrivedCount?: number;
   rsvp?: "yes" | "no" | "pending";
   groupId?: string | null; // ⭐ זה התיקון
 };
@@ -115,15 +116,17 @@ const isProducer = pathname.includes("/events/production");
         const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
   id: g._id,
   name: g.name,
-  rsvp: g.rsvp,              // ✅ זה היה חסר
+  rsvp: g.rsvp,                    // ✅ כבר קיים – טוב
   guestsCount: g.guestsCount,
   arrivedCount: g.arrivedCount,
+  actualArrivedCount: g.actualArrivedCount ?? 0, // ⭐⭐⭐ זה החסר
   groupId: g.groupId ?? null,
   count:
     g.rsvp === "yes"
       ? g.arrivedCount || g.guestsCount || 1
       : g.guestsCount || 1,
 }));
+
 
 
 
