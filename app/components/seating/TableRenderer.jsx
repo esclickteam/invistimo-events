@@ -204,23 +204,15 @@ useEffect(() => {
  const occupiedSeatsCount = useMemo(() => {
   if (!table.seatedGuests?.length) return 0;
 
-  return Math.min(
-    table.seatedGuests.reduce((sum, seated) => {
-      const guest = guests.find(
-        (g) => String(g._id ?? g.id) === String(seated.guestId)
-      );
+  // ⭐ LIVE – סופרים רק arrived
+  if (seatingMode === "live") {
+    return table.seatedGuests.filter((s) => s.arrived).length;
+  }
 
-      if (!guest) return sum;
+  // רגיל – כל מושב תפוס
+  return table.seatedGuests.length;
+}, [table.seatedGuests, seatingMode]);
 
-      if (seatingMode === "live") {
-        return sum + (guest.actualArrivedCount ?? 0);
-      }
-
-      return sum + (guest.guestsCount ?? 0);
-    }, 0),
-    Number(table.seats || 0)
-  );
-}, [table.seatedGuests, table.seats, guests, seatingMode]);
 
 
 
@@ -489,7 +481,13 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const isOccupied = i < occupiedSeatsCount;
+    const seat = table.seatedGuests.find((s) => s.seatIndex === i);
+
+const isOccupied =
+  seatingMode === "live"
+    ? seat?.arrived === true
+    : !!seat;
+
 
 
     const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
