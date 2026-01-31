@@ -263,11 +263,21 @@ const tableText = isHighlighted
   ? "white"
   : "#374151";          // טקסט כהה לשולחן ריק
 
+  const seatsToRender =
+  seatingMode === "live"
+    ? occupiedSeatsCount // 2
+    : seatsTotal;        // 12
+
 
   const layout = useMemo(
-    () => getTableLayout(table),
-    [table.type, table.seats]
-  );
+  () =>
+    getTableLayout({
+      ...table,
+      seats: seatsToRender,
+    }),
+  [table.type, seatsToRender]
+);
+
 
   const seatsCoords = layout.coords;
 
@@ -280,10 +290,12 @@ const tableText = isHighlighted
   }
 }, [
   layout.type,
-  table.seats,
+  seatsToRender,   // 🔥 זה העיקר
   table.seatedGuests,
   hideSeats,
 ]);
+
+
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
     const pos = tableRef.current.position();
