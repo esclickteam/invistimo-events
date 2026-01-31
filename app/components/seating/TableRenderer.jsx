@@ -301,6 +301,7 @@ const tableText = isHighlighted
   layout.type,
   table.seats,
   table.seatedGuests,
+  occupiedSeatsCount, // ✅ חדש
   hideSeats,
 ]);
 
