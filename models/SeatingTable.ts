@@ -14,6 +14,18 @@ const SeatedGuestSchema = new Schema(
       type: Number,
       required: true,
     },
+
+    // ⭐⭐⭐ זה החסר
+    arrived: {
+      type: Boolean,
+      default: false,
+    },
+
+    // אופציונלי – אם תרצי בעתיד
+    isVirtual: {
+      type: Boolean,
+      default: false,
+    },
   },
   { _id: false }
 );
