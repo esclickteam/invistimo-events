@@ -62,9 +62,10 @@ const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 useEffect(() => {
   if (!isLive) return;
 
+  console.log("🔥 ENABLE LIVE MODE");
   setSeatingMode("live");
-  return () => setSeatingMode("regular");
 }, [isLive, setSeatingMode]);
+
 
 
 

@@ -111,12 +111,8 @@ useEffect(() => {
   console.log("🔥 ENABLE LIVE MODE");
 
   setSeatingMode("live");
-
-  return () => {
-    console.log("🧯 DISABLE LIVE MODE");
-    setSeatingMode("regular");
-  };
 }, [user?.role, user?.originalRole, setSeatingMode]);
+
 
 
 
