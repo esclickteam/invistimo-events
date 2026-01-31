@@ -416,16 +416,16 @@ unseatGroup: (groupId) => {
   /* ---------------- INIT ---------------- */
 init: (tables, guests, background = null, canvasView = null) => {
   console.log("🟡 INIT tables from server");
-  console.table(
-    (tables || []).map((t) => ({
-      id: t.id,
-      name: t.name,
-      displayName: t.displayName,
-    }))
-  );
+
+  const liveArrivalsMap = {};
+
+  (guests || []).forEach((g) => {
+    const id = String(g.id ?? g._id);
+    liveArrivalsMap[id] = Number(g.actualArrivedCount ?? 0);
+  });
 
   set((state) => ({
-    ...state, // ⭐⭐⭐ שומר על seatingMode = "live"
+    ...state, // ⭐️ חשוב – לא לדרוס seatingMode
     tables: (tables || []).map((t) => ({
       ...t,
       displayName: t.displayName || "",
@@ -434,6 +434,7 @@ init: (tables, guests, background = null, canvasView = null) => {
       ...g,
       rsvp: g.rsvp ?? "pending",
     })),
+    liveArrivals: liveArrivalsMap, // ⭐⭐ זה החיבור החסר
     background,
     canvasView: canvasView || {
       scale: 1,
@@ -442,6 +443,7 @@ init: (tables, guests, background = null, canvasView = null) => {
     },
   }));
 },
+
 
 
   /* ================= ⭐ SNAPSHOT IMPORT ================= */
