@@ -174,6 +174,7 @@ function getSeatRotation(table, c) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
+const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 
 
 const displayName = table.displayName || "";
@@ -204,14 +205,25 @@ useEffect(() => {
  const occupiedSeatsCount = useMemo(() => {
   if (!table.seatedGuests?.length) return 0;
 
-  // ⭐ LIVE – סופרים רק arrived
-  if (seatingMode === "live") {
-    return table.seatedGuests.filter((s) => s.arrived).length;
-  }
+  // LIVE MODE – לפי liveArrivals
+if (seatingMode === "live") {
+  const counted = new Set();
 
-  // רגיל – כל מושב תפוס
+  return table.seatedGuests.reduce((sum, s) => {
+    const guestId = String(s.guestId);
+
+    if (counted.has(guestId)) return sum;
+    counted.add(guestId);
+
+    return sum + (liveArrivals[guestId] ?? 0);
+  }, 0);
+}
+
+
+  // REGULAR MODE
   return table.seatedGuests.length;
-}, [table.seatedGuests, seatingMode]);
+}, [table.seatedGuests, seatingMode, liveArrivals]);
+
 
 
 
@@ -485,8 +497,10 @@ const tableText = isHighlighted
 
 const isOccupied =
   seatingMode === "live"
-    ? seat?.arrived === true
+    ? (liveArrivals[String(seat?.guestId)] ?? 0) > 0
     : !!seat;
+
+
 
 
 
