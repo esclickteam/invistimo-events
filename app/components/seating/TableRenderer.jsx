@@ -205,24 +205,22 @@ useEffect(() => {
  const occupiedSeatsCount = useMemo(() => {
   if (!table.seatedGuests?.length) return 0;
 
-  // LIVE MODE – לפי liveArrivals
-if (seatingMode === "live") {
+  // תמיד לחשב לפי liveArrivals אם יש נתון (גם אם seatingMode עוד לא התעדכן)
   const counted = new Set();
 
-  return table.seatedGuests.reduce((sum, s) => {
+  const sumLive = table.seatedGuests.reduce((sum, s) => {
     const guestId = String(s.guestId);
 
     if (counted.has(guestId)) return sum;
     counted.add(guestId);
 
-    return sum + (liveArrivals[guestId] ?? 0);
+    return sum + (liveArrivals?.[guestId] ?? 0);
   }, 0);
-}
 
+  // אם אין בכלל נתוני לייב (או כולם 0) – חוזרים ללוגיקה הרגילה
+  return sumLive > 0 ? sumLive : table.seatedGuests.length;
+}, [table.seatedGuests, liveArrivals]);
 
-  // REGULAR MODE
-  return table.seatedGuests.length;
-}, [table.seatedGuests, seatingMode, liveArrivals]);
 
 
 
