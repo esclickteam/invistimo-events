@@ -76,11 +76,6 @@ const isProducer = pathname.includes("/events/production");
 
   console.log("🔥 ENABLE LIVE MODE (SEATING)");
   setSeatingMode("live");
-
-  return () => {
-    console.log("🧯 DISABLE LIVE MODE (SEATING)");
-    setSeatingMode("regular");
-  };
 }, [isProducer, setSeatingMode]);
 
 

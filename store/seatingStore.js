@@ -414,21 +414,21 @@ unseatGroup: (groupId) => {
 
 
   /* ---------------- INIT ---------------- */
- init: (tables, guests, background = null, canvasView = null) => {
-
+init: (tables, guests, background = null, canvasView = null) => {
   console.log("🟡 INIT tables from server");
-console.table(
-  (tables || []).map((t) => ({
-    id: t.id,
-    name: t.name,
-    displayName: t.displayName,
-  }))
-);
+  console.table(
+    (tables || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      displayName: t.displayName,
+    }))
+  );
 
-  set({
+  set((state) => ({
+    ...state, // ⭐⭐⭐ שומר על seatingMode = "live"
     tables: (tables || []).map((t) => ({
       ...t,
-      displayName: t.displayName || "", // ⭐️ חובה
+      displayName: t.displayName || "",
     })),
     guests: (guests || []).map((g) => ({
       ...g,
@@ -440,8 +440,9 @@ console.table(
       x: 0,
       y: 0,
     },
-  });
+  }));
 },
+
 
   /* ================= ⭐ SNAPSHOT IMPORT ================= */
 importSnapshot: (snapshot) => {
