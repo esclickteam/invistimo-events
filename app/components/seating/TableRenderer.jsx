@@ -493,19 +493,12 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-
     const seat = table.seatedGuests.find((s) => s.seatIndex === i);
-
-const arrivedCount =
-  seatingMode === "live"
-    ? occupiedSeatsCount // כבר מחושב אצלך = actualArrivedCount
-    : table.seatedGuests.length;
 
 const isOccupied =
   seatingMode === "live"
-    ? i < arrivedCount
+    ? (liveArrivals[String(seat?.guestId)] ?? 0) > 0
     : !!seat;
-
 
 
 
