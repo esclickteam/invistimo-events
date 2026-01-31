@@ -434,7 +434,7 @@ init: (tables, guests, background = null, canvasView = null) => {
       ...g,
       rsvp: g.rsvp ?? "pending",
     })),
-    liveArrivals: liveArrivalsMap, // ⭐⭐ זה החיבור החסר
+    liveArrivals: liveArrivalsMap,
     background,
     canvasView: canvasView || {
       scale: 1,
@@ -442,7 +442,15 @@ init: (tables, guests, background = null, canvasView = null) => {
       y: 0,
     },
   }));
+
+  // ⭐⭐⭐ זה החלק החסר – סנכרון כיסאות לפי הגעה בפועל
+  Object.entries(liveArrivalsMap).forEach(([guestId, count]) => {
+    if (count > 0) {
+      get().syncArrivedSeats(guestId);
+    }
+  });
 },
+
 
 
 
