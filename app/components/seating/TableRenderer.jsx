@@ -186,6 +186,9 @@ const displayName = table.displayName || "";
 const from = searchParams.get("from");
 const guestIdFromUrl = searchParams.get("guestId");
 
+const seatingMode = useSeatingStore((s) => s.seatingMode);
+
+
   const deleteTable =
     useSeatingStore((s) => s.deleteTable) ||
     useSeatingStore((s) => s.removeTable) ||
@@ -194,11 +197,27 @@ const guestIdFromUrl = searchParams.get("guestId");
   const assigned = table.seatedGuests || [];
 
  const occupiedSeatsCount = useMemo(() => {
+  if (!table.seatedGuests?.length) return 0;
+
   return Math.min(
-    (table.seatedGuests || []).length,
+    table.seatedGuests.reduce((sum, seated) => {
+      const guest = guests.find(
+        (g) => String(g._id ?? g.id) === String(seated.guestId)
+      );
+
+      if (!guest) return sum;
+
+      if (seatingMode === "live") {
+        return sum + (guest.actualArrivedCount ?? 0);
+      }
+
+      return sum + (guest.guestsCount ?? 0);
+    }, 0),
     Number(table.seats || 0)
   );
-}, [table.seatedGuests, table.seats]);
+}, [table.seatedGuests, table.seats, guests, seatingMode]);
+
+
 
 const seatsTotal = Number(table.seats || 0);
 

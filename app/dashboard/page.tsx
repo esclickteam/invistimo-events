@@ -13,6 +13,8 @@ import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
+import { useSeatingStore } from "@/store/seatingStore";
+
 
 
 import Link from "next/link";
@@ -96,7 +98,22 @@ const isDemo = pathname.startsWith("/try");
 
   const [user, setUser] = useState<any | null>(null);
 
+  const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
+
+
+useEffect(() => {
+  // רק מפיק עובד בלייב
+  if (user?.role !== "producer") return;
+
+  // מדליקים Live Mode
+  setSeatingMode("live");
+
+  // כשעוזבים את הדשבורד – חוזרים לרגיל
+  return () => {
+    setSeatingMode("regular");
+  };
+}, [user?.role, setSeatingMode]);
 
 
 
@@ -146,7 +163,6 @@ const isDemo = pathname.startsWith("/try");
   const [event, setEvent] = useState<EventModel | null>(null);
 const [openGroupModal, setOpenGroupModal] = useState(false);
 const [selectedGroupId, setSelectedGroupId] = useState("");
-
 
 
 
