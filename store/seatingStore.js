@@ -18,19 +18,6 @@ draggingGroup: null,
    seatingMode: "regular", // "regular" | "live"
 setSeatingMode: (mode) => set({ seatingMode: mode }),
 
-setLiveOccupied: (tableId, count) =>
-  set((state) => ({
-    tables: state.tables.map((t) =>
-      t.id === tableId
-        ? {
-            ...t,
-            liveOccupied: Math.max(0, Math.min(Number(count) || 0, t.seats)),
-          }
-        : t
-    ),
-  })),
-
-
 
   /* ---------------- ACTIONS ---------------- */
   setDemoMode: (isDemo) => set({ demoMode: isDemo }),
@@ -129,12 +116,9 @@ resetLiveArrivals: () =>
 
 
   setTables: (tables) =>
-  set(() => ({
-    tables: (tables || []).map((t) => ({
-      ...t,
-      liveOccupied: t.liveOccupied ?? 0,
+    set(() => ({
+      tables: tables || [],
     })),
-  })),
 
     setGuests: (guests) =>
   set(() => ({
@@ -445,7 +429,6 @@ init: (tables, guests, background = null, canvasView = null) => {
 
     const syncedTables = (tables || []).map((t) => ({
       ...t,
-      liveOccupied: t.liveOccupied ?? 0,
       displayName: t.displayName || "",
       seatedGuests: (t.seatedGuests || []).map((sg) => {
         const gid = String(sg.guestId);
@@ -499,7 +482,6 @@ console.table(
   set({
     tables: (snapshot.tables || []).map((t) => ({
       ...t,
-      liveOccupied: t.liveOccupied ?? 0,
       displayName: t.displayName || "",
       seatedGuests: (t.seatedGuests || []).map((sg) => ({
         ...sg,
@@ -644,14 +626,13 @@ background: null,
   const newTable = {
   id: crypto.randomUUID(),
   name: `שולחן ${tables.length + 1}`,
-  displayName: "",
+  displayName: "",          // ⭐️ חדש
   type,
   seats,
   x: position?.x ?? 0,
   y: position?.y ?? 0,
   rotation: 0,
   seatedGuests: [],
-  liveOccupied: 0, // ⭐⭐⭐ זה
 };
 
   set({
