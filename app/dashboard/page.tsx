@@ -103,17 +103,20 @@ const isDemo = pathname.startsWith("/try");
 
 
 useEffect(() => {
-  // רק מפיק עובד בלייב
-  if (user?.role !== "producer") return;
+  const isProducer =
+    user?.role === "producer" || user?.originalRole === "producer";
 
-  // מדליקים Live Mode
+  if (!isProducer) return;
+
+  console.log("🔥 ENABLE LIVE MODE");
+
   setSeatingMode("live");
 
-  // כשעוזבים את הדשבורד – חוזרים לרגיל
   return () => {
+    console.log("🧯 DISABLE LIVE MODE");
     setSeatingMode("regular");
   };
-}, [user?.role, setSeatingMode]);
+}, [user?.role, user?.originalRole, setSeatingMode]);
 
 
 
@@ -487,18 +490,20 @@ useEffect(() => {
 
 
 useEffect(() => {
-  // ⭐️ DEMO – לא מפעילים polling בדמו
   if (isDemo) return;
   if (!invitationId) return;
 
+  const isProducer =
+    user?.role === "producer" || user?.originalRole === "producer";
+
   const interval = setInterval(() => {
-  if (user?.role !== "producer") {
-    loadGuests();
-  }
-}, 5000);
+    if (!isProducer) {
+      loadGuests();
+    }
+  }, 5000);
 
   return () => clearInterval(interval);
-}, [invitationId, isDemo, user?.role]);
+}, [invitationId, isDemo, user?.role, user?.originalRole]);
 
 
   /* ============================================================
@@ -902,7 +907,8 @@ console.log("INVITATION:", invitation);
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
   <Box title="סה״כ מוזמנים" value={stats.totalGuests} />
   <Box title="סה״כ מגיעים" value={stats.comingGuests} color="green" />
-  {user?.role === "producer" && (
+  {(user?.role === "producer" || user?.originalRole === "producer") && (
+
     <Box title="מגיעים בפועל" value={stats.actualArrivedGuests} color="blue" />
   )}
   <Box title="לא מגיעים" value={stats.notComing} color="red" />
@@ -964,7 +970,8 @@ console.log("INVITATION:", invitation);
           מגיעים{sortArrow("coming")}
         </th>
 
-        {user?.role === "producer" && (
+        {(user?.role === "producer" || user?.originalRole === "producer") && (
+
   <th className="p-3 text-right">מגיעים בפועל</th>
 )}
 
@@ -1025,7 +1032,8 @@ console.log("INVITATION:", invitation);
   {g.arrivedCount || 0}
 </td>
 
-{user?.role === "producer" && (
+{(user?.role === "producer" || user?.originalRole === "producer") && (
+
   <td className="p-3">
     <div className="flex items-center gap-2">
 
@@ -1111,7 +1119,15 @@ console.log("INVITATION:", invitation);
 
       {displayGuests.length === 0 && (
         <tr>
-          <td colSpan={user?.role === "producer" ? 10 : 9} className="p-8 text-center text-gray-500">
+          <td
+  colSpan={
+    user?.role === "producer" || user?.originalRole === "producer"
+      ? 10
+      : 9
+  }
+  className="p-8 text-center text-gray-500"
+>
+
 
             לא נמצאו תוצאות.
           </td>
