@@ -417,39 +417,50 @@ unseatGroup: (groupId) => {
 init: (tables, guests, background = null, canvasView = null) => {
   console.log("🟡 INIT tables from server");
 
-  const liveArrivalsMap = {};
+  const liveArrivalsMap = {}; // ← בלי Record<>
 
   (guests || []).forEach((g) => {
     const id = String(g.id ?? g._id);
     liveArrivalsMap[id] = Number(g.actualArrivedCount ?? 0);
   });
 
-  set((state) => ({
-    ...state, // ⭐️ חשוב – לא לדרוס seatingMode
-    tables: (tables || []).map((t) => ({
+  set((state) => {
+    const arrivalsLeft = { ...liveArrivalsMap };
+
+    const syncedTables = (tables || []).map((t) => ({
       ...t,
       displayName: t.displayName || "",
-    })),
-    guests: (guests || []).map((g) => ({
-      ...g,
-      rsvp: g.rsvp ?? "pending",
-    })),
-    liveArrivals: liveArrivalsMap,
-    background,
-    canvasView: canvasView || {
-      scale: 1,
-      x: 0,
-      y: 0,
-    },
-  }));
+      seatedGuests: (t.seatedGuests || []).map((sg) => {
+        const gid = String(sg.guestId);
+        const left = arrivalsLeft[gid] ?? 0;
 
-  // ⭐⭐⭐ זה החלק החסר – סנכרון כיסאות לפי הגעה בפועל
-  Object.entries(liveArrivalsMap).forEach(([guestId, count]) => {
-    if (count > 0) {
-      get().syncArrivedSeats(guestId);
-    }
+        if (left > 0) {
+          arrivalsLeft[gid]--;
+          return { ...sg, arrived: true };
+        }
+
+        return { ...sg, arrived: false };
+      }),
+    }));
+
+    return {
+      ...state,
+      tables: syncedTables,
+      guests: (guests || []).map((g) => ({
+        ...g,
+        rsvp: g.rsvp ?? "pending",
+      })),
+      liveArrivals: liveArrivalsMap,
+      background,
+      canvasView: canvasView || {
+        scale: 1,
+        x: 0,
+        y: 0,
+      },
+    };
   });
 },
+
 
 
 
