@@ -100,6 +100,10 @@ const isDemo = pathname.startsWith("/try");
 
   const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
+  const setLiveOccupied = useSeatingStore((s) => s.setLiveOccupied);
+const tables = useSeatingStore((s) => s.tables);
+
+
 
 
 useEffect(() => {
@@ -644,6 +648,25 @@ if (selectedGroupId) {
       x._id === guestId ? { ...x, actualArrivedCount: next } : x
     )
   );
+
+  // ✅ LIVE SEATING SYNC — ספירת כיסאות לשולחן
+const guest = guests.find((g) => g._id === guestId);
+if (guest?.tableName) {
+  const table = tables.find(
+  (t: any) => t.name === guest.tableName || t.displayName === guest.tableName
+);
+
+  if (table) {
+    // סופרים כמה הגיעו בפועל לשולחן הזה
+    const totalAtTable = guests.reduce((sum, g) => {
+      if (g.tableName !== guest.tableName) return sum;
+      return sum + (g._id === guestId ? next : g.actualArrivedCount || 0);
+    }, 0);
+
+    setLiveOccupied(table.id, totalAtTable);
+  }
+}
+
 
   const doUpdate = async () =>
     fetch(`/api/guests/${guestId}`, {

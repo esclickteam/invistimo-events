@@ -174,7 +174,6 @@ function getSeatRotation(table, c) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
-const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 
 
 const displayName = table.displayName || "";
@@ -202,27 +201,16 @@ useEffect(() => {
 
   const assigned = table.seatedGuests || [];
 
- const occupiedSeatsCount = useMemo(() => {
-  if (!table.seatedGuests?.length) return 0;
+const occupiedSeatsCount = useMemo(() => {
+  // ✅ LIVE MODE — ספירת כיסאות, לא אורחים
+  if (seatingMode === "live") {
+    return Number(table.liveOccupied ?? 0);
+  }
 
-  // LIVE MODE – לפי liveArrivals
-if (seatingMode === "live") {
-  const counted = new Set();
+  // ✅ REGULAR MODE — לפי אורחים מושבים
+  return table.seatedGuests?.length ?? 0;
+}, [seatingMode, table.liveOccupied, table.seatedGuests]);
 
-  return table.seatedGuests.reduce((sum, s) => {
-    const guestId = String(s.guestId);
-
-    if (counted.has(guestId)) return sum;
-    counted.add(guestId);
-
-    return sum + (liveArrivals[guestId] ?? 0);
-  }, 0);
-}
-
-
-  // REGULAR MODE
-  return table.seatedGuests.length;
-}, [table.seatedGuests, seatingMode, liveArrivals]);
 
 
 
@@ -283,6 +271,8 @@ const tableText = isHighlighted
   layout.type,
   table.seats,
   table.seatedGuests,
+  table.liveOccupied,
+  seatingMode,
   hideSeats,
 ]);
   const updatePositionInStore = () => {
@@ -493,11 +483,14 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const seat = table.seatedGuests.find((s) => s.seatIndex === i);
+    const seat = seatingMode === "live"
+  ? null
+  : table.seatedGuests.find((s) => s.seatIndex === i);
+
 
 const isOccupied =
   seatingMode === "live"
-    ? (liveArrivals[String(seat?.guestId)] ?? 0) > 0
+    ? i < occupiedSeatsCount
     : !!seat;
 
 
