@@ -69,6 +69,22 @@ const isProducer = pathname.includes("/events/production");
     const canvasView = useSeatingStore((s) => s.canvasView);
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
+    const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
+
+    useEffect(() => {
+  if (!isProducer) return;
+
+  console.log("🔥 ENABLE LIVE MODE (SEATING)");
+  setSeatingMode("live");
+
+  return () => {
+    console.log("🧯 DISABLE LIVE MODE (SEATING)");
+    setSeatingMode("regular");
+  };
+}, [isProducer, setSeatingMode]);
+
+
+
 
   const setZones = useZoneStore((s) => s.setZones);
 
