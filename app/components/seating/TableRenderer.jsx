@@ -188,6 +188,11 @@ const guestIdFromUrl = searchParams.get("guestId");
 
 const seatingMode = useSeatingStore((s) => s.seatingMode);
 
+useEffect(() => {
+  console.log("🟢 seatingMode in TableRenderer:", seatingMode);
+}, [seatingMode]);
+
+
 
   const deleteTable =
     useSeatingStore((s) => s.deleteTable) ||
