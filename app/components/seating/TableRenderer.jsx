@@ -263,23 +263,32 @@ const tableText = isHighlighted
   ? "white"
   : "#374151";          // טקסט כהה לשולחן ריק
 
-  const seatsToRender =
-  seatingMode === "live"
-    ? occupiedSeatsCount // 2
-    : seatsTotal;        // 12
+  
 
 
   const layout = useMemo(
-  () =>
-    getTableLayout({
-      ...table,
-      seats: seatsToRender,
-    }),
-  [table.type, seatsToRender]
+  () => getTableLayout(table),
+  [table.type, table.seats]
 );
 
 
   const seatsCoords = layout.coords;
+
+  const arrivedSeatsSet = useMemo(() => {
+  if (seatingMode !== "live") return new Set();
+
+  const arrived = new Set();
+  let remaining = occupiedSeatsCount;
+
+  for (const s of table.seatedGuests) {
+    if (remaining <= 0) break;
+    arrived.add(s.seatIndex);
+    remaining--;
+  }
+
+  return arrived;
+}, [seatingMode, table.seatedGuests, occupiedSeatsCount]);
+
 
   /* ====== CACHE כמו Canva ====== */
   useEffect(() => {
@@ -290,10 +299,11 @@ const tableText = isHighlighted
   }
 }, [
   layout.type,
-  seatsToRender,   // 🔥 זה העיקר
+  table.seats,
   table.seatedGuests,
   hideSeats,
 ]);
+
 
 
   const updatePositionInStore = () => {
@@ -508,8 +518,9 @@ const tableText = isHighlighted
 
 const isOccupied =
   seatingMode === "live"
-    ? (liveArrivals[String(seat?.guestId)] ?? 0) > 0
+    ? arrivedSeatsSet.has(i)   // 🔥 רק 2 כיסאות
     : !!seat;
+
 
 
 
