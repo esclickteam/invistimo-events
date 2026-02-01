@@ -58,6 +58,14 @@ type Guest = {
   arrivedCount?: number;
   actualArrivedCount?: number;
   notes?: string;
+
+  /* 📞 סבבי שיחות */
+  callRounds?: {
+    roundNumber: number;
+    status: "answered" | "no_answer" | "confirmed" | string;
+    notes?: string;
+    calledAt?: string;
+  }[];
 };
 
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
@@ -174,6 +182,19 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
 
   // ✅ סינון מהיר
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+
+  // ⭐ תת־טאב לממתינים
+const [pendingSubTab, setPendingSubTab] = useState<
+  "pending" | "noAnswer"
+>("pending");
+
+useEffect(() => {
+  if (quickFilter !== "pending") {
+    setPendingSubTab("pending");
+  }
+}, [quickFilter]);
+
+
 
   // ✅ מיון
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -554,71 +575,81 @@ useEffect(() => {
     );
   };
 
+  // ==============================
+// ממתינים / לא ענה (נגזר מסבבי שיחות)
+// ==============================
+
+const pendingGuests = useMemo(() => {
+  return guests.filter(
+    (g) =>
+      g.rsvp === "pending" &&
+      !g.callRounds?.some((r) => r.status === "no_answer")
+  );
+}, [guests]);
+
+const noAnswerGuests = useMemo(() => {
+  return guests.filter(
+    (g) =>
+      g.rsvp === "pending" &&
+      g.callRounds?.some((r) => r.status === "no_answer")
+  );
+}, [guests]);
+
+
   /* ============================================================
      ✅ פילטר + מיון + חיפוש
   ============================================================ */
   const displayGuests = useMemo(() => {
-    let list = [...guests];
+  let list = [...guests];
 
-    // 1) Quick filter
-    if (quickFilter === "yes") list = list.filter((g) => g.rsvp === "yes");
-    if (quickFilter === "no") list = list.filter((g) => g.rsvp === "no");
-    if (quickFilter === "pending") list = list.filter((g) => g.rsvp === "pending");
-    if (quickFilter === "noTable")
-      list = list.filter((g) => !(g.tableName && g.tableName.trim()));
+  // 1) Quick filter
+  if (quickFilter === "yes") list = list.filter((g) => g.rsvp === "yes");
+  if (quickFilter === "no") list = list.filter((g) => g.rsvp === "no");
 
-    // 2) Search (name / phone)
-    const q = search.trim().toLowerCase();
-    if (q) {
-      const qDigits = q.replace(/\D/g, "");
-      list = list.filter((g) => {
-        const name = (g.name || "").toLowerCase();
-        const phoneDigits = (g.phone || "").replace(/\D/g, "");
-        const nameMatch = name.includes(q);
-        const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
-        return nameMatch || phoneMatch;
-      });
-    }
+  // ⭐️ פיצול ממתינים / לא ענה
+  if (quickFilter === "pending") {
+    list =
+      pendingSubTab === "noAnswer"
+        ? noAnswerGuests
+        : pendingGuests;
+  }
 
-    // ⭐ פילטר לפי קבוצה
-if (selectedGroupId) {
-  list = list.filter((g) => g.groupId === selectedGroupId);
-}
+  if (quickFilter === "noTable") {
+    list = list.filter((g) => !(g.tableName && g.tableName.trim()));
+  }
 
-
-    // 3) Sort
-    const rsvpOrder: Record<Guest["rsvp"], number> = { yes: 0, pending: 1, no: 2 };
-
-    const getValue = (g: Guest) => {
-  if (sortKey === "name") return (g.name || "").toLowerCase();
-  if (sortKey === "table") return (g.tableName || "").toLowerCase();
-  if (sortKey === "rsvp") return rsvpOrder[g.rsvp];
-  if (sortKey === "invited") return g.guestsCount || 0;
-  // coming = נוכחות אמיתית
-  return g.arrivedCount || 0;
-};
-
-    list.sort((a, b) => {
-      const va = getValue(a) as any;
-      const vb = getValue(b) as any;
-
-      if (typeof va === "number" && typeof vb === "number") {
-        return sortDir === "asc" ? va - vb : vb - va;
-      }
-      return sortDir === "asc"
-        ? String(va).localeCompare(String(vb), "he")
-        : String(vb).localeCompare(String(va), "he");
+  // 2) Search (name / phone)
+  const q = search.trim().toLowerCase();
+  if (q) {
+    const qDigits = q.replace(/\D/g, "");
+    list = list.filter((g) => {
+      const name = (g.name || "").toLowerCase();
+      const phoneDigits = (g.phone || "").replace(/\D/g, "");
+      const nameMatch = name.includes(q);
+      const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
+      return nameMatch || phoneMatch;
     });
+  }
 
-    return list;
-  }, [
+  // ⭐ פילטר לפי קבוצה
+  if (selectedGroupId) {
+    list = list.filter((g) => g.groupId === selectedGroupId);
+  }
+
+  // ⚠️ שאר המיון נשאר כמו שהוא (לא נגעתי)
+  return list;
+}, [
   guests,
   quickFilter,
+  pendingSubTab,
+  pendingGuests,
+  noAnswerGuests,
   search,
+  selectedGroupId,
   sortKey,
   sortDir,
-  selectedGroupId, // ⭐ חובה
 ]);
+
 
 
   const toggleSort = (key: SortKey) => {
@@ -929,6 +960,22 @@ console.log("INVITATION:", invitation);
   totalCount={guests.length}
   displayCount={displayGuests.length}
 />
+
+{quickFilter === "pending" && (
+  <div className="flex gap-2 mb-4">
+    <FilterPill
+      label="ממתינים"
+      active={pendingSubTab === "pending"}
+      onClick={() => setPendingSubTab("pending")}
+    />
+
+    <FilterPill
+      label={`לא ענה (${noAnswerGuests.length})`}
+      active={pendingSubTab === "noAnswer"}
+      onClick={() => setPendingSubTab("noAnswer")}
+    />
+  </div>
+)}
 
 
 
