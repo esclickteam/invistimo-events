@@ -89,7 +89,7 @@ export default function SeatingSidebar() {
 
     const guest = guests.find((g) => {
       return (
-        normalizeGroupId(g.groupId) === groupId &&
+        normalizeGroupId(g.groupId) === normalizeGroupId(groupId) &&
         guestTableMap.has(seatGuestId(g))
       );
     });
@@ -197,21 +197,19 @@ export default function SeatingSidebar() {
                 }
               >
                 <div className="text-sm font-medium">
-                  {isNoGroup
-                    ? `ללא קבוצה (${visibleGuests.length})`
-                    : `${group!.name} · ${
-                        tables.find(
-                          (t) =>
-                            t.id ===
-                            getGroupTableId(group!._id)
-                        )?.displayName ||
-                        tables.find(
-                          (t) =>
-                            t.id ===
-                            getGroupTableId(group!._id)
-                        )?.name ||
-                        "ללא שולחן"
-                      }`}
+
+                  {isNoGroup || !group
+  ? `ללא קבוצה (${visibleGuests.length})`
+  : `${group.name} · ${
+      (() => {
+        const table = tables.find(
+          (t) => t.id === getGroupTableId(group._id)
+        );
+        return table?.displayName || table?.name || "ללא שולחן";
+      })()
+    }`}
+
+
                 </div>
 
                 <select
