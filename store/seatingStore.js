@@ -162,11 +162,12 @@ getSeatingCountForGuest: (guest) => {
 },
 
 getPlannedSeatCount: (guest) => {
-  return Number(
+  const count =
     guest.arrivedCount ??
     guest.guestsCount ??
-    1   // ⬅️ ברירת מחדל קריטית
-  );
+    1; // ברירת מחדל
+
+  return Math.max(1, Number(count));
 },
 
 getFreeSeats: (tableId) => {
