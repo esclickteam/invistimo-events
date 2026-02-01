@@ -79,15 +79,24 @@ export default function SeatingSidebar() {
     return map;
   }, [tables]);
 
-  const groupedGuests = useMemo(() => {
+ const groupedGuests = useMemo(() => {
   const map: Record<string, Guest[]> = {};
+
   guests.forEach((g) => {
-    const key = normalizeGroupId(g.groupId);
+    const rawGroupId = g.groupId ? String(g.groupId) : null;
+
+    const groupExists =
+      rawGroupId &&
+      groups.some((gr) => String(gr._id) === rawGroupId);
+
+    const key = groupExists ? rawGroupId : NO_GROUP_KEY;
+
     if (!map[key]) map[key] = [];
     map[key].push(g);
   });
+
   return map;
-}, [guests]);
+}, [guests, groups]);
 
 
   const getGroupTableId = (groupId: string) => {
