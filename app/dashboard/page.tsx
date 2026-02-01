@@ -14,6 +14,7 @@ import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
+import CallRoundsModal from "../components/CallRoundsModal";
 
 
 
@@ -162,6 +163,8 @@ useEffect(() => {
   const [event, setEvent] = useState<EventModel | null>(null);
 const [openGroupModal, setOpenGroupModal] = useState(false);
 const [selectedGroupId, setSelectedGroupId] = useState("");
+
+const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
 
 
 
@@ -833,6 +836,8 @@ console.log("INVITATION:", invitation);
           💬 שליחת הודעות
         </button>
 
+
+
         <button
           onClick={() =>
             router.push(
@@ -1074,42 +1079,63 @@ console.log("INVITATION:", invitation);
           </td>
 
           <td className="p-3 flex gap-3">
-            
-            <button
-  onClick={() =>
-    router.push(
-      isDemo
-        ? `/try/dashboard/messages?guestId=${g._id}`
-        : `/dashboard/messages?guestId=${g._id}`
-    )
-  }
->
-  💬
-</button>
 
-<button
-  onClick={() =>
-    router.push(
-      isDemo
-        ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-        : `/dashboard/seating?from=personal&guestId=${g._id}`
-    )
-  }
->
-  🪑
-</button>
+  {/* הודעה */}
+  <button
+    onClick={() =>
+      router.push(
+        isDemo
+          ? `/try/dashboard/messages?guestId=${g._id}`
+          : `/dashboard/messages?guestId=${g._id}`
+      )
+    }
+    title="שליחת הודעה"
+  >
+    💬
+  </button>
 
-            <button onClick={() => setSelectedGuest(g)}>
-              ✏️
-            </button>
+  {/* 📞 מעקב סבבי שיחה */}
+  <button
+    onClick={() => setOpenCallsGuest(g)}
+    title="מעקב סבבי שיחה"
+  >
+    📞
+  </button>
 
-            <button
-              onClick={() => deleteGuest(g)}
-              className="text-red-600"
-            >
-              🗑️
-            </button>
-          </td>
+  {/* הושבה */}
+  <button
+    onClick={() =>
+      router.push(
+        isDemo
+          ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+          : `/dashboard/seating?from=personal&guestId=${g._id}`
+      )
+    }
+    title="סידור הושבה"
+  >
+    🪑
+  </button>
+
+  {/* עריכה */}
+  <button
+    onClick={() => setSelectedGuest(g)}
+    title="עריכת מוזמן"
+  >
+    ✏️
+  </button>
+
+  {/* מחיקה */}
+  <button
+    onClick={() => deleteGuest(g)}
+    className="text-red-600"
+    title="מחיקת מוזמן"
+  >
+    🗑️
+  </button>
+
+</td>
+
+          
         </tr>
       ))}
 
@@ -1166,8 +1192,23 @@ onSeat={(g) =>
   onClose={() => setSelectedGuest(null)}
   onSuccess={handleGuestUpdated}
 />
-  
 )}
+
+{openCallsGuest && (
+  <CallRoundsModal
+    guest={openCallsGuest}
+    onClose={() => setOpenCallsGuest(null)}
+    onUpdated={(updatedGuest: Guest) => {
+
+      setGuests((prev) =>
+        prev.map((g) =>
+          g._id === updatedGuest._id ? updatedGuest : g
+        )
+      );
+    }}
+  />
+)}
+
 
 {openAddModal && (
   <AddGuestModal
