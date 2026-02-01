@@ -179,6 +179,54 @@ const isProducerByInvitation =
       guest.actualArrivedCount = data.actualArrivedCount;
     }
 
+    /* ===============================
+   📞 callRounds — סבבי שיחה
+   הרשאה:
+   - owner
+   - admin
+   - producer role
+   - producer של ההזמנה (impersonation)
+=============================== */
+if (Array.isArray(data.callRounds)) {
+  const canUpdateCallRounds =
+    isOwner || isAdmin || isProducerRole || isProducerByInvitation;
+
+  if (!canUpdateCallRounds) {
+    console.warn("⛔ Blocked callRounds update", {
+      role: auth.role,
+      userId: auth.userId.toString(),
+      impersonatedBy: auth.impersonatedBy?.toString?.(),
+    });
+
+    return NextResponse.json(
+      { error: "Not authorized to update callRounds" },
+      { status: 403 }
+    );
+  }
+
+  guest.callRounds = data.callRounds.map(
+    (r: any, index: number) => ({
+      roundNumber: Number(r.roundNumber ?? index + 1),
+
+      status:
+  r.status === "answered" ||
+  r.status === "no_answer" ||
+  r.status === "will_reply"
+    ? r.status
+    : null,
+          
+      notes: typeof r.notes === "string" ? r.notes : "",
+      calledAt: r.calledAt ? new Date(r.calledAt) : null,
+    })
+  );
+
+  console.log("📞 callRounds updated", {
+    guestId: guest._id.toString(),
+    count: guest.callRounds.length,
+  });
+}
+
+
     await guest.save();
     console.log("💾 Guest saved", guest._id);
 

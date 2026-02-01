@@ -13,6 +13,42 @@ function toNumber(v: unknown, fallback = 0): number {
 }
 
 /* ===========================================================
+   📞 Call Round Schema
+=========================================================== */
+const CallRoundSchema = new Schema(
+  {
+    roundNumber: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "answered",     // ענה
+        "no_answer",    // לא ענה
+        "will_reply",   // ישיב בהודעה ⭐
+      ],
+      default: null,
+    },
+
+    notes: {
+      type: String,
+      default: "",
+    },
+
+    calledAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    _id: false, // ⛔ לא מייצרים _id לכל סבב
+  }
+);
+
+/* ===========================================================
    📌 InvitationGuest Schema
 =========================================================== */
 const InvitationGuestSchema = new Schema(
@@ -50,7 +86,7 @@ const InvitationGuestSchema = new Schema(
       default: "pending",
     },
 
-    // ✅ כמה הוזמנו (מאפשר גם 0 כשלא מגיעים)
+    // ✅ כמה הוזמנו
     guestsCount: {
       type: Number,
       default: 1,
@@ -58,7 +94,7 @@ const InvitationGuestSchema = new Schema(
       set: (v: unknown) => toNumber(v, 0),
     },
 
-    // ✅ כמה הגיעו בפועל
+    // ✅ כמה הגיעו (RSVP)
     arrivedCount: {
       type: Number,
       default: 0,
@@ -66,12 +102,21 @@ const InvitationGuestSchema = new Schema(
       set: (v: unknown) => toNumber(v, 0),
     },
 
+    // ✅ כמה הגיעו בפועל (ביום האירוע)
     actualArrivedCount: {
-  type: Number,
-  default: 0,
-  min: 0,
-  set: (v: unknown) => toNumber(v, 0),
-},
+      type: Number,
+      default: 0,
+      min: 0,
+      set: (v: unknown) => toNumber(v, 0),
+    },
+
+    /* ===============================
+       📞 סבבי שיחה
+    =============================== */
+    callRounds: {
+      type: [CallRoundSchema],
+      default: [],
+    },
 
     token: {
       type: String,
