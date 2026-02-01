@@ -162,12 +162,13 @@ getSeatingCountForGuest: (guest) => {
 },
 
 getPlannedSeatCount: (guest) => {
-  const count =
-    guest.arrivedCount ??
-    guest.guestsCount ??
-    1; // ברירת מחדל
+  // מספר המוזמנים בפועל של האורח
+  if (typeof guest.guestsCount === "number" && guest.guestsCount > 0) {
+    return guest.guestsCount;
+  }
 
-  return Math.max(1, Number(count));
+  // fallback בטוח
+  return 1;
 },
 
 getFreeSeats: (tableId) => {
