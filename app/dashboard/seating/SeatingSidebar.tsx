@@ -27,6 +27,9 @@ type Table = {
   seatedGuests: { guestId: string }[];
 };
 
+const NO_GROUP_KEY = "__no_group__";
+
+
 type Filter = "all" | "seated" | "unseated";
 
 export default function SeatingSidebar() {
@@ -64,22 +67,38 @@ export default function SeatingSidebar() {
   }, [tables]);
 
   const groupedGuests = useMemo(() => {
-    const map: Record<string, Guest[]> = {};
-    guests.forEach((g) => {
-      const key = g.groupId ?? "__no_group__";
-      if (!map[key]) map[key] = [];
-      map[key].push(g);
-    });
-    return map;
-  }, [guests]);
+  const map: Record<string, Guest[]> = {};
+
+  guests.forEach((g) => {
+    const rawGroupId = g.groupId;
+    const key =
+      rawGroupId === null ||
+      rawGroupId === undefined ||
+      rawGroupId === ""
+        ? NO_GROUP_KEY
+        : String(rawGroupId);
+
+    if (!map[key]) map[key] = [];
+    map[key].push(g);
+  });
+
+  return map;
+}, [guests]);
+
 
   const getGroupTableId = (groupId: string) => {
   // מוצאים אורח מהקבוצה שיושב בפועל
-  const guest = guests.find(
-    (g) =>
-      String(g.groupId) === String(groupId) &&
-      guestTableMap.has(String(g.id ?? g._id))
+  const guest = guests.find((g) => {
+  const normalizedGroupId =
+    g.groupId === null || g.groupId === undefined || g.groupId === ""
+      ? NO_GROUP_KEY
+      : String(g.groupId);
+
+  return (
+    normalizedGroupId === String(groupId) &&
+    guestTableMap.has(String(g.id ?? g._id))
   );
+});
 
   if (!guest) return "";
 
@@ -173,9 +192,9 @@ const getNoGroupTableId = (list: Guest[]) => {
       <div className="flex-1 overflow-y-auto">
         {Object.entries(groupedGuests).map(([groupId, list]) => {
           const group =
-            groupId !== "__no_group__"
-              ? groups.find((g) => String(g._id) === String(groupId))
-              : null;
+  groupId !== NO_GROUP_KEY
+    ? groups.find((g) => String(g._id) === String(groupId))
+    : null;
 
           const visibleGuests = list.filter(guestVisible);
           if (!visibleGuests.length) return null;
