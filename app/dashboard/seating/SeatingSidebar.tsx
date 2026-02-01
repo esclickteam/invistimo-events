@@ -327,11 +327,10 @@ const groupName =
 
                       <div>
                         <div className="text-sm">{g.name}</div>
-
                         <div className="text-xs text-gray-500">
   {table
-    ? `${tableLabel(table)} · ${plannedCount} מוזמנים`
-    : `לא משובץ · ${plannedCount} מוזמנים`}
+    ? tableLabel(table)
+    : `לא משובץ · ${plannedCount} מקומות`}
 </div>
 
 
