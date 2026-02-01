@@ -1,6 +1,22 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
+const NO_GROUP_KEY = "__no_group__";
+
+const normalizeGroupId = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    value === "null" ||
+    value === "undefined"
+  ) {
+    return NO_GROUP_KEY;
+  }
+  return String(value);
+};
+
+
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
   tables: [],
@@ -377,10 +393,12 @@ const newSeats = [
       : g
   ),
   groups: groups.map((g) =>
-    normalizeGroupId(g._id) === normalizeGroupId(groupId)
-      ? { ...g, tableId, isSeated: true }
-      : g
-  ),
+  normalizeGroupId(g._id) === normalizeGroupId(groupId)
+    ? { ...g, tableId: null, isSeated: false }
+    : g
+),
+
+
 });
 
 
