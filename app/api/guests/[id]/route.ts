@@ -113,12 +113,27 @@ const isProducerByInvitation =
     if (typeof data.relation === "string") guest.relation = data.relation;
     if (typeof data.notes === "string") guest.notes = data.notes;
 
-    if (
-      "groupId" in data &&
-      (data.groupId === null || typeof data.groupId === "string")
-    ) {
-      guest.groupId = data.groupId;
-    }
+    // ✅ groupId — או ObjectId תקין או להסיר שדה לגמרי
+if ("groupId" in data) {
+  const raw = data.groupId;
+
+  // נרמול ערכי "אין קבוצה" (כולל מחרוזות בעייתיות)
+  const cleaned =
+    raw === null ||
+    raw === undefined ||
+    raw === "" ||
+    raw === "null" ||
+    raw === "undefined"
+      ? null
+      : String(raw).trim();
+
+  if (cleaned) {
+    guest.groupId = cleaned;
+  } else {
+    guest.groupId = undefined; // ⭐ בפועל: אין groupId במסד
+  }
+}
+
 
     if (["yes", "no", "pending"].includes(data.rsvp)) {
       guest.rsvp = data.rsvp;

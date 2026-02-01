@@ -153,17 +153,17 @@ const producerId = userDoc?.createdByProducer || null;
 
     /* ================= יצירת המוזמן ================= */
     const guest = await InvitationGuest.create({
-      invitationId: invitation._id,
-      name,
-      phone,
-      relation: relation || "",
-      rsvp: rsvp || "pending",
-      guestsCount: incomingGuests,
-       groupId: groupId || null, 
-      tableName: tableNumber ? `שולחן ${tableNumber}` : undefined,
-      notes: "",
-      token: nanoid(12),
-    });
+  invitationId: invitation._id,
+  name,
+  phone,
+  relation: relation || "",
+  rsvp: rsvp || "pending",
+  guestsCount: incomingGuests,
+  ...(groupId ? { groupId } : {}), // ✅ כאן התיקון
+  tableName: tableNumber ? `שולחן ${tableNumber}` : undefined,
+  notes: "",
+  token: nanoid(12),
+});
 
     // ✅ עדכון expectedCount לקבוצה (אם האורח שייך לקבוצה)
 if (guest.groupId) {
@@ -278,6 +278,30 @@ export async function PUT(
       );
     }
 
+    // ✅ נרמול groupId כדי שלא יישמר null/""/"null"/"undefined"
+const normalizedUpdates: any = { ...updates };
+
+if ("groupId" in normalizedUpdates) {
+  const raw = normalizedUpdates.groupId;
+
+  const cleaned =
+    raw === null ||
+    raw === undefined ||
+    raw === "" ||
+    raw === "null" ||
+    raw === "undefined"
+      ? null
+      : String(raw).trim();
+
+  if (cleaned) {
+    normalizedUpdates.groupId = cleaned;
+  } else {
+    // ⭐ לא לשמור groupId בכלל
+    delete normalizedUpdates.groupId;
+  }
+}
+
+
 
 
     const before = await InvitationGuest.findById(guestId).lean();
@@ -285,11 +309,12 @@ export async function PUT(
 const updated = await InvitationGuest.findByIdAndUpdate(
   guestId,
   {
-    ...updates,
+    ...normalizedUpdates,
     ...(typeof guestsCount === "number" ? { guestsCount } : {}),
   },
   { new: true }
 ).lean();
+
 
 // ✅ אם השתנתה קבוצה / RSVP / guestsCount → מחשבים מחדש לקבוצה הישנה והחדשה
 const affected = new Set<string>();

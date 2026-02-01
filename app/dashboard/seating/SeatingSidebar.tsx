@@ -3,6 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 
+const NO_GROUP_KEY = "__no_group__";
+
+const normalizeGroupId = (value: unknown) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    value === "null" ||
+    value === "undefined"
+  ) {
+    return NO_GROUP_KEY;
+  }
+  return String(value);
+};
+
+
 /* ================= TYPES ================= */
 
 type Guest = {
@@ -64,22 +80,24 @@ export default function SeatingSidebar() {
   }, [tables]);
 
   const groupedGuests = useMemo(() => {
-    const map: Record<string, Guest[]> = {};
-    guests.forEach((g) => {
-      const key = g.groupId ?? "__no_group__";
-      if (!map[key]) map[key] = [];
-      map[key].push(g);
-    });
-    return map;
-  }, [guests]);
+  const map: Record<string, Guest[]> = {};
+  guests.forEach((g) => {
+    const key = normalizeGroupId(g.groupId);
+    if (!map[key]) map[key] = [];
+    map[key].push(g);
+  });
+  return map;
+}, [guests]);
+
 
   const getGroupTableId = (groupId: string) => {
   // מוצאים אורח מהקבוצה שיושב בפועל
   const guest = guests.find(
-    (g) =>
-      String(g.groupId) === String(groupId) &&
-      guestTableMap.has(String(g.id ?? g._id))
-  );
+  (g) =>
+    normalizeGroupId(g.groupId) === String(groupId) &&
+    guestTableMap.has(String(g.id ?? g._id))
+);
+
 
   if (!guest) return "";
 
@@ -129,8 +147,13 @@ const getNoGroupTableId = (list: Guest[]) => {
     if (filter === "seated" && !isSeated) return false;
     if (filter === "unseated" && isSeated) return false;
 
-    const groupName =
-      groups.find((gr) => String(gr._id) === String(g.groupId))?.name || "";
+    const gidNorm = normalizeGroupId(g.groupId);
+
+const groupName =
+  gidNorm !== NO_GROUP_KEY
+    ? groups.find((gr) => String(gr._id) === String(gidNorm))?.name || ""
+    : "";
+
 
     if (!q) return true;
 
