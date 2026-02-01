@@ -1,17 +1,6 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
-
-const normalizeGroupId = (value) => {
-  if (value === null || value === undefined) return null;
-
-  const s = String(value).trim();
-  if (s === "" || s === "null" || s === "undefined") return null;
-
-  return s;
-};
-
-
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
   tables: [],
@@ -139,18 +128,10 @@ resetLiveArrivals: () =>
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
-  if (normalizeGroupId(groupId) === null
-) return 0;
-
   const { groups } = get();
-  const group = groups.find(
-    (g) =>
-      normalizeGroupId(g._id) === normalizeGroupId(groupId)
-  );
-
+  const group = groups.find((g) => String(g._id) === String(groupId));
   return Number(group?.expectedCount ?? 0);
 },
-
 
 // ⭐️ ספירת מושבים להושבה מה-SIDEBAR (תכנון, לא live)
 getSidebarSeatCount: (guest) => {
@@ -206,14 +187,8 @@ canSeatGuestAtTable: (tableId, guest) => {
 canSeatGroupAtTable: (tableId, groupId) => {
   const { guests } = get();
 
-  if (!groupId || normalizeGroupId(groupId) === normalizeGroupId(null)) {
-  return false;
-}
-
-
-    const groupGuests = guests.filter(
-    (g) =>
-      normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
+  const groupGuests = guests.filter(
+    (g) => String(g.groupId) === String(groupId)
   );
 
   if (!groupGuests.length) return false;
@@ -263,36 +238,25 @@ updateGroup: (groupId, patch) =>
 
 removeGroup: (groupId) =>
   set((state) => ({
-    groups: state.groups.filter(
-      (g) => normalizeGroupId(g._id) !== normalizeGroupId(groupId)
-    ),
+    groups: state.groups.filter((g) => g._id !== groupId),
     guests: state.guests.map((guest) =>
-      normalizeGroupId(guest.groupId) === normalizeGroupId(groupId)
+      guest.groupId === groupId
         ? { ...guest, groupId: null }
         : guest
     ),
   })),
-
 
   /* ================= ⭐ GROUP SEATING ================= */
 
 seatGroup: (groupId, tableId) => {
   const { groups, guests, tables } = get();
 
-    if (normalizeGroupId(groupId) === null) {
-
-    return { ok: false, message: "לא ניתן להושיב 'ללא קבוצה' כקבוצה" };
-  }
-
-
   const group = groups.find((g) => g._id === groupId);
   if (!group) return { ok: false };
 
-    const groupGuests = guests.filter(
-    (g) =>
-      normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
+  const groupGuests = guests.filter(
+    (g) => g.groupId === groupId
   );
-
 
 
 
@@ -320,10 +284,9 @@ const missingCount = Math.max(0, totalCount - realCount);
   ...t,
   seatedGuests: (t.seatedGuests || []).filter(
     (sg) =>
-      normalizeGroupId(sg.groupId) !== normalizeGroupId(groupId)
+      sg.groupId !== groupId // ⬅️ זה השינוי
   ),
 }));
-
 
   const targetTable = updatedTables.find(
     (t) => t.id === tableId
@@ -356,7 +319,7 @@ const newSeats = [
 
   // 👥 השלמה וירטואלית לפי expectedCount
   ...block.slice(cursor, cursor + missingCount).map((seatIndex) => ({
-    guestId: `group:${groupId}:virtual`,
+    guestId: `group:${groupId}`,
     seatIndex,
     arrived: false,
     groupId,
@@ -382,26 +345,22 @@ const newSeats = [
 );
 
   set({
-  tables: updatedTables,
-  guests: guests.map((g) =>
-    normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
-      ? {
-          ...g,
-          tableId,
-          tableName: targetTable.name,
-        }
-      : g
-  ),
-  groups: groups.map((g) =>
-  normalizeGroupId(g._id) === normalizeGroupId(groupId)
-    ? { ...g, tableId, isSeated: true }
-    : g
-),
-
-
-
-});
-
+    tables: updatedTables,
+    guests: guests.map((g) =>
+      g.groupId === groupId
+        ? {
+            ...g,
+            tableId,
+            tableName: targetTable.name,
+          }
+        : g
+    ),
+    groups: groups.map((g) =>
+      g._id === groupId
+        ? { ...g, tableId, isSeated: true }
+        : g
+    ),
+  });
 
   console.log("🟢 seatGroup AFTER set");
 console.table(
@@ -420,30 +379,23 @@ console.table(
 unseatGroup: (groupId) => {
   const { tables, guests, groups } = get();
 
-    if (normalizeGroupId(groupId) === null) return;
-
-
-
   set({
     tables: tables.map((t) => ({
       ...t,
       seatedGuests: (t.seatedGuests || []).filter(
-        (sg) =>
-  normalizeGroupId(sg.groupId) !== normalizeGroupId(groupId)
-
+        (sg) => sg.groupId !== groupId
       ),
     })),
     guests: guests.map((g) =>
-      normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
+      g.groupId === groupId
         ? { ...g, tableId: null, tableName: null }
         : g
     ),
     groups: groups.map((g) =>
-  normalizeGroupId(g._id) === normalizeGroupId(groupId)
-    ? { ...g, tableId: null, isSeated: false }
-    : g
-),
-
+      g._id === groupId
+        ? { ...g, tableId: null, isSeated: false }
+        : g
+    ),
   });
 
   // 🔴 זה החסר – הוספה כאן בדיוק
@@ -817,10 +769,7 @@ dropGuest: () => {
     };
   });
 
-  const targetTable = updatedTables.find(
-  (t) => t.id === highlightedTable
-);
-
+  
 
   set({
     tables: updatedTables,
