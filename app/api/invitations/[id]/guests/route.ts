@@ -304,7 +304,7 @@ if ("groupId" in normalizedUpdates) {
 
 
 
-    const before = await InvitationGuest.findById(guestId).lean();
+     const before = await InvitationGuest.findById(guestId).lean();
 
 const updated = await InvitationGuest.findByIdAndUpdate(
   guestId,
