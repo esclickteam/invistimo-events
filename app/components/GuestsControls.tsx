@@ -7,22 +7,30 @@ import { Dispatch, SetStateAction } from "react";
 ============================================================ */
 
 type Group = { _id: string; name: string };
+
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
 
+type PendingSubTab = "pending" | "noAnswer";
+
 type Props = {
-  /* 🔍 Search – תמיד קיים */
+  /* 🔍 Search */
   search: string;
   setSearch: Dispatch<SetStateAction<string>>;
 
-  /* 🧩 Groups – אופציונלי (Client בלבד) */
+  /* 🧩 Groups */
   groups?: Group[];
   selectedGroupId?: string;
   setSelectedGroupId?: Dispatch<SetStateAction<string>>;
   onManageGroups?: () => void;
 
-  /* ⚡ Quick filters – אופציונלי (Client בלבד) */
+  /* ⚡ Quick filters */
   quickFilter?: QuickFilter;
   setQuickFilter?: Dispatch<SetStateAction<QuickFilter>>;
+
+  /* ⭐ Pending sub tab */
+  pendingSubTab?: PendingSubTab;
+  setPendingSubTab?: Dispatch<SetStateAction<PendingSubTab>>;
+  noAnswerCount?: number;
 
   /* 🔢 Count */
   totalCount: number;
@@ -45,6 +53,10 @@ export default function GuestsControls({
   quickFilter,
   setQuickFilter,
 
+  pendingSubTab,
+  setPendingSubTab,
+  noAnswerCount = 0,
+
   totalCount,
   displayCount,
 }: Props) {
@@ -57,8 +69,8 @@ export default function GuestsControls({
   const showFilters = quickFilter && setQuickFilter;
 
   return (
-    <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:gap-3 md:flex-nowrap">
-      {/* 🔍 Search */}
+    <div className="flex flex-col gap-3 mb-4">
+      {/* ================= Search ================= */}
       <div className="w-full md:w-[360px] relative">
         <input
           value={search}
@@ -82,9 +94,9 @@ export default function GuestsControls({
         )}
       </div>
 
-      {/* 🧩 Groups + ⚡ Filters (Client בלבד) */}
+      {/* ================= Groups + Filters ================= */}
       {(showGroups || showFilters) && (
-        <div className="flex items-center gap-2 whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Groups */}
           {showGroups && (
             <>
@@ -143,10 +155,29 @@ export default function GuestsControls({
         </div>
       )}
 
-      {/* 🔢 Counter */}
-      <div className="text-sm text-gray-500 whitespace-nowrap md:min-w-[120px]">
-        מציג:{" "}
-        <span className="font-semibold">{displayCount}</span> / {totalCount}
+      {/* ================= Pending sub tabs ================= */}
+      {showFilters &&
+        quickFilter === "pending" &&
+        pendingSubTab &&
+        setPendingSubTab && (
+          <div className="flex gap-2">
+            <FilterPill
+              label="ממתינים"
+              active={pendingSubTab === "pending"}
+              onClick={() => setPendingSubTab("pending")}
+            />
+
+            <FilterPill
+              label={`לא ענה (${noAnswerCount})`}
+              active={pendingSubTab === "noAnswer"}
+              onClick={() => setPendingSubTab("noAnswer")}
+            />
+          </div>
+        )}
+
+      {/* ================= Counter ================= */}
+      <div className="text-sm text-gray-500 whitespace-nowrap">
+        מציג: <span className="font-semibold">{displayCount}</span> / {totalCount}
       </div>
     </div>
   );
@@ -174,7 +205,7 @@ function FilterPill({
         select-none whitespace-nowrap transition-all
         ${
           active
-            ? "bg-[#c9b48f] text-white border-[#c9b48f]"
+            ? "bg-[#c9b48f] text-white border-[#c9b48f] shadow-sm"
             : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
         }
       `}

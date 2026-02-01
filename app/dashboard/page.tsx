@@ -957,26 +957,15 @@ console.log("INVITATION:", invitation);
   onManageGroups={() => setOpenGroupModal(true)}
   quickFilter={quickFilter}
   setQuickFilter={setQuickFilter}
+
+  /* ⭐️ חובה בשביל תת־טאב */
+  pendingSubTab={pendingSubTab}
+  setPendingSubTab={setPendingSubTab}
+  noAnswerCount={noAnswerGuests.length}
+
   totalCount={guests.length}
   displayCount={displayGuests.length}
 />
-
-{quickFilter === "pending" && (
-  <div className="flex gap-2 mb-4">
-    <FilterPill
-      label="ממתינים"
-      active={pendingSubTab === "pending"}
-      onClick={() => setPendingSubTab("pending")}
-    />
-
-    <FilterPill
-      label={`לא ענה (${noAnswerGuests.length})`}
-      active={pendingSubTab === "noAnswer"}
-      onClick={() => setPendingSubTab("noAnswer")}
-    />
-  </div>
-)}
-
 
 
 
