@@ -29,6 +29,21 @@ type Table = {
 
 const NO_GROUP_KEY = "__no_group__";
 
+const normalizeGroupId = (value: unknown) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    value === "null" ||
+    value === "undefined"
+  ) {
+    return NO_GROUP_KEY;
+  }
+
+  return String(value);
+};
+
+
 
 type Filter = "all" | "seated" | "unseated";
 
@@ -70,13 +85,7 @@ export default function SeatingSidebar() {
   const map: Record<string, Guest[]> = {};
 
   guests.forEach((g) => {
-    const rawGroupId = g.groupId;
-    const key =
-      rawGroupId === null ||
-      rawGroupId === undefined ||
-      rawGroupId === ""
-        ? NO_GROUP_KEY
-        : String(rawGroupId);
+    const key = normalizeGroupId(g.groupId);
 
     if (!map[key]) map[key] = [];
     map[key].push(g);
@@ -89,10 +98,8 @@ export default function SeatingSidebar() {
   const getGroupTableId = (groupId: string) => {
   // מוצאים אורח מהקבוצה שיושב בפועל
   const guest = guests.find((g) => {
-  const normalizedGroupId =
-    g.groupId === null || g.groupId === undefined || g.groupId === ""
-      ? NO_GROUP_KEY
-      : String(g.groupId);
+  const normalizedGroupId = normalizeGroupId(g.groupId);
+
 
   return (
     normalizedGroupId === String(groupId) &&
@@ -149,7 +156,11 @@ const getNoGroupTableId = (list: Guest[]) => {
     if (filter === "unseated" && isSeated) return false;
 
     const groupName =
-      groups.find((gr) => String(gr._id) === String(g.groupId))?.name || "";
+      groups.find(
+  (gr) =>
+    normalizeGroupId(gr._id) === normalizeGroupId(g.groupId)
+)?.name || "";
+
 
     if (!q) return true;
 
@@ -193,7 +204,9 @@ const getNoGroupTableId = (list: Guest[]) => {
         {Object.entries(groupedGuests).map(([groupId, list]) => {
           const group =
   groupId !== NO_GROUP_KEY
-    ? groups.find((g) => String(g._id) === String(groupId))
+    ? groups.find(
+        (g) => normalizeGroupId(g._id) === groupId
+      )
     : null;
 
           const visibleGuests = list.filter(guestVisible);
