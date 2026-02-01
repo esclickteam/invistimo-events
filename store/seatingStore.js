@@ -1,19 +1,14 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
-const NO_GROUP_KEY = "__no_group__";
 
 const normalizeGroupId = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === "" ||
-    value === "null" ||
-    value === "undefined"
-  ) {
-    return NO_GROUP_KEY;
-  }
-  return String(value);
+  if (value === null || value === undefined) return null;
+
+  const s = String(value).trim();
+  if (s === "" || s === "null" || s === "undefined") return null;
+
+  return s;
 };
 
 
@@ -144,7 +139,8 @@ resetLiveArrivals: () =>
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
-  if (groupId === NO_GROUP_KEY) return 0;
+  if (normalizeGroupId(groupId) === null
+) return 0;
 
   const { groups } = get();
   const group = groups.find(
@@ -210,7 +206,10 @@ canSeatGuestAtTable: (tableId, guest) => {
 canSeatGroupAtTable: (tableId, groupId) => {
   const { guests } = get();
 
-  if (groupId === NO_GROUP_KEY) return false;
+  if (!groupId || normalizeGroupId(groupId) === normalizeGroupId(null)) {
+  return false;
+}
+
 
     const groupGuests = guests.filter(
     (g) =>
@@ -280,7 +279,8 @@ removeGroup: (groupId) =>
 seatGroup: (groupId, tableId) => {
   const { groups, guests, tables } = get();
 
-    if (groupId === NO_GROUP_KEY) {
+    if (normalizeGroupId(groupId) === null) {
+
     return { ok: false, message: "לא ניתן להושיב 'ללא קבוצה' כקבוצה" };
   }
 
@@ -394,9 +394,10 @@ const newSeats = [
   ),
   groups: groups.map((g) =>
   normalizeGroupId(g._id) === normalizeGroupId(groupId)
-    ? { ...g, tableId: null, isSeated: false }
+    ? { ...g, tableId, isSeated: true }
     : g
 ),
+
 
 
 });
@@ -419,7 +420,8 @@ console.table(
 unseatGroup: (groupId) => {
   const { tables, guests, groups } = get();
 
-    if (groupId === NO_GROUP_KEY) return;
+    if (normalizeGroupId(groupId) === null) return;
+
 
 
   set({
@@ -437,10 +439,11 @@ unseatGroup: (groupId) => {
         : g
     ),
     groups: groups.map((g) =>
-      g._id === groupId
-        ? { ...g, tableId: null, isSeated: false }
-        : g
-    ),
+  normalizeGroupId(g._id) === normalizeGroupId(groupId)
+    ? { ...g, tableId: null, isSeated: false }
+    : g
+),
+
   });
 
   // 🔴 זה החסר – הוספה כאן בדיוק
@@ -814,7 +817,10 @@ dropGuest: () => {
     };
   });
 
-  
+  const targetTable = updatedTables.find(
+  (t) => t.id === highlightedTable
+);
+
 
   set({
     tables: updatedTables,

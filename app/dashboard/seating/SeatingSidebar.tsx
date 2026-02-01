@@ -24,10 +24,10 @@ type Table = {
   name: string;
   displayName?: string;
   seats: number;
-  seatedGuests: { guestId: string }[];
+  seatedGuests: { guestId: string; seatIndex?: number; [key: string]: any }[];
+
 };
 
-const NO_GROUP_KEY = "__no_group__";
 
 const normalizeGroupId = (value: unknown) => {
   if (
@@ -37,7 +37,8 @@ const normalizeGroupId = (value: unknown) => {
     value === "null" ||
     value === "undefined"
   ) {
-    return NO_GROUP_KEY;
+    return null;
+
   }
   return String(value);
 };
@@ -77,7 +78,8 @@ export default function SeatingSidebar() {
   const groupedGuests = useMemo(() => {
     const map: Record<string, Guest[]> = {};
     guests.forEach((g) => {
-      const key = normalizeGroupId(g.groupId);
+      const key = normalizeGroupId(g.groupId) ?? "no-group";
+
       if (!map[key]) map[key] = [];
       map[key].push(g);
     });
@@ -85,14 +87,14 @@ export default function SeatingSidebar() {
   }, [guests]);
 
   const getGroupTableId = (groupId: string) => {
-    if (groupId === NO_GROUP_KEY) return "";
+    if (groupId === "no-group") return "";
+
+
 
     const guest = guests.find((g) => {
-      return (
-        normalizeGroupId(g.groupId) === normalizeGroupId(groupId) &&
-        guestTableMap.has(seatGuestId(g))
-      );
-    });
+  const gid = normalizeGroupId(g.groupId) ?? "no-group";
+  return gid === groupId && guestTableMap.has(seatGuestId(g));
+});
 
     if (!guest) return "";
     return guestTableMap.get(seatGuestId(guest))?.id ?? "";
@@ -117,31 +119,29 @@ export default function SeatingSidebar() {
   };
 
   function guestVisible(g: Guest) {
-    const q = search.trim().toLowerCase();
-    const gid = seatGuestId(g);
-    const isSeated = guestTableMap.has(gid);
+  const q = search.trim().toLowerCase();
+  const gid = seatGuestId(g);
+  const isSeated = guestTableMap.has(gid);
 
-    if (filter === "seated" && !isSeated) return false;
-    if (filter === "unseated" && isSeated) return false;
+  if (filter === "seated" && !isSeated) return false;
+  if (filter === "unseated" && isSeated) return false;
 
-    let groupName = "";
-    if (normalizeGroupId(g.groupId) !== NO_GROUP_KEY) {
-      groupName =
-        groups.find(
-          (gr) =>
-            normalizeGroupId(gr._id) ===
-            normalizeGroupId(g.groupId)
-        )?.name || "";
-    }
+  let groupName = "";
+  const groupKey = normalizeGroupId(g.groupId);
 
-    if (!q) return true;
-
-    return (
-      g.name.toLowerCase().includes(q) ||
-      String(g.phone || "").includes(q) ||
-      groupName.toLowerCase().includes(q)
-    );
+  if (groupKey !== null) {
+    groupName = groups.find((gr) => String(gr._id) === groupKey)?.name || "";
   }
+
+  if (!q) return true;
+
+  return (
+    g.name.toLowerCase().includes(q) ||
+    String(g.phone || "").includes(q) ||
+    groupName.toLowerCase().includes(q)
+  );
+}
+
 
   useEffect(() => {
     if (!search.trim()) return;
@@ -172,12 +172,15 @@ export default function SeatingSidebar() {
 
       <div className="flex-1 overflow-y-auto">
         {Object.entries(groupedGuests).map(([groupId, list]) => {
-          const isNoGroup = groupId === NO_GROUP_KEY;
+          const isNoGroup = groupId === "no-group";
+
+
           const group = isNoGroup
             ? null
             : groups.find(
                 (g) =>
-                  normalizeGroupId(g._id) === groupId
+                  String(g._id) === groupId
+
               );
 
           const visibleGuests = list.filter(guestVisible);
@@ -203,7 +206,7 @@ export default function SeatingSidebar() {
   : `${group.name} · ${
       (() => {
         const table = tables.find(
-          (t) => t.id === getGroupTableId(group._id)
+          (t) => t.id === getGroupTableId(String(group._id))
         );
         return table?.displayName || table?.name || "ללא שולחן";
       })()
@@ -217,7 +220,7 @@ export default function SeatingSidebar() {
                   className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
                   value={
                     group
-                      ? getGroupTableId(group._id)
+                      ? getGroupTableId(String(group._id))
                       : getNoGroupTableId(visibleGuests)
                   }
                   onChange={(e) => {
@@ -237,8 +240,9 @@ export default function SeatingSidebar() {
                       return;
                     }
 
-                    if (!tableId) unseatGroup(group._id);
-                    else seatGroup(group._id, tableId);
+                    if (!tableId) unseatGroup(String(group._id));
+else seatGroup(String(group._id), tableId);
+
                   }}
                 >
                   <option value="">ללא שולחן</option>
@@ -251,9 +255,9 @@ export default function SeatingSidebar() {
                           ? !useSeatingStore
                               .getState()
                               .canSeatGroupAtTable(
-                                t.id,
-                                group._id
-                              )
+  t.id,
+  String(group._id)
+)
                           : false
                       }
                     >
