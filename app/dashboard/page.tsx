@@ -636,6 +636,56 @@ const noAnswerGuests = useMemo(() => {
     list = list.filter((g) => g.groupId === selectedGroupId);
   }
 
+  // 3) Sort
+list.sort((a, b) => {
+  let v1: any;
+  let v2: any;
+
+  switch (sortKey) {
+    case "name":
+      v1 = a.name || "";
+      v2 = b.name || "";
+      return (
+        v1.localeCompare(v2, "he", { sensitivity: "base" }) *
+        (sortDir === "asc" ? 1 : -1)
+      );
+
+    case "rsvp":
+      v1 = a.rsvp || "";
+      v2 = b.rsvp || "";
+      break;
+
+    case "table":
+      v1 = a.tableNumber ?? a.tableName ?? "";
+      v2 = b.tableNumber ?? b.tableName ?? "";
+      break;
+
+    case "coming":
+      v1 = a.arrivedCount || 0;
+      v2 = b.arrivedCount || 0;
+      break;
+
+    case "invited":
+      v1 = a.guestsCount || 0;
+      v2 = b.guestsCount || 0;
+      break;
+
+    default:
+      return 0;
+  }
+
+  if (typeof v1 === "number" && typeof v2 === "number") {
+    return (v1 - v2) * (sortDir === "asc" ? 1 : -1);
+  }
+
+  return (
+    String(v1).localeCompare(String(v2), "he", {
+      sensitivity: "base",
+    }) * (sortDir === "asc" ? 1 : -1)
+  );
+});
+
+
   // ⚠️ שאר המיון נשאר כמו שהוא (לא נגעתי)
   return list;
 }, [
