@@ -128,10 +128,17 @@ resetLiveArrivals: () =>
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
+  if (groupId === NO_GROUP_KEY) return 0;
+
   const { groups } = get();
-  const group = groups.find((g) => String(g._id) === String(groupId));
+  const group = groups.find(
+    (g) =>
+      normalizeGroupId(g._id) === normalizeGroupId(groupId)
+  );
+
   return Number(group?.expectedCount ?? 0);
 },
+
 
 // ⭐️ ספירת מושבים להושבה מה-SIDEBAR (תכנון, לא live)
 getSidebarSeatCount: (guest) => {
@@ -187,8 +194,11 @@ canSeatGuestAtTable: (tableId, guest) => {
 canSeatGroupAtTable: (tableId, groupId) => {
   const { guests } = get();
 
-  const groupGuests = guests.filter(
-    (g) => String(g.groupId) === String(groupId)
+  if (groupId === NO_GROUP_KEY) return false;
+
+    const groupGuests = guests.filter(
+    (g) =>
+      normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
   );
 
   if (!groupGuests.length) return false;
@@ -238,25 +248,35 @@ updateGroup: (groupId, patch) =>
 
 removeGroup: (groupId) =>
   set((state) => ({
-    groups: state.groups.filter((g) => g._id !== groupId),
+    groups: state.groups.filter(
+      (g) => normalizeGroupId(g._id) !== normalizeGroupId(groupId)
+    ),
     guests: state.guests.map((guest) =>
-      guest.groupId === groupId
+      normalizeGroupId(guest.groupId) === normalizeGroupId(groupId)
         ? { ...guest, groupId: null }
         : guest
     ),
   })),
+
 
   /* ================= ⭐ GROUP SEATING ================= */
 
 seatGroup: (groupId, tableId) => {
   const { groups, guests, tables } = get();
 
+    if (groupId === NO_GROUP_KEY) {
+    return { ok: false, message: "לא ניתן להושיב 'ללא קבוצה' כקבוצה" };
+  }
+
+
   const group = groups.find((g) => g._id === groupId);
   if (!group) return { ok: false };
 
-  const groupGuests = guests.filter(
-    (g) => g.groupId === groupId
+    const groupGuests = guests.filter(
+    (g) =>
+      normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
   );
+
 
 
 
@@ -284,9 +304,10 @@ const missingCount = Math.max(0, totalCount - realCount);
   ...t,
   seatedGuests: (t.seatedGuests || []).filter(
     (sg) =>
-      sg.groupId !== groupId // ⬅️ זה השינוי
+      normalizeGroupId(sg.groupId) !== normalizeGroupId(groupId)
   ),
 }));
+
 
   const targetTable = updatedTables.find(
     (t) => t.id === tableId
@@ -319,7 +340,7 @@ const newSeats = [
 
   // 👥 השלמה וירטואלית לפי expectedCount
   ...block.slice(cursor, cursor + missingCount).map((seatIndex) => ({
-    guestId: `group:${groupId}`,
+    guestId: `group:${groupId}:virtual`,
     seatIndex,
     arrived: false,
     groupId,
@@ -345,22 +366,23 @@ const newSeats = [
 );
 
   set({
-    tables: updatedTables,
-    guests: guests.map((g) =>
-      g.groupId === groupId
-        ? {
-            ...g,
-            tableId,
-            tableName: targetTable.name,
-          }
-        : g
-    ),
-    groups: groups.map((g) =>
-      g._id === groupId
-        ? { ...g, tableId, isSeated: true }
-        : g
-    ),
-  });
+  tables: updatedTables,
+  guests: guests.map((g) =>
+    normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
+      ? {
+          ...g,
+          tableId,
+          tableName: targetTable.name,
+        }
+      : g
+  ),
+  groups: groups.map((g) =>
+    normalizeGroupId(g._id) === normalizeGroupId(groupId)
+      ? { ...g, tableId, isSeated: true }
+      : g
+  ),
+});
+
 
   console.log("🟢 seatGroup AFTER set");
 console.table(
@@ -379,15 +401,20 @@ console.table(
 unseatGroup: (groupId) => {
   const { tables, guests, groups } = get();
 
+    if (groupId === NO_GROUP_KEY) return;
+
+
   set({
     tables: tables.map((t) => ({
       ...t,
       seatedGuests: (t.seatedGuests || []).filter(
-        (sg) => sg.groupId !== groupId
+        (sg) =>
+  normalizeGroupId(sg.groupId) !== normalizeGroupId(groupId)
+
       ),
     })),
     guests: guests.map((g) =>
-      g.groupId === groupId
+      normalizeGroupId(g.groupId) === normalizeGroupId(groupId)
         ? { ...g, tableId: null, tableName: null }
         : g
     ),
