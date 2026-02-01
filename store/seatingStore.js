@@ -128,10 +128,13 @@ resetLiveArrivals: () =>
   /* ================= ⭐ GROUP UTILS ================= */
 
 getGroupSize: (groupId) => {
-  const { groups } = get();
-  const group = groups.find((g) => String(g._id) === String(groupId));
-  return Number(group?.expectedCount ?? 0);
+  const { guests, getPlannedSeatCount } = get();
+
+  return guests
+    .filter((g) => String(g.groupId) === String(groupId))
+    .reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
 },
+
 
 // ⭐️ ספירת מושבים להושבה מה-SIDEBAR (תכנון, לא live)
 getSidebarSeatCount: (guest) => {
@@ -185,7 +188,7 @@ canSeatGuestAtTable: (tableId, guest) => {
 
 
 canSeatGroupAtTable: (tableId, groupId) => {
-  const { guests } = get();
+  const { guests, getPlannedSeatCount, getFreeSeats } = get();
 
   const groupGuests = guests.filter(
     (g) => String(g.groupId) === String(groupId)
@@ -194,13 +197,14 @@ canSeatGroupAtTable: (tableId, groupId) => {
   if (!groupGuests.length) return false;
 
   const needed = groupGuests.reduce(
-    (sum, g) => sum + get().getPlannedSeatCount(g),
+    (sum, g) => sum + getPlannedSeatCount(g),
     0
   );
 
-  const free = get().getFreeSeats(tableId);
+  const free = getFreeSeats(tableId);
   return free >= needed;
 },
+
 
 canSeatGuests: (tableId, guest) => {
   const { tables } = get();
@@ -262,14 +266,11 @@ seatGroup: (groupId, tableId) => {
 
 
 
-const totalCount = get().getGroupSize(groupId);
-
-const realCount = groupGuests.reduce(
+const totalCount = groupGuests.reduce(
   (sum, g) => sum + get().getPlannedSeatCount(g),
   0
 );
 
-const missingCount = Math.max(0, totalCount - realCount);
 
 
 
@@ -302,30 +303,19 @@ const missingCount = Math.max(0, totalCount - realCount);
 
   let cursor = 0;
 
-const newSeats = [
-  // 👤 אורחים אמיתיים
-  ...groupGuests.flatMap((guest) => {
-    const count = get().getPlannedSeatCount(guest);
-    const seats = block.slice(cursor, cursor + count);
-    cursor += count;
+const newSeats = groupGuests.flatMap((guest) => {
+  const count = get().getPlannedSeatCount(guest);
+  const seats = block.slice(cursor, cursor + count);
+  cursor += count;
 
-    return seats.map((seatIndex) => ({
-      guestId: String(guest.id ?? guest._id),
-      seatIndex,
-      arrived: false,
-      groupId,
-    }));
-  }),
-
-  // 👥 השלמה וירטואלית לפי expectedCount
-  ...block.slice(cursor, cursor + missingCount).map((seatIndex) => ({
-    guestId: `group:${groupId}`,
+  return seats.map((seatIndex) => ({
+    guestId: String(guest.id ?? guest._id),
     seatIndex,
     arrived: false,
     groupId,
-    isVirtual: true,
-  })),
-];
+  }));
+});
+
 
 
 
@@ -1059,11 +1049,9 @@ syncArrivedSeats: (guestId) =>
 
       // כל הכיסאות של האורח – ממוינים לפי seatIndex
       const guestSeats = table.seatedGuests
-        .filter(
-  (sg) =>
-    !sg.isVirtual &&
-    String(sg.guestId) === String(guestId)
-)
+  .filter(
+    (sg) => String(sg.guestId) === String(guestId)
+  )
 
         .sort((a, b) => a.seatIndex - b.seatIndex);
 

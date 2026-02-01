@@ -329,8 +329,8 @@ const groupName =
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
   {table
-    ? tableLabel(table)
-    : `לא משובץ · ${plannedCount} מקומות`}
+    ? `${table.displayName || table.name} · ${plannedCount} מוזמנים`
+    : `לא משובץ · ${plannedCount} מוזמנים`}
 </div>
 
 
