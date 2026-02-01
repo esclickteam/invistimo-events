@@ -224,22 +224,12 @@ const groupName =
                   setOpenGroups((o) => ({ ...o, [groupId]: !o[groupId] }))
                 }
               >
-                {(() => {
-  const tableId = group ? getGroupTableId(group._id) : "";
-  const table = tables.find((t) => t.id === tableId);
+                <div className="text-sm font-medium">
+  {group
+    ? group.name
+    : `ללא קבוצה (${visibleGuests.length})`}
+</div>
 
-  return (
-    <div className="text-sm font-medium">
-       {group
-  ? `${group.name} · ${
-      table?.displayName || table?.name || "ללא שולחן"
-    }`
-  : `ללא קבוצה (${visibleGuests.length})`}
-
-
-    </div>
-  );
-})()}
 
 
                 <select
