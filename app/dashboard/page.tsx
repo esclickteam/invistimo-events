@@ -63,7 +63,7 @@ type Guest = {
   /* 📞 סבבי שיחות */
   callRounds?: {
     roundNumber: number;
-    status: "answered" | "no_answer" | "confirmed" | string;
+    status: "answered" | "no_answer" | "will_reply";
     notes?: string;
     calledAt?: string;
   }[];
@@ -594,17 +594,20 @@ useEffect(() => {
 
 
 
-function getLastCallStatus(guest: Guest) {
-  if (!guest.callRounds || guest.callRounds.length === 0) {
-    return null;
+function getGuestCallStatus(
+  guest: Guest
+): "answered" | "no_answer" | "will_reply" {
+  if (!Array.isArray(guest.callRounds) || guest.callRounds.length === 0) {
+    return "no_answer";
   }
 
-  const lastRound = [...guest.callRounds].sort(
-    (a, b) => b.roundNumber - a.roundNumber
-  )[0];
+  const lastWithStatus = [...guest.callRounds]
+    .reverse()
+    .find((r) => r.status);
 
-  return lastRound.status;
+  return (lastWithStatus?.status as any) || "no_answer";
 }
+
 
 
 
@@ -624,23 +627,31 @@ function getLastCallStatus(guest: Guest) {
     list = list.filter((g) => !(g.tableName && g.tableName.trim()));
   }
 
-  if (quickFilter === "call_answered") {
+// 📞 Call filters
+if (quickFilter === "pending") {
   list = list.filter(
-    (g) => getLastCallStatus(g) === "answered"
+    (g) => getGuestCallStatus(g) !== "answered"
+  );
+}
+
+if (quickFilter === "call_answered") {
+  list = list.filter(
+    (g) => getGuestCallStatus(g) === "answered"
   );
 }
 
 if (quickFilter === "call_no_answer") {
   list = list.filter(
-    (g) => getLastCallStatus(g) === "no_answer"
+    (g) => getGuestCallStatus(g) === "no_answer"
   );
 }
 
 if (quickFilter === "call_will_reply") {
   list = list.filter(
-    (g) => getLastCallStatus(g) === "will_reply"
+    (g) => getGuestCallStatus(g) === "will_reply"
   );
 }
+
 
 
   // 2) Search (name / phone)
