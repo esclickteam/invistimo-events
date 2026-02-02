@@ -5,6 +5,13 @@ import User from "@/models/User";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+/* =======================
+   Constants
+======================= */
+// ⚠️ המחיר שמגדיר "פרימיום מלא" לפי paidAmount
+const FULL_PREMIUM_PRICE = 779;
+
+// מפת מחירים לפי כמות אורחים
 const PREMIUM_PRICES: Record<number, number> = {
   100: 149,
   300: 249,
@@ -14,7 +21,9 @@ const PREMIUM_PRICES: Record<number, number> = {
 
 export async function POST(req: Request) {
   try {
-    // ✅ cookies() הוא async
+    /* =======================
+       Auth
+    ======================= */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -32,6 +41,18 @@ export async function POST(req: Request) {
       return new Response("User not found", { status: 404 });
     }
 
+    /* =======================
+       Guard – כבר פרימיום
+    ======================= */
+    const alreadyPaid = Number(user.paidAmount || 0);
+
+    if (alreadyPaid >= FULL_PREMIUM_PRICE) {
+      return new Response("User already fully paid", { status: 400 });
+    }
+
+    /* =======================
+       Input
+    ======================= */
     const { guests } = await req.json();
 
     const fullPrice = PREMIUM_PRICES[guests];
@@ -39,13 +60,18 @@ export async function POST(req: Request) {
       return new Response("Invalid package", { status: 400 });
     }
 
-    const alreadyPaid = user.paidAmount || 0;
+    /* =======================
+       Price calculation
+    ======================= */
     const amountToPay = fullPrice - alreadyPaid;
 
     if (amountToPay <= 0) {
       return new Response("No payment required", { status: 400 });
     }
 
+    /* =======================
+       Stripe Checkout
+    ======================= */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: user.email,

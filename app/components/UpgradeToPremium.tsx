@@ -9,6 +9,12 @@ type UpgradeToPremiumProps = {
   paidAmount: number;
 };
 
+/* =======================
+   Constants
+======================= */
+// ⚠️ זה המחיר שמגדיר "פרימיום מלא" לפי paidAmount
+const FULL_PREMIUM_PRICE = 779;
+
 const PREMIUM_PACKAGES = [
   { guests: 100, fullPrice: 149 },
   { guests: 300, fullPrice: 249 },
@@ -19,6 +25,13 @@ const PREMIUM_PACKAGES = [
 export default function UpgradeToPremium({
   paidAmount,
 }: UpgradeToPremiumProps) {
+  /* =======================
+     Guard – כבר פרימיום
+  ======================= */
+  if (paidAmount >= FULL_PREMIUM_PRICE) {
+    return null; // ❌ לא מציגים שדרוג בכלל
+  }
+
   const [selectedGuests, setSelectedGuests] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -95,7 +108,7 @@ export default function UpgradeToPremium({
         })}
       </div>
 
-      {selectedPackage && (
+      {selectedPackage && canUpgrade && (
         <div className="text-center space-y-1">
           <p>מחיר מלא: {selectedPackage.fullPrice} ₪</p>
           <p>
