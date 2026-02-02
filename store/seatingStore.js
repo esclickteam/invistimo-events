@@ -172,10 +172,17 @@ getPlannedSeatCount: (guest) => {
 },
 
 getFreeSeats: (tableId) => {
-  const table = get().tables.find((t) => t.id === tableId);
+  const { tables, guests, getPlannedSeatCount } = get();
+  const table = tables.find((t) => t.id === tableId);
   if (!table) return 0;
 
-  const occupied = table.seatedGuests?.length ?? 0;
+  const occupied = table.seatedGuests.reduce((sum, s) => {
+    const guest = guests.find(
+      (g) => String(g.id ?? g._id) === String(s.guestId)
+    );
+    return sum + (guest ? getPlannedSeatCount(guest) : 0);
+  }, 0);
+
   return Math.max(0, table.seats - occupied);
 },
 
