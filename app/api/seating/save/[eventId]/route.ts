@@ -24,7 +24,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
     await dbConnect();
 
     /* 🔐 Guard אחיד – הרשאת הושבה */
-    const guard = await requireSeating();
+    const { eventId } = await context.params;
+
+const guard = await requireSeating(eventId);
+if (!guard.ok) {
+  return guard.response!;
+}
+
     if (!guard.ok) {
       return guard.response!;
     }

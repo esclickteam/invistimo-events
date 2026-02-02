@@ -1,63 +1,55 @@
-import User from "@/models/User";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+// lib/guards/requireSeating.ts
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
+import Invitation from "@/models/Invitation";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
-export async function requireSeating() {
-  await db();
-
+export async function requireSeating(eventId?: string) {
   const auth = await getUserIdFromRequest();
-
-  // 🔐 לא מחובר
   if (!auth?.userId) {
     return {
       ok: false,
       response: NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
+        { error: "UNAUTHORIZED" },
         { status: 401 }
       ),
     };
   }
 
-  const userId = auth.userId;
-
-  const user = await User.findById(userId).lean();
-
-  if (!user) {
+  if (!eventId) {
     return {
       ok: false,
       response: NextResponse.json(
-        { success: false, error: "USER_NOT_FOUND" },
+        { error: "MISSING_EVENT" },
+        { status: 400 }
+      ),
+    };
+  }
+
+  const invitation = await Invitation.findOne({ eventId }).lean();
+  if (!invitation) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "INVITATION_NOT_FOUND" },
         { status: 404 }
       ),
     };
   }
 
-  /**
-   * ⭐ אדמין בהתחזות – תמיד מותר
-   */
-  if (user.impersonated === true) {
-    return { ok: true, userId };
-  }
+  const userId = String(auth.userId);
 
-  /**
-   * ⭐ בדיקת הרשאת הושבה
-   * - פרימיום תמיד כולל הושבה
-   * - add-on עתידי דרך planLimits
-   */
-  const hasSeating =
-    user.plan === "premium" ||
-    user.planLimits?.seatingEnabled === true;
+  const isOwner = String(invitation.ownerId) === userId;
+  const isProducer =
+    Array.isArray(invitation.producers) &&
+    invitation.producers.some(
+      (p: any) => String(p.userId ?? p) === userId
+    );
 
-  if (!hasSeating) {
+  if (!isOwner && !isProducer) {
     return {
       ok: false,
       response: NextResponse.json(
-        {
-          success: false,
-          error: "Seating is not included in your plan",
-          code: "SEATING_NOT_ALLOWED",
-        },
+        { error: "FORBIDDEN" },
         { status: 403 }
       ),
     };
