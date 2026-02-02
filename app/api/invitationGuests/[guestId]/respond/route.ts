@@ -9,9 +9,7 @@ export async function POST(request: Request, context: any) {
   try {
     await db();
 
-    // ✅ שינוי כאן — השם חייב להתאים לשם התיקייה ([id])
     const guestId = context?.params?.id;
-
     if (!guestId) {
       return NextResponse.json(
         { error: "Missing guestId in request" },
@@ -20,7 +18,7 @@ export async function POST(request: Request, context: any) {
     }
 
     const body = await request.json();
-    const { rsvp, guestsCount, notes } = body;
+    const { rsvp, notes } = body;
 
     /* -------------------------------
        🔎 ולידציה בסיסית
@@ -32,55 +30,63 @@ export async function POST(request: Request, context: any) {
       );
     }
 
-    // אם סימן "לא מגיע" — כמות אורחים = 0
-    let validatedGuestsCount = guestsCount;
-    if (rsvp === "no") {
-      validatedGuestsCount = 0;
-    } else {
-      // אם סימן "מגיע" ודיווח 0 — נדרש מינימום 1
-      if (!validatedGuestsCount || validatedGuestsCount < 1) {
-        validatedGuestsCount = 1;
-      }
-    }
-
     /* -------------------------------
-       🔧 עדכון אורח בהזמנה
+       🔧 שליפת מצב קודם
     -------------------------------- */
-    // ✅ שומרים מצב קודם כדי לחשב גם לקבוצה הישנה וגם לחדשה (אם תשתנה בעתיד)
     const before = await InvitationGuest.findById(guestId).lean();
-
-    const updatedGuest = await InvitationGuest.findByIdAndUpdate(
-      guestId,
-      {
-        rsvp,
-        guestsCount: validatedGuestsCount,
-        notes: notes || "",
-      },
-      { new: true }
-    ).lean();
-
-    if (!updatedGuest) {
+    if (!before) {
       return NextResponse.json(
         { error: "Guest not found" },
         { status: 404 }
       );
     }
 
-    // ✅ סנכרון expectedCount בקבוצה (רק מי שמגיעים)
+    /* -------------------------------
+       🔁 חישוב arrivedCount בלבד
+       ❗ guestsCount לא משתנה כאן
+    -------------------------------- */
+    const arrivedCount =
+      rsvp === "yes"
+        ? Number(before.guestsCount || 1)
+        : 0;
+
+    /* -------------------------------
+       💾 עדכון האורח
+    -------------------------------- */
+    const updatedGuest = await InvitationGuest.findByIdAndUpdate(
+      guestId,
+      {
+        rsvp,
+        arrivedCount,
+        ...(typeof notes === "string" ? { notes } : {}),
+      },
+      { new: true }
+    ).lean();
+
+    if (!updatedGuest) {
+      return NextResponse.json(
+        { error: "Guest not found after update" },
+        { status: 404 }
+      );
+    }
+
+    /* -------------------------------
+       🔄 סנכרון קבוצות (אם יש)
+    -------------------------------- */
     const affected = new Set<string>();
-    if (before?.groupId) affected.add(String(before.groupId));
-    if (updatedGuest?.groupId) affected.add(String(updatedGuest.groupId));
+    if (before.groupId) affected.add(String(before.groupId));
+    if (updatedGuest.groupId) affected.add(String(updatedGuest.groupId));
 
     for (const gid of affected) {
       await recalcGroupExpectedCount(gid);
     }
 
-    console.log("✅ RSVP updated:", {
+    console.log("✅ RSVP updated correctly:", {
       guestId: String(updatedGuest._id),
       rsvp: updatedGuest.rsvp,
-      guestsCount: updatedGuest.guestsCount,
+      guestsCount: updatedGuest.guestsCount, // 🔒 נשאר כמו שהיה
+      arrivedCount: updatedGuest.arrivedCount,
       groupId: updatedGuest.groupId ? String(updatedGuest.groupId) : null,
-      affectedGroups: [...affected],
     });
 
     return NextResponse.json(
@@ -92,6 +98,9 @@ export async function POST(request: Request, context: any) {
     );
   } catch (err) {
     console.error("❌ Error updating RSVP:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server error" },
+      { status: 500 }
+    );
   }
 }

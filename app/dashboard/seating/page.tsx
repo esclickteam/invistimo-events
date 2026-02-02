@@ -135,15 +135,13 @@ const isProducer = pathname.includes("/events/production");
         const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
   id: g._id,
   name: g.name,
-  rsvp: g.rsvp,                    // ✅ כבר קיים – טוב
+  rsvp: g.rsvp,
   guestsCount: g.guestsCount,
   arrivedCount: g.arrivedCount,
-  actualArrivedCount: g.actualArrivedCount ?? 0, // ⭐⭐⭐ זה החסר
+  actualArrivedCount: g.actualArrivedCount ?? 0,
   groupId: g.groupId ?? null,
-  count:
-    g.rsvp === "yes"
-      ? g.arrivedCount || g.guestsCount || 1
-      : g.guestsCount || 1,
+
+  count: g.guestsCount ?? 1, // ✅ תמיד לפי מוזמנים
 }));
 
 

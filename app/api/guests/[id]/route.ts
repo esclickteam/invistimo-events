@@ -140,16 +140,16 @@ if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
   guest.guestsCount = data.guestsCount;
 }
 
-// 2️⃣ RSVP קובע arrivedCount
+// 2️⃣ RSVP — סטטוס בלבד (לא משנה כמויות)
 if (["yes", "no", "pending"].includes(data.rsvp)) {
   guest.rsvp = data.rsvp;
 
-  if (data.rsvp === "yes") {
-    guest.arrivedCount = guest.guestsCount;
-  } else {
+  // אם עבר ל-"לא מגיע" — מאפס מגיעים
+  if (data.rsvp === "no") {
     guest.arrivedCount = 0;
   }
 }
+
 
 // 3️⃣ arrivedCount ידני — רק למפיק / אדמין
 if (
