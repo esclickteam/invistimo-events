@@ -118,13 +118,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
     /* ===============================
        ⭐ NORMALIZE GROUP SNAPSHOT
     =============================== */
-    const groupIds = Array.from(
-      new Set(
-        rawTables
-          .map((t: any) => t?.group)
-          .filter((g: any) => typeof g === "string")
-      )
-    );
+    const groupIds: string[] = Array.from(
+  new Set(
+    rawTables
+      .map((t: any) => t?.group)
+      .filter((g: unknown): g is string => typeof g === "string")
+  )
+);
 
     const groups =
       groupIds.length > 0
