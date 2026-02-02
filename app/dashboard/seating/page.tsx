@@ -307,44 +307,86 @@ if (grRes.ok) {
      BLOCKED
   =============================== */
   if (blocked) {
+  // ⛔ אין אירוע
+  if (blockReason === "no-event") {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
+          <h2 className="text-2xl font-semibold mb-4">
+            יש ליצור אירוע כדי להשתמש בהושבה
+          </h2>
+
+          <textarea
+            placeholder="הערה (לא חובה)"
+            rows={4}
+            className="
+              w-full
+              border
+              rounded-lg
+              p-3
+              text-sm
+              mb-6
+              resize-none
+              focus:outline-none
+              focus:ring-2
+              focus:ring-black/20
+            "
+          />
+
+          <button
+            onClick={() => {
+              window.location.href = "/invitations/new";
+            }}
+            className="
+              w-full
+              py-2.5
+              rounded-lg
+              bg-black
+              text-white
+              font-semibold
+              hover:bg-gray-900
+              transition
+            "
+          >
+            ליצירת אירוע
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ⛔ אין חבילה מתאימה
+  if (blockReason === "no-plan") {
     return (
       <>
         <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
           <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
             <h2 className="text-2xl font-semibold mb-3">
-  {blockReason === "no-event"
-    ? "יש ליצור אירוע כדי להשתמש בהושבה"
-    : "הושבה אינה כלולה בחבילה שלך"}
-</h2>
+              הושבה אינה כלולה בחבילה שלך
+            </h2>
 
             <p className="text-gray-600 mb-6">
-  {blockReason === "no-event"
-    ? "לא נמצא אירוע פעיל המשויך לחשבון שלך."
-    : "כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום."}
-</p>
+              כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום.
+            </p>
 
-            {blockReason === "no-plan" && (
-  <button
-    onClick={() => setShowUpgrade(true)}
-    className="px-5 py-2 bg-black text-white rounded-lg"
-  >
-    שדרוג חבילה
-  </button>
-)}
-
-
+            <button
+              onClick={() => setShowUpgrade(true)}
+              className="px-5 py-2 bg-black text-white rounded-lg"
+            >
+              שדרוג חבילה
+            </button>
           </div>
         </div>
 
         <UpgradePlanModal
-  isOpen={showUpgrade}
-  onClose={() => setShowUpgrade(false)}
-  currentPaid={user?.paidAmount ?? 0}
-/>
-
+          isOpen={showUpgrade}
+          onClose={() => setShowUpgrade(false)}
+          currentPaid={user?.paidAmount ?? 0}
+        />
       </>
     );
   }
+}
 
   /* ===============================
      RENDER
