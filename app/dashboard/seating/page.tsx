@@ -390,13 +390,14 @@ return (
 
   {/* 🔘 חץ שליטה – תמיד קיים */}
   <div
-    className={`
-      absolute top-1/2 -translate-y-1/2
-      z-40 flex items-center
-      transition-all duration-300
-      ${sidebarOpen ? "-left-[18px]" : "left-0"}
-    `}
-  >
+  className={`
+    absolute top-1/2 -translate-y-1/2
+    right-full
+    z-40 flex items-center
+    transition-all duration-300
+    ${sidebarOpen ? "mr-[18px]" : "mr-0"}
+  `}
+>
     {/* קו הפרדה – רק כשהסיידבר פתוח */}
     {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
 
