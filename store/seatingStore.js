@@ -98,13 +98,18 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
 
 setLiveArrived: (guestId, count) => {
   if (get().seatingMode !== "live") return;
+
   set((state) => ({
     liveArrivals: {
       ...state.liveArrivals,
       [guestId]: count,
     },
   }));
+
+  // ⭐️ זה מה שהיה חסר
+  get().syncArrivedSeats(String(guestId));
 },
+
 
 
 setLiveArrivalsBulk: (map) =>
@@ -186,7 +191,13 @@ getFreeSeats: (tableId) => {
   const table = get().tables.find((t) => t.id === tableId);
   if (!table) return 0;
 
-  const occupied = table.seatedGuests?.length ?? 0;
+  const { seatingMode } = get();
+
+  const occupied =
+    seatingMode === "live"
+      ? table.seatedGuests.filter((s) => s.arrived).length
+      : table.seatedGuests?.length ?? 0;
+
   return Math.max(0, table.seats - occupied);
 },
 

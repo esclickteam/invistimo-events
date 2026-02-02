@@ -299,17 +299,13 @@ const tableText = isHighlighted
   const arrivedSeatsSet = useMemo(() => {
   if (seatingMode !== "live") return new Set();
 
-  const arrived = new Set();
-  let remaining = occupiedSeatsCount;
+  return new Set(
+    (table.seatedGuests || [])
+      .filter((s) => s.arrived === true)
+      .map((s) => s.seatIndex)
+  );
+}, [seatingMode, table.seatedGuests]);
 
-  for (const s of table.seatedGuests) {
-    if (remaining <= 0) break;
-    arrived.add(s.seatIndex);
-    remaining--;
-  }
-
-  return arrived;
-}, [seatingMode, table.seatedGuests, occupiedSeatsCount]);
 
 
   /* ====== CACHE כמו Canva ====== */

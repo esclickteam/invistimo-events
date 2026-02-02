@@ -112,6 +112,8 @@ const isDemo = pathname.startsWith("/try");
 
   const setSeatingGuests = useSeatingStore((s) => s.setGuests);
 
+  const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
+
 
 useEffect(() => {
   const isProducer =
@@ -195,6 +197,13 @@ useEffect(() => {
       : g
   )
 );
+
+// ⭐⭐⭐ חיבור לסידורי הושבה (חובה!)
+setLiveArrived(
+  String(updatedGuest._id),
+  Number(updatedGuest.actualArrivedCount ?? 0)
+);
+
 
 
   if (invitationId) {
@@ -812,6 +821,9 @@ list.sort((a, b) => {
       x._id === guestId ? { ...x, actualArrivedCount: next } : x
     )
   );
+
+  setLiveArrived(String(guestId), Number(next));
+
 
   const doUpdate = async () =>
     fetch(`/api/guests/${guestId}`, {
