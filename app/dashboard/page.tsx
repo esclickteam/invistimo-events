@@ -143,17 +143,42 @@ useEffect(() => {
 
   const handleGuestUpdated = async (updatedGuest: Guest) => {
   setGuests((prev) =>
-    prev.map((g) =>
-      String(g._id) === String(updatedGuest._id)
-        ? { ...g, ...updatedGuest }
-        : g
-    )
+    prev.map((g) => {
+      if (String(g._id) !== String(updatedGuest._id)) return g;
+
+      return {
+        ...g,
+
+        // שדות בסיס
+        name: updatedGuest.name,
+        phone: updatedGuest.phone,
+        relation: updatedGuest.relation,
+        rsvp: updatedGuest.rsvp,
+
+        // ⭐ הקריטי – זה מה שהיה חסר
+        guestsCount: updatedGuest.guestsCount,
+        arrivedCount:
+  updatedGuest.arrivedCount ??
+  (updatedGuest.rsvp === "yes"
+    ? updatedGuest.guestsCount
+    : 0),
+
+
+        // לייב (אם קיים)
+        actualArrivedCount: updatedGuest.actualArrivedCount ?? g.actualArrivedCount,
+
+        notes: updatedGuest.notes,
+        groupId: updatedGuest.groupId,
+        tableName: updatedGuest.tableName,
+      };
+    })
   );
 
   if (invitationId) {
     await loadGroups(invitationId);
   }
 };
+
 
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDemoToast, setShowDemoToast] = useState(false);
