@@ -298,26 +298,48 @@ export default function SeatingSidebar() {
 
               {/* ===== Guests ===== */}
               {openGroups[groupId] &&
-                visibleGuests.map((g) => {
-                  const table = guestTableMap.get(seatGuestId(g));
-                  const planned = getPlannedSeatCount(g);
+  visibleGuests.map((g) => {
+    const gid = seatGuestId(g);
+    const table = guestTableMap.get(gid);
+    const planned = getPlannedSeatCount(g);
 
-                  return (
-                    <div
-                      key={g._id}
-                      className="px-5 py-2 flex justify-between items-center hover:bg-[#f3e7e0]"
-                    >
-                      <div>
-                        <div className="text-sm">{g.name}</div>
-                        <div className="text-xs text-gray-500">
-                          {table
-                            ? `${table.displayName || table.name} · ${planned} מוזמנים`
-                            : `לא משובץ · ${planned} מוזמנים`}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+    return (
+      <div
+        key={g._id}
+        className="px-5 py-2 flex justify-between items-center gap-2 hover:bg-[#f3e7e0]"
+      >
+        {/* 🧑 פרטי אורח */}
+        <div>
+          <div className="text-sm">{g.name}</div>
+          <div className="text-xs text-gray-500">
+            {table
+              ? `${table.displayName || table.name} · ${planned} מוזמנים`
+              : `לא משובץ · ${planned} מוזמנים`}
+          </div>
+        </div>
+
+        {/* 🔽 דרופדאון אורח */}
+        <select
+          className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
+          value={table?.id ?? ""}
+          onChange={(e) => {
+            const tableId = e.target.value;
+            if (!tableId) removeFromSeat(gid);
+            else assignGuestBlock({ guestId: gid, tableId });
+          }}
+        >
+          <option value="">ללא שולחן</option>
+          {tables.map((t) => (
+            <option key={t.id} value={t.id}>
+              {tableLabel(t)}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  })}
+
+
             </div>
           );
         })}
