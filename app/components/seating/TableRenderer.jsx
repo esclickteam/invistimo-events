@@ -6,6 +6,15 @@ import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useSearchParams } from "next/navigation";
 
+const getPlannedSeatCount = (guest) => {
+  return Number(
+    guest.arrivedCount ??
+    guest.guestsCount ??
+    1
+  );
+};
+
+
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
 ============================================================ */
@@ -227,8 +236,13 @@ useEffect(() => {
 
   // 👤 לקוח / תכנון – לא מתייחס ל־liveArrivals
   if (seatingMode !== "live") {
-    return table.seatedGuests.length;
-  }
+  return table.seatedGuests.reduce((sum, s) => {
+    const guest = guests.find(
+      (g) => String(g._id || g.id) === String(s.guestId)
+    );
+    return sum + (guest ? getPlannedSeatCount(guest) : 0);
+  }, 0);
+}
 
   // 🎧 לייב – לפי הגיעו בפועל
   const counted = new Set();
@@ -239,7 +253,8 @@ useEffect(() => {
     counted.add(guestId);
     return sum + (liveArrivals?.[guestId] ?? 0);
   }, 0);
-}, [table.seatedGuests, seatingMode, liveArrivals]);
+}, [table.seatedGuests, guests, seatingMode, liveArrivals]);
+
 
 
 
@@ -310,6 +325,28 @@ const tableText = isHighlighted
 
   return arrived;
 }, [seatingMode, table.seatedGuests, occupiedSeatsCount]);
+
+const plannedSeatsSet = useMemo(() => {
+  if (seatingMode === "live") return new Set();
+
+  const set = new Set();
+
+  for (const s of table.seatedGuests) {
+    const guest = guests.find(
+      (g) => String(g._id || g.id) === String(s.guestId)
+    );
+    if (!guest) continue;
+
+    const count = getPlannedSeatCount(guest);
+    for (let k = 0; k < count; k++) {
+      set.add((s.seatIndex ?? 0) + k);
+    }
+  }
+
+  return set;
+}, [table.seatedGuests, guests, seatingMode]);
+
+
 
 
   /* ====== CACHE כמו Canva ====== */
@@ -535,6 +572,8 @@ const tableText = isHighlighted
   </Group>
 )}
 
+
+
       {/* כסאות */}
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
@@ -543,8 +582,9 @@ const tableText = isHighlighted
 
 const isOccupied =
   seatingMode === "live"
-    ? arrivedSeatsSet.has(i)   // 🔥 רק 2 כיסאות
-    : !!seat;
+    ? arrivedSeatsSet.has(i)
+    : plannedSeatsSet.has(i);
+
 
 
 
