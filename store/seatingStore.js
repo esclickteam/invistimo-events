@@ -291,10 +291,12 @@ const totalCount = groupGuests.reduce(
   // ניקוי קודם של הקבוצה מכל השולחנות
  let updatedTables = tables.map((t) => ({
   ...t,
-  seatedGuests: (t.seatedGuests || []).filter(
-    (sg) =>
-      sg.groupId !== groupId // ⬅️ זה השינוי
-  ),
+  seatedGuests: (t.seatedGuests || []).filter((sg) => {
+    const guest = guests.find(
+      (g) => String(g.id ?? g._id) === String(sg.guestId)
+    );
+    return String(guest?.groupId) !== String(groupId);
+  }),
 }));
 
   const targetTable = updatedTables.find(
@@ -317,11 +319,10 @@ const newSeats = groupGuests.flatMap((guest) => {
   cursor += count;
 
   return seats.map((seatIndex) => ({
-    guestId: String(guest.id ?? guest._id),
-    seatIndex,
-    arrived: false,
-    groupId,
-  }));
+  guestId: String(guest.id ?? guest._id),
+  seatIndex,
+  arrived: false,
+}));
 });
 
 
@@ -332,12 +333,9 @@ const newSeats = groupGuests.flatMap((guest) => {
   t.id === tableId
     ? {
         ...t,
-        seatedGuests: [
-          ...t.seatedGuests,
-          ...newSeats,
-        ],
-        // ⭐ זה השורה הקריטית
+        seatedGuests: [...t.seatedGuests, ...newSeats],
         displayName: t.displayName || group.name,
+        group: groupId, // ✅ זה השורה שחייבת להיות
       }
     : t
 );
@@ -360,6 +358,17 @@ const newSeats = groupGuests.flatMap((guest) => {
     ),
   });
 
+  fetch(`/api/tables/${tableId}`, {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    group: groupId,
+    displayName: group.name,
+  }),
+});
+
+
   console.log("🟢 seatGroup AFTER set");
 console.table(
   updatedTables.map((t) => ({
@@ -378,12 +387,11 @@ unseatGroup: (groupId) => {
   const { tables, guests, groups } = get();
 
   set({
-    tables: tables.map((t) => ({
-      ...t,
-      seatedGuests: (t.seatedGuests || []).filter(
-        (sg) => sg.groupId !== groupId
-      ),
-    })),
+    tables: tables.map((t) =>
+  t.group === groupId
+    ? { ...t, group: null, displayName: "" }
+    : t
+),
     guests: guests.map((g) =>
       g.groupId === groupId
         ? { ...g, tableId: null, tableName: null }
@@ -420,10 +428,12 @@ init: (tables, guests, background = null, canvasView = null) => {
 
     // ⬅️ לטעון את ההושבה בדיוק כמו שהיא מהשרת
     tables: (tables || []).map((t) => ({
-      ...t,
-      displayName: t.displayName || "",
-      seatedGuests: t.seatedGuests || [], // ❌ בלי arrived=false
-    })),
+  ...t,
+  group: t.group || null,
+  displayName: t.displayName || "",
+  seatedGuests: t.seatedGuests || [],
+})),
+
 
     guests: guests || [],
 
@@ -733,7 +743,10 @@ dropGuest: () => {
   const updatedTables = tables.map((t) => {
     // ניקוי הושבות קודמות
     const cleanedSeats =
-      t.seatedGuests?.filter((s) => s.guestId !== guestId) ?? [];
+  (t.seatedGuests || []).filter(
+    (s) => String(s.guestId) !== String(guestId)
+  );
+
 
     if (t.id !== highlightedTable) {
       return { ...t, seatedGuests: cleanedSeats };
@@ -901,7 +914,7 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
       tables: tables.map((t) => ({
         ...t,
         seatedGuests: (t.seatedGuests || []).filter(
-  (s) => s.guestId !== guestId
+  (s) => String(s.guestId) !== String(guestId)
 ),
 
       })),
@@ -1000,11 +1013,37 @@ const block = findFreeBlock(cleanTable, realCount);
               arrived: false,
             })),
           ],
+
+          // ⭐⭐ החסר שגרם לבעיה
+          group: guest.groupId ?? null,
+          displayName:
+            guest.groupId
+              ? get().groups.find(
+                  (g) => String(g._id) === String(guest.groupId)
+                )?.name || ""
+              : "",
         }
       : t
   ),
   guests: [...guests],
 });
+
+fetch(`/api/tables/${tableId}`, {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    group: guest.groupId ?? null,
+    displayName:
+      guest.groupId
+        ? get().groups.find(
+            (g) => String(g._id) === String(guest.groupId)
+          )?.name || ""
+        : "",
+  }),
+});
+
+
 
   return { ok: true };
 },
