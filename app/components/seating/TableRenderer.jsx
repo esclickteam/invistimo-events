@@ -156,6 +156,10 @@ function getSeatRotation(table, c) {
 
   function TableRenderer({ table, hideSeats = false }) {
 
+    const seatedGuests = Array.isArray(table.seatedGuests)
+    ? table.seatedGuests
+    : [];
+
 
 
   const tableRef = useRef(null);
@@ -179,12 +183,12 @@ const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 const groups = useSeatingStore((s) => s.groups);
 
 const groupForTable = useMemo(() => {
-  if (!table.seatedGuests?.length) return null;
+  if (!seatedGuests.length) return null;
 
   // מוצאים אורח ראשון עם קבוצה
   const guestWithGroup = guests.find((g) =>
     g.groupId &&
-    table.seatedGuests.some(
+    seatedGuests.some(
       (s) => String(s.guestId) === String(g._id || g.id)
     )
   );
@@ -194,7 +198,7 @@ const groupForTable = useMemo(() => {
   return groups.find(
     (gr) => String(gr._id) === String(guestWithGroup.groupId)
   );
-}, [table.seatedGuests, guests, groups]);
+}, [seatedGuests, guests, groups]);
 
 
 const displayName = table.displayName || "";
@@ -223,11 +227,11 @@ useEffect(() => {
   const assigned = table.seatedGuests || [];
 
  const occupiedSeatsCount = useMemo(() => {
-  if (!table.seatedGuests?.length) return 0;
+  if (!seatedGuests.length) return 0;
 
   // ⭐ בדיוק כמו בסיידבר – לפי arrived בפועל
-  return table.seatedGuests.filter((s) => s.arrived === true).length;
-}, [table.seatedGuests]);
+  return seatedGuests.filter((s) => s.arrived === true).length;
+}, [seatedGuests]);
 
 
 
@@ -252,11 +256,11 @@ const tableLabel = groupForTable
 
   const isHighlighted =
   highlightedTable === table.id ||
-  assigned.some((s) => String(s.guestId) === String(selectedGuestId)) ||
+  seatedGuests.some((s) => String(s.guestId) === String(selectedGuestId)) ||
   (
     from === "personal" &&
     guestIdFromUrl &&
-    assigned.some((s) => String(s.guestId) === String(guestIdFromUrl))
+    seatedGuests.some((s) => String(s.guestId) === String(guestIdFromUrl))
   );
 
 
@@ -289,11 +293,11 @@ const tableText = isHighlighted
   if (seatingMode !== "live") return new Set();
 
   return new Set(
-    table.seatedGuests
+    seatedGuests
       .filter((s) => s.arrived === true)
       .map((s) => s.seatIndex)
   );
-}, [seatingMode, table.seatedGuests]);
+}, [seatingMode, seatedGuests]);
 
 
 
@@ -307,7 +311,7 @@ const tableText = isHighlighted
 }, [
   layout.type,
   table.seats,
-  table.seatedGuests,
+  seatedGuests,
   occupiedSeatsCount, // ✅ חדש
   hideSeats,
 ]);
@@ -524,7 +528,7 @@ const tableText = isHighlighted
 {/* כסאות – מוסתרים במפיק */}
 {!hideSeats &&
   seatsCoords.map((c, i) => {
-    const seat = table.seatedGuests.find((s) => s.seatIndex === i);
+    const seat = seatedGuests.find((s) => s.seatIndex === i);
 
 const isOccupied =
   seatingMode === "live"
