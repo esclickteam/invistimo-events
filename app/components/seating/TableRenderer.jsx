@@ -176,6 +176,14 @@ function getSeatRotation(table, c) {
 
 const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 
+const groups = useSeatingStore((s) => s.groups);
+
+const groupForTable = useMemo(() => {
+  return groups.find(
+    (g) => String(g.tableId) === String(table.id)
+  );
+}, [groups, table.id]);
+
 
 const displayName = table.displayName || "";
 
@@ -231,9 +239,10 @@ const seatsTotal = Number(table.seats || 0);
 
 
 
-const tableLabel = `${table.name}
-${displayName}
-${occupiedSeatsCount}/${seatsTotal}`;
+const tableLabel = groupForTable
+  ? `${groupForTable.name}\n${occupiedSeatsCount}/${seatsTotal}`
+  : `${occupiedSeatsCount}/${seatsTotal}`;
+
 
 
 
