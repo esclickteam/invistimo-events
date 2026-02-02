@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useState, useEffect, Suspense } from "react";
 
@@ -73,6 +73,9 @@ const isProducer = pathname.includes("/events/production");
 
     const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
+    const [blockReason, setBlockReason] = useState<"no-event" | "no-plan" | null>(null);
+
+
     useEffect(() => {
   if (!isProducer) return;
 
@@ -99,7 +102,12 @@ const isProducer = pathname.includes("/events/production");
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
 
-        if (!invData?.success || !invData.invitation?.eventId) return;
+        if (!invData?.success || !invData.invitation?.eventId) {
+  setBlocked(true);
+  setBlockReason("no-event");
+  return;
+}
+
 
         const eventIdFromApi: string = invData.invitation.eventId;
         setEventId(eventIdFromApi);
@@ -108,9 +116,17 @@ const isProducer = pathname.includes("/events/production");
         const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
         if (gRes.status === 403) {
   setBlocked(true);
-  setShowUpgrade(true);
+
+  if (user?.plan !== "premium") {
+    setBlockReason("no-plan");
+    setShowUpgrade(true);
+  } else {
+    setBlockReason("no-event");
+  }
+
   return;
 }
+
 
 
 
@@ -137,7 +153,14 @@ const isProducer = pathname.includes("/events/production");
         const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
 if (tRes.status === 403) {
   setBlocked(true);
-  setShowUpgrade(true);
+
+  if (user?.plan !== "premium") {
+    setBlockReason("no-plan");
+    setShowUpgrade(true);
+  } else {
+    setBlockReason("no-event");
+  }
+
   return;
 }
 
@@ -171,7 +194,8 @@ if (grRes.ok) {
     
 
     load();
-  }, [init, setZones, setGroups]);
+  }, [init, setZones, setGroups, user?.plan]);
+
 
 
   const tablesLite = tables as unknown as TableLite[];
@@ -262,10 +286,18 @@ if (grRes.ok) {
     });
 
     if (res.status === 403) {
-      setBlocked(true);
-      setShowUpgrade(true);
-      return;
-    }
+  setBlocked(true);
+
+  if (user?.plan !== "premium") {
+    setBlockReason("no-plan");
+    setShowUpgrade(true);
+  } else {
+    setBlockReason("no-event");
+  }
+
+  return;
+}
+
 
     const data = await res.json();
     alert(data.success ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
@@ -280,17 +312,27 @@ if (grRes.ok) {
         <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
           <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
             <h2 className="text-2xl font-semibold mb-3">
-              הושבה אינה כלולה בחבילה שלך
-            </h2>
+  {blockReason === "no-event"
+    ? "יש ליצור אירוע כדי להשתמש בהושבה"
+    : "הושבה אינה כלולה בחבילה שלך"}
+</h2>
+
             <p className="text-gray-600 mb-6">
-              כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום.
-            </p>
-            <button
-              onClick={() => setShowUpgrade(true)}
-              className="px-5 py-2 bg-black text-white rounded-lg"
-            >
-              שדרוג חבילה
-            </button>
+  {blockReason === "no-event"
+    ? "לא נמצא אירוע פעיל המשויך לחשבון שלך."
+    : "כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום."}
+</p>
+
+            {blockReason === "no-plan" && (
+  <button
+    onClick={() => setShowUpgrade(true)}
+    className="px-5 py-2 bg-black text-white rounded-lg"
+  >
+    שדרוג חבילה
+  </button>
+)}
+
+
           </div>
         </div>
 
