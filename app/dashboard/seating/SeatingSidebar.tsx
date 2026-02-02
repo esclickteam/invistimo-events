@@ -353,18 +353,7 @@ export default function SeatingSidebar() {
     return;
   }
 
-  // אם יש שולחן לקבוצה → הושבה רגילה
-  const groupTableId =
-    group && getGroupTableId(group._id)
-      ? getGroupTableId(group._id)
-      : null;
-
-  if (groupTableId) {
-    assignGuestBlock({ guestId: gid, tableId: groupTableId });
-    return;
-  }
-
-  // ❗ אין שולחן לקבוצה → פותחים בחירת שולחן לאורח
+  // תמיד פתיחת בחירה ידנית לאורח
   setSelectingGuestId(gid);
 }}
 
