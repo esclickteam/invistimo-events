@@ -103,14 +103,16 @@ const isProducer = pathname.includes("/events/production");
         const invData = await invRes.json();
 
         if (!invData?.success || !invData.invitation?.eventId) {
-  setBlocked(true);
-  setBlockReason("no-event");
+  // אם כבר הגענו לדף הושבה – לא לחסום
   return;
 }
 
 
         const eventIdFromApi: string = invData.invitation.eventId;
         setEventId(eventIdFromApi);
+
+        
+
 
         /* 2️⃣ אורחים – לפי eventId */
         const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
@@ -182,6 +184,11 @@ if (grRes.ok) {
   const grData = await grRes.json();
   setGroups(grData.groups || []);
 }
+
+// ✅ איפוס חסימה אחרי טעינה מוצלחת
+setBlocked(false);
+setBlockReason(null);
+
 
 
       
@@ -304,7 +311,8 @@ if (grRes.ok) {
   /* ===============================
      BLOCKED
   =============================== */
-  if (blocked) {
+  if (blocked && !eventId) {
+
   // ⛔ אין אירוע
   if (blockReason === "no-event") {
     return (
