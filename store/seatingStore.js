@@ -138,8 +138,20 @@ getGroupSize: (groupId) => {
 
 // ⭐️ ספירת מושבים להושבה מה-SIDEBAR (תכנון, לא live)
 getSidebarSeatCount: (guest) => {
-  return Number(guest.guestsCount ?? 1);
+  // אם לא אישר הגעה – אין מקומות
+  if (guest?.rsvp !== "yes") {
+    return 0;
+  }
+
+  // אם יש arrivedCount (RSVP מעודכן) – זה מקור האמת
+  if (typeof guest.arrivedCount === "number") {
+    return guest.arrivedCount;
+  }
+
+  // fallback בטוח: אורח אחד
+  return 1;
 },
+
 
 getGuestSeatCount: (guest) => {
   const { seatingMode, liveArrivals } = get();
