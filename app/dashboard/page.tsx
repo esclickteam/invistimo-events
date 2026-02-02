@@ -920,19 +920,18 @@ console.log("INVITATION:", invitation);
 
 
         <button
-          onClick={() =>
-            router.push(
-              isDemo
-                ? "/try/dashboard/seating"
-                : invitation
-                ? "/dashboard/seating"
-                : "/dashboard/create-invite"
-            )
-          }
-          className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
-        >
-          🪑 סידורי הושבה
-        </button>
+  onClick={() => {
+    if (isDemo) {
+      handleDemoBlockedAction();
+      return;
+    }
+
+    router.push("/dashboard/seating");
+  }}
+  className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+>
+  🪑 סידורי הושבה
+</button>
 
         <button
           onClick={() =>
@@ -949,19 +948,17 @@ console.log("INVITATION:", invitation);
       {/* מובייל */}
       <div className="flex md:hidden flex-col gap-3">
         <button
-          onClick={() =>
-            isDemo
-              ? handleDemoBlockedAction()
-              : router.push(
-                  invitation
-                    ? `/dashboard/edit-invite/${invitationId}`
-                    : "/dashboard/create-invite"
-                )
-          }
-          className="border border-gray-300 px-6 py-3 rounded-full"
-        >
-          {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-        </button>
+  onClick={() => {
+    if (isDemo) {
+      handleDemoBlockedAction();
+      return;
+    }
+
+    router.push("/dashboard/seating");
+  }}
+>
+  🪑 סידורי הושבה
+</button>
 
         <button
           onClick={() => setOpenAddModal(true)}
