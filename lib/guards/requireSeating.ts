@@ -8,27 +8,60 @@ export async function requireSeating() {
 
   const auth = await getUserIdFromRequest();
 
-if (!auth?.userId) {
-  return NextResponse.json(
-    { success: false, error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+  // 🔐 לא מחובר
+  if (!auth?.userId) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      ),
+    };
+  }
 
-const userId = auth.userId;
+  const userId = auth.userId;
 
   const user = await User.findById(userId).lean();
 
-  if (!user?.planLimits?.seatingEnabled) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Seating is not included in your plan",
-        code: "SEATING_NOT_ALLOWED",
-      },
-      { status: 403 }
-    );
+  if (!user) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      ),
+    };
   }
 
-  return { userId };
+  /**
+   * ⭐ אדמין בהתחזות – תמיד מותר
+   */
+  if (user.impersonated === true) {
+    return { ok: true, userId };
+  }
+
+  /**
+   * ⭐ בדיקת הרשאת הושבה
+   * - פרימיום תמיד כולל הושבה
+   * - add-on עתידי דרך planLimits
+   */
+  const hasSeating =
+    user.plan === "premium" ||
+    user.planLimits?.seatingEnabled === true;
+
+  if (!hasSeating) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          success: false,
+          error: "Seating is not included in your plan",
+          code: "SEATING_NOT_ALLOWED",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { ok: true, userId };
 }

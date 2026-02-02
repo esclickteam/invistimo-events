@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
-import User from "@/models/User";
 import Invitation from "@/models/Invitation";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
@@ -24,31 +23,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 זיהוי משתמש */
-    const auth = await getUserIdFromRequest();
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+    /* 🔐 Guard אחיד – הרשאת הושבה */
+    const guard = await requireSeating();
+    if (!guard.ok) {
+      return guard.response!;
     }
 
-    const userId = auth.userId;
-
-    /* 🔐 בדיקת חבילה – הושבה */
-    const user = await User.findById(userId).lean();
-    if (!user?.planLimits?.seatingEnabled) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Seating is not included in your plan",
-          code: "SEATING_NOT_ALLOWED",
-        },
-        { status: 403 }
-      );
-    }
+    const userId = guard.userId!;
 
     const { eventId } = await context.params;
+    if (!eventId) {
+      return NextResponse.json(
+        { success: false, error: "Missing eventId" },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
 
     console.log("📥 SAVE SEATING BODY:", {
@@ -101,6 +91,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        🔐 הרשאות – לפני כתיבה
+       (בעלות / מפיק)
     =============================== */
     const invitation = await Invitation.findOne({ eventId }).lean();
 
@@ -150,7 +141,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        איפוס מספרי שולחן לאורחים
-       (האורחים שייכים להזמנה)
     =============================== */
     await InvitationGuest.updateMany(
       { invitationId: invitation._id },

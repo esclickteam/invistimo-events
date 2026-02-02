@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
-import User from "@/models/User";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
@@ -15,40 +14,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 זיהוי משתמש */
-    const auth = await getUserIdFromRequest();
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+    /* 🔐 Guard אחיד – הרשאת הושבה */
+    const guard = await requireSeating();
+    if (!guard.ok) {
+      return guard.response!;
     }
-
-    const userId = auth.userId;
-
-    /* 🔐 שליפת משתמש */
-    const user = await User.findById(userId).lean();
-
-    /**
-     * ⭐ אדמין בהתחזות = מתנהג כלקוח
-     * → מדלגים על בדיקת החבילה
-     */
-    if (user?.impersonated !== true) {
-  const hasSeating =
-    user?.plan === "premium" ||
-    user?.planLimits?.seatingEnabled === true;
-
-  if (!hasSeating) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Seating is not included in your plan",
-        code: "SEATING_NOT_ALLOWED",
-      },
-      { status: 403 }
-    );
-  }
-}
 
     /* ===============================
        1️⃣ params (חובה await)
@@ -62,7 +32,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       );
     }
 
-    console.log("📤 LOAD SEATING TABLES:", { userId, eventId });
+    console.log("📤 LOAD SEATING TABLES:", { eventId });
 
     /* ===============================
        2️⃣ שליפת הושבה לפי eventId
