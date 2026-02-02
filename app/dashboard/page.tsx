@@ -15,6 +15,7 @@ import GuestsControls from "@/app/components/GuestsControls";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
+import type { QuickFilter } from "@/types/quickFilter";
 
 
 
@@ -68,7 +69,7 @@ type Guest = {
   }[];
 };
 
-type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
+
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
 type SortDir = "asc" | "desc";
 
@@ -591,10 +592,19 @@ useEffect(() => {
     );
   };
 
-  // ==============================
-// ממתינים / לא ענה (נגזר מסבבי שיחות)
-// ==============================
 
+
+function getLastCallStatus(guest: Guest) {
+  if (!guest.callRounds || guest.callRounds.length === 0) {
+    return null;
+  }
+
+  const lastRound = [...guest.callRounds].sort(
+    (a, b) => b.roundNumber - a.roundNumber
+  )[0];
+
+  return lastRound.status;
+}
 
 
 
@@ -608,14 +618,30 @@ useEffect(() => {
   if (quickFilter === "yes") list = list.filter((g) => g.rsvp === "yes");
   if (quickFilter === "no") list = list.filter((g) => g.rsvp === "no");
 
-  // ⭐️ פיצול ממתינים / לא ענה
-  if (quickFilter === "pending") {
-  list = list.filter((g) => g.rsvp === "pending");
-}
+ 
 
   if (quickFilter === "noTable") {
     list = list.filter((g) => !(g.tableName && g.tableName.trim()));
   }
+
+  if (quickFilter === "call_answered") {
+  list = list.filter(
+    (g) => getLastCallStatus(g) === "answered"
+  );
+}
+
+if (quickFilter === "call_no_answer") {
+  list = list.filter(
+    (g) => getLastCallStatus(g) === "no_answer"
+  );
+}
+
+if (quickFilter === "call_confirmed") {
+  list = list.filter(
+    (g) => getLastCallStatus(g) === "confirmed"
+  );
+}
+
 
   // 2) Search (name / phone)
   const q = search.trim().toLowerCase();

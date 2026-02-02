@@ -1,28 +1,44 @@
 export type Guest = {
+  /* ======================
+     זיהוי
+  ====================== */
   _id: string;
-
-  /* זיהוי */
   name: string;
   phone: string;
   token: string;
 
-  /* אישור הגעה */
+  /* ======================
+     אישור הגעה (RSVP)
+  ====================== */
   rsvp: "yes" | "no" | "pending";
 
-  /* הושבה */
-  tableId?: string | null;     // ⭐ מקור אמת (לא tableName)
-  tableName?: string | null;   // ⚠️ אופציונלי / נגזר
-  seatIndex?: number | null;   // ⭐ מקום בשולחן
+  /* ======================
+     הושבה (SOURCE OF TRUTH)
+  ====================== */
+  tableId?: string | null;     // ⭐ מקור אמת – חיבור לשולחן
+  seatIndex?: number | null;   // ⭐ מיקום מדויק בשולחן
 
-  /* קבוצה */
+  /* ======================
+     נגזרות UI בלבד
+     ❗ לא להשתמש כלוגיקה
+  ====================== */
+  tableName?: string | null;   // לתצוגה בלבד
+  groupName?: string;          // לתצוגה בלבד
+
+  /* ======================
+     קבוצות
+  ====================== */
   groupId?: string | null;     // ⭐ חיבור לקבוצות
-  groupName?: string;          // ⚠️ נגזר בלבד (ל־UI)
 
-  /* נתונים כלליים */
-  guestsCount?: number;
+  /* ======================
+     נתונים כלליים
+  ====================== */
+  guestsCount?: number;        // כמה מוזמנים באורח
   notes?: string;
 
-  /* Live */
-  arrived?: boolean;           // ⭐ הגיע לאירוע
+  /* ======================
+     Live / אירוע
+  ====================== */
+  arrived?: boolean;           // ⭐ הגיע בפועל לאירוע
   seated?: boolean;            // ⭐ הושיבו בפועל
 };

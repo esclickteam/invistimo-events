@@ -1,14 +1,13 @@
 "use client";
 
 import { Dispatch, SetStateAction } from "react";
+import type { QuickFilter } from "@/types/quickFilter";
 
 /* ============================================================
    Types
 ============================================================ */
 
 type Group = { _id: string; name: string };
-
-type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
 
 type Props = {
   /* 🔍 Search */
@@ -55,7 +54,7 @@ export default function GuestsControls({
     typeof selectedGroupId === "string" &&
     onManageGroups;
 
-  const showFilters = quickFilter && setQuickFilter;
+  const showFilters = Boolean(quickFilter && setQuickFilter);
 
   return (
     <div className="flex flex-col gap-3 mb-4">
@@ -116,28 +115,44 @@ export default function GuestsControls({
             <>
               <FilterPill
                 active={quickFilter === "all"}
-                onClick={() => setQuickFilter("all")}
+                onClick={() => setQuickFilter!("all")}
                 label="הכל"
               />
+
               <FilterPill
                 active={quickFilter === "yes"}
-                onClick={() => setQuickFilter("yes")}
+                onClick={() => setQuickFilter!("yes")}
                 label="מגיעים"
               />
-              <FilterPill
-                active={quickFilter === "pending"}
-                onClick={() => setQuickFilter("pending")}
-                label="ממתינים"
-              />
+
               <FilterPill
                 active={quickFilter === "no"}
-                onClick={() => setQuickFilter("no")}
+                onClick={() => setQuickFilter!("no")}
                 label="לא מגיעים"
               />
+
               <FilterPill
                 active={quickFilter === "noTable"}
-                onClick={() => setQuickFilter("noTable")}
+                onClick={() => setQuickFilter!("noTable")}
                 label="בלי שולחן"
+              />
+
+              <FilterPill
+                active={quickFilter === "call_answered"}
+                onClick={() => setQuickFilter!("call_answered")}
+                label="ענה לשיחה"
+              />
+
+              <FilterPill
+                active={quickFilter === "call_no_answer"}
+                onClick={() => setQuickFilter!("call_no_answer")}
+                label="לא ענה"
+              />
+
+              <FilterPill
+                active={quickFilter === "call_confirmed"}
+                onClick={() => setQuickFilter!("call_confirmed")}
+                label="אישר בשיחה"
               />
             </>
           )}
