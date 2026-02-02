@@ -9,6 +9,7 @@ import MobileGuests from "./MobileGuests";
 import SeatingSidebar from "./SeatingSidebar";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext"; 
+import { useParams } from "next/navigation";
 
 
 
@@ -39,7 +40,6 @@ type TableLite = { x: number; y: number };
 export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [eventId, setEventId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
@@ -63,6 +63,8 @@ const isProducer = pathname.includes("/events/production");
   const groups = useSeatingStore((s) => s.groups);
   const { user } = useAuth();
 
+const params = useParams();
+const eventIdFromUrl = params?.eventId as string | undefined;
 
 
   const background = useSeatingStore((s) => s.background);
@@ -92,114 +94,79 @@ const isProducer = pathname.includes("/events/production");
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
-    async function load() {
-      try {
-        /* 🧹 איפוס מוחלט לפני טעינה */
-        useSeatingStore.getState().init([], [], null, null);
-        useZoneStore.getState().setZones([]);
+  async function load() {
+    try {
+      /* 🧹 איפוס מוחלט לפני טעינה */
+      useSeatingStore.getState().init([], [], null, null);
+      useZoneStore.getState().setZones([]);
 
-        /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
-        const invRes = await fetch("/api/invitations/my");
-        const invData = await invRes.json();
-
-        if (!invData?.success || !invData.invitation?.eventId) {
-  // אם כבר הגענו לדף הושבה – לא לחסום
-  return;
-}
-
-
-        const eventIdFromApi: string = invData.invitation.eventId;
-        setEventId(eventIdFromApi);
-
-        
-
-
-        /* 2️⃣ אורחים – לפי eventId */
-        const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
-        if (gRes.status === 403) {
-  setBlocked(true);
-
-  if (user?.plan !== "premium") {
-    setBlockReason("no-plan");
-    setShowUpgrade(true);
-  } else {
-    setBlockReason("no-event");
-  }
-
-  return;
-}
-
-
-
-
-        const gData = await gRes.json();
-
-        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-  id: g._id,
-  name: g.name,
-  rsvp: g.rsvp,
-  guestsCount: g.guestsCount,
-  arrivedCount: g.arrivedCount,
-  actualArrivedCount: g.actualArrivedCount ?? 0,
-  groupId: g.groupId ?? null,
-
-  count: g.guestsCount ?? 1, // ✅ תמיד לפי מוזמנים
-}));
-
-
-
-
-        /* 3️⃣ שולחנות + אזורים + קנבס */
-        const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
-if (tRes.status === 403) {
-  setBlocked(true);
-
-  if (user?.plan !== "premium") {
-    setBlockReason("no-plan");
-    setShowUpgrade(true);
-  } else {
-    setBlockReason("no-event");
-  }
-
-  return;
-}
-
-const tData = await tRes.json();
-
-/* 3️⃣ INIT – טבלאות + אורחים + קנבס */
-init(
-  tData.tables || [],
-  normalizedGuests,
-  tData.background ?? null,
-  tData.canvasView ?? null
-);
-
-setZones(tData.zones || []);
-
-/* 4️⃣ קבוצות – חייב לבוא אחרי init */
-const invitationId = invData.invitation._id;
-
-const grRes = await fetch(`/api/seating/groups/${invitationId}`);
-if (grRes.ok) {
-  const grData = await grRes.json();
-  setGroups(grData.groups || []);
-}
-
-// ✅ איפוס חסימה אחרי טעינה מוצלחת
-setBlocked(false);
-setBlockReason(null);
-
-
-
-      
-      } catch (err) {
-        console.error("❌ SeatingPage load error:", err);
+      // ✅ מקור אמת יחיד ל־eventId
+      if (!eventIdFromUrl) {
+        setBlocked(true);
+        setBlockReason("no-event");
+        return;
       }
-    }
-    
 
-    load();
-  }, [init, setZones, setGroups, user?.plan]);
+      setBlocked(false);
+      setBlockReason(null);
+
+      /* 2️⃣ אורחים */
+      const gRes = await fetch(`/api/seating/guests/${eventIdFromUrl}`);
+      if (gRes.status === 403) {
+        setBlocked(true);
+        setBlockReason(user?.plan !== "premium" ? "no-plan" : "no-event");
+        setShowUpgrade(user?.plan !== "premium");
+        return;
+      }
+
+      const gData = await gRes.json();
+
+      const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+        id: g._id,
+        name: g.name,
+        rsvp: g.rsvp,
+        guestsCount: g.guestsCount,
+        arrivedCount: g.arrivedCount,
+        actualArrivedCount: g.actualArrivedCount ?? 0,
+        groupId: g.groupId ?? null,
+        count: g.guestsCount ?? 1,
+      }));
+
+      /* 3️⃣ שולחנות */
+      const tRes = await fetch(`/api/seating/tables/${eventIdFromUrl}`);
+      if (tRes.status === 403) {
+        setBlocked(true);
+        setBlockReason(user?.plan !== "premium" ? "no-plan" : "no-event");
+        setShowUpgrade(user?.plan !== "premium");
+        return;
+      }
+
+      const tData = await tRes.json();
+
+      init(
+        tData.tables || [],
+        normalizedGuests,
+        tData.background ?? null,
+        tData.canvasView ?? null
+      );
+
+      setZones(tData.zones || []);
+
+      /* 4️⃣ קבוצות – לפי eventId */
+      const grRes = await fetch(`/api/seating/groups/${eventIdFromUrl}`);
+      if (grRes.ok) {
+        const grData = await grRes.json();
+        setGroups(grData.groups || []);
+      }
+
+    } catch (err) {
+      console.error("❌ SeatingPage load error:", err);
+    }
+  }
+
+  load();
+}, [eventIdFromUrl, user?.plan]);
+
 
 
 
@@ -271,13 +238,15 @@ setBlockReason(null);
      SAVE
   =============================== */
   async function saveSeating() {
-    if (!eventId) return;
+    if (!eventIdFromUrl) return;
+
 
     const zones = useZoneStore.getState().zones;
     const cv = useSeatingStore.getState().canvasView;
 
 
-    const res = await fetch(`/api/seating/save/${eventId}`, {
+    const res = await fetch(`/api/seating/save/${eventIdFromUrl}`, {
+
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -311,7 +280,8 @@ setBlockReason(null);
   /* ===============================
      BLOCKED
   =============================== */
-  if (blocked && !eventId) {
+  if (blocked) {
+
 
   // ⛔ אין אירוע
   if (blockReason === "no-event") {
@@ -399,7 +369,8 @@ setBlockReason(null);
     העלאת תבנית אולם
   </button>
 
-  <ExportSeatingPdf eventId={eventId} />
+  <ExportSeatingPdf eventId={eventIdFromUrl ?? null} />
+
 
   <button
     onClick={saveSeating}

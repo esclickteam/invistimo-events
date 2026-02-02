@@ -101,21 +101,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
         { status: 404 }
       );
     }
+const isClientOwner =
+  String(invitation.ownerId) === String(userId) ||
+  String(invitation.userId) === String(userId);
 
-    const isOwner = String(invitation.ownerId) === String(userId);
+const isProducer =
+  Array.isArray(invitation.producers) &&
+  invitation.producers.some(
+    (p: any) => String(p.userId ?? p) === String(userId)
+  );
 
-    const isProducer =
-      Array.isArray(invitation.producers) &&
-      invitation.producers.some(
-        (p: any) => String(p.userId ?? p) === String(userId)
-      );
+if (!isClientOwner && !isProducer) {
+  return NextResponse.json(
+    { success: false, error: "FORBIDDEN" },
+    { status: 403 }
+  );
+}
 
-    if (!isOwner && !isProducer) {
-      return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
 
     /* ===============================
        SAVE / UPSERT (לפי eventId)
