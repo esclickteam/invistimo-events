@@ -156,17 +156,17 @@ useEffect(() => {
         relation: updatedGuest.relation,
         rsvp: updatedGuest.rsvp,
 
-        // ⭐ הקריטי – זה מה שהיה חסר
+        // ⭐ הקריטי – כמה מוזמנים וכמה מגיעים (צד לקוח)
         guestsCount: updatedGuest.guestsCount,
         arrivedCount:
-  updatedGuest.arrivedCount ??
-  (updatedGuest.rsvp === "yes"
-    ? updatedGuest.guestsCount
-    : 0),
+          updatedGuest.arrivedCount ??
+          (updatedGuest.rsvp === "yes"
+            ? updatedGuest.guestsCount
+            : 0),
 
-
-        // לייב (אם קיים)
-        actualArrivedCount: updatedGuest.actualArrivedCount ?? g.actualArrivedCount,
+        // ⭐ לייב – לא נוגעים אם לא הגיע
+        actualArrivedCount:
+          updatedGuest.actualArrivedCount ?? g.actualArrivedCount,
 
         notes: updatedGuest.notes,
         groupId: updatedGuest.groupId,
@@ -175,10 +175,17 @@ useEffect(() => {
     })
   );
 
+  // ⭐️ זה החיבור להושבה – איפוס כיסאות אפורים
+  useSeatingStore
+    .getState()
+    .resetArrivedSeatsForGuest(updatedGuest._id);
+
   if (invitationId) {
     await loadGroups(invitationId);
   }
 };
+
+
 
 
   const [showImportModal, setShowImportModal] = useState(false);

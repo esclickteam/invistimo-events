@@ -1076,6 +1076,17 @@ syncArrivedSeats: (guestId) => {
   });
 },
 
+resetArrivedSeatsForGuest: (guestId) =>
+  set((state) => ({
+    tables: state.tables.map((table) => ({
+      ...table,
+      seatedGuests: (table.seatedGuests || []).map((sg) =>
+        String(sg.guestId) === String(guestId)
+          ? { ...sg, arrived: false }
+          : sg
+      ),
+    })),
+  })),
 
 
 
