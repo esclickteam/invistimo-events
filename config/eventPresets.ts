@@ -13,7 +13,7 @@ export const EVENT_PRESETS: Record<string, ZoneType[]> = {
     "stage",
     "danceFloor",
     "buffet",
-    "kidsArea",
+    
   ],
 
   bat_mitzvah: [
