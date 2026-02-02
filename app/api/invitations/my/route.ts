@@ -33,22 +33,25 @@ export async function GET() {
     const createdByProducerId = user?.createdByProducer || null;
 
     const invitation = await Invitation.findOne({
-      $or: [
-        { ownerId: userId },
-        ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
-      ],
-    })
-      .select(`
-        _id
-        eventId
-        maxGuests
-        maxMessages
-        remainingMessages
-        shareId
-        producerId
-        ownerId
-      `)
-      .lean();
+  eventId: { $ne: null }, // ✅ קריטי
+  $or: [
+    { ownerId: userId },
+    ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
+  ],
+})
+  .sort({ updatedAt: -1 }) // ✅ קריטי
+  .select(`
+    _id
+    eventId
+    maxGuests
+    maxMessages
+    remainingMessages
+    shareId
+    producerId
+    ownerId
+  `)
+  .lean();
+
 
     if (!invitation) {
       return NextResponse.json({
