@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
+import Group from "@/models/Group"; // ⭐ חובה
 import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
@@ -25,13 +27,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* 🔐 Guard אחיד – הרשאת הושבה */
     const guard = await requireSeating();
-    if (!guard.ok) {
-      return guard.response!;
-    }
+    if (!guard.ok) return guard.response!;
 
     const userId = guard.userId!;
-
     const { eventId } = await context.params;
+
     if (!eventId) {
       return NextResponse.json(
         { success: false, error: "Missing eventId" },
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     /* ===============================
        TABLES
     =============================== */
-    const tables = Array.isArray(body.tables) ? body.tables : [];
+    const rawTables = Array.isArray(body.tables) ? body.tables : [];
 
     /* ===============================
        ZONES
@@ -91,7 +91,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        🔐 הרשאות – לפני כתיבה
-       (בעלות / מפיק)
     =============================== */
     const invitation = await Invitation.findOne({ eventId }).lean();
 
@@ -103,7 +102,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const isOwner = String(invitation.ownerId) === String(userId);
-
     const isProducer =
       Array.isArray(invitation.producers) &&
       invitation.producers.some(
@@ -116,6 +114,49 @@ export async function POST(req: NextRequest, context: RouteContext) {
         { status: 403 }
       );
     }
+
+    /* ===============================
+       ⭐ NORMALIZE GROUP SNAPSHOT
+    =============================== */
+    const groupIds = Array.from(
+      new Set(
+        rawTables
+          .map((t: any) => t?.group)
+          .filter((g: any) => typeof g === "string")
+      )
+    );
+
+    const groups =
+      groupIds.length > 0
+        ? await Group.find({
+            _id: { $in: groupIds.map(id => new mongoose.Types.ObjectId(id)) },
+            invitationId: invitation._id,
+          }).lean()
+        : [];
+
+    const groupsById = new Map(
+      groups.map((g: any) => [String(g._id), g])
+    );
+
+    const tables = rawTables.map((table: any) => {
+      if (typeof table.group === "string") {
+        const g = groupsById.get(table.group);
+
+        return {
+          ...table,
+          group: g
+            ? {
+                id: g._id,
+                name: g.name ?? "",
+                expectedCount: g.expectedCount ?? 0,
+              }
+            : null,
+        };
+      }
+
+      // כבר snapshot או null
+      return table;
+    });
 
     /* ===============================
        SAVE / UPSERT (לפי eventId)
@@ -141,7 +182,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        שיוך אורחים לשולחנות
-       + איפוס רק למי שלא שובץ
     =============================== */
     const updatedGuestIds = new Set<string>();
 
@@ -165,7 +205,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    /* 🧹 איפוס רק לאורחים שלא שובצו כלל */
+    /* 🧹 איפוס רק לאורחים שלא שובצו */
     await InvitationGuest.updateMany(
       {
         invitationId: invitation._id,
