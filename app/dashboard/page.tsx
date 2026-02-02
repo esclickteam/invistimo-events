@@ -604,20 +604,24 @@ useEffect(() => {
 // ממתינים / לא ענה (נגזר מסבבי שיחות)
 // ==============================
 
-const pendingGuests = useMemo(() => {
-  return guests.filter(
-    (g) =>
-      g.rsvp === "pending" &&
-      !g.callRounds?.some((r) => r.status === "no_answer")
-  );
+const noAnswerGuests = useMemo(() => {
+  return guests.filter((g) => {
+    if (g.rsvp !== "pending") return false;
+    if (!g.callRounds || g.callRounds.length === 0) return false;
+
+    const lastRound = g.callRounds[g.callRounds.length - 1];
+    return lastRound.status === "no_answer";
+  });
 }, [guests]);
 
-const noAnswerGuests = useMemo(() => {
-  return guests.filter(
-    (g) =>
-      g.rsvp === "pending" &&
-      g.callRounds?.some((r) => r.status === "no_answer")
-  );
+const pendingGuests = useMemo(() => {
+  return guests.filter((g) => {
+    if (g.rsvp !== "pending") return false;
+    if (!g.callRounds || g.callRounds.length === 0) return true;
+
+    const lastRound = g.callRounds[g.callRounds.length - 1];
+    return lastRound.status !== "no_answer";
+  });
 }, [guests]);
 
 
