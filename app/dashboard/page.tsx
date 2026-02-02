@@ -156,15 +156,15 @@ useEffect(() => {
         relation: updatedGuest.relation,
         rsvp: updatedGuest.rsvp,
 
-        // ⭐ הקריטי – כמה מוזמנים וכמה מגיעים (צד לקוח)
+        // ⭐ הקריטי – כמות מוזמנים
         guestsCount: updatedGuest.guestsCount,
+
         arrivedCount:
           updatedGuest.arrivedCount ??
           (updatedGuest.rsvp === "yes"
             ? updatedGuest.guestsCount
             : 0),
 
-        // ⭐ לייב – לא נוגעים אם לא הגיע
         actualArrivedCount:
           updatedGuest.actualArrivedCount ?? g.actualArrivedCount,
 
@@ -175,16 +175,20 @@ useEffect(() => {
     })
   );
 
-  // ⭐️ זה החיבור להושבה – איפוס כיסאות אפורים
-  useSeatingStore
-    .getState()
-    .resetArrivedSeatsForGuest(updatedGuest._id);
+  // ⭐⭐ זה מה שהיה חסר – סנכרון ההושבה
+  const seating = useSeatingStore.getState();
+
+  seating.syncPlannedSeatsForGuest(
+    updatedGuest._id,
+    updatedGuest.guestsCount
+  );
+
+  seating.resetArrivedSeatsForGuest(updatedGuest._id);
 
   if (invitationId) {
     await loadGroups(invitationId);
   }
 };
-
 
 
 

@@ -1076,6 +1076,48 @@ syncArrivedSeats: (guestId) => {
   });
 },
 
+syncPlannedSeatsForGuest: (guestId, nextGuestsCount) => {
+  set((state) => {
+    const gid = String(guestId);
+
+    const tables = state.tables.map((table) => {
+      if (!Array.isArray(table.seatedGuests)) return table;
+
+      // כל הכיסאות של האורח בשולחן הזה
+      const guestSeats = table.seatedGuests
+        .filter((s) => String(s.guestId) === gid)
+        .sort((a, b) => a.seatIndex - b.seatIndex);
+
+      // אם אין הושבה – לא נוגעים
+      if (guestSeats.length === 0) return table;
+
+      // אם הכמות עדיין תקינה – לא נוגעים
+      if (guestSeats.length <= nextGuestsCount) return table;
+
+      // ✂️ כיסאות להשאיר
+      const seatsToKeep = new Set(
+        guestSeats
+          .slice(0, nextGuestsCount)
+          .map((s) => s.seatIndex)
+      );
+
+      return {
+        ...table,
+        seatedGuests: table.seatedGuests.filter((s) => {
+          // כיסאות של אורח אחר – לא נוגעים
+          if (String(s.guestId) !== gid) return true;
+
+          // רק הראשונים נשארים
+          return seatsToKeep.has(s.seatIndex);
+        }),
+      };
+    });
+
+    return { tables };
+  });
+},
+
+
 resetArrivedSeatsForGuest: (guestId) =>
   set((state) => ({
     tables: state.tables.map((table) => ({
