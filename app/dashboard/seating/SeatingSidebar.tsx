@@ -67,10 +67,6 @@ export default function SeatingSidebar() {
   /* ===== Helpers ===== */
   const seatGuestId = (g: Guest) => String(g.id ?? g._id);
 
-  const getClientArrivedCount = (g: Guest) =>
-  Number((g as any).arrivedCount ?? 0);
-
-
   const guestTableMap = useMemo(() => {
     const map = new Map<string, Table>();
     tables.forEach((t) =>
@@ -171,14 +167,7 @@ const getTableGroupLabel = (tableId: string) => {
 
 
   const tableLabel = (t: Table) => {
-  const count = t.seatedGuests.reduce((sum, sg) => {
-    const guest = guests.find(
-      (g) => String(g.id ?? g._id) === String(sg.guestId)
-    );
-
-    return sum + Number((guest as any)?.arrivedCount ?? 0);
-  }, 0);
-
+  const count = t.seatedGuests?.length ?? 0;
 
   const groupLabel = getTableGroupLabel(t.id);
 
@@ -367,8 +356,10 @@ if (!group) {
   const gid = seatGuestId(g);
   const table = guestTableMap.get(gid);
 
-  const plannedCount = getClientArrivedCount(g);
-
+  const plannedCount =
+    useSeatingStore
+      .getState()
+      .getPlannedSeatCount(g);
 
   return (
                     <div
