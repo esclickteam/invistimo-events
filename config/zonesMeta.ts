@@ -40,15 +40,9 @@ export const ZONE_META: Record<
     icon: "🍸",
   },
   buffet: {
-    label: "בופה",                 // ✅ חדש
+    label: "בופה",
     defaultSize: { width: 300, height: 120 },
     color: "#fed7aa",
     icon: "🍽️",
-  },
-  kidsArea: {
-    label: "אזור ילדים",
-    defaultSize: { width: 260, height: 160 },
-    color: "#fecaca",
-    icon: "🧸",
   },
 };

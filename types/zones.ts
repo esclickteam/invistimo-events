@@ -5,7 +5,6 @@ export type ZoneType =
   | "reception"
   | "bar"
   | "buffet"
-  | "kidsArea";
 
 export interface Zone {
   id: string;
