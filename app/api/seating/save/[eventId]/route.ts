@@ -140,16 +140,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     /* ===============================
-       איפוס מספרי שולחן לאורחים
-    =============================== */
-    await InvitationGuest.updateMany(
-      { invitationId: invitation._id },
-      { $set: { tableNumber: null, tableName: "" } }
-    );
-
-    /* ===============================
        שיוך אורחים לשולחנות
+       + איפוס רק למי שלא שובץ
     =============================== */
+    const updatedGuestIds = new Set<string>();
+
     for (const table of tables) {
       if (!Array.isArray(table.seatedGuests)) continue;
 
@@ -161,12 +156,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
       for (const seated of table.seatedGuests) {
         if (!seated?.guestId) continue;
 
+        updatedGuestIds.add(String(seated.guestId));
+
         await InvitationGuest.findByIdAndUpdate(seated.guestId, {
           tableNumber,
           tableName: table.name ?? "",
         });
       }
     }
+
+    /* 🧹 איפוס רק לאורחים שלא שובצו כלל */
+    await InvitationGuest.updateMany(
+      {
+        invitationId: invitation._id,
+        _id: { $nin: Array.from(updatedGuestIds) },
+      },
+      { $set: { tableNumber: null, tableName: "" } }
+    );
 
     return NextResponse.json({
       success: true,
