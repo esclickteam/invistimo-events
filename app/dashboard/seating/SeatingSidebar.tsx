@@ -321,23 +321,40 @@ export default function SeatingSidebar() {
         </div>
 
         {/* 🔽 דרופדאון אורח */}
-        <select
-          className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white min-w-[140px]"
+        {/* ✅ כפתור פעולה לאורח */}
+<button
+  className={`text-xs px-3 py-1 rounded-lg border transition
+    ${
+      table
+        ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+        : "bg-white border-[#e6c3ad] hover:bg-[#f6ede8]"
+    }`}
+  onClick={() => {
+    // אם האורח כבר יושב – הסרה
+    if (table) {
+      removeFromSeat(gid);
+      return;
+    }
 
-          value={table?.id ?? ""}
-          onChange={(e) => {
-            const tableId = e.target.value;
-            if (!tableId) removeFromSeat(gid);
-            else assignGuestBlock({ guestId: gid, tableId });
-          }}
-        >
-          <option value="">ללא שולחן</option>
-          {tables.map((t) => (
-            <option key={t.id} value={t.id}>
-              {tableLabel(t)}
-            </option>
-          ))}
-        </select>
+    // אין שולחנות בכלל
+    if (!tables.length) {
+      alert("אין שולחנות זמינים");
+      return;
+    }
+
+    // עדיפות לשולחן של הקבוצה
+    const preferredTableId =
+      group && getGroupTableId(group._id)
+        ? getGroupTableId(group._id)
+        : tables[0].id;
+
+    assignGuestBlock({ guestId: gid, tableId: preferredTableId });
+  }}
+>
+  {table ? "הסר הושבה" : "הושב"}
+</button>
+
+        
       </div>
     );
   })}
