@@ -43,7 +43,6 @@ type Table = {
   displayName?: string;
   seats: number;
   seatedGuests: { guestId: string }[];
-  group?: string | null; // ← במקום groupId
 };
 
 type Filter = "all" | "seated" | "unseated";
@@ -277,65 +276,41 @@ export default function SeatingSidebar() {
 
   {/* 🔽 dropdown קבוצה */}
   <select
-  onClick={(e) => e.stopPropagation()}
-  className="
-    text-xs
-    h-[32px]
-    leading-[32px]
-    border border-[#e6c3ad]
-    rounded-lg
-    px-2
-    bg-white
-    min-w-[150px]
-  "
-  value={
-    group
-      ? getGroupTableId(group._id)
-      : getNoGroupTableId(visibleGuests)
-  }
-  onChange={(e) => {
-    const tableId = e.target.value;
+    onClick={(e) => e.stopPropagation()}
+    className="
+  text-xs
+  h-[32px]
+  leading-[32px]
+  border border-[#e6c3ad]
+  rounded-lg
+  px-2
+  bg-white
+  min-w-[150px]
+"
 
-    // 1️⃣ הושבת האורחים בפועל
-    visibleGuests
-      .filter((g) => g.rsvp === "yes")
-      .forEach((g) => {
-        const gid = seatGuestId(g);
-        if (!tableId) {
-          removeFromSeat(gid);
-        } else {
-          assignGuestBlock({ guestId: gid, tableId });
-        }
-      });
-
-    // 2️⃣ ⭐ שמירת הקבוצה על השולחן (החלק הקריטי!)
-    useSeatingStore.setState((state: { tables: Table[] }) => ({
-  tables: state.tables.map((t: Table) => {
-    // אם נבחר "ללא שולחן" – מנקים קבוצה מהשולחנות של הקבוצה
-    if (!tableId) {
-      return t.group === group?._id
-        ? { ...t, group: null }
-        : t;
+    value={
+      group
+        ? getGroupTableId(group._id)
+        : getNoGroupTableId(visibleGuests)
     }
-
-    // אם נבחר שולחן – מצמידים קבוצה רק אליו
-    return t.id === tableId
-      ? { ...t, group: group?._id ?? null }
-      : t;
-  }),
-}));
-
-
-  }}
->
-  <option value="">ללא שולחן</option>
-  {tables.map((t) => (
-    <option key={t.id} value={t.id}>
-      {tableLabel(t)}
-    </option>
-  ))}
-</select>
-
+    onChange={(e) => {
+      const tableId = e.target.value;
+      visibleGuests
+        .filter((g) => g.rsvp === "yes")
+        .forEach((g) => {
+          const gid = seatGuestId(g);
+          if (!tableId) removeFromSeat(gid);
+          else assignGuestBlock({ guestId: gid, tableId });
+        });
+    }}
+  >
+    <option value="">ללא שולחן</option>
+    {tables.map((t) => (
+      <option key={t.id} value={t.id}>
+        {tableLabel(t)}
+      </option>
+    ))}
+  </select>
 </div>
 
               {/* ===== Guests ===== */}

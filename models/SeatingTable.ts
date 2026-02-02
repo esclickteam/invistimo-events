@@ -88,10 +88,9 @@ const TableSchema = new Schema(
 
     /* ⭐ SNAPSHOT של קבוצה (כדי שלא ייעלם אחרי ריענון) */
     group: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Group",
-  default: null,
-},
+      type: TableGroupSchema,
+      default: null,
+    },
 
     /* כמות מושבים */
     seats: {
