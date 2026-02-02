@@ -27,6 +27,7 @@ type Guest = {
   name: string;
   phone?: string;
   groupId?: string | null;
+  rsvp?: "yes" | "no" | "pending";
 };
 
 type Group = {
@@ -51,15 +52,12 @@ export default function SeatingSidebar() {
   const groups = useSeatingStore((s) => s.groups) as Group[];
   const tables = useSeatingStore((s) => s.tables) as Table[];
 
-  const seatGroup = useSeatingStore((s) => s.seatGroup);
-  const unseatGroup = useSeatingStore((s) => s.unseatGroup);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const openSeatGuestModal = useSeatingStore(
   (s) => s.openSeatGuestModal
 );
 
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
-  const getGroupSize = useSeatingStore((s) => s.getGroupSize);
 
   /* ===== UI STATE ===== */
   const [search, setSearch] = useState("");
@@ -103,6 +101,7 @@ export default function SeatingSidebar() {
   // מוצאים אורח מהקבוצה שיושב בפועל
   const guest = guests.find(
   (g) =>
+    g.rsvp === "yes" &&
     normalizeGroupId(g.groupId) === String(groupId) &&
     guestTableMap.has(String(g.id ?? g._id))
 );
@@ -120,9 +119,11 @@ export default function SeatingSidebar() {
 const getNoGroupTableId = (list: Guest[]) => {
   if (!list.length) return "";
 
-  const first = list.find((g) =>
+  const first = list.find(
+  (g) =>
+    g.rsvp === "yes" &&
     guestTableMap.has(String(g.id ?? g._id))
-  );
+);
 
   if (!first) return "";
 
@@ -148,7 +149,10 @@ const getNoGroupTableId = (list: Guest[]) => {
 };
 
 
+
   function guestVisible(g: Guest) {
+      if (g.rsvp !== "yes") return false;
+
     const q = search.trim().toLowerCase();
     const gid = seatGuestId(g);
     const isSeated = guestTableMap.has(gid);
@@ -252,30 +256,43 @@ const groupName =
                       tables,
                     });
 
-                    if (!group) {
-                      visibleGuests.forEach((g) => {
-                        const gid = seatGuestId(g);
-                        console.log("➡️ assignGuestBlock (no group)", {
-                          guestId: gid,
-                          tableId,
-                        });
-                        if (!tableId) removeFromSeat(gid);
-                        else assignGuestBlock({ guestId: gid, tableId });
-                      });
-                      return;
-                    }
+                    const seatableGuests = visibleGuests.filter(
+  (g) => g.rsvp === "yes"
+);
+
+if (!seatableGuests.length) return;
+
+if (!group) {
+  seatableGuests.forEach((g) => {
+    const gid = seatGuestId(g);
+    if (!tableId) removeFromSeat(gid);
+    else assignGuestBlock({ guestId: gid, tableId });
+  });
+  return;
+}
+
 
                     if (!tableId) {
-                      console.log("⬅️ unseatGroup", group._id);
-                      unseatGroup(group._id);
-                    } else {
-                      console.log("➡️ seatGroup", {
-                        groupId: group._id,
-                        tableId,
-                      });
-                      seatGroup(group._id, tableId);
-                    }
+  console.log("⬅️ unseatGroup (RSVP-safe)", group._id);
+
+  seatableGuests.forEach((g) => {
+    removeFromSeat(seatGuestId(g));
+  });
+} else {
+  console.log("➡️ seatGroup (RSVP-safe)", {
+    groupId: group._id,
+    tableId,
+  });
+
+  seatableGuests.forEach((g) => {
+    assignGuestBlock({
+      guestId: seatGuestId(g),
+      tableId,
+    });
+  });
+}
                   }}
+                  
                 >
                   <option value="">ללא שולחן</option>
                   {tables.map((t) => {
@@ -340,6 +357,8 @@ const groupName =
                         className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white"
                         value={table?.id ?? ""}
                         onChange={(e) => {
+                            if (g.rsvp !== "yes") return;
+
                           const tableId = e.target.value;
                           console.log("🟩 GUEST SELECT CHANGE", {
                             guest: g,
