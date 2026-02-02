@@ -7,11 +7,8 @@ import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
-/* ===============================
-   TYPES
-=============================== */
 type RouteContext = {
-  params: Promise<{ eventId: string }>;
+  params: { eventId: string };
 };
 
 type BackgroundPayload = {
@@ -19,48 +16,31 @@ type BackgroundPayload = {
   opacity?: number;
 };
 
-export async function POST(req: NextRequest, context: RouteContext) {
+export async function POST(req: NextRequest, { params }: RouteContext) {
   try {
     await dbConnect();
 
-    /* ===============================
-       🔑 eventId – מקור אמת יחיד
-    =============================== */
-    const { eventId } = await context.params;
-
+    const eventId = params.eventId;
     if (!eventId) {
       return NextResponse.json(
-        { success: false, error: "Missing eventId" },
+        { error: "Missing eventId" },
         { status: 400 }
       );
     }
 
-    /* ===============================
-       🔐 Guard – בדיקת חבילת הושבה
-    =============================== */
+    /* 🔐 Guard */
     const guard = await requireSeating(eventId);
     if (!guard.ok) {
-      return guard.response!;
+      return guard.response; // ✅ רק Response
     }
 
     const userId = guard.userId!;
-
     const body = await req.json();
 
-    console.log("📥 SAVE SEATING BODY:", {
-      eventId,
-      tables: body.tables?.length,
-      zones: body.zones?.length,
-    });
-
     /* ===============================
-       TABLES
+       TABLES / ZONES
     =============================== */
     const tables = Array.isArray(body.tables) ? body.tables : [];
-
-    /* ===============================
-       ZONES
-    =============================== */
     const zones = Array.isArray(body.zones) ? body.zones : [];
 
     /* ===============================
@@ -96,40 +76,35 @@ export async function POST(req: NextRequest, context: RouteContext) {
         : null;
 
     /* ===============================
-       🔐 הרשאות – לקוח / מפיק
-       ⭐ לקוח = בעל האירוע (הכי חשוב)
+       הרשאות (לקוח / מפיק)
     =============================== */
     const invitation = await Invitation.findOne({ eventId }).lean();
-
     if (!invitation) {
       return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
+        { error: "INVITATION_NOT_FOUND" },
         { status: 404 }
       );
     }
 
     const isClientOwner =
-  String(invitation.ownerId) === userId ||
-  String(invitation.userId) === userId; // אם קיים אצלך
+      String(invitation.ownerId) === String(userId) ||
+      String(invitation.userId) === String(userId);
 
-const isProducer =
-  Array.isArray(invitation.producers) &&
-  invitation.producers.some(
-    (p: any) => String(p.userId ?? p) === userId
-  );
+    const isProducer =
+      Array.isArray(invitation.producers) &&
+      invitation.producers.some(
+        (p: any) => String(p.userId ?? p) === String(userId)
+      );
 
-if (!isClientOwner && !isProducer) {
-  return {
-    ok: false,
-    response: NextResponse.json(
-      { error: "FORBIDDEN" },
-      { status: 403 }
-    ),
-  };
-}
+    if (!isClientOwner && !isProducer) {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
 
     /* ===============================
-       SAVE / UPSERT – Seating
+       SAVE / UPSERT
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
       { eventId },
@@ -143,16 +118,11 @@ if (!isClientOwner && !isProducer) {
           updatedAt: new Date(),
         },
       },
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
-      }
+      { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
     /* ===============================
-       שיוך אורחים לשולחנות
-       + איפוס רק למי שלא שובץ
+       עדכון אורחים
     =============================== */
     const updatedGuestIds = new Set<string>();
 
@@ -176,7 +146,6 @@ if (!isClientOwner && !isProducer) {
       }
     }
 
-    /* 🧹 איפוס רק אורחים שלא שובצו */
     await InvitationGuest.updateMany(
       {
         invitationId: invitation._id,
@@ -194,9 +163,8 @@ if (!isClientOwner && !isProducer) {
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);
-
     return NextResponse.json(
-      { success: false, error: "Server error" },
+      { error: "Server error" },
       { status: 500 }
     );
   }
