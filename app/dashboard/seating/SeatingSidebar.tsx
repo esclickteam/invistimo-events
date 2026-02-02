@@ -171,7 +171,14 @@ const getTableGroupLabel = (tableId: string) => {
 
 
   const tableLabel = (t: Table) => {
-  const count = t.seatedGuests?.length ?? 0;
+  const count = t.seatedGuests.reduce((sum, sg) => {
+    const guest = guests.find(
+      (g) => String(g.id ?? g._id) === String(sg.guestId)
+    );
+
+    return sum + Number((guest as any)?.arrivedCount ?? 0);
+  }, 0);
+
 
   const groupLabel = getTableGroupLabel(t.id);
 
