@@ -47,7 +47,8 @@ export default function AddGuestModal({
 
     const data = await res.json();
     if (!data?.success) {
-      throw new Error("Failed to create invitation");
+      throw new Error("כדי להוסיף מוזמנים יש ליצור הזמנה תחילה");
+
     }
 
     return data.invitation._id;
