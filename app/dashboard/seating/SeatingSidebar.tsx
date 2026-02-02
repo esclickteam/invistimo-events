@@ -254,7 +254,8 @@ export default function SeatingSidebar() {
             <div key={groupId} className="border-b border-[#ead8cc]">
               {/* ===== Group Header ===== */}
               <div
-  className="px-5 py-3 flex justify-between items-start gap-3 bg-[#f6ede8] cursor-pointer"
+  className="px-5 py-3 flex justify-between items-center gap-3 bg-[#f6ede8] cursor-pointer"
+
   onClick={() =>
     setOpenGroups((o) => ({ ...o, [groupId]: !o[groupId] }))
   }
@@ -272,7 +273,17 @@ export default function SeatingSidebar() {
   {/* 🔽 dropdown קבוצה */}
   <select
     onClick={(e) => e.stopPropagation()}
-    className="text-xs border border-[#e6c3ad] rounded-lg px-2 py-1 bg-white min-w-[150px]"
+    className="
+  text-xs
+  h-[32px]
+  leading-[32px]
+  border border-[#e6c3ad]
+  rounded-lg
+  px-2
+  bg-white
+  min-w-[150px]
+"
+
     value={
       group
         ? getGroupTableId(group._id)
