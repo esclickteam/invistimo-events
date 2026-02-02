@@ -240,8 +240,9 @@ const seatsTotal = Number(table.seats || 0);
 
 
 const tableLabel = groupForTable
-  ? `${groupForTable.name}\n${occupiedSeatsCount}/${seatsTotal}`
-  : `${occupiedSeatsCount}/${seatsTotal}`;
+  ? `${table.name}\n${groupForTable.name}\n${occupiedSeatsCount}/${seatsTotal}`
+  : `${table.name}\n${occupiedSeatsCount}/${seatsTotal}`;
+
 
 
 
