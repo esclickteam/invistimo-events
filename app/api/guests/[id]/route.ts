@@ -140,6 +140,12 @@ if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
   guest.guestsCount = data.guestsCount;
 }
 
+// ⭐ arrivedCount — מי אמורים להגיע (ידני מהמודאל)
+if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
+  guest.arrivedCount = data.arrivedCount;
+}
+
+
 // 2️⃣ RSVP — סטטוס + סנכרון מגיעים
 if (["yes", "no", "pending"].includes(data.rsvp)) {
   guest.rsvp = data.rsvp;
