@@ -608,11 +608,16 @@ const noAnswerGuests = useMemo(() => {
   return guests.filter((g) => {
     if (g.rsvp !== "pending") return false;
 
-    // ❗ אין בכלל סבבים → נחשב "לא ענה"
-    if (!g.callRounds || g.callRounds.length === 0) return true;
+    const rounds = g.callRounds || [];
 
-    const lastRound = g.callRounds[g.callRounds.length - 1];
-    return lastRound.status === "no_answer";
+    // אם יש איזשהו "ישיב בהודעה" → לא ב"לא ענה"
+    if (rounds.some((r) => r.status === "answered")) return false;
+
+    // אם יש לפחות "לא ענה" אחד → לא ענה
+    if (rounds.some((r) => r.status === "no_answer")) return true;
+
+    // אין סבבים בכלל → לא ענה
+    return rounds.length === 0;
   });
 }, [guests]);
 
@@ -623,11 +628,10 @@ const pendingGuests = useMemo(() => {
   return guests.filter((g) => {
     if (g.rsvp !== "pending") return false;
 
-    // ❗ בלי סבבים לא נחשב "ממתין"
-    if (!g.callRounds || g.callRounds.length === 0) return false;
+    const rounds = g.callRounds || [];
 
-    const lastRound = g.callRounds[g.callRounds.length - 1];
-    return lastRound.status !== "no_answer";
+    // מספיק "ישיב בהודעה" אחד → ממתינים
+    return rounds.some((r) => r.status === "answered");
   });
 }, [guests]);
 
