@@ -109,21 +109,24 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const isClientOwner =
-      String(invitation.ownerId) === String(userId) ||
-      String(invitation.userId) === String(userId);
+  String(invitation.ownerId) === userId ||
+  String(invitation.userId) === userId; // אם קיים אצלך
 
-    const isProducer =
-      Array.isArray(invitation.producers) &&
-      invitation.producers.some(
-        (p: any) => String(p.userId ?? p) === String(userId)
-      );
+const isProducer =
+  Array.isArray(invitation.producers) &&
+  invitation.producers.some(
+    (p: any) => String(p.userId ?? p) === userId
+  );
 
-    if (!isClientOwner && !isProducer) {
-      return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
+if (!isClientOwner && !isProducer) {
+  return {
+    ok: false,
+    response: NextResponse.json(
+      { error: "FORBIDDEN" },
+      { status: 403 }
+    ),
+  };
+}
 
     /* ===============================
        SAVE / UPSERT – Seating
