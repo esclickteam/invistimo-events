@@ -17,6 +17,11 @@ export default function PublicInvitePage({ params }: any) {
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [sent, setSent] = useState(false);
 
+  /* ============================================================
+     RSVP FORM STATE
+     ❗ arrivedCount = כמה יגיעו
+     ❗ guestsCount לא קיים כאן יותר
+  ============================================================ */
   const [form, setForm] = useState<{
     rsvp: "yes" | "no" | "pending";
     arrivedCount: number;
@@ -29,6 +34,9 @@ export default function PublicInvitePage({ params }: any) {
 
   const [guestsOpen, setGuestsOpen] = useState(false);
 
+  /* ============================================================
+     unwrap params
+  ============================================================ */
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -37,6 +45,9 @@ export default function PublicInvitePage({ params }: any) {
     unwrap();
   }, [params]);
 
+  /* ============================================================
+     זיהוי אורח לפי token (?token=)
+  ============================================================ */
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const token = searchParams.get("token");
@@ -49,6 +60,8 @@ export default function PublicInvitePage({ params }: any) {
 
         if (data.success && data.guest) {
           setSelectedGuest(data.guest);
+
+          // ❗ ברירת מחדל: מגיע אדם אחד
           setForm((prev) => ({
             ...prev,
             arrivedCount: 1,
@@ -62,6 +75,9 @@ export default function PublicInvitePage({ params }: any) {
     fetchGuest();
   }, []);
 
+  /* ============================================================
+     טעינת ההזמנה
+  ============================================================ */
   useEffect(() => {
     if (!shareId) return;
 
@@ -88,6 +104,10 @@ export default function PublicInvitePage({ params }: any) {
     fetchInvite();
   }, [shareId]);
 
+  /* ============================================================
+     שליחת RSVP
+     ❗ שולחים arrivedCount בלבד
+  ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -104,6 +124,7 @@ export default function PublicInvitePage({ params }: any) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             rsvp: form.rsvp,
+            arrivedCount: form.rsvp === "yes" ? form.arrivedCount : 0,
             notes: form.notes,
           }),
         }
@@ -132,9 +153,13 @@ export default function PublicInvitePage({ params }: any) {
     );
   }
 
+  /* ============================================================
+     Render
+  ============================================================ */
   return (
     <div className="min-h-screen w-full overflow-y-auto bg-[#faf9f6]">
       <div className="flex flex-col items-center py-10 pb-32">
+        {/* הזמנה מעוצבת */}
         <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
           {invite.canvasData ? (
             <PublicInviteRenderer canvasData={invite.canvasData} />
@@ -145,6 +170,7 @@ export default function PublicInvitePage({ params }: any) {
           )}
         </div>
 
+        {/* טופס אישור הגעה */}
         {!sent ? (
           <form
             onSubmit={handleSubmit}
@@ -161,6 +187,7 @@ export default function PublicInvitePage({ params }: any) {
               )}
             </div>
 
+            {/* מגיע / לא מגיע */}
             <div className="flex gap-4">
               <button
                 type="button"
@@ -191,6 +218,7 @@ export default function PublicInvitePage({ params }: any) {
 
             {form.rsvp === "yes" && (
               <>
+                {/* כמות מגיעים */}
                 <div>
                   <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
                     כמה אנשים יגיעו?
@@ -234,6 +262,7 @@ export default function PublicInvitePage({ params }: any) {
                   </div>
                 </div>
 
+                {/* הערות */}
                 <div>
                   <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
                     הערות:
@@ -278,6 +307,7 @@ export default function PublicInvitePage({ params }: any) {
           </div>
         )}
 
+        {/* כרטיס מיקום */}
         <div className="w-full flex justify-center">
           <EventLocationCard location={event?.location} />
         </div>
