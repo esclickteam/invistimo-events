@@ -23,27 +23,27 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 Guard אחיד – הרשאת הושבה */
+    /* ===============================
+       🔑 eventId – מקור אמת יחיד
+    =============================== */
     const { eventId } = await context.params;
 
-const guard = await requireSeating(eventId);
-if (!guard.ok) {
-  return guard.response!;
-}
-
-    if (!guard.ok) {
-      return guard.response!;
-    }
-
-    const userId = guard.userId!;
-
-    const { eventId } = await context.params;
     if (!eventId) {
       return NextResponse.json(
         { success: false, error: "Missing eventId" },
         { status: 400 }
       );
     }
+
+    /* ===============================
+       🔐 Guard – בדיקת חבילת הושבה
+    =============================== */
+    const guard = await requireSeating(eventId);
+    if (!guard.ok) {
+      return guard.response!;
+    }
+
+    const userId = guard.userId!;
 
     const body = await req.json();
 
@@ -96,8 +96,8 @@ if (!guard.ok) {
         : null;
 
     /* ===============================
-       🔐 הרשאות – לפני כתיבה
-       (בעלות / מפיק)
+       🔐 הרשאות – לקוח / מפיק
+       ⭐ לקוח = בעל האירוע (הכי חשוב)
     =============================== */
     const invitation = await Invitation.findOne({ eventId }).lean();
 
@@ -107,26 +107,26 @@ if (!guard.ok) {
         { status: 404 }
       );
     }
-const isClientOwner =
-  String(invitation.ownerId) === String(userId) ||
-  String(invitation.userId) === String(userId);
 
-const isProducer =
-  Array.isArray(invitation.producers) &&
-  invitation.producers.some(
-    (p: any) => String(p.userId ?? p) === String(userId)
-  );
+    const isClientOwner =
+      String(invitation.ownerId) === String(userId) ||
+      String(invitation.userId) === String(userId);
 
-if (!isClientOwner && !isProducer) {
-  return NextResponse.json(
-    { success: false, error: "FORBIDDEN" },
-    { status: 403 }
-  );
-}
+    const isProducer =
+      Array.isArray(invitation.producers) &&
+      invitation.producers.some(
+        (p: any) => String(p.userId ?? p) === String(userId)
+      );
 
+    if (!isClientOwner && !isProducer) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
 
     /* ===============================
-       SAVE / UPSERT (לפי eventId)
+       SAVE / UPSERT – Seating
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
       { eventId },
@@ -173,7 +173,7 @@ if (!isClientOwner && !isProducer) {
       }
     }
 
-    /* 🧹 איפוס רק לאורחים שלא שובצו כלל */
+    /* 🧹 איפוס רק אורחים שלא שובצו */
     await InvitationGuest.updateMany(
       {
         invitationId: invitation._id,
