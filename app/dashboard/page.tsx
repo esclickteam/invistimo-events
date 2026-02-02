@@ -649,6 +649,15 @@ function getGuestCallStatus(
 // 📞 Call filters
 if (quickFilter === "pending") {
   list = list.filter((g) => {
+    // תנאי בסיס: באמת ממתין
+    const isReallyPending =
+      g.rsvp === "pending" &&
+      (g.arrivedCount ?? 0) === 0 &&
+      (g.actualArrivedCount ?? 0) === 0;
+
+    if (!isReallyPending) return false;
+
+    // סינון שיחות (ברירת מחדל)
     const status = getGuestCallStatus(g);
     return status === null || status === "will_reply";
   });
