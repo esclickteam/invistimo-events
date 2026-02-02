@@ -18,6 +18,14 @@ const normalizeGroupId = (value: unknown) => {
   return String(value);
 };
 
+const getPlannedSeatCount = (guest: Guest) => {
+  return Number(
+    guest.arrivedCount ??
+    guest.guestsCount ??
+    1
+  );
+};
+
 
 /* ================= TYPES ================= */
 
@@ -28,6 +36,10 @@ type Guest = {
   phone?: string;
   groupId?: string | null;
   rsvp?: "yes" | "no" | "pending";
+
+  // ⭐ הוספה
+  guestsCount?: number;
+  arrivedCount?: number;
 };
 
 type Group = {
@@ -167,7 +179,12 @@ const getTableGroupLabel = (tableId: string) => {
 
 
   const tableLabel = (t: Table) => {
-  const count = t.seatedGuests?.length ?? 0;
+  const count = t.seatedGuests.reduce((sum, s) => {
+    const guest = guests.find(
+      (g) => String(g.id ?? g._id) === String(s.guestId)
+    );
+    return sum + (guest ? getPlannedSeatCount(guest) : 0);
+  }, 0);
 
   const groupLabel = getTableGroupLabel(t.id);
 
@@ -184,6 +201,7 @@ const getTableGroupLabel = (tableId: string) => {
 
 
 
+
   function guestVisible(g: Guest) {
       if (g.rsvp !== "yes") return false;
 
@@ -195,6 +213,9 @@ const getTableGroupLabel = (tableId: string) => {
     if (filter === "unseated" && isSeated) return false;
 
     const gidNorm = normalizeGroupId(g.groupId);
+
+    
+
 
 const groupName =
   gidNorm !== NO_GROUP_KEY
@@ -252,6 +273,12 @@ const groupName =
 
           const isOpen = openGroups[groupId];
 
+          
+const visiblePlannedCount = visibleGuests.reduce(
+  (sum, g) => sum + getPlannedSeatCount(g),
+  0
+);
+
 
           return (
             <div key={groupId} className="border-b border-[#ead8cc]">
@@ -265,7 +292,8 @@ const groupName =
                 <div className="text-sm font-medium">
   {group
     ? group.name
-    : `ללא קבוצה (${visibleGuests.length})`}
+      : `ללא קבוצה (${visiblePlannedCount})`}
+
 </div>
 
 
