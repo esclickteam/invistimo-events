@@ -5,8 +5,14 @@ import { useState } from "react";
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  currentPaid: number; // כמה כבר שולם (למשל 49)
+  currentPaid: number;      // כמה כבר שולם בפועל
+  impersonated?: boolean;   // מצב התחזות
 };
+
+/* =======================
+   Constants
+======================= */
+const FULL_PREMIUM_PRICE = 779;
 
 const PRICE_TABLE: Record<number, number> = {
   100: 149,
@@ -24,16 +30,28 @@ export default function UpgradePlanModal({
   isOpen,
   onClose,
   currentPaid,
+  impersonated = false,
 }: Props) {
   const [guests, setGuests] = useState<number>(100);
   const [loading, setLoading] = useState(false);
 
-  if (!isOpen) return null;
+  /* =======================
+     Guards – אל תציגי מודאל
+  ======================= */
+  if (
+    !isOpen ||
+    impersonated ||
+    currentPaid >= FULL_PREMIUM_PRICE
+  ) {
+    return null;
+  }
 
   const fullPrice = PRICE_TABLE[guests];
   const amountToPay = Math.max(fullPrice - currentPaid, 0);
 
   async function handleUpgrade() {
+    if (amountToPay <= 0) return;
+
     try {
       setLoading(true);
 
@@ -46,7 +64,7 @@ export default function UpgradePlanModal({
       const data = await res.json();
 
       if (!res.ok || !data.url) {
-        alert("שגיאה ביצירת תשלום");
+        alert(data?.error || "שגיאה ביצירת תשלום");
         return;
       }
 
@@ -71,7 +89,10 @@ export default function UpgradePlanModal({
           כבר שילמת: <strong>{currentPaid} ₪</strong>
         </p>
 
-        <label className="block text-sm mb-2">בחרי כמות אורחים</label>
+        <label className="block text-sm mb-2">
+          בחרי כמות אורחים
+        </label>
+
         <select
           value={guests}
           onChange={(e) => setGuests(Number(e.target.value))}
@@ -111,7 +132,7 @@ export default function UpgradePlanModal({
           <button
             onClick={handleUpgrade}
             disabled={loading || amountToPay <= 0}
-            className="flex-1 py-2 rounded-lg bg-black text-white"
+            className="flex-1 py-2 rounded-lg bg-black text-white disabled:opacity-50"
           >
             {loading ? "מעבירה לתשלום..." : "שדרוג עכשיו"}
           </button>

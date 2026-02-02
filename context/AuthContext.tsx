@@ -19,11 +19,20 @@ interface User {
 
   role: "admin" | "user" | "producer" | "client";
 
-  // impersonation flags (מהשרת)
+  /* ===== BUSINESS ===== */
+  paidAmount: number;
+  guests?: number;
+  plan?: string;
+  planLimits?: {
+    maxMessages?: number;
+  };
+
+  /* ===== IMPERSONATION ===== */
   impersonated?: boolean;
   impersonatedBy?: string;
   impersonationRole?: "admin" | "producer";
 }
+
 
 interface AuthContextType {
   user: User | null;

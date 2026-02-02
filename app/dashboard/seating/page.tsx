@@ -8,7 +8,7 @@ import UpgradePlanModal from "./UpgradePlanModal";
 import MobileGuests from "./MobileGuests";
 import SeatingSidebar from "./SeatingSidebar";
 import { usePathname } from "next/navigation";
-
+import { useAuth } from "@/context/AuthContext"; 
 
 
 
@@ -61,6 +61,7 @@ const isProducer = pathname.includes("/events/production");
   const guests = useSeatingStore((s) => s.guests);
   const setGroups = useSeatingStore((s) => s.setGroups);
   const groups = useSeatingStore((s) => s.groups);
+  const { user } = useAuth();
 
 
 
@@ -294,7 +295,9 @@ if (grRes.ok) {
         <UpgradePlanModal
           isOpen={showUpgrade}
           onClose={() => setShowUpgrade(false)}
-          currentPaid={49}
+          currentPaid={user?.paidAmount ?? 0}
+impersonated={user?.impersonated}
+
         />
       </>
     );
