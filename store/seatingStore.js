@@ -414,27 +414,32 @@ init: (tables, guests, background = null, canvasView = null) => {
 
   set((state) => ({
     ...state,
+
+    // ⬅️ לטעון את ההושבה בדיוק כמו שהיא מהשרת
     tables: (tables || []).map((t) => ({
       ...t,
       displayName: t.displayName || "",
-      seatedGuests: (t.seatedGuests || []).map((sg) => ({
-        ...sg,
-        arrived: false, // 🔒 תמיד false ב-init
-      })),
+      seatedGuests: t.seatedGuests || [], // ❌ בלי arrived=false
     })),
+
     guests: guests || [],
-    liveArrivals: seatingMode === "live"
-      ? Object.fromEntries(
-          (guests || []).map((g) => [
-            String(g.id ?? g._id),
-            Number(g.actualArrivedCount ?? 0),
-          ])
-        )
-      : {}, // ⛔ לקוח: ריק
+
+    // ⬅️ Live: רק מפת הגעה, לא נגיעה בהושבה
+    liveArrivals:
+      seatingMode === "live"
+        ? Object.fromEntries(
+            (guests || []).map((g) => [
+              String(g.id ?? g._id),
+              Number(g.actualArrivedCount ?? 0),
+            ])
+          )
+        : {},
+
     background,
     canvasView: canvasView || { scale: 1, x: 0, y: 0 },
   }));
 },
+
 
 
 
