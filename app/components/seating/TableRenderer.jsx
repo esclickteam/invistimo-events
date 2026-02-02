@@ -425,18 +425,17 @@ const tableText = isHighlighted
         <>
           <Circle radius={radius} fill={tableFill} shadowBlur={8} />
           <Text
-            text={tableLabel}
-
-
-            width={radius * 2}
-            height={radius * 2}
-            offsetX={radius}
-            offsetY={radius}
-            align="center"
-            verticalAlign="middle"
-            fill={tableText}
-            fontSize={16}
-          />
+  text={tableLabel}
+  width={radius * 2}
+  height={radius * 2 + 30}
+  offsetX={radius}
+  offsetY={(radius * 2 + 30) / 2}   // ✅ זה התיקון
+  align="center"
+  verticalAlign="middle"
+  fill={tableText}
+  fontSize={14}
+  lineHeight={1.25}
+/>
         </>
       )}
 
@@ -452,18 +451,19 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={tableLabel}
+  text={tableLabel}
+  width={size}
+  height={size + 30}
+  offsetX={size / 2}
+  offsetY={(size + 30) / 2}          // ✅
+  align="center"
+  verticalAlign="middle"
+  fill={tableText}
+  fontSize={14}
+  lineHeight={1.25}
+/>
 
 
-            width={size}
-            height={size}
-            offsetX={size / 2}
-            offsetY={size / 2}
-            align="center"
-            verticalAlign="middle"
-            fill={tableText}
-            fontSize={16}
-          />
         </>
       )}
 
@@ -479,18 +479,19 @@ const tableText = isHighlighted
             
           />
           <Text
-            text={tableLabel}
+  text={tableLabel}
+  width={width}
+  height={height + 30}
+  offsetX={width / 2}
+  offsetY={(height + 30) / 2}        // ✅
+  align="center"
+  verticalAlign="middle"
+  fill={tableText}
+  fontSize={14}
+  lineHeight={1.25}
+/>
 
 
-            width={width}
-            height={height}
-            offsetX={width / 2}
-            offsetY={height / 2}
-            align="center"
-            verticalAlign="middle"
-            fill={tableText}
-            fontSize={16}
-          />
         </>
       )}
 
