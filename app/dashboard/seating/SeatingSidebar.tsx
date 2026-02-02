@@ -134,19 +134,53 @@ const getNoGroupTableId = (list: Guest[]) => {
   return table?.id ?? "";
 };
 
+const getTableGroupLabel = (tableId: string) => {
+  const seatedGuests = guests
+    .filter(
+      (g) =>
+        g.rsvp === "yes" &&
+        guestTableMap.get(seatGuestId(g))?.id === tableId
+    );
+
+  const groupIds = Array.from(
+    new Set(
+      seatedGuests
+        .map((g) => normalizeGroupId(g.groupId))
+        .filter((gid) => gid !== NO_GROUP_KEY)
+    )
+  );
+
+  if (groupIds.length === 1) {
+    const group = groups.find(
+      (gr) => String(gr._id) === String(groupIds[0])
+    );
+    return group?.name || "";
+  }
+
+  if (groupIds.length > 1) {
+    return "קבוצות מעורבות";
+  }
+
+  return "";
+};
 
 
 
   const tableLabel = (t: Table) => {
   const count = t.seatedGuests?.length ?? 0;
 
+  const groupLabel = getTableGroupLabel(t.id);
+
   const main =
     t.displayName && t.displayName.trim()
       ? `${t.name} – ${t.displayName}`
       : t.name;
 
-  return `${main} (${count}/${t.seats})`;
+  return groupLabel
+    ? `${groupLabel} · ${main} (${count}/${t.seats})`
+    : `${main} (${count}/${t.seats})`;
 };
+
 
 
 
