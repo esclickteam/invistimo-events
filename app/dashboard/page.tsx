@@ -607,17 +607,24 @@ useEffect(() => {
 const noAnswerGuests = useMemo(() => {
   return guests.filter((g) => {
     if (g.rsvp !== "pending") return false;
-    if (!g.callRounds || g.callRounds.length === 0) return false;
+
+    // ❗ אין בכלל סבבים → נחשב "לא ענה"
+    if (!g.callRounds || g.callRounds.length === 0) return true;
 
     const lastRound = g.callRounds[g.callRounds.length - 1];
     return lastRound.status === "no_answer";
   });
 }, [guests]);
 
+// ==============================
+// ממתינים
+// ==============================
 const pendingGuests = useMemo(() => {
   return guests.filter((g) => {
     if (g.rsvp !== "pending") return false;
-    if (!g.callRounds || g.callRounds.length === 0) return true;
+
+    // ❗ בלי סבבים לא נחשב "ממתין"
+    if (!g.callRounds || g.callRounds.length === 0) return false;
 
     const lastRound = g.callRounds[g.callRounds.length - 1];
     return lastRound.status !== "no_answer";
