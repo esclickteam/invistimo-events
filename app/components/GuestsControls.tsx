@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction, useState } from "react";
+import { Dispatch, SetStateAction } from "react";
 import type { QuickFilter } from "@/types/quickFilter";
 
 /* ============================================================
@@ -8,11 +8,6 @@ import type { QuickFilter } from "@/types/quickFilter";
 ============================================================ */
 
 type Group = { _id: string; name: string };
-
-type PendingCallFilter =
-  | "call_answered"
-  | "call_no_answer"
-  | "call_confirmed";
 
 type Props = {
   /* 🔍 Search */
@@ -25,7 +20,7 @@ type Props = {
   setSelectedGroupId?: Dispatch<SetStateAction<string>>;
   onManageGroups?: () => void;
 
-  /* ⚡ Main quick filters */
+  /* ⚡ Quick filters (SOURCE OF TRUTH) */
   quickFilter: QuickFilter;
   setQuickFilter: Dispatch<SetStateAction<QuickFilter>>;
 
@@ -59,9 +54,12 @@ export default function GuestsControls({
     typeof selectedGroupId === "string" &&
     onManageGroups;
 
-  // ⭐️ תת־פילטר פנימי לממתינים
-  const [pendingCallFilter, setPendingCallFilter] =
-    useState<PendingCallFilter>("call_no_answer");
+  // ⭐️ האם אנחנו בתוך עולם "ממתינים"
+  const isPendingView =
+    quickFilter === "pending" ||
+    quickFilter === "call_answered" ||
+    quickFilter === "call_no_answer" ||
+    quickFilter === "call_will_reply";
 
   return (
     <div className="flex flex-col gap-3 mb-4">
@@ -136,7 +134,7 @@ export default function GuestsControls({
         />
 
         <FilterPill
-          active={quickFilter === "pending"}
+          active={isPendingView}
           onClick={() => setQuickFilter("pending")}
           label="ממתינים"
         />
@@ -149,24 +147,24 @@ export default function GuestsControls({
       </div>
 
       {/* ================= Pending Sub Tabs ================= */}
-      {quickFilter === "pending" && (
+      {isPendingView && (
         <div className="flex gap-2 ps-1">
           <FilterPill
-            active={pendingCallFilter === "call_answered"}
-            onClick={() => setPendingCallFilter("call_answered")}
+            active={quickFilter === "call_answered"}
+            onClick={() => setQuickFilter("call_answered")}
             label="ענה לשיחה"
           />
 
           <FilterPill
-            active={pendingCallFilter === "call_no_answer"}
-            onClick={() => setPendingCallFilter("call_no_answer")}
+            active={quickFilter === "call_no_answer"}
+            onClick={() => setQuickFilter("call_no_answer")}
             label="לא ענה"
           />
 
           <FilterPill
-            active={pendingCallFilter === "call_confirmed"}
-            onClick={() => setPendingCallFilter("call_confirmed")}
-            label="אישר בשיחה"
+            active={quickFilter === "call_will_reply"}
+            onClick={() => setQuickFilter("call_will_reply")}
+            label="ישיב בהודעה"
           />
         </div>
       )}

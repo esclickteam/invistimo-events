@@ -636,9 +636,9 @@ if (quickFilter === "call_no_answer") {
   );
 }
 
-if (quickFilter === "call_confirmed") {
+if (quickFilter === "call_will_reply") {
   list = list.filter(
-    (g) => getLastCallStatus(g) === "confirmed"
+    (g) => getLastCallStatus(g) === "will_reply"
   );
 }
 
