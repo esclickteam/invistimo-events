@@ -135,17 +135,31 @@ if ("groupId" in data) {
 }
 
 
-    if (["yes", "no", "pending"].includes(data.rsvp)) {
-      guest.rsvp = data.rsvp;
-    }
+    // 1️⃣ קודם guestsCount
+if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
+  guest.guestsCount = data.guestsCount;
+}
 
-    if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
-      guest.guestsCount = data.guestsCount;
-    }
+// 2️⃣ RSVP קובע arrivedCount
+if (["yes", "no", "pending"].includes(data.rsvp)) {
+  guest.rsvp = data.rsvp;
 
-    if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
-      guest.arrivedCount = data.arrivedCount;
-    }
+  if (data.rsvp === "yes") {
+    guest.arrivedCount = guest.guestsCount;
+  } else {
+    guest.arrivedCount = 0;
+  }
+}
+
+// 3️⃣ arrivedCount ידני — רק למפיק / אדמין
+if (
+  typeof data.arrivedCount === "number" &&
+  data.arrivedCount >= 0 &&
+  (isAdmin || isProducerRole || isProducerByInvitation)
+) {
+  guest.arrivedCount = data.arrivedCount;
+}
+
 
     /* ===============================
        ⭐ actualArrivedCount — מגיעים בפועל
