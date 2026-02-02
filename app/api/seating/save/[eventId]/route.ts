@@ -7,8 +7,11 @@ import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
+/* ===============================
+   TYPES
+=============================== */
 type RouteContext = {
-  params: { eventId: string };
+  params: Promise<{ eventId: string }>;
 };
 
 type BackgroundPayload = {
@@ -16,31 +19,42 @@ type BackgroundPayload = {
   opacity?: number;
 };
 
-export async function POST(req: NextRequest, { params }: RouteContext) {
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    const eventId = params.eventId;
+    /* 🔐 Guard אחיד – הרשאת הושבה */
+    const guard = await requireSeating();
+    if (!guard.ok) {
+      return guard.response!;
+    }
+
+    const userId = guard.userId!;
+
+    const { eventId } = await context.params;
     if (!eventId) {
       return NextResponse.json(
-        { error: "Missing eventId" },
+        { success: false, error: "Missing eventId" },
         { status: 400 }
       );
     }
 
-    /* 🔐 Guard */
-    const guard = await requireSeating(eventId);
-    if (!guard.ok) {
-      return guard.response; // ✅ רק Response
-    }
-
-    const userId = guard.userId!;
     const body = await req.json();
 
+    console.log("📥 SAVE SEATING BODY:", {
+      eventId,
+      tables: body.tables?.length,
+      zones: body.zones?.length,
+    });
+
     /* ===============================
-       TABLES / ZONES
+       TABLES
     =============================== */
     const tables = Array.isArray(body.tables) ? body.tables : [];
+
+    /* ===============================
+       ZONES
+    =============================== */
     const zones = Array.isArray(body.zones) ? body.zones : [];
 
     /* ===============================
@@ -76,19 +90,19 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         : null;
 
     /* ===============================
-       הרשאות (לקוח / מפיק)
+       🔐 הרשאות – לפני כתיבה
+       (בעלות / מפיק)
     =============================== */
     const invitation = await Invitation.findOne({ eventId }).lean();
+
     if (!invitation) {
       return NextResponse.json(
-        { error: "INVITATION_NOT_FOUND" },
+        { success: false, error: "INVITATION_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    const isClientOwner =
-      String(invitation.ownerId) === String(userId) ||
-      String(invitation.userId) === String(userId);
+    const isOwner = String(invitation.ownerId) === String(userId);
 
     const isProducer =
       Array.isArray(invitation.producers) &&
@@ -96,15 +110,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         (p: any) => String(p.userId ?? p) === String(userId)
       );
 
-    if (!isClientOwner && !isProducer) {
+    if (!isOwner && !isProducer) {
       return NextResponse.json(
-        { error: "FORBIDDEN" },
+        { success: false, error: "FORBIDDEN" },
         { status: 403 }
       );
     }
 
     /* ===============================
-       SAVE / UPSERT
+       SAVE / UPSERT (לפי eventId)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
       { eventId },
@@ -118,11 +132,16 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
           updatedAt: new Date(),
         },
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
     );
 
     /* ===============================
-       עדכון אורחים
+       שיוך אורחים לשולחנות
+       + איפוס רק למי שלא שובץ
     =============================== */
     const updatedGuestIds = new Set<string>();
 
@@ -146,6 +165,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       }
     }
 
+    /* 🧹 איפוס רק לאורחים שלא שובצו כלל */
     await InvitationGuest.updateMany(
       {
         invitationId: invitation._id,
@@ -163,8 +183,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);
+
     return NextResponse.json(
-      { error: "Server error" },
+      { success: false, error: "Server error" },
       { status: 500 }
     );
   }

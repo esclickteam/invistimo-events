@@ -1,55 +1,63 @@
-// lib/guards/requireSeating.ts
-import { NextResponse } from "next/server";
-import Invitation from "@/models/Invitation";
+import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { NextResponse } from "next/server";
+import db from "@/lib/db";
 
-export async function requireSeating(eventId?: string) {
+export async function requireSeating() {
+  await db();
+
   const auth = await getUserIdFromRequest();
+
+  // 🔐 לא מחובר
   if (!auth?.userId) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "UNAUTHORIZED" },
+        { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       ),
     };
   }
 
-  if (!eventId) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { error: "MISSING_EVENT" },
-        { status: 400 }
-      ),
-    };
-  }
+  const userId = auth.userId;
 
-  const invitation = await Invitation.findOne({ eventId }).lean();
-  if (!invitation) {
+  const user = await User.findById(userId).lean();
+
+  if (!user) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "INVITATION_NOT_FOUND" },
+        { success: false, error: "USER_NOT_FOUND" },
         { status: 404 }
       ),
     };
   }
 
-  const userId = String(auth.userId);
+  /**
+   * ⭐ אדמין בהתחזות – תמיד מותר
+   */
+  if (user.impersonated === true) {
+    return { ok: true, userId };
+  }
 
-  const isOwner = String(invitation.ownerId) === userId;
-  const isProducer =
-    Array.isArray(invitation.producers) &&
-    invitation.producers.some(
-      (p: any) => String(p.userId ?? p) === userId
-    );
+  /**
+   * ⭐ בדיקת הרשאת הושבה
+   * - פרימיום תמיד כולל הושבה
+   * - add-on עתידי דרך planLimits
+   */
+  const hasSeating =
+    user.plan === "premium" ||
+    user.planLimits?.seatingEnabled === true;
 
-  if (!isOwner && !isProducer) {
+  if (!hasSeating) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "FORBIDDEN" },
+        {
+          success: false,
+          error: "Seating is not included in your plan",
+          code: "SEATING_NOT_ALLOWED",
+        },
         { status: 403 }
       ),
     };
