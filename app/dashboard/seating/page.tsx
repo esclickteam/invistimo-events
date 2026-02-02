@@ -371,48 +371,55 @@ return (
 
   {/* 🧾 סיידבר הושבה מאוחד */}
 <div className="relative hidden md:flex">
-  {/* 🧾 סיידבר */}
-  {sidebarOpen && (
-    <aside className="w-[400px] bg-white border-l border-[#ead8cc]">
-      <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
+  {/* 🧾 סיידבר – תמיד קיים, רק הרוחב משתנה */}
+  <aside
+    className={`
+      transition-all duration-300
+      ${sidebarOpen ? "w-[400px]" : "w-0 overflow-hidden"}
+      bg-white border-l border-[#ead8cc]
+    `}
+  >
+    {sidebarOpen && (
+      <Suspense
+        fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}
+      >
         <SeatingSidebar />
       </Suspense>
-    </aside>
-  )}
+    )}
+  </aside>
 
-  {/* 🔘 חץ שליטה – מופרד מהסיידבר */}
+  {/* 🔘 חץ שליטה – תמיד קיים */}
   <div
-  className={`
-    absolute top-1/2 -translate-y-1/2
-    z-40 flex items-center
-    transition-all duration-300
-    ${sidebarOpen ? "-left-[18px]" : "left-0"}
-  `}
->
-  {/* קו הפרדה – רק כשהסיידבר פתוח */}
-  {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
-
-  {/* כפתור */}
-  <button
-    onClick={() => setSidebarOpen((v) => !v)}
-    className="
-      ml-[-12px]
-      h-9 w-9
-      rounded-full
-      bg-[#fdf9f6]
-      border border-[#ead8cc]
-      shadow-sm
-      flex items-center justify-center
-      hover:bg-[#f6ede8]
-      transition
-    "
-    title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
+    className={`
+      absolute top-1/2 -translate-y-1/2
+      z-40 flex items-center
+      transition-all duration-300
+      ${sidebarOpen ? "-left-[18px]" : "left-0"}
+    `}
   >
-    {sidebarOpen ? "❮" : "❯"}
-  </button>
+    {/* קו הפרדה – רק כשהסיידבר פתוח */}
+    {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
+
+    <button
+      onClick={() => setSidebarOpen((v) => !v)}
+      className="
+        ml-[-12px]
+        h-9 w-9
+        rounded-full
+        bg-[#fdf9f6]
+        border border-[#ead8cc]
+        shadow-sm
+        flex items-center justify-center
+        hover:bg-[#f6ede8]
+        transition
+      "
+      title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
+    >
+      {sidebarOpen ? "❮" : "❯"}
+    </button>
+  </div>
 </div>
 
-</div>
 
 
 
