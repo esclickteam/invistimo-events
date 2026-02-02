@@ -110,12 +110,6 @@ const isDemo = pathname.startsWith("/try");
 
   const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
-  const setSeatingGuests = useSeatingStore((s) => s.setGuests);
-
-  const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
-
-  const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
-
 
 
 useEffect(() => {
@@ -180,35 +174,6 @@ useEffect(() => {
       };
     })
   );
-
-  setSeatingGuests((prev: Guest[]) =>
-  prev.map((g: Guest) =>
-    String(g._id) === String(updatedGuest._id)
-      ? {
-          ...g,
-          rsvp: updatedGuest.rsvp,
-
-          // ⭐⭐⭐ זה היה חסר ⭐⭐⭐
-          guestsCount: updatedGuest.guestsCount,
-
-          arrivedCount:
-            updatedGuest.arrivedCount ??
-            (updatedGuest.rsvp === "yes"
-              ? updatedGuest.guestsCount
-              : 0),
-        }
-      : g
-  )
-);
-
-// ⭐⭐⭐ חיבור לסידורי הושבה (חובה!)
-setLiveArrived(
-  String(updatedGuest._id),
-  Number(updatedGuest.actualArrivedCount ?? 0)
-);
-
-syncArrivedSeats(String(updatedGuest._id));
-
 
   if (invitationId) {
     await loadGroups(invitationId);
@@ -821,16 +786,10 @@ list.sort((a, b) => {
 
   // optimistic UI
   setGuests((prev) =>
-  prev.map((x) =>
-    x._id === guestId ? { ...x, actualArrivedCount: next } : x
-  )
-);
-
-setLiveArrived(String(guestId), Number(next));
-
-// 🔥 חובה – חותך כיסאות לפי arrived בפועל
-syncArrivedSeats(String(guestId));
-
+    prev.map((x) =>
+      x._id === guestId ? { ...x, actualArrivedCount: next } : x
+    )
+  );
 
   const doUpdate = async () =>
     fetch(`/api/guests/${guestId}`, {
