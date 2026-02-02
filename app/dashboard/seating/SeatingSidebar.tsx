@@ -156,7 +156,8 @@ export default function SeatingSidebar() {
       return group?.name || "";
     }
 
-    if (groupIds.length > 1) return "קבוצות מעורבות";
+    if (groupIds.length > 1) return "";
+
     return "";
   };
 
