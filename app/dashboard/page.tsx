@@ -208,16 +208,7 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
   // ✅ סינון מהיר
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
 
-  // ⭐ תת־טאב לממתינים
-const [pendingSubTab, setPendingSubTab] = useState<
-  "pending" | "noAnswer"
->("pending");
 
-useEffect(() => {
-  if (quickFilter !== "pending") {
-    setPendingSubTab("pending");
-  }
-}, [quickFilter]);
 
 
 
@@ -604,36 +595,7 @@ useEffect(() => {
 // ממתינים / לא ענה (נגזר מסבבי שיחות)
 // ==============================
 
-const noAnswerGuests = useMemo(() => {
-  return guests.filter((g) => {
-    if (g.rsvp !== "pending") return false;
 
-    const rounds = g.callRounds || [];
-
-    // אם יש איזשהו "ישיב בהודעה" → לא ב"לא ענה"
-    if (rounds.some((r) => r.status === "answered")) return false;
-
-    // אם יש לפחות "לא ענה" אחד → לא ענה
-    if (rounds.some((r) => r.status === "no_answer")) return true;
-
-    // אין סבבים בכלל → לא ענה
-    return rounds.length === 0;
-  });
-}, [guests]);
-
-// ==============================
-// ממתינים
-// ==============================
-const pendingGuests = useMemo(() => {
-  return guests.filter((g) => {
-    if (g.rsvp !== "pending") return false;
-
-    const rounds = g.callRounds || [];
-
-    // מספיק "ישיב בהודעה" אחד → ממתינים
-    return rounds.some((r) => r.status === "answered");
-  });
-}, [guests]);
 
 
   /* ============================================================
@@ -648,11 +610,8 @@ const pendingGuests = useMemo(() => {
 
   // ⭐️ פיצול ממתינים / לא ענה
   if (quickFilter === "pending") {
-    list =
-      pendingSubTab === "noAnswer"
-        ? noAnswerGuests
-        : pendingGuests;
-  }
+  list = list.filter((g) => g.rsvp === "pending");
+}
 
   if (quickFilter === "noTable") {
     list = list.filter((g) => !(g.tableName && g.tableName.trim()));
@@ -731,9 +690,6 @@ list.sort((a, b) => {
 }, [
   guests,
   quickFilter,
-  pendingSubTab,
-  pendingGuests,
-  noAnswerGuests,
   search,
   selectedGroupId,
   sortKey,
@@ -1044,12 +1000,6 @@ console.log("INVITATION:", invitation);
   onManageGroups={() => setOpenGroupModal(true)}
   quickFilter={quickFilter}
   setQuickFilter={setQuickFilter}
-
-  /* ⭐️ חובה בשביל תת־טאב */
-  pendingSubTab={pendingSubTab}
-  setPendingSubTab={setPendingSubTab}
-  noAnswerCount={noAnswerGuests.length}
-
   totalCount={guests.length}
   displayCount={displayGuests.length}
 />

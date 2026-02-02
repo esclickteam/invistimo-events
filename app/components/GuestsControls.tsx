@@ -10,8 +10,6 @@ type Group = { _id: string; name: string };
 
 type QuickFilter = "all" | "yes" | "no" | "pending" | "noTable";
 
-type PendingSubTab = "pending" | "noAnswer";
-
 type Props = {
   /* 🔍 Search */
   search: string;
@@ -26,11 +24,6 @@ type Props = {
   /* ⚡ Quick filters */
   quickFilter?: QuickFilter;
   setQuickFilter?: Dispatch<SetStateAction<QuickFilter>>;
-
-  /* ⭐ Pending sub tab */
-  pendingSubTab?: PendingSubTab;
-  setPendingSubTab?: Dispatch<SetStateAction<PendingSubTab>>;
-  noAnswerCount?: number;
 
   /* 🔢 Count */
   totalCount: number;
@@ -52,10 +45,6 @@ export default function GuestsControls({
 
   quickFilter,
   setQuickFilter,
-
-  pendingSubTab,
-  setPendingSubTab,
-  noAnswerCount = 0,
 
   totalCount,
   displayCount,
@@ -154,26 +143,6 @@ export default function GuestsControls({
           )}
         </div>
       )}
-
-      {/* ================= Pending sub tabs ================= */}
-      {showFilters &&
-        quickFilter === "pending" &&
-        pendingSubTab &&
-        setPendingSubTab && (
-          <div className="flex gap-2">
-            <FilterPill
-              label="ממתינים"
-              active={pendingSubTab === "pending"}
-              onClick={() => setPendingSubTab("pending")}
-            />
-
-            <FilterPill
-              label={`לא ענה (${noAnswerCount})`}
-              active={pendingSubTab === "noAnswer"}
-              onClick={() => setPendingSubTab("noAnswer")}
-            />
-          </div>
-        )}
 
       {/* ================= Counter ================= */}
       <div className="text-sm text-gray-500 whitespace-nowrap">
