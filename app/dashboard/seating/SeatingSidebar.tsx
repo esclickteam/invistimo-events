@@ -364,27 +364,20 @@ export default function SeatingSidebar() {
 {selectingGuestId === gid && tables.length > 0 && (
 
   <select
-  className="
-    mt-2
-    text-xs
-    h-[32px]
-    border border-[#e6c3ad]
-    rounded-lg
-    px-3
-    bg-white
-    min-w-[160px]
-    max-w-full
-    truncate
-  "
-  defaultValue=""
-  onChange={(e) => {
-    const tableId = e.target.value;
-    if (!tableId) return;
+    className="
+      mt-2 text-xs h-[32px] leading-[32px]
+      border border-[#e6c3ad]
+      rounded-lg px-2 bg-white
+    "
+    defaultValue=""
+    onChange={(e) => {
+      const tableId = e.target.value;
+      if (!tableId) return;
 
-    assignGuestBlock({ guestId: gid, tableId });
-    setSelectingGuestId(null);
-  }}
->
+      assignGuestBlock({ guestId: gid, tableId });
+      setSelectingGuestId(null);
+    }}
+  >
     <option value="">בחר שולחן…</option>
     {tables.map((t) => (
       <option key={t.id} value={t.id}>
