@@ -7,14 +7,8 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
-/* ============================================================
-   GET – Load seating guests
-   ⭐ לפי eventId
-============================================================ */
 type RouteContext = {
-  params: Promise<{
-    eventId: string;
-  }>;
+  params: Promise<{ eventId: string }>;
 };
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -35,10 +29,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     /* 🔐 שליפת משתמש */
     const user = await User.findById(userId).lean();
 
-    /**
-     * ⭐ אדמין בהתחזות = מתנהג כלקוח
-     * → מדלגים על בדיקת החבילה
-     */
+    /* ⭐ בדיקת חבילה – מדולגת לאדמין בהתחזות */
     if (user?.impersonated !== true) {
       if (!user?.planLimits?.seatingEnabled) {
         return NextResponse.json(
@@ -52,7 +43,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       }
     }
 
-    /* ⭐ params הוא Promise ב־Next 16 */
+    /* ⭐ params */
     const { eventId } = await context.params;
 
     if (!eventId) {
@@ -63,13 +54,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       1️⃣ מציאת ההזמנה של האירוע
-       (אורחים שייכים להזמנה)
+       1️⃣ מציאת ההזמנה לפי eventId בלבד
+       ⭐ קריטי להתחזות
     =============================== */
-    const invitation = await Invitation.findOne({
-      ownerId: userId,
-      eventId,
-    })
+    const invitation = await Invitation.findOne({ eventId })
       .select("_id")
       .lean();
 
