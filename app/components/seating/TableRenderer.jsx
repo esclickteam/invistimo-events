@@ -176,6 +176,7 @@ function getSeatRotation(table, c) {
 
 const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 
+const groups = useSeatingStore((s) => s.groups);
 
 const displayName = table.displayName || "";
 
@@ -229,11 +230,46 @@ useEffect(() => {
 
 const seatsTotal = Number(table.seats || 0);
 
+const getTableGroupLabel = (tableId) => {
+  const seatedGuests = guests.filter(
+    (g) =>
+      g.rsvp === "yes" &&
+      table.seatedGuests.some(
+        (s) => String(s.guestId) === String(g.id ?? g._id)
+      )
+  );
+
+  const groupIds = Array.from(
+    new Set(
+      seatedGuests
+        .map((g) => normalizeGroupId(g.groupId))
+        .filter((gid) => gid !== NO_GROUP_KEY)
+    )
+  );
+
+  if (groupIds.length === 1) {
+
+    const group = groups.find(
+  (gr) => String(gr._id) === String(groupIds[0])
+);
 
 
-const tableLabel = `${table.name}
-${displayName}
+    return group?.name || "";
+  }
+
+  if (groupIds.length > 1) {
+    return "קבוצות מעורבות";
+  }
+
+  return "";
+};
+
+
+const groupLabel = getTableGroupLabel(table.id);
+
+const tableLabel = `${groupLabel ? `${groupLabel} · ` : ""}${table.name}
 ${occupiedSeatsCount}/${seatsTotal}`;
+
 
 
 
