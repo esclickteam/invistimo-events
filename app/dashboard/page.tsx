@@ -615,18 +615,16 @@ useEffect(() => {
 
 function getGuestCallStatus(
   guest: Guest
-): "answered" | "no_answer" | "will_reply" {
+): "answered" | "no_answer" | "will_reply" | null {
   if (!Array.isArray(guest.callRounds) || guest.callRounds.length === 0) {
-    return "no_answer";
+    return null; // ⭐ לא התקשרו עדיין
   }
 
   const lastWithStatus = [...guest.callRounds]
     .reverse()
     .find((r) => r.status);
 
-  const normalized = normalizeCallStatus(lastWithStatus?.status);
-
-  return normalized ?? "no_answer";
+  return normalizeCallStatus(lastWithStatus?.status);
 }
 
 
@@ -652,7 +650,7 @@ function getGuestCallStatus(
 if (quickFilter === "pending") {
   list = list.filter((g) => {
     const status = getGuestCallStatus(g);
-    return status === "no_answer" || status === "will_reply";
+    return status === null || status === "will_reply";
   });
 }
 
