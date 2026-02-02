@@ -34,17 +34,21 @@ export async function GET(req: NextRequest, context: RouteContext) {
      * → מדלגים על בדיקת החבילה
      */
     if (user?.impersonated !== true) {
-      if (!user?.planLimits?.seatingEnabled) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Seating is not included in your plan",
-            code: "SEATING_NOT_ALLOWED",
-          },
-          { status: 403 }
-        );
-      }
-    }
+  const hasSeating =
+    user?.plan === "premium" ||
+    user?.planLimits?.seatingEnabled === true;
+
+  if (!hasSeating) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Seating is not included in your plan",
+        code: "SEATING_NOT_ALLOWED",
+      },
+      { status: 403 }
+    );
+  }
+}
 
     /* ===============================
        1️⃣ params (חובה await)
