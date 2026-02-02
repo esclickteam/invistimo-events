@@ -225,12 +225,19 @@ useEffect(() => {
  const occupiedSeatsCount = useMemo(() => {
   if (!table.seatedGuests?.length) return 0;
 
-  // 👤 לקוח / תכנון – לא מתייחס ל־liveArrivals
+  // 👤 לקוח – לפי arrivedCount
   if (seatingMode !== "live") {
-    return table.seatedGuests.length;
+    return table.seatedGuests.reduce((sum, s) => {
+      const guest = guests.find(
+        (g) => String(g.id ?? g._id) === String(s.guestId)
+      );
+
+      return sum + Number(guest?.arrivedCount ?? 0);
+
+    }, 0);
   }
 
-  // 🎧 לייב – לפי הגיעו בפועל
+  // 🎧 לייב – לפי הגעה בפועל
   const counted = new Set();
 
   return table.seatedGuests.reduce((sum, s) => {
@@ -239,7 +246,7 @@ useEffect(() => {
     counted.add(guestId);
     return sum + (liveArrivals?.[guestId] ?? 0);
   }, 0);
-}, [table.seatedGuests, seatingMode, liveArrivals]);
+}, [table.seatedGuests, seatingMode, liveArrivals, guests]);
 
 
 
