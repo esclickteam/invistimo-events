@@ -138,46 +138,49 @@ getGroupSize: (groupId) => {
 
 // ⭐️ ספירת מושבים להושבה מה-SIDEBAR (תכנון, לא live)
 getSidebarSeatCount: (guest) => {
-  return Number(guest.guestsCount ?? 1);
+  return Number(guest.guestsCount ?? 0);
 },
+
 
 getGuestSeatCount: (guest) => {
-  const { seatingMode, liveArrivals } = get();
+  if (get().seatingMode === "live") {
+    return Number(
+      get().liveArrivals[String(guest.id ?? guest._id)] ?? 0
+    );
+  }
 
-  if (seatingMode !== "live") return 0;
-  return Number(liveArrivals[String(guest.id ?? guest._id)] ?? 0);
-
+  return Number(guest.arrivedCount ?? 0);
 },
+
 
 
 getSeatingCountForGuest: (guest) => {
-  const { seatingMode, liveArrivals } = get();
-
-  if (seatingMode === "live") {
-    return Number(liveArrivals[String(guest.id ?? guest._id)] ?? 0);
-
+  if (get().seatingMode === "live") {
+    return Number(
+      get().liveArrivals[String(guest.id ?? guest._id)] ?? 0
+    );
   }
 
-  return Number(guest.guestsCount || 0);
+  return Number(guest.arrivedCount ?? 0);
 },
+
 
 getPlannedSeatCount: (guest) => {
-  // מספר המוזמנים בפועל של האורח
-  if (typeof guest.guestsCount === "number" && guest.guestsCount > 0) {
-    return guest.guestsCount;
-  }
-
-  // fallback בטוח
-  return 1;
+  return Number(guest.guestsCount ?? 0);
 },
+
+
 
 getFreeSeats: (tableId) => {
   const table = get().tables.find((t) => t.id === tableId);
   if (!table) return 0;
 
-  const occupied = table.seatedGuests?.length ?? 0;
+  const occupied = table.seatedGuests.length;
+
+
   return Math.max(0, table.seats - occupied);
 },
+
 
 
 canSeatGuestAtTable: (tableId, guest) => {
@@ -407,51 +410,32 @@ unseatGroup: (groupId) => {
 
   /* ---------------- INIT ---------------- */
 init: (tables, guests, background = null, canvasView = null) => {
-  console.log("🟡 INIT tables from server");
+  const seatingMode = get().seatingMode;
 
-  const liveArrivalsMap = {}; // ← בלי Record<>
-
-  (guests || []).forEach((g) => {
-    const id = String(g.id ?? g._id);
-    liveArrivalsMap[id] = Number(g.actualArrivedCount ?? 0);
-  });
-
-  set((state) => {
-    const arrivalsLeft = { ...liveArrivalsMap };
-
-    const syncedTables = (tables || []).map((t) => ({
+  set((state) => ({
+    ...state,
+    tables: (tables || []).map((t) => ({
       ...t,
       displayName: t.displayName || "",
-      seatedGuests: (t.seatedGuests || []).map((sg) => {
-        const gid = String(sg.guestId);
-        const left = arrivalsLeft[gid] ?? 0;
-
-        if (left > 0) {
-          arrivalsLeft[gid]--;
-          return { ...sg, arrived: true };
-        }
-
-        return { ...sg, arrived: false };
-      }),
-    }));
-
-    return {
-      ...state,
-      tables: syncedTables,
-      guests: (guests || []).map((g) => ({
-        ...g,
-        rsvp: g.rsvp ?? "pending",
+      seatedGuests: (t.seatedGuests || []).map((sg) => ({
+        ...sg,
+        arrived: false, // 🔒 תמיד false ב-init
       })),
-      liveArrivals: liveArrivalsMap,
-      background,
-      canvasView: canvasView || {
-        scale: 1,
-        x: 0,
-        y: 0,
-      },
-    };
-  });
+    })),
+    guests: guests || [],
+    liveArrivals: seatingMode === "live"
+      ? Object.fromEntries(
+          (guests || []).map((g) => [
+            String(g.id ?? g._id),
+            Number(g.actualArrivedCount ?? 0),
+          ])
+        )
+      : {}, // ⛔ לקוח: ריק
+    background,
+    canvasView: canvasView || { scale: 1, x: 0, y: 0 },
+  }));
 },
+
 
 
 
@@ -1040,51 +1024,52 @@ const block = findFreeBlock(cleanTable, realCount);
 
 
   
-syncArrivedSeats: (guestId) =>
+syncArrivedSeats: (guestId) => {
+  // 🔒 רק בלייב
+  if (get().seatingMode !== "live") return;
+
   set((state) => {
-    const arrivedCount =
-      state.liveArrivals[guestId] ?? 0;
+    const arrivedCount = Number(
+      state.liveArrivals[String(guestId)] ?? 0
+    );
 
     const tables = state.tables.map((table) => {
-      if (!table.seatedGuests) return table;
+      if (!Array.isArray(table.seatedGuests)) return table;
 
-
-      // כל הכיסאות של האורח – ממוינים לפי seatIndex
+      // כל הכיסאות של האורח, ממוינים
       const guestSeats = table.seatedGuests
-  .filter(
-    (sg) => String(sg.guestId) === String(guestId)
-  )
-
+        .filter(
+          (sg) => String(sg.guestId) === String(guestId)
+        )
         .sort((a, b) => a.seatIndex - b.seatIndex);
 
       if (!guestSeats.length) return table;
 
-      // ✂️ משאירים רק arrivedCount כיסאות
-      const seatsToKeep = guestSeats.slice(0, arrivedCount);
+      // סט של כיסאות שהגיעו בפועל
+      const arrivedSeatIndexes = new Set(
+        guestSeats
+          .slice(0, arrivedCount)
+          .map((s) => s.seatIndex)
+      );
 
-      const updatedSeats = table.seatedGuests.filter((sg) => {
-        if (String(sg.guestId) !== String(guestId)) return true;
+      const updatedSeats = table.seatedGuests.map((sg) => {
+        if (String(sg.guestId) !== String(guestId)) return sg;
 
-        // רק הכיסאות שנשארו
-        return seatsToKeep.includes(sg);
+        return {
+          ...sg,
+          arrived: arrivedSeatIndexes.has(sg.seatIndex),
+        };
       });
 
-      // מסמנים arrived=true רק לאלה שנשארו
-      const finalSeats = updatedSeats.map((sg) => {
-  if (String(sg.guestId) !== String(guestId)) return sg;
-
-  return {
-    ...sg,
-    arrived: seatsToKeep.includes(sg),
-  };
-});
-
-      return { ...table, seatedGuests: finalSeats };
+      return {
+        ...table,
+        seatedGuests: updatedSeats,
+      };
     });
 
     return { tables };
-  }),
-
+  });
+},
 
 
 

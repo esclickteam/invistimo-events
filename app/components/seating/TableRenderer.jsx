@@ -225,9 +225,14 @@ useEffect(() => {
  const occupiedSeatsCount = useMemo(() => {
   if (!table.seatedGuests?.length) return 0;
 
-  // 👤 לקוח / תכנון – לא מתייחס ל־liveArrivals
+  // 👤 לקוח – תמיד לפי arrivedCount
   if (seatingMode !== "live") {
-    return table.seatedGuests.length;
+    return table.seatedGuests.reduce((sum, s) => {
+      const g = guests.find(
+        (g) => String(g._id || g.id) === String(s.guestId)
+      );
+      return sum + Number(g?.arrivedCount ?? 0);
+    }, 0);
   }
 
   // 🎧 לייב – לפי הגיעו בפועל
@@ -239,7 +244,8 @@ useEffect(() => {
     counted.add(guestId);
     return sum + (liveArrivals?.[guestId] ?? 0);
   }, 0);
-}, [table.seatedGuests, seatingMode, liveArrivals]);
+}, [table.seatedGuests, seatingMode, liveArrivals, guests]);
+
 
 
 
@@ -297,8 +303,6 @@ const tableText = isHighlighted
   const seatsCoords = layout.coords;
 
   const arrivedSeatsSet = useMemo(() => {
-  if (seatingMode !== "live") return new Set();
-
   const arrived = new Set();
   let remaining = occupiedSeatsCount;
 
@@ -309,7 +313,7 @@ const tableText = isHighlighted
   }
 
   return arrived;
-}, [seatingMode, table.seatedGuests, occupiedSeatsCount]);
+}, [table.seatedGuests, occupiedSeatsCount]);
 
 
   /* ====== CACHE כמו Canva ====== */
