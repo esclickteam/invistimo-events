@@ -9,9 +9,6 @@ import MobileGuests from "./MobileGuests";
 import SeatingSidebar from "./SeatingSidebar";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext"; 
-
-
-
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 import ExportSeatingPdf from "./ExportSeatingPdf";
@@ -361,22 +358,7 @@ return (
       {/* CONTENT */}
       <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
 
-  {/* 🔘 כפתור הצגה / הסתרה של הסיידבר */}
-  <button
-  onClick={() => setSidebarOpen((v) => !v)}
-  className={`
-    absolute top-1/2 -translate-y-1/2 z-40
-    ${sidebarOpen ? "right-[18rem]" : "right-0"}
-    translate-x-1/2
-    bg-white border rounded-full
-    w-9 h-9 flex items-center justify-center
-    shadow hover:bg-gray-50
-    transition-all duration-300
-  `}
-  title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
->
-  {sidebarOpen ? "›" : "‹"}
-</button>
+
 
   {/* 🎨 קנבס */}
   <div className="flex-1 relative">
@@ -387,15 +369,51 @@ return (
 
   </div>
 
-  {/* 🧾 סיידבר אורחים */}
   {/* 🧾 סיידבר הושבה מאוחד */}
-{sidebarOpen && (
-  <aside className="hidden md:block w-80 bg-white border-l">
-    <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
-      <SeatingSidebar />
-    </Suspense>
-  </aside>
-)}
+<div className="relative hidden md:flex">
+  {/* 🧾 סיידבר */}
+  {sidebarOpen && (
+    <aside className="w-[400px] bg-white border-l border-[#ead8cc]">
+      <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
+        <SeatingSidebar />
+      </Suspense>
+    </aside>
+  )}
+
+  {/* 🔘 חץ שליטה – מופרד מהסיידבר */}
+  <div
+  className={`
+    absolute top-1/2 -translate-y-1/2
+    z-40 flex items-center
+    transition-all duration-300
+    ${sidebarOpen ? "-left-[18px]" : "left-0"}
+  `}
+>
+  {/* קו הפרדה – רק כשהסיידבר פתוח */}
+  {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
+
+  {/* כפתור */}
+  <button
+    onClick={() => setSidebarOpen((v) => !v)}
+    className="
+      ml-[-12px]
+      h-9 w-9
+      rounded-full
+      bg-[#fdf9f6]
+      border border-[#ead8cc]
+      shadow-sm
+      flex items-center justify-center
+      hover:bg-[#f6ede8]
+      transition
+    "
+    title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
+  >
+    {sidebarOpen ? "❮" : "❯"}
+  </button>
+</div>
+
+</div>
+
 
 
 
