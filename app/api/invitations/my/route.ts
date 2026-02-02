@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 
 /* ============================================================
    GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
-   ✅ תומך גם בלקוח שנוצר ע״י מפיק (createdByProducer)
+   ❌ לא יוצר אירוע
+   ❌ לא יוצר הזמנה
+   ❌ לא מבצע redirect
 ============================================================ */
 export async function GET() {
   try {
@@ -25,7 +27,6 @@ export async function GET() {
 
     const userId = auth.userId;
 
-    // ✅ מביאים את המפיק שיצר את הלקוח (אם קיים)
     const user = await User.findById(userId)
       .select("createdByProducer")
       .lean();
@@ -33,25 +34,24 @@ export async function GET() {
     const createdByProducerId = user?.createdByProducer || null;
 
     const invitation = await Invitation.findOne({
-  eventId: { $ne: null }, // ✅ קריטי
-  $or: [
-    { ownerId: userId },
-    ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
-  ],
-})
-  .sort({ updatedAt: -1 }) // ✅ קריטי
-  .select(`
-    _id
-    eventId
-    maxGuests
-    maxMessages
-    remainingMessages
-    shareId
-    producerId
-    ownerId
-  `)
-  .lean();
-
+      eventId: { $ne: null },
+      $or: [
+        { ownerId: userId },
+        ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .select(`
+        _id
+        eventId
+        maxGuests
+        maxMessages
+        remainingMessages
+        shareId
+        producerId
+        ownerId
+      `)
+      .lean();
 
     if (!invitation) {
       return NextResponse.json({
@@ -61,7 +61,9 @@ export async function GET() {
     }
 
     const event = invitation.eventId
-      ? await Event.findById(invitation.eventId).select("location").lean()
+      ? await Event.findById(invitation.eventId)
+          .select("location")
+          .lean()
       : null;
 
     return NextResponse.json({
@@ -81,11 +83,9 @@ export async function GET() {
 }
 
 /* ============================================================
-   POST — יצירת הזמנה חדשה
-   ✅ אם אין eventId בבקשה:
-      1) מחפש אירוע קיים למשתמש
-      2) אם אין — יוצר אירוע חדש אוטומטית
-   ✅ לקוח שנוצר ע״י מפיק → producerId נלקח מ-User.createdByProducer
+   POST — יצירת הזמנה
+   ✅ דורש eventId מפורש
+   ❌ לא יוצר Event אוטומטית
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -101,7 +101,6 @@ export async function POST(req: Request) {
 
     const userId = auth.userId;
 
-    // ✅ שליפת המשתמש + מי יצר אותו (אם רלוונטי)
     const user = await User.findById(userId)
       .select("email guests maxMessages createdByProducer role")
       .lean();
@@ -113,55 +112,29 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ producerId נקבע כך:
-    // - אם מחובר כמפיק אמיתי → הוא המפיק
-    // - אחרת (לקוח) → אם נוצר ע"י מפיק → המפיק נמצא ב-createdByProducer
+    const body = await req.json().catch(() => ({} as any));
+    const { eventId } = body;
+
+    // ⛔ חובה eventId מפורש
+    if (!eventId) {
+      return NextResponse.json(
+        { success: false, error: "EVENT_ID_REQUIRED" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ בדיקת אירוע קיים בלבד
+    const event = await Event.findOne({ _id: eventId, userId }).lean();
+    if (!event) {
+      return NextResponse.json(
+        { success: false, error: "EVENT_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
     const producerId =
       auth.role === "producer" ? userId : user.createdByProducer || null;
 
-    const body = await req.json().catch(() => ({} as any));
-    let { eventId } = body;
-
-    /* ===============================
-       🎯 מציאת/יצירת Event
-    =============================== */
-    let event: any = null;
-
-    if (eventId) {
-      event = await Event.findOne({ _id: eventId, userId }).lean();
-      if (!event) {
-        return NextResponse.json(
-          { success: false, error: "EVENT_NOT_FOUND" },
-          { status: 404 }
-        );
-      }
-    } else {
-      event = await Event.findOne({ userId }).lean();
-
-      if (!event) {
-        const createdEvent = await Event.create({
-          userId,
-          email: user.email || "noemail@placeholder.com",
-          title: "אירוע חדש",
-          eventType: "wedding",
-          status: "active",
-          date: new Date(),
-          time: "00:00",
-          maxGuests: 100,
-          location: {},
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-
-        event = createdEvent;
-        console.log("✅ נוצר אירוע חדש אוטומטית:", createdEvent._id);
-      }
-    }
-
-    /* ===============================
-       אם כבר קיימת הזמנה → נחזיר אותה
-       ✅ גם לפי producerId אם יש
-    =============================== */
     let invitation = await Invitation.findOne({
       eventId: event._id,
       $or: [
@@ -170,14 +143,11 @@ export async function POST(req: Request) {
       ],
     }).lean();
 
-    /* ===============================
-       אם אין הזמנה קיימת, ניצור חדשה
-    =============================== */
+    // ✅ יצירת הזמנה רק אם יש eventId ואין הזמנה קיימת
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: userId,
-        producerId, // ✅ כאן התיקון
-
+        producerId,
         eventId: event._id,
         guests: [],
         maxGuests: Number(user.guests) || Number(event.maxGuests) || 100,
