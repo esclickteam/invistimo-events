@@ -62,11 +62,11 @@ type Guest = {
 
   /* 📞 סבבי שיחות */
   callRounds?: {
-    roundNumber: number;
-    status: "answered" | "no_answer" | "will_reply";
-    notes?: string;
-    calledAt?: string;
-  }[];
+  roundNumber: number;
+  status?: string; // ⭐️ חשוב
+  notes?: string;
+  calledAt?: string;
+}[];
 };
 
 
@@ -592,6 +592,25 @@ useEffect(() => {
     );
   };
 
+  function normalizeCallStatus(status?: string) {
+  switch (status) {
+    case "answered":
+    case "ענה":
+      return "answered";
+
+    case "no_answer":
+    case "לא ענה":
+      return "no_answer";
+
+    case "will_reply":
+    case "ישיב בהודעה":
+      return "will_reply";
+
+    default:
+      return null;
+  }
+}
+
 
 
 function getGuestCallStatus(
@@ -605,7 +624,9 @@ function getGuestCallStatus(
     .reverse()
     .find((r) => r.status);
 
-  return (lastWithStatus?.status as any) || "no_answer";
+  const normalized = normalizeCallStatus(lastWithStatus?.status);
+
+  return normalized ?? "no_answer";
 }
 
 
@@ -629,9 +650,10 @@ function getGuestCallStatus(
 
 // 📞 Call filters
 if (quickFilter === "pending") {
-  list = list.filter(
-    (g) => getGuestCallStatus(g) !== "answered"
-  );
+  list = list.filter((g) => {
+    const status = getGuestCallStatus(g);
+    return status === "no_answer" || status === "will_reply";
+  });
 }
 
 if (quickFilter === "call_answered") {
