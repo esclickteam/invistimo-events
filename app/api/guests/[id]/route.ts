@@ -140,25 +140,28 @@ if (typeof data.guestsCount === "number" && data.guestsCount >= 1) {
   guest.guestsCount = data.guestsCount;
 }
 
-// 2️⃣ RSVP — סטטוס בלבד (לא משנה כמויות)
+// 2️⃣ RSVP — סטטוס + סנכרון מגיעים
 if (["yes", "no", "pending"].includes(data.rsvp)) {
   guest.rsvp = data.rsvp;
 
-  // אם עבר ל-"לא מגיע" — מאפס מגיעים
   if (data.rsvp === "no") {
     guest.arrivedCount = 0;
   }
+
+  if (data.rsvp === "yes") {
+    const incomingArrived =
+      typeof data.arrivedCount === "number"
+        ? data.arrivedCount
+        : undefined;
+
+    guest.arrivedCount =
+      incomingArrived ??
+      guest.arrivedCount ??
+      guest.guestsCount ??
+      1;
+  }
 }
 
-
-// 3️⃣ arrivedCount ידני — רק למפיק / אדמין
-if (
-  typeof data.arrivedCount === "number" &&
-  data.arrivedCount >= 0 &&
-  (isAdmin || isProducerRole || isProducerByInvitation)
-) {
-  guest.arrivedCount = data.arrivedCount;
-}
 
 
     /* ===============================
