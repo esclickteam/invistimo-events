@@ -316,26 +316,11 @@ if (grRes.ok) {
             יש ליצור אירוע כדי להשתמש בהושבה
           </h2>
 
-          <textarea
-            placeholder="הערה (לא חובה)"
-            rows={4}
-            className="
-              w-full
-              border
-              rounded-lg
-              p-3
-              text-sm
-              mb-6
-              resize-none
-              focus:outline-none
-              focus:ring-2
-              focus:ring-black/20
-            "
-          />
 
           <button
             onClick={() => {
-              window.location.href = "/invitations/new";
+              window.location.href = "/dashboard/create-invite";
+
             }}
             className="
               w-full
