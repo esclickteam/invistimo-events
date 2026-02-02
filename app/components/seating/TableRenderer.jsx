@@ -179,10 +179,22 @@ const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 const groups = useSeatingStore((s) => s.groups);
 
 const groupForTable = useMemo(() => {
-  return groups.find(
-    (g) => String(g.tableId) === String(table.id)
+  if (!table.seatedGuests?.length) return null;
+
+  // מוצאים אורח ראשון עם קבוצה
+  const guestWithGroup = guests.find((g) =>
+    g.groupId &&
+    table.seatedGuests.some(
+      (s) => String(s.guestId) === String(g._id || g.id)
+    )
   );
-}, [groups, table.id]);
+
+  if (!guestWithGroup?.groupId) return null;
+
+  return groups.find(
+    (gr) => String(gr._id) === String(guestWithGroup.groupId)
+  );
+}, [table.seatedGuests, guests, groups]);
 
 
 const displayName = table.displayName || "";
@@ -339,7 +351,8 @@ const tableText = isHighlighted
     e.cancelBubble = true;
     if (draggingGuest) {
       assignGuestBlock({
-        guestId: draggingGuest.id,
+        guestId: draggingGuest._id || draggingGuest.id,
+
         tableId: table.id,
       });
     }
