@@ -110,6 +110,7 @@ const isDemo = pathname.startsWith("/try");
 
   const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
+  const setSeatingGuests = useSeatingStore((s) => s.setGuests);
 
 
 useEffect(() => {
@@ -174,6 +175,27 @@ useEffect(() => {
       };
     })
   );
+
+  setSeatingGuests((prev: Guest[]) =>
+  prev.map((g: Guest) =>
+    String(g._id) === String(updatedGuest._id)
+      ? {
+          ...g,
+          rsvp: updatedGuest.rsvp,
+
+          // ⭐⭐⭐ זה היה חסר ⭐⭐⭐
+          guestsCount: updatedGuest.guestsCount,
+
+          arrivedCount:
+            updatedGuest.arrivedCount ??
+            (updatedGuest.rsvp === "yes"
+              ? updatedGuest.guestsCount
+              : 0),
+        }
+      : g
+  )
+);
+
 
   if (invitationId) {
     await loadGroups(invitationId);
