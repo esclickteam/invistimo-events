@@ -40,7 +40,6 @@ export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
-  const [blocked, setBlocked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
 
@@ -73,7 +72,10 @@ const isProducer = pathname.includes("/events/production");
 
     const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
-    const [blockReason, setBlockReason] = useState<"no-event" | "no-plan" | null>(null);
+    const [blockReason, setBlockReason] =
+  useState<"no-plan" | null>(null);
+
+
 
 
     useEffect(() => {
@@ -102,11 +104,7 @@ const isProducer = pathname.includes("/events/production");
         const invRes = await fetch("/api/invitations/my");
         const invData = await invRes.json();
 
-        if (!invData?.success || !invData.invitation?.eventId) {
-  setBlocked(true);
-  setBlockReason("no-event");
-  return;
-}
+       
 
 
         const eventIdFromApi: string = invData.invitation.eventId;
@@ -114,18 +112,12 @@ const isProducer = pathname.includes("/events/production");
 
         /* 2️⃣ אורחים – לפי eventId */
         const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
-        if (gRes.status === 403) {
-  setBlocked(true);
 
-  if (user?.plan !== "premium") {
-    setBlockReason("no-plan");
-    setShowUpgrade(true);
-  } else {
-    setBlockReason("no-event");
-  }
-
+if (gRes.status === 403) {
+  setBlockReason("no-plan");
   return;
 }
+     
 
 
 
@@ -149,18 +141,12 @@ const isProducer = pathname.includes("/events/production");
 
         /* 3️⃣ שולחנות + אזורים + קנבס */
         const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
+
 if (tRes.status === 403) {
-  setBlocked(true);
-
-  if (user?.plan !== "premium") {
-    setBlockReason("no-plan");
-    setShowUpgrade(true);
-  } else {
-    setBlockReason("no-event");
-  }
-
+  setBlockReason("no-plan");
   return;
 }
+
 
 const tData = await tRes.json();
 
@@ -283,99 +269,53 @@ if (grRes.ok) {
       }),
     });
 
-    if (res.status === 403) {
-  setBlocked(true);
-
-  if (user?.plan !== "premium") {
-    setBlockReason("no-plan");
-    setShowUpgrade(true);
-  } else {
-    setBlockReason("no-event");
-  }
-
-  return;
-}
+ 
 
 
     const data = await res.json();
     alert(data.success ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
   }
 
-  /* ===============================
-     BLOCKED
-  =============================== */
-  if (blocked) {
-  // ⛔ אין אירוע
-  if (blockReason === "no-event") {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
-        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
-          <h2 className="text-2xl font-semibold mb-4">
-            יש ליצור אירוע כדי להשתמש בהושבה
-          </h2>
 
-
-          <button
-            onClick={() => {
-              window.location.href = "/dashboard/create-invite";
-
-            }}
-            className="
-              w-full
-              py-2.5
-              rounded-lg
-              bg-black
-              text-white
-              font-semibold
-              hover:bg-gray-900
-              transition
-            "
-          >
-            ליצירת אירוע
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // ⛔ אין חבילה מתאימה
   if (blockReason === "no-plan") {
-    return (
-      <>
-        <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
-          <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
-            <h2 className="text-2xl font-semibold mb-3">
-              הושבה אינה כלולה בחבילה שלך
-            </h2>
+  return (
+    <>
+      <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
+          <h2 className="text-2xl font-semibold mb-3">
+            הושבה אינה כלולה בחבילה שלך
+          </h2>
 
-            <p className="text-gray-600 mb-6">
-              כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום.
-            </p>
+          <p className="text-gray-600 mb-6">
+            כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום.
+          </p>
 
-            <button
-              onClick={() => setShowUpgrade(true)}
-              className="px-5 py-2 bg-black text-white rounded-lg"
-            >
-              שדרוג חבילה
-            </button>
-          </div>
+          <button
+            onClick={() => setShowUpgrade(true)}
+            className="px-5 py-2 bg-black text-white rounded-lg"
+          >
+            שדרוג חבילה
+          </button>
         </div>
+      </div>
 
-        <UpgradePlanModal
-          isOpen={showUpgrade}
-          onClose={() => setShowUpgrade(false)}
-          currentPaid={user?.paidAmount ?? 0}
-        />
-      </>
-    );
-  }
+      <UpgradePlanModal
+        isOpen={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        currentPaid={user?.paidAmount ?? 0}
+      />
+    </>
+  );
 }
 
-  /* ===============================
-     RENDER
-  =============================== */
-  return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+/* ===============================
+   RENDER
+=============================== */
+return (
+  <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+
 
 
       {/* HEADER */}
@@ -494,6 +434,5 @@ if (grRes.ok) {
 
 
     </div>
-    
-  );
+ );
 }
