@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import type { QuickFilter } from "@/types/quickFilter";
 
 /* ============================================================
@@ -8,6 +8,11 @@ import type { QuickFilter } from "@/types/quickFilter";
 ============================================================ */
 
 type Group = { _id: string; name: string };
+
+type PendingCallFilter =
+  | "call_answered"
+  | "call_no_answer"
+  | "call_confirmed";
 
 type Props = {
   /* 🔍 Search */
@@ -20,9 +25,9 @@ type Props = {
   setSelectedGroupId?: Dispatch<SetStateAction<string>>;
   onManageGroups?: () => void;
 
-  /* ⚡ Quick filters */
-  quickFilter?: QuickFilter;
-  setQuickFilter?: Dispatch<SetStateAction<QuickFilter>>;
+  /* ⚡ Main quick filters */
+  quickFilter: QuickFilter;
+  setQuickFilter: Dispatch<SetStateAction<QuickFilter>>;
 
   /* 🔢 Count */
   totalCount: number;
@@ -54,7 +59,9 @@ export default function GuestsControls({
     typeof selectedGroupId === "string" &&
     onManageGroups;
 
-  const showFilters = Boolean(quickFilter && setQuickFilter);
+  // ⭐️ תת־פילטר פנימי לממתינים
+  const [pendingCallFilter, setPendingCallFilter] =
+    useState<PendingCallFilter>("call_no_answer");
 
   return (
     <div className="flex flex-col gap-3 mb-4">
@@ -82,86 +89,92 @@ export default function GuestsControls({
         )}
       </div>
 
-      {/* ================= Groups + Filters ================= */}
-      {(showGroups || showFilters) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Groups */}
-          {showGroups && (
-            <>
-              <select
-                value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="rounded-full border px-4 py-2 text-sm bg-white"
-              >
-                <option value="">כל הקבוצות</option>
-                {groups.map((g) => (
-                  <option key={g._id} value={g._id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
+      {/* ================= Groups + Main Tabs ================= */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Groups */}
+        {showGroups && (
+          <>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="rounded-full border px-4 py-2 text-sm bg-white"
+            >
+              <option value="">כל הקבוצות</option>
+              {groups.map((g) => (
+                <option key={g._id} value={g._id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
 
-              <button
-                onClick={onManageGroups}
-                className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
-              >
-                + הוספת קבוצה
-              </button>
-            </>
-          )}
+            <button
+              onClick={onManageGroups}
+              className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
+            >
+              + הוספת קבוצה
+            </button>
+          </>
+        )}
 
-          {/* Quick filters */}
-          {showFilters && (
-            <>
-              <FilterPill
-                active={quickFilter === "all"}
-                onClick={() => setQuickFilter!("all")}
-                label="הכל"
-              />
+        {/* Main filters */}
+        <FilterPill
+          active={quickFilter === "all"}
+          onClick={() => setQuickFilter("all")}
+          label="הכל"
+        />
 
-              <FilterPill
-                active={quickFilter === "yes"}
-                onClick={() => setQuickFilter!("yes")}
-                label="מגיעים"
-              />
+        <FilterPill
+          active={quickFilter === "yes"}
+          onClick={() => setQuickFilter("yes")}
+          label="מגיעים"
+        />
 
-              <FilterPill
-                active={quickFilter === "no"}
-                onClick={() => setQuickFilter!("no")}
-                label="לא מגיעים"
-              />
+        <FilterPill
+          active={quickFilter === "no"}
+          onClick={() => setQuickFilter("no")}
+          label="לא מגיעים"
+        />
 
-              <FilterPill
-                active={quickFilter === "noTable"}
-                onClick={() => setQuickFilter!("noTable")}
-                label="בלי שולחן"
-              />
+        <FilterPill
+          active={quickFilter === "pending"}
+          onClick={() => setQuickFilter("pending")}
+          label="ממתינים"
+        />
 
-              <FilterPill
-                active={quickFilter === "call_answered"}
-                onClick={() => setQuickFilter!("call_answered")}
-                label="ענה לשיחה"
-              />
+        <FilterPill
+          active={quickFilter === "noTable"}
+          onClick={() => setQuickFilter("noTable")}
+          label="בלי שולחן"
+        />
+      </div>
 
-              <FilterPill
-                active={quickFilter === "call_no_answer"}
-                onClick={() => setQuickFilter!("call_no_answer")}
-                label="לא ענה"
-              />
+      {/* ================= Pending Sub Tabs ================= */}
+      {quickFilter === "pending" && (
+        <div className="flex gap-2 ps-1">
+          <FilterPill
+            active={pendingCallFilter === "call_answered"}
+            onClick={() => setPendingCallFilter("call_answered")}
+            label="ענה לשיחה"
+          />
 
-              <FilterPill
-                active={quickFilter === "call_confirmed"}
-                onClick={() => setQuickFilter!("call_confirmed")}
-                label="אישר בשיחה"
-              />
-            </>
-          )}
+          <FilterPill
+            active={pendingCallFilter === "call_no_answer"}
+            onClick={() => setPendingCallFilter("call_no_answer")}
+            label="לא ענה"
+          />
+
+          <FilterPill
+            active={pendingCallFilter === "call_confirmed"}
+            onClick={() => setPendingCallFilter("call_confirmed")}
+            label="אישר בשיחה"
+          />
         </div>
       )}
 
       {/* ================= Counter ================= */}
       <div className="text-sm text-gray-500 whitespace-nowrap">
-        מציג: <span className="font-semibold">{displayCount}</span> / {totalCount}
+        מציג: <span className="font-semibold">{displayCount}</span> /{" "}
+        {totalCount}
       </div>
     </div>
   );
