@@ -225,21 +225,10 @@ useEffect(() => {
  const occupiedSeatsCount = useMemo(() => {
   if (!table.seatedGuests?.length) return 0;
 
-  // 👤 לקוח / תכנון – לא מתייחס ל־liveArrivals
-  if (seatingMode !== "live") {
-    return table.seatedGuests.length;
-  }
+  // ⭐ בדיוק כמו בסיידבר – לפי arrived בפועל
+  return table.seatedGuests.filter((s) => s.arrived === true).length;
+}, [table.seatedGuests]);
 
-  // 🎧 לייב – לפי הגיעו בפועל
-  const counted = new Set();
-
-  return table.seatedGuests.reduce((sum, s) => {
-    const guestId = String(s.guestId);
-    if (counted.has(guestId)) return sum;
-    counted.add(guestId);
-    return sum + (liveArrivals?.[guestId] ?? 0);
-  }, 0);
-}, [table.seatedGuests, seatingMode, liveArrivals]);
 
 
 
@@ -300,7 +289,7 @@ const tableText = isHighlighted
   if (seatingMode !== "live") return new Set();
 
   return new Set(
-    (table.seatedGuests || [])
+    table.seatedGuests
       .filter((s) => s.arrived === true)
       .map((s) => s.seatIndex)
   );

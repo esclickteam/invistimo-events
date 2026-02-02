@@ -114,6 +114,9 @@ const isDemo = pathname.startsWith("/try");
 
   const setLiveArrived = useSeatingStore((s) => s.setLiveArrived);
 
+  const syncArrivedSeats = useSeatingStore((s) => s.syncArrivedSeats);
+
+
 
 useEffect(() => {
   const isProducer =
@@ -204,6 +207,7 @@ setLiveArrived(
   Number(updatedGuest.actualArrivedCount ?? 0)
 );
 
+syncArrivedSeats(String(updatedGuest._id));
 
 
   if (invitationId) {
@@ -817,12 +821,15 @@ list.sort((a, b) => {
 
   // optimistic UI
   setGuests((prev) =>
-    prev.map((x) =>
-      x._id === guestId ? { ...x, actualArrivedCount: next } : x
-    )
-  );
+  prev.map((x) =>
+    x._id === guestId ? { ...x, actualArrivedCount: next } : x
+  )
+);
 
-  setLiveArrived(String(guestId), Number(next));
+setLiveArrived(String(guestId), Number(next));
+
+// 🔥 חובה – חותך כיסאות לפי arrived בפועל
+syncArrivedSeats(String(guestId));
 
 
   const doUpdate = async () =>
