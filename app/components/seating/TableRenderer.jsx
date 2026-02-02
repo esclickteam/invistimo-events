@@ -180,11 +180,13 @@ const groups = useSeatingStore((s) => s.groups);
 
 const groupForTable = useMemo(() => {
   // ✅ עדיפות ראשונה: קבוצה ששמורה על השולחן עצמו
-  if (table.groupId) {
-    return groups.find(
-      (gr) => String(gr._id) === String(table.groupId)
-    ) || null;
-  }
+  if (table.group) {
+  return (
+    groups.find(
+      (gr) => String(gr._id) === String(table.group)
+    ) || null
+  );
+}
 
   // ↩️ fallback ישן – לפי אורחים
   if (!table.seatedGuests?.length) return null;
@@ -201,7 +203,8 @@ const groupForTable = useMemo(() => {
   return groups.find(
     (gr) => String(gr._id) === String(guestWithGroup.groupId)
   ) || null;
-}, [table.groupId, table.seatedGuests, guests, groups]);
+}, [table.group, table.seatedGuests, guests, groups]);
+
 
 
 

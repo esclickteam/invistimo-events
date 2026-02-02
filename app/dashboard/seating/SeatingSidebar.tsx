@@ -43,7 +43,7 @@ type Table = {
   displayName?: string;
   seats: number;
   seatedGuests: { guestId: string }[];
-  groupId?: string | null; // ⭐ זה החסר
+  group?: string | null; // ← במקום groupId
 };
 
 type Filter = "all" | "seated" | "unseated";
@@ -313,15 +313,18 @@ export default function SeatingSidebar() {
   tables: state.tables.map((t: Table) => {
     // אם נבחר "ללא שולחן" – מנקים קבוצה מהשולחנות של הקבוצה
     if (!tableId) {
-      return t.groupId === group?._id ? { ...t, groupId: null } : t;
+      return t.group === group?._id
+        ? { ...t, group: null }
+        : t;
     }
 
     // אם נבחר שולחן – מצמידים קבוצה רק אליו
     return t.id === tableId
-      ? { ...t, groupId: group?._id ?? null }
+      ? { ...t, group: group?._id ?? null }
       : t;
   }),
 }));
+
 
   }}
 >
