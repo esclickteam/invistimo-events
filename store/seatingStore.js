@@ -772,7 +772,10 @@ dropGuest: () => {
     };
   });
 
-  
+  const targetTable = updatedTables.find(
+  (t) => t.id === highlightedTable
+);
+
 
   set({
     tables: updatedTables,

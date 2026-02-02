@@ -29,6 +29,7 @@ type Guest = {
   phone?: string;
   groupId?: string | null;
   rsvp?: "yes" | "no" | "pending";
+  arrivedCount?: number;
 };
 
 type Group = {
@@ -67,11 +68,12 @@ export default function SeatingSidebar() {
 
   const seatGuestId = (g: Guest) => String(g.id ?? g._id);
 
-  const getPlannedSeatCount = (g: Guest) =>
-    useSeatingStore.getState().getPlannedSeatCount(g);
+  // ⭐⭐⭐ מגיעים בפועל בלבד
+  const getArrivedCount = (g: Guest) =>
+    Number(g.arrivedCount ?? 0);
 
-  const getGuestsPlannedCount = (list: Guest[]) =>
-    list.reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
+  const getGuestsArrivedCount = (list: Guest[]) =>
+    list.reduce((sum, g) => sum + getArrivedCount(g), 0);
 
   /* ================= TABLE MAP ================= */
 
@@ -111,7 +113,7 @@ export default function SeatingSidebar() {
   const getGroupTableId = (groupId: string) => {
     const guest = guests.find(
       (g) =>
-        g.rsvp === "yes" &&
+        getArrivedCount(g) > 0 &&
         normalizeGroupId(g.groupId) === String(groupId) &&
         guestTableMap.has(seatGuestId(g))
     );
@@ -122,7 +124,7 @@ export default function SeatingSidebar() {
 
   const getNoGroupTableId = (list: Guest[]) => {
     const first = list.find(
-      (g) => g.rsvp === "yes" && guestTableMap.has(seatGuestId(g))
+      (g) => getArrivedCount(g) > 0 && guestTableMap.has(seatGuestId(g))
     );
 
     if (!first) return "";
@@ -131,57 +133,27 @@ export default function SeatingSidebar() {
 
   /* ================= LABELS ================= */
 
-  const getTableGroupLabel = (tableId: string) => {
-    const seatedGuests = guests.filter(
-      (g) =>
-        g.rsvp === "yes" &&
-        guestTableMap.get(seatGuestId(g))?.id === tableId
-    );
-
-    const groupIds = Array.from(
-      new Set(
-        seatedGuests
-          .map((g) => normalizeGroupId(g.groupId))
-          .filter((gid) => gid !== NO_GROUP_KEY)
-      )
-    );
-
-    if (groupIds.length === 1) {
-      const group = groups.find(
-        (gr) => String(gr._id) === String(groupIds[0])
-      );
-      return group?.name || "";
-    }
-
-    if (groupIds.length > 1) return "קבוצות מעורבות";
-    return "";
-  };
-
   const tableLabel = (t: Table) => {
-    const count = guests
+    const arrived = guests
       .filter(
         (g) =>
-          g.rsvp === "yes" &&
+          getArrivedCount(g) > 0 &&
           guestTableMap.get(seatGuestId(g))?.id === t.id
       )
-      .reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
-
-    const groupLabel = getTableGroupLabel(t.id);
+      .reduce((sum, g) => sum + getArrivedCount(g), 0);
 
     const main =
       t.displayName && t.displayName.trim()
         ? `${t.name} – ${t.displayName}`
         : t.name;
 
-    return groupLabel
-      ? `${groupLabel} · ${main} (${count}/${t.seats})`
-      : `${main} (${count}/${t.seats})`;
+    return `${main} (${arrived}/${t.seats})`;
   };
 
   /* ================= FILTER ================= */
 
   function guestVisible(g: Guest) {
-    if (g.rsvp !== "yes") return false;
+    if (getArrivedCount(g) === 0) return false;
 
     const q = search.trim().toLowerCase();
     const gid = seatGuestId(g);
@@ -246,7 +218,7 @@ export default function SeatingSidebar() {
           const visibleGuests = list.filter(guestVisible);
           if (!visibleGuests.length) return null;
 
-          const plannedCount = getGuestsPlannedCount(visibleGuests);
+          const arrivedCount = getGuestsArrivedCount(visibleGuests);
 
           return (
             <div key={groupId} className="border-b border-[#ead8cc]">
@@ -262,8 +234,8 @@ export default function SeatingSidebar() {
               >
                 <div className="text-sm font-medium">
                   {group
-                    ? `${group.name} (${plannedCount})`
-                    : `ללא קבוצה (${plannedCount})`}
+                    ? `${group.name} (${arrivedCount})`
+                    : `ללא קבוצה (${arrivedCount})`}
                 </div>
 
                 <select
@@ -276,11 +248,8 @@ export default function SeatingSidebar() {
                   }
                   onChange={(e) => {
                     const tableId = e.target.value;
-                    const seatableGuests = visibleGuests.filter(
-                      (g) => g.rsvp === "yes"
-                    );
 
-                    seatableGuests.forEach((g) => {
+                    visibleGuests.forEach((g) => {
                       const gid = seatGuestId(g);
                       if (!tableId) removeFromSeat(gid);
                       else assignGuestBlock({ guestId: gid, tableId });
@@ -300,7 +269,7 @@ export default function SeatingSidebar() {
               {openGroups[groupId] &&
                 visibleGuests.map((g) => {
                   const table = guestTableMap.get(seatGuestId(g));
-                  const planned = getPlannedSeatCount(g);
+                  const arrived = getArrivedCount(g);
 
                   return (
                     <div
@@ -311,8 +280,8 @@ export default function SeatingSidebar() {
                         <div className="text-sm">{g.name}</div>
                         <div className="text-xs text-gray-500">
                           {table
-                            ? `${table.displayName || table.name} · ${planned} מוזמנים`
-                            : `לא משובץ · ${planned} מוזמנים`}
+                            ? `${table.displayName || table.name} · ${arrived} מגיעים`
+                            : `לא משובץ · ${arrived} מגיעים`}
                         </div>
                       </div>
                     </div>
