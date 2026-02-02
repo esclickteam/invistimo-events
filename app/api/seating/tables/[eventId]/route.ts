@@ -26,17 +26,24 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const userId = auth.userId;
 
-    /* 🔐 בדיקת חבילה – הושבה */
+    /* 🔐 שליפת משתמש */
     const user = await User.findById(userId).lean();
-    if (!user?.planLimits?.seatingEnabled) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Seating is not included in your plan",
-          code: "SEATING_NOT_ALLOWED",
-        },
-        { status: 403 }
-      );
+
+    /**
+     * ⭐ אדמין בהתחזות = מתנהג כלקוח
+     * → מדלגים על בדיקת החבילה
+     */
+    if (user?.impersonated !== true) {
+      if (!user?.planLimits?.seatingEnabled) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Seating is not included in your plan",
+            code: "SEATING_NOT_ALLOWED",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     /* ===============================
@@ -57,9 +64,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
        2️⃣ שליפת הושבה לפי eventId
        מסמך אחד = אירוע אחד
     =============================== */
-const record =
-  (await SeatingTable.findOne({ eventId }).lean()) ||
-  (await SeatingTable.findOne({ invitationId: eventId }).lean());
+    const record =
+      (await SeatingTable.findOne({ eventId }).lean()) ||
+      (await SeatingTable.findOne({ invitationId: eventId }).lean());
 
     console.log("📦 RECORD FOUND:", {
       hasRecord: !!record,

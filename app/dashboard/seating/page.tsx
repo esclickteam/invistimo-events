@@ -107,10 +107,12 @@ const isProducer = pathname.includes("/events/production");
         /* 2️⃣ אורחים – לפי eventId */
         const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
         if (gRes.status === 403) {
-          setBlocked(true);
-          setShowUpgrade(true);
-          return;
-        }
+  setBlocked(true);
+  setShowUpgrade(true);
+  return;
+}
+
+
 
         const gData = await gRes.json();
 
@@ -293,12 +295,11 @@ if (grRes.ok) {
         </div>
 
         <UpgradePlanModal
-          isOpen={showUpgrade}
-          onClose={() => setShowUpgrade(false)}
-          currentPaid={user?.paidAmount ?? 0}
-impersonated={user?.impersonated}
+  isOpen={showUpgrade}
+  onClose={() => setShowUpgrade(false)}
+  currentPaid={user?.paidAmount ?? 0}
+/>
 
-        />
       </>
     );
   }

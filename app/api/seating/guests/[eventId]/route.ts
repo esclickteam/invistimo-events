@@ -8,7 +8,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   GET – Load seating guests (PRO ONLY)
+   GET – Load seating guests
    ⭐ לפי eventId
 ============================================================ */
 type RouteContext = {
@@ -32,17 +32,24 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const userId = auth.userId;
 
-    /* 🔐 בדיקת חבילה */
+    /* 🔐 שליפת משתמש */
     const user = await User.findById(userId).lean();
-    if (!user?.planLimits?.seatingEnabled) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Seating is not included in your plan",
-          code: "SEATING_NOT_ALLOWED",
-        },
-        { status: 403 }
-      );
+
+    /**
+     * ⭐ אדמין בהתחזות = מתנהג כלקוח
+     * → מדלגים על בדיקת החבילה
+     */
+    if (user?.impersonated !== true) {
+      if (!user?.planLimits?.seatingEnabled) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Seating is not included in your plan",
+            code: "SEATING_NOT_ALLOWED",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     /* ⭐ params הוא Promise ב־Next 16 */
