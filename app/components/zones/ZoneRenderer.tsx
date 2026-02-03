@@ -136,30 +136,32 @@ export default function ZoneRenderer({ zone }: Props) {
     ref={trRef}
     rotateEnabled={true}
 
-    /* 🔹 ידיות קטנות ועדינות */
-    anchorSize={8}
-    anchorCornerRadius={4}
+    /* 🟦 ידיות קטנות ומרובעות */
+    anchorSize={7}
+    anchorCornerRadius={1}
 
-    /* 🔹 מראה נקי */
-    anchorFill="#ffffff"
-    anchorStroke="#2563eb"
+    anchorFill="#e5f0ff"
+    anchorStroke="#3b82f6"
     anchorStrokeWidth={1}
 
-    /* 🔹 מסגרת דקה */
-    borderStroke="#2563eb"
+    /* 🟦 מסגרת דקה ונקייה */
+    borderStroke="#3b82f6"
     borderStrokeWidth={1}
-    borderDash={[4, 4]}
+    borderDash={[]}
 
-    /* 🔹 רק ידיות הגיוניות ל־UX */
+    /* 🟦 בדיוק הידיות שרואים בתמונה */
     enabledAnchors={[
       "top-left",
+      "top-center",
       "top-right",
+      "middle-left",
+      "middle-right",
       "bottom-left",
+      "bottom-center",
       "bottom-right",
     ]}
 
-    /* 🔹 מרחק ידית סיבוב (אם תרצי להשאיר) */
-    rotateAnchorOffset={20}
+    rotateAnchorOffset={18}
 
     boundBoxFunc={(oldBox, newBox) => {
       if (newBox.width < 120 || newBox.height < 80) {
@@ -169,6 +171,7 @@ export default function ZoneRenderer({ zone }: Props) {
     }}
   />
 )}
+
 
 
     </>
