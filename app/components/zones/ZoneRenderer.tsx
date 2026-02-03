@@ -102,20 +102,36 @@ export default function ZoneRenderer({ zone }: Props) {
         />
 
         {/* 🧠 טקסט – תמיד באמצע, לא זז */}
-        <Text
-  text={`${zone.icon} ${zone.name}`}
+        {/* 📝 שם האזור – למעלה */}
+<Text
+  text={zone.name}
   x={zone.width / 2}
-  y={zone.height / 2}
+  y={zone.height / 2 - 14}
   offsetX={zone.width / 2}
-  offsetY={zone.height / 2}
+  offsetY={9}              // ⬅️ חצי מגובה הטקסט (בערך)
   width={zone.width}
-  height={zone.height}
   align="center"
   fontSize={18}
   fontStyle="bold"
   fill="#ffffff"
   listening={false}
 />
+
+{/* 👥 אייקון – מתחת */}
+<Text
+  text={zone.icon}
+  x={zone.width / 2}
+  y={zone.height / 2 + 22}
+  offsetX={zone.width / 2}
+  offsetY={14}             // ⬅️ חצי מגובה האייקון
+  width={zone.width}
+  align="center"
+  fontSize={28}
+  fill="#ffffff"
+  listening={false}
+/>
+
+
 
       </Group>
 
