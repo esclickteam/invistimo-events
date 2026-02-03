@@ -311,14 +311,17 @@ if (grRes.ok) {
    RENDER
 =============================== */
 return (
-    <div className="fixed inset-0 bg-gray-50 overflow-hidden">
+    <div className="fixed inset-0 bg-gray-50">
+
+
 
 
 
 
 
       {/* HEADER */}
-<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-[100]">
+<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-[1000]">
+
 
 
   <div className="flex items-center justify-between px-4 py-3 gap-3">
