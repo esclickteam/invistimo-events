@@ -59,6 +59,7 @@ const isProducer = pathname.includes("/events/production");
   const groups = useSeatingStore((s) => s.groups);
   const { user } = useAuth();
 
+const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
 
   const background = useSeatingStore((s) => s.background);
@@ -333,29 +334,39 @@ return (
       הושבה באולם
     </h1>
 
-    {/* מרכז – אלמנטים (Dropdown UX) */}
-    <div className="flex items-center gap-2">
-      <ZonesToolbar />
-    </div>
+    {/* מרכז – אלמנטים */}
+<div className="flex items-center gap-2">
+  <ZonesToolbar />
+</div>
 
-    {/* צד שמאל – פעולות */}
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => setShowUpload(true)}
-        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg whitespace-nowrap"
-      >
-        העלאת תבנית אולם
-      </button>
+{/* צד שמאל – פעולות */}
+<div className="flex items-center gap-2">
 
-      <ExportSeatingPdf eventId={eventId} />
+  {/* ➕ הוסף שולחן */}
+  <button
+    onClick={() => setShowAddModal(true)}
+    className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg whitespace-nowrap flex items-center gap-1"
+  >
+    ➕ הוסף שולחן
+  </button>
 
-      <button
-        onClick={saveSeating}
-        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
-      >
-        💾 שמירה
-      </button>
-    </div>
+  <button
+    onClick={() => setShowUpload(true)}
+    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg whitespace-nowrap"
+  >
+    העלאת תבנית אולם
+  </button>
+
+  <ExportSeatingPdf eventId={eventId} />
+
+  <button
+    onClick={saveSeating}
+    className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
+  >
+    💾 שמירה
+  </button>
+</div>
+
 
   </div>
 </div>
