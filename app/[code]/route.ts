@@ -1,20 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
-import ShortLink from "@/models/ShortLink";
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
+import ShortLink from "@/models/ShortLink";
 
 export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ code: string }> }
+  req: Request,
+  { params }: { params: { code: string } }
 ) {
   await dbConnect();
 
-  const { code } = await context.params;
+  const { code } = params;
 
-  const link = await ShortLink.findOne({ code });
+  const link = await ShortLink.findOne({ code }).lean();
 
-  if (!link) {
-    return NextResponse.redirect("https://invistimo.com/404");
+  if (!link || !link.originalUrl) {
+    return NextResponse.redirect(
+      "https://www.invistimo.com",
+      { status: 302 }
+    );
   }
 
-  return NextResponse.redirect(link.targetUrl);
+  return NextResponse.redirect(link.originalUrl, { status: 302 });
 }
