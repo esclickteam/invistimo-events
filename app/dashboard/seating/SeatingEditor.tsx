@@ -145,14 +145,25 @@ useEffect(() => {
 
   didInitMobileRef.current = true;
 
-  setScale(0.6);
+  const scale = 0.65;
+
+  setScale(scale);
   setStagePos({ x: 0, y: 0 });
-  setCanvasView({ x: 0, y: 0, scale: 0.6 });
+  setCanvasView({
+    x: 0,
+    y: 0,
+    scale,
+  });
 }, [isMobile, size.width, size.height]);
 
 
 
+
+
 useEffect(() => {
+  // ❗ במובייל לא מבצעים center-on-resize
+  if (isMobile) return;
+
   if (!prevSizeRef.current) {
     prevSizeRef.current = size;
     return;
@@ -190,20 +201,26 @@ useEffect(() => {
   });
 
   prevSizeRef.current = size;
-}, [size.width, size.height, scale]); // ⭐ כאן
+}, [isMobile, size.width, size.height, scale]);
+
 
 
 
 
 
   useEffect(() => {
-    if (!canvasView) return;
-    setScale(canvasView.scale ?? 1);
-    setStagePos({
-      x: canvasView.x ?? 0,
-      y: canvasView.y ?? 0,
-    });
-  }, [canvasView]);
+  if (!canvasView) return;
+
+  // ❗ במובייל – לא לדרוס init
+  if (isMobile && didInitMobileRef.current) return;
+
+  setScale(canvasView.scale ?? 1);
+  setStagePos({
+    x: canvasView.x ?? 0,
+    y: canvasView.y ?? 0,
+  });
+}, [canvasView, isMobile]);
+
 
   
 
