@@ -318,7 +318,8 @@ return (
 
 
       {/* HEADER */}
-<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-50">
+<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-[100]">
+
 
   <div className="flex items-center justify-between px-4 py-3 gap-3">
 
@@ -361,7 +362,11 @@ return (
 
 
   {/* 🎨 קנבס */}
-  <div className="absolute inset-x-0 bottom-0" style={{ top: 64 }}>
+  <div
+  className="absolute inset-x-0 bottom-0 z-10"
+  style={{ top: 64 }}
+>
+
 
 
 
