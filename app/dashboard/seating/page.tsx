@@ -318,7 +318,8 @@ return (
 
 
       {/* HEADER */}
-<div className="fixed top-0 inset-x-0 bg-white shadow-sm border-b z-50">
+<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-50">
+
   <div className="flex items-center justify-between px-4 py-3 gap-3">
 
     {/* צד ימין – כותרת */}
@@ -360,7 +361,9 @@ return (
 
 
   {/* 🎨 קנבס */}
-  <div className="absolute right-0 top-[128px] bottom-0 hidden md:flex">
+  <div className="absolute inset-x-0 bottom-0" style={{ top: 64 }}>
+
+
 
 
 
@@ -372,7 +375,9 @@ return (
   </div>
 
   {/* 🧾 סיידבר הושבה מאוחד */}
-<div className="absolute right-0 top-[128px] bottom-0 hidden md:flex">
+<div className="absolute right-0 bottom-0 hidden md:flex" style={{ top: 64 }}>
+
+
 
 
   {/* 🧾 סיידבר – תמיד קיים, רק הרוחב משתנה */}
