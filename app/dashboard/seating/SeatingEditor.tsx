@@ -354,13 +354,18 @@ const handleTouchEnd = () => {
 const handleAddTable = (type: string, seats: number) => {
   const view = canvasView ?? { x: 0, y: 0, scale: 1 };
 
-  // ⭐ רוחב האזור הגלוי (בלי הסיידבר)
+  // רוחב האזור הגלוי
   const visibleWidth = sidebarOpen
     ? size.width - SIDEBAR_WIDTH
     : size.width;
 
+  // ⭐ היסט שמאלה אם הסיידבר פתוח
+  const sidebarOffset = sidebarOpen
+    ? SIDEBAR_WIDTH / 2
+    : 0;
+
   const centerX =
-    (-view.x + visibleWidth / 2) / view.scale;
+    (-view.x + visibleWidth / 2 - sidebarOffset) / view.scale;
 
   const centerY =
     (-view.y + size.height / 2) / view.scale;
@@ -370,6 +375,7 @@ const handleAddTable = (type: string, seats: number) => {
     y: centerY,
   });
 };
+
 
 
   /* ================= UNSEATED ================= */
