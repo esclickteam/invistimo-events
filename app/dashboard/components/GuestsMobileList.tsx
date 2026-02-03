@@ -65,107 +65,111 @@ export default function GuestsMobileList({
 
   return (
     <div className="space-y-3">
-      {guests.map((g) => (
-        <div
-          key={g._id}
-          className="bg-white border rounded-xl px-4 py-3 shadow-sm"
-        >
-          {/* ================= Header ================= */}
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="font-semibold text-sm leading-tight">
-                {g.name}
+      {guests.map((g) => {
+        const arrived = g.arrivedCount ?? 0; // ⭐ SOURCE OF TRUTH
+
+        return (
+          <div
+            key={g._id}
+            className="bg-white border rounded-xl px-4 py-3 shadow-sm"
+          >
+            {/* ================= Header ================= */}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="font-semibold text-sm leading-tight">
+                  {g.name}
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {g.phone}
+                </div>
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                {g.phone}
+
+              <StatusBadge rsvp={g.rsvp} />
+            </div>
+
+            {/* ================= Meta ================= */}
+            {g.relation && (
+              <div className="text-xs text-gray-600 mt-1">
+                {g.relation}
+              </div>
+            )}
+
+            {/* ================= Stats ================= */}
+            <div className="grid grid-cols-3 gap-3 mt-3 text-center">
+              <div className="bg-gray-50 rounded-lg py-2">
+                <div className="text-[11px] text-gray-500">
+                  מוזמנים
+                </div>
+                <div className="font-semibold text-sm">
+                  {g.guestsCount}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg py-2">
+                <div className="text-[11px] text-gray-500">
+                  מגיעים
+                </div>
+                <div className="font-semibold text-sm">
+                  {arrived}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg py-2">
+                <div className="text-[11px] text-gray-500">
+                  שולחן
+                </div>
+                <div className="font-semibold text-sm">
+                  {g.tableName || "—"}
+                </div>
               </div>
             </div>
 
-            <StatusBadge rsvp={g.rsvp} />
-          </div>
-
-          {/* ================= Meta ================= */}
-          {g.relation && (
-            <div className="text-xs text-gray-600 mt-1">
-              {g.relation}
-            </div>
-          )}
-
-          {/* ================= Stats (כמו עמודות) ================= */}
-          <div className="grid grid-cols-3 gap-3 mt-3 text-center">
-            <div className="bg-gray-50 rounded-lg py-2">
-              <div className="text-[11px] text-gray-500">
-                מוזמנים
+            {/* ================= Notes ================= */}
+            {g.notes && (
+              <div className="text-xs text-gray-600 mt-2">
+                {g.notes}
               </div>
-              <div className="font-semibold text-sm">
-                {g.guestsCount}
-              </div>
-            </div>
+            )}
 
-            <div className="bg-gray-50 rounded-lg py-2">
-              <div className="text-[11px] text-gray-500">
-                מגיעים
-              </div>
-              <div className="font-semibold text-sm">
-                {g.rsvp === "yes" ? g.guestsCount : 0}
-              </div>
-            </div>
+            {/* ================= Actions ================= */}
+            <div className="flex items-center justify-between mt-4 pt-3 border-t">
+              <div className="flex gap-5 text-lg">
+                <button
+                  onClick={() => onMessage(g)}
+                  title="שליחת הודעה"
+                  className="hover:opacity-70"
+                >
+                  💬
+                </button>
 
-            <div className="bg-gray-50 rounded-lg py-2">
-              <div className="text-[11px] text-gray-500">
-                שולחן
-              </div>
-              <div className="font-semibold text-sm">
-                {g.tableName || "—"}
-              </div>
-            </div>
-          </div>
+                <button
+                  onClick={() => onSeat(g)}
+                  title="הושבה"
+                  className="hover:opacity-70"
+                >
+                  🪑
+                </button>
 
-          {/* ================= Notes ================= */}
-          {g.notes && (
-            <div className="text-xs text-gray-600 mt-2">
-              {g.notes}
-            </div>
-          )}
+                <button
+                  onClick={() => onEdit(g)}
+                  title="עריכה"
+                  className="hover:opacity-70"
+                >
+                  ✏️
+                </button>
+              </div>
 
-          {/* ================= Actions ================= */}
-          <div className="flex items-center justify-between mt-4 pt-3 border-t">
-            <div className="flex gap-5 text-lg">
               <button
-                onClick={() => onMessage(g)}
-                title="שליחת הודעה"
-                className="hover:opacity-70"
+                onClick={() => onDelete(g)}
+                title="מחיקה"
+                className="text-red-600 hover:opacity-70 text-lg"
               >
-                💬
-              </button>
-
-              <button
-                onClick={() => onSeat(g)}
-                title="הושבה"
-                className="hover:opacity-70"
-              >
-                🪑
-              </button>
-
-              <button
-                onClick={() => onEdit(g)}
-                title="עריכה"
-                className="hover:opacity-70"
-              >
-                ✏️
+                🗑️
               </button>
             </div>
-
-            <button
-              onClick={() => onDelete(g)}
-              title="מחיקה"
-              className="text-red-600 hover:opacity-70 text-lg"
-            >
-              🗑️
-            </button>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
