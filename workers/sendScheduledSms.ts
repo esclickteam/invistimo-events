@@ -4,6 +4,8 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import User from "@/models/User";
+import { shortenUrl } from "@/lib/shortenUrl";
+
 
 /* ======================================================
    WORKER
@@ -141,15 +143,17 @@ export async function sendScheduledSms() {
             ? `שולחן ${guest.tableNumber}`
             : "");
 
-        let finalText = msg.messageContent
-          .replace(/{{name}}/g, guest.name || "")
-          .replace(/{{token}}/g, guest.token || "")
-          .replace(
-            /{{rsvpLink}}/g,
-            `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`
-          )
-          .replace(/{{tableName}}/g, tableName)
-          .replace(/{{navigationLink}}/g, navigationLink);
+        const personalRsvpUrl =
+  `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+
+const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+
+let finalText = msg.messageContent
+  .replace(/{{name}}/g, guest.name || "")
+  .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+  .replace(/{{tableName}}/g, tableName)
+  .replace(/{{navigationLink}}/g, navigationLink);
+
 
         if (!finalText.trim()) continue;
 
