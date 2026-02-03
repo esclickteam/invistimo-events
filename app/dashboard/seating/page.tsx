@@ -311,7 +311,8 @@ if (grRes.ok) {
    RENDER
 =============================== */
 return (
-  <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+  <div className="flex flex-col min-h-screen bg-gray-50 md:h-screen md:overflow-hidden">
+
 
 
 
@@ -356,7 +357,17 @@ return (
 </div>
 
       {/* CONTENT */}
-      <div className="flex flex-1 overflow-hidden relative md:flex-row-reverse">
+      <div
+  className="
+    flex flex-1 relative
+    overflow-y-auto
+    overscroll-contain
+    touch-pan-y
+    md:overflow-hidden
+    md:flex-row-reverse
+  "
+>
+
 
 
 
