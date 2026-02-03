@@ -379,23 +379,18 @@ return (
 
   {/* 🎨 קנבס */}
   <div
-    className="absolute inset-x-0 bottom-0"
-
-  style={{ top: 64 }}
+  className="absolute bottom-0 left-0"
+  style={{
+    top: 64,
+    right: sidebarOpen ? 400 : 0, // ✅ זה הפיקס
+  }}
 >
-
-
-
-
-
-
-    <SeatingEditor
-  background={background?.url || null}
-  hideSeats={isProducer}
-  sidebarOpen={sidebarOpen}
-/>
-
-  </div>
+  <SeatingEditor
+    background={background?.url || null}
+    hideSeats={isProducer}
+    sidebarOpen={sidebarOpen}
+  />
+</div>
 
   {/* 🧾 סיידבר הושבה מאוחד */}
 <div className="absolute right-0 bottom-0 hidden md:flex" style={{ top: 64 }}>
