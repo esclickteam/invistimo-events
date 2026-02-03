@@ -234,12 +234,51 @@ const handleTouchStart = (e: any) => {
   }
 };
 
+const handleTouchPanStart = (e: any) => {
+  const stage = e.target.getStage();
+  const touches = e.evt.touches;
+
+  if (!stage || !touches || touches.length !== 1) return;
+
+  panStart.current = {
+    x: touches[0].clientX,
+    y: touches[0].clientY,
+  };
+
+  stageStart.current = {
+    x: stagePos.x,
+    y: stagePos.y,
+  };
+};
 
 const handleTouchMove = (e: any) => {
   const stage = e.target.getStage();
   const touches = e.evt.touches;
 
   if (!stage || !touches) return;
+
+  // 👆 Pan עם אצבע אחת
+if (touches.length === 1) {
+  e.evt.preventDefault(); // ⭐ הוספה קריטית
+
+  const t = touches[0];
+
+  if (panStart.current) {
+    const dx = t.clientX - panStart.current.x;
+    const dy = t.clientY - panStart.current.y;
+
+    const newPos = {
+      x: stageStart.current.x + dx,
+      y: stageStart.current.y + dy,
+    };
+
+    setStagePos(newPos);
+    setCanvasView({ ...newPos, scale });
+  }
+
+  return;
+}
+
 
   // 🤏 Pinch zoom – שתי אצבעות
   if (touches.length === 2) {
@@ -284,8 +323,11 @@ const handleTouchMove = (e: any) => {
   }
 };
 
+
+
 const handleTouchEnd = () => {
   lastTouchDist.current = null;
+  panStart.current = null; // ⭐ הוספה
 };
 
 
@@ -351,11 +393,22 @@ const handleTouchEnd = () => {
   y={stagePos.y}
   onWheel={handleWheel}
   onMouseMove={handleMouseMove}
-  onTouchStart={handleTouchStart}   // ⭐ הוספה
+
+  onTouchStart={(e) => {
+    handleTouchStart(e);     // 🤏 init pinch (2 fingers)
+    handleTouchPanStart(e);  // 👆 init pan (1 finger)
+  }}
+
   onTouchMove={handleTouchMove}
-  onTouchEnd={handleTouchEnd}
+
+  onTouchEnd={() => {
+    handleTouchEnd();        // reset pinch
+    panStart.current = null; // reset pan
+  }}
+
   style={{ touchAction: "none" }}
 >
+
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
         </Layer>
