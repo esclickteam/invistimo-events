@@ -392,6 +392,7 @@ return (
     <SeatingEditor
   background={background?.url || null}
   hideSeats={isProducer}
+  sidebarOpen={sidebarOpen}
 />
 
   </div>

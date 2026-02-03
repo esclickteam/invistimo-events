@@ -29,7 +29,8 @@ type SeatingEditorProps = {
   background: string | null;
   readOnly?: boolean;
   showStats?: boolean;
-  hideSeats?: boolean; // ⭐ חדש
+  hideSeats?: boolean;
+  sidebarOpen?: boolean; // ⭐ חדש
 };
 
 type Guest = {
@@ -57,7 +58,8 @@ function SeatingEditorInner({
   background,
   readOnly = false,
   showStats = false,
-  hideSeats = false, // ⭐ חדש
+  hideSeats = false,
+  sidebarOpen = false, // ⭐ כאן
 }: SeatingEditorProps) {
   const [bgImage] = useImage(background || "", "anonymous");
 
@@ -347,17 +349,28 @@ const handleTouchEnd = () => {
   }, [selectedZoneId, removeZone, readOnly]);
 
   /* ================= ADD TABLE ================= */
-  const handleAddTable = (type: string, seats: number) => {
-    const view = canvasView ?? { x: 0, y: 0, scale: 1 };
+  const SIDEBAR_WIDTH = 400;
 
-    const centerX = (-view.x + size.width / 2) / view.scale;
-    const centerY = (-view.y + size.height / 2) / view.scale;
+const handleAddTable = (type: string, seats: number) => {
+  const view = canvasView ?? { x: 0, y: 0, scale: 1 };
 
-    addTable(type, seats, {
-      x: centerX,
-      y: centerY,
-    });
-  };
+  // ⭐ רוחב האזור הגלוי (בלי הסיידבר)
+  const visibleWidth = sidebarOpen
+    ? size.width - SIDEBAR_WIDTH
+    : size.width;
+
+  const centerX =
+    (-view.x + visibleWidth / 2) / view.scale;
+
+  const centerY =
+    (-view.y + size.height / 2) / view.scale;
+
+  addTable(type, seats, {
+    x: centerX,
+    y: centerY,
+  });
+};
+
 
   /* ================= UNSEATED ================= */
   const unseatedGuests = useMemo(() => {

@@ -45,6 +45,8 @@ type ZoneStore = {
 
   /* ===== TRANSFORM ===== */
   rotateZone: (id: string, delta?: number) => void;
+
+  /** ✅ resize אמיתי – width / height בלבד */
   resizeZone: (id: string, width: number, height: number) => void;
 
   /* ===== PRESET ===== */
@@ -93,23 +95,28 @@ export const useZoneStore = create<ZoneStore>((set) => ({
     })),
 
   /* ================= TRANSFORM ================= */
+
   rotateZone: (id, delta = 90) =>
     set((state) => ({
       zones: state.zones.map((z) =>
-        z.id === id
+        z.id === id && !z.locked
           ? { ...z, rotation: (z.rotation + delta) % 360 }
           : z
       ),
     })),
 
+  /**
+   * ✅ resize אמיתי (לא scale!)
+   * נקרא מ־onTransformEnd ב־ZoneRenderer
+   */
   resizeZone: (id, width, height) =>
     set((state) => ({
       zones: state.zones.map((z) =>
-        z.id === id
+        z.id === id && !z.locked
           ? {
               ...z,
-              width: Math.max(60, width),
-              height: Math.max(60, height),
+              width: Math.max(60, Math.round(width)),
+              height: Math.max(60, Math.round(height)),
             }
           : z
       ),
@@ -142,7 +149,7 @@ export const useZoneStore = create<ZoneStore>((set) => ({
 
     set({
       zones,
-      selectedZoneId: null, // ⭐ אין בחירה אחרי טעינת preset
+      selectedZoneId: null, // ⭐ אין בחירה אחרי preset
     });
   },
 }));
