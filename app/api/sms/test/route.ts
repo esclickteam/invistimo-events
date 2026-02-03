@@ -3,6 +3,7 @@ import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import { shortenUrl } from "@/lib/shortenUrl";
 
 /* ======================================================
    CONFIG
@@ -77,8 +78,7 @@ export async function POST(req: Request) {
     }
 
     /* ================= BODY ================= */
-    const body = await req.json();
-    const { phone, message } = body as {
+    const { phone, message } = (await req.json()) as {
       phone?: string;
       message?: string;
     };
@@ -98,6 +98,22 @@ export async function POST(req: Request) {
       normalizedPhone = "972" + normalizedPhone;
     }
 
+    /* ================= SHORTEN RSVP LINKS ================= */
+    let finalMessage = message;
+
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = message.match(urlRegex);
+
+    if (urls) {
+      for (const url of urls) {
+        // ⛔ לא מקצרים טמפלטים
+        if (url.includes("{{")) continue;
+
+        const short = await shortenUrl(url);
+        finalMessage = finalMessage.replace(url, short);
+      }
+    }
+
     /* ================= SEND SMS ================= */
     const res = await fetch(
       "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
@@ -110,7 +126,7 @@ export async function POST(req: Request) {
           pass: process.env.SMS4FREE_PASS,
           sender: process.env.SMS4FREE_SENDER,
           recipient: normalizedPhone,
-          msg: message,
+          msg: finalMessage,
         }),
       }
     );
