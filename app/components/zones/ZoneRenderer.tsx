@@ -20,10 +20,9 @@ export default function ZoneRenderer({ zone }: Props) {
 
   const isSelected = selectedZoneId === zone.id;
 
-  /* 🔗 חיבור Transformer ל־Rect */
+  /* 🔗 חיבור Transformer ל־Rect בלבד */
   useEffect(() => {
     if (!isSelected) return;
-
     if (rectRef.current && trRef.current) {
       trRef.current.nodes([rectRef.current]);
       trRef.current.getLayer()?.batchDraw();
@@ -33,69 +32,93 @@ export default function ZoneRenderer({ zone }: Props) {
   return (
     <>
       <Group
-  x={zone.x}
-  y={zone.y}
-  rotation={zone.rotation || 0}
-  draggable={!zone.locked}
-  onClick={(e) => {
-    e.cancelBubble = true;
-    setSelectedZone(zone.id);
-  }}
-  onDragEnd={(e) => {
-    updateZone(zone.id, {
-      x: e.target.x(),
-      y: e.target.y(),
-    });
-  }}
->
-  {/* ⬛ RECT – זה היחיד שעובר resize */}
-  <Rect
-    ref={rectRef}
-    width={zone.width}
-    height={zone.height}
-    fill={zone.color}
-    opacity={zone.opacity}
-    cornerRadius={Math.min(24, zone.height / 4)} // UX רך
-    stroke={isSelected ? "#2563eb" : "transparent"}
-    strokeWidth={2}
-    onTransformEnd={() => {
-      const node = rectRef.current;
-      if (!node) return;
+        x={zone.x}
+        y={zone.y}
+        rotation={zone.rotation || 0}
+        draggable={!zone.locked}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          setSelectedZone(zone.id);
+        }}
+        onTap={(e) => {
+          e.cancelBubble = true;
+          setSelectedZone(zone.id);
+        }}
+        onDragEnd={(e) => {
+          updateZone(zone.id, {
+            x: e.target.x(),
+            y: e.target.y(),
+          });
+        }}
+      >
+        {/* ⬛ אזור */}
+        <Rect
+          ref={rectRef}
+          width={zone.width}
+          height={zone.height}
+          opacity={zone.opacity}
+          cornerRadius={
+            zone.borderRadius ?? Math.min(32, zone.height / 4)
+          }
+          fill={
+            zone.gradient ? undefined : zone.color
+          }
+          fillLinearGradientStartPoint={
+            zone.gradient ? { x: 0, y: 0 } : undefined
+          }
+          fillLinearGradientEndPoint={
+            zone.gradient
+              ? { x: zone.width, y: zone.height }
+              : undefined
+          }
+          fillLinearGradientColorStops={
+            zone.gradient
+              ? [0, zone.gradient[0], 1, zone.gradient[1]]
+              : undefined
+          }
+          shadowEnabled={zone.shadow}
+          shadowColor="rgba(0,0,0,0.25)"
+          shadowBlur={18}
+          shadowOffset={{ x: 0, y: 6 }}
+          shadowOpacity={0.35}
+          stroke={isSelected ? "#2563eb" : "transparent"}
+          strokeWidth={isSelected ? 2 : 0}
+          onTransformEnd={() => {
+            const node = rectRef.current;
+            if (!node) return;
 
-      const scaleX = node.scaleX();
-      const scaleY = node.scaleY();
+            const scaleX = node.scaleX();
+            const scaleY = node.scaleY();
 
-      node.scaleX(1);
-      node.scaleY(1);
+            node.scaleX(1);
+            node.scaleY(1);
 
-      resizeZone(
-        zone.id,
-        Math.max(120, node.width() * scaleX),
-        Math.max(80, node.height() * scaleY)
-      );
-    }}
-  />
+            resizeZone(
+              zone.id,
+              Math.max(120, node.width() * scaleX),
+              Math.max(80, node.height() * scaleY)
+            );
+          }}
+        />
 
-  {/* 🧠 TEXT – תמיד באמצע, לא מושפע מגודל */}
-  <Text
-  text={`${zone.icon} ${zone.name}`}
-  width={zone.width}
-  height={zone.height}
-  align="center"
-  verticalAlign="middle"
-  fontSize={18}
-  fontStyle="bold"
-  fill="#111827"
-  listening={false}
-/>
-</Group>
-
+        {/* 🧠 טקסט – תמיד באמצע, לא זז */}
+        <Text
+          text={`${zone.icon} ${zone.name}`}
+          width={zone.width}
+          height={zone.height}
+          align="center"
+          verticalAlign="middle"
+          fontSize={18}
+          fontStyle="bold"
+          fill="#ffffff"
+          listening={false}
+        />
+      </Group>
 
       {isSelected && (
         <Transformer
           ref={trRef}
-          rotateEnabled={true}
-          rotationSnaps={[]} // 🌀 סיבוב חופשי
+          rotateEnabled
           enabledAnchors={[
             "top-left",
             "top-right",
@@ -110,7 +133,6 @@ export default function ZoneRenderer({ zone }: Props) {
           borderStroke="#2563eb"
           borderStrokeWidth={1.5}
           boundBoxFunc={(oldBox, newBox) => {
-            // ⛔ מינימום גודל
             if (newBox.width < 120 || newBox.height < 80) {
               return oldBox;
             }

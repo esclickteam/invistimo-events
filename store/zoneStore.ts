@@ -11,22 +11,50 @@ import type { ZoneType } from "@/types/zones";
    TYPES
 ============================================================ */
 
-/** ✅ חייב להיות export */
+/** ✅ Zone – כולל שדות UX מתקדמים */
 export type Zone = {
   id: string;
+
+  /** 🧠 סוג לוגי */
   type: ZoneType;
 
+  /** 🏷️ שם לתצוגה */
   name: string;
+
+  /* ================= UI ================= */
+
+  /** אייקון (אימוג'י / אייקון) */
   icon: string;
+
+  /** צבע בסיס */
   color: string;
+
+  /** ⭐ גרדיאנט (אם קיים – עדיף על color) */
+  gradient?: [string, string];
+
+  /** שקיפות */
   opacity: number;
 
+  /** ⭐ צל רך */
+  shadow?: boolean;
+
+  /** ⭐ רדיוס פינות (אם לא מוגדר – מחושב דינמית ב־renderer) */
+  borderRadius?: number;
+
+  /* ================= GEOMETRY ================= */
+
+  /** מיקום */
   x: number;
   y: number;
+
+  /** גודל */
   width: number;
   height: number;
 
+  /** סיבוב */
   rotation: number;
+
+  /** 🔒 נעילה */
   locked?: boolean;
 };
 
@@ -61,6 +89,7 @@ export const useZoneStore = create<ZoneStore>((set) => ({
   zones: [],
 
   /* ================= SELECTION ================= */
+
   selectedZoneId: null,
 
   setSelectedZone: (id) =>
@@ -69,6 +98,7 @@ export const useZoneStore = create<ZoneStore>((set) => ({
     }),
 
   /* ================= BASIC ================= */
+
   setZones: (zones) =>
     set({
       zones,
@@ -123,6 +153,7 @@ export const useZoneStore = create<ZoneStore>((set) => ({
     })),
 
   /* ================= PRESET ================= */
+
   loadPreset: (eventType) => {
     const preset = EVENT_PRESETS[eventType];
     if (!preset) return;
@@ -133,15 +164,22 @@ export const useZoneStore = create<ZoneStore>((set) => ({
       return {
         id: nanoid(),
         type,
+
         name: meta.label,
         icon: meta.icon,
+
         color: meta.color,
+        gradient: meta.gradient, // ⭐ חדש (אם קיים)
         opacity: 0.35,
+
+        shadow: true,
+        borderRadius: meta.borderRadius,
 
         x: 200 + index * 120,
         y: 200 + index * 90,
         width: meta.defaultSize.width,
         height: meta.defaultSize.height,
+
         rotation: 0,
         locked: false,
       };
