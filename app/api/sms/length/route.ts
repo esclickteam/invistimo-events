@@ -2,26 +2,52 @@ import { NextResponse } from "next/server";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { countSmsParts } from "@/lib/smsUtils";
 
+/* ======================================================
+   HELPERS
+====================================================== */
 async function shortenUrlsInText(text: string) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const urls = text.match(urlRegex);
+
   if (!urls) return text;
 
   let result = text;
+
   for (const url of urls) {
-    const short = await shortenUrl(url);
-    result = result.replace(url, short);
+    const shortUrl = await shortenUrl(url);
+    result = result.replace(url, shortUrl);
   }
+
   return result;
 }
 
+/* ======================================================
+   POST /api/sms/length
+   מחשב אורך הודעת SMS אמיתית (אחרי קיצור קישורים)
+====================================================== */
 export async function POST(req: Request) {
-  const { message } = await req.json();
+  try {
+    const { message } = await req.json();
 
-  let finalText = await shortenUrlsInText(message);
+    if (typeof message !== "string") {
+      return NextResponse.json(
+        { error: "INVALID_MESSAGE" },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json({
-    length: finalText.length,
-    parts: countSmsParts(finalText),
-  });
+    // ✂️ קיצור כל הקישורים לפני חישוב
+    const finalText = await shortenUrlsInText(message);
+
+    return NextResponse.json({
+      length: finalText.length,          // תווים בפועל
+      parts: countSmsParts(finalText),   // כמה SMS באמת
+    });
+  } catch (err) {
+    console.error("❌ SMS LENGTH ERROR:", err);
+    return NextResponse.json(
+      { error: "FAILED_TO_CALCULATE_SMS_LENGTH" },
+      { status: 500 }
+    );
+  }
 }

@@ -321,13 +321,13 @@ let finalText = baseMessage
   .replace(/{{rsvpLink}}/g, shortRsvpUrl)
   .replace(/{{tableName}}/g, tableName);
 
+if (includeGiftLink && giftLink) {
+  // ⛔ רק קישור המתנה – לא ה-RSVP
+  const shortGift = await shortenUrl(giftLink);
+  finalText += `\n\n🎁 למתנה באשראי:\n${shortGift}`;
+}
 
-      if (includeGiftLink && giftLink) {
-        finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-      }
 
-      // ✂️ קיצור אוטומטי של כל הקישורים
-finalText = await shortenUrlsInText(finalText);
 
 
       try {

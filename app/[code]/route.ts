@@ -12,12 +12,14 @@ export async function GET(
 
   const link = await ShortLink.findOne({ code }).lean();
 
-  if (!link || !link.originalUrl) {
+  // ❌ אם לא נמצא או אין יעד
+  if (!link || !link.targetUrl) {
     return NextResponse.redirect(
       "https://www.invistimo.com",
       { status: 302 }
     );
   }
 
-  return NextResponse.redirect(link.originalUrl, { status: 302 });
+  // ✅ הפניה ליעד האמיתי
+  return NextResponse.redirect(link.targetUrl, { status: 302 });
 }
