@@ -1,6 +1,8 @@
 import ShortLink from "@/models/ShortLink";
 import { createShortCode } from "./createShortCode";
 
+const BASE_URL = "https://www.invistimo.com";
+
 export async function shortenUrl(targetUrl: string) {
   // ⛔ הגנה קריטית – לא מקצרים URL עם משתנים לא פתורים
   if (targetUrl.includes("{{") || targetUrl.includes("}}")) {
@@ -9,9 +11,16 @@ export async function shortenUrl(targetUrl: string) {
     );
   }
 
+  // ♻️ אם כבר קיים קיצור ל־URL הזה – נשתמש בו
+  const existing = await ShortLink.findOne({ targetUrl }).lean();
+  if (existing?.code) {
+    return `${BASE_URL}/${existing.code}`;
+  }
+
   let code = "";
   let exists = true;
 
+  // 🔁 יצירת קוד ייחודי
   while (exists) {
     code = createShortCode();
     const found = await ShortLink.exists({ code });
@@ -23,5 +32,5 @@ export async function shortenUrl(targetUrl: string) {
     targetUrl,
   });
 
-  return `https://invst.me/${code}`;
+  return `${BASE_URL}/${code}`;
 }
