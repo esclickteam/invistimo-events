@@ -197,13 +197,16 @@ useEffect(() => {
 
 
   useEffect(() => {
-    if (!canvasView) return;
-    setScale(canvasView.scale ?? 1);
-    setStagePos({
-      x: canvasView.x ?? 0,
-      y: canvasView.y ?? 0,
-    });
-  }, [canvasView]);
+  if (!canvasView) return;
+  if (isMobile && didInitMobileRef.current) return;
+
+  setScale(canvasView.scale ?? 1);
+  setStagePos({
+    x: canvasView.x ?? 0,
+    y: canvasView.y ?? 0,
+  });
+}, [canvasView, isMobile]);
+
 
   
 
