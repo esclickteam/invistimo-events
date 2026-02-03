@@ -33,65 +33,63 @@ export default function ZoneRenderer({ zone }: Props) {
   return (
     <>
       <Group
-        x={zone.x}
-        y={zone.y}
-        rotation={zone.rotation || 0}
-        draggable={!zone.locked}
-        onClick={(e) => {
-          e.cancelBubble = true;
-          setSelectedZone(zone.id);
-        }}
-        onTap={(e) => {
-          e.cancelBubble = true;
-          setSelectedZone(zone.id);
-        }}
-        onDragEnd={(e) => {
-          e.cancelBubble = true;
-          updateZone(zone.id, {
-            x: e.target.x(),
-            y: e.target.y(),
-          });
-        }}
-      >
-        <Rect
-          ref={rectRef}
-          width={zone.width}
-          height={zone.height}
-          fill={zone.color}
-          opacity={zone.opacity}
-          cornerRadius={16}
-          stroke={isSelected ? "#2563eb" : "#374151"}
-          strokeWidth={isSelected ? 2 : 1}
-          onTransformEnd={() => {
-            const node = rectRef.current;
-            if (!node) return;
+  x={zone.x}
+  y={zone.y}
+  rotation={zone.rotation || 0}
+  draggable={!zone.locked}
+  onClick={(e) => {
+    e.cancelBubble = true;
+    setSelectedZone(zone.id);
+  }}
+  onDragEnd={(e) => {
+    updateZone(zone.id, {
+      x: e.target.x(),
+      y: e.target.y(),
+    });
+  }}
+>
+  {/* ⬛ RECT – זה היחיד שעובר resize */}
+  <Rect
+    ref={rectRef}
+    width={zone.width}
+    height={zone.height}
+    fill={zone.color}
+    opacity={zone.opacity}
+    cornerRadius={Math.min(24, zone.height / 4)} // UX רך
+    stroke={isSelected ? "#2563eb" : "transparent"}
+    strokeWidth={2}
+    onTransformEnd={() => {
+      const node = rectRef.current;
+      if (!node) return;
 
-            const scaleX = node.scaleX();
-            const scaleY = node.scaleY();
+      const scaleX = node.scaleX();
+      const scaleY = node.scaleY();
 
-            // ⭐ חובה: איפוס scale
-            node.scaleX(1);
-            node.scaleY(1);
+      node.scaleX(1);
+      node.scaleY(1);
 
-            resizeZone(
-              zone.id,
-              Math.max(120, node.width() * scaleX),
-              Math.max(80, node.height() * scaleY)
-            );
-          }}
-        />
+      resizeZone(
+        zone.id,
+        Math.max(120, node.width() * scaleX),
+        Math.max(80, node.height() * scaleY)
+      );
+    }}
+  />
 
-        <Text
-          text={`${zone.icon} ${zone.name}`}
-          fontSize={18}
-          fill="#111827"
-          width={zone.width}
-          height={zone.height}
-          align="center"
-          verticalAlign="middle"
-          listening={false}
-        />
-      </Group>
+  {/* 🧠 TEXT – תמיד באמצע, לא מושפע מגודל */}
+  <Text
+  text={`${zone.icon} ${zone.name}`}
+  width={zone.width}
+  height={zone.height}
+  align="center"
+  verticalAlign="middle"
+  fontSize={18}
+  fontStyle="bold"
+  fill="#111827"
+  listening={false}
+/>
+</Group>
+
 
       {isSelected && (
         <Transformer
