@@ -894,21 +894,22 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
       />
 
-<div className="w-[90%] md:w-[600px] -mt-4 mb-4">
+  <div className="w-[90%] md:w-[600px] -mt-4 mb-4">
+  {/* הערה קריטית – משתנים דינמיים */}
   <p className="text-xs text-gray-500 leading-relaxed">
-    * בעריכת הודעה אין לשנות את המשתנים המופיעים בסוגריים
-    (<span className="font-mono">{`{{name}}`}</span>,
+    ℹ️ המשתנים בסוגריים מתעדכנים אוטומטית ואינם ניתנים לעריכה (
+    <span className="font-mono">{`{{name}}`}</span>,
     <span className="font-mono">{`{{rsvpLink}}`}</span>,
-    <span className="font-mono">{`{{tableName}}`}</span> וכו׳).
-    האחריות על תוכן העריכה חלה על המשתמש.
+    <span className="font-mono">{`{{tableName}}`}</span>).
   </p>
 
-  <p className="text-xs text-gray-500 leading-relaxed mt-1">
-    * בשליחת הודעה מיידית יש ללחוץ פעם אחת בלבד.
-    לחיצה נוספת עלולה לגרום לשליחה כפולה.
+  {/* הערת מערכת – משנית ועדינה */}
+  <p className="text-[11px] text-gray-400 leading-relaxed mt-1">
+    ⏱️ בשליחת הודעה מיידית יש ללחוץ פעם אחת בלבד.
     לאחר השליחה יש להמתין מספר שניות לקבלת אישור.
   </p>
 </div>
+
 
       <p
   className={`text-xs mt-1 text-left ${
