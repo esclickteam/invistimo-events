@@ -108,13 +108,15 @@ export default function ZoneRenderer({ zone }: Props) {
   y={zone.height / 2}
   offsetX={zone.width / 2}
   offsetY={zone.height / 2}
+  width={zone.width}
+  height={zone.height}
   align="center"
-  verticalAlign="middle"
   fontSize={18}
   fontStyle="bold"
   fill="#ffffff"
   listening={false}
 />
+
       </Group>
 
       {isSelected && (
