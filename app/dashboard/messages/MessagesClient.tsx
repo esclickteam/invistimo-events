@@ -1101,10 +1101,15 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     </label>
 
     {sendTiming === "now" && (
-      <p className="text-xs text-orange-600 mr-6">
-        ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל את השליחה
-      </p>
-    )}
+  <div className="mr-6 mt-1">
+    <p className="text-xs text-orange-600">
+      ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל את השליחה
+    </p>
+    <p className="text-[11px] text-gray-500 mt-1">
+      לאחר השליחה יש להמתין מספר שניות לקבלת אישור.
+    </p>
+  </div>
+)}
 
     <label className="flex items-center gap-2 cursor-pointer mt-2">
       <input
