@@ -128,6 +128,10 @@ function SeatingEditorInner({
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  // ⭐ Pinch zoom (mobile)
+const lastTouchDist = useRef<number | null>(null);
+
+
   useEffect(() => {
     if (!canvasView) return;
     setScale(canvasView.scale ?? 1);
@@ -189,6 +193,8 @@ useEffect(() => {
   const handleWheel = (e: any) => {
   e.evt.preventDefault();
 
+
+
   const stage = e.target.getStage();
   const pointer = stage.getPointerPosition();
   if (!pointer) return;
@@ -214,6 +220,74 @@ useEffect(() => {
   setStagePos(newPos);
   setCanvasView({ ...newPos, scale: newScale });
 };
+
+const handleTouchStart = (e: any) => {
+  const touches = e.evt.touches;
+
+  if (touches && touches.length === 2) {
+    const [t1, t2] = touches;
+
+    lastTouchDist.current = Math.hypot(
+      t1.clientX - t2.clientX,
+      t1.clientY - t2.clientY
+    );
+  }
+};
+
+
+const handleTouchMove = (e: any) => {
+  const stage = e.target.getStage();
+  const touches = e.evt.touches;
+
+  if (!stage || !touches) return;
+
+  // 🤏 Pinch zoom – שתי אצבעות
+  if (touches.length === 2) {
+    e.evt.preventDefault();
+
+    const [t1, t2] = touches;
+
+    const dist = Math.hypot(
+      t1.clientX - t2.clientX,
+      t1.clientY - t2.clientY
+    );
+
+    if (!lastTouchDist.current) {
+      lastTouchDist.current = dist;
+      return;
+    }
+
+    const scaleBy = dist / lastTouchDist.current;
+    const newScale = Math.max(0.4, Math.min(3, scale * scaleBy));
+
+    // מרכז הזום בין שתי האצבעות
+    const center = {
+      x: (t1.clientX + t2.clientX) / 2,
+      y: (t1.clientY + t2.clientY) / 2,
+    };
+
+    const mousePointTo = {
+      x: (center.x - stagePos.x) / scale,
+      y: (center.y - stagePos.y) / scale,
+    };
+
+    const newPos = {
+      x: center.x - mousePointTo.x * newScale,
+      y: center.y - mousePointTo.y * newScale,
+    };
+
+    setScale(newScale);
+    setStagePos(newPos);
+    setCanvasView({ ...newPos, scale: newScale });
+
+    lastTouchDist.current = dist;
+  }
+};
+
+const handleTouchEnd = () => {
+  lastTouchDist.current = null;
+};
+
 
   /* ================= DELETE ZONE ================= */
   useEffect(() => {
@@ -269,15 +343,19 @@ useEffect(() => {
 
       {size.width > 0 && size.height > 0 && (
   <Stage
-    width={size.width}
-    height={size.height}
-    scaleX={scale}
-    scaleY={scale}
-    x={stagePos.x}
-    y={stagePos.y}
-    onWheel={handleWheel}
-    onMouseMove={handleMouseMove}
-  >
+  width={size.width}
+  height={size.height}
+  scaleX={scale}
+  scaleY={scale}
+  x={stagePos.x}
+  y={stagePos.y}
+  onWheel={handleWheel}
+  onMouseMove={handleMouseMove}
+  onTouchStart={handleTouchStart}   // ⭐ הוספה
+  onTouchMove={handleTouchMove}
+  onTouchEnd={handleTouchEnd}
+  style={{ touchAction: "none" }}
+>
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
         </Layer>
