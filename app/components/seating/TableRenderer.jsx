@@ -225,9 +225,7 @@ useEffect(() => {
  const occupiedSeatsCount = useMemo(() => {
   if (!table.seatedGuests?.length) return 0;
 
-  // 🟢 תמיד לפי מגיעים – גם לקוח וגם לייב
   const counted = new Set();
-
 
   return table.seatedGuests.reduce((sum, s) => {
     const guestId = String(s.guestId);
@@ -239,9 +237,17 @@ useEffect(() => {
       (g) => String(g._id || g.id) === guestId
     );
 
-    return sum + Number(g?.arrivedCount ?? 0);
+    if (!g) return sum;
+
+    // ✅ לוגיקה נכונה
+    if (seatingMode === "live") {
+      return sum + Number(g.actualArrivedCount ?? 0);
+    }
+
+    return sum + Number(g.arrivedCount ?? 0);
   }, 0);
-}, [table.seatedGuests, guests]);
+}, [table.seatedGuests, guests, seatingMode]);
+
 
 
 
