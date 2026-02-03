@@ -605,26 +605,31 @@ background: null,
 
   /* ---------------- ADD TABLE ---------------- */
   addTable: (type, seats, position) => {
-  const { tables } = get();
+  const { tables, canvasView } = get();
+
+  // ✅ אם משום מה לא הגיע position – ניצור במרכז המסך (יחסית ל-canvasView)
+  const fallbackX = (-Number(canvasView?.x ?? 0) + 600) / Number(canvasView?.scale ?? 1);
+  const fallbackY = (-Number(canvasView?.y ?? 0) + 350) / Number(canvasView?.scale ?? 1);
 
   const newTable = {
-  id: crypto.randomUUID(),
-  name: `שולחן ${tables.length + 1}`,
-  displayName: "",          // ⭐️ חדש
-  type,
-  seats,
-  x: position?.x ?? 0,
-  y: position?.y ?? 0,
-  rotation: 0,
-  seatedGuests: [],
-};
+    id: crypto.randomUUID(),
+    name: `שולחן ${tables.length + 1}`,
+    displayName: "",
+    type,
+    seats,
+    x: position?.x ?? fallbackX,
+    y: position?.y ?? fallbackY,
+    rotation: 0,
+    seatedGuests: [],
+  };
 
   set({
-    tables: [...tables, newTable], // ✅ append אמיתי
+    tables: [...tables, newTable],
   });
 
-  return newTable; // אופציונלי, אבל שימושי ל-auto pan
+  return newTable;
 },
+
 
 /* ---------------- UPDATE TABLE DISPLAY NAME ---------------- */
 updateTableDisplayName: (tableId, displayName) =>
