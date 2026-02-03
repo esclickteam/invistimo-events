@@ -132,30 +132,45 @@ export default function ZoneRenderer({ zone }: Props) {
       </Group>
 
       {isSelected && (
-        <Transformer
-          ref={trRef}
-          rotateEnabled
-          enabledAnchors={[
-            "top-left",
-            "top-right",
-            "bottom-left",
-            "bottom-right",
-            "middle-left",
-            "middle-right",
-            "top-center",
-            "bottom-center",
-          ]}
-          anchorSize={14}
-          borderStroke="#2563eb"
-          borderStrokeWidth={1.5}
-          boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 120 || newBox.height < 80) {
-              return oldBox;
-            }
-            return newBox;
-          }}
-        />
-      )}
+  <Transformer
+    ref={trRef}
+    rotateEnabled={true}
+
+    /* 🔹 ידיות קטנות ועדינות */
+    anchorSize={8}
+    anchorCornerRadius={4}
+
+    /* 🔹 מראה נקי */
+    anchorFill="#ffffff"
+    anchorStroke="#2563eb"
+    anchorStrokeWidth={1}
+
+    /* 🔹 מסגרת דקה */
+    borderStroke="#2563eb"
+    borderStrokeWidth={1}
+    borderDash={[4, 4]}
+
+    /* 🔹 רק ידיות הגיוניות ל־UX */
+    enabledAnchors={[
+      "top-left",
+      "top-right",
+      "bottom-left",
+      "bottom-right",
+    ]}
+
+    /* 🔹 מרחק ידית סיבוב (אם תרצי להשאיר) */
+    rotateAnchorOffset={20}
+
+    boundBoxFunc={(oldBox, newBox) => {
+      if (newBox.width < 120 || newBox.height < 80) {
+        return oldBox;
+      }
+      return newBox;
+    }}
+  />
+)}
+
+
     </>
   );
 }
