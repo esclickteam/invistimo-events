@@ -903,11 +903,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     <span className="font-mono">{`{{tableName}}`}</span>).
   </p>
 
-  {/* הערת מערכת – משנית ועדינה */}
-  <p className="text-[11px] text-gray-400 leading-relaxed mt-1">
-    ⏱️ בשליחת הודעה מיידית יש ללחוץ פעם אחת בלבד.
-    לאחר השליחה יש להמתין מספר שניות לקבלת אישור.
-  </p>
+  
 </div>
 
 
