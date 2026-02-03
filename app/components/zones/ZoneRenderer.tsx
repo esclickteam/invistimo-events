@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Group, Rect, Text, Transformer } from "react-konva";
+import { Group, Rect, Text, Transformer, Image as KonvaImage } from "react-konva";
 import Konva from "konva";
+import useImage from "use-image";
 import { Zone, useZoneStore } from "@/store/zoneStore";
 
 type Props = {
@@ -28,6 +29,25 @@ export default function ZoneRenderer({ zone }: Props) {
       trRef.current.getLayer()?.batchDraw();
     }
   }, [isSelected]);
+
+  /* =========================
+     📐 חישוב מרכז לטקסט + אייקון
+     ========================= */
+  const TEXT_SIZE = 18;
+  const ICON_SIZE = 28;
+  const GAP = 6;
+
+  const contentHeight = TEXT_SIZE + GAP + ICON_SIZE;
+  const contentY = zone.height / 2 - contentHeight / 2;
+
+  /* =========================
+     🖼️ SVG / Emoji handling
+     ========================= */
+  const isSvgIcon =
+  typeof zone.icon === "string" &&
+  zone.icon.trim().toLowerCase().endsWith(".svg");
+
+const [iconImage] = useImage(isSvgIcon ? zone.icon : "");
 
   return (
     <>
@@ -57,9 +77,6 @@ export default function ZoneRenderer({ zone }: Props) {
           width={zone.width}
           height={zone.height}
           cornerRadius={zone.borderRadius ?? Math.min(32, zone.height / 4)}
-          // ❌ אל תחלישי צבעים עם opacity על כל ה־Rect
-          // opacity={zone.opacity}
-
           fill={zone.gradient ? undefined : zone.color}
           fillLinearGradientStartPoint={
             zone.gradient ? { x: 0, y: 0 } : undefined
@@ -72,8 +89,6 @@ export default function ZoneRenderer({ zone }: Props) {
               ? [0, zone.gradient[0], 1, zone.gradient[1]]
               : undefined
           }
-
-          /* ✨ צל רך שנותן "פופ" */
           shadowEnabled
           shadowColor="rgba(0,0,0,0.22)"
           shadowBlur={20}
@@ -99,58 +114,59 @@ export default function ZoneRenderer({ zone }: Props) {
           }}
         />
 
-        {/* 📝 שם האזור */}
-        <Text
-          text={zone.name}
-          x={0}
-          y={zone.height / 2 - 22}
-          width={zone.width}
-          align="center"
-          fontSize={18}
-          fontStyle="bold"
-          fill="#ffffff"
-          shadowColor="rgba(0,0,0,0.35)"
-          shadowBlur={4}
-          shadowOffset={{ x: 0, y: 1 }}
-          shadowOpacity={0.9}
-          listening={false}
-        />
+        {/* 🧩 טקסט + אייקון (ממורכזים כיחידה אחת) */}
+        <Group x={0} y={contentY} width={zone.width} listening={false}>
+          {/* 📝 שם האזור */}
+          <Text
+            text={zone.name}
+            width={zone.width}
+            align="center"
+            fontSize={TEXT_SIZE}
+            fontStyle="bold"
+            fill="#ffffff"
+            shadowColor="rgba(0,0,0,0.35)"
+            shadowBlur={4}
+            shadowOffset={{ x: 0, y: 1 }}
+            shadowOpacity={0.9}
+          />
 
-        {/* 👥 אייקון */}
-        <Text
-          text={zone.icon}
-          x={0}
-          y={zone.height / 2 + 6}
-          width={zone.width}
-          align="center"
-          fontSize={28}
-          fill="#ffffff"
-          shadowColor="rgba(0,0,0,0.35)"
-          shadowBlur={6}
-          shadowOffset={{ x: 0, y: 2 }}
-          shadowOpacity={0.9}
-          listening={false}
-        />
+          {/* 👥 אייקון – SVG או Emoji */}
+          {isSvgIcon && iconImage ? (
+            <KonvaImage
+              image={iconImage}
+              x={zone.width / 2 - ICON_SIZE / 2}
+              y={TEXT_SIZE + GAP}
+              width={ICON_SIZE}
+              height={ICON_SIZE}
+            />
+          ) : (
+            <Text
+              text={zone.icon}
+              y={TEXT_SIZE + GAP}
+              width={zone.width}
+              align="center"
+              fontSize={ICON_SIZE}
+              fill="#ffffff"
+              shadowColor="rgba(0,0,0,0.35)"
+              shadowBlur={6}
+              shadowOffset={{ x: 0, y: 2 }}
+              shadowOpacity={0.9}
+            />
+          )}
+        </Group>
       </Group>
 
       {isSelected && (
         <Transformer
           ref={trRef}
-          rotateEnabled={true}
-
-          /* 🟦 ידיות קטנות ומרובעות */
+          rotateEnabled
           anchorSize={7}
           anchorCornerRadius={1}
           anchorFill="#e5f0ff"
           anchorStroke="#3b82f6"
           anchorStrokeWidth={1}
-
-          /* 🟦 מסגרת דקה ונקייה */
           borderStroke="#3b82f6"
           borderStrokeWidth={1}
-          borderDash={[]}
-
-          /* 🟦 בדיוק הידיות כמו בתמונה */
           enabledAnchors={[
             "top-left",
             "top-center",
@@ -161,7 +177,6 @@ export default function ZoneRenderer({ zone }: Props) {
             "bottom-center",
             "bottom-right",
           ]}
-
           rotateAnchorOffset={18}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 120 || newBox.height < 80) return oldBox;
