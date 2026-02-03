@@ -37,7 +37,24 @@ export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [isMobile, setIsMobile] = useState(false);
+const [sidebarOpen, setSidebarOpen] = useState(true);
+
+useEffect(() => {
+  const update = () => {
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
+    setSidebarOpen((prev) => (mobile ? false : prev));
+  };
+
+  update(); // init
+  window.addEventListener("resize", update);
+  return () => window.removeEventListener("resize", update);
+}, []);
+
+
+
   
 
   const pathname = usePathname();
@@ -378,19 +395,32 @@ return (
 
 
   {/* 🎨 קנבס */}
-  <div
-  className="absolute bottom-0 left-0"
+  {/* 🎨 קנבס */}
+<div
+  className="absolute left-0 right-0"
   style={{
     top: 64,
-    right: sidebarOpen ? 400 : 0, // ✅ זה הפיקס
+    bottom: 0,
   }}
 >
-  <SeatingEditor
-    background={background?.url || null}
-    hideSeats={isProducer}
-    sidebarOpen={sidebarOpen}
-  />
+  <div
+    style={{
+      width:
+        !isMobile && sidebarOpen
+          ? "calc(100% - 400px)"
+          : "100%",
+      height: "100%",
+    }}
+  >
+    <SeatingEditor
+      background={background?.url || null}
+      hideSeats={isProducer}
+      sidebarOpen={sidebarOpen}
+    />
+  </div>
 </div>
+
+
 
   {/* 🧾 סיידבר הושבה מאוחד */}
 <div className="absolute right-0 bottom-0 hidden md:flex" style={{ top: 64 }}>
