@@ -1020,18 +1020,7 @@ console.log("INVITATION:", invitation);
 
       {/* מובייל */}
       <div className="flex md:hidden flex-col gap-3">
-        <button
-  onClick={() => {
-    if (isDemo) {
-      handleDemoBlockedAction();
-      return;
-    }
-
-    router.push("/dashboard/seating");
-  }}
->
-  🪑 סידורי הושבה
-</button>
+       
 
         <button
           onClick={() => setOpenAddModal(true)}
