@@ -7,6 +7,8 @@ import User from "@/models/User";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import { shortenUrl } from "@/lib/shortenUrl";
+import { countSmsParts } from "@/lib/smsUtils";
 
 /* ======================================================
    TYPES
@@ -46,6 +48,22 @@ const MESSAGE_TEMPLATES: Record<
       "תודה שהשתתפתם בשמחתנו.",
   },
 };
+
+async function shortenUrlsInText(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls = text.match(urlRegex);
+
+  if (!urls) return text;
+
+  let result = text;
+
+  for (const url of urls) {
+    const shortUrl = await shortenUrl(url);
+    result = result.replace(url, shortUrl);
+  }
+
+  return result;
+}
 
 export async function POST(req: Request) {
   try {
@@ -224,6 +242,8 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
         messageContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
       }
 
+
+
       await ScheduledMessage.create({
   invitationId,
   userId: user._id,
@@ -289,14 +309,26 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
       if (phone.startsWith("0")) phone = "972" + phone.slice(1);
       else if (!phone.startsWith("972")) phone = "972" + phone;
 
-      let finalText = baseMessage
-        .replace(/{{name}}/g, guest.name || "")
-        .replace(/{{token}}/g, guest.token || "")
-        .replace(/{{tableName}}/g, tableName);
+      // 🔗 קישור RSVP אישי
+const personalRsvpUrl =
+  `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+
+// ✂️ קיצור הקישור האישי
+const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+
+let finalText = baseMessage
+  .replace(/{{name}}/g, guest.name || "")
+  .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+  .replace(/{{tableName}}/g, tableName);
+
 
       if (includeGiftLink && giftLink) {
         finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
       }
+
+      // ✂️ קיצור אוטומטי של כל הקישורים
+finalText = await shortenUrlsInText(finalText);
+
 
       try {
         const res = await fetch(

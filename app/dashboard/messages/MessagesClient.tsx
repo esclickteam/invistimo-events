@@ -106,6 +106,11 @@ const [sendingTest, setSendingTest] = useState(false);
 const MAX_TEST_SMS = 10;
 const [testSmsUsed, setTestSmsUsed] = useState<number>(0);
 
+const [preview, setPreview] = useState<{
+  text: string;
+  length: number;
+  parts: number;
+} | null>(null);
 
 
 
@@ -293,10 +298,12 @@ useEffect(() => {
 }, [channel]);
 
 
+
   /* ================= LOGIC ================= */
 
-  const smsLength = message.length;
-const smsParts = Math.max(1, Math.ceil(smsLength / 160));
+  const smsLength = preview?.length ?? message.length;
+const smsParts = preview?.parts ?? 1;
+
 
 
   const guestsToSend = useMemo(() => {
@@ -367,7 +374,41 @@ const buildTestMessage = () => {
 };
 
 
+const updateSmsPreview = async () => {
+  if (channel !== "sms" || guests.length === 0) return;
 
+  const text = buildMessage(guests[0]);
+
+  const res = await fetch("/api/sms/preview", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!res.ok) return;
+
+  const data = await res.json();
+
+  setPreview({
+    text: data.text,
+    length: data.length,
+    parts: data.parts,
+  });
+};
+
+useEffect(() => {
+  if (channel === "sms" && guests.length > 0) {
+    updateSmsPreview();
+  }
+}, [
+  message,
+  templateKey,
+  includeGiftLink,
+  giftLink,
+  channel,
+  guests.length,
+]);
 
 
 
@@ -607,9 +648,11 @@ const sendTestMessage = async () => {
   };
 
 const smsPreviewText =
-  channel === "sms" && guests.length > 0
-    ? buildMessage(guests[0])
+  channel === "sms"
+    ? preview?.text ?? (guests[0] ? buildMessage(guests[0]) : message)
     : message;
+
+
 
 
   /* ================= RENDER ================= */
