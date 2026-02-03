@@ -120,6 +120,10 @@ const lastTouchDist = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
+  const isMobile =
+  typeof window !== "undefined" && window.innerWidth < 768;
+
+
   useEffect(() => {
   if (!containerRef.current) return;
 
@@ -131,6 +135,22 @@ const lastTouchDist = useRef<number | null>(null);
   observer.observe(containerRef.current);
   return () => observer.disconnect();
 }, []);
+
+const didInitMobileRef = useRef(false);
+
+useEffect(() => {
+  if (!isMobile) return;
+  if (size.width === 0 || size.height === 0) return;
+  if (didInitMobileRef.current) return;
+
+  didInitMobileRef.current = true;
+
+  setScale(0.6);
+  setStagePos({ x: 0, y: 0 });
+  setCanvasView({ x: 0, y: 0, scale: 0.6 });
+}, [isMobile, size.width, size.height]);
+
+
 
 useEffect(() => {
   if (!prevSizeRef.current) {
@@ -468,7 +488,8 @@ const handleAddTable = (type: string, seats: number) => {
   return (
     <div
   ref={containerRef}
-  className="relative h-full z-0 overflow-hidden"
+  className="relative w-full z-0 overflow-hidden"
+  style={{ height: "100dvh" }} // ⭐ קריטי למובייל
 >
 
       
@@ -512,11 +533,13 @@ const handleAddTable = (type: string, seats: number) => {
   size.height > 0 && (
 
             <KonvaImage
-              image={bgImage}
-              width={size.width}
-              height={size.height}
-              opacity={0.28}
-            />
+  image={bgImage}
+  x={0}
+  y={0}
+  width={bgImage.width}
+  height={bgImage.height}
+  opacity={0.28}
+/>
           )}
         </Layer>
 
