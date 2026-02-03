@@ -103,16 +103,18 @@ export default function ZoneRenderer({ zone }: Props) {
 
         {/* 🧠 טקסט – תמיד באמצע, לא זז */}
         <Text
-          text={`${zone.icon} ${zone.name}`}
-          width={zone.width}
-          height={zone.height}
-          align="center"
-          verticalAlign="middle"
-          fontSize={18}
-          fontStyle="bold"
-          fill="#ffffff"
-          listening={false}
-        />
+  text={`${zone.icon} ${zone.name}`}
+  x={zone.width / 2}
+  y={zone.height / 2}
+  offsetX={zone.width / 2}
+  offsetY={zone.height / 2}
+  align="center"
+  verticalAlign="middle"
+  fontSize={18}
+  fontStyle="bold"
+  fill="#ffffff"
+  listening={false}
+/>
       </Group>
 
       {isSelected && (
