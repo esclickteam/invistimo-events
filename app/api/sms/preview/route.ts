@@ -13,22 +13,21 @@ export async function POST(req: Request) {
   try {
     await dbConnect();
 
-    /* ========== AUTH ========== */
+    /* ================= AUTH ================= */
     const cookieStore = await cookies();
-const token = cookieStore.get("authToken")?.value;
+    const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    jwt.verify(token, process.env.JWT_SECRET!);
 
-    /* ========== BODY ========== */
+    /* ================= BODY ================= */
     const {
       invitationId,
-      templateKey,
-      messageOverride,
       guestId,
+      messageOverride,
       includeGiftLink,
       giftLink,
     } = await req.json();
@@ -40,7 +39,7 @@ const token = cookieStore.get("authToken")?.value;
       );
     }
 
-    /* ========== DATA ========== */
+    /* ================= DATA ================= */
     const invitation = await Invitation.findById(invitationId).lean();
     const guest = await InvitationGuest.findById(guestId).lean();
 
@@ -55,6 +54,7 @@ const token = cookieStore.get("authToken")?.value;
       ? await Event.findById(invitation.eventId).lean()
       : null;
 
+    /* ================= NAVIGATION ================= */
     const location = invitation.eventLocation ?? event?.location;
     const hasLocation = !!(location?.lat && location?.lng);
 
@@ -62,18 +62,23 @@ const token = cookieStore.get("authToken")?.value;
       ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
       : "";
 
-    const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+    /* ================= RSVP (SHORT) ================= */
+    const personalRsvpUrl =
+      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
+    const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+
+    /* ================= TABLE ================= */
     const tableName =
       guest.tableName ||
       (typeof guest.tableNumber === "number"
         ? `שולחן ${guest.tableNumber}`
         : "");
 
-    /* ========== BUILD MESSAGE ========== */
+    /* ================= BUILD MESSAGE ================= */
     let finalText = messageOverride
       .replace(/{{name}}/g, guest.name || "")
-      .replace(/{{rsvpLink}}/g, rsvpLink)
+      .replace(/{{rsvpLink}}/g, shortRsvpUrl)
       .replace(/{{tableName}}/g, tableName)
       .replace(/{{navigationLink}}/g, navigationLink);
 
@@ -81,15 +86,12 @@ const token = cookieStore.get("authToken")?.value;
       finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
     }
 
-    /* ✂️ קיצור קישורים */
-    finalText = await shortenUrlsInText(finalText);
-
     const length = finalText.length;
     const parts = countSmsParts(finalText);
 
     return NextResponse.json({
       success: true,
-      finalText,
+      text: finalText,
       length,
       parts,
     });
@@ -100,19 +102,4 @@ const token = cookieStore.get("authToken")?.value;
       { status: 500 }
     );
   }
-}
-
-/* ================= HELPERS ================= */
-
-async function shortenUrlsInText(text: string) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const urls = text.match(urlRegex);
-  if (!urls) return text;
-
-  let result = text;
-  for (const url of urls) {
-    const short = await shortenUrl(url);
-    result = result.replace(url, short);
-  }
-  return result;
 }
