@@ -231,10 +231,8 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
 
       let messageContent = baseTemplateText
         .replace(/{{name}}/g, "{{name}}")
-        .replace(
-          /{{rsvpLink}}/g,
-          `https://www.invistimo.com/invite/${invitation.shareId}?token={{token}}`
-        )
+        .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
+
         .replace(/{{tableName}}/g, "{{tableName}}")
         .replace(/{{navigationLink}}/g, navigationLink);
 
@@ -276,13 +274,11 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
     }
 
     const baseMessage = baseTemplateText
-      .replace(/{{name}}/g, "{{name}}")
-      .replace(
-        /{{rsvpLink}}/g,
-        `https://www.invistimo.com/invite/${invitation.shareId}?token={{token}}`
-      )
-      .replace(/{{tableName}}/g, "{{tableName}}")
-      .replace(/{{navigationLink}}/g, navigationLink);
+  .replace(/{{name}}/g, "{{name}}")
+  .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
+  .replace(/{{tableName}}/g, "{{tableName}}")
+  .replace(/{{navigationLink}}/g, navigationLink);
+
 
     let sent = 0;
 
