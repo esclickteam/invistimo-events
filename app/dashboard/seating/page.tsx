@@ -311,13 +311,15 @@ if (grRes.ok) {
    RENDER
 =============================== */
 return (
-  <div className="flex flex-col min-h-screen bg-gray-50 md:h-screen md:overflow-hidden">
+    <div className="fixed inset-0 bg-gray-50 overflow-hidden">
+
 
 
 
 
       {/* HEADER */}
-<div className="bg-white shadow-sm border-b sticky top-0 z-30">
+<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-50">
+
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
     <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
 
@@ -356,23 +358,15 @@ return (
   </div>
 </div>
 
-      {/* CONTENT */}
-      <div
-  className="
-    flex flex-1 relative
-    overflow-y-auto
-    overscroll-contain
-    touch-pan-y
-    md:overflow-hidden
-    md:flex-row-reverse
-  "
->
+
 
 
 
 
   {/* 🎨 קנבס */}
-  <div className="flex-1 relative">
+  <div className="absolute inset-x-0 bottom-0 top-[128px]">
+
+
     <SeatingEditor
   background={background?.url || null}
   hideSeats={isProducer}
@@ -381,7 +375,9 @@ return (
   </div>
 
   {/* 🧾 סיידבר הושבה מאוחד */}
-<div className="relative hidden md:flex">
+<div className="absolute right-0 top-[128px] bottom-0 hidden md:flex">
+
+
   {/* 🧾 סיידבר – תמיד קיים, רק הרוחב משתנה */}
   <aside
     className={`
@@ -430,7 +426,7 @@ return (
       {sidebarOpen ? "❮" : "❯"}
     </button>
   </div>
-</div>
+
 
 
 
@@ -438,7 +434,7 @@ return (
 
         <button
           onClick={() => setShowGuests(true)}
-          className="md:hidden absolute top-16 left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
+          className="md:hidden fixed top-[80px] left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
         >
           👥 רשימת אורחים
         </button>
