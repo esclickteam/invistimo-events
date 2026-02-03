@@ -49,22 +49,8 @@ const MESSAGE_TEMPLATES: Record<
   },
 };
 
-async function shortenUrlsInText(text: string) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const urls = text.match(urlRegex);
 
-  if (!urls) return text;
-
-  let result = text;
-
-  for (const url of urls) {
-    const shortUrl = await shortenUrl(url);
-    result = result.replace(url, shortUrl);
-  }
-
-  return result;
-}
-
+  
 export async function POST(req: Request) {
   try {
     await dbConnect();
@@ -213,9 +199,13 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
 
     const location = invitation.eventLocation ?? event?.location;
     const hasLocation = !!(location?.lat && location?.lng);
-    const navigationLink = hasLocation
-      ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-      : "";
+    let navigationLink = "";
+
+if (hasLocation) {
+  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+  navigationLink = await shortenUrl(wazeUrl);
+}
+
 
     /* ================= SCHEDULE ================= */
     if (scheduledAt) {
@@ -315,12 +305,14 @@ const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 let finalText = baseMessage
   .replace(/{{name}}/g, guest.name || "")
   .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-  .replace(/{{tableName}}/g, tableName);
+  .replace(/{{tableName}}/g, tableName)
+  .replace(/{{navigationLink}}/g, navigationLink);
+
 
 if (includeGiftLink && giftLink) {
   // ⛔ רק קישור המתנה – לא ה-RSVP
-  const shortGift = await shortenUrl(giftLink);
-  finalText += `\n\n🎁 למתנה באשראי:\n${shortGift}`;
+  finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+
 }
 
 

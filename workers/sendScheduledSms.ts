@@ -121,9 +121,13 @@ export async function sendScheduledSms() {
 
       const hasLocation = !!(location?.lat && location?.lng);
 
-      const navigationLink = hasLocation
-        ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-        : "";
+      let navigationLink = "";
+
+if (hasLocation) {
+  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+  navigationLink = await shortenUrl(wazeUrl);
+}
+
 
       /* ======================================================
          SEND (SOURCE OF TRUTH = messageContent)
