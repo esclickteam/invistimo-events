@@ -20,7 +20,7 @@ import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 /* ===============================
    TYPES
 =============================== */
-type GuestDTO = {
+ type GuestDTO = {
   _id: string;
   name: string;
   guestsCount?: number;
