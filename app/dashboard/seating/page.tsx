@@ -318,45 +318,41 @@ return (
 
 
       {/* HEADER */}
-<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-50">
+<div className="fixed top-0 inset-x-0 bg-white shadow-sm border-b z-50">
+  <div className="flex items-center justify-between px-4 py-3 gap-3">
 
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
-    <h1 className="text-lg sm:text-xl font-semibold">הושבה באולם</h1>
+    {/* צד ימין – כותרת */}
+    <h1 className="text-lg sm:text-xl font-semibold whitespace-nowrap">
+      הושבה באולם
+    </h1>
 
-<div className="flex flex-col sm:flex-row gap-2">
-  <button
-    onClick={() => setShowUpload(true)}
-    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
-  >
-    העלאת תבנית אולם
-  </button>
+    {/* מרכז – אלמנטים (Dropdown UX) */}
+    <div className="flex items-center gap-2">
+      <ZonesToolbar />
+    </div>
 
-  <ExportSeatingPdf eventId={eventId} />
+    {/* צד שמאל – פעולות */}
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => setShowUpload(true)}
+        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg whitespace-nowrap"
+      >
+        העלאת תבנית אולם
+      </button>
 
-  <button
-    onClick={saveSeating}
-    className="
-      px-4 py-2 text-sm
-      bg-green-600 text-white
-      rounded-lg
-      font-semibold
-      hover:bg-green-700
-      transition
-      whitespace-nowrap
-    "
-  >
-    💾 שמירה
-  </button>
-</div>
+      <ExportSeatingPdf eventId={eventId} />
 
+      <button
+        onClick={saveSeating}
+        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
+      >
+        💾 שמירה
+      </button>
+    </div>
 
   </div>
-
-  {/* ⬅️ זה ה־div שחייב להיסגר */}
-  <div className="w-full overflow-x-auto scrollbar-hide">
-    <ZonesToolbar />
-  </div>
 </div>
+
 
 
 
@@ -364,7 +360,8 @@ return (
 
 
   {/* 🎨 קנבס */}
-  <div className="absolute inset-x-0 bottom-0 top-[128px]">
+  <div className="absolute right-0 top-[128px] bottom-0 hidden md:flex">
+
 
 
     <SeatingEditor
