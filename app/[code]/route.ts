@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import ShortLink from "@/models/ShortLink";
 
+type RouteContext = {
+  params: {
+    code: string;
+  };
+};
+
 export async function GET(
-  req: Request,
-  { params }: { params: { code: string } }
+  _req: Request,
+  { params }: RouteContext
 ) {
   await dbConnect();
 
