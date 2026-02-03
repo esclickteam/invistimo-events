@@ -108,19 +108,20 @@ function SeatingEditorInner({
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!containerRef.current) return;
+  if (!containerRef.current) return;
 
-    const resize = () => {
-      setSize({
-        width: containerRef.current!.offsetWidth,
-        height: containerRef.current!.offsetHeight,
-      });
-    };
+  const resize = () => {
+    setSize({
+      width: containerRef.current!.offsetWidth,
+      height: containerRef.current!.offsetHeight,
+    });
+  };
 
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
+  resize(); // מודד מחדש גם כש-sidebarOpen משתנה
+  window.addEventListener("resize", resize);
+  return () => window.removeEventListener("resize", resize);
+}, [sidebarOpen]);
+
 
   /* ================= ZOOM & PAN ================= */
   const [scale, setScale] = useState(1);
@@ -349,32 +350,20 @@ const handleTouchEnd = () => {
   }, [selectedZoneId, removeZone, readOnly]);
 
   /* ================= ADD TABLE ================= */
-  const SIDEBAR_WIDTH = 400;
 
 const handleAddTable = (type: string, seats: number) => {
   const view = canvasView ?? { x: 0, y: 0, scale: 1 };
 
-  // רוחב האזור הגלוי
-  const visibleWidth = sidebarOpen
-    ? size.width - SIDEBAR_WIDTH
-    : size.width;
-
-  // ⭐ היסט שמאלה אם הסיידבר פתוח
-  const sidebarOffset = sidebarOpen
-    ? SIDEBAR_WIDTH / 2
-    : 0;
-
-  const centerX =
-    (-view.x + visibleWidth / 2 - sidebarOffset) / view.scale;
-
-  const centerY =
-    (-view.y + size.height / 2) / view.scale;
+  // ⚠️ מרכז ה-Stage עצמו (לא מתעסקים בסיידבר)
+  const centerX = (-view.x + size.width / 2) / view.scale;
+  const centerY = (-view.y + size.height / 2) / view.scale;
 
   addTable(type, seats, {
     x: centerX,
     y: centerY,
   });
 };
+
 
 
 
@@ -392,7 +381,8 @@ const handleAddTable = (type: string, seats: number) => {
   return (
     <div
   ref={containerRef}
-  className="relative w-full h-full z-0"
+  className="relative h-full z-0 overflow-hidden"
+  style={{ width: sidebarOpen ? "calc(100% - 400px)" : "100%" }}
 >
 
       
