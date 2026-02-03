@@ -311,7 +311,8 @@ if (grRes.ok) {
    RENDER
 =============================== */
 return (
-    <div className="fixed inset-0 bg-gray-50">
+    <div className="h-screen w-screen bg-gray-50 overflow-hidden">
+
 
 
 
@@ -320,7 +321,8 @@ return (
 
 
       {/* HEADER */}
-<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-[1000]">
+<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-[9999]">
+
 
 
 
@@ -366,7 +368,8 @@ return (
 
   {/* 🎨 קנבס */}
   <div
-  className="absolute inset-x-0 bottom-0 z-10"
+    className="absolute inset-x-0 bottom-0"
+
   style={{ top: 64 }}
 >
 

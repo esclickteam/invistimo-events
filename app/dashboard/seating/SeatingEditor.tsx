@@ -371,7 +371,11 @@ const handleTouchEnd = () => {
   }, [tables, guests]);
 
   return (
-    <div ref={containerRef} className="relative w-full h-full">
+    <div
+  ref={containerRef}
+  className="relative w-full h-full z-0"
+>
+
       {!readOnly && (
         <button
           onClick={() => setShowAddModal(true)}
@@ -394,21 +398,22 @@ const handleTouchEnd = () => {
   y={stagePos.y}
   onWheel={handleWheel}
   onMouseMove={handleMouseMove}
-
   onTouchStart={(e) => {
     handleTouchStart(e);     // 🤏 init pinch (2 fingers)
     handleTouchPanStart(e);  // 👆 init pan (1 finger)
   }}
-
   onTouchMove={handleTouchMove}
-
   onTouchEnd={() => {
     handleTouchEnd();        // reset pinch
     panStart.current = null; // reset pan
   }}
-
-  style={{ touchAction: "none" }}
+  style={{
+    touchAction: "none",
+    position: "relative",
+    zIndex: 0,
+  }}
 >
+
 
         <Layer listening={false}>
           <GridLayer width={size.width} height={size.height} />
