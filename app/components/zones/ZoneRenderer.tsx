@@ -56,31 +56,29 @@ export default function ZoneRenderer({ zone }: Props) {
           ref={rectRef}
           width={zone.width}
           height={zone.height}
-          opacity={zone.opacity}
-          cornerRadius={
-            zone.borderRadius ?? Math.min(32, zone.height / 4)
-          }
-          fill={
-            zone.gradient ? undefined : zone.color
-          }
+          cornerRadius={zone.borderRadius ?? Math.min(32, zone.height / 4)}
+          // ❌ אל תחלישי צבעים עם opacity על כל ה־Rect
+          // opacity={zone.opacity}
+
+          fill={zone.gradient ? undefined : zone.color}
           fillLinearGradientStartPoint={
             zone.gradient ? { x: 0, y: 0 } : undefined
           }
           fillLinearGradientEndPoint={
-            zone.gradient
-              ? { x: zone.width, y: zone.height }
-              : undefined
+            zone.gradient ? { x: 0, y: zone.height } : undefined
           }
           fillLinearGradientColorStops={
             zone.gradient
               ? [0, zone.gradient[0], 1, zone.gradient[1]]
               : undefined
           }
-          shadowEnabled={zone.shadow}
-          shadowColor="rgba(0,0,0,0.25)"
-          shadowBlur={18}
-          shadowOffset={{ x: 0, y: 6 }}
-          shadowOpacity={0.35}
+
+          /* ✨ צל רך שנותן "פופ" */
+          shadowEnabled
+          shadowColor="rgba(0,0,0,0.22)"
+          shadowBlur={20}
+          shadowOffset={{ x: 0, y: 8 }}
+          shadowOpacity={0.45}
           stroke={isSelected ? "#2563eb" : "transparent"}
           strokeWidth={isSelected ? 2 : 0}
           onTransformEnd={() => {
@@ -101,79 +99,76 @@ export default function ZoneRenderer({ zone }: Props) {
           }}
         />
 
-        {/* 🧠 טקסט – תמיד באמצע, לא זז */}
-        {/* 📝 שם האזור – למעלה */}
-<Text
-  text={zone.name}
-  x={0}
-  y={zone.height / 2 - 20}
-  width={zone.width}
-  align="center"
-  fontSize={18}
-  fontStyle="bold"
-  fill="#ffffff"
-  listening={false}
-/>
+        {/* 📝 שם האזור */}
+        <Text
+          text={zone.name}
+          x={0}
+          y={zone.height / 2 - 22}
+          width={zone.width}
+          align="center"
+          fontSize={18}
+          fontStyle="bold"
+          fill="#ffffff"
+          shadowColor="rgba(0,0,0,0.35)"
+          shadowBlur={4}
+          shadowOffset={{ x: 0, y: 1 }}
+          shadowOpacity={0.9}
+          listening={false}
+        />
 
-{/* 👥 אייקון – מתחת */}
-<Text
-  text={zone.icon}
-  x={0}
-  y={zone.height / 2 + 6}
-  width={zone.width}
-  align="center"
-  fontSize={28}
-  fill="#ffffff"
-  listening={false}
-/>
-
-
-
+        {/* 👥 אייקון */}
+        <Text
+          text={zone.icon}
+          x={0}
+          y={zone.height / 2 + 6}
+          width={zone.width}
+          align="center"
+          fontSize={28}
+          fill="#ffffff"
+          shadowColor="rgba(0,0,0,0.35)"
+          shadowBlur={6}
+          shadowOffset={{ x: 0, y: 2 }}
+          shadowOpacity={0.9}
+          listening={false}
+        />
       </Group>
 
       {isSelected && (
-  <Transformer
-    ref={trRef}
-    rotateEnabled={true}
+        <Transformer
+          ref={trRef}
+          rotateEnabled={true}
 
-    /* 🟦 ידיות קטנות ומרובעות */
-    anchorSize={7}
-    anchorCornerRadius={1}
+          /* 🟦 ידיות קטנות ומרובעות */
+          anchorSize={7}
+          anchorCornerRadius={1}
+          anchorFill="#e5f0ff"
+          anchorStroke="#3b82f6"
+          anchorStrokeWidth={1}
 
-    anchorFill="#e5f0ff"
-    anchorStroke="#3b82f6"
-    anchorStrokeWidth={1}
+          /* 🟦 מסגרת דקה ונקייה */
+          borderStroke="#3b82f6"
+          borderStrokeWidth={1}
+          borderDash={[]}
 
-    /* 🟦 מסגרת דקה ונקייה */
-    borderStroke="#3b82f6"
-    borderStrokeWidth={1}
-    borderDash={[]}
+          /* 🟦 בדיוק הידיות כמו בתמונה */
+          enabledAnchors={[
+            "top-left",
+            "top-center",
+            "top-right",
+            "middle-left",
+            "middle-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right",
+          ]}
 
-    /* 🟦 בדיוק הידיות שרואים בתמונה */
-    enabledAnchors={[
-      "top-left",
-      "top-center",
-      "top-right",
-      "middle-left",
-      "middle-right",
-      "bottom-left",
-      "bottom-center",
-      "bottom-right",
-    ]}
-
-    rotateAnchorOffset={18}
-
-    boundBoxFunc={(oldBox, newBox) => {
-      if (newBox.width < 120 || newBox.height < 80) {
-        return oldBox;
-      }
-      return newBox;
-    }}
-  />
-)}
-
-
-
+          rotateAnchorOffset={18}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (newBox.width < 120 || newBox.height < 80) return oldBox;
+            return newBox;
+          }}
+        />
+      )}
     </>
   );
 }
