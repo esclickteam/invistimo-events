@@ -411,8 +411,6 @@ useEffect(() => {
 ]);
 
 
-
-
 /* ================= SEND ================= */
 
 const sendWhatsApp = (guest: Guest) => {
