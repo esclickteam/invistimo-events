@@ -89,7 +89,20 @@ function SeatingEditorInner({
   const removeZone = useZoneStore((s) => s.removeZone);
   const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
-  
+  const prevSizeRef = useRef<{ width: number; height: number } | null>(null);
+
+  /* ================= ZOOM & PAN ================= */
+const [scale, setScale] = useState(1);
+const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+const [isPanning, setIsPanning] = useState(false);
+
+const panStart = useRef<{ x: number; y: number } | null>(null);
+const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+// ⭐ Pinch zoom (mobile)
+const lastTouchDist = useRef<number | null>(null);
+
+
 
   /* ================= LOCAL UI STATE ================= */
   const [showGuests, setShowGuests] = useState(false);
@@ -110,29 +123,57 @@ function SeatingEditorInner({
   useEffect(() => {
   if (!containerRef.current) return;
 
-  const resize = () => {
-    setSize({
-      width: containerRef.current!.offsetWidth,
-      height: containerRef.current!.offsetHeight,
-    });
+  const observer = new ResizeObserver(([entry]) => {
+    const { width, height } = entry.contentRect;
+    setSize({ width, height });
+  });
+
+  observer.observe(containerRef.current);
+  return () => observer.disconnect();
+}, []);
+
+useEffect(() => {
+  if (!prevSizeRef.current) {
+    prevSizeRef.current = size;
+    return;
+  }
+
+  const prev = prevSizeRef.current;
+  if (prev.width === size.width && prev.height === size.height) return;
+
+  const prevCenter = {
+    x: prev.width / 2,
+    y: prev.height / 2,
   };
 
-  resize(); // מודד מחדש גם כש-sidebarOpen משתנה
-  window.addEventListener("resize", resize);
-  return () => window.removeEventListener("resize", resize);
-}, [sidebarOpen]);
+  const newCenter = {
+    x: size.width / 2,
+    y: size.height / 2,
+  };
+
+  const dx = newCenter.x - prevCenter.x;
+  const dy = newCenter.y - prevCenter.y;
+
+  setStagePos((pos) => {
+    const next = {
+      x: pos.x + dx,
+      y: pos.y + dy,
+    };
+
+    setCanvasView({
+      x: next.x,
+      y: next.y,
+      scale,
+    });
+
+    return next;
+  });
+
+  prevSizeRef.current = size;
+}, [size.width, size.height, scale]); // ⭐ כאן
 
 
-  /* ================= ZOOM & PAN ================= */
-  const [scale, setScale] = useState(1);
-  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
 
-  const panStart = useRef<{ x: number; y: number } | null>(null);
-  const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  // ⭐ Pinch zoom (mobile)
-const lastTouchDist = useRef<number | null>(null);
 
 
   useEffect(() => {
@@ -144,6 +185,7 @@ const lastTouchDist = useRef<number | null>(null);
     });
   }, [canvasView]);
 
+  
 
 useEffect(() => {
   if (!readOnly) return;
@@ -427,7 +469,6 @@ const handleAddTable = (type: string, seats: number) => {
     <div
   ref={containerRef}
   className="relative h-full z-0 overflow-hidden"
-  style={{ width: sidebarOpen ? "calc(100% - 400px)" : "100%" }}
 >
 
       
