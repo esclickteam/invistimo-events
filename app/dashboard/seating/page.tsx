@@ -15,7 +15,7 @@ import ExportSeatingPdf from "./ExportSeatingPdf";
 
 
 /* ⭐ קומפוננטות עליונות */
-import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
+ import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 
 /* ===============================
    TYPES
