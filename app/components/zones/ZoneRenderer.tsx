@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Group, Rect, Text, Transformer, Image as KonvaImage } from "react-konva";
+import { Group, Rect, Text, Transformer } from "react-konva";
 import Konva from "konva";
-import useImage from "use-image";
 import { Zone, useZoneStore } from "@/store/zoneStore";
 
 type Props = {
@@ -39,15 +38,6 @@ export default function ZoneRenderer({ zone }: Props) {
 
   const contentHeight = TEXT_SIZE + GAP + ICON_SIZE;
   const contentY = zone.height / 2 - contentHeight / 2;
-
-  /* =========================
-     🖼️ SVG / Emoji handling
-     ========================= */
-  const isSvgIcon =
-  typeof zone.icon === "string" &&
-  zone.icon.trim().toLowerCase().endsWith(".svg");
-
-const [iconImage] = useImage(isSvgIcon ? zone.icon : "");
 
   return (
     <>
@@ -115,7 +105,12 @@ const [iconImage] = useImage(isSvgIcon ? zone.icon : "");
         />
 
         {/* 🧩 טקסט + אייקון (ממורכזים כיחידה אחת) */}
-        <Group x={0} y={contentY} width={zone.width} listening={false}>
+        <Group
+          x={0}
+          y={contentY}
+          width={zone.width}
+          listening={false}
+        >
           {/* 📝 שם האזור */}
           <Text
             text={zone.name}
@@ -130,29 +125,19 @@ const [iconImage] = useImage(isSvgIcon ? zone.icon : "");
             shadowOpacity={0.9}
           />
 
-          {/* 👥 אייקון – SVG או Emoji */}
-          {isSvgIcon && iconImage ? (
-            <KonvaImage
-              image={iconImage}
-              x={zone.width / 2 - ICON_SIZE / 2}
-              y={TEXT_SIZE + GAP}
-              width={ICON_SIZE}
-              height={ICON_SIZE}
-            />
-          ) : (
-            <Text
-              text={zone.icon}
-              y={TEXT_SIZE + GAP}
-              width={zone.width}
-              align="center"
-              fontSize={ICON_SIZE}
-              fill="#ffffff"
-              shadowColor="rgba(0,0,0,0.35)"
-              shadowBlur={6}
-              shadowOffset={{ x: 0, y: 2 }}
-              shadowOpacity={0.9}
-            />
-          )}
+          {/* 👥 אייקון */}
+          <Text
+            text={zone.icon}
+            y={TEXT_SIZE + GAP}
+            width={zone.width}
+            align="center"
+            fontSize={ICON_SIZE}
+            fill="#ffffff"
+            shadowColor="rgba(0,0,0,0.35)"
+            shadowBlur={6}
+            shadowOffset={{ x: 0, y: 2 }}
+            shadowOpacity={0.9}
+          />
         </Group>
       </Group>
 
