@@ -80,7 +80,8 @@ export default function AddTableDrawer({
   onClose: () => void;
   onAdd: (data: { type: string; seats: number }) => void;
 }) {
-  const [type, setType] = useState("banquet");
+  const [type, setType] = useState("square");
+
   const [seats, setSeats] = useState(12);
 
   if (!open) return null;

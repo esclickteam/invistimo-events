@@ -172,6 +172,8 @@ useEffect(() => {
 
 
 
+const clamp = (v: number, min: number, max: number) =>
+  Math.min(Math.max(v, min), max);
 
 
 
@@ -186,11 +188,27 @@ useEffect(() => {
     evalHover(pos);
 
     if (isPanning && panStart.current) {
-      setStagePos({
-        x: stageStart.current.x + (pos.x - panStart.current.x),
-        y: stageStart.current.y + (pos.y - panStart.current.y),
-      });
-    }
+  const dx = pos.x - panStart.current.x;
+  const dy = pos.y - panStart.current.y;
+
+  const next = {
+    x: stageStart.current.x + dx,
+    y: stageStart.current.y + dy,
+  };
+
+  // ✅ גבולות בסיסיים לפי גודל המסך (מספיק כדי שלא "ייעלם")
+  const BOUND_X = size.width;
+  const BOUND_Y = size.height;
+
+  const clamped = {
+    x: clamp(next.x, -BOUND_X, BOUND_X),
+    y: clamp(next.y, -BOUND_Y, BOUND_Y),
+  };
+
+  setStagePos(clamped);
+  setCanvasView({ ...clamped, scale });
+}
+
   };
 
   const handleWheel = (e: any) => {
@@ -214,14 +232,23 @@ useEffect(() => {
     y: (pointer.y - stagePos.y) / scale,
   };
 
-  const newPos = {
-    x: pointer.x - mousePointTo.x * newScale,
-    y: pointer.y - mousePointTo.y * newScale,
-  };
+  const newPosRaw = {
+  x: pointer.x - mousePointTo.x * newScale,
+  y: pointer.y - mousePointTo.y * newScale,
+};
 
-  setScale(newScale);
-  setStagePos(newPos);
-  setCanvasView({ ...newPos, scale: newScale });
+// ✅ גבולות בסיסיים שלא יאפשרו "להיעלם" מהמסך
+const BOUND_X = size.width;
+const BOUND_Y = size.height;
+
+const newPos = {
+  x: clamp(newPosRaw.x, -BOUND_X, BOUND_X),
+  y: clamp(newPosRaw.y, -BOUND_Y, BOUND_Y),
+};
+
+setScale(newScale);
+setStagePos(newPos);
+setCanvasView({ ...newPos, scale: newScale });
 };
 
 const handleTouchStart = (e: any) => {
@@ -270,13 +297,22 @@ if (touches.length === 1) {
     const dx = t.clientX - panStart.current.x;
     const dy = t.clientY - panStart.current.y;
 
-    const newPos = {
-      x: stageStart.current.x + dx,
-      y: stageStart.current.y + dy,
-    };
+    const next = {
+  x: stageStart.current.x + dx,
+  y: stageStart.current.y + dy,
+};
 
-    setStagePos(newPos);
-    setCanvasView({ ...newPos, scale });
+const BOUND_X = size.width;
+const BOUND_Y = size.height;
+
+const clamped = {
+  x: clamp(next.x, -BOUND_X, BOUND_X),
+  y: clamp(next.y, -BOUND_Y, BOUND_Y),
+};
+
+setStagePos(clamped);
+setCanvasView({ ...clamped, scale });
+
   }
 
   return;
@@ -313,14 +349,23 @@ if (touches.length === 1) {
       y: (center.y - stagePos.y) / scale,
     };
 
-    const newPos = {
-      x: center.x - mousePointTo.x * newScale,
-      y: center.y - mousePointTo.y * newScale,
-    };
+    const newPosRaw = {
+  x: center.x - mousePointTo.x * newScale,
+  y: center.y - mousePointTo.y * newScale,
+};
 
-    setScale(newScale);
-    setStagePos(newPos);
-    setCanvasView({ ...newPos, scale: newScale });
+const BOUND_X = size.width;
+const BOUND_Y = size.height;
+
+const newPos = {
+  x: clamp(newPosRaw.x, -BOUND_X, BOUND_X),
+  y: clamp(newPosRaw.y, -BOUND_Y, BOUND_Y),
+};
+
+setScale(newScale);
+setStagePos(newPos);
+setCanvasView({ ...newPos, scale: newScale });
+
 
     lastTouchDist.current = dist;
   }
