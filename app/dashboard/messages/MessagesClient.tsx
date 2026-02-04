@@ -29,9 +29,6 @@ type Balance = {
   remainingMessages: number;
 };
 
-/* ================= SMS PREVIEW LIMITS ================= */
-
-
 function getLongestMessage(
   guests: Guest[],
   buildMessageFn: (g: Guest) => string
@@ -42,7 +39,7 @@ function getLongestMessage(
   for (const guest of guests) {
     const text = buildMessageFn(guest);
 
-    if ([...text].length > [...longestText].length) {
+    if (typeof text === "string" && text.length > longestText.length) {
       longestText = text;
       longestGuest = guest;
     }
@@ -53,8 +50,6 @@ function getLongestMessage(
     guest: longestGuest,
   };
 }
-
-
 
 /* ================= SMS PACKAGES ================= */
 
