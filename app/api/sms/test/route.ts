@@ -4,12 +4,10 @@ import User from "@/models/User";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
+import { countSmsParts } from "@/lib/smsUtils";
 
-/* ======================================================
-   CONFIG
-====================================================== */
-const RATE_LIMIT_MS = 60_000; // בדיקה אחת לדקה
-const MAX_TEST_SMS = 10;      // סה״כ בדיקות חינמיות
+const RATE_LIMIT_MS = 60_000;
+const MAX_TEST_SMS = 10;
 
 const lastTestByUser = new Map<string, number>();
 
@@ -22,28 +20,14 @@ export async function POST(req: Request) {
     const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    let decoded: any;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    } catch {
-      return NextResponse.json(
-        { success: false, error: "INVALID_TOKEN" },
-        { status: 401 }
-      );
-    }
-
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
     const user = await User.findById(decoded.userId);
+
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
     }
 
     /* ================= RATE LIMIT ================= */
@@ -52,40 +36,19 @@ export async function POST(req: Request) {
 
     if (last && now - last < RATE_LIMIT_MS) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "RATE_LIMIT",
-          message: "ניתן לשלוח הודעת בדיקה אחת לדקה",
-        },
+        { error: "RATE_LIMIT", message: "בדיקה אחת לדקה" },
         { status: 429 }
       );
     }
 
     lastTestByUser.set(user._id.toString(), now);
 
-    /* ================= TEST LIMIT ================= */
-    const used = user.testSmsUsed ?? 0;
-
-    if (used >= MAX_TEST_SMS) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "TEST_LIMIT_REACHED",
-          remaining: 0,
-        },
-        { status: 403 }
-      );
-    }
-
     /* ================= BODY ================= */
-    const { phone, message } = (await req.json()) as {
-      phone?: string;
-      message?: string;
-    };
+    const { phone, message } = await req.json();
 
     if (!phone || !message) {
       return NextResponse.json(
-        { success: false, error: "MISSING_PARAMS" },
+        { error: "MISSING_PARAMS" },
         { status: 400 }
       );
     }
@@ -98,20 +61,46 @@ export async function POST(req: Request) {
       normalizedPhone = "972" + normalizedPhone;
     }
 
-    /* ================= SHORTEN RSVP LINKS ================= */
+    /* ================= SHORTEN LINKS ================= */
     let finalMessage = message;
-
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const urls = message.match(urlRegex);
+    const urls = message.match(/https?:\/\/[^\s]+/g);
 
     if (urls) {
       for (const url of urls) {
-        // ⛔ לא מקצרים טמפלטים
         if (url.includes("{{")) continue;
-
         const short = await shortenUrl(url);
         finalMessage = finalMessage.replace(url, short);
       }
+    }
+
+    /* ================= CALC PARTS ================= */
+    const parts = countSmsParts(finalMessage);
+
+    /* ================= 🔒 RESERVE TEST SMS ================= */
+    const reserveResult = await User.updateOne(
+      {
+        _id: user._id,
+        testSmsUsed: { $lte: MAX_TEST_SMS - parts },
+      },
+      {
+        $inc: { testSmsUsed: parts },
+      }
+    );
+
+    if (reserveResult.modifiedCount === 0) {
+      const remaining = Math.max(
+        0,
+        MAX_TEST_SMS - (user.testSmsUsed ?? 0)
+      );
+
+      return NextResponse.json(
+        {
+          error: "TEST_LIMIT_REACHED",
+          remaining,
+          required: parts,
+        },
+        { status: 403 }
+      );
     }
 
     /* ================= SEND SMS ================= */
@@ -132,25 +121,22 @@ export async function POST(req: Request) {
     );
 
     if (!res.ok) {
+      // ❗ לא מחזירים יתרה בטסט – זה intentional
       return NextResponse.json(
-        { success: false, error: "SMS_PROVIDER_FAILED" },
+        { error: "SMS_PROVIDER_FAILED" },
         { status: 500 }
       );
     }
 
-    /* ================= INCREMENT AFTER SUCCESS ================= */
-    user.testSmsUsed = used + 1;
-    await user.save();
-
     return NextResponse.json({
       success: true,
-      remaining: MAX_TEST_SMS - user.testSmsUsed,
+      parts,
+      remaining: MAX_TEST_SMS - (user.testSmsUsed ?? 0) - parts,
     });
   } catch (err) {
-    console.error("❌ SMS TEST ERROR:", err);
-
+    console.error("SMS TEST ERROR", err);
     return NextResponse.json(
-      { success: false, error: "SMS_TEST_FAILED" },
+      { error: "SMS_TEST_FAILED" },
       { status: 500 }
     );
   }

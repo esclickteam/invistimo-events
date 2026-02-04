@@ -36,11 +36,16 @@ export interface IUser extends Document {
     remindersEnabled: boolean;
   };
 
+  /** legacy – נשאר בשביל ראוטים קיימים */
   maxMessages: number;
   remainingMessages: number;
+
+  /** מקור אמת חדש */
+  smsBalance: number;
+
+  /** סטטיסטיקה בלבד */
   smsUsed: number;
   testSmsUsed: number;
-
 
   isTrial: boolean;
   trialStartedAt?: Date;
@@ -101,11 +106,11 @@ const UserSchema = new Schema<IUser>(
     hasPaid: { type: Boolean, default: false, index: true },
 
     producerId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "User",
-  default: null,
-  index: true,
-},
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
 
     createdByProducer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -128,11 +133,15 @@ const UserSchema = new Schema<IUser>(
       remindersEnabled: { type: Boolean, default: true },
     },
 
+    /** legacy */
     maxMessages: { type: Number, default: 0 },
+    remainingMessages: { type: Number, default: 0 },
+
+    /** חדש */
+    smsBalance: { type: Number, default: 0 },
+
     smsUsed: { type: Number, default: 0 },
-
     testSmsUsed: { type: Number, default: 0 },
-
 
     isTrial: { type: Boolean, default: false },
     trialStartedAt: Date,
@@ -149,18 +158,52 @@ const UserSchema = new Schema<IUser>(
 );
 
 /* ============================================================
+   VIRTUALS – תאימות לאחור
+============================================================ */
+
+/**
+ * remainingMessages תמיד משקף smsBalance אם קיים
+ */
+UserSchema.virtual("remainingMessages").get(function () {
+  if (typeof this.smsBalance === "number") {
+    return this.smsBalance;
+  }
+
+  if (
+    typeof this.maxMessages === "number" &&
+    typeof this.smsUsed === "number"
+  ) {
+    return Math.max(this.maxMessages - this.smsUsed, 0);
+  }
+
+  return 0;
+});
+
+/**
+ * maxMessages וירטואלי – כדי שראוטים ישנים לא יישברו
+ */
+UserSchema.virtual("maxMessages").get(function () {
+  if (typeof this.smsBalance === "number") {
+    return this.smsBalance + (this.smsUsed ?? 0);
+  }
+
+  return this.maxMessages ?? 0;
+});
+
+UserSchema.set("toJSON", { virtuals: true });
+UserSchema.set("toObject", { virtuals: true });
+
+/* ============================================================
    AUTO LOGIC – PRE SAVE
 ============================================================ */
 UserSchema.pre("save", function () {
-  /* 🎁 BONUS RULE
-     includeCalls ⇒ free credit gifts
-  */
+  /* 🎁 BONUS RULE */
   if (this.includeCalls === true) {
     this.includeCreditGifts = true;
     this.creditGiftsAddonPrice = 0;
   }
 
-  // 🧪 TRIAL USER
+  /* 🧪 TRIAL USER */
   if (this.isTrial) {
     this.plan = "premium";
     this.guests = 1000;
@@ -175,34 +218,20 @@ UserSchema.pre("save", function () {
       remindersEnabled: true,
     };
 
-    if (!this.maxMessages || this.maxMessages === 0) {
-      this.maxMessages = 10;
-    }
-
-    if (!this.remainingMessages || this.remainingMessages === 0) {
-      this.remainingMessages = Math.max(
-        this.maxMessages - (this.smsUsed ?? 0),
-        0
-      );
+    if (typeof this.smsBalance !== "number" || this.smsBalance === 0) {
+      this.smsBalance = 10;
     }
 
     return;
   }
 
-  // 💼 PAID USER CREATED BY PRODUCER
+  /* 💼 PAID CLIENT CREATED BY PRODUCER */
   if (this.hasPaid && this.role === "client" && this.createdByProducer) {
     const MESSAGES_PER_GUEST = 3;
     const baseMessages = this.guests * MESSAGES_PER_GUEST;
 
-    if (!this.maxMessages || this.maxMessages === 0) {
-      this.maxMessages = baseMessages;
-    }
-
-    if (!this.remainingMessages || this.remainingMessages === 0) {
-      this.remainingMessages = Math.max(
-        baseMessages - (this.smsUsed ?? 0),
-        0
-      );
+    if (typeof this.smsBalance !== "number" || this.smsBalance === 0) {
+      this.smsBalance = baseMessages;
     }
 
     this.planLimits = {
@@ -216,7 +245,7 @@ UserSchema.pre("save", function () {
     return;
   }
 
-  // 💳 PAID USER → לא לדרוס
+  /* 💳 PAID USER – לא לדרוס */
   if (this.hasPaid) {
     return;
   }
@@ -230,15 +259,13 @@ UserSchema.pre("findOneAndUpdate", function () {
   const isUsingSet = !!rawUpdate.$set;
   const update = isUsingSet ? rawUpdate.$set : rawUpdate;
 
-  /* 🎁 BONUS RULE (UPDATE)
-     includeCalls ⇒ free credit gifts
-  */
+  /* 🎁 BONUS RULE */
   if (update.includeCalls === true) {
     update.includeCreditGifts = true;
     update.creditGiftsAddonPrice = 0;
   }
 
-  // 🧪 TRIAL USER
+  /* 🧪 TRIAL USER */
   if (update.isTrial === true) {
     update.plan = "premium";
     update.guests = 1000;
@@ -253,23 +280,12 @@ UserSchema.pre("findOneAndUpdate", function () {
       remindersEnabled: true,
     };
 
-    if (typeof update.maxMessages !== "number") {
-      update.maxMessages = 10;
+    if (typeof update.smsBalance !== "number") {
+      update.smsBalance = 10;
     }
-
-    if (typeof update.remainingMessages !== "number") {
-      update.remainingMessages = Math.max(
-        update.maxMessages - (update.smsUsed ?? 0),
-        0
-      );
-    }
-
-    if (isUsingSet) rawUpdate.$set = update;
-    (this as any).setUpdate(rawUpdate);
-    return;
   }
 
-  // 💼 PAID CLIENT CREATED BY PRODUCER
+  /* 💼 PAID CLIENT CREATED BY PRODUCER */
   if (
     update.hasPaid === true &&
     update.role === "client" &&
@@ -279,15 +295,8 @@ UserSchema.pre("findOneAndUpdate", function () {
     const MESSAGES_PER_GUEST = 3;
     const baseMessages = update.guests * MESSAGES_PER_GUEST;
 
-    if (typeof update.maxMessages !== "number") {
-      update.maxMessages = baseMessages;
-    }
-
-    if (typeof update.remainingMessages !== "number") {
-      update.remainingMessages = Math.max(
-        baseMessages - (update.smsUsed ?? 0),
-        0
-      );
+    if (typeof update.smsBalance !== "number") {
+      update.smsBalance = baseMessages;
     }
 
     update.planLimits = {

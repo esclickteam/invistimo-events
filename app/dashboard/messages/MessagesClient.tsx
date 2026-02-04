@@ -609,12 +609,16 @@ const sendTestMessage = async () => {
       return;
     }
 
-    alert("✅ הודעת בדיקה נשלחה בהצלחה");
-    setTestPhone("");
-
-    setTestSmsUsed((prev) =>
-  typeof prev === "number" ? prev + 1 : prev
+    alert(
+  `✅ הודעת בדיקה נשלחה\nתחויב ב־${data.parts} הודעות SMS`
 );
+
+setTestPhone("");
+
+setTestSmsUsed((prev) =>
+  typeof prev === "number" ? prev + data.parts : prev
+);
+
 
   } catch (err) {
     alert("❌ שגיאה בשליחת הודעת בדיקה");
@@ -998,9 +1002,15 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     {preview.parts === 1
       ? `הודעה 1 · ${preview.currentPartChars} / 200 תווים`
       : `הודעה ${preview.parts} · ${preview.currentPartChars} / 120 תווים`}
-    <span className="block text-[11px] text-gray-400">
-      סה״כ: {preview.parts} הודעות
-    </span>
+    <span className="block text-[11px] text-gray-500">
+  ההודעה תחויב ב־
+  <strong>
+    {" "}
+    {preview.parts} {preview.parts === 1 ? "הודעת SMS" : "הודעות SMS"}
+  </strong>
+</span>
+
+
   </p>
 )}
 
@@ -1128,8 +1138,9 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
     <p className="text-xs text-gray-500 mb-3">
-      ההודעה תישלח למספר זה בלבד · לא נספר כחיוב מלא
-    </p>
+  ההודעה תישלח למספר זה בלבד · החיוב לפי אורך ההודעה
+</p>
+
 
     {testSmsUsed !== null && (
   <p
@@ -1160,13 +1171,25 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   onClick={sendTestMessage}
   disabled={
     sendingTest ||
-    testSmsUsed !== null && testSmsUsed >= MAX_TEST_SMS
+    (!!preview &&
+      testSmsUsed !== null &&
+      testSmsUsed + preview.parts > MAX_TEST_SMS)
   }
   className="px-4 py-3 rounded-xl bg-gray-200 text-gray-800 text-sm font-medium disabled:opacity-50"
 >
-        {sendingTest ? "שולח..." : "שלח לבדיקה"}
-      </button>
+  {sendingTest ? "שולח..." : "שלח לבדיקה"}
+</button>
+
+      
     </div>
+
+    {preview && (
+  <p className="text-xs text-gray-600 mt-1 text-right">
+    הודעת בדיקה זו תחויב ב־
+    <strong> {preview.parts} הודעות SMS</strong>
+  </p>
+)}
+
   </div>
 )}
 

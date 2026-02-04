@@ -6,9 +6,8 @@ import Event from "@/models/Event";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
 
-
 /* ======================================================
-   WORKER
+   WORKER – SEND SCHEDULED SMS (SMS BALANCE SAFE)
 ====================================================== */
 
 export async function sendScheduledSms() {
@@ -34,7 +33,9 @@ export async function sendScheduledSms() {
   for (const candidate of candidates) {
     processed++;
 
-    // 🔒 Atomic lock
+    /* ======================================================
+       ATOMIC LOCK – prevent double processing
+    ====================================================== */
     const msg = await ScheduledMessage.findOneAndUpdate(
       { _id: candidate._id, status: "scheduled" },
       { $set: { status: "sending" } },
@@ -45,7 +46,7 @@ export async function sendScheduledSms() {
 
     try {
       /* ======================================================
-         INVITATION + EVENT + USER
+         LOAD INVITATION / EVENT / USER
       ====================================================== */
       const invitation = await Invitation.findById(msg.invitationId).lean();
       const event = invitation?.eventId
@@ -58,18 +59,16 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         GUESTS – SOURCE OF TRUTH
+         LOAD GUESTS – SOURCE OF TRUTH
       ====================================================== */
       let guests: any[] = [];
 
       if (Array.isArray(msg.guestIds) && msg.guestIds.length > 0) {
-        // ⭐️ מקור אמת – קהל נעול
         guests = await InvitationGuest.find({
           _id: { $in: msg.guestIds },
           invitationId: msg.invitationId,
         }).lean();
       } else {
-        // 🔁 fallback להודעות ישנות בלבד
         const query: any = { invitationId: msg.invitationId };
 
         if (msg.filter === "pending") query.rsvp = "pending";
@@ -93,17 +92,24 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         SMS LIMIT
+         CALCULATE CHARGE (1 SMS PER GUEST)
       ====================================================== */
-      let allowedToSend = guests.length;
+      const totalMessagesToCharge = guests.length;
 
-      if (user.isTrial) {
-        const remaining =
-          (user.planLimits?.smsLimit ?? 0) - (user.smsUsed ?? 0);
-        allowedToSend = Math.max(0, Math.min(remaining, guests.length));
-      }
+      /* ======================================================
+         🔒 RESERVE SMS BALANCE (ATOMIC)
+      ====================================================== */
+      const reserveResult = await User.updateOne(
+        {
+          _id: user._id,
+          smsBalance: { $gte: totalMessagesToCharge },
+        },
+        {
+          $inc: { smsBalance: -totalMessagesToCharge },
+        }
+      );
 
-      if (allowedToSend === 0) {
+      if (reserveResult.modifiedCount === 0) {
         msg.status = "failed";
         msg.error = "SMS_LIMIT_REACHED";
         await msg.save();
@@ -111,30 +117,24 @@ export async function sendScheduledSms() {
         continue;
       }
 
-      const guestsToSend = guests.slice(0, allowedToSend);
-
       /* ======================================================
          LOCATION / NAVIGATION
       ====================================================== */
-      const location =
-        invitation.eventLocation ?? event?.location;
-
+      const location = invitation.eventLocation ?? event?.location;
       const hasLocation = !!(location?.lat && location?.lng);
-
       let navigationLink = "";
 
-if (hasLocation) {
-  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-  navigationLink = await shortenUrl(wazeUrl);
-}
-
+      if (hasLocation) {
+        const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+        navigationLink = await shortenUrl(wazeUrl);
+      }
 
       /* ======================================================
-         SEND (SOURCE OF TRUTH = messageContent)
+         SEND SMS
       ====================================================== */
       let sent = 0;
 
-      for (const guest of guestsToSend) {
+      for (const guest of guests) {
         let phone = (guest.phone || "").replace(/\D/g, "");
         if (!phone) continue;
 
@@ -148,16 +148,15 @@ if (hasLocation) {
             : "");
 
         const personalRsvpUrl =
-  `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+          `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+        const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
-let finalText = msg.messageContent
-  .replace(/{{name}}/g, guest.name || "")
-  .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-  .replace(/{{tableName}}/g, tableName)
-  .replace(/{{navigationLink}}/g, navigationLink);
-
+        let finalText = msg.messageContent
+          .replace(/{{name}}/g, guest.name || "")
+          .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+          .replace(/{{tableName}}/g, tableName)
+          .replace(/{{navigationLink}}/g, navigationLink);
 
         if (!finalText.trim()) continue;
 
@@ -185,7 +184,7 @@ let finalText = msg.messageContent
       }
 
       /* ======================================================
-         UPDATE STATUS
+         UPDATE MESSAGE STATUS
       ====================================================== */
       msg.status = "sent";
       msg.sentCount = sent;
@@ -194,10 +193,14 @@ let finalText = msg.messageContent
 
       sentTotal += sent;
 
+      /* ======================================================
+         UPDATE STATISTICS ONLY
+      ====================================================== */
       if (sent > 0) {
-        await User.findByIdAndUpdate(user._id, {
-          $inc: { smsUsed: sent },
-        });
+        await User.updateOne(
+          { _id: user._id },
+          { $inc: { smsUsed: sent } }
+        );
       }
     } catch (err: any) {
       console.error("💥 Scheduled SMS Worker Error:", err);

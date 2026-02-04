@@ -85,18 +85,9 @@ export async function POST(req: Request) {
     }
 
     /* ================= BALANCE ================= */
-    const isTrial = !!user.isTrial;
+    const remainingMessages =
+  typeof user.smsBalance === "number" ? user.smsBalance : 0;
 
-    const maxMessages = isTrial
-      ? typeof user.planLimits?.smsLimit === "number"
-        ? user.planLimits.smsLimit
-        : 0
-      : typeof user.maxMessages === "number"
-      ? user.maxMessages
-      : 0;
-
-    const smsUsed = typeof user.smsUsed === "number" ? user.smsUsed : 0;
-    const remainingMessages = Math.max(maxMessages - smsUsed, 0);
 
     if (remainingMessages <= 0) {
       return NextResponse.json(
@@ -209,71 +200,164 @@ if (hasLocation) {
 
     /* ================= SCHEDULE ================= */
     if (scheduledAt) {
-      const guestsCount = await InvitationGuest.countDocuments(guestsQuery);
+  const guestsCount = await InvitationGuest.countDocuments(guestsQuery);
 
+  /* 🧮 חישוב worst-case */
+  let previewContent = baseTemplateText
+    .replace(/{{name}}/g, "שם מלא לדוגמה ארוך מאוד")
+    .replace(/{{rsvpLink}}/g, "https://example.com/very-long-link")
+    .replace(/{{tableName}}/g, "שולחן 123")
+    .replace(/{{navigationLink}}/g, navigationLink);
 
-      if (guestsCount > remainingMessages) {
-        return NextResponse.json(
-          { success: false, error: "SMS_LIMIT_REACHED" },
-          { status: 403 }
-        );
-      }
+  if (includeGiftLink && giftLink) {
+    previewContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+  }
 
-      let messageContent = baseTemplateText
-        .replace(/{{name}}/g, "{{name}}")
-        .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
+  const partsPerMessage = countSmsParts(previewContent);
+  const totalMessagesToCharge = guestsCount * partsPerMessage;
 
-        .replace(/{{tableName}}/g, "{{tableName}}")
-        .replace(/{{navigationLink}}/g, navigationLink);
+  if (totalMessagesToCharge > remainingMessages) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "SMS_LIMIT_REACHED",
+        required: totalMessagesToCharge,
+        remaining: remainingMessages,
+      },
+      { status: 403 }
+    );
+  }
 
-      if (includeGiftLink && giftLink) {
-        messageContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-      }
+  /* 📦 התוכן האמיתי שנשמר */
+  let messageContent = baseTemplateText
+    .replace(/{{name}}/g, "{{name}}")
+    .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
+    .replace(/{{tableName}}/g, "{{tableName}}")
+    .replace(/{{navigationLink}}/g, navigationLink);
 
+  if (includeGiftLink && giftLink) {
+    messageContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+  }
 
+  await ScheduledMessage.create({
+    invitationId,
+    userId: user._id,
+    channel: "sms",
+    filter,
+    templateKey,
+    scheduledAt: new Date(scheduledAt),
+    guestsCount,
+    status: "scheduled",
+    includeGiftLink: !!includeGiftLink,
+    giftLink: giftLink || null,
+    messageContent,
+    guestIds: Array.isArray(guestIds) ? guestIds : [],
+  });
 
-      await ScheduledMessage.create({
-  invitationId,
-  userId: user._id,
-  channel: "sms",
-  filter,
-  templateKey,
-  scheduledAt: new Date(scheduledAt),
-  guestsCount,
-  status: "scheduled",
-  includeGiftLink: !!includeGiftLink,
-  giftLink: giftLink || null,
-  messageContent,
+  return NextResponse.json({
+    success: true,
+    scheduled: true,
+    guestsCount,
+  });
+}
 
-  // ⭐️ קריטי
-  guestIds: Array.isArray(guestIds) ? guestIds : [],
-});
-
-      return NextResponse.json({
-        success: true,
-        scheduled: true,
-        guestsCount,
-      });
-    }
 
     /* ================= SEND NOW ================= */
     const guests = await InvitationGuest.find(guestsQuery).lean();
 
-    if (!guests.length) {
-      return NextResponse.json({ success: true, sent: 0, total: 0 });
-    }
+    /* ================= BASE MESSAGE ================= */
 
-    const baseMessage = baseTemplateText
+const baseMessage = baseTemplateText
   .replace(/{{name}}/g, "{{name}}")
   .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
   .replace(/{{tableName}}/g, "{{tableName}}")
   .replace(/{{navigationLink}}/g, navigationLink);
 
 
+
+    /* ================= CALCULATE SMS PARTS (CHARGE) ================= */
+
+let maxParts = 1;
+
+for (const guest of guests) {
+  const tableName =
+    guest.tableName ||
+    (typeof guest.tableNumber === "number"
+      ? `שולחן ${guest.tableNumber}`
+      : "");
+
+  const personalRsvpUrl =
+    `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+
+  const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+
+  let text = baseMessage
+    .replace(/{{name}}/g, guest.name || "")
+    .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+    .replace(/{{tableName}}/g, tableName)
+    .replace(/{{navigationLink}}/g, navigationLink);
+
+  if (includeGiftLink && giftLink) {
+    text += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+  }
+
+  const parts = countSmsParts(text);
+  if (parts > maxParts) maxParts = parts;
+}
+
+const totalMessagesToCharge = maxParts * guests.length;
+
+if (totalMessagesToCharge > remainingMessages) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "SMS_LIMIT_REACHED",
+      required: totalMessagesToCharge,
+      remaining: remainingMessages,
+    },
+    { status: 403 }
+  );
+}
+
+
+
+
+    if (!guests.length) {
+  return NextResponse.json({
+    success: true,
+    sent: 0,
+    partsPerMessage: 0,
+    charged: 0,
+  });
+}
+
+
+/* ================= 🔒 RESERVE SMS BALANCE ================= */
+
+const reserveResult = await User.updateOne(
+  {
+    _id: user._id,
+    smsBalance: { $gte: totalMessagesToCharge },
+  },
+  {
+    $inc: { smsBalance: -totalMessagesToCharge },
+  }
+);
+
+if (reserveResult.modifiedCount === 0) {
+  return NextResponse.json(
+    { success: false, error: "SMS_LIMIT_REACHED" },
+    { status: 403 }
+  );
+}
+
+
+    
+
+
     let sent = 0;
 
     for (const guest of guests) {
-      if (sent >= remainingMessages) break;
 
       if (
         template.requiresTable &&
@@ -341,18 +425,26 @@ if (includeGiftLink && giftLink) {
       }
     }
 
+  
+
+
     if (sent > 0) {
-      await User.findByIdAndUpdate(user._id, {
-        $inc: { smsUsed: sent },
-      });
-    }
+  await User.updateOne(
+    { _id: user._id },
+    { $inc: { smsUsed: totalMessagesToCharge } }
+  );
+}
+
 
     return NextResponse.json({
-      success: true,
-      sent,
-      total: guests.length,
-      limited: sent < guests.length,
-    });
+  success: true,
+  sent: guests.length,
+  partsPerMessage: maxParts,
+  charged: totalMessagesToCharge,
+});
+
+
+    
   } catch (err: any) {
     console.error("❌ SMS API CRASH:", err);
     return NextResponse.json(
