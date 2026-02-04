@@ -329,7 +329,8 @@ if (grRes.ok) {
    RENDER
 =============================== */
 return (
-   <div className="h-screen w-screen bg-gray-50 overflow-hidden pt-[64px] md:pt-0">
+   <div className="h-screen w-screen bg-gray-50 overflow-hidden">
+
 
 
 
