@@ -1,65 +1,93 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { nanoid } from "nanoid";
 import { useZoneStore } from "@/store/zoneStore";
 import { ZONE_META } from "@/config/zonesMeta";
 import type { ZoneType } from "@/types/zones";
-import { useSeatingStore } from "@/store/seatingStore";
+
+type Pos = { top: number; right: number; width: number };
 
 export default function ZonesToolbar() {
   const addZone = useZoneStore((s) => s.addZone);
-  const canvasView = useSeatingStore((s) => s.canvasView);
 
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
 
-  // סגירה בלחיצה מחוץ לדרופדאון
+  const [pos, setPos] = useState<Pos>({ top: 64, right: 16, width: 224 });
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const computePosition = () => {
+    const btn = btnRef.current;
+    if (!btn) return;
+
+    const r = btn.getBoundingClientRect();
+
+    const DD_W = 224; // w-56
+    const right = Math.max(16, window.innerWidth - r.right);
+    const top = Math.round(r.bottom + 8);
+
+    setPos({ top, right, width: DD_W });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    computePosition();
+
+    const onResize = () => computePosition();
+    const onScroll = () => computePosition();
+
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [open]);
+
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, []);
+    if (!open) return;
 
-  const handleAddZone = (type: ZoneType) => {
-  const meta = ZONE_META[type];
-  const view = canvasView ?? { x: 0, y: 0, scale: 1 };
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
 
-  const HEADER_HEIGHT = 64;
+      const btn = btnRef.current;
+      if (btn && btn.contains(target)) return;
 
-  const x = (-view.x + window.innerWidth / 2) / view.scale;
+      // בתוך הדרופדאון
+      if (target.closest?.('[data-zones-dropdown="1"]')) return;
 
-  const y =
-    (-view.y + (window.innerHeight - HEADER_HEIGHT) / 2) / view.scale +
-    HEADER_HEIGHT / view.scale;
+      setOpen(false);
+    };
 
-  addZone({
-    id: nanoid(),
-    type,
-    name: meta.label,
-    icon: meta.icon,
-    color: meta.color,
-    opacity: 0.35,
-    x,
-    y,
-    width: meta.defaultSize.width,
-    height: meta.defaultSize.height,
-    rotation: 0,
-    locked: false,
-  });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
 
-  setOpen(false);
-};
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown, { passive: true });
+    document.addEventListener("keydown", onKey);
 
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const portalTarget =
+    mounted ? (document.getElementById("header-portal") as HTMLElement | null) : null;
 
   return (
-    <div ref={ref} className="relative">
-      {/* כפתור פתיחה */}
+    <div className="relative">
       <button
+        ref={btnRef}
         onClick={() => setOpen((v) => !v)}
         className="
           flex items-center gap-2
@@ -71,49 +99,74 @@ export default function ZonesToolbar() {
           hover:bg-gray-50
           transition
           text-sm font-medium
+          whitespace-nowrap
         "
       >
         ➕ הוסף אלמנט
         <span className="text-xs opacity-60">▾</span>
       </button>
 
-      {/* הדרופדאון */}
-      {open && (
-        <div
-          className="
-            absolute right-0 mt-2
-            w-56
-            bg-white
-            border
-            rounded-xl
-            shadow-lg
-            z-50
-            overflow-hidden
-          "
-        >
-          {(Object.keys(ZONE_META) as ZoneType[]).map((type) => {
-            const meta = ZONE_META[type];
+      {open && portalTarget
+        ? createPortal(
+            <div
+              data-zones-dropdown="1"
+              className="
+                fixed
+                bg-white
+                border
+                rounded-xl
+                shadow-lg
+                overflow-hidden
+                pointer-events-auto
+                z-[10001]
+              "
+              style={{
+                top: pos.top,
+                right: pos.right,
+                width: pos.width,
+              }}
+            >
+              {(Object.keys(ZONE_META) as ZoneType[]).map((type) => {
+                const meta = ZONE_META[type];
 
-            return (
-              <button
-                key={type}
-                onClick={() => handleAddZone(type)}
-                className="
-                  w-full flex items-center gap-3
-                  px-4 py-3
-                  text-right
-                  hover:bg-indigo-50
-                  transition
-                  text-sm
-                "
-              >
-                <span className="text-lg">{meta.icon}</span>
-                <span>{meta.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+                return (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      addZone({
+                        id: nanoid(),
+                        type,
+                        name: meta.label,
+                        icon: meta.icon,
+                        color: meta.color,
+                        opacity: 0.35,
+                        x: 300,
+                        y: 200,
+                        width: meta.defaultSize.width,
+                        height: meta.defaultSize.height,
+                        rotation: 0,
+                        locked: false,
+                      });
+                      setOpen(false);
+                    }}
+                    className="
+                      w-full flex items-center gap-3
+                      px-4 py-3
+                      text-right
+                      hover:bg-indigo-50
+                      transition
+                      text-sm
+                    "
+                  >
+                    <span className="text-lg">{meta.icon}</span>
+                    <span>{meta.label}</span>
+                  </button>
+                );
+              })}
+            </div>,
+            portalTarget
+          )
+        : null}
     </div>
   );
 }

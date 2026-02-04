@@ -357,10 +357,16 @@ return (
     </h1>
 
     {/* מרכז – אלמנטים */}
-<div className="flex items-center gap-2 shrink-0">
-
+<div className="flex items-center gap-2 shrink-0 relative">
   <ZonesToolbar />
+
+  {/* יעד לדרופדאונים של ההידר */}
+  <div
+    id="header-portal"
+    className="absolute inset-0 pointer-events-none z-[10000]"
+  />
 </div>
+
 
 {/* צד שמאל – פעולות */}
 <div className="flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0">
