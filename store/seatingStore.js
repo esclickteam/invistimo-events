@@ -1,5 +1,12 @@
+
+
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
+
+function extractNumberFromName(name) {
+  const m = String(name || "").match(/(\d+)/);
+  return m ? Number(m[1]) : null;
+}
 
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
@@ -342,14 +349,24 @@ const newSeats = groupGuests.flatMap((guest) => {
     : t
 );
 
+const resolvedTableName = String(
+  targetTable?.number ??
+    extractNumberFromName(targetTable?.name) ??
+    targetTable?.name ??
+    ""
+).trim();
+
+
+
   set({
     tables: updatedTables,
     guests: guests.map((g) =>
       g.groupId === groupId
         ? {
             ...g,
-            tableId,
-            tableName: targetTable.name,
+            tableId: tableId,
+
+            tableName: resolvedTableName || null,
           }
         : g
     ),
@@ -420,10 +437,11 @@ init: (tables, guests, background = null, canvasView = null) => {
 
     // ⬅️ לטעון את ההושבה בדיוק כמו שהיא מהשרת
     tables: (tables || []).map((t) => ({
-      ...t,
-      displayName: t.displayName || "",
-      seatedGuests: t.seatedGuests || [], // ❌ בלי arrived=false
-    })),
+  ...t,
+  number: t.number ?? extractNumberFromName(t.name) ?? null, // ✅ חדש
+  displayName: t.displayName || "",
+  seatedGuests: t.seatedGuests || [],
+})),
 
     guests: guests || [],
 
@@ -465,13 +483,15 @@ console.table(
 
   set({
     tables: (snapshot.tables || []).map((t) => ({
-      ...t,
-      displayName: t.displayName || "",
-      seatedGuests: (t.seatedGuests || []).map((sg) => ({
-        ...sg,
-        arrived: sg.arrived ?? false, // ⭐⭐ זה החסר
-      })),
-    })),
+  ...t,
+  number: t.number ?? extractNumberFromName(t.name) ?? null, // ✅ חדש
+  displayName: t.displayName || "",
+  seatedGuests: (t.seatedGuests || []).map((sg) => ({
+    ...sg,
+    arrived: sg.arrived ?? false,
+  })),
+})),
+
 
     
 
@@ -612,16 +632,17 @@ background: null,
   const fallbackY = (-Number(canvasView?.y ?? 0) + 350) / Number(canvasView?.scale ?? 1);
 
   const newTable = {
-    id: crypto.randomUUID(),
-    name: `שולחן ${tables.length + 1}`,
-    displayName: "",
-    type,
-    seats,
-    x: position?.x ?? fallbackX,
-    y: position?.y ?? fallbackY,
-    rotation: 0,
-    seatedGuests: [],
-  };
+  id: crypto.randomUUID(),
+  number: tables.length + 1,          // ✅ חדש
+  name: `שולחן ${tables.length + 1}`,
+  displayName: "",
+  type,
+  seats,
+  x: position?.x ?? fallbackX,
+  y: position?.y ?? fallbackY,
+  rotation: 0,
+  seatedGuests: [],
+};
 
   set({
     tables: [...tables, newTable],
@@ -640,6 +661,21 @@ updateTableDisplayName: (tableId, displayName) =>
         : t
     ),
   })),
+
+  updateTableNumber: (tableId, nextNumber) =>
+  set((state) => ({
+    tables: state.tables.map((t) =>
+      t.id === tableId
+        ? {
+            ...t,
+            number: Number(nextNumber),
+            // ✅ כדי שהקנבס יתעדכן גם אם הוא מציג name
+            name: `שולחן ${Number(nextNumber)}`,
+          }
+        : t
+    ),
+  })),
+
 
 
   /* ---------------- DELETE TABLE ---------------- */
@@ -758,23 +794,35 @@ dropGuest: () => {
     };
   });
 
+  const targetTable = updatedTables.find(
+  (t) => t.id === highlightedTable
+);
+
+const resolvedTableName = String(
+  targetTable?.number ??
+    extractNumberFromName(targetTable?.name) ??
+    targetTable?.name ??
+    ""
+).trim();
+
+
   
 
   set({
-    tables: updatedTables,
-    guests: guests.map((g) =>
-      String(g.id ?? g._id) === guestId
-        ? {
-            ...g,
-            tableId: highlightedTable,
-            tableName: targetTable?.name,
-          }
-        : g
-    ),
-    draggingGuest: null,
-    highlightedSeats: [],
-    highlightedTable: null,
-  });
+  tables: updatedTables,
+  guests: guests.map((g) =>
+    String(g.id ?? g._id) === String(guestId)
+      ? {
+          ...g,
+          tableId: highlightedTable,
+          tableName: resolvedTableName || null,
+        }
+      : g
+  ),
+  draggingGuest: null,
+  highlightedSeats: [],
+  highlightedTable: null,
+});
 },
 
 assignGuestBlock: ({ guestId, tableId }) => {
@@ -832,22 +880,31 @@ if (count === 0) return;
 
   const targetTable = updatedTables.find((t) => t.id === tableId);
 
-  set({
-    tables: updatedTables,
-    guests: guests.map((g) =>
-      String(g.id ?? g._id) === String(guestId)
-        ? {
-            ...g,
-            tableId,
-            tableName: targetTable?.name,
-          }
-        : g
-    ),
-    draggingGuest: null,
-    highlightedSeats: [],
-    highlightedTable: null,
-  });
+const resolvedTableName = String(
+  targetTable?.number ??
+    extractNumberFromName(targetTable?.name) ??
+    targetTable?.name ??
+    ""
+).trim();
+
+set({
+  tables: updatedTables,
+  guests: guests.map((g) =>
+    String(g.id ?? g._id) === String(guestId)
+      ? {
+          ...g,
+          tableId: tableId,
+          tableName: resolvedTableName || null,
+        }
+      : g
+  ),
+  draggingGuest: null,
+  highlightedSeats: [],
+  highlightedTable: null,
+});
+
 },
+
 
 
  /* ---------------- ⭐ DROP ישיר על מושב ---------------- */
@@ -879,16 +936,26 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
     };
   });
 
-  const targetTable = updatedTables.find((t) => t.id === tableId);
+   const targetTable = updatedTables.find(
+  (t) => t.id === tableId
+);
+
+  const resolvedTableName = String(
+    targetTable?.number ??
+      extractNumberFromName(targetTable?.name) ??
+      targetTable?.name ??
+      ""
+  ).trim();
 
   set({
     tables: updatedTables,
     guests: guests.map((g) =>
       String(g.id ?? g._id) === String(guestId)
+
         ? {
             ...g,
-            tableId,
-            tableName: targetTable?.name,
+            tableId: tableId,
+            tableName: resolvedTableName || null,
           }
         : g
     ),
@@ -933,45 +1000,40 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
     }),
 
   /* ---------------- ⭐️ עדכון למודאל ---------------- */
-  assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
+assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
   const { tables, guests } = get();
 
   const table = tables.find((t) => t.id === tableId);
   const guest = guests.find(
-  (g) => String(g.id ?? g._id) === String(guestId)
-);
+    (g) => String(g.id ?? g._id) === String(guestId)
+  );
 
+  const resolvedTableName = String(
+    table?.number ??
+      extractNumberFromName(table?.name) ??
+      table?.name ??
+      ""
+  ).trim();
 
   if (!table || !guest) {
     return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };
   }
 
+  const realCount = get().getPlannedSeatCount(guest);
 
-const { liveArrivals } = get();
-
-const realCount = get().getPlannedSeatCount(guest)
-
-
-
-if (get().seatingMode === "live" && realCount === 0) {
-  return { ok: false, message: "האורח לא הגיע בפועל" };
-}
-
-
-
-
-
+  if (get().seatingMode === "live" && realCount === 0) {
+    return { ok: false, message: "האורח לא הגיע בפועל" };
+  }
 
   // ⭐️ שולחן נקי – בלי המושבים הקודמים של האורח
-const cleanTable = {
-  ...table,
-  seatedGuests: table.seatedGuests.filter(
-    (s) => String(s.guestId) !== String(guestId)
-  ),
-};
+  const cleanTable = {
+    ...table,
+    seatedGuests: (table.seatedGuests || []).filter(
+      (s) => String(s.guestId) !== String(guestId)
+    ),
+  };
 
-const block = findFreeBlock(cleanTable, realCount);
-
+  const block = findFreeBlock(cleanTable, realCount);
 
   // guard חובה
   if (!block || block.length === 0) {
@@ -980,39 +1042,38 @@ const block = findFreeBlock(cleanTable, realCount);
 
   // ניקוי הושבות קודמות של האורח מכל השולחנות
   const updatedTables = tables.map((t) => ({
-  ...t,
-  seatedGuests: (t.seatedGuests || []).filter(
-  (s) => s.guestId !== guestId
-),
-}));
-
-
-
-  // עדכון האורח
-  guest.tableId = tableId;
-  guest.tableName = table.name;
+    ...t,
+    seatedGuests: (t.seatedGuests || []).filter(
+      (s) => String(s.guestId) !== String(guestId)
+    ),
+  }));
 
   set({
-  tables: updatedTables.map((t) =>
-    t.id === tableId
-      ? {
-          ...t,
-          seatedGuests: [
-            ...t.seatedGuests,
-            ...block.map((seatIndex) => ({
-              guestId,
-              seatIndex,
-              arrived: false,
-            })),
-          ],
-        }
-      : t
-  ),
-  guests: [...guests],
-});
+    tables: updatedTables.map((t) =>
+      t.id === tableId
+        ? {
+            ...t,
+            seatedGuests: [
+              ...(t.seatedGuests || []),
+              ...block.map((seatIndex) => ({
+                guestId: String(guestId),
+                seatIndex,
+                arrived: false,
+              })),
+            ],
+          }
+        : t
+    ),
+    guests: guests.map((g) =>
+      String(g.id ?? g._id) === String(guestId)
+        ? { ...g, tableId, tableName: resolvedTableName || null }
+        : g
+    ),
+  });
 
   return { ok: true };
 },
+
 
 
   removeGuestFromTable: (tableId, guestId) => {
