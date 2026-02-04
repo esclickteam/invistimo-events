@@ -129,10 +129,9 @@ const InvitationGuestSchema = new Schema(
     tableName: { type: String, default: "" },
 
     tableId: {
-      type: Schema.Types.ObjectId,
-      ref: "SeatingTable",
-      default: null,
-    },
+  type: String, 
+  default: null,
+},
   },
   { timestamps: true }
 );
