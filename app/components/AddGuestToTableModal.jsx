@@ -148,7 +148,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return;
   }
 
-  await fetch("/api/seating/update-table-meta", {
+  await Promise.all([
+  fetch("/api/seating/update-table-meta", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -156,23 +157,38 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
       tableName: next,
       ...(Number.isFinite(Number(next)) ? { tableNumber: Number(next) } : {}),
     }),
-  });
+  }),
+
+  fetch("/api/guests/update-table-name-by-table", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tableId: tableData.id,
+      tableName: next,
+      ...(Number.isFinite(Number(next))
+        ? { tableNumber: Number(next) }
+        : {}),
+    }),
+  }),
+]);
+
 
   updateTableDisplayName(tableData.id, next);
 
-  useSeatingStore.setState((state) => ({
-    guests: state.guests.map((g) =>
-      g.tableId === tableData.id
-        ? {
-            ...g,
-            tableName: next,
-            ...(Number.isFinite(Number(next))
-              ? { tableNumber: Number(next) }
-              : {}),
-          }
-        : g
-    ),
-  }));
+useSeatingStore.setState((state) => ({
+  guests: state.guests.map((g) =>
+    g.tableName === tableData.displayName ||
+    g.tableName === tableData.name
+      ? {
+          ...g,
+          tableName: next,
+          ...(Number.isFinite(Number(next))
+            ? { tableNumber: Number(next) }
+            : { tableNumber: undefined }),
+        }
+      : g
+  ),
+}));
 
   setIsEditingName(false);
 };
