@@ -5,9 +5,12 @@ import { nanoid } from "nanoid";
 import { useZoneStore } from "@/store/zoneStore";
 import { ZONE_META } from "@/config/zonesMeta";
 import type { ZoneType } from "@/types/zones";
+import { useSeatingStore } from "@/store/seatingStore";
 
 export default function ZonesToolbar() {
   const addZone = useZoneStore((s) => s.addZone);
+  const canvasView = useSeatingStore((s) => s.canvasView);
+
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -21,6 +24,33 @@ export default function ZonesToolbar() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  const handleAddZone = (type: ZoneType) => {
+    const meta = ZONE_META[type];
+
+    const view = canvasView ?? { x: 0, y: 0, scale: 1 };
+
+    // מרכז המסך הנראה (עובד גם במובייל)
+    const x = (-view.x + window.innerWidth / 2) / view.scale;
+    const y = (-view.y + window.innerHeight / 2) / view.scale;
+
+    addZone({
+      id: nanoid(),
+      type,
+      name: meta.label,
+      icon: meta.icon,
+      color: meta.color,
+      opacity: 0.35,
+      x,
+      y,
+      width: meta.defaultSize.width,
+      height: meta.defaultSize.height,
+      rotation: 0,
+      locked: false,
+    });
+
+    setOpen(false);
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -63,23 +93,7 @@ export default function ZonesToolbar() {
             return (
               <button
                 key={type}
-                onClick={() => {
-                  addZone({
-                    id: nanoid(),
-                    type,
-                    name: meta.label,
-                    icon: meta.icon,
-                    color: meta.color,
-                    opacity: 0.35,
-                    x: 300,
-                    y: 200,
-                    width: meta.defaultSize.width,
-                    height: meta.defaultSize.height,
-                    rotation: 0,
-                    locked: false,
-                  });
-                  setOpen(false);
-                }}
+                onClick={() => handleAddZone(type)}
                 className="
                   w-full flex items-center gap-3
                   px-4 py-3
