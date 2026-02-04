@@ -329,7 +329,8 @@ if (grRes.ok) {
    RENDER
 =============================== */
 return (
-    <div className="h-screen w-screen bg-gray-50 overflow-hidden">
+   <div className="h-screen w-screen bg-gray-50 overflow-hidden pt-[64px] md:pt-0">
+
 
 
 
@@ -395,11 +396,10 @@ return (
 
 
   {/* 🎨 קנבס */}
-  {/* 🎨 קנבס */}
 <div
   className="absolute left-0 right-0"
   style={{
-    top: 64,
+    top: isMobile ? 0 : 64,
     bottom: 0,
   }}
 >
