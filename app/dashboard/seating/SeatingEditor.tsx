@@ -127,11 +127,16 @@ const getContentBounds = () => {
   const xs: number[] = [];
   const ys: number[] = [];
 
-  tables.forEach((t) => {
-    xs.push(t.x);
-    ys.push(t.y);
+  // ⭐ שולחנות – לקחת בחשבון גודל אמיתי
+  tables.forEach((t: any) => {
+    const r = 80; // רדיוס בטוח לשולחן (עגול / מרובע)
+    xs.push(t.x - r);
+    xs.push(t.x + r);
+    ys.push(t.y - r);
+    ys.push(t.y + r);
   });
 
+  // ⭐ אזורים
   zones.forEach((z: any) => {
     xs.push(z.x);
     ys.push(z.y);
@@ -150,6 +155,7 @@ const getContentBounds = () => {
     maxY: Math.max(...ys),
   };
 };
+
 
 
 
@@ -179,7 +185,8 @@ if (size.width === 0 || size.height === 0) return;
 
   const { minX, minY, maxX, maxY } = getContentBounds();
 
-  const PAD = 120;
+  const PAD = 220;
+
   const contentW = Math.max(1, (maxX - minX) + PAD);
   const contentH = Math.max(1, (maxY - minY) + PAD);
 
