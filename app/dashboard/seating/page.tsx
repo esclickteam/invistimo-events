@@ -411,10 +411,11 @@ return (
 <div
   className="absolute left-0 right-0"
   style={{
-    top: isMobile ? 0 : 64,
+    top: 64,
     bottom: 0,
   }}
 >
+
   <div
     style={{
       width:
