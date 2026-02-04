@@ -113,10 +113,11 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     await fetch("/api/guests/assign-table", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  credentials: "include", // ⭐ גם פה
+  credentials: "include",
   body: JSON.stringify({
     guestId,
-    tableName: tableData.displayName || tableData.name,
+    tableId: tableData.id, // ⭐ חובה
+    tableName: tableData.displayName || tableData.name, // ⭐ fallback טוב
     seatIndex,
   }),
 });
