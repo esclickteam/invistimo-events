@@ -21,7 +21,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   const updateTableDisplayName = useSeatingStore((s) => s.updateTableDisplayName);
 
-  const invitationId = useSeatingStore((s) => s.invitationId);
+  const invitationId = useSeatingStore((s) => s.eventId);
+
 
 
   // ✅ עריכת שם/מספר שולחן (displayName)

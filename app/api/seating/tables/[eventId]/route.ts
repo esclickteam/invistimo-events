@@ -81,10 +81,16 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const record = await SeatingTable.findOne({
-  invitationId: eventId, // ⭐ זה בעצם invitationId
-  "tables.id": tableId,
-});
+    const record =
+  (await SeatingTable.findOne({
+    eventId,
+    "tables.id": tableId,
+  })) ||
+  (await SeatingTable.findOne({
+    invitationId: eventId,
+    "tables.id": tableId,
+  }));
+
 
     if (!record) {
       return NextResponse.json(
