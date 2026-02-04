@@ -305,13 +305,33 @@ const clamp = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
 
 const getBounds = (scaleVal: number) => {
-  // בדסקטופ לא משנים כלום
-  if (!isMobile) return { bx: size.width, by: size.height };
+  // בדסקטופ – לא מגבילים (כמו שהיה)
+  if (!isMobile) {
+    return {
+      minX: -Infinity,
+      maxX: Infinity,
+      minY: -Infinity,
+      maxY: Infinity,
+    };
+  }
 
-  // במובייל: ככל שה־scale קטן (zoom-out) → יותר מרווח
-  const safeScale = Math.max(scaleVal, 0.4);
-  return { bx: size.width / safeScale, by: size.height / safeScale };
+  // גבולות תוכן אמיתי (שולחנות + אזורים)
+  const { minX, minY, maxX, maxY } = getContentBounds();
+
+  const PAD = 120; // מרווח נשימה מסביב לתוכן
+
+  const contentWidth = (maxX - minX + PAD) * scaleVal;
+  const contentHeight = (maxY - minY + PAD) * scaleVal;
+
+  return {
+    // מאפשר לראות את כל התוכן גם ב־zoom-out
+    minX: size.width - contentWidth,
+    maxX: 0,
+    minY: size.height - contentHeight,
+    maxY: 0,
+  };
 };
+
 
 
 
@@ -336,14 +356,13 @@ const getBounds = (scaleVal: number) => {
   };
 
   // ✅ גבולות בסיסיים לפי גודל המסך (מספיק כדי שלא "ייעלם")
-  const { bx: BOUND_X, by: BOUND_Y } = getBounds(scale);
+  const bounds = getBounds(scale);
 
+const clamped = {
+  x: clamp(next.x, bounds.minX, bounds.maxX),
+  y: clamp(next.y, bounds.minY, bounds.maxY),
+};
 
-
-  const clamped = {
-    x: clamp(next.x, -BOUND_X, BOUND_X),
-    y: clamp(next.y, -BOUND_Y, BOUND_Y),
-  };
 
   setStagePos(clamped);
   setCanvasView({ ...clamped, scale });
@@ -380,14 +399,13 @@ const getBounds = (scaleVal: number) => {
 };
 
 // ✅ גבולות בסיסיים שלא יאפשרו "להיעלם" מהמסך
-const { bx: BOUND_X, by: BOUND_Y } = getBounds(newScale);
-
-
+const bounds = getBounds(newScale);
 
 const newPos = {
-  x: clamp(newPosRaw.x, -BOUND_X, BOUND_X),
-  y: clamp(newPosRaw.y, -BOUND_Y, BOUND_Y),
+  x: clamp(newPosRaw.x, bounds.minX, bounds.maxX),
+  y: clamp(newPosRaw.y, bounds.minY, bounds.maxY),
 };
+
 
 setScale(newScale);
 setStagePos(newPos);
@@ -445,14 +463,13 @@ if (touches.length === 1) {
   y: stageStart.current.y + dy,
 };
 
-const { bx: BOUND_X, by: BOUND_Y } = getBounds(scale);
-
-
+const bounds = getBounds(scale);
 
 const clamped = {
-  x: clamp(next.x, -BOUND_X, BOUND_X),
-  y: clamp(next.y, -BOUND_Y, BOUND_Y),
+  x: clamp(next.x, bounds.minX, bounds.maxX),
+  y: clamp(next.y, bounds.minY, bounds.maxY),
 };
+
 
 setStagePos(clamped);
 setCanvasView({ ...clamped, scale });
@@ -498,13 +515,13 @@ setCanvasView({ ...clamped, scale });
   y: center.y - mousePointTo.y * newScale,
 };
 
-const { bx: BOUND_X, by: BOUND_Y } = getBounds(newScale);
-
+const bounds = getBounds(newScale);
 
 const newPos = {
-  x: clamp(newPosRaw.x, -BOUND_X, BOUND_X),
-  y: clamp(newPosRaw.y, -BOUND_Y, BOUND_Y),
+  x: clamp(newPosRaw.x, bounds.minX, bounds.maxX),
+  y: clamp(newPosRaw.y, bounds.minY, bounds.maxY),
 };
+
 
 setScale(newScale);
 setStagePos(newPos);
