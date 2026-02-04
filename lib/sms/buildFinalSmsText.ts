@@ -6,9 +6,8 @@ type BuildSmsParams = {
   guest: {
     name?: string;
     token: string;
-
-    // ❗️ רק זה – מגיע מסידורי הושבה
     tableName?: string;
+    tableNumber?: number;
   };
 
   invitation: {
@@ -39,8 +38,11 @@ export async function buildFinalSmsText({
   giftLink,
 }: BuildSmsParams): Promise<string> {
   /* ================= TABLE ================= */
-  // ✅ מקור אמת אחד בלבד – סידורי הושבה
-  const tableName = guest.tableName ?? "";
+  const tableName =
+    guest.tableName ||
+    (typeof guest.tableNumber === "number"
+      ? `שולחן ${guest.tableNumber}`
+      : "");
 
   /* ================= NAVIGATION ================= */
   const location = invitation.eventLocation ?? event?.location;

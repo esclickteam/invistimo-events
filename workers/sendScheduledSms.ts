@@ -5,9 +5,15 @@ import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
-import SeatingTable from "@/models/SeatingTable";
 
-
+/* ======================================================
+   BUSINESS SMS COUNT (SOURCE OF TRUTH)
+   Rule:
+   - <= 200 chars => 1
+   - 201–320 chars => 2
+   - > 320 chars => BLOCK (אין הודעה 3)
+   חשוב: [...text].length כדי לא להישבר עם אימוג'ים/עברית
+====================================================== */
 
 
 function countBusinessSms(text: string) {
@@ -66,17 +72,6 @@ export async function sendScheduledSms() {
       const event = invitation?.eventId
         ? await Event.findById(invitation.eventId).lean()
         : null;
-
-/* ================= SEATING (TABLES SNAPSHOT) ================= */
-const seating = event?._id
-  ? await SeatingTable.findOne({ eventId: event._id }).lean()
-  : null;
-
-const tables = seating?.tables || [];
-
-
-
-
       const user = await User.findById(msg.userId).lean();
 
       if (!invitation || !user) {
@@ -99,9 +94,11 @@ const tables = seating?.tables || [];
         if ((msg as any).filter === "pending") query.rsvp = "pending";
 
         if ((msg as any).filter === "withTable") {
-  query.tableId = { $exists: true, $ne: null };
-}
-
+          query.$or = [
+            { tableName: { $exists: true, $ne: "" } },
+            { tableNumber: { $exists: true, $ne: null } },
+          ];
+        }
 
         guests = await InvitationGuest.find(query).lean();
       }
@@ -202,28 +199,15 @@ const tables = seating?.tables || [];
       let charged = 0;
 
       for (const guest of guests) {
+        let phone = String(guest.phone || "").replace(/\D/g, "");
+        if (!phone) continue;
 
-  // ⛔️ אם זו הודעת "שולחן" ואין לאורח שולחן – מדלגים
-  if ((msg as any).templateKey === "table" && !guest.tableId) {
-    continue;
-  }
+        if (phone.startsWith("0")) phone = "972" + phone.slice(1);
+        else if (!phone.startsWith("972")) phone = "972" + phone;
 
-  let phone = String(guest.phone || "").replace(/\D/g, "");
-  if (!phone) continue;
-
-  if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-  else if (!phone.startsWith("972")) phone = "972" + phone;
-
-  const table = guest.tableId
-    ? tables.find(
-        (t: any) => String(t.id) === String(guest.tableId)
-      )
-    : null;
-
-  const tableName = table
-    ? table.displayName || table.name
-    : "";
-
+        const tableName =
+          guest.tableName ||
+          (typeof guest.tableNumber === "number" ? `שולחן ${guest.tableNumber}` : "");
 
         const personalRsvpUrl = `https://www.invistimo.com/invite/${(invitation as any).shareId}?token=${guest.token}`;
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
