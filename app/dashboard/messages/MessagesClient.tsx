@@ -406,17 +406,40 @@ const buildTestMessage = () => {
 };
 
 useEffect(() => {
-  if (channel !== "sms" || guests.length === 0) return;
+ if (channel !== "sms" || guests.length === 0) {
+  setPreview(null);
+  return;
+}
+
+if (!invitation) {
+  // ⛔ מחכים להזמנה – לא מוחקים preview
+  return;
+}
+
+
 
   async function fetchPreview() {
     const { text, guest } = getLongestMessage(guests, buildMessage);
 
+    if (!guest) {
+  setPreview(null);
+  return;
+}
+
+
     const res = await fetch("/api/sms/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ message: text }),
-    });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    invitationId: invitation?._id,
+    guestId: guest?._id,
+    messageOverride: message,
+    includeGiftLink,
+    giftLink,
+  }),
+});
+
 
     const data = await res.json();
 
@@ -449,6 +472,7 @@ setPreview({
   giftLink,
   channel,
   guests,
+  invitation,
 ]);
 
 
@@ -694,8 +718,9 @@ setTestSmsUsed((prev) =>
 
 const smsPreviewText =
   channel === "sms"
-    ? preview?.text ?? (guests[0] ? buildMessage(guests[0]) : message)
+    ? preview?.text ?? ""
     : message;
+
 
 
 
