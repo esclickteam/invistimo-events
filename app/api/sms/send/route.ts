@@ -187,11 +187,9 @@ if (remainingMessages <= 0) {
       : null;
 
       /* ================= SEATING (TABLES SNAPSHOT) ================= */
-const seating = event?._id
-  ? await SeatingTable.findOne({ eventId: event._id }).lean()
-  : null;
-
-const tables = seating?.tables || [];
+const tables = event?._id
+  ? await SeatingTable.find({ eventId: event._id }).lean()
+  : [];
 
 
     /* ================= QUERY ================= */
@@ -348,19 +346,21 @@ let totalPartsSent = 0;
 
     for (const guest of guests) {
 
-      if (template.requiresTable && !guest.tableId) {
-  continue;
-}
-
-const table = guest.tableId
-  ? tables.find(
-      (t: any) => String(t.id) === String(guest.tableId)
+  const table = tables.find((t: any) =>
+    (t.seatedGuests || []).some(
+      (sg: any) => String(sg.guestId) === String(guest._id)
     )
-  : null;
+  );
 
-const tableName = table
-  ? table.displayName || table.name
-  : "";
+  if (template.requiresTable && !table) {
+    continue;
+  }
+
+  const tableName = table
+    ? table.displayName || table.name
+    : "";
+
+
 
 
       let phone = (guest.phone || "").replace(/\D/g, "");
