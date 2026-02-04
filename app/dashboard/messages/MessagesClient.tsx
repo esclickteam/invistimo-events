@@ -29,6 +29,62 @@ type Balance = {
   remainingMessages: number;
 };
 
+/* ================= SMS PREVIEW LIMITS ================= */
+
+const FIRST_LIMIT = 200;
+const NEXT_LIMIT = 120;
+
+function calcSmsPreview(text: string) {
+  const totalChars = [...text].length;
+
+  if (totalChars <= FIRST_LIMIT) {
+    return {
+      text,
+      totalChars,
+      parts: 1,
+      currentPartChars: totalChars,
+      currentLimit: FIRST_LIMIT,
+    };
+  }
+
+  const remaining = totalChars - FIRST_LIMIT;
+  const extraParts = Math.ceil(remaining / NEXT_LIMIT);
+  const currentPartChars =
+    remaining % NEXT_LIMIT || NEXT_LIMIT;
+
+  return {
+    text,
+    totalChars,
+    parts: 1 + extraParts,
+    currentPartChars,
+    currentLimit: NEXT_LIMIT,
+  };
+}
+
+function getLongestMessage(
+  guests: Guest[],
+  buildMessageFn: (g: Guest) => string
+) {
+  let longestText = "";
+  let longestGuest: Guest | null = null;
+
+  for (const guest of guests) {
+    const text = buildMessageFn(guest);
+
+    if ([...text].length > [...longestText].length) {
+      longestText = text;
+      longestGuest = guest;
+    }
+  }
+
+  return {
+    text: longestText,
+    guest: longestGuest,
+  };
+}
+
+
+
 /* ================= SMS PACKAGES ================= */
 
 const SMS_PACKAGES = [
@@ -108,8 +164,11 @@ const [testSmsUsed, setTestSmsUsed] = useState<number>(0);
 
 const [preview, setPreview] = useState<{
   text: string;
-  length: number;
+  totalChars: number;
   parts: number;
+  currentPartChars: number;
+  currentLimit: number;
+  longestGuestName?: string | null;
 } | null>(null);
 
 
@@ -301,8 +360,7 @@ useEffect(() => {
 
   /* ================= LOGIC ================= */
 
-  const smsLength = preview?.length ?? message.length;
-const smsParts = preview?.parts ?? 1;
+ 
 
 
 
@@ -373,42 +431,25 @@ const buildTestMessage = () => {
     .replace(/היי\s*[^,\n]+,?\s*\n?/g, "היי\n");
 };
 
-
-const updateSmsPreview = async () => {
+useEffect(() => {
   if (channel !== "sms" || guests.length === 0) return;
 
-  const text = buildMessage(guests[0]);
-
-  const res = await fetch("/api/sms/preview", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!res.ok) return;
-
-  const data = await res.json();
+  const { text, guest } = getLongestMessage(guests, buildMessage);
+  const result = calcSmsPreview(text);
 
   setPreview({
-    text: data.text,
-    length: data.length,
-    parts: data.parts,
+    ...result,
+    longestGuestName: guest?.name || null,
   });
-};
-
-useEffect(() => {
-  if (channel === "sms" && guests.length > 0) {
-    updateSmsPreview();
-  }
 }, [
   message,
   templateKey,
   includeGiftLink,
   giftLink,
   channel,
-  guests.length,
+  guests,
 ]);
+
 
 
 /* ================= SEND ================= */
@@ -948,13 +989,21 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 </div>
 
 
-      <p
-  className={`text-xs mt-1 text-left ${
-    smsParts > 1 ? "text-orange-600" : "text-gray-500"
-  }`}
->
-  {smsLength} תווים · {smsParts} SMS
-</p>
+     {preview && (
+  <p
+    className={`text-xs mt-1 text-left ${
+      preview.parts > 1 ? "text-orange-600" : "text-gray-500"
+    }`}
+  >
+    {preview.parts === 1
+      ? `הודעה 1 · ${preview.currentPartChars} / 200 תווים`
+      : `הודעה ${preview.parts} · ${preview.currentPartChars} / 120 תווים`}
+    <span className="block text-[11px] text-gray-400">
+      סה״כ: {preview.parts} הודעות
+    </span>
+  </p>
+)}
+
 
 
       {/* ================= CREDIT GIFT LINK ================= */}
