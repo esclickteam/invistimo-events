@@ -233,37 +233,26 @@ useEffect(() => {
 
     counted.add(guestId);
 
-    const g = guests.find(
-      (g) => String(g._id || g.id) === guestId
-    );
-
+    const g = guests.find((g) => String(g._id || g.id) === guestId);
     if (!g) return sum;
 
-    // ✅ לוגיקה נכונה
     if (seatingMode === "live") {
-      return sum + Number(g.actualArrivedCount ?? 0);
+      const key = String(g.id ?? g._id);
+      return sum + Number(liveArrivals?.[key] ?? 0);
     }
 
     return sum + Number(g.arrivedCount ?? 0);
   }, 0);
-}, [table.seatedGuests, guests, seatingMode]);
-
-
-
-
-
-
-
-
-
+}, [table.seatedGuests, guests, seatingMode, liveArrivals]);
 
 const seatsTotal = Number(table.seats || 0);
 
-
+const tableTitle = (table.displayName || table.name || "").trim();
 
 const tableLabel = groupForTable
-  ? `${table.name}\n${groupForTable.name}\n${occupiedSeatsCount}/${seatsTotal}`
-  : `${table.name}\n${occupiedSeatsCount}/${seatsTotal}`;
+  ? `${tableTitle}\n${groupForTable.name}\n${occupiedSeatsCount}/${seatsTotal}`
+  : `${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`;
+
 
 
 
@@ -310,7 +299,11 @@ const tableText = isHighlighted
   const arrived = new Set();
   let remaining = occupiedSeatsCount;
 
-  for (const s of table.seatedGuests) {
+  const sorted = [...(table.seatedGuests || [])].sort(
+    (a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0)
+  );
+
+  for (const s of sorted) {
     if (remaining <= 0) break;
     arrived.add(s.seatIndex);
     remaining--;
@@ -318,6 +311,7 @@ const tableText = isHighlighted
 
   return arrived;
 }, [table.seatedGuests, occupiedSeatsCount]);
+
 
 
   /* ====== CACHE כמו Canva ====== */
@@ -331,9 +325,11 @@ const tableText = isHighlighted
   layout.type,
   table.seats,
   table.seatedGuests,
-  occupiedSeatsCount, // ✅ חדש
+  occupiedSeatsCount,
   hideSeats,
+  liveArrivals,        // ✅ להוסיף את זה
 ]);
+
 
 
 
