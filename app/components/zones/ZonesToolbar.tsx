@@ -11,30 +11,22 @@ export default function ZonesToolbar() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const isMobile =
-    typeof window !== "undefined" && window.innerWidth < 768;
-
-  // סגירה בלחיצה מחוץ
+  // סגירה בלחיצה מחוץ לדרופדאון
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-    document.addEventListener("pointerdown", onClickOutside);
-return () => document.removeEventListener("pointerdown", onClickOutside);
-
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
   return (
     <div ref={ref} className="relative">
-      {/* כפתור */}
+      {/* כפתור פתיחה */}
       <button
-  onClick={(e) => {
-    e.stopPropagation();
-    setOpen((v) => !v);
-  }}
-
+        onClick={() => setOpen((v) => !v)}
         className="
           flex items-center gap-2
           px-4 py-2
@@ -51,19 +43,19 @@ return () => document.removeEventListener("pointerdown", onClickOutside);
         <span className="text-xs opacity-60">▾</span>
       </button>
 
+      {/* הדרופדאון */}
       {open && (
         <div
-          className={`
-            ${isMobile
-              ? "fixed top-[64px] inset-x-0 mx-3"
-              : "absolute right-0 mt-2"}
-            z-[10000]
+          className="
+            absolute right-0 mt-2
+            w-56
             bg-white
             border
             rounded-xl
-            shadow-xl
+            shadow-lg
+            z-50
             overflow-hidden
-          `}
+          "
         >
           {(Object.keys(ZONE_META) as ZoneType[]).map((type) => {
             const meta = ZONE_META[type];
@@ -90,7 +82,7 @@ return () => document.removeEventListener("pointerdown", onClickOutside);
                 }}
                 className="
                   w-full flex items-center gap-3
-                  px-4 py-4
+                  px-4 py-3
                   text-right
                   hover:bg-indigo-50
                   transition
