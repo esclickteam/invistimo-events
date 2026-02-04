@@ -8,6 +8,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
+import SeatingTable from "@/models/SeatingTable";
 
 
 /* ======================================================
@@ -185,16 +186,22 @@ if (remainingMessages <= 0) {
       ? await Event.findById(invitation.eventId).lean()
       : null;
 
+      /* ================= SEATING (TABLES SNAPSHOT) ================= */
+const seating = event?._id
+  ? await SeatingTable.findOne({ eventId: event._id }).lean()
+  : null;
+
+const tables = seating?.tables || [];
+
+
     /* ================= QUERY ================= */
     const query: any = { invitationId };
     if (filter === "pending") query.rsvp = "pending";
 
     if (filter === "withTable") {
-  query.$or = [
-    { tableName: { $exists: true, $ne: "" } },
-    { tableNumber: { $ne: null } },
-  ];
+  query.tableId = { $exists: true, $ne: null };
 }
+
 
 /* ================= TARGET GUESTS ================= */
 let guestsQuery: any;
@@ -341,19 +348,20 @@ let totalPartsSent = 0;
 
     for (const guest of guests) {
 
-      if (
-        template.requiresTable &&
-        !guest.tableName &&
-        typeof guest.tableNumber !== "number"
-      ) {
-        continue;
-      }
+      if (template.requiresTable && !guest.tableId) {
+  continue;
+}
 
-      const tableName =
-        guest.tableName ||
-        (typeof guest.tableNumber === "number"
-          ? `שולחן ${guest.tableNumber}`
-          : "");
+const table = guest.tableId
+  ? tables.find(
+      (t: any) => String(t.id) === String(guest.tableId)
+    )
+  : null;
+
+const tableName = table
+  ? table.displayName || table.name
+  : "";
+
 
       let phone = (guest.phone || "").replace(/\D/g, "");
       if (!phone) continue;
