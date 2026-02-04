@@ -46,6 +46,7 @@ export default function ZoneRenderer({ zone }: Props) {
         y={zone.y}
         rotation={zone.rotation || 0}
         draggable={!zone.locked}
+         listening
         onClick={(e) => {
           e.cancelBubble = true;
           setSelectedZone(zone.id);

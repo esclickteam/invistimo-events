@@ -11,12 +11,16 @@ type Pos = { top: number; right: number; width: number };
 
 export default function ZonesToolbar() {
   const addZone = useZoneStore((s) => s.addZone);
+  const setSelectedZone = useZoneStore((s) => s.setSelectedZone);
 
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement | null>(null);
 
+
   const [pos, setPos] = useState<Pos>({ top: 64, right: 16, width: 224 });
   const [mounted, setMounted] = useState(false);
+
+  
 
   useEffect(() => setMounted(true), []);
 
@@ -134,23 +138,32 @@ export default function ZonesToolbar() {
                 return (
                   <button
                     key={type}
+
                     onClick={() => {
-                      addZone({
-                        id: nanoid(),
-                        type,
-                        name: meta.label,
-                        icon: meta.icon,
-                        color: meta.color,
-                        opacity: 0.35,
-                        x: 300,
-                        y: 200,
-                        width: meta.defaultSize.width,
-                        height: meta.defaultSize.height,
-                        rotation: 0,
-                        locked: false,
-                      });
-                      setOpen(false);
-                    }}
+  const id = nanoid();
+
+  addZone({
+    id,
+    type,
+    name: meta.label,
+    icon: meta.icon,
+    color: meta.color,
+    opacity: 0.35,
+    x: 300,
+    y: 200,
+    width: meta.defaultSize.width,
+    height: meta.defaultSize.height,
+    rotation: 0,
+    locked: false,
+  });
+
+  // ⭐ זה השינוי הקריטי
+  setSelectedZone(id);
+
+  setOpen(false);
+}}
+
+
                     className="
                       w-full flex items-center gap-3
                       px-4 py-3
