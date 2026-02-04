@@ -95,10 +95,11 @@ const smsBalance =
   typeof user.smsBalance === "number" ? user.smsBalance : 0;
 
 // אם יש maxMessages → זה מקור האמת
-const remainingMessages =
-  maxMessages > 0
-    ? Math.max(maxMessages - smsUsed, 0)
-    : Math.max(smsBalance, 0);
+const usesMaxMessages = maxMessages > 0;
+
+const remainingMessages = usesMaxMessages
+  ? Math.max(maxMessages - smsUsed, 0)
+  : Math.max(smsBalance, 0);
 
 if (remainingMessages <= 0) {
   return NextResponse.json(
@@ -106,6 +107,7 @@ if (remainingMessages <= 0) {
     { status: 403 }
   );
 }
+
 
 
     /* ================= BODY ================= */
@@ -287,49 +289,9 @@ const baseMessage = baseTemplateText
 
 
 
-    /* ================= CALCULATE SMS PARTS (CHARGE) ================= */
 
-let maxParts = 1;
 
-for (const guest of guests) {
-  const tableName =
-    guest.tableName ||
-    (typeof guest.tableNumber === "number"
-      ? `שולחן ${guest.tableNumber}`
-      : "");
 
-  const personalRsvpUrl =
-    `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-
-  const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
-
-  let text = baseMessage
-    .replace(/{{name}}/g, guest.name || "")
-    .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-    .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink);
-
-  if (includeGiftLink && giftLink) {
-    text += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-  }
-
-  const parts = countSmsParts(text);
-  if (parts > maxParts) maxParts = parts;
-}
-
-const totalMessagesToCharge = maxParts * guests.length;
-
-if (totalMessagesToCharge > remainingMessages) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "SMS_LIMIT_REACHED",
-      required: totalMessagesToCharge,
-      remaining: remainingMessages,
-    },
-    { status: 403 }
-  );
-}
 
 
 
@@ -344,34 +306,12 @@ if (totalMessagesToCharge > remainingMessages) {
 }
 
 
-/* ================= 🔒 RESERVE SMS BALANCE ================= */
 
-const usesMaxMessages = maxMessages > 0;
-
-
-/* ================= 🔒 RESERVE SMS BALANCE ================= */
-if (!usesMaxMessages) {
-  const reserveResult = await User.updateOne(
-    {
-      _id: user._id,
-      smsBalance: { $gte: totalMessagesToCharge },
-    },
-    {
-      $inc: { smsBalance: -totalMessagesToCharge },
-    }
-  );
-
-  if (reserveResult.modifiedCount === 0) {
-    return NextResponse.json(
-      { success: false, error: "SMS_LIMIT_REACHED" },
-      { status: 403 }
-    );
-  }
-}
 
 
 
     
+let totalPartsSent = 0;
 
 
     let sent = 0;
@@ -411,11 +351,15 @@ let finalText = baseMessage
   .replace(/{{tableName}}/g, tableName)
   .replace(/{{navigationLink}}/g, navigationLink);
 
-
 if (includeGiftLink && giftLink) {
-  // ⛔ רק קישור המתנה – לא ה-RSVP
   finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+}
 
+const parts = countSmsParts(finalText);
+
+// 🔒 בדיקת יתרה אמיתית
+if (totalPartsSent + parts > remainingMessages) {
+  break;
 }
 
 
@@ -438,7 +382,11 @@ if (includeGiftLink && giftLink) {
           }
         );
 
-        if (res.ok) sent++;
+        if (res.ok) {
+  sent++;
+  totalPartsSent += parts;
+}
+
       } catch (err) {
         console.error("❌ SMS SEND ERROR:", err);
       }
@@ -447,20 +395,21 @@ if (includeGiftLink && giftLink) {
   
 
 
-    if (sent > 0) {
+    if (totalPartsSent > 0) {
   await User.updateOne(
     { _id: user._id },
-    { $inc: { smsUsed: totalMessagesToCharge } }
+    { $inc: { smsUsed: totalPartsSent } }
   );
 }
 
 
+
     return NextResponse.json({
   success: true,
-  sent: guests.length,
-  partsPerMessage: maxParts,
-  charged: totalMessagesToCharge,
+  sent,
+  charged: totalPartsSent,
 });
+
 
 
     
