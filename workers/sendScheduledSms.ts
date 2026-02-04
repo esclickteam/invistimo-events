@@ -14,16 +14,17 @@ import { shortenUrl } from "@/lib/shortenUrl";
    - > 320 chars => BLOCK (אין הודעה 3)
    חשוב: [...text].length כדי לא להישבר עם אימוג'ים/עברית
 ====================================================== */
-import { countSmsParts } from "@/lib/smsUtils";
+
 
 function countBusinessSms(text: string) {
-  const parts = countSmsParts(text); // 🔥 חישוב אמיתי כמו ספק ה-SMS
+  const length = [...text].length; // Unicode-safe (עברית + אימוג'ים)
 
-  // 🔒 חוק עסקי: אין יותר מ-2 הודעות
-  if (parts <= 2) return parts;
+  if (length <= 200) return 1;
+  if (length <= 320) return 2;
 
-  return -1; // blocked
+  return -1; // BLOCK – אין הודעה 3
 }
+
 
 
 /* ======================================================
