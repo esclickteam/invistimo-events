@@ -96,7 +96,8 @@ export default function DashboardLayout({
       {/* =========================
           Content
       ========================= */}
-      <main className="pt-14">
+      <main>
+
         {/* אפשר להוסיף skeleton אם רוצים */}
         {!loadingInvitation && children}
       </main>

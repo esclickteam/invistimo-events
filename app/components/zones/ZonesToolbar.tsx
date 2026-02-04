@@ -26,31 +26,35 @@ export default function ZonesToolbar() {
   }, []);
 
   const handleAddZone = (type: ZoneType) => {
-    const meta = ZONE_META[type];
+  const meta = ZONE_META[type];
+  const view = canvasView ?? { x: 0, y: 0, scale: 1 };
 
-    const view = canvasView ?? { x: 0, y: 0, scale: 1 };
+  const HEADER_HEIGHT = 64;
 
-    // מרכז המסך הנראה (עובד גם במובייל)
-    const x = (-view.x + window.innerWidth / 2) / view.scale;
-    const y = (-view.y + window.innerHeight / 2) / view.scale;
+  const x = (-view.x + window.innerWidth / 2) / view.scale;
 
-    addZone({
-      id: nanoid(),
-      type,
-      name: meta.label,
-      icon: meta.icon,
-      color: meta.color,
-      opacity: 0.35,
-      x,
-      y,
-      width: meta.defaultSize.width,
-      height: meta.defaultSize.height,
-      rotation: 0,
-      locked: false,
-    });
+  const y =
+    (-view.y + (window.innerHeight - HEADER_HEIGHT) / 2) / view.scale +
+    HEADER_HEIGHT / view.scale;
 
-    setOpen(false);
-  };
+  addZone({
+    id: nanoid(),
+    type,
+    name: meta.label,
+    icon: meta.icon,
+    color: meta.color,
+    opacity: 0.35,
+    x,
+    y,
+    width: meta.defaultSize.width,
+    height: meta.defaultSize.height,
+    rotation: 0,
+    locked: false,
+  });
+
+  setOpen(false);
+};
+
 
   return (
     <div ref={ref} className="relative">
