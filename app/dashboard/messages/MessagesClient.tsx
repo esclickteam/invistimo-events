@@ -28,6 +28,37 @@ type Balance = {
   maxMessages: number;
   remainingMessages: number;
 };
+function calcBusinessSmsClient(text: string) {
+  const length = [...text].length;
+
+  if (length <= 200) {
+    return {
+      parts: 1,
+      limit: 200,
+      overflow: 0,
+      allowed: true,
+      totalChars: length,
+    };
+  }
+
+  if (length <= 320) {
+    return {
+      parts: 2,
+      limit: 320,
+      overflow: 0,
+      allowed: true,
+      totalChars: length,
+    };
+  }
+
+  return {
+    parts: 2,
+    limit: 320,
+    overflow: length - 320,
+    allowed: false,
+    totalChars: length,
+  };
+}
 
 function getLongestMessage(
   guests: Guest[],
@@ -406,65 +437,29 @@ const buildTestMessage = () => {
 };
 
 useEffect(() => {
- if (channel !== "sms" || guests.length === 0) {
-  setPreview(null);
-  return;
-}
-
-if (!invitation) {
-  // ⛔ מחכים להזמנה – לא מוחקים preview
-  return;
-}
-
-
-
-  async function fetchPreview() {
-    const { text, guest } = getLongestMessage(guests, buildMessage);
-
-    if (!guest) {
-  setPreview(null);
-  return;
-}
-
-
-    const res = await fetch("/api/sms/preview", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify({
-    invitationId: invitation?._id,
-    guestId: guest?._id,
-    messageOverride: message,
-    includeGiftLink,
-    giftLink,
-  }),
-});
-
-
-    const data = await res.json();
-
-    // ❗ הגנה מלאה – אם ה־API החזיר משהו לא תקין
-if (
-  typeof data.totalChars !== "number" ||
-  typeof data.parts !== "number"
-) {
-  setPreview(null);
-  return;
-}
-
-setPreview({
-  text,
-  totalChars: data.totalChars,
-  parts: data.parts,
-  blocked: !data.allowed,
-  overflow: data.overflow ?? 0,
-  limit: data.limit ?? 320,
-  longestGuestName: guest?.name || null,
-});
-
+  if (channel !== "sms" || guests.length === 0 || !invitation) {
+    setPreview(null);
+    return;
   }
 
-  fetchPreview();
+  const { text, guest } = getLongestMessage(guests, buildMessage);
+
+  if (!text || !guest) {
+    setPreview(null);
+    return;
+  }
+
+  const calc = calcBusinessSmsClient(text);
+
+  setPreview({
+    text,
+    totalChars: calc.totalChars,
+    parts: calc.parts,
+    blocked: !calc.allowed,
+    overflow: calc.overflow,
+    limit: calc.limit,
+    longestGuestName: guest.name || null,
+  });
 }, [
   message,
   templateKey,
@@ -474,7 +469,6 @@ setPreview({
   guests,
   invitation,
 ]);
-
 
 
 
