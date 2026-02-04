@@ -21,7 +21,7 @@ export async function GET() {
   const userId = auth.userId;
 
   /* ================= LOAD USER ================= */
-  const user = await User.findById(userId).lean({ virtuals: true });
+  const user = await User.findById(userId).lean();
 
   if (!user) {
     return NextResponse.json(
@@ -30,29 +30,31 @@ export async function GET() {
     );
   }
 
+  /* ================= RAW VALUES ================= */
+  const maxMessages =
+    typeof user.maxMessages === "number" ? user.maxMessages : 0;
+
+  const smsUsed =
+    typeof user.smsUsed === "number" ? user.smsUsed : 0;
+
   const smsBalance =
     typeof user.smsBalance === "number" ? user.smsBalance : 0;
 
-  const sentSmsCount =
-    typeof user.smsUsed === "number" ? user.smsUsed : 0;
+  /* ================= CALCULATE REMAINING ================= */
+  const remainingMessages =
+    maxMessages > 0
+      ? Math.max(maxMessages - smsUsed, 0)
+      : Math.max(smsBalance, 0);
 
-  /* ================= 🧪 TRIAL USER ================= */
-  if (user.isTrial) {
-    return NextResponse.json({
-      success: true,
-      isTrial: true,
-      smsEnabled: smsBalance > 0,
-      remainingMessages: smsBalance,
-      sentSmsCount,
-    });
-  }
+  const smsEnabled = remainingMessages > 0;
 
-  /* ================= REGULAR USER ================= */
+  /* ================= RESPONSE ================= */
   return NextResponse.json({
     success: true,
-    isTrial: false,
-    smsEnabled: smsBalance > 0,
-    remainingMessages: smsBalance,
-    sentSmsCount,
+    isTrial: !!user.isTrial,
+    smsEnabled,
+    maxMessages,
+    smsUsed,
+    remainingMessages,
   });
 }
