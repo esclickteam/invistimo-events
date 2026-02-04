@@ -16,8 +16,6 @@ import { countSmsParts } from "@/lib/smsUtils";
 type MessageTemplateKey = "rsvp" | "table" | "custom";
 type FilterType = "all" | "pending" | "withTable";
 
-const SMS_LIMIT_1 = 200;
-const SMS_LIMIT_2 = 320; // 🔒 אין הודעה 3
 
 function countBusinessSms(text: string) {
   const parts = countSmsParts(text); // 🔥 חישוב אמיתי כמו הספק
@@ -245,7 +243,7 @@ if (partsPerMessage === -1) {
     {
       success: false,
       error: "MESSAGE_TOO_LONG",
-      maxChars: SMS_LIMIT_2,
+      maxParts: 2,
       totalChars: [...previewContent].length,
     },
     { status: 400 }
@@ -382,7 +380,7 @@ if (includeGiftLink && giftLink) {
   finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
 }
 
-const parts = countSmsParts(finalText);
+const parts = countBusinessSms(finalText);
 
 
 if (parts === -1) {
@@ -391,7 +389,8 @@ if (parts === -1) {
     {
       success: false,
       error: "MESSAGE_TOO_LONG",
-      maxChars: SMS_LIMIT_2,
+      maxParts: 2,
+
     },
     { status: 400 }
   );

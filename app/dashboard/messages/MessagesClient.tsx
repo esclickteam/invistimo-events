@@ -31,49 +31,6 @@ type Balance = {
 
 /* ================= SMS PREVIEW LIMITS ================= */
 
-const SMS_LIMIT_1 = 200;
-const SMS_LIMIT_2 = 320; // 🔒 תקרת בטיחות – אין הודעה 3
-
-function calcSmsPreview(text: string) {
-  const totalChars = [...text].length;
-
-  // ⛔ מעבר למותר
-  if (totalChars > SMS_LIMIT_2) {
-    return {
-      text,
-      totalChars,
-      parts: 2,
-      overflow: totalChars - SMS_LIMIT_2,
-      limit: SMS_LIMIT_2,
-      blocked: true, // 🔥 חדש
-    };
-  }
-
-  // הודעה אחת
-  if (totalChars <= SMS_LIMIT_1) {
-    return {
-      text,
-      totalChars,
-      parts: 1,
-      overflow: 0,
-      limit: SMS_LIMIT_1,
-      blocked: false,
-    };
-  }
-
-  // שתי הודעות (200–320)
-  return {
-    text,
-    totalChars,
-    parts: 2,
-    overflow: totalChars - SMS_LIMIT_1,
-    limit: SMS_LIMIT_2,
-    blocked: false,
-  };
-}
-
-
-
 
 function getLongestMessage(
   guests: Guest[],
@@ -456,13 +413,30 @@ const buildTestMessage = () => {
 useEffect(() => {
   if (channel !== "sms" || guests.length === 0) return;
 
-  const { text, guest } = getLongestMessage(guests, buildMessage);
-  const result = calcSmsPreview(text);
+  async function fetchPreview() {
+    const { text, guest } = getLongestMessage(guests, buildMessage);
 
-  setPreview({
-    ...result,
-    longestGuestName: guest?.name || null,
-  });
+    const res = await fetch("/api/sms/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ message: text }),
+    });
+
+    const data = await res.json();
+
+    setPreview({
+      text,
+      totalChars: data.totalChars,
+      parts: data.parts,          // ⬅️ 1 או 2
+      blocked: !data.allowed,     // ⬅️ true אם עבר 320
+      overflow: data.overflow ?? 0,
+      limit: data.limit ?? 320,
+      longestGuestName: guest?.name || null,
+    });
+  }
+
+  fetchPreview();
 }, [
   message,
   templateKey,
@@ -471,6 +445,7 @@ useEffect(() => {
   channel,
   guests,
 ]);
+
 
 
 
