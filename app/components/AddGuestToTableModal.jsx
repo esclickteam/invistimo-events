@@ -21,6 +21,9 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   const updateTableDisplayName = useSeatingStore((s) => s.updateTableDisplayName);
 
+  const invitationId = useSeatingStore((s) => s.invitationId);
+
+
   // ✅ עריכת שם/מספר שולחן (displayName)
   const [isEditingName, setIsEditingName] = useState(false);
   const [tableNameDraft, setTableNameDraft] = useState("");
@@ -108,14 +111,15 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }
 
     await fetch("/api/guests/assign-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestId,
-        tableName: tableData.name,
-        seatIndex,
-      }),
-    });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include", // ⭐ גם פה
+  body: JSON.stringify({
+    guestId,
+    tableName: tableData.displayName || tableData.name,
+    seatIndex,
+  }),
+});
 
     setError("");
     setOpenSeat(null);
@@ -148,14 +152,16 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   updateTableDisplayName(tableData.id, next);
 
   // 2️⃣ עדכון מיידי ב־DB
-  await fetch(`/api/seating/tables/${tableData.eventId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      tableId: tableData.id,
-      displayName: next,
-    }),
-  });
+  await fetch(`/api/seating/tables/${invitationId}`, {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include", // ⭐ חשוב
+  body: JSON.stringify({
+    tableId: tableData.id,
+    displayName: next,
+  }),
+});
+
 
   setIsEditingName(false);
 };
