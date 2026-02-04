@@ -6,8 +6,13 @@ import { useZoneStore } from "@/store/zoneStore";
 import { ZONE_META } from "@/config/zonesMeta";
 import type { ZoneType } from "@/types/zones";
 
+import { useSeatingStore } from "@/store/seatingStore";
+
+
 export default function ZonesToolbar() {
   const addZone = useZoneStore((s) => s.addZone);
+const canvasView = useSeatingStore((s) => s.canvasView);
+
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -64,6 +69,18 @@ export default function ZonesToolbar() {
               <button
                 key={type}
                 onClick={() => {
+                  const view = canvasView ?? { x: 0, y: 0, scale: 1 };
+                  const isMobile = window.innerWidth < 768;
+                  const UI_OFFSET_Y = isMobile ? 120 : 0;
+
+                  const centerX =
+                    (-view.x + window.innerWidth / 2) / view.scale;
+                  const centerY =
+                    (-view.y +
+                      window.innerHeight / 2 -
+                      UI_OFFSET_Y) /
+                    view.scale;
+
                   addZone({
                     id: nanoid(),
                     type,
@@ -71,13 +88,14 @@ export default function ZonesToolbar() {
                     icon: meta.icon,
                     color: meta.color,
                     opacity: 0.35,
-                    x: 300,
-                    y: 200,
+                    x: centerX,
+                    y: centerY,
                     width: meta.defaultSize.width,
                     height: meta.defaultSize.height,
                     rotation: 0,
                     locked: false,
                   });
+
                   setOpen(false);
                 }}
                 className="
