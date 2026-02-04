@@ -8,48 +8,43 @@ export default function GuestSeatingPanel({ guestId, onClose }) {
   const groups = useSeatingStore((s) => s.groups);
   const tables = useSeatingStore((s) => s.tables);
 
-  const seatGuest = useSeatingStore((s) => s.seatGuest);
+  // ✅ הפונקציות שקיימות אצלך ב-store
+  const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
+  const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
+
   const seatGroup = useSeatingStore((s) => s.seatGroup);
   const unseatGroup = useSeatingStore((s) => s.unseatGroup);
-  const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
   const getGroupSize = useSeatingStore((s) => s.getGroupSize);
 
   /* ===============================
      מציאת האורח והקבוצה
   =============================== */
-  const guest = useMemo(
-    () => guests.find((g) => String(g._id ?? g.id) === String(guestId)),
-    [guests, guestId]
-  );
+  const guest = useMemo(() => {
+    return guests.find((g) => String(g._id ?? g.id) === String(guestId));
+  }, [guests, guestId]);
 
-  const group = useMemo(
-    () =>
-      guest?.groupId
-        ? groups.find((gr) => String(gr._id) === String(guest.groupId))
-        : null,
-    [groups, guest]
-  );
+  const group = useMemo(() => {
+    if (!guest?.groupId) return null;
+    return groups.find((gr) => String(gr._id) === String(guest.groupId)) || null;
+  }, [groups, guest]);
 
   if (!guest) return null;
 
-  /* ===============================
-     עזרים
-  =============================== */
+  const resolvedGuestId = String(guest._id ?? guest.id);
   const guestTableId = guest.tableId || "";
 
   const groupSize = group ? getGroupSize(group._id) : 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-black/40">
       <div className="bg-[#FFF7F2] rounded-2xl w-full max-w-3xl shadow-xl">
         {/* HEADER */}
         <div className="flex justify-between items-center p-5 border-b">
-          <h3 className="text-lg font-bold text-gray-800">
-            הקצאת שולחן
-          </h3>
+          <h3 className="text-lg font-bold text-gray-800">הקצאת שולחן</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl"
+            aria-label="סגור"
           >
             ✕
           </button>
@@ -59,35 +54,33 @@ export default function GuestSeatingPanel({ guestId, onClose }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
           {/* צד שמאל – הקצאת שולחן */}
           <div className="bg-white rounded-xl p-4 border">
-            <div className="text-sm text-gray-600 mb-2">
-              בחר שולחן
-            </div>
+            <div className="text-sm text-gray-600 mb-2">בחר שולחן</div>
 
             <select
               className="w-full border rounded px-3 py-2"
               value={guestTableId}
               onChange={(e) => {
                 const tableId = e.target.value;
+
+                // ✅ הסרה
                 if (!tableId) {
-                  removeFromSeat(guest._id);
-                } else {
-                  seatGuest(guest._id, tableId);
+                  removeFromSeat(resolvedGuestId);
+                  return;
                 }
+
+                // ✅ הושבה לפי המנוע שלך
+                assignGuestBlock({ guestId: resolvedGuestId, tableId });
               }}
             >
               <option value="">ללא שולחן</option>
 
               {tables.map((t) => {
-                const capacity = t.seats || 0;
-                const used = t.seatedGuests?.length || 0;
+                const capacity = Number(t.seats || 0);
+                const used = Number(t.seatedGuests?.length || 0);
                 const free = capacity - used;
 
                 return (
-                  <option
-                    key={t.id}
-                    value={t.id}
-                    disabled={free < 1}
-                  >
+                  <option key={t.id} value={t.id} disabled={free < 1}>
                     {t.name} · {used}/{capacity}
                   </option>
                 );
@@ -98,23 +91,17 @@ export default function GuestSeatingPanel({ guestId, onClose }) {
           {/* צד ימין – פרטי האורח */}
           <div className="bg-white rounded-xl p-4 border space-y-3">
             <div>
-              <div className="text-xs text-gray-500">
-                שם האורח
-              </div>
+              <div className="text-xs text-gray-500">שם האורח</div>
               <div className="font-medium">{guest.name}</div>
             </div>
 
             <div>
-              <div className="text-xs text-gray-500">
-                טלפון
-              </div>
+              <div className="text-xs text-gray-500">טלפון</div>
               <div>{guest.phone || "-"}</div>
             </div>
 
             <div>
-              <div className="text-xs text-gray-500">
-                מספר מוזמנים
-              </div>
+              <div className="text-xs text-gray-500">מספר מוזמנים</div>
               <div>{guest.guestsCount ?? 1}</div>
             </div>
           </div>
@@ -132,6 +119,7 @@ export default function GuestSeatingPanel({ guestId, onClose }) {
               value={group.tableId || ""}
               onChange={(e) => {
                 const tableId = e.target.value;
+
                 if (!tableId) {
                   unseatGroup(group._id);
                 } else {
@@ -142,16 +130,12 @@ export default function GuestSeatingPanel({ guestId, onClose }) {
               <option value="">ללא שולחן (קבוצה)</option>
 
               {tables.map((t) => {
-                const capacity = t.seats || 0;
-                const used = t.seatedGuests?.length || 0;
+                const capacity = Number(t.seats || 0);
+                const used = Number(t.seatedGuests?.length || 0);
                 const free = capacity - used;
 
                 return (
-                  <option
-                    key={t.id}
-                    value={t.id}
-                    disabled={free < groupSize}
-                  >
+                  <option key={t.id} value={t.id} disabled={free < groupSize}>
                     {t.name} · פנוי {free}/{capacity}
                   </option>
                 );
