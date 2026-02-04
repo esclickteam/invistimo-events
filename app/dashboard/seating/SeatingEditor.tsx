@@ -123,6 +123,35 @@ const lastTouchDist = useRef<number | null>(null);
   const isMobile =
   typeof window !== "undefined" && window.innerWidth < 768;
 
+const getContentBounds = () => {
+  const xs: number[] = [];
+  const ys: number[] = [];
+
+  tables.forEach((t) => {
+    xs.push(t.x);
+    ys.push(t.y);
+  });
+
+  zones.forEach((z: any) => {
+    xs.push(z.x);
+    ys.push(z.y);
+    xs.push(z.x + z.width);
+    ys.push(z.y + z.height);
+  });
+
+  if (!xs.length || !ys.length) {
+    return { minX: 0, minY: 0, maxX: size.width, maxY: size.height };
+  }
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+};
+
+
 
   useEffect(() => {
   if (!containerRef.current) return;
@@ -142,19 +171,33 @@ useEffect(() => {
   if (!isMobile) return;
   if (size.width === 0 || size.height === 0) return;
   if (didInitMobileRef.current) return;
+  if (!tables.length && !zones.length) return;
+if (size.width === 0 || size.height === 0) return;
+
 
   didInitMobileRef.current = true;
 
-  const scale = 0.65;
+  const { minX, minY, maxX, maxY } = getContentBounds();
 
-  setScale(scale);
-  setStagePos({ x: 0, y: 0 });
-  setCanvasView({
-    x: 0,
-    y: 0,
-    scale,
-  });
-}, [isMobile, size.width, size.height]);
+  const PAD = 120;
+  const contentW = Math.max(1, (maxX - minX) + PAD);
+  const contentH = Math.max(1, (maxY - minY) + PAD);
+
+  const scaleFit = Math.min(size.width / contentW, size.height / contentH);
+  const initialScale = Math.max(0.35, Math.min(1.2, scaleFit));
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  const x = size.width / 2 - centerX * initialScale;
+  const y = size.height / 2 - centerY * initialScale;
+
+  setScale(initialScale);
+  setStagePos({ x, y });
+  setCanvasView({ x, y, scale: initialScale });
+}, [isMobile, size.width, size.height, tables.length, zones.length, setCanvasView]);
+
+
 
 
 
@@ -297,6 +340,8 @@ const getBounds = (scaleVal: number) => {
 
   setStagePos(clamped);
   setCanvasView({ ...clamped, scale });
+
+
 }
 
   };
