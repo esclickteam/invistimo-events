@@ -40,6 +40,7 @@ type EventModel = {
    טיפוס מוזמן
 ============================================================ */
 type Guest = {
+  id?: string;
   _id: string;
   name: string;
   phone: string;
@@ -109,6 +110,9 @@ const isDemo = pathname.startsWith("/try");
   const [user, setUser] = useState<any | null>(null);
 
   const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
+
+  const seatingTables = useSeatingStore((s) => s.tables);
+
 
 
 
@@ -552,6 +556,22 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, [invitationId, isDemo, user?.role, user?.originalRole]);
+
+const guestTableMap = useMemo(() => {
+  const map = new Map<string, any>();
+
+  (seatingTables || []).forEach((table: any) => {
+    (table.seatedGuests || []).forEach((sg: any) => {
+      if (sg?.guestId != null) {
+        map.set(String(sg.guestId), table);
+      }
+    });
+  });
+
+  return map;
+}, [seatingTables]);
+
+
 
 
   /* ============================================================
@@ -1134,6 +1154,7 @@ console.log("INVITATION:", invitation);
           <td className="p-3">{g.name}</td>
           <td className="p-3">{formatPhone(g.phone)}</td>
           <td className="p-3">{g.relation?.trim() || "-"}</td>
+
           <td className="p-3">
   <GuestGroupSelect
   value={g.groupId}
@@ -1205,12 +1226,24 @@ console.log("INVITATION:", invitation);
 )}
 
 <td className="p-3">
-  {g.tableName
-    ? g.tableName
-    : g.tableNumber
-    ? `שולחן ${g.tableNumber}`
-    : "-"}
+  {(() => {
+    const guestKey = String(g.id ?? g._id ?? "");
+const tableFromStore = guestTableMap.get(guestKey) || null;
+
+
+    const tableLabel =
+      (tableFromStore &&
+        (tableFromStore.displayName || tableFromStore.name)) ||
+      (g.tableName
+        ? g.tableName
+        : g.tableNumber
+        ? `שולחן ${g.tableNumber}`
+        : null);
+
+    return tableLabel || "-";
+  })()}
 </td>
+
 
 
           <td className="p-3 text-sm text-gray-700">

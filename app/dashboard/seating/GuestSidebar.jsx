@@ -96,10 +96,10 @@ export default function GuestSidebar({ variant = "desktop" }) {
             const tableFromStore = guestTableMap.get(guestId) || null;
 
             const tableLabel =
-              (tableFromStore && tableFromStore.name) ||
-              (tableFromStore
-                ? `שולחן ${tableFromStore.number ?? tableFromStore.id}`
-                : null);
+  (tableFromStore && (tableFromStore.displayName || tableFromStore.name)) ||
+  (tableFromStore
+    ? `שולחן ${tableFromStore.number ?? tableFromStore.id}`
+    : null);
 
             const isHighlighted =
               shouldHighlightFromUrl &&

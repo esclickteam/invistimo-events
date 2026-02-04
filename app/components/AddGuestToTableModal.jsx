@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { X } from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
 
@@ -9,9 +9,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
   // שולחן מעודכן מה־store
-  const tableData = useSeatingStore((s) =>
-    s.tables.find((t) => t.id === table.id)
-  );
+  const tableData = useSeatingStore((s) => s.tables.find((t) => t.id === table.id));
 
   // אורחים מה־store (אם קיים) אחרת מה־props
   const storeGuests = useSeatingStore((s) => s.guests);
@@ -20,6 +18,17 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState(""); // 🔍 חיפוש
+
+  const updateTableDisplayName = useSeatingStore((s) => s.updateTableDisplayName);
+
+  // ✅ עריכת שם/מספר שולחן (displayName)
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tableNameDraft, setTableNameDraft] = useState("");
+
+  useEffect(() => {
+    if (!tableData) return;
+    setTableNameDraft(tableData.displayName || tableData.name || "");
+  }, [tableData?.id, tableData?.displayName, tableData?.name]);
 
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
 
@@ -39,16 +48,10 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }));
 
     for (const s of tableData.seatedGuests || []) {
-      const g = tableGuests.find(
-        (gg) => getGuestId(gg) === String(s.guestId)
-      );
+      const g = tableGuests.find((gg) => getGuestId(gg) === String(s.guestId));
       if (!g) continue;
 
-      if (
-        typeof s.seatIndex === "number" &&
-        s.seatIndex >= 0 &&
-        s.seatIndex < arr.length
-      ) {
+      if (typeof s.seatIndex === "number" && s.seatIndex >= 0 && s.seatIndex < arr.length) {
         arr[s.seatIndex].guest = g;
       }
     }
@@ -56,8 +59,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = tableData.seatedGuests?.length ?? 0;
-  const remainingSeats = tableData.seats - occupied;
+  const occupied = tableData?.seatedGuests?.length ?? 0;
+  const remainingSeats = (tableData?.seats ?? 0) - occupied;
 
   /* ================= אורחים זמינים ================= */
 
@@ -97,12 +100,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
 
-    const res = assignGuestsToTable(
-      tableData.id,
-      guestId,
-      count,
-      seatIndex
-    );
+    const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
 
     if (!res?.ok) {
       setError(res?.message || "לא ניתן להושיב כאן");
@@ -140,6 +138,21 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     });
   };
 
+  // ✅ שמירת displayName לשולחן
+  const commitTableName = async () => {
+    if (!tableData) return;
+
+    const next = String(tableNameDraft || "").trim();
+
+    // לא משנים לוגיקה קיימת – רק שומרים displayName ב-store
+    updateTableDisplayName(tableData.id, next);
+
+    // אם יש לך API לשמירת השם בשרת – אפשר להדליק כאן (לא חובה)
+    // await fetch("/api/seating/table-display-name", { ... })
+
+    setIsEditingName(false);
+  };
+
   if (!tableData) return null;
 
   /* ================= UI ================= */
@@ -154,9 +167,40 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           <X size={22} />
         </button>
 
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-1">
-          הושבה לשולחן {tableData.name}
-        </h2>
+        {/* ✅ כותרת עם עריכת מספר/שם שולחן (displayName) */}
+        <div className="flex items-center justify-center gap-2 mb-1">
+          {isEditingName ? (
+            <input
+              autoFocus
+              value={tableNameDraft}
+              onChange={(e) => setTableNameDraft(e.target.value)}
+              onBlur={commitTableName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitTableName();
+                if (e.key === "Escape") {
+                  setTableNameDraft(tableData.displayName || tableData.name || "");
+                  setIsEditingName(false);
+                }
+              }}
+              className="text-2xl font-bold text-center text-gray-800 border-b border-gray-300 focus:outline-none bg-transparent w-40"
+            />
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-center text-gray-800">
+                הושבה לשולחן {tableData.displayName || tableData.name}
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => setIsEditingName(true)}
+                className="text-gray-400 hover:text-gray-600"
+                title="עריכת מספר שולחן"
+              >
+                ✏️
+              </button>
+            </>
+          )}
+        </div>
 
         <p className="text-sm text-gray-500 text-center mb-5">
           {occupied}/{tableData.seats} מקומות תפוסים
