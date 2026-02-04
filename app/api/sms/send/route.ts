@@ -16,6 +16,11 @@ import { countSmsParts } from "@/lib/smsUtils";
 type MessageTemplateKey = "rsvp" | "table" | "custom";
 type FilterType = "all" | "pending" | "withTable";
 
+function countBusinessSms(text: string) {
+  return text.length <= 200 ? 1 : 2;
+}
+
+
 /* ======================================================
    MESSAGE TEMPLATES – SERVER SOURCE OF TRUTH
 ====================================================== */
@@ -91,15 +96,12 @@ const maxMessages =
 const smsUsed =
   typeof user.smsUsed === "number" ? user.smsUsed : 0;
 
-const smsBalance =
-  typeof user.smsBalance === "number" ? user.smsBalance : 0;
+const remainingMessages = Math.max(
+  (typeof user.maxMessages === "number" ? user.maxMessages : 0) -
+  (typeof user.smsUsed === "number" ? user.smsUsed : 0),
+  0
+);
 
-// אם יש maxMessages → זה מקור האמת
-const usesMaxMessages = maxMessages > 0;
-
-const remainingMessages = usesMaxMessages
-  ? Math.max(maxMessages - smsUsed, 0)
-  : Math.max(smsBalance, 0);
 
 if (remainingMessages <= 0) {
   return NextResponse.json(
@@ -227,7 +229,8 @@ if (hasLocation) {
     previewContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
   }
 
-  const partsPerMessage = countSmsParts(previewContent);
+  const partsPerMessage = countBusinessSms(previewContent);
+
   const totalMessagesToCharge = guestsCount * partsPerMessage;
 
   if (totalMessagesToCharge > remainingMessages) {
@@ -355,7 +358,8 @@ if (includeGiftLink && giftLink) {
   finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
 }
 
-const parts = countSmsParts(finalText);
+const parts = countBusinessSms(finalText);
+
 
 // 🔒 בדיקת יתרה אמיתית
 if (totalPartsSent + parts > remainingMessages) {

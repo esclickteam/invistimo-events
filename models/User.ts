@@ -36,14 +36,20 @@ export interface IUser extends Document {
     remindersEnabled: boolean;
   };
 
-  /** legacy – נשאר בשביל ראוטים קיימים */
+  /**
+   * SOURCE OF TRUTH:
+   * remainingMessages is ALWAYS computed as: maxMessages - smsUsed
+   * so we do NOT store remainingMessages in DB.
+   */
   maxMessages: number;
-  remainingMessages: number;
 
-  /** מקור אמת חדש */
+  /**
+   * LEGACY – keep only for backward compatibility with older routes.
+   * Not used in balance logic and should not be auto-filled.
+   */
   smsBalance: number;
 
-  /** סטטיסטיקה בלבד */
+  /** STATISTICS / USAGE */
   smsUsed: number;
   testSmsUsed: number;
 
@@ -100,7 +106,6 @@ const UserSchema = new Schema<IUser>(
     },
 
     guests: { type: Number, default: 100 },
-
     paidAmount: { type: Number, default: 0 },
 
     hasPaid: { type: Boolean, default: false, index: true },
@@ -133,11 +138,16 @@ const UserSchema = new Schema<IUser>(
       remindersEnabled: { type: Boolean, default: true },
     },
 
-    /** legacy */
+    /**
+     * SOURCE OF TRUTH:
+     * "remainingMessages" is computed and not stored.
+     */
     maxMessages: { type: Number, default: 0 },
-    remainingMessages: { type: Number, default: 0 },
 
-    /** חדש */
+    /**
+     * LEGACY – keep but do not use in logic, and do not auto-fill.
+     * (You can remove this later with a migration if you want.)
+     */
     smsBalance: { type: Number, default: 0 },
 
     smsUsed: { type: Number, default: 0 },
@@ -156,9 +166,6 @@ const UserSchema = new Schema<IUser>(
   },
   { timestamps: true }
 );
-
-
-
 
 /* ============================================================
    AUTO LOGIC – PRE SAVE
@@ -185,22 +192,11 @@ UserSchema.pre("save", function () {
       remindersEnabled: true,
     };
 
-    if (typeof this.smsBalance !== "number" || this.smsBalance === 0) {
-      this.smsBalance = 10;
-    }
-
     return;
   }
 
   /* 💼 PAID CLIENT CREATED BY PRODUCER */
   if (this.hasPaid && this.role === "client" && this.createdByProducer) {
-    const MESSAGES_PER_GUEST = 3;
-    const baseMessages = this.guests * MESSAGES_PER_GUEST;
-
-    if (typeof this.smsBalance !== "number" || this.smsBalance === 0) {
-      this.smsBalance = baseMessages;
-    }
-
     this.planLimits = {
       maxGuests: this.guests,
       smsEnabled: true,
@@ -246,10 +242,6 @@ UserSchema.pre("findOneAndUpdate", function () {
       seatingEnabled: true,
       remindersEnabled: true,
     };
-
-    if (typeof update.smsBalance !== "number") {
-      update.smsBalance = 10;
-    }
   }
 
   /* 💼 PAID CLIENT CREATED BY PRODUCER */
@@ -259,13 +251,6 @@ UserSchema.pre("findOneAndUpdate", function () {
     update.createdByProducer &&
     typeof update.guests === "number"
   ) {
-    const MESSAGES_PER_GUEST = 3;
-    const baseMessages = update.guests * MESSAGES_PER_GUEST;
-
-    if (typeof update.smsBalance !== "number") {
-      update.smsBalance = baseMessages;
-    }
-
     update.planLimits = {
       maxGuests: update.guests,
       smsEnabled: true,
@@ -274,6 +259,10 @@ UserSchema.pre("findOneAndUpdate", function () {
       remindersEnabled: true,
     };
   }
+
+  // IMPORTANT:
+  // We do NOT touch smsBalance or remainingMessages here.
+  // remainingMessages is computed as maxMessages - smsUsed.
 
   if (isUsingSet) rawUpdate.$set = update;
   (this as any).setUpdate(rawUpdate);

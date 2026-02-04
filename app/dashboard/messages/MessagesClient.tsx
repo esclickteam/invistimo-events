@@ -31,35 +31,23 @@ type Balance = {
 
 /* ================= SMS PREVIEW LIMITS ================= */
 
-const FIRST_LIMIT = 200;
-const NEXT_LIMIT = 120;
+const SMS_LIMIT = 200;
 
 function calcSmsPreview(text: string) {
   const totalChars = [...text].length;
-
-  if (totalChars <= FIRST_LIMIT) {
-    return {
-      text,
-      totalChars,
-      parts: 1,
-      currentPartChars: totalChars,
-      currentLimit: FIRST_LIMIT,
-    };
-  }
-
-  const remaining = totalChars - FIRST_LIMIT;
-  const extraParts = Math.ceil(remaining / NEXT_LIMIT);
-  const currentPartChars =
-    remaining % NEXT_LIMIT || NEXT_LIMIT;
+  const parts = totalChars <= SMS_LIMIT ? 1 : 2;
+  const overflow = Math.max(0, totalChars - SMS_LIMIT);
 
   return {
     text,
     totalChars,
-    parts: 1 + extraParts,
-    currentPartChars,
-    currentLimit: NEXT_LIMIT,
+    parts,
+    overflow,     // כמה תווים מעבר ל־200
+    limit: SMS_LIMIT,
   };
 }
+
+
 
 function getLongestMessage(
   guests: Guest[],
@@ -166,10 +154,11 @@ const [preview, setPreview] = useState<{
   text: string;
   totalChars: number;
   parts: number;
-  currentPartChars: number;
-  currentLimit: number;
+  overflow: number; // 🔥 חדש
+  limit: number;    // 🔥 חדש
   longestGuestName?: string | null;
 } | null>(null);
+
 
 
 
@@ -379,11 +368,14 @@ useEffect(() => {
    const hasSmsBalance =
     balance !== null && balance.remainingMessages > 0;
 
-  const disableSend =
-    guestsToSend.length === 0 ||
-    (channel === "sms" &&
-      (!balance ||
-        balance.remainingMessages < guestsToSend.length));
+  const partsPerGuest = channel === "sms" ? (preview?.parts ?? 1) : 0;
+
+const disableSend =
+  guestsToSend.length === 0 ||
+  (channel === "sms" &&
+    (!balance ||
+      balance.remainingMessages < guestsToSend.length * partsPerGuest));
+
 
   const buildMessage = (guest: Guest) => {
   if (!invitation) return "";
@@ -996,12 +988,15 @@ const progress = max > 0 ? (used / max) * 100 : 0;
      {preview && (
   <p
     className={`text-xs mt-1 text-left ${
-      preview.parts > 1 ? "text-orange-600" : "text-gray-500"
-    }`}
+  preview.overflow > 0 ? "text-orange-600" : "text-gray-500"
+}`}
   >
     {preview.parts === 1
-      ? `הודעה 1 · ${preview.currentPartChars} / 200 תווים`
-      : `הודעה ${preview.parts} · ${preview.currentPartChars} / 120 תווים`}
+  ? `הודעה אחת · ${preview.totalChars}/${preview.limit}`
+  : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
+
+
+
     <span className="block text-[11px] text-gray-500">
   ההודעה תחויב ב־
   <strong>

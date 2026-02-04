@@ -37,14 +37,11 @@ export async function GET() {
   const smsUsed =
     typeof user.smsUsed === "number" ? user.smsUsed : 0;
 
-  const smsBalance =
-    typeof user.smsBalance === "number" ? user.smsBalance : 0;
-
-  /* ================= CALCULATE REMAINING ================= */
-  const remainingMessages =
-    maxMessages > 0
-      ? Math.max(maxMessages - smsUsed, 0)
-      : Math.max(smsBalance, 0);
+  const remainingMessages = Math.max(
+  (typeof user.maxMessages === "number" ? user.maxMessages : 0) -
+  (typeof user.smsUsed === "number" ? user.smsUsed : 0),
+  0
+);
 
   const smsEnabled = remainingMessages > 0;
 
