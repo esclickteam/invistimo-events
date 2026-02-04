@@ -158,19 +158,7 @@ const UserSchema = new Schema<IUser>(
 );
 
 
-/**
- * maxMessages וירטואלי – כדי שראוטים ישנים לא יישברו
- */
-UserSchema.virtual("maxMessages").get(function () {
-  if (typeof this.smsBalance === "number") {
-    return this.smsBalance + (this.smsUsed ?? 0);
-  }
 
-  return this.maxMessages ?? 0;
-});
-
-UserSchema.set("toJSON", { virtuals: true });
-UserSchema.set("toObject", { virtuals: true });
 
 /* ============================================================
    AUTO LOGIC – PRE SAVE
