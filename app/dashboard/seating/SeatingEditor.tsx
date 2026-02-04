@@ -471,12 +471,13 @@ if (touches.length === 1) {
 
   if (panStart.current) {
     const dx = t.clientX - panStart.current.x;
-    const dy = t.clientY - panStart.current.y;
+const dy = t.clientY - panStart.current.y;
 
-    const next = {
+const next = {
   x: stageStart.current.x + dx,
-  y: stageStart.current.y + dy,
+  y: stageStart.current.y - dy, // ⭐ זה השינוי היחיד
 };
+
 
 const bounds = getBounds(scale);
 
