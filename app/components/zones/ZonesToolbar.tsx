@@ -81,27 +81,29 @@ export default function ZonesToolbar() {
     };
   }, [open]);
 
-  const portalTarget =
-    mounted ? (document.getElementById("header-portal") as HTMLElement | null) : null;
+  const portalTarget = mounted ? document.body : null;
+
 
   return (
     <div className="relative">
       <button
-        ref={btnRef}
-        onClick={() => setOpen((v) => !v)}
-        className="
-          flex items-center gap-2
-          px-4 py-2
-          rounded-lg
-          bg-white
-          border
-          shadow-sm
-          hover:bg-gray-50
-          transition
-          text-sm font-medium
-          whitespace-nowrap
-        "
-      >
+  ref={btnRef}
+  onClick={() => setOpen((v) => !v)}
+  className="
+    relative z-[10000]
+    flex items-center gap-2
+    px-4 py-2
+    rounded-lg
+    bg-white
+    border
+    shadow-sm
+    hover:bg-gray-50
+    transition
+    text-sm font-medium
+    whitespace-nowrap
+  "
+>
+
         ➕ הוסף אלמנט
         <span className="text-xs opacity-60">▾</span>
       </button>
@@ -111,15 +113,15 @@ export default function ZonesToolbar() {
             <div
               data-zones-dropdown="1"
               className="
-                fixed
-                bg-white
-                border
-                rounded-xl
-                shadow-lg
-                overflow-hidden
-                pointer-events-auto
-                z-[10001]
-              "
+  fixed
+  bg-white
+  border
+  rounded-xl
+  shadow-lg
+  overflow-hidden
+  pointer-events-auto
+  z-[2147483647]
+"
               style={{
                 top: pos.top,
                 right: pos.right,
