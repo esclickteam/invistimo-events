@@ -5,17 +5,21 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
 
+/* ================= CONFIG ================= */
 const RATE_LIMIT_MS = 60_000;
 const MAX_TEST_SMS = 10;
 
 const SMS_LIMIT_1 = 200;
-const SMS_LIMIT_2 = 320; // 🔒 אין הודעה 3 בכלל
+const SMS_LIMIT_2 = 320; // 🔒 אין הודעה 3
 
+/* ================= MEMORY RATE LIMIT ================= */
 const lastTestByUser = new Map<string, number>();
 
+/* ================= BUSINESS COUNT ================= */
 function countBusinessSms(text: string) {
   const t = (text ?? "").trim();
-  const len = [...t].length; // חשוב לאימוג'ים / עברית
+  const len = [...t].length; // Unicode safe
+
   if (len <= SMS_LIMIT_1) return 1;
   if (len <= SMS_LIMIT_2) return 2;
   return -1; // blocked
@@ -60,9 +64,7 @@ export async function POST(req: Request) {
     lastTestByUser.set(String(user._id), now);
 
     /* ================= BODY ================= */
-    const body = await req.json();
-    const phone = body?.phone;
-    const message = body?.message;
+    const { phone, message } = await req.json();
 
     if (!phone || !message) {
       return NextResponse.json({ error: "MISSING_PARAMS" }, { status: 400 });
@@ -70,6 +72,7 @@ export async function POST(req: Request) {
 
     /* ================= PHONE NORMALIZE ================= */
     let normalizedPhone = String(phone).replace(/\D/g, "");
+
     if (normalizedPhone.startsWith("0")) {
       normalizedPhone = "972" + normalizedPhone.slice(1);
     } else if (!normalizedPhone.startsWith("972")) {
@@ -82,28 +85,27 @@ export async function POST(req: Request) {
     const urls = finalMessage.match(/https?:\/\/[^\s]+/g);
     if (urls) {
       for (const url of urls) {
-        if (url.includes("{{")) continue; // לא לקצר טוקנים/טמפלטים
+        if (url.includes("{{")) continue; // לא לקצר טמפלטים
         const short = await shortenUrl(url);
         finalMessage = finalMessage.replace(url, short);
       }
     }
 
-    /* ================= CALC PARTS (BUSINESS RULE) ================= */
+    /* ================= COUNT (BUSINESS RULE) ================= */
     const parts = countBusinessSms(finalMessage);
 
-    // 🔒 חסימה מעל 320 תווים (לא להגיע להודעה 3)
     if (parts === -1) {
       return NextResponse.json(
         {
           error: "MESSAGE_TOO_LONG",
           maxChars: SMS_LIMIT_2,
-          totalChars: [...String(finalMessage).trim()].length,
+          totalChars: [...finalMessage.trim()].length,
         },
         { status: 400 }
       );
     }
 
-    /* ================= 🔒 RESERVE TEST SMS (ATOMIC) ================= */
+    /* ================= ATOMIC RESERVE ================= */
     const updatedUser = await User.findOneAndUpdate(
       {
         _id: user._id,
@@ -117,7 +119,7 @@ export async function POST(req: Request) {
 
     if (!updatedUser) {
       const usedBefore =
-        typeof user.testSmsUsed === "number" ? user.testSmsUsed : 0;
+        Number.isFinite(user.testSmsUsed) ? user.testSmsUsed : 0;
       const remaining = Math.max(0, MAX_TEST_SMS - usedBefore);
 
       return NextResponse.json(
@@ -145,7 +147,7 @@ export async function POST(req: Request) {
     });
 
     if (!res.ok) {
-      // intentional: לא מחזירים יתרה בטסט
+      // intentional: בטסט לא מחזירים קרדיט
       return NextResponse.json(
         { error: "SMS_PROVIDER_FAILED" },
         { status: 500 }
@@ -153,16 +155,22 @@ export async function POST(req: Request) {
     }
 
     const usedNow =
-      typeof updatedUser.testSmsUsed === "number" ? updatedUser.testSmsUsed : 0;
+      Number.isFinite(updatedUser.testSmsUsed)
+        ? updatedUser.testSmsUsed
+        : 0;
+
     const remaining = Math.max(0, MAX_TEST_SMS - usedNow);
 
     return NextResponse.json({
       success: true,
-      parts, // 1 או 2 לפי חוק 200/320
-      remaining, // מתוך 10
+      parts,      // 1 או 2 בלבד
+      remaining,  // מתוך 10
     });
   } catch (err) {
-    console.error("SMS TEST ERROR", err);
-    return NextResponse.json({ error: "SMS_TEST_FAILED" }, { status: 500 });
+    console.error("❌ SMS TEST ERROR:", err);
+    return NextResponse.json(
+      { error: "SMS_TEST_FAILED" },
+      { status: 500 }
+    );
   }
 }

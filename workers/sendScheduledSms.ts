@@ -14,16 +14,17 @@ import { shortenUrl } from "@/lib/shortenUrl";
    - > 320 chars => BLOCK (אין הודעה 3)
    חשוב: [...text].length כדי לא להישבר עם אימוג'ים/עברית
 ====================================================== */
-const SMS_LIMIT_1 = 200;
-const SMS_LIMIT_2 = 320;
+import { countSmsParts } from "@/lib/smsUtils";
 
 function countBusinessSms(text: string) {
-  const t = (text ?? "").trim();
-  const len = [...t].length;
-  if (len <= SMS_LIMIT_1) return 1;
-  if (len <= SMS_LIMIT_2) return 2;
+  const parts = countSmsParts(text); // 🔥 חישוב אמיתי כמו ספק ה-SMS
+
+  // 🔒 חוק עסקי: אין יותר מ-2 הודעות
+  if (parts <= 2) return parts;
+
   return -1; // blocked
 }
+
 
 /* ======================================================
    WORKER – SEND SCHEDULED SMS (BASED ONLY ON smsUsed)

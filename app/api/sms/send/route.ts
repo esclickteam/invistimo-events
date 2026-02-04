@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
@@ -20,9 +20,11 @@ const SMS_LIMIT_1 = 200;
 const SMS_LIMIT_2 = 320; // 🔒 אין הודעה 3
 
 function countBusinessSms(text: string) {
-  const len = [...text].length; // חשוב בשביל אימוג'ים/עברית
-  if (len <= SMS_LIMIT_1) return 1;
-  if (len <= SMS_LIMIT_2) return 2;
+  const parts = countSmsParts(text); // 🔥 חישוב אמיתי כמו הספק
+
+  // 🔒 חוק עסקי: אין יותר מ־2 הודעות
+  if (parts <= 2) return parts;
+
   return -1; // blocked
 }
 
@@ -380,7 +382,8 @@ if (includeGiftLink && giftLink) {
   finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
 }
 
-const parts = countBusinessSms(finalText);
+const parts = countSmsParts(finalText);
+
 
 if (parts === -1) {
   // אפשר או לעצור את כל השליחה (recommended)

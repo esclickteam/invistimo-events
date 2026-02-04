@@ -1,4 +1,3 @@
-// app/api/sms/preview/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Invitation from "@/models/Invitation";
@@ -6,8 +5,8 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Event from "@/models/Event";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import { shortenUrl } from "@/lib/shortenUrl";
 import { countSmsParts } from "@/lib/smsUtils";
+import { buildFinalSmsText } from "@/lib/sms/buildFinalSmsText";
 
 export async function POST(req: Request) {
   try {
@@ -54,50 +53,28 @@ export async function POST(req: Request) {
       ? await Event.findById(invitation.eventId).lean()
       : null;
 
-    /* ================= NAVIGATION ================= */
-    const location = invitation.eventLocation ?? event?.location;
-    const hasLocation = !!(location?.lat && location?.lng);
+    /* ================= BUILD FINAL SMS (SOURCE OF TRUTH) ================= */
+    const finalText = await buildFinalSmsText({
+      messageTemplate: messageOverride,
+      guest,
+      invitation,
+      event,
+      includeGiftLink,
+      giftLink,
+    });
 
-    let navigationLink = "";
-
-if (hasLocation) {
-  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-  navigationLink = await shortenUrl(wazeUrl);
-}
-
-
-    /* ================= RSVP (SHORT) ================= */
-    const personalRsvpUrl =
-      `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-
-    const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
-
-    /* ================= TABLE ================= */
-    const tableName =
-      guest.tableName ||
-      (typeof guest.tableNumber === "number"
-        ? `שולחן ${guest.tableNumber}`
-        : "");
-
-    /* ================= BUILD MESSAGE ================= */
-    let finalText = messageOverride
-      .replace(/{{name}}/g, guest.name || "")
-      .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-      .replace(/{{tableName}}/g, tableName)
-      .replace(/{{navigationLink}}/g, navigationLink);
-
-    if (includeGiftLink && giftLink) {
-      finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-    }
-
-    const length = finalText.length;
+    /* ================= COUNT ================= */
+    const length = [...finalText].length; // Unicode safe
     const parts = countSmsParts(finalText);
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
-      text: finalText,
-      length,
-      parts,
+      preview: {
+        text: finalText,
+        length,
+        parts,
+      },
     });
   } catch (err) {
     console.error("❌ SMS PREVIEW ERROR:", err);
