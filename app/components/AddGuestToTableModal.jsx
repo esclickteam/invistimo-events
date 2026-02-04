@@ -112,7 +112,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         guestId,
-        tableName: tableData.name,
+        tableName: tableData.displayName || tableData.name,
         seatIndex,
       }),
     });
@@ -140,18 +140,43 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   // ✅ שמירת displayName לשולחן
   const commitTableName = async () => {
-    if (!tableData) return;
+  if (!tableData) return;
 
-    const next = String(tableNameDraft || "").trim();
-
-    // לא משנים לוגיקה קיימת – רק שומרים displayName ב-store
-    updateTableDisplayName(tableData.id, next);
-
-    // אם יש לך API לשמירת השם בשרת – אפשר להדליק כאן (לא חובה)
-    // await fetch("/api/seating/table-display-name", { ... })
-
+  const next = String(tableNameDraft || "").trim();
+  if (!next) {
     setIsEditingName(false);
-  };
+    return;
+  }
+
+  await fetch("/api/seating/update-table-meta", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tableId: tableData.id,
+      tableName: next,
+      ...(Number.isFinite(Number(next)) ? { tableNumber: Number(next) } : {}),
+    }),
+  });
+
+  updateTableDisplayName(tableData.id, next);
+
+  useSeatingStore.setState((state) => ({
+    guests: state.guests.map((g) =>
+      g.tableId === tableData.id
+        ? {
+            ...g,
+            tableName: next,
+            ...(Number.isFinite(Number(next))
+              ? { tableNumber: Number(next) }
+              : {}),
+          }
+        : g
+    ),
+  }));
+
+  setIsEditingName(false);
+};
+
 
   if (!tableData) return null;
 
