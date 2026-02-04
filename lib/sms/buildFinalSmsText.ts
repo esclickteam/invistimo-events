@@ -1,16 +1,15 @@
 import { shortenUrl } from "@/lib/shortenUrl";
-import SeatingTable from "@/models/SeatingTable";
 
 type BuildSmsParams = {
   messageTemplate: string;
 
- guest: {
-  name?: string;
-  token: string;
-  tableId?: string;      // ⭐ חדש – לא חובה
-  tableName?: string;
-  tableNumber?: number;
-};
+  guest: {
+    name?: string;
+    token: string;
+    tableId?: string;     // ⚠️ קיים אבל לא בשימוש
+    tableName?: string;
+    tableNumber?: number;
+  };
 
   invitation: {
     shareId: string;
@@ -39,24 +38,19 @@ export async function buildFinalSmsText({
   includeGiftLink,
   giftLink,
 }: BuildSmsParams): Promise<string> {
+  /* ================= TABLE =================
+     ⚠️ SMS לא נוגע ב־DB
+     מקור אמת:
+     1. guest.tableName
+     2. guest.tableNumber
+  ========================================= */
+  let tableName = "";
 
-  
-  /* ================= TABLE ================= */
-let tableName =
-  guest.tableName ||
-  (typeof guest.tableNumber === "number"
-    ? `שולחן ${guest.tableNumber}`
-    : "");
-
-// ⭐ אם יש tableId – נשלוף את השולחן העדכני
-if (guest.tableId) {
-  const table = await SeatingTable.findById(guest.tableId).lean();
-
-  if (table?.number) {
-    tableName = `שולחן ${table.number}`;
+  if (guest.tableName) {
+    tableName = guest.tableName;
+  } else if (typeof guest.tableNumber === "number") {
+    tableName = `שולחן ${guest.tableNumber}`;
   }
-}
-
 
   /* ================= NAVIGATION ================= */
   const location = invitation.eventLocation ?? event?.location;
