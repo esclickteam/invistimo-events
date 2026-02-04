@@ -102,6 +102,7 @@ const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 // ⭐ Pinch zoom (mobile)
 const lastTouchDist = useRef<number | null>(null);
 
+const didFitRef = useRef(false);
 
 
   /* ================= LOCAL UI STATE ================= */
@@ -202,7 +203,8 @@ if (size.width === 0 || size.height === 0) return;
   setScale(initialScale);
   setStagePos({ x, y });
   setCanvasView({ x, y, scale: initialScale });
-}, [isMobile, size.width, size.height, tables.length, zones.length, setCanvasView]);
+}, [isMobile, size.width, size.height, tables.length, zones.length]);
+
 
 
 
@@ -261,7 +263,15 @@ useEffect(() => {
   useEffect(() => {
   if (!canvasView) return;
 
-  // ❗ במובייל – לא לדרוס init
+  // ❗ לא לדרוס אם אין שינוי אמיתי
+  if (
+    canvasView.scale === scale &&
+    canvasView.x === stagePos.x &&
+    canvasView.y === stagePos.y
+  ) {
+    return;
+  }
+
   if (isMobile && didInitMobileRef.current) return;
 
   setScale(canvasView.scale ?? 1);
@@ -272,32 +282,29 @@ useEffect(() => {
 }, [canvasView, isMobile]);
 
 
+
   
 
 useEffect(() => {
   if (!readOnly) return;
+  if (didFitRef.current) return;
   if (!tables.length) return;
   if (size.width === 0 || size.height === 0) return;
 
-  // ⭐ אם כבר יש canvasView מה־snapshot – לא נוגעים
   if (
     canvasView &&
     (canvasView.x !== 0 ||
       canvasView.y !== 0 ||
       canvasView.scale !== 1)
   ) {
+    didFitRef.current = true;
     return;
   }
 
+  didFitRef.current = true;
   fitCanvasToTables(size.width, size.height);
-}, [
-  readOnly,
-  tables,
-  size.width,
-  size.height,
-  canvasView,
-  fitCanvasToTables,
-]);
+}, [readOnly, tables.length, size.width, size.height]);
+
 
 
 
