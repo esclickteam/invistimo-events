@@ -31,21 +31,47 @@ type Balance = {
 
 /* ================= SMS PREVIEW LIMITS ================= */
 
-const SMS_LIMIT = 200;
+const SMS_LIMIT_1 = 200;
+const SMS_LIMIT_2 = 320; // 🔒 תקרת בטיחות – אין הודעה 3
 
 function calcSmsPreview(text: string) {
   const totalChars = [...text].length;
-  const parts = totalChars <= SMS_LIMIT ? 1 : 2;
-  const overflow = Math.max(0, totalChars - SMS_LIMIT);
 
+  // ⛔ מעבר למותר
+  if (totalChars > SMS_LIMIT_2) {
+    return {
+      text,
+      totalChars,
+      parts: 2,
+      overflow: totalChars - SMS_LIMIT_2,
+      limit: SMS_LIMIT_2,
+      blocked: true, // 🔥 חדש
+    };
+  }
+
+  // הודעה אחת
+  if (totalChars <= SMS_LIMIT_1) {
+    return {
+      text,
+      totalChars,
+      parts: 1,
+      overflow: 0,
+      limit: SMS_LIMIT_1,
+      blocked: false,
+    };
+  }
+
+  // שתי הודעות (200–320)
   return {
     text,
     totalChars,
-    parts,
-    overflow,     // כמה תווים מעבר ל־200
-    limit: SMS_LIMIT,
+    parts: 2,
+    overflow: totalChars - SMS_LIMIT_1,
+    limit: SMS_LIMIT_2,
+    blocked: false,
   };
 }
+
 
 
 
@@ -154,10 +180,12 @@ const [preview, setPreview] = useState<{
   text: string;
   totalChars: number;
   parts: number;
-  overflow: number; // 🔥 חדש
-  limit: number;    // 🔥 חדש
+  overflow: number;
+  limit: number;
+  blocked: boolean; // ⭐ חדש
   longestGuestName?: string | null;
 } | null>(null);
+
 
 
 
@@ -372,9 +400,11 @@ useEffect(() => {
 
 const disableSend =
   guestsToSend.length === 0 ||
+  preview?.blocked ||
   (channel === "sms" &&
     (!balance ||
-      balance.remainingMessages < guestsToSend.length * partsPerGuest));
+      balance.remainingMessages < guestsToSend.length * (preview?.parts ?? 1)));
+
 
 
   const buildMessage = (guest: Guest) => {
@@ -988,26 +1018,24 @@ const progress = max > 0 ? (used / max) * 100 : 0;
      {preview && (
   <p
     className={`text-xs mt-1 text-left ${
-  preview.overflow > 0 ? "text-orange-600" : "text-gray-500"
-}`}
+      preview.blocked ? "text-red-600" : preview.parts > 1 ? "text-orange-600" : "text-gray-500"
+    }`}
   >
-    {preview.parts === 1
-  ? `הודעה אחת · ${preview.totalChars}/${preview.limit}`
-  : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
+    {preview.blocked
+      ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit} תווים`
+      : preview.parts === 1
+      ? `הודעה אחת · ${preview.totalChars}/200`
+      : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
 
-
-
-    <span className="block text-[11px] text-gray-500">
-  ההודעה תחויב ב־
-  <strong>
-    {" "}
-    {preview.parts} {preview.parts === 1 ? "הודעת SMS" : "הודעות SMS"}
-  </strong>
-</span>
-
-
+    {!preview.blocked && (
+      <span className="block text-[11px] text-gray-500">
+        ההודעה תחויב ב־
+        <strong> {preview.parts} הודעות SMS</strong>
+      </span>
+    )}
   </p>
 )}
+
 
 
 
@@ -1165,11 +1193,12 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       <button
   onClick={sendTestMessage}
   disabled={
-    sendingTest ||
-    (!!preview &&
-      testSmsUsed !== null &&
-      testSmsUsed + preview.parts > MAX_TEST_SMS)
-  }
+  sendingTest ||
+  preview?.blocked || // ⭐ חדש
+  (!!preview &&
+    testSmsUsed !== null &&
+    testSmsUsed + preview.parts > MAX_TEST_SMS)
+}
   className="px-4 py-3 rounded-xl bg-gray-200 text-gray-800 text-sm font-medium disabled:opacity-50"
 >
   {sendingTest ? "שולח..." : "שלח לבדיקה"}

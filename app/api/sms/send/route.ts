@@ -16,9 +16,16 @@ import { countSmsParts } from "@/lib/smsUtils";
 type MessageTemplateKey = "rsvp" | "table" | "custom";
 type FilterType = "all" | "pending" | "withTable";
 
+const SMS_LIMIT_1 = 200;
+const SMS_LIMIT_2 = 320; // 🔒 אין הודעה 3
+
 function countBusinessSms(text: string) {
-  return text.length <= 200 ? 1 : 2;
+  const len = [...text].length; // חשוב בשביל אימוג'ים/עברית
+  if (len <= SMS_LIMIT_1) return 1;
+  if (len <= SMS_LIMIT_2) return 2;
+  return -1; // blocked
 }
+
 
 
 /* ======================================================
@@ -231,6 +238,21 @@ if (hasLocation) {
 
   const partsPerMessage = countBusinessSms(previewContent);
 
+if (partsPerMessage === -1) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "MESSAGE_TOO_LONG",
+      maxChars: SMS_LIMIT_2,
+      totalChars: [...previewContent].length,
+    },
+    { status: 400 }
+  );
+}
+
+
+
+
   const totalMessagesToCharge = guestsCount * partsPerMessage;
 
   if (totalMessagesToCharge > remainingMessages) {
@@ -359,6 +381,22 @@ if (includeGiftLink && giftLink) {
 }
 
 const parts = countBusinessSms(finalText);
+
+if (parts === -1) {
+  // אפשר או לעצור את כל השליחה (recommended)
+  return NextResponse.json(
+    {
+      success: false,
+      error: "MESSAGE_TOO_LONG",
+      maxChars: SMS_LIMIT_2,
+    },
+    { status: 400 }
+  );
+
+  // או אם את מעדיפה "לדפדף" אורח בעייתי:
+  // continue;
+}
+
 
 
 // 🔒 בדיקת יתרה אמיתית

@@ -8,11 +8,17 @@ import { shortenUrl } from "@/lib/shortenUrl";
 const RATE_LIMIT_MS = 60_000;
 const MAX_TEST_SMS = 10;
 
+const SMS_LIMIT_1 = 200;
+const SMS_LIMIT_2 = 320; // 🔒 אין הודעה 3 בכלל
+
 const lastTestByUser = new Map<string, number>();
 
 function countBusinessSms(text: string) {
   const t = (text ?? "").trim();
-  return t.length <= 200 ? 1 : 2;
+  const len = [...t].length; // חשוב לאימוג'ים / עברית
+  if (len <= SMS_LIMIT_1) return 1;
+  if (len <= SMS_LIMIT_2) return 2;
+  return -1; // blocked
 }
 
 export async function POST(req: Request) {
@@ -27,7 +33,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
+      return NextResponse.json({ error: "INVALID_TOKEN" }, { status: 401 });
+    }
+
     const user = await User.findById(decoded.userId).lean();
 
     if (!user) {
@@ -48,7 +60,9 @@ export async function POST(req: Request) {
     lastTestByUser.set(String(user._id), now);
 
     /* ================= BODY ================= */
-    const { phone, message } = await req.json();
+    const body = await req.json();
+    const phone = body?.phone;
+    const message = body?.message;
 
     if (!phone || !message) {
       return NextResponse.json({ error: "MISSING_PARAMS" }, { status: 400 });
@@ -64,11 +78,11 @@ export async function POST(req: Request) {
 
     /* ================= SHORTEN LINKS ================= */
     let finalMessage = String(message);
-    const urls = finalMessage.match(/https?:\/\/[^\s]+/g);
 
+    const urls = finalMessage.match(/https?:\/\/[^\s]+/g);
     if (urls) {
       for (const url of urls) {
-        if (url.includes("{{")) continue;
+        if (url.includes("{{")) continue; // לא לקצר טוקנים/טמפלטים
         const short = await shortenUrl(url);
         finalMessage = finalMessage.replace(url, short);
       }
@@ -76,6 +90,18 @@ export async function POST(req: Request) {
 
     /* ================= CALC PARTS (BUSINESS RULE) ================= */
     const parts = countBusinessSms(finalMessage);
+
+    // 🔒 חסימה מעל 320 תווים (לא להגיע להודעה 3)
+    if (parts === -1) {
+      return NextResponse.json(
+        {
+          error: "MESSAGE_TOO_LONG",
+          maxChars: SMS_LIMIT_2,
+          totalChars: [...String(finalMessage).trim()].length,
+        },
+        { status: 400 }
+      );
+    }
 
     /* ================= 🔒 RESERVE TEST SMS (ATOMIC) ================= */
     const updatedUser = await User.findOneAndUpdate(
@@ -90,7 +116,8 @@ export async function POST(req: Request) {
     );
 
     if (!updatedUser) {
-      const usedBefore = typeof user.testSmsUsed === "number" ? user.testSmsUsed : 0;
+      const usedBefore =
+        typeof user.testSmsUsed === "number" ? user.testSmsUsed : 0;
       const remaining = Math.max(0, MAX_TEST_SMS - usedBefore);
 
       return NextResponse.json(
@@ -119,16 +146,20 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       // intentional: לא מחזירים יתרה בטסט
-      return NextResponse.json({ error: "SMS_PROVIDER_FAILED" }, { status: 500 });
+      return NextResponse.json(
+        { error: "SMS_PROVIDER_FAILED" },
+        { status: 500 }
+      );
     }
 
-    const usedNow = typeof updatedUser.testSmsUsed === "number" ? updatedUser.testSmsUsed : 0;
+    const usedNow =
+      typeof updatedUser.testSmsUsed === "number" ? updatedUser.testSmsUsed : 0;
     const remaining = Math.max(0, MAX_TEST_SMS - usedNow);
 
     return NextResponse.json({
       success: true,
-      parts,      // 1 או 2 לפי חוק 200 תווים
-      remaining,  // מתוך 10
+      parts, // 1 או 2 לפי חוק 200/320
+      remaining, // מתוך 10
     });
   } catch (err) {
     console.error("SMS TEST ERROR", err);

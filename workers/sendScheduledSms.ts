@@ -8,11 +8,21 @@ import { shortenUrl } from "@/lib/shortenUrl";
 
 /* ======================================================
    BUSINESS SMS COUNT (SOURCE OF TRUTH)
-   Rule: <= 200 chars => 1, > 200 => 2
+   Rule:
+   - <= 200 chars => 1
+   - 201–320 chars => 2
+   - > 320 chars => BLOCK (אין הודעה 3)
+   חשוב: [...text].length כדי לא להישבר עם אימוג'ים/עברית
 ====================================================== */
+const SMS_LIMIT_1 = 200;
+const SMS_LIMIT_2 = 320;
+
 function countBusinessSms(text: string) {
   const t = (text ?? "").trim();
-  return t.length <= 200 ? 1 : 2;
+  const len = [...t].length;
+  if (len <= SMS_LIMIT_1) return 1;
+  if (len <= SMS_LIMIT_2) return 2;
+  return -1; // blocked
 }
 
 /* ======================================================
@@ -71,20 +81,20 @@ export async function sendScheduledSms() {
       ====================================================== */
       let guests: any[] = [];
 
-      if (Array.isArray(msg.guestIds) && msg.guestIds.length > 0) {
+      if (Array.isArray((msg as any).guestIds) && (msg as any).guestIds.length > 0) {
         guests = await InvitationGuest.find({
-          _id: { $in: msg.guestIds },
+          _id: { $in: (msg as any).guestIds },
           invitationId: msg.invitationId,
         }).lean();
       } else {
         const query: any = { invitationId: msg.invitationId };
 
-        if (msg.filter === "pending") query.rsvp = "pending";
+        if ((msg as any).filter === "pending") query.rsvp = "pending";
 
-        if (msg.filter === "withTable") {
+        if ((msg as any).filter === "withTable") {
           query.$or = [
             { tableName: { $exists: true, $ne: "" } },
-            { tableNumber: { $exists: true } },
+            { tableNumber: { $exists: true, $ne: null } },
           ];
         }
 
@@ -102,7 +112,7 @@ export async function sendScheduledSms() {
       /* ======================================================
          LOCATION / NAVIGATION
       ====================================================== */
-      const location = invitation.eventLocation ?? event?.location;
+      const location = (invitation as any).eventLocation ?? (event as any)?.location;
       const hasLocation = !!(location?.lat && location?.lng);
       let navigationLink = "";
 
@@ -112,19 +122,15 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         CALCULATE REQUIRED CHARGE (BUSINESS RULE, WORST-CASE)
-         Based ONLY on maxMessages - smsUsed
+         CALCULATE REMAINING (BASED ONLY ON maxMessages - smsUsed)
       ====================================================== */
       const maxMessages =
-        typeof user.maxMessages === "number" ? user.maxMessages : 0;
-      const smsUsed = typeof user.smsUsed === "number" ? user.smsUsed : 0;
+        typeof (user as any).maxMessages === "number" ? (user as any).maxMessages : 0;
+      const smsUsed = typeof (user as any).smsUsed === "number" ? (user as any).smsUsed : 0;
 
       const usesMaxMessages = maxMessages > 0;
-      const remainingMessages = usesMaxMessages
-        ? Math.max(maxMessages - smsUsed, 0)
-        : 0;
+      const remainingMessages = usesMaxMessages ? Math.max(maxMessages - smsUsed, 0) : 0;
 
-      // אם אין maxMessages מוגדר – מבחינתך אין דרך לחשב "יתרה לפי smsUsed"
       if (!usesMaxMessages) {
         await ScheduledMessage.updateOne(
           { _id: msg._id },
@@ -140,13 +146,33 @@ export async function sendScheduledSms() {
         continue;
       }
 
-      const previewText = (msg.messageContent || "")
+      /* ======================================================
+         WORST-CASE PREVIEW TEXT (TO CALC PARTS + BLOCK > 320)
+      ====================================================== */
+      const previewText = String((msg as any).messageContent || "")
         .replace(/{{name}}/g, "שם מלא לדוגמה ארוך מאוד")
         .replace(/{{rsvpLink}}/g, "https://example.com/very-long-link")
         .replace(/{{tableName}}/g, "שולחן 123")
         .replace(/{{navigationLink}}/g, navigationLink || "https://waze.com");
 
       const partsPerMessage = countBusinessSms(previewText);
+
+      // 🔒 אין הודעה 3 — חוסמים
+      if (partsPerMessage === -1) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "failed",
+              error: "MESSAGE_TOO_LONG",
+              sentAt: new Date(),
+            },
+          }
+        );
+        failed++;
+        continue;
+      }
+
       const totalMessagesToCharge = guests.length * partsPerMessage;
 
       if (totalMessagesToCharge > remainingMessages) {
@@ -171,7 +197,7 @@ export async function sendScheduledSms() {
       let charged = 0;
 
       for (const guest of guests) {
-        let phone = (guest.phone || "").replace(/\D/g, "");
+        let phone = String(guest.phone || "").replace(/\D/g, "");
         if (!phone) continue;
 
         if (phone.startsWith("0")) phone = "972" + phone.slice(1);
@@ -179,14 +205,12 @@ export async function sendScheduledSms() {
 
         const tableName =
           guest.tableName ||
-          (typeof guest.tableNumber === "number"
-            ? `שולחן ${guest.tableNumber}`
-            : "");
+          (typeof guest.tableNumber === "number" ? `שולחן ${guest.tableNumber}` : "");
 
-        const personalRsvpUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+        const personalRsvpUrl = `https://www.invistimo.com/invite/${(invitation as any).shareId}?token=${guest.token}`;
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
-        let finalText = (msg.messageContent || "")
+        let finalText = String((msg as any).messageContent || "")
           .replace(/{{name}}/g, guest.name || "")
           .replace(/{{rsvpLink}}/g, shortRsvpUrl)
           .replace(/{{tableName}}/g, tableName)
@@ -197,7 +221,23 @@ export async function sendScheduledSms() {
 
         const parts = countBusinessSms(finalText);
 
-        // 🔒 לא לעבור את היתרה לפי smsUsed (מקסימום הודעות)
+        // 🔒 אין הודעה 3 — אם יצא ארוך מדי, מפילים את כל ההודעה המתוזמנת
+        if (parts === -1) {
+          await ScheduledMessage.updateOne(
+            { _id: msg._id },
+            {
+              $set: {
+                status: "failed",
+                error: "MESSAGE_TOO_LONG",
+                sentAt: new Date(),
+              },
+            }
+          );
+          failed++;
+          throw new Error("MESSAGE_TOO_LONG");
+        }
+
+        // 🔒 לא לעבור את היתרה לפי smsUsed
         if (charged + parts > remainingMessages) break;
 
         try {
@@ -258,6 +298,7 @@ export async function sendScheduledSms() {
           },
         }
       );
+
       failed++;
     }
   }
