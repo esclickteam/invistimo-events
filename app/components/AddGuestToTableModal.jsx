@@ -139,21 +139,27 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   };
 
   // ✅ שמירת displayName לשולחן
-  const commitTableName = async () => {
-    if (!tableData) return;
+ const commitTableName = async () => {
+  if (!tableData) return;
 
-    const next = String(tableNameDraft || "").trim();
+  const next = String(tableNameDraft || "").trim();
 
-    // לא משנים לוגיקה קיימת – רק שומרים displayName ב-store
-    updateTableDisplayName(tableData.id, next);
+  // 1️⃣ עדכון מיידי ב־Client (Zustand)
+  updateTableDisplayName(tableData.id, next);
 
-    // אם יש לך API לשמירת השם בשרת – אפשר להדליק כאן (לא חובה)
-    // await fetch("/api/seating/table-display-name", { ... })
+  // 2️⃣ עדכון מיידי ב־DB
+  await fetch(`/api/seating/tables/${tableData.eventId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tableId: tableData.id,
+      displayName: next,
+    }),
+  });
 
-    setIsEditingName(false);
-  };
+  setIsEditingName(false);
+};
 
-  if (!tableData) return null;
 
   /* ================= UI ================= */
 
