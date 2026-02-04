@@ -305,7 +305,6 @@ const clamp = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
 
 const getBounds = (scaleVal: number) => {
-  // בדסקטופ – לא מגבילים (כמו שהיה)
   if (!isMobile) {
     return {
       minX: -Infinity,
@@ -315,22 +314,38 @@ const getBounds = (scaleVal: number) => {
     };
   }
 
-  // גבולות תוכן אמיתי (שולחנות + אזורים)
   const { minX, minY, maxX, maxY } = getContentBounds();
-
-  const PAD = 120; // מרווח נשימה מסביב לתוכן
+  const PAD = 120;
 
   const contentWidth = (maxX - minX + PAD) * scaleVal;
   const contentHeight = (maxY - minY + PAD) * scaleVal;
 
+  let minBoundX = size.width - contentWidth;
+  let maxBoundX = 0;
+  let minBoundY = size.height - contentHeight;
+  let maxBoundY = 0;
+
+  // ⭐ אם התוכן קטן מהמסך – משחררים / ממרכזים
+  if (contentHeight <= size.height) {
+    const centerY = (size.height - contentHeight) / 2;
+    minBoundY = centerY;
+    maxBoundY = centerY;
+  }
+
+  if (contentWidth <= size.width) {
+    const centerX = (size.width - contentWidth) / 2;
+    minBoundX = centerX;
+    maxBoundX = centerX;
+  }
+
   return {
-    // מאפשר לראות את כל התוכן גם ב־zoom-out
-    minX: size.width - contentWidth,
-    maxX: 0,
-    minY: size.height - contentHeight,
-    maxY: 0,
+    minX: minBoundX,
+    maxX: maxBoundX,
+    minY: minBoundY,
+    maxY: maxBoundY,
   };
 };
+
 
 
 
