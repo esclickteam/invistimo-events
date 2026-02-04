@@ -25,9 +25,11 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   /* ================= URL PARAM ================= */
 
   const searchParams = useSearchParams();
-  const seatingId = searchParams.get("eventId"); // ⭐ מקור האמת
+  const invitationId = searchParams.get("invitationId");
 
-  console.log("🧩 SeatingId from URL:", seatingId);
+
+  console.log("🧩 invitationId from URL:", invitationId);
+
 
   /* ================= UI STATE ================= */
 
@@ -183,10 +185,10 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const commitTableName = async () => {
     if (!tableData) return;
 
-    if (!seatingId) {
-      console.error("❌ Missing seatingId – PATCH aborted");
-      return;
-    }
+    if (!invitationId) {
+  console.error("❌ Missing invitationId – PATCH aborted");
+  return;
+}
 
     const next = String(tableNameDraft || "").trim();
 
@@ -198,7 +200,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     updateTableDisplayName(tableData.id, next);
 
-    await fetch(`/api/seating/tables/${seatingId}`, {
+    await fetch(`/api/seating/tables/${invitationId}`, {
+
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
