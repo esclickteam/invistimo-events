@@ -82,9 +82,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     const record = await SeatingTable.findOne({
-      $or: [{ eventId }, { invitationId: eventId }],
-      "tables.id": tableId,
-    });
+  invitationId: eventId, // ⭐ זה בעצם invitationId
+  "tables.id": tableId,
+});
 
     if (!record) {
       return NextResponse.json(
