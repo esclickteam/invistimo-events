@@ -6,17 +6,15 @@ import { useZoneStore } from "@/store/zoneStore";
 import { ZONE_META } from "@/config/zonesMeta";
 import type { ZoneType } from "@/types/zones";
 
-import { useSeatingStore } from "@/store/seatingStore";
-
-
 export default function ZonesToolbar() {
   const addZone = useZoneStore((s) => s.addZone);
-const canvasView = useSeatingStore((s) => s.canvasView);
-
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // סגירה בלחיצה מחוץ לדרופדאון
+  const isMobile =
+    typeof window !== "undefined" && window.innerWidth < 768;
+
+  // סגירה בלחיצה מחוץ
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -29,7 +27,7 @@ const canvasView = useSeatingStore((s) => s.canvasView);
 
   return (
     <div ref={ref} className="relative">
-      {/* כפתור פתיחה */}
+      {/* כפתור */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="
@@ -48,19 +46,19 @@ const canvasView = useSeatingStore((s) => s.canvasView);
         <span className="text-xs opacity-60">▾</span>
       </button>
 
-      {/* הדרופדאון */}
       {open && (
         <div
-          className="
-            absolute right-0 mt-2
-            w-56
+          className={`
+            ${isMobile
+              ? "fixed top-[64px] inset-x-0 mx-3"
+              : "absolute right-0 mt-2"}
+            z-[10000]
             bg-white
             border
             rounded-xl
-            shadow-lg
-            z-50
+            shadow-xl
             overflow-hidden
-          "
+          `}
         >
           {(Object.keys(ZONE_META) as ZoneType[]).map((type) => {
             const meta = ZONE_META[type];
@@ -69,18 +67,6 @@ const canvasView = useSeatingStore((s) => s.canvasView);
               <button
                 key={type}
                 onClick={() => {
-                  const view = canvasView ?? { x: 0, y: 0, scale: 1 };
-                  const isMobile = window.innerWidth < 768;
-                  const UI_OFFSET_Y = isMobile ? 120 : 0;
-
-                  const centerX =
-                    (-view.x + window.innerWidth / 2) / view.scale;
-                  const centerY =
-                    (-view.y +
-                      window.innerHeight / 2 -
-                      UI_OFFSET_Y) /
-                    view.scale;
-
                   addZone({
                     id: nanoid(),
                     type,
@@ -88,19 +74,18 @@ const canvasView = useSeatingStore((s) => s.canvasView);
                     icon: meta.icon,
                     color: meta.color,
                     opacity: 0.35,
-                    x: centerX,
-                    y: centerY,
+                    x: 300,
+                    y: 200,
                     width: meta.defaultSize.width,
                     height: meta.defaultSize.height,
                     rotation: 0,
                     locked: false,
                   });
-
                   setOpen(false);
                 }}
                 className="
                   w-full flex items-center gap-3
-                  px-4 py-3
+                  px-4 py-4
                   text-right
                   hover:bg-indigo-50
                   transition
