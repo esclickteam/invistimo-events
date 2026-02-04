@@ -8,7 +8,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
-import { countSmsParts } from "@/lib/smsUtils";
+
 
 /* ======================================================
    TYPES
@@ -17,13 +17,13 @@ type MessageTemplateKey = "rsvp" | "table" | "custom";
 type FilterType = "all" | "pending" | "withTable";
 
 
-function countBusinessSms(text: string) {
-  const parts = countSmsParts(text); // 🔥 חישוב אמיתי כמו הספק
+ function countBusinessSms(text: string) {
+  const length = [...text].length; // Unicode safe
 
-  // 🔒 חוק עסקי: אין יותר מ־2 הודעות
-  if (parts <= 2) return parts;
+  if (length <= 200) return 1;
+  if (length <= 320) return 2;
 
-  return -1; // blocked
+  return -1; // חסום מעל 320
 }
 
 
@@ -251,8 +251,6 @@ if (partsPerMessage === -1) {
 }
 
 
-
-
   const totalMessagesToCharge = guestsCount * partsPerMessage;
 
   if (totalMessagesToCharge > remainingMessages) {
@@ -384,26 +382,14 @@ const parts = countBusinessSms(finalText);
 
 
 if (parts === -1) {
-  // אפשר או לעצור את כל השליחה (recommended)
-  return NextResponse.json(
-    {
-      success: false,
-      error: "MESSAGE_TOO_LONG",
-      maxParts: 2,
-
-    },
-    { status: 400 }
-  );
-
-  // או אם את מעדיפה "לדפדף" אורח בעייתי:
-  // continue;
+  continue; // ⬅️ מדלג רק על האורח הזה
 }
 
 
 
 // 🔒 בדיקת יתרה אמיתית
 if (totalPartsSent + parts > remainingMessages) {
-  break;
+  continue;
 }
 
 
