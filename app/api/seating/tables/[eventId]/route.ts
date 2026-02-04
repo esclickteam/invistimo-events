@@ -5,15 +5,10 @@ import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
-/** ⭐ Next.js 16 — params הוא Promise */
-type RouteContext = {
-  params: Promise<{ eventId: string }>;
-};
-
 /* ======================================================
-   GET – טעינת הושבה
+   GET – טעינת הושבה לפי היוזר
 ====================================================== */
-export async function GET(req: NextRequest, context: RouteContext) {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
 
@@ -22,25 +17,28 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return guard.response!;
     }
 
-    const { eventId } = await context.params;
+    const userId = guard.userId;
 
-    if (!eventId) {
-      return NextResponse.json(
-        { success: false, error: "Missing eventId" },
-        { status: 400 }
-      );
+    // 🔹 Seating אחד ליוזר
+    let record = await SeatingTable.findOne({ userId }).lean();
+
+    // 🔹 אם עדיין אין – מחזירים ריק (או אפשר ליצור)
+    if (!record) {
+      return NextResponse.json({
+        success: true,
+        tables: [],
+        background: null,
+        zones: [],
+        canvasView: null,
+      });
     }
-
-    const record =
-      (await SeatingTable.findOne({ eventId }).lean()) ||
-      (await SeatingTable.findOne({ invitationId: eventId }).lean());
 
     return NextResponse.json({
       success: true,
-      tables: record?.tables || [],
-      background: record?.background ?? null,
-      zones: record?.zones || [],
-      canvasView: record?.canvasView ?? null,
+      tables: record.tables || [],
+      background: record.background ?? null,
+      zones: record.zones || [],
+      canvasView: record.canvasView ?? null,
     });
   } catch (err) {
     console.error("❌ Load seating tables error:", err);
@@ -52,9 +50,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
 }
 
 /* ======================================================
-   PATCH – עדכון שם / מספר שולחן
+   PATCH – עדכון שם שולחן לפי היוזר
 ====================================================== */
-export async function PATCH(req: NextRequest, context: RouteContext) {
+export async function PATCH(req: NextRequest) {
   try {
     await dbConnect();
 
@@ -63,15 +61,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       return guard.response!;
     }
 
-    const { eventId } = await context.params;
-
-    if (!eventId) {
-      return NextResponse.json(
-        { success: false, error: "Missing eventId" },
-        { status: 400 }
-      );
-    }
-
+    const userId = guard.userId;
     const { tableId, displayName } = await req.json();
 
     if (!tableId) {
@@ -81,22 +71,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const record =
-  (await SeatingTable.findOne({
-    eventId,
-    "tables.id": tableId,
-  })) ||
-  (await SeatingTable.findOne({
-    invitationId: eventId,
-    "tables.id": tableId,
-  }));
+    // 🔹 מביאים Seating של היוזר
+    let record = await SeatingTable.findOne({ userId });
 
-
+    // 🔹 אם אין עדיין Seating – יוצרים אחד
     if (!record) {
-      return NextResponse.json(
-        { success: false, error: "Table not found" },
-        { status: 404 }
-      );
+      record = await SeatingTable.create({
+        userId,
+        tables: [],
+        zones: [],
+        canvasView: null,
+        background: null,
+      });
     }
 
     const table = record.tables.find(
@@ -105,7 +91,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     if (!table) {
       return NextResponse.json(
-        { success: false, error: "Table not found in record" },
+        { success: false, error: "Table not found" },
         { status: 404 }
       );
     }

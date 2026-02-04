@@ -3,11 +3,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { X } from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
-import { useSearchParams } from "next/navigation";
 
 export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
+  const updateTableDisplayName = useSeatingStore(
+    (s) => s.updateTableDisplayName
+  );
 
   /* ================= STORE DATA ================= */
 
@@ -18,25 +20,11 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const storeGuests = useSeatingStore((s) => s.guests);
   const tableGuests = storeGuests?.length ? storeGuests : guests;
 
-  const updateTableDisplayName = useSeatingStore(
-    (s) => s.updateTableDisplayName
-  );
-
-  /* ================= URL PARAM ================= */
-
-  const searchParams = useSearchParams();
-  const invitationId = searchParams.get("invitationId");
-
-
-  console.log("🧩 invitationId from URL:", invitationId);
-
-
   /* ================= UI STATE ================= */
 
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-
   const [isEditingName, setIsEditingName] = useState(false);
   const [tableNameDraft, setTableNameDraft] = useState("");
 
@@ -115,19 +103,12 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     });
   }, [tableGuests, searchTerm, remainingSeats]);
 
-  /* ================= ASSIGN GUEST ================= */
+  /* ================= ASSIGN ================= */
 
   const handleSeatGuest = async (seatIndex, guest) => {
     if (!tableData) return;
 
     const guestId = getGuestId(guest);
-
-    console.log("🪑 Assign guest:", {
-      guestId,
-      tableId: tableData.id,
-      tableName: tableData.displayName || tableData.name,
-      seatIndex,
-    });
 
     const res = assignGuestsToTable(
       tableData.id,
@@ -165,11 +146,6 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     const guestId = getGuestId(guest);
 
-    console.log("❌ Remove guest from table:", {
-      guestId,
-      tableId: tableData.id,
-    });
-
     removeGuestFromTable(tableData.id, guestId);
 
     await fetch("/api/guests/remove-from-table", {
@@ -185,23 +161,11 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const commitTableName = async () => {
     if (!tableData) return;
 
-    if (!invitationId) {
-  console.error("❌ Missing invitationId – PATCH aborted");
-  return;
-}
-
     const next = String(tableNameDraft || "").trim();
-
-    console.log("✏️ Update table displayName:", {
-      seatingId,
-      tableId: tableData.id,
-      displayName: next,
-    });
 
     updateTableDisplayName(tableData.id, next);
 
-    await fetch(`/api/seating/tables/${invitationId}`, {
-
+    await fetch("/api/seating/tables", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -263,7 +227,6 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         <p className="text-sm text-gray-500 text-center mb-5">
           {occupied}/{tableData.seats} מקומות תפוסים
         </p>
-
 
         {error && (
           <div className="text-red-600 bg-red-50 border border-red-200 text-center py-2 rounded-xl mb-4 font-medium">

@@ -38,6 +38,8 @@ export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
+  const [invitationId, setInvitationId] = useState<string | null>(null);
+
   const didLoadRef = useRef(false);
 
 
@@ -122,13 +124,6 @@ useEffect(() => {
     try {
       const seatingState = useSeatingStore.getState();
 
-      const hasTables =
-        seatingState.tables && seatingState.tables.length > 0;
-
-      if (!hasTables) {
-        seatingState.init([], [], null, null);
-        useZoneStore.getState().setZones([]);
-      }
 
       /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
       const invRes = await fetch("/api/invitations/my");
@@ -136,6 +131,8 @@ useEffect(() => {
 
       const eventIdFromApi: string = invData.invitation.eventId;
       setEventId(eventIdFromApi);
+      setInvitationId(invData.invitation._id);
+
 
       /* 2️⃣ אורחים – לפי eventId */
       const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
@@ -159,7 +156,8 @@ useEffect(() => {
       }));
 
       /* 3️⃣ שולחנות + קנבס */
-      const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
+      const tRes = await fetch(`/api/seating/tables`);
+
 
       if (tRes.status === 403) {
         setBlockReason("no-plan");
@@ -263,23 +261,28 @@ useEffect(() => {
      SAVE
   =============================== */
   async function saveSeating() {
-    if (!eventId) return;
+   
 
     const zones = useZoneStore.getState().zones;
     const cv = useSeatingStore.getState().canvasView;
 
 
-    const res = await fetch(`/api/seating/save/${eventId}`, {
+    const res = await fetch(`/api/seating/save`, {
+
       method: "POST",
       headers: { "Content-Type": "application/json" },
+
       body: JSON.stringify({
-        tables,
-        guests,
-        groups,
-        background,
-        zones,
-        canvasView: cv,
-      }),
+  tables,
+  guests,
+  groups,
+  background,
+  zones,
+  canvasView: cv,
+  invitationId: invitationId ?? undefined,
+
+
+}),
     });
 
  
