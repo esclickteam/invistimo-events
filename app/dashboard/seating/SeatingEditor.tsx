@@ -304,47 +304,15 @@ useEffect(() => {
 const clamp = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
 
-const getBounds = (scaleVal: number) => {
-  if (!isMobile) {
-    return {
-      minX: -Infinity,
-      maxX: Infinity,
-      minY: -Infinity,
-      maxY: Infinity,
-    };
-  }
-
-  const { minX, minY, maxX, maxY } = getContentBounds();
-  const PAD = 120;
-
-  const contentWidth = (maxX - minX + PAD) * scaleVal;
-  const contentHeight = (maxY - minY + PAD) * scaleVal;
-
-  let minBoundX = size.width - contentWidth;
-  let maxBoundX = 0;
-  let minBoundY = size.height - contentHeight;
-  let maxBoundY = 0;
-
-  // ⭐ אם התוכן קטן מהמסך – משחררים / ממרכזים
-  if (contentHeight <= size.height) {
-    const centerY = (size.height - contentHeight) / 2;
-    minBoundY = centerY;
-    maxBoundY = centerY;
-  }
-
-  if (contentWidth <= size.width) {
-    const centerX = (size.width - contentWidth) / 2;
-    minBoundX = centerX;
-    maxBoundX = centerX;
-  }
-
+const getBounds = () => {
   return {
-    minX: minBoundX,
-    maxX: maxBoundX,
-    minY: minBoundY,
-    maxY: maxBoundY,
+    minX: -Infinity,
+    maxX: Infinity,
+    minY: -Infinity,
+    maxY: Infinity,
   };
 };
+
 
 
 
@@ -371,7 +339,8 @@ const getBounds = (scaleVal: number) => {
   };
 
   // ✅ גבולות בסיסיים לפי גודל המסך (מספיק כדי שלא "ייעלם")
-  const bounds = getBounds(scale);
+  const bounds = getBounds();
+
 
 const clamped = {
   x: clamp(next.x, bounds.minX, bounds.maxX),
@@ -399,9 +368,9 @@ const clamped = {
   const scaleBy = 1.05;
   const direction = e.evt.deltaY > 0 ? -1 : 1;
   const newScale =
-    direction > 0
-      ? Math.min(scale * scaleBy, 3)
-      : Math.max(scale / scaleBy, 0.4);
+  direction > 0
+    ? scale * scaleBy
+    : scale / scaleBy;
 
   const mousePointTo = {
     x: (pointer.x - stagePos.x) / scale,
@@ -414,7 +383,8 @@ const clamped = {
 };
 
 // ✅ גבולות בסיסיים שלא יאפשרו "להיעלם" מהמסך
-const bounds = getBounds(newScale);
+const bounds = getBounds();
+
 
 const newPos = {
   x: clamp(newPosRaw.x, bounds.minX, bounds.maxX),
@@ -479,7 +449,8 @@ const next = {
 };
 
 
-const bounds = getBounds(scale);
+const bounds = getBounds();
+
 
 const clamped = {
   x: clamp(next.x, bounds.minX, bounds.maxX),
@@ -513,7 +484,8 @@ setCanvasView({ ...clamped, scale });
     }
 
     const scaleBy = dist / lastTouchDist.current;
-    const newScale = Math.max(0.4, Math.min(3, scale * scaleBy));
+    const newScale = scale * scaleBy;
+
 
     // מרכז הזום בין שתי האצבעות
     const center = {
@@ -531,7 +503,8 @@ setCanvasView({ ...clamped, scale });
   y: center.y - mousePointTo.y * newScale,
 };
 
-const bounds = getBounds(newScale);
+const bounds = getBounds();
+
 
 const newPos = {
   x: clamp(newPosRaw.x, bounds.minX, bounds.maxX),
