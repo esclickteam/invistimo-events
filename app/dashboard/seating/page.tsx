@@ -329,8 +329,7 @@ if (grRes.ok) {
    RENDER
 =============================== */
 return (
-    <div className="min-h-screen w-full bg-gray-50 flex flex-col">
-
+    <div className="h-screen w-screen bg-gray-50 overflow-hidden">
 
 
 
@@ -340,8 +339,7 @@ return (
 
 
       {/* HEADER */}
-<header className="sticky top-0 h-[64px] bg-white shadow-sm border-b z-50">
-
+<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-[9999]">
 
 
 
@@ -387,13 +385,8 @@ return (
 </div>
 
 
-
-
-    </div>
-</header>
-
-
-
+  </div>
+</div>
 
 
 
@@ -402,85 +395,109 @@ return (
 
 
   {/* 🎨 קנבס */}
-{/* CONTENT */}
-<div className="flex flex-1 relative overflow-hidden">
-
   {/* 🎨 קנבס */}
-  <div className="flex-1 relative">
+<div
+  className="absolute left-0 right-0"
+  style={{
+    top: 64,
+    bottom: 0,
+  }}
+>
+  <div
+    style={{
+      width:
+        !isMobile && sidebarOpen
+          ? "calc(100% - 400px)"
+          : "100%",
+      height: "100%",
+    }}
+  >
     <SeatingEditor
       background={background?.url || null}
       hideSeats={isProducer}
       sidebarOpen={sidebarOpen}
     />
   </div>
-
-  {/* 🧾 סיידבר – דסקטופ בלבד */}
-  <div className="hidden md:flex relative h-full">
-    <aside
-      className={`
-        transition-all duration-300
-        ${sidebarOpen ? "w-[400px]" : "w-0 overflow-hidden"}
-        bg-white border-l border-[#ead8cc]
-        h-full
-      `}
-    >
-      {sidebarOpen && (
-        <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
-          <SeatingSidebar />
-        </Suspense>
-      )}
-    </aside>
-
-    {/* 🔘 חץ שליטה */}
-    <div
-      className={`
-        absolute top-1/2 -translate-y-1/2
-        right-full
-        z-40 flex items-center
-        transition-all duration-300
-        ${sidebarOpen ? "mr-[18px]" : "mr-0"}
-      `}
-    >
-      {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
-
-      <button
-        onClick={() => setSidebarOpen((v) => !v)}
-        className="
-          ml-[-12px]
-          h-9 w-9
-          rounded-full
-          bg-[#fdf9f6]
-          border border-[#ead8cc]
-          shadow-sm
-          flex items-center justify-center
-          hover:bg-[#f6ede8]
-          transition
-        "
-      >
-        {sidebarOpen ? "❮" : "❯"}
-      </button>
-    </div>
-  </div>
-
-  {/* 📱 מובייל – אורחים */}
-  <button
-    onClick={() => setShowGuests(true)}
-    className="md:hidden fixed top-[80px] left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
-  >
-    👥 רשימת אורחים
-  </button>
-
-  {showGuests && (
-    <Suspense fallback={null}>
-      <MobileGuests
-        onDragStart={handleDragStart}
-        onClose={() => setShowGuests(false)}
-      />
-    </Suspense>
-  )}
-
 </div>
 
+
+
+  {/* 🧾 סיידבר הושבה מאוחד */}
+<div className="absolute right-0 bottom-0 hidden md:flex" style={{ top: 64 }}>
+
+
+
+
+  {/* 🧾 סיידבר – תמיד קיים, רק הרוחב משתנה */}
+  <aside
+    className={`
+      transition-all duration-300
+      ${sidebarOpen ? "w-[400px]" : "w-0 overflow-hidden"}
+      bg-white border-l border-[#ead8cc]
+    `}
+  >
+    {sidebarOpen && (
+      <Suspense
+        fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}
+      >
+        <SeatingSidebar />
+      </Suspense>
+    )}
+  </aside>
+
+  {/* 🔘 חץ שליטה – תמיד קיים */}
+  <div
+  className={`
+    absolute top-1/2 -translate-y-1/2
+    right-full
+    z-40 flex items-center
+    transition-all duration-300
+    ${sidebarOpen ? "mr-[18px]" : "mr-0"}
+  `}
+>
+    {/* קו הפרדה – רק כשהסיידבר פתוח */}
+    {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
+
+    <button
+      onClick={() => setSidebarOpen((v) => !v)}
+      className="
+        ml-[-12px]
+        h-9 w-9
+        rounded-full
+        bg-[#fdf9f6]
+        border border-[#ead8cc]
+        shadow-sm
+        flex items-center justify-center
+        hover:bg-[#f6ede8]
+        transition
+      "
+      title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
+    >
+      {sidebarOpen ? "❮" : "❯"}
+    </button>
+  </div>
+
+
+
+
+
+
+        <button
+          onClick={() => setShowGuests(true)}
+          className="md:hidden fixed top-[80px] left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
+        >
+          👥 רשימת אורחים
+        </button>
+
+        {showGuests && (
+          <Suspense fallback={null}>
+            <MobileGuests
+              onDragStart={handleDragStart}
+              onClose={() => setShowGuests(false)}
+            />
+          </Suspense>
+        )}
+      </div>
 
       {/* MODALS */}
       {showUpload && (
