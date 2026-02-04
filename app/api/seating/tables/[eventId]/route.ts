@@ -5,104 +5,63 @@ import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
-/* ======================================================
-   GET – טעינת הושבה לפי היוזר
-====================================================== */
-export async function GET(req: NextRequest) {
+/** ⭐ Next.js 16 — params הוא Promise */
+type RouteContext = {
+  params: Promise<{ eventId: string }>;
+};
+
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
+    /* 🔐 Guard אחיד – הרשאת הושבה */
     const guard = await requireSeating();
     if (!guard.ok) {
       return guard.response!;
     }
 
-    const userId = guard.userId;
+    /* ===============================
+       1️⃣ params (חובה await)
+    =============================== */
+    const { eventId } = await context.params;
 
-    // 🔹 Seating אחד ליוזר
-    let record = await SeatingTable.findOne({ userId }).lean();
-
-    // 🔹 אם עדיין אין – מחזירים ריק (או אפשר ליצור)
-    if (!record) {
-      return NextResponse.json({
-        success: true,
-        tables: [],
-        background: null,
-        zones: [],
-        canvasView: null,
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      tables: record.tables || [],
-      background: record.background ?? null,
-      zones: record.zones || [],
-      canvasView: record.canvasView ?? null,
-    });
-  } catch (err) {
-    console.error("❌ Load seating tables error:", err);
-    return NextResponse.json(
-      { success: false, error: "Server error" },
-      { status: 500 }
-    );
-  }
-}
-
-/* ======================================================
-   PATCH – עדכון שם שולחן לפי היוזר
-====================================================== */
-export async function PATCH(req: NextRequest) {
-  try {
-    await dbConnect();
-
-    const guard = await requireSeating();
-    if (!guard.ok) {
-      return guard.response!;
-    }
-
-    const userId = guard.userId;
-    const { tableId, displayName } = await req.json();
-
-    if (!tableId) {
+    if (!eventId) {
       return NextResponse.json(
-        { success: false, error: "Missing tableId" },
+        { success: false, error: "Missing eventId" },
         { status: 400 }
       );
     }
 
-    // 🔹 מביאים Seating של היוזר
-    let record = await SeatingTable.findOne({ userId });
+    console.log("📤 LOAD SEATING TABLES:", { eventId });
 
-    // 🔹 אם אין עדיין Seating – יוצרים אחד
-    if (!record) {
-      record = await SeatingTable.create({
-        userId,
-        tables: [],
-        zones: [],
-        canvasView: null,
-        background: null,
-      });
-    }
+    /* ===============================
+       2️⃣ שליפת הושבה לפי eventId
+       מסמך אחד = אירוע אחד
+    =============================== */
+    const record =
+      (await SeatingTable.findOne({ eventId }).lean()) ||
+      (await SeatingTable.findOne({ invitationId: eventId }).lean());
 
-    const table = record.tables.find(
-      (t: any) => String(t.id) === String(tableId)
-    );
+    console.log("📦 RECORD FOUND:", {
+      hasRecord: !!record,
+      tables: record?.tables?.length ?? 0,
+      zones: record?.zones?.length ?? 0,
+      hasBackground: !!record?.background,
+      canvasView: record?.canvasView ?? null,
+    });
 
-    if (!table) {
-      return NextResponse.json(
-        { success: false, error: "Table not found" },
-        { status: 404 }
-      );
-    }
-
-    table.displayName = displayName;
-
-    await record.save();
-
-    return NextResponse.json({ success: true });
+    /* ===============================
+       3️⃣ החזרה מלאה לפרונט
+    =============================== */
+    return NextResponse.json({
+      success: true,
+      tables: record?.tables || [],
+      background: record?.background ?? null,
+      zones: record?.zones || [],
+      canvasView: record?.canvasView ?? null,
+    });
   } catch (err) {
-    console.error("❌ Update table displayName error:", err);
+    console.error("❌ Load seating tables error:", err);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }

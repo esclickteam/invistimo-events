@@ -4,7 +4,7 @@ import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
-import Group from "@/models/Group";
+import Group from "@/models/Group"; // ⭐ חובה
 import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
@@ -12,32 +12,49 @@ export const dynamic = "force-dynamic";
 /* ===============================
    TYPES
 =============================== */
+type RouteContext = {
+  params: Promise<{ eventId: string }>;
+};
+
 type BackgroundPayload = {
   url: string;
   opacity?: number;
 };
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 Guard – יוזר מחובר */
+    /* 🔐 Guard אחיד – הרשאת הושבה */
     const guard = await requireSeating();
     if (!guard.ok) return guard.response!;
 
     const userId = guard.userId!;
+    const { eventId } = await context.params;
+
+    if (!eventId) {
+      return NextResponse.json(
+        { success: false, error: "Missing eventId" },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
 
-    console.log("📥 SAVE SEATING (USER):", {
-      userId,
+    console.log("📥 SAVE SEATING BODY:", {
+      eventId,
       tables: body.tables?.length,
       zones: body.zones?.length,
     });
 
     /* ===============================
-       TABLES / ZONES
+       TABLES
     =============================== */
     const rawTables = Array.isArray(body.tables) ? body.tables : [];
+
+    /* ===============================
+       ZONES
+    =============================== */
     const zones = Array.isArray(body.zones) ? body.zones : [];
 
     /* ===============================
@@ -73,20 +90,47 @@ export async function POST(req: NextRequest) {
         : null;
 
     /* ===============================
-       ⭐ GROUP SNAPSHOT (אם יש)
+       🔐 הרשאות – לפני כתיבה
+    =============================== */
+    const invitation = await Invitation.findOne({ eventId }).lean();
+
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, error: "INVITATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const isOwner = String(invitation.ownerId) === String(userId);
+    const isProducer =
+      Array.isArray(invitation.producers) &&
+      invitation.producers.some(
+        (p: any) => String(p.userId ?? p) === String(userId)
+      );
+
+    if (!isOwner && !isProducer) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* ===============================
+       ⭐ NORMALIZE GROUP SNAPSHOT
     =============================== */
     const groupIds: string[] = Array.from(
-      new Set(
-        rawTables
-          .map((t: any) => t?.group)
-          .filter((g: unknown): g is string => typeof g === "string")
-      )
-    );
+  new Set(
+    rawTables
+      .map((t: any) => t?.group)
+      .filter((g: unknown): g is string => typeof g === "string")
+  )
+);
 
     const groups =
       groupIds.length > 0
         ? await Group.find({
             _id: { $in: groupIds.map(id => new mongoose.Types.ObjectId(id)) },
+            invitationId: invitation._id,
           }).lean()
         : [];
 
@@ -109,17 +153,19 @@ export async function POST(req: NextRequest) {
             : null,
         };
       }
+
+      // כבר snapshot או null
       return table;
     });
 
     /* ===============================
-       💾 SAVE / UPSERT – לפי userId
+       SAVE / UPSERT (לפי eventId)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
-      { userId },
+      { eventId },
       {
         $set: {
-          userId,
+          eventId,
           tables,
           zones,
           background,
@@ -135,52 +181,49 @@ export async function POST(req: NextRequest) {
     );
 
     /* ===============================
-       🔁 סנכרון אורחים (אם יש invitationId בבקשה)
+       שיוך אורחים לשולחנות
     =============================== */
-    if (body.invitationId) {
-      const invitation = await Invitation.findById(body.invitationId).lean();
+    const updatedGuestIds = new Set<string>();
 
-      if (invitation) {
-        const updatedGuestIds = new Set<string>();
+    for (const table of tables) {
+      if (!Array.isArray(table.seatedGuests)) continue;
 
-        for (const table of tables) {
-          if (!Array.isArray(table.seatedGuests)) continue;
+      const tableNumber =
+        typeof table.name === "string"
+          ? Number(table.name.replace(/\D/g, "")) || null
+          : null;
 
-          const tableNumber =
-            typeof table.name === "string"
-              ? Number(table.name.replace(/\D/g, "")) || null
-              : null;
+      for (const seated of table.seatedGuests) {
+        if (!seated?.guestId) continue;
 
-          for (const seated of table.seatedGuests) {
-            if (!seated?.guestId) continue;
+        updatedGuestIds.add(String(seated.guestId));
 
-            updatedGuestIds.add(String(seated.guestId));
-
-            await InvitationGuest.findByIdAndUpdate(seated.guestId, {
-              tableNumber,
-              tableName: table.name ?? "",
-            });
-          }
-        }
-
-        await InvitationGuest.updateMany(
-          {
-            invitationId: invitation._id,
-            _id: { $nin: Array.from(updatedGuestIds) },
-          },
-          { $set: { tableNumber: null, tableName: "" } }
-        );
+        await InvitationGuest.findByIdAndUpdate(seated.guestId, {
+          tableNumber,
+          tableName: table.name ?? "",
+        });
       }
     }
+
+    /* 🧹 איפוס רק לאורחים שלא שובצו */
+    await InvitationGuest.updateMany(
+      {
+        invitationId: invitation._id,
+        _id: { $nin: Array.from(updatedGuestIds) },
+      },
+      { $set: { tableNumber: null, tableName: "" } }
+    );
 
     return NextResponse.json({
       success: true,
       seatingId: saved._id,
+      eventId,
       tablesCount: tables.length,
       zonesCount: zones.length,
     });
   } catch (err) {
     console.error("❌ Save seating error:", err);
+
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
