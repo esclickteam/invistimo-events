@@ -254,6 +254,16 @@ useEffect(() => {
 const clamp = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
 
+const getBounds = (scaleVal: number) => {
+  // בדסקטופ לא משנים כלום
+  if (!isMobile) return { bx: size.width, by: size.height };
+
+  // במובייל: ככל שה־scale קטן (zoom-out) → יותר מרווח
+  const safeScale = Math.max(scaleVal, 0.4);
+  return { bx: size.width / safeScale, by: size.height / safeScale };
+};
+
+
 
 
   const handleMouseMove = (e: any) => {
@@ -276,8 +286,9 @@ const clamp = (v: number, min: number, max: number) =>
   };
 
   // ✅ גבולות בסיסיים לפי גודל המסך (מספיק כדי שלא "ייעלם")
-  const BOUND_X = size.width;
-  const BOUND_Y = size.height;
+  const { bx: BOUND_X, by: BOUND_Y } = getBounds(scale);
+
+
 
   const clamped = {
     x: clamp(next.x, -BOUND_X, BOUND_X),
@@ -317,8 +328,9 @@ const clamp = (v: number, min: number, max: number) =>
 };
 
 // ✅ גבולות בסיסיים שלא יאפשרו "להיעלם" מהמסך
-const BOUND_X = size.width;
-const BOUND_Y = size.height;
+const { bx: BOUND_X, by: BOUND_Y } = getBounds(newScale);
+
+
 
 const newPos = {
   x: clamp(newPosRaw.x, -BOUND_X, BOUND_X),
@@ -381,8 +393,9 @@ if (touches.length === 1) {
   y: stageStart.current.y + dy,
 };
 
-const BOUND_X = size.width;
-const BOUND_Y = size.height;
+const { bx: BOUND_X, by: BOUND_Y } = getBounds(scale);
+
+
 
 const clamped = {
   x: clamp(next.x, -BOUND_X, BOUND_X),
@@ -433,8 +446,8 @@ setCanvasView({ ...clamped, scale });
   y: center.y - mousePointTo.y * newScale,
 };
 
-const BOUND_X = size.width;
-const BOUND_Y = size.height;
+const { bx: BOUND_X, by: BOUND_Y } = getBounds(newScale);
+
 
 const newPos = {
   x: clamp(newPosRaw.x, -BOUND_X, BOUND_X),
