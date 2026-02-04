@@ -345,41 +345,53 @@ return (
 
 
 
-  <div className="flex items-center justify-between px-4 py-3 gap-3">
+  <div className="flex items-center justify-between flex-nowrap px-4 py-3 gap-3 overflow-x-auto md:overflow-visible">
+
+
 
     {/* צד ימין – כותרת */}
-    <h1 className="text-lg sm:text-xl font-semibold whitespace-nowrap">
+    <h1 className="text-lg sm:text-xl font-semibold whitespace-nowrap shrink-0">
+
       הושבה באולם
     </h1>
 
     {/* מרכז – אלמנטים */}
-<div className="flex items-center gap-2">
+<div className="flex items-center gap-2 shrink-0">
+
   <ZonesToolbar />
 </div>
 
 {/* צד שמאל – פעולות */}
-<div className="flex items-center gap-2">
+<div className="flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0">
+
+
 
   {/* ➕ הוסף שולחן */}
   <button
     onClick={() => setShowAddModal(true)}
-    className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg whitespace-nowrap flex items-center gap-1"
+    className="shrink-0 px-3 py-2 text-sm bg-green-600 text-white rounded-lg whitespace-nowrap flex items-center gap-1"
+
   >
     ➕ הוסף שולחן
   </button>
 
   <button
     onClick={() => setShowUpload(true)}
-    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg whitespace-nowrap"
+    className="shrink-0 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg whitespace-nowrap"
+
   >
     העלאת תבנית אולם
   </button>
 
+  <div className="shrink-0">
   <ExportSeatingPdf eventId={eventId} />
+</div>
+
 
   <button
     onClick={saveSeating}
-    className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
+    className="shrink-0 px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
+
   >
     💾 שמירה
   </button>
