@@ -113,6 +113,7 @@ const isDemo = pathname.startsWith("/try");
 
   const seatingTables = useSeatingStore((s) => s.tables);
 
+const loadSeating = useSeatingStore((s) => s.loadSeating);
 
 
 
@@ -380,6 +381,15 @@ useEffect(() => {
 
   initAfterUser();
 }, [user, isDemo]);
+
+useEffect(() => {
+  if (isDemo) return;
+  if (!eventIdFromUrl) return;
+  if (seatingTables.length > 0) return; // ⭐ כבר נטען
+
+  loadSeating(eventIdFromUrl);
+}, [eventIdFromUrl, isDemo, loadSeating, seatingTables.length]);
+
 
 useEffect(() => {
   if (isDemo) return;
