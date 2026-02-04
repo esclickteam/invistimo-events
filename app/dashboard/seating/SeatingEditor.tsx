@@ -323,41 +323,39 @@ const getBounds = () => {
 
 
   const handleMouseMove = (e: any) => {
-    if (readOnly) return;
+  if (readOnly) return;
 
-    const stage = e.target.getStage();
-    const pos = stage?.getPointerPosition();
-    if (!pos) return;
+  const stage = e.target.getStage();
+  const pos = stage?.getPointerPosition();
+  if (!pos) return;
 
-    updateGhost(pos);
-    evalHover(pos);
+  // ✅ אם עושים pan – מזיזים קנבס בלבד
+  if (isPanning && panStart.current) {
+    const dx = pos.x - panStart.current.x;
+    const dy = pos.y - panStart.current.y;
 
-    if (isPanning && panStart.current) {
-  const dx = pos.x - panStart.current.x;
-  const dy = pos.y - panStart.current.y;
+    const next = {
+      x: stageStart.current.x + dx,
+      y: stageStart.current.y + dy,
+    };
 
-  const next = {
-    x: stageStart.current.x + dx,
-    y: stageStart.current.y + dy,
-  };
+    const bounds = getBounds();
 
-  // ✅ גבולות בסיסיים לפי גודל המסך (מספיק כדי שלא "ייעלם")
-  const bounds = getBounds();
+    const clamped = {
+      x: clamp(next.x, bounds.minX, bounds.maxX),
+      y: clamp(next.y, bounds.minY, bounds.maxY),
+    };
 
+    setStagePos(clamped);
+    setCanvasView({ ...clamped, scale });
+    return; // ⭐ קריטי
+  }
 
-const clamped = {
-  x: clamp(next.x, bounds.minX, bounds.maxX),
-  y: clamp(next.y, bounds.minY, bounds.maxY),
+  // ⬇️ רק אם לא עושים pan
+  updateGhost(pos);
+  evalHover(pos);
 };
 
-
-  setStagePos(clamped);
-  setCanvasView({ ...clamped, scale });
-
-
-}
-
-  };
 
   const handleWheel = (e: any) => {
   e.evt.preventDefault();
@@ -593,23 +591,62 @@ const handleAddTable = (type: string, seats: number) => {
   scaleY={scale}
   x={stagePos.x}
   y={stagePos.y}
-  onWheel={handleWheel}
+
+  onMouseDown={(e) => {
+    // ✅ רק קליק שמאלי
+    if (e.evt.button !== 0) return;
+
+    // ✅ רק לחיצה על אזור ריק
+    if (e.target !== e.target.getStage()) return;
+
+    setIsPanning(true);
+
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos) return;
+
+    panStart.current = pos;
+    stageStart.current = {
+      x: stagePos.x,
+      y: stagePos.y,
+    };
+  }}
+
+  onMouseUp={() => {
+    setIsPanning(false);
+    panStart.current = null;
+  }}
+
+  // ⭐ קריטי – אם העכבר יוצא מהקנבס
+  onMouseLeave={() => {
+    setIsPanning(false);
+    panStart.current = null;
+  }}
+
   onMouseMove={handleMouseMove}
+  onWheel={handleWheel}
+
   onTouchStart={(e) => {
-    handleTouchStart(e);     // 🤏 init pinch (2 fingers)
-    handleTouchPanStart(e);  // 👆 init pan (1 finger)
+    handleTouchStart(e);
+    handleTouchPanStart(e);
   }}
+
   onTouchMove={handleTouchMove}
+
   onTouchEnd={() => {
-    handleTouchEnd();        // reset pinch
-    panStart.current = null; // reset pan
+    handleTouchEnd();
+    panStart.current = null;
+    setIsPanning(false);
   }}
+
   style={{
     touchAction: "none",
-    position: "relative",
-    zIndex: 0,
+    cursor: isPanning ? "grabbing" : "grab", // ✨ UX
   }}
 >
+
+
+
 
 
         <Layer listening={false}>
