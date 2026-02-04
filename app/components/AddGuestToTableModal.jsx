@@ -3,29 +3,38 @@
 import { useState, useMemo, useEffect } from "react";
 import { X } from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
+import { useSearchParams } from "next/navigation";
 
 export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
-  // שולחן מעודכן מה־store
-  const tableData = useSeatingStore((s) => s.tables.find((t) => t.id === table.id));
+  /* ================= STORE DATA ================= */
 
-  // אורחים מה־store (אם קיים) אחרת מה־props
+  const tableData = useSeatingStore((s) =>
+    s.tables.find((t) => t.id === table.id)
+  );
+
   const storeGuests = useSeatingStore((s) => s.guests);
   const tableGuests = storeGuests?.length ? storeGuests : guests;
 
+  const updateTableDisplayName = useSeatingStore(
+    (s) => s.updateTableDisplayName
+  );
+
+  /* ================= URL PARAM ================= */
+
+  const searchParams = useSearchParams();
+  const seatingId = searchParams.get("eventId"); // ⭐ מקור האמת
+
+  console.log("🧩 SeatingId from URL:", seatingId);
+
+  /* ================= UI STATE ================= */
+
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState(""); // 🔍 חיפוש
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const updateTableDisplayName = useSeatingStore((s) => s.updateTableDisplayName);
-
-  const invitationId = useSeatingStore((s) => s.eventId);
-
-
-
-  // ✅ עריכת שם/מספר שולחן (displayName)
   const [isEditingName, setIsEditingName] = useState(false);
   const [tableNameDraft, setTableNameDraft] = useState("");
 
@@ -34,6 +43,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     setTableNameDraft(tableData.displayName || tableData.name || "");
   }, [tableData?.id, tableData?.displayName, tableData?.name]);
 
+  /* ================= HELPERS ================= */
+
   const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
 
   const getPartySize = (g) => {
@@ -41,7 +52,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   };
 
-  /* ================= מושבים ================= */
+  /* ================= SEATS ================= */
 
   const seatsArray = useMemo(() => {
     if (!tableData) return [];
@@ -52,10 +63,16 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }));
 
     for (const s of tableData.seatedGuests || []) {
-      const g = tableGuests.find((gg) => getGuestId(gg) === String(s.guestId));
+      const g = tableGuests.find(
+        (gg) => getGuestId(gg) === String(s.guestId)
+      );
       if (!g) continue;
 
-      if (typeof s.seatIndex === "number" && s.seatIndex >= 0 && s.seatIndex < arr.length) {
+      if (
+        typeof s.seatIndex === "number" &&
+        s.seatIndex >= 0 &&
+        s.seatIndex < arr.length
+      ) {
         arr[s.seatIndex].guest = g;
       }
     }
@@ -66,7 +83,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const occupied = tableData?.seatedGuests?.length ?? 0;
   const remainingSeats = (tableData?.seats ?? 0) - occupied;
 
-  /* ================= אורחים זמינים ================= */
+  /* ================= AVAILABLE GUESTS ================= */
 
   const availableGuests = useMemo(() => {
     const seatedIds = new Set(
@@ -96,15 +113,26 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     });
   }, [tableGuests, searchTerm, remainingSeats]);
 
-  /* ================= הושבה ================= */
+  /* ================= ASSIGN GUEST ================= */
 
   const handleSeatGuest = async (seatIndex, guest) => {
     if (!tableData) return;
 
     const guestId = getGuestId(guest);
-    const count = getPartySize(guest);
 
-    const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
+    console.log("🪑 Assign guest:", {
+      guestId,
+      tableId: tableData.id,
+      tableName: tableData.displayName || tableData.name,
+      seatIndex,
+    });
+
+    const res = assignGuestsToTable(
+      tableData.id,
+      guestId,
+      getPartySize(guest),
+      seatIndex
+    );
 
     if (!res?.ok) {
       setError(res?.message || "לא ניתן להושיב כאן");
@@ -112,62 +140,76 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }
 
     await fetch("/api/guests/assign-table", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify({
-    guestId,
-    tableId: tableData.id, // ⭐ חובה
-    tableName: tableData.displayName || tableData.name, // ⭐ fallback טוב
-    seatIndex,
-  }),
-});
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        guestId,
+        tableId: tableData.id,
+        tableName: tableData.displayName || tableData.name,
+        seatIndex,
+      }),
+    });
 
     setError("");
     setOpenSeat(null);
     setSearchTerm("");
   };
 
-  /* ================= הסרה ================= */
+  /* ================= REMOVE ================= */
 
   const handleRemoveGuest = async (guest) => {
     if (!tableData || !guest) return;
 
     const guestId = getGuestId(guest);
 
+    console.log("❌ Remove guest from table:", {
+      guestId,
+      tableId: tableData.id,
+    });
+
     removeGuestFromTable(tableData.id, guestId);
 
     await fetch("/api/guests/remove-from-table", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ guestId }),
     });
   };
 
-  // ✅ שמירת displayName לשולחן
- const commitTableName = async () => {
-  if (!tableData) return;
+  /* ================= UPDATE TABLE NAME ================= */
 
-  const next = String(tableNameDraft || "").trim();
+  const commitTableName = async () => {
+    if (!tableData) return;
 
-  // 1️⃣ עדכון מיידי ב־Client (Zustand)
-  updateTableDisplayName(tableData.id, next);
+    if (!seatingId) {
+      console.error("❌ Missing seatingId – PATCH aborted");
+      return;
+    }
 
-  // 2️⃣ עדכון מיידי ב־DB
-  await fetch(`/api/seating/tables/${invitationId}`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include", // ⭐ חשוב
-  body: JSON.stringify({
-    tableId: tableData.id,
-    displayName: next,
-  }),
-});
+    const next = String(tableNameDraft || "").trim();
 
+    console.log("✏️ Update table displayName:", {
+      seatingId,
+      tableId: tableData.id,
+      displayName: next,
+    });
 
-  setIsEditingName(false);
-};
+    updateTableDisplayName(tableData.id, next);
 
+    await fetch(`/api/seating/tables/${seatingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        tableId: tableData.id,
+        displayName: next,
+      }),
+    });
+
+    setIsEditingName(false);
+  };
 
   /* ================= UI ================= */
 
@@ -181,7 +223,6 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           <X size={22} />
         </button>
 
-        {/* ✅ כותרת עם עריכת מספר/שם שולחן (displayName) */}
         <div className="flex items-center justify-center gap-2 mb-1">
           {isEditingName ? (
             <input
@@ -192,7 +233,9 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") commitTableName();
                 if (e.key === "Escape") {
-                  setTableNameDraft(tableData.displayName || tableData.name || "");
+                  setTableNameDraft(
+                    tableData.displayName || tableData.name || ""
+                  );
                   setIsEditingName(false);
                 }
               }}
@@ -203,12 +246,10 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
               <h2 className="text-2xl font-bold text-center text-gray-800">
                 הושבה לשולחן {tableData.displayName || tableData.name}
               </h2>
-
               <button
                 type="button"
                 onClick={() => setIsEditingName(true)}
                 className="text-gray-400 hover:text-gray-600"
-                title="עריכת מספר שולחן"
               >
                 ✏️
               </button>
@@ -219,6 +260,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         <p className="text-sm text-gray-500 text-center mb-5">
           {occupied}/{tableData.seats} מקומות תפוסים
         </p>
+
 
         {error && (
           <div className="text-red-600 bg-red-50 border border-red-200 text-center py-2 rounded-xl mb-4 font-medium">
