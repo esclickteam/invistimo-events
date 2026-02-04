@@ -238,19 +238,15 @@ useEffect(() => {
   const dy = newCenter.y - prevCenter.y;
 
   setStagePos((pos) => {
-    const next = {
-      x: pos.x + dx,
-      y: pos.y + dy,
-    };
+  const next = {
+    x: pos.x + dx,
+    y: pos.y + dy,
+  };
 
-    setCanvasView({
-      x: next.x,
-      y: next.y,
-      scale,
-    });
-
-    return next;
-  });
+  // ❗️לא שומרים ל־canvasView
+  // זה resize טכני, לא פעולה של משתמש
+  return next;
+});
 
   prevSizeRef.current = size;
 }, [isMobile, size.width, size.height, scale]);
