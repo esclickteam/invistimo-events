@@ -157,27 +157,6 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-/* ============================================================
-   VIRTUALS – תאימות לאחור
-============================================================ */
-
-/**
- * remainingMessages תמיד משקף smsBalance אם קיים
- */
-UserSchema.virtual("remainingMessages").get(function () {
-  if (typeof this.smsBalance === "number") {
-    return this.smsBalance;
-  }
-
-  if (
-    typeof this.maxMessages === "number" &&
-    typeof this.smsUsed === "number"
-  ) {
-    return Math.max(this.maxMessages - this.smsUsed, 0);
-  }
-
-  return 0;
-});
 
 /**
  * maxMessages וירטואלי – כדי שראוטים ישנים לא יישברו
