@@ -435,17 +435,15 @@ init: (tables, guests, background = null, canvasView = null) => {
   set((state) => ({
     ...state,
 
-    // ⬅️ לטעון את ההושבה בדיוק כמו שהיא מהשרת
     tables: (tables || []).map((t) => ({
-  ...t,
-  number: t.number ?? extractNumberFromName(t.name) ?? null, // ✅ חדש
-  displayName: t.displayName || "",
-  seatedGuests: t.seatedGuests || [],
-})),
+      ...t,
+      number: t.number ?? extractNumberFromName(t.name) ?? null,
+      displayName: t.displayName || "",
+      seatedGuests: t.seatedGuests || [],
+    })),
 
     guests: guests || [],
 
-    // ⬅️ Live: רק מפת הגעה, לא נגיעה בהושבה
     liveArrivals:
       seatingMode === "live"
         ? Object.fromEntries(
@@ -454,12 +452,18 @@ init: (tables, guests, background = null, canvasView = null) => {
               Number(g.actualArrivedCount ?? 0),
             ])
           )
-        : {},
+        : state.liveArrivals,
 
     background,
-    canvasView: canvasView || { scale: 1, x: 0, y: 0 },
+
+    // ✅ קריטי: לא לדרוס אם אין canvasView חדש
+    canvasView:
+      canvasView ??
+      state.canvasView ??
+      { scale: 1, x: 0, y: 0 },
   }));
 },
+
 
 
 
