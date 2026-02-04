@@ -85,16 +85,28 @@ export async function POST(req: Request) {
     }
 
     /* ================= BALANCE ================= */
-    const remainingMessages =
+const maxMessages =
+  typeof user.maxMessages === "number" ? user.maxMessages : 0;
+
+const smsUsed =
+  typeof user.smsUsed === "number" ? user.smsUsed : 0;
+
+const smsBalance =
   typeof user.smsBalance === "number" ? user.smsBalance : 0;
 
+// אם יש maxMessages → זה מקור האמת
+const remainingMessages =
+  maxMessages > 0
+    ? Math.max(maxMessages - smsUsed, 0)
+    : Math.max(smsBalance, 0);
 
-    if (remainingMessages <= 0) {
-      return NextResponse.json(
-        { success: false, error: "SMS_LIMIT_REACHED" },
-        { status: 403 }
-      );
-    }
+if (remainingMessages <= 0) {
+  return NextResponse.json(
+    { success: false, error: "SMS_LIMIT_REACHED" },
+    { status: 403 }
+  );
+}
+
 
     /* ================= BODY ================= */
     const body = (await req.json()) as {
@@ -334,22 +346,29 @@ if (totalMessagesToCharge > remainingMessages) {
 
 /* ================= 🔒 RESERVE SMS BALANCE ================= */
 
-const reserveResult = await User.updateOne(
-  {
-    _id: user._id,
-    smsBalance: { $gte: totalMessagesToCharge },
-  },
-  {
-    $inc: { smsBalance: -totalMessagesToCharge },
-  }
-);
+const usesMaxMessages = maxMessages > 0;
 
-if (reserveResult.modifiedCount === 0) {
-  return NextResponse.json(
-    { success: false, error: "SMS_LIMIT_REACHED" },
-    { status: 403 }
+
+/* ================= 🔒 RESERVE SMS BALANCE ================= */
+if (!usesMaxMessages) {
+  const reserveResult = await User.updateOne(
+    {
+      _id: user._id,
+      smsBalance: { $gte: totalMessagesToCharge },
+    },
+    {
+      $inc: { smsBalance: -totalMessagesToCharge },
+    }
   );
+
+  if (reserveResult.modifiedCount === 0) {
+    return NextResponse.json(
+      { success: false, error: "SMS_LIMIT_REACHED" },
+      { status: 403 }
+    );
+  }
 }
+
 
 
     

@@ -128,11 +128,19 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      parts,
-      remaining: MAX_TEST_SMS - (user.testSmsUsed ?? 0) - parts,
-    });
+    const usedBefore = user.testSmsUsed ?? 0;
+const remaining = Math.max(
+  0,
+  MAX_TEST_SMS - (usedBefore + parts)
+);
+
+return NextResponse.json({
+  success: true,
+  parts,
+  remaining,
+});
+
+
   } catch (err) {
     console.error("SMS TEST ERROR", err);
     return NextResponse.json(
