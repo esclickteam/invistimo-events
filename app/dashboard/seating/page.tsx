@@ -440,6 +440,25 @@ return (
   </div>
 </div>
 
+<button
+  onClick={() => setShowGuests(true)}
+  className="md:hidden fixed top-[80px] left-4 bg-white border rounded-lg px-3 py-2 shadow z-[10002]"
+
+>
+  👥 רשימת אורחים
+</button>
+
+{showGuests && (
+  <Suspense fallback={null}>
+    <MobileGuests
+      onDragStart={handleDragStart}
+      onClose={() => setShowGuests(false)}
+    />
+  </Suspense>
+)}
+
+
+
 
 
   {/* 🧾 סיידבר הושבה מאוחד */}
@@ -500,23 +519,8 @@ return (
 
 
 
+       
 
-
-        <button
-          onClick={() => setShowGuests(true)}
-          className="md:hidden fixed top-[80px] left-4 bg-white border rounded-lg px-3 py-2 shadow z-40"
-        >
-          👥 רשימת אורחים
-        </button>
-
-        {showGuests && (
-          <Suspense fallback={null}>
-            <MobileGuests
-              onDragStart={handleDragStart}
-              onClose={() => setShowGuests(false)}
-            />
-          </Suspense>
-        )}
       </div>
 
       {/* MODALS */}

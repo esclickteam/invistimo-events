@@ -5,7 +5,8 @@ import GuestSidebar from "./GuestSidebar";
 
 export default function MobileGuests({ onDragStart, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
+    <div className="fixed inset-0 z-[10003] md:hidden">
+
       {/* overlay */}
       <div
         className="absolute inset-0 bg-black/40"
