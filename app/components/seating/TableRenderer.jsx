@@ -332,8 +332,11 @@ const tableText = isHighlighted
   table.seatedGuests,
   occupiedSeatsCount,
   hideSeats,
-  liveArrivals,        // ✅ להוסיף את זה
+  liveArrivals,
+  table.number,      // ✅ חובה
+  table.displayName, // ✅ אם את משתמשת בו
 ]);
+
 
 
 

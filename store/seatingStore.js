@@ -663,18 +663,30 @@ updateTableDisplayName: (tableId, displayName) =>
   })),
 
   updateTableNumber: (tableId, nextNumber) =>
-  set((state) => ({
-    tables: state.tables.map((t) =>
+  set((state) => {
+    const n = Number(nextNumber);
+
+    const tables = state.tables.map((t) =>
       t.id === tableId
         ? {
             ...t,
-            number: Number(nextNumber),
-            // ✅ כדי שהקנבס יתעדכן גם אם הוא מציג name
-            name: `שולחן ${Number(nextNumber)}`,
+            number: n,
+            // ✅ עדכני name רק אם את מציגה name בקנבס
+            // name: `שולחן ${n}`,
           }
         : t
-    ),
-  })),
+    );
+
+    const guests = state.guests.map((g) =>
+      String(g.tableId) === String(tableId)
+        ? { ...g, tableName: String(n) }
+        : g
+    );
+
+    return { tables, guests };
+  }),
+
+
 
 
 
