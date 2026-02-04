@@ -420,15 +420,25 @@ useEffect(() => {
 
     const data = await res.json();
 
-    setPreview({
-      text,
-      totalChars: data.totalChars,
-      parts: data.parts,          // ⬅️ 1 או 2
-      blocked: !data.allowed,     // ⬅️ true אם עבר 320
-      overflow: data.overflow ?? 0,
-      limit: data.limit ?? 320,
-      longestGuestName: guest?.name || null,
-    });
+    // ❗ הגנה מלאה – אם ה־API החזיר משהו לא תקין
+if (
+  typeof data.totalChars !== "number" ||
+  typeof data.parts !== "number"
+) {
+  setPreview(null);
+  return;
+}
+
+setPreview({
+  text,
+  totalChars: data.totalChars,
+  parts: data.parts,
+  blocked: !data.allowed,
+  overflow: data.overflow ?? 0,
+  limit: data.limit ?? 320,
+  longestGuestName: guest?.name || null,
+});
+
   }
 
   fetchPreview();
@@ -992,10 +1002,11 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     }`}
   >
     {preview.blocked
-      ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit} תווים`
-      : preview.parts === 1
-      ? `הודעה אחת · ${preview.totalChars}/200`
-      : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
+  ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit ?? 320} תווים`
+  : preview.parts === 1
+  ? `הודעה אחת · ${preview.totalChars}/200`
+  : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
+
 
     {!preview.blocked && (
       <span className="block text-[11px] text-gray-500">

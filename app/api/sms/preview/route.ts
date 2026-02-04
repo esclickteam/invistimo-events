@@ -5,7 +5,6 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Event from "@/models/Event";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import { countSmsParts } from "@/lib/smsUtils";
 import { buildFinalSmsText } from "@/lib/sms/buildFinalSmsText";
 
 export async function POST(req: Request) {
@@ -63,19 +62,36 @@ export async function POST(req: Request) {
       giftLink,
     });
 
-    /* ================= COUNT ================= */
-    const length = [...finalText].length; // Unicode safe
-    const parts = countSmsParts(finalText);
+    /* ================= COUNT (BUSINESS LOGIC) ================= */
+const length = [...finalText].length; // Unicode safe
+
+let parts = 1;
+let allowed = true;
+let overflow = 0;
+
+if (length <= 200) {
+  parts = 1;
+} else if (length <= 320) {
+  parts = 2;
+} else {
+  parts = 2;
+  allowed = false;
+  overflow = length - 320;
+}
+
+
 
     /* ================= RESPONSE ================= */
     return NextResponse.json({
-      success: true,
-      preview: {
-        text: finalText,
-        length,
-        parts,
-      },
-    });
+  success: true,
+  text: finalText,
+  totalChars: length,
+  parts,
+  allowed,
+  overflow,
+  limit: 320,
+});
+
   } catch (err) {
     console.error("❌ SMS PREVIEW ERROR:", err);
     return NextResponse.json(
