@@ -363,7 +363,7 @@ return (
   {/* יעד לדרופדאונים של ההידר */}
   <div
     id="header-portal"
-    className="absolute inset-0 pointer-events-none z-[10000]"
+    className="relative z-[10000] pointer-events-none"
   />
 </div>
 
