@@ -173,9 +173,9 @@ export default function SeatingSidebar() {
     const groupLabel = getTableGroupLabel(t.id);
 
     const main =
-      t.displayName && t.displayName.trim()
-        ? `${t.name} – ${t.displayName}`
-        : t.name;
+  t.displayName && t.displayName.trim()
+    ? t.displayName
+    : t.name;
 
     return groupLabel
       ? `${groupLabel} · ${main} (${count}/${t.seats})`
