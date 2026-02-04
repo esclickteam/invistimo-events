@@ -175,7 +175,7 @@ useEffect(() => {
 
         notes: updatedGuest.notes,
         groupId: updatedGuest.groupId,
-        tableName: updatedGuest.tableName,
+        
       };
     })
   );
@@ -684,8 +684,11 @@ function getGuestCallStatus(
  
 
   if (quickFilter === "noTable") {
-    list = list.filter((g) => !(g.tableName && g.tableName.trim()));
-  }
+  list = list.filter(
+    (g) => !guestTableMap.has(String(g._id))
+  );
+}
+
 
 // 📞 Call filters
 if (quickFilter === "pending") {
@@ -761,10 +764,15 @@ list.sort((a, b) => {
       v2 = b.rsvp || "";
       break;
 
-    case "table":
-      v1 = a.tableNumber ?? a.tableName ?? "";
-      v2 = b.tableNumber ?? b.tableName ?? "";
-      break;
+    case "table": {
+  const t1 = guestTableMap.get(String(a._id));
+  const t2 = guestTableMap.get(String(b._id));
+
+  v1 = t1?.displayName || t1?.name || "";
+  v2 = t2?.displayName || t2?.name || "";
+  break;
+}
+
 
     case "coming":
       v1 = a.arrivedCount || 0;
@@ -1237,18 +1245,14 @@ console.log("INVITATION:", invitation);
 
 <td className="p-3">
   {(() => {
-    const guestKey = String(g.id ?? g._id ?? "");
+    const guestKey = String(g._id);
+
 const tableFromStore = guestTableMap.get(guestKey) || null;
 
+const tableLabel = tableFromStore
+  ? tableFromStore.displayName || tableFromStore.name
+  : "-";
 
-    const tableLabel =
-      (tableFromStore &&
-        (tableFromStore.displayName || tableFromStore.name)) ||
-      (g.tableName
-        ? g.tableName
-        : g.tableNumber
-        ? `שולחן ${g.tableNumber}`
-        : null);
 
     return tableLabel || "-";
   })()}
