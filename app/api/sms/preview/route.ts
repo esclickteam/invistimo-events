@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= DATA ================= */
+    /* ================= LOAD DATA ================= */
     const invitation = await Invitation.findById(invitationId).lean();
     const guest = await InvitationGuest.findById(guestId).lean();
 
@@ -52,7 +52,11 @@ export async function POST(req: Request) {
       ? await Event.findById(invitation.eventId).lean()
       : null;
 
-    /* ================= BUILD FINAL SMS (SOURCE OF TRUTH) ================= */
+    /* ================= BUILD FINAL SMS =================
+       ⚠️ אין פה שום SeatingTable
+       ⚠️ משתמשים רק ב־guest.tableName אם קיים
+       SOURCE OF TRUTH אחד בלבד
+    ===================================================== */
     const finalText = await buildFinalSmsText({
       messageTemplate: messageOverride,
       guest,
@@ -62,36 +66,38 @@ export async function POST(req: Request) {
       giftLink,
     });
 
-    /* ================= COUNT (BUSINESS LOGIC) ================= */
-const length = [...finalText].length; // Unicode safe
+    /* ================= COUNT (BUSINESS LOGIC) =================
+       חוק:
+       - עד 200 תווים → 1 הודעה
+       - 201–320 → 2 הודעות
+       - מעל 320 → חסימה
+    =========================================================== */
+    const length = [...finalText].length; // Unicode-safe (עברית + אימוג'ים)
 
-let parts = 1;
-let allowed = true;
-let overflow = 0;
+    let parts = 1;
+    let allowed = true;
+    let overflow = 0;
 
-if (length <= 200) {
-  parts = 1;
-} else if (length <= 320) {
-  parts = 2;
-} else {
-  parts = 2;
-  allowed = false;
-  overflow = length - 320;
-}
-
-
+    if (length <= 200) {
+      parts = 1;
+    } else if (length <= 320) {
+      parts = 2;
+    } else {
+      parts = 2;
+      allowed = false;
+      overflow = length - 320;
+    }
 
     /* ================= RESPONSE ================= */
     return NextResponse.json({
-  success: true,
-  text: finalText,
-  totalChars: length,
-  parts,
-  allowed,
-  overflow,
-  limit: 320,
-});
-
+      success: true,
+      text: finalText,
+      totalChars: length,
+      parts,
+      allowed,
+      overflow,
+      limit: 320,
+    });
   } catch (err) {
     console.error("❌ SMS PREVIEW ERROR:", err);
     return NextResponse.json(
