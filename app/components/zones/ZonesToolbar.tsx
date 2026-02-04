@@ -21,15 +21,20 @@ export default function ZonesToolbar() {
         setOpen(false);
       }
     }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    document.addEventListener("pointerdown", onClickOutside);
+return () => document.removeEventListener("pointerdown", onClickOutside);
+
   }, []);
 
   return (
     <div ref={ref} className="relative">
       {/* כפתור */}
       <button
-        onClick={() => setOpen((v) => !v)}
+  onClick={(e) => {
+    e.stopPropagation();
+    setOpen((v) => !v);
+  }}
+
         className="
           flex items-center gap-2
           px-4 py-2
