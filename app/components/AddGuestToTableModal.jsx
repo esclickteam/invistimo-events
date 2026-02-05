@@ -8,8 +8,11 @@ export default function AddGuestToTableModal({
   table,
   guests,
   onClose,
-  onAutoSave, // ⭐ חדש: פונקציית שמירה אחודה (כמו בסיידבר)
+  onAutoSave,   // אופציונלי
+  invitationId, // אופציונלי
 }) {
+  
+  void invitationId; // כדי שלא תהיה אזהרת unused
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
