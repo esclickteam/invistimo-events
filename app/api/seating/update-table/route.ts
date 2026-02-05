@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // 1️⃣ שליפת השולחן הקיים (כדי לדעת את המספר הישן)
+  // 1️⃣ שליפת השולחן הקיים
   const existingTable = await SeatingTable.findById(tableId);
   if (!existingTable) {
     return NextResponse.json(
@@ -25,6 +25,7 @@ export async function POST(req: Request) {
   }
 
   const oldNumber = existingTable.number;
+  const oldName = existingTable.name || `שולחן ${oldNumber}`;
 
   // 2️⃣ עדכון השולחן עצמו
   const table = await SeatingTable.findByIdAndUpdate(
@@ -36,9 +37,14 @@ export async function POST(req: Request) {
     { new: true }
   );
 
-  // 3️⃣ סנכרון כל האורחים שהיו על המספר הישן
+  // 3️⃣ סנכרון האורחים לפי הנתונים הישנים (שם / מספר)
   await InvitationGuest.updateMany(
-    { tableNumber: oldNumber },
+    {
+      $or: [
+        { tableNumber: oldNumber },
+        { tableName: oldName },
+      ],
+    },
     {
       $set: {
         tableNumber: table.number,
