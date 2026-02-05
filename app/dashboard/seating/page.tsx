@@ -438,7 +438,8 @@ return (
 
   {/* 🎨 קנבס */}
 <div
-  className="absolute left-0 right-0 overflow-visible"
+  className="fixed left-0 right-0 overflow-visible"
+
   style={{
     top: 64,
     bottom: 0,
