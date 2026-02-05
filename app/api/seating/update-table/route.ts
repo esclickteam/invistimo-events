@@ -1,34 +1,24 @@
-// app/api/seating/update-table/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
 
 export async function POST(req: Request) {
   await dbConnect();
 
-  const { tableId, newNumber } = await req.json();
+  const { oldTableName, newNumber } = await req.json();
 
-  if (!tableId || typeof newNumber !== "number") {
-    return NextResponse.json({ error: "MISSING_PARAMS" }, { status: 400 });
-  }
-
-  const table = await SeatingTable.findById(tableId);
-  if (!table) {
-    return NextResponse.json({ error: "TABLE_NOT_FOUND" }, { status: 404 });
+  if (!oldTableName || typeof newNumber !== "number") {
+    return NextResponse.json(
+      { success: false, error: "MISSING_PARAMS" },
+      { status: 400 }
+    );
   }
 
   const newTableName = `שולחן ${newNumber}`;
 
-  // 1️⃣ עדכון השולחן
-  await SeatingTable.updateOne(
-    { _id: tableId },
-    { $set: { number: newNumber, name: newTableName } }
-  );
-
-  // 2️⃣ 🔥 עדכון כל האורחים שיושבים בו
-  await InvitationGuest.updateMany(
-    { tableNumber: table.number }, // לפי מספר ישן
+  // 🔥 מקור האמת: האורחים
+  const res = await InvitationGuest.updateMany(
+    { tableName: oldTableName },
     {
       $set: {
         tableNumber: newNumber,
@@ -37,5 +27,9 @@ export async function POST(req: Request) {
     }
   );
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    matched: res.matchedCount,
+    modified: res.modifiedCount,
+  });
 }
