@@ -17,8 +17,10 @@ export async function POST(req: Request) {
 
   const newTableName = `שולחן ${newNumber}`;
 
-  // 1️⃣ עדכון השולחן עצמו
-  await SeatingTable.updateOne(
+  /* ===============================
+     1️⃣ עדכון השולחן
+  =============================== */
+  const tableRes = await SeatingTable.updateOne(
     { name: oldTableName },
     {
       $set: {
@@ -28,7 +30,16 @@ export async function POST(req: Request) {
     }
   );
 
-  // 2️⃣ סנכרון כל האורחים שיושבים עליו
+  if (tableRes.matchedCount === 0) {
+    return NextResponse.json(
+      { success: false, error: "TABLE_NOT_FOUND" },
+      { status: 404 }
+    );
+  }
+
+  /* ===============================
+     2️⃣ סנכרון האורחים (קריטי ל-SMS)
+  =============================== */
   await InvitationGuest.updateMany(
     { tableName: oldTableName },
     {
@@ -39,5 +50,9 @@ export async function POST(req: Request) {
     }
   );
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    oldTableName,
+    newTableName,
+  });
 }
