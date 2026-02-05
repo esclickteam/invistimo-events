@@ -438,7 +438,7 @@ return (
 
   {/* 🎨 קנבס */}
 <div
-  className="absolute left-0 right-0"
+  className="absolute left-0 right-0 overflow-visible"
   style={{
     top: 64,
     bottom: 0,
@@ -446,14 +446,16 @@ return (
 >
 
   <div
-    style={{
-      width:
-        !isMobile && sidebarOpen
-          ? "calc(100% - 400px)"
-          : "100%",
-      height: "100%",
-    }}
-  >
+  className="overflow-visible"
+  style={{
+    width:
+      !isMobile && sidebarOpen
+        ? "calc(100% - 400px)"
+        : "100%",
+    height: "100%",
+  }}
+>
+
     <SeatingEditor
   background={background?.url || null}
   invitationId={invitationId}
