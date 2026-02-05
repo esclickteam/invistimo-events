@@ -127,8 +127,7 @@ const handleSeatGuest = async (seatIndex, guest) => {
 };
 
 
-  /* ================= הסרה ================= */
-const commitTableName = async () => {
+ const commitTableName = async () => {
   if (!tableData) return;
 
   const next = String(tableNameDraft || "").trim();
@@ -141,6 +140,7 @@ const commitTableName = async () => {
 
   const oldTableName = tableData.displayName || tableData.name;
 
+  // 🔴 זה החלק שהיה חסר – עדכון האורחים בשרת
   const res = await fetch("/api/seating/update-table", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -155,7 +155,9 @@ const commitTableName = async () => {
     return;
   }
 
+  // 🟢 עדכון UI בלבד
   updateTableDisplayName(tableData.id, `שולחן ${newNumber}`);
+
   setIsEditingName(false);
 };
 

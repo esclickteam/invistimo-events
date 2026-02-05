@@ -16,9 +16,15 @@ export async function POST(req: Request) {
 
   const newTableName = `שולחן ${newNumber}`;
 
-  // 🔥 מקור האמת: האורחים
+  // 🔥 חיפוש חכם – תופס את כל המצבים
   const res = await InvitationGuest.updateMany(
-    { tableName: oldTableName },
+    {
+      $or: [
+        { tableName: oldTableName },
+        { tableName: String(newNumber) },
+        { tableNumber: newNumber },
+      ],
+    },
     {
       $set: {
         tableNumber: newNumber,
