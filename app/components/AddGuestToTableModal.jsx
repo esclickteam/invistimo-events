@@ -30,12 +30,17 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     setTableNameDraft(tableData.displayName || tableData.name || "");
   }, [tableData?.id, tableData?.displayName, tableData?.name]);
 
-  const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
+  const getGuestId = (g) => String(g?._id);
 
   const getPartySize = (g) => {
-    const n = Number(g?.arrivedCount ?? 0);
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-  };
+  const n = Number(
+    g?.arrivedCount ??
+    (g?.rsvp === "yes" ? g?.guestsCount : 0)
+  );
+
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+};
+
 
   /* ================= מושבים ================= */
 

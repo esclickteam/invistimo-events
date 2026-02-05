@@ -14,17 +14,24 @@ export async function POST(req: Request) {
     );
   }
 
-  // ✅ שומרים רק את מקור האמת
-  // ❌ לא מוחקים tableName / tableNumber
-  await InvitationGuest.updateOne(
-    { _id: guestId },
-    {
-      $set: {
-        tableId,
-        ...(typeof seatIndex === "number" ? { seatIndex } : {}),
-      },
-    }
-  );
+  const result = await InvitationGuest.updateOne(
+  { _id: guestId },
+  {
+    $set: {
+      tableId,
+      ...(typeof seatIndex === "number" ? { seatIndex } : {}),
+    },
+  }
+);
+
+console.log("🧪 ASSIGN TABLE RESULT", {
+  guestId,
+  tableId,
+  seatIndex,
+  matched: result.matchedCount,
+  modified: result.modifiedCount,
+});
+
 
   return NextResponse.json({ success: true });
 }
