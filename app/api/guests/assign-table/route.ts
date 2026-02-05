@@ -3,13 +3,14 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import SeatingTable from "@/models/SeatingTable";
+import Invitation from "@/models/Invitation";
 
 type Body = {
   guestId?: string;
   invitationId?: string; // מומלץ לשלוח מהלקוח
-  tableId?: string;      // tables[].id (uuid/string) מתוך SeatingTable
-  tableName?: string;    // אופציונלי - אם לא נשלח ניקח מהשולחן עצמו
-  tableNumber?: number;  // אופציונלי - אם לא נשלח ננסה לגזור מהשם
+  tableId?: string; // tables[].id (uuid/string) מתוך SeatingTable
+  tableName?: string; // אופציונלי - אם לא נשלח ניקח מהשולחן עצמו
+  tableNumber?: number; // אופציונלי - אם לא נשלח ננסה לגזור מהשם
   seatIndex?: number | null; // אם null - ננקה
 };
 
@@ -47,7 +48,11 @@ export async function POST(req: Request) {
     // ===== חובה מינימלית =====
     if (!guestId || !tableId) {
       return NextResponse.json(
-        { success: false, error: "MISSING_PARAMS", required: ["guestId", "tableId"] },
+        {
+          success: false,
+          error: "MISSING_PARAMS",
+          required: ["guestId", "tableId"],
+        },
         { status: 400 }
       );
     }
@@ -67,8 +72,12 @@ export async function POST(req: Request) {
     }
 
     // ===== שליפת אורח + ולידציה שייכות =====
-    const guestFilter: Record<string, unknown> = { _id: guestId };
-    if (invitationId) guestFilter.invitationId = new mongoose.Types.ObjectId(invitationId);
+    const guestFilter: Record<string, unknown> = {
+      _id: new mongoose.Types.ObjectId(guestId),
+    };
+    if (invitationId) {
+      guestFilter.invitationId = new mongoose.Types.ObjectId(invitationId);
+    }
 
     const guest = await InvitationGuest.findOne(guestFilter).lean();
     if (!guest) {
@@ -78,11 +87,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // ===== מציאת מסמך ההושבה הנכון =====
-    // עדיפות: invitationId שהגיע בבקשה, אחרת invitationId של האורח
+    // ===== invitation context =====
     const effectiveInvitationId =
-      invitationId ??
-      (guest.invitationId ? String(guest.invitationId) : undefined);
+      invitationId ?? (guest.invitationId ? String(guest.invitationId) : undefined);
 
     if (!effectiveInvitationId || !isValidObjectId(effectiveInvitationId)) {
       return NextResponse.json(
@@ -91,19 +98,48 @@ export async function POST(req: Request) {
       );
     }
 
-    const seatingDoc = await SeatingTable.findOne({
+    // ===== מציאת מסמך seating:
+    // 1) ניסיון לפי invitationId
+    // 2) fallback לפי eventId של ההזמנה (כי אצלך SeatingTable נשמר לרוב עם eventId)
+    let seatingDoc = await SeatingTable.findOne({
       invitationId: new mongoose.Types.ObjectId(effectiveInvitationId),
-      "tables.id": tableId,
+      "tables.id": String(tableId),
     }).lean();
 
     if (!seatingDoc) {
+      const invitationDoc = await Invitation.findById(effectiveInvitationId)
+        .select("_id eventId")
+        .lean();
+
+      const eventId = invitationDoc?.eventId ? String(invitationDoc.eventId) : undefined;
+
+      if (eventId && isValidObjectId(eventId)) {
+        seatingDoc = await SeatingTable.findOne({
+          eventId: new mongoose.Types.ObjectId(eventId),
+          "tables.id": String(tableId),
+        }).lean();
+      }
+    }
+
+    if (!seatingDoc) {
       return NextResponse.json(
-        { success: false, error: "TABLE_NOT_FOUND_IN_INVITATION" },
+        {
+          success: false,
+          error: "TABLE_NOT_FOUND",
+          details: {
+            guestId,
+            invitationId: effectiveInvitationId,
+            tableId,
+          },
+        },
         { status: 404 }
       );
     }
 
-    const foundTable = seatingDoc.tables?.find((t: any) => t?.id === tableId);
+    const foundTable = (seatingDoc.tables || []).find(
+      (t: any) => String(t?.id) === String(tableId)
+    );
+
     if (!foundTable) {
       return NextResponse.json(
         { success: false, error: "TABLE_NOT_FOUND" },
@@ -122,7 +158,7 @@ export async function POST(req: Request) {
       extractNumberFromName(finalTableName);
 
     const updateSet: Record<string, unknown> = {
-      tableId, // ⭐ העיקר
+      tableId: String(tableId),
       tableName: finalTableName,
     };
 
@@ -136,7 +172,7 @@ export async function POST(req: Request) {
 
     const updateUnset: Record<string, 1> = {};
     if (seatIndex === null) {
-      updateUnset.seatIndex = 1; // מאפשר "ניקוי מושב"
+      updateUnset.seatIndex = 1; // ניקוי מושב
     }
 
     const updateQuery: Record<string, unknown> = { $set: updateSet };
@@ -154,7 +190,8 @@ export async function POST(req: Request) {
       matched: result.matchedCount,
       modified: result.modifiedCount,
       guestId,
-      tableId,
+      invitationId: effectiveInvitationId,
+      tableId: String(tableId),
       tableName: finalTableName,
       ...(typeof finalTableNumber === "number" ? { tableNumber: finalTableNumber } : {}),
       ...(typeof seatIndex === "number" ? { seatIndex } : {}),
