@@ -360,6 +360,21 @@ useEffect(() => {
   table.openAddGuestModal();
 };
 
+const updatePositionInStore = () => {
+  if (!tableRef.current) return;
+
+  const pos = tableRef.current.position();
+  const rotation = tableRef.current.rotation();
+
+  useSeatingStore.setState((state) => ({
+    tables: state.tables.map((t) =>
+      t.id === table.id
+        ? { ...t, x: pos.x, y: pos.y, rotation }
+        : t
+    ),
+  }));
+};
+
 
   /* ====== סיבוב ====== */
   const startRotate = (e) => {
@@ -393,6 +408,7 @@ useEffect(() => {
       tableRef.current.getLayer()?.batchDraw();
     };
 
+    
     const end = () => {
       rotateActiveRef.current = false;
       setRotating(false);
@@ -405,6 +421,7 @@ useEffect(() => {
     stage.on("mouseup.tableRotate", end);
   };
 
+  
   const { size, width, height, radius } = layout;
 
   return (
