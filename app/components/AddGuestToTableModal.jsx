@@ -19,7 +19,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState(""); // 🔍 חיפוש
 
-  const updateTableDisplayName = useSeatingStore((s) => s.updateTableDisplayName);
+  const updateTableNumber = useSeatingStore((s) => s.updateTableNumber);
+
 
   // ✅ עריכת שם/מספר שולחן (displayName)
   const [isEditingName, setIsEditingName] = useState(false);
@@ -146,7 +147,7 @@ tableName: String(tableData.number),
     const next = String(tableNameDraft || "").trim();
 
     // לא משנים לוגיקה קיימת – רק שומרים displayName ב-store
-    updateTableDisplayName(tableData.id, next);
+    updateTableNumber(tableData.id, next);
 
     // אם יש לך API לשמירת השם בשרת – אפשר להדליק כאן (לא חובה)
     // await fetch("/api/seating/table-display-name", { ... })
