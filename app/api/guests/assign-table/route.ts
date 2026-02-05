@@ -14,17 +14,14 @@ export async function POST(req: Request) {
     );
   }
 
+  // ✅ שומרים רק את מקור האמת
+  // ❌ לא מוחקים tableName / tableNumber
   await InvitationGuest.updateOne(
     { _id: guestId },
     {
       $set: {
         tableId,
-        seatIndex,
-      },
-      // ניקוי יזום – כדי שלא יחזרו נתונים ישנים
-      $unset: {
-        tableName: "",
-        tableNumber: "",
+        ...(typeof seatIndex === "number" ? { seatIndex } : {}),
       },
     }
   );
