@@ -615,8 +615,8 @@ const centerY = (-view.y + viewport.height / 2) / view.scale;
       {viewport.width > 0 && viewport.height > 0 && (
 
   <Stage
-  width={viewport.width}
-  height={viewport.height}
+  width={size.width}
+  height={size.height}
   scaleX={scale}
   scaleY={scale}
   x={stagePos.x}
