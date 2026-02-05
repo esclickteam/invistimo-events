@@ -8,7 +8,25 @@ export async function POST(req: Request) {
 
   const { tableId, newNumber, newName } = await req.json();
 
-  // 1️⃣ עדכון השולחן עצמו
+  if (!tableId || typeof newNumber !== "number") {
+    return NextResponse.json(
+      { success: false, error: "MISSING_PARAMS" },
+      { status: 400 }
+    );
+  }
+
+  // 1️⃣ שליפת השולחן הקיים (כדי לדעת את המספר הישן)
+  const existingTable = await SeatingTable.findById(tableId);
+  if (!existingTable) {
+    return NextResponse.json(
+      { success: false, error: "TABLE_NOT_FOUND" },
+      { status: 404 }
+    );
+  }
+
+  const oldNumber = existingTable.number;
+
+  // 2️⃣ עדכון השולחן עצמו
   const table = await SeatingTable.findByIdAndUpdate(
     tableId,
     {
@@ -18,16 +36,14 @@ export async function POST(req: Request) {
     { new: true }
   );
 
-  if (!table) {
-    return NextResponse.json({ error: "TABLE_NOT_FOUND" }, { status: 404 });
-  }
-
-  // 2️⃣ סנכרון כל האורחים שיושבים עליו
+  // 3️⃣ סנכרון כל האורחים שהיו על המספר הישן
   await InvitationGuest.updateMany(
-    { tableNumber: table.number }, // או tableId אם היה
+    { tableNumber: oldNumber },
     {
-      tableNumber: table.number,
-      tableName: table.name,
+      $set: {
+        tableNumber: table.number,
+        tableName: table.name,
+      },
     }
   );
 
