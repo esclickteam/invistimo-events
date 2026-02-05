@@ -38,7 +38,9 @@ export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
-  const didLoadRef = useRef(false);
+const [invitationId, setInvitationId] = useState<string | null>(null); 
+const didLoadRef = useRef(false);
+
 
 
   const [isMobile, setIsMobile] = useState(false);
@@ -132,10 +134,19 @@ useEffect(() => {
 
       /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
       const invRes = await fetch("/api/invitations/my");
-      const invData = await invRes.json();
+const invData = await invRes.json();
 
-      const eventIdFromApi: string = invData.invitation.eventId;
-      setEventId(eventIdFromApi);
+const invitationIdFromApi: string = invData?.invitation?._id;
+const eventIdFromApi: string = invData?.invitation?.eventId;
+
+if (!invitationIdFromApi || !eventIdFromApi) {
+  console.error("❌ Missing invitation/event id", invData);
+  return;
+}
+
+setInvitationId(invitationIdFromApi); 
+setEventId(eventIdFromApi);
+
 
       /* 2️⃣ אורחים – לפי eventId */
       const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
@@ -178,8 +189,8 @@ useEffect(() => {
       setZones(tData.zones || []);
 
       /* 4️⃣ קבוצות */
-      const invitationId = invData.invitation._id;
-      const grRes = await fetch(`/api/seating/groups/${invitationId}`);
+      const grRes = await fetch(`/api/seating/groups/${invitationIdFromApi}`);
+
 
       if (grRes.ok) {
         const grData = await grRes.json();
@@ -263,7 +274,11 @@ useEffect(() => {
      SAVE
   =============================== */
   async function saveSeating() {
-    if (!eventId) return;
+  if (!eventId || !invitationId) {
+    alert("❌ חסר invitationId או eventId");
+    return;
+  }
+
 
     const zones = useZoneStore.getState().zones;
     const cv = useSeatingStore.getState().canvasView;
@@ -273,13 +288,16 @@ useEffect(() => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        tables,
-        guests,
-        groups,
-        background,
-        zones,
-        canvasView: cv,
-      }),
+  eventId,          
+  invitationId,     
+  tables,
+  guests,
+  groups,
+  background,
+  zones,
+  canvasView: cv,
+}),
+
     });
 
  
@@ -431,10 +449,12 @@ return (
     }}
   >
     <SeatingEditor
-      background={background?.url || null}
-      hideSeats={isProducer}
-      sidebarOpen={sidebarOpen}
-    />
+  background={background?.url || null}
+  invitationId={invitationId} // ⭐ חובה
+  hideSeats={isProducer}
+  sidebarOpen={sidebarOpen}
+/>
+
   </div>
 </div>
 

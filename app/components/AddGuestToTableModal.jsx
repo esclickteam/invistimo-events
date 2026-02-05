@@ -4,18 +4,23 @@ import { useState, useMemo, useEffect } from "react";
 import { X } from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
 
-export default function AddGuestToTableModal({ table, guests, onClose }) {
+export default function AddGuestToTableModal({
+  table,
+  guests,
+  onClose,
+  invitationId,
+}) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
   /* ================= TABLE + GUESTS ================= */
 
   const tableData = useSeatingStore((s) =>
-    s.tables.find((t) => t.id === table.id)
+    s.tables.find((t) => String(t.id) === String(table?.id))
   );
 
   const storeGuests = useSeatingStore((s) => s.guests);
-  const tableGuests = storeGuests?.length ? storeGuests : guests;
+  const tableGuests = storeGuests?.length ? storeGuests : guests || [];
 
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
@@ -35,9 +40,23 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
 
+  // אם יש arrivedCount>0 נשתמש בו, אחרת guestsCount, אחרת 1
   const getPartySize = (g) => {
-    const n = Number(g?.arrivedCount ?? 0);
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    const arrived = Number(g?.arrivedCount ?? 0);
+    if (Number.isFinite(arrived) && arrived > 0) return Math.floor(arrived);
+
+    const guestsCount = Number(g?.guestsCount ?? 0);
+    if (Number.isFinite(guestsCount) && guestsCount > 0)
+      return Math.floor(guestsCount);
+
+    return 1;
+  };
+
+  const extractNumberFromName = (name) => {
+    const m = String(name || "").match(/\d+/);
+    if (!m) return NaN;
+    const n = Number(m[0]);
+    return Number.isFinite(n) ? n : NaN;
   };
 
   /* ================= SEATS ================= */
@@ -45,19 +64,20 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const seatsArray = useMemo(() => {
     if (!tableData) return [];
 
-    const arr = Array.from({ length: tableData.seats }, (_, i) => ({
+    const totalSeats = Number(tableData.seats || 0);
+    const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
       index: i,
       guest: null,
     }));
 
     for (const s of tableData.seatedGuests || []) {
       const g = tableGuests.find(
-        (gg) => getGuestId(gg) === String(s.guestId)
+        (gg) => getGuestId(gg) === String(s?.guestId)
       );
       if (!g) continue;
 
       if (
-        typeof s.seatIndex === "number" &&
+        typeof s?.seatIndex === "number" &&
         s.seatIndex >= 0 &&
         s.seatIndex < arr.length
       ) {
@@ -69,14 +89,14 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   }, [tableData, tableGuests]);
 
   const occupied = tableData?.seatedGuests?.length ?? 0;
-  const remainingSeats = (tableData?.seats ?? 0) - occupied;
+  const remainingSeats = Math.max(0, (tableData?.seats ?? 0) - occupied);
 
   /* ================= AVAILABLE GUESTS ================= */
 
   const availableGuests = useMemo(() => {
     const seatedIds = new Set(
       (useSeatingStore.getState().tables || []).flatMap((t) =>
-        (t.seatedGuests || []).map((sg) => String(sg.guestId))
+        (t.seatedGuests || []).map((sg) => String(sg?.guestId))
       )
     );
 
@@ -103,35 +123,51 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   const handleSeatGuest = async (seatIndex, guest) => {
     if (!tableData) return;
+    if (!invitationId) {
+      setError("חסר invitationId, לא ניתן להושיב אורח.");
+      return;
+    }
 
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
 
-    const res = assignGuestsToTable(
-      tableData.id,
-      guestId,
-      count,
-      seatIndex
-    );
+    // optimistic local
+    const localRes = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
 
-    if (!res?.ok) {
-      setError(res?.message || "לא ניתן להושיב כאן");
+    if (!localRes?.ok) {
+      setError(localRes?.message || "לא ניתן להושיב כאן");
       return;
     }
 
-    await fetch("/api/guests/assign-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestId,
-        tableName: tableData.name, // 🔥 מקור אמת יחיד
-        seatIndex,
-      }),
-    });
+    try {
+      const res = await fetch("/api/guests/assign-table", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guestId,
+          invitationId,          // ⭐ חובה
+          tableId: tableData.id, // ⭐ חובה
+          seatIndex,
+        }),
+      });
 
-    setError("");
-    setOpenSeat(null);
-    setSearchTerm("");
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        // rollback
+        removeGuestFromTable(tableData.id, guestId);
+        setError(data?.error || "שגיאה בשיוך אורח לשולחן");
+        return;
+      }
+
+      setError("");
+      setOpenSeat(null);
+      setSearchTerm("");
+    } catch (e) {
+      // rollback
+      removeGuestFromTable(tableData.id, guestId);
+      setError("שגיאת רשת בשיוך אורח");
+    }
   };
 
   /* ================= REMOVE GUEST ================= */
@@ -141,52 +177,111 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     const guestId = getGuestId(guest);
 
+    // optimistic local
     removeGuestFromTable(tableData.id, guestId);
 
-    await fetch("/api/guests/remove-from-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guestId }),
-    });
+    try {
+      const res = await fetch("/api/guests/remove-from-table", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guestId, invitationId }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        setError(data?.error || "שגיאה בהסרת אורח מהשולחן");
+      }
+    } catch {
+      setError("שגיאת רשת בהסרת אורח");
+    }
   };
 
   /* ================= COMMIT TABLE NAME ================= */
 
   const commitTableName = async () => {
     if (!tableData) return;
+    if (!invitationId) {
+      setError("חסר invitationId, לא ניתן לעדכן שם שולחן.");
+      return;
+    }
 
-    const newName = tableNameDraft.trim();
-    if (!newName) {
+    const newNameRaw = tableNameDraft.trim();
+    if (!newNameRaw) {
       setError("שם שולחן לא תקין");
+      return;
+    }
+
+    // מוציאים מספר מהטקסט (שולחן 50 / 50 שולחן / 50)
+    const newNumber = extractNumberFromName(newNameRaw);
+    if (!Number.isFinite(newNumber)) {
+      setError("יש להזין שם שמכיל מספר שולחן (לדוגמה: שולחן 50)");
       return;
     }
 
     const oldTableName = tableData.name;
 
-    const res = await fetch("/api/seating/update-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        oldTableName,
-        newName,
-      }),
-    });
+    try {
+      const res = await fetch("/api/seating/update-table", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invitationId,            // ⭐ חובה
+          tableId: tableData.id,   // ⭐ חובה
+          oldTableName,            // fallback
+          newNumber,               // ⭐ לא newName
+        }),
+      });
 
-    if (!res.ok) {
-      setError("שגיאה בעדכון השולחן");
-      return;
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        setError(data?.error || "שגיאה בעדכון השולחן");
+        return;
+      }
+
+      // עדכון לוקאלי עקבי
+      useSeatingStore.setState((state) => ({
+        tables: (state.tables || []).map((t) =>
+          String(t.id) === String(tableData.id)
+            ? { ...t, name: `שולחן ${newNumber}`, tableNumber: newNumber }
+            : t
+        ),
+      }));
+
+      setTableNameDraft(`שולחן ${newNumber}`);
+      setIsEditingName(false);
+      setError("");
+    } catch {
+      setError("שגיאת רשת בעדכון השולחן");
     }
-
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === tableData.id ? { ...t, name: newName } : t
-      ),
-    }));
-
-    setIsEditingName(false);
   };
 
   if (!tableData) return null;
+
+  if (!invitationId) {
+    return (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-[520px] p-8">
+          <button
+            onClick={onClose}
+            className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
+          >
+            <X size={22} />
+          </button>
+          <h3 className="text-xl font-bold text-center mb-3">לא ניתן להמשיך</h3>
+          <p className="text-center text-red-600">
+            חסר invitationId, לכן אי אפשר לעדכן הושבה/שולחן.
+          </p>
+          <div className="flex justify-center mt-6">
+            <button onClick={onClose} className="px-6 py-2 bg-gray-200 rounded-lg">
+              סגור
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* ================= UI ================= */
 
@@ -211,17 +306,16 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") commitTableName();
                 if (e.key === "Escape") {
-                  setTableNameDraft(tableData.name);
+                  setTableNameDraft(tableData.name || "");
                   setIsEditingName(false);
+                  setError("");
                 }
               }}
-              className="text-2xl font-bold text-center border-b w-48"
+              className="text-2xl font-bold text-center border-b w-56"
             />
           ) : (
             <>
-              <h2 className="text-2xl font-bold">
-                הושבה לשולחן {tableData.name}
-              </h2>
+              <h2 className="text-2xl font-bold">הושבה לשולחן {tableData.name}</h2>
               <button onClick={() => setIsEditingName(true)}>✏️</button>
             </>
           )}
@@ -232,9 +326,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         </p>
 
         {error && (
-          <div className="text-red-600 text-center mb-3 font-medium">
-            {error}
-          </div>
+          <div className="text-red-600 text-center mb-3 font-medium">{error}</div>
         )}
 
         {/* SEATS */}
@@ -266,9 +358,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
                   {g ? (
                     <>
-                      <span className="font-semibold truncate w-[90%]">
-                        {g.name}
-                      </span>
+                      <span className="font-semibold truncate w-[90%]">{g.name}</span>
                       <span className="text-xs text-gray-600">
                         ({getPartySize(g)} מגיעים)
                       </span>
@@ -288,16 +378,20 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
                       className="w-full px-2 py-1 text-xs border-b"
                     />
 
-                    {availableGuests.map((g2) => (
-                      <div
-                        key={getGuestId(g2)}
-                        onClick={() => handleSeatGuest(i, g2)}
-                        className="p-2 hover:bg-blue-50 cursor-pointer text-xs flex justify-between"
-                      >
-                        <span>{g2.name}</span>
-                        <span>{getPartySize(g2)}</span>
-                      </div>
-                    ))}
+                    {availableGuests.length === 0 ? (
+                      <div className="p-2 text-xs text-gray-500">אין אורחים מתאימים</div>
+                    ) : (
+                      availableGuests.map((g2) => (
+                        <div
+                          key={getGuestId(g2)}
+                          onClick={() => handleSeatGuest(i, g2)}
+                          className="p-2 hover:bg-blue-50 cursor-pointer text-xs flex justify-between"
+                        >
+                          <span>{g2.name}</span>
+                          <span>{getPartySize(g2)}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
@@ -306,10 +400,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
         </div>
 
         <div className="flex justify-center mt-6">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-gray-200 rounded-lg"
-          >
+          <button onClick={onClose} className="px-6 py-2 bg-gray-200 rounded-lg">
             סגור
           </button>
         </div>

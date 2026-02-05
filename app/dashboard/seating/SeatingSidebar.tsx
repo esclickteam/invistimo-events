@@ -48,7 +48,8 @@ type Filter = "all" | "seated" | "unseated";
 
 /* ================= COMPONENT ================= */
 
-export default function SeatingSidebar() {
+export default function SeatingSidebar({ invitationId }: { invitationId?: string | null }) {
+
   /* ===== STORE ===== */
   const guests = useSeatingStore((s) => s.guests) as Guest[];
   const groups = useSeatingStore((s) => s.groups) as Group[];
@@ -74,6 +75,48 @@ export default function SeatingSidebar() {
 
   const getGuestsPlannedCount = (list: Guest[]) =>
     list.reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
+
+  const syncAssignToServer = async (guestId: string, tableId: string) => {
+  if (!invitationId) return false;
+
+  try {
+    const res = await fetch("/api/guests/assign-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestId,
+        invitationId,
+        tableId,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    return res.ok && data?.success !== false;
+  } catch {
+    return false;
+  }
+};
+
+const syncRemoveFromServer = async (guestId: string) => {
+  if (!invitationId) return false;
+
+  try {
+    const res = await fetch("/api/guests/remove-from-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestId,
+        invitationId,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    return res.ok && data?.success !== false;
+  } catch {
+    return false;
+  }
+};
+
 
   /* ================= TABLE MAP ================= */
 
@@ -288,16 +331,30 @@ export default function SeatingSidebar() {
         ? getGroupTableId(group._id)
         : getNoGroupTableId(visibleGuests)
     }
-    onChange={(e) => {
-      const tableId = e.target.value;
-      visibleGuests
-        .filter((g) => g.rsvp === "yes")
-        .forEach((g) => {
-          const gid = seatGuestId(g);
-          if (!tableId) removeFromSeat(gid);
-          else assignGuestBlock({ guestId: gid, tableId });
-        });
-    }}
+    onChange={async (e) => {
+  const tableId = e.target.value;
+  const yesGuests = visibleGuests.filter((g) => g.rsvp === "yes");
+
+  for (const g of yesGuests) {
+    const gid = seatGuestId(g);
+
+    if (!tableId) {
+      removeFromSeat(gid); // optimistic
+      const ok = await syncRemoveFromServer(gid);
+      if (!ok) {
+        // rollback בסיסי: לא מחזירים אוטומטית כדי לא לשבור UX, רק אפשר להציג שגיאה אם תרצי
+        console.error("Failed removing guest from server", gid);
+      }
+    } else {
+      assignGuestBlock({ guestId: gid, tableId }); // optimistic
+      const ok = await syncAssignToServer(gid, tableId);
+      if (!ok) {
+        console.error("Failed assigning guest on server", gid, tableId);
+      }
+    }
+  }
+}}
+
   >
     <option value="">ללא שולחן</option>
     {tables.map((t) => (
@@ -317,7 +374,8 @@ export default function SeatingSidebar() {
 
     return (
       <div
-        key={g._id}
+        key={gid}
+
         className="px-5 py-2 flex justify-between items-center gap-2 hover:bg-[#f3e7e0]"
       >
         {/* 🧑 פרטי אורח */}
@@ -340,17 +398,19 @@ export default function SeatingSidebar() {
         ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
         : "bg-white border-[#e6c3ad] hover:bg-[#f6ede8]"
     }`}
-  onClick={() => {
-  // סוגר בחירה קודמת (אם הייתה)
+  onClick={async () => {
   setSelectingGuestId(null);
 
-  // אם כבר יושב – הסרה
   if (table) {
     removeFromSeat(gid);
+const ok = await syncRemoveFromServer(gid);
+if (!ok) {
+  console.error("Failed removing guest from server", gid);
+}
+
     return;
   }
 
-  // תמיד פתיחת בחירה ידנית לאורח
   setSelectingGuestId(gid);
 }}
 
@@ -367,13 +427,19 @@ export default function SeatingSidebar() {
       rounded-lg px-2 bg-white
     "
     defaultValue=""
-    onChange={(e) => {
-      const tableId = e.target.value;
-      if (!tableId) return;
+    onChange={async (e) => {
+  const tableId = e.target.value;
+  if (!tableId) return;
 
-      assignGuestBlock({ guestId: gid, tableId });
-      setSelectingGuestId(null);
-    }}
+  assignGuestBlock({ guestId: gid, tableId }); // optimistic
+  const ok = await syncAssignToServer(gid, tableId);
+  if (!ok) {
+    console.error("Failed assigning guest on server", gid, tableId);
+  }
+
+  setSelectingGuestId(null);
+}}
+
   >
     <option value="">בחר שולחן…</option>
     {tables.map((t) => (

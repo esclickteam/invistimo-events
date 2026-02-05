@@ -27,11 +27,13 @@ import MobileGuests from "./MobileGuests";
 ============================================================ */
 type SeatingEditorProps = {
   background: string | null;
+  invitationId?: string | null; // ⭐ חדש
   readOnly?: boolean;
   showStats?: boolean;
   hideSeats?: boolean;
-  sidebarOpen?: boolean; // ⭐ חדש
+  sidebarOpen?: boolean;
 };
+
 
 type Guest = {
   id?: string;
@@ -56,11 +58,13 @@ type Table = {
 ============================================================ */
 function SeatingEditorInner({
   background,
+  invitationId = null, // ⭐ חדש
   readOnly = false,
   showStats = false,
   hideSeats = false,
-  sidebarOpen = false, // ⭐ כאן
+  sidebarOpen = false,
 }: SeatingEditorProps) {
+
   const [bgImage] = useImage(background || "", "anonymous");
 
   /* ================= STORES ================= */
@@ -368,10 +372,9 @@ const getBounds = () => {
 
   const scaleBy = 1.05;
   const direction = e.evt.deltaY > 0 ? -1 : 1;
-  const newScale =
-  direction > 0
-    ? scale * scaleBy
-    : scale / scaleBy;
+  const rawScale = direction > 0 ? scale * scaleBy : scale / scaleBy;
+const newScale = clamp(rawScale, 0.35, 3); // ⭐ מומלץ
+
 
   const mousePointTo = {
     x: (pointer.x - stagePos.x) / scale,
@@ -485,7 +488,8 @@ setCanvasView({ ...clamped, scale });
     }
 
     const scaleBy = dist / lastTouchDist.current;
-    const newScale = scale * scaleBy;
+    const newScale = clamp(scale * scaleBy, 0.35, 3); // ⭐ מומלץ
+
 
 
     // מרכז הזום בין שתי האצבעות
@@ -729,12 +733,14 @@ const handleAddTable = (type: string, seats: number) => {
       )}
 
       {!readOnly && addGuestTable && (
-        <AddGuestToTableModal
-          table={addGuestTable}
-          guests={unseatedGuests}
-          onClose={() => setAddGuestTable(null)}
-        />
-      )}
+  <AddGuestToTableModal
+    table={addGuestTable}
+    guests={unseatedGuests}
+    invitationId={invitationId} // ⭐ חדש
+    onClose={() => setAddGuestTable(null)}
+  />
+)}
+
 
       {!readOnly && showGuests && (
         <MobileGuests
