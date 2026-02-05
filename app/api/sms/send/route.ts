@@ -8,7 +8,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
-import { buildFinalSmsText } from "@/lib/sms/buildFinalSmsText";
+
 
 /* ======================================================
    TYPES
@@ -190,9 +190,11 @@ if (remainingMessages <= 0) {
     if (filter === "pending") query.rsvp = "pending";
 
     if (filter === "withTable") {
-  query.tableId = { $exists: true, $ne: null };
+  query.$or = [
+    { tableName: { $exists: true, $ne: "" } },
+    { tableNumber: { $ne: null } },
+  ];
 }
-
 
 /* ================= TARGET GUESTS ================= */
 let guestsQuery: any;
@@ -339,7 +341,19 @@ let totalPartsSent = 0;
 
     for (const guest of guests) {
 
+      if (
+        template.requiresTable &&
+        !guest.tableName &&
+        typeof guest.tableNumber !== "number"
+      ) {
+        continue;
+      }
 
+      const tableName =
+        guest.tableName ||
+        (typeof guest.tableNumber === "number"
+          ? `שולחן ${guest.tableNumber}`
+          : "");
 
       let phone = (guest.phone || "").replace(/\D/g, "");
       if (!phone) continue;
@@ -354,15 +368,15 @@ const personalRsvpUrl =
 // ✂️ קיצור הקישור האישי
 const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
-const finalText = await buildFinalSmsText({
-  messageTemplate: baseTemplateText,
-  guest,
-  invitation,
-  event,
-  includeGiftLink,
-  giftLink,
-});
+let finalText = baseMessage
+  .replace(/{{name}}/g, guest.name || "")
+  .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+  .replace(/{{tableName}}/g, tableName)
+  .replace(/{{navigationLink}}/g, navigationLink);
 
+if (includeGiftLink && giftLink) {
+  finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+}
 
 const parts = countBusinessSms(finalText);
 

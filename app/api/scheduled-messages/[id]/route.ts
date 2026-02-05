@@ -47,22 +47,6 @@ export async function PATCH(
     );
   }
 
-  /* ================= VALIDATE TEMPLATE ================= */
-// ❌ אסור לשמור מספר שולחן קשיח (שולחן 5, שולחן 12 וכו')
-const forbiddenTableLiteral = /שולחן\s+\d+/;
-
-if (forbiddenTableLiteral.test(text)) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "INVALID_TEMPLATE",
-      message: "אין לשמור מספר שולחן בטקסט. השתמש/י ב־placeholder.",
-    },
-    { status: 400 }
-  );
-}
-
-
   const msg = await ScheduledMessage.findOne({
     _id: id,
     userId: decoded.userId,

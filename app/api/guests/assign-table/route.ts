@@ -5,7 +5,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 export async function POST(req: Request) {
   await dbConnect();
 
-  const { guestId, tableId, seatIndex } = await req.json();
+  const { guestId, tableId, tableName, seatIndex } = await req.json();
 
   if (!guestId || !tableId) {
     return NextResponse.json(
@@ -14,24 +14,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await InvitationGuest.updateOne(
-  { _id: guestId },
-  {
-    $set: {
-      tableId,
-      ...(typeof seatIndex === "number" ? { seatIndex } : {}),
-    },
-  }
-);
-
-console.log("🧪 ASSIGN TABLE RESULT", {
-  guestId,
-  tableId,
-  seatIndex,
-  matched: result.matchedCount,
-  modified: result.modifiedCount,
-});
-
+  await InvitationGuest.updateOne(
+    { _id: guestId },
+    {
+      $set: {
+        tableId,
+        tableName,
+        seatIndex,
+      },
+    }
+  );
 
   return NextResponse.json({ success: true });
 }

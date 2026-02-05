@@ -30,24 +30,12 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     setTableNameDraft(tableData.displayName || tableData.name || "");
   }, [tableData?.id, tableData?.displayName, tableData?.name]);
 
- const getGuestId = (g) => {
-  if (!g?._id) {
-    console.error("❌ Guest without _id", g);
-    return null;
-  }
-  return String(g._id);
-};
-
+  const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
 
   const getPartySize = (g) => {
-  const n = Number(
-    g?.arrivedCount ??
-    (g?.rsvp === "yes" ? g?.guestsCount : 0)
-  );
-
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-};
-
+    const n = Number(g?.arrivedCount ?? 0);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  };
 
   /* ================= מושבים ================= */
 
@@ -76,70 +64,63 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   /* ================= אורחים זמינים ================= */
 
- const availableGuests = useMemo(() => {
-  const seatedIds = new Set(
-    (useSeatingStore.getState().tables || []).flatMap((t) =>
-      (t.seatedGuests || []).map((sg) => String(sg.guestId))
-    )
-  );
-
-  return (tableGuests || []).filter((g) => {
-    const id = getGuestId(g);
-    if (!id) return false;
-
-    const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
-    const isAlreadySeated = seatedIds.has(id);
-
-    const matchesSearch =
-      !searchTerm ||
-      String(g?.name ?? "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-
-    return (
-      isYes &&
-      !isAlreadySeated &&
-      getPartySize(g) <= remainingSeats &&
-      matchesSearch
+  const availableGuests = useMemo(() => {
+    const seatedIds = new Set(
+      (useSeatingStore.getState().tables || []).flatMap((t) =>
+        (t.seatedGuests || []).map((sg) => String(sg.guestId))
+      )
     );
-  });
-}, [tableGuests, searchTerm, remainingSeats]);
 
+    return (tableGuests || []).filter((g) => {
+      const id = getGuestId(g);
+      const hasTable = Boolean(g?.tableName);
+      const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
+
+      const matchesSearch =
+        !searchTerm ||
+        String(g?.name ?? "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+
+      return (
+        isYes &&
+        !hasTable &&
+        !seatedIds.has(id) &&
+        getPartySize(g) <= remainingSeats &&
+        matchesSearch
+      );
+    });
+  }, [tableGuests, searchTerm, remainingSeats]);
 
   /* ================= הושבה ================= */
 
   const handleSeatGuest = async (seatIndex, guest) => {
-  if (!tableData) return;
+    if (!tableData) return;
 
-  const guestId = getGuestId(guest);
-  if (!guestId) return;
+    const guestId = getGuestId(guest);
+    const count = getPartySize(guest);
 
-  const count = getPartySize(guest);
+    const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
 
-  // 1️⃣ קודם שרת
-  const response = await fetch("/api/guests/assign-table", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      guestId,
-      tableId: tableData.id,
-      seatIndex,
-    }),
-  });
+    if (!res?.ok) {
+      setError(res?.message || "לא ניתן להושיב כאן");
+      return;
+    }
 
-  if (!response.ok) {
-    setError("שמירה נכשלה בשרת");
-    return;
-  }
+    await fetch("/api/guests/assign-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestId,
+        tableName: tableData.name,
+        seatIndex,
+      }),
+    });
 
-  // 2️⃣ רק אחרי הצלחה – store
-  assignGuestsToTable(tableData.id, guestId, count, seatIndex);
-
-  // 3️⃣ ניקוי UI
-  setError("");
-  setOpenSeat(null);
-  setSearchTerm("");
-};
+    setError("");
+    setOpenSeat(null);
+    setSearchTerm("");
+  };
 
   /* ================= הסרה ================= */
 

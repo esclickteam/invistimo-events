@@ -1,6 +1,4 @@
 import { shortenUrl } from "@/lib/shortenUrl";
-import SeatingTable from "@/models/SeatingTable";
-import { resolveGuestTableName } from "@/lib/resolveGuestTableClient";
 
 type BuildSmsParams = {
   messageTemplate: string;
@@ -8,12 +6,13 @@ type BuildSmsParams = {
   guest: {
     name?: string;
     token: string;
-    tableId?: string | null;
+    tableId?: string;     // ⚠️ קיים אבל לא בשימוש
+    tableName?: string;
+    tableNumber?: number;
   };
 
   invitation: {
     shareId: string;
-    eventId: string;
     eventLocation?: {
       lat?: number;
       lng?: number;
@@ -39,15 +38,18 @@ export async function buildFinalSmsText({
   includeGiftLink,
   giftLink,
 }: BuildSmsParams): Promise<string> {
-  /* ================= TABLE ================= */
+  /* ================= TABLE =================
+     ⚠️ SMS לא נוגע ב־DB
+     מקור אמת:
+     1. guest.tableName
+     2. guest.tableNumber
+  ========================================= */
   let tableName = "";
 
-  if (guest.tableId) {
-    const tables = await SeatingTable.find({
-      eventId: invitation.eventId,
-    }).lean();
-
-    tableName = resolveGuestTableName(guest, tables);
+  if (guest.tableName) {
+    tableName = guest.tableName;
+  } else if (typeof guest.tableNumber === "number") {
+    tableName = `שולחן ${guest.tableNumber}`;
   }
 
   /* ================= NAVIGATION ================= */
