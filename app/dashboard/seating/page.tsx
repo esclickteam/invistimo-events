@@ -133,11 +133,24 @@ useEffect(() => {
       /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
       const invRes = await fetch("/api/invitations/my", {
   credentials: "include",
+  cache: "no-store",
 });
-      const invData = await invRes.json();
 
-      const eventIdFromApi: string = invData.invitation.eventId;
-      setEventId(eventIdFromApi);
+if (!invRes.ok) {
+  console.error("❌ Failed to load invitation", invRes.status);
+  return;
+}
+
+const invData = await invRes.json();
+
+if (!invData?.invitation?.eventId) {
+  console.error("❌ invitation or eventId missing", invData);
+  return;
+}
+
+const eventIdFromApi: string = invData.invitation.eventId;
+setEventId(eventIdFromApi);
+
 
       /* 2️⃣ אורחים – לפי eventId */
       const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
