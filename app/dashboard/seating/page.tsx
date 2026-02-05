@@ -458,7 +458,7 @@ return (
 
 {/* 🎨 קנבס + סיידבר */}
 <div
-  className="absolute inset-x-0 flex min-w-0"
+  className="absolute inset-x-0 flex flex-row-reverse min-w-0"
   style={{ top: 64, bottom: 0 }}
 >
   {/* קנבס */}
