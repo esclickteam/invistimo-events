@@ -5,7 +5,13 @@ import InvitationGuest from "@/models/InvitationGuest";
 export async function POST(req: Request) {
   await dbConnect();
 
-  const { guestId, tableId, tableName, seatIndex } = await req.json();
+  const {
+    guestId,
+    tableId,
+    tableName,
+    tableNumber, // ⬅️ אופציונלי אבל חשוב
+    seatIndex,
+  } = await req.json();
 
   if (!guestId || !tableId) {
     return NextResponse.json(
@@ -20,7 +26,8 @@ export async function POST(req: Request) {
       $set: {
         tableId,
         tableName,
-        seatIndex,
+        ...(typeof tableNumber === "number" ? { tableNumber } : {}),
+        ...(typeof seatIndex === "number" ? { seatIndex } : {}),
       },
     }
   );
