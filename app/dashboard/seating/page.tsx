@@ -350,7 +350,7 @@ setEventId(eventIdFromApi);
    RENDER
 =============================== */
 return (
-   <div className="h-screen w-screen bg-gray-50 overflow-hidden">
+   <div className="h-screen w-screen bg-gray-50 overflow-visible">
 
 
 
@@ -488,7 +488,7 @@ return (
 
 
   {/* 🧾 סיידבר הושבה מאוחד */}
-<div className="absolute right-0 bottom-0 hidden md:flex" style={{ top: 64 }}>
+ <div className="absolute right-0 bottom-0 hidden md:flex z-30" style={{ top: 64 }}>
 
 
 
