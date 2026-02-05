@@ -3,10 +3,6 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
-function extractNumberFromName(name) {
-  const m = String(name || "").match(/(\d+)/);
-  return m ? Number(m[1]) : null;
-}
 
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
@@ -349,12 +345,10 @@ const newSeats = groupGuests.flatMap((guest) => {
     : t
 );
 
-const resolvedTableName = String(
-  targetTable?.number ??
-    extractNumberFromName(targetTable?.name) ??
-    targetTable?.name ??
-    ""
-).trim();
+const resolvedTableName =
+  targetTable?.number != null
+    ? String(targetTable.number)
+    : null;
 
 
 
@@ -437,8 +431,8 @@ init: (tables, guests, background = null, canvasView = null) => {
 
     tables: (tables || []).map((t) => ({
       ...t,
-      number: t.number ?? extractNumberFromName(t.name) ?? null,
-      displayName: t.displayName || "",
+      number: t.number ?? null,
+displayName: t.displayName || "",
       seatedGuests: t.seatedGuests || [],
     })),
 
@@ -488,8 +482,8 @@ console.table(
   set({
     tables: (snapshot.tables || []).map((t) => ({
   ...t,
-  number: t.number ?? extractNumberFromName(t.name) ?? null, // ✅ חדש
-  displayName: t.displayName || "",
+ number: t.number ?? null,
+displayName: t.displayName || "",
   seatedGuests: (t.seatedGuests || []).map((sg) => ({
     ...sg,
     arrived: sg.arrived ?? false,
@@ -814,12 +808,10 @@ dropGuest: () => {
   (t) => t.id === highlightedTable
 );
 
-const resolvedTableName = String(
-  targetTable?.number ??
-    extractNumberFromName(targetTable?.name) ??
-    targetTable?.name ??
-    ""
-).trim();
+const resolvedTableName =
+  targetTable?.number != null
+    ? String(targetTable.number)
+    : null;
 
 
   
@@ -896,12 +888,10 @@ if (count === 0) return;
 
   const targetTable = updatedTables.find((t) => t.id === tableId);
 
-const resolvedTableName = String(
-  targetTable?.number ??
-    extractNumberFromName(targetTable?.name) ??
-    targetTable?.name ??
-    ""
-).trim();
+const resolvedTableName =
+  targetTable?.number != null
+    ? String(targetTable.number)
+    : null;
 
 set({
   tables: updatedTables,
@@ -956,12 +946,11 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
   (t) => t.id === tableId
 );
 
-  const resolvedTableName = String(
-    targetTable?.number ??
-      extractNumberFromName(targetTable?.name) ??
-      targetTable?.name ??
-      ""
-  ).trim();
+  const resolvedTableName =
+  targetTable?.number != null
+    ? String(targetTable.number)
+    : null;
+
 
   set({
     tables: updatedTables,
@@ -1024,12 +1013,11 @@ assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
     (g) => String(g.id ?? g._id) === String(guestId)
   );
 
-  const resolvedTableName = String(
-    table?.number ??
-      extractNumberFromName(table?.name) ??
-      table?.name ??
-      ""
-  ).trim();
+  const resolvedTableName =
+  table?.number != null
+    ? String(table.number)
+    : null;
+
 
   if (!table || !guest) {
     return { ok: false, message: "שגיאה בזיהוי שולחן / אורח" };

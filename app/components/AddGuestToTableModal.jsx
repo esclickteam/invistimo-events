@@ -112,7 +112,8 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         guestId,
-        tableName: tableData.name,
+        tableId: tableData.id,
+tableName: String(tableData.number),
         seatIndex,
       }),
     });
@@ -187,7 +188,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           ) : (
             <>
               <h2 className="text-2xl font-bold text-center text-gray-800">
-                הושבה לשולחן {tableData.displayName || tableData.name}
+               הושבה לשולחן {tableData.number}
               </h2>
 
               <button
