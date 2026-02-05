@@ -96,7 +96,7 @@ export default function GuestSidebar({ variant = "desktop" }) {
             const tableFromStore = guestTableMap.get(guestId) || null;
 
             const tableLabel =
-  (tableFromStore && (tableFromStore.displayName || tableFromStore.name)) ||
+  (tableFromStore && ( tableFromStore.name)) ||
   (tableFromStore
     ? `שולחן ${tableFromStore.number ?? tableFromStore.id}`
     : null);

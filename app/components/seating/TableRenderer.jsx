@@ -197,7 +197,7 @@ const groupForTable = useMemo(() => {
 }, [table.seatedGuests, guests, groups]);
 
 
-const displayName = table.displayName || "";
+
 
 
 
@@ -247,11 +247,7 @@ useEffect(() => {
 
 const seatsTotal = Number(table.seats || 0);
 
-const tableTitle = table.displayName
-  ? table.displayName
-  : table.number != null
-  ? `שולחן ${table.number}`
-  : table.name || "";
+const tableTitle = table.name || "";
 
 
 const tableLabel = groupForTable
@@ -320,7 +316,7 @@ const tableText = isHighlighted
 
 
   /* ====== CACHE כמו Canva ====== */
-  useEffect(() => {
+useEffect(() => {
   if (tableRef.current) {
     tableRef.current.clearCache();
     tableRef.current.cache();
@@ -333,31 +329,9 @@ const tableText = isHighlighted
   occupiedSeatsCount,
   hideSeats,
   liveArrivals,
-  table.number,      // ✅ חובה
-  table.displayName, // ✅ אם את משתמשת בו
+  table.name, // 🔥 זה מה שמפעיל redraw אחרי עריכה
 ]);
 
-
-
-
-
-  const updatePositionInStore = () => {
-    if (!tableRef.current) return;
-    const pos = tableRef.current.position();
-
-    useSeatingStore.setState((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === table.id
-          ? {
-              ...t,
-              x: pos.x,
-              y: pos.y,
-              rotation: tableRef.current.rotation(),
-            }
-          : t
-      ),
-    }));
-  };
 
   const handleDrop = (e) => {
     e.cancelBubble = true;

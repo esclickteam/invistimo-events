@@ -8,36 +8,39 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 
-  // שולחן מעודכן מה־store
-  const tableData = useSeatingStore((s) => s.tables.find((t) => t.id === table.id));
+  /* ================= TABLE + GUESTS ================= */
 
-  // אורחים מה־store (אם קיים) אחרת מה־props
+  const tableData = useSeatingStore((s) =>
+    s.tables.find((t) => t.id === table.id)
+  );
+
   const storeGuests = useSeatingStore((s) => s.guests);
   const tableGuests = storeGuests?.length ? storeGuests : guests;
 
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState(""); // 🔍 חיפוש
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const updateTableDisplayName = useSeatingStore((s) => s.updateTableDisplayName);
+  /* ================= EDIT TABLE NAME ================= */
 
-  // ✅ עריכת שם/מספר שולחן (displayName)
   const [isEditingName, setIsEditingName] = useState(false);
   const [tableNameDraft, setTableNameDraft] = useState("");
 
   useEffect(() => {
     if (!tableData) return;
-    setTableNameDraft(tableData.displayName || tableData.name || "");
-  }, [tableData?.id, tableData?.displayName, tableData?.name]);
+    setTableNameDraft(tableData.name || "");
+  }, [tableData?.name]);
 
-  const getGuestId = (g) => String(g?.id ?? g?._id ?? "");
+  /* ================= HELPERS ================= */
+
+  const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
 
   const getPartySize = (g) => {
     const n = Number(g?.arrivedCount ?? 0);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   };
 
-  /* ================= מושבים ================= */
+  /* ================= SEATS ================= */
 
   const seatsArray = useMemo(() => {
     if (!tableData) return [];
@@ -48,10 +51,16 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }));
 
     for (const s of tableData.seatedGuests || []) {
-      const g = tableGuests.find((gg) => getGuestId(gg) === String(s.guestId));
+      const g = tableGuests.find(
+        (gg) => getGuestId(gg) === String(s.guestId)
+      );
       if (!g) continue;
 
-      if (typeof s.seatIndex === "number" && s.seatIndex >= 0 && s.seatIndex < arr.length) {
+      if (
+        typeof s.seatIndex === "number" &&
+        s.seatIndex >= 0 &&
+        s.seatIndex < arr.length
+      ) {
         arr[s.seatIndex].guest = g;
       }
     }
@@ -62,7 +71,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const occupied = tableData?.seatedGuests?.length ?? 0;
   const remainingSeats = (tableData?.seats ?? 0) - occupied;
 
-  /* ================= אורחים זמינים ================= */
+  /* ================= AVAILABLE GUESTS ================= */
 
   const availableGuests = useMemo(() => {
     const seatedIds = new Set(
@@ -73,7 +82,6 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     return (tableGuests || []).filter((g) => {
       const id = getGuestId(g);
-      const hasTable = Boolean(g?.tableName);
       const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
 
       const matchesSearch =
@@ -84,7 +92,6 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
       return (
         isYes &&
-        !hasTable &&
         !seatedIds.has(id) &&
         getPartySize(g) <= remainingSeats &&
         matchesSearch
@@ -92,81 +99,100 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     });
   }, [tableGuests, searchTerm, remainingSeats]);
 
-  /* ================= הושבה ================= */
-const handleSeatGuest = async (seatIndex, guest) => {
-  if (!tableData) return;
+  /* ================= SEAT GUEST ================= */
 
-  const guestId = getGuestId(guest);
-  const count = getPartySize(guest);
+  const handleSeatGuest = async (seatIndex, guest) => {
+    if (!tableData) return;
 
-  const res = assignGuestsToTable(
-    tableData.id,
-    guestId,
-    count,
-    seatIndex
-  );
+    const guestId = getGuestId(guest);
+    const count = getPartySize(guest);
 
-  if (!res?.ok) {
-    setError(res?.message || "לא ניתן להושיב כאן");
-    return;
-  }
-
-  await fetch("/api/guests/assign-table", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    const res = assignGuestsToTable(
+      tableData.id,
       guestId,
-      tableName: tableData.displayName || tableData.name, // ✅ תמיד השם העדכני
-      seatIndex,
-    }),
-  });
+      count,
+      seatIndex
+    );
 
-  setError("");
-  setOpenSeat(null);
-  setSearchTerm("");
-};
+    if (!res?.ok) {
+      setError(res?.message || "לא ניתן להושיב כאן");
+      return;
+    }
 
+    await fetch("/api/guests/assign-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestId,
+        tableName: tableData.name, // 🔥 מקור אמת יחיד
+        seatIndex,
+      }),
+    });
 
- const commitTableName = async () => {
-  if (!tableData) return;
+    setError("");
+    setOpenSeat(null);
+    setSearchTerm("");
+  };
 
-  const next = String(tableNameDraft || "").trim();
-  const newNumber = Number(next.replace(/\D/g, ""));
+  /* ================= REMOVE GUEST ================= */
 
-  if (!Number.isFinite(newNumber)) {
-    setError("מספר שולחן לא תקין");
-    return;
-  }
+  const handleRemoveGuest = async (guest) => {
+    if (!tableData || !guest) return;
 
-  const oldTableName = tableData.displayName || tableData.name;
+    const guestId = getGuestId(guest);
 
-  // 🔴 זה החלק שהיה חסר – עדכון האורחים בשרת
-  const res = await fetch("/api/seating/update-table", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      oldTableName,
-      newNumber,
-    }),
-  });
+    removeGuestFromTable(tableData.id, guestId);
 
-  if (!res.ok) {
-    setError("שגיאה בעדכון השולחן");
-    return;
-  }
+    await fetch("/api/guests/remove-from-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guestId }),
+    });
+  };
 
-  // 🟢 עדכון UI בלבד
-  updateTableDisplayName(tableData.id, `שולחן ${newNumber}`);
+  /* ================= COMMIT TABLE NAME ================= */
 
-  setIsEditingName(false);
-};
+  const commitTableName = async () => {
+    if (!tableData) return;
 
+    const newName = tableNameDraft.trim();
+    if (!newName) {
+      setError("שם שולחן לא תקין");
+      return;
+    }
+
+    const oldTableName = tableData.name;
+
+    const res = await fetch("/api/seating/update-table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        oldTableName,
+        newName,
+      }),
+    });
+
+    if (!res.ok) {
+      setError("שגיאה בעדכון השולחן");
+      return;
+    }
+
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === tableData.id ? { ...t, name: newName } : t
+      ),
+    }));
+
+    setIsEditingName(false);
+  };
+
+  if (!tableData) return null;
 
   /* ================= UI ================= */
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="relative bg-white rounded-2xl shadow-2xl w-[700px] p-8 max-h-[90vh] overflow-y-auto border border-gray-100">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-[700px] p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
@@ -174,8 +200,8 @@ const handleSeatGuest = async (seatIndex, guest) => {
           <X size={22} />
         </button>
 
-        {/* ✅ כותרת עם עריכת מספר/שם שולחן (displayName) */}
-        <div className="flex items-center justify-center gap-2 mb-1">
+        {/* TITLE */}
+        <div className="flex items-center justify-center gap-2 mb-2">
           {isEditingName ? (
             <input
               autoFocus
@@ -185,130 +211,104 @@ const handleSeatGuest = async (seatIndex, guest) => {
               onKeyDown={(e) => {
                 if (e.key === "Enter") commitTableName();
                 if (e.key === "Escape") {
-                  setTableNameDraft(tableData.displayName || tableData.name || "");
+                  setTableNameDraft(tableData.name);
                   setIsEditingName(false);
                 }
               }}
-              className="text-2xl font-bold text-center text-gray-800 border-b border-gray-300 focus:outline-none bg-transparent w-40"
+              className="text-2xl font-bold text-center border-b w-48"
             />
           ) : (
             <>
-              <h2 className="text-2xl font-bold text-center text-gray-800">
-                הושבה לשולחן {tableData.displayName || tableData.name}
+              <h2 className="text-2xl font-bold">
+                הושבה לשולחן {tableData.name}
               </h2>
-
-              <button
-                type="button"
-                onClick={() => setIsEditingName(true)}
-                className="text-gray-400 hover:text-gray-600"
-                title="עריכת מספר שולחן"
-              >
-                ✏️
-              </button>
+              <button onClick={() => setIsEditingName(true)}>✏️</button>
             </>
           )}
         </div>
 
-        <p className="text-sm text-gray-500 text-center mb-5">
+        <p className="text-sm text-gray-500 text-center mb-4">
           {occupied}/{tableData.seats} מקומות תפוסים
         </p>
 
         {error && (
-          <div className="text-red-600 bg-red-50 border border-red-200 text-center py-2 rounded-xl mb-4 font-medium">
+          <div className="text-red-600 text-center mb-3 font-medium">
             {error}
           </div>
         )}
 
-        <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-200 shadow-inner">
-          <div className="grid grid-cols-6 gap-4 justify-items-center">
-            {seatsArray.map((seat, i) => {
-              const g = seat.guest;
-              const isOpen = openSeat === i;
+        {/* SEATS */}
+        <div className="grid grid-cols-6 gap-4 justify-items-center">
+          {seatsArray.map((seat, i) => {
+            const g = seat.guest;
+            const isOpen = openSeat === i;
 
-              return (
-                <div key={i} className="relative">
-                  <div
-                    className={`w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer transition ${
-                      g
-                        ? "bg-blue-100 border-blue-400 shadow-md"
-                        : "bg-white border-gray-200 hover:bg-blue-50"
-                    }`}
-                    onClick={() => {
-                      if (g) handleRemoveGuest(g);
-                      else {
-                        setOpenSeat(isOpen ? null : i);
-                        setSearchTerm("");
-                        setError("");
-                      }
-                    }}
-                  >
-                    <div className="absolute top-1 right-2 text-[10px] text-gray-400">
-                      {i + 1}
-                    </div>
-
-                    {g ? (
-                      <>
-                        <span className="font-semibold truncate w-[90%]">
-                          {g.name}
-                        </span>
-                        <span className="text-xs text-gray-600">
-                          ({getPartySize(g)} מגיעים)
-                        </span>
-                        <span className="text-[11px] text-red-600 mt-1">
-                          להסרה
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xs font-medium leading-4">
-                        הושב
-                        <br />
-                        אורח
-                      </span>
-                    )}
+            return (
+              <div key={i} className="relative">
+                <div
+                  className={`w-20 h-20 rounded-xl border flex flex-col items-center justify-center text-center text-sm cursor-pointer ${
+                    g
+                      ? "bg-blue-100 border-blue-400"
+                      : "bg-white border-gray-200 hover:bg-blue-50"
+                  }`}
+                  onClick={() => {
+                    if (g) handleRemoveGuest(g);
+                    else {
+                      setOpenSeat(isOpen ? null : i);
+                      setSearchTerm("");
+                      setError("");
+                    }
+                  }}
+                >
+                  <div className="absolute top-1 right-2 text-[10px] text-gray-400">
+                    {i + 1}
                   </div>
 
-                  {isOpen && !g && (
-                    <div className="absolute top-[95%] mt-2 bg-white border shadow-xl rounded-lg w-60 z-50 max-h-72 overflow-y-auto">
-                      <div className="sticky top-0 bg-white border-b p-2">
-                        <input
-                          type="text"
-                          placeholder="חיפוש לפי שם…"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full px-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                      </div>
-
-                      {availableGuests.length === 0 ? (
-                        <div className="p-3 text-xs text-gray-400 text-center">
-                          אין אורחים זמינים
-                        </div>
-                      ) : (
-                        availableGuests.map((g2) => (
-                          <div
-                            key={getGuestId(g2)}
-                            onClick={() => handleSeatGuest(i, g2)}
-                            className="p-2 hover:bg-blue-50 cursor-pointer text-xs flex justify-between"
-                          >
-                            <span className="truncate">{g2.name}</span>
-                            <span className="text-gray-500">
-                              {getPartySize(g2)}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                  {g ? (
+                    <>
+                      <span className="font-semibold truncate w-[90%]">
+                        {g.name}
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        ({getPartySize(g)} מגיעים)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs">הושב אורח</span>
                   )}
                 </div>
-              );
-            })}
-          </div>
+
+                {isOpen && !g && (
+                  <div className="absolute top-[95%] mt-2 bg-white border shadow-xl rounded-lg w-60 z-50">
+                    <input
+                      type="text"
+                      placeholder="חיפוש…"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-2 py-1 text-xs border-b"
+                    />
+
+                    {availableGuests.map((g2) => (
+                      <div
+                        key={getGuestId(g2)}
+                        onClick={() => handleSeatGuest(i, g2)}
+                        className="p-2 hover:bg-blue-50 cursor-pointer text-xs flex justify-between"
+                      >
+                        <span>{g2.name}</span>
+                        <span>{getPartySize(g2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        <div className="flex justify-center mt-7">
+        <div className="flex justify-center mt-6">
           <button
             onClick={onClose}
-            className="px-7 py-2.5 rounded-lg bg-gray-200 hover:bg-gray-300 font-medium"
+            className="px-6 py-2 bg-gray-200 rounded-lg"
           >
             סגור
           </button>

@@ -344,7 +344,6 @@ const newSeats = groupGuests.flatMap((guest) => {
           ...newSeats,
         ],
         // ⭐ זה השורה הקריטית
-        displayName: t.displayName || group.name,
       }
     : t
 );
@@ -382,7 +381,6 @@ console.table(
   updatedTables.map((t) => ({
     id: t.id,
     name: t.name,
-    displayName: t.displayName,
   }))
 );
 
@@ -436,11 +434,11 @@ init: (tables, guests, background = null, canvasView = null) => {
     ...state,
 
     tables: (tables || []).map((t) => ({
-      ...t,
-      number: t.number ?? extractNumberFromName(t.name) ?? null,
-      displayName: t.displayName || "",
-      seatedGuests: t.seatedGuests || [],
-    })),
+  ...t,
+  number: t.number ?? extractNumberFromName(t.name) ?? null,
+  seatedGuests: t.seatedGuests || [],
+})),
+
 
     guests: guests || [],
 
@@ -480,7 +478,6 @@ console.table(
   (snapshot.tables || []).map((t) => ({
     id: t.id,
     name: t.name,
-    displayName: t.displayName,
   }))
 );
 
@@ -489,7 +486,6 @@ console.table(
     tables: (snapshot.tables || []).map((t) => ({
   ...t,
   number: t.number ?? extractNumberFromName(t.name) ?? null, // ✅ חדש
-  displayName: t.displayName || "",
   seatedGuests: (t.seatedGuests || []).map((sg) => ({
     ...sg,
     arrived: sg.arrived ?? false,
@@ -639,7 +635,6 @@ background: null,
   id: crypto.randomUUID(),
   number: tables.length + 1,          // ✅ חדש
   name: `שולחן ${tables.length + 1}`,
-  displayName: "",
   type,
   seats,
   x: position?.x ?? fallbackX,
@@ -657,16 +652,8 @@ background: null,
 
 
 /* ---------------- UPDATE TABLE DISPLAY NAME ---------------- */
-updateTableDisplayName: (tableId, displayName) =>
-  set((state) => ({
-    tables: state.tables.map((t) =>
-      t.id === tableId
-        ? { ...t, displayName }
-        : t
-    ),
-  })),
 
-  updateTableNumber: (tableId, nextNumber) =>
+ updateTableNumber: (tableId, nextNumber) =>
   set((state) => {
     const n = Number(nextNumber);
 
@@ -675,15 +662,14 @@ updateTableDisplayName: (tableId, displayName) =>
         ? {
             ...t,
             number: n,
-            // ✅ עדכני name רק אם את מציגה name בקנבס
-            // name: `שולחן ${n}`,
+            name: `שולחן ${n}`, // ⭐ זה השם האמיתי
           }
         : t
     );
 
     const guests = state.guests.map((g) =>
       String(g.tableId) === String(tableId)
-        ? { ...g, tableName: String(n) }
+        ? { ...g, tableName: `שולחן ${n}` }
         : g
     );
 

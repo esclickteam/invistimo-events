@@ -6,7 +6,8 @@ type BuildSmsParams = {
   guest: {
     name?: string;
     token: string;
-    tableId?: string;     // ⚠️ קיים אבל לא בשימוש
+
+    // ⚠️ אין שימוש ב־tableId
     tableName?: string;
     tableNumber?: number;
   };
@@ -39,37 +40,41 @@ export async function buildFinalSmsText({
   giftLink,
 }: BuildSmsParams): Promise<string> {
   /* ================= TABLE =================
-     ⚠️ SMS לא נוגע ב־DB
-     מקור אמת:
-     1. guest.tableName
+     🔒 מקור אמת יחיד:
+     1. guest.tableName (אם קיים)
      2. guest.tableNumber
+     ❌ אין חישוב מחדש
+     ❌ אין displayName
+     ❌ אין DB
   ========================================= */
+
   let tableName = "";
 
-  if (guest.tableName) {
-    tableName = guest.tableName;
+  if (typeof guest.tableName === "string" && guest.tableName.trim()) {
+    tableName = guest.tableName.trim();
   } else if (typeof guest.tableNumber === "number") {
     tableName = `שולחן ${guest.tableNumber}`;
   }
 
   /* ================= NAVIGATION ================= */
-  const location = invitation.eventLocation ?? event?.location;
-  const hasLocation = !!(location?.lat && location?.lng);
 
+  const location = invitation.eventLocation ?? event?.location;
   let navigationLink = "";
 
-  if (hasLocation) {
+  if (location?.lat && location?.lng) {
     const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
     navigationLink = await shortenUrl(wazeUrl);
   }
 
   /* ================= RSVP ================= */
+
   const personalRsvpUrl =
     `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
   const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
   /* ================= BASE TEMPLATE ================= */
+
   let finalText = messageTemplate
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{rsvpLink}}/g, shortRsvpUrl)
@@ -77,6 +82,7 @@ export async function buildFinalSmsText({
     .replace(/{{navigationLink}}/g, navigationLink);
 
   /* ================= GIFT LINK ================= */
+
   if (includeGiftLink && giftLink) {
     const shortGiftLink = await shortenUrl(giftLink);
     finalText += `\n\n🎁 למתנה באשראי:\n${shortGiftLink}`;

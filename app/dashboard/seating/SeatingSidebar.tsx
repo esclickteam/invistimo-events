@@ -40,7 +40,6 @@ type Group = {
 type Table = {
   id: string;
   name: string;
-  displayName?: string;
   seats: number;
   seatedGuests: { guestId: string }[];
 };
@@ -162,25 +161,21 @@ export default function SeatingSidebar() {
   };
 
   const tableLabel = (t: Table) => {
-    const count = guests
-      .filter(
-        (g) =>
-          g.rsvp === "yes" &&
-          guestTableMap.get(seatGuestId(g))?.id === t.id
-      )
-      .reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
+  const count = guests
+    .filter(
+      (g) =>
+        g.rsvp === "yes" &&
+        guestTableMap.get(seatGuestId(g))?.id === t.id
+    )
+    .reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
 
-    const groupLabel = getTableGroupLabel(t.id);
+  const groupLabel = getTableGroupLabel(t.id);
 
-    const main =
-  t.displayName && t.displayName.trim()
-    ? t.displayName
-    : t.name;
+  return groupLabel
+    ? `${groupLabel} · ${t.name} (${count}/${t.seats})`
+    : `${t.name} (${count}/${t.seats})`;
+};
 
-    return groupLabel
-      ? `${groupLabel} · ${main} (${count}/${t.seats})`
-      : `${main} (${count}/${t.seats})`;
-  };
 
   /* ================= FILTER ================= */
 
@@ -330,8 +325,9 @@ export default function SeatingSidebar() {
   <div className="text-sm font-medium truncate">{g.name}</div>
   <div className="text-xs text-gray-500 truncate">
             {table
-              ? `${table.displayName || table.name} · ${planned} מוזמנים`
-              : `לא משובץ · ${planned} מוזמנים`}
+  ? `${table.name} · ${planned} מוזמנים`
+  : `לא משובץ · ${planned} מוזמנים`}
+
           </div>
         </div>
 

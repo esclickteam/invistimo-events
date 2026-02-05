@@ -4,24 +4,16 @@ export function resolveGuestTableName(
   },
   tables: {
     _id: string;
-    number?: number;
-    displayName?: string;
+    name: string;
   }[]
 ) {
   if (!guest.tableId) return "";
 
   const table = tables.find(
-    t => String(t._id) === String(guest.tableId)
+    (t) => String(t._id) === String(guest.tableId)
   );
 
   if (!table) return "";
 
-  // אם יש displayName – הוא מנצח (אופציונלי)
-  if (table.displayName) return table.displayName;
-
-  if (typeof table.number === "number") {
-    return `שולחן ${table.number}`;
-  }
-
-  return "";
+  return table.name || "";
 }

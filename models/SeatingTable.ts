@@ -74,12 +74,6 @@ const TableSchema = new Schema(
       default: "",
     },
 
-    /* ⭐ שם תצוגה לשולחן (חברים הדר / חברים בן וכו') */
-    displayName: {
-      type: String,
-      default: "",
-      trim: true,
-    },
 
     type: {
       type: String,

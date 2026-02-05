@@ -1233,7 +1233,7 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
 
     const tableLabel =
       (tableFromStore &&
-        (tableFromStore.displayName || tableFromStore.name)) ||
+        ( tableFromStore.name)) ||
       (g.tableName
         ? g.tableName
         : g.tableNumber
