@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { sendSMS } from "@/lib/sendSMS";
-import { buildMessage } from "@/lib/messageTemplates";
 import MessageLog from "@/models/MessageLog";
 import Invitation from "@/models/Invitation";
 import Guest from "@/models/Guest";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { buildFinalSmsText } from "@/lib/sms/buildFinalSmsText";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ type GuestDoc = {
   phone: string;
   token: string;
   rsvp: "yes" | "no" | "pending";
-  tableName?: string;
+  tableId?: string | null;
 };
 
 /* ================= ROUTE ================= */
@@ -101,35 +101,22 @@ export async function POST(req: Request) {
 
     const targets: GuestDoc[] = guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
-      if (filter === "withTable") return Boolean(g.tableName);
+      if (filter === "withTable") return Boolean(g.tableId);
       return true;
     });
 
-    /* ================= BALANCE CHECK (SOURCE OF TRUTH) ================= */
+    /* ================= BALANCE CHECK ================= */
 
-    // ❗ אין fallback – אם לא מאותחל זה באג
     if (typeof invitation.remainingMessages !== "number") {
       return NextResponse.json(
-        {
-          error: "SMS_BALANCE_NOT_INITIALIZED",
-        },
+        { error: "SMS_BALANCE_NOT_INITIALIZED" },
         { status: 500 }
       );
     }
 
     const remainingMessages = invitation.remainingMessages;
 
-    if (remainingMessages <= 0) {
-      return NextResponse.json(
-        {
-          error: "NO_SMS_BALANCE",
-          remainingMessages,
-        },
-        { status: 403 }
-      );
-    }
-
-    if (targets.length > remainingMessages) {
+    if (remainingMessages <= 0 || targets.length > remainingMessages) {
       return NextResponse.json(
         {
           error: "NO_SMS_BALANCE",
@@ -144,13 +131,17 @@ export async function POST(req: Request) {
     let actuallySent = 0;
 
     for (const guest of targets) {
-      if (template === "table" && !guest.tableName) continue;
+      // אם זה טמפלט שולחן – רק למי שיש tableId
+      if (template === "table" && !guest.tableId) continue;
 
-      const text = buildMessage({
-        template,
+      const text = await buildFinalSmsText({
+        messageTemplate: customText || "",
         guest,
-        invitation,
-        customText,
+        invitation: {
+          shareId: invitation.shareId,
+          eventId: invitation.eventId,
+          eventLocation: invitation.eventLocation,
+        },
       });
 
       const phone = guest.phone.startsWith("972")

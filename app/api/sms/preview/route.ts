@@ -53,9 +53,10 @@ export async function POST(req: Request) {
       : null;
 
     /* ================= BUILD FINAL SMS =================
-       ⚠️ אין פה שום SeatingTable
-       ⚠️ משתמשים רק ב־guest.tableName אם קיים
-       SOURCE OF TRUTH אחד בלבד
+       SOURCE OF TRUTH:
+- guest.tableId
+- SeatingTable (runtime resolution)
+⚠️ אין שמירה של tableName ב־DB
     ===================================================== */
     const finalText = await buildFinalSmsText({
       messageTemplate: messageOverride,

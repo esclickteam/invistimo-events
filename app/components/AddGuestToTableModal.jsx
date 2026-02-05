@@ -73,7 +73,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     return (tableGuests || []).filter((g) => {
       const id = getGuestId(g);
-      const hasTable = Boolean(g?.tableName);
+      const hasTable = Boolean(g?.tableId);
       const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
 
       const matchesSearch =
@@ -108,14 +108,15 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }
 
     await fetch("/api/guests/assign-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestId,
-        tableName: tableData.name,
-        seatIndex,
-      }),
-    });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    guestId,
+    tableId: tableData.id,
+    seatIndex,
+  }),
+});
+
 
     setError("");
     setOpenSeat(null);
