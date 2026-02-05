@@ -352,11 +352,11 @@ if (!freshGuest) continue;
 }
 
 
-      const tableName =
-  freshGuest.tableName ||
-  (typeof freshGuest.tableNumber === "number"
+    const tableName =
+  typeof freshGuest.tableNumber === "number"
     ? `שולחן ${freshGuest.tableNumber}`
-    : "");
+    : freshGuest.tableName || "";
+
 
       let phone = (freshGuest.phone || "").replace(/\D/g, "");
       if (!phone) continue;
