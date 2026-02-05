@@ -6,7 +6,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 export async function POST(req: Request) {
   await dbConnect();
 
-  const { tableId, newNumber, newName } = await req.json();
+  const { tableId, newNumber } = await req.json();
 
   if (!tableId || typeof newNumber !== "number") {
     return NextResponse.json(
@@ -24,31 +24,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const oldNumber = existingTable.number;
-  const oldName = existingTable.name || `שולחן ${oldNumber}`;
+  const oldTableName = existingTable.name;          // 🔴 זה הקריטי
+  const newTableName = `שולחן ${newNumber}`;
 
   // 2️⃣ עדכון השולחן עצמו
-  const table = await SeatingTable.findByIdAndUpdate(
-    tableId,
-    {
-      number: newNumber,
-      name: newName || `שולחן ${newNumber}`,
-    },
-    { new: true }
-  );
+  await SeatingTable.findByIdAndUpdate(tableId, {
+    number: newNumber,
+    name: newTableName,
+  });
 
-  // 3️⃣ סנכרון האורחים לפי הנתונים הישנים (שם / מספר)
+  // 3️⃣ סנכרון כל האורחים לפי tableName הישן
   await InvitationGuest.updateMany(
-    {
-      $or: [
-        { tableNumber: oldNumber },
-        { tableName: oldName },
-      ],
-    },
+    { tableName: oldTableName },
     {
       $set: {
-        tableNumber: table.number,
-        tableName: table.name,
+        tableName: newTableName,
       },
     }
   );

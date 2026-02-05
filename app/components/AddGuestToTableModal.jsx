@@ -93,34 +93,33 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   }, [tableGuests, searchTerm, remainingSeats]);
 
   /* ================= הושבה ================= */
+const handleSeatGuest = async (seatIndex, guest) => {
+  if (!tableData) return;
 
-  const handleSeatGuest = async (seatIndex, guest) => {
-    if (!tableData) return;
+  const guestId = getGuestId(guest);
+  const count = getPartySize(guest);
 
-    const guestId = getGuestId(guest);
-    const count = getPartySize(guest);
+  const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
 
-    const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
+  if (!res?.ok) {
+    setError(res?.message || "לא ניתן להושיב כאן");
+    return;
+  }
 
-    if (!res?.ok) {
-      setError(res?.message || "לא ניתן להושיב כאן");
-      return;
-    }
+  await fetch("/api/guests/assign-table", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      guestId,
+      tableName: tableData.displayName || tableData.name, // ✅ זה התיקון
+      seatIndex,
+    }),
+  });
 
-    await fetch("/api/guests/assign-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestId,
-        tableName: tableData.name,
-        seatIndex,
-      }),
-    });
-
-    setError("");
-    setOpenSeat(null);
-    setSearchTerm("");
-  };
+  setError("");
+  setOpenSeat(null);
+  setSearchTerm("");
+};
 
   /* ================= הסרה ================= */
 
@@ -140,18 +139,37 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   // ✅ שמירת displayName לשולחן
   const commitTableName = async () => {
-    if (!tableData) return;
+  if (!tableData) return;
 
-    const next = String(tableNameDraft || "").trim();
+  const next = String(tableNameDraft || "").trim();
+  const newNumber = Number(next.replace(/\D/g, ""));
 
-    // לא משנים לוגיקה קיימת – רק שומרים displayName ב-store
-    updateTableDisplayName(tableData.id, next);
+  if (!Number.isFinite(newNumber)) {
+    setError("מספר שולחן לא תקין");
+    return;
+  }
 
-    // אם יש לך API לשמירת השם בשרת – אפשר להדליק כאן (לא חובה)
-    // await fetch("/api/seating/table-display-name", { ... })
+  // 1️⃣ עדכון שרת (מקור האמת)
+  const res = await fetch("/api/seating/update-table", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tableId: tableData.id,
+      newNumber,
+    }),
+  });
 
-    setIsEditingName(false);
-  };
+  if (!res.ok) {
+    setError("שגיאה בעדכון השולחן");
+    return;
+  }
+
+  // 2️⃣ עדכון store (רק אחרי שהשרת הצליח)
+  updateTableDisplayName(tableData.id, `שולחן ${newNumber}`);
+
+  setIsEditingName(false);
+};
+
 
   if (!tableData) return null;
 
