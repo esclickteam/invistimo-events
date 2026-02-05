@@ -1,28 +1,26 @@
 export function resolveGuestTableName(
   guest: {
-    tableId?: string;
-    tableName?: string;
-    tableNumber?: number;
+    tableId?: string | null;
   },
   tables: {
     _id: string;
     number?: number;
+    displayName?: string;
   }[]
 ) {
-  // 🔹 מקור אמת – טבלת ההושבה
+  if (!guest.tableId) return "";
+
   const table = tables.find(
     t => String(t._id) === String(guest.tableId)
   );
 
-  if (table?.number) {
+  if (!table) return "";
+
+  // אם יש displayName – הוא מנצח (אופציונלי)
+  if (table.displayName) return table.displayName;
+
+  if (typeof table.number === "number") {
     return `שולחן ${table.number}`;
-  }
-
-  // 🔹 תאימות לאחור
-  if (guest.tableName) return guest.tableName;
-
-  if (typeof guest.tableNumber === "number") {
-    return `שולחן ${guest.tableNumber}`;
   }
 
   return "";
