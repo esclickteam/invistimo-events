@@ -111,7 +111,6 @@ const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 const lastTouchDist = useRef<number | null>(null);
 
 const didFitRef = useRef(false);
-const prevSidebarOpenRef = useRef(sidebarOpen);
 
 
   /* ================= LOCAL UI STATE ================= */
@@ -317,68 +316,14 @@ const clamp = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
 
 const getBounds = () => {
-  // אם המידות עוד לא מוכנות – לא חוסמים
-  if (!size.width || !size.height) {
-    return {
-      minX: -Infinity,
-      maxX: Infinity,
-      minY: -Infinity,
-      maxY: Infinity,
-    };
-  }
-
-  const { minX, minY, maxX, maxY } = getContentBounds();
-
-  // מרווח נשימה סביב התוכן
-  const PAD = 140;
-
-  // גבולות stage כדי שהתוכן לא "ייעלם" מחוץ למסך
-  const minStageX = size.width - (maxX + PAD) * scale; // הכי שמאלה
-  const maxStageX = -(minX - PAD) * scale;             // הכי ימינה
-  const minStageY = size.height - (maxY + PAD) * scale;
-  const maxStageY = -(minY - PAD) * scale;
-
   return {
-    minX: minStageX,
-    maxX: maxStageX,
-    minY: minStageY,
-    maxY: maxStageY,
+    minX: -Infinity,
+    maxX: Infinity,
+    minY: -Infinity,
+    maxY: Infinity,
   };
 };
 
-
-
-useEffect(() => {
-  // לא לרוץ לפני שיש מידות
-  if (size.width === 0 || size.height === 0) {
-    prevSidebarOpenRef.current = sidebarOpen;
-    return;
-  }
-
-  // אם לא באמת השתנה - לא לעשות כלום
-  if (prevSidebarOpenRef.current === sidebarOpen) return;
-
-  // שומרים את נקודת המרכז הנוכחית בעולם (world coords)
-  const worldCenterX = (size.width / 2 - stagePos.x) / scale;
-  const worldCenterY = (size.height / 2 - stagePos.y) / scale;
-
-  // ממקמים מחדש כך שאותה נקודת עולם תישאר במרכז אחרי שינוי רוחב
-  const nextRaw = {
-    x: size.width / 2 - worldCenterX * scale,
-    y: size.height / 2 - worldCenterY * scale,
-  };
-
-  const bounds = getBounds();
-  const next = {
-    x: clamp(nextRaw.x, bounds.minX, bounds.maxX),
-    y: clamp(nextRaw.y, bounds.minY, bounds.maxY),
-  };
-
-  setStagePos(next);
-  setCanvasView({ ...next, scale });
-
-  prevSidebarOpenRef.current = sidebarOpen;
-}, [sidebarOpen, size.width, size.height, scale, stagePos.x, stagePos.y]);
 
 
 
@@ -398,10 +343,9 @@ useEffect(() => {
     const dy = pos.y - panStart.current.y;
 
     const next = {
-  x: stageStart.current.x + dx,
-  y: stageStart.current.y + dy,
-};
-
+      x: stageStart.current.x + dx,
+      y: stageStart.current.y + dy,
+    };
 
     const bounds = getBounds();
 
@@ -509,8 +453,7 @@ const dy = t.clientY - panStart.current.y;
 
 const next = {
   x: stageStart.current.x + dx,
-  y: stageStart.current.y + dy
-
+  y: stageStart.current.y - dy, // ⭐ זה השינוי היחיד
 };
 
 
@@ -797,11 +740,12 @@ const handleAddTable = (type: string, seats: number) => {
   <AddGuestToTableModal
     table={addGuestTable}
     guests={unseatedGuests}
-    invitationId={invitationId}
-    onAutoSave={onAutoSave}     
+    invitationId={invitationId ?? null}
+    onAutoSave={onAutoSave}
     onClose={() => setAddGuestTable(null)}
   />
 )}
+
 
 
 
