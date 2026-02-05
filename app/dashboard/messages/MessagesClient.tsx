@@ -162,33 +162,6 @@ const scheduledAt = useMemo(() => {
   return new Date(year, month - 1, day, hour, minute, 0, 0);
 }, [sendTiming, scheduledDate, scheduledTime]);
 
-const fetchGuestsFromApi = async (invitationId: string) => {
-  const guestsRes = await fetch(
-    `/api/guests?invitation=${invitationId}`
-  );
-  const guestsData = await guestsRes.json();
-
-  setGuests(guestsData.guests || []);
-  console.log("GUESTS FROM API (REFETCH):", guestsData.guests);
-};
-
-/* ================= 🔄 REFRESH ON FOCUS ================= */
-
-useEffect(() => {
-  if (!invitation?._id) return;
-
-  const onFocus = () => {
-    fetchGuestsFromApi(invitation._id);
-  };
-
-  window.addEventListener("focus", onFocus);
-
-  return () => {
-    window.removeEventListener("focus", onFocus);
-  };
-}, [invitation?._id]);
-
-
  /* ================= LOAD DATA ================= */
 
 useEffect(() => {
@@ -260,10 +233,17 @@ if (balanceData.success) {
 
 
 
-if (invData.invitation?._id) {
-  await fetchGuestsFromApi(invData.invitation._id);
-}
+  // 🔹 אורחים – רק אם יש הזמנה
+  if (invData.invitation?._id) {
+  const guestsRes = await fetch(
+    `/api/guests?invitation=${invData.invitation._id}`
+  );
+  const guestsData = await guestsRes.json();
+  setGuests(guestsData.guests || []);
 
+  console.log("GUESTS FROM API:", guestsData.guests);
+
+}
 
 } finally {
   setLoading(false);

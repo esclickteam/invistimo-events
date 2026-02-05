@@ -302,6 +302,16 @@ if (partsPerMessage === -1) {
     /* ================= SEND NOW ================= */
     const guests = await InvitationGuest.find(guestsQuery).lean();
 
+    /* ================= BASE MESSAGE ================= */
+
+const baseMessage = baseTemplateText
+  .replace(/{{name}}/g, "{{name}}")
+  .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
+  .replace(/{{tableName}}/g, "{{tableName}}")
+  .replace(/{{navigationLink}}/g, navigationLink);
+
+
+
 
 
 
@@ -358,12 +368,11 @@ const personalRsvpUrl =
 // ✂️ קיצור הקישור האישי
 const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
-let finalText = baseTemplateText
+let finalText = baseMessage
   .replace(/{{name}}/g, guest.name || "")
   .replace(/{{rsvpLink}}/g, shortRsvpUrl)
   .replace(/{{tableName}}/g, tableName)
   .replace(/{{navigationLink}}/g, navigationLink);
-
 
 if (includeGiftLink && giftLink) {
   finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
