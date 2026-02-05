@@ -100,6 +100,11 @@ function SeatingEditorInner({
   const prevSizeRef = useRef<{ width: number; height: number } | null>(null);
 
   /* ================= ZOOM & PAN ================= */
+/* ================= ZOOM LIMITS ================= */
+const MIN_SCALE = 0.05;  // כמה רחוק אפשר לעשות zoom-out
+const MAX_SCALE = 6;     // כמה קרוב אפשר zoom-in
+
+
 const [scale, setScale] = useState(1);
 const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 const [isPanning, setIsPanning] = useState(false);
@@ -200,7 +205,8 @@ if (size.width === 0 || size.height === 0) return;
   const contentH = Math.max(1, (maxY - minY) + PAD);
 
   const scaleFit = Math.min(size.width / contentW, size.height / contentH);
-  const initialScale = Math.max(0.35, Math.min(1.2, scaleFit));
+  const initialScale = Math.min(1.2, scaleFit); // ❌ בלי רצפה
+
 
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
@@ -355,8 +361,12 @@ const getBounds = () => {
     };
 
     setStagePos(clamped);
-    setCanvasView({ ...clamped, scale });
-    return; // ⭐ קריטי
+
+if (!isMobile) {
+  setCanvasView({ ...clamped, scale });
+}
+
+return; // ⭐ קריטי
   }
 
   // ⬇️ רק אם לא עושים pan
@@ -377,7 +387,10 @@ const getBounds = () => {
   const scaleBy = 1.05;
   const direction = e.evt.deltaY > 0 ? -1 : 1;
   const rawScale = direction > 0 ? scale * scaleBy : scale / scaleBy;
-const newScale = clamp(rawScale, 0.35, 3); // ⭐ מומלץ
+
+
+const newScale = clamp(rawScale, MIN_SCALE, MAX_SCALE);
+
 
 
   const mousePointTo = {
@@ -402,7 +415,10 @@ const newPos = {
 
 setScale(newScale);
 setStagePos(newPos);
-setCanvasView({ ...newPos, scale: newScale });
+if (!isMobile) {
+  setCanvasView({ ...newPos, scale: newScale });
+}
+
 };
 
 const handleTouchStart = (e: any) => {
@@ -467,7 +483,11 @@ const clamped = {
 
 
 setStagePos(clamped);
-setCanvasView({ ...clamped, scale });
+
+if (!isMobile) {
+  setCanvasView({ ...clamped, scale });
+}
+
 
   }
 
@@ -492,7 +512,8 @@ setCanvasView({ ...clamped, scale });
     }
 
     const scaleBy = dist / lastTouchDist.current;
-    const newScale = clamp(scale * scaleBy, 0.35, 3); // ⭐ מומלץ
+    const newScale = clamp(scale * scaleBy, MIN_SCALE, MAX_SCALE);
+
 
 
 
@@ -523,7 +544,10 @@ const newPos = {
 
 setScale(newScale);
 setStagePos(newPos);
-setCanvasView({ ...newPos, scale: newScale });
+
+if (!isMobile) {
+  setCanvasView({ ...newPos, scale: newScale });
+}
 
 
     lastTouchDist.current = dist;
