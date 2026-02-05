@@ -273,39 +273,44 @@ setEventId(eventIdFromApi);
   /* ===============================
      SAVE
   =============================== */
-  async function saveSeating() {
+  async function saveSeating(showToast = true): Promise<boolean> {
   if (!eventId || !invitationId) {
-    alert("❌ חסר invitationId או eventId");
-    return;
+    if (showToast) alert("❌ חסר invitationId או eventId");
+    return false;
   }
 
-
+  try {
     const zones = useZoneStore.getState().zones;
     const cv = useSeatingStore.getState().canvasView;
-
 
     const res = await fetch(`/api/seating/save/${eventId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-  eventId,          
-  invitationId,     
-  tables,
-  guests,
-  groups,
-  background,
-  zones,
-  canvasView: cv,
-}),
-
+        eventId,
+        invitationId,
+        tables: useSeatingStore.getState().tables,
+        guests: useSeatingStore.getState().guests,
+        groups: useSeatingStore.getState().groups,
+        background: useSeatingStore.getState().background,
+        zones,
+        canvasView: cv,
+      }),
     });
 
- 
+    const data = await res.json().catch(() => ({}));
+    const ok = res.ok && data?.success;
 
+    if (showToast) {
+      alert(ok ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
+    }
 
-    const data = await res.json();
-    alert(data.success ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
+    return !!ok;
+  } catch (e) {
+    if (showToast) alert("❌ שגיאת רשת בשמירה");
+    return false;
   }
+}
 
 
 
@@ -412,7 +417,8 @@ return (
 
 
   <button
-    onClick={saveSeating}
+    onClick={() => { void saveSeating(true); }}
+
     className="shrink-0 px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
 
   >
@@ -450,10 +456,12 @@ return (
   >
     <SeatingEditor
   background={background?.url || null}
-  invitationId={invitationId} // ⭐ חובה
+  invitationId={invitationId}
+  onAutoSave={() => saveSeating(false)}   // ⭐ זה הקריטי למודאל
   hideSeats={isProducer}
   sidebarOpen={sidebarOpen}
 />
+
 
   </div>
 </div>
@@ -497,7 +505,8 @@ return (
       <Suspense
         fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}
       >
-        <SeatingSidebar />
+        <SeatingSidebar invitationId={invitationId} />
+
       </Suspense>
     )}
   </aside>

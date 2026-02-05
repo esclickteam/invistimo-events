@@ -8,7 +8,7 @@ export default function AddGuestToTableModal({
   table,
   guests,
   onClose,
-  invitationId,
+  onAutoSave, // ⭐ חדש: פונקציית שמירה אחודה (כמו בסיידבר)
 }) {
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
@@ -46,8 +46,9 @@ export default function AddGuestToTableModal({
     if (Number.isFinite(arrived) && arrived > 0) return Math.floor(arrived);
 
     const guestsCount = Number(g?.guestsCount ?? 0);
-    if (Number.isFinite(guestsCount) && guestsCount > 0)
+    if (Number.isFinite(guestsCount) && guestsCount > 0) {
       return Math.floor(guestsCount);
+    }
 
     return 1;
   };
@@ -123,10 +124,6 @@ export default function AddGuestToTableModal({
 
   const handleSeatGuest = async (seatIndex, guest) => {
     if (!tableData) return;
-    if (!invitationId) {
-      setError("חסר invitationId, לא ניתן להושיב אורח.");
-      return;
-    }
 
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
@@ -140,33 +137,24 @@ export default function AddGuestToTableModal({
     }
 
     try {
-      const res = await fetch("/api/guests/assign-table", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guestId,
-          invitationId,          // ⭐ חובה
-          tableId: tableData.id, // ⭐ חובה
-          seatIndex,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data?.success) {
-        // rollback
-        removeGuestFromTable(tableData.id, guestId);
-        setError(data?.error || "שגיאה בשיוך אורח לשולחן");
-        return;
+      // ⭐ שמירה אחודה למונגו (במקום assign-table)
+      if (onAutoSave) {
+        const ok = await onAutoSave();
+        if (!ok) {
+          // rollback אם שמירה נכשלה
+          removeGuestFromTable(tableData.id, guestId);
+          setError("שמירה נכשלה, ההושבה בוטלה");
+          return;
+        }
       }
 
       setError("");
       setOpenSeat(null);
       setSearchTerm("");
-    } catch (e) {
+    } catch {
       // rollback
       removeGuestFromTable(tableData.id, guestId);
-      setError("שגיאת רשת בשיוך אורח");
+      setError("שגיאת רשת בשמירה");
     }
   };
 
@@ -181,19 +169,21 @@ export default function AddGuestToTableModal({
     removeGuestFromTable(tableData.id, guestId);
 
     try {
-      const res = await fetch("/api/guests/remove-from-table", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestId, invitationId }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || data?.success === false) {
-        setError(data?.error || "שגיאה בהסרת אורח מהשולחן");
+      // ⭐ שמירה אחודה למונגו
+      if (onAutoSave) {
+        const ok = await onAutoSave();
+        if (!ok) {
+          // rollback בסיסי: מחזירים לשולחן הנוכחי בלי seatIndex ספציפי
+          const count = getPartySize(guest);
+          assignGuestsToTable(tableData.id, guestId, count, 0);
+          setError("שמירה נכשלה, ההסרה בוטלה");
+          return;
+        }
       }
+
+      setError("");
     } catch {
-      setError("שגיאת רשת בהסרת אורח");
+      setError("שגיאת רשת בשמירה");
     }
   };
 
@@ -201,10 +191,6 @@ export default function AddGuestToTableModal({
 
   const commitTableName = async () => {
     if (!tableData) return;
-    if (!invitationId) {
-      setError("חסר invitationId, לא ניתן לעדכן שם שולחן.");
-      return;
-    }
 
     const newNameRaw = tableNameDraft.trim();
     if (!newNameRaw) {
@@ -212,42 +198,39 @@ export default function AddGuestToTableModal({
       return;
     }
 
-    // מוציאים מספר מהטקסט (שולחן 50 / 50 שולחן / 50)
     const newNumber = extractNumberFromName(newNameRaw);
     if (!Number.isFinite(newNumber)) {
       setError("יש להזין שם שמכיל מספר שולחן (לדוגמה: שולחן 50)");
       return;
     }
 
-    const oldTableName = tableData.name;
+    // עדכון לוקאלי קודם
+    const prevName = tableData.name;
+    useSeatingStore.setState((state) => ({
+      tables: (state.tables || []).map((t) =>
+        String(t.id) === String(tableData.id)
+          ? { ...t, name: `שולחן ${newNumber}`, tableNumber: newNumber }
+          : t
+      ),
+    }));
 
     try {
-      const res = await fetch("/api/seating/update-table", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invitationId,            // ⭐ חובה
-          tableId: tableData.id,   // ⭐ חובה
-          oldTableName,            // fallback
-          newNumber,               // ⭐ לא newName
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data?.success) {
-        setError(data?.error || "שגיאה בעדכון השולחן");
-        return;
+      // ⭐ שמירה אחודה למונגו
+      if (onAutoSave) {
+        const ok = await onAutoSave();
+        if (!ok) {
+          // rollback
+          useSeatingStore.setState((state) => ({
+            tables: (state.tables || []).map((t) =>
+              String(t.id) === String(tableData.id)
+                ? { ...t, name: prevName }
+                : t
+            ),
+          }));
+          setError("שמירה נכשלה, שינוי שם בוטל");
+          return;
+        }
       }
-
-      // עדכון לוקאלי עקבי
-      useSeatingStore.setState((state) => ({
-        tables: (state.tables || []).map((t) =>
-          String(t.id) === String(tableData.id)
-            ? { ...t, name: `שולחן ${newNumber}`, tableNumber: newNumber }
-            : t
-        ),
-      }));
 
       setTableNameDraft(`שולחן ${newNumber}`);
       setIsEditingName(false);
@@ -258,30 +241,6 @@ export default function AddGuestToTableModal({
   };
 
   if (!tableData) return null;
-
-  if (!invitationId) {
-    return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-[520px] p-8">
-          <button
-            onClick={onClose}
-            className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
-          >
-            <X size={22} />
-          </button>
-          <h3 className="text-xl font-bold text-center mb-3">לא ניתן להמשיך</h3>
-          <p className="text-center text-red-600">
-            חסר invitationId, לכן אי אפשר לעדכן הושבה/שולחן.
-          </p>
-          <div className="flex justify-center mt-6">
-            <button onClick={onClose} className="px-6 py-2 bg-gray-200 rounded-lg">
-              סגור
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   /* ================= UI ================= */
 

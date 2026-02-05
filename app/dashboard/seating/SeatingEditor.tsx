@@ -27,12 +27,14 @@ import MobileGuests from "./MobileGuests";
 ============================================================ */
 type SeatingEditorProps = {
   background: string | null;
-  invitationId?: string | null; // ⭐ חדש
+  invitationId?: string | null;
+  onAutoSave?: () => Promise<boolean>; // ⭐ הוספה
   readOnly?: boolean;
   showStats?: boolean;
   hideSeats?: boolean;
   sidebarOpen?: boolean;
 };
+
 
 
 type Guest = {
@@ -58,12 +60,14 @@ type Table = {
 ============================================================ */
 function SeatingEditorInner({
   background,
-  invitationId = null, // ⭐ חדש
+  invitationId = null,
+  onAutoSave, // ⭐ הוספה
   readOnly = false,
   showStats = false,
   hideSeats = false,
   sidebarOpen = false,
 }: SeatingEditorProps) {
+
 
   const [bgImage] = useImage(background || "", "anonymous");
 
@@ -736,10 +740,11 @@ const handleAddTable = (type: string, seats: number) => {
   <AddGuestToTableModal
     table={addGuestTable}
     guests={unseatedGuests}
-    invitationId={invitationId} // ⭐ חדש
+    onAutoSave={onAutoSave}     // ⭐ שמירה אחודה לשרת
     onClose={() => setAddGuestTable(null)}
   />
 )}
+
 
 
       {!readOnly && showGuests && (
