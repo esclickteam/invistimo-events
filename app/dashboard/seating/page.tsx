@@ -131,7 +131,9 @@ useEffect(() => {
       }
 
       /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
-      const invRes = await fetch("/api/invitations/my");
+      const invRes = await fetch("/api/invitations/my", {
+  credentials: "include",
+});
       const invData = await invRes.json();
 
       const eventIdFromApi: string = invData.invitation.eventId;
