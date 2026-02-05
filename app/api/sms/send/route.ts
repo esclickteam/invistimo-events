@@ -8,7 +8,7 @@ import ScheduledMessage from "@/models/ScheduledMessage";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
-
+import SeatingTable from "@/models/SeatingTable";
 
 /* ======================================================
    TYPES
@@ -349,11 +349,20 @@ let totalPartsSent = 0;
         continue;
       }
 
-      const tableName =
-        guest.tableName ||
-        (typeof guest.tableNumber === "number"
-          ? `שולחן ${guest.tableNumber}`
-          : "");
+      let tableName = "";
+
+if (guest.tableId) {
+  const table = await SeatingTable.findById(guest.tableId).lean();
+
+  if (table) {
+    tableName =
+      table.name ||
+      (typeof table.number === "number"
+        ? `שולחן ${table.number}`
+        : "");
+  }
+}
+
 
       let phone = (guest.phone || "").replace(/\D/g, "");
       if (!phone) continue;
