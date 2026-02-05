@@ -129,12 +129,6 @@ const didFitRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
-  const [viewport, setViewport] = useState({
-  width: 0,
-  height: 0,
-});
-
-
   const isMobile =
   typeof window !== "undefined" && window.innerWidth < 768;
 
@@ -185,20 +179,6 @@ const getContentBounds = () => {
   observer.observe(containerRef.current);
   return () => observer.disconnect();
 }, []);
-
-useEffect(() => {
-  function updateViewport() {
-    setViewport({
-      width: window.innerWidth,
-      height: window.innerHeight,
-    });
-  }
-
-  updateViewport(); // הרצה ראשונית
-  window.addEventListener("resize", updateViewport);
-  return () => window.removeEventListener("resize", updateViewport);
-}, []);
-
 
 const didInitMobileRef = useRef(false);
 
@@ -579,9 +559,8 @@ const handleAddTable = (type: string, seats: number) => {
   const view = canvasView ?? { x: 0, y: 0, scale: 1 };
 
   // ⚠️ מרכז ה-Stage עצמו (לא מתעסקים בסיידבר)
-  const centerX = (-view.x + viewport.width / 2) / view.scale;
-const centerY = (-view.y + viewport.height / 2) / view.scale;
-
+  const centerX = (-view.x + size.width / 2) / view.scale;
+  const centerY = (-view.y + size.height / 2) / view.scale;
 
   addTable(type, seats, {
     x: centerX,
@@ -606,14 +585,13 @@ const centerY = (-view.y + viewport.height / 2) / view.scale;
   return (
     <div
   ref={containerRef}
-  className="relative w-full z-0 overflow-hidden"
+  className="relative w-full z-0 min-w-0 overflow-y-hidden overflow-x-visible"
   style={{ height: "100dvh" }} // ⭐ קריטי למובייל
 >
 
       
 
-      {viewport.width > 0 && viewport.height > 0 && (
-
+      {size.width > 0 && size.height > 0 && (
   <Stage
   width={size.width}
   height={size.height}
@@ -680,8 +658,7 @@ const centerY = (-view.y + viewport.height / 2) / view.scale;
 
 
         <Layer listening={false}>
-          <GridLayer width={viewport.width} height={viewport.height} />
-
+          <GridLayer width={size.width} height={size.height} />
         </Layer>
 
         <Layer listening={false}>

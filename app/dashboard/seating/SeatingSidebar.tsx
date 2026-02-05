@@ -265,8 +265,7 @@ const syncRemoveFromServer = async (guestId: string) => {
   /* ================= RENDER ================= */
 
   return (
-    <aside className="h-full w-[400px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc] relative z-20">
-
+    <aside className="h-full w-[400px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
 
       {/* ===== Header ===== */}
       <div className="p-5 border-b border-[#ead8cc]">

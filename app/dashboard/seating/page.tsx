@@ -350,7 +350,7 @@ setEventId(eventIdFromApi);
    RENDER
 =============================== */
 return (
-   <div className="h-screen w-screen bg-gray-50 overflow-visible">
+   <div className="h-screen w-screen bg-gray-50 overflow-hidden">
 
 
 
@@ -436,38 +436,7 @@ return (
 
 
 
-  {/* 🎨 קנבס */}
-<div
-  className="fixed left-0 right-0 overflow-visible"
 
-  style={{
-    top: 64,
-    bottom: 0,
-  }}
->
-
-  <div
-  className="overflow-visible"
-  style={{
-    width:
-      !isMobile && sidebarOpen
-        ? "calc(100% - 400px)"
-        : "100%",
-    height: "100%",
-  }}
->
-
-    <SeatingEditor
-  background={background?.url || null}
-  invitationId={invitationId}
-  onAutoSave={() => saveSeating(false)}   // ⭐ זה הקריטי למודאל
-  hideSeats={isProducer}
-  sidebarOpen={sidebarOpen}
-/>
-
-
-  </div>
-</div>
 
 <button
   onClick={() => setShowGuests(true)}
@@ -487,71 +456,67 @@ return (
 )}
 
 
-
-
-
-  {/* 🧾 סיידבר הושבה מאוחד */}
- <div className="absolute right-0 bottom-0 hidden md:flex z-30" style={{ top: 64 }}>
-
-
-
-
-  {/* 🧾 סיידבר – תמיד קיים, רק הרוחב משתנה */}
-  <aside
-    className={`
-      transition-all duration-300
-      ${sidebarOpen ? "w-[400px]" : "w-0 overflow-hidden"}
-      bg-white border-l border-[#ead8cc]
-    `}
-  >
-    {sidebarOpen && (
-      <Suspense
-        fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}
-      >
-        <SeatingSidebar invitationId={invitationId} />
-
-      </Suspense>
-    )}
-  </aside>
-
-  {/* 🔘 חץ שליטה – תמיד קיים */}
-  <div
-  className={`
-    absolute top-1/2 -translate-y-1/2
-    right-full
-    z-40 flex items-center
-    transition-all duration-300
-    ${sidebarOpen ? "mr-[18px]" : "mr-0"}
-  `}
+{/* 🎨 קנבס + סיידבר */}
+<div
+  className="absolute inset-x-0 flex min-w-0"
+  style={{ top: 64, bottom: 0 }}
 >
-    {/* קו הפרדה – רק כשהסיידבר פתוח */}
-    {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
-
-    <button
-      onClick={() => setSidebarOpen((v) => !v)}
-      className="
-        ml-[-12px]
-        h-9 w-9
-        rounded-full
-        bg-[#fdf9f6]
-        border border-[#ead8cc]
-        shadow-sm
-        flex items-center justify-center
-        hover:bg-[#f6ede8]
-        transition
-      "
-      title={sidebarOpen ? "הסתר רשימת אורחים" : "הצג רשימת אורחים"}
-    >
-      {sidebarOpen ? "❮" : "❯"}
-    </button>
+  {/* קנבס */}
+  <div className="flex-1 min-w-0">
+    <SeatingEditor
+      background={background?.url || null}
+      invitationId={invitationId}
+      onAutoSave={() => saveSeating(false)}
+      hideSeats={isProducer}
+      sidebarOpen={sidebarOpen}
+    />
   </div>
 
+  {/* 🧾 סיידבר */}
+  <div className="hidden md:flex flex-shrink-0 relative">
+    <aside
+      className={`
+        transition-all duration-300
+        ${sidebarOpen ? "w-[400px]" : "w-0 overflow-hidden"}
+        bg-white border-l border-[#ead8cc]
+      `}
+    >
+      {sidebarOpen && (
+        <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
+          <SeatingSidebar invitationId={invitationId} />
+        </Suspense>
+      )}
+    </aside>
+
+    {/* 🔘 חץ שליטה */}
+    <div
+      className={`
+        absolute top-1/2 -translate-y-1/2
+        right-full z-40 flex items-center
+        transition-all duration-300
+        ${sidebarOpen ? "mr-[18px]" : "mr-0"}
+      `}
+    >
+      {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
+
+      <button
+        onClick={() => setSidebarOpen((v) => !v)}
+        className="
+          ml-[-12px] h-9 w-9 rounded-full
+          bg-[#fdf9f6] border border-[#ead8cc]
+          shadow-sm flex items-center justify-center
+          hover:bg-[#f6ede8] transition
+        "
+      >
+        {sidebarOpen ? "❮" : "❯"}
+      </button>
+    </div>
+  </div>
+</div>
 
 
 
-       
-
-      </div>
+ 
 
       {/* MODALS */}
       {showUpload && (
