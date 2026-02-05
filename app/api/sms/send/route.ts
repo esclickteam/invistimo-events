@@ -340,22 +340,25 @@ let totalPartsSent = 0;
     let sent = 0;
 
     for (const guest of guests) {
+const freshGuest = await InvitationGuest.findById(guest._id).lean();
+if (!freshGuest) continue;
 
       if (
-        template.requiresTable &&
-        !guest.tableName &&
-        typeof guest.tableNumber !== "number"
-      ) {
-        continue;
-      }
+  template.requiresTable &&
+  !freshGuest.tableName &&
+  typeof freshGuest.tableNumber !== "number"
+) {
+  continue;
+}
+
 
       const tableName =
-        guest.tableName ||
-        (typeof guest.tableNumber === "number"
-          ? `שולחן ${guest.tableNumber}`
-          : "");
+  freshGuest.tableName ||
+  (typeof freshGuest.tableNumber === "number"
+    ? `שולחן ${freshGuest.tableNumber}`
+    : "");
 
-      let phone = (guest.phone || "").replace(/\D/g, "");
+      let phone = (freshGuest.phone || "").replace(/\D/g, "");
       if (!phone) continue;
 
       if (phone.startsWith("0")) phone = "972" + phone.slice(1);
@@ -363,13 +366,13 @@ let totalPartsSent = 0;
 
       // 🔗 קישור RSVP אישי
 const personalRsvpUrl =
-  `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+  `https://www.invistimo.com/invite/${invitation.shareId}?token=${freshGuest.token}`;
 
 // ✂️ קיצור הקישור האישי
 const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
 let finalText = baseMessage
-  .replace(/{{name}}/g, guest.name || "")
+ .replace(/{{name}}/g, freshGuest.name || "")
   .replace(/{{rsvpLink}}/g, shortRsvpUrl)
   .replace(/{{tableName}}/g, tableName)
   .replace(/{{navigationLink}}/g, navigationLink);
