@@ -3,10 +3,7 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
-function extractNumberFromName(name) {
-  const m = String(name || "").match(/(\d+)/);
-  return m ? Number(m[1]) : null;
-}
+
 
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
@@ -349,27 +346,26 @@ const newSeats = groupGuests.flatMap((guest) => {
     : t
 );
 
-const resolvedTableName = String(
-  targetTable?.number ??
-    extractNumberFromName(targetTable?.name) ??
-    targetTable?.name ??
-    ""
-).trim();
+
+
 
 
 
   set({
     tables: updatedTables,
-    guests: guests.map((g) =>
-      g.groupId === groupId
-        ? {
-            ...g,
-            tableId: tableId,
 
-            tableName: resolvedTableName || null,
-          }
-        : g
-    ),
+    guests: guests.map((g) =>
+  g.groupId === groupId
+    ? {
+        ...g,
+        tableId: tableId,
+        tableNumber: targetTable.number,       // ⭐ מספר שולחן אמיתי
+        tableName: String(targetTable.number), // ⭐ לסמסים
+      }
+    : g
+),
+
+
     groups: groups.map((g) =>
       g._id === groupId
         ? { ...g, tableId, isSeated: true }
@@ -401,11 +397,19 @@ unseatGroup: (groupId) => {
         (sg) => sg.groupId !== groupId
       ),
     })),
+
     guests: guests.map((g) =>
-      g.groupId === groupId
-        ? { ...g, tableId: null, tableName: null }
-        : g
-    ),
+  g.groupId === groupId
+    ? {
+        ...g,
+        tableId: null,
+        tableNumber: null,   // ⭐ חובה
+        tableName: null,     // ⭐ חובה
+      }
+    : g
+),
+
+
     groups: groups.map((g) =>
       g._id === groupId
         ? { ...g, tableId: null, isSeated: false }
@@ -682,10 +686,15 @@ updateTableDisplayName: (tableId, displayName) =>
     );
 
     const guests = state.guests.map((g) =>
-      String(g.tableId) === String(tableId)
-        ? { ...g, tableName: String(n) }
-        : g
-    );
+  String(g.tableId) === String(tableId)
+    ? {
+        ...g,
+        tableNumber: n,          // ⭐ זה מה שמסך ההודעות משתמש בו
+        tableName: String(n),
+      }
+    : g
+);
+
 
     return { tables, guests };
   }),
@@ -698,11 +707,19 @@ updateTableDisplayName: (tableId, displayName) =>
   deleteTable: (tableId) =>
     set((state) => ({
       tables: state.tables.filter((t) => t.id !== tableId),
+
       guests: state.guests.map((g) =>
-        g.tableId === tableId
-          ? { ...g, tableId: null, tableName: null }
-          : g
-      ),
+  g.tableId === tableId
+    ? {
+        ...g,
+        tableId: null,
+        tableNumber: null, // ⭐ חובה
+        tableName: null,
+      }
+    : g
+),
+
+
       highlightedTable: null,
       highlightedSeats: [],
     })),
@@ -824,14 +841,15 @@ const resolvedTableName = String(
 
   
 
-  set({
+ set({
   tables: updatedTables,
   guests: guests.map((g) =>
     String(g.id ?? g._id) === String(guestId)
       ? {
           ...g,
           tableId: highlightedTable,
-          tableName: resolvedTableName || null,
+          tableNumber: targetTable.number,        // ⭐ חובה
+          tableName: String(targetTable.number),  // ⭐ חובה
         }
       : g
   ),
@@ -903,6 +921,7 @@ const resolvedTableName = String(
     ""
 ).trim();
 
+
 set({
   tables: updatedTables,
   guests: guests.map((g) =>
@@ -910,7 +929,8 @@ set({
       ? {
           ...g,
           tableId: tableId,
-          tableName: resolvedTableName || null,
+          tableNumber: targetTable.number,        // ⭐ מספר שולחן אמיתי
+          tableName: String(targetTable.number),  // ⭐ מה שנשלח ב-SMS
         }
       : g
   ),
@@ -918,6 +938,7 @@ set({
   highlightedSeats: [],
   highlightedTable: null,
 });
+
 
 },
 
@@ -965,16 +986,19 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 
   set({
     tables: updatedTables,
-    guests: guests.map((g) =>
-      String(g.id ?? g._id) === String(guestId)
 
-        ? {
-            ...g,
-            tableId: tableId,
-            tableName: resolvedTableName || null,
-          }
-        : g
-    ),
+    guests: guests.map((g) =>
+  String(g.id ?? g._id) === String(guestId)
+    ? {
+        ...g,
+        tableId: tableId,
+        tableNumber: targetTable.number,        // ⭐ חובה
+        tableName: String(targetTable.number),  // ⭐ חובה
+      }
+    : g
+),
+
+
     draggingGuest: null,
     highlightedSeats: [],
     highlightedTable: null,
@@ -993,12 +1017,19 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
 ),
 
       })),
-      guests: guests.map((g) =>
-        String(g.id ?? g._id) === String(guestId)
 
-          ? { ...g, tableId: null, tableName: null }
-          : g
-      ),
+      guests: guests.map((g) =>
+  String(g.id ?? g._id) === String(guestId)
+    ? {
+        ...g,
+        tableId: null,
+        tableNumber: null, // ⭐ חובה
+        tableName: null,   // ⭐ חובה
+      }
+    : g
+),
+
+
     });
   },
 
@@ -1081,10 +1112,16 @@ assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
         : t
     ),
     guests: guests.map((g) =>
-      String(g.id ?? g._id) === String(guestId)
-        ? { ...g, tableId, tableName: resolvedTableName || null }
-        : g
-    ),
+  String(g.id ?? g._id) === String(guestId)
+    ? {
+        ...g,
+        tableId,
+        tableNumber: table.number,           // ⭐ חובה
+        tableName: String(table.number),     // ⭐ חובה
+      }
+    : g
+),
+
   });
 
   return { ok: true };
@@ -1104,9 +1141,18 @@ assignGuestsToTable: (tableId, guestId, count, seatIndex) => {
           }
         : t
     );
+
     const updatedGuests = guests.map((g) =>
-      g.id === guestId ? { ...g, tableId: null, tableName: null } : g
-    );
+  g.id === guestId
+    ? {
+        ...g,
+        tableId: null,
+        tableNumber: null, // ⭐ חובה
+        tableName: null,   // ⭐ חובה
+      }
+    : g
+);
+
 
     set({ tables: updatedTables, guests: updatedGuests });
   },

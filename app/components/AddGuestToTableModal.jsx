@@ -73,7 +73,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     return (tableGuests || []).filter((g) => {
       const id = getGuestId(g);
-      const hasTable = Boolean(g?.tableName);
+      const hasTable = Number.isFinite(g?.tableNumber);
       const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
 
       const matchesSearch =
@@ -108,14 +108,15 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }
 
     await fetch("/api/guests/assign-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestId,
-        tableName: tableData.displayName || tableData.name,
-        seatIndex,
-      }),
-    });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    guestId,
+    tableNumber: tableData.number,
+    seatIndex,
+  }),
+});
+
 
     setError("");
     setOpenSeat(null);
@@ -140,59 +141,18 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
   // ✅ שמירת displayName לשולחן
   const commitTableName = async () => {
-  if (!tableData) return;
+    if (!tableData) return;
 
-  const next = String(tableNameDraft || "").trim();
-  if (!next) {
+    const next = String(tableNameDraft || "").trim();
+
+    // לא משנים לוגיקה קיימת – רק שומרים displayName ב-store
+    updateTableDisplayName(tableData.id, next);
+
+    // אם יש לך API לשמירת השם בשרת – אפשר להדליק כאן (לא חובה)
+    // await fetch("/api/seating/table-display-name", { ... })
+
     setIsEditingName(false);
-    return;
-  }
-
-  await Promise.all([
-  fetch("/api/seating/update-table-meta", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      tableId: tableData.id,
-      tableName: next,
-      ...(Number.isFinite(Number(next)) ? { tableNumber: Number(next) } : {}),
-    }),
-  }),
-
-  fetch("/api/guests/update-table-name-by-table", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      tableId: tableData.id,
-      tableName: next,
-      ...(Number.isFinite(Number(next))
-        ? { tableNumber: Number(next) }
-        : {}),
-    }),
-  }),
-]);
-
-
-  updateTableDisplayName(tableData.id, next);
-
-useSeatingStore.setState((state) => ({
-  guests: state.guests.map((g) =>
-    g.tableName === tableData.displayName ||
-    g.tableName === tableData.name
-      ? {
-          ...g,
-          tableName: next,
-          ...(Number.isFinite(Number(next))
-            ? { tableNumber: Number(next) }
-            : { tableNumber: undefined }),
-        }
-      : g
-  ),
-}));
-
-  setIsEditingName(false);
-};
-
+  };
 
   if (!tableData) return null;
 
