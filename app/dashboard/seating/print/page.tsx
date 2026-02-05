@@ -19,12 +19,10 @@ type SeatedGuest = {
 
 type Table = {
   id: string;
-  name?: string;          // legacy – לא בשימוש
-  number?: number | null; // ✅ מקור האמת
+  name: string;
   seats?: number;
   seatedGuests: SeatedGuest[];
 };
-
 
 export default function SeatingPrintPage() {
   const params = useSearchParams();
@@ -41,16 +39,10 @@ export default function SeatingPrintPage() {
     if (!eventId) return;
 
     async function load() {
-    const [tRes, gRes] = await Promise.all([
-  fetch(`/api/seating/tables/${eventId}`, {
-    credentials: "include",
-  }),
-  fetch(`/api/seating/guests/${eventId}`, {
-    credentials: "include",
-  }),
-]);
-
-
+      const [tRes, gRes] = await Promise.all([
+        fetch(`/api/seating/tables/${eventId}`),
+        fetch(`/api/seating/guests/${eventId}`),
+      ]);
 
       const tData = await tRes.json();
       const gData = await gRes.json();
@@ -126,8 +118,7 @@ export default function SeatingPrintPage() {
               <div
                 className={`text-center font-bold mb-2 ${titleColor}`}
               >
-                שולחן {table.number} ({arrivedTotal}/{capacity})
-
+                {table.name} ({arrivedTotal}/{capacity})
               </div>
 
               {/* טבלה */}

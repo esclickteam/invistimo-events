@@ -39,9 +39,8 @@ type Group = {
 
 type Table = {
   id: string;
-  name?: string;          // legacy
-  displayName?: string;   // קבוצה
-  number?: number | null; // ✅ מספר שולחן
+  name: string;
+  displayName?: string;
   seats: number;
   seatedGuests: { guestId: string }[];
 };
@@ -331,7 +330,7 @@ export default function SeatingSidebar() {
   <div className="text-sm font-medium truncate">{g.name}</div>
   <div className="text-xs text-gray-500 truncate">
             {table
-              ? `שולחן ${table.number ?? "—"} · ${planned} מוזמנים`
+              ? `${table.displayName || table.name} · ${planned} מוזמנים`
               : `לא משובץ · ${planned} מוזמנים`}
           </div>
         </div>

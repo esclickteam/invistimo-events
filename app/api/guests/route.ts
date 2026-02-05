@@ -15,11 +15,9 @@ type SeatedGuest = {
 
 type TableItem = {
   id: string;
-  name?: string;                 // ⚠️ legacy – לא לגעת
-  number?: number | null;        // ✅ מספר שולחן – מקור האמת
+  name?: string;
   seatedGuests?: SeatedGuest[];
 };
-
 
 type SeatingDoc = {
   eventId: Types.ObjectId;
@@ -101,10 +99,7 @@ export async function GET() {
         );
 
         if (table) {
-         tableName =
-  typeof table.number === "number"
-    ? `שולחן ${table.number}`
-    : "-";
+          tableName = table.name || "-";
           withTable++;
         }
       }

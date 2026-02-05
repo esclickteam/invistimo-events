@@ -189,8 +189,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       if (!Array.isArray(table.seatedGuests)) continue;
 
       const tableNumber =
-  typeof table.number === "number" ? table.number : null;
-
+        typeof table.name === "string"
+          ? Number(table.name.replace(/\D/g, "")) || null
+          : null;
 
       for (const seated of table.seatedGuests) {
         if (!seated?.guestId) continue;
@@ -199,7 +200,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         await InvitationGuest.findByIdAndUpdate(seated.guestId, {
           tableNumber,
-          tableName: null,
+          tableName: table.name ?? "",
         });
       }
     }

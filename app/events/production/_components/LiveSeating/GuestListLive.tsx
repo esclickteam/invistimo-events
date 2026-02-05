@@ -13,11 +13,9 @@ type SeatedGuest = {
 
 type SeatingTable = {
   id: string;
-  name?: string;          // legacy – לא נוגעים
-  number?: number | null; // ✅ מקור האמת
+  name?: string;
   seatedGuests?: SeatedGuest[];
 };
-
 
 export default function GuestListLive() {
   const guests = useSeatingStore((s) => s.guests) as LiveGuest[];
@@ -39,11 +37,7 @@ export default function GuestListLive() {
       table.seatedGuests?.forEach((sg: SeatedGuest) => {
         map.set(String(sg.guestId), {
           tableId: table.id,
-          tableName:
-  typeof table.number === "number"
-    ? `שולחן ${table.number}`
-    : "",
-
+          tableName: table.name,
         });
       });
     });

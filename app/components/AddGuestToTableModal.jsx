@@ -19,8 +19,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState(""); // 🔍 חיפוש
 
-  const updateTableNumber = useSeatingStore((s) => s.updateTableNumber);
-
+  const updateTableDisplayName = useSeatingStore((s) => s.updateTableDisplayName);
 
   // ✅ עריכת שם/מספר שולחן (displayName)
   const [isEditingName, setIsEditingName] = useState(false);
@@ -74,10 +73,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
 
     return (tableGuests || []).filter((g) => {
       const id = getGuestId(g);
-      const hasTable =
-  typeof g?.tableNumber === "number" ||
-  typeof g?.tableId === "string";
-
+      const hasTable = Boolean(g?.tableName);
       const isYes = String(g?.rsvp ?? "").toLowerCase() === "yes";
 
       const matchesSearch =
@@ -112,15 +108,14 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
     }
 
     await fetch("/api/guests/assign-table", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    guestId,
-    tableId: tableData.id,
-    seatIndex,
-  }),
-});
-
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        guestId,
+        tableName: tableData.name,
+        seatIndex,
+      }),
+    });
 
     setError("");
     setOpenSeat(null);
@@ -144,21 +139,21 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
   };
 
   // ✅ שמירת displayName לשולחן
-  const commitTableName = () => {
-  if (!tableData) return;
+  const commitTableName = async () => {
+    if (!tableData) return;
 
-  const n = Number(tableNameDraft);
+    const next = String(tableNameDraft || "").trim();
 
-  if (!Number.isFinite(n) || n <= 0) {
-    setTableNameDraft(String(tableData.number ?? ""));
+    // לא משנים לוגיקה קיימת – רק שומרים displayName ב-store
+    updateTableDisplayName(tableData.id, next);
+
+    // אם יש לך API לשמירת השם בשרת – אפשר להדליק כאן (לא חובה)
+    // await fetch("/api/seating/table-display-name", { ... })
+
     setIsEditingName(false);
-    return;
-  }
+  };
 
-  updateTableNumber(tableData.id, n);
-  setIsEditingName(false);
-};
-
+  if (!tableData) return null;
 
   /* ================= UI ================= */
 
@@ -192,7 +187,7 @@ export default function AddGuestToTableModal({ table, guests, onClose }) {
           ) : (
             <>
               <h2 className="text-2xl font-bold text-center text-gray-800">
-               הושבה לשולחן {tableData.number}
+                הושבה לשולחן {tableData.displayName || tableData.name}
               </h2>
 
               <button
