@@ -19,10 +19,12 @@ type SeatedGuest = {
 
 type Table = {
   id: string;
-  name: string;
+  name?: string;          // legacy – לא בשימוש
+  number?: number | null; // ✅ מקור האמת
   seats?: number;
   seatedGuests: SeatedGuest[];
 };
+
 
 export default function SeatingPrintPage() {
   const params = useSearchParams();
@@ -118,7 +120,8 @@ export default function SeatingPrintPage() {
               <div
                 className={`text-center font-bold mb-2 ${titleColor}`}
               >
-                {table.name} ({arrivedTotal}/{capacity})
+                שולחן {table.number} ({arrivedTotal}/{capacity})
+
               </div>
 
               {/* טבלה */}

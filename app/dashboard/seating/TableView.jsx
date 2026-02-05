@@ -46,7 +46,7 @@ export default function TableView({
           </button>
 
           <h2 className="text-xl font-bold text-center mb-4">
-            {table.name}
+            שולחן {table.number}
           </h2>
 
           {/* כיסאות */}

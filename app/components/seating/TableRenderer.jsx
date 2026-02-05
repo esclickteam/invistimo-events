@@ -247,11 +247,10 @@ useEffect(() => {
 
 const seatsTotal = Number(table.seats || 0);
 
-const tableTitle = table.displayName
-  ? table.displayName
-  : table.number != null
-  ? `שולחן ${table.number}`
-  : table.name || "";
+const tableTitle =
+  typeof table.number === "number"
+    ? `שולחן ${table.number}`
+    : "";
 
 
 const tableLabel = groupForTable
