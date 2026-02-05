@@ -99,7 +99,12 @@ const handleSeatGuest = async (seatIndex, guest) => {
   const guestId = getGuestId(guest);
   const count = getPartySize(guest);
 
-  const res = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
+  const res = assignGuestsToTable(
+    tableData.id,
+    guestId,
+    count,
+    seatIndex
+  );
 
   if (!res?.ok) {
     setError(res?.message || "לא ניתן להושיב כאן");
@@ -111,7 +116,7 @@ const handleSeatGuest = async (seatIndex, guest) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       guestId,
-      tableName: tableData.displayName || tableData.name, // ✅ זה התיקון
+      tableName: tableData.displayName || tableData.name, // ✅ תמיד השם העדכני
       seatIndex,
     }),
   });
@@ -121,24 +126,9 @@ const handleSeatGuest = async (seatIndex, guest) => {
   setSearchTerm("");
 };
 
+
   /* ================= הסרה ================= */
-
-  const handleRemoveGuest = async (guest) => {
-    if (!tableData || !guest) return;
-
-    const guestId = getGuestId(guest);
-
-    removeGuestFromTable(tableData.id, guestId);
-
-    await fetch("/api/guests/remove-from-table", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guestId }),
-    });
-  };
-
-  // ✅ שמירת displayName לשולחן
-  const commitTableName = async () => {
+const commitTableName = async () => {
   if (!tableData) return;
 
   const next = String(tableNameDraft || "").trim();
@@ -149,12 +139,13 @@ const handleSeatGuest = async (seatIndex, guest) => {
     return;
   }
 
-  // 1️⃣ עדכון שרת (מקור האמת)
+  const oldTableName = tableData.displayName || tableData.name;
+
   const res = await fetch("/api/seating/update-table", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      tableId: tableData.id,
+      oldTableName,
       newNumber,
     }),
   });
@@ -164,14 +155,10 @@ const handleSeatGuest = async (seatIndex, guest) => {
     return;
   }
 
-  // 2️⃣ עדכון store (רק אחרי שהשרת הצליח)
   updateTableDisplayName(tableData.id, `שולחן ${newNumber}`);
-
   setIsEditingName(false);
 };
 
-
-  if (!tableData) return null;
 
   /* ================= UI ================= */
 
