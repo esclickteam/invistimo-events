@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type UserRole = "user" | "producer" | "staff";
 type PaymentStatus = "paid" | "stripe";
@@ -9,23 +9,30 @@ type Props = {
   onClose: () => void;
 };
 
+const SMS_PER_RECORD = 3;
+
 export default function CreateUserModal({ onClose }: Props) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
 
-  /* USER */
-  const [guests, setGuests] = useState(100);
-  const [maxMessages, setMaxMessages] = useState(500);
+  /* ===== USER LIMITS ===== */
+  const [records, setRecords] = useState(100);
+  const [smsTotal, setSmsTotal] = useState(records * SMS_PER_RECORD);
   const [includeCalls, setIncludeCalls] = useState(false);
 
-  /* USER BILLING */
+  /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
   const [paymentStatus, setPaymentStatus] =
     useState<PaymentStatus>("stripe");
 
-  /* PRODUCER BILLING */
+  /* ===== PRODUCER BILLING ===== */
   const [producerPricePerRecord, setProducerPricePerRecord] =
     useState<number | "">("");
+
+  /* ===== AUTO CALC SMS ===== */
+  useEffect(() => {
+    setSmsTotal(records * SMS_PER_RECORD);
+  }, [records]);
 
   function handleSubmit() {
     const payload =
@@ -41,8 +48,9 @@ export default function CreateUserModal({ onClose }: Props) {
             email,
             role,
             limits: {
-              guests,
-              maxMessages,
+              records,
+              smsTotal,
+              smsPerRecord: SMS_PER_RECORD,
               includeCalls,
             },
             billing: {
@@ -73,10 +81,13 @@ export default function CreateUserModal({ onClose }: Props) {
         <div className="p-6 space-y-8 overflow-y-auto">
           {/* USER INFO */}
           <section className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-600">פרטי משתמש</h3>
+            <h3 className="text-sm font-bold text-gray-600">
+              פרטי משתמש
+            </h3>
+
             <input
               type="email"
-              placeholder="אימייל"
+              placeholder="אימייל משתמש"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border rounded-lg px-4 py-2"
@@ -96,33 +107,50 @@ export default function CreateUserModal({ onClose }: Props) {
           {/* USER */}
           {role === "user" && (
             <>
+              {/* LIMITS */}
               <section>
                 <h3 className="text-sm font-bold text-gray-600 mb-3">
-                  מגבלות
+                  מגבלות מערכת
                 </h3>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="number"
-                    value={guests}
-                    onChange={(e) =>
-                      setGuests(Number(e.target.value))
-                    }
-                    className="border rounded-lg px-4 py-2"
-                    placeholder="כמות אורחים"
-                  />
-                  <input
-                    type="number"
-                    value={maxMessages}
-                    onChange={(e) =>
-                      setMaxMessages(Number(e.target.value))
-                    }
-                    className="border rounded-lg px-4 py-2"
-                    placeholder="כמות SMS"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      כמות רשומות
+                    </label>
+                    <p className="text-xs text-gray-500 mb-1">
+                      מספר הטלפונים / מוזמנים שהמערכת תנהל
+                    </p>
+                    <input
+                      type="number"
+                      min={1}
+                      value={records}
+                      onChange={(e) =>
+                        setRecords(Number(e.target.value))
+                      }
+                      className="w-full border rounded-lg px-4 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      כמות הודעות SMS
+                    </label>
+                    <p className="text-xs text-gray-500 mb-1">
+                      מחושב אוטומטית – 3 הודעות לכל רשומה
+                    </p>
+                    <div className="w-full border rounded-lg px-4 py-2 bg-gray-50">
+                      {smsTotal} הודעות
+                    </div>
+                  </div>
                 </div>
               </section>
 
+              {/* SERVICES */}
               <section>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  שירותים
+                </h3>
                 <label className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -131,21 +159,27 @@ export default function CreateUserModal({ onClose }: Props) {
                       setIncludeCalls(e.target.checked)
                     }
                   />
-                  שירות שיחות
+                  <span>שירות שיחות טלפון</span>
                 </label>
               </section>
 
+              {/* PAYMENT */}
               <section>
                 <h3 className="text-sm font-bold text-gray-600 mb-3">
                   תשלום
                 </h3>
+
+                <label className="block text-sm mb-1">
+                  מחיר כולל (₪)
+                </label>
                 <input
                   type="number"
-                  placeholder="מחיר כולל (₪)"
                   value={price}
                   onChange={(e) =>
                     setPrice(
-                      e.target.value === "" ? "" : Number(e.target.value)
+                      e.target.value === ""
+                        ? ""
+                        : Number(e.target.value)
                     )
                   }
                   className="w-full border rounded-lg px-4 py-2 mb-3"
@@ -160,8 +194,12 @@ export default function CreateUserModal({ onClose }: Props) {
                   }
                   className="w-full border rounded-lg px-4 py-2"
                 >
-                  <option value="stripe">לתשלום ב-Stripe</option>
-                  <option value="paid">שולם ידנית</option>
+                  <option value="stripe">
+                    לתשלום דרך Stripe
+                  </option>
+                  <option value="paid">
+                    שולם ידנית
+                  </option>
                 </select>
               </section>
             </>
@@ -173,19 +211,27 @@ export default function CreateUserModal({ onClose }: Props) {
               <h3 className="text-sm font-bold text-gray-600 mb-3">
                 תמחור למפיק
               </h3>
+
+              <label className="block text-sm mb-1">
+                מחיר לרשומה (₪)
+              </label>
               <input
                 type="number"
-                placeholder="מחיר לרשומה (₪)"
                 value={producerPricePerRecord}
                 onChange={(e) =>
                   setProducerPricePerRecord(
-                    e.target.value === "" ? "" : Number(e.target.value)
+                    e.target.value === ""
+                      ? ""
+                      : Number(e.target.value)
                   )
                 }
                 className="w-full border rounded-lg px-4 py-2"
               />
+
               <p className="text-xs text-gray-500 mt-2">
                 החיוב יתבצע לפי מספר הרשומות שהמפיק ייצור בפועל
+                <br />
+                (כולל 3 הודעות + שיחות לכל רשומה)
               </p>
             </section>
           )}
@@ -199,12 +245,14 @@ export default function CreateUserModal({ onClose }: Props) {
           >
             ביטול
           </button>
+
           <button
             onClick={handleSubmit}
             disabled={
               !email ||
               (role === "user" && !price) ||
-              (role === "producer" && !producerPricePerRecord)
+              (role === "producer" &&
+                !producerPricePerRecord)
             }
             className="px-5 py-2 rounded-lg bg-black text-white disabled:opacity-40"
           >
