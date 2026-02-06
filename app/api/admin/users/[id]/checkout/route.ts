@@ -20,6 +20,8 @@ async function requireAdmin() {
   const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
 
+  console.log("[ADMIN] authToken exists:", Boolean(token));
+
   if (!token) {
     return { error: "UNAUTHORIZED", status: 401 };
   }
@@ -30,12 +32,15 @@ async function requireAdmin() {
       process.env.JWT_SECRET!
     ) as { role?: string };
 
+    console.log("[ADMIN] decoded role:", decoded.role);
+
     if (decoded.role !== "admin") {
       return { error: "FORBIDDEN", status: 403 };
     }
 
     return { decoded };
-  } catch {
+  } catch (err) {
+    console.error("[ADMIN] JWT verify failed:", err);
     return { error: "UNAUTHORIZED", status: 401 };
   }
 }
@@ -45,14 +50,18 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: NextRequest,
-  context: any // 🔥 עקיפה בטוחה לבאג ה-typed routes של Next
+  context: any
 ) {
   try {
+    console.log("========== STRIPE CHECKOUT START ==========");
+
     await connectDB();
+    console.log("[DB] connected");
 
     /* ---------- AUTH ---------- */
     const auth = await requireAdmin();
     if ("error" in auth) {
+      console.warn("[AUTH] failed:", auth.error);
       return NextResponse.json(
         { success: false, error: auth.error },
         { status: auth.status }
@@ -61,6 +70,8 @@ export async function POST(
 
     /* ---------- PARAMS ---------- */
     const userId = context.params?.id;
+    console.log("[PARAM] userId:", userId);
+
     if (!userId) {
       return NextResponse.json(
         { success: false, error: "MISSING_USER_ID" },
@@ -72,6 +83,8 @@ export async function POST(
     const body = await req.json();
     const { price, description } = body ?? {};
 
+    console.log("[BODY] price:", price, "description:", description);
+
     if (!price || Number(price) <= 0) {
       return NextResponse.json(
         { success: false, error: "INVALID_PRICE" },
@@ -81,6 +94,8 @@ export async function POST(
 
     /* ---------- USER ---------- */
     const user = await User.findById(userId).lean();
+    console.log("[USER] found:", Boolean(user), "email:", user?.email);
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
@@ -88,17 +103,36 @@ export async function POST(
       );
     }
 
-    /* ---------- APP URL (FIX) ---------- */
-    const appUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    /* ---------- APP URL (CRITICAL) ---------- */
+    const rawAppUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
-if (!appUrl || !appUrl.startsWith("https://")) {
-  console.error("INVALID APP URL:", appUrl);
-  return NextResponse.json(
-    { success: false, error: "INVALID_APP_URL" },
-    { status: 500 }
-  );
-}
+    console.log(
+      "[ENV] NEXT_PUBLIC_SITE_URL (raw):",
+      JSON.stringify(rawAppUrl)
+    );
 
+    if (!rawAppUrl) {
+      throw new Error("NEXT_PUBLIC_SITE_URL is missing");
+    }
+
+    const appUrl = rawAppUrl.trim();
+
+    console.log(
+      "[ENV] NEXT_PUBLIC_SITE_URL (trimmed):",
+      JSON.stringify(appUrl)
+    );
+
+    if (!appUrl.startsWith("https://")) {
+      throw new Error(
+        `NEXT_PUBLIC_SITE_URL must start with https:// (got: ${appUrl})`
+      );
+    }
+
+    const successUrl = `${appUrl}/admin/users?paid=1`;
+    const cancelUrl = `${appUrl}/admin/users?canceled=1`;
+
+    console.log("[STRIPE] success_url:", successUrl);
+    console.log("[STRIPE] cancel_url:", cancelUrl);
 
     /* ---------- STRIPE CHECKOUT ---------- */
     const session = await stripe.checkout.sessions.create({
@@ -115,7 +149,7 @@ if (!appUrl || !appUrl.startsWith("https://")) {
               description:
                 description ?? `תשלום עבור משתמש ${user.email}`,
             },
-            unit_amount: Math.round(Number(price) * 100), // אגורות
+            unit_amount: Math.round(Number(price) * 100),
           },
           quantity: 1,
         },
@@ -126,18 +160,26 @@ if (!appUrl || !appUrl.startsWith("https://")) {
         role: user.role,
       },
 
-      success_url: `${appUrl}/admin/users?paid=1`,
-      cancel_url: `${appUrl}/admin/users?canceled=1`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
+
+    console.log("[STRIPE] session created:", session.id);
 
     return NextResponse.json({
       success: true,
       checkoutUrl: session.url,
     });
   } catch (err) {
-    console.error("STRIPE CHECKOUT ERROR:", err);
+    console.error("❌ STRIPE CHECKOUT ERROR:", err);
+
     return NextResponse.json(
-      { success: false, error: "CHECKOUT_FAILED" },
+      {
+        success: false,
+        error: "CHECKOUT_FAILED",
+        details:
+          err instanceof Error ? err.message : String(err),
+      },
       { status: 500 }
     );
   }
