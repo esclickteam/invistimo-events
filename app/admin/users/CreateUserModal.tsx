@@ -73,11 +73,24 @@ export default function CreateUserModal({ onClose }: Props) {
 
     const data = await res.json();
 
-    // 🔹 אם צריך תשלום – מעבר ל־Stripe
-    if (data.checkoutUrl) {
-      window.location.href = data.checkoutUrl;
-      return;
+    if (paymentStatus === "stripe" && data.userId) {
+  const checkoutRes = await fetch(
+    `/api/admin/users/${data.userId}`, // ⬅️ זה השינוי
+    {
+      method: "POST",
+      credentials: "include",
     }
+  );
+
+  const checkoutData = await checkoutRes.json();
+
+  if (checkoutData.checkoutUrl) {
+    window.location.href = checkoutData.checkoutUrl;
+    return;
+  }
+}
+
+  
 
     // 🔹 שולם ידנית – פשוט נסגור
     onClose();
