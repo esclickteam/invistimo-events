@@ -17,7 +17,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
    AUTH – ADMIN ONLY
 ========================================================= */
 async function requireAdmin() {
-  const cookieStore = await cookies(); // ✅ חייב await אצלך
+  const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
 
   if (!token) {
@@ -45,12 +45,11 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } } // ✔️ params רגיל
+  context: { params: { id: string } } // ❗️לא destructuring
 ) {
   try {
     await connectDB();
 
-    /* ---------- AUTH ---------- */
     const auth = await requireAdmin();
     if ("error" in auth) {
       return NextResponse.json(
@@ -59,7 +58,7 @@ export async function POST(
       );
     }
 
-    const userId = params.id;
+    const userId = context.params.id; // ✅ כאן מפרקים
     const body = await req.json();
     const { price, description } = body ?? {};
 
@@ -70,7 +69,6 @@ export async function POST(
       );
     }
 
-    /* ---------- USER ---------- */
     const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json(
@@ -79,7 +77,6 @@ export async function POST(
       );
     }
 
-    /* ---------- STRIPE CHECKOUT ---------- */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -92,8 +89,7 @@ export async function POST(
             product_data: {
               name: "שירות מערכת",
               description:
-                description ??
-                `תשלום עבור משתמש ${user.email}`,
+                description ?? `תשלום עבור משתמש ${user.email}`,
             },
             unit_amount: Math.round(Number(price) * 100),
           },
