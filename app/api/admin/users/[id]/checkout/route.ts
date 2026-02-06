@@ -44,7 +44,7 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
@@ -59,7 +59,7 @@ export async function POST(
     }
 
     /* ===== PARAMS ===== */
-    const { id: userId } = await context.params;
+    const userId = params.id;
 
     if (!userId) {
       return NextResponse.json(
