@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import Stripe from "stripe";
@@ -44,8 +44,8 @@ async function requireAdmin() {
    POST – CREATE STRIPE CHECKOUT FOR USER
 ========================================================= */
 export async function POST(
-  req: Request,
-  context: { params: { id: string } } // ❗️לא destructuring
+  req: NextRequest,
+  context: any // 🔥 עוקף את הבאג של Next
 ) {
   try {
     await connectDB();
@@ -58,7 +58,14 @@ export async function POST(
       );
     }
 
-    const userId = context.params.id; // ✅ כאן מפרקים
+    const userId = context.params?.id;
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "MISSING_USER_ID" },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const { price, description } = body ?? {};
 
