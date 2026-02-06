@@ -15,12 +15,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 async function requireAdmin() {
   const cookieStore = await cookies();
   const token = cookieStore.get("authToken")?.value;
-  if (!token) throw new Error("UNAUTHORIZED");
 
-  const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-  if (decoded.role !== "admin") throw new Error("FORBIDDEN");
+  if (!token) {
+    return { error: "UNAUTHORIZED", status: 401 };
+  }
 
-  return decoded;
+  try {
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    if (decoded.role !== "admin") {
+      return { error: "FORBIDDEN", status: 403 };
+    }
+    return { decoded };
+  } catch {
+    return { error: "UNAUTHORIZED", status: 401 };
+  }
 }
 
 /* =========================================================
@@ -32,14 +40,20 @@ export async function POST(
 ) {
   try {
     await connectDB();
-    await requireAdmin();
+
+    const auth = await requireAdmin();
+    if ("error" in auth) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
 
     const userId = params.id;
     const body = await req.json();
-
     const { price, description } = body;
 
-    if (!price || price <= 0) {
+    if (!price || Number(price) <= 0) {
       return NextResponse.json(
         { success: false, error: "INVALID_PRICE" },
         { status: 400 }
@@ -60,7 +74,6 @@ export async function POST(
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
-
       customer_email: user.email,
 
       line_items: [
@@ -70,7 +83,7 @@ export async function POST(
             product_data: {
               name: "שירות מערכת",
               description:
-                description ||
+                description ??
                 `תשלום עבור משתמש ${user.email}`,
             },
             unit_amount: Math.round(Number(price) * 100), // אגורות
