@@ -30,10 +30,13 @@ export async function GET() {
     console.log("✅ MongoDB connected");
 
     const auth = await getUserIdFromRequest();
-    if (!auth?.userId) {
-      console.log("⛔ No auth");
-      return NextResponse.json({ guests: [] });
-    }
+console.log("🧪 AUTH DEBUG:", auth);
+
+if (!auth?.userId) {
+  console.log("⛔ No auth");
+  return NextResponse.json({ guests: [] });
+}
+
 
     const userId = auth.userId;
 

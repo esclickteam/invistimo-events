@@ -48,18 +48,17 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  /* ========================================================
-     3) Read auth state
-  ======================================================== */
-  const role = cookies.get("role")?.value || null;
+/* ========================================================
+   3) Read auth state
+======================================================== */
 
-  // אם את רוצה מקור אמת: מספיק "יש טוקן כלשהו"
-  const token =
-    cookies.get("producerAuthToken")?.value ||
-    cookies.get("authToken")?.value ||
-    null;
+const token =
+  cookies.get("authToken")?.value ||
+  cookies.get("producerAuthToken")?.value ||
+  cookies.get("adminAuthToken")?.value ||
+  null;
 
-  const isAuthed = Boolean(token);
+const isAuthed = Boolean(token);
 
   /* ========================================================
      4) Route guards by role
