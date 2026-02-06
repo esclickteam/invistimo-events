@@ -45,11 +45,12 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: NextRequest,
-  context: any // 🔥 עוקף את הבאג של Next
+  context: any // 🔥 עקיפה בטוחה לבאג ה-typed routes של Next
 ) {
   try {
     await connectDB();
 
+    /* ---------- AUTH ---------- */
     const auth = await requireAdmin();
     if ("error" in auth) {
       return NextResponse.json(
@@ -58,6 +59,7 @@ export async function POST(
       );
     }
 
+    /* ---------- PARAMS ---------- */
     const userId = context.params?.id;
     if (!userId) {
       return NextResponse.json(
@@ -66,6 +68,7 @@ export async function POST(
       );
     }
 
+    /* ---------- BODY ---------- */
     const body = await req.json();
     const { price, description } = body ?? {};
 
@@ -76,6 +79,7 @@ export async function POST(
       );
     }
 
+    /* ---------- USER ---------- */
     const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json(
@@ -84,6 +88,12 @@ export async function POST(
       );
     }
 
+    /* ---------- APP URL (FIX) ---------- */
+    const appUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      "https://invistimo.com"; // fallback בטוח
+
+    /* ---------- STRIPE CHECKOUT ---------- */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -98,7 +108,7 @@ export async function POST(
               description:
                 description ?? `תשלום עבור משתמש ${user.email}`,
             },
-            unit_amount: Math.round(Number(price) * 100),
+            unit_amount: Math.round(Number(price) * 100), // אגורות
           },
           quantity: 1,
         },
@@ -109,8 +119,8 @@ export async function POST(
         role: user.role,
       },
 
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/users?paid=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/users?canceled=1`,
+      success_url: `${appUrl}/admin/users?paid=1`,
+      cancel_url: `${appUrl}/admin/users?canceled=1`,
     });
 
     return NextResponse.json({
