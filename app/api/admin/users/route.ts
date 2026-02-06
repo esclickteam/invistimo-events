@@ -13,6 +13,7 @@ export async function GET() {
   try {
     await connectDB();
 
+    /* ===== AUTH ===== */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -25,6 +26,7 @@ export async function GET() {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
+    /* ===== USERS ===== */
     const users = await User.find({
       isDemoUser: { $ne: true },
       $or: [
@@ -35,8 +37,8 @@ export async function GET() {
       ],
     })
       .select(`
-        email
         name
+        email
         role
         plan
         guests
@@ -54,6 +56,7 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
+    /* ===== REVENUE ===== */
     const revenueAgg = await User.aggregate([
       {
         $match: {
@@ -90,6 +93,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
+    /* ===== AUTH ===== */
     const token = req.cookies.get("authToken")?.value;
     if (!token) {
       return NextResponse.json({ success: false }, { status: 401 });
@@ -100,24 +104,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
+    /* ===== BODY ===== */
     const body = await req.json();
-    const { email, role, limits, billing } = body;
+    const { name, email, role, limits, billing } = body;
 
-    if (!email || !role) {
+    if (!name || !email || !role) {
       return NextResponse.json(
-        { success: false, error: "Missing fields" },
+        { success: false, error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    /* ===== PRODUCER ===== */
+    /* =====================================================
+       PRODUCER
+    ===================================================== */
     if (role === "producer") {
       const user = await User.create({
+        name, // ⭐ חובה
         email,
         role: "producer",
         hasPaid: true,
         paidAmount: 0,
         needsPasswordSetup: true,
+        createdByAdmin: true,
+        billingSource: "admin",
       });
 
       return NextResponse.json({
@@ -126,7 +136,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    /* ===== USER ===== */
+    /* =====================================================
+       USER
+    ===================================================== */
     const { records, smsTotal, includeCalls } = limits || {};
     const { price, paymentStatus } = billing || {};
 
@@ -138,14 +150,16 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await User.create({
+      name, // ⭐ חובה
       email,
       role: "user",
       guests: records,
-      maxMessages: smsTotal,
       includeCalls: !!includeCalls,
       hasPaid: paymentStatus === "paid",
       paidAmount: paymentStatus === "paid" ? price : 0,
       needsPasswordSetup: true,
+      createdByAdmin: true,
+      billingSource: "admin",
     });
 
     return NextResponse.json({

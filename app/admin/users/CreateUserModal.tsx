@@ -12,6 +12,8 @@ type Props = {
 const SMS_PER_RECORD = 3;
 
 export default function CreateUserModal({ onClose }: Props) {
+  /* ===== USER BASIC ===== */
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
 
@@ -37,70 +39,80 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }, [records, smsAuto]);
 
+  /* =====================================================
+     SUBMIT
+  ===================================================== */
   async function handleSubmit() {
-  const payload =
-    role === "producer"
-      ? {
-          email,
-          role,
-          billing: {
-            pricePerRecord: producerPricePerRecord,
-          },
+    const payload =
+      role === "producer"
+        ? {
+            name,
+            email,
+            role,
+            billing: {
+              pricePerRecord: producerPricePerRecord,
+            },
+          }
+        : {
+            name,
+            email,
+            role,
+            limits: {
+              records,
+              smsTotal,
+              smsPerRecord: SMS_PER_RECORD,
+              smsAuto,
+              includeCalls,
+            },
+            billing: {
+              price,
+              paymentStatus,
+            },
+          };
+
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error("CREATE_USER_FAILED");
+      }
+
+      /* ===== STRIPE FLOW ===== */
+      if (paymentStatus === "stripe" && data.userId) {
+        const checkoutRes = await fetch(
+          `/api/admin/users/${data.userId}/checkout`,
+          {
+            method: "POST",
+            credentials: "include",
+          }
+        );
+
+        const checkoutData = await checkoutRes.json();
+
+        if (checkoutData.checkoutUrl) {
+          window.location.href = checkoutData.checkoutUrl;
+          return;
         }
-      : {
-          email,
-          role,
-          limits: {
-            records,
-            smsTotal,
-            smsPerRecord: SMS_PER_RECORD,
-            smsAuto,
-            includeCalls,
-          },
-          billing: {
-            price,
-            paymentStatus,
-          },
-        };
+      }
 
-  try {
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json();
-
-    if (paymentStatus === "stripe" && data.userId) {
-  const checkoutRes = await fetch(
-  `/api/admin/users/${data.userId}/checkout`, // ⬅️ זה הראוט האמיתי
-  {
-    method: "POST",
-    credentials: "include",
+      /* ===== MANUAL / NO PAYMENT ===== */
+      onClose();
+    } catch (err) {
+      console.error("CREATE USER FAILED:", err);
+      alert("שגיאה ביצירת משתמש");
+    }
   }
-);
 
-  const checkoutData = await checkoutRes.json();
-
-  if (checkoutData.checkoutUrl) {
-    window.location.href = checkoutData.checkoutUrl;
-    return;
-  }
-}
-
-  
-
-    // 🔹 שולם ידנית – פשוט נסגור
-    onClose();
-  } catch (err) {
-    console.error("CREATE USER FAILED:", err);
-    alert("שגיאה ביצירת משתמש");
-  }
-}
-
-
+  /* =====================================================
+     UI
+  ===================================================== */
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
@@ -122,6 +134,14 @@ export default function CreateUserModal({ onClose }: Props) {
             <h3 className="text-sm font-bold text-gray-600">
               פרטי משתמש
             </h3>
+
+            <input
+              type="text"
+              placeholder="שם מלא"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border rounded-lg px-4 py-2"
+            />
 
             <input
               type="email"
@@ -152,14 +172,10 @@ export default function CreateUserModal({ onClose }: Props) {
                 </h3>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* RECORDS */}
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       כמות רשומות
                     </label>
-                    <p className="text-xs text-gray-500 mb-1">
-                      מספר טלפונים / מוזמנים שהמערכת תנהל
-                    </p>
                     <input
                       type="number"
                       min={1}
@@ -171,15 +187,10 @@ export default function CreateUserModal({ onClose }: Props) {
                     />
                   </div>
 
-                  {/* SMS */}
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       כמות הודעות SMS
                     </label>
-                    <p className="text-xs text-gray-500 mb-1">
-                      ברירת מחדל: {SMS_PER_RECORD} הודעות לכל רשומה
-                    </p>
-
                     <input
                       type="number"
                       min={0}
@@ -286,12 +297,6 @@ export default function CreateUserModal({ onClose }: Props) {
                 }
                 className="w-full border rounded-lg px-4 py-2"
               />
-
-              <p className="text-xs text-gray-500 mt-2">
-                החיוב לפי מספר הרשומות בפועל  
-                <br />
-                (כולל 3 הודעות + שיחות לכל רשומה)
-              </p>
             </section>
           )}
         </div>
@@ -308,6 +313,7 @@ export default function CreateUserModal({ onClose }: Props) {
           <button
             onClick={handleSubmit}
             disabled={
+              !name ||
               !email ||
               (role === "user" && !price) ||
               (role === "producer" &&
