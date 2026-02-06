@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { User, Mail, Phone, Users, PhoneCall } from "lucide-react";
+import { useState, useMemo } from "react";
+import { User, Mail, Phone, Users, PhoneCall, MessageSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+
+const SMS_PER_RECORD = 3;
 
 export default function CreateClientByProducer({ onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -12,14 +14,24 @@ export default function CreateClientByProducer({ onSuccess }) {
     name: "",
     email: "",
     phone: "",
-    guests: 100,
+    guests: 1, // ⭐ מספר רשומות חופשי
     includeCalls: false,
   });
 
   const { user } = useAuth();
 
-const pricePerRecord = user?.producerPricePerRecord || 0;
-const totalPrice = Number(form.guests) * pricePerRecord;
+  const pricePerRecord = user?.producerPricePerRecord || 0;
+
+  // 🔢 חישובים אוטומטיים
+  const smsTotal = useMemo(
+    () => Number(form.guests) * SMS_PER_RECORD,
+    [form.guests]
+  );
+
+  const totalPrice = useMemo(
+    () => Number(form.guests) * pricePerRecord,
+    [form.guests, pricePerRecord]
+  );
 
   /* =========================
      Handlers
@@ -39,17 +51,23 @@ const totalPrice = Number(form.guests) * pricePerRecord;
 
     setError("");
 
-    console.log("📤 Submitting create-client form:", form);
+    if (Number(form.guests) <= 0) {
+      setError("מספר רשומות חייב להיות גדול מ־0");
+      return;
+    }
+
+    if (pricePerRecord <= 0) {
+      setError("לא הוגדר מחיר לרשומה עבור המפיק");
+      return;
+    }
 
     try {
       setLoading(true);
 
       const res = await fetch("/api/producer/create-client", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // 🔥 חובה
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: form.name,
           email: form.email,
@@ -59,31 +77,21 @@ const totalPrice = Number(form.guests) * pricePerRecord;
         }),
       });
 
-      console.log("📥 Response status:", res.status);
-
       const data = await res.json();
-      console.log("📥 Response body:", data);
 
       if (!res.ok) {
         throw new Error(data?.error || "יצירת לקוח נכשלה");
       }
 
       if (data.checkoutUrl) {
-  onSuccess?.();
-  window.location.href = data.checkoutUrl;
-  return;
-}
+        onSuccess?.();
+        window.location.href = data.checkoutUrl;
+        return;
+      }
 
-
-      setForm({
-        name: "",
-        email: "",
-        phone: "",
-        guests: 100,
-        includeCalls: false,
-      });
+      setError("לא התקבל קישור לתשלום");
     } catch (err) {
-      console.error("❌ Frontend error:", err);
+      console.error(err);
       setError(err.message || "שגיאה כללית");
     } finally {
       setLoading(false);
@@ -100,96 +108,82 @@ const totalPrice = Number(form.guests) * pricePerRecord;
         className="w-full max-w-[520px] space-y-5 text-right"
       >
         {/* Name */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            שם מלא
-          </label>
-          <div className="relative">
-            <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
-            />
-          </div>
-        </div>
+        <Field label="שם מלא" icon={<User />}>
+          <input
+            type="text"
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            required
+            className="input"
+          />
+        </Field>
 
         {/* Email */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            אימייל
-          </label>
-          <div className="relative">
-            <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
-            />
-          </div>
-        </div>
+        <Field label="אימייל" icon={<Mail />}>
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            required
+            className="input"
+          />
+        </Field>
 
         {/* Phone */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            טלפון
-          </label>
-          <div className="relative">
-            <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="tel"
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 outline-none"
-            />
+        <Field label="טלפון" icon={<Phone />}>
+          <input
+            type="tel"
+            name="phone"
+            value={form.phone}
+            onChange={handleChange}
+            className="input"
+          />
+        </Field>
+
+        {/* Records */}
+        <Field label="כמות רשומות" icon={<Users />}>
+          <input
+            type="number"
+            name="guests"
+            min={1}
+            step={1}
+            value={form.guests}
+            onChange={handleChange}
+            className="input"
+          />
+        </Field>
+
+        {/* SMS – אוטומטי */}
+        <Field label="כמות הודעות SMS (אוטומטי)" icon={<MessageSquare />}>
+          <input
+            type="number"
+            value={smsTotal}
+            disabled
+            className="input bg-gray-100 cursor-not-allowed"
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            מחושב אוטומטית: {SMS_PER_RECORD} הודעות לכל רשומה
           </div>
-        </div>
+        </Field>
 
-        {/* Guests */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            כמות אורחים
-          </label>
-          <div className="relative">
-            <Users className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <select
-              name="guests"
-              value={form.guests}
-              onChange={handleChange}
-              className="w-full pr-10 pl-3 py-2 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-[var(--brand-purple)] outline-none"
-            >
-              {[100, 200, 300, 400, 500, 600, 700, 800, 1000].map((n) => (
-                <option key={n} value={n}>
-                  עד {n} אורחים
-                </option>
-              ))}
-            </select>
-
-            {pricePerRecord > 0 && (
-  <div className="mt-2 text-sm text-slate-600">
-    {form.guests} רשומות × ₪{pricePerRecord} ={" "}
-    <span className="font-semibold">₪{totalPrice}</span>
-  </div>
-)}
-
-{pricePerRecord === 0 && (
-  <div className="mt-2 text-sm text-red-600">
-    לא הוגדר מחיר לרשומה עבור המפיק
-  </div>
-)}
-
-          </div>
+        {/* Price */}
+        <div className="text-sm text-slate-700">
+          {pricePerRecord > 0 ? (
+            <>
+              {form.guests} רשומות × ₪{pricePerRecord} ={" "}
+              <span className="font-semibold">₪{totalPrice}</span>
+            </>
+          ) : (
+            <span className="text-red-600">
+              לא הוגדר מחיר לרשומה עבור המפיק
+            </span>
+          )}
         </div>
 
         {/* Calls */}
-        <label className="flex items-center gap-3 text-sm text-slate-700 cursor-pointer">
+        <label className="flex items-center gap-3 text-sm cursor-pointer">
           <input
             type="checkbox"
             name="includeCalls"
@@ -209,13 +203,32 @@ const totalPrice = Number(form.guests) * pricePerRecord;
 
         {/* Submit */}
         <button
-  type="submit"
-  disabled={loading || pricePerRecord === 0}
-  className="w-full h-12 mt-6 rounded-xl bg-[#3A2B23] text-white font-semibold hover:bg-[#2E221B] disabled:opacity-50 disabled:cursor-not-allowed"
->
+          type="submit"
+          disabled={loading || pricePerRecord === 0}
+          className="w-full h-12 mt-6 rounded-xl bg-[#3A2B23] text-white font-semibold disabled:opacity-50"
+        >
           {loading ? "מעביר לתשלום…" : "המשך לתשלום"}
         </button>
       </form>
+    </div>
+  );
+}
+
+/* =========================
+   Small UI helper
+========================= */
+function Field({ label, icon, children }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        {label}
+      </label>
+      <div className="relative">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400">
+          {icon}
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

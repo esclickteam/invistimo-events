@@ -8,19 +8,24 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
-
   phone?: string;
 
   role: "user" | "client" | "producer" | "photographer" | "admin";
 
   plan: "basic" | "premium";
   guests: number;
+
   paidAmount: number;
   hasPaid: boolean;
 
   producerId?: mongoose.Types.ObjectId | null;
   createdByProducer?: mongoose.Types.ObjectId | null;
   createdByAdmin?: boolean;
+
+  billingSource?: "site" | "admin" | "producer";
+
+  /** ===== PRODUCER PRICING ===== */
+  producerPricePerRecord?: number;
 
   /** ===== ADDONS ===== */
   includeCalls: boolean;
@@ -29,14 +34,9 @@ export interface IUser extends Document {
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
 
-  /** ===== BILLING META ===== */
-  billingSource?: "site" | "admin" | "producer";
-
-  /** ===== PRODUCER PRICING ===== */
-  producerPricePerRecord?: number;
-
   /** ===== SMS / RECORD LOGIC ===== */
   smsPerRecord: number;
+  maxMessages: number;
 
   planLimits: {
     maxGuests: number;
@@ -46,10 +46,7 @@ export interface IUser extends Document {
     remindersEnabled: boolean;
   };
 
-  maxMessages: number;
-
   smsBalance: number;
-
   smsUsed: number;
   testSmsUsed: number;
 
@@ -58,7 +55,6 @@ export interface IUser extends Document {
   trialExpiresAt?: Date;
 
   isDemoUser?: boolean;
-
   needsPasswordSetup?: boolean;
 
   resetPasswordToken?: string;
@@ -130,6 +126,12 @@ const UserSchema = new Schema<IUser>(
       default: "site",
     },
 
+    /** ===== PRODUCER ===== */
+    producerPricePerRecord: {
+      type: Number,
+      default: 0,
+    },
+
     /** ===== ADDONS ===== */
     includeCalls: { type: Boolean, default: false },
     callsAddonPrice: { type: Number, default: 0 },
@@ -137,11 +139,9 @@ const UserSchema = new Schema<IUser>(
     includeCreditGifts: { type: Boolean, default: false },
     creditGiftsAddonPrice: { type: Number, default: 0 },
 
-    /** ===== PRODUCER ===== */
-    producerPricePerRecord: { type: Number, default: 0 },
-
     /** ===== SMS LOGIC ===== */
     smsPerRecord: { type: Number, default: 3 },
+    maxMessages: { type: Number, default: 0 },
 
     planLimits: {
       maxGuests: { type: Number, default: 100 },
@@ -151,10 +151,7 @@ const UserSchema = new Schema<IUser>(
       remindersEnabled: { type: Boolean, default: true },
     },
 
-    maxMessages: { type: Number, default: 0 },
-
     smsBalance: { type: Number, default: 0 },
-
     smsUsed: { type: Number, default: 0 },
     testSmsUsed: { type: Number, default: 0 },
 
@@ -173,7 +170,7 @@ const UserSchema = new Schema<IUser>(
 );
 
 /* ============================================================
-   AUTO LOGIC – PRE SAVE
+   PRE SAVE LOGIC
 ============================================================ */
 
 UserSchema.pre("save", function () {
@@ -201,11 +198,13 @@ UserSchema.pre("save", function () {
     return;
   }
 
-  /** 💼 CLIENT BY PRODUCER */
+  /** 💼 CLIENT CREATED BY PRODUCER – BEFORE PAYMENT */
   if (this.role === "client" && this.createdByProducer) {
     this.smsPerRecord ||= 3;
     this.maxMessages = this.guests * this.smsPerRecord;
-    this.hasPaid = true;
+
+    this.hasPaid = false;
+    this.paidAmount ||= 0;
 
     this.planLimits = {
       maxGuests: this.guests,
@@ -217,7 +216,7 @@ UserSchema.pre("save", function () {
     return;
   }
 
-  /** 👤 USER / ADMIN CUSTOM */
+  /** 👤 DEFAULT */
   if (this.guests && this.smsPerRecord) {
     this.maxMessages = this.guests * this.smsPerRecord;
   }

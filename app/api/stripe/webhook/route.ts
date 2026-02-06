@@ -139,6 +139,65 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
+   CASE 0: CLIENT CREATED BY PRODUCER
+============================================================ */
+if (session.metadata?.clientId && session.metadata?.producerId) {
+  console.log("👥 Processing CLIENT CREATED BY PRODUCER");
+
+  const clientId = session.metadata.clientId;
+  const producerId = session.metadata.producerId;
+  const records = Number(session.metadata.records || 0);
+  const amount = Number(session.metadata.amount || 0);
+
+  if (!records || !amount) {
+    console.error("❌ Missing records or amount in producer payment");
+    return NextResponse.json({ received: true });
+  }
+
+  const client = await User.findById(clientId);
+
+  if (!client) {
+    console.error("❌ Client not found:", clientId);
+    return NextResponse.json({ received: true });
+  }
+
+  // 💾 Payment record
+  await Payment.create({
+    email: client.email,
+    stripeSessionId: session.id,
+    stripePaymentIntentId: String(session.payment_intent),
+    stripeCustomerId: session.customer as string,
+    type: "producer-client",
+    amount,
+    currency: "ils",
+    status: "paid",
+    isTest: false,
+    meta: {
+      producerId,
+      records,
+    },
+  });
+
+  const SMS_PER_RECORD = client.smsPerRecord || 3;
+  const totalMessages = records * SMS_PER_RECORD;
+
+  // 👤 עדכון הלקוח
+  await User.findByIdAndUpdate(client._id, {
+    guests: records,
+    hasPaid: true,
+    paidAmount: amount,
+    billingSource: "producer",
+    maxMessages: totalMessages,
+    smsUsed: 0,
+  });
+
+  console.log("✅ Producer client activated:", client.email);
+
+  return NextResponse.json({ received: true });
+}
+
+
+    /* ============================================================
        CASE 1: PREMIUM UPGRADE
     ============================================================ */
     if (session.metadata?.type === "upgrade") {

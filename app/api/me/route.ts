@@ -148,6 +148,8 @@ export async function GET() {
           paidAmount: user.paidAmount,
           planLimits: user.planLimits,
 
+          producerPricePerRecord: user.producerPricePerRecord ?? 0,
+
           // 📞 שיחות
           includeCalls: user.includeCalls,
           callsRounds: user.callsRounds,
@@ -171,6 +173,7 @@ export async function GET() {
       },
       { headers: { "Cache-Control": "no-store" } }
     );
+
   } catch (err) {
     console.error("❌ ME API ERROR:", err);
     return NextResponse.json(
