@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { User, Mail, Phone, Users, PhoneCall } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CreateClientByProducer({ onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -14,6 +15,11 @@ export default function CreateClientByProducer({ onSuccess }) {
     guests: 100,
     includeCalls: false,
   });
+
+  const { user } = useAuth();
+
+const pricePerRecord = user?.producerPricePerRecord || 0;
+const totalPrice = Number(form.guests) * pricePerRecord;
 
   /* =========================
      Handlers
@@ -62,7 +68,12 @@ export default function CreateClientByProducer({ onSuccess }) {
         throw new Error(data?.error || "יצירת לקוח נכשלה");
       }
 
-      onSuccess?.(data.user);
+      if (data.checkoutUrl) {
+  onSuccess?.();
+  window.location.href = data.checkoutUrl;
+  return;
+}
+
 
       setForm({
         name: "",
@@ -160,6 +171,20 @@ export default function CreateClientByProducer({ onSuccess }) {
                 </option>
               ))}
             </select>
+
+            {pricePerRecord > 0 && (
+  <div className="mt-2 text-sm text-slate-600">
+    {form.guests} רשומות × ₪{pricePerRecord} ={" "}
+    <span className="font-semibold">₪{totalPrice}</span>
+  </div>
+)}
+
+{pricePerRecord === 0 && (
+  <div className="mt-2 text-sm text-red-600">
+    לא הוגדר מחיר לרשומה עבור המפיק
+  </div>
+)}
+
           </div>
         </div>
 
@@ -184,11 +209,11 @@ export default function CreateClientByProducer({ onSuccess }) {
 
         {/* Submit */}
         <button
-          type="submit"
-          disabled={loading}
-          className="w-full h-12 mt-6 rounded-xl bg-[#3A2B23] text-white font-semibold hover:bg-[#2E221B]"
-        >
-          {loading ? "יוצר לקוח…" : "צור לקוח"}
+  type="submit"
+  disabled={loading || pricePerRecord === 0}
+  className="w-full h-12 mt-6 rounded-xl bg-[#3A2B23] text-white font-semibold hover:bg-[#2E221B] disabled:opacity-50 disabled:cursor-not-allowed"
+>
+          {loading ? "מעביר לתשלום…" : "המשך לתשלום"}
         </button>
       </form>
     </div>

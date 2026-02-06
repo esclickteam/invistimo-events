@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import CreateClientByProducer from "@/app/components/producer/CreateClientByProducer";
 import { useAuth } from "@/context/AuthContext";
+import CreateClientModal from "@/app/components/producer/CreateClientModal";
 
 /* =========================
    Animations
@@ -216,30 +217,7 @@ export default function ProducerDashboard() {
         </Button>
       </div>
 
-      {/* Create Client */}
-      {showCreateClient && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-slate-50 border border-slate-200 rounded-2xl shadow-sm p-6"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">יצירת לקוח חדש</h2>
-
-            <button
-              onClick={() => setShowCreateClient(false)}
-              className="p-2 rounded-lg hover:bg-slate-200"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <CreateClientByProducer
-            onSuccess={() => setShowCreateClient(false)}
-          />
-        </motion.div>
-      )}
+    
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -262,6 +240,7 @@ export default function ProducerDashboard() {
           </motion.div>
         ))}
       </div>
+
 
       {/* Clients Table */}
       <div className="bg-white border rounded-2xl overflow-hidden">
@@ -324,11 +303,17 @@ export default function ProducerDashboard() {
                     </Button>
                   </td>
                 </tr>
+              
               ))}
             </tbody>
           </table>
         )}
       </div>
+      <CreateClientModal
+  open={showCreateClient}
+  onClose={() => setShowCreateClient(false)}
+/>
+
     </div>
   );
 }
