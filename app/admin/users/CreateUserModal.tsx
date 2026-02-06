@@ -75,12 +75,12 @@ export default function CreateUserModal({ onClose }: Props) {
 
     if (paymentStatus === "stripe" && data.userId) {
   const checkoutRes = await fetch(
-    `/api/admin/users/${data.userId}`, // ⬅️ זה השינוי
-    {
-      method: "POST",
-      credentials: "include",
-    }
-  );
+  `/api/admin/users/${data.userId}/checkout`, // ⬅️ זה הראוט האמיתי
+  {
+    method: "POST",
+    credentials: "include",
+  }
+);
 
   const checkoutData = await checkoutRes.json();
 
