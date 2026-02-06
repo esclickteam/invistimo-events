@@ -87,7 +87,7 @@ export async function GET() {
 
 /* =========================================================
    POST – CREATE USER (ADMIN)
-   ❌ NO STRIPE HERE
+   ❌ NO STRIPE HERE (רק יצירה)
 ========================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -120,11 +120,13 @@ export async function POST(req: NextRequest) {
     ===================================================== */
     if (role === "producer") {
       const user = await User.create({
-        name, // ⭐ חובה
+        name,
         email,
         role: "producer",
+
         hasPaid: true,
         paidAmount: 0,
+
         needsPasswordSetup: true,
         createdByAdmin: true,
         billingSource: "admin",
@@ -150,13 +152,18 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await User.create({
-      name, // ⭐ חובה
+      name,
       email,
       role: "user",
+
       guests: records,
+      maxMessages: smsTotal,
       includeCalls: !!includeCalls,
+
+      // 🔑 לוגיקה סופית ונכונה
       hasPaid: paymentStatus === "paid",
-      paidAmount: paymentStatus === "paid" ? price : 0,
+      paidAmount: Number(price), // ← גם ל־Stripe
+
       needsPasswordSetup: true,
       createdByAdmin: true,
       billingSource: "admin",
