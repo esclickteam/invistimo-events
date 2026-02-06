@@ -3,8 +3,7 @@
 import { useState } from "react";
 
 type UserRole = "user" | "producer" | "staff";
-type PlanType = "basic" | "premium" | "custom";
-type PaymentStatus = "paid" | "unpaid";
+type PaymentStatus = "paid" | "stripe";
 
 type Props = {
   onClose: () => void;
@@ -14,24 +13,51 @@ export default function CreateUserModal({ onClose }: Props) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
 
-  const [plan, setPlan] = useState<PlanType>("basic");
+  /* USER */
   const [guests, setGuests] = useState(100);
   const [maxMessages, setMaxMessages] = useState(500);
   const [includeCalls, setIncludeCalls] = useState(false);
 
+  /* USER BILLING */
+  const [price, setPrice] = useState<number | "">("");
   const [paymentStatus, setPaymentStatus] =
-    useState<PaymentStatus>("unpaid");
-  const [paidAmount, setPaidAmount] = useState("");
+    useState<PaymentStatus>("stripe");
+
+  /* PRODUCER BILLING */
+  const [producerPricePerRecord, setProducerPricePerRecord] =
+    useState<number | "">("");
+
+  function handleSubmit() {
+    const payload =
+      role === "producer"
+        ? {
+            email,
+            role,
+            billing: {
+              pricePerRecord: producerPricePerRecord,
+            },
+          }
+        : {
+            email,
+            role,
+            limits: {
+              guests,
+              maxMessages,
+              includeCalls,
+            },
+            billing: {
+              price,
+              paymentStatus,
+            },
+          };
+
+    console.log("CREATE USER:", payload);
+    onClose();
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-      <div
-        className="
-          w-full max-w-2xl
-          bg-white rounded-xl shadow-2xl border
-          max-h-[90vh] flex flex-col
-        "
-      >
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
         {/* HEADER */}
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-semibold">יצירת משתמש חדש</h2>
@@ -43,27 +69,19 @@ export default function CreateUserModal({ onClose }: Props) {
           </button>
         </div>
 
-        {/* BODY (SCROLLABLE) */}
+        {/* BODY */}
         <div className="p-6 space-y-8 overflow-y-auto">
-          {/* USER */}
+          {/* USER INFO */}
           <section className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-600">
-              פרטי משתמש
-            </h3>
+            <h3 className="text-sm font-bold text-gray-600">פרטי משתמש</h3>
             <input
               type="email"
-              placeholder="אימייל משתמש"
+              placeholder="אימייל"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border rounded-lg px-4 py-2"
             />
-          </section>
 
-          {/* ROLE */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-600">
-              סוג משתמש
-            </h3>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
@@ -75,68 +93,36 @@ export default function CreateUserModal({ onClose }: Props) {
             </select>
           </section>
 
-          {/* USER ONLY */}
+          {/* USER */}
           {role === "user" && (
             <>
-              {/* PLAN */}
-              <section className="space-y-3">
-                <h3 className="text-sm font-bold text-gray-600">
-                  חבילת שירות
-                </h3>
-                <select
-                  value={plan}
-                  onChange={(e) =>
-                    setPlan(e.target.value as PlanType)
-                  }
-                  className="w-full border rounded-lg px-4 py-2"
-                >
-                  <option value="basic">בסיס</option>
-                  <option value="premium">פרימיום</option>
-                  <option value="custom">מותאמת אישית</option>
-                </select>
-              </section>
-
-              {/* LIMITS */}
               <section>
                 <h3 className="text-sm font-bold text-gray-600 mb-3">
                   מגבלות
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      כמות אורחים
-                    </label>
-                    <input
-                      type="number"
-                      value={guests}
-                      onChange={(e) =>
-                        setGuests(Number(e.target.value))
-                      }
-                      className="w-full border rounded-lg px-4 py-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      כמות הודעות SMS
-                    </label>
-                    <input
-                      type="number"
-                      value={maxMessages}
-                      onChange={(e) =>
-                        setMaxMessages(Number(e.target.value))
-                      }
-                      className="w-full border rounded-lg px-4 py-2"
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    value={guests}
+                    onChange={(e) =>
+                      setGuests(Number(e.target.value))
+                    }
+                    className="border rounded-lg px-4 py-2"
+                    placeholder="כמות אורחים"
+                  />
+                  <input
+                    type="number"
+                    value={maxMessages}
+                    onChange={(e) =>
+                      setMaxMessages(Number(e.target.value))
+                    }
+                    className="border rounded-lg px-4 py-2"
+                    placeholder="כמות SMS"
+                  />
                 </div>
               </section>
 
-              {/* SERVICES */}
               <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">
-                  שירותים
-                </h3>
                 <label className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -145,15 +131,26 @@ export default function CreateUserModal({ onClose }: Props) {
                       setIncludeCalls(e.target.checked)
                     }
                   />
-                  <span>שירות שיחות</span>
+                  שירות שיחות
                 </label>
               </section>
 
-              {/* PAYMENT */}
               <section>
                 <h3 className="text-sm font-bold text-gray-600 mb-3">
                   תשלום
                 </h3>
+                <input
+                  type="number"
+                  placeholder="מחיר כולל (₪)"
+                  value={price}
+                  onChange={(e) =>
+                    setPrice(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
+                  className="w-full border rounded-lg px-4 py-2 mb-3"
+                />
+
                 <select
                   value={paymentStatus}
                   onChange={(e) =>
@@ -161,29 +158,36 @@ export default function CreateUserModal({ onClose }: Props) {
                       e.target.value as PaymentStatus
                     )
                   }
-                  className="w-full border rounded-lg px-4 py-2 mb-3"
+                  className="w-full border rounded-lg px-4 py-2"
                 >
-                  <option value="unpaid">לא שולם</option>
+                  <option value="stripe">לתשלום ב-Stripe</option>
                   <option value="paid">שולם ידנית</option>
                 </select>
-
-                {paymentStatus === "paid" && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      סכום ששולם
-                    </label>
-                    <input
-                      type="number"
-                      value={paidAmount}
-                      onChange={(e) =>
-                        setPaidAmount(e.target.value)
-                      }
-                      className="w-full border rounded-lg px-4 py-2"
-                    />
-                  </div>
-                )}
               </section>
             </>
+          )}
+
+          {/* PRODUCER */}
+          {role === "producer" && (
+            <section>
+              <h3 className="text-sm font-bold text-gray-600 mb-3">
+                תמחור למפיק
+              </h3>
+              <input
+                type="number"
+                placeholder="מחיר לרשומה (₪)"
+                value={producerPricePerRecord}
+                onChange={(e) =>
+                  setProducerPricePerRecord(
+                    e.target.value === "" ? "" : Number(e.target.value)
+                  )
+                }
+                className="w-full border rounded-lg px-4 py-2"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                החיוב יתבצע לפי מספר הרשומות שהמפיק ייצור בפועל
+              </p>
+            </section>
           )}
         </div>
 
@@ -196,7 +200,12 @@ export default function CreateUserModal({ onClose }: Props) {
             ביטול
           </button>
           <button
-            disabled={!email}
+            onClick={handleSubmit}
+            disabled={
+              !email ||
+              (role === "user" && !price) ||
+              (role === "producer" && !producerPricePerRecord)
+            }
             className="px-5 py-2 rounded-lg bg-black text-white disabled:opacity-40"
           >
             צור משתמש
