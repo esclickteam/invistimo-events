@@ -44,11 +44,9 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log("====== ADMIN CHECKOUT START ======");
-
     await connectDB();
 
     /* ===== AUTH ===== */
@@ -60,8 +58,9 @@ export async function POST(
       );
     }
 
-    /* ===== PARAM ===== */
-    const userId = context.params?.id;
+    /* ===== PARAMS ===== */
+    const { id: userId } = await context.params;
+
     if (!userId) {
       return NextResponse.json(
         { success: false, error: "MISSING_USER_ID" },
@@ -99,13 +98,8 @@ export async function POST(
     const appUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
     if (!appUrl || !appUrl.startsWith("https://")) {
-      throw new Error(
-        `INVALID NEXT_PUBLIC_SITE_URL: ${appUrl}`
-      );
+      throw new Error(`INVALID NEXT_PUBLIC_SITE_URL: ${appUrl}`);
     }
-
-    const successUrl = `${appUrl}/admin/users?paid=1`;
-    const cancelUrl = `${appUrl}/admin/users?canceled=1`;
 
     /* ===== STRIPE ===== */
     const session = await stripe.checkout.sessions.create({
@@ -133,11 +127,9 @@ export async function POST(
         role: user.role,
       },
 
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      success_url: `${appUrl}/admin/users?paid=1`,
+      cancel_url: `${appUrl}/admin/users?canceled=1`,
     });
-
-    console.log("✔ Stripe session:", session.id);
 
     return NextResponse.json({
       success: true,
