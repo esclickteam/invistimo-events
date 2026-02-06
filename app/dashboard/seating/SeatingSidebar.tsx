@@ -74,6 +74,7 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const [selectingGuestId, setSelectingGuestId] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
 
 
   /* ================= HELPERS ================= */
@@ -304,13 +305,71 @@ const syncRemoveFromServer = async (guestId: string) => {
   <span className="text-orange-700">נשארו {stats.remaining}</span>
 </div>
 
-
+<div className="flex items-center gap-2">
+  {/* 🔍 חיפוש */}
   <input
     value={search}
     onChange={(e) => setSearch(e.target.value)}
     placeholder="חיפוש אורח / טלפון / קבוצה"
-    className="w-full rounded-xl border border-[#e6c3ad] px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#e6c3ad]"
+    className="flex-1 rounded-xl border border-[#e6c3ad] px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#e6c3ad]"
   />
+
+  {/* 🔽 פילטר הכל / שובצו / לא שובצו */}
+  <div className="relative">
+    <button
+      onClick={() => setFilterOpen((o) => !o)}
+      className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#e6c3ad] bg-white text-sm whitespace-nowrap"
+    >
+      {filter === "all" && "הכל"}
+      {filter === "seated" && "שובצו"}
+      {filter === "unseated" && "לא שובצו"}
+      <span className="text-xs opacity-60">▾</span>
+    </button>
+
+    {filterOpen && (
+      <div className="absolute right-0 z-20 mt-2 w-[220px] rounded-xl border border-[#ead8cc] bg-white shadow">
+        <button
+          onClick={() => {
+            setFilter("all");
+            setFilterOpen(false);
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-[#f6ede8]"
+        >
+          <span>הכל</span>
+          {filter === "all" && "✓"}
+        </button>
+
+        <button
+          onClick={() => {
+            setFilter("seated");
+            setFilterOpen(false);
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-[#f6ede8]"
+        >
+          <span>שובצו</span>
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+            {stats.seated}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            setFilter("unseated");
+            setFilterOpen(false);
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-[#f6ede8]"
+        >
+          <span>לא שובצו</span>
+          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+            {stats.remaining}
+          </span>
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+
+ 
 </div>
 
       {/* ===== Groups ===== */}
