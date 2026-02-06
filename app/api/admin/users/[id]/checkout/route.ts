@@ -11,14 +11,13 @@ export const dynamic = "force-dynamic";
    STRIPE
 ========================================================= */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2023-10-16",
 });
 
 /* =========================================================
    AUTH – ADMIN ONLY
 ========================================================= */
 async function requireAdmin() {
-  const cookieStore = cookies(); // ❗️לא await
+  const cookieStore = await cookies(); // ✅ חייב await אצלך
   const token = cookieStore.get("authToken")?.value;
 
   if (!token) {
@@ -46,7 +45,7 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } } // ✔️ params רגיל, לא Promise
+  { params }: { params: { id: string } } // ✔️ params רגיל
 ) {
   try {
     await connectDB();
@@ -96,7 +95,7 @@ export async function POST(
                 description ??
                 `תשלום עבור משתמש ${user.email}`,
             },
-            unit_amount: Math.round(Number(price) * 100), // אגורות
+            unit_amount: Math.round(Number(price) * 100),
           },
           quantity: 1,
         },
