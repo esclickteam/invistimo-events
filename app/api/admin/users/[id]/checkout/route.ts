@@ -7,13 +7,18 @@ import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+/* =========================================================
+   STRIPE
+========================================================= */
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2023-10-16",
+});
 
 /* =========================================================
    AUTH – ADMIN ONLY
 ========================================================= */
 async function requireAdmin() {
-  const cookieStore = await cookies();
+  const cookieStore = cookies(); // ❗️לא await
   const token = cookieStore.get("authToken")?.value;
 
   if (!token) {
@@ -21,10 +26,15 @@ async function requireAdmin() {
   }
 
   try {
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    ) as { role?: string };
+
     if (decoded.role !== "admin") {
       return { error: "FORBIDDEN", status: 403 };
     }
+
     return { decoded };
   } catch {
     return { error: "UNAUTHORIZED", status: 401 };
@@ -36,11 +46,12 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } } // ✔️ params רגיל, לא Promise
 ) {
   try {
     await connectDB();
 
+    /* ---------- AUTH ---------- */
     const auth = await requireAdmin();
     if ("error" in auth) {
       return NextResponse.json(
@@ -51,7 +62,7 @@ export async function POST(
 
     const userId = params.id;
     const body = await req.json();
-    const { price, description } = body;
+    const { price, description } = body ?? {};
 
     if (!price || Number(price) <= 0) {
       return NextResponse.json(
@@ -60,7 +71,8 @@ export async function POST(
       );
     }
 
-    const user = await User.findById(userId);
+    /* ---------- USER ---------- */
+    const user = await User.findById(userId).lean();
     if (!user) {
       return NextResponse.json(
         { success: false, error: "USER_NOT_FOUND" },
@@ -68,9 +80,7 @@ export async function POST(
       );
     }
 
-    /* =====================================================
-       STRIPE CHECKOUT SESSION
-    ===================================================== */
+    /* ---------- STRIPE CHECKOUT ---------- */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
