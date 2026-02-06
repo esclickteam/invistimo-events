@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
+import { useSeatingStats } from "../../hooks/useSeatingStats";
+
+
 
 /* ================= CONSTANTS ================= */
 
@@ -58,6 +61,13 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
 
+  const {
+  stats,
+  isGuestSeated,
+  getGroupStats,
+} = useSeatingStats();
+
+
   /* ===== UI STATE ===== */
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -73,8 +83,7 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
   const getPlannedSeatCount = (g: Guest) =>
     useSeatingStore.getState().getPlannedSeatCount(g);
 
-  const getGuestsPlannedCount = (list: Guest[]) =>
-    list.reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
+  
 
   const syncAssignToServer = async (guestId: string, tableId: string) => {
   if (!invitationId) return false;
@@ -158,7 +167,8 @@ const syncRemoveFromServer = async (guestId: string) => {
       (g) =>
         g.rsvp === "yes" &&
         normalizeGroupId(g.groupId) === String(groupId) &&
-        guestTableMap.has(seatGuestId(g))
+        isGuestSeated(g)
+
     );
 
     if (!guest) return "";
@@ -167,7 +177,8 @@ const syncRemoveFromServer = async (guestId: string) => {
 
   const getNoGroupTableId = (list: Guest[]) => {
     const first = list.find(
-      (g) => g.rsvp === "yes" && guestTableMap.has(seatGuestId(g))
+      (g) => g.rsvp === "yes" && isGuestSeated(g)
+
     );
 
     if (!first) return "";
@@ -227,7 +238,8 @@ const syncRemoveFromServer = async (guestId: string) => {
 
     const q = search.trim().toLowerCase();
     const gid = seatGuestId(g);
-    const isSeated = guestTableMap.has(gid);
+    const isSeated = isGuestSeated(g);
+
 
     if (filter === "seated" && !isSeated) return false;
     if (filter === "unseated" && isSeated) return false;
@@ -262,6 +274,21 @@ const syncRemoveFromServer = async (guestId: string) => {
     });
   }, [search, groupedGuests]);
 
+  useEffect(() => {
+  setOpenGroups((prev) => {
+    const next = { ...prev };
+
+    Object.entries(groupedGuests).forEach(([gid, list]) => {
+      const { remaining } = getGroupStats(list);
+      if (remaining === 0) next[gid] = false;
+    });
+
+    return next;
+  });
+}, [tables, groupedGuests]);
+
+
+
   /* ================= RENDER ================= */
 
   return (
@@ -270,6 +297,13 @@ const syncRemoveFromServer = async (guestId: string) => {
       {/* ===== Header ===== */}
       <div className="p-5 border-b border-[#ead8cc]">
   <div className="font-semibold text-[15px] mb-3">הקצאת מקומות</div>
+
+  <div className="text-xs flex gap-3 mt-2">
+  <span>סה״כ {stats.total}</span>
+  <span className="text-green-700">הושבו {stats.seated}</span>
+  <span className="text-orange-700">נשארו {stats.remaining}</span>
+</div>
+
 
   <input
     value={search}
@@ -290,7 +324,9 @@ const syncRemoveFromServer = async (guestId: string) => {
           const visibleGuests = list.filter(guestVisible);
           if (!visibleGuests.length) return null;
 
-          const plannedCount = getGuestsPlannedCount(visibleGuests);
+          const { total, seated, remaining } =
+  getGroupStats(visibleGuests);
+
 
           return (
             <div key={groupId} className="border-b border-[#ead8cc]">
@@ -308,8 +344,16 @@ const syncRemoveFromServer = async (guestId: string) => {
       {group ? group.name : "ללא קבוצה"}
     </span>
     <span className="text-xs text-gray-500">
-      {plannedCount} מוזמנים
-    </span>
+  {seated}/{total} הושבו
+</span>
+
+{remaining > 0 && (
+  <span className="text-xs text-orange-700">
+    נשארו {remaining}
+  </span>
+)}
+
+
   </div>
 
   {/* 🔽 dropdown קבוצה */}
