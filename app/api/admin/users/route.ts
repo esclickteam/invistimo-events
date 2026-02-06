@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
 export const dynamic = "force-dynamic";
 
@@ -11,22 +12,25 @@ export const dynamic = "force-dynamic";
 ========================================================= */
 export async function GET() {
   try {
-    await connectDB();
+    console.log("👮 ADMIN USERS GET – start");
 
-    /* ===== AUTH ===== */
+    await connectDB();
+    console.log("✅ DB connected");
+
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
     if (!token) {
+      console.warn("⛔ No authToken");
       return NextResponse.json({ success: false }, { status: 401 });
     }
 
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
     if (decoded.role !== "admin") {
+      console.warn("⛔ Not admin");
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    /* ===== USERS ===== */
     const users = await User.find({
       isDemoUser: { $ne: true },
       $or: [
@@ -56,7 +60,8 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
-    /* ===== REVENUE ===== */
+    console.log("📦 Users fetched:", users.length);
+
     const revenueAgg = await User.aggregate([
       {
         $match: {
@@ -75,50 +80,57 @@ export async function GET() {
 
     const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
 
+    console.log("💰 Total revenue:", totalRevenue);
+
     return NextResponse.json(
       { success: true, users, totalRevenue },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
-    console.error("ADMIN USERS GET ERROR:", err);
+    console.error("❌ ADMIN USERS GET ERROR:", err);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }
 
 /* =========================================================
    POST – CREATE USER (ADMIN)
-   ❌ NO STRIPE HERE (רק יצירה)
 ========================================================= */
 export async function POST(req: NextRequest) {
   try {
-    await connectDB();
+    console.log("👮 ADMIN USERS POST – start");
 
-    /* ===== AUTH ===== */
+    await connectDB();
+    console.log("✅ DB connected");
+
     const token = req.cookies.get("authToken")?.value;
     if (!token) {
+      console.warn("⛔ No authToken");
       return NextResponse.json({ success: false }, { status: 401 });
     }
 
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
     if (decoded.role !== "admin") {
+      console.warn("⛔ Not admin");
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    /* ===== BODY ===== */
     const body = await req.json();
+    console.log("📥 Request body:", body);
+
     const { name, email, role, limits, billing } = body;
 
     if (!name || !email || !role) {
+      console.warn("⛔ Missing required fields");
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    /* =====================================================
-       PRODUCER
-    ===================================================== */
+    /* ================= PRODUCER ================= */
     if (role === "producer") {
+      console.log("🎬 Creating PRODUCER:", email);
+
       const user = await User.create({
         name,
         email,
@@ -132,24 +144,35 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
+      console.log("✅ Producer created:", user._id.toString());
+
+      try {
+        console.log("📧 Sending password setup mail to producer:", user.email);
+        await sendPasswordSetupMail(user._id.toString());
+        console.log("✅ Password setup mail sent to producer");
+      } catch (mailErr) {
+        console.error("❌ Failed to send producer password mail:", mailErr);
+      }
+
       return NextResponse.json({
         success: true,
         userId: String(user._id),
       });
     }
 
-    /* =====================================================
-       USER
-    ===================================================== */
+    /* ================= USER ================= */
     const { records, smsTotal, includeCalls } = limits || {};
     const { price, paymentStatus } = billing || {};
 
     if (!records || !smsTotal || !price) {
+      console.warn("⛔ Invalid limits / billing");
       return NextResponse.json(
         { success: false, error: "Invalid limits / billing" },
         { status: 400 }
       );
     }
+
+    console.log("👤 Creating USER:", email, "paymentStatus:", paymentStatus);
 
     const user = await User.create({
       name,
@@ -160,21 +183,34 @@ export async function POST(req: NextRequest) {
       maxMessages: smsTotal,
       includeCalls: !!includeCalls,
 
-      // 🔑 לוגיקה סופית ונכונה
       hasPaid: paymentStatus === "paid",
-      paidAmount: Number(price), // ← גם ל־Stripe
+      paidAmount: Number(price),
 
       needsPasswordSetup: true,
       createdByAdmin: true,
       billingSource: "admin",
     });
 
+    console.log("✅ User created:", user._id.toString());
+
+    if (paymentStatus === "paid") {
+      try {
+        console.log("📧 Sending password setup mail to user:", user.email);
+        await sendPasswordSetupMail(user._id.toString());
+        console.log("✅ Password setup mail sent to user");
+      } catch (mailErr) {
+        console.error("❌ Failed to send user password mail:", mailErr);
+      }
+    } else {
+      console.log("💳 Stripe flow – password mail will be sent via webhook");
+    }
+
     return NextResponse.json({
       success: true,
       userId: String(user._id),
     });
   } catch (err) {
-    console.error("ADMIN USERS POST ERROR:", err);
+    console.error("🔥 ADMIN USERS POST ERROR:", err);
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }

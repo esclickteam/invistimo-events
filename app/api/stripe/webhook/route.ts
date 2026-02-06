@@ -5,6 +5,8 @@ import Payment from "@/models/Payment";
 import User from "@/models/User";
 import Event from "@/models/Event";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
+import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
+
 
 export const runtime = "nodejs";
 
@@ -288,15 +290,41 @@ await User.findByIdAndUpdate(user._id, {
 const totalMessages = maxGuests * MESSAGES_PER_GUEST;
 
 
-    await User.findByIdAndUpdate(user._id, {
-  plan,
-  guests: maxGuests,
-  maxMessages: totalMessages,
-  remainingMessages: totalMessages,
-  paidAmount: totalPaid,
-  hasPaid: true,
-  isTrial: false,
-});
+    const updatedUser = await User.findByIdAndUpdate(
+  user._id,
+  {
+    plan,
+    guests: maxGuests,
+    maxMessages: totalMessages,
+    remainingMessages: totalMessages,
+    paidAmount: totalPaid,
+    hasPaid: true,
+    isTrial: false,
+  },
+  { new: true }
+);
+
+// 📧 שליחת מייל הגדרת סיסמה – רק למשתמשי Admin, פעם ראשונה
+if (
+  updatedUser?.needsPasswordSetup &&
+  updatedUser?.createdByAdmin
+) {
+  console.log("📧 Sending password setup email to user");
+
+  try {
+    await sendPasswordSetupMail(updatedUser._id.toString());
+
+    // 🔒 חשוב: שלא ישלח שוב
+    await User.findByIdAndUpdate(updatedUser._id, {
+      needsPasswordSetup: false,
+    });
+
+    console.log("✅ Password setup email sent");
+  } catch (err) {
+    console.error("❌ Failed to send password setup email", err);
+  }
+}
+
 
     event.maxGuests = maxGuests;
     await event.save();
