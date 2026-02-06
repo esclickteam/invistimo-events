@@ -37,35 +37,56 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }, [records, smsAuto]);
 
-  function handleSubmit() {
-    const payload =
-      role === "producer"
-        ? {
-            email,
-            role,
-            billing: {
-              pricePerRecord: producerPricePerRecord,
-            },
-          }
-        : {
-            email,
-            role,
-            limits: {
-              records,
-              smsTotal,
-              smsPerRecord: SMS_PER_RECORD,
-              smsAuto,
-              includeCalls,
-            },
-            billing: {
-              price,
-              paymentStatus,
-            },
-          };
+  async function handleSubmit() {
+  const payload =
+    role === "producer"
+      ? {
+          email,
+          role,
+          billing: {
+            pricePerRecord: producerPricePerRecord,
+          },
+        }
+      : {
+          email,
+          role,
+          limits: {
+            records,
+            smsTotal,
+            smsPerRecord: SMS_PER_RECORD,
+            smsAuto,
+            includeCalls,
+          },
+          billing: {
+            price,
+            paymentStatus,
+          },
+        };
 
-    console.log("CREATE USER:", payload);
+  try {
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    // 🔹 אם צריך תשלום – מעבר ל־Stripe
+    if (data.checkoutUrl) {
+      window.location.href = data.checkoutUrl;
+      return;
+    }
+
+    // 🔹 שולם ידנית – פשוט נסגור
     onClose();
+  } catch (err) {
+    console.error("CREATE USER FAILED:", err);
+    alert("שגיאה ביצירת משתמש");
   }
+}
+
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">

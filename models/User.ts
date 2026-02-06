@@ -16,17 +16,27 @@ export interface IUser extends Document {
   plan: "basic" | "premium";
   guests: number;
   paidAmount: number;
-
   hasPaid: boolean;
 
   producerId?: mongoose.Types.ObjectId | null;
   createdByProducer?: mongoose.Types.ObjectId | null;
+  createdByAdmin?: boolean;
 
+  /** ===== ADDONS ===== */
   includeCalls: boolean;
   callsAddonPrice: number;
 
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
+
+  /** ===== BILLING META ===== */
+  billingSource?: "site" | "admin" | "producer";
+
+  /** ===== PRODUCER PRICING ===== */
+  producerPricePerRecord?: number;
+
+  /** ===== SMS / RECORD LOGIC ===== */
+  smsPerRecord: number;
 
   planLimits: {
     maxGuests: number;
@@ -36,20 +46,10 @@ export interface IUser extends Document {
     remindersEnabled: boolean;
   };
 
-  /**
-   * SOURCE OF TRUTH:
-   * remainingMessages is ALWAYS computed as: maxMessages - smsUsed
-   * so we do NOT store remainingMessages in DB.
-   */
   maxMessages: number;
 
-  /**
-   * LEGACY – keep only for backward compatibility with older routes.
-   * Not used in balance logic and should not be auto-filled.
-   */
   smsBalance: number;
 
-  /** STATISTICS / USAGE */
   smsUsed: number;
   testSmsUsed: number;
 
@@ -71,6 +71,7 @@ export interface IUser extends Document {
 /* ============================================================
    SCHEMA
 ============================================================ */
+
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
@@ -88,7 +89,6 @@ const UserSchema = new Schema<IUser>(
       required: function (this: any) {
         return !this.needsPasswordSetup;
       },
-      minlength: [6, "Password must be at least 6 characters"],
     },
 
     phone: { type: String, trim: true, default: "" },
@@ -106,29 +106,42 @@ const UserSchema = new Schema<IUser>(
     },
 
     guests: { type: Number, default: 100 },
-    paidAmount: { type: Number, default: 0 },
 
-    hasPaid: { type: Boolean, default: false, index: true },
+    paidAmount: { type: Number, default: 0 },
+    hasPaid: { type: Boolean, default: false },
 
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
-      index: true,
     },
 
     createdByProducer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
-      index: true,
     },
 
+    createdByAdmin: { type: Boolean, default: false },
+
+    billingSource: {
+      type: String,
+      enum: ["site", "admin", "producer"],
+      default: "site",
+    },
+
+    /** ===== ADDONS ===== */
     includeCalls: { type: Boolean, default: false },
     callsAddonPrice: { type: Number, default: 0 },
 
     includeCreditGifts: { type: Boolean, default: false },
     creditGiftsAddonPrice: { type: Number, default: 0 },
+
+    /** ===== PRODUCER ===== */
+    producerPricePerRecord: { type: Number, default: 0 },
+
+    /** ===== SMS LOGIC ===== */
+    smsPerRecord: { type: Number, default: 3 },
 
     planLimits: {
       maxGuests: { type: Number, default: 100 },
@@ -138,16 +151,8 @@ const UserSchema = new Schema<IUser>(
       remindersEnabled: { type: Boolean, default: true },
     },
 
-    /**
-     * SOURCE OF TRUTH:
-     * "remainingMessages" is computed and not stored.
-     */
     maxMessages: { type: Number, default: 0 },
 
-    /**
-     * LEGACY – keep but do not use in logic, and do not auto-fill.
-     * (You can remove this later with a migration if you want.)
-     */
     smsBalance: { type: Number, default: 0 },
 
     smsUsed: { type: Number, default: 0 },
@@ -161,7 +166,7 @@ const UserSchema = new Schema<IUser>(
 
     needsPasswordSetup: { type: Boolean, default: false },
 
-    resetPasswordToken: { type: String, index: true },
+    resetPasswordToken: { type: String },
     resetPasswordExpires: Date,
   },
   { timestamps: true }
@@ -170,18 +175,20 @@ const UserSchema = new Schema<IUser>(
 /* ============================================================
    AUTO LOGIC – PRE SAVE
 ============================================================ */
+
 UserSchema.pre("save", function () {
-  /* 🎁 BONUS RULE */
-  if (this.includeCalls === true) {
+  /** 🎁 BONUS */
+  if (this.includeCalls) {
     this.includeCreditGifts = true;
     this.creditGiftsAddonPrice = 0;
   }
 
-  /* 🧪 TRIAL USER */
+  /** 🧪 TRIAL */
   if (this.isTrial) {
     this.plan = "premium";
     this.guests = 1000;
-    this.paidAmount = 0;
+    this.smsPerRecord = 3;
+    this.maxMessages = 3000;
     this.hasPaid = false;
 
     this.planLimits = {
@@ -191,12 +198,15 @@ UserSchema.pre("save", function () {
       seatingEnabled: true,
       remindersEnabled: true,
     };
-
     return;
   }
 
-  /* 💼 PAID CLIENT CREATED BY PRODUCER */
-  if (this.hasPaid && this.role === "client" && this.createdByProducer) {
+  /** 💼 CLIENT BY PRODUCER */
+  if (this.role === "client" && this.createdByProducer) {
+    this.smsPerRecord ||= 3;
+    this.maxMessages = this.guests * this.smsPerRecord;
+    this.hasPaid = true;
+
     this.planLimits = {
       maxGuests: this.guests,
       smsEnabled: true,
@@ -204,71 +214,17 @@ UserSchema.pre("save", function () {
       seatingEnabled: true,
       remindersEnabled: true,
     };
-
     return;
   }
 
-  /* 💳 PAID USER – לא לדרוס */
-  if (this.hasPaid) {
-    return;
+  /** 👤 USER / ADMIN CUSTOM */
+  if (this.guests && this.smsPerRecord) {
+    this.maxMessages = this.guests * this.smsPerRecord;
   }
-});
-
-/* ============================================================
-   AUTO LOGIC – FIND ONE AND UPDATE
-============================================================ */
-UserSchema.pre("findOneAndUpdate", function () {
-  const rawUpdate = (this as any).getUpdate() || {};
-  const isUsingSet = !!rawUpdate.$set;
-  const update = isUsingSet ? rawUpdate.$set : rawUpdate;
-
-  /* 🎁 BONUS RULE */
-  if (update.includeCalls === true) {
-    update.includeCreditGifts = true;
-    update.creditGiftsAddonPrice = 0;
-  }
-
-  /* 🧪 TRIAL USER */
-  if (update.isTrial === true) {
-    update.plan = "premium";
-    update.guests = 1000;
-    update.paidAmount = 0;
-    update.hasPaid = false;
-
-    update.planLimits = {
-      maxGuests: 1000,
-      smsEnabled: true,
-      smsLimit: 10,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-  }
-
-  /* 💼 PAID CLIENT CREATED BY PRODUCER */
-  if (
-    update.hasPaid === true &&
-    update.role === "client" &&
-    update.createdByProducer &&
-    typeof update.guests === "number"
-  ) {
-    update.planLimits = {
-      maxGuests: update.guests,
-      smsEnabled: true,
-      smsLimit: 0,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-  }
-
-  // IMPORTANT:
-  // We do NOT touch smsBalance or remainingMessages here.
-  // remainingMessages is computed as maxMessages - smsUsed.
-
-  if (isUsingSet) rawUpdate.$set = update;
-  (this as any).setUpdate(rawUpdate);
 });
 
 /* ============================================================
    MODEL
 ============================================================ */
+
 export default models.User || mongoose.model<IUser>("User", UserSchema);

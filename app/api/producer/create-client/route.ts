@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import crypto from "crypto";
 import { Resend } from "resend";
+import Stripe from "stripe";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
@@ -13,6 +14,10 @@ export const dynamic = "force-dynamic";
    INIT
 ========================================================= */
 const resend = new Resend(process.env.RESEND_API_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-11-17.clover",
+});
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "https://www.invistimo.com";
 
@@ -30,42 +35,9 @@ type CreateClientBody = {
   email: string;
   name: string;
   phone?: string;
-  guests?: number;
+  guests: number; // ← כמות רשומות
   includeCalls?: boolean;
 };
-
-/* =========================================================
-   HELPERS
-========================================================= */
-function getPriceKeyByGuests(maxGuests: number) {
-  const map: Record<number, string> = {
-    100: "premium_100_v2",
-    200: "premium_200_v2",
-    300: "premium_300",
-    400: "premium_400",
-    500: "premium_500",
-    600: "premium_600",
-    700: "premium_700",
-    800: "premium_800",
-    1000: "premium_1000",
-  };
-  return map[maxGuests] || "premium_100_v2";
-}
-
-function getAmountByGuests(maxGuests: number) {
-  const priceMap: Record<number, number> = {
-    100: 149,
-    200: 239,
-    300: 299,
-    400: 379,
-    500: 429,
-    600: 489,
-    700: 539,
-    800: 599,
-    1000: 699,
-  };
-  return priceMap[maxGuests] ?? 149;
-}
 
 /* =========================================================
    CREATE CLIENT BY PRODUCER
@@ -74,18 +46,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log("🟢 create-client API hit");
 
   /* ================= AUTH ================= */
-  const token = req.cookies.get("authToken")?.value || null;
-
+  const token = req.cookies.get("authToken")?.value;
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let decoded: AuthTokenPayload;
   try {
-    decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET!
-    ) as AuthTokenPayload;
+    decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthTokenPayload;
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
@@ -109,78 +77,61 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { email, name, phone, guests, includeCalls } = body;
 
-  if (!email || !name) {
+  if (!email || !name || !guests) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 }
     );
   }
 
-  const maxGuests = Number(guests) || 100;
-  const priceKey = getPriceKeyByGuests(maxGuests);
-  const amount = getAmountByGuests(maxGuests);
+  const records = Number(guests);
+  if (records <= 0) {
+    return NextResponse.json(
+      { error: "Invalid records amount" },
+      { status: 400 }
+    );
+  }
+
+  /* =========================================================
+     PRICE CALCULATION – לפי מפיק
+     (לא חבילות, לא טבלאות)
+  ========================================================= */
+  const pricePerRecord = producer.producerPricePerRecord;
+  if (!pricePerRecord || pricePerRecord <= 0) {
+    return NextResponse.json(
+      { error: "Producer pricing not configured" },
+      { status: 400 }
+    );
+  }
+
+  const amount = records * pricePerRecord;
 
   /* ================= EXISTING USER ================= */
   const existingUser = await User.findOne({ email });
 
+  let clientUser = existingUser;
+
   if (existingUser) {
-  const resetPasswordToken = crypto.randomBytes(32).toString("hex");
-  const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
-
-  existingUser.resetPasswordToken = resetPasswordToken;
-  existingUser.resetPasswordExpires = resetPasswordExpires;
-  existingUser.needsPasswordSetup = true;
-
-  // ✅ מומלץ: לאפס סיסמה כדי שהסטטוס יהיה עקבי
-  existingUser.password = undefined as any;
-
-  await existingUser.save();
-
-  const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
-
-  console.log("📧 Sending magic link to existing user (producer flow):", email);
-
-  try {
-    await resend.emails.send({
-      from: "Invistimo <noreply@invistimo.com>",
-      to: email,
-      subject: "הגדרת סיסמה לחשבון שלך",
-      html: `
-        <div style="font-family:Heebo,Arial,sans-serif;direction:rtl;text-align:right">
-          <h2>ברוך הבא לאינויסטימו 🎉</h2>
-          <p>המפיק שלך יצר או עדכן עבורך חשבון.</p>
-          <p>להגדרת סיסמה:</p>
-          <a href="${magicLink}"
-            style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
-            הגדר סיסמה
-          </a>
-          <p style="margin-top:16px;font-size:14px;color:#555">
-            הקישור תקף ל־24 שעות.
-          </p>
-        </div>
-      `,
-    });
-  } catch (mailErr) {
-    console.error("❌ Resend failed (existing user):", mailErr);
-    return NextResponse.json(
-      { error: "Failed to send email" },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({ success: true, user: existingUser });
-}
-
-
-
-  /* ================= CREATE USER ================= */
-  try {
     const resetPasswordToken = crypto.randomBytes(32).toString("hex");
-    const resetPasswordExpires = new Date(
-      Date.now() + 1000 * 60 * 60 * 24
-    );
+    const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
-    const newUser = await User.create({
+    existingUser.resetPasswordToken = resetPasswordToken;
+    existingUser.resetPasswordExpires = resetPasswordExpires;
+    existingUser.needsPasswordSetup = true;
+    existingUser.password = undefined as any;
+
+    existingUser.guests = records;
+    existingUser.maxMessages = records * 3;
+    existingUser.includeCalls = !!includeCalls;
+    existingUser.hasPaid = false;
+    existingUser.paidAmount = 0;
+
+    await existingUser.save();
+  } else {
+    const resetPasswordToken = crypto.randomBytes(32).toString("hex");
+    const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+    clientUser = await User.create({
       name,
       email,
       phone: phone || "",
@@ -188,54 +139,52 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       role: "client",
       producerId: producer._id,
       createdByProducer: producer._id,
+
+      guests: records,
+      maxMessages: records * 3,
+      includeCalls: !!includeCalls,
+
+      hasPaid: false,
+      paidAmount: 0,
+
       needsPasswordSetup: true,
       resetPasswordToken,
       resetPasswordExpires,
-
-      hasPaid: true,
-      isTrial: false,
-      plan: "premium",
-      paidAmount: amount,
-      guests: maxGuests,
-
-      includeCalls: !!includeCalls,
-      includeCreditGifts: false,
-      isDemoUser: false,
     });
-
-    const magicLink = `${BASE_URL}/set-password?token=${resetPasswordToken}`;
-
-    console.log("📧 Sending magic link to new user:", email);
-
-    await resend.emails.send({
-      from: "Invistimo <noreply@invistimo.com>",
-      to: email,
-      subject: "הגדרת סיסמה לחשבון שלך",
-      html: `
-        <div style="font-family:Heebo,Arial,sans-serif;direction:rtl;text-align:right">
-          <h2>ברוך הבא לאינויסטימו 🎉</h2>
-          <p>המפיק שלך יצר עבורך חשבון חדש.</p>
-          <p>להגדרת סיסמה ולכניסה למערכת:</p>
-          <a href="${magicLink}"
-            style="display:inline-block;margin-top:12px;padding:10px 20px;background:#6c3aff;color:white;text-decoration:none;border-radius:6px">
-            הגדר סיסמה
-          </a>
-          <p style="margin-top:16px;font-size:14px;color:#555">
-            הקישור תקף ל־24 שעות.
-          </p>
-        </div>
-      `,
-    });
-
-    return NextResponse.json({
-      success: true,
-      user: newUser,
-    });
-  } catch (err) {
-    console.error("❌ create-client error:", err);
-    return NextResponse.json(
-      { error: "Failed to create client" },
-      { status: 500 }
-    );
   }
+
+  /* =========================================================
+     STRIPE CHECKOUT
+  ========================================================= */
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    payment_method_types: ["card"],
+    customer_email: email,
+    line_items: [
+      {
+        price_data: {
+          currency: "ils",
+          product_data: {
+            name: `Invistimo – ${records} רשומות`,
+          },
+          unit_amount: amount * 100,
+        },
+        quantity: 1,
+      },
+    ],
+    success_url: `${BASE_URL}/payment-success?userId=${clientUser!._id}`,
+    cancel_url: `${BASE_URL}/payment-cancel`,
+    metadata: {
+      clientId: clientUser!._id.toString(),
+      producerId: producer._id.toString(),
+      records: String(records),
+      amount: String(amount),
+    },
+  });
+
+  /* ================= RESPONSE ================= */
+  return NextResponse.json({
+    success: true,
+    checkoutUrl: session.url,
+  });
 }
