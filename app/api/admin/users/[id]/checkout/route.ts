@@ -89,9 +89,16 @@ export async function POST(
     }
 
     /* ---------- APP URL (FIX) ---------- */
-    const appUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ??
-      "https://invistimo.com"; // fallback בטוח
+    const appUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+if (!appUrl || !appUrl.startsWith("https://")) {
+  console.error("INVALID APP URL:", appUrl);
+  return NextResponse.json(
+    { success: false, error: "INVALID_APP_URL" },
+    { status: 500 }
+  );
+}
+
 
     /* ---------- STRIPE CHECKOUT ---------- */
     const session = await stripe.checkout.sessions.create({
