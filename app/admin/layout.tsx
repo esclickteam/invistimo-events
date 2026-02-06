@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { usePathname } from "next/navigation";
 
 /* =====================================================
    ADMIN LAYOUT
@@ -20,6 +21,8 @@ export default function AdminLayout({
   // ✅ מקור אמת אחד להתנתקות
   const { logout } = useAuth();
 
+  const pathname = usePathname();
+
   const nav = [
     { href: "/admin", label: "סקירה" },
     { href: "/admin/users", label: "משתמשים" },
@@ -29,7 +32,7 @@ export default function AdminLayout({
      LOGOUT
   -------------------------------------------------- */
   const handleLogout = async () => {
-    await logout();      // 🔑 ניתוק מלא + ניקוי state + redirect
+    await logout(); // 🔑 ניתוק מלא + ניקוי state + redirect
     setOpen(false);
   };
 
@@ -37,16 +40,16 @@ export default function AdminLayout({
     <div className="min-h-screen bg-gray-100 flex" dir="rtl">
       {/* ================= Mobile Header ================= */}
       <header className="fixed top-0 right-0 left-0 z-40 h-14 bg-white border-b flex items-center justify-between px-4 md:hidden">
-  <button
-    onClick={() => setOpen(true)}
-    className="text-2xl"
-    aria-label="Open menu"
-  >
-    ☰
-  </button>
+        <button
+          onClick={() => setOpen(true)}
+          className="text-2xl"
+          aria-label="Open menu"
+        >
+          ☰
+        </button>
 
-  <span className="font-semibold">Admin Panel</span>
-</header>
+        <span className="font-semibold">Admin Panel</span>
+      </header>
 
       {/* ================= Overlay (Mobile) ================= */}
       {open && (
@@ -79,16 +82,27 @@ export default function AdminLayout({
 
         {/* Nav */}
         <nav className="flex flex-col gap-2">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {nav.map((item) => {
+            const isActive = pathname === item.href;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`
+                  px-4 py-2 rounded-lg transition
+                  ${
+                    isActive
+                      ? "bg-gray-100 font-semibold text-gray-900"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }
+                `}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Divider */}

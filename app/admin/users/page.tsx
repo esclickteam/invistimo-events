@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CreateUserModal from "./CreateUserModal";
+
 
 /* =========================
    TYPES
@@ -22,6 +24,8 @@ type AdminUser = {
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openCreate, setOpenCreate] = useState(false);
+
   const [impersonating, setImpersonating] = useState<string | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
 
@@ -129,7 +133,18 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold mb-6">ניהול משתמשים</h1>
+   
+     <div className="flex items-center justify-between mb-6">
+  <h1 className="text-3xl font-semibold">ניהול משתמשים</h1>
+
+  <button
+    onClick={() => setOpenCreate(true)}
+    className="px-4 py-2 rounded-lg bg-black text-white hover:opacity-90"
+  >
+    ➕ יצירת משתמש
+  </button>
+</div>
+
 
       <div className="overflow-x-auto bg-white border rounded-xl shadow-sm">
         <table className="min-w-full text-right">
@@ -187,6 +202,7 @@ export default function AdminUsersPage() {
                     </button>
                   )}
 
+
                   {u.role !== "admin" && (
   <button
     onClick={() => removeUserFromView(u._id)}
@@ -195,7 +211,6 @@ export default function AdminUsersPage() {
     הסר מהתצוגה
   </button>
 )}
-
                 </td>
               </tr>
             ))}
@@ -213,6 +228,13 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </div>
+      {openCreate && (
+  <CreateUserModal
+    onClose={() => setOpenCreate(false)}
+  />
+)}
+
     </div>
+    
   );
 }
