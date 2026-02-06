@@ -18,6 +18,7 @@ export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER LIMITS ===== */
   const [records, setRecords] = useState(100);
   const [smsTotal, setSmsTotal] = useState(records * SMS_PER_RECORD);
+  const [smsAuto, setSmsAuto] = useState(true);
   const [includeCalls, setIncludeCalls] = useState(false);
 
   /* ===== USER BILLING ===== */
@@ -29,10 +30,12 @@ export default function CreateUserModal({ onClose }: Props) {
   const [producerPricePerRecord, setProducerPricePerRecord] =
     useState<number | "">("");
 
-  /* ===== AUTO CALC SMS ===== */
+  /* ===== AUTO SMS CALC ===== */
   useEffect(() => {
-    setSmsTotal(records * SMS_PER_RECORD);
-  }, [records]);
+    if (smsAuto) {
+      setSmsTotal(records * SMS_PER_RECORD);
+    }
+  }, [records, smsAuto]);
 
   function handleSubmit() {
     const payload =
@@ -51,6 +54,7 @@ export default function CreateUserModal({ onClose }: Props) {
               records,
               smsTotal,
               smsPerRecord: SMS_PER_RECORD,
+              smsAuto,
               includeCalls,
             },
             billing: {
@@ -114,12 +118,13 @@ export default function CreateUserModal({ onClose }: Props) {
                 </h3>
 
                 <div className="grid grid-cols-2 gap-4">
+                  {/* RECORDS */}
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       כמות רשומות
                     </label>
                     <p className="text-xs text-gray-500 mb-1">
-                      מספר הטלפונים / מוזמנים שהמערכת תנהל
+                      מספר טלפונים / מוזמנים שהמערכת תנהל
                     </p>
                     <input
                       type="number"
@@ -132,16 +137,36 @@ export default function CreateUserModal({ onClose }: Props) {
                     />
                   </div>
 
+                  {/* SMS */}
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       כמות הודעות SMS
                     </label>
                     <p className="text-xs text-gray-500 mb-1">
-                      מחושב אוטומטית – 3 הודעות לכל רשומה
+                      ברירת מחדל: {SMS_PER_RECORD} הודעות לכל רשומה
                     </p>
-                    <div className="w-full border rounded-lg px-4 py-2 bg-gray-50">
-                      {smsTotal} הודעות
-                    </div>
+
+                    <input
+                      type="number"
+                      min={0}
+                      value={smsTotal}
+                      onChange={(e) => {
+                        setSmsAuto(false);
+                        setSmsTotal(Number(e.target.value));
+                      }}
+                      className="w-full border rounded-lg px-4 py-2"
+                    />
+
+                    <label className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={smsAuto}
+                        onChange={(e) =>
+                          setSmsAuto(e.target.checked)
+                        }
+                      />
+                      חישוב אוטומטי לפי רשומות
+                    </label>
                   </div>
                 </div>
               </section>
@@ -229,7 +254,7 @@ export default function CreateUserModal({ onClose }: Props) {
               />
 
               <p className="text-xs text-gray-500 mt-2">
-                החיוב יתבצע לפי מספר הרשומות שהמפיק ייצור בפועל
+                החיוב לפי מספר הרשומות בפועל  
                 <br />
                 (כולל 3 הודעות + שיחות לכל רשומה)
               </p>
