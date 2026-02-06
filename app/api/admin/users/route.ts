@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import Stripe from "stripe";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 /* =========================================================
    GET – ADMIN USERS LIST
@@ -16,7 +13,6 @@ export async function GET() {
   try {
     await connectDB();
 
-    /* ================= AUTH ================= */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -25,12 +21,10 @@ export async function GET() {
     }
 
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-
     if (decoded.role !== "admin") {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    /* ================= USERS ================= */
     const users = await User.find({
       isDemoUser: { $ne: true },
       $or: [
@@ -60,7 +54,6 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
-    /* ================= REVENUE ================= */
     const revenueAgg = await User.aggregate([
       {
         $match: {
@@ -91,12 +84,12 @@ export async function GET() {
 
 /* =========================================================
    POST – CREATE USER (ADMIN)
+   ❌ NO STRIPE HERE
 ========================================================= */
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    /* ================= AUTH ================= */
     const token = req.cookies.get("authToken")?.value;
     if (!token) {
       return NextResponse.json({ success: false }, { status: 401 });
@@ -107,7 +100,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    /* ================= BODY ================= */
     const body = await req.json();
     const { email, role, limits, billing } = body;
 
@@ -118,9 +110,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* =====================================================
-       PRODUCER
-    ===================================================== */
+    /* ===== PRODUCER ===== */
     if (role === "producer") {
       const user = await User.create({
         email,
@@ -130,18 +120,14 @@ export async function POST(req: NextRequest) {
         needsPasswordSetup: true,
       });
 
-      return NextResponse.json({ success: true, user });
+      return NextResponse.json({
+        success: true,
+        userId: String(user._id),
+      });
     }
 
-    /* =====================================================
-       USER / CLIENT
-    ===================================================== */
-    const {
-      records,
-      smsTotal,
-      includeCalls,
-    } = limits || {};
-
+    /* ===== USER ===== */
+    const { records, smsTotal, includeCalls } = limits || {};
     const { price, paymentStatus } = billing || {};
 
     if (!records || !smsTotal || !price) {
@@ -151,52 +137,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ===== MANUAL PAYMENT ===== */
-    if (paymentStatus === "paid") {
-      const user = await User.create({
-        email,
-        role: "user",
-        guests: records,
-        maxMessages: smsTotal,
-        includeCalls: !!includeCalls,
-        hasPaid: true,
-        paidAmount: price,
-        needsPasswordSetup: true,
-      });
-
-      return NextResponse.json({ success: true, user });
-    }
-
-    /* ===== STRIPE PAYMENT ===== */
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "ils",
-            product_data: {
-              name: `חבילת משתמש – ${records} רשומות`,
-            },
-            unit_amount: Math.round(Number(price) * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/admin/users?paid=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/admin/users`,
-      metadata: {
-        email,
-        role: "user",
-        records: String(records),
-        smsTotal: String(smsTotal),
-        includeCalls: includeCalls ? "1" : "0",
-      },
+    const user = await User.create({
+      email,
+      role: "user",
+      guests: records,
+      maxMessages: smsTotal,
+      includeCalls: !!includeCalls,
+      hasPaid: paymentStatus === "paid",
+      paidAmount: paymentStatus === "paid" ? price : 0,
+      needsPasswordSetup: true,
     });
 
     return NextResponse.json({
       success: true,
-      checkoutUrl: session.url,
+      userId: String(user._id),
     });
   } catch (err) {
     console.error("ADMIN USERS POST ERROR:", err);
