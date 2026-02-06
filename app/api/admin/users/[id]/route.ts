@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
@@ -30,14 +31,16 @@ async function requireAdmin() {
    GET – SINGLE USER (ADMIN VIEW)
 ========================================================= */
 export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     await requireAdmin();
 
-    const user = await User.findById(params.id).lean();
+    const { id } = await context.params;
+
+    const user = await User.findById(id).lean();
 
     if (!user) {
       return NextResponse.json(
@@ -57,22 +60,21 @@ export async function GET(
    PATCH – UPDATE USER (ADMIN FULL CONTROL)
 ========================================================= */
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     await requireAdmin();
 
+    const { id } = await context.params;
     const body = await req.json();
 
     /**
      * ❗ IMPORTANT:
-     * אנחנו נותנים לאדמין לשלוט בהכל,
-     * ולא מפעילים כאן שום לוגיקה חכמה.
-     * כל auto-logic נשאר ב־UserSchema בלבד.
+     * שליטה מלאה לאדמין.
+     * כל לוגיקה חכמה נשארת ב־UserSchema בלבד.
      */
-
     const allowedUpdate: any = {
       name: body.name,
       email: body.email,
@@ -102,13 +104,13 @@ export async function PATCH(
       isDemoUser: body.isDemoUser,
     };
 
-    // ניקוי undefined (לא לדרוס שדות סתם)
+    // ניקוי undefined – לא לדרוס שדות קיימים
     Object.keys(allowedUpdate).forEach(
       (key) => allowedUpdate[key] === undefined && delete allowedUpdate[key]
     );
 
     const updatedUser = await User.findOneAndUpdate(
-      { _id: params.id },
+      { _id: id },
       { $set: allowedUpdate },
       { new: true }
     ).lean();
@@ -132,6 +134,5 @@ export async function PATCH(
 
 /* =========================================================
    DELETE – OPTIONAL (ADMIN)
-   לא מוחק בפועל, רק אם תרצי בהמשך
 ========================================================= */
 // export async function DELETE(...) {}
