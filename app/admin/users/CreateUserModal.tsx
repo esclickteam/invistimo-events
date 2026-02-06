@@ -25,23 +25,34 @@ export default function CreateUserModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+      <div
+        className="
+          w-full max-w-2xl
+          bg-white rounded-xl shadow-2xl border
+          max-h-[90vh] flex flex-col
+        "
+      >
+        {/* HEADER */}
+        <div className="px-6 py-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-semibold">יצירת משתמש חדש</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-black">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-black text-xl"
+          >
             ✕
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-8">
+        {/* BODY (SCROLLABLE) */}
+        <div className="p-6 space-y-8 overflow-y-auto">
           {/* USER */}
-          <section>
-            <h3 className="text-sm font-bold text-gray-600 mb-3">פרטי משתמש</h3>
+          <section className="space-y-3">
+            <h3 className="text-sm font-bold text-gray-600">
+              פרטי משתמש
+            </h3>
             <input
               type="email"
-              placeholder="אימייל"
+              placeholder="אימייל משתמש"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border rounded-lg px-4 py-2"
@@ -49,8 +60,10 @@ export default function CreateUserModal({ onClose }: Props) {
           </section>
 
           {/* ROLE */}
-          <section>
-            <h3 className="text-sm font-bold text-gray-600 mb-3">סוג משתמש</h3>
+          <section className="space-y-3">
+            <h3 className="text-sm font-bold text-gray-600">
+              סוג משתמש
+            </h3>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
@@ -62,14 +75,19 @@ export default function CreateUserModal({ onClose }: Props) {
             </select>
           </section>
 
-          {/* PLAN */}
+          {/* USER ONLY */}
           {role === "user" && (
             <>
-              <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">חבילה</h3>
+              {/* PLAN */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-bold text-gray-600">
+                  חבילת שירות
+                </h3>
                 <select
                   value={plan}
-                  onChange={(e) => setPlan(e.target.value as PlanType)}
+                  onChange={(e) =>
+                    setPlan(e.target.value as PlanType)
+                  }
                   className="w-full border rounded-lg px-4 py-2"
                 >
                   <option value="basic">בסיס</option>
@@ -84,20 +102,33 @@ export default function CreateUserModal({ onClose }: Props) {
                   מגבלות
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="number"
-                    value={guests}
-                    onChange={(e) => setGuests(Number(e.target.value))}
-                    className="border rounded-lg px-4 py-2"
-                    placeholder="כמות אורחים"
-                  />
-                  <input
-                    type="number"
-                    value={maxMessages}
-                    onChange={(e) => setMaxMessages(Number(e.target.value))}
-                    className="border rounded-lg px-4 py-2"
-                    placeholder="כמות הודעות"
-                  />
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      כמות אורחים
+                    </label>
+                    <input
+                      type="number"
+                      value={guests}
+                      onChange={(e) =>
+                        setGuests(Number(e.target.value))
+                      }
+                      className="w-full border rounded-lg px-4 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      כמות הודעות SMS
+                    </label>
+                    <input
+                      type="number"
+                      value={maxMessages}
+                      onChange={(e) =>
+                        setMaxMessages(Number(e.target.value))
+                      }
+                      className="w-full border rounded-lg px-4 py-2"
+                    />
+                  </div>
                 </div>
               </section>
 
@@ -110,7 +141,9 @@ export default function CreateUserModal({ onClose }: Props) {
                   <input
                     type="checkbox"
                     checked={includeCalls}
-                    onChange={(e) => setIncludeCalls(e.target.checked)}
+                    onChange={(e) =>
+                      setIncludeCalls(e.target.checked)
+                    }
                   />
                   <span>שירות שיחות</span>
                 </label>
@@ -121,11 +154,12 @@ export default function CreateUserModal({ onClose }: Props) {
                 <h3 className="text-sm font-bold text-gray-600 mb-3">
                   תשלום
                 </h3>
-
                 <select
                   value={paymentStatus}
                   onChange={(e) =>
-                    setPaymentStatus(e.target.value as PaymentStatus)
+                    setPaymentStatus(
+                      e.target.value as PaymentStatus
+                    )
                   }
                   className="w-full border rounded-lg px-4 py-2 mb-3"
                 >
@@ -134,21 +168,27 @@ export default function CreateUserModal({ onClose }: Props) {
                 </select>
 
                 {paymentStatus === "paid" && (
-                  <input
-                    type="number"
-                    placeholder="סכום ששולם"
-                    value={paidAmount}
-                    onChange={(e) => setPaidAmount(e.target.value)}
-                    className="w-full border rounded-lg px-4 py-2"
-                  />
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      סכום ששולם
+                    </label>
+                    <input
+                      type="number"
+                      value={paidAmount}
+                      onChange={(e) =>
+                        setPaidAmount(e.target.value)
+                      }
+                      className="w-full border rounded-lg px-4 py-2"
+                    />
+                  </div>
                 )}
               </section>
             </>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+        {/* FOOTER */}
+        <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
           <button
             onClick={onClose}
             className="px-4 py-2 border rounded-lg"
