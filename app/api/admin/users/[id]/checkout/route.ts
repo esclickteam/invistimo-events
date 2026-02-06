@@ -44,7 +44,7 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // ← ⚠️ בכוונה Promise
 ) {
   try {
     await connectDB();
@@ -59,7 +59,7 @@ export async function POST(
     }
 
     /* ===== PARAMS ===== */
-    const userId = params.id;
+    const { id: userId } = await context.params; // ← ⚠️ await חובה
 
     if (!userId) {
       return NextResponse.json(
