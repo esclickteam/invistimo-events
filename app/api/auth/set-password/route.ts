@@ -66,7 +66,7 @@ export async function POST(req: Request) {
        FIND USER BY TOKEN
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup"
+      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord"
     );
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
@@ -125,10 +125,11 @@ export async function POST(req: Request) {
        RESPONSE + COOKIE
     ========================= */
     const safeUser = {
-      _id: user._id.toString(), // ⭐ חשוב: תואם ל-AuthContext
+      _id: user._id.toString(), // תואם ל-AuthContext
       name: user.name ?? "",
       email: user.email ?? "",
       role: user.role,
+      producerPricePerRecord: Number(user.producerPricePerRecord ?? 0), // ⭐ חשוב למחיר מפיק
     };
 
     const redirectTo =
@@ -152,7 +153,7 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 7, // 7 ימים
     });
 
-    // אופציונלי אבל מומלץ: מנקה טוקן מפיק ישן אם נשאר
+    // מומלץ: ניקוי טוקן מפיק ישן אם נשאר
     response.cookies.set({
       name: "producerAuthToken",
       value: "",
@@ -166,6 +167,7 @@ export async function POST(req: Request) {
     console.log("🍪 AUTH COOKIE SET", {
       userId: safeUser._id,
       role: safeUser.role,
+      producerPricePerRecord: safeUser.producerPricePerRecord,
       redirectTo,
     });
 

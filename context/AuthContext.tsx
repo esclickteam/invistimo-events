@@ -16,7 +16,6 @@ interface User {
   _id: string;
   email: string;
   name?: string;
-
   role: "admin" | "user" | "producer" | "client";
 
   /* ===== BUSINESS ===== */
@@ -26,6 +25,9 @@ interface User {
   planLimits?: {
     maxMessages?: number;
   };
+
+  // ⭐ להוסיף:
+  producerPricePerRecord?: number;
 
   /* ===== IMPERSONATION ===== */
   impersonated?: boolean;
