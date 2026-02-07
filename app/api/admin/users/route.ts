@@ -147,6 +147,9 @@ export async function POST(req: NextRequest) {
     const { records, smsTotal, includeCalls } = limits || {};
     const { price, paymentStatus } = billing || {};
 
+    const finalIncludeCalls = !!includeCalls;
+    const finalIncludeCreditGifts = finalIncludeCalls; // ⭐ שיחות כוללות מתנות
+
     if (!records || !smsTotal || !price) {
       return NextResponse.json(
         { success: false, error: "Invalid limits / billing" },
@@ -161,7 +164,9 @@ export async function POST(req: NextRequest) {
 
       guests: records,
       maxMessages: smsTotal,
-      includeCalls: !!includeCalls,
+
+      includeCalls: finalIncludeCalls,
+      includeCreditGifts: finalIncludeCreditGifts,
 
       hasPaid: paymentStatus === "paid",
       paidAmount: Number(price),
@@ -184,10 +189,10 @@ export async function POST(req: NextRequest) {
         priceKey: `admin_manual_${records}`,
         maxGuests: records,
 
-        includeCalls: !!includeCalls,
+        includeCalls: finalIncludeCalls,
         callsAddonPrice: 0,
 
-        includeCreditGifts: false,
+        includeCreditGifts: finalIncludeCreditGifts,
         creditGiftsAddonPrice: 0,
 
         amount: Number(price),
