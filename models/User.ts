@@ -161,7 +161,10 @@ const UserSchema = new Schema<IUser>(
 
     isDemoUser: { type: Boolean, default: false },
 
-    needsPasswordSetup: { type: Boolean, default: false },
+    needsPasswordSetup: {
+  type: Boolean,
+  default: true,
+},
 
     resetPasswordToken: { type: String },
     resetPasswordExpires: Date,
