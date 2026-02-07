@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import Payment from "@/models/Payment";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
 export const dynamic = "force-dynamic";
@@ -113,14 +114,14 @@ export async function POST(req: NextRequest) {
 
     /* ================= PRODUCER ================= */
     if (role === "producer") {
-      const pricePerRecord = Number(billing?.pricePerRecord || 0); // ⭐ חדש
+      const pricePerRecord = Number(billing?.pricePerRecord || 0);
 
       const user = await User.create({
         name,
         email,
         role: "producer",
 
-        producerPricePerRecord: pricePerRecord, // ⭐ חדש
+        producerPricePerRecord: pricePerRecord,
 
         hasPaid: true,
         paidAmount: 0,
@@ -170,7 +171,40 @@ export async function POST(req: NextRequest) {
       billingSource: "admin",
     });
 
+    /* ===== יצירת Payment ידני ===== */
     if (paymentStatus === "paid") {
+      await Payment.create({
+        email,
+
+        stripeSessionId: null,
+        stripePaymentIntentId: null,
+        stripeCustomerId: null,
+        stripePriceId: null,
+
+        priceKey: `admin_manual_${records}`,
+        maxGuests: records,
+
+        includeCalls: !!includeCalls,
+        callsAddonPrice: 0,
+
+        includeCreditGifts: false,
+        creditGiftsAddonPrice: 0,
+
+        amount: Number(price),
+        refundAmount: 0,
+        currency: "ils",
+
+        type: "package",
+        status: "paid",
+        isTest: false,
+
+        metadata: {
+          source: "admin",
+          adminId: decoded.id,
+          userId: user._id.toString(),
+        },
+      });
+
       try {
         await sendPasswordSetupMail(user._id.toString());
       } catch (err) {
