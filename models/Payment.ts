@@ -30,10 +30,11 @@ export interface PaymentDocument extends Document {
   currency: string;
 
   // 🧾 סוג תשלום
-  type: "package" | "addon" | "upgrade";
+  type: "package" | "addon" | "upgrade" | "producer-client";
 
   // 🧠 מידע נוסף
   metadata?: Record<string, any>;
+  meta?: Record<string, any>; // תאימות לאחור לקוד קיים בוובהוק
 
   // 📌 סטטוס
   status: "paid" | "refunded" | "partially_refunded" | "failed";
@@ -64,10 +65,6 @@ const PaymentSchema = new Schema<PaymentDocument>(
 
     /* =========================
        Stripe (אופציונלי!)
-       ❌ לא required
-       ❌ לא unique
-       ❌ לא index
-       ✔️ האינדקס מנוהל ידנית ב־MongoDB
     ========================= */
     stripeSessionId: {
       type: String,
@@ -77,6 +74,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     stripePaymentIntentId: {
       type: String,
       default: undefined,
+      index: true, // מומלץ לדדופליקציה מהירה
     },
 
     stripeCustomerId: {
@@ -93,10 +91,10 @@ const PaymentSchema = new Schema<PaymentDocument>(
        Package / Product
     ========================= */
     priceKey: {
-  type: String,
-  required: false,   // ✅ לא חובה
-  index: true,
-},
+      type: String,
+      required: false,
+      index: true,
+    },
 
     maxGuests: {
       type: Number,
@@ -154,14 +152,21 @@ const PaymentSchema = new Schema<PaymentDocument>(
     ========================= */
     type: {
       type: String,
-      enum: ["package", "addon", "upgrade"],
+      enum: ["package", "addon", "upgrade", "producer-client"],
       default: "package",
+      index: true,
     },
 
     /* =========================
        🧠 Metadata
     ========================= */
     metadata: {
+      type: Schema.Types.Mixed,
+      default: undefined,
+    },
+
+    // תאימות לקוד קיים שמשתמש ב-meta
+    meta: {
       type: Schema.Types.Mixed,
       default: undefined,
     },
@@ -210,21 +215,6 @@ const PaymentSchema = new Schema<PaymentDocument>(
 PaymentSchema.virtual("netAmount").get(function (this: PaymentDocument) {
   return Math.max(0, this.amount - (this.refundAmount || 0));
 });
-
-/* ============================================================
-   ❌ אין אינדקסים כאן
-   ✔️ האינדקס ל־stripeSessionId מנוהל ידנית ב־MongoDB:
-   
-   db.payments.createIndex(
-     { stripeSessionId: 1 },
-     {
-       unique: true,
-       partialFilterExpression: {
-         stripeSessionId: { $exists: true, $ne: "" }
-       }
-     }
-   )
-============================================================ */
 
 export default mongoose.models.Payment ||
   mongoose.model<PaymentDocument>("Payment", PaymentSchema);
