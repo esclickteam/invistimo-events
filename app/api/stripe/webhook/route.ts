@@ -182,18 +182,43 @@ if (session.metadata?.clientId && session.metadata?.producerId) {
   const totalMessages = records * SMS_PER_RECORD;
 
   // 👤 עדכון הלקוח
-  await User.findByIdAndUpdate(client._id, {
+const updatedClient = await User.findByIdAndUpdate(
+  client._id,
+  {
     guests: records,
     hasPaid: true,
     paidAmount: amount,
     billingSource: "producer",
     maxMessages: totalMessages,
     smsUsed: 0,
-  });
+  },
+  { new: true }
+);
 
-  console.log("✅ Producer client activated:", client.email);
+// 📧 שליחת מייל הגדרת סיסמה – פעם ראשונה בלבד
+if (updatedClient?.needsPasswordSetup) {
+  console.log("📧 Sending password setup email (producer client)");
 
-  return NextResponse.json({ received: true });
+  try {
+    await sendPasswordSetupMail(updatedClient._id.toString());
+
+    // 🔒 שלא יישלח שוב
+    await User.findByIdAndUpdate(updatedClient._id, {
+      needsPasswordSetup: false,
+    });
+
+    console.log("✅ Password setup email sent (producer client)");
+  } catch (err) {
+    console.error(
+      "❌ Failed to send password setup email (producer client)",
+      err
+    );
+  }
+}
+
+console.log("✅ Producer client activated:", client.email);
+return NextResponse.json({ received: true });
+
 }
 
 
@@ -364,10 +389,9 @@ const totalMessages = maxGuests * MESSAGES_PER_GUEST;
 );
 
 // 📧 שליחת מייל הגדרת סיסמה – רק למשתמשי Admin, פעם ראשונה
-if (
-  updatedUser?.needsPasswordSetup &&
-  updatedUser?.createdByAdmin
-) {
+if (updatedUser?.needsPasswordSetup) {
+
+
   console.log("📧 Sending password setup email to user");
 
   try {
