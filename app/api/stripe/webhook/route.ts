@@ -201,12 +201,6 @@ if (updatedClient?.needsPasswordSetup) {
 
   try {
     await sendPasswordSetupMail(updatedClient._id.toString());
-
-    // 🔒 שלא יישלח שוב
-    await User.findByIdAndUpdate(updatedClient._id, {
-      needsPasswordSetup: false,
-    });
-
     console.log("✅ Password setup email sent (producer client)");
   } catch (err) {
     console.error(
@@ -215,6 +209,7 @@ if (updatedClient?.needsPasswordSetup) {
     );
   }
 }
+
 
 console.log("✅ Producer client activated:", client.email);
 return NextResponse.json({ received: true });
@@ -390,23 +385,16 @@ const totalMessages = maxGuests * MESSAGES_PER_GUEST;
 
 // 📧 שליחת מייל הגדרת סיסמה – רק למשתמשי Admin, פעם ראשונה
 if (updatedUser?.needsPasswordSetup) {
-
-
   console.log("📧 Sending password setup email to user");
 
   try {
     await sendPasswordSetupMail(updatedUser._id.toString());
-
-    // 🔒 חשוב: שלא ישלח שוב
-    await User.findByIdAndUpdate(updatedUser._id, {
-      needsPasswordSetup: false,
-    });
-
     console.log("✅ Password setup email sent");
   } catch (err) {
     console.error("❌ Failed to send password setup email", err);
   }
 }
+
 
 
     event.maxGuests = maxGuests;
