@@ -98,11 +98,15 @@ export async function POST(req: Request) {
     );
 
     /* =========================
-       SET COOKIE
+       RESPONSE + COOKIE
     ========================= */
     const response = NextResponse.json({
       success: true,
       message: "הסיסמה הוגדרה בהצלחה 🎉",
+      redirectTo:
+        user.role === "producer"
+          ? "/producer/dashboard"
+          : "/dashboard",
     });
 
     response.cookies.set({

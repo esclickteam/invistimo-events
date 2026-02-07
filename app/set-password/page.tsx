@@ -70,21 +70,26 @@ export default function SetPasswordPage() {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        setMessage(data?.message || "אירעה שגיאה");
-        return;
-      }
+if (!res.ok) {
+  setMessage(data?.message || "אירעה שגיאה");
+  return;
+}
 
-      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
+setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
 
-      // ניקוי שדות (לא חובה, אבל נקי)
-      setPassword("");
-      setConfirmPassword("");
+// ניקוי שדות
+setPassword("");
+setConfirmPassword("");
 
-      // ⏩ ניווט לדשבורד
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 800);
+// ⏩ ניווט לפי role מהשרת
+setTimeout(() => {
+  if (data.redirectTo) {
+    router.replace(data.redirectTo);
+  } else {
+    router.replace("/dashboard");
+  }
+}, 800);
+
     } catch (err) {
       console.error("❌ set-password frontend error:", err);
       setMessage("שגיאת רשת, נסה שוב");
