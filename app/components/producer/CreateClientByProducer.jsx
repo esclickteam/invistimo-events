@@ -13,6 +13,25 @@ import { useAuth } from "@/context/AuthContext";
 
 const SMS_PER_RECORD = 3;
 
+/* =========================
+   Input styles (CRITICAL)
+========================= */
+const INPUT_CLASS = `
+  w-full
+  h-12
+  rounded-xl
+  border
+  border-slate-300
+  bg-white
+  px-4
+  pr-10
+  text-sm
+  outline-none
+  focus:border-[#3A2B23]
+  focus:ring-2
+  focus:ring-[#3A2B23]/20
+`;
+
 export default function CreateClientByProducer({ onSuccess }) {
   const { user } = useAuth();
 
@@ -130,7 +149,7 @@ export default function CreateClientByProducer({ onSuccess }) {
               value={form.name}
               onChange={handleChange}
               required
-              className="input"
+              className={INPUT_CLASS}
             />
           </Field>
 
@@ -141,7 +160,7 @@ export default function CreateClientByProducer({ onSuccess }) {
               value={form.email}
               onChange={handleChange}
               required
-              className="input"
+              className={INPUT_CLASS}
             />
           </Field>
 
@@ -151,7 +170,7 @@ export default function CreateClientByProducer({ onSuccess }) {
               name="phone"
               value={form.phone}
               onChange={handleChange}
-              className="input"
+              className={INPUT_CLASS}
             />
           </Field>
         </Section>
@@ -166,7 +185,7 @@ export default function CreateClientByProducer({ onSuccess }) {
               step={1}
               value={form.guests}
               onChange={handleChange}
-              className="input"
+              className={INPUT_CLASS}
             />
           </Field>
 
@@ -178,7 +197,7 @@ export default function CreateClientByProducer({ onSuccess }) {
               type="number"
               value={smsTotal}
               disabled
-              className="input bg-gray-100 cursor-not-allowed"
+              className={`${INPUT_CLASS} bg-slate-100 cursor-not-allowed`}
             />
             <div className="text-xs text-gray-500 mt-1">
               {SMS_PER_RECORD} הודעות לכל רשומה
