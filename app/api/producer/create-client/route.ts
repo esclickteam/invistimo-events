@@ -174,12 +174,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ],
     success_url: `${BASE_URL}/payment-success?userId=${clientUser!._id}`,
     cancel_url: `${BASE_URL}/payment-cancel`,
+
     metadata: {
-      clientId: clientUser!._id.toString(),
-      producerId: producer._id.toString(),
-      records: String(records),
-      amount: String(amount),
-    },
+  userId: clientUser!._id.toString(),   // ⭐ חובה
+  clientId: clientUser!._id.toString(),
+  producerId: producer._id.toString(),
+  records: String(records),
+  amount: String(amount),
+  paymentType: "producer-client",
+},
+    
   });
 
   /* ================= RESPONSE ================= */

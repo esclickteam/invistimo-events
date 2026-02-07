@@ -7,7 +7,6 @@ import Event from "@/models/Event";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
-
 export const runtime = "nodejs";
 
 /* ============================================================
@@ -87,7 +86,7 @@ export async function POST(req: Request) {
     }
 
     /* ================= DUPLICATE PROTECTION ================= */
-     const existingPayment = await Payment.findOne({
+    const existingPayment = await Payment.findOne({
       stripePaymentIntentId: String(session.payment_intent),
     });
 
@@ -96,7 +95,87 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    /* ================= IDENTIFY USER ================= */
+    /* ============================================================
+       CASE 0: CLIENT CREATED BY PRODUCER (MUST BE FIRST)
+    ============================================================ */
+    if (
+      session.metadata?.paymentType === "producer-client" &&
+      session.metadata?.clientId &&
+      session.metadata?.producerId
+    ) {
+      console.log("👥 Processing CLIENT CREATED BY PRODUCER");
+
+      const clientId = session.metadata.clientId;
+      const producerId = session.metadata.producerId;
+      const records = Number(session.metadata.records || 0);
+      const amount = Number(session.metadata.amount || 0);
+
+      if (!records || !amount) {
+        console.error("❌ Missing records or amount in producer payment");
+        return NextResponse.json({ received: true });
+      }
+
+      const client = await User.findById(clientId);
+
+      if (!client) {
+        console.error("❌ Client not found:", clientId);
+        return NextResponse.json({ received: true });
+      }
+
+      // 💾 Payment record
+      await Payment.create({
+        email: client.email,
+        stripeSessionId: session.id,
+        stripePaymentIntentId: String(session.payment_intent),
+        stripeCustomerId: (session.customer as string) || "",
+        type: "producer-client",
+        amount,
+        currency: "ils",
+        status: "paid",
+        isTest: false,
+        meta: {
+          producerId,
+          records,
+        },
+      });
+
+      const SMS_PER_RECORD = client.smsPerRecord || 3;
+      const totalMessages = records * SMS_PER_RECORD;
+
+      // 👤 Update client (critical)
+      const updatedClient = await User.findByIdAndUpdate(
+        client._id,
+        {
+          guests: records,
+          hasPaid: true,
+          paidAmount: amount,
+          billingSource: "producer",
+          maxMessages: totalMessages,
+          smsUsed: 0,
+          isTrial: false,
+        },
+        { new: true }
+      );
+
+      // 📧 Send setup password mail once
+      if (updatedClient?.needsPasswordSetup) {
+        console.log("📧 Sending password setup email (producer client)");
+        try {
+          await sendPasswordSetupMail(updatedClient._id.toString());
+          console.log("✅ Password setup email sent (producer client)");
+        } catch (err) {
+          console.error(
+            "❌ Failed to send password setup email (producer client)",
+            err
+          );
+        }
+      }
+
+      console.log("✅ Producer client activated:", client.email);
+      return NextResponse.json({ received: true });
+    }
+
+    /* ================= IDENTIFY USER (OTHER FLOWS ONLY) ================= */
     let user: any = null;
 
     if (session.metadata?.userId) {
@@ -139,85 +218,6 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-   CASE 0: CLIENT CREATED BY PRODUCER
-============================================================ */
-if (session.metadata?.clientId && session.metadata?.producerId) {
-  console.log("👥 Processing CLIENT CREATED BY PRODUCER");
-
-  const clientId = session.metadata.clientId;
-  const producerId = session.metadata.producerId;
-  const records = Number(session.metadata.records || 0);
-  const amount = Number(session.metadata.amount || 0);
-
-  if (!records || !amount) {
-    console.error("❌ Missing records or amount in producer payment");
-    return NextResponse.json({ received: true });
-  }
-
-  const client = await User.findById(clientId);
-
-  if (!client) {
-    console.error("❌ Client not found:", clientId);
-    return NextResponse.json({ received: true });
-  }
-
-  // 💾 Payment record
-  await Payment.create({
-    email: client.email,
-    stripeSessionId: session.id,
-    stripePaymentIntentId: String(session.payment_intent),
-    stripeCustomerId: session.customer as string,
-    type: "producer-client",
-    amount,
-    currency: "ils",
-    status: "paid",
-    isTest: false,
-    meta: {
-      producerId,
-      records,
-    },
-  });
-
-  const SMS_PER_RECORD = client.smsPerRecord || 3;
-  const totalMessages = records * SMS_PER_RECORD;
-
-  // 👤 עדכון הלקוח
-const updatedClient = await User.findByIdAndUpdate(
-  client._id,
-  {
-    guests: records,
-    hasPaid: true,
-    paidAmount: amount,
-    billingSource: "producer",
-    maxMessages: totalMessages,
-    smsUsed: 0,
-  },
-  { new: true }
-);
-
-// 📧 שליחת מייל הגדרת סיסמה – פעם ראשונה בלבד
-if (updatedClient?.needsPasswordSetup) {
-  console.log("📧 Sending password setup email (producer client)");
-
-  try {
-    await sendPasswordSetupMail(updatedClient._id.toString());
-    console.log("✅ Password setup email sent (producer client)");
-  } catch (err) {
-    console.error(
-      "❌ Failed to send password setup email (producer client)",
-      err
-    );
-  }
-}
-
-
-console.log("✅ Producer client activated:", client.email);
-return NextResponse.json({ received: true });
-
-}
-
-
-    /* ============================================================
        CASE 1: PREMIUM UPGRADE
     ============================================================ */
     if (session.metadata?.type === "upgrade") {
@@ -230,7 +230,7 @@ return NextResponse.json({ received: true });
         email,
         stripeSessionId: session.id,
         stripePaymentIntentId: String(session.payment_intent),
-        stripeCustomerId: session.customer as string,
+        stripeCustomerId: (session.customer as string) || "",
         type: "upgrade",
         priceKey: `premium_${targetGuests}`,
         maxGuests: targetGuests,
@@ -242,21 +242,20 @@ return NextResponse.json({ received: true });
 
       const MESSAGES_PER_GUEST = 3;
 
-await User.findByIdAndUpdate(user._id, {
-  plan: "premium",
-  hasPaid: true,
-  $inc: {
-    guests: targetGuests,
-    maxMessages: targetGuests * MESSAGES_PER_GUEST,
-    remainingMessages: targetGuests * MESSAGES_PER_GUEST,
-    paidAmount: amountCharged,
-  },
-});
+      await User.findByIdAndUpdate(user._id, {
+        plan: "premium",
+        hasPaid: true,
+        $inc: {
+          guests: targetGuests,
+          maxMessages: targetGuests * MESSAGES_PER_GUEST,
+          remainingMessages: targetGuests * MESSAGES_PER_GUEST,
+          paidAmount: amountCharged,
+        },
+      });
 
       event.maxGuests += targetGuests;
       await event.save();
 
-      console.log("📧 Sending admin email (upgrade)");
       try {
         await notifyAdminPurchase({
           email,
@@ -265,7 +264,6 @@ await User.findByIdAndUpdate(user._id, {
           type: "Premium upgrade",
           details: `${targetGuests} אורחים נוספים`,
         });
-        console.log("✅ Admin email sent (upgrade)");
       } catch (err) {
         console.error("❌ Failed to send admin email (upgrade)", err);
       }
@@ -286,7 +284,7 @@ await User.findByIdAndUpdate(user._id, {
         email,
         stripeSessionId: session.id,
         stripePaymentIntentId: String(session.payment_intent),
-        stripeCustomerId: session.customer as string,
+        stripeCustomerId: (session.customer as string) || "",
         type: "addon",
         amount,
         currency: "ils",
@@ -300,7 +298,6 @@ await User.findByIdAndUpdate(user._id, {
         },
       });
 
-      console.log("📧 Sending admin email (addon)");
       try {
         await notifyAdminPurchase({
           email,
@@ -309,7 +306,6 @@ await User.findByIdAndUpdate(user._id, {
           type: "SMS Add-on",
           details: `${messagesToAdd} הודעות`,
         });
-        console.log("✅ Admin email sent (addon)");
       } catch (err) {
         console.error("❌ Failed to send admin email (addon)", err);
       }
@@ -355,7 +351,7 @@ await User.findByIdAndUpdate(user._id, {
       email,
       stripeSessionId: session.id,
       stripePaymentIntentId: String(session.payment_intent),
-      stripeCustomerId: session.customer as string,
+      stripeCustomerId: (session.customer as string) || "",
       priceKey,
       maxGuests,
       amount: totalPaid,
@@ -366,41 +362,33 @@ await User.findByIdAndUpdate(user._id, {
     });
 
     const MESSAGES_PER_GUEST = 3;
-const totalMessages = maxGuests * MESSAGES_PER_GUEST;
-
+    const totalMessages = maxGuests * MESSAGES_PER_GUEST;
 
     const updatedUser = await User.findByIdAndUpdate(
-  user._id,
-  {
-    plan,
-    guests: maxGuests,
-    maxMessages: totalMessages,
-    remainingMessages: totalMessages,
-    paidAmount: totalPaid,
-    hasPaid: true,
-    isTrial: false,
-  },
-  { new: true }
-);
+      user._id,
+      {
+        plan,
+        guests: maxGuests,
+        maxMessages: totalMessages,
+        remainingMessages: totalMessages,
+        paidAmount: totalPaid,
+        hasPaid: true,
+        isTrial: false,
+      },
+      { new: true }
+    );
 
-// 📧 שליחת מייל הגדרת סיסמה – רק למשתמשי Admin, פעם ראשונה
-if (updatedUser?.needsPasswordSetup) {
-  console.log("📧 Sending password setup email to user");
-
-  try {
-    await sendPasswordSetupMail(updatedUser._id.toString());
-    console.log("✅ Password setup email sent");
-  } catch (err) {
-    console.error("❌ Failed to send password setup email", err);
-  }
-}
-
-
+    if (updatedUser?.needsPasswordSetup) {
+      try {
+        await sendPasswordSetupMail(updatedUser._id.toString());
+      } catch (err) {
+        console.error("❌ Failed to send password setup email", err);
+      }
+    }
 
     event.maxGuests = maxGuests;
     await event.save();
 
-    console.log("📧 Sending admin email (package)");
     try {
       await notifyAdminPurchase({
         email,
@@ -409,7 +397,6 @@ if (updatedUser?.needsPasswordSetup) {
         type: plan === "basic" ? "Basic package" : "Premium package",
         details: `${maxGuests} אורחים`,
       });
-      console.log("✅ Admin email sent (package)");
     } catch (err) {
       console.error("❌ Failed to send admin email (package)", err);
     }
