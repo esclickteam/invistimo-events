@@ -273,9 +273,9 @@ function Field({ label, icon, children }) {
         {label}
       </label>
       <div className="relative">
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400">
-          {icon}
-        </div>
+        <div className="absolute right-3 inset-y-0 flex items-center text-slate-400">
+  {icon}
+</div>
         {children}
       </div>
     </div>
