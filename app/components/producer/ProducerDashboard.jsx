@@ -44,7 +44,9 @@ export default function ProducerDashboard() {
      Fetch Clients
   ========================= */
   useEffect(() => {
-    if (!user || user.role !== "producer") return;
+  if (authLoading) return;
+  if (!user || user.role !== "producer") return;
+
 
     let isMounted = true;
     let intervalId;
