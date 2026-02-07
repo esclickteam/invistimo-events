@@ -852,7 +852,18 @@ console.log("INVITATION:", invitation);
      Render
   ============================================================ */
   return (
-  <div className="px-4 py-6 md:p-10 max-w-full overflow-x-hidden" dir="rtl">
+  <div
+  className="
+    px-4
+    py-6
+    md:p-10
+    max-w-full
+    overflow-x-hidden
+    pt-20
+  "
+  dir="rtl"
+>
+
     {isDemo && (
       <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900">
         <p className="text-sm leading-relaxed">
