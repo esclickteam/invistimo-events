@@ -2,9 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+type ApiUser = {
+  _id: string;
+  name?: string;
+  email: string;
+  role: "admin" | "user" | "producer" | "client";
+};
 
 export default function SetPasswordPage() {
   const router = useRouter();
+  const { setUser, setIsAuthenticated, refreshUser } = useAuth();
 
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -62,34 +71,45 @@ export default function SetPasswordPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // ⭐ חשוב לקוקי auth
         body: JSON.stringify({
           token,
           password,
         }),
       });
 
-      const data = await res.json();
+      const data: {
+        success?: boolean;
+        message?: string;
+        user?: ApiUser;
+        redirectTo?: string;
+      } = await res.json();
 
-if (!res.ok) {
-  setMessage(data?.message || "אירעה שגיאה");
-  return;
-}
+      if (!res.ok || !data?.success) {
+        setMessage(data?.message || "אירעה שגיאה");
+        return;
+      }
 
-setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
+      // ⭐ עדכון מיידי של ה-auth state (מונע צורך בריענון ידני)
+      if (data.user) {
+        setUser(data.user as any);
+        setIsAuthenticated(true);
+      } else {
+        // fallback אם user לא חזר מסיבה כלשהי
+        const me = await refreshUser();
+        if (me) setIsAuthenticated(true);
+      }
 
-// ניקוי שדות
-setPassword("");
-setConfirmPassword("");
+      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
 
-// ⏩ ניווט לפי role מהשרת
-setTimeout(() => {
-  if (data.redirectTo) {
-    router.replace(data.redirectTo);
-  } else {
-    router.replace("/dashboard");
-  }
-}, 800);
+      // ניקוי שדות
+      setPassword("");
+      setConfirmPassword("");
 
+      // ניווט מיידי + refresh לסנכרון App Router
+      const nextPath = data.redirectTo || "/dashboard";
+      router.replace(nextPath);
+      router.refresh();
     } catch (err) {
       console.error("❌ set-password frontend error:", err);
       setMessage("שגיאת רשת, נסה שוב");
@@ -104,9 +124,7 @@ setTimeout(() => {
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 px-4">
       <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md text-right">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          הגדרת סיסמה
-        </h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">הגדרת סיסמה</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -141,9 +159,7 @@ setTimeout(() => {
         </form>
 
         {message && (
-          <p className="text-center mt-4 text-sm text-gray-700">
-            {message}
-          </p>
+          <p className="text-center mt-4 text-sm text-gray-700">{message}</p>
         )}
       </div>
     </div>

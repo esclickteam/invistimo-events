@@ -4,50 +4,93 @@ import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /* =========================
    Helpers
 ========================= */
+function expireCookie(res: NextResponse, name: string, opts?: { domain?: string }) {
+  const base = {
+    path: "/",
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+  };
+
+  // מחיקה עם domain (אם קיים)
+  res.cookies.set(name, "", {
+    ...base,
+    ...(opts?.domain ? { domain: opts.domain } : {}),
+    httpOnly: true,
+  });
+
+  // מחיקה גם בלי domain (למקרה שהקוקי נכתב בלי domain)
+  res.cookies.set(name, "", {
+    ...base,
+    httpOnly: true,
+  });
+}
+
 function clearAuthCookies(res: NextResponse) {
   const cookieDomain =
     process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 
-  const baseCookie = {
-    path: "/",
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    domain: cookieDomain,
-  };
-
-  const delHttpOnly = {
-    ...baseCookie,
-    httpOnly: true,
-    maxAge: 0,
-  };
-
-  // 🔐 מוחקים את כל טוקני האימות
-  res.cookies.set("authToken", "", delHttpOnly);
-  res.cookies.set("producerAuthToken", "", delHttpOnly);
+  expireCookie(res, "authToken", { domain: cookieDomain });
+  expireCookie(res, "producerAuthToken", { domain: cookieDomain });
 }
 
 /* =========================
-   GET /api/me
+   Types
+========================= */
+type JwtPayload = {
+  userId?: string;
+  id?: string;
+  _id?: string;
+  role?: "admin" | "producer" | "client" | "user";
+  impersonated?: boolean;
+  impersonatedBy?: string;
+  impersonationRole?: "admin" | "producer";
+  iat?: number;
+  exp?: number;
+};
+
+/* =========================
+   GET /api/auth/me
 ========================= */
 export async function GET() {
   try {
     await connectDB();
 
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ JWT_SECRET is missing");
+      return NextResponse.json(
+        { success: false, user: null },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const cookieStore = await cookies();
 
-    /* =====================================================
-       🔐 מקור אמת יחיד – producer גובר
-    ===================================================== */
-    const producerToken =
-      cookieStore.get("producerAuthToken")?.value ?? null;
+    const producerToken = cookieStore.get("producerAuthToken")?.value ?? null;
+    const authToken = cookieStore.get("authToken")?.value ?? null;
 
-    const authToken =
-      cookieStore.get("authToken")?.value ?? null;
+    // 🚨 מצב לא חוקי: שני טוקנים יחד
+    if (producerToken && authToken) {
+      const res = NextResponse.json(
+        {
+          success: false,
+          user: null,
+          message: "מצב אימות לא תקין: שני טוקנים פעילים",
+        },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
+      clearAuthCookies(res);
+      return res;
+    }
 
-    const token = producerToken ?? authToken;
+    // מקור אמת יחיד
+    const token = producerToken || authToken;
 
     if (!token) {
       return NextResponse.json(
@@ -56,25 +99,9 @@ export async function GET() {
       );
     }
 
-    /* =====================================================
-       🚨 מצב לא חוקי – שני טוקנים יחד
-    ===================================================== */
-    
-
-    let decoded: {
-      userId?: string;
-      id?: string;
-      _id?: string;
-      role?: "admin" | "producer" | "client" | "user";
-
-      // impersonation flags (לוגיים בלבד)
-      impersonated?: boolean;
-      impersonatedBy?: string;
-      impersonationRole?: "admin" | "producer";
-    };
-
+    let decoded: JwtPayload;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      decoded = jwt.verify(token, process.env.JWT_SECRET) as JwtPayload;
     } catch (err) {
       console.error("❌ JWT לא תקין:", err);
 
@@ -82,26 +109,17 @@ export async function GET() {
         { success: false, user: null },
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
-
       clearAuthCookies(res);
       return res;
     }
 
-    /* =========================
-       Base user lookup
-    ========================= */
-    const baseUserId =
-      decoded.userId ||
-      decoded.id ||
-      decoded._id ||
-      null;
+    const baseUserId = decoded.userId || decoded.id || decoded._id || null;
 
     if (!baseUserId) {
       const res = NextResponse.json(
         { success: false, user: null },
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
-
       clearAuthCookies(res);
       return res;
     }
@@ -113,36 +131,34 @@ export async function GET() {
         { success: false, user: null },
         { status: 404, headers: { "Cache-Control": "no-store" } }
       );
-
       clearAuthCookies(res);
       return res;
     }
+
+    const safeRole = decoded.role ?? (user.role as any) ?? "user";
 
     console.log(
       "✅ ME:",
       user.email,
       "| role:",
-      decoded.role,
+      safeRole,
       decoded.impersonated ? "| impersonated" : ""
     );
 
-    /* =========================
-       Response
-    ========================= */
     return NextResponse.json(
       {
         success: true,
         user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
+          _id: String(user._id),
+          name: user.name ?? "",
+          email: user.email ?? "",
 
-          // 🔑 role תמיד מה-JWT
-          role: decoded.role ?? (user.role as any) ?? "user",
+          // role מהטוקן (הכי עדכני ל-session הנוכחי)
+          role: safeRole,
 
           createdByProducer: !!user.createdByProducer,
 
-          // 📦 עסקי
+          // נתונים עסקיים
           plan: user.plan,
           guests: user.guests,
           paidAmount: user.paidAmount,
@@ -150,20 +166,20 @@ export async function GET() {
 
           producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-          // 📞 שיחות
+          // Calls
           includeCalls: user.includeCalls,
           callsRounds: user.callsRounds,
           callsAddonPrice: user.callsAddonPrice,
 
-          // 💳 מתנות
+          // Credit gifts
           includeCreditGifts: user.includeCreditGifts,
           creditGiftsAddonPrice: user.creditGiftsAddonPrice,
 
-          // 🧪 סטטוסים
+          // Flags
           isTrial: user.isTrial,
           isDemoUser: user.isDemoUser,
 
-          // 🕵️‍♂️ impersonation (לוגי בלבד)
+          // impersonation
           impersonated: !!decoded.impersonated,
           impersonatedBy: decoded.impersonatedBy ?? null,
           impersonationRole: decoded.impersonationRole ?? null,
@@ -173,7 +189,6 @@ export async function GET() {
       },
       { headers: { "Cache-Control": "no-store" } }
     );
-
   } catch (err) {
     console.error("❌ ME API ERROR:", err);
     return NextResponse.json(

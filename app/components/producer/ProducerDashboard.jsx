@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { UserPlus, ArrowUpRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -34,63 +34,114 @@ function isWithinDays(dateStr, days) {
    Producer Dashboard
 ========================= */
 export default function ProducerDashboard() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, setUser, setIsAuthenticated } = useAuth();
 
   const [clients, setClients] = useState([]);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [showCreateClient, setShowCreateClient] = useState(false);
 
+  // כדי למנוע "אין הרשאה" מוקדם מדי
+  const [authResolved, setAuthResolved] = useState(false);
+
+  /* =========================
+     Ensure auth synced (important after set-password/login)
+  ========================= */
+  useEffect(() => {
+    let mounted = true;
+
+    const syncAuthFromServer = async () => {
+      // מחכים שה-auth הראשוני יסיים
+      if (authLoading) return;
+
+      // אם כבר יש user אין צורך
+      if (user) {
+        if (mounted) setAuthResolved(true);
+        return;
+      }
+
+      // fallback: ננסה למשוך את המשתמש מה-cookie (authToken כבר קיים)
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!mounted) return;
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user) {
+            setUser?.(data.user);
+            setIsAuthenticated?.(true);
+          }
+        }
+      } catch (err) {
+        console.error("Auth sync failed:", err);
+      } finally {
+        if (mounted) setAuthResolved(true);
+      }
+    };
+
+    syncAuthFromServer();
+
+    return () => {
+      mounted = false;
+    };
+  }, [authLoading, user, setUser, setIsAuthenticated]);
+
   /* =========================
      Fetch Clients
   ========================= */
-  useEffect(() => {
-  if (authLoading) return;
-  if (!user || user.role !== "producer") return;
+  const fetchClients = useCallback(async () => {
+    setClientsLoading(true);
+    try {
+      const res = await fetch("/api/producer/clients", {
+        cache: "no-store",
+        credentials: "include",
+      });
 
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(
+          "Failed to fetch producer clients:",
+          res.status,
+          text.slice(0, 300)
+        );
+        setClients([]);
+        return;
+      }
+
+      const data = await res.json();
+      setClients(Array.isArray(data?.clients) ? data.clients : []);
+    } catch (err) {
+      console.error("Failed to fetch producer clients:", err);
+      setClients([]);
+    } finally {
+      setClientsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authResolved) return;
+    if (!user || user.role !== "producer") return;
 
     let isMounted = true;
     let intervalId;
 
-    const fetchClients = async () => {
-      if (isMounted) setClientsLoading(true);
-
-      try {
-        const res = await fetch("/api/producer/clients", {
-          cache: "no-store",
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          console.error(
-            "Failed to fetch producer clients:",
-            res.status,
-            text.slice(0, 200)
-          );
-          if (isMounted) setClients([]);
-          return;
-        }
-
-        const data = await res.json();
-        if (!isMounted) return;
-
-        setClients(Array.isArray(data.clients) ? data.clients : []);
-      } catch (err) {
-        console.error("Failed to fetch producer clients:", err);
-        if (isMounted) setClients([]);
-      } finally {
-        if (isMounted) setClientsLoading(false);
-      }
+    const run = async () => {
+      if (!isMounted) return;
+      await fetchClients();
     };
 
-    fetchClients();
-    intervalId = setInterval(fetchClients, 30000);
+    run();
+    intervalId = setInterval(run, 30000);
 
     return () => {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [user]);
+  }, [authResolved, user, fetchClients]);
 
   /* =========================
      Impersonation
@@ -148,10 +199,9 @@ export default function ProducerDashboard() {
   /* =========================
      Guards
   ========================= */
-  if (authLoading) return <div className="p-6">טוען…</div>;
+  if (authLoading || !authResolved) return <div className="p-6">טוען…</div>;
   if (!user) return <div className="p-6">לא מחובר</div>;
-  if (user.role !== "producer")
-    return <div className="p-6">אין הרשאה</div>;
+  if (user.role !== "producer") return <div className="p-6">אין הרשאה</div>;
 
   /* =========================
      UI
@@ -217,18 +267,17 @@ export default function ProducerDashboard() {
 
             <tbody>
               {clients.map((client) => (
-                <tr
-                  key={client._id}
-                  className="border-b hover:bg-slate-50"
-                >
+                <tr key={client._id} className="border-b hover:bg-slate-50">
                   <td className="p-4 font-medium">{client.name}</td>
                   <td className="p-4">{client.email}</td>
                   <td className="p-4">{client.phone}</td>
 
                   <td className="p-4">
-                    {client.event?.date
-                      ? new Date(client.event.date).toLocaleDateString("he-IL")
-                      : <span className="text-slate-400">—</span>}
+                    {client.event?.date ? (
+                      new Date(client.event.date).toLocaleDateString("he-IL")
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
 
                   <td className="p-4">
@@ -238,9 +287,11 @@ export default function ProducerDashboard() {
                   </td>
 
                   <td className="p-4 font-medium">
-                    {client.event
-                      ? `${client.event.approvedCount} / ${client.event.totalGuests}`
-                      : <span className="text-slate-400">—</span>}
+                    {client.event ? (
+                      `${client.event.approvedCount} / ${client.event.totalGuests}`
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
 
                   <td className="p-4">

@@ -33,14 +33,19 @@ interface User {
   impersonationRole?: "admin" | "producer";
 }
 
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAuthenticated: boolean;
+
   login: (email: string, password: string) => Promise<void>;
   refreshUser: () => Promise<User | null>;
   exitImpersonation: () => Promise<void>;
   logout: () => Promise<void>;
+
+  // ⭐ חשוב כדי לעדכן מייד אחרי set-password/login
+  setUser: (user: User | null) => void;
+  setIsAuthenticated: (value: boolean) => void;
 }
 
 /* =====================================================
@@ -49,10 +54,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  isAuthenticated: false,
   login: async () => {},
   refreshUser: async () => null,
   exitImpersonation: async () => {},
   logout: async () => {},
+  setUser: () => {},
+  setIsAuthenticated: () => {},
 });
 
 /* =====================================================
@@ -64,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* --------------------------------------------------
      UX cache בלבד – לא מקור אמת
   -------------------------------------------------- */
-  const [user, setUser] = useState<User | null>(() => {
+  const [user, _setUser] = useState<User | null>(() => {
     if (typeof window === "undefined") return null;
 
     try {
@@ -77,6 +85,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [loading, setLoading] = useState(true);
+  const [bootstrapDone, setBootstrapDone] = useState(false);
+  const [isAuthenticated, _setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !!sessionStorage.getItem("auth_user");
+  });
+
+  // עטיפה כדי לשמור תמיד על sessionStorage מסונכרן
+  const setUser = (next: User | null) => {
+    _setUser(next);
+    if (next) {
+      sessionStorage.setItem("auth_user", JSON.stringify(next));
+      _setIsAuthenticated(true);
+    } else {
+      sessionStorage.removeItem("auth_user");
+      _setIsAuthenticated(false);
+    }
+  };
+
+  const setIsAuthenticated = (value: boolean) => {
+    _setIsAuthenticated(value);
+    if (!value && !user) {
+      sessionStorage.removeItem("auth_user");
+    }
+  };
 
   /* --------------------------------------------------
      🔐 מקור אמת יחיד – השרת
@@ -89,8 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!res.ok) {
-        setUser(null);
-        sessionStorage.removeItem("auth_user");
+        // בזמן bootstrap ראשון אפשר להשאיר cache קיים עד סוף הבדיקה
+        if (bootstrapDone) {
+          setUser(null);
+        }
         return null;
       }
 
@@ -99,24 +133,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (nextUser && !nextUser.role) {
         console.error("❌ User without role from /api/me");
-        setUser(null);
-        sessionStorage.removeItem("auth_user");
+        if (bootstrapDone) setUser(null);
         return null;
       }
 
       setUser(nextUser);
-
-      if (nextUser) {
-        sessionStorage.setItem("auth_user", JSON.stringify(nextUser));
-      } else {
-        sessionStorage.removeItem("auth_user");
-      }
-
       return nextUser;
     } catch (err) {
       console.error("❌ refreshUser error:", err);
-      setUser(null);
-      sessionStorage.removeItem("auth_user");
+      if (bootstrapDone) setUser(null);
       return null;
     }
   };
@@ -125,9 +150,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      🚀 אימות ראשוני (mount)
   -------------------------------------------------- */
   useEffect(() => {
-    refreshUser().finally(() => {
-      setLoading(false);
-    });
+    refreshUser()
+      .finally(() => {
+        setBootstrapDone(true);
+        setLoading(false);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -151,6 +178,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
+      // ⭐ אם השרת כבר החזיר user - מעדכנים מייד
+      if (data.user) {
+        setUser(data.user as User);
+      }
+
+      // אימות סופי מהשרת
       const nextUser = await refreshUser();
 
       if (!nextUser) {
@@ -158,51 +191,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (nextUser.role === "admin") {
-  router.replace("/admin");
-  router.refresh();
-} else if (nextUser.role === "producer") {
-  router.replace("/producer/dashboard");
-  router.refresh();
-} else {
-  router.replace("/dashboard");
-  router.refresh();
-}
+        router.replace("/admin");
+      } else if (nextUser.role === "producer") {
+        router.replace("/producer/dashboard");
+      } else {
+        router.replace("/dashboard");
+      }
 
-
-
+      router.refresh();
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
+      throw err;
     }
   };
 
   /* --------------------------------------------------
-     🔁 EXIT IMPERSONATION  (⭐ הקריטי)
+     🔁 EXIT IMPERSONATION
   -------------------------------------------------- */
- const exitImpersonation = async () => {
-  try {
-    // 🔑 שומרים מאיפה הגענו לפני המחיקה
-    const returnRole = user?.impersonationRole;
+  const exitImpersonation = async () => {
+    try {
+      const returnRole = user?.impersonationRole;
 
-    await fetch("/api/auth/exit-impersonation", {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-    });
+      await fetch("/api/auth/exit-impersonation", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    // ❗ reload מלא כדי לנקות cookies
-    if (returnRole === "admin") {
-      window.location.href = "/admin";
-    } else {
-      // ברירת מחדל: מפיק
-      window.location.href = "/producer/dashboard";
+      setUser(null); // ננקה לוקאלית לפני מעבר
+
+      if (returnRole === "admin") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = "/producer/dashboard";
+      }
+    } catch (err) {
+      console.error("❌ exitImpersonation failed:", err);
+      alert("שגיאה ביציאה ממצב התחזות");
     }
-  } catch (err) {
-    console.error("❌ exitImpersonation failed:", err);
-    alert("שגיאה ביציאה ממצב התחזות");
-  }
-};
-
+  };
 
   /* --------------------------------------------------
      🚪 LOGOUT
@@ -218,8 +246,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("❌ Logout request failed:", err);
     } finally {
       setUser(null);
-      sessionStorage.removeItem("auth_user");
       router.replace("/login");
+      router.refresh();
     }
   };
 
@@ -238,10 +266,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
+        isAuthenticated,
         login,
         refreshUser,
         exitImpersonation,
         logout,
+        setUser,
+        setIsAuthenticated,
       }}
     >
       {children}

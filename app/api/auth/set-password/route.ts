@@ -7,20 +7,36 @@ import User from "@/models/User";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type SetPasswordBody = {
+  token?: string;
+  password?: string;
+};
+
 export async function POST(req: Request) {
   try {
     console.log("🟢 SET PASSWORD API HIT");
 
-    const body = await req.json();
-    console.log("📦 BODY:", body);
+    const body = (await req.json()) as SetPasswordBody;
+    const rawToken = body?.token;
+    const rawPassword = body?.password;
 
-    const { token, password } = body;
+    // לא לחשוף סיסמה בלוגים
+    console.log("📦 BODY RECEIVED:", {
+      hasToken: !!rawToken,
+      passwordLength: rawPassword?.length ?? 0,
+    });
+
+    const token = String(rawToken ?? "").trim();
+    const password = String(rawPassword ?? "");
 
     /* =========================
        VALIDATION
     ========================= */
     if (!token || !password) {
-      console.log("❌ MISSING DATA", { token, password });
+      console.log("❌ MISSING DATA", {
+        hasToken: !!token,
+        hasPassword: !!password,
+      });
       return NextResponse.json(
         { success: false, message: "חסרים נתונים" },
         { status: 400 }
@@ -35,17 +51,25 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ JWT_SECRET IS MISSING");
+      return NextResponse.json(
+        { success: false, message: "שגיאת תצורת שרת (JWT_SECRET חסר)" },
+        { status: 500 }
+      );
+    }
+
     await connectDB();
     console.log("✅ DB CONNECTED");
 
     /* =========================
        FIND USER BY TOKEN
     ========================= */
-    const user = await User.findOne({
-      resetPasswordToken: token,
-    });
+    const user = await User.findOne({ resetPasswordToken: token }).select(
+      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup"
+    );
 
-    console.log("👤 USER FOUND:", user ? user._id : null);
+    console.log("👤 USER FOUND:", user ? user._id.toString() : null);
 
     if (!user) {
       console.log("❌ NO USER WITH TOKEN");
@@ -93,22 +117,31 @@ export async function POST(req: Request) {
         role: user.role,
         email: user.email,
       },
-      process.env.JWT_SECRET!,
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
     /* =========================
        RESPONSE + COOKIE
     ========================= */
+    const safeUser = {
+      _id: user._id.toString(), // ⭐ חשוב: תואם ל-AuthContext
+      name: user.name ?? "",
+      email: user.email ?? "",
+      role: user.role,
+    };
+
+    const redirectTo =
+      user.role === "producer" ? "/producer/dashboard" : "/dashboard";
+
     const response = NextResponse.json({
       success: true,
       message: "הסיסמה הוגדרה בהצלחה 🎉",
-      redirectTo:
-        user.role === "producer"
-          ? "/producer/dashboard"
-          : "/dashboard",
+      user: safeUser,
+      redirectTo,
     });
 
+    // טוקן ראשי
     response.cookies.set({
       name: "authToken",
       value: authToken,
@@ -119,7 +152,22 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 7, // 7 ימים
     });
 
-    console.log("🍪 AUTH COOKIE SET");
+    // אופציונלי אבל מומלץ: מנקה טוקן מפיק ישן אם נשאר
+    response.cookies.set({
+      name: "producerAuthToken",
+      value: "",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    console.log("🍪 AUTH COOKIE SET", {
+      userId: safeUser._id,
+      role: safeUser.role,
+      redirectTo,
+    });
 
     return response;
   } catch (error) {
