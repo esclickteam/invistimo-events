@@ -13,7 +13,7 @@ export interface PaymentDocument extends Document {
   stripePriceId?: string;
 
   // 💳 חבילה / מוצר
-  priceKey: string;
+  priceKey?: string;
   maxGuests: number;
 
   // ☎️ שירות שיחות
@@ -93,10 +93,10 @@ const PaymentSchema = new Schema<PaymentDocument>(
        Package / Product
     ========================= */
     priceKey: {
-      type: String,
-      required: true,
-      index: true,
-    },
+  type: String,
+  required: false,   // ✅ לא חובה
+  index: true,
+},
 
     maxGuests: {
       type: Number,
