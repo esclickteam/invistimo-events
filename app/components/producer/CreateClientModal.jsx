@@ -23,14 +23,28 @@ export default function CreateClientModal({ open, onClose }) {
 
         {/* Modal */}
         <motion.div
-          initial={{ scale: 0.95, y: 20, opacity: 0 }}
+          initial={{ scale: 0.96, y: 20, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
-          exit={{ scale: 0.95, y: 20, opacity: 0 }}
+          exit={{ scale: 0.96, y: 20, opacity: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-xl p-6"
+          className="
+            relative
+            z-10
+            w-full
+            max-w-xl
+            bg-white
+            rounded-2xl
+            shadow-xl
+            max-h-[90vh]
+            flex
+            flex-col
+          "
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">יצירת לקוח חדש</h2>
+          {/* ===== Header (קבוע, לא גולל) ===== */}
+          <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+            <h2 className="text-lg font-semibold">
+              יצירת לקוח חדש
+            </h2>
 
             <button
               onClick={onClose}
@@ -40,7 +54,10 @@ export default function CreateClientModal({ open, onClose }) {
             </button>
           </div>
 
-          <CreateClientByProducer onSuccess={onClose} />
+          {/* ===== Body (גולל) ===== */}
+          <div className="p-6 overflow-y-auto grow">
+            <CreateClientByProducer onSuccess={onClose} />
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
