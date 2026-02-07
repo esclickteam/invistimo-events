@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { UserPlus, X, ArrowUpRight } from "lucide-react";
+import { UserPlus, ArrowUpRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import CreateClientByProducer from "@/app/components/producer/CreateClientByProducer";
 import { useAuth } from "@/context/AuthContext";
 import CreateClientModal from "@/app/components/producer/CreateClientModal";
 
@@ -37,176 +36,129 @@ function isWithinDays(dateStr, days) {
 export default function ProducerDashboard() {
   const { user, loading: authLoading } = useAuth();
 
-  const [events, setEvents] = useState([]);
   const [clients, setClients] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [showCreateClient, setShowCreateClient] = useState(false);
 
   /* =========================
-     Fetch Events (stats only)
+     Fetch Clients
   ========================= */
   useEffect(() => {
-  let isMounted = true;
+    if (!user || user.role !== "producer") return;
 
-  const fetchEvents = async () => {
-    setEventsLoading(true);
-    try {
-      const res = await fetch("/api/invitations/my", {
-        cache: "no-store",
-        credentials: "include",
-      });
+    let isMounted = true;
+    let intervalId;
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Failed to fetch invitation:", res.status, text.slice(0, 200));
-        return;
-      }
+    const fetchClients = async () => {
+      if (isMounted) setClientsLoading(true);
 
-      const data = await res.json();
+      try {
+        const res = await fetch("/api/producer/clients", {
+          cache: "no-store",
+          credentials: "include",
+        });
 
-      if (!isMounted) return;
+        if (!res.ok) {
+          const text = await res.text();
+          console.error(
+            "Failed to fetch producer clients:",
+            res.status,
+            text.slice(0, 200)
+          );
+          if (isMounted) setClients([]);
+          return;
+        }
 
-      const event =
-        data?.invitation?.event ||
-        (data?.invitation?.eventId ? { _id: data.invitation.eventId } : null);
+        const data = await res.json();
+        if (!isMounted) return;
 
-      setEvents(event ? [event] : []);
-    } catch (err) {
-      console.error("Failed to fetch producer events:", err);
-      if (isMounted) setEvents([]);
-    } finally {
-      if (isMounted) setEventsLoading(false);
-    }
-  };
-
-  fetchEvents();
-
-  return () => {
-    isMounted = false;
-  };
-}, []);
-
-
-
-  /* =========================
-     Fetch Clients (table)
-  ========================= */
-  useEffect(() => {
-  let isMounted = true;
-  let intervalId;
-
-  const fetchClients = async () => {
-    if (isMounted) setClientsLoading(true);
-
-    try {
-      const res = await fetch("/api/producer/clients", {
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      // ✅ guard לפני json
-      if (!res.ok) {
-        const text = await res.text();
-        console.error(
-          "Failed to fetch producer clients:",
-          res.status,
-          text.slice(0, 200)
-        );
-        if (isMounted) setClients([]);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!isMounted) return;
-
-      if (data?.success) {
         setClients(Array.isArray(data.clients) ? data.clients : []);
-      } else {
-        setClients([]);
+      } catch (err) {
+        console.error("Failed to fetch producer clients:", err);
+        if (isMounted) setClients([]);
+      } finally {
+        if (isMounted) setClientsLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to fetch producer clients:", err);
-      if (isMounted) setClients([]);
-    } finally {
-      if (isMounted) setClientsLoading(false);
-    }
-  };
+    };
 
-  fetchClients();
+    fetchClients();
+    intervalId = setInterval(fetchClients, 30000);
 
-  // 🔁 ריפרוש כל 30 שניות
-  intervalId = setInterval(fetchClients, 30000);
-
-  return () => {
-    isMounted = false;
-    clearInterval(intervalId);
-  };
-}, []);
-
-
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [user]);
 
   /* =========================
-     Impersonation (ניהול לקוח)
+     Impersonation
   ========================= */
   const handleManageClient = async (clientId) => {
-  try {
-    const res = await fetch("/api/producer/impersonate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ clientId }),
-    });
+    try {
+      const res = await fetch("/api/producer/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ clientId }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok || !data.success) {
-      alert("שגיאה בכניסה ללקוח");
-      return;
+      if (!res.ok || !data.success) {
+        alert("שגיאה בכניסה ללקוח");
+        return;
+      }
+
+      if (!data.eventId) {
+        alert("לא נמצא אירוע ללקוח");
+        return;
+      }
+
+      window.location.href = `/events/production?eventId=${data.eventId}`;
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בכניסה לניהול האירוע");
     }
-
-    // ✅ eventId חייב להגיע מהשרת
-    const eventId = data.eventId;
-
-    if (!eventId) {
-      alert("לא נמצא אירוע ללקוח");
-      return;
-    }
-
-    // 🎬 כניסה ישירה להפקת האירוע
-    window.location.href = `/events/production?eventId=${eventId}`;
-  } catch (err) {
-    console.error(err);
-    alert("שגיאה בכניסה לניהול האירוע");
-  }
-};
+  };
 
   /* =========================
      Stats
   ========================= */
   const stats = useMemo(() => {
-    const active = events.filter((e) => e.status === "active");
-    return {
-      activeCount: active.length,
-      upcomingWeekCount: active.filter((e) =>
-        isWithinDays(e.date, 7)
-      ).length,
-      totalGuests: active.reduce((s, e) => s + (e.maxGuests || 0), 0),
-      totalConfirmed: 0,
-    };
-  }, [events]);
+    const withEvent = clients.filter((c) => c.event);
 
+    return {
+      activeCount: withEvent.length,
+      upcomingWeekCount: withEvent.filter(
+        (c) => c.event?.date && isWithinDays(c.event.date, 7)
+      ).length,
+      totalGuests: withEvent.reduce(
+        (sum, c) => sum + (c.event?.totalGuests || 0),
+        0
+      ),
+      totalConfirmed: withEvent.reduce(
+        (sum, c) => sum + (c.event?.approvedCount || 0),
+        0
+      ),
+    };
+  }, [clients]);
+
+  /* =========================
+     Guards
+  ========================= */
   if (authLoading) return <div className="p-6">טוען…</div>;
   if (!user) return <div className="p-6">לא מחובר</div>;
+  if (user.role !== "producer")
+    return <div className="p-6">אין הרשאה</div>;
 
+  /* =========================
+     UI
+  ========================= */
   return (
     <div className="p-6 space-y-10">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">
-          דשבורד מפיק
-        </h1>
+        <h1 className="text-2xl font-bold text-slate-900">דשבורד מפיק</h1>
 
         <Button
           onClick={() => setShowCreateClient(true)}
@@ -216,8 +168,6 @@ export default function ProducerDashboard() {
           יצירת לקוח חדש
         </Button>
       </div>
-
-    
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -240,7 +190,6 @@ export default function ProducerDashboard() {
           </motion.div>
         ))}
       </div>
-
 
       {/* Clients Table */}
       <div className="bg-white border rounded-2xl overflow-hidden">
@@ -303,17 +252,16 @@ export default function ProducerDashboard() {
                     </Button>
                   </td>
                 </tr>
-              
               ))}
             </tbody>
           </table>
         )}
       </div>
-      <CreateClientModal
-  open={showCreateClient}
-  onClose={() => setShowCreateClient(false)}
-/>
 
+      <CreateClientModal
+        open={showCreateClient}
+        onClose={() => setShowCreateClient(false)}
+      />
     </div>
   );
 }
