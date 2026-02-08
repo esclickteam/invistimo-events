@@ -66,8 +66,9 @@ export async function POST(req: Request) {
        FIND USER BY TOKEN
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord"
-    );
+  "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId"
+);
+
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
 
@@ -125,15 +126,34 @@ export async function POST(req: Request) {
        RESPONSE + COOKIE
     ========================= */
     const safeUser = {
-      _id: user._id.toString(), // תואם ל-AuthContext
-      name: user.name ?? "",
-      email: user.email ?? "",
-      role: user.role,
-      producerPricePerRecord: Number(user.producerPricePerRecord ?? 0), // ⭐ חשוב למחיר מפיק
-    };
+  _id: user._id.toString(),
+  name: user.name ?? "",
+  email: user.email ?? "",
+  role: user.role,
 
-    const redirectTo =
-      user.role === "producer" ? "/producer/dashboard" : "/dashboard";
+  // ⭐ STAFF
+  staffType: user.staffType ?? null,
+  assignedProducerId: user.assignedProducerId
+    ? user.assignedProducerId.toString()
+    : null,
+
+  producerPricePerRecord: Number(user.producerPricePerRecord ?? 0),
+};
+
+
+    let redirectTo = "/dashboard";
+
+if (user.role === "admin") {
+  redirectTo = "/admin";
+} else if (user.role === "producer") {
+  redirectTo = "/producer/dashboard";
+} else if (
+  user.role === "staff" &&
+  user.staffType === "producer_staff"
+) {
+  redirectTo = "/producer-staff/dashboard";
+}
+
 
     const response = NextResponse.json({
       success: true,

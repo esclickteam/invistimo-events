@@ -47,7 +47,8 @@ type JwtPayload = {
   userId?: string;
   id?: string;
   _id?: string;
-  role?: "admin" | "producer" | "client" | "user";
+  role?: "admin" | "producer" | "client" | "user" | "staff";
+
   impersonated?: boolean;
   impersonatedBy?: string;
   impersonationRole?: "admin" | "producer";
@@ -124,7 +125,11 @@ const token = authToken || producerToken;
       return res;
     }
 
-    const safeRole = decoded.role ?? (user.role as any) ?? "user";
+    const safeRole =
+  decoded.role ??
+  (user.role as "admin" | "producer" | "client" | "user" | "staff") ??
+  "user";
+
 
     console.log(
       "✅ ME:",
@@ -138,43 +143,36 @@ const token = authToken || producerToken;
       {
         success: true,
         user: {
-          _id: String(user._id),
-          name: user.name ?? "",
-          email: user.email ?? "",
+  _id: String(user._id),
+  name: user.name ?? "",
+  email: user.email ?? "",
 
-          // role מהטוקן (הכי עדכני ל-session הנוכחי)
-          role: safeRole,
+  role: safeRole,
 
-          createdByProducer: !!user.createdByProducer,
+  /* ===== STAFF ===== */
+  staffType: user.staffType ?? null,
+  assignedProducerId: user.assignedProducerId
+    ? String(user.assignedProducerId)
+    : null,
 
-          // נתונים עסקיים
-          plan: user.plan,
-          guests: user.guests,
-          paidAmount: user.paidAmount,
-          planLimits: user.planLimits,
+  createdByProducer: !!user.createdByProducer,
 
-          producerPricePerRecord: user.producerPricePerRecord ?? 0,
+  // נתונים עסקיים
+  plan: user.plan,
+  guests: user.guests,
+  paidAmount: user.paidAmount,
+  planLimits: user.planLimits,
 
-          // Calls
-          includeCalls: user.includeCalls,
-          callsRounds: user.callsRounds,
-          callsAddonPrice: user.callsAddonPrice,
+  producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-          // Credit gifts
-          includeCreditGifts: user.includeCreditGifts,
-          creditGiftsAddonPrice: user.creditGiftsAddonPrice,
+  // impersonation
+  impersonated: !!decoded.impersonated,
+  impersonatedBy: decoded.impersonatedBy ?? null,
+  impersonationRole: decoded.impersonationRole ?? null,
 
-          // Flags
-          isTrial: user.isTrial,
-          isDemoUser: user.isDemoUser,
+  createdAt: user.createdAt,
+},
 
-          // impersonation
-          impersonated: !!decoded.impersonated,
-          impersonatedBy: decoded.impersonatedBy ?? null,
-          impersonationRole: decoded.impersonationRole ?? null,
-
-          createdAt: user.createdAt,
-        },
       },
       { headers: { "Cache-Control": "no-store" } }
     );

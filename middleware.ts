@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 function redirectToLogin(req: NextRequest) {
   const url = req.nextUrl.clone();
   url.pathname = "/login";
-  // אופציונלי: לשמור לאן רצו להגיע
   url.searchParams.set("next", req.nextUrl.pathname);
   return NextResponse.redirect(url);
 }
@@ -15,12 +14,12 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
-     0) NEVER gate API here (API should return 401 JSON itself)
+     0) NEVER gate API here
   ======================================================== */
   if (pathname.startsWith("/api")) return NextResponse.next();
 
   /* ========================================================
-     1) Public pages (always allowed)
+     1) Public pages
   ======================================================== */
   if (
     pathname === "/" ||
@@ -36,7 +35,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/robots") ||
     pathname.startsWith("/sitemap")
   ) {
-    // continue, but still allow WWW enforcement below if needed
+    // allowed
   }
 
   /* ========================================================
@@ -48,37 +47,40 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-/* ========================================================
-   3) Read auth state
-======================================================== */
+  /* ========================================================
+     3) Read auth state
+  ======================================================== */
+  const token =
+    cookies.get("authToken")?.value ||
+    cookies.get("producerAuthToken")?.value ||
+    cookies.get("adminAuthToken")?.value ||
+    null;
 
-const token =
-  cookies.get("authToken")?.value ||
-  cookies.get("producerAuthToken")?.value ||
-  cookies.get("adminAuthToken")?.value ||
-  null;
-
-const isAuthed = Boolean(token);
+  const isAuthed = Boolean(token);
 
   /* ========================================================
-     4) Route guards by role
+     4) Route guards
   ======================================================== */
 
-  // Client area
+  // Client
   if (pathname.startsWith("/dashboard")) {
-  if (!isAuthed) return redirectToLogin(req);
-}
+    if (!isAuthed) return redirectToLogin(req);
+  }
 
-  // Producer area
+  // Producer
   if (pathname.startsWith("/producer")) {
-  if (!isAuthed) return redirectToLogin(req);
-}
+    if (!isAuthed) return redirectToLogin(req);
+  }
 
-  // Admin area
+  // 🆕 Producer Staff
+  if (pathname.startsWith("/producer-staff")) {
+    if (!isAuthed) return redirectToLogin(req);
+  }
+
+  // Admin
   if (pathname.startsWith("/admin")) {
-  if (!isAuthed) return redirectToLogin(req);
-}
-
+    if (!isAuthed) return redirectToLogin(req);
+  }
 
   return NextResponse.next();
 }
@@ -87,6 +89,7 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/producer/:path*",
+    "/producer-staff/:path*", // 🆕
     "/admin/:path*",
   ],
 };

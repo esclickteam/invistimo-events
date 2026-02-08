@@ -12,11 +12,26 @@ import { useRouter } from "next/navigation";
 /* =====================================================
    TYPES
 ===================================================== */
+type UserRole =
+  | "admin"
+  | "user"
+  | "producer"
+  | "client"
+  | "staff";
+
+type StaffType =
+  | "producer_staff";
+
 interface User {
   _id: string;
   email: string;
   name?: string;
-  role: "admin" | "user" | "producer" | "client";
+
+  role: UserRole;
+
+  /* ===== STAFF ===== */
+  staffType?: StaffType;
+  assignedProducerId?: string;
 
   /* ===== BUSINESS ===== */
   paidAmount: number;
@@ -26,7 +41,7 @@ interface User {
     maxMessages?: number;
   };
 
-  // ⭐ להוסיף:
+  // ⭐ producer only
   producerPricePerRecord?: number;
 
   /* ===== IMPERSONATION ===== */
@@ -34,6 +49,7 @@ interface User {
   impersonatedBy?: string;
   impersonationRole?: "admin" | "producer";
 }
+
 
 interface AuthContextType {
   user: User | null;
@@ -193,12 +209,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (nextUser.role === "admin") {
-        router.replace("/admin");
-      } else if (nextUser.role === "producer") {
-        router.replace("/producer/dashboard");
-      } else {
-        router.replace("/dashboard");
-      }
+  router.replace("/admin");
+} 
+else if (nextUser.role === "producer") {
+  router.replace("/producer/dashboard");
+} 
+else if (
+  nextUser.role === "staff" &&
+  nextUser.staffType === "producer_staff"
+) {
+  router.replace("/producer-staff/dashboard");
+} 
+else {
+  router.replace("/dashboard");
+}
+
 
       router.refresh();
     } catch (err: any) {
