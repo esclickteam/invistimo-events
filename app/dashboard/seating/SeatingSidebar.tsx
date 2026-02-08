@@ -57,6 +57,9 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
   const guests = useSeatingStore((s) => s.guests) as Guest[];
   const groups = useSeatingStore((s) => s.groups) as Group[];
   const tables = useSeatingStore((s) => s.tables) as Table[];
+  const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
+
+
 
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
@@ -83,6 +86,21 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
 
   const getPlannedSeatCount = (g: Guest) =>
     useSeatingStore.getState().getPlannedSeatCount(g);
+
+  // ⭐ ספירת מושבים לפי מצב (רגיל / לייב)
+const getSeatCount = (g: any) => {
+  const store = useSeatingStore.getState();
+
+  // מצב רגיל – תכנון
+  if (!isLiveMode) {
+    return store.getPlannedSeatCount(g);
+  }
+
+  // מצב לייב – מגיעים בפועל (האמת היחידה)
+  return Number(
+    store.liveArrivals[String(g.id ?? g._id)] ?? 0
+  );
+};
 
   
 
@@ -222,7 +240,8 @@ const syncRemoveFromServer = async (guestId: string) => {
         g.rsvp === "yes" &&
         guestTableMap.get(seatGuestId(g))?.id === t.id
     )
-    .reduce((sum, g) => sum + getPlannedSeatCount(g), 0);
+    .reduce((sum, g) => sum + getSeatCount(g), 0);
+
 
   const groupLabel = getTableGroupLabel(t.id);
 
@@ -473,7 +492,8 @@ const syncRemoveFromServer = async (guestId: string) => {
   visibleGuests.map((g) => {
     const gid = seatGuestId(g);
     const table = guestTableMap.get(gid);
-    const planned = getPlannedSeatCount(g);
+    const count = getSeatCount(g);
+
 
     return (
       <div
@@ -486,8 +506,9 @@ const syncRemoveFromServer = async (guestId: string) => {
   <div className="text-sm font-medium truncate">{g.name}</div>
   <div className="text-xs text-gray-500 truncate">
             {table
-  ? `${table.name} · ${planned} מוזמנים`
-  : `לא משובץ · ${planned} מוזמנים`}
+  ? `${table.name} · ${count} ${isLiveMode ? "הגיעו" : "מוזמנים"}`
+  : `לא משובץ · ${count} ${isLiveMode ? "הגיעו" : "מוזמנים"}`}
+
 
           </div>
         </div>
