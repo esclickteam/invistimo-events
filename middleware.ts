@@ -22,21 +22,23 @@ export function middleware(req: NextRequest) {
      1) Public pages
   ======================================================== */
   if (
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/pricing") ||
-    pathname.startsWith("/contact") ||
-    pathname.startsWith("/rsvp") ||
-    pathname.startsWith("/seating-explained") ||
-    pathname.startsWith("/event-management") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/robots") ||
-    pathname.startsWith("/sitemap")
-  ) {
-    // allowed
-  }
+  pathname === "/" ||
+  pathname.startsWith("/login") ||
+  pathname.startsWith("/register") ||
+  pathname.startsWith("/pricing") ||
+  pathname.startsWith("/contact") ||
+  pathname.startsWith("/rsvp") ||
+  pathname.startsWith("/seating-explained") ||
+  pathname.startsWith("/event-management") ||
+  pathname.startsWith("/set-password") || // ✅ זה הקריטי
+  pathname.startsWith("/_next") ||
+  pathname.startsWith("/favicon") ||
+  pathname.startsWith("/robots") ||
+  pathname.startsWith("/sitemap")
+) {
+  return NextResponse.next(); // ⬅️ חשוב
+}
+
 
   /* ========================================================
      2) Force WWW in production
