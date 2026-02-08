@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     }, {});
 
     /* =========================
-       📊 RSVP from InvitationGuest
+       📊 Guests stats (RSVP + Arrivals)
     ========================= */
     const guestStats = await InvitationGuest.aggregate([
       {
@@ -88,11 +88,23 @@ export async function GET(req: NextRequest) {
       {
         $group: {
           _id: "$invitationId",
+
           totalGuests: { $sum: "$guestsCount" },
+
           approvedCount: {
             $sum: {
               $cond: [{ $eq: ["$rsvp", "yes"] }, "$guestsCount", 0],
             },
+          },
+
+          // ⭐ מגיעים (לוגיקה קיימת)
+          arrivedCount: {
+            $sum: { $ifNull: ["$arrivedCount", 0] },
+          },
+
+          // ⭐⭐ מגיעים בפועל – מפיק
+          actualArrivedCount: {
+            $sum: { $ifNull: ["$actualArrivedCount", 0] },
           },
         },
       },
@@ -102,8 +114,10 @@ export async function GET(req: NextRequest) {
       guestStats.map((g: any) => [
         String(g._id),
         {
-          totalGuests: g.totalGuests,
-          approvedCount: g.approvedCount,
+          totalGuests: g.totalGuests || 0,
+          approvedCount: g.approvedCount || 0,
+          arrivedCount: g.arrivedCount || 0,
+          actualArrivedCount: g.actualArrivedCount || 0,
         },
       ])
     );
@@ -119,13 +133,17 @@ export async function GET(req: NextRequest) {
 
       let totalGuests = 0;
       let approvedCount = 0;
+      let arrivedCount = 0;
+      let actualArrivedCount = 0;
 
       for (const invId of invIds) {
         const stats = statsByInvitationId[String(invId)];
-        if (stats) {
-          totalGuests += stats.totalGuests;
-          approvedCount += stats.approvedCount;
-        }
+        if (!stats) continue;
+
+        totalGuests += stats.totalGuests;
+        approvedCount += stats.approvedCount;
+        arrivedCount += stats.arrivedCount;
+        actualArrivedCount += stats.actualArrivedCount;
       }
 
       return {
@@ -136,8 +154,13 @@ export async function GET(req: NextRequest) {
             typeof event.location === "object"
               ? event.location.address
               : event.location,
+
           totalGuests,
           approvedCount,
+
+          // ⭐ חדש
+          arrivedCount,
+          actualArrivedCount,
         },
       };
     });
