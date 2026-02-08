@@ -135,11 +135,9 @@ export default function ProducerStaffDashboardPage() {
   /* ===============================
      UI
   =============================== */
-  return (
-    <>
-      <ProducerDashboardHeader />
-
-      <main dir="rtl" className="pt-16 px-6 md:px-10">
+ return (
+  <>
+    <main dir="rtl" className="pt-16 px-6 md:px-10">
         {/* Stats */}
         <div
           style={{
