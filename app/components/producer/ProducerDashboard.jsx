@@ -274,49 +274,41 @@ export default function ProducerDashboard() {
   );
 
   const toggleAssignClientToStaff = async (client, staff, shouldAssign) => {
-    try {
-      const clientId = String(client._id);
-      const staffId = String(staff._id);
+  try {
+    setSavingClientId(String(client._id));
 
-      setSavingClientId(clientId);
+    const res = await fetch("/api/producer/staff/assign-clients", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        staffId: String(staff._id),
+        clientId: String(client._id),
+        action: shouldAssign ? "add" : "remove",
+      }),
+    });
 
-      const currentIds = Array.isArray(staff?.assignedClientIds)
-        ? staff.assignedClientIds.map((x) => String(x))
-        : [];
-
-      const nextIds = shouldAssign
-        ? Array.from(new Set([...currentIds, clientId]))
-        : currentIds.filter((id) => id !== clientId);
-
-      const res = await fetch("/api/producer/staff/assign-clients", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          staffId,
-          clientIds: nextIds,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.message || "שגיאה בשמירת ההקצאה");
-      }
-
-      // עדכון לוקאלי מיידי
-      setStaffList((prev) =>
-        prev.map((s) =>
-          String(s._id) === staffId ? { ...s, assignedClientIds: nextIds } : s
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      alert(err?.message || "שגיאה בשמירת ההקצאה");
-    } finally {
-      setSavingClientId(null);
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data?.message || "שגיאה בשמירה");
     }
-  };
+
+    // ✅ עדכון לוקאלי לפי מה שחזר מהשרת
+    setStaffList((prev) =>
+      prev.map((s) =>
+        String(s._id) === String(staff._id)
+          ? { ...s, assignedClientIds: data.assignedClientIds }
+          : s
+      )
+    );
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "שגיאה בשמירת ההקצאה");
+  } finally {
+    setSavingClientId(null);
+  }
+};
+
 
   /* =========================
      Stats
