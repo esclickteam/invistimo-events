@@ -18,12 +18,23 @@ export default function EventProductionPage() {
   const [loading, setLoading] = useState(true);
 
   /* =========================
-     Load invitation
+     Extract eventId (single source of truth)
+  ========================= */
+  const eventId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("eventId");
+  }, []);
+
+  /* =========================
+     Load invitation by eventId
   ========================= */
   useEffect(() => {
-    if (!user) return;
+    if (!user || !eventId) {
+      setLoading(false);
+      return;
+    }
 
-    fetch("/api/invitations/my", {
+    fetch(`/api/invitations/by-event?eventId=${eventId}`, {
       credentials: "include",
       cache: "no-store",
     })
@@ -39,22 +50,7 @@ export default function EventProductionPage() {
         setInvitation(null);
       })
       .finally(() => setLoading(false));
-  }, [user]);
-
-  /* =========================
-     Extract eventId (source of truth)
-  ========================= */
-  const eventId = useMemo(() => {
-    if (typeof window === "undefined") return null;
-
-    const params = new URLSearchParams(window.location.search);
-    return (
-      params.get("eventId") ||
-      invitation?.eventId ||
-      invitation?.event?._id ||
-      null
-    );
-  }, [invitation]);
+  }, [user, eventId]);
 
   /* =========================
      Loading
@@ -79,7 +75,7 @@ export default function EventProductionPage() {
   }
 
   /* =========================
-     Render – מסך הפקה בלבד
+     Render
   ========================= */
   return (
     <ProductionTabs
