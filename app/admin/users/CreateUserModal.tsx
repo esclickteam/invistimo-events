@@ -43,32 +43,38 @@ export default function CreateUserModal({ onClose }: Props) {
      SUBMIT
   ===================================================== */
   async function handleSubmit() {
-    const payload =
-      role === "producer"
-        ? {
-            name,
-            email,
-            role,
-            billing: {
-              pricePerRecord: producerPricePerRecord,
-            },
-          }
-        : {
-            name,
-            email,
-            role,
-            limits: {
-              records,
-              smsTotal,
-              smsPerRecord: SMS_PER_RECORD,
-              smsAuto,
-              includeCalls,
-            },
-            billing: {
-              price,
-              paymentStatus,
-            },
-          };
+   const payload =
+  role === "producer"
+    ? {
+        name,
+        email,
+        role,
+        billing: {
+          pricePerRecord: producerPricePerRecord,
+        },
+      }
+    : role === "staff"
+    ? {
+        name,
+        email,
+        role,
+      }
+    : {
+        name,
+        email,
+        role,
+        limits: {
+          records,
+          smsTotal,
+          smsPerRecord: SMS_PER_RECORD,
+          smsAuto,
+          includeCalls,
+        },
+        billing: {
+          price,
+          paymentStatus,
+        },
+      };
 
     try {
       const res = await fetch("/api/admin/users", {
@@ -312,13 +318,14 @@ export default function CreateUserModal({ onClose }: Props) {
 
           <button
             onClick={handleSubmit}
-            disabled={
-              !name ||
-              !email ||
-              (role === "user" && !price) ||
-              (role === "producer" &&
-                !producerPricePerRecord)
-            }
+           disabled={
+  !name ||
+  !email ||
+  (role === "user" && !price) ||
+  (role === "producer" && !producerPricePerRecord)
+  // staff לא צריך שום תנאי
+}
+
             className="px-5 py-2 rounded-lg bg-black text-white disabled:opacity-40"
           >
             צור משתמש
