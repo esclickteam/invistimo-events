@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
-import { nanoid } from "nanoid";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import { sendEmail } from "@/lib/sendEmail";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     await dbConnect();
 
+    // ✅ חשוב: אצלך cookies() מחזיר Promise
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
 
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
 
-    // רק מפיק יכול ליצור עובד מפיק
     if (decoded.role !== "producer") {
       return NextResponse.json(
         { success: false, message: "אין הרשאה" },
@@ -39,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     if (!name || !email) {
       return NextResponse.json(
-        { success: false, message: "שם ואימייל הם חובה" },
+        { success: false, message: "שם ואימייל חובה" },
         { status: 400 }
       );
     }
@@ -47,33 +46,37 @@ export async function POST(req: NextRequest) {
     const exists = await User.findOne({ email }).lean();
     if (exists) {
       return NextResponse.json(
-        { success: false, message: "האימייל כבר קיים במערכת" },
+        { success: false, message: "האימייל כבר קיים" },
         { status: 409 }
       );
     }
 
-    // טוקן להגדרת סיסמה
-    const resetToken = nanoid(48);
-    const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 שעות
+    // סיסמה זמנית (בהמשך אפשר לשלוח מייל הגדרה)
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const hashed = await bcrypt.hash(tempPassword, 10);
 
     const staff = await User.create({
       name,
       email,
       phone,
 
+      password: hashed,
+      needsPasswordSetup: true,
+
       role: "staff",
       staffType: "producer_staff",
-      assignedProducerId: decoded.id, // שיוך למפיק שיצר
-      createdByProducer: decoded.id,
 
-      plan: "basic",
-      guests: 0,
-      paidAmount: 0,
-      hasPaid: false,
+      // ✅ הכי חשוב לשגיאה שלך
+      assignedProducerId: decoded.id,
+
       billingSource: "producer",
+      hasPaid: true,
+      paidAmount: 0,
 
+      guests: 0,
       smsPerRecord: 0,
       maxMessages: 0,
+
       planLimits: {
         maxGuests: 0,
         smsEnabled: false,
@@ -82,70 +85,19 @@ export async function POST(req: NextRequest) {
         remindersEnabled: true,
       },
 
-      // אין סיסמה ביצירה -> העובד מגדיר דרך המייל
-      needsPasswordSetup: true,
-      resetPasswordToken: resetToken,
-      resetPasswordExpires,
+      createdByProducer: decoded.id,
     });
-
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000";
-
-    const resetLink = `${baseUrl}/reset-password/${resetToken}`;
-
-    // שולחים מייל להגדרת סיסמה
-    try {
-      await sendEmail({
-        to: email,
-        subject: "הגדרת סיסמה לחשבון העובד שלך ב-Invistimo",
-        html: `
-          <!doctype html>
-          <html lang="he" dir="rtl">
-            <body style="font-family: Arial, sans-serif; line-height: 1.7; color: #1f2937;">
-              <h2>שלום ${name},</h2>
-              <p>נוצר עבורך חשבון עובד מפיק במערכת Invistimo.</p>
-              <p>כדי להגדיר סיסמה ראשונית, יש ללחוץ על הכפתור:</p>
-              <p>
-                <a href="${resetLink}" style="display:inline-block;padding:10px 16px;background:#3b2a22;color:#fff;text-decoration:none;border-radius:8px;">
-                  להגדרת סיסמה
-                </a>
-              </p>
-              <p>אם הכפתור לא עובד, אפשר להעתיק את הקישור הבא לדפדפן:</p>
-              <p>${resetLink}</p>
-              <p>הקישור תקף ל-24 שעות.</p>
-            </body>
-          </html>
-        `,
-      });
-    } catch (mailError) {
-      console.error("create-staff sendEmail error:", mailError);
-
-      // העובד נוצר גם אם שליחת מייל נכשלה
-      return NextResponse.json({
-        success: true,
-        message: "העובד נוצר, אך שליחת המייל נכשלה",
-        user: {
-          _id: staff._id,
-          name: staff.name,
-          email: staff.email,
-          role: staff.role,
-          staffType: staff.staffType,
-        },
-        resetLink, // שימושי לבדיקה ידנית
-      });
-    }
 
     return NextResponse.json({
       success: true,
-      message: "העובד נוצר בהצלחה ונשלח מייל להגדרת סיסמה",
+      message: "העובד נוצר בהצלחה",
       user: {
         _id: staff._id,
         name: staff.name,
         email: staff.email,
         role: staff.role,
         staffType: staff.staffType,
+        assignedProducerId: staff.assignedProducerId,
       },
     });
   } catch (error: any) {
