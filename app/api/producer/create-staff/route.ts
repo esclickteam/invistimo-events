@@ -122,7 +122,8 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_APP_URL ||
       "https://invistimo.com";
 
-    const setupLink = `${baseUrl}/set-password/${tokenForSetup}`;
+    const setupLink = `${baseUrl}/set-password?token=${tokenForSetup}`;
+
 
     // שליחת מייל (לא מפיל את היצירה אם נכשל)
     try {
