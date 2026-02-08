@@ -27,11 +27,11 @@ export async function GET(req: NextRequest) {
     const producerId = auth.userId;
 
     /* =========================
-       👥 Clients
+       👥 Clients – לפי assignedProducerId
     ========================= */
     const clients = await User.find({
-      role: "client",
-      producerId,
+      role: "user",
+      assignedProducerId: producerId,
     })
       .select("name email phone createdAt")
       .sort({ createdAt: -1 })
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
     );
 
     /* =========================
-       🔗 Merge to client
+       🔗 Merge Client + Event + Stats
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
