@@ -26,7 +26,7 @@ export async function GET() {
   }
 
   // ✅ חייב להיות עובד מפיק
-  if (staff.staffType !== "producer") {
+  if (staff.staffType !== "producer_staff") {
     return Response.json({ success: false }, { status: 403 });
   }
 
