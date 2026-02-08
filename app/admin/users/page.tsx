@@ -17,10 +17,15 @@ type AdminUser = {
   createdAt?: string;
   eventDate?: string;
 
-  // 🆕 מטפלים
+  // 🔽 מטפלים – IDs (לדרופדאון)
+  assignedProducerId?: string | null;
+  assignedStaffIds?: string[];
+
+  // 🔽 תצוגה (אם את עדיין משתמשת במיילים איפשהו)
   assignedProducerEmail?: string;
   assignedStaffEmail?: string;
 };
+
 
 /* =========================
    PAGE
@@ -161,8 +166,59 @@ export default function AdminUsersPage() {
                         ? new Date(u.eventDate).toLocaleDateString("he-IL")
                         : "—"}
                     </td>
-                    <td className="p-3">{u.assignedProducerEmail || "—"}</td>
-                    <td className="p-3">{u.assignedStaffEmail || "—"}</td>
+                    <td className="p-3">
+  <select
+    className="border rounded px-2 py-1 text-sm w-full"
+    value={u.assignedProducerId || ""}
+    onChange={async (e) => {
+      await fetch(`/api/admin/users/${u._id}/assignees`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignedProducerId: e.target.value || null,
+          assignedStaffIds: u.assignedStaffIds || [],
+        }),
+      });
+      loadUsers();
+    }}
+  >
+    <option value="">— ללא מפיק —</option>
+    {producers.map((p) => (
+      <option key={p._id} value={p._id}>
+        {p.name}
+      </option>
+    ))}
+  </select>
+</td>
+
+                    
+                    <td className="p-3">
+  <select
+    className="border rounded px-2 py-1 text-sm w-full"
+    value={u.assignedStaffIds?.[0] || ""}
+    onChange={async (e) => {
+      await fetch(`/api/admin/users/${u._id}/assignees`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignedProducerId: u.assignedProducerId || null,
+          assignedStaffIds: e.target.value ? [e.target.value] : [],
+        }),
+      });
+      loadUsers();
+    }}
+  >
+    <option value="">— ללא עובד —</option>
+    {staff.map((s) => (
+      <option key={s._id} value={s._id}>
+        {s.name}
+      </option>
+    ))}
+  </select>
+</td>
+
                     <td className="p-3">
                       {u.includeCalls ? `☎️ פעיל (${u.callsRounds})` : "לא פעיל"}
                     </td>
