@@ -80,6 +80,31 @@ export default function ProducerStaffDashboardPage() {
     fetchEvents();
   }, [user]);
 
+  const handleManageEvent = async (eventId: string) => {
+  try {
+    const res = await fetch("/api/staff/manage-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ eventId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      alert(data.message || "אין הרשאה לאירוע");
+      return;
+    }
+
+    // ✅ כניסה לאירוע בדיוק כמו אצל מפיק
+    window.location.href = `/events/production?eventId=${data.eventId}`;
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה בכניסה לניהול האירוע");
+  }
+};
+
+
   if (loading || !user) {
     return <div style={{ padding: 32 }}>טוען…</div>;
   }
@@ -140,9 +165,8 @@ export default function ProducerStaffDashboardPage() {
             <EventCard
               key={event._id}
               event={event}
-              onManage={() =>
-                router.push(`/events/production?eventId=${event._id}`)
-              }
+              onManage={() => handleManageEvent(event._id)}
+
             />
           ))}
         </div>
