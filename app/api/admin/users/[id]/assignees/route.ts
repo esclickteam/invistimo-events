@@ -26,16 +26,19 @@ const token = cookieStore.get("authToken")?.value;
     }
 
     const body = await req.json();
-    const { assignedProducerId, assignedStaffId } = body;
+    const { assignedProducerId, assignedStaffIds } = body;
 
-    const user = await User.findByIdAndUpdate(
-      params.id,
-      {
-        assignedProducerId: assignedProducerId || null,
-        assignedStaffId: assignedStaffId || null,
-      },
-      { new: true }
-    ).lean();
+   const user = await User.findByIdAndUpdate(
+  params.id,
+  {
+    assignedProducerId: assignedProducerId || null,
+    assignedStaffIds: Array.isArray(assignedStaffIds)
+      ? assignedStaffIds
+      : [],
+  },
+  { new: true }
+).lean();
+
 
     return NextResponse.json({ success: true, user });
   } catch (err) {

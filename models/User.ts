@@ -24,7 +24,9 @@ export interface IUser extends Document {
   createdByAdmin?: boolean;
 
   assignedProducerId?: mongoose.Types.ObjectId | null;
-assignedStaffId?: mongoose.Types.ObjectId | null;
+assignedStaffIds?: mongoose.Types.ObjectId[];
+
+
 
   billingSource?: "site" | "admin" | "producer";
 
@@ -118,11 +120,13 @@ assignedProducerId: {
   default: null,
 },
 
-assignedStaffId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "User",
-  default: null,
-},
+assignedStaffIds: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+],
+
 
     billingSource: {
       type: String,
