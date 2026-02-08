@@ -49,6 +49,9 @@ export default function ProducerDashboard() {
   const [openAssignForClientId, setOpenAssignForClientId] = useState(null);
   const [savingClientId, setSavingClientId] = useState(null);
 
+  // חיפוש עובדים בתוך כל דרופדאון לפי clientId
+  const [staffSearchByClientId, setStaffSearchByClientId] = useState({});
+
   const assignMenuRef = useRef(null);
 
   /* =========================
@@ -252,27 +255,45 @@ export default function ProducerDashboard() {
     [staffList, isClientAssignedToStaff]
   );
 
+  // NEW: סינון עובדים לפי חיפוש בדרופדאון (שם/אימייל)
+  const getFilteredStaffForClient = useCallback(
+    (clientId) => {
+      const q = String(staffSearchByClientId?.[String(clientId)] || "")
+        .trim()
+        .toLowerCase();
+
+      if (!q) return staffList;
+
+      return staffList.filter((s) => {
+        const name = String(s?.name || "").toLowerCase();
+        const email = String(s?.email || "").toLowerCase();
+        return name.includes(q) || email.includes(q);
+      });
+    },
+    [staffList, staffSearchByClientId]
+  );
+
   const toggleAssignClientToStaff = async (client, staff, shouldAssign) => {
     try {
-      setSavingClientId(String(client._id));
+      const clientId = String(client._id);
+      const staffId = String(staff._id);
 
-      const currentIds = Array.isArray(staff.assignedClientIds)
+      setSavingClientId(clientId);
+
+      const currentIds = Array.isArray(staff?.assignedClientIds)
         ? staff.assignedClientIds.map((x) => String(x))
         : [];
 
-      let nextIds = currentIds;
-      if (shouldAssign) {
-        nextIds = Array.from(new Set([...currentIds, String(client._id)]));
-      } else {
-        nextIds = currentIds.filter((id) => id !== String(client._id));
-      }
+      const nextIds = shouldAssign
+        ? Array.from(new Set([...currentIds, clientId]))
+        : currentIds.filter((id) => id !== clientId);
 
       const res = await fetch("/api/producer/staff/assign-clients", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          staffId: String(staff._id),
+          staffId,
           clientIds: nextIds,
         }),
       });
@@ -286,9 +307,7 @@ export default function ProducerDashboard() {
       // עדכון לוקאלי מיידי
       setStaffList((prev) =>
         prev.map((s) =>
-          String(s._id) === String(staff._id)
-            ? { ...s, assignedClientIds: nextIds }
-            : s
+          String(s._id) === staffId ? { ...s, assignedClientIds: nextIds } : s
         )
       );
     } catch (err) {
@@ -342,7 +361,7 @@ export default function ProducerDashboard() {
           className="bg-[#3b2a22] hover:bg-[#2f211a] text-white rounded-full px-6 py-3 text-sm font-semibold flex items-center gap-2 shadow-sm"
         >
           <UserPlus className="w-4 h-4" />
-          יצירת לקוח חדש
+          יצירת משתמש חדש
         </Button>
       </div>
 
@@ -395,6 +414,7 @@ export default function ProducerDashboard() {
               {clients.map((client) => {
                 const isOpen = openAssignForClientId === String(client._id);
                 const isSavingThisRow = savingClientId === String(client._id);
+                const filteredStaff = getFilteredStaffForClient(client._id);
 
                 return (
                   <tr key={client._id} className="border-b hover:bg-slate-50">
@@ -426,7 +446,10 @@ export default function ProducerDashboard() {
 
                     {/* NEW: assignment dropdown */}
                     <td className="p-4 relative">
-                      <div className="inline-flex items-center gap-2" ref={isOpen ? assignMenuRef : null}>
+                      <div
+                        className="inline-flex items-center gap-2"
+                        ref={isOpen ? assignMenuRef : null}
+                      >
                         <Button
                           type="button"
                           variant="outline"
@@ -434,28 +457,57 @@ export default function ProducerDashboard() {
                           className="flex items-center gap-1"
                           onClick={() =>
                             setOpenAssignForClientId((prev) =>
-                              prev === String(client._id) ? null : String(client._id)
+                              prev === String(client._id)
+                                ? null
+                                : String(client._id)
                             )
                           }
                         >
-                          {isSavingThisRow ? "שומר..." : assignedStaffNamesForClient(client._id)}
+                          {isSavingThisRow
+                            ? "שומר..."
+                            : assignedStaffNamesForClient(client._id)}
                           <ChevronDown className="w-4 h-4" />
                         </Button>
 
                         {isOpen && (
-                          <div className="absolute z-50 mt-2 min-w-[280px] rounded-xl border bg-white shadow-lg p-2">
-                            <div className="px-2 py-1 text-xs text-slate-500 border-b mb-1">
+                          <div className="absolute z-50 mt-2 min-w-[320px] rounded-xl border bg-white shadow-lg p-2">
+                            <div className="px-2 py-1 text-xs text-slate-500 border-b mb-2">
                               בחרי עובד/ים ללקוח זה
                             </div>
 
+                            {/* NEW: חיפוש עובדים */}
+                            <div className="px-2 pb-2">
+                              <input
+                                type="text"
+                                value={
+                                  staffSearchByClientId[String(client._id)] || ""
+                                }
+                                onChange={(e) =>
+                                  setStaffSearchByClientId((prev) => ({
+                                    ...prev,
+                                    [String(client._id)]: e.target.value,
+                                  }))
+                                }
+                                placeholder="חיפוש לפי שם/אימייל..."
+                                className="w-full border rounded-lg px-3 py-2 text-sm"
+                              />
+                            </div>
+
                             {staffLoading ? (
-                              <div className="px-2 py-2 text-sm text-slate-500">טוען עובדים…</div>
-                            ) : staffList.length === 0 ? (
-                              <div className="px-2 py-2 text-sm text-slate-500">אין עובדים זמינים</div>
+                              <div className="px-2 py-2 text-sm text-slate-500">
+                                טוען עובדים…
+                              </div>
+                            ) : filteredStaff.length === 0 ? (
+                              <div className="px-2 py-2 text-sm text-slate-500">
+                                לא נמצאו עובדים
+                              </div>
                             ) : (
                               <div className="max-h-64 overflow-auto">
-                                {staffList.map((staff) => {
-                                  const checked = isClientAssignedToStaff(client._id, staff);
+                                {filteredStaff.map((staff) => {
+                                  const checked = isClientAssignedToStaff(
+                                    client._id,
+                                    staff
+                                  );
                                   return (
                                     <label
                                       key={staff._id}
@@ -475,7 +527,9 @@ export default function ProducerDashboard() {
                                       />
                                       <span className="text-sm">
                                         {staff.name}{" "}
-                                        <span className="text-slate-500">({staff.email})</span>
+                                        <span className="text-slate-500">
+                                          ({staff.email})
+                                        </span>
                                       </span>
                                     </label>
                                   );
@@ -483,7 +537,16 @@ export default function ProducerDashboard() {
                               </div>
                             )}
 
-                            <div className="pt-2 mt-1 border-t flex justify-end">
+                            <div className="pt-2 mt-1 border-t flex items-center justify-between">
+                              <span className="text-xs text-slate-500">
+                                מוקצים כרגע:{" "}
+                                {
+                                  staffList.filter((s) =>
+                                    isClientAssignedToStaff(client._id, s)
+                                  ).length
+                                }
+                              </span>
+
                               <Button
                                 type="button"
                                 size="sm"
@@ -519,6 +582,9 @@ export default function ProducerDashboard() {
       <CreateClientModal
         open={showCreateClient}
         onClose={() => setShowCreateClient(false)}
+        onSuccess={async () => {
+          await Promise.all([fetchClients(), fetchStaff()]);
+        }}
       />
     </div>
   );
