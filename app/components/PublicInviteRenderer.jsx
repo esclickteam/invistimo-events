@@ -49,13 +49,11 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   return (
     <div className="w-full flex justify-center">
-      <div
-        ref={containerRef}
-        className="w-full flex justify-center"
-        style={{
-          overflow: "visible",
-        }}
-      >
+  <div
+    ref={containerRef}
+    className="w-full max-w-[400px] flex justify-center"
+    style={{ overflow: "visible" }}
+  >
         <div
           style={{
             width: width * scale,
