@@ -10,7 +10,8 @@ export interface IUser extends Document {
   password?: string;
   phone?: string;
 
-  role: "user" | "client" | "producer" | "photographer" | "admin";
+  role: "user" | "client" | "producer" | "staff" | "admin";
+
 
   plan: "basic" | "premium";
   guests: number;
@@ -89,11 +90,11 @@ const UserSchema = new Schema<IUser>(
 
     phone: { type: String, trim: true, default: "" },
 
-    role: {
-      type: String,
-      enum: ["user", "client", "producer", "photographer", "admin"],
-      default: "user",
-    },
+   role: {
+  type: String,
+  enum: ["user", "client", "producer", "staff", "admin"],
+  default: "user",
+},
 
     plan: {
       type: String,
