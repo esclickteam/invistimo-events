@@ -32,11 +32,9 @@ export async function GET() {
 
   // ✅ שליפת כל המשתמשים שהוקצו (client + user)
   const users = await User.find({
-    _id: { $in: staff.assignedClientIds || [] },
-    role: { $in: ["client", "user"] },
-  })
-    .populate("event")
-    .lean();
+  _id: { $in: staff.assignedClientIds || [] },
+  role: { $in: ["client", "user"] },
+}).lean();
 
   return Response.json({ success: true, users });
 }
