@@ -6,11 +6,18 @@ import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
+type JwtPayloadLike = {
+  id?: string;
+  _id?: string;
+  userId?: string;
+  role?: string;
+};
+
 export async function GET(_req: NextRequest) {
   try {
     await dbConnect();
 
-    // ✅ חובה בפרויקט שלך: cookies() מחזיר Promise
+    // ✅ בפרויקט שלך cookies() הוא Promise
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -21,10 +28,10 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      id: string;
-      role: string;
-    };
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    ) as JwtPayloadLike;
 
     if (decoded.role !== "producer") {
       return NextResponse.json(
@@ -33,15 +40,30 @@ export async function GET(_req: NextRequest) {
       );
     }
 
+    // ✅ מזהה מפיק – תומך בכל וריאנט
+    const producerId =
+      decoded.id || decoded._id || decoded.userId;
+
+    if (!producerId) {
+      return NextResponse.json(
+        { success: false, message: "מזהה מפיק לא תקין" },
+        { status: 401 }
+      );
+    }
+
     const staff = await User.find({
       role: "staff",
       staffType: "producer_staff",
-      assignedProducerId: decoded.id,
+      assignedProducerId: producerId,
     })
       .select("_id name email assignedClientIds")
+      .sort({ createdAt: -1 })
       .lean();
 
-    return NextResponse.json({ success: true, staff });
+    return NextResponse.json({
+      success: true,
+      staff,
+    });
   } catch (err: any) {
     console.error("staff list error:", err);
     return NextResponse.json(
