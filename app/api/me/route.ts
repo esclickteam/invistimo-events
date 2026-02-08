@@ -75,22 +75,11 @@ export async function GET() {
     const producerToken = cookieStore.get("producerAuthToken")?.value ?? null;
     const authToken = cookieStore.get("authToken")?.value ?? null;
 
-    // 🚨 מצב לא חוקי: שני טוקנים יחד
-    if (producerToken && authToken) {
-      const res = NextResponse.json(
-        {
-          success: false,
-          user: null,
-          message: "מצב אימות לא תקין: שני טוקנים פעילים",
-        },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
-      );
-      clearAuthCookies(res);
-      return res;
-    }
+   
 
-    // מקור אמת יחיד
-    const token = producerToken || authToken;
+    // ✅ אם יש authToken – תמיד הוא האמת (גם בהתחזות)
+const token = authToken || producerToken;
+
 
     if (!token) {
       return NextResponse.json(
