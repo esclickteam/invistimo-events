@@ -130,8 +130,15 @@ export default function DashboardPage() {
   const seatingTables = useSeatingStore((s) => s.tables);
 
   const effectiveRole = useMemo(() => {
-  if (user?.impersonationRole) return user.impersonationRole;
+  // התחזות תמיד קובעת
+  if (user?.impersonationRole) {
+    if (user.impersonationRole === "producer_staff") {
+      return "producer";
+    }
+    return user.impersonationRole;
+  }
 
+  // staff רגיל
   if (
     user?.role === "staff" &&
     user?.staffType === "producer_staff"
@@ -141,6 +148,7 @@ export default function DashboardPage() {
 
   return user?.role;
 }, [user]);
+
 
 
 const canViewActualArrived =
