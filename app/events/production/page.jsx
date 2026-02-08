@@ -34,7 +34,7 @@ export default function EventProductionPage() {
       return;
     }
 
-    fetch(`/api/invitations/by-event?eventId=${eventId}`, {
+    fetch(`/api/invitations/by-event/${eventIdFromUrl}`, {
       credentials: "include",
       cache: "no-store",
     })
