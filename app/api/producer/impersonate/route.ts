@@ -30,42 +30,30 @@ function httpOnlyCookieOptions() {
    POST /api/producer/impersonate
 ========================= */
 export async function POST(req: NextRequest) {
-  console.log("🟡 [Producer Impersonate] Request received");
-
   try {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – מפיק אמיתי
+       🔐 Auth – producer
     ========================= */
     const auth: any = await getUserIdFromRequest(req);
 
-    if (!auth?.userId) {
+    if (!auth?.userId || auth.role !== "producer") {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // ⭐️ אם כבר בהתחזות – לא עושים כלום
+    // אם כבר בהתחזות – לא נוגעים
     if (auth.impersonated) {
-      console.log("🟢 Already impersonated – skip");
       return NextResponse.json(
         { success: true, alreadyImpersonated: true },
         { status: 200 }
       );
     }
 
-    const producer = await User.findById(auth.userId)
-      .select("_id role")
-      .lean();
-
-    if (!producer || producer.role !== "producer") {
-      return NextResponse.json(
-        { success: false, message: "Forbidden – not producer" },
-        { status: 403 }
-      );
-    }
+    const producerId = auth.userId;
 
     /* =========================
        📥 Input
@@ -81,27 +69,24 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       👤 Client ownership
+       👤 Client ownership (NEW LOGIC)
     ========================= */
     const client = await User.findOne({
-  _id: clientId,
-  $or: [
-    { producerId: producer._id },
-    { createdByProducer: producer._id },
-  ],
-})
-  .select("_id")
-  .lean();
+      _id: clientId,
+      assignedProducerId: producerId, // ⭐️ זה השיוך האמיתי
+    })
+      .select("_id")
+      .lean();
 
-if (!client) {
-  return NextResponse.json(
-    { success: false, message: "Client not found or not yours" },
-    { status: 403 }
-  );
-}
+    if (!client) {
+      return NextResponse.json(
+        { success: false, message: "Client not assigned to producer" },
+        { status: 403 }
+      );
+    }
 
     /* =========================
-       🎬 Client Event
+       🎬 Event
     ========================= */
     const event = await Event.findOne({
       userId: client._id,
@@ -117,11 +102,10 @@ if (!client) {
     }
 
     /* =========================
-       🍪 Cookies (read)
+       🍪 Cookies
     ========================= */
     const cookieStore = await cookies();
 
-    // זה הטוקן של המפיק לפני התחזות
     const currentAuthToken = cookieStore.get("authToken")?.value || null;
     const existingProducerToken =
       cookieStore.get("producerAuthToken")?.value || null;
@@ -142,7 +126,7 @@ if (!client) {
         role: "client",
 
         impersonated: true,
-        impersonatedBy: producer._id.toString(),
+        impersonatedBy: producerId,
         impersonationRole: "producer",
       },
       process.env.JWT_SECRET!,
@@ -150,7 +134,7 @@ if (!client) {
     );
 
     /* =========================
-       ✅ Response + Set-Cookies
+       ✅ Response
     ========================= */
     const res = NextResponse.json(
       { success: true, eventId: event._id.toString() },
@@ -159,15 +143,11 @@ if (!client) {
 
     const opts = httpOnlyCookieOptions();
 
-    // ✅ שומרים את טוקן המפיק פעם אחת בלבד
     if (!existingProducerToken) {
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
 
-    // ✅ מחליפים authToken לטוקן התחזות
     res.cookies.set("authToken", impersonationToken, opts);
-
-    console.log("🍪 authToken overwritten; producerAuthToken preserved");
 
     return res;
   } catch (err) {
