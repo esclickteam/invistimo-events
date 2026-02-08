@@ -40,26 +40,27 @@ export async function GET() {
     })
     
       .select(`
-        name
-        email
-        role
-        plan
-        guests
-        maxMessages
-        paidAmount
-        hasPaid
-        includeCalls
-        includeCreditGifts
-        createdByProducer
-        producerId
-        planLimits
-        smsUsed
-        createdAt
-        producerPricePerRecord
+  name
+  email
+  role
+  plan
+  guests
+  maxMessages
+  paidAmount
+  hasPaid
+  includeCalls
+  includeCreditGifts
+  createdByProducer
+  producerId
+  planLimits
+  smsUsed
+  createdAt
+  producerPricePerRecord
 
-        assignedProducerEmail
-  assignedStaffEmail
-      `)
+  assignedProducerId
+  assignedStaffIds
+`)
+
       .sort({ createdAt: -1 })
       .lean();
 const userIds = users.map((u: any) => u._id);
