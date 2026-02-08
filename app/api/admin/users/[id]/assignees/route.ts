@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
@@ -11,15 +12,12 @@ export const runtime = "nodejs";
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
-  context: any
+  { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
 
-    /* =========================
-       Params
-    ========================= */
-    const { id } = context.params;
+    const { id } = params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: "MISSING_USER_ID" },
@@ -27,10 +25,10 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       Auth
-    ========================= */
-    const token = req.cookies.get("authToken")?.value;
+    /* ===== AUTH ===== */
+    const cookieStore = await cookies();
+    const token = cookieStore.get("authToken")?.value;
+
     if (!token) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -46,15 +44,11 @@ export async function PATCH(
       );
     }
 
-    /* =========================
-       Body
-    ========================= */
+    /* ===== BODY ===== */
     const body = await req.json();
     const { assignedProducerId, assignedStaffIds } = body ?? {};
 
-    /* =========================
-       Update
-    ========================= */
+    /* ===== UPDATE ===== */
     const user = await User.findByIdAndUpdate(
       id,
       {
