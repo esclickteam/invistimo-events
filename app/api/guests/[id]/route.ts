@@ -65,7 +65,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const auth: any = await getUserIdFromRequest(req);
 
     const effectiveRole =
-  auth.impersonationRole || auth.role;
+  auth.impersonationRole === "producer_staff"
+    ? "producer"
+    : auth.impersonationRole || auth.role;
+
 
 
     console.log("👤 Auth:", auth);
