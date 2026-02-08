@@ -64,6 +64,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const auth: any = await getUserIdFromRequest(req);
 
+    const effectiveRole =
+  auth.impersonationRole || auth.role;
+
+
     console.log("👤 Auth:", auth);
 
     if (!auth?.userId) {
@@ -72,8 +76,11 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     const isOwner = auth.userId.toString() === invitation.ownerId.toString();
-    const isAdmin = auth.role === "admin";
-    const isProducerRole = auth.role === "producer";
+
+    const isAdmin = effectiveRole === "admin";
+const isProducerRole = effectiveRole === "producer";
+const isWorkerRole = effectiveRole === "worker";
+
 
     // ✅ מפיק לפי ההזמנה (גם אם נכנס בתור client בדשבורד לקוח)
     const producerIdStr = invitation.producerId?.toString?.() || null;
@@ -94,7 +101,14 @@ const isProducerByInvitation =
 });
 
     // הרשאה כללית לעדכן אורח
-    if (!isOwner && !isAdmin && !isProducerRole && !isProducerByInvitation) {
+    if (
+  !isOwner &&
+  !isAdmin &&
+  !isProducerRole &&
+  !isWorkerRole &&
+  !isProducerByInvitation
+) {
+
       console.warn("⛔ Not authorized to update guest");
       return NextResponse.json(
         { error: "Not authorized to update this guest" },
@@ -192,7 +206,11 @@ if (["yes", "no", "pending"].includes(data.rsvp)) {
 });
 
       const canUpdateActualArrived =
-        isAdmin || isProducerRole || isProducerByInvitation;
+  isAdmin ||
+  isProducerRole ||
+  isWorkerRole ||
+  isProducerByInvitation;
+
 
       if (!canUpdateActualArrived) {
         console.warn("⛔ Blocked actualArrivedCount update", {
