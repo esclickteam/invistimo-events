@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
   try {
     await connectDB();
@@ -19,7 +19,7 @@ export async function PATCH(
     /* =========================
        Params
     ========================= */
-    const { id } = params;
+    const { id } = context.params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: "MISSING_USER_ID" },
