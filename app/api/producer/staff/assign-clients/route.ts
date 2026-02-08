@@ -7,11 +7,19 @@ import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
+/* =========================
+   Types
+========================= */
 type JwtPayload = {
-  id: string;
+  id?: string;
+  _id?: string;
+  userId?: string;
   role?: string;
 };
 
+/* =========================
+   Utils
+========================= */
 function uniqObjectIds(ids: string[]) {
   return Array.from(new Set(ids))
     .filter((id) => mongoose.Types.ObjectId.isValid(id))
@@ -26,16 +34,14 @@ function uniqObjectIds(ids: string[]) {
  *   staffId: string,
  *   clientIds: string[]
  * }
- *
- * פעולה:
- * - רק מפיק יכול לבצע
- * - מעדכן לעובד מפיק את assignedClientIds
- * - מאפשר "לקוח X מוקצה לעובדים Y,Z" (כל עובד מחזיק רשימה משלו)
  */
 export async function PATCH(req: NextRequest) {
   try {
     await dbConnect();
 
+    /* =========================
+       Auth
+    ========================= */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
@@ -46,9 +52,23 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    ) as JwtPayload;
 
-    const producer: any = await User.findById(decoded.id).lean();
+    const producerId =
+      decoded.id || decoded._id || decoded.userId;
+
+    if (!producerId) {
+      return NextResponse.json(
+        { success: false, message: "מזהה משתמש לא תקין" },
+        { status: 401 }
+      );
+    }
+
+    const producer: any = await User.findById(producerId).lean();
+
     if (!producer) {
       return NextResponse.json(
         { success: false, message: "משתמש לא נמצא" },
@@ -63,9 +83,14 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    /* =========================
+       Body
+    ========================= */
     const body = await req.json();
     const staffId = String(body?.staffId || "");
-    const clientIdsRaw = Array.isArray(body?.clientIds) ? body.clientIds : [];
+    const clientIdsRaw = Array.isArray(body?.clientIds)
+      ? body.clientIds
+      : [];
 
     if (!mongoose.Types.ObjectId.isValid(staffId)) {
       return NextResponse.json(
@@ -74,8 +99,11 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // worker target
+    /* =========================
+       Staff validation
+    ========================= */
     const staff: any = await User.findById(staffId);
+
     if (!staff) {
       return NextResponse.json(
         { success: false, message: "העובד לא נמצא" },
@@ -90,10 +118,10 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // אם מפיק (לא אדמין) - חייב להיות בעלים של העובד
+    // מפיק יכול לעדכן רק עובדים שהוא יצר
     if (
       producer.role === "producer" &&
-      String(staff.assignedProducerId || "") !== String(producer._id)
+      String(staff.assignedProducerId) !== String(producer._id)
     ) {
       return NextResponse.json(
         { success: false, message: "אין הרשאה לעדכן עובד זה" },
@@ -101,10 +129,13 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const clientIds = uniqObjectIds(clientIdsRaw.map((x: any) => String(x)));
+    /* =========================
+       Client validation
+    ========================= */
+    const clientIds = uniqObjectIds(
+      clientIdsRaw.map((x: any) => String(x))
+    );
 
-    // ולידציה שהלקוחות קיימים והם לקוחות של אותו מפיק
-    // אדמין יכול לעדכן גם בלי הבדיקה הזאת אם תרצי; כרגע נשמור עקביות מלאה
     const validClients = await User.find({
       _id: { $in: clientIds },
       role: "client",
@@ -113,14 +144,23 @@ export async function PATCH(req: NextRequest) {
       .select("_id")
       .lean();
 
-    const validClientIdSet = new Set(validClients.map((c: any) => String(c._id)));
+    const validClientIdSet = new Set(
+      validClients.map((c: any) => String(c._id))
+    );
+
     const filteredClientIds = clientIds.filter((id) =>
       validClientIdSet.has(String(id))
     );
 
+    /* =========================
+       Save
+    ========================= */
     staff.assignedClientIds = filteredClientIds;
     await staff.save();
 
+    /* =========================
+       Response
+    ========================= */
     return NextResponse.json({
       success: true,
       message: "ההקצאה נשמרה בהצלחה",
@@ -135,10 +175,13 @@ export async function PATCH(req: NextRequest) {
       },
       ignoredClientIds: clientIds
         .map((id) => String(id))
-        .filter((id) => !validClientIdSet.has(id)), // שקיפות למה לא נשמר
+        .filter((id) => !validClientIdSet.has(id)),
     });
   } catch (error: any) {
-    console.error("PATCH /api/producer/staff/assign-clients error:", error);
+    console.error(
+      "PATCH /api/producer/staff/assign-clients error:",
+      error
+    );
     return NextResponse.json(
       { success: false, message: error?.message || "שגיאת שרת" },
       { status: 500 }
