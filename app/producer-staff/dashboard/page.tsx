@@ -9,11 +9,13 @@ import { useAuth } from "@/context/AuthContext";
 =============================== */
 type StaffEvent = {
   _id: string;
-  date?: string;
-  location?: string;
-  totalGuests?: number;
+  eventDate?: string;
+  eventLocation?: {
+    address?: string;
+  };
+  maxGuests?: number;
   approvedCount?: number;
-  owner?: {
+  ownerId?: {
     _id: string;
     name: string;
     email: string;
@@ -48,7 +50,7 @@ export default function ProducerStaffDashboardPage() {
   }, [user, loading, router]);
 
   /* ===============================
-     Fetch events assigned to staff
+     Fetch events
   =============================== */
   useEffect(() => {
     if (!user || user.role !== "staff") return;
@@ -62,15 +64,13 @@ export default function ProducerStaffDashboardPage() {
         });
 
         if (!res.ok) {
-          console.error("Failed to load staff events");
           setEvents([]);
           return;
         }
 
         const data = await res.json();
         setEvents(Array.isArray(data.events) ? data.events : []);
-      } catch (err) {
-        console.error(err);
+      } catch {
         setEvents([]);
       } finally {
         setEventsLoading(false);
@@ -88,7 +88,7 @@ export default function ProducerStaffDashboardPage() {
      Stats
   =============================== */
   const totalGuests = events.reduce(
-    (sum, e) => sum + (e.totalGuests || 0),
+    (sum, e) => sum + (e.maxGuests || 0),
     0
   );
 
@@ -122,59 +122,30 @@ export default function ProducerStaffDashboardPage() {
         <DashboardCard title="אישרו הגעה" value={totalApproved} />
       </div>
 
-      {/* Events table */}
-      <h2 style={{ marginBottom: 12 }}>האירועים שלי</h2>
+      <h2 style={{ marginBottom: 16 }}>האירועים שלי</h2>
 
       {eventsLoading ? (
         <div>טוען אירועים…</div>
       ) : events.length === 0 ? (
         <div style={{ color: "#999" }}>לא הוקצו לך אירועים עדיין</div>
       ) : (
-        <table
+        <div
           style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            background: "#fff",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 16,
           }}
         >
-          <thead>
-            <tr style={{ background: "#f7f7f7", textAlign: "right" }}>
-              <th style={th}>לקוח</th>
-              <th style={th}>תאריך</th>
-              <th style={th}>מקום</th>
-              <th style={th}>אישרו</th>
-              <th style={th}></th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {events.map((e) => (
-              <tr key={e._id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={td}>{e.owner?.name || "—"}</td>
-                <td style={td}>
-                  {e.date
-                    ? new Date(e.date).toLocaleDateString("he-IL")
-                    : "—"}
-                </td>
-                <td style={td}>{e.location || "—"}</td>
-                <td style={td}>
-                  {e.approvedCount} / {e.totalGuests}
-                </td>
-                <td style={td}>
-                  <button
-                    onClick={() =>
-                      router.push(
-                        `/events/production?eventId=${e._id}`
-                      )
-                    }
-                  >
-                    ניהול
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          {events.map((event) => (
+            <EventCard
+              key={event._id}
+              event={event}
+              onManage={() =>
+                router.push(`/events/production?eventId=${event._id}`)
+              }
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -183,6 +154,7 @@ export default function ProducerStaffDashboardPage() {
 /* ===============================
    Components
 =============================== */
+
 function DashboardCard({
   title,
   value,
@@ -194,7 +166,7 @@ function DashboardCard({
     <div
       style={{
         border: "1px solid #eee",
-        borderRadius: 12,
+        borderRadius: 14,
         padding: 20,
         background: "#fff",
       }}
@@ -205,8 +177,58 @@ function DashboardCard({
   );
 }
 
-/* ===============================
-   Styles
-=============================== */
-const th = { padding: 12 };
-const td = { padding: 12 };
+function EventCard({
+  event,
+  onManage,
+}: {
+  event: StaffEvent;
+  onManage: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #eee",
+        borderRadius: 16,
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 16 }}>
+        {event.ownerId?.name || "לקוח"}
+      </div>
+
+      <div style={{ color: "#666", fontSize: 14 }}>
+        📅{" "}
+        {event.eventDate
+          ? new Date(event.eventDate).toLocaleDateString("he-IL")
+          : "ללא תאריך"}
+      </div>
+
+      <div style={{ color: "#666", fontSize: 14 }}>
+        📍 {event.eventLocation?.address || "ללא מיקום"}
+      </div>
+
+      <div style={{ fontSize: 14 }}>
+        👥 {event.approvedCount || 0} / {event.maxGuests || 0} אישרו הגעה
+      </div>
+
+      <button
+        onClick={onManage}
+        style={{
+          marginTop: 8,
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "none",
+          background: "#111",
+          color: "#fff",
+          cursor: "pointer",
+        }}
+      >
+        ניהול אירוע
+      </button>
+    </div>
+  );
+}
