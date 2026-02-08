@@ -106,23 +106,26 @@ export async function PATCH(req: NextRequest) {
       clientIdsRaw.map((x: any) => String(x))
     );
 
-    const validClients = await User.find({
-      _id: { $in: clientIds },
-      role: "client",
-      createdByProducer: staff.assignedProducerId,
-    })
-      .select("_id")
-      .lean();
+    // ולידציה שהלקוחות קיימים (בלי createdByProducer)
+const validClients = await User.find({
+  _id: { $in: clientIds },
+  role: "client",
+})
+  .select("_id")
+  .lean();
 
-    const validClientIdSet = new Set(
-      validClients.map((c: any) => String(c._id))
-    );
+const validClientIdSet = new Set(
+  validClients.map((c: any) => String(c._id))
+);
 
-    staff.assignedClientIds = clientIds.filter((id) =>
-      validClientIdSet.has(String(id))
-    );
+const filteredClientIds = clientIds.filter((id) =>
+  validClientIdSet.has(String(id))
+);
 
-    await staff.save();
+// ⬅️ זה מה שנשמר בפועל
+staff.assignedClientIds = filteredClientIds;
+await staff.save();
+
 
     return NextResponse.json({
       success: true,
