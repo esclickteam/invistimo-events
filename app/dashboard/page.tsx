@@ -95,6 +95,11 @@ function formatPhone(phone?: string) {
 
 export default function DashboardPage() {
 
+ type WorkMode = "regular" | "live";
+
+const [workMode, setWorkMode] = useState<WorkMode>("regular");
+
+
   const pathname = usePathname();
 const isDemo = pathname.startsWith("/try");
 
@@ -120,15 +125,19 @@ const canViewActualArrived =
   effectiveRole === "producer" ||
   effectiveRole === "worker";
 
-
+  const canShowActualArrived =
+  canViewActualArrived && workMode === "live";
 
 
 
 useEffect(() => {
-  if (!canViewActualArrived) return;
+  if (!canViewActualArrived) {
+    setSeatingMode("planning");
+    return;
+  }
 
-  setSeatingMode("live");
-}, [canViewActualArrived, setSeatingMode]);
+  setSeatingMode(workMode === "live" ? "live" : "planning");
+}, [canViewActualArrived, workMode, setSeatingMode]);
 
 
 
@@ -936,6 +945,37 @@ console.log("INVITATION:", invitation);
       הוספת מוזמנים, שליחת הודעות וסידורי הושבה
     </p>
 
+    {canViewActualArrived && (
+  <div className="mb-6 flex items-center gap-3">
+    <span className="text-sm text-gray-500">מצב עבודה:</span>
+
+    <button
+      onClick={() => setWorkMode("regular")}
+      className={`
+        px-4 py-2 rounded-full text-sm font-medium border
+        ${workMode === "regular"
+          ? "bg-black text-white border-black"
+          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}
+      `}
+    >
+      🧑‍💻 מצב רגיל
+    </button>
+
+    <button
+      onClick={() => setWorkMode("live")}
+      className={`
+        px-4 py-2 rounded-full text-sm font-medium border
+        ${workMode === "live"
+          ? "bg-red-600 text-white border-red-600"
+          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}
+      `}
+    >
+      🔴 LIVE
+    </button>
+  </div>
+)}
+
+
 
     
 
@@ -1118,7 +1158,8 @@ console.log("INVITATION:", invitation);
   <Box title="סה״כ מוזמנים" value={stats.totalGuests} />
   <Box title="סה״כ מגיעים" value={stats.comingGuests} color="green" />
 
-  {canViewActualArrived && (
+  {canShowActualArrived && (
+
   <Box title="מגיעים בפועל" value={stats.actualArrivedGuests} color="blue" />
 )}
 
@@ -1180,7 +1221,8 @@ console.log("INVITATION:", invitation);
           מגיעים{sortArrow("coming")}
         </th>
 
-        {canViewActualArrived && (
+        {canShowActualArrived && (
+
   <th className="p-3 text-right">מגיעים בפועל</th>
 )}
 
@@ -1243,7 +1285,8 @@ console.log("INVITATION:", invitation);
   {g.arrivedCount || 0}
 </td>
 
-{canViewActualArrived && (
+{canShowActualArrived && (
+
 
 
   <td className="p-3">
@@ -1365,7 +1408,8 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
       {displayGuests.length === 0 && (
         <tr>
           <td
-  colSpan={canViewActualArrived ? 10 : 9}
+  colSpan={canShowActualArrived ? 10 : 9}
+
 
 
   className="p-8 text-center text-gray-500"
