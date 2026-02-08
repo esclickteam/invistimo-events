@@ -4,10 +4,14 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
+/* =========================================================
+   PATCH – UPDATE USER ASSIGNEES (ADMIN ONLY)
+========================================================= */
 export async function PATCH(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
@@ -15,13 +19,18 @@ export async function PATCH(
     /* =========================
        Params
     ========================= */
-    const { id } = context.params;
+    const { id } = params;
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "MISSING_USER_ID" },
+        { status: 400 }
+      );
+    }
 
     /* =========================
        Auth
     ========================= */
     const token = req.cookies.get("authToken")?.value;
-
     if (!token) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -40,8 +49,12 @@ export async function PATCH(
     /* =========================
        Body
     ========================= */
-    const { assignedProducerId, assignedStaffIds } = await req.json();
+    const body = await req.json();
+    const { assignedProducerId, assignedStaffIds } = body ?? {};
 
+    /* =========================
+       Update
+    ========================= */
     const user = await User.findByIdAndUpdate(
       id,
       {
@@ -53,11 +66,18 @@ export async function PATCH(
       { new: true }
     ).lean();
 
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({ success: true, user });
   } catch (err) {
     console.error("❌ ASSIGN UPDATE ERROR:", err);
     return NextResponse.json(
-      { success: false },
+      { success: false, error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
