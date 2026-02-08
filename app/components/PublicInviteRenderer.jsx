@@ -65,12 +65,12 @@ export default function PublicInviteRenderer({ canvasData }) {
         >
           {/* ================= K O N V A  ================= */}
           <Stage
-            width={width * scale}
-            height={height * scale}
-            scaleX={scale}
-            scaleY={scale}
-            listening={false} // ❌ לא מאזין למגעים
-          >
+  width={width}        // ← חובה
+  height={height}      // ← חובה
+  scaleX={scale}       // ← scale רק כאן
+  scaleY={scale}
+  listening={false}
+>
             <Layer>
               {data.objects.map((obj) => {
                 if (obj.type === "rect") {
