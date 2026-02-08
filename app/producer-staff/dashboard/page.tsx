@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import ProducerDashboardHeader from "@/app/dashboard/ProducerDashboardHeader";
 
 /* ===============================
    Types
@@ -37,20 +38,17 @@ export default function ProducerStaffDashboardPage() {
      Guard – הרשאות
   =============================== */
   useEffect(() => {
-  if (loading) return;
+    if (loading) return;
 
-  if (!user) {
-    router.replace("/login");
-    return;
-  }
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
 
-  if (user.role !== "staff" || user.staffType !== "producer_staff") {
-  router.replace("/");
-  return;
-}
-
-}, [user, loading, router]);
-
+    if (user.role !== "staff" || user.staffType !== "producer_staff") {
+      router.replace("/");
+    }
+  }, [user, loading, router]);
 
   /* ===============================
      Fetch assigned users
@@ -102,17 +100,13 @@ export default function ProducerStaffDashboardPage() {
         return;
       }
 
-      // client עם אירוע → ניהול אירוע
       if (data.eventId) {
         window.location.href = `/events/production?eventId=${data.eventId}`;
         return;
       }
 
-      // user רגיל
       window.location.href = "/dashboard";
-
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("שגיאה בכניסה");
     }
   };
@@ -124,7 +118,9 @@ export default function ProducerStaffDashboardPage() {
   /* ===============================
      Stats
   =============================== */
-  const totalEvents = users.filter((u) => u.role === "client" && u.event).length;
+  const totalEvents = users.filter(
+    (u) => u.role === "client" && u.event
+  ).length;
 
   const totalGuests = users.reduce(
     (sum, u) => sum + (u.event?.totalGuests || 0),
@@ -140,52 +136,50 @@ export default function ProducerStaffDashboardPage() {
      UI
   =============================== */
   return (
-    <div style={{ padding: 32 }}>
-      <h1 style={{ marginBottom: 8 }}>דשבורד עובד מפיק</h1>
+    <>
+      <ProducerDashboardHeader />
 
-      <p style={{ color: "#666", marginBottom: 24 }}>
-        שלום {user.name}
-      </p>
-
-      {/* Stats */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-          marginBottom: 32,
-        }}
-      >
-        <DashboardCard title="משתמשים מוקצים" value={users.length} />
-        <DashboardCard title="אירועים פעילים" value={totalEvents} />
-        <DashboardCard title="סה״כ מוזמנים" value={totalGuests} />
-        <DashboardCard title="אישרו הגעה" value={totalApproved} />
-      </div>
-
-      <h2 style={{ marginBottom: 16 }}>המשתמשים שלי</h2>
-
-      {usersLoading ? (
-        <div>טוען משתמשים…</div>
-      ) : users.length === 0 ? (
-        <div style={{ color: "#999" }}>לא הוקצו לך משתמשים עדיין</div>
-      ) : (
+      <main dir="rtl" className="pt-16 px-6 md:px-10">
+        {/* Stats */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
+            marginBottom: 32,
           }}
         >
-          {users.map((u) => (
-            <UserCard
-              key={u._id}
-              user={u}
-              onEnter={() => handleEnterUser(u._id)}
-            />
-          ))}
+          <DashboardCard title="משתמשים מוקצים" value={users.length} />
+          <DashboardCard title="אירועים פעילים" value={totalEvents} />
+          <DashboardCard title="סה״כ מוזמנים" value={totalGuests} />
+          <DashboardCard title="אישרו הגעה" value={totalApproved} />
         </div>
-      )}
-    </div>
+
+        <h2 style={{ marginBottom: 16, fontSize: 20 }}>הלקוחות שלי</h2>
+
+        {usersLoading ? (
+          <div>טוען משתמשים…</div>
+        ) : users.length === 0 ? (
+          <div style={{ color: "#999" }}>לא הוקצו לך לקוחות עדיין</div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {users.map((u) => (
+              <UserCard
+                key={u._id}
+                user={u}
+                onEnter={() => handleEnterUser(u._id)}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+    </>
   );
 }
 
@@ -198,19 +192,19 @@ function DashboardCard({
   value,
 }: {
   title: string;
-  value: string | number;
+  value: number | string;
 }) {
   return (
     <div
       style={{
-        border: "1px solid #eee",
-        borderRadius: 14,
-        padding: 20,
         background: "#fff",
+        border: "1px solid #eee",
+        borderRadius: 16,
+        padding: 20,
       }}
     >
-      <div style={{ fontSize: 14, color: "#888" }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 600 }}>{value}</div>
+      <div style={{ fontSize: 14, color: "#777" }}>{title}</div>
+      <div style={{ fontSize: 30, fontWeight: 600 }}>{value}</div>
     </div>
   );
 }
@@ -227,35 +221,35 @@ function UserCard({
       style={{
         background: "#fff",
         border: "1px solid #eee",
-        borderRadius: 16,
+        borderRadius: 18,
         padding: 20,
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 8,
       }}
     >
-      <div style={{ fontWeight: 600, fontSize: 16 }}>
-        {user.name || "משתמש"}
+      <div style={{ fontSize: 17, fontWeight: 600 }}>
+        {user.name || "לקוח"}
       </div>
 
-      <div style={{ color: "#666", fontSize: 14 }}>
-        📧 {user.email}
+      <div style={{ fontSize: 14, color: "#555" }}>
+        {user.email}
       </div>
 
       {user.role === "client" && (
         <>
-          <div style={{ color: "#666", fontSize: 14 }}>
+          <div style={{ fontSize: 14 }}>
             📅{" "}
             {user.event?.date
               ? new Date(user.event.date).toLocaleDateString("he-IL")
               : "ללא תאריך"}
           </div>
 
-          <div style={{ color: "#666", fontSize: 14 }}>
+          <div style={{ fontSize: 14 }}>
             📍 {user.event?.location?.address || "ללא מיקום"}
           </div>
 
-          <div style={{ fontSize: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: 500 }}>
             👥 {user.event?.approvedCount || 0} /{" "}
             {user.event?.totalGuests || 0} אישרו הגעה
           </div>
@@ -265,12 +259,13 @@ function UserCard({
       <button
         onClick={onEnter}
         style={{
-          marginTop: 8,
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "none",
+          marginTop: 10,
           background: "#111",
           color: "#fff",
+          border: "none",
+          borderRadius: 12,
+          padding: "12px 16px",
+          fontSize: 14,
           cursor: "pointer",
         }}
       >
