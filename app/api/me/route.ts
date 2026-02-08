@@ -126,9 +126,8 @@ const token = authToken || producerToken;
     }
 
     const safeRole =
-  decoded.role ??
-  (user.role as "admin" | "producer" | "client" | "user" | "staff") ??
-  "user";
+  (user.role as "admin" | "producer" | "client" | "user" | "staff") ?? "user";
+
 
 
     console.log(
