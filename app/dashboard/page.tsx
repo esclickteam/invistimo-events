@@ -241,28 +241,12 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    console.error("❌ loadUser failed", res.status);
-    setUser(null);
-    return;
-  }
-
-  let data: any;
-  try {
-    data = await res.json();
-  } catch {
-    console.error("❌ loadUser JSON parse error");
-    setUser(null);
-    return;
-  }
+  const data = await res.json();
 
   if (data.success) {
     setUser(data.user);
-  } else {
-    setUser(null);
   }
 }
-
 
   /* ============================================================
      Load invitation
@@ -275,38 +259,20 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
     ? `/api/invitations/by-event/${eventIdFromUrl}`
     : "/api/invitations/my";
 
- const res = await fetch(url, {
-  credentials: "include",
-  cache: "no-store",
-});
+  const res = await fetch(url, {
+    credentials: "include",
+    cache: "no-store",
+  });
 
-// ⭐️ הגנה – אם השרת החזיר 401 / 404 / HTML
-if (!res.ok) {
-  console.error("❌ loadInvitation failed:", res.status, url);
-  setInvitation(null);
-  setInvitationId("");
-  return;
-}
+  const data = await res.json();
 
-let data: any;
-try {
-  data = await res.json();
-} catch (err) {
-  console.error("❌ loadInvitation JSON parse error");
-  setInvitation(null);
-  setInvitationId("");
-  return;
-}
-
-if (data.success && data.invitation) {
-  setInvitation(data.invitation);
-  setInvitationId(data.invitation._id);
-} else {
-  setInvitation(null);
-  setInvitationId("");
-}
-
-
+  if (data.success && data.invitation) {
+    setInvitation(data.invitation);
+    setInvitationId(data.invitation._id);
+  } else {
+    setInvitation(null);
+    setInvitationId("");
+  }
 }
 
 async function loadEvent() {
@@ -318,25 +284,17 @@ async function loadEvent() {
     : "/api/events";
 
   const res = await fetch(url, {
-  credentials: "include",
-  cache: "no-store",
-});
+    credentials: "include",
+    cache: "no-store",
+  });
 
-if (!res.ok) {
-  console.error("❌ loadEvent failed:", res.status, url);
-  setEvent(null);
-  return;
-}
+  const data = await res.json();
 
-const data = await res.json();
-
-if (data.success && data.event) {
-  setEvent(data.event);
-} else {
-  setEvent(null);
-}
-
-
+  if (data.success && data.event) {
+    setEvent(data.event);
+  } else {
+    setEvent(null);
+  }
 }
 
 
@@ -350,29 +308,14 @@ if (data.success && data.event) {
   const res = await fetch(
     `/api/guests?invitation=${invitationId}`,
     {
-      credentials: "include",
-      cache: "no-store",
+      credentials: "include", // ⭐️ חובה עם cookies
+      cache: "no-store",      // ⭐️ מונע קאש בין מכשירים
     }
   );
 
-  if (!res.ok) {
-    console.error("❌ loadGuests failed", res.status);
-    setGuests([]);
-    return;
-  }
-
-  let data: any;
-  try {
-    data = await res.json();
-  } catch {
-    console.error("❌ loadGuests JSON parse error");
-    setGuests([]);
-    return;
-  }
-
+  const data = await res.json();
   setGuests(data.guests || []);
 }
-
 
 const handleExportExcel = async () => {
   // 🔒 חסימה בדמו
