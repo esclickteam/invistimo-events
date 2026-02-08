@@ -66,7 +66,7 @@ const userIds = users.map((u: any) => u._id);
 const events = await Event.find({
   userId: { $in: userIds },
 })
-  .select("userId eventDate")
+  .select("userId date")
   .sort({ eventDate: -1 }) // האחרון
   .lean();
 
@@ -102,7 +102,7 @@ const usersWithEventDate = users.map((u: any) => {
 
   return {
     ...u,
-    eventDate: event?.eventDate || null,
+   eventDate: event?.date || null,
   };
 });
 
