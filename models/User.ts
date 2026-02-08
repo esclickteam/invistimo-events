@@ -23,6 +23,9 @@ export interface IUser extends Document {
   createdByProducer?: mongoose.Types.ObjectId | null;
   createdByAdmin?: boolean;
 
+  assignedProducerId?: mongoose.Types.ObjectId | null;
+assignedStaffId?: mongoose.Types.ObjectId | null;
+
   billingSource?: "site" | "admin" | "producer";
 
   /** ===== PRODUCER PRICING ===== */
@@ -107,19 +110,19 @@ const UserSchema = new Schema<IUser>(
     paidAmount: { type: Number, default: 0 },
     hasPaid: { type: Boolean, default: false },
 
-    producerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
+        createdByAdmin: { type: Boolean, default: false },
 
-    createdByProducer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
+assignedProducerId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
 
-    createdByAdmin: { type: Boolean, default: false },
+assignedStaffId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
 
     billingSource: {
       type: String,
