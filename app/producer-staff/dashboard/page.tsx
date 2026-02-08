@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProducerDashboardHeader from "@/app/dashboard/ProducerDashboardHeader";
@@ -24,9 +24,6 @@ type AssignedUser = {
   };
 };
 
-/* ===============================
-   Page
-=============================== */
 export default function ProducerStaffDashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -118,33 +115,43 @@ export default function ProducerStaffDashboardPage() {
   /* ===============================
      Stats
   =============================== */
-  const totalEvents = users.filter(
-    (u) => u.role === "client" && u.event
-  ).length;
+  const totalEvents = users.filter((u) => u.role === "client" && u.event).length;
 
-  const totalGuests = users.reduce(
-    (sum, u) => sum + (u.event?.totalGuests || 0),
-    0
-  );
+  const totalGuests = users.reduce((sum, u) => sum + (u.event?.totalGuests || 0), 0);
 
-  const totalApproved = users.reduce(
-    (sum, u) => sum + (u.event?.approvedCount || 0),
-    0
-  );
+  const totalApproved = users.reduce((sum, u) => sum + (u.event?.approvedCount || 0), 0);
 
-  /* ===============================
-     UI
-  =============================== */
- return (
-  <>
-    <main dir="rtl" className="pt-16 px-6 md:px-10">
+  const rows = useMemo(() => {
+    return users.map((u) => {
+      const total = u.event?.totalGuests || 0;
+      const approved = u.event?.approvedCount || 0;
+
+      return {
+        id: u._id,
+        name: u.name || "לקוח",
+        email: u.email || "—",
+        phone: "—", // אם אין phone במודל כרגע
+        date: u.event?.date
+          ? new Date(u.event.date).toLocaleDateString("he-IL")
+          : "—",
+        location: u.event?.location?.address || "—",
+        approvedText: `${approved} / ${total}`,
+      };
+    });
+  }, [users]);
+
+  return (
+    <>
+      <ProducerDashboardHeader />
+
+      <main dir="rtl" className="pt-16 px-3 md:px-6 lg:px-8 pb-10 bg-[#efeeeb] min-h-screen">
         {/* Stats */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 16,
-            marginBottom: 32,
+            gap: 12,
+            marginBottom: 20,
           }}
         >
           <DashboardCard title="משתמשים מוקצים" value={users.length} />
@@ -153,38 +160,120 @@ export default function ProducerStaffDashboardPage() {
           <DashboardCard title="אישרו הגעה" value={totalApproved} />
         </div>
 
-        <h2 style={{ marginBottom: 16, fontSize: 20 }}>הלקוחות שלי</h2>
-
-        {usersLoading ? (
-          <div>טוען משתמשים…</div>
-        ) : users.length === 0 ? (
-          <div style={{ color: "#999" }}>לא הוקצו לך לקוחות עדיין</div>
-        ) : (
+        <section
+          style={{
+            background: "#f7f6f4",
+            border: "1px solid #d9d9d9",
+            borderRadius: 16,
+            overflow: "hidden",
+          }}
+        >
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: 16,
+              padding: "18px 20px 14px",
+              fontSize: 34,
+              fontWeight: 700,
+              color: "#4b321f",
+              lineHeight: 1,
             }}
           >
-            {users.map((u) => (
-              <UserCard
-                key={u._id}
-                user={u}
-                onEnter={() => handleEnterUser(u._id)}
-              />
-            ))}
+            לקוחות
           </div>
-        )}
+
+          {usersLoading ? (
+            <div style={{ padding: 20 }}>טוען משתמשים…</div>
+          ) : rows.length === 0 ? (
+            <div style={{ padding: 20, color: "#777" }}>לא הוקצו לך לקוחות עדיין</div>
+          ) : (
+            <div style={{ width: "100%", overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "separate",
+                  borderSpacing: 0,
+                  minWidth: 980,
+                  direction: "rtl",
+                }}
+              >
+                <thead>
+                  <tr style={{ background: "#e2e3e6", color: "#5a3c25" }}>
+                    <Th>שם</Th>
+                    <Th>אימייל</Th>
+                    <Th>טלפון</Th>
+                    <Th>תאריך אירוע</Th>
+                    <Th>מקום</Th>
+                    <Th>אישור</Th>
+                    <Th>הקצאה לעובד/ים</Th>
+                    <Th>פעולה</Th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rows.map((r, index) => (
+                    <tr
+                      key={r.id}
+                      style={{
+                        background: index % 2 === 0 ? "#f4f4f4" : "#efefef",
+                        borderTop: "1px solid #ddd",
+                      }}
+                    >
+                      <Td>{r.name}</Td>
+                      <Td>{r.email}</Td>
+                      <Td>{r.phone}</Td>
+                      <Td>{r.date}</Td>
+                      <Td>{r.location}</Td>
+                      <Td>{r.approvedText}</Td>
+                      <Td>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: 92,
+                            height: 32,
+                            padding: "0 10px",
+                            border: "1px solid #d0d0d0",
+                            borderRadius: 8,
+                            background: "#fff",
+                            color: "#5d5d5d",
+                            fontSize: 14,
+                          }}
+                        >
+                          ללא
+                        </span>
+                      </Td>
+                      <Td>
+                        <button
+                          onClick={() => handleEnterUser(r.id)}
+                          style={{
+                            background: "#6a4a2f",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 8,
+                            padding: "8px 16px",
+                            fontSize: 15,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          נהל ↗
+                        </button>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </main>
     </>
   );
 }
 
 /* ===============================
-   Components
+   UI bits
 =============================== */
-
 function DashboardCard({
   title,
   value,
@@ -196,79 +285,46 @@ function DashboardCard({
     <div
       style={{
         background: "#fff",
-        border: "1px solid #eee",
-        borderRadius: 16,
-        padding: 20,
+        border: "1px solid #e6e6e6",
+        borderRadius: 14,
+        padding: 16,
       }}
     >
-      <div style={{ fontSize: 14, color: "#777" }}>{title}</div>
-      <div style={{ fontSize: 30, fontWeight: 600 }}>{value}</div>
+      <div style={{ fontSize: 13, color: "#777" }}>{title}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: "#4b321f" }}>{value}</div>
     </div>
   );
 }
 
-function UserCard({
-  user,
-  onEnter,
-}: {
-  user: AssignedUser;
-  onEnter: () => void;
-}) {
+function Th({ children }: { children: React.ReactNode }) {
   return (
-    <div
+    <th
       style={{
-        background: "#fff",
-        border: "1px solid #eee",
-        borderRadius: 18,
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
+        padding: "14px 16px",
+        textAlign: "right",
+        fontSize: 22,
+        fontWeight: 700,
+        whiteSpace: "nowrap",
       }}
     >
-      <div style={{ fontSize: 17, fontWeight: 600 }}>
-        {user.name || "לקוח"}
-      </div>
+      {children}
+    </th>
+  );
+}
 
-      <div style={{ fontSize: 14, color: "#555" }}>
-        {user.email}
-      </div>
-
-      {user.role === "client" && (
-        <>
-          <div style={{ fontSize: 14 }}>
-            📅{" "}
-            {user.event?.date
-              ? new Date(user.event.date).toLocaleDateString("he-IL")
-              : "ללא תאריך"}
-          </div>
-
-          <div style={{ fontSize: 14 }}>
-            📍 {user.event?.location?.address || "ללא מיקום"}
-          </div>
-
-          <div style={{ fontSize: 14, fontWeight: 500 }}>
-            👥 {user.event?.approvedCount || 0} /{" "}
-            {user.event?.totalGuests || 0} אישרו הגעה
-          </div>
-        </>
-      )}
-
-      <button
-        onClick={onEnter}
-        style={{
-          marginTop: 10,
-          background: "#111",
-          color: "#fff",
-          border: "none",
-          borderRadius: 12,
-          padding: "12px 16px",
-          fontSize: 14,
-          cursor: "pointer",
-        }}
-      >
-        כניסה
-      </button>
-    </div>
+function Td({ children }: { children: React.ReactNode }) {
+  return (
+    <td
+      style={{
+        padding: "16px",
+        textAlign: "right",
+        fontSize: 28,
+        color: "#4b321f",
+        whiteSpace: "nowrap",
+        borderTop: "1px solid #dadada",
+      }}
+    >
+      {children}
+    </td>
   );
 }
