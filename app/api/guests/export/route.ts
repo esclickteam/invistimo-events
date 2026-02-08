@@ -61,11 +61,19 @@ export async function GET(req: Request) {
     bookType: "xlsx",
   });
 
+  /* =========================
+     Hebrew filename (RFC 5987)
+  ========================= */
+
+  const hebrewFilename = encodeURIComponent("מוזמנים.xlsx");
+
   return new NextResponse(buffer, {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": 'attachment; filename="מוזמנים.xlsx"',
+
+      // 👈 זה הקסם – תמיכה מלאה בעברית
+      "Content-Disposition": `attachment; filename*=UTF-8''${hebrewFilename}`,
     },
   });
 }
