@@ -153,7 +153,9 @@ export default function DashboardPage() {
 
 const canViewActualArrived =
   effectiveRole === "producer" ||
-  effectiveRole === "worker";
+  effectiveRole === "worker" ||
+  effectiveRole === "producer_staff";
+
 
   const canShowActualArrived =
   canViewActualArrived && workMode === "live";
