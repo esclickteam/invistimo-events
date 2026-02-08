@@ -153,8 +153,8 @@ export default function DashboardPage() {
 
 const canViewActualArrived =
   effectiveRole === "producer" ||
-  effectiveRole === "worker" ||
-  effectiveRole === "producer_staff";
+  effectiveRole === "worker";
+
 
 
   const canShowActualArrived =
@@ -633,15 +633,16 @@ useEffect(() => {
   if (isDemo) return;
   if (!invitationId) return;
 
-  // רק לקוח אמיתי עושה polling
-  if (canViewActualArrived) return;
+  // ❌ במצב LIVE לא עושים polling
+  if (workMode === "live") return;
 
   const interval = setInterval(() => {
     loadGuests();
   }, 5000);
 
   return () => clearInterval(interval);
-}, [invitationId, isDemo, canViewActualArrived]);
+}, [invitationId, isDemo, workMode]);
+
 
 
 const guestTableMap = useMemo(() => {
@@ -897,33 +898,25 @@ list.sort((a, b) => {
   const showActionButtons = true;
 
   const updateActualArrived = async (guestId: string, next: number) => {
-  if (!eventIdFromUrl) {
-    await loadGuests();
-    return;
-  }
-
-  // optimistic UI
+  // ✅ optimistic UI
   setGuests((prev) =>
-    prev.map((x) =>
-      x._id === guestId ? { ...x, actualArrivedCount: next } : x
+    prev.map((g) =>
+      g._id === guestId
+        ? { ...g, actualArrivedCount: next }
+        : g
     )
   );
 
-  const doUpdate = async () =>
-    fetch(`/api/guests/${guestId}`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualArrivedCount: next }),
-    });
+  const res = await fetch(`/api/guests/${guestId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actualArrivedCount: next }),
+  });
 
-  let res = await doUpdate();
-
- 
-
-
+  // ❌ רק אם השרת נכשל – טוענים מחדש
   if (!res.ok) {
-    // rollback אם נכשל
+    console.warn("actualArrivedCount failed – rollback");
     await loadGuests();
   }
 };
