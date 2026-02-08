@@ -7,10 +7,15 @@ export const dynamic = "force-dynamic";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     await connectDB();
+
+    /* =========================
+       Params
+    ========================= */
+    const { id } = context.params;
 
     /* =========================
        Auth
@@ -38,7 +43,7 @@ export async function PATCH(
     const { assignedProducerId, assignedStaffIds } = await req.json();
 
     const user = await User.findByIdAndUpdate(
-      params.id,
+      id,
       {
         assignedProducerId: assignedProducerId || null,
         assignedStaffIds: Array.isArray(assignedStaffIds)
