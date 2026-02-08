@@ -109,7 +109,8 @@ export default function ProducerStaffDashboardPage() {
       }
 
       // user רגיל
-      window.location.href = "/";
+      window.location.href = "/dashboard";
+
     } catch (err) {
       console.error(err);
       alert("שגיאה בכניסה");
