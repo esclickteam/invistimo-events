@@ -95,13 +95,24 @@ function formatPhone(phone?: string) {
 
 export default function DashboardPage() {
 
- type WorkMode = "regular" | "live";
+  type WorkMode = "regular" | "live";
 
-const [workMode, setWorkMode] = useState<WorkMode>("regular");
+ const [workMode, setWorkMode] = useState<WorkMode>(() => {
+   if (typeof window === "undefined") return "regular";
+   return (localStorage.getItem("workMode") as WorkMode) || "regular";
+ });
+
+ // ✅ ⬇️⬇️⬇️ זה המקום המדויק
+ useEffect(() => {
+   localStorage.setItem("workMode", workMode);
+ }, [workMode]);
+
+ const pathname = usePathname();
+ const isDemo = pathname.startsWith("/try");
 
 
-  const pathname = usePathname();
-const isDemo = pathname.startsWith("/try");
+
+
 
   const router = useRouter();
 
