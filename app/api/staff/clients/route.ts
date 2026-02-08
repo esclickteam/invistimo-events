@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import Event from "@/models/Event"; // אם יש מודל נפרד
+import Event from "@/models/Event";
 
 export const dynamic = "force-dynamic";
 
@@ -15,22 +15,15 @@ type JwtPayload = {
   role?: string;
 };
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     await dbConnect();
 
-    /* ===============================
-       Auth
-    =============================== */
     const cookieStore = await cookies();
     const token = cookieStore.get("authToken")?.value;
 
-
     if (!token) {
-      return NextResponse.json(
-        { success: false, message: "לא מחובר" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false }, { status: 401 });
     }
 
     const decoded = jwt.verify(
@@ -38,46 +31,24 @@ export async function GET(req: NextRequest) {
       process.env.JWT_SECRET!
     ) as JwtPayload;
 
-    const staffId =
-      decoded.id || decoded._id || decoded.userId;
+    const staffId = decoded.id || decoded._id || decoded.userId;
 
-    if (!staffId || !mongoose.Types.ObjectId.isValid(staffId)) {
-      return NextResponse.json(
-        { success: false, message: "טוקן לא תקין" },
-        { status: 401 }
-      );
+    if (!staffId) {
+      return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    /* ===============================
-       Load staff
-    =============================== */
     const staff: any = await User.findById(staffId).lean();
 
-    if (!staff) {
-      return NextResponse.json(
-        { success: false, message: "משתמש לא נמצא" },
-        { status: 404 }
-      );
-    }
-
     if (
+      !staff ||
       staff.role !== "staff" ||
       staff.staffType !== "producer_staff"
     ) {
-      return NextResponse.json(
-        { success: false, message: "אין הרשאה" },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false }, { status: 403 });
     }
 
-    const assignedClientIds: string[] = Array.isArray(
-      staff.assignedClientIds
-    )
+    const assignedClientIds = Array.isArray(staff.assignedClientIds)
       ? staff.assignedClientIds
-          .map((id: any) => String(id))
-          .filter((id: string) =>
-            mongoose.Types.ObjectId.isValid(id)
-          )
       : [];
 
     if (assignedClientIds.length === 0) {
@@ -87,27 +58,34 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    /* ===============================
-       Load clients + events
-    =============================== */
+    // 🔑 מביאים רק לקוחות שהוקצו לעובד
     const clients = await User.find({
       _id: { $in: assignedClientIds },
       role: "client",
     })
-      .select("name email phone event")
-      .populate({
-        path: "event",
-        select:
-          "title date location totalGuests approvedCount",
-      })
+      .select("_id name email phone")
       .lean();
+
+    // 🔑 מביאים אירועים ללקוחות האלו
+    const events = await Event.find({
+      clientId: { $in: assignedClientIds },
+    }).lean();
+
+    const eventMap = new Map(
+      events.map((e: any) => [String(e.clientId), e])
+    );
+
+    const clientsWithEvents = clients.map((c: any) => ({
+      ...c,
+      event: eventMap.get(String(c._id)) || null,
+    }));
 
     return NextResponse.json({
       success: true,
-      clients,
+      clients: clientsWithEvents,
     });
-  } catch (error: any) {
-    console.error("staff/clients error:", error);
+  } catch (err: any) {
+    console.error("staff clients error:", err);
     return NextResponse.json(
       { success: false, message: "שגיאת שרת" },
       { status: 500 }
