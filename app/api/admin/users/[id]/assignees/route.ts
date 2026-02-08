@@ -12,12 +12,13 @@ export const runtime = "nodejs";
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
 
-    const { id } = params;
+    /* ===== PARAMS ===== */
+    const { id } = await context.params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: "MISSING_USER_ID" },
