@@ -30,11 +30,12 @@ export async function GET() {
 
     const users = await User.find({
       isDemoUser: { $ne: true },
-      $or: [
-        { hasPaid: true },
-        { plan: "premium" },
-        { createdByProducer: { $ne: null } },
-        { role: "producer" },
+     $or: [
+  { hasPaid: true },
+  { plan: "premium" },
+  { createdByProducer: { $ne: null } },
+  { role: "producer" },
+  { role: "staff" }, // ⭐
       ],
     })
     
@@ -67,7 +68,8 @@ const events = await Event.find({
   userId: { $in: userIds },
 })
   .select("userId date")
-  .sort({ eventDate: -1 }) // האחרון
+.sort({ date: -1 })
+
   .lean();
 
     const revenueAgg = await User.aggregate([
@@ -173,6 +175,33 @@ export async function POST(req: NextRequest) {
         userId: String(user._id),
       });
     }
+
+    /* ================= STAFF ================= */
+if (role === "staff") {
+  const user = await User.create({
+    name,
+    email,
+    role: "staff",
+
+    hasPaid: false,
+    paidAmount: 0,
+
+    needsPasswordSetup: true,
+    createdByAdmin: true,
+    billingSource: "admin",
+  });
+
+  try {
+    await sendPasswordSetupMail(user._id.toString());
+  } catch (err) {
+    console.error("❌ Failed to send staff password mail:", err);
+  }
+
+  return NextResponse.json({
+    success: true,
+    userId: String(user._id),
+  });
+}
 
     /* ================= USER ================= */
     const { records, smsTotal, includeCalls } = limits || {};
