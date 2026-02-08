@@ -38,6 +38,9 @@ export default function CreateClientByProducer({ onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ✅ חדש: סוג משתמש
+  const [userType, setUserType] = useState("client"); // "client" | "producer_staff"
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -47,6 +50,8 @@ export default function CreateClientByProducer({ onSuccess }) {
   });
 
   const pricePerRecord = user?.producerPricePerRecord || 0;
+  const isClient = userType === "client";
+  const isStaff = userType === "producer_staff";
 
   /* =========================
      Calculations
@@ -84,18 +89,50 @@ export default function CreateClientByProducer({ onSuccess }) {
       return;
     }
 
-    if (Number(form.guests) <= 0) {
-      setError("מספר רשומות חייב להיות גדול מ־0");
-      return;
-    }
-
-    if (pricePerRecord <= 0) {
-      setError("לא הוגדר מחיר לרשומה עבור המפיק");
-      return;
-    }
-
     try {
       setLoading(true);
+
+      // =========================
+      // יצירת עובד מפיק
+      // =========================
+      if (isStaff) {
+        const res = await fetch("/api/producer/create-staff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            phone: form.phone,
+            // חשוב: השרת יכול לקחת מהטוקן,
+            // אבל נוסיף גם בפיילוד כדי למנוע נפילות אם נדרש.
+            assignedProducerId: user?._id,
+            staffType: "producer_staff",
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.message || data?.error || "יצירת עובד נכשלה");
+        }
+
+        onSuccess?.();
+        return;
+      }
+
+      // =========================
+      // יצירת לקוח (לוגיקה קיימת - נשארת)
+      // =========================
+      if (Number(form.guests) <= 0) {
+        setError("מספר רשומות חייב להיות גדול מ־0");
+        return;
+      }
+
+      if (pricePerRecord <= 0) {
+        setError("לא הוגדר מחיר לרשומה עבור המפיק");
+        return;
+      }
 
       const res = await fetch("/api/producer/create-client", {
         method: "POST",
@@ -113,7 +150,7 @@ export default function CreateClientByProducer({ onSuccess }) {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "יצירת לקוח נכשלה");
+        throw new Error(data?.error || data?.message || "יצירת לקוח נכשלה");
       }
 
       if (data.checkoutUrl) {
@@ -125,7 +162,7 @@ export default function CreateClientByProducer({ onSuccess }) {
       setError("לא התקבל קישור לתשלום");
     } catch (err) {
       console.error(err);
-      setError(err.message || "שגיאה כללית");
+      setError(err?.message || "שגיאה כללית");
     } finally {
       setLoading(false);
     }
@@ -140,8 +177,23 @@ export default function CreateClientByProducer({ onSuccess }) {
         onSubmit={handleSubmit}
         className="w-full max-w-[520px] space-y-6 text-right"
       >
-        {/* ===== פרטי לקוח ===== */}
-        <Section title="פרטי לקוח">
+        {/* ===== סוג משתמש ===== */}
+        <Section title="סוג משתמש">
+          <Field label="סוג משתמש">
+            <select
+              name="userType"
+              value={userType}
+              onChange={(e) => setUserType(e.target.value)}
+              className={INPUT_CLASS}
+            >
+              <option value="client">לקוח</option>
+              <option value="producer_staff">עובד מפיק</option>
+            </select>
+          </Field>
+        </Section>
+
+        {/* ===== פרטי משתמש ===== */}
+        <Section title={isClient ? "פרטי לקוח" : "פרטי עובד"}>
           <Field label="שם מלא" icon={<User />}>
             <input
               type="text"
@@ -164,7 +216,7 @@ export default function CreateClientByProducer({ onSuccess }) {
             />
           </Field>
 
-          <Field label="טלפון" icon={<Phone />}>
+          <Field label="טלפון (אופציונלי)" icon={<Phone />}>
             <input
               type="tel"
               name="phone"
@@ -175,62 +227,68 @@ export default function CreateClientByProducer({ onSuccess }) {
           </Field>
         </Section>
 
-        {/* ===== הגדרות מערכת ===== */}
-        <Section title="הגדרות מערכת">
-          <Field label="כמות רשומות" icon={<Users />}>
-            <input
-              type="number"
-              name="guests"
-              min={1}
-              step={1}
-              value={form.guests}
-              onChange={handleChange}
-              className={INPUT_CLASS}
-            />
-          </Field>
+        {/* ===== רק ללקוח: הגדרות מערכת ===== */}
+        {isClient && (
+          <Section title="הגדרות מערכת">
+            <Field label="כמות רשומות" icon={<Users />}>
+              <input
+                type="number"
+                name="guests"
+                min={1}
+                step={1}
+                value={form.guests}
+                onChange={handleChange}
+                className={INPUT_CLASS}
+              />
+            </Field>
 
-          <Field
-            label="כמות הודעות SMS (אוטומטי)"
-            icon={<MessageSquare />}
-          >
-            <input
-              type="number"
-              value={smsTotal}
-              disabled
-              className={`${INPUT_CLASS} bg-slate-100 cursor-not-allowed`}
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              {SMS_PER_RECORD} הודעות לכל רשומה
-            </div>
-          </Field>
+            <Field label="כמות הודעות SMS (אוטומטי)" icon={<MessageSquare />}>
+              <input
+                type="number"
+                value={smsTotal}
+                disabled
+                className={`${INPUT_CLASS} bg-slate-100 cursor-not-allowed`}
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                {SMS_PER_RECORD} הודעות לכל רשומה
+              </div>
+            </Field>
 
-          <label className="flex items-center gap-3 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              name="includeCalls"
-              checked={form.includeCalls}
-              onChange={handleChange}
-            />
-            <PhoneCall className="w-4 h-4 text-slate-400" />
-            כולל שיחות טלפון
-          </label>
-        </Section>
+            <label className="flex items-center gap-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                name="includeCalls"
+                checked={form.includeCalls}
+                onChange={handleChange}
+              />
+              <PhoneCall className="w-4 h-4 text-slate-400" />
+              כולל שיחות טלפון
+            </label>
+          </Section>
+        )}
 
-        {/* ===== סיכום תשלום ===== */}
-        <Section title="סיכום תשלום">
-          {pricePerRecord > 0 ? (
-            <div className="text-sm text-slate-700">
-              {form.guests} רשומות × ₪{pricePerRecord} ={" "}
-              <span className="font-bold text-lg">
-                ₪{totalPrice}
-              </span>
-            </div>
-          ) : (
-            <div className="text-sm text-red-600">
-              לא הוגדר מחיר לרשומה עבור המפיק
-            </div>
-          )}
-        </Section>
+        {/* ===== רק ללקוח: סיכום תשלום ===== */}
+        {isClient && (
+          <Section title="סיכום תשלום">
+            {pricePerRecord > 0 ? (
+              <div className="text-sm text-slate-700">
+                {form.guests} רשומות × ₪{pricePerRecord} ={" "}
+                <span className="font-bold text-lg">₪{totalPrice}</span>
+              </div>
+            ) : (
+              <div className="text-sm text-red-600">
+                לא הוגדר מחיר לרשומה עבור המפיק
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* ===== רק לעובד: הודעה ===== */}
+        {isStaff && (
+          <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            לאחר יצירת העובד, יישלח אליו מייל להגדרת סיסמה.
+          </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -242,10 +300,16 @@ export default function CreateClientByProducer({ onSuccess }) {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading || pricePerRecord === 0}
+          disabled={loading || (isClient && pricePerRecord === 0)}
           className="w-full h-12 rounded-xl bg-[#3A2B23] text-white font-semibold disabled:opacity-50"
         >
-          {loading ? "מעביר לתשלום…" : "המשך לתשלום"}
+          {loading
+            ? isClient
+              ? "מעביר לתשלום…"
+              : "יוצר עובד…"
+            : isClient
+            ? "המשך לתשלום"
+            : "יצירת עובד ושליחת מייל הגדרת סיסמה"}
         </button>
       </form>
     </div>
@@ -258,9 +322,7 @@ export default function CreateClientByProducer({ onSuccess }) {
 function Section({ title, children }) {
   return (
     <section className="space-y-4">
-      <h3 className="text-sm font-bold text-slate-500 border-b pb-2">
-        {title}
-      </h3>
+      <h3 className="text-sm font-bold text-slate-500 border-b pb-2">{title}</h3>
       {children}
     </section>
   );
@@ -273,9 +335,11 @@ function Field({ label, icon, children }) {
         {label}
       </label>
       <div className="relative">
-        <div className="absolute right-3 inset-y-0 flex items-center text-slate-400">
-  {icon}
-</div>
+        {icon ? (
+          <div className="absolute right-3 inset-y-0 flex items-center text-slate-400">
+            {icon}
+          </div>
+        ) : null}
         {children}
       </div>
     </div>
