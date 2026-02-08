@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
+import Group from "@/models/Group";
+import { RSVP_LABELS, type RSVPStatus } from "@/lib/rsvp";
 import * as XLSX from "xlsx";
 
 export async function GET(req: Request) {
@@ -16,21 +18,39 @@ export async function GET(req: Request) {
     );
   }
 
-  const guests = await InvitationGuest.find({
-    invitationId,
-  }).lean();
+  /* =========================
+     Load data
+  ========================= */
 
-  // 🧾 התאמת השדות לאקסל
-  const rows = guests.map((g, index) => ({
-    "#": index + 1,
+  const guests = await InvitationGuest.find({ invitationId }).lean();
+
+  const groups = await Group.find({ invitationId }).lean();
+  const groupMap = new Map<string, string>(
+    groups.map((g: any) => [String(g._id), g.name])
+  );
+
+  /* =========================
+     Build Excel rows
+     (MATCH TABLE 1:1)
+  ========================= */
+
+  const rows = guests.map((g: any) => ({
     "שם מלא": g.name || "",
     "טלפון": g.phone || "",
-    "סטטוס": g.rsvp || "",
-    "כמות מוזמנים": g.guestsCount || 0,
-    "קבוצה": g.groupId || "",
-    "שולחן": g.tableName || g.tableNumber || "",
+    "קרבה": g.relation || "",
+    "קבוצה": g.groupId ? groupMap.get(String(g.groupId)) || "" : "",
+    "סטטוס": RSVP_LABELS[g.rsvp as RSVPStatus] || "",
+    "מוזמנים": g.guestsCount ?? 0,
+    "מגיעים": g.arrivedCount ?? 0,
+    "מס' שולחן":
+      g.tableName ||
+      (g.tableNumber ? `שולחן ${g.tableNumber}` : ""),
     "הערות": g.notes || "",
   }));
+
+  /* =========================
+     Create Excel
+  ========================= */
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
@@ -45,7 +65,7 @@ export async function GET(req: Request) {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": 'attachment; filename="guests.xlsx"',
+      "Content-Disposition": 'attachment; filename="מוזמנים.xlsx"',
     },
   });
 }
