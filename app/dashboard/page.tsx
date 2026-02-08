@@ -129,8 +129,19 @@ export default function DashboardPage() {
 
   const seatingTables = useSeatingStore((s) => s.tables);
 
-  const effectiveRole =
-  user?.impersonationRole || user?.role;
+  const effectiveRole = useMemo(() => {
+  if (user?.impersonationRole) return user.impersonationRole;
+
+  if (
+    user?.role === "staff" &&
+    user?.staffType === "producer_staff"
+  ) {
+    return "producer";
+  }
+
+  return user?.role;
+}, [user]);
+
 
 const canViewActualArrived =
   effectiveRole === "producer" ||
