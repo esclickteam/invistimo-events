@@ -20,7 +20,9 @@ type UserRole =
   | "staff";
 
 type StaffType =
-  | "producer_staff";
+  | "producer_staff"
+  | "general_staff";
+
 
 interface User {
   _id: string;
@@ -219,7 +221,8 @@ else if (
   nextUser.staffType === "producer_staff"
 ) {
   router.replace("/producer-staff/dashboard");
-} 
+}
+
 else {
   router.replace("/dashboard");
 }

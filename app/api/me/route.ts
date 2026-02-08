@@ -51,7 +51,7 @@ type JwtPayload = {
 
   impersonated?: boolean;
   impersonatedBy?: string;
-  impersonationRole?: "admin" | "producer";
+  impersonationRole?: "admin" | "producer" | "staff_producer";
   iat?: number;
   exp?: number;
 };

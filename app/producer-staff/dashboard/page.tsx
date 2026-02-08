@@ -7,18 +7,19 @@ import { useAuth } from "@/context/AuthContext";
 /* ===============================
    Types
 =============================== */
-type StaffEvent = {
+type AssignedUser = {
   _id: string;
-  eventDate?: string;
-  eventLocation?: {
-    address?: string;
-  };
-  maxGuests?: number;
-  approvedCount?: number;
-  ownerId?: {
+  name?: string;
+  email?: string;
+  role: "client" | "user";
+  event?: {
     _id: string;
-    name: string;
-    email: string;
+    date?: string;
+    location?: {
+      address?: string;
+    };
+    totalGuests?: number;
+    approvedCount?: number;
   };
 };
 
@@ -29,81 +30,91 @@ export default function ProducerStaffDashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [events, setEvents] = useState<StaffEvent[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
+  const [users, setUsers] = useState<AssignedUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   /* ===============================
      Guard – הרשאות
   =============================== */
   useEffect(() => {
-    if (loading) return;
+  if (loading) return;
 
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
+  if (!user) {
+    router.replace("/login");
+    return;
+  }
 
-    if (user.role !== "staff" || user.staffType !== "producer_staff") {
-      router.replace("/");
-      return;
-    }
-  }, [user, loading, router]);
+  if (user.role !== "staff" || user.staffType !== "producer_staff") {
+  router.replace("/");
+  return;
+}
+
+}, [user, loading, router]);
+
 
   /* ===============================
-     Fetch events
+     Fetch assigned users
   =============================== */
   useEffect(() => {
     if (!user || user.role !== "staff") return;
 
-    const fetchEvents = async () => {
-      setEventsLoading(true);
+    const fetchUsers = async () => {
+      setUsersLoading(true);
       try {
-        const res = await fetch("/api/staff/events", {
+        const res = await fetch("/api/producer-staff/clients", {
           credentials: "include",
           cache: "no-store",
         });
 
         if (!res.ok) {
-          setEvents([]);
+          setUsers([]);
           return;
         }
 
         const data = await res.json();
-        setEvents(Array.isArray(data.events) ? data.events : []);
+        setUsers(Array.isArray(data.users) ? data.users : []);
       } catch {
-        setEvents([]);
+        setUsers([]);
       } finally {
-        setEventsLoading(false);
+        setUsersLoading(false);
       }
     };
 
-    fetchEvents();
+    fetchUsers();
   }, [user]);
 
-  const handleManageEvent = async (eventId: string) => {
-  try {
-    const res = await fetch("/api/staff/manage-event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ eventId }),
-    });
+  /* ===============================
+     Impersonate & enter
+  =============================== */
+  const handleEnterUser = async (targetUserId: string) => {
+    try {
+      const res = await fetch("/api/producer-staff/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ targetUserId }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok || !data.success) {
-      alert(data.message || "אין הרשאה לאירוע");
-      return;
+      if (!res.ok || !data.success) {
+        alert(data.message || "אין הרשאה");
+        return;
+      }
+
+      // client עם אירוע → ניהול אירוע
+      if (data.eventId) {
+        window.location.href = `/events/production?eventId=${data.eventId}`;
+        return;
+      }
+
+      // user רגיל
+      window.location.href = "/";
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בכניסה");
     }
-
-    // ✅ כניסה לאירוע בדיוק כמו אצל מפיק
-    window.location.href = `/events/production?eventId=${data.eventId}`;
-  } catch (err) {
-    console.error(err);
-    alert("שגיאה בכניסה לניהול האירוע");
-  }
-};
-
+  };
 
   if (loading || !user) {
     return <div style={{ padding: 32 }}>טוען…</div>;
@@ -112,13 +123,15 @@ export default function ProducerStaffDashboardPage() {
   /* ===============================
      Stats
   =============================== */
-  const totalGuests = events.reduce(
-    (sum, e) => sum + (e.maxGuests || 0),
+  const totalEvents = users.filter((u) => u.role === "client" && u.event).length;
+
+  const totalGuests = users.reduce(
+    (sum, u) => sum + (u.event?.totalGuests || 0),
     0
   );
 
-  const totalApproved = events.reduce(
-    (sum, e) => sum + (e.approvedCount || 0),
+  const totalApproved = users.reduce(
+    (sum, u) => sum + (u.event?.approvedCount || 0),
     0
   );
 
@@ -142,17 +155,18 @@ export default function ProducerStaffDashboardPage() {
           marginBottom: 32,
         }}
       >
-        <DashboardCard title="אירועים פעילים" value={events.length} />
+        <DashboardCard title="משתמשים מוקצים" value={users.length} />
+        <DashboardCard title="אירועים פעילים" value={totalEvents} />
         <DashboardCard title="סה״כ מוזמנים" value={totalGuests} />
         <DashboardCard title="אישרו הגעה" value={totalApproved} />
       </div>
 
-      <h2 style={{ marginBottom: 16 }}>האירועים שלי</h2>
+      <h2 style={{ marginBottom: 16 }}>המשתמשים שלי</h2>
 
-      {eventsLoading ? (
-        <div>טוען אירועים…</div>
-      ) : events.length === 0 ? (
-        <div style={{ color: "#999" }}>לא הוקצו לך אירועים עדיין</div>
+      {usersLoading ? (
+        <div>טוען משתמשים…</div>
+      ) : users.length === 0 ? (
+        <div style={{ color: "#999" }}>לא הוקצו לך משתמשים עדיין</div>
       ) : (
         <div
           style={{
@@ -161,12 +175,11 @@ export default function ProducerStaffDashboardPage() {
             gap: 16,
           }}
         >
-          {events.map((event) => (
-            <EventCard
-              key={event._id}
-              event={event}
-              onManage={() => handleManageEvent(event._id)}
-
+          {users.map((u) => (
+            <UserCard
+              key={u._id}
+              user={u}
+              onEnter={() => handleEnterUser(u._id)}
             />
           ))}
         </div>
@@ -201,12 +214,12 @@ function DashboardCard({
   );
 }
 
-function EventCard({
-  event,
-  onManage,
+function UserCard({
+  user,
+  onEnter,
 }: {
-  event: StaffEvent;
-  onManage: () => void;
+  user: AssignedUser;
+  onEnter: () => void;
 }) {
   return (
     <div
@@ -221,26 +234,35 @@ function EventCard({
       }}
     >
       <div style={{ fontWeight: 600, fontSize: 16 }}>
-        {event.ownerId?.name || "לקוח"}
+        {user.name || "משתמש"}
       </div>
 
       <div style={{ color: "#666", fontSize: 14 }}>
-        📅{" "}
-        {event.eventDate
-          ? new Date(event.eventDate).toLocaleDateString("he-IL")
-          : "ללא תאריך"}
+        📧 {user.email}
       </div>
 
-      <div style={{ color: "#666", fontSize: 14 }}>
-        📍 {event.eventLocation?.address || "ללא מיקום"}
-      </div>
+      {user.role === "client" && (
+        <>
+          <div style={{ color: "#666", fontSize: 14 }}>
+            📅{" "}
+            {user.event?.date
+              ? new Date(user.event.date).toLocaleDateString("he-IL")
+              : "ללא תאריך"}
+          </div>
 
-      <div style={{ fontSize: 14 }}>
-        👥 {event.approvedCount || 0} / {event.maxGuests || 0} אישרו הגעה
-      </div>
+          <div style={{ color: "#666", fontSize: 14 }}>
+            📍 {user.event?.location?.address || "ללא מיקום"}
+          </div>
+
+          <div style={{ fontSize: 14 }}>
+            👥 {user.event?.approvedCount || 0} /{" "}
+            {user.event?.totalGuests || 0} אישרו הגעה
+          </div>
+        </>
+      )}
 
       <button
-        onClick={onManage}
+        onClick={onEnter}
         style={{
           marginTop: 8,
           padding: "10px 14px",
@@ -251,7 +273,7 @@ function EventCard({
           cursor: "pointer",
         }}
       >
-        ניהול אירוע
+        כניסה
       </button>
     </div>
   );
