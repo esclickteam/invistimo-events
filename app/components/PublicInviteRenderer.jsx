@@ -3,21 +3,20 @@
 import { Stage, Layer, Text, Rect, Image as KonvaImage } from "react-konva";
 import Lottie from "lottie-react";
 import useImage from "use-image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-/* ============================================================
-   PUBLIC INVITE RENDERER
-   ✅ Fixes preview clipping by scaling object coordinates/sizes
-   ✅ No Stage scaleX/scaleY (prevents bottom cut)
-============================================================ */
 export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
   let data;
+
   try {
-    data = typeof canvasData === "string" ? JSON.parse(canvasData) : canvasData;
+    data =
+      typeof canvasData === "string"
+        ? JSON.parse(canvasData)
+        : canvasData;
   } catch (err) {
-    console.error("❌ Invalid canvasData:", canvasData, err);
+    console.error("❌ Invalid canvasData:", canvasData);
     return null;
   }
 
@@ -26,8 +25,8 @@ export default function PublicInviteRenderer({ canvasData }) {
     return null;
   }
 
-  const width = Number(data.width) || 400;
-  const height = Number(data.height) || 720;
+  const width = data.width || 400;
+  const height = data.height || 720;
 
   /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef(null);
@@ -36,11 +35,10 @@ export default function PublicInviteRenderer({ canvasData }) {
   useEffect(() => {
     function updateScale() {
       if (!containerRef.current) return;
+
       const containerWidth = containerRef.current.offsetWidth;
       if (!containerWidth) return;
 
-      // Optional: prevent upscale above 1 if you want original quality only:
-      // setScale(Math.min(containerWidth / width, 1));
       setScale(containerWidth / width);
     }
 
@@ -49,82 +47,80 @@ export default function PublicInviteRenderer({ canvasData }) {
     return () => window.removeEventListener("resize", updateScale);
   }, [width]);
 
-  const stageWidth = useMemo(() => width * scale, [width, scale]);
-  const stageHeight = useMemo(() => height * scale, [height, scale]);
-
   return (
     <div className="w-full flex justify-center">
       <div
         ref={containerRef}
-        className="w-full max-w-[400px] flex justify-center"
-        style={{ overflow: "visible" }}
+        className="w-full flex justify-center"
+        style={{
+          overflow: "visible",
+        }}
       >
         <div
           style={{
-            width: stageWidth,
-            height: stageHeight,
+            width: width * scale,
+            height: height * scale,
             position: "relative",
           }}
         >
-          {/* ================= K O N V A ================= */}
-          <Stage width={stageWidth} height={stageHeight} listening={false}>
+          {/* ================= K O N V A  ================= */}
+          <Stage
+            width={width * scale}
+            height={height * scale}
+            scaleX={scale}
+            scaleY={scale}
+            listening={false} // ❌ לא מאזין למגעים
+          >
             <Layer>
               {data.objects.map((obj) => {
-                if (!obj || !obj.type) return null;
-
                 if (obj.type === "rect") {
                   return (
                     <Rect
                       key={obj.id}
-                      x={(obj.x || 0) * scale}
-                      y={(obj.y || 0) * scale}
-                      width={(obj.width || 0) * scale}
-                      height={(obj.height || 0) * scale}
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.width}
+                      height={obj.height}
                       fill={obj.fill || "#ffffff"}
                       opacity={obj.opacity ?? 1}
-                      cornerRadius={(obj.cornerRadius || 0) * scale}
+                      cornerRadius={obj.cornerRadius || 0}
                       rotation={obj.rotation || 0}
                     />
                   );
                 }
 
                 if (obj.type === "circle") {
-                  const radius = obj.radius || 0;
                   return (
                     <Rect
                       key={obj.id}
-                      x={(obj.x || 0) * scale}
-                      y={(obj.y || 0) * scale}
-                      width={radius * 2 * scale}
-                      height={radius * 2 * scale}
-                      cornerRadius={radius * scale}
-                      fill={obj.fill || "#000"}
-                      opacity={obj.opacity ?? 1}
-                      rotation={obj.rotation || 0}
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.radius * 2}
+                      height={obj.radius * 2}
+                      cornerRadius={obj.radius}
+                      fill={obj.fill}
                     />
                   );
                 }
 
                 if (obj.type === "image") {
-                  return <PreviewImage key={obj.id} obj={obj} scale={scale} />;
+                  return <PreviewImage key={obj.id} obj={obj} />;
                 }
 
                 if (obj.type === "text") {
                   return (
                     <Text
                       key={obj.id}
-                      x={(obj.x || 0) * scale}
-                      y={(obj.y || 0) * scale}
+                      x={obj.x}
+                      y={obj.y}
                       text={obj.text || ""}
-                      fontSize={(obj.fontSize || 40) * scale}
+                      fontSize={obj.fontSize || 40}
                       fontFamily={obj.fontFamily || "Arial"}
                       fill={obj.fill || "#000"}
-                      width={obj.width ? obj.width * scale : undefined}
+                      width={obj.width}
                       align={obj.align || "center"}
                       opacity={obj.opacity ?? 1}
                       rotation={obj.rotation || 0}
-                      lineHeight={obj.lineHeight || 1.2}
-                      padding={(obj.padding || 0) * scale}
                     />
                   );
                 }
@@ -134,30 +130,27 @@ export default function PublicInviteRenderer({ canvasData }) {
             </Layer>
           </Stage>
 
-          {/* ================= LOTTIE (HTML Overlay) ================= */}
+          {/* ================= LOTTIE ================= */}
           {data.objects
-            .filter((o) => o?.type === "lottie")
+            .filter((o) => o.type === "lottie")
             .map((obj) => (
               <div
                 key={obj.id}
                 style={{
                   position: "absolute",
-                  top: (obj.y || 0) * scale,
-                  left: (obj.x || 0) * scale,
-                  width: (obj.width || 0) * scale,
-                  height: (obj.height || 0) * scale,
+                  top: obj.y * scale,
+                  left: obj.x * scale,
+                  width: obj.width * scale,
+                  height: obj.height * scale,
                   pointerEvents: "none",
                 }}
               >
-                <Lottie
-                  animationData={obj.lottieData}
-                  loop={obj.loop ?? true}
-                  autoplay={obj.autoplay ?? true}
-                />
+                <Lottie animationData={obj.lottieData} />
               </div>
             ))}
 
           {/* ================= GLASS LAYER ================= */}
+          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
           <div
             style={{
               position: "absolute",
@@ -165,7 +158,6 @@ export default function PublicInviteRenderer({ canvasData }) {
               zIndex: 10,
               background: "transparent",
               touchAction: "pan-y",
-              pointerEvents: "none", // אם את רוצה שלא יחסום שום לחיצות
             }}
           />
         </div>
@@ -177,16 +169,16 @@ export default function PublicInviteRenderer({ canvasData }) {
 /* ============================================================
    🖼 IMAGE LOADER
 ============================================================ */
-function PreviewImage({ obj, scale }) {
-  const [image] = useImage(obj?.url || "", "anonymous");
+function PreviewImage({ obj }) {
+  const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;
 
   return (
     <KonvaImage
-      x={(obj.x || 0) * scale}
-      y={(obj.y || 0) * scale}
-      width={(obj.width || 0) * scale}
-      height={(obj.height || 0) * scale}
+      x={obj.x}
+      y={obj.y}
+      width={obj.width}
+      height={obj.height}
       image={image}
       opacity={obj.opacity ?? 1}
       rotation={obj.rotation || 0}
