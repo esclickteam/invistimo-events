@@ -1,43 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
-import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { Types } from "mongoose";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-type AuthLike = {
-  userId?: string | Types.ObjectId;
-  role?: string;
-  impersonationRole?: string;
-  impersonatedBy?: string | Types.ObjectId;
-};
-
-function normalizeEffectiveRole(auth: AuthLike) {
-  if (auth?.impersonationRole === "producer_staff") return "producer";
-  return auth?.impersonationRole || auth?.role || "";
-}
-
-async function getMaxGuestsForOwner(ownerId: string) {
-  const owner = await User.findById(ownerId).select("planLimits").lean();
-  return owner?.planLimits?.maxGuests ?? 100; // fallback בטוח
-}
-
-async function getCurrentGuestsTotal(invitationId: string) {
-  const agg = await InvitationGuest.aggregate([
-    { $match: { invitationId: new Types.ObjectId(invitationId) } },
-    { $group: { _id: null, total: { $sum: "$guestsCount" } } },
-  ]);
-  return agg?.[0]?.total ?? 0;
-}
-
 /* ============================================================
    POST — ייבוא אורחים (Excel / CSV / Client)
 ============================================================ */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const { invitationId, guests } = await req.json();
 
@@ -51,7 +24,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* ================= אימות משתמש ================= */
-    const auth = (await getUserIdFromRequest(req)) as AuthLike;
+    const auth = await getUserIdFromRequest();
 
     if (!auth?.userId) {
       return NextResponse.json(
@@ -60,124 +33,83 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const userId = auth.userId;
+
     const invitation = await Invitation.findById(invitationId);
-    if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    /* ================= הרשאות ================= */
-    const effectiveRole = normalizeEffectiveRole(auth);
-
-    const isOwner = auth.userId.toString() === invitation.ownerId.toString();
-    const isAdmin = effectiveRole === "admin";
-    const isProducerRole = effectiveRole === "producer";
-    const isWorkerRole = effectiveRole === "worker";
-
-    const producerIdStr = invitation.producerId?.toString?.() || null;
-    const isProducerByInvitation =
-      !!producerIdStr &&
-      (auth.userId?.toString?.() === producerIdStr ||
-        auth.impersonatedBy?.toString?.() === producerIdStr);
-
-    if (
-      !isOwner &&
-      !isAdmin &&
-      !isProducerRole &&
-      !isWorkerRole &&
-      !isProducerByInvitation
-    ) {
+    if (!invitation || invitation.ownerId.toString() !== userId.toString()) {
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
         { status: 403 }
       );
     }
 
-    /* ================= הכנת שורות תקינות ================= */
-    const normalizedRows = guests
-      .map((g: any) => {
-        const name = String(g?.name || "").trim();
-        if (!name) return null;
+    let importedCount = 0;
 
-        const phoneRaw = String(g?.phone ?? "").replace(/\D/g, "").trim();
-        const phone = phoneRaw ? phoneRaw : null;
+    /* ================= לולאת ייבוא ================= */
+    for (const g of guests) {
+      // ❗ שם הוא השדה החובה היחיד
+      const name = String(g?.name || "").trim();
+      if (!name) continue;
 
-        const rawTable = g.tableNumber ?? g.table ?? g.tableName ?? null;
-        const tableNumber =
-          rawTable !== null && rawTable !== "" && Number.isFinite(Number(rawTable))
-            ? Number(rawTable)
-            : null;
+      /* ---------- טלפון (אופציונלי) ---------- */
+      const phone =
+        g.phone && String(g.phone).replace(/\D/g, "").trim()
+          ? String(g.phone).replace(/\D/g, "")
+          : null;
 
-        const guestsCount = Number.isFinite(Number(g.guestsCount))
-          ? Math.max(1, Number(g.guestsCount))
-          : 1;
+      /* ---------- נרמול שולחן ---------- */
+      const rawTable =
+        g.tableNumber ?? g.table ?? g.tableName ?? null;
 
-        const rsvp = ["yes", "no", "pending"].includes(g?.rsvp)
+      const tableNumber =
+        rawTable !== null && rawTable !== ""
+          ? Number(rawTable)
+          : null;
+
+      const payload: any = {
+        invitationId,
+
+        name,
+        phone, // ⬅️ אופציונלי
+
+        relation: String(g.relation || "").trim() || null,
+
+        rsvp: ["yes", "no", "pending"].includes(g.rsvp)
           ? g.rsvp
-          : "pending";
+          : "pending",
 
-        // אם לא מגיע => arrivedCount = 0, אחרת ברירת מחדל 0 בייבוא
-        const arrivedCount = rsvp === "no" ? 0 : 0;
+        guestsCount: Number.isFinite(Number(g.guestsCount))
+          ? Math.max(1, Number(g.guestsCount))
+          : 1,
 
-        return {
-          invitationId,
-          name,
-          phone,
-          relation: String(g?.relation || "").trim() || null,
-          rsvp,
-          guestsCount,
-          arrivedCount,
-          notes: String(g?.notes || "").trim() || null,
-          tableNumber,
-          tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
-          token: crypto.randomUUID(),
-          actualArrivedCount: 0,
-        };
-      })
-      .filter(Boolean) as any[];
+        arrivedCount: 0,
 
-    if (normalizedRows.length === 0) {
+        notes: String(g.notes || "").trim() || null,
+
+        /* 🪑 הושבה */
+        tableNumber,
+        tableName:
+          tableNumber !== null ? `שולחן ${tableNumber}` : null,
+
+        // 🔐 טוקן ייחודי לכל מוזמן
+        token: crypto.randomUUID(),
+      };
+
+      // ❗ כל שורה = מוזמן חדש (בלי upsert)
+      await InvitationGuest.create(payload);
+      importedCount++;
+    }
+
+    if (importedCount === 0) {
       return NextResponse.json(
         { success: false, error: "NO_VALID_GUESTS" },
         { status: 400 }
       );
     }
 
-    /* ================= הגבלת חבילה (קריטי) =================
-       מחשבים לפי SUM של guestsCount
-    ======================================================= */
-    const maxGuests = await getMaxGuestsForOwner(invitation.ownerId.toString());
-    const currentTotalGuests = await getCurrentGuestsTotal(String(invitationId));
-    const importTotalGuests = normalizedRows.reduce(
-      (sum, row) => sum + (row.guestsCount || 1),
-      0
-    );
-    const requestedTotalGuests = currentTotalGuests + importTotalGuests;
-
-    if (requestedTotalGuests > maxGuests) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "PLAN_GUEST_LIMIT_EXCEEDED",
-          error: `ייבוא חורג ממכסת החבילה. מותר עד ${maxGuests} מוזמנים.`,
-          limit: maxGuests,
-          currentTotal: currentTotalGuests,
-          importTotal: importTotalGuests,
-          requestedTotal: requestedTotalGuests,
-        },
-        { status: 409 }
-      );
-    }
-
-    /* ================= יצירה ================= */
-    await InvitationGuest.insertMany(normalizedRows, { ordered: false });
-
     return NextResponse.json({
       success: true,
-      count: normalizedRows.length,
-      importedGuestsCountSum: importTotalGuests,
+      count: importedCount,
     });
   } catch (err) {
     console.error("❌ Import guests error:", err);
