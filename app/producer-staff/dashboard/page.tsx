@@ -7,16 +7,16 @@ import { useAuth } from "@/context/AuthContext";
 /* ===============================
    Types
 =============================== */
-type StaffClient = {
+type StaffEvent = {
   _id: string;
-  name: string;
-  email: string;
-  event?: {
+  date?: string;
+  location?: string;
+  totalGuests?: number;
+  approvedCount?: number;
+  owner?: {
     _id: string;
-    date?: string;
-    location?: string;
-    totalGuests?: number;
-    approvedCount?: number;
+    name: string;
+    email: string;
   };
 };
 
@@ -27,11 +27,11 @@ export default function ProducerStaffDashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [clients, setClients] = useState<StaffClient[]>([]);
-  const [clientsLoading, setClientsLoading] = useState(false);
+  const [events, setEvents] = useState<StaffEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
 
   /* ===============================
-     Guard – הרשאות וניווט
+     Guard – הרשאות
   =============================== */
   useEffect(() => {
     if (loading) return;
@@ -48,36 +48,36 @@ export default function ProducerStaffDashboardPage() {
   }, [user, loading, router]);
 
   /* ===============================
-     Fetch assigned clients + events
+     Fetch events assigned to staff
   =============================== */
   useEffect(() => {
     if (!user || user.role !== "staff") return;
 
-    const fetchClients = async () => {
-      setClientsLoading(true);
+    const fetchEvents = async () => {
+      setEventsLoading(true);
       try {
-        const res = await fetch("/api/staff/clients", {
+        const res = await fetch("/api/staff/events", {
           credentials: "include",
           cache: "no-store",
         });
 
         if (!res.ok) {
-          console.error("Failed to load staff clients");
-          setClients([]);
+          console.error("Failed to load staff events");
+          setEvents([]);
           return;
         }
 
         const data = await res.json();
-        setClients(Array.isArray(data.clients) ? data.clients : []);
+        setEvents(Array.isArray(data.events) ? data.events : []);
       } catch (err) {
         console.error(err);
-        setClients([]);
+        setEvents([]);
       } finally {
-        setClientsLoading(false);
+        setEventsLoading(false);
       }
     };
 
-    fetchClients();
+    fetchEvents();
   }, [user]);
 
   if (loading || !user) {
@@ -87,13 +87,13 @@ export default function ProducerStaffDashboardPage() {
   /* ===============================
      Stats
   =============================== */
-  const activeEvents = clients.filter((c) => c.event);
-  const totalGuests = activeEvents.reduce(
-    (sum, c) => sum + (c.event?.totalGuests || 0),
+  const totalGuests = events.reduce(
+    (sum, e) => sum + (e.totalGuests || 0),
     0
   );
-  const totalApproved = activeEvents.reduce(
-    (sum, c) => sum + (c.event?.approvedCount || 0),
+
+  const totalApproved = events.reduce(
+    (sum, e) => sum + (e.approvedCount || 0),
     0
   );
 
@@ -117,17 +117,17 @@ export default function ProducerStaffDashboardPage() {
           marginBottom: 32,
         }}
       >
-        <DashboardCard title="אירועים פעילים" value={activeEvents.length} />
+        <DashboardCard title="אירועים פעילים" value={events.length} />
         <DashboardCard title="סה״כ מוזמנים" value={totalGuests} />
         <DashboardCard title="אישרו הגעה" value={totalApproved} />
       </div>
 
-      {/* Clients / Events */}
+      {/* Events table */}
       <h2 style={{ marginBottom: 12 }}>האירועים שלי</h2>
 
-      {clientsLoading ? (
+      {eventsLoading ? (
         <div>טוען אירועים…</div>
-      ) : activeEvents.length === 0 ? (
+      ) : events.length === 0 ? (
         <div style={{ color: "#999" }}>לא הוקצו לך אירועים עדיין</div>
       ) : (
         <table
@@ -148,23 +148,23 @@ export default function ProducerStaffDashboardPage() {
           </thead>
 
           <tbody>
-            {activeEvents.map((c) => (
-              <tr key={c._id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={td}>{c.name}</td>
+            {events.map((e) => (
+              <tr key={e._id} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={td}>{e.owner?.name || "—"}</td>
                 <td style={td}>
-                  {c.event?.date
-                    ? new Date(c.event.date).toLocaleDateString("he-IL")
+                  {e.date
+                    ? new Date(e.date).toLocaleDateString("he-IL")
                     : "—"}
                 </td>
-                <td style={td}>{c.event?.location || "—"}</td>
+                <td style={td}>{e.location || "—"}</td>
                 <td style={td}>
-                  {c.event?.approvedCount} / {c.event?.totalGuests}
+                  {e.approvedCount} / {e.totalGuests}
                 </td>
                 <td style={td}>
                   <button
                     onClick={() =>
                       router.push(
-                        `/events/production?eventId=${c.event!._id}`
+                        `/events/production?eventId=${e._id}`
                       )
                     }
                   >
@@ -183,7 +183,6 @@ export default function ProducerStaffDashboardPage() {
 /* ===============================
    Components
 =============================== */
-
 function DashboardCard({
   title,
   value,
