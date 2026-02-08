@@ -113,19 +113,23 @@ const isDemo = pathname.startsWith("/try");
 
   const seatingTables = useSeatingStore((s) => s.tables);
 
+  const effectiveRole =
+  user?.impersonationRole || user?.role;
+
+const canViewActualArrived =
+  effectiveRole === "producer" ||
+  effectiveRole === "worker";
+
+
 
 
 
 useEffect(() => {
-  const isProducer =
-    user?.role === "producer" || user?.originalRole === "producer";
-
-  if (!isProducer) return;
-
-  console.log("🔥 ENABLE LIVE MODE");
+  if (!canViewActualArrived) return;
 
   setSeatingMode("live");
-}, [user?.role, user?.originalRole, setSeatingMode]);
+}, [canViewActualArrived, setSeatingMode]);
+
 
 
 
@@ -588,17 +592,16 @@ useEffect(() => {
   if (isDemo) return;
   if (!invitationId) return;
 
-  const isProducer =
-    user?.role === "producer" || user?.originalRole === "producer";
+  // רק לקוח אמיתי עושה polling
+  if (canViewActualArrived) return;
 
   const interval = setInterval(() => {
-    if (!isProducer) {
-      loadGuests();
-    }
+    loadGuests();
   }, 5000);
 
   return () => clearInterval(interval);
-}, [invitationId, isDemo, user?.role, user?.originalRole]);
+}, [invitationId, isDemo, canViewActualArrived]);
+
 
 const guestTableMap = useMemo(() => {
   const map = new Map<string, any>();
@@ -1114,10 +1117,11 @@ console.log("INVITATION:", invitation);
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
   <Box title="סה״כ מוזמנים" value={stats.totalGuests} />
   <Box title="סה״כ מגיעים" value={stats.comingGuests} color="green" />
-  {(user?.role === "producer" || user?.originalRole === "producer") && (
 
-    <Box title="מגיעים בפועל" value={stats.actualArrivedGuests} color="blue" />
-  )}
+  {canViewActualArrived && (
+  <Box title="מגיעים בפועל" value={stats.actualArrivedGuests} color="blue" />
+)}
+
   <Box title="לא מגיעים" value={stats.notComing} color="red" />
   <Box title="טרם השיבו" value={stats.noResponse} color="orange" />
 </div>
@@ -1176,10 +1180,10 @@ console.log("INVITATION:", invitation);
           מגיעים{sortArrow("coming")}
         </th>
 
-        {(user?.role === "producer" || user?.originalRole === "producer") && (
-
+        {canViewActualArrived && (
   <th className="p-3 text-right">מגיעים בפועל</th>
 )}
+
 
 
         <th
@@ -1239,7 +1243,8 @@ console.log("INVITATION:", invitation);
   {g.arrivedCount || 0}
 </td>
 
-{(user?.role === "producer" || user?.originalRole === "producer") && (
+{canViewActualArrived && (
+
 
   <td className="p-3">
     <div className="flex items-center gap-2">
@@ -1360,11 +1365,9 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
       {displayGuests.length === 0 && (
         <tr>
           <td
-  colSpan={
-    user?.role === "producer" || user?.originalRole === "producer"
-      ? 10
-      : 9
-  }
+  colSpan={canViewActualArrived ? 10 : 9}
+
+
   className="p-8 text-center text-gray-500"
 >
 
