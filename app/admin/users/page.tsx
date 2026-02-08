@@ -16,6 +16,11 @@ type AdminUser = {
   includeCalls?: boolean;
   callsRounds?: number;
   createdAt?: string;
+eventDate?: string; // ISO string
+
+  // 🆕 מטפלים (על המשתמש עצמו)
+  assignedProducerEmail?: string;
+  assignedStaffEmail?: string;
 };
 
 /* =========================
@@ -149,15 +154,23 @@ export default function AdminUsersPage() {
       <div className="overflow-x-auto bg-white border rounded-xl shadow-sm">
         <table className="min-w-full text-right">
           <thead className="bg-gray-100 text-sm">
-            <tr>
-              <th className="p-3">שם</th>
-              <th className="p-3">אימייל</th>
-              <th className="p-3">תפקיד</th>
-              <th className="p-3">חבילה</th>
-              <th className="p-3">שירות שיחות</th>
-              <th className="p-3">פעולות</th>
-            </tr>
-          </thead>
+  <tr>
+    <th className="p-3">שם</th>
+    <th className="p-3">אימייל</th>
+    <th className="p-3">תפקיד</th>
+    <th className="p-3">חבילה</th>
+
+    {/* 🆕 תאריך אירוע */}
+    <th className="p-3">תאריך אירוע</th>
+
+    <th className="p-3">מפיק מטפל</th>
+    <th className="p-3">עובד מטפל</th>
+
+    <th className="p-3">שירות שיחות</th>
+    <th className="p-3">פעולות</th>
+  </tr>
+</thead>
+
 
           <tbody>
             {users
@@ -169,6 +182,39 @@ export default function AdminUsersPage() {
                 <td className="p-3">{u.email}</td>
                 <td className="p-3 font-semibold">{u.role}</td>
                 <td className="p-3">{u.plan || "-"}</td>
+
+{/* 🆕 תאריך אירוע */}
+<td className="p-3 text-sm">
+  {u.eventDate ? (
+    new Date(u.eventDate).toLocaleDateString("he-IL")
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
+
+
+{/* 🆕 מפיק מטפל */}
+<td className="p-3 text-sm">
+  {u.assignedProducerEmail ? (
+    <span className="font-medium">
+      {u.assignedProducerEmail}
+    </span>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
+
+{/* 🆕 עובד מטפל */}
+<td className="p-3 text-sm">
+  {u.assignedStaffEmail ? (
+    <span className="font-medium">
+      {u.assignedStaffEmail}
+    </span>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
+
 
                 <td className="p-3">
                   {u.includeCalls ? (
@@ -217,10 +263,7 @@ export default function AdminUsersPage() {
 
             {users.length === 0 && (
               <tr>
-                <td
-                  colSpan={6}
-                  className="p-6 text-center text-gray-500"
-                >
+               <td colSpan={9} className="p-6 text-center text-gray-500">
                   לא נמצאו משתמשים
                 </td>
               </tr>

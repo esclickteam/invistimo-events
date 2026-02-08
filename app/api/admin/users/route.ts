@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
+import Event from "@/models/Event";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export async function GET() {
         { role: "producer" },
       ],
     })
+    
       .select(`
         name
         email
@@ -53,9 +55,20 @@ export async function GET() {
         smsUsed
         createdAt
         producerPricePerRecord
+
+        assignedProducerEmail
+  assignedStaffEmail
       `)
       .sort({ createdAt: -1 })
       .lean();
+const userIds = users.map((u: any) => u._id);
+
+const events = await Event.find({
+  userId: { $in: userIds },
+})
+  .select("userId eventDate")
+  .sort({ eventDate: -1 }) // האחרון
+  .lean();
 
     const revenueAgg = await User.aggregate([
       {
@@ -75,8 +88,26 @@ export async function GET() {
 
     const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
 
+    const eventByUserId = new Map<string, any>();
+
+for (const event of events) {
+  const uid = String(event.userId);
+  if (!eventByUserId.has(uid)) {
+    eventByUserId.set(uid, event);
+  }
+}
+
+const usersWithEventDate = users.map((u: any) => {
+  const event = eventByUserId.get(String(u._id));
+
+  return {
+    ...u,
+    eventDate: event?.eventDate || null,
+  };
+});
+
     return NextResponse.json(
-      { success: true, users, totalRevenue },
+      { success: true, users: usersWithEventDate, totalRevenue },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
