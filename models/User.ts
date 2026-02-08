@@ -12,6 +12,8 @@ export interface IUser extends Document {
 
   role: "user" | "client" | "producer" | "staff" | "admin";
 
+  /** ✅ NEW: סוג עובד */
+  staffType?: "producer_staff" | "general_staff" | null;
 
   plan: "basic" | "premium";
   guests: number;
@@ -24,9 +26,7 @@ export interface IUser extends Document {
   createdByAdmin?: boolean;
 
   assignedProducerId?: mongoose.Types.ObjectId | null;
-assignedStaffIds?: mongoose.Types.ObjectId[];
-
-
+  assignedStaffIds?: mongoose.Types.ObjectId[];
 
   billingSource?: "site" | "admin" | "producer";
 
@@ -95,11 +95,18 @@ const UserSchema = new Schema<IUser>(
 
     phone: { type: String, trim: true, default: "" },
 
-   role: {
-  type: String,
-  enum: ["user", "client", "producer", "staff", "admin"],
-  default: "user",
-},
+    role: {
+      type: String,
+      enum: ["user", "client", "producer", "staff", "admin"],
+      default: "user",
+    },
+
+    /** ✅ NEW */
+    staffType: {
+      type: String,
+      enum: ["producer_staff", "general_staff", null],
+      default: null,
+    },
 
     plan: {
       type: String,
@@ -112,21 +119,20 @@ const UserSchema = new Schema<IUser>(
     paidAmount: { type: Number, default: 0 },
     hasPaid: { type: Boolean, default: false },
 
-        createdByAdmin: { type: Boolean, default: false },
+    createdByAdmin: { type: Boolean, default: false },
 
-assignedProducerId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "User",
-  default: null,
-},
+    assignedProducerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
 
-assignedStaffIds: [
-  {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-],
-
+    assignedStaffIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
 
     billingSource: {
       type: String,
@@ -170,9 +176,9 @@ assignedStaffIds: [
     isDemoUser: { type: Boolean, default: false },
 
     needsPasswordSetup: {
-  type: Boolean,
-  default: true,
-},
+      type: Boolean,
+      default: true,
+    },
 
     resetPasswordToken: { type: String },
     resetPasswordExpires: Date,
@@ -189,6 +195,16 @@ UserSchema.pre("save", function () {
   if (this.includeCalls) {
     this.includeCreditGifts = true;
     this.creditGiftsAddonPrice = 0;
+  }
+
+  /** ✅ NEW: אם לא staff, ננקה staffType */
+  if (this.role !== "staff") {
+    this.staffType = null;
+  }
+
+  /** ✅ NEW: אם staff ואין סוג - ברירת מחדל עובד מפיק */
+  if (this.role === "staff" && !this.staffType) {
+    this.staffType = "producer_staff";
   }
 
   /** 🧪 TRIAL */
@@ -232,6 +248,12 @@ UserSchema.pre("save", function () {
     this.maxMessages = this.guests * this.smsPerRecord;
   }
 });
+
+/* ============================================================
+   INDEXES (מומלץ)
+============================================================ */
+UserSchema.index({ role: 1, staffType: 1 });
+UserSchema.index({ assignedProducerId: 1, role: 1, staffType: 1 });
 
 /* ============================================================
    MODEL
