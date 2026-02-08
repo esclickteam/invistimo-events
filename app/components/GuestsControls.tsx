@@ -27,6 +27,9 @@ type Props = {
   /* 🔢 Count */
   totalCount: number;
   displayCount: number;
+
+  /* 📤 Export */
+  onExportExcel?: () => void;
 };
 
 /* ============================================================
@@ -47,6 +50,8 @@ export default function GuestsControls({
 
   totalCount,
   displayCount,
+
+  onExportExcel,
 }: Props) {
   const showGroups =
     groups &&
@@ -87,63 +92,76 @@ export default function GuestsControls({
         )}
       </div>
 
-      {/* ================= Groups + Main Tabs ================= */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Groups */}
-        {showGroups && (
-          <>
-            <select
-              value={selectedGroupId}
-              onChange={(e) => setSelectedGroupId(e.target.value)}
-              className="rounded-full border px-4 py-2 text-sm bg-white"
-            >
-              <option value="">כל הקבוצות</option>
-              {groups.map((g) => (
-                <option key={g._id} value={g._id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
+      {/* ================= Groups + Main Tabs + Actions ================= */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        {/* צד ימין – קבוצות + פילטרים */}
+        <div className="flex flex-wrap items-center gap-2">
+          {showGroups && (
+            <>
+              <select
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+                className="rounded-full border px-4 py-2 text-sm bg-white"
+              >
+                <option value="">כל הקבוצות</option>
+                {groups.map((g) => (
+                  <option key={g._id} value={g._id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
 
+              <button
+                onClick={onManageGroups}
+                className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
+              >
+                + הוספת קבוצה
+              </button>
+            </>
+          )}
+
+          <FilterPill
+            active={quickFilter === "all"}
+            onClick={() => setQuickFilter("all")}
+            label="הכל"
+          />
+
+          <FilterPill
+            active={quickFilter === "yes"}
+            onClick={() => setQuickFilter("yes")}
+            label="מגיעים"
+          />
+
+          <FilterPill
+            active={quickFilter === "no"}
+            onClick={() => setQuickFilter("no")}
+            label="לא מגיעים"
+          />
+
+          <FilterPill
+            active={isPendingView}
+            onClick={() => setQuickFilter("pending")}
+            label="ממתינים"
+          />
+
+          <FilterPill
+            active={quickFilter === "noTable"}
+            onClick={() => setQuickFilter("noTable")}
+            label="בלי שולחן"
+          />
+        </div>
+
+        {/* צד שמאל – פעולות */}
+        {onExportExcel && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={onManageGroups}
+              onClick={onExportExcel}
               className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
             >
-              + הוספת קבוצה
+              ייצוא לאקסל
             </button>
-          </>
+          </div>
         )}
-
-        {/* Main filters */}
-        <FilterPill
-          active={quickFilter === "all"}
-          onClick={() => setQuickFilter("all")}
-          label="הכל"
-        />
-
-        <FilterPill
-          active={quickFilter === "yes"}
-          onClick={() => setQuickFilter("yes")}
-          label="מגיעים"
-        />
-
-        <FilterPill
-          active={quickFilter === "no"}
-          onClick={() => setQuickFilter("no")}
-          label="לא מגיעים"
-        />
-
-        <FilterPill
-          active={isPendingView}
-          onClick={() => setQuickFilter("pending")}
-          label="ממתינים"
-        />
-
-        <FilterPill
-          active={quickFilter === "noTable"}
-          onClick={() => setQuickFilter("noTable")}
-          label="בלי שולחן"
-        />
       </div>
 
       {/* ================= Pending Sub Tabs ================= */}

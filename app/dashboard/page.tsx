@@ -317,6 +317,49 @@ async function loadEvent() {
   setGuests(data.guests || []);
 }
 
+const handleExportExcel = async () => {
+  // 🔒 חסימה בדמו
+  if (isDemo) {
+    handleDemoBlockedAction();
+    return;
+  }
+
+  if (!invitationId) {
+    alert("לא נמצא אירוע לייצוא");
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `/api/guests/export?invitationId=${invitationId}`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!res.ok) {
+      alert("שגיאה בייצוא לאקסל");
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "מוזמנים.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Export excel error:", err);
+    alert("שגיאת שרת בייצוא");
+  }
+};
+
+
 
 
 async function deleteGuest(guest: Guest) {
@@ -1091,8 +1134,8 @@ console.log("INVITATION:", invitation);
   setQuickFilter={setQuickFilter}
   totalCount={guests.length}
   displayCount={displayGuests.length}
+  onExportExcel={handleExportExcel}
 />
-
 
 
       {/* ===================== DESKTOP TABLE ===================== */}
