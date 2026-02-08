@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { UserPlus, ArrowUpRight } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { UserPlus, ArrowUpRight, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -42,6 +42,14 @@ export default function ProducerDashboard() {
 
   // כדי למנוע "אין הרשאה" מוקדם מדי
   const [authResolved, setAuthResolved] = useState(false);
+
+  /* ===== NEW: Staff assignment states ===== */
+  const [staffList, setStaffList] = useState([]); // [{ _id,name,email,assignedClientIds }]
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [openAssignForClientId, setOpenAssignForClientId] = useState(null);
+  const [savingClientId, setSavingClientId] = useState(null);
+
+  const assignMenuRef = useRef(null);
 
   /* =========================
      Ensure auth synced (important after set-password/login)
@@ -122,6 +130,38 @@ export default function ProducerDashboard() {
     }
   }, []);
 
+  /* =========================
+     NEW: Fetch Staff List
+  ========================= */
+  const fetchStaff = useCallback(async () => {
+    setStaffLoading(true);
+    try {
+      const res = await fetch("/api/producer/staff/list", {
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(
+          "Failed to fetch producer staff:",
+          res.status,
+          text.slice(0, 300)
+        );
+        setStaffList([]);
+        return;
+      }
+
+      const data = await res.json();
+      setStaffList(Array.isArray(data?.staff) ? data.staff : []);
+    } catch (err) {
+      console.error("Failed to fetch producer staff:", err);
+      setStaffList([]);
+    } finally {
+      setStaffLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!authResolved) return;
     if (!user || user.role !== "producer") return;
@@ -131,7 +171,7 @@ export default function ProducerDashboard() {
 
     const run = async () => {
       if (!isMounted) return;
-      await fetchClients();
+      await Promise.all([fetchClients(), fetchStaff()]);
     };
 
     run();
@@ -141,7 +181,22 @@ export default function ProducerDashboard() {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [authResolved, user, fetchClients]);
+  }, [authResolved, user, fetchClients, fetchStaff]);
+
+  /* =========================
+     Close dropdown on outside click
+  ========================= */
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (!openAssignForClientId) return;
+      if (assignMenuRef.current && !assignMenuRef.current.contains(e.target)) {
+        setOpenAssignForClientId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [openAssignForClientId]);
 
   /* =========================
      Impersonation
@@ -171,6 +226,76 @@ export default function ProducerDashboard() {
     } catch (err) {
       console.error(err);
       alert("שגיאה בכניסה לניהול האירוע");
+    }
+  };
+
+  /* =========================
+     NEW: Assignment helpers
+  ========================= */
+  const isClientAssignedToStaff = useCallback((clientId, staff) => {
+    const ids = Array.isArray(staff?.assignedClientIds)
+      ? staff.assignedClientIds
+      : [];
+    return ids.some((id) => String(id) === String(clientId));
+  }, []);
+
+  const assignedStaffNamesForClient = useCallback(
+    (clientId) => {
+      const names = staffList
+        .filter((s) => isClientAssignedToStaff(clientId, s))
+        .map((s) => s.name);
+
+      if (names.length === 0) return "ללא";
+      if (names.length <= 2) return names.join(", ");
+      return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+    },
+    [staffList, isClientAssignedToStaff]
+  );
+
+  const toggleAssignClientToStaff = async (client, staff, shouldAssign) => {
+    try {
+      setSavingClientId(String(client._id));
+
+      const currentIds = Array.isArray(staff.assignedClientIds)
+        ? staff.assignedClientIds.map((x) => String(x))
+        : [];
+
+      let nextIds = currentIds;
+      if (shouldAssign) {
+        nextIds = Array.from(new Set([...currentIds, String(client._id)]));
+      } else {
+        nextIds = currentIds.filter((id) => id !== String(client._id));
+      }
+
+      const res = await fetch("/api/producer/staff/assign-clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          staffId: String(staff._id),
+          clientIds: nextIds,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "שגיאה בשמירת ההקצאה");
+      }
+
+      // עדכון לוקאלי מיידי
+      setStaffList((prev) =>
+        prev.map((s) =>
+          String(s._id) === String(staff._id)
+            ? { ...s, assignedClientIds: nextIds }
+            : s
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || "שגיאה בשמירת ההקצאה");
+    } finally {
+      setSavingClientId(null);
     }
   };
 
@@ -261,51 +386,131 @@ export default function ProducerDashboard() {
                 <th className="p-4">תאריך אירוע</th>
                 <th className="p-4">מקום</th>
                 <th className="p-4">אישרו</th>
+                <th className="p-4">הקצאה לעובד/ים</th>
                 <th className="p-4"></th>
               </tr>
             </thead>
 
             <tbody>
-              {clients.map((client) => (
-                <tr key={client._id} className="border-b hover:bg-slate-50">
-                  <td className="p-4 font-medium">{client.name}</td>
-                  <td className="p-4">{client.email}</td>
-                  <td className="p-4">{client.phone}</td>
+              {clients.map((client) => {
+                const isOpen = openAssignForClientId === String(client._id);
+                const isSavingThisRow = savingClientId === String(client._id);
 
-                  <td className="p-4">
-                    {client.event?.date ? (
-                      new Date(client.event.date).toLocaleDateString("he-IL")
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
+                return (
+                  <tr key={client._id} className="border-b hover:bg-slate-50">
+                    <td className="p-4 font-medium">{client.name}</td>
+                    <td className="p-4">{client.email}</td>
+                    <td className="p-4">{client.phone}</td>
 
-                  <td className="p-4">
-                    {client.event?.location || (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
+                    <td className="p-4">
+                      {client.event?.date ? (
+                        new Date(client.event.date).toLocaleDateString("he-IL")
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
 
-                  <td className="p-4 font-medium">
-                    {client.event ? (
-                      `${client.event.approvedCount} / ${client.event.totalGuests}`
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
+                    <td className="p-4">
+                      {client.event?.location || (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
 
-                  <td className="p-4">
-                    <Button
-                      size="sm"
-                      className="flex items-center gap-1"
-                      onClick={() => handleManageClient(client._id)}
-                    >
-                      ניהול
-                      <ArrowUpRight className="w-4 h-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+                    <td className="p-4 font-medium">
+                      {client.event ? (
+                        `${client.event.approvedCount} / ${client.event.totalGuests}`
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+
+                    {/* NEW: assignment dropdown */}
+                    <td className="p-4 relative">
+                      <div className="inline-flex items-center gap-2" ref={isOpen ? assignMenuRef : null}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-1"
+                          onClick={() =>
+                            setOpenAssignForClientId((prev) =>
+                              prev === String(client._id) ? null : String(client._id)
+                            )
+                          }
+                        >
+                          {isSavingThisRow ? "שומר..." : assignedStaffNamesForClient(client._id)}
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
+
+                        {isOpen && (
+                          <div className="absolute z-50 mt-2 min-w-[280px] rounded-xl border bg-white shadow-lg p-2">
+                            <div className="px-2 py-1 text-xs text-slate-500 border-b mb-1">
+                              בחרי עובד/ים ללקוח זה
+                            </div>
+
+                            {staffLoading ? (
+                              <div className="px-2 py-2 text-sm text-slate-500">טוען עובדים…</div>
+                            ) : staffList.length === 0 ? (
+                              <div className="px-2 py-2 text-sm text-slate-500">אין עובדים זמינים</div>
+                            ) : (
+                              <div className="max-h-64 overflow-auto">
+                                {staffList.map((staff) => {
+                                  const checked = isClientAssignedToStaff(client._id, staff);
+                                  return (
+                                    <label
+                                      key={staff._id}
+                                      className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        disabled={isSavingThisRow}
+                                        onChange={(e) =>
+                                          toggleAssignClientToStaff(
+                                            client,
+                                            staff,
+                                            e.target.checked
+                                          )
+                                        }
+                                      />
+                                      <span className="text-sm">
+                                        {staff.name}{" "}
+                                        <span className="text-slate-500">({staff.email})</span>
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div className="pt-2 mt-1 border-t flex justify-end">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setOpenAssignForClientId(null)}
+                              >
+                                סגור
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="p-4">
+                      <Button
+                        size="sm"
+                        className="flex items-center gap-1"
+                        onClick={() => handleManageClient(client._id)}
+                      >
+                        ניהול
+                        <ArrowUpRight className="w-4 h-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

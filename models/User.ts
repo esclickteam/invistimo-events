@@ -1,4 +1,10 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+import mongoose, {
+  Schema,
+  Document,
+  models,
+  model,
+  HydratedDocument,
+} from "mongoose";
 
 /* ============================================================
    TYPES
@@ -11,8 +17,6 @@ export interface IUser extends Document {
   phone?: string;
 
   role: "user" | "client" | "producer" | "staff" | "admin";
-
-  /** ✅ NEW: סוג עובד */
   staffType?: "producer_staff" | "general_staff" | null;
 
   plan: "basic" | "premium";
@@ -25,22 +29,25 @@ export interface IUser extends Document {
   createdByProducer?: mongoose.Types.ObjectId | null;
   createdByAdmin?: boolean;
 
+  // לעובד מפיק - לאיזה מפיק הוא שייך
   assignedProducerId?: mongoose.Types.ObjectId | null;
+
+  // אם אצלך כבר בשימוש במקום אחר - משאירה
   assignedStaffIds?: mongoose.Types.ObjectId[];
+
+  // ✅ חדש: משתמשים (לקוחות) שמוקצים לעובד
+  assignedClientIds?: mongoose.Types.ObjectId[];
 
   billingSource?: "site" | "admin" | "producer";
 
-  /** ===== PRODUCER PRICING ===== */
   producerPricePerRecord?: number;
 
-  /** ===== ADDONS ===== */
   includeCalls: boolean;
   callsAddonPrice: number;
 
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
 
-  /** ===== SMS / RECORD LOGIC ===== */
   smsPerRecord: number;
   maxMessages: number;
 
@@ -88,7 +95,7 @@ const UserSchema = new Schema<IUser>(
 
     password: {
       type: String,
-      required: function (this: any) {
+      required: function (this: HydratedDocument<IUser>) {
         return !this.needsPasswordSetup;
       },
     },
@@ -99,13 +106,14 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ["user", "client", "producer", "staff", "admin"],
       default: "user",
+      index: true,
     },
 
-    /** ✅ NEW */
     staffType: {
       type: String,
-      enum: ["producer_staff", "general_staff", null],
+      enum: ["producer_staff", "general_staff"],
       default: null,
+      index: true,
     },
 
     plan: {
@@ -125,9 +133,19 @@ const UserSchema = new Schema<IUser>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+      index: true,
     },
 
+    // נשאר אם כבר בשימוש אצלך
     assignedStaffIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    // ✅ חדש: הקצאת לקוחות לעובד
+    assignedClientIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -140,20 +158,14 @@ const UserSchema = new Schema<IUser>(
       default: "site",
     },
 
-    /** ===== PRODUCER ===== */
-    producerPricePerRecord: {
-      type: Number,
-      default: 0,
-    },
+    producerPricePerRecord: { type: Number, default: 0 },
 
-    /** ===== ADDONS ===== */
     includeCalls: { type: Boolean, default: false },
     callsAddonPrice: { type: Number, default: 0 },
 
     includeCreditGifts: { type: Boolean, default: false },
     creditGiftsAddonPrice: { type: Number, default: 0 },
 
-    /** ===== SMS LOGIC ===== */
     smsPerRecord: { type: Number, default: 3 },
     maxMessages: { type: Number, default: 0 },
 
@@ -187,35 +199,68 @@ const UserSchema = new Schema<IUser>(
 );
 
 /* ============================================================
-   PRE SAVE LOGIC
+   HOOKS
 ============================================================ */
 
-UserSchema.pre("save", function () {
-  /** 🎁 BONUS */
-  if (this.includeCalls) {
-    this.includeCreditGifts = true;
-    this.creditGiftsAddonPrice = 0;
+UserSchema.pre("validate", async function () {
+  const doc = this as HydratedDocument<IUser>;
+
+  // בונוס: includeCalls => includeCreditGifts
+  if (doc.includeCalls) {
+    doc.includeCreditGifts = true;
+    doc.creditGiftsAddonPrice = 0;
   }
 
-  /** ✅ NEW: אם לא staff, ננקה staffType */
-  if (this.role !== "staff") {
-    this.staffType = null;
+  // אם לא staff - ניקוי שדות צוות
+  if (doc.role !== "staff") {
+    doc.staffType = null;
+    doc.assignedProducerId = null;
+    doc.assignedClientIds = [];
   }
 
-  /** ✅ NEW: אם staff ואין סוג - ברירת מחדל עובד מפיק */
-  if (this.role === "staff" && !this.staffType) {
-    this.staffType = "producer_staff";
+  // אם staff בלי סוג - ברירת מחדל עובד מפיק
+  if (doc.role === "staff" && !doc.staffType) {
+    doc.staffType = "producer_staff";
   }
 
-  /** 🧪 TRIAL */
-  if (this.isTrial) {
-    this.plan = "premium";
-    this.guests = 1000;
-    this.smsPerRecord = 3;
-    this.maxMessages = 3000;
-    this.hasPaid = false;
+  // עובד כללי - בלי שיוך למפיק ובלי רשימת לקוחות חובה
+  if (doc.role === "staff" && doc.staffType === "general_staff") {
+    doc.assignedProducerId = null;
+    // אפשר להשאיר assignedClientIds אם תרצי, אבל לא חובה
+  }
 
-    this.planLimits = {
+  // עובד מפיק חייב שיוך למפיק
+  if (
+    doc.role === "staff" &&
+    doc.staffType === "producer_staff" &&
+    !doc.assignedProducerId
+  ) {
+    doc.invalidate(
+      "assignedProducerId",
+      "assignedProducerId is required for producer_staff"
+    );
+  }
+
+  // מניעת כפילויות ב-assignedClientIds
+  if (Array.isArray(doc.assignedClientIds) && doc.assignedClientIds.length > 0) {
+    const unique = Array.from(
+      new Set(doc.assignedClientIds.map((id) => String(id)))
+    ).map((id) => new mongoose.Types.ObjectId(id));
+    doc.assignedClientIds = unique;
+  }
+});
+
+UserSchema.pre("save", async function () {
+  const doc = this as HydratedDocument<IUser>;
+
+  if (doc.isTrial) {
+    doc.plan = "premium";
+    doc.guests = 1000;
+    doc.smsPerRecord = 3;
+    doc.maxMessages = 3000;
+    doc.hasPaid = false;
+
+    doc.planLimits = {
       maxGuests: 1000,
       smsEnabled: true,
       smsLimit: 10,
@@ -225,16 +270,14 @@ UserSchema.pre("save", function () {
     return;
   }
 
-  /** 💼 CLIENT CREATED BY PRODUCER – BEFORE PAYMENT */
-  if (this.role === "client" && this.createdByProducer) {
-    this.smsPerRecord ||= 3;
-    this.maxMessages = this.guests * this.smsPerRecord;
+  if (doc.role === "client" && doc.createdByProducer) {
+    doc.smsPerRecord ||= 3;
+    doc.maxMessages = (doc.guests || 0) * (doc.smsPerRecord || 0);
+    doc.hasPaid = false;
+    doc.paidAmount ||= 0;
 
-    this.hasPaid = false;
-    this.paidAmount ||= 0;
-
-    this.planLimits = {
-      maxGuests: this.guests,
+    doc.planLimits = {
+      maxGuests: doc.guests,
       smsEnabled: true,
       smsLimit: 0,
       seatingEnabled: true,
@@ -243,20 +286,22 @@ UserSchema.pre("save", function () {
     return;
   }
 
-  /** 👤 DEFAULT */
-  if (this.guests && this.smsPerRecord) {
-    this.maxMessages = this.guests * this.smsPerRecord;
+  if (doc.guests && doc.smsPerRecord) {
+    doc.maxMessages = doc.guests * doc.smsPerRecord;
   }
 });
 
 /* ============================================================
-   INDEXES (מומלץ)
+   INDEXES
 ============================================================ */
+
 UserSchema.index({ role: 1, staffType: 1 });
 UserSchema.index({ assignedProducerId: 1, role: 1, staffType: 1 });
+UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1, role: 1 });
 
 /* ============================================================
    MODEL
 ============================================================ */
 
-export default models.User || mongoose.model<IUser>("User", UserSchema);
+const User = models.User || model<IUser>("User", UserSchema);
+export default User;

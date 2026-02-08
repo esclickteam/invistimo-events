@@ -94,9 +94,19 @@ const EventSchema = new mongoose.Schema(
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: undefined, // ❌ לא null
+      default: undefined,
       index: true,
     },
+
+    /* =========================
+       ✅ NEW: עובדים מוקצים לאירוע
+    ========================= */
+    assignedStaffIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
 
     email: {
       type: String,
@@ -123,7 +133,7 @@ const EventSchema = new mongoose.Schema(
       default: "wedding",
     },
 
-     title: {
+    title: {
       type: String,
       default: "",
       trim: true,
@@ -136,6 +146,7 @@ const EventSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
     /* =========================
        תאריך ושעה
     ========================= */
@@ -160,11 +171,11 @@ const EventSchema = new mongoose.Schema(
       },
       lat: {
         type: Number,
-        default: undefined, // ❌ לא null
+        default: undefined,
       },
       lng: {
         type: Number,
-        default: undefined, // ❌ לא null
+        default: undefined,
       },
     },
 
@@ -177,18 +188,17 @@ const EventSchema = new mongoose.Schema(
     },
 
     planning: {
-  eventDefinition: {
-    goal: { type: String, default: "" },
-    vibe: { type: String, default: "" },
-    size: { type: String, default: "" }, // או Number
-    notes: { type: String, default: "" },
-  },
-  concept: {
-    type: String,
-    default: "",
-  },
-},
-
+      eventDefinition: {
+        goal: { type: String, default: "" },
+        vibe: { type: String, default: "" },
+        size: { type: String, default: "" },
+        notes: { type: String, default: "" },
+      },
+      concept: {
+        type: String,
+        default: "",
+      },
+    },
 
     /* =========================
        מגבלות חבילה
@@ -200,8 +210,6 @@ const EventSchema = new mongoose.Schema(
 
     /* =========================
        Stripe (חד־פעמי)
-       ⚠️ אין default, אין index, אין unique
-       ⚠️ האינדקס מנוהל רק בדאטאבייס
     ========================= */
     stripeSessionId: {
       type: String,
@@ -238,10 +246,7 @@ const EventSchema = new mongoose.Schema(
   }
 );
 
-/* =========================================================
-   ❌ אין אינדקסים כאן!
-   ✔️ כל האינדקסים מנוהלים ידנית ב־MongoDB
-========================================================= */
+/* אופציונלי, אבל מומלץ מאוד לסינון מהיר לעובדי מפיק */
+EventSchema.index({ producerId: 1, assignedStaffIds: 1, status: 1 });
 
-export default mongoose.models.Event ||
-  mongoose.model("Event", EventSchema);
+export default mongoose.models.Event || mongoose.model("Event", EventSchema);
