@@ -10,7 +10,7 @@ type JwtPayloadLike = {
   id?: string;
   _id?: string;
   userId?: string;
-  role?: string;
+  role?: "producer" | "admin" | "staff" | "client";
 };
 
 export async function GET(_req: NextRequest) {
@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    // ✅ מזהה מפיק – תומך בכל וריאנט
+    // ✅ מזהה מפיק – תומך בכל וריאנט אפשרי
     const producerId =
       decoded.id || decoded._id || decoded.userId;
 
@@ -48,6 +48,19 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json(
         { success: false, message: "מזהה מפיק לא תקין" },
         { status: 401 }
+      );
+    }
+
+    // 🔒 שכבת אבטחה: לוודא שהמפיק קיים
+    const producerExists = await User.exists({
+      _id: producerId,
+      role: "producer",
+    });
+
+    if (!producerExists) {
+      return NextResponse.json(
+        { success: false, message: "מפיק לא נמצא" },
+        { status: 404 }
       );
     }
 
