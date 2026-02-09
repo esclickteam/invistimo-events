@@ -380,7 +380,8 @@ export default function ProducerDashboard() {
       </div>
 
       {/* Clients Table */}
-      <div className="bg-white border rounded-2xl overflow-hidden">
+      <div className="bg-white border rounded-2xl">
+
         <div className="p-4 font-semibold text-lg">לקוחות</div>
 
         {clientsLoading ? (
