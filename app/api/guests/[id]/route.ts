@@ -225,7 +225,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       }
     }
 
-    /* ===============================
+   /* ===============================
    actualArrivedCount — מגיעים בפועל
 =============================== */
 if (
@@ -244,8 +244,14 @@ if (
 
   guest.actualArrivedCount = data.actualArrivedCount;
 
-  // ✅ הגעה בפועל גוברת על RSVP
-  if (data.actualArrivedCount > 0 && guest.rsvp !== "yes") {
+  // ✅ רק במצב לייב
+  const isLiveMode = invitation.seatingMode === "live";
+
+  if (
+    isLiveMode &&
+    data.actualArrivedCount > 0 &&
+    guest.rsvp !== "yes"
+  ) {
     guest.rsvp = "yes";
 
     if (!guest.arrivedCount || guest.arrivedCount === 0) {
