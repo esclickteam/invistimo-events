@@ -254,7 +254,18 @@ const syncRemoveFromServer = async (guestId: string) => {
   /* ================= FILTER ================= */
 
   function guestVisible(g: Guest) {
-    if (g.rsvp !== "yes") return false;
+    // במצב רגיל – רק מי שמסומן כמגיע
+if (!isLiveMode && g.rsvp !== "yes") return false;
+
+// במצב לייב – מי שהגיע בפועל נחשב, גם אם לא סומן
+if (
+  isLiveMode &&
+  g.rsvp !== "yes" &&
+  Number(useSeatingStore.getState().liveArrivals[String(g.id ?? g._id)] ?? 0) === 0
+) {
+  return false;
+}
+
 
     const q = search.trim().toLowerCase();
     const gid = seatGuestId(g);
