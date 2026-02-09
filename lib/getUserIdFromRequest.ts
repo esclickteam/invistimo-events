@@ -1,33 +1,18 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import mongoose from "mongoose";
-import User from "@/models/User";
 
 /* =========================
    Types
 ========================= */
 
-export type AuthRole =
-  | "admin"
-  | "user"
-  | "producer"
-  | "client"
-  | "staff";
-
-export type StaffType =
-  | "producer_staff"
-  | "general_staff";
+export type AuthRole = "admin" | "user" | "producer" | "client";
 
 export type AuthPayload = {
   userId: string;
   role: AuthRole;
 
-  // staff
-  staffType?: StaffType;
-  assignedProducerId?: string;
-
-  // impersonation
+  // impersonation (optional)
   impersonated: boolean;
   impersonatedBy?: string;
   impersonationRole?: "producer" | "admin";
@@ -62,9 +47,7 @@ export async function getUserIdFromRequest(
   req?: NextRequest
 ): Promise<AuthPayload | null> {
   try {
-    /* =========================
-       🍪 Tokens
-    ========================= */
+    // same logic: impersonationToken > authToken
     const impersonationToken =
       getCookieFromReq(req, "impersonationToken") ??
       (await getCookieFromHeadersStore("impersonationToken"));
@@ -74,11 +57,9 @@ export async function getUserIdFromRequest(
       (await getCookieFromHeadersStore("authToken"));
 
     const tokenToUse = impersonationToken || authToken;
+
     if (!tokenToUse) return null;
 
-    /* =========================
-       🔐 Decode JWT
-    ========================= */
     const decoded = jwt.verify(tokenToUse, process.env.JWT_SECRET!) as {
       userId?: string;
       role?: AuthRole;
@@ -91,15 +72,10 @@ export async function getUserIdFromRequest(
       _id?: string;
     };
 
-    const userId =
-      decoded.userId || decoded.id || decoded._id || null;
-
+    const userId = decoded.userId || decoded.id || decoded._id || null;
     if (!userId) return null;
 
-    /* =========================
-       👤 Base payload
-    ========================= */
-    const payload: AuthPayload = {
+    return {
       userId: String(userId),
       role: decoded.role ?? "user",
 
@@ -107,26 +83,6 @@ export async function getUserIdFromRequest(
       impersonatedBy: decoded.impersonatedBy,
       impersonationRole: decoded.impersonationRole,
     };
-
-    /* =========================
-       👷 Staff enrichment (DB)
-    ========================= */
-    if (payload.role === "staff") {
-      const staff = await User.findById(
-        new mongoose.Types.ObjectId(payload.userId)
-      )
-        .select("staffType assignedProducerId")
-        .lean();
-
-      if (staff) {
-        payload.staffType = staff.staffType;
-        payload.assignedProducerId = staff.assignedProducerId
-          ? String(staff.assignedProducerId)
-          : undefined;
-      }
-    }
-
-    return payload;
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);
     return null;

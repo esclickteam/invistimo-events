@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import ProducerStaffHeader from "@/app/dashboard/ProducerStaffHeader";
+import ProducerDashboardHeader from "@/app/dashboard/ProducerDashboardHeader";
 
 /* ===============================
    Types
@@ -56,8 +56,7 @@ export default function ProducerStaffDashboardPage() {
     const fetchUsers = async () => {
       setUsersLoading(true);
       try {
-        const res = await fetch("/api/producer/clients", {
-
+        const res = await fetch("/api/producer-staff/clients", {
           credentials: "include",
           cache: "no-store",
         });
@@ -143,8 +142,7 @@ export default function ProducerStaffDashboardPage() {
 
   return (
     <>
-      <ProducerStaffHeader />
-
+      <ProducerDashboardHeader />
 
       <main dir="rtl" className="pt-16 px-3 md:px-6 lg:px-8 pb-10 bg-[#efeeeb] min-h-screen">
         {/* Stats */}

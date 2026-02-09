@@ -12,60 +12,55 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    console.log("🔵 [PRODUCER CLIENTS] Route called");
+
     await dbConnect();
+    console.log("🟢 DB connected");
 
     /* =========================
-       🔐 Auth
+       🔐 Auth – Producer
     ========================= */
     const auth = await getUserIdFromRequest(req);
+    console.log("🟡 AUTH payload:", auth);
 
-    if (!auth?.userId) {
-      return NextResponse.json({ success: false }, { status: 401 });
+    if (!auth?.userId || auth.role !== "producer") {
+      console.log("🔴 UNAUTHORIZED", auth);
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    let clientQuery: any = {
-      role: { $in: ["client", "user"] },
-    };
+    const producerObjectId = new mongoose.Types.ObjectId(auth.userId);
+    console.log("🟢 Producer ObjectId:", producerObjectId.toString());
 
     /* =========================
-       👤 Producer
+       👥 Clients – לפי assignedProducerId בלבד
     ========================= */
-    if (auth.role === "producer") {
-      clientQuery.assignedProducerId = new mongoose.Types.ObjectId(auth.userId);
-    }
-
-    /* =========================
-       👷 Producer staff
-    ========================= */
-    else if (auth.role === "staff") {
-      const staff = await User.findById(auth.userId).lean();
-
-      if (
-        !staff ||
-        staff.staffType !== "producer_staff" ||
-        !Array.isArray(staff.assignedClientIds)
-      ) {
-        return NextResponse.json({ success: true, clients: [] });
-      }
-
-      clientQuery._id = { $in: staff.assignedClientIds };
-    }
-
-    else {
-      return NextResponse.json({ success: false }, { status: 403 });
-    }
-
-    /* =========================
-       👥 Clients
-    ========================= */
-    const clients = await User.find(clientQuery)
-      .select("name email phone createdAt")
+    const clients = await User.find({
+  assignedProducerId: producerObjectId,
+  role: { $in: ["client", "user"] }, // ⭐️ זה כל הסיפור
+})
+      .select(
+        "name email phone createdAt assignedProducerId billingSource"
+      )
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!clients.length) {
+    console.log("🟢 Clients found:", clients.length);
+
+    if (clients.length === 0) {
+      console.log("⚠️ NO CLIENTS MATCH QUERY");
       return NextResponse.json({ success: true, clients: [] });
     }
+
+    console.log(
+      "🧾 Client IDs:",
+      clients.map((c) => ({
+        _id: String(c._id),
+        assignedProducerId: String(c.assignedProducerId),
+      }))
+    );
 
     const clientIds = clients.map((c) => c._id);
 
@@ -77,6 +72,8 @@ export async function GET(req: NextRequest) {
     })
       .select("_id userId date location")
       .lean();
+
+    console.log("🟢 Events found:", events.length);
 
     const eventsByUserId = Object.fromEntries(
       events.map((e) => [String(e.userId), e])
@@ -93,6 +90,8 @@ export async function GET(req: NextRequest) {
       .select("_id eventId")
       .lean();
 
+    console.log("🟢 Invitations found:", invitations.length);
+
     const invitationsByEventId = invitations.reduce((acc: any, inv: any) => {
       const key = String(inv.eventId);
       acc[key] = acc[key] || [];
@@ -103,10 +102,14 @@ export async function GET(req: NextRequest) {
     const invitationIds = invitations.map((i) => i._id);
 
     /* =========================
-       📊 Guest stats
+       📊 Guests stats
     ========================= */
     const guestStats = await InvitationGuest.aggregate([
-      { $match: { invitationId: { $in: invitationIds } } },
+      {
+        $match: {
+          invitationId: { $in: invitationIds },
+        },
+      },
       {
         $group: {
           _id: "$invitationId",
@@ -116,37 +119,56 @@ export async function GET(req: NextRequest) {
               $cond: [{ $eq: ["$rsvp", "yes"] }, "$guestsCount", 0],
             },
           },
+          arrivedCount: {
+            $sum: { $ifNull: ["$arrivedCount", 0] },
+          },
+          actualArrivedCount: {
+            $sum: { $ifNull: ["$actualArrivedCount", 0] },
+          },
         },
       },
     ]);
 
+    console.log("🟢 Guest stats rows:", guestStats.length);
+
     const statsByInvitationId = Object.fromEntries(
-      guestStats.map((g) => [
+      guestStats.map((g: any) => [
         String(g._id),
         {
           totalGuests: g.totalGuests || 0,
           approvedCount: g.approvedCount || 0,
+          arrivedCount: g.arrivedCount || 0,
+          actualArrivedCount: g.actualArrivedCount || 0,
         },
       ])
     );
 
     /* =========================
-       🔗 Merge
+       🔗 Merge Client + Event + Stats
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
-      if (!event) return { ...client, event: null };
+
+      if (!event) {
+        console.log("⚠️ Client has NO event:", String(client._id));
+        return { ...client, event: null };
+      }
 
       const invIds = invitationsByEventId[String(event._id)] || [];
 
       let totalGuests = 0;
       let approvedCount = 0;
+      let arrivedCount = 0;
+      let actualArrivedCount = 0;
 
       for (const invId of invIds) {
         const stats = statsByInvitationId[String(invId)];
         if (!stats) continue;
+
         totalGuests += stats.totalGuests;
         approvedCount += stats.approvedCount;
+        arrivedCount += stats.arrivedCount;
+        actualArrivedCount += stats.actualArrivedCount;
       }
 
       return {
@@ -159,13 +181,23 @@ export async function GET(req: NextRequest) {
               : event.location,
           totalGuests,
           approvedCount,
+          arrivedCount,
+          actualArrivedCount,
         },
       };
     });
 
-    return NextResponse.json({ success: true, clients: result });
-  } catch (err) {
-    console.error("❌ PRODUCER CLIENTS ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+    console.log("✅ FINAL RESULT COUNT:", result.length);
+
+    return NextResponse.json({
+      success: true,
+      clients: result,
+    });
+  } catch (error) {
+    console.error("❌ ERROR FETCHING PRODUCER CLIENTS:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch clients" },
+      { status: 500 }
+    );
   }
 }
