@@ -91,6 +91,7 @@ export async function POST(_req: NextRequest) {
 
     res.cookies.set("authToken", producerAuthToken, httpOnlyCookieOptions());
     res.cookies.set("producerAuthToken", "", deleteCookieOptions());
+res.cookies.set("impersonationToken", "", deleteCookieOptions());
 
     console.log("✅ Impersonation stopped, producer restored");
 

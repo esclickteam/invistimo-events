@@ -243,7 +243,7 @@ else {
     try {
       const returnRole = user?.impersonationRole;
 
-      await fetch("/api/auth/exit-impersonation", {
+      await fetch("/api/producer/stop-impersonation", {
         method: "POST",
         credentials: "include",
         cache: "no-store",
