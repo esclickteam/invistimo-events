@@ -33,6 +33,9 @@ export async function POST(req: Request) {
       );
     }
 
+    /* =========================
+       🔐 Verify admin token
+    ========================= */
     const decoded: any = jwt.verify(adminToken, process.env.JWT_SECRET!);
 
     if (decoded.role !== "admin") {
@@ -42,6 +45,9 @@ export async function POST(req: Request) {
       );
     }
 
+    /* =========================
+       📥 Body
+    ========================= */
     const { userId } = await req.json();
 
     if (!userId) {
@@ -51,7 +57,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = await User.findById(userId);
+    /* =========================
+       👤 Target user
+    ========================= */
+    const user = await User.findById(userId).lean();
 
     if (!user) {
       return NextResponse.json(
@@ -62,14 +71,16 @@ export async function POST(req: Request) {
 
     /* =========================
        🎭 Impersonation Token
+       ⬅️ כאן התיקון הקריטי
     ========================= */
     const impersonationToken = jwt.sign(
       {
         userId: user._id.toString(),
-        role: "client", // ⚠️ נשאר כמו אצלך
+        role: user.role,                 // ✅ producer / staff / client
+        staffType: user.staffType ?? null,
+        producerId: user.producerId ?? null,
         impersonated: true,
-        impersonatedBy: decoded.userId,
-        impersonationRole: "admin",
+        impersonatedBy: decoded.userId,  // האדמין
       },
       process.env.JWT_SECRET!,
       { expiresIn: "30m" }
@@ -88,7 +99,7 @@ export async function POST(req: Request) {
     });
 
     /* =========================
-       🔁 החלפת authToken (כמו היום)
+       🔁 החלפת authToken
     ========================= */
     res.cookies.set("authToken", impersonationToken, {
       path: "/",
