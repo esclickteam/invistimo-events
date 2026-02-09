@@ -23,9 +23,6 @@ type StaffType =
   | "producer_staff"
   | "general_staff";
 
-  type EventRole = "client" | "producer" | "staff" | "viewer";
-
-
 
 interface User {
   _id: string;
@@ -33,7 +30,6 @@ interface User {
   name?: string;
 
   role: UserRole;
-  eventRole?: EventRole;
 
   /* ===== STAFF ===== */
   staffType?: StaffType;

@@ -7,6 +7,7 @@ import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import MobileGuests from "./MobileGuests";
 import SeatingSidebar from "./SeatingSidebar";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext"; 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -59,7 +60,10 @@ useEffect(() => {
 
 
 
+  
 
+  const pathname = usePathname();
+const isProducer = pathname.includes("/events/production");
 
 
 
@@ -77,10 +81,6 @@ useEffect(() => {
   const groups = useSeatingStore((s) => s.groups);
   const { user } = useAuth();
 
-  const isProducerView =
-  user?.eventRole === "producer" && !user?.impersonated;
-
-
 const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
 
@@ -97,22 +97,13 @@ const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
 
 
-useEffect(() => {
-  if (!user?.eventRole) return;
 
-  const canLive =
-    user.eventRole === "client" ||
-    user.eventRole === "producer";
+    useEffect(() => {
+  if (!isProducer) return;
 
-  setSeatingMode(canLive ? "live" : "planning");
-
-  console.log("🧠 SeatingMode set by eventRole:", {
-    eventRole: user.eventRole,
-    mode: canLive ? "live" : "planning",
-  });
-}, [user?.eventRole, setSeatingMode]);
-
-    
+  console.log("🔥 ENABLE LIVE MODE (SEATING)");
+  setSeatingMode("live");
+}, [isProducer, setSeatingMode]);
 
 
 
@@ -476,7 +467,7 @@ return (
       background={background?.url || null}
       invitationId={invitationId}
       onAutoSave={() => saveSeating(false)}
-      hideSeats={isProducerView}
+      hideSeats={isProducer}
       sidebarOpen={sidebarOpen}
     />
   </div>
