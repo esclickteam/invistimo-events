@@ -135,7 +135,11 @@ export default function ProducerStaffDashboardPage() {
         date: u.event?.date
           ? new Date(u.event.date).toLocaleDateString("he-IL")
           : "—",
-        location: u.event?.location?.address || "—",
+        location:
+  typeof u.event?.location === "string"
+    ? u.event.location
+    : u.event?.location?.address || "—",
+
         approvedText: `${approved} / ${total}`,
       };
     });
