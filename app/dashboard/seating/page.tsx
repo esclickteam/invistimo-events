@@ -7,7 +7,6 @@ import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import MobileGuests from "./MobileGuests";
 import SeatingSidebar from "./SeatingSidebar";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext"; 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
@@ -60,10 +59,7 @@ useEffect(() => {
 
 
 
-  
 
-  const pathname = usePathname();
-const isProducer = pathname.includes("/events/production");
 
 
 
@@ -80,6 +76,10 @@ const isProducer = pathname.includes("/events/production");
   const setGroups = useSeatingStore((s) => s.setGroups);
   const groups = useSeatingStore((s) => s.groups);
   const { user } = useAuth();
+
+  const isProducerView =
+  user?.eventRole === "producer" && !user?.impersonated;
+
 
 const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
@@ -476,7 +476,7 @@ return (
       background={background?.url || null}
       invitationId={invitationId}
       onAutoSave={() => saveSeating(false)}
-      hideSeats={isProducer}
+      hideSeats={isProducerView}
       sidebarOpen={sidebarOpen}
     />
   </div>
