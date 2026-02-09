@@ -108,13 +108,14 @@ export async function POST(req: NextRequest) {
     /* =========================
        🍪 Cookies
     ========================= */
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
 
-    const currentAuthToken =
-      cookieStore.get("authToken")?.value || null;
+const currentAuthToken =
+  cookieStore.get("authToken")?.value || null;
 
     const existingProducerToken =
-      cookieStore.get("producerAuthToken")?.value || null;
+        cookieStore.get("producerAuthToken")?.value || null;
+
 
     if (!currentAuthToken) {
       return NextResponse.json(
