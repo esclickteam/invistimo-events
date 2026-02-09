@@ -3,6 +3,17 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
 
+const getGuestTablePatch = (isLive, tableId, tableName) =>
+  isLive
+    ? {
+        actualTableId: tableId,
+        actualTableName: tableName,
+      }
+    : {
+        plannedTableId: tableId,
+        plannedTableName: tableName,
+      };
+
 function extractNumberFromName(name) {
   const m = String(name || "").match(/(\d+)/);
   return m ? Number(m[1]) : null;
@@ -26,9 +37,8 @@ seatingMode: "regular", // "regular" | "live"
 
 setSeatingMode: (mode) =>
   set((state) => {
-    if (mode !== "regular" && mode !== "live") return {};
-if (mode === state.seatingMode) return {};
-
+    if (mode !== "regular" && mode !== "live") return state;
+    if (mode === state.seatingMode) return state;
 
     const next = { seatingMode: mode };
 
@@ -184,42 +194,37 @@ getSidebarSeatCount: (guest) => {
 
 
 getGuestSeatCount: (guest) => {
-  const key = String(guest.id ?? guest._id);
-
   if (get().seatingMode === "live") {
-    // LIVE = בפועל בלבד
     return Number(
-      get().liveArrivals[key] ??
-      guest.actualArrivedCount ??
-      0
+      get().liveArrivals[String(guest.id ?? guest._id)] ?? 0
     );
   }
 
-  // REGULAR = תכנון בלבד
-  return Number(guest.guestsCount ?? 0);
+  return Number(
+    guest.arrivedCount ??
+    (guest.rsvp === "yes" ? guest.guestsCount : 0)
+  );
 },
 
 
 
 
 getSeatingCountForGuest: (guest) => {
-  const key = String(guest.id ?? guest._id);
-
   if (get().seatingMode === "live") {
     return Number(
-      get().liveArrivals[key] ??
-      guest.actualArrivedCount ??
-      0
+      get().liveArrivals[String(guest.id ?? guest._id)] ?? 0
     );
   }
 
-  return Number(guest.guestsCount ?? 0);
+  return Number(
+    guest.arrivedCount ??
+    (guest.rsvp === "yes" ? guest.guestsCount : 0)
+  );
 },
 
 
 
 getPlannedSeatCount: (guest) => {
-  // תכנון בלבד (לא actual / לא liveArrivals)
   return Number(guest.guestsCount ?? 0);
 },
 
@@ -408,23 +413,31 @@ seatGroup: (groupId, tableId) => {
       ""
   ).trim();
 
+  const isLive = get().seatingMode === "live";
+
+
   set({
-    tables: updatedTables,
-    guests: guests.map((g) =>
-      String(g.groupId) === String(groupId)
-        ? {
-            ...g,
-            tableId: tableId,
-            tableName: resolvedTableName || null,
-          }
-        : g
-    ),
-    groups: groups.map((g) =>
-      String(g._id) === String(groupId)
-        ? { ...g, tableId, isSeated: true }
-        : g
-    ),
-  });
+  tables: updatedTables,
+
+  guests: guests.map((g) =>
+    String(g.groupId) === String(groupId)
+      ? {
+          ...g,
+          ...getGuestTablePatch(
+            isLive,
+            tableId,
+            resolvedTableName || null
+          ),
+        }
+      : g
+  ),
+
+  groups: groups.map((g) =>
+    String(g._id) === String(groupId)
+      ? { ...g, tableId, isSeated: true }
+      : g
+  ),
+});
 
   return { ok: true };
 },
@@ -433,6 +446,7 @@ seatGroup: (groupId, tableId) => {
 
 unseatGroup: (groupId) => {
   const { tables, guests, groups } = get();
+  const isLive = get().seatingMode === "live";
 
   set({
     tables: tables.map((t) => ({
@@ -441,11 +455,18 @@ unseatGroup: (groupId) => {
         (sg) => String(sg.groupId) !== String(groupId)
       ),
     })),
+
     guests: guests.map((g) =>
       String(g.groupId) === String(groupId)
-        ? { ...g, tableId: null, tableName: null }
+        ? {
+            ...g,
+            ...(isLive
+              ? { actualTableId: null, actualTableName: null }
+              : { plannedTableId: null, plannedTableName: null }),
+          }
         : g
     ),
+
     groups: groups.map((g) =>
       String(g._id) === String(groupId)
         ? { ...g, tableId: null, isSeated: false }
@@ -453,19 +474,20 @@ unseatGroup: (groupId) => {
     ),
   });
 
-  // 🔴 זה החסר – הוספה כאן בדיוק
+  // PATCH לשרת – נשאר כמו שהוא
   fetch(`/api/groups/${groupId}`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify({
-    tableId: null,
-    isSeated: false,
-  }),
-}).catch((err) => {
-  console.error("unseatGroup PATCH failed:", err);
-});
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      tableId: null,
+      isSeated: false,
+    }),
+  }).catch((err) => {
+    console.error("unseatGroup PATCH failed:", err);
+  });
 },
+
 
 
 
@@ -711,11 +733,18 @@ background: null,
         : t
     );
 
-    const guests = state.guests.map((g) =>
-      String(g.tableId) === String(tableId)
-        ? { ...g, tableName: `שולחן ${n}` }
-        : g
-    );
+    const isLive = get().seatingMode === "live";
+
+const guests = state.guests.map((g) =>
+  String(isLive ? g.actualTableId : g.plannedTableId) === String(tableId)
+    ? {
+        ...g,
+        ...(isLive
+          ? { actualTableName: `שולחן ${n}` }
+          : { plannedTableName: `שולחן ${n}` }),
+      }
+    : g
+);
 
     return { tables, guests };
   }),
@@ -726,16 +755,28 @@ background: null,
 
   /* ---------------- DELETE TABLE ---------------- */
   deleteTable: (tableId) =>
-    set((state) => ({
+  set((state) => {
+    const isLive = state.seatingMode === "live";
+
+    return {
       tables: state.tables.filter((t) => t.id !== tableId),
+
       guests: state.guests.map((g) =>
-        g.tableId === tableId
-          ? { ...g, tableId: null, tableName: null }
+        (isLive ? g.actualTableId : g.plannedTableId) === tableId
+          ? {
+              ...g,
+              ...(isLive
+                ? { actualTableId: null, actualTableName: null }
+                : { plannedTableId: null, plannedTableName: null }),
+            }
           : g
       ),
+
       highlightedTable: null,
       highlightedSeats: [],
-    })),
+    };
+  }),
+
 
   /* ---------------- DRAG START / END ---------------- */
   startDragGuest: (guest) =>
@@ -880,21 +921,29 @@ const resolvedTableName = String(
 
   
 
-  set({
+  const isLive = get().seatingMode === "live";
+
+set({
   tables: updatedTables,
+
   guests: guests.map((g) =>
     String(g.id ?? g._id) === String(guestId)
       ? {
           ...g,
-          tableId: highlightedTable,
-          tableName: resolvedTableName || null,
+          ...getGuestTablePatch(
+            isLive,
+            highlightedTable,
+            resolvedTableName || null
+          ),
         }
       : g
   ),
+
   draggingGuest: null,
   highlightedSeats: [],
   highlightedTable: null,
 });
+
 },
 
 assignGuestBlock: ({ guestId, tableId }) => {
@@ -959,14 +1008,19 @@ const resolvedTableName = String(
     ""
 ).trim();
 
+const isLive = get().seatingMode === "live";
+
 set({
   tables: updatedTables,
   guests: guests.map((g) =>
     String(g.id ?? g._id) === String(guestId)
       ? {
           ...g,
-          tableId: tableId,
-          tableName: resolvedTableName || null,
+          ...getGuestTablePatch(
+            isLive,
+            tableId,
+            resolvedTableName || null
+          ),
         }
       : g
   ),
@@ -974,6 +1028,7 @@ set({
   highlightedSeats: [],
   highlightedTable: null,
 });
+
 
 },
 
@@ -1019,44 +1074,55 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
       ""
   ).trim();
 
-  set({
-    tables: updatedTables,
-    guests: guests.map((g) =>
-      String(g.id ?? g._id) === String(guestId)
+  const isLive = get().seatingMode === "live";
 
-        ? {
-            ...g,
-            tableId: tableId,
-            tableName: resolvedTableName || null,
-          }
-        : g
-    ),
-    draggingGuest: null,
-    highlightedSeats: [],
-    highlightedTable: null,
-  });
+set({
+  tables: updatedTables,
+  guests: guests.map((g) =>
+    String(g.id ?? g._id) === String(guestId)
+      ? {
+          ...g,
+          ...getGuestTablePatch(
+            isLive,
+            tableId,
+            resolvedTableName || null
+          ),
+        }
+      : g
+  ),
+  draggingGuest: null,
+  highlightedSeats: [],
+  highlightedTable: null,
+});
+
 },
 
   /* ---------------- REMOVE FROM SEAT ---------------- */
   removeFromSeat: (guestId) => {
-    const { tables, guests } = get();
+  const { tables, guests } = get();
+  const isLive = get().seatingMode === "live";
 
-    set({
-      tables: tables.map((t) => ({
-        ...t,
-        seatedGuests: (t.seatedGuests || []).filter(
-  (s) => s.guestId !== guestId
-),
-
-      })),
-      guests: guests.map((g) =>
-        String(g.id ?? g._id) === String(guestId)
-
-          ? { ...g, tableId: null, tableName: null }
-          : g
+  set({
+    tables: tables.map((t) => ({
+      ...t,
+      seatedGuests: (t.seatedGuests || []).filter(
+        (s) => String(s.guestId) !== String(guestId)
       ),
-    });
-  },
+    })),
+
+    guests: guests.map((g) =>
+      String(g.id ?? g._id) === String(guestId)
+        ? {
+            ...g,
+            ...(isLive
+              ? { actualTableId: null, actualTableName: null }
+              : { plannedTableId: null, plannedTableName: null }),
+          }
+        : g
+    ),
+  });
+},
+
 
   /* ---------------- ⭐ MODAL ---------------- */
   openSeatingModal: (tableId) =>
@@ -1124,34 +1190,45 @@ if (realCount <= 0) {
 
   // ניקוי הושבות קודמות של האורח מכל השולחנות
   const updatedTables = tables.map((t) => ({
-    ...t,
-    seatedGuests: (t.seatedGuests || []).filter(
-      (s) => String(s.guestId) !== String(guestId)
-    ),
-  }));
+  ...t,
+  seatedGuests: (t.seatedGuests || []).filter(
+    (s) => String(s.guestId) !== String(guestId)
+  ),
+}));
 
-  set({
-    tables: updatedTables.map((t) =>
-      t.id === tableId
-        ? {
-            ...t,
-            seatedGuests: [
-              ...(t.seatedGuests || []),
-              ...block.map((seatIndex) => ({
-                guestId: String(guestId),
-                seatIndex,
-                arrived: false,
-              })),
-            ],
-          }
-        : t
-    ),
-    guests: guests.map((g) =>
-      String(g.id ?? g._id) === String(guestId)
-        ? { ...g, tableId, tableName: resolvedTableName || null }
-        : g
-    ),
-  });
+const isLive = get().seatingMode === "live";
+
+set({
+  tables: updatedTables.map((t) =>
+    t.id === tableId
+      ? {
+          ...t,
+          seatedGuests: [
+            ...(t.seatedGuests || []),
+            ...block.map((seatIndex) => ({
+              guestId: String(guestId),
+              seatIndex,
+              arrived: false,
+            })),
+          ],
+        }
+      : t
+  ),
+
+  guests: guests.map((g) =>
+    String(g.id ?? g._id) === String(guestId)
+      ? {
+          ...g,
+          ...getGuestTablePatch(
+            isLive,
+            tableId,
+            resolvedTableName || null
+          ),
+        }
+      : g
+  ),
+});
+
 
   return { ok: true };
 },
@@ -1171,11 +1248,19 @@ if (realCount <= 0) {
       : t
   );
 
-  const updatedGuests = guests.map((g) =>
-    String(g.id ?? g._id) === String(guestId)
-      ? { ...g, tableId: null, tableName: null }
-      : g
-  );
+  const isLive = get().seatingMode === "live";
+
+const updatedGuests = guests.map((g) =>
+  String(g.id ?? g._id) === String(guestId)
+    ? {
+        ...g,
+        ...(isLive
+          ? { actualTableId: null, actualTableName: null }
+          : { plannedTableId: null, plannedTableName: null }),
+      }
+    : g
+);
+
 
   set({ tables: updatedTables, guests: updatedGuests });
 },
