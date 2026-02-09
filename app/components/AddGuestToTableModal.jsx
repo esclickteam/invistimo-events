@@ -15,6 +15,7 @@ export default function AddGuestToTableModal({
   void invitationId; // כדי שלא תהיה אזהרת unused
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
+const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
   /* ================= TABLE + GUESTS ================= */
 
@@ -44,17 +45,23 @@ export default function AddGuestToTableModal({
   const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
 
   // אם יש arrivedCount>0 נשתמש בו, אחרת guestsCount, אחרת 1
-  const getPartySize = (g) => {
-    const arrived = Number(g?.arrivedCount ?? 0);
-    if (Number.isFinite(arrived) && arrived > 0) return Math.floor(arrived);
+ const getPartySize = (g) => {
+  // 🟢 LIVE – האמת היחידה
+  if (isLiveMode) {
+    const actual = Number(g?.actualArrivedCount ?? 0);
+    return actual > 0 ? Math.floor(actual) : 0;
+  }
 
-    const guestsCount = Number(g?.guestsCount ?? 0);
-    if (Number.isFinite(guestsCount) && guestsCount > 0) {
-      return Math.floor(guestsCount);
-    }
+  // ⚪ תכנון רגיל
+  const arrived = Number(g?.arrivedCount ?? 0);
+  if (arrived > 0) return Math.floor(arrived);
 
-    return 1;
-  };
+  const guestsCount = Number(g?.guestsCount ?? 0);
+  if (guestsCount > 0) return Math.floor(guestsCount);
+
+  return 1;
+};
+
 
   const extractNumberFromName = (name) => {
     const m = String(name || "").match(/\d+/);
