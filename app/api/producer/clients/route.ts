@@ -13,27 +13,37 @@ export async function GET(req: NextRequest) {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – Producer
+       🔐 Auth – Producer (עם התחזות)
     ========================= */
     const auth = await getUserIdFromRequest(req);
 
-    if (!auth?.userId || auth.role !== "producer") {
+    if (!auth) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const producerId = auth.userId;
+    // ✅ אם יש התחזות – המפיק האמיתי הוא impersonatedBy
+    const producerId =
+      auth.impersonated && auth.impersonatedBy
+        ? auth.impersonatedBy
+        : auth.userId;
+
+    if (!producerId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     /* =========================
-       👥 Clients – לפי assignedProducerId
+       👥 Clients – לקוחות שנוצרו ע״י המפיק
     ========================= */
     const clients = await User.find({
-  role: "client",
-  producerId: producerId,
-})
-
+      role: "client",
+      createdByProducer: producerId,
+    })
       .select("name email phone createdAt")
       .sort({ createdAt: -1 })
       .lean();
@@ -98,12 +108,10 @@ export async function GET(req: NextRequest) {
             },
           },
 
-          // ⭐ מגיעים (לוגיקה קיימת)
           arrivedCount: {
             $sum: { $ifNull: ["$arrivedCount", 0] },
           },
 
-          // ⭐⭐ מגיעים בפועל – מפיק
           actualArrivedCount: {
             $sum: { $ifNull: ["$actualArrivedCount", 0] },
           },
@@ -158,8 +166,6 @@ export async function GET(req: NextRequest) {
 
           totalGuests,
           approvedCount,
-
-          // ⭐ חדש
           arrivedCount,
           actualArrivedCount,
         },
