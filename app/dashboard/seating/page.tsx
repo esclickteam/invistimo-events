@@ -97,13 +97,22 @@ const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
 
 
+useEffect(() => {
+  if (!user?.eventRole) return;
 
-    useEffect(() => {
-  if (!isProducer) return;
+  const canLive =
+    user.eventRole === "client" ||
+    user.eventRole === "producer";
 
-  console.log("🔥 ENABLE LIVE MODE (SEATING)");
-  setSeatingMode("live");
-}, [isProducer, setSeatingMode]);
+  setSeatingMode(canLive ? "live" : "planning");
+
+  console.log("🧠 SeatingMode set by eventRole:", {
+    eventRole: user.eventRole,
+    mode: canLive ? "live" : "planning",
+  });
+}, [user?.eventRole, setSeatingMode]);
+
+    
 
 
 

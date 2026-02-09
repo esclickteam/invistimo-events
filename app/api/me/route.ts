@@ -140,6 +140,20 @@ export async function GET() {
     const isImpersonatedUser =
       decoded.impersonated && effectiveRole === "user";
 
+      let eventRole: "client" | "producer" | "staff" | "viewer" = "viewer";
+
+if (effectiveRole === "client") {
+  eventRole = "client";
+} else if (effectiveRole === "producer") {
+  eventRole = "producer";
+} else if (effectiveRole === "staff") {
+  eventRole = "staff";
+} else {
+  // admin רגיל (לא באירוע)
+  eventRole = "viewer";
+}
+
+
     console.log(
       "✅ ME:",
       user.email,
@@ -151,6 +165,7 @@ export async function GET() {
     return NextResponse.json(
       {
         success: true,
+
         user: {
           _id: String(user._id),
           name: user.name ?? "",
@@ -158,6 +173,8 @@ export async function GET() {
 
           /* ===== ROLE ===== */
           role: effectiveRole,
+          eventRole, 
+          
 
           /* ===== STAFF / PRODUCER (מנוטרל בהתחזות ללקוח) ===== */
           staffType: isImpersonatedUser ? null : user.staffType ?? null,
