@@ -26,8 +26,9 @@ seatingMode: "regular", // "regular" | "live"
 
 setSeatingMode: (mode) =>
   set((state) => {
-    if (mode !== "regular" && mode !== "live") return state;
-    if (mode === state.seatingMode) return state;
+    if (mode !== "regular" && mode !== "live") return {};
+if (mode === state.seatingMode) return {};
+
 
     const next = { seatingMode: mode };
 
@@ -183,41 +184,43 @@ getSidebarSeatCount: (guest) => {
 
 
 getGuestSeatCount: (guest) => {
+  const key = String(guest.id ?? guest._id);
+
   if (get().seatingMode === "live") {
+    // LIVE = בפועל בלבד
     return Number(
-      get().liveArrivals[String(guest.id ?? guest._id)] ?? 0
+      get().liveArrivals[key] ??
+      guest.actualArrivedCount ??
+      0
     );
   }
 
-  return Number(
-    guest.arrivedCount ??
-    (guest.rsvp === "yes" ? guest.guestsCount : 0)
-  );
+  // REGULAR = תכנון בלבד
+  return Number(guest.guestsCount ?? 0);
 },
 
 
 
 
 getSeatingCountForGuest: (guest) => {
+  const key = String(guest.id ?? guest._id);
+
   if (get().seatingMode === "live") {
     return Number(
-      get().liveArrivals[String(guest.id ?? guest._id)] ?? 0
+      get().liveArrivals[key] ??
+      guest.actualArrivedCount ??
+      0
     );
   }
 
-  return Number(
-    guest.arrivedCount ??
-    (guest.rsvp === "yes" ? guest.guestsCount : 0)
-  );
+  return Number(guest.guestsCount ?? 0);
 },
 
 
 
 getPlannedSeatCount: (guest) => {
-  return Number(
-    guest.arrivedCount ??
-    (guest.rsvp === "yes" ? guest.guestsCount : 0)
-  );
+  // תכנון בלבד (לא actual / לא liveArrivals)
+  return Number(guest.guestsCount ?? 0);
 },
 
 
