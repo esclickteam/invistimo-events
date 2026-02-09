@@ -73,18 +73,28 @@ export async function POST(req: Request) {
        🎭 Impersonation Token
        ⬅️ כאן התיקון הקריטי
     ========================= */
-    const impersonationToken = jwt.sign(
-      {
+    const impersonationPayload =
+  user.role === "user"
+    ? {
         userId: user._id.toString(),
-        role: user.role,                 // ✅ producer / staff / client
+        role: "user",
+        impersonated: true,
+        impersonatedBy: decoded.userId,
+      }
+    : {
+        userId: user._id.toString(),
+        role: user.role,
         staffType: user.staffType ?? null,
         producerId: user.producerId ?? null,
         impersonated: true,
-        impersonatedBy: decoded.userId,  // האדמין
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: "30m" }
-    );
+        impersonatedBy: decoded.userId,
+      };
+
+const impersonationToken = jwt.sign(
+  impersonationPayload,
+  process.env.JWT_SECRET!,
+  { expiresIn: "30m" }
+);
 
     const res = NextResponse.json({
   success: true,
