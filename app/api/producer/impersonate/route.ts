@@ -6,17 +6,13 @@ import { cookies } from "next/headers";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import Event from "@/models/Event";
-import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
    Cookie helpers
 ========================================================= */
 function getCookieDomain() {
-  return process.env.NODE_ENV === "production"
-    ? ".invistimo.com"
-    : undefined;
+  return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 }
 
 function httpOnlyCookieOptions() {
@@ -29,9 +25,9 @@ function httpOnlyCookieOptions() {
   };
 }
 
-/* =========================================================
+/* =========================
    POST /api/producer/impersonate
-========================================================= */
+========================= */
 export async function POST(req: NextRequest) {
   try {
     await dbConnect();
@@ -45,6 +41,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // אם כבר בהתחזות
+    if (auth.impersonated) {
+      return NextResponse.json(
+        {
+          success: true,
+          alreadyImpersonated: true,
+          redirect: "/dashboard",
+        },
+        { status: 200 }
       );
     }
 
@@ -81,41 +89,13 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       🎉 Find latest invitation & event
-    ========================= */
-    const invitation = await Invitation.findOne({
-      userId: client._id,
-    })
-      .sort({ createdAt: -1 })
-      .select("eventId event")
-      .lean();
-
-    const eventId =
-      invitation?.eventId ||
-      invitation?.event?._id ||
-      null;
-
-    if (!eventId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Client has no event",
-        },
-        { status: 404 }
-      );
-    }
-
-    /* =========================
-       🍪 Cookies
+       🍪 Cookies (⚠️ await!)
     ========================= */
     const cookieStore = await cookies();
 
-const currentAuthToken =
-  cookieStore.get("authToken")?.value || null;
-
+    const currentAuthToken = cookieStore.get("authToken")?.value || null;
     const existingProducerToken =
-        cookieStore.get("producerAuthToken")?.value || null;
-
+      cookieStore.get("producerAuthToken")?.value || null;
 
     if (!currentAuthToken) {
       return NextResponse.json(
@@ -125,7 +105,7 @@ const currentAuthToken =
     }
 
     /* =========================
-       🎭 Create impersonation token
+       🎭 Impersonation token
     ========================= */
     const impersonationToken = jwt.sign(
       {
@@ -145,7 +125,7 @@ const currentAuthToken =
     const res = NextResponse.json(
       {
         success: true,
-        eventId: eventId.toString(),
+        redirect: "/dashboard",
       },
       { status: 200 }
     );
@@ -157,7 +137,7 @@ const currentAuthToken =
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
 
-    // מחליפים authToken ללקוח (בהתחזות)
+    // מחליפים authToken ללקוח
     res.cookies.set("authToken", impersonationToken, opts);
 
     return res;
