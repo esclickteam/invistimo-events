@@ -102,6 +102,16 @@ const getSeatCount = (g: any) => {
   );
 };
 
+// האם האורח "כשיר להושבה" לפי מצב המערכת
+const isEligibleInCurrentMode = (g: Guest) => {
+  // במצב רגיל - רק מי שאישר הגעה
+  if (!isLiveMode) return g.rsvp === "yes";
+
+  // במצב לייב - מי שהגיע בפועל (גם אם RSVP לא yes)
+  return getSeatCount(g) > 0;
+};
+
+
   
 
   const syncAssignToServer = async (guestId: string, tableId: string) => {
@@ -182,65 +192,66 @@ const syncRemoveFromServer = async (guestId: string) => {
   /* ================= TABLE LOOKUPS ================= */
 
   const getGroupTableId = (groupId: string) => {
-    const guest = guests.find(
-      (g) =>
-        g.rsvp === "yes" &&
-        normalizeGroupId(g.groupId) === String(groupId) &&
-        isGuestSeated(g)
+  const guest = guests.find(
+    (g) =>
+      isEligibleInCurrentMode(g) &&
+      normalizeGroupId(g.groupId) === String(groupId) &&
+      isGuestSeated(g)
+  );
 
-    );
+  if (!guest) return "";
+  return guestTableMap.get(seatGuestId(guest))?.id ?? "";
+};
 
-    if (!guest) return "";
-    return guestTableMap.get(seatGuestId(guest))?.id ?? "";
-  };
 
   const getNoGroupTableId = (list: Guest[]) => {
-    const first = list.find(
-      (g) => g.rsvp === "yes" && isGuestSeated(g)
+  const first = list.find(
+    (g) => isEligibleInCurrentMode(g) && isGuestSeated(g)
+  );
 
-    );
+  if (!first) return "";
+  return guestTableMap.get(seatGuestId(first))?.id ?? "";
+};
 
-    if (!first) return "";
-    return guestTableMap.get(seatGuestId(first))?.id ?? "";
-  };
 
   /* ================= LABELS ================= */
 
   const getTableGroupLabel = (tableId: string) => {
-    const seatedGuests = guests.filter(
-      (g) =>
-        g.rsvp === "yes" &&
-        guestTableMap.get(seatGuestId(g))?.id === tableId
+  const seatedGuests = guests.filter(
+    (g) =>
+      isEligibleInCurrentMode(g) &&
+      guestTableMap.get(seatGuestId(g))?.id === tableId
+  );
+
+  const groupIds = Array.from(
+    new Set(
+      seatedGuests
+        .map((g) => normalizeGroupId(g.groupId))
+        .filter((gid) => gid !== NO_GROUP_KEY)
+    )
+  );
+
+  if (groupIds.length === 1) {
+    const group = groups.find(
+      (gr) => String(gr._id) === String(groupIds[0])
     );
+    return group?.name || "";
+  }
 
-    const groupIds = Array.from(
-      new Set(
-        seatedGuests
-          .map((g) => normalizeGroupId(g.groupId))
-          .filter((gid) => gid !== NO_GROUP_KEY)
-      )
-    );
+  if (groupIds.length > 1) return "";
+  return "";
+};
 
-    if (groupIds.length === 1) {
-      const group = groups.find(
-        (gr) => String(gr._id) === String(groupIds[0])
-      );
-      return group?.name || "";
-    }
-
-    if (groupIds.length > 1) return "";
-
-    return "";
-  };
 
   const tableLabel = (t: Table) => {
   const count = guests
-    .filter(
-      (g) =>
-        g.rsvp === "yes" &&
-        guestTableMap.get(seatGuestId(g))?.id === t.id
-    )
-    .reduce((sum, g) => sum + getSeatCount(g), 0);
+  .filter(
+    (g) =>
+      isEligibleInCurrentMode(g) &&
+      guestTableMap.get(seatGuestId(g))?.id === t.id
+  )
+  .reduce((sum, g) => sum + getSeatCount(g), 0);
+
 
 
   const groupLabel = getTableGroupLabel(t.id);
@@ -254,7 +265,8 @@ const syncRemoveFromServer = async (guestId: string) => {
   /* ================= FILTER ================= */
 
   function guestVisible(g: Guest) {
-    if (g.rsvp !== "yes") return false;
+    if (!isEligibleInCurrentMode(g)) return false;
+
 
     const q = search.trim().toLowerCase();
     const gid = seatGuestId(g);
@@ -455,9 +467,10 @@ const syncRemoveFromServer = async (guestId: string) => {
     }
     onChange={async (e) => {
   const tableId = e.target.value;
-  const yesGuests = visibleGuests.filter((g) => g.rsvp === "yes");
+  const eligibleGuests = visibleGuests.filter(isEligibleInCurrentMode);
 
-  for (const g of yesGuests) {
+for (const g of eligibleGuests) {
+
     const gid = seatGuestId(g);
 
     if (!tableId) {
