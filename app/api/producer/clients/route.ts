@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
+import mongoose from "mongoose";
+
 import User from "@/models/User";
 import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
@@ -24,21 +26,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const producerId = auth.userId;
+    // ⭐⭐⭐ קריטי – המרה ל־ObjectId
+    const producerObjectId = new mongoose.Types.ObjectId(auth.userId);
 
     /* =========================
-       👥 Clients – לפי assignedProducerId
+       👥 Clients – לקוחות של המפיק
     ========================= */
     const clients = await User.find({
-  role: "client",
-  $or: [
-    { producerId: producerId },
-    { createdByProducer: producerId },
-  ],
-})
-  .select("name email phone createdAt")
-  .sort({ createdAt: -1 })
-  .lean();
+      role: "client",
+      $or: [
+        { producerId: producerObjectId },
+        { createdByProducer: producerObjectId },
+      ],
+    })
+      .select("name email phone createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
     if (!clients.length) {
       return NextResponse.json({ success: true, clients: [] });
     }
@@ -99,12 +103,10 @@ export async function GET(req: NextRequest) {
             },
           },
 
-          // ⭐ מגיעים (לוגיקה קיימת)
           arrivedCount: {
             $sum: { $ifNull: ["$arrivedCount", 0] },
           },
 
-          // ⭐⭐ מגיעים בפועל – מפיק
           actualArrivedCount: {
             $sum: { $ifNull: ["$actualArrivedCount", 0] },
           },
@@ -159,8 +161,6 @@ export async function GET(req: NextRequest) {
 
           totalGuests,
           approvedCount,
-
-          // ⭐ חדש
           arrivedCount,
           actualArrivedCount,
         },
