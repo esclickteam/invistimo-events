@@ -29,9 +29,8 @@ export async function GET() {
     return Response.json({ success: false }, { status: 403 });
   }
 
-  const clientIds = (staff.assignedClientIds || []).map(
-    (id: any) => new mongoose.Types.ObjectId(id)
-  );
+  const clientIds = staff.assignedClientIds || [];
+
 
   if (clientIds.length === 0) {
     return Response.json({ success: true, clients: [] });
