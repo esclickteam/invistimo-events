@@ -6,7 +6,6 @@ import { cookies } from "next/headers";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – producer
+       🔐 Auth – Producer
     ========================= */
     const auth: any = await getUserIdFromRequest(req);
 
@@ -45,10 +44,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // אם כבר בהתחזות – לא נוגעים
+    // אם כבר בהתחזות
     if (auth.impersonated) {
       return NextResponse.json(
-        { success: true, alreadyImpersonated: true },
+        {
+          success: true,
+          alreadyImpersonated: true,
+          redirect: "/dashboard",
+        },
         { status: 200 }
       );
     }
@@ -86,18 +89,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       🎬 Event (OPTIONAL!)
-    ========================= */
-    const event = await Event.findOne({
-      userId: client._id,
-    })
-      .select("_id")
-      .lean();
-
-    // ⚠️ שים לב: אין החזרת שגיאה אם אין אירוע
-
-    /* =========================
-       🍪 Cookies
+       🍪 Cookies (⚠️ await!)
     ========================= */
     const cookieStore = await cookies();
 
@@ -119,7 +111,6 @@ export async function POST(req: NextRequest) {
       {
         userId: client._id.toString(),
         role: "client",
-
         impersonated: true,
         impersonatedBy: producerId,
         impersonationRole: "producer",
@@ -134,19 +125,19 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json(
       {
         success: true,
-        eventId: event?._id?.toString() || null, // ⭐️ null אם אין אירוע
+        redirect: "/dashboard",
       },
       { status: 200 }
     );
 
     const opts = httpOnlyCookieOptions();
 
-    // שומרים את טוקן המפיק רק פעם אחת
+    // שומרים את טוקן המפיק פעם אחת
     if (!existingProducerToken) {
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
 
-    // authToken מוחלף ללקוח
+    // מחליפים authToken ללקוח
     res.cookies.set("authToken", impersonationToken, opts);
 
     return res;

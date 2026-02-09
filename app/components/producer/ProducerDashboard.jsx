@@ -208,26 +208,28 @@ export default function ProducerDashboard() {
   try {
     const res = await fetch("/api/producer/impersonate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       credentials: "include",
       body: JSON.stringify({ clientId }),
     });
 
     const data = await res.json();
 
-    if (!res.ok || !data.success) {
+    if (!res.ok || !data?.success) {
       alert(data?.message || "שגיאה בכניסה ללקוח");
       return;
     }
 
-    // ✅ תמיד נכנסים לדשבורד של הלקוח
-    window.location.href = "/dashboard";
-
+    // ✅ כניסה ישירה לדשבורד הלקוח (גם אם אין אירוע)
+    window.location.href = data?.redirect || "/dashboard";
   } catch (err) {
-    console.error(err);
+    console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
   }
 };
+
 
 
   /* =========================
