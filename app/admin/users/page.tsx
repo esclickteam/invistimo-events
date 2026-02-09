@@ -90,15 +90,26 @@ export default function AdminUsersPage() {
   }
 
   async function impersonateUser(userId: string) {
-    setImpersonating(userId);
-    await fetch("/api/admin/impersonate", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
+  setImpersonating(userId);
+
+  const res = await fetch("/api/admin/impersonate", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+
+  const data = await res.json();
+  if (!data.success) return;
+
+  if (data.role === "producer") {
+    window.location.href = "/producer/dashboard";
+  } else if (data.role === "staff") {
+    window.location.href = "/producer-staff/dashboard";
+  } else {
     window.location.href = "/dashboard";
   }
+}
 
   function removeUserFromView(userId: string) {
     if (!confirm("להסיר את המשתמש מהתצוגה?")) return;

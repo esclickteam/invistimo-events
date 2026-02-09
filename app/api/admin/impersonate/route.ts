@@ -86,7 +86,11 @@ export async function POST(req: Request) {
       { expiresIn: "30m" }
     );
 
-    const res = NextResponse.json({ success: true });
+    const res = NextResponse.json({
+  success: true,
+  role: user.role, // ⭐️ חובה!
+});
+
 
     /* =========================
        🧠 שמירת טוקן אדמין
