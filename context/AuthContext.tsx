@@ -134,37 +134,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      🔐 מקור אמת יחיד – השרת
   -------------------------------------------------- */
   const refreshUser = async (): Promise<User | null> => {
-    try {
-      const res = await fetch("/api/me", {
-        credentials: "include",
-        cache: "no-store",
-      });
+  try {
+    const res = await fetch("/api/me", {
+      credentials: "include",
+      cache: "no-store",
+    });
 
-      if (!res.ok) {
-        // בזמן bootstrap ראשון אפשר להשאיר cache קיים עד סוף הבדיקה
-        if (bootstrapDone) {
-          setUser(null);
-        }
-        return null;
-      }
-
-      const data = await res.json();
-      const nextUser: User | null = data?.user ?? null;
-
-      if (nextUser && !nextUser.role) {
-        console.error("❌ User without role from /api/me");
-        if (bootstrapDone) setUser(null);
-        return null;
-      }
-
-      setUser(nextUser);
-      return nextUser;
-    } catch (err) {
-      console.error("❌ refreshUser error:", err);
-      if (bootstrapDone) setUser(null);
+    // ✅ מצב תקין: לא מחובר
+    if (res.status === 401) {
+      setUser(null);
       return null;
     }
-  };
+
+    if (!res.ok) {
+      console.error("❌ /api/me failed:", res.status);
+      setUser(null);
+      return null;
+    }
+
+    const data = await res.json();
+    const nextUser: User | null = data?.user ?? null;
+
+    if (!nextUser || !nextUser.role) {
+      console.error("❌ Invalid user from /api/me");
+      setUser(null);
+      return null;
+    }
+
+    setUser(nextUser);
+    return nextUser;
+  } catch (err) {
+    console.error("❌ refreshUser error:", err);
+    setUser(null);
+    return null;
+  }
+};
+
 
   /* --------------------------------------------------
      🚀 אימות ראשוני (mount)
