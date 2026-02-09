@@ -38,9 +38,9 @@ export async function GET(req: NextRequest) {
        👥 Clients – לפי assignedProducerId בלבד
     ========================= */
     const clients = await User.find({
-      role: "client",
-      assignedProducerId: producerObjectId,
-    })
+  assignedProducerId: producerObjectId,
+  role: { $in: ["client", "user"] }, // ⭐️ זה כל הסיפור
+})
       .select(
         "name email phone createdAt assignedProducerId billingSource"
       )
