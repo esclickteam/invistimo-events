@@ -241,14 +241,14 @@ export default function AdminUsersPage() {
                         {u.includeCalls ? "כבה שיחות" : "הפעל שיחות"}
                       </button>
 
-                      {u.role === "user" && (
-                        <button
-                          onClick={() => impersonateUser(u._id)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs"
-                        >
-                          כניסה כמשתמש
-                        </button>
-                      )}
+                      {u.role !== "admin" && (
+  <button
+    onClick={() => impersonateUser(u._id)}
+    className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs"
+  >
+    כניסה בהתחזות
+  </button>
+)}
 
                       {u.role !== "admin" && (
                         <button
