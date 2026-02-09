@@ -144,6 +144,8 @@ export default function CreateClientByProducer({ onSuccess }) {
           phone: form.phone,
           guests: Number(form.guests),
           includeCalls: form.includeCalls,
+          producerId: user?._id,
+
         }),
       });
 

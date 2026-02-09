@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import crypto from "crypto";
 import Stripe from "stripe";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
@@ -34,6 +35,9 @@ type CreateClientBody = {
   phone?: string;
   guests: number;
   includeCalls?: boolean;
+
+  // ⭐ קריטי – הקשר מפיק מפורש מה־UI
+  producerId?: string;
 };
 
 /* =========================================================
@@ -41,50 +45,100 @@ type CreateClientBody = {
 ========================================================= */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    console.log("🟢 create-client API hit");
+    console.log("🟢 [CREATE CLIENT] API hit");
 
     /* ================= AUTH ================= */
-    const token = req.cookies.get("authToken")?.value;
+    const producerToken = req.cookies.get("producerAuthToken")?.value ?? null;
+    const authToken = req.cookies.get("authToken")?.value ?? null;
+
+    // ⭐ מפיק תמיד קודם
+    const token = producerToken || authToken;
+
     if (!token) {
+      console.log("🔴 No auth token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     let decoded: AuthTokenPayload;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthTokenPayload;
-    } catch {
+    } catch (err) {
+      console.error("🔴 Invalid JWT", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const producerId = decoded.userId || decoded.id || decoded._id;
-    if (!producerId) {
-      return NextResponse.json({ error: "Invalid token payload" }, { status: 401 });
+    const tokenProducerId = decoded.userId || decoded.id || decoded._id;
+    if (!tokenProducerId) {
+      return NextResponse.json(
+        { error: "Invalid token payload" },
+        { status: 401 }
+      );
     }
 
     await connectDB();
 
-    const producer = await User.findById(producerId);
+    const producer = await User.findById(tokenProducerId);
     if (!producer || producer.role !== "producer") {
+      console.log("🔴 Token user is not producer", tokenProducerId);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    console.log("🟢 Token producer:", String(producer._id));
 
     /* ================= BODY ================= */
     let body: CreateClientBody;
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 }
+      );
     }
 
-    const { email, name, phone, guests, includeCalls } = body;
+    const {
+      email,
+      name,
+      phone,
+      guests,
+      includeCalls,
+      producerId: bodyProducerId,
+    } = body;
 
     if (!email || !name || !guests) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    if (!bodyProducerId) {
+      console.error("🔴 Missing producerId in body");
+      return NextResponse.json(
+        { error: "Missing producer context" },
+        { status: 400 }
+      );
+    }
+
+    // ⭐ בדיקת התאמה בין UI ↔ token
+    if (String(bodyProducerId) !== String(producer._id)) {
+      console.error("❌ PRODUCER CONTEXT MISMATCH", {
+        tokenProducer: String(producer._id),
+        bodyProducer: bodyProducerId,
+      });
+
+      return NextResponse.json(
+        { error: "Invalid producer context" },
+        { status: 403 }
+      );
     }
 
     const records = Number(guests);
     if (!Number.isFinite(records) || records <= 0) {
-      return NextResponse.json({ error: "Invalid records amount" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid records amount" },
+        { status: 400 }
+      );
     }
 
     /* ================= PRICE ================= */
@@ -96,27 +150,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // סכום בש"ח (דו ספרות אחרי נקודה)
     const amount = Number((records * pricePerRecord).toFixed(2));
 
-    /* ================= UPSERT CLIENT USER ================= */
+    console.log("🟡 Creating client for producer:", String(producer._id));
+
+    /* ================= UPSERT CLIENT ================= */
     const existingUser = await User.findOne({ email });
     let clientUser = existingUser;
 
-    if (existingUser) {
-      const resetPasswordToken = crypto.randomBytes(32).toString("hex");
-      const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
+    const resetPasswordToken = crypto.randomBytes(32).toString("hex");
+    const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
+    if (existingUser) {
       existingUser.name = name;
       existingUser.phone = phone || "";
       existingUser.role = "client";
+
       existingUser.producerId = producer._id;
       existingUser.createdByProducer = producer._id;
-
-      existingUser.resetPasswordToken = resetPasswordToken;
-      existingUser.resetPasswordExpires = resetPasswordExpires;
-      existingUser.needsPasswordSetup = true;
-      existingUser.password = undefined as any;
 
       existingUser.guests = records;
       existingUser.maxMessages = records * 3;
@@ -125,12 +176,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       existingUser.hasPaid = false;
       existingUser.paidAmount = 0;
 
+      existingUser.needsPasswordSetup = true;
+      existingUser.resetPasswordToken = resetPasswordToken;
+      existingUser.resetPasswordExpires = resetPasswordExpires;
+      existingUser.password = undefined as any;
+
       await existingUser.save();
       clientUser = existingUser;
     } else {
-      const resetPasswordToken = crypto.randomBytes(32).toString("hex");
-      const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
-
       clientUser = await User.create({
         name,
         email,
@@ -153,7 +206,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
     }
 
-    /* ================= STRIPE CHECKOUT ================= */
+    console.log("🟢 Client user:", String(clientUser!._id));
+
+    /* ================= STRIPE ================= */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -165,7 +220,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             product_data: {
               name: `Invistimo – ${records} רשומות`,
             },
-            unit_amount: Math.round(amount * 100), // אגורות
+            unit_amount: Math.round(amount * 100),
           },
           quantity: 1,
         },
@@ -173,11 +228,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       success_url: `${BASE_URL}/payment-success?userId=${clientUser!._id}`,
       cancel_url: `${BASE_URL}/payment-cancel`,
       metadata: {
-        // אחידות עם אדמין + זיהוי זרימת מפיק
-        userId: clientUser!._id.toString(),
-        email: clientUser!.email,
-        role: "client",
-
         paymentType: "producer-client",
         clientId: clientUser!._id.toString(),
         producerId: producer._id.toString(),
@@ -192,6 +242,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   } catch (err) {
     console.error("❌ create-client error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
