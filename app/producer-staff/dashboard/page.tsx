@@ -56,7 +56,8 @@ export default function ProducerStaffDashboardPage() {
     const fetchUsers = async () => {
       setUsersLoading(true);
       try {
-        const res = await fetch("/api/producer-staff/clients", {
+        const res = await fetch("/api/producer/clients", {
+
           credentials: "include",
           cache: "no-store",
         });
