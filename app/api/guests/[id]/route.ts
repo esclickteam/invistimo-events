@@ -226,24 +226,34 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     /* ===============================
-       actualArrivedCount — מגיעים בפועל
-    =============================== */
-    if (
-      typeof data.actualArrivedCount === "number" &&
-      data.actualArrivedCount >= 0
-    ) {
-      const canUpdateActualArrived =
-        isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
+   actualArrivedCount — מגיעים בפועל
+=============================== */
+if (
+  typeof data.actualArrivedCount === "number" &&
+  data.actualArrivedCount >= 0
+) {
+  const canUpdateActualArrived =
+    isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
 
-      if (!canUpdateActualArrived) {
-        return NextResponse.json(
-          { error: "Not authorized to update actualArrivedCount" },
-          { status: 403 }
-        );
-      }
+  if (!canUpdateActualArrived) {
+    return NextResponse.json(
+      { error: "Not authorized to update actualArrivedCount" },
+      { status: 403 }
+    );
+  }
 
-      guest.actualArrivedCount = data.actualArrivedCount;
+  guest.actualArrivedCount = data.actualArrivedCount;
+
+  // ✅ הגעה בפועל גוברת על RSVP
+  if (data.actualArrivedCount > 0 && guest.rsvp !== "yes") {
+    guest.rsvp = "yes";
+
+    if (!guest.arrivedCount || guest.arrivedCount === 0) {
+      guest.arrivedCount = guest.guestsCount ?? 1;
     }
+  }
+}
+
 
     /* ===============================
        callRounds — סבבי שיחה
