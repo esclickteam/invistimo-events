@@ -79,7 +79,18 @@ const getFreeSeats = (g) => {
 
 const isGuestOverflow = (g) => {
   if (!isLiveMode) return false;
-  return getArrivedCount(g) > getPlannedCount(g);
+  return getGuestSeatsInTable(g) > getPlannedCount(g);
+};
+
+// כמה כיסאות האורח תופס *בשולחן הזה*
+const getGuestSeatsInTable = (g) => {
+  if (!isLiveMode) return getPartySize(g);
+
+  const arrived = Number(liveArrivals?.[getGuestId(g)] ?? 0);
+  const planned = Number(g?.guestsCount ?? 0);
+
+  // בשולחן לא תופסים יותר מהמתוכנן
+  return Math.min(arrived, planned);
 };
 
 const releaseOneSeat = (g) => {
@@ -117,7 +128,8 @@ const tableArrivedCount = useMemo(() => {
       (gg) => getGuestId(gg) === String(sg.guestId)
     );
     if (!g) return sum;
-    return sum + getArrivedCount(g);
+
+    return sum + getGuestSeatsInTable(g);
   }, 0);
 }, [isLiveMode, tableData, tableGuests, liveArrivals]);
 
@@ -397,8 +409,8 @@ const remainingSeats = Math.max(
 
     {!isLiveMode && (
       <span className="text-xs text-gray-600">
-        ({getPartySize(g)} מוזמנים)
-      </span>
+  תופס {getGuestSeatsInTable(g)} / תוכנן {getPlannedCount(g)}
+</span>
     )}
 
     {isLiveMode && (
