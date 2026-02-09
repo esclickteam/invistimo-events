@@ -139,42 +139,47 @@ const token = authToken || producerToken;
     );
 
     return NextResponse.json(
-      {
-        success: true,
-        user: {
-  _id: String(user._id),
-  name: user.name ?? "",
-  email: user.email ?? "",
+  {
+    success: true,
+    user: {
+      _id: String(user._id),
+      name: user.name ?? "",
+      email: user.email ?? "",
 
-  role: safeRole,
+      role: safeRole,
 
-  /* ===== STAFF ===== */
-  staffType: user.staffType ?? null,
-  assignedProducerId: user.assignedProducerId
-    ? String(user.assignedProducerId)
-    : null,
+      /* ===== STAFF ===== */
+      staffType: user.staffType ?? null,
+      assignedProducerId: user.assignedProducerId
+        ? String(user.assignedProducerId)
+        : null,
 
-  createdByProducer: !!user.createdByProducer,
+      createdByProducer: !!user.createdByProducer,
 
-  // נתונים עסקיים
-  plan: user.plan,
-  guests: user.guests,
-  paidAmount: user.paidAmount,
-  planLimits: user.planLimits,
+      /* ===== BUSINESS ===== */
+      plan: user.plan,
+      guests: user.guests,
+      paidAmount: user.paidAmount,
+      planLimits: user.planLimits,
 
-  producerPricePerRecord: user.producerPricePerRecord ?? 0,
+      includeCalls: !!user.includeCalls,              // ✅⬅️
+      callsAddonPrice: user.callsAddonPrice ?? 0,     // ✅
+      includeCreditGifts: !!user.includeCreditGifts,  // ✅
 
-  // impersonation
-  impersonated: !!decoded.impersonated,
-  impersonatedBy: decoded.impersonatedBy ?? null,
-  impersonationRole: decoded.impersonationRole ?? null,
+      producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-  createdAt: user.createdAt,
-},
+      /* ===== IMPERSONATION ===== */
+      impersonated: !!decoded.impersonated,
+      impersonatedBy: decoded.impersonatedBy ?? null,
+      impersonationRole: decoded.impersonationRole ?? null,
 
-      },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+      createdAt: user.createdAt,
+    },
+  },
+  { headers: { "Cache-Control": "no-store" } }
+);
+
+
   } catch (err) {
     console.error("❌ ME API ERROR:", err);
     return NextResponse.json(
