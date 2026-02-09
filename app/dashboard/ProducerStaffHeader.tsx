@@ -10,7 +10,7 @@ export default function ProducerStaffHeader() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
       });
