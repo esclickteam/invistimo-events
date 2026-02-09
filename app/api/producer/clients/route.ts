@@ -21,44 +21,29 @@ export async function GET(req: NextRequest) {
        🔐 Auth – Producer
     ========================= */
     const auth = await getUserIdFromRequest(req);
-
     console.log("🟡 AUTH payload:", auth);
 
     if (!auth?.userId || auth.role !== "producer") {
-      console.log("🔴 UNAUTHORIZED", {
-        userId: auth?.userId,
-        role: auth?.role,
-      });
-
+      console.log("🔴 UNAUTHORIZED", auth);
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // ⭐ המרה ל־ObjectId
     const producerObjectId = new mongoose.Types.ObjectId(auth.userId);
-
     console.log("🟢 Producer ObjectId:", producerObjectId.toString());
 
     /* =========================
-       👥 Clients – שליפה
+       👥 Clients – לפי assignedProducerId בלבד
     ========================= */
-    const query = {
+    const clients = await User.find({
       role: "client",
-      $or: [
-        { producerId: producerObjectId },
-        { createdByProducer: producerObjectId },
-      ],
-    };
-
-    console.log("🟡 User.find query:", {
-      role: "client",
-      producerId: producerObjectId.toString(),
-    });
-
-    const clients = await User.find(query)
-      .select("name email phone createdAt producerId createdByProducer")
+      assignedProducerId: producerObjectId,
+    })
+      .select(
+        "name email phone createdAt assignedProducerId billingSource"
+      )
       .sort({ createdAt: -1 })
       .lean();
 
@@ -73,8 +58,7 @@ export async function GET(req: NextRequest) {
       "🧾 Client IDs:",
       clients.map((c) => ({
         _id: String(c._id),
-        producerId: String(c.producerId),
-        createdByProducer: String(c.createdByProducer),
+        assignedProducerId: String(c.assignedProducerId),
       }))
     );
 
@@ -108,14 +92,14 @@ export async function GET(req: NextRequest) {
 
     console.log("🟢 Invitations found:", invitations.length);
 
-    const invitationIds = invitations.map((i) => i._id);
-
     const invitationsByEventId = invitations.reduce((acc: any, inv: any) => {
       const key = String(inv.eventId);
       acc[key] = acc[key] || [];
       acc[key].push(inv._id);
       return acc;
     }, {});
+
+    const invitationIds = invitations.map((i) => i._id);
 
     /* =========================
        📊 Guests stats
@@ -160,7 +144,7 @@ export async function GET(req: NextRequest) {
     );
 
     /* =========================
-       🔗 Merge
+       🔗 Merge Client + Event + Stats
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
