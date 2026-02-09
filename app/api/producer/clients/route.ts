@@ -30,9 +30,10 @@ export async function GET(req: NextRequest) {
        👥 Clients – לפי assignedProducerId
     ========================= */
     const clients = await User.find({
-      role: "user",
-      assignedProducerId: producerId,
-    })
+  role: "client",
+  producerId: producerId,
+})
+
       .select("name email phone createdAt")
       .sort({ createdAt: -1 })
       .lean();
