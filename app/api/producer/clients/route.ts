@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
+import mongoose from "mongoose";
 
 import User from "@/models/User";
 import Event from "@/models/Event";
@@ -12,8 +12,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    console.log("🔵 [PRODUCER CLIENTS] called");
-
     await dbConnect();
 
     /* =========================
@@ -22,47 +20,45 @@ export async function GET(req: NextRequest) {
     const auth = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false }, { status: 401 });
+    }
+
+    let clientQuery: any = {
+      role: { $in: ["client", "user"] },
+    };
+
+    /* =========================
+       👤 Producer
+    ========================= */
+    if (auth.role === "producer") {
+      clientQuery.assignedProducerId = new mongoose.Types.ObjectId(auth.userId);
     }
 
     /* =========================
-       🎯 Determine producer context
+       👷 Producer staff
     ========================= */
-    let producerId: string | null = null;
+    else if (auth.role === "staff") {
+      const staff = await User.findById(auth.userId).lean();
 
-    // 👤 Producer
-    if (auth.role === "producer") {
-      producerId = auth.userId;
+      if (
+        !staff ||
+        staff.staffType !== "producer_staff" ||
+        !Array.isArray(staff.assignedClientIds)
+      ) {
+        return NextResponse.json({ success: true, clients: [] });
+      }
+
+      clientQuery._id = { $in: staff.assignedClientIds };
     }
 
-    // 👷 Producer staff
-    else if (
-      auth.role === "staff" &&
-      auth.staffType === "producer_staff" &&
-      auth.assignedProducerId
-    ) {
-      producerId = auth.assignedProducerId;
+    else {
+      return NextResponse.json({ success: false }, { status: 403 });
     }
-
-    if (!producerId) {
-      return NextResponse.json(
-        { success: false, message: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
-    const producerObjectId = new mongoose.Types.ObjectId(producerId);
 
     /* =========================
        👥 Clients
     ========================= */
-    const clients = await User.find({
-      assignedProducerId: producerObjectId,
-      role: { $in: ["client", "user"] },
-    })
+    const clients = await User.find(clientQuery)
       .select("name email phone createdAt")
       .sort({ createdAt: -1 })
       .lean();
@@ -97,15 +93,12 @@ export async function GET(req: NextRequest) {
       .select("_id eventId")
       .lean();
 
-    const invitationsByEventId = invitations.reduce<Record<string, string[]>>(
-      (acc, inv) => {
-        const key = String(inv.eventId);
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(String(inv._id));
-        return acc;
-      },
-      {}
-    );
+    const invitationsByEventId = invitations.reduce((acc: any, inv: any) => {
+      const key = String(inv.eventId);
+      acc[key] = acc[key] || [];
+      acc[key].push(inv._id);
+      return acc;
+    }, {});
 
     const invitationIds = invitations.map((i) => i._id);
 
@@ -113,11 +106,7 @@ export async function GET(req: NextRequest) {
        📊 Guest stats
     ========================= */
     const guestStats = await InvitationGuest.aggregate([
-      {
-        $match: {
-          invitationId: { $in: invitationIds },
-        },
-      },
+      { $match: { invitationId: { $in: invitationIds } } },
       {
         $group: {
           _id: "$invitationId",
@@ -142,14 +131,11 @@ export async function GET(req: NextRequest) {
     );
 
     /* =========================
-       🔗 Merge client + event + stats
+       🔗 Merge
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
-
-      if (!event) {
-        return { ...client, event: null };
-      }
+      if (!event) return { ...client, event: null };
 
       const invIds = invitationsByEventId[String(event._id)] || [];
 
@@ -159,7 +145,6 @@ export async function GET(req: NextRequest) {
       for (const invId of invIds) {
         const stats = statsByInvitationId[String(invId)];
         if (!stats) continue;
-
         totalGuests += stats.totalGuests;
         approvedCount += stats.approvedCount;
       }
@@ -178,17 +163,9 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    console.log("✅ clients returned:", result.length);
-
-    return NextResponse.json({
-      success: true,
-      clients: result,
-    });
-  } catch (error) {
-    console.error("❌ PRODUCER CLIENTS ERROR:", error);
-    return NextResponse.json(
-      { success: false, message: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, clients: result });
+  } catch (err) {
+    console.error("❌ PRODUCER CLIENTS ERROR:", err);
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
