@@ -212,11 +212,11 @@ UserSchema.pre("validate", async function () {
   }
 
   // אם לא staff - ניקוי שדות צוות
-  if (doc.role !== "staff") {
-    doc.staffType = null;
-    doc.assignedProducerId = null;
-    doc.assignedClientIds = [];
-  }
+  if (doc.role === "user" || doc.role === "admin") {
+  doc.staffType = null;
+  doc.assignedProducerId = null;
+  doc.assignedClientIds = [];
+}
 
   // אם staff בלי סוג - ברירת מחדל עובד מפיק
   if (doc.role === "staff" && !doc.staffType) {
