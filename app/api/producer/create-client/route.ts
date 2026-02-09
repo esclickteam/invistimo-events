@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import crypto from "crypto";
 import Stripe from "stripe";
-import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
@@ -35,9 +34,6 @@ type CreateClientBody = {
   phone?: string;
   guests: number;
   includeCalls?: boolean;
-
-  // ⭐ קריטי – הקשר מפיק מפורש מה־UI
-  producerId?: string;
 };
 
 /* =========================================================
@@ -51,7 +47,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const producerToken = req.cookies.get("producerAuthToken")?.value ?? null;
     const authToken = req.cookies.get("authToken")?.value ?? null;
 
-    // ⭐ מפיק תמיד קודם
     const token = producerToken || authToken;
 
     if (!token) {
@@ -67,8 +62,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const tokenProducerId = decoded.userId || decoded.id || decoded._id;
-    if (!tokenProducerId) {
+    const producerId = decoded.userId || decoded.id || decoded._id;
+    if (!producerId) {
       return NextResponse.json(
         { error: "Invalid token payload" },
         { status: 401 }
@@ -77,13 +72,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     await connectDB();
 
-    const producer = await User.findById(tokenProducerId);
+    const producer = await User.findById(producerId);
     if (!producer || producer.role !== "producer") {
-      console.log("🔴 Token user is not producer", tokenProducerId);
+      console.log("🔴 Token user is not producer", producerId);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    console.log("🟢 Token producer:", String(producer._id));
+    console.log("🟢 Producer authenticated:", String(producer._id));
 
     /* ================= BODY ================= */
     let body: CreateClientBody;
@@ -96,40 +91,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const {
-      email,
-      name,
-      phone,
-      guests,
-      includeCalls,
-      producerId: bodyProducerId,
-    } = body;
+    const { email, name, phone, guests, includeCalls } = body;
 
     if (!email || !name || !guests) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
-      );
-    }
-
-    if (!bodyProducerId) {
-      console.error("🔴 Missing producerId in body");
-      return NextResponse.json(
-        { error: "Missing producer context" },
-        { status: 400 }
-      );
-    }
-
-    // ⭐ בדיקת התאמה בין UI ↔ token
-    if (String(bodyProducerId) !== String(producer._id)) {
-      console.error("❌ PRODUCER CONTEXT MISMATCH", {
-        tokenProducer: String(producer._id),
-        bodyProducer: bodyProducerId,
-      });
-
-      return NextResponse.json(
-        { error: "Invalid producer context" },
-        { status: 403 }
       );
     }
 
@@ -156,20 +123,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     /* ================= UPSERT CLIENT ================= */
     const existingUser = await User.findOne({ email });
-    let clientUser = existingUser;
+    let clientUser;
 
     const resetPasswordToken = crypto.randomBytes(32).toString("hex");
     const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
     if (existingUser) {
+      console.log("🟡 Updating existing user:", existingUser._id);
+
       existingUser.name = name;
       existingUser.phone = phone || "";
       existingUser.role = "client";
 
-      existingUser.producerId = producer._id;
-      existingUser.createdByProducer = producer._id;
+      existingUser.assignedProducerId = producer._id;
+      existingUser.createdByProducer = true;
+      existingUser.billingSource = "producer";
 
       existingUser.guests = records;
+      existingUser.smsPerRecord = 3;
       existingUser.maxMessages = records * 3;
       existingUser.includeCalls = !!includeCalls;
 
@@ -184,16 +155,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       await existingUser.save();
       clientUser = existingUser;
     } else {
+      console.log("🟢 Creating new client");
+
       clientUser = await User.create({
         name,
         email,
         phone: phone || "",
 
         role: "client",
-        producerId: producer._id,
-        createdByProducer: producer._id,
+
+        assignedProducerId: producer._id,
+        createdByProducer: true,
+        billingSource: "producer",
 
         guests: records,
+        smsPerRecord: 3,
         maxMessages: records * 3,
         includeCalls: !!includeCalls,
 
@@ -206,7 +182,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
     }
 
-    console.log("🟢 Client user:", String(clientUser!._id));
+    console.log("🟢 Client saved:", String(clientUser._id));
 
     /* ================= STRIPE ================= */
     const session = await stripe.checkout.sessions.create({
@@ -225,11 +201,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           quantity: 1,
         },
       ],
-      success_url: `${BASE_URL}/payment-success?userId=${clientUser!._id}`,
+      success_url: `${BASE_URL}/payment-success?userId=${clientUser._id}`,
       cancel_url: `${BASE_URL}/payment-cancel`,
       metadata: {
         paymentType: "producer-client",
-        clientId: clientUser!._id.toString(),
+        clientId: clientUser._id.toString(),
         producerId: producer._id.toString(),
         records: String(records),
         amount: String(amount),
