@@ -39,7 +39,6 @@ export default function CreateClientByProducer({ onSuccess }) {
   const [error, setError] = useState("");
 
   // ✅ חדש: סוג משתמש
-  const [userType, setUserType] = useState("client"); // "client" | "producer_staff"
 
   const [form, setForm] = useState({
     name: "",
@@ -50,8 +49,6 @@ export default function CreateClientByProducer({ onSuccess }) {
   });
 
   const pricePerRecord = user?.producerPricePerRecord || 0;
-  const isClient = userType === "client";
-  const isStaff = userType === "producer_staff";
 
   /* =========================
      Calculations
@@ -179,20 +176,7 @@ export default function CreateClientByProducer({ onSuccess }) {
         onSubmit={handleSubmit}
         className="w-full max-w-[520px] space-y-6 text-right"
       >
-        {/* ===== סוג משתמש ===== */}
-        <Section title="סוג משתמש">
-          <Field label="סוג משתמש">
-            <select
-              name="userType"
-              value={userType}
-              onChange={(e) => setUserType(e.target.value)}
-              className={INPUT_CLASS}
-            >
-              <option value="client">לקוח</option>
-              <option value="producer_staff">עובד מפיק</option>
-            </select>
-          </Field>
-        </Section>
+       
 
         {/* ===== פרטי משתמש ===== */}
         <Section title={isClient ? "פרטי לקוח" : "פרטי עובד"}>
