@@ -35,7 +35,6 @@ type TableLite = { x: number; y: number };
 
 
 export default function SeatingPage() {
-  const { user } = useAuth();
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
@@ -62,12 +61,9 @@ useEffect(() => {
 
 
   
-const effectiveRole = user?.role;
-const canUseLiveMode =
-  effectiveRole === "producer" ||
-  effectiveRole === "staff" ||
-  user?.impersonated === true; // ⭐ אדמין בהתחזות רואה הכול
 
+  const pathname = usePathname();
+const isProducer = pathname.includes("/events/production");
 
 
 
@@ -83,6 +79,7 @@ const canUseLiveMode =
   const guests = useSeatingStore((s) => s.guests);
   const setGroups = useSeatingStore((s) => s.setGroups);
   const groups = useSeatingStore((s) => s.groups);
+  const { user } = useAuth();
 
 const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
@@ -102,11 +99,11 @@ const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
 
     useEffect(() => {
-  if (!canUseLiveMode) return;
+  if (!isProducer) return;
 
   console.log("🔥 ENABLE LIVE MODE (SEATING)");
   setSeatingMode("live");
-}, [canUseLiveMode, setSeatingMode]);
+}, [isProducer, setSeatingMode]);
 
 
 
@@ -470,7 +467,7 @@ return (
       background={background?.url || null}
       invitationId={invitationId}
       onAutoSave={() => saveSeating(false)}
-      hideSeats={!canUseLiveMode}
+      hideSeats={isProducer}
       sidebarOpen={sidebarOpen}
     />
   </div>
