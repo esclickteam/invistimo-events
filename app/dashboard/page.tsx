@@ -153,7 +153,8 @@ export default function DashboardPage() {
 
 const canViewActualArrived =
   effectiveRole === "producer" ||
-  effectiveRole === "worker";
+  effectiveRole === "worker" ||
+  user?.impersonated === true; // ⭐ אדמין בהתחזות
 
 
 
