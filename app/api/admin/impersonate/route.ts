@@ -90,7 +90,7 @@ export async function POST(req: Request) {
         impersonatedBy: decoded.userId,
       };
 
-const impersonationToken = jwt.sign(
+ const impersonationToken = jwt.sign(
   impersonationPayload,
   process.env.JWT_SECRET!,
   { expiresIn: "30m" }
