@@ -133,7 +133,7 @@ fitCanvasToTables: (stageWidth, stageHeight, padding = 120) => {
   });
 },
 
-setLiveArrived: (guestId, count) => {
+ setLiveArrived: (guestId, count) => {
   if (get().seatingMode !== "live") return;
   const key = String(guestId);
 
