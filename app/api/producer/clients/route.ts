@@ -13,41 +13,32 @@ export async function GET(req: NextRequest) {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – Producer (עם התחזות)
+       🔐 Auth – Producer
     ========================= */
     const auth = await getUserIdFromRequest(req);
 
-    if (!auth) {
+    if (!auth?.userId || auth.role !== "producer") {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // ✅ אם יש התחזות – המפיק האמיתי הוא impersonatedBy
-    const producerId =
-      auth.impersonated && auth.impersonatedBy
-        ? auth.impersonatedBy
-        : auth.userId;
-
-    if (!producerId) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const producerId = auth.userId;
 
     /* =========================
-       👥 Clients – לקוחות שנוצרו ע״י המפיק
+       👥 Clients – לפי assignedProducerId
     ========================= */
     const clients = await User.find({
-      role: "client",
-      createdByProducer: producerId,
-    })
-      .select("name email phone createdAt")
-      .sort({ createdAt: -1 })
-      .lean();
-
+  role: "client",
+  $or: [
+    { producerId: producerId },
+    { createdByProducer: producerId },
+  ],
+})
+  .select("name email phone createdAt")
+  .sort({ createdAt: -1 })
+  .lean();
     if (!clients.length) {
       return NextResponse.json({ success: true, clients: [] });
     }
@@ -108,10 +99,12 @@ export async function GET(req: NextRequest) {
             },
           },
 
+          // ⭐ מגיעים (לוגיקה קיימת)
           arrivedCount: {
             $sum: { $ifNull: ["$arrivedCount", 0] },
           },
 
+          // ⭐⭐ מגיעים בפועל – מפיק
           actualArrivedCount: {
             $sum: { $ifNull: ["$actualArrivedCount", 0] },
           },
@@ -166,6 +159,8 @@ export async function GET(req: NextRequest) {
 
           totalGuests,
           approvedCount,
+
+          // ⭐ חדש
           arrivedCount,
           actualArrivedCount,
         },
