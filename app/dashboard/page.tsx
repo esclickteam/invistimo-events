@@ -179,11 +179,17 @@ useEffect(() => {
   if (isDemo) return;
   if (!user) return;
 
-  if (user.role === "producer" && !eventIdFromUrl) {
+  // ⭐️ אל תחסום producer בהתחזות
+  if (
+    user.role === "producer" &&
+    !eventIdFromUrl &&
+    !user.impersonated
+  ) {
     console.error("Producer dashboard loaded without eventId");
     router.replace("/events");
   }
-}, [user?.role, eventIdFromUrl, router, isDemo]);
+}, [user, eventIdFromUrl, router, isDemo]);
+
 
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
