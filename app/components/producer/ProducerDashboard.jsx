@@ -208,9 +208,7 @@ export default function ProducerDashboard() {
   try {
     const res = await fetch("/api/producer/impersonate", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ clientId }),
     });
@@ -222,13 +220,14 @@ export default function ProducerDashboard() {
       return;
     }
 
-    // ✅ כניסה ישירה לדשבורד הלקוח (גם אם אין אירוע)
-    window.location.href = data?.redirect || "/dashboard";
+    // ✅ מעבר ישיר למסך ההפקה (Overview)
+    window.location.href = `/dashboard/production?eventId=${data.eventId}`;
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
   }
 };
+
 
 
 
