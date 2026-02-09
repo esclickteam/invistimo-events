@@ -307,8 +307,8 @@ function Th({ children }: { children: React.ReactNode }) {
       style={{
         padding: "14px 16px",
         textAlign: "right",
-        fontSize: 22,
-        fontWeight: 700,
+        fontSize: 15,
+        fontWeight: 600,
         whiteSpace: "nowrap",
       }}
     >
@@ -323,7 +323,8 @@ function Td({ children }: { children: React.ReactNode }) {
       style={{
         padding: "16px",
         textAlign: "right",
-        fontSize: 28,
+        fontSize: 15,
+        lineHeight: "20px",
         color: "#4b321f",
         whiteSpace: "nowrap",
         borderTop: "1px solid #dadada",
