@@ -69,11 +69,11 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       👤 Client ownership (NEW LOGIC)
+       👤 Client ownership
     ========================= */
     const client = await User.findOne({
       _id: clientId,
-      assignedProducerId: producerId, // ⭐️ זה השיוך האמיתי
+      assignedProducerId: producerId,
     })
       .select("_id")
       .lean();
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       🎬 Event
+       🎬 Event (OPTIONAL!)
     ========================= */
     const event = await Event.findOne({
       userId: client._id,
@@ -94,12 +94,7 @@ export async function POST(req: NextRequest) {
       .select("_id")
       .lean();
 
-    if (!event) {
-      return NextResponse.json(
-        { success: false, message: "Event not found for client" },
-        { status: 404 }
-      );
-    }
+    // ⚠️ שים לב: אין החזרת שגיאה אם אין אירוע
 
     /* =========================
        🍪 Cookies
@@ -137,16 +132,21 @@ export async function POST(req: NextRequest) {
        ✅ Response
     ========================= */
     const res = NextResponse.json(
-      { success: true, eventId: event._id.toString() },
+      {
+        success: true,
+        eventId: event?._id?.toString() || null, // ⭐️ null אם אין אירוע
+      },
       { status: 200 }
     );
 
     const opts = httpOnlyCookieOptions();
 
+    // שומרים את טוקן המפיק רק פעם אחת
     if (!existingProducerToken) {
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
 
+    // authToken מוחלף ללקוח
     res.cookies.set("authToken", impersonationToken, opts);
 
     return res;
