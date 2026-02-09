@@ -233,8 +233,7 @@ if (
   data.actualArrivedCount >= 0
 ) {
   const canUpdateActualArrived =
-  isOwner || isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
-
+    isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
 
   if (!canUpdateActualArrived) {
     return NextResponse.json(
@@ -243,30 +242,23 @@ if (
     );
   }
 
-  const nextActual = Math.max(0, Number(data.actualArrivedCount) || 0);
-  guest.actualArrivedCount = nextActual;
+  guest.actualArrivedCount = data.actualArrivedCount;
 
   // ✅ רק במצב לייב
   const isLiveMode = invitation.seatingMode === "live";
 
-  if (isLiveMode && nextActual > 0) {
-    // הגיע בפועל => אוטומטית RSVP כן
+  if (
+    isLiveMode &&
+    data.actualArrivedCount > 0 &&
+    guest.rsvp !== "yes"
+  ) {
     guest.rsvp = "yes";
 
-    // arrivedCount תמיד לפחות כמו actualArrivedCount
-    guest.arrivedCount = Math.max(
-      Number(guest.arrivedCount ?? 0),
-      nextActual
-    );
+    if (!guest.arrivedCount || guest.arrivedCount === 0) {
+      guest.arrivedCount = guest.guestsCount ?? 1;
+    }
   }
-
-  // אופציונלי:
-  // אם תרצי שכאשר actual חוזר ל-0 בלייב ה-RSVP יחזור ל-pending:
-  // else if (isLiveMode && nextActual === 0 && guest.rsvp === "yes") {
-  //   guest.rsvp = "pending";
-  // }
 }
-
 
 
     /* ===============================

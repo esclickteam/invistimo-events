@@ -32,8 +32,6 @@ type Guest = {
   phone?: string;
   groupId?: string | null;
   rsvp?: "yes" | "no" | "pending";
-  actualArrivedCount?: number;
-
 };
 
 type Group = {
@@ -82,42 +80,27 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
   const [filterOpen, setFilterOpen] = useState(false);
 
 
-
   /* ================= HELPERS ================= */
 
-const seatGuestId = (g: Guest) => String(g.id ?? g._id);
+  const seatGuestId = (g: Guest) => String(g.id ?? g._id);
 
-const getPlannedSeatCount = (g: Guest) =>
-  useSeatingStore.getState().getPlannedSeatCount(g);
+  const getPlannedSeatCount = (g: Guest) =>
+    useSeatingStore.getState().getPlannedSeatCount(g);
 
-// ⭐ ספירת מושבים לפי מצב (רגיל / לייב)
-const getSeatCount = (g: Guest) => {
+  // ⭐ ספירת מושבים לפי מצב (רגיל / לייב)
+const getSeatCount = (g: any) => {
   const store = useSeatingStore.getState();
-  const gid = String(g.id ?? g._id);
 
   // מצב רגיל – תכנון
   if (!isLiveMode) {
     return store.getPlannedSeatCount(g);
   }
 
-  // מצב לייב – עדיפות ל-store, fallback למודל
-  const fromLiveStore = Number(store.liveArrivals?.[gid] ?? 0);
-  if (fromLiveStore > 0) return fromLiveStore;
-
-  return Number(g.actualArrivedCount ?? 0);
+  // מצב לייב – מגיעים בפועל (האמת היחידה)
+  return Number(
+    store.liveArrivals[String(g.id ?? g._id)] ?? 0
+  );
 };
-
-// ✅ מי נחשב "מגיע" בסיידבר
-const isArrivedInLive = (g: Guest) => {
-  if (!isLiveMode) return g.rsvp === "yes";
-
-  const gid = String(g.id ?? g._id);
-  const fromLiveStore = Number(useSeatingStore.getState().liveArrivals?.[gid] ?? 0);
-  const fromModel = Number(g.actualArrivedCount ?? 0);
-
-  return fromLiveStore > 0 || fromModel > 0 || g.rsvp === "yes";
-};
-
 
   
 
@@ -201,8 +184,7 @@ const syncRemoveFromServer = async (guestId: string) => {
   const getGroupTableId = (groupId: string) => {
     const guest = guests.find(
       (g) =>
-        isArrivedInLive(g) &&
-
+        g.rsvp === "yes" &&
         normalizeGroupId(g.groupId) === String(groupId) &&
         isGuestSeated(g)
 
@@ -214,8 +196,7 @@ const syncRemoveFromServer = async (guestId: string) => {
 
   const getNoGroupTableId = (list: Guest[]) => {
     const first = list.find(
-      (g) => isArrivedInLive(g) && isGuestSeated(g)
-
+      (g) => g.rsvp === "yes" && isGuestSeated(g)
 
     );
 
@@ -228,8 +209,7 @@ const syncRemoveFromServer = async (guestId: string) => {
   const getTableGroupLabel = (tableId: string) => {
     const seatedGuests = guests.filter(
       (g) =>
-        isArrivedInLive(g) &&
-
+        g.rsvp === "yes" &&
         guestTableMap.get(seatGuestId(g))?.id === tableId
     );
 
@@ -257,8 +237,7 @@ const syncRemoveFromServer = async (guestId: string) => {
   const count = guests
     .filter(
       (g) =>
-        isArrivedInLive(g) &&
-
+        g.rsvp === "yes" &&
         guestTableMap.get(seatGuestId(g))?.id === t.id
     )
     .reduce((sum, g) => sum + getSeatCount(g), 0);
@@ -275,8 +254,7 @@ const syncRemoveFromServer = async (guestId: string) => {
   /* ================= FILTER ================= */
 
   function guestVisible(g: Guest) {
-    if (!isArrivedInLive(g)) return false;
-
+    if (g.rsvp !== "yes") return false;
 
     const q = search.trim().toLowerCase();
     const gid = seatGuestId(g);
@@ -477,8 +455,7 @@ const syncRemoveFromServer = async (guestId: string) => {
     }
     onChange={async (e) => {
   const tableId = e.target.value;
-  const yesGuests = visibleGuests.filter((g) => isArrivedInLive(g));
-
+  const yesGuests = visibleGuests.filter((g) => g.rsvp === "yes");
 
   for (const g of yesGuests) {
     const gid = seatGuestId(g);
