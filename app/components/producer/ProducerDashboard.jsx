@@ -205,32 +205,30 @@ export default function ProducerDashboard() {
      Impersonation
   ========================= */
   const handleManageClient = async (clientId) => {
-    try {
-      const res = await fetch("/api/producer/impersonate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ clientId }),
-      });
+  try {
+    const res = await fetch("/api/producer/impersonate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ clientId }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        alert("שגיאה בכניסה ללקוח");
-        return;
-      }
-
-      if (!data.eventId) {
-        alert("לא נמצא אירוע ללקוח");
-        return;
-      }
-
-      window.location.href = `/events/production?eventId=${data.eventId}`;
-    } catch (err) {
-      console.error(err);
-      alert("שגיאה בכניסה לניהול האירוע");
+    if (!res.ok || !data.success) {
+      alert(data?.message || "שגיאה בכניסה ללקוח");
+      return;
     }
-  };
+
+    // ✅ תמיד נכנסים לדשבורד של הלקוח
+    window.location.href = "/dashboard";
+
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה בכניסה לניהול הלקוח");
+  }
+};
+
 
   /* =========================
      NEW: Assignment helpers
