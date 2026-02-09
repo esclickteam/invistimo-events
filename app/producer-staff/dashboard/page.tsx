@@ -67,7 +67,8 @@ export default function ProducerStaffDashboardPage() {
         }
 
         const data = await res.json();
-        setUsers(Array.isArray(data.users) ? data.users : []);
+        setUsers(Array.isArray(data.clients) ? data.clients : []);
+
       } catch {
         setUsers([]);
       } finally {
