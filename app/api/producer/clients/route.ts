@@ -12,40 +12,71 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    console.log("🔵 [PRODUCER CLIENTS] Route called");
+
     await dbConnect();
+    console.log("🟢 DB connected");
 
     /* =========================
        🔐 Auth – Producer
     ========================= */
     const auth = await getUserIdFromRequest(req);
 
+    console.log("🟡 AUTH payload:", auth);
+
     if (!auth?.userId || auth.role !== "producer") {
+      console.log("🔴 UNAUTHORIZED", {
+        userId: auth?.userId,
+        role: auth?.role,
+      });
+
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // ⭐⭐⭐ קריטי – המרה ל־ObjectId
+    // ⭐ המרה ל־ObjectId
     const producerObjectId = new mongoose.Types.ObjectId(auth.userId);
 
+    console.log("🟢 Producer ObjectId:", producerObjectId.toString());
+
     /* =========================
-       👥 Clients – לקוחות של המפיק
+       👥 Clients – שליפה
     ========================= */
-    const clients = await User.find({
+    const query = {
       role: "client",
       $or: [
         { producerId: producerObjectId },
         { createdByProducer: producerObjectId },
       ],
-    })
-      .select("name email phone createdAt")
+    };
+
+    console.log("🟡 User.find query:", {
+      role: "client",
+      producerId: producerObjectId.toString(),
+    });
+
+    const clients = await User.find(query)
+      .select("name email phone createdAt producerId createdByProducer")
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!clients.length) {
+    console.log("🟢 Clients found:", clients.length);
+
+    if (clients.length === 0) {
+      console.log("⚠️ NO CLIENTS MATCH QUERY");
       return NextResponse.json({ success: true, clients: [] });
     }
+
+    console.log(
+      "🧾 Client IDs:",
+      clients.map((c) => ({
+        _id: String(c._id),
+        producerId: String(c.producerId),
+        createdByProducer: String(c.createdByProducer),
+      }))
+    );
 
     const clientIds = clients.map((c) => c._id);
 
@@ -57,6 +88,8 @@ export async function GET(req: NextRequest) {
     })
       .select("_id userId date location")
       .lean();
+
+    console.log("🟢 Events found:", events.length);
 
     const eventsByUserId = Object.fromEntries(
       events.map((e) => [String(e.userId), e])
@@ -73,6 +106,8 @@ export async function GET(req: NextRequest) {
       .select("_id eventId")
       .lean();
 
+    console.log("🟢 Invitations found:", invitations.length);
+
     const invitationIds = invitations.map((i) => i._id);
 
     const invitationsByEventId = invitations.reduce((acc: any, inv: any) => {
@@ -83,7 +118,7 @@ export async function GET(req: NextRequest) {
     }, {});
 
     /* =========================
-       📊 Guests stats (RSVP + Arrivals)
+       📊 Guests stats
     ========================= */
     const guestStats = await InvitationGuest.aggregate([
       {
@@ -94,25 +129,23 @@ export async function GET(req: NextRequest) {
       {
         $group: {
           _id: "$invitationId",
-
           totalGuests: { $sum: "$guestsCount" },
-
           approvedCount: {
             $sum: {
               $cond: [{ $eq: ["$rsvp", "yes"] }, "$guestsCount", 0],
             },
           },
-
           arrivedCount: {
             $sum: { $ifNull: ["$arrivedCount", 0] },
           },
-
           actualArrivedCount: {
             $sum: { $ifNull: ["$actualArrivedCount", 0] },
           },
         },
       },
     ]);
+
+    console.log("🟢 Guest stats rows:", guestStats.length);
 
     const statsByInvitationId = Object.fromEntries(
       guestStats.map((g: any) => [
@@ -127,11 +160,15 @@ export async function GET(req: NextRequest) {
     );
 
     /* =========================
-       🔗 Merge Client + Event + Stats
+       🔗 Merge
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
-      if (!event) return { ...client, event: null };
+
+      if (!event) {
+        console.log("⚠️ Client has NO event:", String(client._id));
+        return { ...client, event: null };
+      }
 
       const invIds = invitationsByEventId[String(event._id)] || [];
 
@@ -158,7 +195,6 @@ export async function GET(req: NextRequest) {
             typeof event.location === "object"
               ? event.location.address
               : event.location,
-
           totalGuests,
           approvedCount,
           arrivedCount,
@@ -166,6 +202,8 @@ export async function GET(req: NextRequest) {
         },
       };
     });
+
+    console.log("✅ FINAL RESULT COUNT:", result.length);
 
     return NextResponse.json({
       success: true,

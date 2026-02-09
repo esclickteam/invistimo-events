@@ -79,8 +79,7 @@ export async function GET() {
    
 
     // ✅ אם יש authToken – תמיד הוא האמת (גם בהתחזות)
-const token = producerToken || authToken;
-
+const token = authToken || producerToken;
 
 
     if (!token) {
