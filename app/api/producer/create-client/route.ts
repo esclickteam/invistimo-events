@@ -46,16 +46,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     /* ================= AUTH ================= */
     const producerToken = req.cookies.get("producerAuthToken")?.value ?? null;
     const authToken = req.cookies.get("authToken")?.value ?? null;
+
     const token = producerToken || authToken;
 
     if (!token) {
+      console.log("🔴 No auth token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     let decoded: AuthTokenPayload;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthTokenPayload;
-    } catch {
+    } catch (err) {
+      console.error("🔴 Invalid JWT", err);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -71,8 +74,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const producer = await User.findById(producerId);
     if (!producer || producer.role !== "producer") {
+      console.log("🔴 Token user is not producer", producerId);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    console.log("🟢 Producer authenticated:", String(producer._id));
 
     /* ================= BODY ================= */
     let body: CreateClientBody;
@@ -113,42 +119,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const amount = Number((records * pricePerRecord).toFixed(2));
 
-    /* ================= PLAN ================= */
-    const smsPerRecord = 3;
-    const maxMessages = records * smsPerRecord;
-
-    const planLimits = {
-      maxGuests: records,
-      smsEnabled: true,
-      smsLimit: maxMessages,
-      seatingEnabled: true,       // 🔑 זה מה שחסר לך
-      remindersEnabled: true,
-      callsEnabled: !!includeCalls,
-    };
+    console.log("🟡 Creating client for producer:", String(producer._id));
 
     /* ================= UPSERT CLIENT ================= */
     const existingUser = await User.findOne({ email });
+    let clientUser;
 
     const resetPasswordToken = crypto.randomBytes(32).toString("hex");
     const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
-    let clientUser;
-
     if (existingUser) {
+      console.log("🟡 Updating existing user:", existingUser._id);
+
       existingUser.name = name;
       existingUser.phone = phone || "";
       existingUser.role = "client";
-
-      existingUser.plan = "premium";          // ✅ חובה
-      existingUser.planLimits = planLimits;   // ✅ חובה
 
       existingUser.assignedProducerId = producer._id;
       existingUser.createdByProducer = true;
       existingUser.billingSource = "producer";
 
       existingUser.guests = records;
-      existingUser.smsPerRecord = smsPerRecord;
-      existingUser.maxMessages = maxMessages;
+      existingUser.smsPerRecord = 3;
+      existingUser.maxMessages = records * 3;
       existingUser.includeCalls = !!includeCalls;
 
       existingUser.hasPaid = false;
@@ -162,6 +155,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       await existingUser.save();
       clientUser = existingUser;
     } else {
+      console.log("🟢 Creating new client");
+
       clientUser = await User.create({
         name,
         email,
@@ -169,16 +164,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
         role: "client",
 
-        plan: "premium",           // ✅ חובה
-        planLimits,                // ✅ חובה
-
         assignedProducerId: producer._id,
         createdByProducer: true,
         billingSource: "producer",
 
         guests: records,
-        smsPerRecord,
-        maxMessages,
+        smsPerRecord: 3,
+        maxMessages: records * 3,
         includeCalls: !!includeCalls,
 
         hasPaid: false,
@@ -189,6 +181,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         resetPasswordExpires,
       });
     }
+
+    console.log("🟢 Client saved:", String(clientUser._id));
 
     /* ================= STRIPE ================= */
     const session = await stripe.checkout.sessions.create({

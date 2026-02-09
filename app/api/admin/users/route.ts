@@ -30,48 +30,45 @@ export async function GET() {
 
     const users = await User.find({
       isDemoUser: { $ne: true },
-     $or: [
-  { hasPaid: true },
-  { plan: "premium" },
-  { createdByProducer: { $ne: null } },
-  { role: "producer" },
-  { role: "staff" }, // ⭐
+      $or: [
+        { hasPaid: true },
+        { plan: "premium" },
+        { createdByProducer: { $ne: null } },
+        { role: "producer" },
+        { role: "staff" },
       ],
     })
-    
       .select(`
-  name
-  email
-  role
-  plan
-  guests
-  maxMessages
-  paidAmount
-  hasPaid
-  includeCalls
-  includeCreditGifts
-  createdByProducer
-  producerId
-  planLimits
-  smsUsed
-  createdAt
-  producerPricePerRecord
-
-  assignedProducerId
-  assignedStaffIds
-`)
-
+        name
+        email
+        role
+        plan
+        guests
+        maxMessages
+        paidAmount
+        hasPaid
+        includeCalls
+        includeCreditGifts
+        createdByProducer
+        producerId
+        planLimits
+        smsUsed
+        createdAt
+        producerPricePerRecord
+        assignedProducerId
+        assignedStaffIds
+      `)
       .sort({ createdAt: -1 })
       .lean();
-const userIds = users.map((u: any) => u._id);
 
-const events = await Event.find({
-  userId: { $in: userIds },
-})
-  .select("userId date")
-.sort({ date: -1 })
+    const userIds = users.map((u: any) => u._id);
 
-  .lean();
+    const events = await Event.find({
+      userId: { $in: userIds },
+    })
+      .select("userId date")
+      .sort({ date: -1 })
+      .lean();
 
     const revenueAgg = await User.aggregate([
       {
@@ -92,22 +89,20 @@ const events = await Event.find({
     const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
 
     const eventByUserId = new Map<string, any>();
+    for (const event of events) {
+      const uid = String(event.userId);
+      if (!eventByUserId.has(uid)) {
+        eventByUserId.set(uid, event);
+      }
+    }
 
-for (const event of events) {
-  const uid = String(event.userId);
-  if (!eventByUserId.has(uid)) {
-    eventByUserId.set(uid, event);
-  }
-}
-
-const usersWithEventDate = users.map((u: any) => {
-  const event = eventByUserId.get(String(u._id));
-
-  return {
-    ...u,
-   eventDate: event?.date || null,
-  };
-});
+    const usersWithEventDate = users.map((u: any) => {
+      const event = eventByUserId.get(String(u._id));
+      return {
+        ...u,
+        eventDate: event?.date || null,
+      };
+    });
 
     return NextResponse.json(
       { success: true, users: usersWithEventDate, totalRevenue },
@@ -165,11 +160,7 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
-      try {
-        await sendPasswordSetupMail(user._id.toString());
-      } catch (err) {
-        console.error("❌ Failed to send producer password mail:", err);
-      }
+      await sendPasswordSetupMail(user._id.toString());
 
       return NextResponse.json({
         success: true,
@@ -178,38 +169,31 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= STAFF ================= */
-if (role === "staff") {
-  const user = await User.create({
-    name,
-    email,
-    role: "staff",
+    if (role === "staff") {
+      const user = await User.create({
+        name,
+        email,
+        role: "staff",
 
-    hasPaid: false,
-    paidAmount: 0,
+        hasPaid: false,
+        paidAmount: 0,
 
-    needsPasswordSetup: true,
-    createdByAdmin: true,
-    billingSource: "admin",
-  });
+        needsPasswordSetup: true,
+        createdByAdmin: true,
+        billingSource: "admin",
+      });
 
-  try {
-    await sendPasswordSetupMail(user._id.toString());
-  } catch (err) {
-    console.error("❌ Failed to send staff password mail:", err);
-  }
+      await sendPasswordSetupMail(user._id.toString());
 
-  return NextResponse.json({
-    success: true,
-    userId: String(user._id),
-  });
-}
+      return NextResponse.json({
+        success: true,
+        userId: String(user._id),
+      });
+    }
 
-    /* ================= USER ================= */
+    /* ================= USER (🔥 כאן התיקון) ================= */
     const { records, smsTotal, includeCalls } = limits || {};
     const { price, paymentStatus } = billing || {};
-
-    const finalIncludeCalls = !!includeCalls;
-    const finalIncludeCreditGifts = finalIncludeCalls; // ⭐ שיחות כוללות מתנות
 
     if (!records || !smsTotal || !price) {
       return NextResponse.json(
@@ -218,10 +202,26 @@ if (role === "staff") {
       );
     }
 
+    const finalIncludeCalls = !!includeCalls;
+    const finalIncludeCreditGifts = finalIncludeCalls;
+
+    const planLimits = {
+      maxGuests: records,
+      smsEnabled: true,
+      smsLimit: smsTotal,
+      seatingEnabled: true,      // ⭐ זה מה שמונע את החסימה
+      remindersEnabled: true,
+      callsEnabled: finalIncludeCalls,
+    };
+
     const user = await User.create({
       name,
       email,
       role: "user",
+
+      /* ===== 🔑 חובה ===== */
+      plan: "premium",
+      planLimits,
 
       guests: records,
       maxMessages: smsTotal,
@@ -271,11 +271,7 @@ if (role === "staff") {
         },
       });
 
-      try {
-        await sendPasswordSetupMail(user._id.toString());
-      } catch (err) {
-        console.error("❌ Failed to send user password mail:", err);
-      }
+      await sendPasswordSetupMail(user._id.toString());
     }
 
     return NextResponse.json({
