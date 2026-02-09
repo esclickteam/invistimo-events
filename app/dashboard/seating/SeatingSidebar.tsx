@@ -84,59 +84,22 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
 
   const seatGuestId = (g: Guest) => String(g.id ?? g._id);
 
-// ================= LIVE HELPERS (LIVE ONLY) =================
-const getPlannedCount = (g: Guest) =>
-  useSeatingStore.getState().getPlannedSeatCount(g);
-
-const getArrivedCount = (g: Guest) =>
-  Number(useSeatingStore.getState().liveArrivals[seatGuestId(g)] ?? 0);
-
-const getFreeSeats = (g: Guest) => {
-  if (!isLiveMode) return 0;
-  const planned = getPlannedCount(g);
-  const arrived = getArrivedCount(g);
-  return Math.max(planned - arrived, 0);
-};
-
   const getPlannedSeatCount = (g: Guest) =>
     useSeatingStore.getState().getPlannedSeatCount(g);
 
   // ⭐ ספירת מושבים לפי מצב (רגיל / לייב)
-const getSeatCount = (g: Guest) => {
-  if (!isLiveMode) {
-    return getPlannedCount(g);
-  }
-
-  return getArrivedCount(g);
-};
-
-const releaseOneSeat = (g: Guest) => {
-  const gid = seatGuestId(g);
+const getSeatCount = (g: any) => {
   const store = useSeatingStore.getState();
 
-  const current = Number(store.liveArrivals[gid] ?? 0);
-  if (current <= 0) return;
+  // מצב רגיל – תכנון
+  if (!isLiveMode) {
+    return store.getPlannedSeatCount(g);
+  }
 
-  useSeatingStore.setState({
-    liveArrivals: {
-      ...store.liveArrivals,
-      [gid]: current - 1,
-    },
-  });
-};
-
-// ================= LIVE DERIVED STATES =================
-
-// הגיע פחות מהמתוכנן → כיסאות פנויים
-const hasFreeSeats = (g: Guest) => {
-  if (!isLiveMode) return false;
-  return getArrivedCount(g) < getPlannedCount(g);
-};
-
-// הגיע יותר מהמתוכנן → חריגה אישית
-const isGuestOverflow = (g: Guest) => {
-  if (!isLiveMode) return false;
-  return getArrivedCount(g) > getPlannedCount(g);
+  // מצב לייב – מגיעים בפועל (האמת היחידה)
+  return Number(
+    store.liveArrivals[String(g.id ?? g._id)] ?? 0
+  );
 };
 
   
@@ -194,21 +157,6 @@ const syncRemoveFromServer = async (guestId: string) => {
     );
     return map;
   }, [tables]);
-
-
-  const getTableLoadLive = (tableId: string) => {
-  if (!isLiveMode) return 0;
-
-  return guests
-    .filter((g) => guestTableMap.get(seatGuestId(g))?.id === tableId)
-    .reduce((sum, g) => sum + getArrivedCount(g), 0);
-};
-
-const isTableOverflow = (t: Table) => {
-  if (!isLiveMode) return false;
-  return getTableLoadLive(t.id) > t.seats;
-};
-
 
   /* ================= GROUPED GUESTS ================= */
 
@@ -285,7 +233,7 @@ const isTableOverflow = (t: Table) => {
     return "";
   };
 
- const tableLabel = (t: Table) => {
+  const tableLabel = (t: Table) => {
   const count = guests
     .filter(
       (g) =>
@@ -294,12 +242,12 @@ const isTableOverflow = (t: Table) => {
     )
     .reduce((sum, g) => sum + getSeatCount(g), 0);
 
+
   const groupLabel = getTableGroupLabel(t.id);
-  const overflow = isLiveMode && isTableOverflow(t); // ⭐ חדש
 
   return groupLabel
-    ? `${groupLabel} · ${t.name} (${count}/${t.seats})${overflow ? " ❗" : ""}`
-    : `${t.name} (${count}/${t.seats})${overflow ? " ❗" : ""}`;
+    ? `${groupLabel} · ${t.name} (${count}/${t.seats})`
+    : `${t.name} (${count}/${t.seats})`;
 };
 
 
@@ -557,30 +505,12 @@ const isTableOverflow = (t: Table) => {
         <div className="min-w-0">
   <div className="text-sm font-medium truncate">{g.name}</div>
   <div className="text-xs text-gray-500 truncate">
-  {table
-    ? `${table.name} · ${count} ${isLiveMode ? "הגיעו" : "מוזמנים"}`
-    : `לא משובץ · ${count} ${isLiveMode ? "הגיעו" : "מוזמנים"}`}
+            {table
+  ? `${table.name} · ${count} ${isLiveMode ? "הגיעו" : "מוזמנים"}`
+  : `לא משובץ · ${count} ${isLiveMode ? "הגיעו" : "מוזמנים"}`}
 
- {isLiveMode && hasFreeSeats(g) && (
-  <span className="text-orange-700 ml-2 flex items-center gap-2">
-    ⚠ {getFreeSeats(g)} כיסאות פנויים
 
-    <button
-      className="underline text-xs"
-      onClick={() => releaseOneSeat(g)}
-    >
-      שחרר כיסא
-    </button>
-  </span>
-)}
-
-  {isLiveMode && isGuestOverflow(g) && (
-    <span className="text-red-700 ml-2">
-      ❗ חריגה
-    </span>
-  )}
-</div>
-
+          </div>
         </div>
 
         {/* 🔽 דרופדאון אורח */}

@@ -40,19 +40,19 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
     setTableNameDraft(tableData.name || "");
   }, [tableData?.name]);
 
-  const liveArrivals = useSeatingStore((s) => s.liveArrivals);
-
   /* ================= HELPERS ================= */
 
-const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
+  const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
 
-/* ================= PARTY SIZE ================= */
-const getPartySize = (g) => {
+  // אם יש arrivedCount>0 נשתמש בו, אחרת guestsCount, אחרת 1
+ const getPartySize = (g) => {
+  // 🟢 LIVE – האמת היחידה
   if (isLiveMode) {
-    const id = getGuestId(g);
-    return Number(liveArrivals?.[id] ?? 0);
+    const actual = Number(g?.actualArrivedCount ?? 0);
+    return actual > 0 ? Math.floor(actual) : 0;
   }
 
+  // ⚪ תכנון רגיל
   const arrived = Number(g?.arrivedCount ?? 0);
   if (arrived > 0) return Math.floor(arrived);
 
@@ -62,117 +62,45 @@ const getPartySize = (g) => {
   return 1;
 };
 
-/* ================= LIVE HELPERS ================= */
 
-const getArrivedCount = (g) => {
-  if (!isLiveMode) return getPartySize(g);
-  const id = getGuestId(g);
-  return Number(liveArrivals?.[id] ?? 0);
-};
-
-const getPlannedCount = (g) => Number(g?.guestsCount ?? 0);
-
-const getFreeSeats = (g) => {
-  if (!isLiveMode) return 0;
-  return Math.max(getPlannedCount(g) - getArrivedCount(g), 0);
-};
-
-const isGuestOverflow = (g) => {
-  if (!isLiveMode) return false;
-  return getGuestSeatsInTable(g) > getPlannedCount(g);
-};
-
-// כמה כיסאות האורח תופס *בשולחן הזה*
-const getGuestSeatsInTable = (g) => {
-  if (!isLiveMode) return getPartySize(g);
-
-  const arrived = Number(liveArrivals?.[getGuestId(g)] ?? 0);
-  const planned = Number(g?.guestsCount ?? 0);
-
-  // בשולחן לא תופסים יותר מהמתוכנן
-  return Math.min(arrived, planned);
-};
-
-const releaseOneSeat = (g) => {
-  if (!isLiveMode) return;
-
-  const id = getGuestId(g);
-  const current = Number(liveArrivals?.[id] ?? 0);
-  if (current <= 0) return;
-
-  useSeatingStore.setState((state) => ({
-    liveArrivals: {
-      ...state.liveArrivals,
-      [id]: current - 1,
-    },
-  }));
-};
-
-/* ================= UTIL ================= */
-
-const extractNumberFromName = (name) => {
-  const m = String(name || "").match(/\d+/);
-  if (!m) return NaN;
-  const n = Number(m[0]);
-  return Number.isFinite(n) ? n : NaN;
-};
+  const extractNumberFromName = (name) => {
+    const m = String(name || "").match(/\d+/);
+    if (!m) return NaN;
+    const n = Number(m[0]);
+    return Number.isFinite(n) ? n : NaN;
+  };
 
   /* ================= SEATS ================= */
 
-// כמה הגיעו בפועל לשולחן (בלייב)
-const tableArrivedCount = useMemo(() => {
-  if (!isLiveMode || !tableData) return 0;
+  const seatsArray = useMemo(() => {
+    if (!tableData) return [];
 
-  return (tableData.seatedGuests || []).reduce((sum, sg) => {
-    const g = tableGuests.find(
-      (gg) => getGuestId(gg) === String(sg.guestId)
-    );
-    if (!g) return sum;
+    const totalSeats = Number(tableData.seats || 0);
+    const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
+      index: i,
+      guest: null,
+    }));
 
-    return sum + getGuestSeatsInTable(g);
-  }, 0);
-}, [isLiveMode, tableData, tableGuests, liveArrivals]);
+    for (const s of tableData.seatedGuests || []) {
+      const g = tableGuests.find(
+        (gg) => getGuestId(gg) === String(s?.guestId)
+      );
+      if (!g) continue;
 
-// חריגה ברמת השולחן
-const isTableOverflow =
-  isLiveMode && tableArrivedCount > (tableData?.seats ?? 0);
-
-// בניית מערך הכיסאות
-const seatsArray = useMemo(() => {
-  if (!tableData) return [];
-
-  const totalSeats = Number(tableData.seats || 0);
-
-  const arr = Array.from({ length: totalSeats }, (_, i) => ({
-    index: i,
-    guest: null,
-  }));
-
-  for (const s of tableData.seatedGuests || []) {
-    const g = tableGuests.find(
-      (gg) => getGuestId(gg) === String(s?.guestId)
-    );
-    if (!g) continue;
-
-    if (
-      typeof s?.seatIndex === "number" &&
-      s.seatIndex >= 0 &&
-      s.seatIndex < arr.length
-    ) {
-      arr[s.seatIndex].guest = g;
+      if (
+        typeof s?.seatIndex === "number" &&
+        s.seatIndex >= 0 &&
+        s.seatIndex < arr.length
+      ) {
+        arr[s.seatIndex].guest = g;
+      }
     }
-  }
 
-  return arr;
-}, [tableData, tableGuests]);
+    return arr;
+  }, [tableData, tableGuests]);
 
-// תפוס / פנוי (לוגיקה קיימת)
-const occupied = tableData?.seatedGuests?.length ?? 0;
-const remainingSeats = Math.max(
-  0,
-  (tableData?.seats ?? 0) - occupied
-);
-
+  const occupied = tableData?.seatedGuests?.length ?? 0;
+  const remainingSeats = Math.max(0, (tableData?.seats ?? 0) - occupied);
 
   /* ================= AVAILABLE GUESTS ================= */
 
@@ -362,15 +290,9 @@ const remainingSeats = Math.max(
           )}
         </div>
 
-        <p
-  className={`text-sm text-center mb-4 font-medium ${
-    isTableOverflow ? "text-red-600" : "text-gray-500"
-  }`}
->
-  {tableArrivedCount}/{tableData.seats} מגיעים בפועל
-  {isTableOverflow && " ❗ חריגה"}
-</p>
-
+        <p className="text-sm text-gray-500 text-center mb-4">
+          {occupied}/{tableData.seats} מקומות תפוסים
+        </p>
 
         {error && (
           <div className="text-red-600 text-center mb-3 font-medium">{error}</div>
@@ -403,52 +325,16 @@ const remainingSeats = Math.max(
                     {i + 1}
                   </div>
 
-                 {g ? (
-  <>
-    <span className="font-semibold truncate w-[90%]">{g.name}</span>
-
-    {!isLiveMode && (
-      <span className="text-xs text-gray-600">
-  תופס {getGuestSeatsInTable(g)} / תוכנן {getPlannedCount(g)}
-</span>
-    )}
-
-    {isLiveMode && (
-      <>
-        <span className="text-xs text-gray-600">
-          הגיעו {getArrivedCount(g)} / תוכנן {getPlannedCount(g)}
-        </span>
-
-        {getFreeSeats(g) > 0 && (
-          <div className="text-[11px] text-orange-600">
-            ⚠ {getFreeSeats(g)} כיסאות פנויים
-          </div>
-        )}
-
-        {isGuestOverflow(g) && (
-          <div className="text-[11px] text-red-600">
-            ❗ חריגה
-          </div>
-        )}
-
-        {getArrivedCount(g) > 0 && (
-          <button
-            className="text-[10px] underline text-gray-600 mt-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              releaseOneSeat(g);
-            }}
-          >
-            הסר כיסא
-          </button>
-        )}
-      </>
-    )}
-  </>
-) : (
-  <span className="text-xs">הושב אורח</span>
-)}
-
+                  {g ? (
+                    <>
+                      <span className="font-semibold truncate w-[90%]">{g.name}</span>
+                      <span className="text-xs text-gray-600">
+                        ({getPartySize(g)} מגיעים)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs">הושב אורח</span>
+                  )}
                 </div>
 
                 {isOpen && !g && (
@@ -490,4 +376,4 @@ const remainingSeats = Math.max(
       </div>
     </div>
   );
-  };
+}
