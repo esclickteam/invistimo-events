@@ -176,7 +176,7 @@ export default function ProducerStaffDashboardPage() {
           <div
             style={{
               padding: "18px 20px 14px",
-              fontSize: 34,
+              fontSize: 26,
               fontWeight: 700,
               color: "#4b321f",
               lineHeight: 1,
