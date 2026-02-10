@@ -53,9 +53,9 @@ export default function ProducerStaffHeader() {
         </div>
 
         {/* =========================
-            מרכז – לוגו
+            מרכז – לוגו + Badge
         ========================= */}
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center justify-center leading-none">
           <button
             onClick={() => router.push("/producer-staff/dashboard")}
             aria-label="מעבר לדשבורד עובד מפיק"
@@ -68,6 +68,23 @@ export default function ProducerStaffHeader() {
               draggable={false}
             />
           </button>
+
+          {/* 🟡 Badge */}
+          <span
+            className="
+              mt-1
+              px-2 py-[2px]
+              rounded-full
+              text-[10px]
+              font-semibold
+              tracking-wide
+              bg-[#e9ddcf]
+              text-[#4a413a]
+              border border-[#d8c9b8]
+            "
+          >
+            עובד מפיק
+          </span>
         </div>
 
         {/* =========================
