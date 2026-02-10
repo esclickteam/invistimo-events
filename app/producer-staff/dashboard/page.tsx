@@ -42,16 +42,19 @@ export default function ProducerStaffDashboardPage() {
       return;
     }
 
-    if (user.role !== "staff" || user.staffType !== "producer_staff") {
-      router.replace("/");
-    }
+    if (user?.role !== "staff" || user?.staffType !== "producer_staff") {
+  router.replace("/");
+}
+
+
   }, [user, loading, router]);
 
   /* ===============================
      Fetch assigned users
   =============================== */
   useEffect(() => {
-    if (!user || user.role !== "staff") return;
+    if (user?.role !== "staff") return;
+
 
     const fetchUsers = async () => {
       setUsersLoading(true);
