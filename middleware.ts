@@ -14,7 +14,7 @@ export function middleware(req: NextRequest) {
   const hostname = nextUrl.hostname;
 
   /* ========================================================
-     0) NEVER gate API
+     0) NEVER gate API here
   ======================================================== */
   if (pathname.startsWith("/api")) return NextResponse.next();
 
@@ -22,22 +22,23 @@ export function middleware(req: NextRequest) {
      1) Public pages
   ======================================================== */
   if (
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/pricing") ||
-    pathname.startsWith("/contact") ||
-    pathname.startsWith("/rsvp") ||
-    pathname.startsWith("/seating-explained") ||
-    pathname.startsWith("/event-management") ||
-    pathname.startsWith("/set-password") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/robots") ||
-    pathname.startsWith("/sitemap")
-  ) {
-    return NextResponse.next();
-  }
+  pathname === "/" ||
+  pathname.startsWith("/login") ||
+  pathname.startsWith("/register") ||
+  pathname.startsWith("/pricing") ||
+  pathname.startsWith("/contact") ||
+  pathname.startsWith("/rsvp") ||
+  pathname.startsWith("/seating-explained") ||
+  pathname.startsWith("/event-management") ||
+  pathname.startsWith("/set-password") || // ✅ זה הקריטי
+  pathname.startsWith("/_next") ||
+  pathname.startsWith("/favicon") ||
+  pathname.startsWith("/robots") ||
+  pathname.startsWith("/sitemap")
+) {
+  return NextResponse.next(); // ⬅️ חשוב
+}
+
 
   /* ========================================================
      2) Force WWW in production
@@ -49,46 +50,38 @@ export function middleware(req: NextRequest) {
   }
 
   /* ========================================================
-     3) Read auth cookies
+     3) Read auth state
   ======================================================== */
-  const authToken = cookies.get("authToken")?.value || null;
-  const producerToken = cookies.get("producerAuthToken")?.value || null;
-  const adminToken = cookies.get("adminAuthToken")?.value || null;
+  const token =
+    cookies.get("authToken")?.value ||
+    cookies.get("producerAuthToken")?.value ||
+    cookies.get("adminAuthToken")?.value ||
+    null;
 
-  const isClientAuthed = Boolean(authToken);
-  const isProducerAuthed = Boolean(producerToken);
-  const isAdminAuthed = Boolean(adminToken);
+  const isAuthed = Boolean(token);
 
   /* ========================================================
      4) Route guards
   ======================================================== */
 
-  // Client dashboard
+  // Client
   if (pathname.startsWith("/dashboard")) {
-    if (!isClientAuthed && !isProducerAuthed) {
-      return redirectToLogin(req);
-    }
+    if (!isAuthed) return redirectToLogin(req);
   }
 
-  // Producer routes
+  // Producer
   if (pathname.startsWith("/producer")) {
-    if (!isProducerAuthed) {
-      return redirectToLogin(req);
-    }
+    if (!isAuthed) return redirectToLogin(req);
   }
 
-  // Producer staff
+  // 🆕 Producer Staff
   if (pathname.startsWith("/producer-staff")) {
-    if (!isProducerAuthed) {
-      return redirectToLogin(req);
-    }
+    if (!isAuthed) return redirectToLogin(req);
   }
 
   // Admin
   if (pathname.startsWith("/admin")) {
-    if (!isAdminAuthed) {
-      return redirectToLogin(req);
-    }
+    if (!isAuthed) return redirectToLogin(req);
   }
 
   return NextResponse.next();
@@ -98,7 +91,7 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/producer/:path*",
-    "/producer-staff/:path*",
+    "/producer-staff/:path*", // 🆕
     "/admin/:path*",
   ],
 };

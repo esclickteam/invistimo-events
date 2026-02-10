@@ -6,16 +6,13 @@ import { cookies } from "next/headers";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
    Cookie helpers
 ========================================================= */
 function getCookieDomain() {
-  return process.env.NODE_ENV === "production"
-    ? ".invistimo.com"
-    : undefined;
+  return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 }
 
 function httpOnlyCookieOptions() {
@@ -28,9 +25,9 @@ function httpOnlyCookieOptions() {
   };
 }
 
-/* =========================================================
+/* =========================
    POST /api/producer/impersonate
-========================================================= */
+========================= */
 export async function POST(req: NextRequest) {
   try {
     await dbConnect();
@@ -44,6 +41,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // אם כבר בהתחזות
+    if (auth.impersonated) {
+      return NextResponse.json(
+        {
+          success: true,
+          alreadyImpersonated: true,
+          redirect: "/dashboard",
+        },
+        { status: 200 }
       );
     }
 
@@ -63,7 +72,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       👤 Validate client ownership
+       👤 Client ownership
     ========================= */
     const client = await User.findOne({
       _id: clientId,
@@ -80,23 +89,11 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       📅 Find client event
-    ========================= */
-    const event = await Event.findOne({
-      clientId: client._id,
-    })
-      .sort({ date: 1 }) // אם יש כמה – לוקחים הקרוב
-      .select("_id")
-      .lean();
-
-    /* =========================
-       🍪 Cookies
+       🍪 Cookies (⚠️ await!)
     ========================= */
     const cookieStore = await cookies();
 
-    const currentAuthToken =
-      cookieStore.get("authToken")?.value || null;
-
+    const currentAuthToken = cookieStore.get("authToken")?.value || null;
     const existingProducerToken =
       cookieStore.get("producerAuthToken")?.value || null;
 
@@ -108,7 +105,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       🎭 Create impersonation token
+       🎭 Impersonation token
     ========================= */
     const impersonationToken = jwt.sign(
       {
@@ -123,26 +120,19 @@ export async function POST(req: NextRequest) {
     );
 
     /* =========================
-       🔁 Build redirect (IMPORTANT)
-    ========================= */
-    const redirect = event
-      ? `/producer/events/${event._id}/overview?eventId=${event._id}`
-      : "/producer";
-
-    /* =========================
        ✅ Response
     ========================= */
     const res = NextResponse.json(
       {
         success: true,
-        redirect,
+        redirect: "/dashboard",
       },
       { status: 200 }
     );
 
     const opts = httpOnlyCookieOptions();
 
-    // שומרים את טוקן המפיק (פעם אחת)
+    // שומרים את טוקן המפיק פעם אחת
     if (!existingProducerToken) {
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
