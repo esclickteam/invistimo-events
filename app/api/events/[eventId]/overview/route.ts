@@ -12,19 +12,16 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 ========================================================= */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
-
-    console.log("🔵 GET /api/events/[eventId]/overview – start");
 
     /* =========================
        🔐 Auth
     ========================= */
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      console.warn("⛔ UNAUTHORIZED");
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
@@ -32,13 +29,11 @@ export async function GET(
     }
 
     /* =========================
-       📌 Params
+       📌 Params (Promise!)
     ========================= */
-    const { eventId } = params;
-    console.log("🔵 eventId:", eventId);
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      console.warn("⛔ INVALID_EVENT_ID:", eventId);
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
@@ -46,7 +41,7 @@ export async function GET(
     }
 
     /* =========================
-       🎉 Load Event
+       🎉 Event
     ========================= */
     const event = await Event.findOne({
       _id: eventId,
@@ -57,7 +52,6 @@ export async function GET(
       .lean();
 
     if (!event) {
-      console.warn("⛔ EVENT_NOT_FOUND:", eventId);
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
@@ -65,7 +59,7 @@ export async function GET(
     }
 
     /* =========================
-       📝 Load Tasks
+       📝 Tasks
     ========================= */
     const tasks = await EventTask.find({
       eventId: event._id,
@@ -75,7 +69,7 @@ export async function GET(
       .lean();
 
     /* =========================
-       💰 Load Suppliers / Budget
+       💰 Budget
     ========================= */
     const suppliers = await EventSupplier.find({
       eventId: event._id,
@@ -97,9 +91,6 @@ export async function GET(
 
     const available = Math.max(budgetTotal - commitments, 0);
 
-    /* =========================
-       ✅ Response
-    ========================= */
     return NextResponse.json({
       success: true,
       event: {
@@ -128,46 +119,32 @@ export async function GET(
 }
 
 /* =========================================================
-   PATCH – עדכון תקציב אירוע
+   PATCH – עדכון תקציב
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  context: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await db();
 
-    console.log("🟡 PATCH /api/events/[eventId]/overview – start");
-
-    /* =========================
-       🔐 Auth
-    ========================= */
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      console.warn("⛔ UNAUTHORIZED");
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    /* =========================
-       📌 Params
-    ========================= */
-    const { eventId } = params;
-    console.log("🟡 eventId:", eventId);
+    const { eventId } = await context.params;
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      console.warn("⛔ INVALID_EVENT_ID:", eventId);
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
       );
     }
 
-    /* =========================
-       📦 Body
-    ========================= */
     const body = await req.json();
 
     if (!Object.prototype.hasOwnProperty.call(body, "budgetTotal")) {
@@ -176,16 +153,12 @@ export async function PATCH(
 
     const budgetTotal = Number(body.budgetTotal);
     if (!Number.isFinite(budgetTotal) || budgetTotal < 0) {
-      console.warn("⛔ INVALID_BUDGET:", body.budgetTotal);
       return NextResponse.json(
         { success: false, error: "INVALID_BUDGET" },
         { status: 400 }
       );
     }
 
-    /* =========================
-       💾 Update Event
-    ========================= */
     const event = await Event.findOneAndUpdate(
       {
         _id: eventId,
@@ -197,7 +170,6 @@ export async function PATCH(
     ).select("title date budgetTotal userId producerId");
 
     if (!event) {
-      console.warn("⛔ EVENT_NOT_FOUND:", eventId);
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
