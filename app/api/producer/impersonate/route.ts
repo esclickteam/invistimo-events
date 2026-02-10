@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
@@ -25,6 +26,22 @@ function httpOnlyCookieOptions() {
   };
 }
 
+/* =========================================================
+   Safe redirect helper (same-site paths only)
+========================================================= */
+function buildRedirect(target?: string, eventId?: string) {
+  const safeTarget =
+    typeof target === "string" &&
+    target.startsWith("/") &&
+    !target.startsWith("//")
+      ? target
+      : null;
+
+  if (safeTarget) return safeTarget;
+  if (eventId) return `/producer/events/${eventId}`;
+  return "/dashboard";
+}
+
 /* =========================
    POST /api/producer/impersonate
 ========================= */
@@ -33,7 +50,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
 
     /* =========================
-       🔐 Auth – Producer
+       🔐 Auth – Producer only
     ========================= */
     const auth: any = await getUserIdFromRequest(req);
 
@@ -44,25 +61,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // אם כבר בהתחזות
-    if (auth.impersonated) {
-      return NextResponse.json(
-        {
-          success: true,
-          alreadyImpersonated: true,
-          redirect: "/dashboard",
-        },
-        { status: 200 }
-      );
-    }
-
-    const producerId = auth.userId;
+    const producerId = String(auth.userId);
 
     /* =========================
        📥 Input
     ========================= */
     const body = await req.json().catch(() => ({}));
-    const clientId = body?.clientId;
+    const clientId = String(body?.clientId || "").trim();
+    const eventId = String(body?.eventId || "").trim(); // optional
+    const target = typeof body?.target === "string" ? body.target : undefined;
 
     if (!clientId) {
       return NextResponse.json(
@@ -73,10 +80,12 @@ export async function POST(req: NextRequest) {
 
     /* =========================
        👤 Client ownership
+       (כולל role client/user למנוע גישה לא רצויה)
     ========================= */
     const client = await User.findOne({
       _id: clientId,
       assignedProducerId: producerId,
+      role: { $in: ["client", "user"] },
     })
       .select("_id")
       .lean();
@@ -89,7 +98,29 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       🍪 Cookies (⚠️ await!)
+       📌 Optional event validation
+       אם נשלח eventId - נוודא שהוא של אותו לקוח
+    ========================= */
+    if (eventId) {
+      const event = await Event.findOne({
+        _id: eventId,
+        userId: clientId,
+      })
+        .select("_id")
+        .lean();
+
+      if (!event) {
+        return NextResponse.json(
+          { success: false, message: "Event does not belong to this client" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const redirect = buildRedirect(target, eventId);
+
+    /* =========================
+       🍪 Cookies
     ========================= */
     const cookieStore = await cookies();
 
@@ -105,11 +136,26 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
+       אם כבר בהתחזות:
+       לא נשבור, פשוט נחזיר redirect החדש
+    ========================= */
+    if (auth.impersonated) {
+      return NextResponse.json(
+        {
+          success: true,
+          alreadyImpersonated: true,
+          redirect,
+        },
+        { status: 200 }
+      );
+    }
+
+    /* =========================
        🎭 Impersonation token
     ========================= */
     const impersonationToken = jwt.sign(
       {
-        userId: client._id.toString(),
+        userId: String(client._id),
         role: "client",
         impersonated: true,
         impersonatedBy: producerId,
@@ -125,19 +171,19 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json(
       {
         success: true,
-        redirect: "/dashboard",
+        redirect,
       },
       { status: 200 }
     );
 
     const opts = httpOnlyCookieOptions();
 
-    // שומרים את טוקן המפיק פעם אחת
+    // שומרים את טוקן המפיק פעם אחת (כדי לאפשר "חזור למפיק")
     if (!existingProducerToken) {
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
 
-    // מחליפים authToken ללקוח
+    // מחליפים authToken לטוקן התחזות לקוח
     res.cookies.set("authToken", impersonationToken, opts);
 
     return res;

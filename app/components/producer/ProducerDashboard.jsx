@@ -204,31 +204,61 @@ export default function ProducerDashboard() {
   /* =========================
      Impersonation
   ========================= */
-  const handleManageClient = async (clientId) => {
+  const handleManageClient = async (client) => {
   try {
+    const clientId = String(client?._id || "");
+    const eventId = String(client?.event?._id || "");
+
+    if (!clientId) {
+      alert("חסר מזהה לקוח");
+      return;
+    }
+
+    // אם אין אירוע ללקוח, כניסה רק להקשר לקוח (impersonate) ואז לדשבורד כללי
+    if (!eventId) {
+      const res = await fetch("/api/producer/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ clientId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        alert(data?.message || "שגיאה בכניסה ללקוח");
+        return;
+      }
+
+      // במקרה שאין אירוע - מעבר לדשבורד רגיל
+      window.location.href = "/dashboard";
+      return;
+    }
+
+    // יש אירוע: נכנסים בהתחזות עם target ברור לדשבורד מפיק-אירוע
+    const target = `/producer/events/${eventId}`;
     const res = await fetch("/api/producer/impersonate", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ clientId }),
+      body: JSON.stringify({ clientId, eventId, target }),
     });
 
     const data = await res.json();
 
     if (!res.ok || !data?.success) {
-      alert(data?.message || "שגיאה בכניסה ללקוח");
+      alert(data?.message || "שגיאה בכניסה לניהול");
       return;
     }
 
-    // ✅ כניסה ישירה לדשבורד הלקוח (גם אם אין אירוע)
-    window.location.href = data?.redirect || "/dashboard";
+    // עדיפות 1: target מהשרת | עדיפות 2: target מקומי
+    window.location.href = data?.redirect || target;
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
-    alert("שגיאה בכניסה לניהול הלקוח");
+    alert("שגיאה בכניסה לניהול");
   }
 };
+
 
 
 
@@ -415,7 +445,7 @@ export default function ProducerDashboard() {
                     <td className="p-4">{client.email}</td>
                     <td className="p-4">{client.phone}</td>
 
-                    <td className="p-4">
+                     <td className="p-4">
                       {client.event?.date ? (
                         new Date(client.event.date).toLocaleDateString("he-IL")
                       ) : (
@@ -558,7 +588,8 @@ export default function ProducerDashboard() {
                       <Button
                         size="sm"
                         className="flex items-center gap-1"
-                        onClick={() => handleManageClient(client._id)}
+                        onClick={() => handleManageClient(client)}
+
                       >
                         ניהול
                         <ArrowUpRight className="w-4 h-4" />
