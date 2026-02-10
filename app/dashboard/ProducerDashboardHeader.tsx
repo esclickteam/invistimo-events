@@ -23,35 +23,6 @@ export default function ProducerDashboardHeader() {
     }
   };
 
-  // ✅ חזרה למפיק (סיום אימפרסונציה)
-  const handleBackToProducer = async () => {
-    try {
-      const res = await fetch("/api/producer/stop-impersonation", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Stop impersonation failed:", res.status, text.slice(0, 200));
-        // fallback: עדיין ננסה להחזיר לדשבורד מפיק
-        router.push("/producer/dashboard");
-        return;
-      }
-
-      const data = await res.json();
-      if (!data?.success) {
-        console.error("Stop impersonation returned success=false:", data);
-      }
-
-      router.push("/producer/dashboard");
-    } catch (err) {
-      console.error("Stop impersonation error:", err);
-      router.push("/producer/dashboard");
-    }
-  };
-
   return (
     <header
       dir="rtl"
@@ -65,7 +36,7 @@ export default function ProducerDashboardHeader() {
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
         {/* =========================
-            ימין – כפתור ראשי
+            ימין – ניווט
         ========================= */}
         <div className="flex justify-start">
           <button
@@ -100,25 +71,9 @@ export default function ProducerDashboardHeader() {
         </div>
 
         {/* =========================
-            שמאל – כפתורים
+            שמאל – התנתקות בלבד
         ========================= */}
         <div className="flex justify-end items-center gap-4">
-          {/* ✅ חזרה למפיק */}
-          <button
-            onClick={handleBackToProducer}
-            className={`
-              font-medium
-              ${HEADER_UI.navText}
-              text-[#4a413a]
-              hover:text-[var(--champagne-dark)]
-              transition
-            `}
-            title="חזרה למפיק"
-          >
-            ↩️ חזרה למפיק
-          </button>
-
-          {/* התנתקות */}
           <button
             onClick={handleLogout}
             className={`
