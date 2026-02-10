@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -11,18 +12,29 @@ const HEADER_UI = {
   navText: "text-[20px] tracking-wide",
 };
 
-export default function ProducerDashboardHeader() {
+type Props = {
+  homeHref?: string; // לדוגמה: "/producer/dashboard" או "/producer-staff/dashboard"
+};
+
+export default function ProducerDashboardHeader({
+  homeHref = "/producer/dashboard",
+}: Props) {
   const router = useRouter();
   const { logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
+      // חשוב: logout צריך להיות המקום היחיד שמנקה auth + מפנה
       await logout();
     } catch (err) {
       console.error("Logout failed", err);
-    } finally {
-      // ✅ קריטי: לא להישאר בדשבורד מפיק אחרי ניקוי user
+      // fallback רק אם logout נכשל
       router.replace("/login");
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -38,13 +50,10 @@ export default function ProducerDashboardHeader() {
       `}
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
-
-        {/* =========================
-            ימין – ראשי
-        ========================= */}
+        {/* ימין – ראשי */}
         <div className="flex justify-start">
           <button
-            onClick={() => router.push("/producer/dashboard")}
+            onClick={() => router.push(homeHref)}
             className={`
               font-medium text-[#4a413a]
               ${HEADER_UI.navText}
@@ -56,13 +65,11 @@ export default function ProducerDashboardHeader() {
           </button>
         </div>
 
-        {/* =========================
-            מרכז – לוגו
-        ========================= */}
+        {/* מרכז – לוגו */}
         <div className="flex justify-center">
           <button
-            onClick={() => router.push("/producer/dashboard")}
-            aria-label="מעבר לדשבורד מפיק"
+            onClick={() => router.push(homeHref)}
+            aria-label="מעבר לדשבורד"
             className="scale-[4]"
           >
             <img
@@ -74,22 +81,22 @@ export default function ProducerDashboardHeader() {
           </button>
         </div>
 
-        {/* =========================
-            שמאל – התנתקות
-        ========================= */}
+        {/* שמאל – התנתקות */}
         <div className="flex justify-end items-center gap-4">
           <button
             onClick={handleLogout}
+            disabled={loggingOut}
             className={`
               font-medium
               ${HEADER_UI.navText}
               text-red-600
               hover:text-red-700
               transition
+              disabled:opacity-50 disabled:cursor-not-allowed
             `}
             title="התנתקות"
           >
-            🚪 התנתקות
+            {loggingOut ? "מתנתק..." : "🚪 התנתקות"}
           </button>
         </div>
       </div>
