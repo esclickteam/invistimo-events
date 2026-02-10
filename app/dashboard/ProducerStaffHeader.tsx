@@ -20,6 +20,9 @@ export default function ProducerStaffHeader() {
       await logout();
     } catch (err) {
       console.error("Logout failed", err);
+    } finally {
+      // ✅ קריטי: לא נשארים בדשבורד שמניח user
+      router.replace("/login");
     }
   };
 
@@ -53,16 +56,18 @@ export default function ProducerStaffHeader() {
             🏠 ראשי
           </button>
 
-          {/* BADGE */}
-          <span className="
-            text-xs font-semibold
-            px-2 py-0.5
-            rounded-full
-            bg-[#ede3d7]
-            text-[#6b4b2a]
-            border border-[#d6c4b0]
-            whitespace-nowrap
-          ">
+          {/* BADGE – עובד מפיק */}
+          <span
+            className="
+              text-xs font-semibold
+              px-2 py-0.5
+              rounded-full
+              bg-[#ede3d7]
+              text-[#6b4b2a]
+              border border-[#d6c4b0]
+              whitespace-nowrap
+            "
+          >
             עובד מפיק
           </span>
         </div>

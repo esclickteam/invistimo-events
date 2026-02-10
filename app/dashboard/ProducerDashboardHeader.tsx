@@ -20,6 +20,9 @@ export default function ProducerDashboardHeader() {
       await logout();
     } catch (err) {
       console.error("Logout failed", err);
+    } finally {
+      // ✅ קריטי: לא להישאר בדשבורד מפיק אחרי ניקוי user
+      router.replace("/login");
     }
   };
 
@@ -35,8 +38,9 @@ export default function ProducerDashboardHeader() {
       `}
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
+
         {/* =========================
-            ימין – ניווט
+            ימין – ראשי
         ========================= */}
         <div className="flex justify-start">
           <button
@@ -71,7 +75,7 @@ export default function ProducerDashboardHeader() {
         </div>
 
         {/* =========================
-            שמאל – התנתקות בלבד
+            שמאל – התנתקות
         ========================= */}
         <div className="flex justify-end items-center gap-4">
           <button
