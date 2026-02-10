@@ -225,9 +225,21 @@ const available =
       throw new Error("SAVE_BUDGET_FAILED");
     }
 
-    // ✅ עדכון event בלבד – budget מחושב מהשרת
-    setEvent(data.event);
-    setBudgetDraft(data.event.budgetTotal);
+    // ✅ עדכון event
+setEvent(data.event);
+
+// ✅ עדכון budget מחושב (כדי שהכרטיסים יתעדכנו מייד)
+setBudget((prev) => ({
+  ...prev,
+  total: data.event.budgetTotal,
+  available: Math.max(
+    data.event.budgetTotal - (prev?.commitments || 0),
+    0
+  ),
+}));
+
+setBudgetDraft(data.event.budgetTotal);
+
 
   } catch (e) {
     setError("שגיאה בשמירת התקציב");
