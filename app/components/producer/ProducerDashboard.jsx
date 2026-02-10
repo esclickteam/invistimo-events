@@ -338,14 +338,6 @@ export default function ProducerDashboard() {
     };
   }, [clients]);
 
-  /* =========================
-     Guards
-  ========================= */
-  if (user.impersonated) {
-  window.location.href = "/events/production";
-  return null;
-}
-
 
   /* =========================
      UI
