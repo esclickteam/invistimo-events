@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import ProducerDashboardHeader from "@/app/dashboard/ProducerStaffHeader";
+import ProducerStaffHeader from "@/app/dashboard/ProducerStaffHeader";
+
 
 /* ===============================
    Types
@@ -147,7 +148,7 @@ export default function ProducerStaffDashboardPage() {
 
   return (
     <>
-      <ProducerDashboardHeader />
+      <ProducerStaffHeader />
 
       <main dir="rtl" className="pt-16 px-3 md:px-6 lg:px-8 pb-10 bg-[#efeeeb] min-h-screen">
         {/* Stats */}
