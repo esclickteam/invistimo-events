@@ -341,22 +341,9 @@ export default function ProducerDashboard() {
   /* =========================
      Guards
   ========================= */
- if (!authResolved) {
-  return <div className="p-6">טוען…</div>;
-}
-
-if (!user) {
-  return <div className="p-6">אין הרשאה</div>;
-}
-
-// ✅ מותר אם:
-// - מפיק רגיל
-// - או משתמש שנכנס דרך ניהול אירוע (impersonation)
-const isProducerLike =
-  user.role === "producer" || user.impersonated === true;
-
-if (!isProducerLike) {
-  return <div className="p-6">אין הרשאה</div>;
+  if (user?.impersonated) {
+  window.location.href = "/events/production";
+  return null;
 }
 
 
