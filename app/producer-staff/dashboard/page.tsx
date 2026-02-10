@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProducerStaffHeader from "@/app/dashboard/ProducerStaffHeader";
 
-
 /* ===============================
    Types
 =============================== */
@@ -19,7 +18,7 @@ type AssignedUser = {
     date?: string;
     location?: {
       address?: string;
-    };
+    } | string;
     totalGuests?: number;
     approvedCount?: number;
   };
@@ -33,6 +32,14 @@ export default function ProducerStaffDashboardPage() {
   const [usersLoading, setUsersLoading] = useState(false);
 
   /* ===============================
+     Derived flags (בלי לשבור סדר hooks)
+  =============================== */
+  const isProducerStaff =
+    !!user &&
+    user.role === "staff" &&
+    user.staffType === "producer_staff";
+
+  /* ===============================
      Guard – הרשאות
   =============================== */
   useEffect(() => {
@@ -43,16 +50,19 @@ export default function ProducerStaffDashboardPage() {
       return;
     }
 
-    if (user.role !== "staff" || user.staffType !== "producer_staff") {
+    if (!isProducerStaff) {
       router.replace("/");
     }
-  }, [user, loading, router]);
+  }, [loading, user, isProducerStaff, router]);
 
   /* ===============================
      Fetch assigned users
   =============================== */
   useEffect(() => {
-    if (!user || user.role !== "staff") return;
+    if (loading) return;
+    if (!isProducerStaff) return;
+
+    let mounted = true;
 
     const fetchUsers = async () => {
       setUsersLoading(true);
@@ -62,23 +72,30 @@ export default function ProducerStaffDashboardPage() {
           cache: "no-store",
         });
 
+        if (!mounted) return;
+
         if (!res.ok) {
           setUsers([]);
           return;
         }
 
         const data = await res.json();
-        setUsers(Array.isArray(data.clients) ? data.clients : []);
-
-      } catch {
+        setUsers(Array.isArray(data?.clients) ? data.clients : []);
+      } catch (err) {
+        console.error("Failed to fetch producer-staff clients:", err);
+        if (!mounted) return;
         setUsers([]);
       } finally {
-        setUsersLoading(false);
+        if (mounted) setUsersLoading(false);
       }
     };
 
     fetchUsers();
-  }, [user]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [loading, isProducerStaff]);
 
   /* ===============================
      Impersonate & enter
@@ -94,39 +111,51 @@ export default function ProducerStaffDashboardPage() {
 
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        alert(data.message || "אין הרשאה");
+      if (!res.ok || !data?.success) {
+        alert(data?.message || "אין הרשאה");
         return;
       }
 
-      if (data.eventId) {
+      if (data?.eventId) {
         window.location.href = `/events/production?eventId=${data.eventId}`;
         return;
       }
 
       window.location.href = "/dashboard";
-    } catch {
+    } catch (err) {
+      console.error("Impersonation failed:", err);
       alert("שגיאה בכניסה");
     }
   };
 
-  if (loading || !user) {
-    return <div style={{ padding: 32 }}>טוען…</div>;
-  }
-
   /* ===============================
-     Stats
+     Stats + Rows (לפני כל return מוקדם)
+     כדי לשמור סדר hooks יציב
   =============================== */
-  const totalEvents = users.filter((u) => u.role === "client" && u.event).length;
+  const totalEvents = useMemo(
+    () => users.filter((u) => u.role === "client" && !!u.event).length,
+    [users]
+  );
 
-  const totalGuests = users.reduce((sum, u) => sum + (u.event?.totalGuests || 0), 0);
+  const totalGuests = useMemo(
+    () => users.reduce((sum, u) => sum + (u.event?.totalGuests || 0), 0),
+    [users]
+  );
 
-  const totalApproved = users.reduce((sum, u) => sum + (u.event?.approvedCount || 0), 0);
+  const totalApproved = useMemo(
+    () => users.reduce((sum, u) => sum + (u.event?.approvedCount || 0), 0),
+    [users]
+  );
 
   const rows = useMemo(() => {
     return users.map((u) => {
       const total = u.event?.totalGuests || 0;
       const approved = u.event?.approvedCount || 0;
+
+      const location =
+        typeof u.event?.location === "string"
+          ? u.event.location
+          : u.event?.location?.address || "—";
 
       return {
         id: u._id,
@@ -136,21 +165,31 @@ export default function ProducerStaffDashboardPage() {
         date: u.event?.date
           ? new Date(u.event.date).toLocaleDateString("he-IL")
           : "—",
-        location:
-  typeof u.event?.location === "string"
-    ? u.event.location
-    : u.event?.location?.address || "—",
-
+        location,
         approvedText: `${approved} / ${total}`,
       };
     });
   }, [users]);
 
+  /* ===============================
+     Early UI returns (אחרי כל hooks)
+  =============================== */
+  if (loading) {
+    return <div style={{ padding: 32 }}>טוען…</div>;
+  }
+
+  if (!user || !isProducerStaff) {
+    return null;
+  }
+
   return (
     <>
       <ProducerStaffHeader />
 
-      <main dir="rtl" className="pt-16 px-3 md:px-6 lg:px-8 pb-10 bg-[#efeeeb] min-h-screen">
+      <main
+        dir="rtl"
+        className="pt-16 px-3 md:px-6 lg:px-8 pb-10 bg-[#efeeeb] min-h-screen"
+      >
         {/* Stats */}
         <div
           style={{
@@ -189,7 +228,9 @@ export default function ProducerStaffDashboardPage() {
           {usersLoading ? (
             <div style={{ padding: 20 }}>טוען משתמשים…</div>
           ) : rows.length === 0 ? (
-            <div style={{ padding: 20, color: "#777" }}>לא הוקצו לך לקוחות עדיין</div>
+            <div style={{ padding: 20, color: "#777" }}>
+              לא הוקצו לך לקוחות עדיין
+            </div>
           ) : (
             <div style={{ width: "100%", overflowX: "auto" }}>
               <table
@@ -297,7 +338,9 @@ function DashboardCard({
       }}
     >
       <div style={{ fontSize: 13, color: "#777" }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: "#4b321f" }}>{value}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: "#4b321f" }}>
+        {value}
+      </div>
     </div>
   );
 }
