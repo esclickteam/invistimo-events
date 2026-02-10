@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import OverviewTab from "@/app/dashboard/_components/OverviewTab";
+import OverviewTab from "@/app/events/production/_components/OverviewTab";
 
 export default function ProducerEventOverviewPage() {
   const { eventId } = useParams();
