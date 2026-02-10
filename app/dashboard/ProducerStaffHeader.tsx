@@ -36,9 +36,9 @@ export default function ProducerStaffHeader() {
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
         {/* =========================
-            ימין – ניווט
+            ימין – ראשי + Badge
         ========================= */}
-        <div className="flex justify-start">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/producer-staff/dashboard")}
             className={`
@@ -50,12 +50,29 @@ export default function ProducerStaffHeader() {
           >
             🏠 ראשי
           </button>
+
+          {/* 🟡 Badge עובד מפיק */}
+          <span
+            className="
+              px-2 py-[2px]
+              rounded-full
+              text-[11px]
+              font-semibold
+              tracking-wide
+              bg-[#e9ddcf]
+              text-[#4a413a]
+              border border-[#d8c9b8]
+              leading-none
+            "
+          >
+            עובד מפיק
+          </span>
         </div>
 
         {/* =========================
-            מרכז – לוגו + Badge
+            מרכז – לוגו
         ========================= */}
-        <div className="flex flex-col items-center justify-center leading-none">
+        <div className="flex justify-center">
           <button
             onClick={() => router.push("/producer-staff/dashboard")}
             aria-label="מעבר לדשבורד עובד מפיק"
@@ -68,23 +85,6 @@ export default function ProducerStaffHeader() {
               draggable={false}
             />
           </button>
-
-          {/* 🟡 Badge */}
-          <span
-            className="
-              mt-1
-              px-2 py-[2px]
-              rounded-full
-              text-[10px]
-              font-semibold
-              tracking-wide
-              bg-[#e9ddcf]
-              text-[#4a413a]
-              border border-[#d8c9b8]
-            "
-          >
-            עובד מפיק
-          </span>
         </div>
 
         {/* =========================
