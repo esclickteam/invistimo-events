@@ -31,28 +31,40 @@ export default function ProducerStaffDashboardPage() {
   const [users, setUsers] = useState<AssignedUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
+  /** 🔑 חשוב – מונע redirect בזמן render */
+  const [authResolved, setAuthResolved] = useState(false);
+
   /* ===============================
-     Guards – קריטי ליציבות
+     AUTH GUARD – רק כאן עושים ניתוב
   =============================== */
-  if (loading) {
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (user.role !== "staff" || user.staffType !== "producer_staff") {
+      router.replace("/");
+      return;
+    }
+
+    setAuthResolved(true);
+  }, [user, loading, router]);
+
+  /* ===============================
+     Loader בטוח
+  =============================== */
+  if (loading || !authResolved) {
     return <div style={{ padding: 32 }}>טוען…</div>;
-  }
-
-  if (!user) {
-    router.replace("/login");
-    return null;
-  }
-
-  if (user.role !== "staff" || user.staffType !== "producer_staff") {
-    router.replace("/");
-    return null;
   }
 
   /* ===============================
      Fetch assigned users
   =============================== */
   useEffect(() => {
-    if (user.role !== "staff") return;
+    if (!authResolved) return;
 
     const fetchUsers = async () => {
       setUsersLoading(true);
@@ -77,7 +89,7 @@ export default function ProducerStaffDashboardPage() {
     };
 
     fetchUsers();
-  }, [user]);
+  }, [authResolved]);
 
   /* ===============================
      Impersonate & enter
@@ -129,8 +141,6 @@ export default function ProducerStaffDashboardPage() {
   );
 
   const rows = useMemo(() => {
-    if (!Array.isArray(safeUsers)) return [];
-
     return safeUsers.map((u) => {
       const total = u.event?.totalGuests ?? 0;
       const approved = u.event?.approvedCount ?? 0;
@@ -192,7 +202,6 @@ export default function ProducerStaffDashboardPage() {
               fontSize: 26,
               fontWeight: 700,
               color: "#4b321f",
-              lineHeight: 1,
             }}
           >
             לקוחות
@@ -212,7 +221,6 @@ export default function ProducerStaffDashboardPage() {
                   borderCollapse: "separate",
                   borderSpacing: 0,
                   minWidth: 980,
-                  direction: "rtl",
                 }}
               >
                 <thead>
@@ -223,7 +231,6 @@ export default function ProducerStaffDashboardPage() {
                     <Th>תאריך אירוע</Th>
                     <Th>מקום</Th>
                     <Th>אישור</Th>
-                    <Th>הקצאה</Th>
                     <Th>פעולה</Th>
                   </tr>
                 </thead>
@@ -243,7 +250,6 @@ export default function ProducerStaffDashboardPage() {
                       <Td>{r.date}</Td>
                       <Td>{r.location}</Td>
                       <Td>{r.approvedText}</Td>
-                      <Td>—</Td>
                       <Td>
                         <button
                           onClick={() => handleEnterUser(r.id)}
@@ -308,7 +314,6 @@ function Th({ children }: { children: React.ReactNode }) {
         textAlign: "right",
         fontSize: 15,
         fontWeight: 600,
-        whiteSpace: "nowrap",
       }}
     >
       {children}
@@ -324,7 +329,6 @@ function Td({ children }: { children: React.ReactNode }) {
         textAlign: "right",
         fontSize: 15,
         color: "#4b321f",
-        whiteSpace: "nowrap",
         borderTop: "1px solid #dadada",
       }}
     >
