@@ -35,10 +35,11 @@ export default function ProducerStaffHeader() {
       `}
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
+
         {/* =========================
-            ימין – ראשי + Badge
+            ימין – ראשי + badge
         ========================= */}
-        <div className="flex items-center gap-3">
+        <div className="flex justify-start items-center gap-3">
           <button
             onClick={() => router.push("/producer-staff/dashboard")}
             className={`
@@ -46,25 +47,22 @@ export default function ProducerStaffHeader() {
               ${HEADER_UI.navText}
               hover:text-[var(--champagne-dark)]
               transition
+              flex items-center gap-2
             `}
           >
             🏠 ראשי
           </button>
 
-          {/* 🟡 Badge עובד מפיק */}
-          <span
-            className="
-              px-2 py-[2px]
-              rounded-full
-              text-[11px]
-              font-semibold
-              tracking-wide
-              bg-[#e9ddcf]
-              text-[#4a413a]
-              border border-[#d8c9b8]
-              leading-none
-            "
-          >
+          {/* BADGE */}
+          <span className="
+            text-xs font-semibold
+            px-2 py-0.5
+            rounded-full
+            bg-[#ede3d7]
+            text-[#6b4b2a]
+            border border-[#d6c4b0]
+            whitespace-nowrap
+          ">
             עובד מפיק
           </span>
         </div>
