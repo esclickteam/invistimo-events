@@ -341,9 +341,11 @@ export default function ProducerDashboard() {
   /* =========================
      Guards
   ========================= */
-  if (authLoading || !authResolved) return <div className="p-6">טוען…</div>;
-  if (!user) return <div className="p-6">לא מחובר</div>;
-  if (user.role !== "producer") return <div className="p-6">אין הרשאה</div>;
+  if (user.impersonated) {
+  window.location.href = "/events/production";
+  return null;
+}
+
 
   /* =========================
      UI
