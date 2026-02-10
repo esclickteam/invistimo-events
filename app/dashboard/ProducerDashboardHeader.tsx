@@ -103,8 +103,20 @@ export default function ProducerDashboardHeader() {
             שמאל – כפתורים
         ========================= */}
         <div className="flex justify-end items-center gap-4">
-
-         
+          {/* ✅ חזרה למפיק */}
+          <button
+            onClick={handleBackToProducer}
+            className={`
+              font-medium
+              ${HEADER_UI.navText}
+              text-[#4a413a]
+              hover:text-[var(--champagne-dark)]
+              transition
+            `}
+            title="חזרה למפיק"
+          >
+            ↩️ חזרה למפיק
+          </button>
 
           {/* התנתקות */}
           <button

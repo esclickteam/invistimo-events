@@ -9,9 +9,7 @@ import User from "@/models/User";
    Cookie helpers
 ========================================================= */
 function getCookieDomain() {
-  return process.env.NODE_ENV === "production"
-    ? ".invistimo.com"
-    : undefined;
+  return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 }
 
 function httpOnlyCookieOptions() {
@@ -31,95 +29,75 @@ function deleteCookieOptions() {
   };
 }
 
-/* =========================================================
+/* =========================
    POST /api/producer/stop-impersonation
-========================================================= */
+========================= */
 export async function POST(_req: NextRequest) {
+  console.log("🟡 [Stop Impersonation] Request received");
+
   try {
     await dbConnect();
+
     const cookieStore = await cookies();
 
     const producerAuthToken =
-      cookieStore.get("producerAuthToken")?.value;
+      cookieStore.get("producerAuthToken")?.value || null;
 
     if (!producerAuthToken) {
       return NextResponse.json(
-        { success: false, message: "No active impersonation" },
+        { success: false, message: "No active impersonation session" },
         { status: 401 }
       );
     }
 
-    // 🔐 verify producer token
+    // verify token (must be producer)
     let decoded: any;
     try {
-      decoded = jwt.verify(
-        producerAuthToken,
-        process.env.JWT_SECRET!
-      );
-    } catch {
+      decoded = jwt.verify(producerAuthToken, process.env.JWT_SECRET!);
+    } catch (err) {
+      console.error("❌ Invalid producerAuthToken", err);
+
+      // מחזירים תשובה + מוחקים כדי לא להיתקע בלופ
       const res = NextResponse.json(
-        { success: false, message: "Invalid producer token" },
+        { success: false, message: "Invalid producer session" },
         { status: 401 }
       );
-      res.cookies.set(
-        "producerAuthToken",
-        "",
-        deleteCookieOptions()
-      );
-      res.cookies.set(
-        "impersonationToken",
-        "",
-        deleteCookieOptions()
-      );
+      res.cookies.set("producerAuthToken", "", deleteCookieOptions());
       return res;
     }
 
-    const producerId = decoded.userId || decoded._id;
-    if (!producerId || decoded.role !== "producer") {
+    const producerId = decoded?.userId || decoded?.id || decoded?._id || null;
+    const role = decoded?.role;
+
+    if (!producerId || role !== "producer") {
       return NextResponse.json(
         { success: false, message: "Forbidden" },
         { status: 403 }
       );
     }
 
-    const producer = await User.findById(producerId)
-      .select("_id role")
-      .lean();
+    // ensure producer exists
+    const producer = await User.findById(producerId).select("_id role").lean();
 
-    if (!producer) {
+    if (!producer || producer.role !== "producer") {
       return NextResponse.json(
         { success: false, message: "Producer not found" },
-        { status: 404 }
+        { status: 403 }
       );
     }
 
-    // ✅ restore producer session
-    const res = NextResponse.json({
-      success: true,
-      restoredRole: "producer",
-    });
+    // ✅ restore producer session and delete producerAuthToken
+    const res = NextResponse.json({ success: true, role: "producer" });
 
-    res.cookies.set(
-      "authToken",
-      producerAuthToken,
-      httpOnlyCookieOptions()
-    );
+    res.cookies.set("authToken", producerAuthToken, httpOnlyCookieOptions());
+    res.cookies.set("producerAuthToken", "", deleteCookieOptions());
+res.cookies.set("impersonationToken", "", deleteCookieOptions());
 
-    // 🧹 clean impersonation completely
-    res.cookies.set(
-      "producerAuthToken",
-      "",
-      deleteCookieOptions()
-    );
-    res.cookies.set(
-      "impersonationToken",
-      "",
-      deleteCookieOptions()
-    );
+    console.log("✅ Impersonation stopped, producer restored");
 
     return res;
   } catch (err) {
-    console.error("❌ stop-impersonation error:", err);
+    console.error("❌ [Stop Impersonation] Error:", err);
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }
