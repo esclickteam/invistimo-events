@@ -215,25 +215,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("לא הצלחנו לטעון את המשתמש");
       }
 
-      if (nextUser.role === "admin") {
+      // ===== Redirect logic =====
+
+// ⛔ ADMIN
+if (nextUser.role === "admin") {
   router.replace("/admin");
-} 
-else if (nextUser.role === "producer") {
+  return;
+}
+
+// ⛔ אם זה משתמש בתחזות – לא לנתב אוטומטית
+if (nextUser.impersonated) {
+  return;
+}
+
+// PRODUCER
+if (nextUser.role === "producer") {
   router.replace("/producer/dashboard");
-} 
-else if (
+  return;
+}
+
+// PRODUCER STAFF
+if (
   nextUser.role === "staff" &&
   nextUser.staffType === "producer_staff"
 ) {
   router.replace("/producer-staff/dashboard");
+  return;
 }
 
-else {
-  router.replace("/dashboard");
-}
+// CLIENT רגיל
+router.replace("/dashboard");
 
 
-      router.refresh();
+
+
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
