@@ -31,11 +31,8 @@ export default function ProducerStaffDashboardPage() {
   const [users, setUsers] = useState<AssignedUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
-  /** 🔑 חשוב – מונע redirect בזמן render */
-  const [authResolved, setAuthResolved] = useState(false);
-
   /* ===============================
-     AUTH GUARD – רק כאן עושים ניתוב
+     Guard – הרשאות
   =============================== */
   useEffect(() => {
     if (loading) return;
@@ -47,24 +44,14 @@ export default function ProducerStaffDashboardPage() {
 
     if (user.role !== "staff" || user.staffType !== "producer_staff") {
       router.replace("/");
-      return;
     }
-
-    setAuthResolved(true);
   }, [user, loading, router]);
-
-  /* ===============================
-     Loader בטוח
-  =============================== */
-  if (loading || !authResolved) {
-    return <div style={{ padding: 32 }}>טוען…</div>;
-  }
 
   /* ===============================
      Fetch assigned users
   =============================== */
   useEffect(() => {
-    if (!authResolved) return;
+    if (!user || user.role !== "staff") return;
 
     const fetchUsers = async () => {
       setUsersLoading(true);
@@ -80,7 +67,8 @@ export default function ProducerStaffDashboardPage() {
         }
 
         const data = await res.json();
-        setUsers(Array.isArray(data?.clients) ? data.clients : []);
+        setUsers(Array.isArray(data.clients) ? data.clients : []);
+
       } catch {
         setUsers([]);
       } finally {
@@ -89,7 +77,7 @@ export default function ProducerStaffDashboardPage() {
     };
 
     fetchUsers();
-  }, [authResolved]);
+  }, [user]);
 
   /* ===============================
      Impersonate & enter
@@ -105,8 +93,8 @@ export default function ProducerStaffDashboardPage() {
 
       const data = await res.json();
 
-      if (!res.ok || !data?.success) {
-        alert(data?.message || "אין הרשאה");
+      if (!res.ok || !data.success) {
+        alert(data.message || "אין הרשאה");
         return;
       }
 
@@ -121,58 +109,47 @@ export default function ProducerStaffDashboardPage() {
     }
   };
 
+  if (loading || !user) {
+    return <div style={{ padding: 32 }}>טוען…</div>;
+  }
+
   /* ===============================
-     Safe stats
+     Stats
   =============================== */
-  const safeUsers = Array.isArray(users) ? users : [];
+  const totalEvents = users.filter((u) => u.role === "client" && u.event).length;
 
-  const totalEvents = safeUsers.filter(
-    (u) => u.role === "client" && u.event
-  ).length;
+  const totalGuests = users.reduce((sum, u) => sum + (u.event?.totalGuests || 0), 0);
 
-  const totalGuests = safeUsers.reduce(
-    (sum, u) => sum + (u.event?.totalGuests ?? 0),
-    0
-  );
-
-  const totalApproved = safeUsers.reduce(
-    (sum, u) => sum + (u.event?.approvedCount ?? 0),
-    0
-  );
+  const totalApproved = users.reduce((sum, u) => sum + (u.event?.approvedCount || 0), 0);
 
   const rows = useMemo(() => {
-    return safeUsers.map((u) => {
-      const total = u.event?.totalGuests ?? 0;
-      const approved = u.event?.approvedCount ?? 0;
+    return users.map((u) => {
+      const total = u.event?.totalGuests || 0;
+      const approved = u.event?.approvedCount || 0;
 
       return {
         id: u._id,
         name: u.name || "לקוח",
         email: u.email || "—",
-        phone: "—",
+        phone: "—", // אם אין phone במודל כרגע
         date: u.event?.date
           ? new Date(u.event.date).toLocaleDateString("he-IL")
           : "—",
         location:
-          typeof u.event?.location === "string"
-            ? u.event.location
-            : u.event?.location?.address || "—",
+  typeof u.event?.location === "string"
+    ? u.event.location
+    : u.event?.location?.address || "—",
+
         approvedText: `${approved} / ${total}`,
       };
     });
-  }, [safeUsers]);
+  }, [users]);
 
-  /* ===============================
-     UI
-  =============================== */
   return (
     <>
       <ProducerDashboardHeader />
 
-      <main
-        dir="rtl"
-        className="pt-16 px-3 md:px-6 lg:px-8 pb-10 bg-[#efeeeb] min-h-screen"
-      >
+      <main dir="rtl" className="pt-16 px-3 md:px-6 lg:px-8 pb-10 bg-[#efeeeb] min-h-screen">
         {/* Stats */}
         <div
           style={{
@@ -182,7 +159,7 @@ export default function ProducerStaffDashboardPage() {
             marginBottom: 20,
           }}
         >
-          <DashboardCard title="משתמשים מוקצים" value={safeUsers.length} />
+          <DashboardCard title="משתמשים מוקצים" value={users.length} />
           <DashboardCard title="אירועים פעילים" value={totalEvents} />
           <DashboardCard title="סה״כ מוזמנים" value={totalGuests} />
           <DashboardCard title="אישרו הגעה" value={totalApproved} />
@@ -202,6 +179,7 @@ export default function ProducerStaffDashboardPage() {
               fontSize: 26,
               fontWeight: 700,
               color: "#4b321f",
+              lineHeight: 1,
             }}
           >
             לקוחות
@@ -210,9 +188,7 @@ export default function ProducerStaffDashboardPage() {
           {usersLoading ? (
             <div style={{ padding: 20 }}>טוען משתמשים…</div>
           ) : rows.length === 0 ? (
-            <div style={{ padding: 20, color: "#777" }}>
-              לא הוקצו לך לקוחות עדיין
-            </div>
+            <div style={{ padding: 20, color: "#777" }}>לא הוקצו לך לקוחות עדיין</div>
           ) : (
             <div style={{ width: "100%", overflowX: "auto" }}>
               <table
@@ -221,6 +197,7 @@ export default function ProducerStaffDashboardPage() {
                   borderCollapse: "separate",
                   borderSpacing: 0,
                   minWidth: 980,
+                  direction: "rtl",
                 }}
               >
                 <thead>
@@ -231,6 +208,7 @@ export default function ProducerStaffDashboardPage() {
                     <Th>תאריך אירוע</Th>
                     <Th>מקום</Th>
                     <Th>אישור</Th>
+                    <Th>הקצאה לעובד/ים</Th>
                     <Th>פעולה</Th>
                   </tr>
                 </thead>
@@ -240,8 +218,8 @@ export default function ProducerStaffDashboardPage() {
                     <tr
                       key={r.id}
                       style={{
-                        background:
-                          index % 2 === 0 ? "#f4f4f4" : "#efefef",
+                        background: index % 2 === 0 ? "#f4f4f4" : "#efefef",
+                        borderTop: "1px solid #ddd",
                       }}
                     >
                       <Td>{r.name}</Td>
@@ -250,6 +228,25 @@ export default function ProducerStaffDashboardPage() {
                       <Td>{r.date}</Td>
                       <Td>{r.location}</Td>
                       <Td>{r.approvedText}</Td>
+                      <Td>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: 92,
+                            height: 32,
+                            padding: "0 10px",
+                            border: "1px solid #d0d0d0",
+                            borderRadius: 8,
+                            background: "#fff",
+                            color: "#5d5d5d",
+                            fontSize: 14,
+                          }}
+                        >
+                          ללא
+                        </span>
+                      </Td>
                       <Td>
                         <button
                           onClick={() => handleEnterUser(r.id)}
@@ -299,9 +296,7 @@ function DashboardCard({
       }}
     >
       <div style={{ fontSize: 13, color: "#777" }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: "#4b321f" }}>
-        {value}
-      </div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: "#4b321f" }}>{value}</div>
     </div>
   );
 }
@@ -314,6 +309,7 @@ function Th({ children }: { children: React.ReactNode }) {
         textAlign: "right",
         fontSize: 15,
         fontWeight: 600,
+        whiteSpace: "nowrap",
       }}
     >
       {children}
@@ -328,7 +324,9 @@ function Td({ children }: { children: React.ReactNode }) {
         padding: "16px",
         textAlign: "right",
         fontSize: 15,
+        lineHeight: "20px",
         color: "#4b321f",
+        whiteSpace: "nowrap",
         borderTop: "1px solid #dadada",
       }}
     >
