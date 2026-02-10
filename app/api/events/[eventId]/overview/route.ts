@@ -17,11 +17,14 @@ export async function GET(
   try {
     await db();
 
+    console.log("🔵 GET /overview – start");
+
     /* =========================
-       🔐 Auth
+       Auth
     ========================= */
-    const auth = await getUserIdFromRequest(req);
+    const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
+      console.warn("⛔ GET /overview – UNAUTHORIZED");
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
@@ -29,11 +32,13 @@ export async function GET(
     }
 
     /* =========================
-       📌 Params (Promise!)
+       Params
     ========================= */
     const { eventId } = await context.params;
+    console.log("🔵 GET /overview – eventId:", eventId);
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      console.warn("⛔ GET /overview – INVALID_EVENT_ID:", eventId);
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
@@ -41,7 +46,7 @@ export async function GET(
     }
 
     /* =========================
-       🎉 Event
+       Load Event
     ========================= */
     const event = await Event.findOne({
       _id: eventId,
@@ -52,14 +57,17 @@ export async function GET(
       .lean();
 
     if (!event) {
+      console.warn("⛔ GET /overview – EVENT_NOT_FOUND:", eventId);
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
+    console.log("🟢 GET /overview – event.budgetTotal from DB:", event.budgetTotal);
+
     /* =========================
-       📝 Tasks
+       Load Tasks
     ========================= */
     const tasks = await EventTask.find({
       eventId: event._id,
@@ -68,14 +76,18 @@ export async function GET(
       .sort({ order: 1, dueDate: 1, createdAt: 1 })
       .lean();
 
+    console.log("🔵 GET /overview – tasks count:", tasks.length);
+
     /* =========================
-       💰 Budget
+       Load Suppliers
     ========================= */
     const suppliers = await EventSupplier.find({
       eventId: event._id,
     })
       .select("price advance")
       .lean();
+
+    console.log("🔵 GET /overview – suppliers count:", suppliers.length);
 
     const budgetTotal = Number(event.budgetTotal) || 0;
 
@@ -89,7 +101,18 @@ export async function GET(
       0
     );
 
-    const available = Math.max(budgetTotal - commitments, 0);
+    const available = Math.max(
+  budgetTotal - commitments,
+  0
+);
+
+
+    console.log("🟢 GET /overview – calculated budget:", {
+      budgetTotal,
+      commitments,
+      paid,
+      available,
+    });
 
     return NextResponse.json({
       success: true,
@@ -110,7 +133,7 @@ export async function GET(
       tasks,
     });
   } catch (err) {
-    console.error("❌ GET /overview failed:", err);
+    console.error("❌ GET /events/[eventId]/overview failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
@@ -119,7 +142,7 @@ export async function GET(
 }
 
 /* =========================================================
-   PATCH – עדכון תקציב
+   PATCH – עדכון Overview (תקציב)
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
@@ -128,37 +151,59 @@ export async function PATCH(
   try {
     await db();
 
-    const auth = await getUserIdFromRequest(req);
+    console.log("🟡 PATCH /overview – start");
+
+    /* =========================
+       Auth
+    ========================= */
+    const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
+      console.warn("⛔ PATCH /overview – UNAUTHORIZED");
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
+    /* =========================
+       Params
+    ========================= */
     const { eventId } = await context.params;
+    console.log("🟡 PATCH /overview – eventId:", eventId);
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      console.warn("⛔ PATCH /overview – INVALID_EVENT_ID:", eventId);
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
       );
     }
 
+    /* =========================
+       Body
+    ========================= */
     const body = await req.json();
+    console.log("🟡 PATCH /overview – body received:", body);
 
     if (!Object.prototype.hasOwnProperty.call(body, "budgetTotal")) {
+      console.log("🟡 PATCH /overview – no budgetTotal, skipping update");
       return NextResponse.json({ success: true });
     }
 
     const budgetTotal = Number(body.budgetTotal);
+    console.log("🟡 PATCH /overview – parsed budgetTotal:", budgetTotal);
+
     if (!Number.isFinite(budgetTotal) || budgetTotal < 0) {
+      console.warn("⛔ PATCH /overview – INVALID_BUDGET:", body.budgetTotal);
       return NextResponse.json(
         { success: false, error: "INVALID_BUDGET" },
         { status: 400 }
       );
     }
 
+    /* =========================
+       Update Event
+    ========================= */
     const event = await Event.findOneAndUpdate(
       {
         _id: eventId,
@@ -170,11 +215,14 @@ export async function PATCH(
     ).select("title date budgetTotal userId producerId");
 
     if (!event) {
+      console.warn("⛔ PATCH /overview – EVENT_NOT_FOUND:", eventId);
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
       );
     }
+
+    console.log("🟢 PATCH /overview – budget saved to DB:", event.budgetTotal);
 
     return NextResponse.json({
       success: true,
@@ -188,7 +236,7 @@ export async function PATCH(
       },
     });
   } catch (err) {
-    console.error("❌ PATCH /overview failed:", err);
+    console.error("❌ PATCH /events/[eventId]/overview failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }

@@ -172,20 +172,19 @@ export async function GET(req: NextRequest) {
       }
 
       return {
-  ...client,
-  event: {
-    _id: event._id, 
-    date: event.date,
-    location:
-      typeof event.location === "object"
-        ? event.location.address
-        : event.location,
-    totalGuests,
-    approvedCount,
-    arrivedCount,
-    actualArrivedCount,
-  },
-};
+        ...client,
+        event: {
+          date: event.date,
+          location:
+            typeof event.location === "object"
+              ? event.location.address
+              : event.location,
+          totalGuests,
+          approvedCount,
+          arrivedCount,
+          actualArrivedCount,
+        },
+      };
     });
 
     console.log("✅ FINAL RESULT COUNT:", result.length);
