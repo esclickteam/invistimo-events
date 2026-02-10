@@ -37,25 +37,22 @@ export default function DashboardHeader({
   /* ============================================================
      Auth
   ============================================================ */
-  const { user, logout, exitImpersonation } = useAuth();
-
-  const role = user?.role; // "producer" | "client" | "admin"
-  const isImpersonating = Boolean(user?.impersonated);
-  const impersonationRole = user?.impersonationRole; // "admin" | "producer" | undefined
+  const { user, logout } = useAuth();
+  const role = user?.role;
 
   /* ============================================================
-     ⬅️ Producer Header Override (בלי לשנות לוגיקה)
+     ⬅️ Producer Header Override
   ============================================================ */
   if (role === "producer") {
-  return (
-    <div className="print:hidden">
-      <ProducerDashboardHeader />
-    </div>
-  );
-}
+    return (
+      <div className="print:hidden">
+        <ProducerDashboardHeader />
+      </div>
+    );
+  }
 
   /* ============================================================
-     התנתקות רגילה
+     Logout
   ============================================================ */
   const handleLogout = async () => {
     try {
@@ -63,8 +60,6 @@ export default function DashboardHeader({
         router.push("/login");
         return;
       }
-
-      // קריאה ל־logout מה־context (כולל ניקוי state + redirect)
       await logout();
     } catch (error) {
       console.error("❌ Logout failed:", error);
@@ -72,17 +67,7 @@ export default function DashboardHeader({
   };
 
   /* ============================================================
-     Labels
-  ============================================================ */
-  const impersonationLabel =
-    impersonationRole === "producer"
-      ? "מפיק"
-      : impersonationRole === "admin"
-      ? "אדמין"
-      : "";
-
-  /* ============================================================
-     JSX – Header כללי (Client / Demo / Fallback)
+     JSX – Header כללי (Client / Demo)
   ============================================================ */
   return (
     <header
@@ -121,12 +106,6 @@ export default function DashboardHeader({
                 ? "🧪 מצב דמו – לצפייה בלבד"
                 : invitation?.title || "📊 ניהול אירוע"}
             </span>
-
-            {isImpersonating && (
-              <span className="text-[11px] text-amber-600">
-                מחוברת כמשתמש (מצב {impersonationLabel})
-              </span>
-            )}
           </div>
 
           <nav
@@ -171,38 +150,22 @@ export default function DashboardHeader({
         </div>
 
         {/* =========================
-            שמאל – פעולה ראשית
+            שמאל – התנתקות
         ========================= */}
         <div className="flex justify-end">
-          {isImpersonating ? (
-            <button
-              onClick={exitImpersonation}
-              className={`
-                font-medium
-                ${HEADER_UI.navText}
-                text-blue-600
-                hover:text-blue-700
-                transition
-              `}
-              title={`חזרה ל${impersonationLabel}`}
-            >
-              🔁 חזרה ל{impersonationLabel}
-            </button>
-          ) : (
-            <button
-              onClick={handleLogout}
-              className={`
-                font-medium
-                ${HEADER_UI.navText}
-                text-red-600
-                hover:text-red-700
-                transition
-              `}
-              title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
-            >
-              🚪 {isDemo ? "התחברות" : "התנתקות"}
-            </button>
-          )}
+          <button
+            onClick={handleLogout}
+            className={`
+              font-medium
+              ${HEADER_UI.navText}
+              text-red-600
+              hover:text-red-700
+              transition
+            `}
+            title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
+          >
+            🚪 {isDemo ? "התחברות" : "התנתקות"}
+          </button>
         </div>
       </div>
     </header>
