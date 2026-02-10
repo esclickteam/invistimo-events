@@ -20,9 +20,7 @@ export default function ProducerStaffHeader() {
       await logout();
     } catch (err) {
       console.error("Logout failed", err);
-    } finally {
-      // ✅ קריטי: לא נשארים בדשבורד שמניח user
-      router.replace("/login");
+      router.replace("/login"); // fallback only
     }
   };
 
@@ -38,10 +36,6 @@ export default function ProducerStaffHeader() {
       `}
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
-
-        {/* =========================
-            ימין – ראשי + badge
-        ========================= */}
         <div className="flex justify-start items-center gap-3">
           <button
             onClick={() => router.push("/producer-staff/dashboard")}
@@ -56,7 +50,6 @@ export default function ProducerStaffHeader() {
             🏠 ראשי
           </button>
 
-          {/* BADGE – עובד מפיק */}
           <span
             className="
               text-xs font-semibold
@@ -72,9 +65,6 @@ export default function ProducerStaffHeader() {
           </span>
         </div>
 
-        {/* =========================
-            מרכז – לוגו
-        ========================= */}
         <div className="flex justify-center">
           <button
             onClick={() => router.push("/producer-staff/dashboard")}
@@ -90,9 +80,6 @@ export default function ProducerStaffHeader() {
           </button>
         </div>
 
-        {/* =========================
-            שמאל – התנתקות
-        ========================= */}
         <div className="flex justify-end items-center gap-4">
           <button
             onClick={handleLogout}
