@@ -13,7 +13,7 @@ const HEADER_UI = {
 };
 
 type Props = {
-  homeHref?: string; // לדוגמה: "/producer/dashboard" או "/producer-staff/dashboard"
+  homeHref?: string;
 };
 
 export default function ProducerDashboardHeader({
@@ -26,13 +26,12 @@ export default function ProducerDashboardHeader({
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
+
     try {
-      // חשוב: logout צריך להיות המקום היחיד שמנקה auth + מפנה
-      await logout();
+      await logout(); // ה-logout ב-AuthContext כבר מבצע redirect
     } catch (err) {
       console.error("Logout failed", err);
-      // fallback רק אם logout נכשל
-      router.replace("/login");
+      router.replace("/login"); // fallback בלבד
     } finally {
       setLoggingOut(false);
     }
@@ -50,8 +49,10 @@ export default function ProducerDashboardHeader({
       `}
     >
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
-        {/* ימין – ראשי */}
-        <div className="flex justify-start">
+        {/* =========================
+            ימין – ראשי + badge (אותו מקום כמו עובד מפיק)
+        ========================= */}
+        <div className="flex justify-start items-center gap-3">
           <button
             onClick={() => router.push(homeHref)}
             className={`
@@ -59,17 +60,35 @@ export default function ProducerDashboardHeader({
               ${HEADER_UI.navText}
               hover:text-[var(--champagne-dark)]
               transition
+              flex items-center gap-2
             `}
           >
             🏠 ראשי
           </button>
+
+          {/* BADGE – מפיק */}
+          <span
+            className="
+              text-xs font-semibold
+              px-2 py-0.5
+              rounded-full
+              bg-[#ede3d7]
+              text-[#6b4b2a]
+              border border-[#d6c4b0]
+              whitespace-nowrap
+            "
+          >
+            מפיק
+          </span>
         </div>
 
-        {/* מרכז – לוגו */}
+        {/* =========================
+            מרכז – לוגו
+        ========================= */}
         <div className="flex justify-center">
           <button
             onClick={() => router.push(homeHref)}
-            aria-label="מעבר לדשבורד"
+            aria-label="מעבר לדשבורד מפיק"
             className="scale-[4]"
           >
             <img
@@ -81,7 +100,9 @@ export default function ProducerDashboardHeader({
           </button>
         </div>
 
-        {/* שמאל – התנתקות */}
+        {/* =========================
+            שמאל – התנתקות
+        ========================= */}
         <div className="flex justify-end items-center gap-4">
           <button
             onClick={handleLogout}
