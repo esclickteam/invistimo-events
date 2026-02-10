@@ -1,7 +1,14 @@
 "use client";
 
-import DashboardPage from "@/app/dashboard/page";
+import OverviewTab from "@/app/events/production/_components/OverviewTab";
 
-export default function ProducerGuestsPage() {
-  return <DashboardPage />;
+type ProducerEventPageProps = {
+  params: {
+    eventId: string;
+  };
+};
+
+export default function ProducerEventPage({ params }: ProducerEventPageProps) {
+  const eventId = params.eventId;
+  return <OverviewTab eventId={eventId} />;
 }
