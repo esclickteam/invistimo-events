@@ -204,7 +204,7 @@ export default function ProducerDashboard() {
   /* =========================
      Impersonation
   ========================= */
-  const handleManageClient = async (clientId) => {
+  const handleManageClient = async (client) => {
   try {
     const res = await fetch("/api/producer/impersonate", {
       method: "POST",
@@ -212,7 +212,7 @@ export default function ProducerDashboard() {
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify({ clientId }),
+      body: JSON.stringify({ clientId: client._id }),
     });
 
     const data = await res.json();
@@ -222,8 +222,14 @@ export default function ProducerDashboard() {
       return;
     }
 
-    // ✅ כניסה ישירה לדשבורד הלקוח (גם אם אין אירוע)
-    window.location.href = data?.redirect || "/dashboard";
+    // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
+    if (client.event?._id) {
+      window.location.href = `/events/production/${client.event._id}?tab=overview`;
+      return;
+    }
+
+    // 🟡 fallback: אם אין אירוע
+    window.location.href = "/producer/dashboard";
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
@@ -558,7 +564,8 @@ export default function ProducerDashboard() {
                       <Button
                         size="sm"
                         className="flex items-center gap-1"
-                        onClick={() => handleManageClient(client._id)}
+                        onClick={() => handleManageClient(client)}
+
                       >
                         ניהול
                         <ArrowUpRight className="w-4 h-4" />

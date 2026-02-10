@@ -2,8 +2,13 @@
 
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 
-// רכיבים פנימיים
+// טאב סקירה (Overview)
+import OverviewTab from "../_components/OverviewTab";
+
+// טאב תכנון
 import PlanningTab from "../_components/PlanningTab";
+
+// טאב יומן
 import CalendarTab from "../_components/CalendarTab";
 
 export default function ProductionEventPage() {
@@ -11,8 +16,8 @@ export default function ProductionEventPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // tab מה־URL (ברירת מחדל: planning)
-  const tab = searchParams.get("tab") || "planning";
+  // קריאת tab מה-URL (ברירת מחדל: overview)
+  const tab = searchParams.get("tab") || "overview";
 
   function setTab(nextTab) {
     router.replace(
@@ -23,11 +28,24 @@ export default function ProductionEventPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6" dir="rtl">
-      {/* Header */}
-      <h1 className="text-2xl font-semibold">ניהול הפקת אירוע</h1>
+      {/* ================= HEADER ================= */}
+      <h1 className="text-2xl font-semibold">
+        ניהול הפקת אירוע
+      </h1>
 
-      {/* Tabs */}
+      {/* ================= TABS ================= */}
       <div className="flex gap-2 border-b">
+        <button
+          onClick={() => setTab("overview")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "overview"
+              ? "border-black text-black"
+              : "border-transparent text-gray-500 hover:text-black"
+          }`}
+        >
+          📊 סקירה
+        </button>
+
         <button
           onClick={() => setTab("planning")}
           className={`px-4 py-2 text-sm font-medium border-b-2 ${
@@ -51,12 +69,18 @@ export default function ProductionEventPage() {
         </button>
       </div>
 
-      {/* Content */}
+      {/* ================= CONTENT ================= */}
       <div>
-        {tab === "calendar" ? (
-          <CalendarTab eventId={eventId} />
-        ) : (
+        {tab === "overview" && (
+          <OverviewTab eventId={eventId} />
+        )}
+
+        {tab === "planning" && (
           <PlanningTab eventId={eventId} />
+        )}
+
+        {tab === "calendar" && (
+          <CalendarTab eventId={eventId} />
         )}
       </div>
     </div>
