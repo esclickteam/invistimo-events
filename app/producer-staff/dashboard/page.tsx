@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import ProducerDashboardHeader from "@/app/dashboard/ProducerDashboardHeader";
+import ProducerDashboardHeader from "@/app/dashboard/ProducerStaffHeader";
 
 /* ===============================
    Types
