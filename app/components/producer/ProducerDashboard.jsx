@@ -341,10 +341,14 @@ export default function ProducerDashboard() {
   /* =========================
      Guards
   ========================= */
-  if (user.impersonated) {
-  window.location.href = "/events/production";
-  return null;
+ if (!authResolved) {
+  return <div className="p-6">טוען…</div>;
 }
+
+if (!user || user.role !== "producer") {
+  return <div className="p-6">אין הרשאה</div>;
+}
+
 
 
   /* =========================
