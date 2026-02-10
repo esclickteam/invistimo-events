@@ -38,10 +38,12 @@ export async function GET(req: NextRequest) {
        👥 Clients – לפי assignedProducerId בלבד
     ========================= */
     const clients = await User.find({
-      assignedProducerId: producerObjectId,
-      role: { $in: ["client", "user"] },
-    })
-      .select("name email phone createdAt assignedProducerId billingSource")
+  assignedProducerId: producerObjectId,
+  role: { $in: ["client", "user"] }, // ⭐️ זה כל הסיפור
+})
+      .select(
+        "name email phone createdAt assignedProducerId billingSource"
+      )
       .sort({ createdAt: -1 })
       .lean();
 
@@ -52,7 +54,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, clients: [] });
     }
 
-    const clientIds = clients.map((c: any) => c._id);
+    console.log(
+      "🧾 Client IDs:",
+      clients.map((c) => ({
+        _id: String(c._id),
+        assignedProducerId: String(c.assignedProducerId),
+      }))
+    );
+
+    const clientIds = clients.map((c) => c._id);
 
     /* =========================
        🎉 Events
@@ -65,25 +75,20 @@ export async function GET(req: NextRequest) {
 
     console.log("🟢 Events found:", events.length);
 
-    // אם יש יותר מאירוע אחד ללקוח - האחרון לפי מערך events "ינצח"
-    // (אם תרצי אפשר לשנות למיון לפי date/createdAt ולבחור event ספציפי)
-    const eventsByUserId: Record<string, any> = Object.fromEntries(
-      events.map((e: any) => [String(e.userId), e])
+    const eventsByUserId = Object.fromEntries(
+      events.map((e) => [String(e.userId), e])
     );
 
-    const eventIds = events.map((e: any) => e._id);
+    const eventIds = events.map((e) => e._id);
 
     /* =========================
        ✉️ Invitations
     ========================= */
-    const invitations =
-      eventIds.length > 0
-        ? await Invitation.find({
-            eventId: { $in: eventIds },
-          })
-            .select("_id eventId")
-            .lean()
-        : [];
+    const invitations = await Invitation.find({
+      eventId: { $in: eventIds },
+    })
+      .select("_id eventId")
+      .lean();
 
     console.log("🟢 Invitations found:", invitations.length);
 
@@ -94,50 +99,39 @@ export async function GET(req: NextRequest) {
       return acc;
     }, {});
 
-    const invitationIds = invitations.map((i: any) => i._id);
+    const invitationIds = invitations.map((i) => i._id);
 
     /* =========================
        📊 Guests stats
     ========================= */
-    const guestStats =
-      invitationIds.length > 0
-        ? await InvitationGuest.aggregate([
-            {
-              $match: {
-                invitationId: { $in: invitationIds },
-              },
+    const guestStats = await InvitationGuest.aggregate([
+      {
+        $match: {
+          invitationId: { $in: invitationIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$invitationId",
+          totalGuests: { $sum: "$guestsCount" },
+          approvedCount: {
+            $sum: {
+              $cond: [{ $eq: ["$rsvp", "yes"] }, "$guestsCount", 0],
             },
-            {
-              $group: {
-                _id: "$invitationId",
-                totalGuests: { $sum: "$guestsCount" },
-                approvedCount: {
-                  $sum: {
-                    $cond: [{ $eq: ["$rsvp", "yes"] }, "$guestsCount", 0],
-                  },
-                },
-                arrivedCount: {
-                  $sum: { $ifNull: ["$arrivedCount", 0] },
-                },
-                actualArrivedCount: {
-                  $sum: { $ifNull: ["$actualArrivedCount", 0] },
-                },
-              },
-            },
-          ])
-        : [];
+          },
+          arrivedCount: {
+            $sum: { $ifNull: ["$arrivedCount", 0] },
+          },
+          actualArrivedCount: {
+            $sum: { $ifNull: ["$actualArrivedCount", 0] },
+          },
+        },
+      },
+    ]);
 
     console.log("🟢 Guest stats rows:", guestStats.length);
 
-    const statsByInvitationId: Record<
-      string,
-      {
-        totalGuests: number;
-        approvedCount: number;
-        arrivedCount: number;
-        actualArrivedCount: number;
-      }
-    > = Object.fromEntries(
+    const statsByInvitationId = Object.fromEntries(
       guestStats.map((g: any) => [
         String(g._id),
         {
@@ -156,6 +150,7 @@ export async function GET(req: NextRequest) {
       const event = eventsByUserId[String(client._id)];
 
       if (!event) {
+        console.log("⚠️ Client has NO event:", String(client._id));
         return { ...client, event: null };
       }
 
@@ -179,12 +174,11 @@ export async function GET(req: NextRequest) {
       return {
         ...client,
         event: {
-          _id: String(event._id), // ✅ זה התיקון הקריטי
           date: event.date,
           location:
             typeof event.location === "object"
-              ? event.location?.address || ""
-              : event.location || "",
+              ? event.location.address
+              : event.location,
           totalGuests,
           approvedCount,
           arrivedCount,
