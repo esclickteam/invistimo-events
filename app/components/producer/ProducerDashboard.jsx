@@ -49,6 +49,9 @@ export default function ProducerDashboard() {
   const [openAssignForClientId, setOpenAssignForClientId] = useState(null);
   const [savingClientId, setSavingClientId] = useState(null);
 
+  const [managingClientId, setManagingClientId] = useState(null);
+
+
   // חיפוש עובדים בתוך כל דרופדאון לפי clientId
   const [staffSearchByClientId, setStaffSearchByClientId] = useState({});
 
@@ -205,12 +208,19 @@ export default function ProducerDashboard() {
      Impersonation
   ========================= */
   const handleManageClient = async (client) => {
+  const clientId = String(client?._id || "");
+  if (!clientId) return;
+
+  if (managingClientId === clientId) return;
+
   try {
+    setManagingClientId(clientId);
+
     const res = await fetch("/api/producer/impersonate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ clientId: String(client._id) }),
+      body: JSON.stringify({ clientId }),
     });
 
     const data = await res.json();
@@ -220,26 +230,26 @@ export default function ProducerDashboard() {
       return;
     }
 
-    // ✅ קחי eventId מהשרת קודם (הכי אמין)
     const eventId =
       data?.eventId ||
       data?.event?._id ||
       client?.event?._id ||
       null;
 
-    if (eventId) {
-      // חשוב: replace כדי לא להשאיר היסטוריית ניתוב מוזרה
-      window.location.replace(`/events/production/${eventId}?tab=overview`);
+    if (!eventId) {
+      alert("אין אירוע משויך ללקוח הזה כרגע");
       return;
     }
 
-    // אם אין אירוע משויך - להישאר במסך מפיק עם הודעה
-    alert("אין אירוע משויך ללקוח הזה כרגע");
+    window.location.replace(`/events/production/${eventId}?tab=overview`);
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
+  } finally {
+    setManagingClientId(null);
   }
 };
+
 
 
 
@@ -564,15 +574,17 @@ export default function ProducerDashboard() {
                     </td>
 
                     <td className="p-4">
-                      <Button
-                        size="sm"
-                        className="flex items-center gap-1"
-                        onClick={() => handleManageClient(client)}
 
-                      >
-                        ניהול
-                        <ArrowUpRight className="w-4 h-4" />
-                      </Button>
+                      <Button
+  size="sm"
+  className="flex items-center gap-1"
+  onClick={() => handleManageClient(client)}
+  disabled={managingClientId === String(client._id)}
+>
+  {managingClientId === String(client._id) ? "נכנס..." : "ניהול"}
+  <ArrowUpRight className="w-4 h-4" />
+</Button>
+
                     </td>
                   </tr>
                 );
