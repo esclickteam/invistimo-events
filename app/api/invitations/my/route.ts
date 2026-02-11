@@ -9,15 +9,12 @@ export const dynamic = "force-dynamic";
 
 /* ============================================================
    GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
-   ❌ לא יוצר אירוע
-   ❌ לא יוצר הזמנה
-   ❌ לא מבצע redirect
 ============================================================ */
 export async function GET(req: Request) {
   try {
     await db();
 
-    // ⭐ קריטי – להעביר req כדי לאפשר התחזות
+    // 🔐 Auth (כולל התחזות)
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
@@ -27,18 +24,28 @@ export async function GET(req: Request) {
     }
 
     const userId = auth.userId;
+    const role = auth.role;
 
     const user = await User.findById(userId)
-      .select("createdByProducer")
+      .select("createdByProducer role")
       .lean();
 
-    const createdByProducerId = user?.createdByProducer || null;
+    const isProducer = role === "producer";
 
+    /**
+     * 🔑 לוגיקה נכונה למציאת הזמנה:
+     * - לקוח        → ownerId = userId
+     * - מפיק        → producerId = userId
+     * - עובד / לקוח → producerId = createdByProducer
+     */
     const invitation = await Invitation.findOne({
       eventId: { $ne: null },
       $or: [
         { ownerId: userId },
-        ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
+        ...(isProducer ? [{ producerId: userId }] : []),
+        ...(!isProducer && user?.createdByProducer
+          ? [{ producerId: user.createdByProducer }]
+          : []),
       ],
     })
       .sort({ updatedAt: -1 })
@@ -85,14 +92,11 @@ export async function GET(req: Request) {
 
 /* ============================================================
    POST — יצירת הזמנה
-   ✅ דורש eventId מפורש
-   ❌ לא יוצר Event אוטומטית
 ============================================================ */
 export async function POST(req: Request) {
   try {
     await db();
 
-    // ⭐ גם כאן חובה להעביר req
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
@@ -117,7 +121,6 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({} as any));
     const { eventId } = body;
 
-    // ⛔ חובה eventId מפורש
     if (!eventId) {
       return NextResponse.json(
         { success: false, error: "EVENT_ID_REQUIRED" },
@@ -125,7 +128,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ בדיקת אירוע קיים בלבד
     const event = await Event.findOne({ _id: eventId, userId }).lean();
     if (!event) {
       return NextResponse.json(
@@ -145,7 +147,6 @@ export async function POST(req: Request) {
       ],
     }).lean();
 
-    // ✅ יצירת הזמנה רק אם יש eventId ואין הזמנה קיימת
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: userId,
