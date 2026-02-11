@@ -342,14 +342,9 @@ export default function ProducerDashboard() {
      Guards
   ========================= */
   if (user?.impersonated) {
-  if (user.role === "producer") {
-    window.location.href = "/producer/dashboard";
-  } else {
-    window.location.href = "/events/production";
-  }
+  window.location.href = "/events/production";
   return null;
 }
-
 
 
 
