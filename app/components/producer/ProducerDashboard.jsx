@@ -338,14 +338,7 @@ export default function ProducerDashboard() {
     };
   }, [clients]);
 
-  /* =========================
-     Guards
-  ========================= */
-  if (user?.impersonated) {
-    window.location.replace("/producer/dashboard");
-
-  return null;
-}
+ 
 
 
 
