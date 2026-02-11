@@ -342,7 +342,8 @@ export default function ProducerDashboard() {
      Guards
   ========================= */
   if (user?.impersonated) {
-  window.location.href = "/events/production";
+    window.location.replace("/producer/dashboard");
+
   return null;
 }
 

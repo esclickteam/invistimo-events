@@ -13,26 +13,6 @@ async function getCookieStore() {
 }
 
 /* =========================
-   Normalize role
-========================= */
-function normalizeImpersonatedRole(user: any): "producer" | "staff" | "client" {
-  const rawRole = String(user?.role || "").toLowerCase();
-  const staffType = String(user?.staffType || "").toLowerCase();
-
-  // מפיק אמיתי
-  if (rawRole === "producer") return "producer";
-
-  // עובד מפיק
-  if (rawRole === "staff") return "staff";
-  if (rawRole === "user" && (staffType === "producer-staff" || staffType === "staff")) {
-    return "staff";
-  }
-
-  // כל היתר = לקוח/משתמש רגיל
-  return "client";
-}
-
-/* =========================
    POST /api/admin/impersonate
 ========================= */
 export async function POST(req: Request) {
@@ -89,39 +69,28 @@ export async function POST(req: Request) {
       );
     }
 
-    const impersonatedRole = normalizeImpersonatedRole(user);
-    const staffType = user?.staffType ?? null;
-    const producerId = user?.producerId ? String(user.producerId) : null;
-
     /* =========================
        🎭 Impersonation Token
-========================= */
+       ⬅️ כאן התיקון הקריטי
+    ========================= */
     const impersonationToken = jwt.sign(
       {
-        userId: String(user._id),
-
-        // ⚠️ חשוב: role מנורמל כדי שכל המערכת תתנהג נכון
-        role: impersonatedRole, // "producer" | "staff" | "client"
-
-        // מידע משלים
-        originalRole: user?.role ?? null,
-        staffType,
-        producerId,
-
+        userId: user._id.toString(),
+        role: user.role,                 // ✅ producer / staff / client
+        staffType: user.staffType ?? null,
+        producerId: user.producerId ?? null,
         impersonated: true,
-        impersonatedBy: decoded.userId,
+        impersonatedBy: decoded.userId,  // האדמין
       },
       process.env.JWT_SECRET!,
       { expiresIn: "30m" }
     );
 
     const res = NextResponse.json({
-      success: true,
-      impersonatedRole, // ✅ זה השדה שהקליינט צריך לקרוא
-      role: impersonatedRole, // נשאיר גם compatibility
-      staffType,
-      producerId,
-    });
+  success: true,
+  role: user.role, // ⭐️ חובה!
+});
+
 
     /* =========================
        🧠 שמירת טוקן אדמין
@@ -134,7 +103,7 @@ export async function POST(req: Request) {
     });
 
     /* =========================
-       🔁 החלפת auth token
+       🔁 החלפת authToken
     ========================= */
     res.cookies.set("authToken", impersonationToken, {
       path: "/",
