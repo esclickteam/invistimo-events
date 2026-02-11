@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
@@ -8,15 +9,20 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   Helpers
+  Helpers
 ============================================================ */
+function toObjectId(id?: string | null) {
+  if (!id) return null;
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
+  return new mongoose.Types.ObjectId(id);
+}
+
 function resolveProducerContext(auth: any, user: any) {
   const role = auth?.role ?? user?.role ?? null;
   const staffType = auth?.staffType ?? user?.staffType ?? null;
   const impersonationRole = auth?.impersonationRole ?? null;
 
-  const isProducer =
-    role === "producer" || impersonationRole === "producer";
+  const isProducer = role === "producer" || impersonationRole === "producer";
 
   const isProducerStaff =
     (role === "staff" && staffType === "producer_staff") ||
@@ -25,17 +31,17 @@ function resolveProducerContext(auth: any, user: any) {
 
   const isProducerLike = isProducer || isProducerStaff;
 
-  // producerId אפקטיבי:
-  // 1) מפיק אמיתי -> userId
-  // 2) עוזר מפיק -> assignedProducerId (או createdByProducer fallback)
-  // 3) התחזות producer_staff -> גם assignedProducerId/createdByProducer
   const effectiveProducerId = isProducer
     ? String(auth.userId)
-    : (user?.assignedProducerId
-        ? String(user.assignedProducerId)
-        : user?.createdByProducer
-        ? String(user.createdByProducer)
-        : null);
+    : user?.assignedProducerId
+    ? String(user.assignedProducerId)
+    : user?.createdByProducer
+    ? String(user.createdByProducer)
+    : null;
+
+  const assignedClientIds: string[] = Array.isArray(user?.assignedClientIds)
+    ? user.assignedClientIds.map((x: any) => String(x))
+    : [];
 
   return {
     role,
@@ -45,17 +51,17 @@ function resolveProducerContext(auth: any, user: any) {
     isProducerStaff,
     isProducerLike,
     effectiveProducerId,
+    assignedClientIds,
   };
 }
 
 /* ============================================================
-   GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
+  GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
 ============================================================ */
 export async function GET(req: Request) {
   try {
     await db();
 
-    // 🔐 Auth (כולל התחזות)
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
@@ -67,7 +73,7 @@ export async function GET(req: Request) {
     const userId = String(auth.userId);
 
     const user = await User.findById(userId)
-      .select("createdByProducer assignedProducerId role staffType")
+      .select("createdByProducer assignedProducerId assignedClientIds role staffType")
       .lean();
 
     if (!user) {
@@ -79,14 +85,39 @@ export async function GET(req: Request) {
 
     const ctx = resolveProducerContext(auth, user);
 
-    // 🔎 מחפשים הזמנה לפי:
-    // - בעלים (ownerId=userId)
-    // - producerId אפקטיבי (למפיק/עוזר מפיק/התחזות)
-    const orFilters: any[] = [{ ownerId: userId }];
+    // חשוב: השוואות ObjectId, לא string בלבד
+    const orFilters: any[] = [];
 
-    if (ctx.effectiveProducerId) {
-      orFilters.push({ producerId: ctx.effectiveProducerId });
+    const ownerIdObj = toObjectId(userId);
+    if (ownerIdObj) orFilters.push({ ownerId: ownerIdObj });
+
+    const producerIdObj = toObjectId(ctx.effectiveProducerId);
+    if (producerIdObj) orFilters.push({ producerId: producerIdObj });
+
+    // staff: גם לקוחות משויכים
+    const assignedClientObjIds = ctx.assignedClientIds
+      .map((id) => toObjectId(id))
+      .filter(Boolean) as mongoose.Types.ObjectId[];
+
+    if (assignedClientObjIds.length > 0) {
+      orFilters.push({ ownerId: { $in: assignedClientObjIds } });
     }
+
+    if (orFilters.length === 0) {
+      return NextResponse.json({ success: true, invitation: null });
+    }
+
+    // דיבאג נקודתי
+    console.log("INVITATION DEBUG", {
+      authUserId: userId,
+      role: ctx.role,
+      staffType: ctx.staffType,
+      impersonationRole: ctx.impersonationRole,
+      isProducerLike: ctx.isProducerLike,
+      effectiveProducerId: ctx.effectiveProducerId,
+      assignedClientIds: ctx.assignedClientIds,
+      orFilters,
+    });
 
     const invitation = await Invitation.findOne({
       eventId: { $ne: null },
@@ -106,10 +137,7 @@ export async function GET(req: Request) {
       .lean();
 
     if (!invitation) {
-      return NextResponse.json({
-        success: true,
-        invitation: null,
-      });
+      return NextResponse.json({ success: true, invitation: null });
     }
 
     const event = invitation.eventId
@@ -133,7 +161,7 @@ export async function GET(req: Request) {
 }
 
 /* ============================================================
-   POST — יצירת הזמנה
+  POST — יצירת הזמנה
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -170,7 +198,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // כרגע שומרים את בדיקת הבעלות המקורית שלך על event.userId
     const event = await Event.findOne({ _id: eventId, userId }).lean();
     if (!event) {
       return NextResponse.json(
@@ -182,18 +209,19 @@ export async function POST(req: Request) {
     const ctx = resolveProducerContext(auth, user);
     const producerId = ctx.effectiveProducerId;
 
+    const queryOr: any[] = [{ ownerId: event.userId ?? userId }];
+    const producerIdObj = toObjectId(producerId);
+    if (producerIdObj) queryOr.push({ producerId: producerIdObj });
+
     let invitation: any = await Invitation.findOne({
       eventId: event._id,
-      $or: [
-        { ownerId: userId },
-        ...(producerId ? [{ producerId }] : []),
-      ],
+      $or: queryOr,
     }).lean();
 
     if (!invitation) {
       invitation = await Invitation.create({
-        ownerId: userId,
-        producerId,
+        ownerId: event.userId ?? userId,
+        producerId: producerIdObj ?? null,
         eventId: event._id,
         guests: [],
         maxGuests: Number((user as any).guests) || Number((event as any).maxGuests) || 100,
