@@ -5,14 +5,25 @@ import { cookies } from "next/headers";
    Types
 ========================= */
 
-export type AuthRole = "admin" | "user" | "producer" | "client";
+export type AuthRole = "admin" | "user" | "producer" | "client" | "staff";
+
+export type ImpersonationRole =
+  | "producer"
+  | "admin"
+  | "producer_staff"
+  | "staff_producer" // backward compatibility
+  | "client"
+  | "user"
+  | "staff";
 
 export type AuthPayload = {
   userId: string;
   role: AuthRole;
+  staffType?: string | null;
+
   impersonated: boolean;
-  impersonatedBy?: string;
-  impersonationRole?: "producer" | "admin";
+  impersonatedBy?: string | null;
+  impersonationRole?: ImpersonationRole | null;
 };
 
 /* =========================
@@ -44,6 +55,13 @@ async function getCookieFromHeadersStore(name: string) {
   }
 }
 
+function normalizeRole(raw: any): AuthRole {
+  if (raw === "admin" || raw === "producer" || raw === "client" || raw === "staff") {
+    return raw;
+  }
+  return "user";
+}
+
 /* =========================
    Auth helper
 ========================= */
@@ -52,6 +70,11 @@ export async function getUserIdFromRequest(
   req?: Request
 ): Promise<AuthPayload | null> {
   try {
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ JWT_SECRET missing in getUserIdFromRequest");
+      return null;
+    }
+
     /* ---------------------------------
        1) Read cookies
     ---------------------------------- */
@@ -63,40 +86,45 @@ export async function getUserIdFromRequest(
       getCookieFromReq(req, "authToken") ??
       (await getCookieFromHeadersStore("authToken"));
 
+    const producerAuthToken =
+      getCookieFromReq(req, "producerAuthToken") ??
+      (await getCookieFromHeadersStore("producerAuthToken"));
+
     // אין שום token
-    if (!authToken && !impersonationToken) return null;
+    if (!authToken && !impersonationToken && !producerAuthToken) return null;
 
     /* ---------------------------------
-       2) Choose active token (CRITICAL FIX)
-       impersonationToken תמיד קודם
+       2) Choose active token
+       עדיפות:
+       impersonationToken -> authToken -> producerAuthToken
     ---------------------------------- */
-    const activeToken = impersonationToken || authToken;
+    const activeToken = impersonationToken || authToken || producerAuthToken;
     if (!activeToken) return null;
 
-    const decoded = jwt.verify(
-      activeToken,
-      process.env.JWT_SECRET!
-    ) as any;
+    const decoded = jwt.verify(activeToken, process.env.JWT_SECRET) as any;
 
-    const userId =
-      decoded.userId || decoded.id || decoded._id || null;
-
+    const userId = decoded.userId || decoded.id || decoded._id || null;
     if (!userId) return null;
 
+    const role = normalizeRole(decoded.role);
+    const staffType = decoded.staffType ?? null;
+
     /* ---------------------------------
-       3) Header impersonation (ADMIN → PRODUCER)
+       3) Header-based impersonation
+       (אם את עדיין משתמשת בזה)
     ---------------------------------- */
-    const impersonateUserId =
-      req?.headers?.get("x-impersonate-user") ?? null;
+    const impersonateUserId = req?.headers?.get("x-impersonate-user") ?? null;
 
     if (
-      decoded.role === "admin" &&
+      role === "admin" &&
       impersonateUserId &&
       impersonateUserId !== String(userId)
     ) {
+      // שומר הרשאת על של אדמין, context של המשתמש המתחזה
       return {
         userId: String(impersonateUserId),
-        role: "producer",
+        role: "user", // לא לכפות producer כדי לא לזייף role
+        staffType: null,
         impersonated: true,
         impersonatedBy: String(userId),
         impersonationRole: "admin",
@@ -104,15 +132,21 @@ export async function getUserIdFromRequest(
     }
 
     /* ---------------------------------
-       4) Cookie-based impersonation
+       4) Unified impersonation detection
+       עובד גם אם אין impersonationToken נפרד,
+       אלא flags בתוך authToken
     ---------------------------------- */
-    if (impersonationToken) {
+    const isImpersonated =
+      !!impersonationToken || !!decoded.impersonated || !!decoded.impersonatedBy;
+
+    if (isImpersonated) {
       return {
         userId: String(userId),
-        role: decoded.role ?? "producer",
+        role,
+        staffType,
         impersonated: true,
-        impersonatedBy: decoded.impersonatedBy,
-        impersonationRole: decoded.impersonationRole,
+        impersonatedBy: decoded.impersonatedBy ? String(decoded.impersonatedBy) : null,
+        impersonationRole: (decoded.impersonationRole ?? null) as ImpersonationRole | null,
       };
     }
 
@@ -121,8 +155,11 @@ export async function getUserIdFromRequest(
     ---------------------------------- */
     return {
       userId: String(userId),
-      role: decoded.role ?? "user",
+      role,
+      staffType,
       impersonated: false,
+      impersonatedBy: null,
+      impersonationRole: null,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
@@ -10,21 +9,29 @@ import Event from "@/models/Event";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
+   Helpers
+========================================================= */
+function isAdminContext(auth: any) {
+  return (
+    auth?.role === "admin" ||
+    auth?.impersonationRole === "admin" ||
+    !!auth?.impersonatedBy
+  );
+}
+
+/* =========================================================
    GET – ADMIN USERS LIST
 ========================================================= */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
-
-    if (!token) {
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) {
       return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-    if (decoded.role !== "admin") {
+    if (!isAdminContext(auth)) {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
@@ -42,6 +49,7 @@ export async function GET() {
         name
         email
         role
+        staffType
         plan
         guests
         maxMessages
@@ -121,13 +129,12 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const token = req.cookies.get("authToken")?.value;
-    if (!token) {
+    const auth = await getUserIdFromRequest(req);
+    if (!auth?.userId) {
       return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-    if (decoded.role !== "admin") {
+    if (!isAdminContext(auth)) {
       return NextResponse.json({ success: false }, { status: 403 });
     }
 
@@ -191,11 +198,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    /* ================= USER (🔥 כאן התיקון) ================= */
+    /* ================= USER ================= */
     const { records, smsTotal, includeCalls } = limits || {};
     const { price, paymentStatus } = billing || {};
 
-    if (!records || !smsTotal || !price) {
+    // אל תחסמי price=0 אם יש תרחיש חינמי/בדיקה
+    const recordsNum = Number(records);
+    const smsTotalNum = Number(smsTotal);
+    const priceNum = Number(price ?? 0);
+
+    if (!recordsNum || !smsTotalNum || Number.isNaN(priceNum)) {
       return NextResponse.json(
         { success: false, error: "Invalid limits / billing" },
         { status: 400 }
@@ -206,10 +218,10 @@ export async function POST(req: NextRequest) {
     const finalIncludeCreditGifts = finalIncludeCalls;
 
     const planLimits = {
-      maxGuests: records,
+      maxGuests: recordsNum,
       smsEnabled: true,
-      smsLimit: smsTotal,
-      seatingEnabled: true,      // ⭐ זה מה שמונע את החסימה
+      smsLimit: smsTotalNum,
+      seatingEnabled: true,
       remindersEnabled: true,
       callsEnabled: finalIncludeCalls,
     };
@@ -219,18 +231,17 @@ export async function POST(req: NextRequest) {
       email,
       role: "user",
 
-      /* ===== 🔑 חובה ===== */
       plan: "premium",
       planLimits,
 
-      guests: records,
-      maxMessages: smsTotal,
+      guests: recordsNum,
+      maxMessages: smsTotalNum,
 
       includeCalls: finalIncludeCalls,
       includeCreditGifts: finalIncludeCreditGifts,
 
       hasPaid: paymentStatus === "paid",
-      paidAmount: Number(price),
+      paidAmount: priceNum,
 
       needsPasswordSetup: true,
       createdByAdmin: true,
@@ -247,8 +258,8 @@ export async function POST(req: NextRequest) {
         stripeCustomerId: null,
         stripePriceId: null,
 
-        priceKey: `admin_manual_${records}`,
-        maxGuests: records,
+        priceKey: `admin_manual_${recordsNum}`,
+        maxGuests: recordsNum,
 
         includeCalls: finalIncludeCalls,
         callsAddonPrice: 0,
@@ -256,7 +267,7 @@ export async function POST(req: NextRequest) {
         includeCreditGifts: finalIncludeCreditGifts,
         creditGiftsAddonPrice: 0,
 
-        amount: Number(price),
+        amount: priceNum,
         refundAmount: 0,
         currency: "ils",
 
@@ -266,13 +277,14 @@ export async function POST(req: NextRequest) {
 
         metadata: {
           source: "admin",
-          adminId: decoded.id,
+          adminId: auth.impersonatedBy ? String(auth.impersonatedBy) : String(auth.userId),
           userId: user._id.toString(),
         },
       });
-
-      await sendPasswordSetupMail(user._id.toString());
     }
+
+    // לשלוח מייל גם אם לא paid (כמו אצל producer/staff)
+    await sendPasswordSetupMail(user._id.toString());
 
     return NextResponse.json({
       success: true,

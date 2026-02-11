@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/* =========================================================
+   Helpers
+========================================================= */
+function isAdminContext(auth: any) {
+  return (
+    auth?.role === "admin" ||
+    auth?.impersonationRole === "admin" ||
+    !!auth?.impersonatedBy
+  );
+}
 
 /* =========================================================
    PATCH – UPDATE USER ASSIGNEES (ADMIN ONLY)
@@ -27,18 +37,16 @@ export async function PATCH(
     }
 
     /* ===== AUTH ===== */
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
+    const auth = await getUserIdFromRequest(req);
 
-    if (!token) {
+    if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-    if (decoded.role !== "admin") {
+    if (!isAdminContext(auth)) {
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
         { status: 403 }
@@ -46,7 +54,7 @@ export async function PATCH(
     }
 
     /* ===== BODY ===== */
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { assignedProducerId, assignedStaffIds } = body ?? {};
 
     /* ===== UPDATE ===== */
@@ -68,7 +76,10 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({ success: true, user });
+    return NextResponse.json(
+      { success: true, user },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("❌ ASSIGN UPDATE ERROR:", err);
     return NextResponse.json(

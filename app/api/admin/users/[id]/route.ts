@@ -1,42 +1,46 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   AUTH – ADMIN ONLY
+   AUTH – ADMIN ONLY (supports impersonation context)
 ========================================================= */
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("authToken")?.value;
+function isAdminContext(auth: any) {
+  return (
+    auth?.role === "admin" ||
+    auth?.impersonationRole === "admin" ||
+    !!auth?.impersonatedBy
+  );
+}
 
-  if (!token) {
+async function requireAdmin(req?: NextRequest) {
+  const auth = await getUserIdFromRequest(req);
+
+  if (!auth?.userId) {
     throw new Error("UNAUTHORIZED");
   }
 
-  const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-
-  if (decoded.role !== "admin") {
+  if (!isAdminContext(auth)) {
     throw new Error("FORBIDDEN");
   }
 
-  return decoded;
+  return auth;
 }
 
 /* =========================================================
    GET – SINGLE USER (ADMIN VIEW)
 ========================================================= */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-    await requireAdmin();
+    await requireAdmin(req);
 
     const { id } = await context.params;
 
@@ -49,10 +53,20 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, user });
-  } catch (err) {
+    return NextResponse.json(
+      { success: true, user },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (err: any) {
+    if (err?.message === "UNAUTHORIZED") {
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+    }
+    if (err?.message === "FORBIDDEN") {
+      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
+    }
+
     console.error("ADMIN USER GET ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
 
@@ -65,7 +79,7 @@ export async function PATCH(
 ) {
   try {
     await connectDB();
-    await requireAdmin();
+    await requireAdmin(req);
 
     const { id } = await context.params;
     const body = await req.json();
@@ -82,6 +96,7 @@ export async function PATCH(
 
       role: body.role,
       plan: body.plan,
+      staffType: body.staffType,
 
       guests: body.guests,
       maxMessages: body.maxMessages,
@@ -98,6 +113,12 @@ export async function PATCH(
       producerId: body.producerId ?? null,
       createdByProducer: body.createdByProducer ?? null,
 
+      assignedProducerId: body.assignedProducerId ?? null,
+      assignedClientIds: body.assignedClientIds,
+      assignedStaffIds: body.assignedStaffIds,
+
+      producerPricePerRecord: body.producerPricePerRecord,
+
       planLimits: body.planLimits,
 
       isTrial: body.isTrial,
@@ -105,9 +126,9 @@ export async function PATCH(
     };
 
     // ניקוי undefined – לא לדרוס שדות קיימים
-    Object.keys(allowedUpdate).forEach(
-      (key) => allowedUpdate[key] === undefined && delete allowedUpdate[key]
-    );
+    Object.keys(allowedUpdate).forEach((key) => {
+      if (allowedUpdate[key] === undefined) delete allowedUpdate[key];
+    });
 
     const updatedUser = await User.findOneAndUpdate(
       { _id: id },
@@ -122,13 +143,23 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      user: updatedUser,
-    });
-  } catch (err) {
+    return NextResponse.json(
+      {
+        success: true,
+        user: updatedUser,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (err: any) {
+    if (err?.message === "UNAUTHORIZED") {
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+    }
+    if (err?.message === "FORBIDDEN") {
+      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
+    }
+
     console.error("ADMIN USER UPDATE ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
 

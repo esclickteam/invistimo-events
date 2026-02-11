@@ -1,28 +1,42 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
 /* =========================================================
+   Helpers
+========================================================= */
+function isAdminContext(auth: any) {
+  return (
+    auth?.role === "admin" ||
+    auth?.impersonationRole === "admin" ||
+    !!auth?.impersonatedBy
+  );
+}
+
+/* =========================================================
    GET – ASSIGNEES (PRODUCERS + STAFF)
 ========================================================= */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
+    const auth = await getUserIdFromRequest(req);
 
-    if (!token) {
-      return NextResponse.json({ success: false }, { status: 401 });
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-    if (decoded.role !== "admin") {
-      return NextResponse.json({ success: false }, { status: 403 });
+    if (!isAdminContext(auth)) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
 
     const [producers, staff] = await Promise.all([
@@ -32,7 +46,7 @@ export async function GET() {
         .lean(),
 
       User.find({ role: "staff" })
-        .select("name email")
+        .select("name email staffType assignedProducerId")
         .sort({ name: 1 })
         .lean(),
     ]);
@@ -43,6 +57,9 @@ export async function GET() {
     );
   } catch (err) {
     console.error("❌ ASSIGNEES GET ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
