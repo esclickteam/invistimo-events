@@ -6,7 +6,6 @@ import { cookies } from "next/headers";
 
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
-import Event from "@/models/Event"; // ✅ חדש
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* =========================================================
@@ -45,13 +44,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const producerId = String(auth.userId);
+    // אם כבר בהתחזות
+    if (auth.impersonated) {
+      return NextResponse.json(
+        {
+          success: true,
+          alreadyImpersonated: true,
+          redirect: "/dashboard",
+        },
+        { status: 200 }
+      );
+    }
+
+    const producerId = auth.userId;
 
     /* =========================
        📥 Input
     ========================= */
     const body = await req.json().catch(() => ({}));
-    const clientId = body?.clientId ? String(body.clientId) : "";
+    const clientId = body?.clientId;
 
     if (!clientId) {
       return NextResponse.json(
@@ -78,17 +89,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       📅 Find client's event (for navigation)
-    ========================= */
-    const event = await Event.findOne({ userId: client._id })
-      .select("_id")
-      .sort({ createdAt: -1 })
-      .lean();
-
-    const eventId = event?._id ? String(event._id) : null;
-
-    /* =========================
-       🍪 Cookies
+       🍪 Cookies (⚠️ await!)
     ========================= */
     const cookieStore = await cookies();
 
@@ -104,25 +105,11 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       אם כבר בהתחזות - נחזיר eventId
-    ========================= */
-    if (auth.impersonated) {
-      return NextResponse.json(
-        {
-          success: true,
-          alreadyImpersonated: true,
-          eventId, // ✅ חשוב
-        },
-        { status: 200 }
-      );
-    }
-
-    /* =========================
        🎭 Impersonation token
     ========================= */
     const impersonationToken = jwt.sign(
       {
-        userId: String(client._id),
+        userId: client._id.toString(),
         role: "client",
         impersonated: true,
         impersonatedBy: producerId,
@@ -138,7 +125,7 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json(
       {
         success: true,
-        eventId, // ✅ זה מה שה-frontend צריך לניווט
+        redirect: "/dashboard",
       },
       { status: 200 }
     );

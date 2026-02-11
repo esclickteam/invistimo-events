@@ -49,9 +49,6 @@ export default function ProducerDashboard() {
   const [openAssignForClientId, setOpenAssignForClientId] = useState(null);
   const [savingClientId, setSavingClientId] = useState(null);
 
-  const [managingClientId, setManagingClientId] = useState(null);
-
-
   // חיפוש עובדים בתוך כל דרופדאון לפי clientId
   const [staffSearchByClientId, setStaffSearchByClientId] = useState({});
 
@@ -208,19 +205,14 @@ export default function ProducerDashboard() {
      Impersonation
   ========================= */
   const handleManageClient = async (client) => {
-  const clientId = String(client?._id || "");
-  if (!clientId) return;
-
-  if (managingClientId === clientId) return;
-
   try {
-    setManagingClientId(clientId);
-
     const res = await fetch("/api/producer/impersonate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       credentials: "include",
-      body: JSON.stringify({ clientId }),
+      body: JSON.stringify({ clientId: client._id }),
     });
 
     const data = await res.json();
@@ -230,27 +222,19 @@ export default function ProducerDashboard() {
       return;
     }
 
-    const eventId =
-      data?.eventId ||
-      data?.event?._id ||
-      client?.event?._id ||
-      null;
-
-    if (!eventId) {
-      alert("אין אירוע משויך ללקוח הזה כרגע");
+    // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
+    if (client.event?._id) {
+      window.location.href = `/events/production/${client.event._id}?tab=overview`;
       return;
     }
 
-    window.location.replace(`/events/production/${eventId}?tab=overview`);
+    // 🟡 fallback: אם אין אירוע
+    window.location.href = "/producer/dashboard";
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
-  } finally {
-    setManagingClientId(null);
   }
 };
-
-
 
 
 
@@ -354,7 +338,13 @@ export default function ProducerDashboard() {
     };
   }, [clients]);
 
- 
+  /* =========================
+     Guards
+  ========================= */
+  if (user?.impersonated) {
+  window.location.href = "/events/production";
+  return null;
+}
 
 
 
@@ -574,17 +564,15 @@ export default function ProducerDashboard() {
                     </td>
 
                     <td className="p-4">
-
                       <Button
-  size="sm"
-  className="flex items-center gap-1"
-  onClick={() => handleManageClient(client)}
-  disabled={managingClientId === String(client._id)}
->
-  {managingClientId === String(client._id) ? "נכנס..." : "ניהול"}
-  <ArrowUpRight className="w-4 h-4" />
-</Button>
+                        size="sm"
+                        className="flex items-center gap-1"
+                        onClick={() => handleManageClient(client)}
 
+                      >
+                        ניהול
+                        <ArrowUpRight className="w-4 h-4" />
+                      </Button>
                     </td>
                   </tr>
                 );
