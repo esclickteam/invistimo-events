@@ -13,11 +13,12 @@ export const dynamic = "force-dynamic";
    ❌ לא יוצר הזמנה
    ❌ לא מבצע redirect
 ============================================================ */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    // ⭐ קריטי – להעביר req כדי לאפשר התחזות
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -91,7 +92,8 @@ export async function POST(req: Request) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    // ⭐ גם כאן חובה להעביר req
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },

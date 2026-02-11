@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
-import type { NextRequest } from "next/server";
 
 /* =========================
    Types
@@ -12,7 +11,6 @@ export type AuthPayload = {
   userId: string;
   role: AuthRole;
 
-  // impersonation (optional)
   impersonated: boolean;
   impersonatedBy?: string;
   impersonationRole?: "producer" | "admin";
@@ -22,9 +20,18 @@ export type AuthPayload = {
    Helpers
 ========================= */
 
-function getCookieFromReq(req: NextRequest | undefined, name: string) {
+function getCookieFromReq(req: Request | undefined, name: string) {
   try {
-    return req?.cookies?.get(name)?.value ?? null;
+    // Request headers (App Router)
+    const cookieHeader = req?.headers?.get("cookie");
+    if (!cookieHeader) return null;
+
+    const match = cookieHeader
+      .split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith(`${name}=`));
+
+    return match ? match.split("=")[1] : null;
   } catch {
     return null;
   }
@@ -44,10 +51,12 @@ async function getCookieFromHeadersStore(name: string) {
 ========================= */
 
 export async function getUserIdFromRequest(
-  req?: NextRequest
+  req?: Request
 ): Promise<AuthPayload | null> {
   try {
-    // same logic: impersonationToken > authToken
+    /* ---------------------------------
+       1) Read cookies
+    ---------------------------------- */
     const impersonationToken =
       getCookieFromReq(req, "impersonationToken") ??
       (await getCookieFromHeadersStore("impersonationToken"));
@@ -56,32 +65,74 @@ export async function getUserIdFromRequest(
       getCookieFromReq(req, "authToken") ??
       (await getCookieFromHeadersStore("authToken"));
 
-    const tokenToUse = impersonationToken || authToken;
+    if (!authToken && !impersonationToken) return null;
 
-    if (!tokenToUse) return null;
+    /* ---------------------------------
+       2) Decode base token
+    ---------------------------------- */
+    const baseDecoded = jwt.verify(
+      authToken || impersonationToken!,
+      process.env.JWT_SECRET!
+    ) as any;
 
-    const decoded = jwt.verify(tokenToUse, process.env.JWT_SECRET!) as {
-      userId?: string;
-      role?: AuthRole;
+    const baseUserId =
+      baseDecoded.userId || baseDecoded.id || baseDecoded._id || null;
 
-      impersonatedBy?: string;
-      impersonationRole?: "producer" | "admin";
+    if (!baseUserId) return null;
 
-      // backward compatibility
-      id?: string;
-      _id?: string;
-    };
+    /* ---------------------------------
+       3) Header impersonation (ADMIN → PRODUCER)
+    ---------------------------------- */
+    const impersonateUserId =
+      req?.headers?.get("x-impersonate-user") ?? null;
 
-    const userId = decoded.userId || decoded.id || decoded._id || null;
-    if (!userId) return null;
+    if (
+      baseDecoded.role === "admin" &&
+      impersonateUserId &&
+      impersonateUserId !== String(baseUserId)
+    ) {
+      return {
+        userId: impersonateUserId,
+        role: "producer",
+        impersonated: true,
+        impersonatedBy: String(baseUserId),
+        impersonationRole: "admin",
+      };
+    }
 
+    /* ---------------------------------
+       4) Cookie-based impersonation
+    ---------------------------------- */
+    if (impersonationToken) {
+      const impersonatedDecoded = jwt.verify(
+        impersonationToken,
+        process.env.JWT_SECRET!
+      ) as any;
+
+      const impersonatedUserId =
+        impersonatedDecoded.userId ||
+        impersonatedDecoded.id ||
+        impersonatedDecoded._id ||
+        null;
+
+      if (!impersonatedUserId) return null;
+
+      return {
+        userId: String(impersonatedUserId),
+        role: impersonatedDecoded.role ?? "producer",
+        impersonated: true,
+        impersonatedBy: impersonatedDecoded.impersonatedBy,
+        impersonationRole: impersonatedDecoded.impersonationRole,
+      };
+    }
+
+    /* ---------------------------------
+       5) Normal auth
+    ---------------------------------- */
     return {
-      userId: String(userId),
-      role: decoded.role ?? "user",
-
-      impersonated: Boolean(impersonationToken),
-      impersonatedBy: decoded.impersonatedBy,
-      impersonationRole: decoded.impersonationRole,
+      userId: String(baseUserId),
+      role: baseDecoded.role ?? "user",
+      impersonated: false,
     };
   } catch (error) {
     console.error("❌ getUserIdFromRequest error:", error);

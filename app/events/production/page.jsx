@@ -21,11 +21,15 @@ export default function EventProductionPage() {
      Load invitation
   ========================= */
   useEffect(() => {
-    if (!user) return;
+    if (!user?._id) return;
 
     fetch("/api/invitations/my", {
       credentials: "include",
       cache: "no-store",
+      headers: {
+        // ⭐ קריטי – מאפשר לבקאנד לדעת על מי האדמין מתחזה
+        "x-impersonate-user": user._id,
+      },
     })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch invitation");
