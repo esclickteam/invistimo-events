@@ -10,10 +10,6 @@ export type AuthRole = "admin" | "user" | "producer" | "client";
 export type AuthPayload = {
   userId: string;
   role: AuthRole;
-
-  // ✅ הוספה
-  staffType?: "producer_staff" | "admin_staff";
-
   impersonated: boolean;
   impersonatedBy?: string;
   impersonationRole?: "producer" | "admin";
