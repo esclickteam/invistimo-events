@@ -51,7 +51,8 @@ type JwtPayload = {
 
   impersonated?: boolean;
   impersonatedBy?: string;
-  impersonationRole?: "admin" | "producer" | "staff_producer";
+  // ✅ fix: producer_staff (ולא staff_producer)
+  impersonationRole?: "admin" | "producer" | "producer_staff" | "staff_producer";
   iat?: number;
   exp?: number;
 };
@@ -76,11 +77,8 @@ export async function GET() {
     const producerToken = cookieStore.get("producerAuthToken")?.value ?? null;
     const authToken = cookieStore.get("authToken")?.value ?? null;
 
-   
-
     // ✅ אם יש authToken – תמיד הוא האמת (גם בהתחזות)
-const token = authToken || producerToken;
-
+    const token = authToken || producerToken;
 
     if (!token) {
       return NextResponse.json(
@@ -126,60 +124,92 @@ const token = authToken || producerToken;
     }
 
     const safeRole =
-  (user.role as "admin" | "producer" | "client" | "user" | "staff") ?? "user";
+      (user.role as "admin" | "producer" | "client" | "user" | "staff") ?? "user";
 
+    const staffType = (user.staffType as string | null) ?? null;
+    const impersonationRole = decoded.impersonationRole ?? null;
 
+    // ✅ Producer-like resolution
+    const isProducer =
+      safeRole === "producer" || impersonationRole === "producer";
+
+    const isProducerStaff =
+      (safeRole === "staff" && staffType === "producer_staff") ||
+      impersonationRole === "producer_staff" ||
+      impersonationRole === "staff_producer"; // backward compatibility
+
+    const isProducerLike = isProducer || isProducerStaff;
+
+    const effectiveRole: "producer" | "producer_staff" | "client" | "admin" | "user" =
+      isProducer
+        ? "producer"
+        : isProducerStaff
+        ? "producer_staff"
+        : safeRole === "client"
+        ? "client"
+        : safeRole === "admin"
+        ? "admin"
+        : "user";
 
     console.log(
       "✅ ME:",
       user.email,
       "| role:",
       safeRole,
+      "| staffType:",
+      staffType,
+      "| impersonationRole:",
+      impersonationRole,
+      "| producerLike:",
+      isProducerLike,
       decoded.impersonated ? "| impersonated" : ""
     );
 
     return NextResponse.json(
-  {
-    success: true,
-    user: {
-      _id: String(user._id),
-      name: user.name ?? "",
-      email: user.email ?? "",
+      {
+        success: true,
+        user: {
+          _id: String(user._id),
+          name: user.name ?? "",
+          email: user.email ?? "",
 
-      role: safeRole,
+          role: safeRole,
 
-      /* ===== STAFF ===== */
-      staffType: user.staffType ?? null,
-      assignedProducerId: user.assignedProducerId
-        ? String(user.assignedProducerId)
-        : null,
+          /* ===== STAFF ===== */
+          staffType: staffType,
+          assignedProducerId: user.assignedProducerId
+            ? String(user.assignedProducerId)
+            : null,
 
-      createdByProducer: !!user.createdByProducer,
+          createdByProducer: !!user.createdByProducer,
 
-      /* ===== BUSINESS ===== */
-      plan: user.plan,
-      guests: user.guests,
-      paidAmount: user.paidAmount,
-      planLimits: user.planLimits,
+          /* ===== AUTH RESOLUTION (NEW) ===== */
+          isProducerLike,
+          isProducerStaff,
+          effectiveRole,
 
-      includeCalls: !!user.includeCalls,              // ✅⬅️
-      callsAddonPrice: user.callsAddonPrice ?? 0,     // ✅
-      includeCreditGifts: !!user.includeCreditGifts,  // ✅
+          /* ===== BUSINESS ===== */
+          plan: user.plan,
+          guests: user.guests,
+          paidAmount: user.paidAmount,
+          planLimits: user.planLimits,
 
-      producerPricePerRecord: user.producerPricePerRecord ?? 0,
+          includeCalls: !!user.includeCalls,
+          callsAddonPrice: user.callsAddonPrice ?? 0,
+          includeCreditGifts: !!user.includeCreditGifts,
 
-      /* ===== IMPERSONATION ===== */
-      impersonated: !!decoded.impersonated,
-      impersonatedBy: decoded.impersonatedBy ?? null,
-      impersonationRole: decoded.impersonationRole ?? null,
+          producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-      createdAt: user.createdAt,
-    },
-  },
-  { headers: { "Cache-Control": "no-store" } }
-);
+          /* ===== IMPERSONATION ===== */
+          impersonated: !!decoded.impersonated,
+          impersonatedBy: decoded.impersonatedBy ?? null,
+          impersonationRole: impersonationRole,
 
-
+          createdAt: user.createdAt,
+        },
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("❌ ME API ERROR:", err);
     return NextResponse.json(

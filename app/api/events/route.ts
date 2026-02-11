@@ -7,17 +7,6 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* =========================
-   Helper – מפיק או עובד מפיק
-========================= */
-function getProducerId(auth: any) {
-  if (auth.role === "producer") return auth.userId;
-  if (auth.role === "user" && auth.staffType === "producer_staff") {
-    return auth.assignedProducerId;
-  }
-  return null;
-}
-
-/* =========================
    GET – שליפת אירוע
 ========================= */
 export async function GET() {
@@ -26,35 +15,19 @@ export async function GET() {
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const producerId = getProducerId(auth);
-
-    // 👤 לקוח – רואה רק את שלו
-    if (!producerId) {
-      const event = await Event.findOne({ userId: auth.userId }).lean();
-      return NextResponse.json({ success: true, event: event || null });
-    }
-
-    // 🎩 מפיק / עובד מפיק – רואים לפי המפיק
-    const event = await Event.findOne({ producerId }).lean();
+    const event = await Event.findOne({ userId: auth.userId }).lean();
     return NextResponse.json({ success: true, event: event || null });
-
   } catch (err) {
     console.error("❌ GET /api/events failed:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
 
 /* =========================
-   POST – יצירה / עדכון
+   POST – יצירה או עדכון כולל (UPSERT)
 ========================= */
 export async function POST(req: NextRequest) {
   try {
@@ -62,21 +35,13 @@ export async function POST(req: NextRequest) {
 
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const user = await User.findById(auth.userId).lean();
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "USER_NOT_FOUND" }, { status: 404 });
     }
-
-    const producerId = getProducerId(auth) ?? auth.userId;
 
     const body = await req.json();
 
@@ -85,7 +50,6 @@ export async function POST(req: NextRequest) {
       eventType: body.eventType || "wedding",
       date: body.date || "",
       time: body.time || "",
-      producerId,
       location: body.location
         ? {
             address: body.location.address || "",
@@ -95,11 +59,12 @@ export async function POST(req: NextRequest) {
         : { address: "", lat: null, lng: null },
     };
 
+    // אם יש budgetTotal במשלוח – נוסיף ל payload
     if (typeof body.budgetTotal === "number") {
       payload.budgetTotal = body.budgetTotal;
     }
 
-    let event = await Event.findOne({ producerId });
+    let event = await Event.findOne({ userId: auth.userId });
 
     if (!event) {
       event = await Event.create({
@@ -115,12 +80,43 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, event });
-
   } catch (err) {
     console.error("❌ POST /api/events failed:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
+  }
+}
+
+/* =========================
+   PATCH – עדכון שדות ספציפיים (תקציב)
+========================= */
+export async function PATCH(req: NextRequest, context: any) {
+  try {
+    await connectDB();
+
+    const auth = await getUserIdFromRequest();
+    if (!auth?.userId) {
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { budgetTotal } = body;
+
+    // ❗️ שימוש ב־params.id מה־URL
+    const eventId = context.params.id as string;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
+    }
+
+    if (typeof budgetTotal === "number") {
+      event.budgetTotal = budgetTotal;
+      await event.save();
+    }
+
+    return NextResponse.json({ success: true, event });
+  } catch (err) {
+    console.error("❌ PATCH /api/events failed:", err);
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
