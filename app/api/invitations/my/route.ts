@@ -8,6 +8,47 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
+   Helpers
+============================================================ */
+function resolveProducerContext(auth: any, user: any) {
+  const role = auth?.role ?? user?.role ?? null;
+  const staffType = auth?.staffType ?? user?.staffType ?? null;
+  const impersonationRole = auth?.impersonationRole ?? null;
+
+  const isProducer =
+    role === "producer" || impersonationRole === "producer";
+
+  const isProducerStaff =
+    (role === "staff" && staffType === "producer_staff") ||
+    impersonationRole === "producer_staff" ||
+    impersonationRole === "staff_producer"; // backward compatibility
+
+  const isProducerLike = isProducer || isProducerStaff;
+
+  // producerId אפקטיבי:
+  // 1) מפיק אמיתי -> userId
+  // 2) עוזר מפיק -> assignedProducerId (או createdByProducer fallback)
+  // 3) התחזות producer_staff -> גם assignedProducerId/createdByProducer
+  const effectiveProducerId = isProducer
+    ? String(auth.userId)
+    : (user?.assignedProducerId
+        ? String(user.assignedProducerId)
+        : user?.createdByProducer
+        ? String(user.createdByProducer)
+        : null);
+
+  return {
+    role,
+    staffType,
+    impersonationRole,
+    isProducer,
+    isProducerStaff,
+    isProducerLike,
+    effectiveProducerId,
+  };
+}
+
+/* ============================================================
    GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
 ============================================================ */
 export async function GET(req: Request) {
@@ -23,30 +64,33 @@ export async function GET(req: Request) {
       );
     }
 
-    const userId = auth.userId;
-    const role = auth.role;
+    const userId = String(auth.userId);
 
     const user = await User.findById(userId)
-      .select("createdByProducer role")
+      .select("createdByProducer assignedProducerId role staffType")
       .lean();
 
-    const isProducer = role === "producer";
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
-    /**
-     * 🔑 לוגיקה נכונה למציאת הזמנה:
-     * - לקוח        → ownerId = userId
-     * - מפיק        → producerId = userId
-     * - עובד / לקוח → producerId = createdByProducer
-     */
+    const ctx = resolveProducerContext(auth, user);
+
+    // 🔎 מחפשים הזמנה לפי:
+    // - בעלים (ownerId=userId)
+    // - producerId אפקטיבי (למפיק/עוזר מפיק/התחזות)
+    const orFilters: any[] = [{ ownerId: userId }];
+
+    if (ctx.effectiveProducerId) {
+      orFilters.push({ producerId: ctx.effectiveProducerId });
+    }
+
     const invitation = await Invitation.findOne({
       eventId: { $ne: null },
-      $or: [
-        { ownerId: userId },
-        ...(isProducer ? [{ producerId: userId }] : []),
-        ...(!isProducer && user?.createdByProducer
-          ? [{ producerId: user.createdByProducer }]
-          : []),
-      ],
+      $or: orFilters,
     })
       .sort({ updatedAt: -1 })
       .select(`
@@ -69,9 +113,7 @@ export async function GET(req: Request) {
     }
 
     const event = invitation.eventId
-      ? await Event.findById(invitation.eventId)
-          .select("location")
-          .lean()
+      ? await Event.findById(invitation.eventId).select("location").lean()
       : null;
 
     return NextResponse.json({
@@ -105,10 +147,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = auth.userId;
+    const userId = String(auth.userId);
 
     const user = await User.findById(userId)
-      .select("email guests maxMessages createdByProducer role")
+      .select("email guests maxMessages createdByProducer assignedProducerId role staffType")
       .lean();
 
     if (!user) {
@@ -128,6 +170,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // כרגע שומרים את בדיקת הבעלות המקורית שלך על event.userId
     const event = await Event.findOne({ _id: eventId, userId }).lean();
     if (!event) {
       return NextResponse.json(
@@ -136,10 +179,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const producerId =
-      auth.role === "producer" ? userId : user.createdByProducer || null;
+    const ctx = resolveProducerContext(auth, user);
+    const producerId = ctx.effectiveProducerId;
 
-    let invitation = await Invitation.findOne({
+    let invitation: any = await Invitation.findOne({
       eventId: event._id,
       $or: [
         { ownerId: userId },
@@ -153,8 +196,8 @@ export async function POST(req: Request) {
         producerId,
         eventId: event._id,
         guests: [],
-        maxGuests: Number(user.guests) || Number(event.maxGuests) || 100,
-        maxMessages: Number(user.maxMessages) || 300,
+        maxGuests: Number((user as any).guests) || Number((event as any).maxGuests) || 100,
+        maxMessages: Number((user as any).maxMessages) || 300,
         sentSmsCount: 0,
       });
     }
@@ -169,7 +212,7 @@ export async function POST(req: Request) {
           maxMessages: invitation.maxMessages,
           remainingMessages: invitation.remainingMessages,
           shareId: invitation.shareId,
-          producerId: (invitation as any).producerId ?? null,
+          producerId: invitation.producerId ?? null,
         },
       },
       { status: 201 }
