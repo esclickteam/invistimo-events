@@ -113,14 +113,20 @@ export async function POST(req: Request) {
        CREATE JWT
     ========================= */
     const authToken = jwt.sign(
-      {
-        userId: user._id.toString(),
-        role: user.role,
-        email: user.email,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+  {
+    userId: user._id.toString(),
+    role: user.role,
+    email: user.email,
+
+    // ⭐️ זה התיקון
+    staffType: user.staffType ?? null,
+    assignedProducerId: user.assignedProducerId
+      ? user.assignedProducerId.toString()
+      : null,
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: "7d" }
+);
 
     /* =========================
        RESPONSE + COOKIE

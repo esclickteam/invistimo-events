@@ -74,17 +74,23 @@ export async function POST(req: Request) {
        ⬅️ כאן התיקון הקריטי
     ========================= */
     const impersonationToken = jwt.sign(
-      {
-        userId: user._id.toString(),
-        role: user.role,                 // ✅ producer / staff / client
-        staffType: user.staffType ?? null,
-        producerId: user.producerId ?? null,
-        impersonated: true,
-        impersonatedBy: decoded.userId,  // האדמין
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: "30m" }
-    );
+  {
+    userId: user._id.toString(),
+    role: user.role,
+    staffType: user.staffType ?? null,
+
+    // ⭐️ זה התיקון
+    assignedProducerId: user.assignedProducerId
+      ? user.assignedProducerId.toString()
+      : null,
+
+    impersonated: true,
+    impersonatedBy: decoded.userId,
+  },
+  process.env.JWT_SECRET!,
+  { expiresIn: "30m" }
+);
+
 
     const res = NextResponse.json({
   success: true,
