@@ -7,6 +7,7 @@ import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 import Event from "@/models/Event";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 /* =========================================================
    Helpers
@@ -19,8 +20,46 @@ function isAdminContext(auth: any) {
   );
 }
 
+function buildUsersFilter(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+
+  // all | active
+  const scope = (searchParams.get("scope") || "all").toLowerCase();
+  const q = (searchParams.get("q") || "").trim();
+
+  const baseFilter: any = {
+    isDemoUser: { $ne: true },
+  };
+
+  const activeFilter: any = {
+    ...baseFilter,
+    $or: [
+      { hasPaid: true },
+      { plan: "premium" },
+      { createdByProducer: { $ne: null } },
+      { role: "producer" },
+      { role: "staff" },
+    ],
+  };
+
+  const filter: any = scope === "active" ? activeFilter : baseFilter;
+
+  if (q) {
+    filter.$and = filter.$and || [];
+    filter.$and.push({
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
+      ],
+    });
+  }
+
+  return { filter, scope, q };
+}
+
 /* =========================================================
    GET – ADMIN USERS LIST
+   /api/admin/users?scope=all|active&q=...
 ========================================================= */
 export async function GET(req: NextRequest) {
   try {
@@ -28,23 +67,22 @@ export async function GET(req: NextRequest) {
 
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      return NextResponse.json({ success: false }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
     if (!isAdminContext(auth)) {
-      return NextResponse.json({ success: false }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
 
-    const users = await User.find({
-      isDemoUser: { $ne: true },
-      $or: [
-        { hasPaid: true },
-        { plan: "premium" },
-        { createdByProducer: { $ne: null } },
-        { role: "producer" },
-        { role: "staff" },
-      ],
-    })
+    const { filter, scope, q } = buildUsersFilter(req);
+
+    const users = await User.find(filter)
       .select(`
         name
         email
@@ -71,12 +109,13 @@ export async function GET(req: NextRequest) {
 
     const userIds = users.map((u: any) => u._id);
 
-    const events = await Event.find({
-      userId: { $in: userIds },
-    })
-      .select("userId date")
-      .sort({ date: -1 })
-      .lean();
+    const events =
+      userIds.length > 0
+        ? await Event.find({ userId: { $in: userIds } })
+            .select("userId date")
+            .sort({ date: -1 })
+            .lean()
+        : [];
 
     const revenueAgg = await User.aggregate([
       {
@@ -113,12 +152,24 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { success: true, users: usersWithEventDate, totalRevenue },
+      {
+        success: true,
+        users: usersWithEventDate,
+        totalRevenue,
+        meta: {
+          scope, // all / active
+          q,
+          count: usersWithEventDate.length,
+        },
+      },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
     console.error("❌ ADMIN USERS GET ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
 
@@ -131,20 +182,38 @@ export async function POST(req: NextRequest) {
 
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      return NextResponse.json({ success: false }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
     if (!isAdminContext(auth)) {
-      return NextResponse.json({ success: false }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
 
-    const body = await req.json();
-    const { name, email, role, limits, billing } = body;
+    const body = await req.json().catch(() => null);
+    const { name, email, role, limits, billing } = body || {};
 
     if (!name || !email || !role) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        { success: false, error: "MISSING_REQUIRED_FIELDS" },
         { status: 400 }
+      );
+    }
+
+    // מניעת כפילות מייל
+    const existing = await User.findOne({ email: String(email).toLowerCase() })
+      .select("_id")
+      .lean();
+
+    if (existing) {
+      return NextResponse.json(
+        { success: false, error: "EMAIL_ALREADY_EXISTS" },
+        { status: 409 }
       );
     }
 
@@ -154,7 +223,7 @@ export async function POST(req: NextRequest) {
 
       const user = await User.create({
         name,
-        email,
+        email: String(email).toLowerCase(),
         role: "producer",
 
         producerPricePerRecord: pricePerRecord,
@@ -167,19 +236,19 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(user._id.toString());
+      await sendPasswordSetupMail(String(user._id));
 
-      return NextResponse.json({
-        success: true,
-        userId: String(user._id),
-      });
+      return NextResponse.json(
+        { success: true, userId: String(user._id) },
+        { status: 201 }
+      );
     }
 
     /* ================= STAFF ================= */
     if (role === "staff") {
       const user = await User.create({
         name,
-        email,
+        email: String(email).toLowerCase(),
         role: "staff",
 
         hasPaid: false,
@@ -190,26 +259,25 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(user._id.toString());
+      await sendPasswordSetupMail(String(user._id));
 
-      return NextResponse.json({
-        success: true,
-        userId: String(user._id),
-      });
+      return NextResponse.json(
+        { success: true, userId: String(user._id) },
+        { status: 201 }
+      );
     }
 
     /* ================= USER ================= */
     const { records, smsTotal, includeCalls } = limits || {};
     const { price, paymentStatus } = billing || {};
 
-    // אל תחסמי price=0 אם יש תרחיש חינמי/בדיקה
     const recordsNum = Number(records);
     const smsTotalNum = Number(smsTotal);
     const priceNum = Number(price ?? 0);
 
     if (!recordsNum || !smsTotalNum || Number.isNaN(priceNum)) {
       return NextResponse.json(
-        { success: false, error: "Invalid limits / billing" },
+        { success: false, error: "INVALID_LIMITS_OR_BILLING" },
         { status: 400 }
       );
     }
@@ -228,7 +296,7 @@ export async function POST(req: NextRequest) {
 
     const user = await User.create({
       name,
-      email,
+      email: String(email).toLowerCase(),
       role: "user",
 
       plan: "premium",
@@ -248,10 +316,9 @@ export async function POST(req: NextRequest) {
       billingSource: "admin",
     });
 
-    /* ===== יצירת Payment ידני ===== */
     if (paymentStatus === "paid") {
       await Payment.create({
-        email,
+        email: String(email).toLowerCase(),
 
         stripeSessionId: null,
         stripePaymentIntentId: null,
@@ -277,21 +344,25 @@ export async function POST(req: NextRequest) {
 
         metadata: {
           source: "admin",
-          adminId: auth.impersonatedBy ? String(auth.impersonatedBy) : String(auth.userId),
-          userId: user._id.toString(),
+          adminId: auth.impersonatedBy
+            ? String(auth.impersonatedBy)
+            : String(auth.userId),
+          userId: String(user._id),
         },
       });
     }
 
-    // לשלוח מייל גם אם לא paid (כמו אצל producer/staff)
-    await sendPasswordSetupMail(user._id.toString());
+    await sendPasswordSetupMail(String(user._id));
 
-    return NextResponse.json({
-      success: true,
-      userId: String(user._id),
-    });
+    return NextResponse.json(
+      { success: true, userId: String(user._id) },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
