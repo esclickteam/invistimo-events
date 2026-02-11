@@ -208,11 +208,9 @@ export default function ProducerDashboard() {
   try {
     const res = await fetch("/api/producer/impersonate", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ clientId: client._id }),
+      body: JSON.stringify({ clientId: String(client._id) }),
     });
 
     const data = await res.json();
@@ -222,19 +220,27 @@ export default function ProducerDashboard() {
       return;
     }
 
-    // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
-    if (client.event?._id) {
-      window.location.href = `/events/production/${client.event._id}?tab=overview`;
+    // ✅ קחי eventId מהשרת קודם (הכי אמין)
+    const eventId =
+      data?.eventId ||
+      data?.event?._id ||
+      client?.event?._id ||
+      null;
+
+    if (eventId) {
+      // חשוב: replace כדי לא להשאיר היסטוריית ניתוב מוזרה
+      window.location.replace(`/events/production/${eventId}?tab=overview`);
       return;
     }
 
-    // 🟡 fallback: אם אין אירוע
-    window.location.href = "/producer/dashboard";
+    // אם אין אירוע משויך - להישאר במסך מפיק עם הודעה
+    alert("אין אירוע משויך ללקוח הזה כרגע");
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
   }
 };
+
 
 
 
