@@ -9,6 +9,69 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
+   Helpers
+============================================================ */
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * מנסה לחלץ תמונת פריוויו מתוך canvasData
+ * תומך במבנים נפוצים:
+ * - canvasData.objects (Fabric/Konva-like)
+ * - canvasData.elements
+ * מחפש אובייקט מסוג image עם url/string
+ */
+function extractPreviewImageFromCanvas(canvasData: any): string {
+  try {
+    if (!canvasData || typeof canvasData !== "object") return "";
+
+    const candidates: any[] = [];
+
+    if (Array.isArray(canvasData.objects)) {
+      candidates.push(...canvasData.objects);
+    }
+
+    if (Array.isArray(canvasData.elements)) {
+      candidates.push(...canvasData.elements);
+    }
+
+    // חיפוש ישיר בשדות נפוצים אם קיימים
+    if (isNonEmptyString(canvasData.previewImage)) {
+      return canvasData.previewImage.trim();
+    }
+    if (isNonEmptyString(canvasData.imageUrl)) {
+      return canvasData.imageUrl.trim();
+    }
+
+    const firstImage = candidates.find((obj) => {
+      if (!obj || typeof obj !== "object") return false;
+      const type = String(obj.type || "").toLowerCase();
+      const url =
+        typeof obj.url === "string"
+          ? obj.url
+          : typeof obj.src === "string"
+          ? obj.src
+          : "";
+      return type === "image" && url.trim().length > 0;
+    });
+
+    if (!firstImage) return "";
+
+    const url =
+      typeof firstImage.url === "string"
+        ? firstImage.url
+        : typeof firstImage.src === "string"
+        ? firstImage.src
+        : "";
+
+    return url.trim();
+  } catch {
+    return "";
+  }
+}
+
+/* ============================================================
    POST — יצירת הזמנה
    ✅ אם אין eventId, נזהה אירוע קיים או ניצור חדש אוטומטית
 ============================================================ */
@@ -42,7 +105,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ כאן התיקון: producerId נקבע לפי המצב העסקי
+    // ✅ producerId לפי מצב עסקי
     // - אם היוצר הוא מפיק → הוא ה-producerId
     // - אם זה לקוח שנוצר ע"י מפיק → producerId = user.createdByProducer
     // - אחרת → null
@@ -54,6 +117,15 @@ export async function POST(req: Request) {
     =============================== */
     const body = await req.json().catch(() => ({} as any));
     const { eventId, canvasData, previewImage } = body;
+
+    // ✅ תמונת פריוויו נפתרת אוטומטית:
+    // 1) previewImage מהבקשה
+    // 2) מתוך canvasData
+    // 3) fallback ריק
+    const resolvedPreviewImage =
+      (typeof previewImage === "string" && previewImage.trim()) ||
+      extractPreviewImageFromCanvas(canvasData) ||
+      "";
 
     /* ===============================
        🎯 נזהה או ניצור Event
@@ -121,7 +193,7 @@ export async function POST(req: Request) {
     =============================== */
     const newInvite = await Invitation.create({
       ownerId: userId,
-      producerId, // ✅ כאן התיקון
+      producerId, // ✅ תיקון לוגיקת מפיק/לקוח
 
       eventId: event._id,
 
@@ -133,7 +205,7 @@ export async function POST(req: Request) {
       location: event.location || {},
 
       canvasData: canvasData || {},
-      previewImage: previewImage || "",
+      previewImage: resolvedPreviewImage, // ✅ התיקון החשוב
 
       shareId,
       guests: [],
@@ -151,6 +223,7 @@ export async function POST(req: Request) {
       producerId: cleanInvite.producerId ?? null,
       role: auth.role,
       userCreatedByProducer: user.createdByProducer ?? null,
+      previewImageSaved: !!cleanInvite.previewImage,
     });
 
     return NextResponse.json(
@@ -183,7 +256,7 @@ export async function GET(req: Request) {
 
     const userId = auth.userId;
 
-    // ✅ מביאים createdByProducer כדי לאפשר ללקוח שנוצר ע"י מפיק לראות/לגשת
+    // ✅ מאפשר ללקוח שנוצר ע"י מפיק לראות/לגשת
     const user = await User.findById(userId)
       .select("createdByProducer")
       .lean();
