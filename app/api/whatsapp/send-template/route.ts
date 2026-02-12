@@ -1,5 +1,7 @@
 // app/api/whatsapp/send-template/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { v2 as cloudinary } from "cloudinary";
+import mongoose from "mongoose";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
@@ -8,14 +10,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type SendTemplateRequestBody = {
-  eventId: string;         // ✅ חובה - כדי למשוך תמונה מההזמנה
+  eventId: string;
   to: string;
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
   eventTime: string;
   rsvpLink: string;
-  // headerImageUrl אופציונלי בלבד (override ידני אם רוצים)
   headerImageUrl?: string;
   templateName?: string;
   languageCode?: string;
@@ -34,24 +35,16 @@ function isValidHttpUrl(url: string): boolean {
   }
 }
 
-/**
- * חילוץ תמונת פריוויו מתוך canvasData
- * תומך במבנים נפוצים:
- * - canvasData.objects
- * - canvasData.elements
- * - canvasData.previewImage / canvasData.imageUrl
- */
+function isDataImageUri(value: string): boolean {
+  return /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
+}
+
 function extractPreviewImageFromCanvas(canvasData: any): string {
   try {
     if (!canvasData || typeof canvasData !== "object") return "";
 
-    if (isNonEmptyString(canvasData.previewImage)) {
-      return canvasData.previewImage.trim();
-    }
-
-    if (isNonEmptyString(canvasData.imageUrl)) {
-      return canvasData.imageUrl.trim();
-    }
+    if (isNonEmptyString(canvasData.previewImage)) return canvasData.previewImage.trim();
+    if (isNonEmptyString(canvasData.imageUrl)) return canvasData.imageUrl.trim();
 
     const items: any[] = [
       ...(Array.isArray(canvasData.objects) ? canvasData.objects : []),
@@ -71,6 +64,7 @@ function extractPreviewImageFromCanvas(canvasData: any): string {
     });
 
     if (!img) return "";
+
     const url =
       typeof img.url === "string"
         ? img.url
@@ -93,11 +87,81 @@ function validateBody(body: Partial<SendTemplateRequestBody>): string | null {
   if (!isNonEmptyString(body.eventTime)) return "Missing required field: eventTime";
   if (!isNonEmptyString(body.rsvpLink)) return "Missing required field: rsvpLink";
 
-  if (isNonEmptyString(body.headerImageUrl) && !isValidHttpUrl(body.headerImageUrl.trim())) {
-    return "Invalid headerImageUrl";
+  if (isNonEmptyString(body.headerImageUrl)) {
+    const val = body.headerImageUrl.trim();
+    if (!isValidHttpUrl(val) && !isDataImageUri(val)) {
+      return "Invalid headerImageUrl";
+    }
   }
 
   return null;
+}
+
+function configureCloudinary() {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error(
+      "Missing Cloudinary env vars: CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET"
+    );
+  }
+
+  cloudinary.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+  });
+}
+
+async function resolveHeaderImageUrl(
+  rawValue: string,
+  eventId: string
+): Promise<{ finalUrl: string; uploaded: boolean }> {
+  const value = rawValue.trim();
+  if (!value) throw new Error("Missing header image value");
+
+  if (isValidHttpUrl(value)) {
+    return { finalUrl: value, uploaded: false };
+  }
+
+  if (isDataImageUri(value)) {
+    configureCloudinary();
+
+    const uploaded = await cloudinary.uploader.upload(value, {
+      folder: "invistimo/whatsapp-headers",
+      public_id: `event-${eventId}-${Date.now()}`,
+      overwrite: false,
+      resource_type: "image",
+    });
+
+    if (!uploaded?.secure_url) {
+      throw new Error("Cloudinary upload failed: missing secure_url");
+    }
+
+    return { finalUrl: uploaded.secure_url, uploaded: true };
+  }
+
+  throw new Error("Unsupported image format for header image");
+}
+
+async function findInvitationByEventId(eventId: string) {
+  // ניסיון 1: exact
+  let invitation = await Invitation.findOne({ eventId })
+    .select("previewImage canvasData eventId")
+    .lean();
+
+  // ניסיון 2: אם eventId נראה ObjectId
+  if (!invitation && mongoose.Types.ObjectId.isValid(eventId)) {
+    invitation = await Invitation.findOne({
+      eventId: new mongoose.Types.ObjectId(eventId),
+    })
+      .select("previewImage canvasData eventId")
+      .lean();
+  }
+
+  return invitation;
 }
 
 export async function POST(req: NextRequest) {
@@ -123,32 +187,29 @@ export async function POST(req: NextRequest) {
 
     await db();
 
-    // 1) אם נשלח headerImageUrl מפורש - נשתמש בו
-    // 2) אחרת נמשוך מהזמנה לפי eventId
-    let resolvedHeaderImageUrl = body.headerImageUrl?.trim() || "";
+    let rawHeaderImage = body.headerImageUrl?.trim() || "";
+    let invitationDoc: any = null;
 
-    if (!resolvedHeaderImageUrl) {
-      const invitation = await Invitation.findOne({ eventId: body.eventId })
-        .select("previewImage canvasData")
-        .lean();
+    if (!rawHeaderImage) {
+      invitationDoc = await findInvitationByEventId(body.eventId!);
 
-      if (!invitation) {
+      if (!invitationDoc) {
         return NextResponse.json(
           { success: false, error: "INVITATION_NOT_FOUND_FOR_EVENT" },
           { status: 404 }
         );
       }
 
-      const fromPreview = isNonEmptyString((invitation as any).previewImage)
-        ? (invitation as any).previewImage.trim()
+      const fromPreview = isNonEmptyString(invitationDoc.previewImage)
+        ? invitationDoc.previewImage.trim()
         : "";
 
-      const fromCanvas = extractPreviewImageFromCanvas((invitation as any).canvasData);
+      const fromCanvas = extractPreviewImageFromCanvas(invitationDoc.canvasData);
 
-      resolvedHeaderImageUrl = fromPreview || fromCanvas || "";
+      rawHeaderImage = fromPreview || fromCanvas || "";
     }
 
-    if (!resolvedHeaderImageUrl) {
+    if (!rawHeaderImage) {
       return NextResponse.json(
         {
           success: false,
@@ -159,10 +220,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!isValidHttpUrl(resolvedHeaderImageUrl)) {
+    const { finalUrl, uploaded } = await resolveHeaderImageUrl(
+      rawHeaderImage,
+      body.eventId!
+    );
+
+    if (!isValidHttpUrl(finalUrl)) {
       return NextResponse.json(
         { success: false, error: "Invalid resolved header image URL" },
         { status: 400 }
+      );
+    }
+
+    // נשמור URL ציבורי במקום base64 כדי לחסוך העלאות חוזרות
+    if (uploaded && !body.headerImageUrl) {
+      await Invitation.updateOne(
+        { eventId: invitationDoc?.eventId ?? body.eventId },
+        { $set: { previewImage: finalUrl } }
       );
     }
 
@@ -173,7 +247,7 @@ export async function POST(req: NextRequest) {
       eventLocation: body.eventLocation!,
       eventTime: body.eventTime!,
       rsvpLink: body.rsvpLink!,
-      headerImageUrl: resolvedHeaderImageUrl, // ✅ תמיד תמונה בפועל
+      headerImageUrl: finalUrl,
       templateName: body.templateName,
       languageCode: body.languageCode,
     });
@@ -181,7 +255,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        headerImageUrlUsed: resolvedHeaderImageUrl,
+        headerImageUrlUsed: finalUrl,
+        imageUploadedToCloudinary: uploaded,
         providerResponse: result,
       },
       { status: 200 }
@@ -194,7 +269,11 @@ export async function POST(req: NextRequest) {
       message.includes("Missing required field") ||
       message.includes("Invalid phone number") ||
       message.includes("Invalid rsvpLink") ||
-      message.includes("Invalid headerImageUrl");
+      message.includes("Invalid headerImageUrl") ||
+      message.includes("Invalid resolved header image URL") ||
+      message.includes("Unsupported image format") ||
+      message.includes("MISSING_INVITATION_IMAGE") ||
+      message.includes("Missing Cloudinary env vars");
 
     return NextResponse.json(
       { success: false, error: message },
