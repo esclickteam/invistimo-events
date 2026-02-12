@@ -483,7 +483,18 @@ setPreview({
 const sendWhatsApp = (guest: Guest) => {
   if (!invitation) return;
 
-  const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
+  const cleanPhone =
+  typeof guest.phone === "string"
+    ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
+    : "";
+
+if (!cleanPhone) {
+  alert("מספר טלפון לא תקין");
+  return;
+}
+
+const phone = `972${cleanPhone}`;
+
 
   // ✅ תמיד נשלח את ההודעה המוכנה מ-buildMessage (כולל token)
   let text = buildMessage(guest);

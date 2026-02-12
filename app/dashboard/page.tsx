@@ -710,7 +710,16 @@ const guestTableMap = useMemo(() => {
   const sendWhatsApp = (guest: Guest) => {
     const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
     const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
-    const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
+
+    const cleanPhone =
+  typeof guest.phone === "string"
+    ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
+    : "";
+
+if (!cleanPhone) return;
+
+const phone = `972${cleanPhone}`;
+
 
     window.open(
       `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
