@@ -361,8 +361,11 @@ const disableSend =
   const buildMessage = (guest: Guest) => {
   if (!invitation) return "";
 
-  // ⭐ מקור אמת אחד
-  const baseTemplate = message;
+  if (!message || typeof message !== "string") {
+    return "";
+  }
+
+  const baseTemplate = message || "";
 
   const location = invitation.eventLocation ?? invitation.event?.location;
   const hasLocation = !!(location?.lat && location?.lng);
