@@ -334,15 +334,16 @@ useEffect(() => {
 
 
   const guestsToSend = useMemo(() => {
-  return guests
-    .filter(g => g.phone && g.phone.trim() !== "") // ⭐ חדש
-    .filter((g) => {
+    return guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
       if (filter === "withTable") return !!g.tableName || !!g.tableNumber;
+
+    
+
+
       return true;
     });
-}, [guests, filter]);
-
+  }, [guests, filter]);
 
    const hasSmsBalance =
     balance !== null && balance.remainingMessages > 0;
@@ -361,11 +362,8 @@ const disableSend =
   const buildMessage = (guest: Guest) => {
   if (!invitation) return "";
 
-  if (!message || typeof message !== "string") {
-    return "";
-  }
-
-  const baseTemplate = message || "";
+  // ⭐ מקור אמת אחד
+  const baseTemplate = message;
 
   const location = invitation.eventLocation ?? invitation.event?.location;
   const hasLocation = !!(location?.lat && location?.lng);
@@ -485,23 +483,7 @@ setPreview({
 const sendWhatsApp = (guest: Guest) => {
   if (!invitation) return;
 
-  if (!guest.phone) {
-  alert("לא ניתן לשלוח – למוזמן אין מספר טלפון");
-  return;
-}
-
-const cleanPhone = guest.phone
-  .toString()
-  .replace(/\D/g, "")
-  .replace(/^0/, "");
-
-if (!cleanPhone) {
-  alert("מספר הטלפון אינו תקין");
-  return;
-}
-
-const phone = `972${cleanPhone}`;
-
+  const phone = `972${guest.phone.replace(/\D/g, "").replace(/^0/, "")}`;
 
   // ✅ תמיד נשלח את ההודעה המוכנה מ-buildMessage (כולל token)
   let text = buildMessage(guest);

@@ -3,11 +3,26 @@
 import { Combobox } from "@headlessui/react";
 import { useEffect, useState } from "react";
 
-export default function GuestAutocomplete({ guests, onSelect, value }) {
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(null);
+export type Guest = {
+  _id: string;
+  name: string;
+  phone?: string | null;
+};
 
-  /* ⭐ סנכרון אורח חיצוני (כפתור אישי) */
+type Props = {
+  guests: Guest[];
+  onSelect: (id: string) => void;
+  value: Guest | null;
+};
+
+export default function GuestAutocomplete({
+  guests,
+  onSelect,
+  value,
+}: Props) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Guest | null>(null);
+
   useEffect(() => {
     if (value) {
       setSelected(value);
@@ -18,26 +33,36 @@ export default function GuestAutocomplete({ guests, onSelect, value }) {
   const filtered =
     query === ""
       ? guests
-      : guests.filter(
-          (g) =>
-            g.name.toLowerCase().includes(query.toLowerCase()) ||
-            g.phone.replace(/\D/g, "").includes(query.replace(/\D/g, ""))
-        );
+      : guests.filter((g) => {
+          const name = g.name ?? "";
+          const phone =
+            typeof g.phone === "string"
+              ? g.phone.replace(/\D/g, "")
+              : "";
+
+          return (
+            name.toLowerCase().includes(query.toLowerCase()) ||
+            phone.includes(query.replace(/\D/g, ""))
+          );
+        });
 
   return (
     <div className="w-full">
       <Combobox
         value={selected}
-        onChange={(guest) => {
-          setSelected(guest);
-          onSelect(guest._id);
-        }}
+        onChange={(guest: Guest | null) => {
+  setSelected(guest);
+
+  if (guest?._id) {
+    onSelect(guest._id);
+  }
+}}
       >
         <div className="relative">
           <Combobox.Input
             className="w-full border border-[#e2d6c8] rounded-xl p-3"
-            displayValue={(guest) =>
-              guest ? `${guest.name} (${guest.phone})` : ""
+            displayValue={(guest: Guest) =>
+              guest ? `${guest.name} (${guest.phone ?? ""})` : ""
             }
             onChange={(event) => setQuery(event.target.value)}
             placeholder="בחר/י מוזמן או הקלד/י לחיפוש…"
@@ -57,7 +82,7 @@ export default function GuestAutocomplete({ guests, onSelect, value }) {
                     }`
                   }
                 >
-                  {guest.name} ({guest.phone})
+                  {guest.name} ({guest.phone ?? ""})
                 </Combobox.Option>
               ))
             )}
