@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendWhatsAppMessage } from "@/lib/whatsapp/sendWhatsAppMessage";
+import { sendWhatsAppTemplate } from "@/lib/whatsapp/sendWhatsAppTemplate";
 
 export async function POST(req: NextRequest) {
-  const { to, message } = await req.json();
+  const { to } = await req.json();
 
-  await sendWhatsAppMessage(to, message);
+  await sendWhatsAppTemplate(to);
 
   return NextResponse.json({ success: true });
 }
