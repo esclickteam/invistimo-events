@@ -542,16 +542,16 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 מחכים לשמוח איתכם 💖`;
   }
 
-  if (templateKey === "table") {
-    return `היי ${g.name} 🌸 שמחים לראות אותך 💛
-מספר השולחן שלך באירוע:
+ if (templateKey === "table") {
+  return `היי ${g.name} 🌸
+שמחים לראות אותך 💛
+
+מספר השולחן שלך:
 🪑 ${tableName || "—"}
 
-📍 ניווט לאירוע:
-לחצו על הכפתור למטה
-
 מחכים לך!`;
-  }
+}
+
 
   return `היי ${g.name} 🌸
 שמחנו לראותכם ב${eventType}.
@@ -1509,6 +1509,17 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     אישור הגעה
   </button>
 )}
+
+{templateKey === "table" && (
+  <button
+    type="button"
+    disabled
+    className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
+  >
+    ניווט לאירוע
+  </button>
+)}
+
 
           </div>
         )}
