@@ -37,6 +37,7 @@ type SendTemplateRequestBody = {
   name?: string;
   tableName?: string;
   eventType?: string;
+  urlSuffix?: string; 
 };
 
 type ClientValidationResult =
@@ -134,12 +135,14 @@ function validateByTemplate(
   }
 
   if (templateName === "table_number_update") {
-    if (!isNonEmptyString(body.name)) return "Missing required field: name";
-    if (!isNonEmptyString(body.tableName))
-      return "Missing required field: tableName";
-    if (!isNonEmptyString(body.eventType))
-      return "Missing required field: eventType";
-  }
+  if (!isNonEmptyString(body.name)) return "Missing required field: name";
+  if (!isNonEmptyString(body.tableName))
+    return "Missing required field: tableName";
+  if (!isNonEmptyString(body.eventType))
+    return "Missing required field: eventType";
+  if (!isNonEmptyString(body.urlSuffix))
+    return "Missing required field: urlSuffix"; // ← חדש
+}
 
   if (templateName === "thank_you_message") {
     if (!isNonEmptyString(body.name)) return "Missing required field: name";
@@ -197,11 +200,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (templateName === "table_number_update") {
-      body.name = safeTrim(body.name);
-      body.tableName = safeTrim(body.tableName);
-      body.eventType = safeTrim(body.eventType);
-      body.to = safeTrim(body.to);
-    }
+  body.name = safeTrim(body.name);
+  body.tableName = safeTrim(body.tableName);
+  body.eventType = safeTrim(body.eventType);
+  body.urlSuffix = safeTrim(body.urlSuffix); // ← חדש
+  body.to = safeTrim(body.to);
+}
 
     if (templateName === "thank_you_message") {
       body.name = safeTrim(body.name);
@@ -291,13 +295,15 @@ export async function POST(req: NextRequest) {
     /* ================= TABLE ================= */
     if (templateName === "table_number_update") {
       const providerResponse = await sendTableNumberTemplate({
-        to: body.to!,
-        name: body.name!,
-        tableName: body.tableName!,
-        eventType: body.eventType!,
-        templateName,
-        languageCode,
-      });
+  to: body.to!,
+  name: body.name!,
+  tableName: body.tableName!,
+  eventType: body.eventType!,
+  urlSuffix: body.urlSuffix!, // ← חדש
+  templateName,
+  languageCode,
+});
+
 
       return NextResponse.json(
         { success: true, templateName, languageCode, providerResponse },

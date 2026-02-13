@@ -2,9 +2,10 @@
 
 type SendTableNumberTemplateInput = {
   to: string;
-  name: string;       // {{1}}
-  tableName: string;  // {{2}}
-  eventType: string;  // {{3}}  (חתונה/ברית/בריתה...)
+  name: string;        // {{1}}
+  tableName: string;   // {{2}}
+  eventType: string;   // {{3}}
+  urlSuffix: string;   // כפתור URL {{1}}
   templateName?: string;
   languageCode?: string;
 };
@@ -16,33 +17,24 @@ type D360SuccessResponse = {
 };
 
 const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
-const DEFAULT_TEMPLATE_NAME = "table_number_update";
+const DEFAULT_TEMPLATE_NAME = "table_number_update_invistimo";
 const DEFAULT_LANGUAGE_CODE = "he";
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
-/**
- * נרמול מספרים בפורמט ישראל:
- * 0501234567 -> 972501234567
- * +972501234567 -> 972501234567
- * 972501234567 -> 972501234567
- */
 function normalizePhoneIL(phone: string): string {
   const digits = String(phone ?? "").replace(/[^\d+]/g, "").trim();
   if (!digits) return "";
 
-  // הסרת "+"
   const noPlus = digits.replace(/^\+/, "");
-  // השארת ספרות בלבד
   const p = noPlus.replace(/\D/g, "");
 
   if (!p) return "";
   if (p.startsWith("972")) return p;
   if (p.startsWith("0")) return `972${p.slice(1)}`;
 
-  // fallback: אם כבר בלי 0 ובלי 972, נשאיר כמו שהוא
   return p;
 }
 
@@ -59,13 +51,15 @@ function assertRequired(input: SendTableNumberTemplateInput): void {
   if (!isNonEmptyString(input.eventType)) {
     throw new Error("Missing required field: eventType");
   }
+  if (!isNonEmptyString(input.urlSuffix)) {
+    throw new Error("Missing required field: urlSuffix");
+  }
 }
 
 function assertEnv(): string {
-  const apiKey = process.env.WHATSAPP_API_KEY
-;
+  const apiKey = process.env.WHATSAPP_API_KEY;
   if (!isNonEmptyString(apiKey)) {
-    throw new Error("Missing env var: D360_API_KEY");
+    throw new Error("Missing env var: WHATSAPP_API_KEY");
   }
   return apiKey.trim();
 }
@@ -87,7 +81,6 @@ export async function sendTableNumberTemplate(
   const apiKey = assertEnv();
 
   const to = normalizePhoneIL(input.to);
-  // בישראל תקין בדרך כלל 12 ספרות עם 972 + 9 ספרות מקומיות
   if (!isNonEmptyString(to) || to.length < 11 || to.length > 15) {
     throw new Error(`Invalid phone number after normalization: "${input.to}"`);
   }
@@ -106,9 +99,20 @@ export async function sendTableNumberTemplate(
         {
           type: "body",
           parameters: [
-            { type: "text", text: input.name.trim() },      // {{1}}
-            { type: "text", text: input.tableName.trim() }, // {{2}}
-            { type: "text", text: input.eventType.trim() }, // {{3}}
+            { type: "text", text: input.name.trim() },       // {{1}}
+            { type: "text", text: input.tableName.trim() },  // {{2}}
+            { type: "text", text: input.eventType.trim() },  // {{3}}
+          ],
+        },
+        {
+          type: "button",
+          sub_type: "url",
+          index: "0",
+          parameters: [
+            {
+              type: "text",
+              text: input.urlSuffix.trim(), // רק ה-suffix!
+            },
           ],
         },
       ],

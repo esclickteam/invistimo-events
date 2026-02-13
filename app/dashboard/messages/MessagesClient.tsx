@@ -469,7 +469,7 @@ function buildEventTitle(meta: { title?: string; eventType?: string }) {
   if (normalized === "בת מצווה" || normalized === "bat mitzvah" || normalized === "bat mitzva") return "בת המצווה שלנו";
   if (normalized === "חינה" || normalized === "henna") return "החינה שלנו";
 
-  return "האירוע שלנו";
+  return "אירוע שלנו";
 }
 
 
@@ -773,6 +773,7 @@ if (templateKey === "table") {
     name: guest.name || "",
     tableName: tableName || "",
     eventType: String(eventType),
+    urlSuffix: invitation?.shareId, // ⭐ זה השינוי הקריטי
   };
 }
 
