@@ -1684,7 +1684,10 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   disabled={
     sendingMain ||
     isDemo ||
-    (channel === "whatsapp" ? !selectedGuestId : disableSend)
+    (channel === "whatsapp"
+  ? whatsappGuestsToSend.length === 0
+  : disableSend)
+
   }
   title={isDemo ? "שליחה זמינה לאחר פתיחת אירוע" : undefined}
   className="
