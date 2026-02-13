@@ -25,11 +25,11 @@ type SendTemplateRequestBody = {
   languageCode?: string; // default: he
 
   // RSVP (BODY)
-  eventTitle?: string;     // {{1}}
-  eventDate?: string;      // {{2}}
-  eventLocation?: string;  // {{3}}
-  eventTime?: string;      // {{4}}
-  rsvpLink?: string;       // {{5}}
+  eventTitle?: string; // {{1}}
+  eventDate?: string; // {{2}}
+  eventLocation?: string; // {{3}}
+  eventTime?: string; // {{4}}
+  rsvpLink?: string; // קישור אישי מלא (הכפתור משתמש ממנו ב-inviteId)
 
   // HEADER
   headerImageUrl?: string; // URL ציבורי (Cloudinary)
@@ -54,10 +54,10 @@ function safeTrim(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function isValidHttpUrl(url: string): boolean {
+function isValidHttpsUrl(url: string): boolean {
   try {
     const u = new URL(url);
-    return u.protocol === "https:" || u.protocol === "http:";
+    return u.protocol === "https:";
   } catch {
     return false;
   }
@@ -252,12 +252,19 @@ export async function POST(req: NextRequest) {
         headerImageUrl = invitation.headerImageUrl.trim();
       }
 
-      if (!isValidHttpUrl(headerImageUrl)) {
+      if (!isValidHttpsUrl(headerImageUrl)) {
         return NextResponse.json(
           {
             success: false,
             error: "headerImageUrl must be a public https URL",
           },
+          { status: 400 }
+        );
+      }
+
+      if (!isValidHttpsUrl(body.rsvpLink!)) {
+        return NextResponse.json(
+          { success: false, error: "rsvpLink must be a public https URL" },
           { status: 400 }
         );
       }
@@ -268,7 +275,7 @@ export async function POST(req: NextRequest) {
         eventDate: body.eventDate!,
         eventLocation: body.eventLocation!,
         eventTime: body.eventTime!,
-        rsvpLink: body.rsvpLink!,
+        rsvpLink: body.rsvpLink!, // הלינק המלא; בפונקציה עצמה נשלח לכפתור רק inviteId
         headerImageUrl,
         templateName,
         languageCode,

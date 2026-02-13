@@ -529,30 +529,24 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 
   const meta = getEventMeta(invitation);
 
-const eventTitle = buildEventTitle(meta);
+  const eventTitle = buildEventTitle(meta);
+  const eventDate = formatEventDate(meta.rawDate);
+  const eventTime = meta.time || "";
+  const eventLocation = meta.location || "";
 
-const eventDate = formatEventDate(meta.rawDate);
-
-
-const eventTime = meta.time || "";
-const eventLocation = meta.location || "";
-const headerImageUrl = meta.imageUrl || "";
-const eventType = meta.eventType || "האירוע";
-
-  const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${g.token}`;
-
+  // אין הצגת לינק בגוף ההודעה (עובר בכפתור URL)
   return `משפחה וחברים יקרים,
 הנכם מוזמנים ל- ${eventTitle} 🤍
 
-
 📅 תאריך: ${eventDate}
 📍 מיקום: ${eventLocation}
+🕢 קבלת פנים: ${eventTime}
 
-לאישור הגעה לחצו כאן 👇
-${rsvpLink}
+לאישור הגעה לחצו על הכפתור למטה 👇
 
 מחכים לשמוח איתכם 💖`;
 };
+
 
 
 

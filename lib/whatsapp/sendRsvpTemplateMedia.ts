@@ -4,14 +4,23 @@ export type SendRsvpTemplateMediaInput = {
   to: string;
 
   // BODY VARIABLES – ORDER IS CRITICAL
-  eventTitle: string;     // {{1}}
-  eventDate: string;      // {{2}}
-  eventLocation: string;  // {{3}}
-  eventTime: string;      // {{4}}
-  rsvpLink: string;       // {{5}}
+  eventTitle: string; // {{1}}
+  eventDate: string; // {{2}}
+  eventLocation: string; // {{3}}
+  eventTime: string; // {{4}}
+
+  /**
+   * קישור אישי מלא, לדוגמה:
+   * https://www.invistimo.com/invite/INHtag6CZG?token=tSPo8g_1x5Li
+   *
+   * בתבנית Meta הכפתור מוגדר:
+   * https://www.invistimo.com/invite/{{1}}
+   * ולכן מה שנשלח לכפתור הוא inviteId בלבד (למשל INHtag6CZG)
+   */
+  rsvpLink: string;
 
   // HEADER
-  headerImageUrl: string; // חובה – URL ציבורי
+  headerImageUrl: string; // חובה – URL ציבורי (https)
 
   templateName?: string;
   languageCode?: "he" | "he_IL" | string;
@@ -35,14 +44,14 @@ function isNonEmptyString(v: unknown): v is string {
 function normalizeTemplateText(text: string): string {
   return text
     .replace(/[\n\r\t]+/g, " ") // אין שבירות שורה / טאבים
-    .replace(/\s{2,}/g, " ")   // אין רווחים כפולים
+    .replace(/\s{2,}/g, " ") // אין רווחים כפולים
     .trim();
 }
 
-function isValidHttpUrl(url: string): boolean {
+function isValidHttpsUrl(url: string): boolean {
   try {
     const u = new URL(url);
-    return u.protocol === "https:" || u.protocol === "http:";
+    return u.protocol === "https:";
   } catch {
     return false;
   }
@@ -58,14 +67,41 @@ function normalizePhoneIL(phone: string): string {
   return p;
 }
 
+/**
+ * מחלץ inviteId מתוך לינק אישי:
+ * https://www.invistimo.com/invite/INHtag6CZG?token=...
+ * => INHtag6CZG
+ */
+function extractInviteIdFromRsvpLink(rsvpLink: string): string {
+  const u = new URL(rsvpLink.trim());
+  const parts = u.pathname.split("/").filter(Boolean); // ["invite","INHtag6CZG"]
+
+  const inviteIndex = parts.findIndex((p) => p.toLowerCase() === "invite");
+  const inviteId = inviteIndex >= 0 ? parts[inviteIndex + 1] : "";
+
+  if (!inviteId) {
+    throw new Error(
+      "Invalid rsvpLink: expected path like /invite/{id}, inviteId not found"
+    );
+  }
+
+  return inviteId.trim();
+}
+
 function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   if (!isNonEmptyString(input.to)) throw new Error("Missing field: to");
-  if (!isNonEmptyString(input.eventTitle)) throw new Error("Missing field: eventTitle");
-  if (!isNonEmptyString(input.eventDate)) throw new Error("Missing field: eventDate");
-  if (!isNonEmptyString(input.eventLocation)) throw new Error("Missing field: eventLocation");
-  if (!isNonEmptyString(input.eventTime)) throw new Error("Missing field: eventTime");
-  if (!isNonEmptyString(input.rsvpLink)) throw new Error("Missing field: rsvpLink");
-  if (!isNonEmptyString(input.headerImageUrl)) throw new Error("Missing field: headerImageUrl");
+  if (!isNonEmptyString(input.eventTitle))
+    throw new Error("Missing field: eventTitle");
+  if (!isNonEmptyString(input.eventDate))
+    throw new Error("Missing field: eventDate");
+  if (!isNonEmptyString(input.eventLocation))
+    throw new Error("Missing field: eventLocation");
+  if (!isNonEmptyString(input.eventTime))
+    throw new Error("Missing field: eventTime");
+  if (!isNonEmptyString(input.rsvpLink))
+    throw new Error("Missing field: rsvpLink");
+  if (!isNonEmptyString(input.headerImageUrl))
+    throw new Error("Missing field: headerImageUrl");
 }
 
 async function safeParseResponse(res: Response): Promise<unknown> {
@@ -80,9 +116,7 @@ async function safeParseResponse(res: Response): Promise<unknown> {
 
 /* ================= MAIN ================= */
 
-export async function sendRsvpTemplateMedia(
-  input: SendRsvpTemplateMediaInput
-) {
+export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   assertRequiredFields(input);
 
   const apiKey = process.env.WHATSAPP_API_KEY;
@@ -95,18 +129,21 @@ export async function sendRsvpTemplateMedia(
     throw new Error(`Invalid phone number: ${input.to}`);
   }
 
-  if (!isValidHttpUrl(input.headerImageUrl)) {
-    throw new Error("Invalid headerImageUrl");
+  if (!isValidHttpsUrl(input.headerImageUrl)) {
+    throw new Error("Invalid headerImageUrl (must be https)");
   }
 
-  if (!isValidHttpUrl(input.rsvpLink)) {
-    throw new Error("Invalid rsvpLink");
+  if (!isValidHttpsUrl(input.rsvpLink)) {
+    throw new Error("Invalid rsvpLink (must be https)");
   }
 
-  const templateName =
-    (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
-  const languageCode =
-    (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
+  // כפתור URL מוגדר בתבנית:
+  // https://www.invistimo.com/invite/{{1}}
+  // לכן שולחים רק inviteId
+  const inviteIdForButton = extractInviteIdFromRsvpLink(input.rsvpLink);
+
+  const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
+  const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
 
   const payload = {
     messaging_product: "whatsapp",
@@ -128,11 +165,21 @@ export async function sendRsvpTemplateMedia(
         {
           type: "body",
           parameters: [
-            { type: "text", text: normalizeTemplateText(input.eventTitle) },
-            { type: "text", text: normalizeTemplateText(input.eventDate) },
-            { type: "text", text: normalizeTemplateText(input.eventLocation) },
-            { type: "text", text: normalizeTemplateText(input.eventTime) },
-            { type: "text", text: input.rsvpLink.trim() }, // לינק בלי נרמול
+            { type: "text", text: normalizeTemplateText(input.eventTitle) }, // {{1}}
+            { type: "text", text: normalizeTemplateText(input.eventDate) }, // {{2}}
+            { type: "text", text: normalizeTemplateText(input.eventLocation) }, // {{3}}
+            { type: "text", text: normalizeTemplateText(input.eventTime) }, // {{4}}
+          ],
+        },
+        {
+          type: "button",
+          sub_type: "url",
+          index: "0",
+          parameters: [
+            {
+              type: "text",
+              text: inviteIdForButton, // Button URL {{1}}
+            },
           ],
         },
       ],
@@ -163,6 +210,7 @@ export async function sendRsvpTemplateMedia(
     to,
     templateName,
     languageCode,
+    inviteIdForButton,
     providerResponse,
   };
 }
