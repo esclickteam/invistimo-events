@@ -425,7 +425,7 @@ const disableSend =
   // ⭐ מקור אמת אחד
   const baseTemplate = message;
 
-  const location = invitation.eventLocation ?? invitation.event?.location;
+  const location = invitation?.eventId?.location;
   const hasLocation = !!(location?.lat && location?.lng);
 
   // 📍 ניווט – רק אם צריך ויש מיקום
@@ -485,52 +485,32 @@ function buildEventTitle(meta: { title?: string; eventType?: string }) {
 
 
 function getEventMeta(invitation: any) {
-  const title =
-    invitation?.title ||
-    invitation?.eventTitle ||
-    invitation?.event?.title ||
-    "";
+  const event = invitation?.eventId;
 
-  const rawDate =
-    invitation?.date ||
-    invitation?.eventDate ||
-    invitation?.event?.date ||
-    "";
+  const title = event?.title || "";
 
-  const time =
-    invitation?.time ||
-    invitation?.eventTime ||
-    invitation?.event?.time ||
-    "";
+  const rawDate = event?.date || "";
+
+  const time = event?.time || "";
 
   const location =
-    invitation?.location?.address ||
-    invitation?.location?.name ||
-    invitation?.eventLocation?.address ||
-    invitation?.eventLocation?.name ||
-    invitation?.event?.location?.address ||
-    invitation?.event?.location?.name ||
+    event?.location?.address ||
+    event?.location?.name ||
     "";
 
   const imageUrl =
-    invitation?.coverImageUrl ||
-    invitation?.mainImageUrl ||
-    invitation?.imageUrl ||
-    invitation?.event?.imageUrl ||
+    event?.imageUrl ||
+    event?.coverImageUrl ||
     "";
 
-  // 👇 חשוב: fallback רחב
   const eventType =
-    invitation?.eventType ||
-    invitation?.type ||
-    invitation?.event_type ||
-    invitation?.event?.eventType ||
-    invitation?.event?.type ||
-    invitation?.event?.event_type ||
+    event?.eventType ||
+    event?.type ||
     "";
 
   return { title, rawDate, time, location, imageUrl, eventType };
 }
+
 
 
 
@@ -674,17 +654,17 @@ const sendWhatsApp = async (guest: Guest) => {
 
 
 
-  const metaForTitle = getEventMeta(invitation);
-const eventTitle = buildEventTitle(metaForTitle);
+  const meta = getEventMeta(invitation);
 
-
-const rawDate =
-  invitation?.event?.date ||   // ⭐ המקור האמיתי
-  invitation?.date ||
-  invitation?.eventDate ||
-  "";
-
+const eventTitle = buildEventTitle(meta);
+const rawDate = meta.rawDate;
 const eventDate = formatEventDate(rawDate);
+const eventTime = meta.time || "";
+const eventLocation = meta.location || "";
+const headerImageUrl = meta.imageUrl || "";
+const eventType = meta.eventType || "האירוע";
+
+
 
 console.group("📅 EVENT DATE DEBUG");
 
@@ -699,34 +679,6 @@ console.log("Boolean(eventDate):", Boolean(eventDate));
 
 console.groupEnd();
 
-
-
-
-  const eventTime =
-    invitation?.eventTime ||
-    invitation?.event?.time ||
-    invitation?.time ||
-    "";
-
-  const eventLocation =
-    invitation?.eventLocation?.address ||
-    invitation?.event?.location?.address ||
-    invitation?.location?.address ||
-    invitation?.eventLocation?.name ||
-    invitation?.event?.location?.name ||
-    "";
-
-  const headerImageUrl =
-    invitation?.coverImageUrl ||
-    invitation?.mainImageUrl ||
-    invitation?.imageUrl ||
-    invitation?.event?.imageUrl ||
-    "";
-
-  const eventType =
-    invitation?.eventType ||
-    invitation?.event?.eventType ||
-    "האירוע";
 
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
@@ -760,7 +712,8 @@ console.groupEnd();
     }
   }
 
-  const eventId = invitation?.eventId || invitation?.event?._id || invitation?._id;
+  const eventId = invitation?.eventId?._id;
+
 
   if (!eventId) {
     alert("חסר eventId לשליחת WhatsApp");

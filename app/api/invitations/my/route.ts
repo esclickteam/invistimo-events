@@ -120,35 +120,46 @@ export async function GET(req: Request) {
     });
 
     const invitation = await Invitation.findOne({
-      eventId: { $ne: null },
-      $or: orFilters,
-    })
-      .sort({ updatedAt: -1 })
-      .select(`
-        _id
-        eventId
-        maxGuests
-        maxMessages
-        remainingMessages
-        shareId
-        producerId
-        ownerId
-      `)
-      .lean();
+  eventId: { $ne: null },
+  $or: orFilters,
+})
+  .sort({ updatedAt: -1 })
+  .populate({
+    path: "eventId",
+    select: `
+      title
+      date
+      time
+      eventType
+      type
+      location
+      imageUrl
+      coverImageUrl
+    `,
+  })
+  .select(`
+    _id
+    eventId
+    maxGuests
+    maxMessages
+    remainingMessages
+    shareId
+    producerId
+    ownerId
+  `)
+  .lean();
+
 
     if (!invitation) {
       return NextResponse.json({ success: true, invitation: null });
     }
 
-    const event = invitation.eventId
-      ? await Event.findById(invitation.eventId).select("location").lean()
-      : null;
+    
 
     return NextResponse.json({
       success: true,
       invitation: {
         ...invitation,
-        eventLocation: event?.location || null,
       },
     });
   } catch (err) {
