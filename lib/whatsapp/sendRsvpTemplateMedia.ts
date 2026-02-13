@@ -15,7 +15,8 @@ export type SendRsvpTemplateMediaInput = {
    *
    * בתבנית Meta הכפתור מוגדר:
    * https://www.invistimo.com/invite/{{1}}
-   * ולכן מה שנשלח לכפתור הוא inviteId בלבד (למשל INHtag6CZG)
+   * לכן מה שנשלח לכפתור הוא:
+   * INHtag6CZG?token=tSPo8g_1x5Li
    */
   rsvpLink: string;
 
@@ -68,11 +69,14 @@ function normalizePhoneIL(phone: string): string {
 }
 
 /**
- * מחלץ inviteId מתוך לינק אישי:
- * https://www.invistimo.com/invite/INHtag6CZG?token=...
- * => INHtag6CZG
+ * מחלץ suffix מלא עבור כפתור URL:
+ * https://www.invistimo.com/invite/INHtag6CZG?token=abc
+ * => INHtag6CZG?token=abc
+ *
+ * תואם לתבנית:
+ * https://www.invistimo.com/invite/{{1}}
  */
-function extractInviteIdFromRsvpLink(rsvpLink: string): string {
+function extractInviteSuffixForButton(rsvpLink: string): string {
   const u = new URL(rsvpLink.trim());
   const parts = u.pathname.split("/").filter(Boolean); // ["invite","INHtag6CZG"]
 
@@ -85,7 +89,16 @@ function extractInviteIdFromRsvpLink(rsvpLink: string): string {
     );
   }
 
-  return inviteId.trim();
+  // שומרים query string (כולל ?token=...)
+  const query = u.search || "";
+  const suffix = `${inviteId}${query}`.trim();
+
+  // הגנה בסיסית (כדי לא להעביר רווחים/שבירות)
+  if (!suffix || /\s/.test(suffix)) {
+    throw new Error("Invalid rsvpLink: extracted button suffix is invalid");
+  }
+
+  return suffix;
 }
 
 function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
@@ -137,10 +150,11 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     throw new Error("Invalid rsvpLink (must be https)");
   }
 
-  // כפתור URL מוגדר בתבנית:
+  // לתבנית:
   // https://www.invistimo.com/invite/{{1}}
-  // לכן שולחים רק inviteId
-  const inviteIdForButton = extractInviteIdFromRsvpLink(input.rsvpLink);
+  // נשלח:
+  // INHtag6CZG?token=...
+  const buttonUrlParam = extractInviteSuffixForButton(input.rsvpLink);
 
   const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
   const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
@@ -178,7 +192,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
           parameters: [
             {
               type: "text",
-              text: inviteIdForButton, // Button URL {{1}}
+              text: buttonUrlParam, // {{1}} של הכפתור
             },
           ],
         },
@@ -210,7 +224,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     to,
     templateName,
     languageCode,
-    inviteIdForButton,
+    buttonUrlParam,
     providerResponse,
   };
 }
