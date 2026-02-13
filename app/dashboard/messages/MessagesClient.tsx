@@ -27,6 +27,34 @@ type Balance = {
   remainingMessages: number;
 };
 
+function formatEventDate(value: any): string {
+  if (!value) return "";
+
+  // כבר Date object
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toLocaleDateString("he-IL");
+  }
+
+  const str = String(value).trim();
+  if (!str) return "";
+
+  // פורמט YYYY-MM-DD
+  const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymd) {
+    const [, y, m, d] = ymd;
+    return `${d}/${m}/${y}`;
+  }
+
+  // fallback רגיל
+  const d = new Date(str);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString("he-IL");
+  }
+
+  return "";
+}
+
+
 function getLongestMessage(
   guests: Guest[],
   buildMessageFn: (g: Guest) => string
@@ -439,37 +467,20 @@ function buildEventTitle(meta: { title?: string; eventType?: string }) {
     .replace(/[_-]/g, " ")
     .replace(/\s+/g, " ");
 
-  if (
-    normalized === "חתונה" ||
-    normalized === "wedding"
-  ) return "החתונה שלנו";
-
+  if (normalized === "חתונה" || normalized === "wedding") return "החתונה שלנו";
   if (
     normalized === "ברית" ||
     normalized === "brit" ||
     normalized === "ברית מילה" ||
     normalized === "bris"
   ) return "הברית שלנו";
-
-  if (
-    normalized === "בר מצווה" ||
-    normalized === "bar mitzvah" ||
-    normalized === "bar mitzva"
-  ) return "בר המצווה שלנו";
-
-  if (
-    normalized === "בת מצווה" ||
-    normalized === "bat mitzvah" ||
-    normalized === "bat mitzva"
-  ) return "בת המצווה שלנו";
-
-  if (
-    normalized === "חינה" ||
-    normalized === "henna"
-  ) return "החינה שלנו";
+  if (normalized === "בר מצווה" || normalized === "bar mitzvah" || normalized === "bar mitzva") return "בר המצווה שלנו";
+  if (normalized === "בת מצווה" || normalized === "bat mitzvah" || normalized === "bat mitzva") return "בת המצווה שלנו";
+  if (normalized === "חינה" || normalized === "henna") return "החינה שלנו";
 
   return "האירוע שלנו";
 }
+
 
 
 
@@ -508,14 +519,19 @@ function getEventMeta(invitation: any) {
     invitation?.event?.imageUrl ||
     "";
 
+  // 👇 חשוב: fallback רחב
   const eventType =
-  invitation?.eventType ||
-  invitation?.event?.eventType ||
-  "";
-
+    invitation?.eventType ||
+    invitation?.type ||
+    invitation?.event_type ||
+    invitation?.event?.eventType ||
+    invitation?.event?.type ||
+    invitation?.event?.event_type ||
+    "";
 
   return { title, rawDate, time, location, imageUrl, eventType };
 }
+
 
 
 const buildWhatsappTemplatePreview = (guest: Guest | null) => {
@@ -526,9 +542,9 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 
 const eventTitle = buildEventTitle(meta);
 
-const eventDate = meta.rawDate
-  ? new Date(meta.rawDate).toLocaleDateString("he-IL")
-  : "";
+const eventDate = formatEventDate(meta.rawDate);
+
+
 const eventTime = meta.time || "";
 const eventLocation = meta.location || "";
 const headerImageUrl = meta.imageUrl || "";
