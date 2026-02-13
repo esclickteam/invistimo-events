@@ -21,17 +21,17 @@ type TemplateName =
 
 type SendTemplateRequestBody = {
   // common
-  eventId: string;
-  to: string;
-  templateName?: TemplateName; // default: rsvp_invitation_media
+  eventId?: string; // RSVP בלבד חייב
+  to?: string;
+  templateName?: TemplateName;
   languageCode?: string; // default: he
 
   // RSVP
-  eventTitle?: string;
-  eventDate?: string;
-  eventLocation?: string;
-  eventTime?: string;
-  rsvpLink?: string;
+  eventTitle?: string; // {{1}}
+  eventDate?: string; // {{2}}
+  eventLocation?: string; // {{3}}
+  eventTime?: string; // {{4}}
+  rsvpLink?: string; // {{5}}
   headerImageUrl?: string; // http(s) / data:image...
 
   // table / thank you
@@ -73,6 +73,19 @@ function isTemplateName(value: unknown): value is TemplateName {
     value === "table_number_update" ||
     value === "thank_you_message"
   );
+}
+
+/** נרמול תאריך: אם parseable -> פורמט he-IL, אחרת משאיר כמו שהוא */
+function normalizeDateInput(v: unknown): string {
+  const s = safeTrim(v);
+  if (!s) return "";
+
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString("he-IL");
+  }
+
+  return s;
 }
 
 /**
@@ -171,12 +184,12 @@ async function resolveHeaderImageUrl(
 }
 
 async function findInvitationByEventId(eventId: string) {
-  // ניסיון 1: exact
+  // ניסיון 1: exact (string)
   let invitation = await Invitation.findOne({ eventId })
     .select("previewImage canvasData eventId")
     .lean();
 
-  // ניסיון 2: אם eventId נראה ObjectId
+  // ניסיון 2: ObjectId
   if (!invitation && mongoose.Types.ObjectId.isValid(eventId)) {
     invitation = await Invitation.findOne({
       eventId: new mongoose.Types.ObjectId(eventId),
@@ -185,14 +198,31 @@ async function findInvitationByEventId(eventId: string) {
       .lean();
   }
 
-  return invitation;
+  return invitation as
+    | {
+        previewImage?: string;
+        canvasData?: unknown;
+        eventId?: string | mongoose.Types.ObjectId;
+      }
+    | null;
 }
 
 /* ================= VALIDATION ================= */
 
-function validateCommon(body: Partial<SendTemplateRequestBody>): string | null {
-  if (!isNonEmptyString(body.eventId)) return "Missing required field: eventId";
+function validateCommon(
+  body: Partial<SendTemplateRequestBody>,
+  templateName: TemplateName
+): string | null {
   if (!isNonEmptyString(body.to)) return "Missing required field: to";
+
+  // eventId חובה רק ל-RSVP (כי יש fallback לתמונה מההזמנה)
+  if (
+    templateName === "rsvp_invitation_media" &&
+    !isNonEmptyString(body.eventId)
+  ) {
+    return "Missing required field: eventId";
+  }
+
   return null;
 }
 
@@ -221,17 +251,16 @@ function validateByTemplate(
   }
 
   if (templateName === "table_number_update") {
-  if (!isNonEmptyString(body.name)) return "Missing required field: name";
-  if (!isNonEmptyString(body.tableName))
-    return "Missing required field: tableName";
-  if (!isNonEmptyString(body.eventType))
-    return "Missing required field: eventType";
-}
+    if (!isNonEmptyString(body.name)) return "Missing required field: name";
+    if (!isNonEmptyString(body.tableName))
+      return "Missing required field: tableName";
+    if (!isNonEmptyString(body.eventType))
+      return "Missing required field: eventType";
+  }
 
   if (templateName === "thank_you_message") {
-  if (!isNonEmptyString(body.name)) return "Missing required field: name";
-}
-
+    if (!isNonEmptyString(body.name)) return "Missing required field: name";
+  }
 
   return null;
 }
@@ -246,7 +275,6 @@ function resolveTemplateAndLang(
   const languageCode = safeTrim(body.languageCode) || "he";
   return { ok: true, templateName: body.templateName, languageCode };
 }
-
 
 /* ================= ROUTE ================= */
 
@@ -263,16 +291,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // common validation
-    const commonError = validateCommon(body);
-    if (commonError) {
-      return NextResponse.json(
-        { success: false, error: commonError },
-        { status: 400 }
-      );
-    }
-
-    // template + language
+    // 1) template + language
     const templateResult = resolveTemplateAndLang(body);
     if (!templateResult.ok) {
       return NextResponse.json(
@@ -283,7 +302,40 @@ export async function POST(req: NextRequest) {
 
     const { templateName, languageCode } = templateResult;
 
-    // template-specific validation
+    // 2) normalize fields לפני validation
+    if (templateName === "rsvp_invitation_media") {
+      body.eventTitle = safeTrim(body.eventTitle);
+      body.eventDate = normalizeDateInput(body.eventDate);
+      body.eventLocation = safeTrim(body.eventLocation);
+      body.eventTime = safeTrim(body.eventTime);
+      body.rsvpLink = safeTrim(body.rsvpLink);
+      body.headerImageUrl = safeTrim(body.headerImageUrl);
+      body.eventId = safeTrim(body.eventId);
+      body.to = safeTrim(body.to);
+    }
+
+    if (templateName === "table_number_update") {
+      body.name = safeTrim(body.name);
+      body.tableName = safeTrim(body.tableName);
+      body.eventType = safeTrim(body.eventType);
+      body.to = safeTrim(body.to);
+    }
+
+    if (templateName === "thank_you_message") {
+      body.name = safeTrim(body.name);
+      body.to = safeTrim(body.to);
+    }
+
+    // 3) common validation (depends on template)
+    const commonError = validateCommon(body, templateName);
+    if (commonError) {
+      return NextResponse.json(
+        { success: false, error: commonError },
+        { status: 400 }
+      );
+    }
+
+    // 4) template-specific validation
     const templateError = validateByTemplate(body, templateName);
     if (templateError) {
       return NextResponse.json(
@@ -298,13 +350,12 @@ export async function POST(req: NextRequest) {
     if (templateName === "rsvp_invitation_media") {
       let rawHeaderImage = safeTrim(body.headerImageUrl);
       let invitationDoc: {
-  previewImage?: string;
-  canvasData?: unknown;
-  eventId?: string | mongoose.Types.ObjectId;
-} | null = null;
+        previewImage?: string;
+        canvasData?: unknown;
+        eventId?: string | mongoose.Types.ObjectId;
+      } | null = null;
 
-
-      // fallback to invitation preview image if not provided
+      // fallback to invitation image only if no explicit headerImageUrl
       if (!rawHeaderImage) {
         invitationDoc = await findInvitationByEventId(body.eventId!);
 
@@ -347,8 +398,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // save public URL instead of base64 when fallback was used
-      if (uploaded && !body.headerImageUrl) {
+      // if fallback used + image uploaded from data-uri => store public URL
+      if (uploaded && !safeTrim(body.headerImageUrl)) {
         await Invitation.updateOne(
           { eventId: invitationDoc?.eventId ?? body.eventId },
           { $set: { previewImage: finalUrl } }
@@ -383,13 +434,13 @@ export async function POST(req: NextRequest) {
     /* ---------- TABLE FLOW ---------- */
     if (templateName === "table_number_update") {
       const providerResponse = await sendTableNumberTemplate({
-  to: body.to!,
-  name: body.name!,
-  tableName: body.tableName!,
-  eventType: body.eventType!, // ✅ חובה
-  templateName,
-  languageCode,
-});
+        to: body.to!,
+        name: body.name!,
+        tableName: body.tableName!,
+        eventType: body.eventType!,
+        templateName,
+        languageCode,
+      });
 
       return NextResponse.json(
         {
@@ -404,11 +455,11 @@ export async function POST(req: NextRequest) {
 
     /* ---------- THANK-YOU FLOW ---------- */
     const providerResponse = await sendThankYouTemplate({
-  to: body.to!,
-  name: body.name!,
-  templateName,
-  languageCode,
-});
+      to: body.to!,
+      name: body.name!,
+      templateName,
+      languageCode,
+    });
 
     return NextResponse.json(
       {
@@ -431,8 +482,12 @@ export async function POST(req: NextRequest) {
       message.includes("Invalid resolved header image URL") ||
       message.includes("Unsupported image format") ||
       message.includes("MISSING_INVITATION_IMAGE") ||
+      message.includes("INVITATION_NOT_FOUND_FOR_EVENT") ||
       message.includes("Missing Cloudinary env vars") ||
-      message.includes("Invalid JSON body");
+      message.includes("Invalid JSON body") ||
+      message.includes("WhatsApp template send failed (400)") ||
+      message.toLowerCase().includes("template") ||
+      message.toLowerCase().includes("parameter");
 
     return NextResponse.json(
       { success: false, error: message },

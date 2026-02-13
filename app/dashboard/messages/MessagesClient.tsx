@@ -500,7 +500,6 @@ const sendWhatsApp = async (guest: Guest) => {
 
   const to = `972${cleanPhone}`;
 
-  // התאמה בין התבנית ב-UI לשם התבנית ב-Meta
   const templateNameMap: Record<MessageType, string> = {
     rsvp: "rsvp_invitation_media",
     table: "table_number_update",
@@ -515,11 +514,15 @@ const sendWhatsApp = async (guest: Guest) => {
     invitation?.event?.title ||
     "האירוע שלנו";
 
-  const eventDate =
+  const rawDate =
     invitation?.eventDate ||
     invitation?.event?.date ||
     invitation?.date ||
     "";
+
+  const eventDate = rawDate
+    ? new Date(rawDate).toLocaleDateString("he-IL")
+    : "";
 
   const eventTime =
     invitation?.eventTime ||
@@ -529,9 +532,17 @@ const sendWhatsApp = async (guest: Guest) => {
 
   const eventLocation =
     invitation?.eventLocation?.address ||
-    invitation?.location?.address ||
     invitation?.event?.location?.address ||
+    invitation?.location?.address ||
     invitation?.eventLocation?.name ||
+    invitation?.event?.location?.name ||
+    "";
+
+  const headerImageUrl =
+    invitation?.coverImageUrl ||
+    invitation?.mainImageUrl ||
+    invitation?.imageUrl ||
+    invitation?.event?.imageUrl ||
     "";
 
   const eventType =
@@ -550,10 +561,26 @@ const sendWhatsApp = async (guest: Guest) => {
     return;
   }
 
-  const eventId =
-    invitation?.eventId ||
-    invitation?.event?._id ||
-    invitation?._id;
+  if (templateKey === "rsvp") {
+    if (!eventDate) {
+      alert("חסר תאריך אירוע (eventDate) בהזמנה");
+      return;
+    }
+    if (!eventLocation) {
+      alert("חסר מיקום אירוע (eventLocation) בהזמנה");
+      return;
+    }
+    if (!eventTime) {
+      alert("חסרה שעת קבלת פנים (eventTime) בהזמנה");
+      return;
+    }
+    if (!headerImageUrl) {
+      alert("חסרה תמונת הזמנה (headerImageUrl) לתבנית media");
+      return;
+    }
+  }
+
+  const eventId = invitation?.eventId || invitation?.event?._id || invitation?._id;
 
   if (!eventId) {
     alert("חסר eventId לשליחת WhatsApp");
@@ -568,18 +595,16 @@ const sendWhatsApp = async (guest: Guest) => {
       body: JSON.stringify({
         eventId,
         to,
-
         templateName: selectedTemplateName,
         languageCode: "he",
 
-        // rsvp template fields
         eventTitle: String(eventTitle),
         eventDate: String(eventDate),
         eventLocation: String(eventLocation),
         eventTime: String(eventTime),
         rsvpLink: String(rsvpLink),
+        headerImageUrl: String(headerImageUrl),
 
-        // table / thank_you fields
         name: guest.name || "",
         tableName: tableName || "",
         eventType: String(eventType),
