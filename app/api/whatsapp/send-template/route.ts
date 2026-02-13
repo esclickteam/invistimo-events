@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 type TemplateName =
   | "rsvp_invitation_media"
-  | "table_number_update"
+  | "table_number_update_invistimo"
   | "thank_you_message";
 
 type SendTemplateRequestBody = {
@@ -66,7 +66,7 @@ function isValidHttpsUrl(url: string): boolean {
 function isTemplateName(value: unknown): value is TemplateName {
   return (
     value === "rsvp_invitation_media" ||
-    value === "table_number_update" ||
+    value === "table_number_update_invistimo" ||
     value === "thank_you_message"
   );
 }
@@ -134,7 +134,7 @@ function validateByTemplate(
       return "Missing required field: rsvpLink";
   }
 
-  if (templateName === "table_number_update") {
+  if (templateName === "table_number_update_invistimo") {
   if (!isNonEmptyString(body.name)) return "Missing required field: name";
   if (!isNonEmptyString(body.tableName))
     return "Missing required field: tableName";
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
       body.to = safeTrim(body.to);
     }
 
-    if (templateName === "table_number_update") {
+    if (templateName === "table_number_update_invistimo") {
   body.name = safeTrim(body.name);
   body.tableName = safeTrim(body.tableName);
   body.eventType = safeTrim(body.eventType);
@@ -293,7 +293,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= TABLE ================= */
-    if (templateName === "table_number_update") {
+    if (templateName === "table_number_update_invistimo") {
       const providerResponse = await sendTableNumberTemplate({
   to: body.to!,
   name: body.name!,

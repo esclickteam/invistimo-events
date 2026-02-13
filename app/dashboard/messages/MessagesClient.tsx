@@ -673,7 +673,7 @@ if (templateKey === "rsvp") {
 }
 
 if (templateKey === "table") {
-  selectedTemplateName = "table_number_update";
+  selectedTemplateName = "table_number_update_invistimo";
 }
 
 if (templateKey === "custom") {
