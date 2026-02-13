@@ -513,18 +513,25 @@ function getEventMeta(invitation: any) {
 
 
 
-
 const buildWhatsappTemplatePreview = (guest: Guest | null) => {
   const g = guest ?? guests[0];
   if (!g || !invitation) return "";
 
   const meta = getEventMeta(invitation);
 
-  const eventTitle = buildEventTitle(meta);      // {{1}}
-  const eventDate = formatEventDate(meta.rawDate); // {{2}}
-  const eventLocation = meta.location || "";       // {{3}}
+  const eventTitle = buildEventTitle(meta);
+  const eventDate = formatEventDate(meta.rawDate);
+  const eventLocation = meta.location || "";
+  const eventType = meta.eventType || "האירוע";
 
-  return `משפחה וחברים יקרים,
+  const tableName =
+    g.tableName ||
+    (typeof g.tableNumber === "number"
+      ? `שולחן ${g.tableNumber}`
+      : "");
+
+  if (templateKey === "rsvp") {
+    return `משפחה וחברים יקרים,
 הנכם מוזמנים ל- ${eventTitle} 🤍
 
 📅 תאריך: ${eventDate}
@@ -533,7 +540,24 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 לאישור הגעה לחצו על הכפתור למטה 👇
 
 מחכים לשמוח איתכם 💖`;
+  }
+
+  if (templateKey === "table") {
+    return `היי ${g.name} 🌸 שמחים לראות אותך 💛
+מספר השולחן שלך באירוע:
+🪑 ${tableName || "—"}
+
+📍 ניווט לאירוע:
+לחצו על הכפתור למטה
+
+מחכים לך!`;
+  }
+
+  return `היי ${g.name} 🌸
+שמחנו לראותכם ב${eventType}.
+תודה שהשתתפתם בשמחתנו 💖`;
 };
+
 
 
 
@@ -995,10 +1019,10 @@ const loadScheduledMessages = async () => {
   };
 
   const getWhatsappPreviewText = () => {
-  return selectedGuest
-    ? buildWhatsappTemplatePreview(selectedGuest)
-    : buildWhatsappTemplatePreview(null);
+  const guest = selectedGuest || whatsappGuestsToSend[0] || null;
+  return buildWhatsappTemplatePreview(guest);
 };
+
 
 
 const smsPreviewText =
@@ -1287,22 +1311,12 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   value={templateKey}
   onChange={(e) => {
     const key = e.target.value as MessageType;
-
-    if (channel === "whatsapp") {
-      setTemplateKey("rsvp");
-      setMessage(MESSAGE_TEMPLATES.rsvp.content);
-      return;
-    }
-
     setTemplateKey(key);
     setMessage(MESSAGE_TEMPLATES[key].content);
   }}
-  disabled={false}
-
-  className={`w-[90%] md:w-[600px] border rounded-xl p-3 mb-4 ${
-    channel === "whatsapp" ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""
-  }`}
+  className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
 >
+
   {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
     <option key={key} value={key}>
       {t.label}
@@ -1312,7 +1326,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 {channel === "whatsapp" && (
   <p className="w-[90%] md:w-[600px] text-xs text-gray-500 -mt-2 mb-4">
-    ב־WhatsApp נשלחת תבנית מאושרת קבועה (rsvp_invitation_media) עם משתנים דינמיים.
+    ב־WhatsApp נשלחת תבנית מאושרת לפי סוג ההודעה שנבחר. ניתן לבחור אישור הגעה, מספר שולחן או הודעת תודה.
   </p>
 )}
 
@@ -1475,6 +1489,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
             >
               אישור הגעה
             </button>
+
           </div>
         )}
       </div>
