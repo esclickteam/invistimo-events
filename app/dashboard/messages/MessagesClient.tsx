@@ -553,7 +553,8 @@ const eventType = meta.eventType || "האירוע";
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${g.token}`;
 
   return `משפחה וחברים יקרים,
-${eventTitle} מזמינים ל-💜
+הנכם מוזמנים ל- ${eventTitle} 🤍
+
 
 📅 תאריך: ${eventDate}
 📍 מיקום: ${eventLocation}
