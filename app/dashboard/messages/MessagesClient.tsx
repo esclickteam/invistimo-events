@@ -529,11 +529,10 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 
   const meta = getEventMeta(invitation);
 
-  const eventTitle = buildEventTitle(meta);
-  const eventDate = formatEventDate(meta.rawDate);
-  const eventLocation = meta.location || "";
+  const eventTitle = buildEventTitle(meta);      // {{1}}
+  const eventDate = formatEventDate(meta.rawDate); // {{2}}
+  const eventLocation = meta.location || "";       // {{3}}
 
-  // אין הצגת לינק בגוף ההודעה (עובר בכפתור URL)
   return `משפחה וחברים יקרים,
 הנכם מוזמנים ל- ${eventTitle} 🤍
 
@@ -544,6 +543,7 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 
 מחכים לשמוח איתכם 💖`;
 };
+
 
 
 
@@ -971,6 +971,13 @@ const loadScheduledMessages = async () => {
     ));
   };
 
+  const getWhatsappPreviewText = () => {
+  return selectedGuest
+    ? buildWhatsappTemplatePreview(selectedGuest)
+    : buildWhatsappTemplatePreview(null);
+};
+
+
 const smsPreviewText =
   channel === "sms"
     ? preview?.text ?? ""
@@ -1376,99 +1383,81 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 </div>
 
 
-      {/* PHONE PREVIEW */}
+{/* PHONE PREVIEW */}
 <div className="w-[90%] md:w-[360px] mt-4 mb-6">
   <p className="text-sm text-gray-500 mb-2 text-center">
     תצוגה מקדימה – כך האורח יקבל את ההודעה
   </p>
 
   <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
-
     <div
-  className={`rounded-[28px] overflow-hidden ${
-    channel === "sms" ? "bg-white" : ""
-  }`}
-  style={
-    channel === "whatsapp"
-      ? {
-          backgroundImage: "url('/whatsapp-bg.png')",
-          backgroundRepeat: "repeat",
-          backgroundSize: "auto",
-
-        }
-      : undefined
-  }
->
-
-  
-
-
+      className={`rounded-[28px] overflow-hidden ${
+        channel === "sms" ? "bg-white" : ""
+      }`}
+      style={
+        channel === "whatsapp"
+          ? {
+              backgroundImage: "url('/whatsapp-bg.png')",
+              backgroundRepeat: "repeat",
+              backgroundSize: "auto",
+            }
+          : undefined
+      }
+    >
       {/* Header */}
       <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
-  INVISTIMO · {channel === "sms" ? "SMS" : "WhatsApp"}
-</div>
+        INVISTIMO · {channel === "sms" ? "SMS" : "WhatsApp"}
+      </div>
 
-      {/* Message bubble */}
-      <div className="p-4 flex justify-center">
-
-
-  <div
-  className={`rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words ${
-    channel === "sms"
-      ? "bg-gray-200 text-gray-900"
-      : "bg-[#dcf8c6] text-gray-900"
-  }`}
->
-
-    {channel === "sms" ? (
-  renderPreviewText(smsPreviewText)
-) : selectedGuest ? (
-  <div className="space-y-2">
-    {buildWhatsappTemplatePreview(selectedGuest)
-      .split("\n")
-      .map((line, i) => {
-        if (line.startsWith("http")) {
-          return (
-            <div
-              key={i}
-              className="bg-white border rounded-lg p-2 text-green-700 text-xs break-all"
-            >
-              {line}
+      {/* Message area */}
+      <div className="p-4">
+        {channel === "sms" ? (
+          // ✅ לא נגענו ב-SMS
+          <div className="flex justify-center">
+            <div className="rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words bg-gray-200 text-gray-900">
+              {renderPreviewText(smsPreviewText)}
             </div>
-          );
-        }
+          </div>
+        ) : (
+          // ✅ שינוי רק ל-WhatsApp
+          <div className="max-w-[92%] mx-auto">
+            {/* תמונת ההזמנה (HEADER IMAGE) */}
+            {getEventMeta(invitation)?.imageUrl ? (
+              <img
+                src={getEventMeta(invitation).imageUrl}
+                alt="Invitation Header"
+                className="w-full h-[170px] object-cover rounded-t-2xl border border-b-0 border-gray-200"
+              />
+            ) : (
+              <div className="w-full h-[170px] rounded-t-2xl border border-b-0 border-gray-200 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                אין תמונת הזמנה
+              </div>
+            )}
 
-        return <p key={i}>{line}</p>;
-      })}
-  </div>
-) : (
-  <div className="space-y-2">
-    {buildWhatsappTemplatePreview(null)
-      .split("\n")
-      .map((line, i) => {
-        if (line.startsWith("http")) {
-          return (
-            <div
-              key={i}
-              className="bg-white border rounded-lg p-2 text-green-700 text-xs break-all"
-            >
-              {line}
+            {/* גוף ההודעה */}
+            <div className="bg-[#dcf8c6] text-gray-900 border border-gray-200 border-t-0 rounded-b-2xl p-3 text-sm whitespace-pre-wrap leading-relaxed break-words">
+              {getWhatsappPreviewText()
+                .split("\n")
+                .map((line, i) => (
+                  <p key={i}>{line || <span>&nbsp;</span>}</p>
+                ))}
             </div>
-          );
-        }
 
-        return <p key={i}>{line}</p>;
-      })}
-  </div>
-)}
-
-
-  </div>
-</div>
-
+            {/* כפתור CTA כמו בתבנית */}
+            <button
+              type="button"
+              disabled
+              className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
+            >
+              אישור הגעה
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   </div>
 </div>
+
 
 
 
