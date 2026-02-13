@@ -1460,17 +1460,18 @@ const progress = max > 0 ? (used / max) * 100 : 0;
           // ✅ שינוי רק ל-WhatsApp
           <div className="max-w-[92%] mx-auto">
             {/* תמונת ההזמנה (HEADER IMAGE) */}
-            {getEventMeta(invitation)?.imageUrl ? (
-              <img
-                src={getEventMeta(invitation).imageUrl}
-                alt="Invitation Header"
-                className="w-full h-[170px] object-cover rounded-t-2xl border border-b-0 border-gray-200"
-              />
-            ) : (
-              <div className="w-full h-[170px] rounded-t-2xl border border-b-0 border-gray-200 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                אין תמונת הזמנה
-              </div>
-            )}
+            {templateKey === "rsvp" &&
+  (getEventMeta(invitation)?.imageUrl ? (
+    <img
+      src={getEventMeta(invitation).imageUrl}
+      alt="Invitation Header"
+      className="w-full h-[170px] object-cover rounded-t-2xl border border-b-0 border-gray-200"
+    />
+  ) : (
+    <div className="w-full h-[170px] rounded-t-2xl border border-b-0 border-gray-200 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+      אין תמונת הזמנה
+    </div>
+  ))}
 
             {/* גוף ההודעה */}
             <div className="bg-[#dcf8c6] text-gray-900 border border-gray-200 border-t-0 rounded-b-2xl p-3 text-sm whitespace-pre-wrap leading-relaxed break-words">
