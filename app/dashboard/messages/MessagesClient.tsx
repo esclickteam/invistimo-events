@@ -1483,13 +1483,15 @@ const progress = max > 0 ? (used / max) * 100 : 0;
             </div>
 
             {/* כפתור CTA כמו בתבנית */}
-            <button
-              type="button"
-              disabled
-              className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
-            >
-              אישור הגעה
-            </button>
+            {templateKey === "rsvp" && (
+  <button
+    type="button"
+    disabled
+    className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
+  >
+    אישור הגעה
+  </button>
+)}
 
           </div>
         )}
