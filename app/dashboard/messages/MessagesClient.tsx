@@ -339,6 +339,8 @@ useEffect(() => {
 
 
 
+
+
   /* ================= LOGIC ================= */
 
  
@@ -356,6 +358,24 @@ useEffect(() => {
       return true;
     });
   }, [guests, filter]);
+
+  const whatsappGuestsToSend = useMemo(() => {
+  return guests.filter((g) => {
+    if (filter === "pending") return g.rsvp === "pending";
+    if (filter === "withTable") return !!g.tableName || !!g.tableNumber;
+    return true;
+  });
+}, [guests, filter]);
+
+useEffect(() => {
+  if (channel !== "whatsapp") return;
+  if (!selectedGuestId) return;
+
+  const exists = whatsappGuestsToSend.some((g) => g._id === selectedGuestId);
+  if (!exists) setSelectedGuestId("");
+}, [channel, selectedGuestId, whatsappGuestsToSend]);
+
+
 
    const hasSmsBalance =
     balance !== null && balance.remainingMessages > 0;
@@ -409,31 +429,110 @@ const disableSend =
   return finalMessage.trim();
 };
 
+function buildEventTitle(meta: { title?: string; eventType?: string }) {
+  const rawTitle = (meta.title || "").trim();
+  if (rawTitle) return rawTitle;
+
+  const normalized = (meta.eventType || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (
+    normalized === "חתונה" ||
+    normalized === "wedding"
+  ) return "החתונה שלנו";
+
+  if (
+    normalized === "ברית" ||
+    normalized === "brit" ||
+    normalized === "ברית מילה" ||
+    normalized === "bris"
+  ) return "הברית שלנו";
+
+  if (
+    normalized === "בר מצווה" ||
+    normalized === "bar mitzvah" ||
+    normalized === "bar mitzva"
+  ) return "בר המצווה שלנו";
+
+  if (
+    normalized === "בת מצווה" ||
+    normalized === "bat mitzvah" ||
+    normalized === "bat mitzva"
+  ) return "בת המצווה שלנו";
+
+  if (
+    normalized === "חינה" ||
+    normalized === "henna"
+  ) return "החינה שלנו";
+
+  return "האירוע שלנו";
+}
+
+
+
+function getEventMeta(invitation: any) {
+  const title =
+    invitation?.title ||
+    invitation?.eventTitle ||
+    invitation?.event?.title ||
+    "";
+
+  const rawDate =
+    invitation?.date ||
+    invitation?.eventDate ||
+    invitation?.event?.date ||
+    "";
+
+  const time =
+    invitation?.time ||
+    invitation?.eventTime ||
+    invitation?.event?.time ||
+    "";
+
+  const location =
+    invitation?.location?.address ||
+    invitation?.location?.name ||
+    invitation?.eventLocation?.address ||
+    invitation?.eventLocation?.name ||
+    invitation?.event?.location?.address ||
+    invitation?.event?.location?.name ||
+    "";
+
+  const imageUrl =
+    invitation?.coverImageUrl ||
+    invitation?.mainImageUrl ||
+    invitation?.imageUrl ||
+    invitation?.event?.imageUrl ||
+    "";
+
+  const eventType =
+  invitation?.eventType ||
+  invitation?.event?.eventType ||
+  "";
+
+
+  return { title, rawDate, time, location, imageUrl, eventType };
+}
+
+
 const buildWhatsappTemplatePreview = (guest: Guest | null) => {
   const g = guest ?? guests[0];
   if (!g || !invitation) return "";
 
-  const rawDate =
-    invitation?.eventDate || invitation?.event?.date || invitation?.date || "";
-  const eventDate = rawDate
-    ? new Date(rawDate).toLocaleDateString("he-IL")
-    : "{{2}}";
+  const meta = getEventMeta(invitation);
 
-  const eventLocation =
-    invitation?.eventLocation?.address ||
-    invitation?.event?.location?.address ||
-    invitation?.location?.address ||
-    invitation?.eventLocation?.name ||
-    "{{3}}";
+const eventTitle = buildEventTitle(meta);
 
-  const eventTime =
-    invitation?.eventTime || invitation?.event?.time || invitation?.time || "{{4}}";
-
-  const eventTitle =
-    invitation?.title ||
-    invitation?.eventTitle ||
-    invitation?.event?.title ||
-    "{{1}}";
+const eventDate = meta.rawDate
+  ? new Date(meta.rawDate).toLocaleDateString("he-IL")
+  : "";
+const eventTime = meta.time || "";
+const eventLocation = meta.location || "";
+const headerImageUrl = meta.imageUrl || "";
+const eventType = meta.eventType || "האירוע";
 
   const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${g.token}`;
 
@@ -442,13 +541,14 @@ ${eventTitle} מזמינים ל-💜
 
 📅 תאריך: ${eventDate}
 📍 מיקום: ${eventLocation}
-🕖 קבלת פנים: ${eventTime}
 
 לאישור הגעה לחצו כאן 👇
 ${rsvpLink}
 
 מחכים לשמוח איתכם 💖`;
 };
+
+
 
 
 const buildTestMessage = () => {
@@ -557,11 +657,9 @@ const sendWhatsApp = async (guest: Guest) => {
 
 
 
-  const eventTitle =
-    invitation?.title ||
-    invitation?.eventTitle ||
-    invitation?.event?.title ||
-    "האירוע שלנו";
+  const metaForTitle = getEventMeta(invitation);
+const eventTitle = buildEventTitle(metaForTitle);
+
 
   const rawDate =
     invitation?.eventDate ||
@@ -858,7 +956,8 @@ const loadScheduledMessages = async () => {
 
     // 🚀 שליחה בפועל
     if (channel === "whatsapp") {
-      const guest = guests.find((g) => g._id === selectedGuestId);
+      const guest = whatsappGuestsToSend.find((g) => g._id === selectedGuestId);
+
       if (!guest) {
         alert("בחר/י מוזמן לשליחה");
         return;
@@ -878,7 +977,8 @@ const loadScheduledMessages = async () => {
 
 
   const selectedGuest =
-    guests.find((g) => g._id === selectedGuestId) || null;
+  whatsappGuestsToSend.find((g) => g._id === selectedGuestId) || null;
+
 
       /* ================= PREVIEW HELPER ================= */
   const renderPreviewText = (text: string) => {
@@ -1059,18 +1159,41 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
       {channel === "whatsapp" && (
-        <div className="w-[90%] md:w-[600px] mb-6">
-          <label className="block mb-2 font-semibold text-[#4a413a]">
-            בחר/י מוזמן לשליחה:
-          </label>
+  <div className="w-[90%] md:w-[600px] mb-6 space-y-4">
+    <div>
+      <label className="block mb-2 font-semibold text-[#4a413a]">
+        קהל יעד:
+      </label>
 
-          <GuestAutocomplete
-            guests={guests}
-            value={selectedGuest}
-            onSelect={(id: string) => setSelectedGuestId(id)}
-          />
-        </div>
-      )}
+      <select
+        value={filter}
+        onChange={(e) => setFilter(e.target.value as FilterType)}
+        className="w-full border rounded-xl p-3"
+      >
+        <option value="all">לכל המוזמנים ({guests.length})</option>
+        <option value="pending">
+          למי שטרם ענה ({guests.filter(g => g.rsvp === "pending").length})
+        </option>
+        <option value="withTable">
+          למי שיש מספר שולחן ({guests.filter(g => g.tableName || g.tableNumber).length})
+        </option>
+      </select>
+    </div>
+
+    <div>
+      <label className="block mb-2 font-semibold text-[#4a413a]">
+        בחר/י מוזמן לשליחה:
+      </label>
+
+      <GuestAutocomplete
+        guests={whatsappGuestsToSend}
+        value={selectedGuest}
+        onSelect={(id: string) => setSelectedGuestId(id)}
+      />
+    </div>
+  </div>
+)}
+
 
       {/* ================= STEP 2: AUDIENCE ================= */}
 {channel === "sms" && (
