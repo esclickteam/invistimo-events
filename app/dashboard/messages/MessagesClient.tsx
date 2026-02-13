@@ -985,16 +985,26 @@ const loadScheduledMessages = async () => {
 
     // 🚀 שליחה בפועל
     if (channel === "whatsapp") {
-      const guest = whatsappGuestsToSend.find((g) => g._id === selectedGuestId);
+  // אם נבחר אורח ספציפי
+  const guestsToSend = selectedGuestId
+    ? whatsappGuestsToSend.filter((g) => g._id === selectedGuestId)
+    : whatsappGuestsToSend;
 
-      if (!guest) {
-        alert("בחר/י מוזמן לשליחה");
-        return;
-      }
-      await sendWhatsApp(guest);
-    } else {
-      await sendSMS();
-    }
+  if (guestsToSend.length === 0) {
+    alert("אין אורחים לשליחה");
+    return;
+  }
+
+  for (const guest of guestsToSend) {
+    await sendWhatsApp(guest);
+  }
+
+  alert(`נשלחו ${guestsToSend.length} הודעות WhatsApp`);
+} else {
+  await sendSMS();
+}
+
+    
   } finally {
     setSendingMain(false);
   }
