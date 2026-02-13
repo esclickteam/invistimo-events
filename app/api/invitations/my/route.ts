@@ -17,6 +17,22 @@ function toObjectId(id?: string | null) {
   return new mongoose.Types.ObjectId(id);
 }
 
+function normalizeEventId(eventId: any): string | null {
+  if (!eventId) return null;
+
+  // אם זה populate → אובייקט עם _id
+  if (typeof eventId === "object" && eventId !== null && "_id" in eventId) {
+    return String((eventId as any)._id);
+  }
+
+  // אם זה כבר ObjectId
+  if (mongoose.Types.ObjectId.isValid(eventId)) {
+    return String(eventId);
+  }
+
+  return null;
+}
+
 function resolveProducerContext(auth: any, user: any) {
   const role = auth?.role ?? user?.role ?? null;
   const staffType = auth?.staffType ?? user?.staffType ?? null;
@@ -27,7 +43,7 @@ function resolveProducerContext(auth: any, user: any) {
   const isProducerStaff =
     (role === "staff" && staffType === "producer_staff") ||
     impersonationRole === "producer_staff" ||
-    impersonationRole === "staff_producer"; // backward compatibility
+    impersonationRole === "staff_producer";
 
   const isProducerLike = isProducer || isProducerStaff;
 
@@ -56,7 +72,7 @@ function resolveProducerContext(auth: any, user: any) {
 }
 
 /* ============================================================
-  GET — מחזיר את ההזמנה של המשתמש (אם קיימת)
+  GET — מחזיר את ההזמנה של המשתמש
 ============================================================ */
 export async function GET(req: Request) {
   try {
@@ -85,7 +101,6 @@ export async function GET(req: Request) {
 
     const ctx = resolveProducerContext(auth, user);
 
-    // חשוב: השוואות ObjectId, לא string בלבד
     const orFilters: any[] = [];
 
     const ownerIdObj = toObjectId(userId);
@@ -94,7 +109,6 @@ export async function GET(req: Request) {
     const producerIdObj = toObjectId(ctx.effectiveProducerId);
     if (producerIdObj) orFilters.push({ producerId: producerIdObj });
 
-    // staff: גם לקוחות משויכים
     const assignedClientObjIds = ctx.assignedClientIds
       .map((id) => toObjectId(id))
       .filter(Boolean) as mongoose.Types.ObjectId[];
@@ -107,60 +121,52 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, invitation: null });
     }
 
-    // דיבאג נקודתי
-    console.log("INVITATION DEBUG", {
-      authUserId: userId,
-      role: ctx.role,
-      staffType: ctx.staffType,
-      impersonationRole: ctx.impersonationRole,
-      isProducerLike: ctx.isProducerLike,
-      effectiveProducerId: ctx.effectiveProducerId,
-      assignedClientIds: ctx.assignedClientIds,
-      orFilters,
-    });
-
     const invitation = await Invitation.findOne({
-  eventId: { $ne: null },
-  $or: orFilters,
-})
-  .sort({ updatedAt: -1 })
-  .populate({
-    path: "eventId",
-    select: `
-      title
-      date
-      time
-      eventType
-      type
-      location
-      imageUrl
-      coverImageUrl
-    `,
-  })
-  .select(`
-    _id
-    eventId
-    previewImage
-    maxGuests
-    maxMessages
-    remainingMessages
-    shareId
-    producerId
-    ownerId
-  `)
-  .lean();
-
+      eventId: { $ne: null },
+      $or: orFilters,
+    })
+      .sort({ updatedAt: -1 })
+      .populate({
+        path: "eventId",
+        select: `
+          title
+          date
+          time
+          eventType
+          type
+          location
+          imageUrl
+          coverImageUrl
+        `,
+      })
+      .select(`
+        _id
+        eventId
+        previewImage
+        maxGuests
+        maxMessages
+        remainingMessages
+        shareId
+        producerId
+        ownerId
+      `)
+      .lean();
 
     if (!invitation) {
       return NextResponse.json({ success: true, invitation: null });
     }
 
-    
+    const normalizedEventId = normalizeEventId(invitation.eventId);
 
     return NextResponse.json({
       success: true,
       invitation: {
         ...invitation,
+        eventId: normalizedEventId,   // ⭐ תמיד string
+        event:
+          typeof invitation.eventId === "object"
+            ? invitation.eventId
+            : null,                    // ⭐ האירוע המלא
       },
     });
   } catch (err) {
@@ -203,9 +209,9 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({} as any));
     const { eventId } = body;
 
-    if (!eventId) {
+    if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
-        { success: false, error: "EVENT_ID_REQUIRED" },
+        { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
       );
     }
@@ -220,9 +226,9 @@ export async function POST(req: Request) {
 
     const ctx = resolveProducerContext(auth, user);
     const producerId = ctx.effectiveProducerId;
+    const producerIdObj = toObjectId(producerId);
 
     const queryOr: any[] = [{ ownerId: event.userId ?? userId }];
-    const producerIdObj = toObjectId(producerId);
     if (producerIdObj) queryOr.push({ producerId: producerIdObj });
 
     let invitation: any = await Invitation.findOne({
@@ -247,7 +253,7 @@ export async function POST(req: Request) {
         success: true,
         invitation: {
           _id: invitation._id,
-          eventId: invitation.eventId,
+          eventId: String(invitation.eventId), // ⭐ תמיד string
           maxGuests: invitation.maxGuests,
           maxMessages: invitation.maxMessages,
           remainingMessages: invitation.remainingMessages,
