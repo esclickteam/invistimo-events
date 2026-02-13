@@ -11,7 +11,7 @@ export type SendRsvpTemplateMediaInput = {
   rsvpLink: string;       // {{5}}
 
   // HEADER
-  headerImageUrl: string; // חובה – תמונת הזמנה
+  headerImageUrl: string;
 
   templateName?: string;
   languageCode?: "he" | "he_IL" | string;
@@ -36,11 +36,24 @@ function isValidHttpUrl(url: string): boolean {
   }
 }
 
+/**
+ * 🔥 קריטי: שבירת טקסט לשורות קצרות
+ * מונע "להמשך קריאה" ב-WhatsApp
+ */
+function normalizeWhatsappText(text: string): string {
+  return text
+    .replace(/\s*,\s*/g, "\n")
+    .replace(/\s*-\s*/g, "\n")
+    .replace(/\s{2,}/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function normalizePhoneIL(phone: string): string {
   const p = String(phone || "").replace(/[^\d]/g, "");
   if (!p) return "";
 
-  if (p.startsWith("972")) return p;     // כבר בינלאומי
+  if (p.startsWith("972")) return p;
   if (p.startsWith("0")) return `972${p.slice(1)}`;
 
   return p;
@@ -73,10 +86,9 @@ export async function sendRsvpTemplateMedia(
 ) {
   assertRequiredFields(input);
 
-  const apiKey = process.env.WHATSAPP_API_KEY
-;
+  const apiKey = process.env.WHATSAPP_API_KEY;
   if (!isNonEmptyString(apiKey)) {
-    throw new Error("Missing env var: D360_API_KEY");
+    throw new Error("Missing env var: WHATSAPP_API_KEY");
   }
 
   const to = normalizePhoneIL(input.to);
@@ -110,18 +122,35 @@ export async function sendRsvpTemplateMedia(
           parameters: [
             {
               type: "image",
-              image: { link: input.headerImageUrl.trim() },
+              image: {
+                link: input.headerImageUrl.trim(),
+              },
             },
           ],
         },
         {
           type: "body",
           parameters: [
-            { type: "text", text: input.eventTitle.trim() },     // {{1}}
-            { type: "text", text: input.eventDate.trim() },      // {{2}}
-            { type: "text", text: input.eventLocation.trim() },  // {{3}}
-            { type: "text", text: input.eventTime.trim() },      // {{4}}
-            { type: "text", text: input.rsvpLink.trim() },       // {{5}}
+            {
+              type: "text",
+              text: normalizeWhatsappText(input.eventTitle),
+            }, // {{1}}
+            {
+              type: "text",
+              text: normalizeWhatsappText(input.eventDate),
+            }, // {{2}}
+            {
+              type: "text",
+              text: normalizeWhatsappText(input.eventLocation),
+            }, // {{3}}
+            {
+              type: "text",
+              text: normalizeWhatsappText(input.eventTime),
+            }, // {{4}}
+            {
+              type: "text",
+              text: input.rsvpLink.trim(), // קישור רציף – לא שוברים
+            }, // {{5}}
           ],
         },
       ],
