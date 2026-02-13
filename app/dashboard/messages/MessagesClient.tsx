@@ -684,9 +684,8 @@ const eventTitle = buildEventTitle(metaForTitle);
     invitation?.date ||
     "";
 
-  const eventDate = rawDate
-    ? new Date(rawDate).toLocaleDateString("he-IL")
-    : "";
+  const eventDate = formatEventDate(rawDate);
+
 
   const eventTime =
     invitation?.eventTime ||
