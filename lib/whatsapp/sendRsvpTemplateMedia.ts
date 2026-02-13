@@ -7,7 +7,6 @@ export type SendRsvpTemplateMediaInput = {
   eventTitle: string; // {{1}}
   eventDate: string; // {{2}}
   eventLocation: string; // {{3}}
-  eventTime: string; // {{4}}
 
   /**
    * קישור אישי מלא, לדוגמה:
@@ -44,8 +43,8 @@ function isNonEmptyString(v: unknown): v is string {
  */
 function normalizeTemplateText(text: string): string {
   return text
-    .replace(/[\n\r\t]+/g, " ") // אין שבירות שורה / טאבים
-    .replace(/\s{2,}/g, " ") // אין רווחים כפולים
+    .replace(/[\n\r\t]+/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 
@@ -78,7 +77,7 @@ function normalizePhoneIL(phone: string): string {
  */
 function extractInviteSuffixForButton(rsvpLink: string): string {
   const u = new URL(rsvpLink.trim());
-  const parts = u.pathname.split("/").filter(Boolean); // ["invite","INHtag6CZG"]
+  const parts = u.pathname.split("/").filter(Boolean);
 
   const inviteIndex = parts.findIndex((p) => p.toLowerCase() === "invite");
   const inviteId = inviteIndex >= 0 ? parts[inviteIndex + 1] : "";
@@ -89,11 +88,9 @@ function extractInviteSuffixForButton(rsvpLink: string): string {
     );
   }
 
-  // שומרים query string (כולל ?token=...)
   const query = u.search || "";
   const suffix = `${inviteId}${query}`.trim();
 
-  // הגנה בסיסית (כדי לא להעביר רווחים/שבירות)
   if (!suffix || /\s/.test(suffix)) {
     throw new Error("Invalid rsvpLink: extracted button suffix is invalid");
   }
@@ -109,8 +106,6 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
     throw new Error("Missing field: eventDate");
   if (!isNonEmptyString(input.eventLocation))
     throw new Error("Missing field: eventLocation");
-  if (!isNonEmptyString(input.eventTime))
-    throw new Error("Missing field: eventTime");
   if (!isNonEmptyString(input.rsvpLink))
     throw new Error("Missing field: rsvpLink");
   if (!isNonEmptyString(input.headerImageUrl))
@@ -182,7 +177,6 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
             { type: "text", text: normalizeTemplateText(input.eventTitle) }, // {{1}}
             { type: "text", text: normalizeTemplateText(input.eventDate) }, // {{2}}
             { type: "text", text: normalizeTemplateText(input.eventLocation) }, // {{3}}
-            { type: "text", text: normalizeTemplateText(input.eventTime) }, // {{4}}
           ],
         },
         {

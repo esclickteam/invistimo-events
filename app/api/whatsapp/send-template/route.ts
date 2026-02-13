@@ -28,8 +28,7 @@ type SendTemplateRequestBody = {
   eventTitle?: string; // {{1}}
   eventDate?: string; // {{2}}
   eventLocation?: string; // {{3}}
-  eventTime?: string; // {{4}}
-  rsvpLink?: string; // קישור אישי מלא (הכפתור משתמש ממנו ב-inviteId)
+  rsvpLink?: string; // קישור אישי מלא (הכפתור משתמש ממנו ב-suffix)
 
   // HEADER
   headerImageUrl?: string; // URL ציבורי (Cloudinary)
@@ -130,8 +129,6 @@ function validateByTemplate(
       return "Missing required field: eventDate";
     if (!isNonEmptyString(body.eventLocation))
       return "Missing required field: eventLocation";
-    if (!isNonEmptyString(body.eventTime))
-      return "Missing required field: eventTime";
     if (!isNonEmptyString(body.rsvpLink))
       return "Missing required field: rsvpLink";
   }
@@ -193,7 +190,6 @@ export async function POST(req: NextRequest) {
       body.eventTitle = safeTrim(body.eventTitle);
       body.eventDate = normalizeDateInput(body.eventDate);
       body.eventLocation = safeTrim(body.eventLocation);
-      body.eventTime = safeTrim(body.eventTime);
       body.rsvpLink = safeTrim(body.rsvpLink);
       body.headerImageUrl = safeTrim(body.headerImageUrl);
       body.eventId = safeTrim(body.eventId);
@@ -274,8 +270,7 @@ export async function POST(req: NextRequest) {
         eventTitle: body.eventTitle!,
         eventDate: body.eventDate!,
         eventLocation: body.eventLocation!,
-        eventTime: body.eventTime!,
-        rsvpLink: body.rsvpLink!, // הלינק המלא; בפונקציה עצמה נשלח לכפתור רק inviteId
+        rsvpLink: body.rsvpLink!, // לינק מלא; הפונקציה תגזור suffix לכפתור
         headerImageUrl,
         templateName,
         languageCode,

@@ -531,7 +531,6 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 
   const eventTitle = buildEventTitle(meta);
   const eventDate = formatEventDate(meta.rawDate);
-  const eventTime = meta.time || "";
   const eventLocation = meta.location || "";
 
   // אין הצגת לינק בגוף ההודעה (עובר בכפתור URL)
@@ -540,7 +539,6 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 
 📅 תאריך: ${eventDate}
 📍 מיקום: ${eventLocation}
-🕢 קבלת פנים: ${eventTime}
 
 לאישור הגעה לחצו על הכפתור למטה 👇
 
@@ -662,7 +660,6 @@ const sendWhatsApp = async (guest: Guest) => {
 const eventTitle = buildEventTitle(meta);
 const rawDate = meta.rawDate;
 const eventDate = formatEventDate(rawDate);
-const eventTime = meta.time || "";
 const eventLocation = meta.location || "";
 const headerImageUrl = meta.imageUrl || "";
 const eventType = meta.eventType || "האירוע";
@@ -705,10 +702,7 @@ console.groupEnd();
       alert("חסר מיקום אירוע (eventLocation) בהזמנה");
       return;
     }
-    if (!eventTime) {
-      alert("חסרה שעת קבלת פנים (eventTime) בהזמנה");
-      return;
-    }
+    
     if (!headerImageUrl || !headerImageUrl.startsWith("http")) {
   alert("תמונת ההזמנה חייבת להיות URL ציבורי (לא base64)");
   return;
@@ -737,7 +731,6 @@ console.groupEnd();
         eventTitle: String(eventTitle),
         eventDate: String(eventDate),
         eventLocation: String(eventLocation),
-        eventTime: String(eventTime),
         rsvpLink: String(rsvpLink),
         headerImageUrl: String(headerImageUrl),
 
