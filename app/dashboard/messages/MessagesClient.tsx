@@ -686,6 +686,20 @@ const rawDate =
 
 const eventDate = formatEventDate(rawDate);
 
+console.group("📅 EVENT DATE DEBUG");
+
+console.log("rawDate (source of truth):", rawDate);
+console.log("typeof rawDate:", typeof rawDate);
+
+console.log("eventDate (after format):", eventDate);
+console.log("typeof eventDate:", typeof eventDate);
+
+console.log("Boolean(rawDate):", Boolean(rawDate));
+console.log("Boolean(eventDate):", Boolean(eventDate));
+
+console.groupEnd();
+
+
 
 
   const eventTime =
