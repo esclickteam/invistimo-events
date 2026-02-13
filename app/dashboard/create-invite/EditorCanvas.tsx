@@ -402,73 +402,54 @@ const startEditText = (obj: TextObject) => {
      🆕 הוספת טקסט חדש + פתיחת עריכה
   ========================================================= */
   addText: () => {
-  const newId = `text-${Date.now()}`;
+    const newId = `text-${Date.now()}`;
+    const BOX_WIDTH = 240;
 
-  const BOX_WIDTH = 240;
+    const newText: TextObject = {
+      id: newId,
+      type: "text",
+      text: "הקלד טקסט כאן",
+      x: (CANVAS_WIDTH - BOX_WIDTH) / 2,
+      y: 200,
+      width: BOX_WIDTH,
+      height: 40 * 1.3,
+      fontFamily: "Heebo",
+      fontSize: 40,
+      fill: "#000000",
+      align: "center",
+      lineHeight: 1.2,
+    };
 
-  const newText: TextObject = {
-    id: newId,
-    type: "text",
-    text: "הקלד טקסט כאן",
-    x: (CANVAS_WIDTH - BOX_WIDTH) / 2,
-    y: 200,
-    width: BOX_WIDTH,    
-    height: 40 * 1.3,        // ✅ קריטי
-    fontFamily: "Heebo",
-    fontSize: 40,
-    fill: "#000000",
-    align: "center",
-    lineHeight: 1.2,
-  };
+    useEditorStore.setState((state: any) => ({
+      objects: [...state.objects, newText],
+      selectedId: newId,
+    }));
 
-  useEditorStore.setState((state: any) => ({
-    objects: [...state.objects, newText],
-    selectedId: newId,
-  }));
+    setTimeout(() => {
+      const node = stageRef.current?.findOne(`.${newId}`);
+      if (!node) return;
 
-  // פתיחת עריכה אוטומטית
-  setTimeout(() => {
-    const node = stageRef.current?.findOne(`.${newId}`);
-    if (!node) return;
+      const stageBox = stageRef.current.container().getBoundingClientRect();
+      const r = node.getClientRect({ skipShadow: true, skipStroke: true });
 
-    const stageBox = stageRef.current.container().getBoundingClientRect();
-    const r = node.getClientRect({ skipShadow: true, skipStroke: true });
+      setTextInputRect({
+        x: stageBox.left + r.x * scale,
+        y: stageBox.top + r.y * scale,
+        width: r.width * scale,
+        height: r.height * scale,
+      });
 
-    setTextInputRect({
-      x: stageBox.left + r.x * scale,
-      y: stageBox.top + r.y * scale,
-      width: r.width * scale,
-      height: r.height * scale,
-    });
-
-    setEditingTextId(newId);
-  }, 50);
-},
-
-
-  /* =========================================================
-     🔥 קריטי למובייל – חיבור Toolbar / Sheet לקנבס
-  ========================================================= */
-  updateSelected: (patch: Record<string, any> | null) => {
-    const id = useEditorStore.getState().selectedId;
-    if (!id || !patch) return;
-
-    updateObject(id, patch);
-
+      setEditingTextId(newId);
+    }, 50);
   },
 
   /* =========================================================
-     בחירה חיצונית (Mobile / Sheet)
+     🔥 עדכון אובייקט נבחר
   ========================================================= */
-  selectById: (id: string) => {
-    setSelected(id);
-
-    const obj =
-  (useEditorStore
-    .getState()
-    .objects.find((o: any) => o.id === id) as EditorObject | undefined) ?? null;
-
-    onSelect(obj);
+  updateSelected: (patch: Record<string, any>) => {
+    const id = useEditorStore.getState().selectedId;
+    if (!id) return;
+    updateObject(id, patch);
   },
 
   /* =========================================================
@@ -477,7 +458,6 @@ const startEditText = (obj: TextObject) => {
   deleteSelected: () => {
     const id = useEditorStore.getState().selectedId;
     if (!id) return;
-
     removeObject(id);
     setSelected(null);
     onSelect(null);
@@ -489,29 +469,38 @@ const startEditText = (obj: TextObject) => {
   uploadBackground: handleUploadBackground,
 
   /* =========================================================
-     ייצוא קנבס
+     JSON של הקנבס
   ========================================================= */
   getCanvasData: () => ({
-  width: CANVAS_WIDTH,
-  height: CANVAS_HEIGHT,
-  objects: useEditorStore.getState().objects.map((o) => ({
-    ...o,
-    image: undefined,
-  })),
-}),
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    objects: useEditorStore.getState().objects.map((o) => ({
+      ...o,
+      image: undefined,
+    })),
+  }),
 
-zoomIn: () => {
-  setScale(Math.min(scale + 0.1, 3));
-},
+  /* =========================================================
+     ⭐️⭐️ PREVIEW IMAGE – זה הקריטי ⭐️⭐️
+  ========================================================= */
+  getPreviewImage: () => {
+    const stage = stageRef.current;
+    if (!stage) return "";
 
-zoomOut: () => {
-  setScale(Math.max(scale - 0.1, 0.3));
-},
+    return stage.toDataURL({
+      pixelRatio: 2,
+      mimeType: "image/png",
+    });
+  },
 
-resetZoom: () => {
-  setScale(1);
-},
+  /* =========================================================
+     ZOOM
+  ========================================================= */
+  zoomIn: () => setScale(Math.min(scale + 0.1, 3)),
+  zoomOut: () => setScale(Math.max(scale - 0.1, 0.3)),
+  resetZoom: () => setScale(1),
 }));
+
 
 
 
