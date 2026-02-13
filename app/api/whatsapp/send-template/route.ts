@@ -1,6 +1,4 @@
-// app/api/whatsapp/send-template/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
@@ -21,18 +19,20 @@ type TemplateName =
 
 type SendTemplateRequestBody = {
   // common
-  eventId?: string; // RSVP בלבד חייב
+  eventId?: string; // חובה ל-RSVP
   to?: string;
   templateName?: TemplateName;
   languageCode?: string; // default: he
 
-  // RSVP
-  eventTitle?: string; // {{1}}
-  eventDate?: string; // {{2}}
-  eventLocation?: string; // {{3}}
-  eventTime?: string; // {{4}}
-  rsvpLink?: string; // {{5}}
-  headerImageUrl?: string; // http(s) / data:image...
+  // RSVP (BODY)
+  eventTitle?: string;     // {{1}}
+  eventDate?: string;      // {{2}}
+  eventLocation?: string;  // {{3}}
+  eventTime?: string;      // {{4}}
+  rsvpLink?: string;       // {{5}}
+
+  // HEADER
+  headerImageUrl?: string; // URL ציבורי (Cloudinary)
 
   // table / thank you
   name?: string;
@@ -63,10 +63,6 @@ function isValidHttpUrl(url: string): boolean {
   }
 }
 
-function isDataImageUri(value: string): boolean {
-  return /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
-}
-
 function isTemplateName(value: unknown): value is TemplateName {
   return (
     value === "rsvp_invitation_media" ||
@@ -75,7 +71,7 @@ function isTemplateName(value: unknown): value is TemplateName {
   );
 }
 
-/** נרמול תאריך: אם parseable -> פורמט he-IL, אחרת משאיר כמו שהוא */
+/** נרמול תאריך לתצוגה */
 function normalizeDateInput(v: unknown): string {
   const s = safeTrim(v);
   if (!s) return "";
@@ -88,120 +84,18 @@ function normalizeDateInput(v: unknown): string {
   return s;
 }
 
-/**
- * מושך תמונת preview מתוך canvasData במבנים שונים
- */
-function extractPreviewImageFromCanvas(canvasData: unknown): string {
-  try {
-    if (!canvasData || typeof canvasData !== "object") return "";
+/* ================= DB HELPERS ================= */
 
-    const data = canvasData as Record<string, unknown>;
+async function findInvitationHeaderImage(eventId: string) {
+  const query = mongoose.Types.ObjectId.isValid(eventId)
+    ? { eventId: new mongoose.Types.ObjectId(eventId) }
+    : { eventId };
 
-    if (isNonEmptyString(data.previewImage)) return data.previewImage.trim();
-    if (isNonEmptyString(data.imageUrl)) return data.imageUrl.trim();
-
-    const objects = Array.isArray(data.objects) ? data.objects : [];
-    const elements = Array.isArray(data.elements) ? data.elements : [];
-    const items = [...objects, ...elements];
-
-    const img = items.find((obj) => {
-      if (!obj || typeof obj !== "object") return false;
-
-      const rec = obj as Record<string, unknown>;
-      const type = String(rec.type ?? "").toLowerCase();
-      const url =
-        typeof rec.url === "string"
-          ? rec.url
-          : typeof rec.src === "string"
-          ? rec.src
-          : "";
-
-      return type === "image" && url.trim().length > 0;
-    }) as Record<string, unknown> | undefined;
-
-    if (!img) return "";
-
-    const url =
-      typeof img.url === "string"
-        ? img.url
-        : typeof img.src === "string"
-        ? img.src
-        : "";
-
-    return url.trim();
-  } catch {
-    return "";
-  }
-}
-
-function configureCloudinary() {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error(
-      "Missing Cloudinary env vars: CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET"
-    );
-  }
-
-  cloudinary.config({
-    cloud_name: cloudName,
-    api_key: apiKey,
-    api_secret: apiSecret,
-  });
-}
-
-async function resolveHeaderImageUrl(
-  rawValue: string,
-  eventId: string
-): Promise<{ finalUrl: string; uploaded: boolean }> {
-  const value = rawValue.trim();
-  if (!value) throw new Error("Missing header image value");
-
-  if (isValidHttpUrl(value)) {
-    return { finalUrl: value, uploaded: false };
-  }
-
-  if (isDataImageUri(value)) {
-    configureCloudinary();
-
-    const uploaded = await cloudinary.uploader.upload(value, {
-      folder: "invistimo/whatsapp-headers",
-      public_id: `event-${eventId}-${Date.now()}`,
-      overwrite: false,
-      resource_type: "image",
-    });
-
-    if (!uploaded?.secure_url) {
-      throw new Error("Cloudinary upload failed: missing secure_url");
-    }
-
-    return { finalUrl: uploaded.secure_url, uploaded: true };
-  }
-
-  throw new Error("Unsupported image format for header image");
-}
-
-async function findInvitationByEventId(eventId: string) {
-  // ניסיון 1: exact (string)
-  let invitation = await Invitation.findOne({ eventId })
-    .select("previewImage canvasData eventId")
-    .lean();
-
-  // ניסיון 2: ObjectId
-  if (!invitation && mongoose.Types.ObjectId.isValid(eventId)) {
-    invitation = await Invitation.findOne({
-      eventId: new mongoose.Types.ObjectId(eventId),
-    })
-      .select("previewImage canvasData eventId")
-      .lean();
-  }
-
-  return invitation as
+  return (await Invitation.findOne(query)
+    .select("headerImageUrl eventId")
+    .lean()) as
     | {
-        previewImage?: string;
-        canvasData?: unknown;
+        headerImageUrl?: string;
         eventId?: string | mongoose.Types.ObjectId;
       }
     | null;
@@ -215,7 +109,6 @@ function validateCommon(
 ): string | null {
   if (!isNonEmptyString(body.to)) return "Missing required field: to";
 
-  // eventId חובה רק ל-RSVP (כי יש fallback לתמונה מההזמנה)
   if (
     templateName === "rsvp_invitation_media" &&
     !isNonEmptyString(body.eventId)
@@ -241,13 +134,6 @@ function validateByTemplate(
       return "Missing required field: eventTime";
     if (!isNonEmptyString(body.rsvpLink))
       return "Missing required field: rsvpLink";
-
-    if (isNonEmptyString(body.headerImageUrl)) {
-      const val = body.headerImageUrl.trim();
-      if (!isValidHttpUrl(val) && !isDataImageUri(val)) {
-        return "Invalid headerImageUrl";
-      }
-    }
   }
 
   if (templateName === "table_number_update") {
@@ -291,7 +177,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1) template + language
+    /* 1️⃣ Template + Language */
     const templateResult = resolveTemplateAndLang(body);
     if (!templateResult.ok) {
       return NextResponse.json(
@@ -302,7 +188,7 @@ export async function POST(req: NextRequest) {
 
     const { templateName, languageCode } = templateResult;
 
-    // 2) normalize fields לפני validation
+    /* 2️⃣ Normalize */
     if (templateName === "rsvp_invitation_media") {
       body.eventTitle = safeTrim(body.eventTitle);
       body.eventDate = normalizeDateInput(body.eventDate);
@@ -326,7 +212,7 @@ export async function POST(req: NextRequest) {
       body.to = safeTrim(body.to);
     }
 
-    // 3) common validation (depends on template)
+    /* 3️⃣ Validation */
     const commonError = validateCommon(body, templateName);
     if (commonError) {
       return NextResponse.json(
@@ -335,7 +221,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4) template-specific validation
     const templateError = validateByTemplate(body, templateName);
     if (templateError) {
       return NextResponse.json(
@@ -346,63 +231,34 @@ export async function POST(req: NextRequest) {
 
     await db();
 
-    /* ---------- RSVP FLOW (with image) ---------- */
+    /* ================= RSVP ================= */
     if (templateName === "rsvp_invitation_media") {
-      let rawHeaderImage = safeTrim(body.headerImageUrl);
-      let invitationDoc: {
-        previewImage?: string;
-        canvasData?: unknown;
-        eventId?: string | mongoose.Types.ObjectId;
-      } | null = null;
+      let headerImageUrl = body.headerImageUrl || "";
 
-      // fallback to invitation image only if no explicit headerImageUrl
-      if (!rawHeaderImage) {
-        invitationDoc = await findInvitationByEventId(body.eventId!);
+      // fallback רק לשדה headerImageUrl מה-DB
+      if (!headerImageUrl) {
+        const invitation = await findInvitationHeaderImage(body.eventId!);
 
-        if (!invitationDoc) {
+        if (!invitation || !isNonEmptyString(invitation.headerImageUrl)) {
           return NextResponse.json(
-            { success: false, error: "INVITATION_NOT_FOUND_FOR_EVENT" },
-            { status: 404 }
+            {
+              success: false,
+              error: "MISSING_HEADER_IMAGE_URL_FOR_EVENT",
+            },
+            { status: 400 }
           );
         }
 
-        const fromPreview = isNonEmptyString(invitationDoc.previewImage)
-          ? invitationDoc.previewImage.trim()
-          : "";
-
-        const fromCanvas = extractPreviewImageFromCanvas(invitationDoc.canvasData);
-
-        rawHeaderImage = fromPreview || fromCanvas || "";
+        headerImageUrl = invitation.headerImageUrl.trim();
       }
 
-      if (!rawHeaderImage) {
+      if (!isValidHttpUrl(headerImageUrl)) {
         return NextResponse.json(
           {
             success: false,
-            error:
-              "MISSING_INVITATION_IMAGE: No previewImage/canvas image found for this event",
+            error: "headerImageUrl must be a public https URL",
           },
           { status: 400 }
-        );
-      }
-
-      const { finalUrl, uploaded } = await resolveHeaderImageUrl(
-        rawHeaderImage,
-        body.eventId!
-      );
-
-      if (!isValidHttpUrl(finalUrl)) {
-        return NextResponse.json(
-          { success: false, error: "Invalid resolved header image URL" },
-          { status: 400 }
-        );
-      }
-
-      // if fallback used + image uploaded from data-uri => store public URL
-      if (uploaded && !safeTrim(body.headerImageUrl)) {
-        await Invitation.updateOne(
-          { eventId: invitationDoc?.eventId ?? body.eventId },
-          { $set: { previewImage: finalUrl } }
         );
       }
 
@@ -413,7 +269,7 @@ export async function POST(req: NextRequest) {
         eventLocation: body.eventLocation!,
         eventTime: body.eventTime!,
         rsvpLink: body.rsvpLink!,
-        headerImageUrl: finalUrl,
+        headerImageUrl,
         templateName,
         languageCode,
       });
@@ -423,15 +279,14 @@ export async function POST(req: NextRequest) {
           success: true,
           templateName,
           languageCode,
-          headerImageUrlUsed: finalUrl,
-          imageUploadedToCloudinary: uploaded,
+          headerImageUrlUsed: headerImageUrl,
           providerResponse,
         },
         { status: 200 }
       );
     }
 
-    /* ---------- TABLE FLOW ---------- */
+    /* ================= TABLE ================= */
     if (templateName === "table_number_update") {
       const providerResponse = await sendTableNumberTemplate({
         to: body.to!,
@@ -443,17 +298,12 @@ export async function POST(req: NextRequest) {
       });
 
       return NextResponse.json(
-        {
-          success: true,
-          templateName,
-          languageCode,
-          providerResponse,
-        },
+        { success: true, templateName, languageCode, providerResponse },
         { status: 200 }
       );
     }
 
-    /* ---------- THANK-YOU FLOW ---------- */
+    /* ================= THANK YOU ================= */
     const providerResponse = await sendThankYouTemplate({
       to: body.to!,
       name: body.name!,
@@ -462,36 +312,16 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      {
-        success: true,
-        templateName,
-        languageCode,
-        providerResponse,
-      },
+      { success: true, templateName, languageCode, providerResponse },
       { status: 200 }
     );
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Unknown server error";
 
-    const isClientError =
-      message.includes("Missing required field") ||
-      message.includes("Invalid phone number") ||
-      message.includes("Invalid rsvpLink") ||
-      message.includes("Invalid headerImageUrl") ||
-      message.includes("Invalid resolved header image URL") ||
-      message.includes("Unsupported image format") ||
-      message.includes("MISSING_INVITATION_IMAGE") ||
-      message.includes("INVITATION_NOT_FOUND_FOR_EVENT") ||
-      message.includes("Missing Cloudinary env vars") ||
-      message.includes("Invalid JSON body") ||
-      message.includes("WhatsApp template send failed (400)") ||
-      message.toLowerCase().includes("template") ||
-      message.toLowerCase().includes("parameter");
-
     return NextResponse.json(
       { success: false, error: message },
-      { status: isClientError ? 400 : 500 }
+      { status: 500 }
     );
   }
 }

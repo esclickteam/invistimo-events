@@ -9,79 +9,14 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
-   Helpers
-============================================================ */
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-/**
- * מנסה לחלץ תמונת פריוויו מתוך canvasData
- * תומך במבנים נפוצים:
- * - canvasData.objects (Fabric/Konva-like)
- * - canvasData.elements
- * מחפש אובייקט מסוג image עם url/string
- */
-function extractPreviewImageFromCanvas(canvasData: any): string {
-  try {
-    if (!canvasData || typeof canvasData !== "object") return "";
-
-    const candidates: any[] = [];
-
-    if (Array.isArray(canvasData.objects)) {
-      candidates.push(...canvasData.objects);
-    }
-
-    if (Array.isArray(canvasData.elements)) {
-      candidates.push(...canvasData.elements);
-    }
-
-    // חיפוש ישיר בשדות נפוצים אם קיימים
-    if (isNonEmptyString(canvasData.previewImage)) {
-      return canvasData.previewImage.trim();
-    }
-    if (isNonEmptyString(canvasData.imageUrl)) {
-      return canvasData.imageUrl.trim();
-    }
-
-    const firstImage = candidates.find((obj) => {
-      if (!obj || typeof obj !== "object") return false;
-      const type = String(obj.type || "").toLowerCase();
-      const url =
-        typeof obj.url === "string"
-          ? obj.url
-          : typeof obj.src === "string"
-          ? obj.src
-          : "";
-      return type === "image" && url.trim().length > 0;
-    });
-
-    if (!firstImage) return "";
-
-    const url =
-      typeof firstImage.url === "string"
-        ? firstImage.url
-        : typeof firstImage.src === "string"
-        ? firstImage.src
-        : "";
-
-    return url.trim();
-  } catch {
-    return "";
-  }
-}
-
-/* ============================================================
    POST — יצירת הזמנה
-   ✅ אם אין eventId, נזהה אירוע קיים או ניצור חדש אוטומטית
+   ❗️ לא שומר previewImage
 ============================================================ */
 export async function POST(req: Request) {
   try {
     await db();
 
-    /* ===============================
-       🔐 אימות משתמש
-    =============================== */
+    /* ================= AUTH ================= */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -89,11 +24,10 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-    const userId = auth.userId;
 
-    /* ===============================
-       🧠 טעינת משתמש
-    =============================== */
+    const userId = String(auth.userId);
+
+    /* ================= USER ================= */
     const user = await User.findById(userId)
       .select("email createdByProducer")
       .lean();
@@ -105,31 +39,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ producerId לפי מצב עסקי
-    // - אם היוצר הוא מפיק → הוא ה-producerId
-    // - אם זה לקוח שנוצר ע"י מפיק → producerId = user.createdByProducer
-    // - אחרת → null
     const producerId =
       auth.role === "producer" ? userId : user.createdByProducer || null;
 
-    /* ===============================
-       📦 גוף הבקשה
-    =============================== */
-    const body = await req.json().catch(() => ({} as any));
-    const { eventId, canvasData, previewImage } = body;
+    /* ================= BODY ================= */
+    const body = await req.json().catch(() => ({}));
+    const { eventId, canvasData } = body;
 
-    // ✅ תמונת פריוויו נפתרת אוטומטית:
-    // 1) previewImage מהבקשה
-    // 2) מתוך canvasData
-    // 3) fallback ריק
-    const resolvedPreviewImage =
-      (typeof previewImage === "string" && previewImage.trim()) ||
-      extractPreviewImageFromCanvas(canvasData) ||
-      "";
-
-    /* ===============================
-       🎯 נזהה או ניצור Event
-    =============================== */
+    /* ================= EVENT ================= */
     let event: any = null;
 
     if (eventId) {
@@ -148,26 +65,20 @@ export async function POST(req: Request) {
           time: "00:00",
           maxGuests: 100,
           location: {},
-          createdAt: new Date(),
-          updatedAt: new Date(),
         });
 
         event = createdEvent.toObject();
-        console.log("✅ נוצר אירוע חדש אוטומטית:", createdEvent._id);
       }
     }
 
-    if (!event) {
+    if (!event?._id) {
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    /* ===============================
-       🔒 בדיקה אם כבר קיימת הזמנה לאירוע הזה
-       ✅ גם אם ההזמנה משויכת למפיק (producerId)
-    =============================== */
+    /* ================= EXISTING INVITATION ================= */
     const existing = await Invitation.findOne({
       eventId: event._id,
       ownerId: userId,
@@ -181,23 +92,15 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ===============================
-       🧮 חישוב מגבלות
-    =============================== */
+    /* ================= CREATE INVITATION ================= */
     const maxGuests = Number(event.maxGuests) || 100;
     const maxMessages = maxGuests * 3;
-    const shareId = nanoid(10);
 
-    /* ===============================
-       🧾 יצירת הזמנה חדשה
-    =============================== */
-    const newInvite = await Invitation.create({
+    const invitation = await Invitation.create({
       ownerId: userId,
-      producerId, // ✅ תיקון לוגיקת מפיק/לקוח
-
+      producerId,
       eventId: event._id,
 
-      // 📸 snapshot מה־Event
       title: event.title || "הזמנה חדשה",
       eventType: event.eventType || "",
       eventDate: event.date || null,
@@ -205,29 +108,16 @@ export async function POST(req: Request) {
       location: event.location || {},
 
       canvasData: canvasData || {},
-      previewImage: resolvedPreviewImage, // ✅ התיקון החשוב
+      previewImage: "", // ✅ תמיד ריק כאן
 
-      shareId,
+      shareId: nanoid(10),
       guests: [],
-
       maxGuests,
       maxMessages,
     });
 
-    const cleanInvite = JSON.parse(JSON.stringify(newInvite));
-
-    console.log("🔥 INVITATION CREATED:", {
-      inviteId: cleanInvite._id,
-      eventId: event._id,
-      ownerId: userId,
-      producerId: cleanInvite.producerId ?? null,
-      role: auth.role,
-      userCreatedByProducer: user.createdByProducer ?? null,
-      previewImageSaved: !!cleanInvite.previewImage,
-    });
-
     return NextResponse.json(
-      { success: true, invitation: cleanInvite, created: true },
+      { success: true, invitation, created: true },
       { status: 201 }
     );
   } catch (err) {
@@ -254,9 +144,8 @@ export async function GET(req: Request) {
       );
     }
 
-    const userId = auth.userId;
+    const userId = String(auth.userId);
 
-    // ✅ מאפשר ללקוח שנוצר ע"י מפיק לראות/לגשת
     const user = await User.findById(userId)
       .select("createdByProducer")
       .lean();
@@ -273,9 +162,6 @@ export async function GET(req: Request) {
       );
     }
 
-    // ✅ מחזירים אם המשתמש הוא owner
-    // או אם הוא המפיק עצמו
-    // או אם הוא לקוח שנוצר ע"י מפיק וההזמנה משויכת לאותו מפיק
     const invitation = await Invitation.findOne({
       eventId,
       $or: [
@@ -292,7 +178,7 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, invitation }, { status: 200 });
+    return NextResponse.json({ success: true, invitation });
   } catch (err) {
     console.error("❌ Error fetching invitation:", err);
     return NextResponse.json(

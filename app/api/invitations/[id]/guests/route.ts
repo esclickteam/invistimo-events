@@ -131,20 +131,26 @@ export async function POST(
 
       // 4️⃣ עכשיו ליצור Invitation עם eventId תקין
       invitation = await Invitation.create({
-        ownerId: userId,
-        producerId: producerId,
-        eventId: event._id,
-        title: "הזמנה חדשה",
-        eventType: "wedding",
-        eventDate: (event as any).date || null,
-        eventTime: (event as any).time || "",
-        canvasData: {},
-        previewImage: "",
-        shareId: nanoid(10),
-        maxGuests: HARD_GUEST_CAP,
-        sentSmsCount: 0,
-        guests: [],
-      });
+  ownerId: userId,
+  producerId: producerId,
+  eventId: event._id,
+
+  // ✅ SNAPSHOT אמיתי מהאירוע
+  title: event.title || "הזמנה חדשה",
+  eventType: event.eventType || "",
+  eventDate: event.date || null,
+  eventTime: event.time || "",
+  location: event.location || {},   // ⭐ קריטי ל־WhatsApp
+
+  canvasData: {},
+  previewImage: "",
+
+  shareId: nanoid(10),
+  maxGuests: HARD_GUEST_CAP,
+  sentSmsCount: 0,
+  guests: [],
+});
+
 
       console.log("✅ Invitation created successfully with eventId:", event._id);
     }

@@ -25,8 +25,7 @@ const InvitationSchema = new Schema(
       index: true,
     },
 
-    /* ================= PRODUCER (NEW) ================= */
-    // ⭐ מי המפיק שמנהל את ההזמנה/אירוע (לא חובה תמיד)
+    /* ================= PRODUCER ================= */
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -39,6 +38,7 @@ const InvitationSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
       required: true,
+      index: true,
     },
 
     /* ================= EVENT SNAPSHOT ================= */
@@ -76,7 +76,22 @@ const InvitationSchema = new Schema(
       default: {},
     },
 
+    /**
+     * 🖼️ previewImage
+     * שימוש: תצוגה באתר בלבד
+     * פורמט: base64 / canvas export
+     */
     previewImage: {
+      type: String,
+      default: "",
+    },
+
+    /**
+     * 📲 headerImageUrl
+     * שימוש: WhatsApp Media Template בלבד
+     * פורמט: URL ציבורי (Cloudinary / HTTPS)
+     */
+    headerImageUrl: {
       type: String,
       default: "",
     },
