@@ -1,4 +1,5 @@
 // lib/whatsapp/sendTableNumberTemplate.ts
+
 type SendTableNumberTemplateInput = {
   to: string;
   name: string;       // {{1}}
@@ -6,6 +7,12 @@ type SendTableNumberTemplateInput = {
   eventType: string;  // {{3}}  (חתונה/ברית/בריתה...)
   templateName?: string;
   languageCode?: string;
+};
+
+type D360SuccessResponse = {
+  messages?: Array<{ id?: string }>;
+  contacts?: Array<{ input?: string; wa_id?: string }>;
+  [key: string]: unknown;
 };
 
 const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
@@ -16,34 +23,76 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
+/**
+ * נרמול מספרים בפורמט ישראל:
+ * 0501234567 -> 972501234567
+ * +972501234567 -> 972501234567
+ * 972501234567 -> 972501234567
+ */
 function normalizePhoneIL(phone: string): string {
-  const p = String(phone || "").replace(/[^\d]/g, "");
+  const digits = String(phone ?? "").replace(/[^\d+]/g, "").trim();
+  if (!digits) return "";
+
+  // הסרת "+"
+  const noPlus = digits.replace(/^\+/, "");
+  // השארת ספרות בלבד
+  const p = noPlus.replace(/\D/g, "");
+
   if (!p) return "";
   if (p.startsWith("972")) return p;
   if (p.startsWith("0")) return `972${p.slice(1)}`;
+
+  // fallback: אם כבר בלי 0 ובלי 972, נשאיר כמו שהוא
   return p;
 }
 
-function assertRequired(input: SendTableNumberTemplateInput) {
-  if (!isNonEmptyString(input.to)) throw new Error("Missing required field: to");
-  if (!isNonEmptyString(input.name)) throw new Error("Missing required field: name");
-  if (!isNonEmptyString(input.tableName)) throw new Error("Missing required field: tableName");
-  if (!isNonEmptyString(input.eventType)) throw new Error("Missing required field: eventType");
+function assertRequired(input: SendTableNumberTemplateInput): void {
+  if (!isNonEmptyString(input.to)) {
+    throw new Error("Missing required field: to");
+  }
+  if (!isNonEmptyString(input.name)) {
+    throw new Error("Missing required field: name");
+  }
+  if (!isNonEmptyString(input.tableName)) {
+    throw new Error("Missing required field: tableName");
+  }
+  if (!isNonEmptyString(input.eventType)) {
+    throw new Error("Missing required field: eventType");
+  }
 }
 
-export async function sendTableNumberTemplate(input: SendTableNumberTemplateInput) {
-  assertRequired(input);
-
+function assertEnv(): string {
   const apiKey = process.env.D360_API_KEY;
-  if (!apiKey) throw new Error("Missing env var: D360_API_KEY");
+  if (!isNonEmptyString(apiKey)) {
+    throw new Error("Missing env var: D360_API_KEY");
+  }
+  return apiKey.trim();
+}
+
+function sanitizeTemplateName(name?: string): string {
+  const value = (name ?? DEFAULT_TEMPLATE_NAME).trim();
+  return value || DEFAULT_TEMPLATE_NAME;
+}
+
+function sanitizeLanguageCode(code?: string): string {
+  const value = (code ?? DEFAULT_LANGUAGE_CODE).trim();
+  return value || DEFAULT_LANGUAGE_CODE;
+}
+
+export async function sendTableNumberTemplate(
+  input: SendTableNumberTemplateInput
+): Promise<D360SuccessResponse> {
+  assertRequired(input);
+  const apiKey = assertEnv();
 
   const to = normalizePhoneIL(input.to);
-  if (!isNonEmptyString(to) || to.length < 10) {
+  // בישראל תקין בדרך כלל 12 ספרות עם 972 + 9 ספרות מקומיות
+  if (!isNonEmptyString(to) || to.length < 11 || to.length > 15) {
     throw new Error(`Invalid phone number after normalization: "${input.to}"`);
   }
 
-  const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
-  const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
+  const templateName = sanitizeTemplateName(input.templateName);
+  const languageCode = sanitizeLanguageCode(input.languageCode);
 
   const payload = {
     messaging_product: "whatsapp",
@@ -74,7 +123,7 @@ export async function sendTableNumberTemplate(input: SendTableNumberTemplateInpu
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 
   if (!res.ok) {
     throw new Error(
@@ -82,5 +131,5 @@ export async function sendTableNumberTemplate(input: SendTableNumberTemplateInpu
     );
   }
 
-  return data;
+  return data as D360SuccessResponse;
 }

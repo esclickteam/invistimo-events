@@ -64,6 +64,9 @@ const SMS_PACKAGES = [
 
 /* ================= TEMPLATES ================= */
 
+
+
+
 const MESSAGE_TEMPLATES: Record<
   MessageType,
   { label: string; content: string; requiresTable?: boolean }
@@ -127,6 +130,8 @@ const MESSAGE_TEMPLATES: Record<
 const [sendingTest, setSendingTest] = useState(false);
 const MAX_TEST_SMS = 10;
 const [testSmsUsed, setTestSmsUsed] = useState<number>(0);
+const [sendingMain, setSendingMain] = useState(false);
+
 
 const [preview, setPreview] = useState<{
   text: string;
@@ -348,14 +353,14 @@ useEffect(() => {
    const hasSmsBalance =
     balance !== null && balance.remainingMessages > 0;
 
-  const partsPerGuest = channel === "sms" ? (preview?.parts ?? 1) : 0;
 
 const disableSend =
   guestsToSend.length === 0 ||
-  preview?.blocked ||
+  !!preview?.blocked ||
   (channel === "sms" &&
     (!balance ||
       balance.remainingMessages < guestsToSend.length * (preview?.parts ?? 1)));
+
 
 
 
@@ -480,69 +485,122 @@ setPreview({
 
 /* ================= SEND ================= */
 
-const sendWhatsApp = (guest: Guest) => {
+const sendWhatsApp = async (guest: Guest) => {
   if (!invitation) return;
 
   const cleanPhone =
-  typeof guest.phone === "string"
-    ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
-    : "";
+    typeof guest.phone === "string"
+      ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
+      : "";
 
-if (!cleanPhone) {
-  alert("מספר טלפון לא תקין");
-  return;
-}
+  if (!cleanPhone) {
+    alert("מספר טלפון לא תקין");
+    return;
+  }
 
-const phone = `972${cleanPhone}`;
+  const to = `972${cleanPhone}`;
 
+  // התאמה בין התבנית ב-UI לשם התבנית ב-Meta
+  const templateNameMap: Record<MessageType, string> = {
+    rsvp: "rsvp_invitation_media",
+    table: "table_number_update",
+    custom: "thank_you_message",
+  };
 
-  // ✅ תמיד נשלח את ההודעה המוכנה מ-buildMessage (כולל token)
-  let text = buildMessage(guest);
+  const selectedTemplateName = templateNameMap[templateKey];
 
-  // ✅ מוריד אימוג'ים רק בוואטספ
-  const stripEmojis = (s: string) =>
-    s
-      .replace(/[\u{1F300}-\u{1FAFF}]/gu, "") // רוב האימוג'ים
-      .replace(/[\u{2600}-\u{26FF}]/gu, "")   // סמלים (☀️ וכו')
-      .replace(/[\u{2700}-\u{27BF}]/gu, "")   // דינגבאטס
-      .replace(/[\u{FE0F}\u{200D}]/gu, "");   // Variation Selector + ZWJ
+  const eventTitle =
+    invitation?.title ||
+    invitation?.eventTitle ||
+    invitation?.event?.title ||
+    "האירוע שלנו";
 
-  text = stripEmojis(text);
+  const eventDate =
+    invitation?.eventDate ||
+    invitation?.event?.date ||
+    invitation?.date ||
+    "";
 
-  // ❌ לא לנקות token — אחרת לא יזהה את האורח
-  // text = text.replace(/\?token=[A-Za-z0-9_-]+/g, "");
+  const eventTime =
+    invitation?.eventTime ||
+    invitation?.event?.time ||
+    invitation?.time ||
+    "";
 
-  // ✅ אם לא רוצים את השורה הזו בוואטספ (רק את הכותרת עצמה), נשאיר:
-  text = text.replace(/📍 ניווט לאירוע:\s*\n?/g, "");
+  const eventLocation =
+    invitation?.eventLocation?.address ||
+    invitation?.location?.address ||
+    invitation?.event?.location?.address ||
+    invitation?.eventLocation?.name ||
+    "";
 
-  // ניקוי תווים נסתרים
-  text = text.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "");
+  const eventType =
+    invitation?.eventType ||
+    invitation?.event?.eventType ||
+    "האירוע";
 
-  // ניקוי רווחים כפולים אחרי הורדת אימוג'ים
-  text = text.replace(/[ \t]{2,}/g, " ").trim();
+  const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-  const encodedText = encodeURIComponent(text);
+  const tableName =
+    guest.tableName ||
+    (typeof guest.tableNumber === "number" ? `שולחן ${guest.tableNumber}` : "");
 
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const url = isMobile
-    ? `whatsapp://send?phone=${phone}&text=${encodedText}`
-    : `https://wa.me/${phone}?text=${encodedText}`;
+  if (templateKey === "table" && !tableName) {
+    alert("לא ניתן לשלוח הודעת שולחן לאורח בלי שולחן משויך");
+    return;
+  }
 
-  window.open(url, "_blank", "noopener,noreferrer");
-};
+  const eventId =
+    invitation?.eventId ||
+    invitation?.event?._id ||
+    invitation?._id;
 
-const loadScheduledMessages = async () => {
+  if (!eventId) {
+    alert("חסר eventId לשליחת WhatsApp");
+    return;
+  }
+
   try {
-    const res = await fetch("/api/scheduled-messages");
-    const data = await res.json();
+    const res = await fetch("/api/whatsapp/send-template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        eventId,
+        to,
 
-    if (data.success) {
-      setScheduledMessages(data.messages);
+        templateName: selectedTemplateName,
+        languageCode: "he",
+
+        // rsvp template fields
+        eventTitle: String(eventTitle),
+        eventDate: String(eventDate),
+        eventLocation: String(eventLocation),
+        eventTime: String(eventTime),
+        rsvpLink: String(rsvpLink),
+
+        // table / thank_you fields
+        name: guest.name || "",
+        tableName: tableName || "",
+        eventType: String(eventType),
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data?.success) {
+      console.error("❌ WhatsApp template failed:", data);
+      alert(data?.error || "שליחת WhatsApp נכשלה");
+      return;
     }
+
+    alert("✅ הודעת WhatsApp נשלחה בהצלחה");
   } catch (err) {
-    console.error("❌ Failed to load scheduled messages", err);
+    console.error("❌ sendWhatsApp error:", err);
+    alert("❌ שגיאה בשליחת WhatsApp");
   }
 };
+
 
 
 
@@ -664,53 +722,83 @@ setTestSmsUsed((prev) =>
   }
 };
 
+const loadScheduledMessages = async () => {
+  try {
+    const res = await fetch("/api/scheduled-messages", {
+      credentials: "include",
+      cache: "no-store",
+    });
 
-  const sendToAll = () => {
-  if (isDemo) {
-    alert("🟡 זהו דמו בלבד\nכדי לשלוח הודעות אמיתיות יש לפתוח אירוע");
-    return;
-  }
+    const data = await res.json();
 
-  // 🎁 ולידציה – קישור מתנה באשראי
-  if (includeGiftLink && !giftLink) {
-    alert("נא להזין קישור למתנה באשראי");
-    return;
-  }
-
-  // ⏱️ ולידציה לתזמון
-  if (sendTiming === "scheduled" && !scheduledAt) {
-    alert("נא לבחור תאריך ושעה לשליחה");
-    return;
-  }
-
-  // ❗ לחסום תזמון ל־WhatsApp
-  if (channel === "whatsapp" && sendTiming === "scheduled") {
-    alert("תזמון זמין כרגע לשליחת SMS בלבד");
-    return;
-  }
-
-  // 🔒 ולידציה לתבניות שדורשות שולחן
-  if (channel === "sms") {
-    const template = MESSAGE_TEMPLATES[templateKey];
-
-    if (template.requiresTable && filter !== "withTable") {
-      alert("הודעת מספר שולחן ניתנת לשליחה רק למוזמנים עם שולחן");
-      return;
+    if (data?.success) {
+      setScheduledMessages(Array.isArray(data.messages) ? data.messages : []);
+    } else {
+      setScheduledMessages([]);
     }
-  }
-
-  // 🚀 שליחה בפועל
-  if (channel === "whatsapp") {
-    const guest = guests.find((g) => g._id === selectedGuestId);
-    if (!guest) {
-      alert("בחר/י מוזמן לשליחה");
-      return;
-    }
-    sendWhatsApp(guest);
-  } else {
-    sendSMS();
+  } catch (err) {
+    console.error("❌ Failed to load scheduled messages", err);
+    setScheduledMessages([]);
   }
 };
+
+
+
+  const sendToAll = async () => {
+  if (sendingMain) return;
+  setSendingMain(true);
+
+  try {
+    if (isDemo) {
+      alert("🟡 זהו דמו בלבד\nכדי לשלוח הודעות אמיתיות יש לפתוח אירוע");
+      return;
+    }
+
+    // 🎁 ולידציה – קישור מתנה באשראי
+    if (includeGiftLink && !giftLink) {
+      alert("נא להזין קישור למתנה באשראי");
+      return;
+    }
+
+    // ⏱️ ולידציה לתזמון
+    if (sendTiming === "scheduled" && !scheduledAt) {
+      alert("נא לבחור תאריך ושעה לשליחה");
+      return;
+    }
+
+    // ❗ לחסום תזמון ל־WhatsApp
+    if (channel === "whatsapp" && sendTiming === "scheduled") {
+      alert("תזמון זמין כרגע לשליחת SMS בלבד");
+      return;
+    }
+
+    // 🔒 ולידציה לתבניות שדורשות שולחן
+    if (channel === "sms") {
+      const template = MESSAGE_TEMPLATES[templateKey];
+
+      if (template.requiresTable && filter !== "withTable") {
+        alert("הודעת מספר שולחן ניתנת לשליחה רק למוזמנים עם שולחן");
+        return;
+      }
+    }
+
+    // 🚀 שליחה בפועל
+    if (channel === "whatsapp") {
+      const guest = guests.find((g) => g._id === selectedGuestId);
+      if (!guest) {
+        alert("בחר/י מוזמן לשליחה");
+        return;
+      }
+      await sendWhatsApp(guest);
+    } else {
+      await sendSMS();
+    }
+  } finally {
+    setSendingMain(false);
+  }
+};
+
+
 
 
 
@@ -1334,11 +1422,11 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
 
-      {/* כפתור שליחה ראשי */}
 {/* כפתור שליחה ראשי */}
 <button
   onClick={sendToAll}
   disabled={
+    sendingMain ||
     isDemo ||
     (channel === "whatsapp" ? !selectedGuestId : disableSend)
   }
@@ -1350,20 +1438,26 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     disabled:opacity-50 disabled:cursor-not-allowed
   "
 >
-  {isDemo
+  {sendingMain
+    ? "שולח..."
+    : isDemo
     ? "🔒 שליחה זמינה לאחר פתיחת אירוע"
     : channel === "whatsapp"
     ? "💬 שלח ב־WhatsApp"
     : `📩 שליחה (${guestsToSend.length})`}
 </button>
 
+
 {/* כפתור פתיחת מודאל הודעות מתוזמנות */}
 {channel === "sms" && !isDemo && (
   <button
+
     onClick={async () => {
-      await loadScheduledMessages();
-      setShowScheduled(true);
-    }}
+  await loadScheduledMessages();
+  setShowScheduled(true);
+}}
+
+
     className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
   >
     📅 צפייה בהודעות מתוזמנות

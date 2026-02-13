@@ -22,9 +22,13 @@ function normalizePhoneIL(phone: string): string {
   return p;
 }
 
-export async function sendThankYouTemplate(input: SendThankYouTemplateInput) {
+function assertRequired(input: SendThankYouTemplateInput) {
   if (!isNonEmptyString(input.to)) throw new Error("Missing required field: to");
   if (!isNonEmptyString(input.name)) throw new Error("Missing required field: name");
+}
+
+export async function sendThankYouTemplate(input: SendThankYouTemplateInput) {
+  assertRequired(input);
 
   const apiKey = process.env.D360_API_KEY;
   if (!apiKey) throw new Error("Missing env var: D360_API_KEY");
@@ -47,7 +51,7 @@ export async function sendThankYouTemplate(input: SendThankYouTemplateInput) {
       components: [
         {
           type: "body",
-          parameters: [{ type: "text", text: input.name.trim() }], // {{1}}
+          parameters: [{ type: "text", text: input.name.trim() }], // {{1}} בלבד
         },
       ],
     },

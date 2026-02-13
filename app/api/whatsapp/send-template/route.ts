@@ -4,26 +4,54 @@ import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
+
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+import { sendTableNumberTemplate } from "@/lib/whatsapp/sendTableNumberTemplate";
+import { sendThankYouTemplate } from "@/lib/whatsapp/sendThankYouTemplate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* ================= TYPES ================= */
+
+type TemplateName =
+  | "rsvp_invitation_media"
+  | "table_number_update"
+  | "thank_you_message";
+
 type SendTemplateRequestBody = {
+  // common
   eventId: string;
   to: string;
-  eventTitle: string;
-  eventDate: string;
-  eventLocation: string;
-  eventTime: string;
-  rsvpLink: string;
-  headerImageUrl?: string;
-  templateName?: string;
-  languageCode?: string;
+  templateName?: TemplateName; // default: rsvp_invitation_media
+  languageCode?: string; // default: he
+
+  // RSVP
+  eventTitle?: string;
+  eventDate?: string;
+  eventLocation?: string;
+  eventTime?: string;
+  rsvpLink?: string;
+  headerImageUrl?: string; // http(s) / data:image...
+
+  // table / thank you
+  name?: string;
+  tableName?: string;
+  eventType?: string;
 };
+
+type ClientValidationResult =
+  | { ok: true; templateName: TemplateName; languageCode: string }
+  | { ok: false; error: string };
+
+/* ================= HELPERS ================= */
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
+}
+
+function safeTrim(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
 }
 
 function isValidHttpUrl(url: string): boolean {
@@ -39,29 +67,44 @@ function isDataImageUri(value: string): boolean {
   return /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
 }
 
-function extractPreviewImageFromCanvas(canvasData: any): string {
+function isTemplateName(value: unknown): value is TemplateName {
+  return (
+    value === "rsvp_invitation_media" ||
+    value === "table_number_update" ||
+    value === "thank_you_message"
+  );
+}
+
+/**
+ * מושך תמונת preview מתוך canvasData במבנים שונים
+ */
+function extractPreviewImageFromCanvas(canvasData: unknown): string {
   try {
     if (!canvasData || typeof canvasData !== "object") return "";
 
-    if (isNonEmptyString(canvasData.previewImage)) return canvasData.previewImage.trim();
-    if (isNonEmptyString(canvasData.imageUrl)) return canvasData.imageUrl.trim();
+    const data = canvasData as Record<string, unknown>;
 
-    const items: any[] = [
-      ...(Array.isArray(canvasData.objects) ? canvasData.objects : []),
-      ...(Array.isArray(canvasData.elements) ? canvasData.elements : []),
-    ];
+    if (isNonEmptyString(data.previewImage)) return data.previewImage.trim();
+    if (isNonEmptyString(data.imageUrl)) return data.imageUrl.trim();
+
+    const objects = Array.isArray(data.objects) ? data.objects : [];
+    const elements = Array.isArray(data.elements) ? data.elements : [];
+    const items = [...objects, ...elements];
 
     const img = items.find((obj) => {
       if (!obj || typeof obj !== "object") return false;
-      const type = String(obj.type || "").toLowerCase();
+
+      const rec = obj as Record<string, unknown>;
+      const type = String(rec.type ?? "").toLowerCase();
       const url =
-        typeof obj.url === "string"
-          ? obj.url
-          : typeof obj.src === "string"
-          ? obj.src
+        typeof rec.url === "string"
+          ? rec.url
+          : typeof rec.src === "string"
+          ? rec.src
           : "";
+
       return type === "image" && url.trim().length > 0;
-    });
+    }) as Record<string, unknown> | undefined;
 
     if (!img) return "";
 
@@ -76,25 +119,6 @@ function extractPreviewImageFromCanvas(canvasData: any): string {
   } catch {
     return "";
   }
-}
-
-function validateBody(body: Partial<SendTemplateRequestBody>): string | null {
-  if (!isNonEmptyString(body.eventId)) return "Missing required field: eventId";
-  if (!isNonEmptyString(body.to)) return "Missing required field: to";
-  if (!isNonEmptyString(body.eventTitle)) return "Missing required field: eventTitle";
-  if (!isNonEmptyString(body.eventDate)) return "Missing required field: eventDate";
-  if (!isNonEmptyString(body.eventLocation)) return "Missing required field: eventLocation";
-  if (!isNonEmptyString(body.eventTime)) return "Missing required field: eventTime";
-  if (!isNonEmptyString(body.rsvpLink)) return "Missing required field: rsvpLink";
-
-  if (isNonEmptyString(body.headerImageUrl)) {
-    const val = body.headerImageUrl.trim();
-    if (!isValidHttpUrl(val) && !isDataImageUri(val)) {
-      return "Invalid headerImageUrl";
-    }
-  }
-
-  return null;
 }
 
 function configureCloudinary() {
@@ -164,6 +188,68 @@ async function findInvitationByEventId(eventId: string) {
   return invitation;
 }
 
+/* ================= VALIDATION ================= */
+
+function validateCommon(body: Partial<SendTemplateRequestBody>): string | null {
+  if (!isNonEmptyString(body.eventId)) return "Missing required field: eventId";
+  if (!isNonEmptyString(body.to)) return "Missing required field: to";
+  return null;
+}
+
+function validateByTemplate(
+  body: Partial<SendTemplateRequestBody>,
+  templateName: TemplateName
+): string | null {
+  if (templateName === "rsvp_invitation_media") {
+    if (!isNonEmptyString(body.eventTitle))
+      return "Missing required field: eventTitle";
+    if (!isNonEmptyString(body.eventDate))
+      return "Missing required field: eventDate";
+    if (!isNonEmptyString(body.eventLocation))
+      return "Missing required field: eventLocation";
+    if (!isNonEmptyString(body.eventTime))
+      return "Missing required field: eventTime";
+    if (!isNonEmptyString(body.rsvpLink))
+      return "Missing required field: rsvpLink";
+
+    if (isNonEmptyString(body.headerImageUrl)) {
+      const val = body.headerImageUrl.trim();
+      if (!isValidHttpUrl(val) && !isDataImageUri(val)) {
+        return "Invalid headerImageUrl";
+      }
+    }
+  }
+
+  if (templateName === "table_number_update") {
+  if (!isNonEmptyString(body.name)) return "Missing required field: name";
+  if (!isNonEmptyString(body.tableName))
+    return "Missing required field: tableName";
+  if (!isNonEmptyString(body.eventType))
+    return "Missing required field: eventType";
+}
+
+  if (templateName === "thank_you_message") {
+  if (!isNonEmptyString(body.name)) return "Missing required field: name";
+}
+
+
+  return null;
+}
+
+function resolveTemplateAndLang(
+  body: Partial<SendTemplateRequestBody>
+): ClientValidationResult {
+  if (!isTemplateName(body.templateName)) {
+    return { ok: false, error: "Missing or invalid templateName" };
+  }
+
+  const languageCode = safeTrim(body.languageCode) || "he";
+  return { ok: true, templateName: body.templateName, languageCode };
+}
+
+
+/* ================= ROUTE ================= */
+
 export async function POST(req: NextRequest) {
   try {
     let body: Partial<SendTemplateRequestBody>;
@@ -177,87 +263,159 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const validationError = validateBody(body);
-    if (validationError) {
+    // common validation
+    const commonError = validateCommon(body);
+    if (commonError) {
       return NextResponse.json(
-        { success: false, error: validationError },
+        { success: false, error: commonError },
+        { status: 400 }
+      );
+    }
+
+    // template + language
+    const templateResult = resolveTemplateAndLang(body);
+    if (!templateResult.ok) {
+      return NextResponse.json(
+        { success: false, error: templateResult.error },
+        { status: 400 }
+      );
+    }
+
+    const { templateName, languageCode } = templateResult;
+
+    // template-specific validation
+    const templateError = validateByTemplate(body, templateName);
+    if (templateError) {
+      return NextResponse.json(
+        { success: false, error: templateError },
         { status: 400 }
       );
     }
 
     await db();
 
-    let rawHeaderImage = body.headerImageUrl?.trim() || "";
-    let invitationDoc: any = null;
+    /* ---------- RSVP FLOW (with image) ---------- */
+    if (templateName === "rsvp_invitation_media") {
+      let rawHeaderImage = safeTrim(body.headerImageUrl);
+      let invitationDoc: {
+  previewImage?: string;
+  canvasData?: unknown;
+  eventId?: string | mongoose.Types.ObjectId;
+} | null = null;
 
-    if (!rawHeaderImage) {
-      invitationDoc = await findInvitationByEventId(body.eventId!);
 
-      if (!invitationDoc) {
+      // fallback to invitation preview image if not provided
+      if (!rawHeaderImage) {
+        invitationDoc = await findInvitationByEventId(body.eventId!);
+
+        if (!invitationDoc) {
+          return NextResponse.json(
+            { success: false, error: "INVITATION_NOT_FOUND_FOR_EVENT" },
+            { status: 404 }
+          );
+        }
+
+        const fromPreview = isNonEmptyString(invitationDoc.previewImage)
+          ? invitationDoc.previewImage.trim()
+          : "";
+
+        const fromCanvas = extractPreviewImageFromCanvas(invitationDoc.canvasData);
+
+        rawHeaderImage = fromPreview || fromCanvas || "";
+      }
+
+      if (!rawHeaderImage) {
         return NextResponse.json(
-          { success: false, error: "INVITATION_NOT_FOUND_FOR_EVENT" },
-          { status: 404 }
+          {
+            success: false,
+            error:
+              "MISSING_INVITATION_IMAGE: No previewImage/canvas image found for this event",
+          },
+          { status: 400 }
         );
       }
 
-      const fromPreview = isNonEmptyString(invitationDoc.previewImage)
-        ? invitationDoc.previewImage.trim()
-        : "";
+      const { finalUrl, uploaded } = await resolveHeaderImageUrl(
+        rawHeaderImage,
+        body.eventId!
+      );
 
-      const fromCanvas = extractPreviewImageFromCanvas(invitationDoc.canvasData);
+      if (!isValidHttpUrl(finalUrl)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid resolved header image URL" },
+          { status: 400 }
+        );
+      }
 
-      rawHeaderImage = fromPreview || fromCanvas || "";
-    }
+      // save public URL instead of base64 when fallback was used
+      if (uploaded && !body.headerImageUrl) {
+        await Invitation.updateOne(
+          { eventId: invitationDoc?.eventId ?? body.eventId },
+          { $set: { previewImage: finalUrl } }
+        );
+      }
 
-    if (!rawHeaderImage) {
+      const providerResponse = await sendRsvpTemplateMedia({
+        to: body.to!,
+        eventTitle: body.eventTitle!,
+        eventDate: body.eventDate!,
+        eventLocation: body.eventLocation!,
+        eventTime: body.eventTime!,
+        rsvpLink: body.rsvpLink!,
+        headerImageUrl: finalUrl,
+        templateName,
+        languageCode,
+      });
+
       return NextResponse.json(
         {
-          success: false,
-          error:
-            "MISSING_INVITATION_IMAGE: No previewImage/canvas image found for this event",
+          success: true,
+          templateName,
+          languageCode,
+          headerImageUrlUsed: finalUrl,
+          imageUploadedToCloudinary: uploaded,
+          providerResponse,
         },
-        { status: 400 }
+        { status: 200 }
       );
     }
 
-    const { finalUrl, uploaded } = await resolveHeaderImageUrl(
-      rawHeaderImage,
-      body.eventId!
-    );
+    /* ---------- TABLE FLOW ---------- */
+    if (templateName === "table_number_update") {
+      const providerResponse = await sendTableNumberTemplate({
+  to: body.to!,
+  name: body.name!,
+  tableName: body.tableName!,
+  eventType: body.eventType!, // ✅ חובה
+  templateName,
+  languageCode,
+});
 
-    if (!isValidHttpUrl(finalUrl)) {
       return NextResponse.json(
-        { success: false, error: "Invalid resolved header image URL" },
-        { status: 400 }
+        {
+          success: true,
+          templateName,
+          languageCode,
+          providerResponse,
+        },
+        { status: 200 }
       );
     }
 
-    // נשמור URL ציבורי במקום base64 כדי לחסוך העלאות חוזרות
-    if (uploaded && !body.headerImageUrl) {
-      await Invitation.updateOne(
-        { eventId: invitationDoc?.eventId ?? body.eventId },
-        { $set: { previewImage: finalUrl } }
-      );
-    }
-
-    const result = await sendRsvpTemplateMedia({
-      to: body.to!,
-      eventTitle: body.eventTitle!,
-      eventDate: body.eventDate!,
-      eventLocation: body.eventLocation!,
-      eventTime: body.eventTime!,
-      rsvpLink: body.rsvpLink!,
-      headerImageUrl: finalUrl,
-      templateName: body.templateName,
-      languageCode: body.languageCode,
-    });
+    /* ---------- THANK-YOU FLOW ---------- */
+    const providerResponse = await sendThankYouTemplate({
+  to: body.to!,
+  name: body.name!,
+  templateName,
+  languageCode,
+});
 
     return NextResponse.json(
       {
         success: true,
-        headerImageUrlUsed: finalUrl,
-        imageUploadedToCloudinary: uploaded,
-        providerResponse: result,
+        templateName,
+        languageCode,
+        providerResponse,
       },
       { status: 200 }
     );
@@ -273,7 +431,8 @@ export async function POST(req: NextRequest) {
       message.includes("Invalid resolved header image URL") ||
       message.includes("Unsupported image format") ||
       message.includes("MISSING_INVITATION_IMAGE") ||
-      message.includes("Missing Cloudinary env vars");
+      message.includes("Missing Cloudinary env vars") ||
+      message.includes("Invalid JSON body");
 
     return NextResponse.json(
       { success: false, error: message },
