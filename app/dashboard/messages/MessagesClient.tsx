@@ -721,27 +721,47 @@ console.groupEnd();
   }
 
   try {
-    const res = await fetch("/api/whatsapp/send-template", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        eventId,
-        to,
-        templateName: selectedTemplateName,
-        languageCode: "he",
+    let payload: any = {
+  to,
+  templateName: selectedTemplateName,
+  languageCode: "he",
+};
 
-        eventTitle: String(eventTitle),
-        eventDate: String(eventDate),
-        eventLocation: String(eventLocation),
-        rsvpLink: String(rsvpLink),
-        headerImageUrl: String(headerImageUrl),
+if (templateKey === "rsvp") {
+  payload = {
+    ...payload,
+    eventId,
+    eventTitle: String(eventTitle),
+    eventDate: String(eventDate),
+    eventLocation: String(eventLocation),
+    rsvpLink: String(rsvpLink),
+    headerImageUrl: String(headerImageUrl),
+  };
+}
 
-        name: guest.name || "",
-        tableName: tableName || "",
-        eventType: String(eventType),
-      }),
-    });
+if (templateKey === "table") {
+  payload = {
+    ...payload,
+    name: guest.name || "",
+    tableName: tableName || "",
+    eventType: String(eventType),
+  };
+}
+
+if (templateKey === "custom") {
+  payload = {
+    ...payload,
+    name: guest.name || "",
+  };
+}
+
+const res = await fetch("/api/whatsapp/send-template", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify(payload),
+});
+
 
     const data = await res.json().catch(() => ({}));
 
