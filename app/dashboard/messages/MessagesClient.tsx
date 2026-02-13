@@ -522,7 +522,7 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
   const eventTitle = buildEventTitle(meta);
   const eventDate = formatEventDate(meta.rawDate);
   const eventLocation = meta.location || "";
-  const eventType = meta.eventType || "האירוע";
+  const eventType = meta.eventType || "אירוע";
 
   const tableName =
     g.tableName ||
