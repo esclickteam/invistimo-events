@@ -356,15 +356,6 @@ useEffect(() => {
   }
 }, [channel]);
 
-useEffect(() => {
-  // ב-WhatsApp שולחים רק תבנית מאושרת אחת
-  if (channel === "whatsapp" && templateKey !== "rsvp") {
-    setTemplateKey("rsvp");
-    setMessage(MESSAGE_TEMPLATES.rsvp.content);
-  }
-}, [channel, templateKey]);
-
-
 
 
 
@@ -651,7 +642,19 @@ const sendWhatsApp = async (guest: Guest) => {
 
  
 
-  const selectedTemplateName = "rsvp_invitation_media";
+  let selectedTemplateName = "";
+
+if (templateKey === "rsvp") {
+  selectedTemplateName = "rsvp_invitation_media";
+}
+
+if (templateKey === "table") {
+  selectedTemplateName = "table_number_update";
+}
+
+if (templateKey === "custom") {
+  selectedTemplateName = "thank_you_message";
+}
 
 
 
@@ -1274,7 +1277,8 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     setTemplateKey(key);
     setMessage(MESSAGE_TEMPLATES[key].content);
   }}
-  disabled={channel === "whatsapp"}
+  disabled={false}
+
   className={`w-[90%] md:w-[600px] border rounded-xl p-3 mb-4 ${
     channel === "whatsapp" ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""
   }`}
