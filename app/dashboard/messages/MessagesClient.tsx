@@ -726,10 +726,12 @@ const eventDate = formatEventDate(rawDate);
   }
 
   if (templateKey === "rsvp") {
-    if (!eventDate) {
-      alert("חסר תאריך אירוע (eventDate) בהזמנה");
-      return;
-    }
+
+    if (!rawDate) {
+  alert("חסר תאריך אירוע (eventDate) בהזמנה");
+  return;
+}
+
     if (!eventLocation) {
       alert("חסר מיקום אירוע (eventLocation) בהזמנה");
       return;
