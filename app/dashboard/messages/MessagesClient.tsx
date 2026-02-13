@@ -678,13 +678,14 @@ const sendWhatsApp = async (guest: Guest) => {
 const eventTitle = buildEventTitle(metaForTitle);
 
 
-  const rawDate =
-    invitation?.eventDate ||
-    invitation?.event?.date ||
-    invitation?.date ||
-    "";
+const rawDate =
+  invitation?.event?.date ||   // ⭐ המקור האמיתי
+  invitation?.date ||
+  invitation?.eventDate ||
+  "";
 
-  const eventDate = formatEventDate(rawDate);
+const eventDate = formatEventDate(rawDate);
+
 
 
   const eventTime =
