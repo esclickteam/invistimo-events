@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
-import SmsTestBalance from "@/app/components/SmsTestBalance";
-import Link from "next/link";
 
 
 /* ================= TYPES ================= */
@@ -330,6 +328,15 @@ useEffect(() => {
   }
 }, [channel]);
 
+useEffect(() => {
+  // ב-WhatsApp שולחים רק תבנית מאושרת אחת
+  if (channel === "whatsapp" && templateKey !== "rsvp") {
+    setTemplateKey("rsvp");
+    setMessage(MESSAGE_TEMPLATES.rsvp.content);
+  }
+}, [channel, templateKey]);
+
+
 
 
   /* ================= LOGIC ================= */
@@ -402,6 +409,48 @@ const disableSend =
   return finalMessage.trim();
 };
 
+const buildWhatsappTemplatePreview = (guest: Guest | null) => {
+  const g = guest ?? guests[0];
+  if (!g || !invitation) return "";
+
+  const rawDate =
+    invitation?.eventDate || invitation?.event?.date || invitation?.date || "";
+  const eventDate = rawDate
+    ? new Date(rawDate).toLocaleDateString("he-IL")
+    : "{{2}}";
+
+  const eventLocation =
+    invitation?.eventLocation?.address ||
+    invitation?.event?.location?.address ||
+    invitation?.location?.address ||
+    invitation?.eventLocation?.name ||
+    "{{3}}";
+
+  const eventTime =
+    invitation?.eventTime || invitation?.event?.time || invitation?.time || "{{4}}";
+
+  const eventTitle =
+    invitation?.title ||
+    invitation?.eventTitle ||
+    invitation?.event?.title ||
+    "{{1}}";
+
+  const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${g.token}`;
+
+  return `משפחה וחברים יקרים,
+${eventTitle} מזמינים ל-💜
+
+📅 תאריך: ${eventDate}
+📍 מיקום: ${eventLocation}
+🕖 קבלת פנים: ${eventTime}
+
+לאישור הגעה לחצו כאן 👇
+${rsvpLink}
+
+מחכים לשמוח איתכם 💖`;
+};
+
+
 const buildTestMessage = () => {
   if (!guests[0]) return "";
 
@@ -420,6 +469,8 @@ if (!invitation) {
   // ⛔ מחכים להזמנה – לא מוחקים preview
   return;
 }
+
+
 
 
 
@@ -500,13 +551,11 @@ const sendWhatsApp = async (guest: Guest) => {
 
   const to = `972${cleanPhone}`;
 
-  const templateNameMap: Record<MessageType, string> = {
-    rsvp: "rsvp_invitation_media",
-    table: "table_number_update",
-    custom: "thank_you_message",
-  };
+ 
 
-  const selectedTemplateName = templateNameMap[templateKey];
+  const selectedTemplateName = "rsvp_invitation_media";
+
+
 
   const eventTitle =
     invitation?.title ||
@@ -1103,19 +1152,35 @@ const progress = max > 0 ? (used / max) * 100 : 0;
   value={templateKey}
   onChange={(e) => {
     const key = e.target.value as MessageType;
-    setTemplateKey(key);
 
-    // ⭐ מקור אמת: message
+    if (channel === "whatsapp") {
+      setTemplateKey("rsvp");
+      setMessage(MESSAGE_TEMPLATES.rsvp.content);
+      return;
+    }
+
+    setTemplateKey(key);
     setMessage(MESSAGE_TEMPLATES[key].content);
   }}
-  className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
+  disabled={channel === "whatsapp"}
+  className={`w-[90%] md:w-[600px] border rounded-xl p-3 mb-4 ${
+    channel === "whatsapp" ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""
+  }`}
 >
-        {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
-          <option key={key} value={key}>
-            {t.label}
-          </option>
-        ))}
-      </select>
+  {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
+    <option key={key} value={key}>
+      {t.label}
+    </option>
+  ))}
+</select>
+
+{channel === "whatsapp" && (
+  <p className="w-[90%] md:w-[600px] text-xs text-gray-500 -mt-2 mb-4">
+    ב־WhatsApp נשלחת תבנית מאושרת קבועה (rsvp_invitation_media) עם משתנים דינמיים.
+  </p>
+)}
+
+
 
       {templateKey === "table" && filter !== "withTable" && (
   <p className="text-xs text-red-600 mt-2">
@@ -1125,11 +1190,14 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
       <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        rows={6}
-        className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
-      />
+  value={message}
+  onChange={(e) => setMessage(e.target.value)}
+  rows={6}
+  readOnly={channel === "whatsapp"}
+  className={`w-[90%] md:w-[600px] border rounded-xl p-4 mb-6 ${
+    channel === "whatsapp" ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""
+  }`}
+/>
 
   <div className="w-[90%] md:w-[600px] -mt-4 mb-4">
   {/* הערה קריטית – משתנים דינמיים */}
@@ -1250,9 +1318,8 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     {channel === "sms" ? (
   renderPreviewText(smsPreviewText)
 ) : selectedGuest ? (
-
   <div className="space-y-2">
-    {buildMessage(selectedGuest)
+    {buildWhatsappTemplatePreview(selectedGuest)
       .split("\n")
       .map((line, i) => {
         if (line.startsWith("http")) {
@@ -1270,8 +1337,26 @@ const progress = max > 0 ? (used / max) * 100 : 0;
       })}
   </div>
 ) : (
-  renderPreviewText(message)
+  <div className="space-y-2">
+    {buildWhatsappTemplatePreview(null)
+      .split("\n")
+      .map((line, i) => {
+        if (line.startsWith("http")) {
+          return (
+            <div
+              key={i}
+              className="bg-white border rounded-lg p-2 text-green-700 text-xs break-all"
+            >
+              {line}
+            </div>
+          );
+        }
+
+        return <p key={i}>{line}</p>;
+      })}
+  </div>
 )}
+
 
   </div>
 </div>
