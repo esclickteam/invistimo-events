@@ -736,13 +736,17 @@ console.groupEnd();
 }
   }
 
-  const eventId = invitation?.eventId?._id;
+  let eventId: string | undefined;
 
+if (templateKey === "rsvp") {
+  eventId = invitation?.eventId?._id;
 
   if (!eventId) {
     alert("חסר eventId לשליחת WhatsApp");
     return;
   }
+}
+
 
   try {
     let payload: any = {
