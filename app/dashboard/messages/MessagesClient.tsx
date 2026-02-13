@@ -768,12 +768,14 @@ if (templateKey === "rsvp") {
 }
 
 if (templateKey === "table") {
+  const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
+
   payload = {
     ...payload,
     name: guest.name || "",
     tableName: tableName || "",
     eventType: String(eventType),
-    urlSuffix: invitation?.shareId, // ⭐ זה השינוי הקריטי
+    urlSuffix, // עכשיו באמת דינמי לכל אורח
   };
 }
 
