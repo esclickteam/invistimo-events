@@ -30,7 +30,8 @@ function assertRequired(input: SendThankYouTemplateInput) {
 export async function sendThankYouTemplate(input: SendThankYouTemplateInput) {
   assertRequired(input);
 
-  const apiKey = process.env.D360_API_KEY;
+  const apiKey = process.env.WHATSAPP_API_KEY
+;
   if (!apiKey) throw new Error("Missing env var: D360_API_KEY");
 
   const to = normalizePhoneIL(input.to);

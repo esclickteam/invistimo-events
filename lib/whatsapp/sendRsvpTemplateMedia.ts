@@ -73,7 +73,8 @@ export async function sendRsvpTemplateMedia(
 ) {
   assertRequiredFields(input);
 
-  const apiKey = process.env.D360_API_KEY;
+  const apiKey = process.env.WHATSAPP_API_KEY
+;
   if (!isNonEmptyString(apiKey)) {
     throw new Error("Missing env var: D360_API_KEY");
   }

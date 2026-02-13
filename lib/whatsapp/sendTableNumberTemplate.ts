@@ -62,7 +62,8 @@ function assertRequired(input: SendTableNumberTemplateInput): void {
 }
 
 function assertEnv(): string {
-  const apiKey = process.env.D360_API_KEY;
+  const apiKey = process.env.WHATSAPP_API_KEY
+;
   if (!isNonEmptyString(apiKey)) {
     throw new Error("Missing env var: D360_API_KEY");
   }
