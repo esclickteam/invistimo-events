@@ -40,13 +40,15 @@ type EditorCanvasRef = {
     objects: EditorObject[];
   };
 
-  updateSelected?: (patch: Record<string, any>) => void;
+  getPreviewImage: () => string;
 
   uploadBackground: (file: File) => void;
   deleteSelected?: () => void;
-
   addText?: () => void;
+
+  updateSelected?: (patch: Record<string, any>) => void; // ⭐️ זה החסר
 };
+
 
 /* =========================================================
    Component
@@ -88,41 +90,57 @@ export default function CreateInvitePage() {
      שמירה
   ========================================================= */
   const handleSave = async () => {
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      const canvasJSON = canvasRef.current?.getCanvasData();
-      if (!canvasJSON) {
-        alert("❌ הקנבס לא מוכן");
-        return;
-      }
+    const canvasJSON = canvasRef.current?.getCanvasData();
+    const previewBase64 = canvasRef.current?.getPreviewImage();
 
-      const res = await fetch("/api/invitations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          title: "ההזמנה שלי 🎉",
-          canvasData: canvasJSON,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        router.push(
-          `/dashboard/invitations/${data.invitation._id}/preview`
-        );
-      } else {
-        alert(data.error);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("❌ שגיאה בשמירה");
-    } finally {
-      setSaving(false);
+    if (!canvasJSON || !previewBase64) {
+      alert("❌ הקנבס לא מוכן");
+      return;
     }
-  };
+
+    // 1️⃣ שמירת ההזמנה (מבנה, טקסטים וכו')
+    const res = await fetch("/api/invitations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        title: "ההזמנה שלי 🎉",
+        canvasData: canvasJSON,
+      }),
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.error);
+      return;
+    }
+
+    const invitationId = data.invitation._id;
+
+    // 2️⃣ העלאת preview ל־Cloudinary ושמירה כ־URL
+    await fetch("/api/invitations/upload-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        invitationId,
+        base64Image: previewBase64,
+      }),
+    });
+
+    // 3️⃣ מעבר לפריוויו
+    router.push(`/dashboard/invitations/${invitationId}/preview`);
+  } catch (err) {
+    console.error(err);
+    alert("❌ שגיאה בשמירה");
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   /* =========================================================
      העלאת רקע

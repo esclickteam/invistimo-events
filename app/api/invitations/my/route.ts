@@ -140,6 +140,7 @@ export async function GET(req: Request) {
   .select(`
     _id
     eventId
+    previewImage
     maxGuests
     maxMessages
     remainingMessages

@@ -92,12 +92,14 @@ interface EditorCanvasProps {
 
 export interface EditorCanvasRef {
   getCanvasData?: () => any;
+
+  getPreviewImage?: () => string; // ⭐️ זה החסר
+
   uploadBackground?: (file: File) => void;
   addText?: () => void;
   updateSelected?: (patch: Record<string, any>) => void;
   deleteSelected?: () => void;
 
-  // 🔍 Zoom (בשביל ZoomControl)
   zoomIn?: () => void;
   zoomOut?: () => void;
   resetZoom?: () => void;

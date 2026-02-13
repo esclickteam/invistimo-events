@@ -498,7 +498,11 @@ function getEventMeta(invitation: any) {
 
   // ✅ המקור האמיתי לתמונה
   const imageUrl =
-    invitation?.previewImage || "";
+  typeof invitation?.previewImage === "string" &&
+  invitation.previewImage.startsWith("http")
+    ? invitation.previewImage
+    : "";
+
 
   const eventType =
     event?.eventType ||
@@ -711,10 +715,10 @@ console.groupEnd();
       alert("חסרה שעת קבלת פנים (eventTime) בהזמנה");
       return;
     }
-    if (!headerImageUrl) {
-      alert("חסרה תמונת הזמנה (headerImageUrl) לתבנית media");
-      return;
-    }
+    if (!headerImageUrl || !headerImageUrl.startsWith("http")) {
+  alert("תמונת ההזמנה חייבת להיות URL ציבורי (לא base64)");
+  return;
+}
   }
 
   const eventId = invitation?.eventId?._id;
