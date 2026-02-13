@@ -488,9 +488,7 @@ function getEventMeta(invitation: any) {
   const event = invitation?.eventId;
 
   const title = event?.title || "";
-
   const rawDate = event?.date || "";
-
   const time = event?.time || "";
 
   const location =
@@ -498,18 +496,25 @@ function getEventMeta(invitation: any) {
     event?.location?.name ||
     "";
 
+  // ✅ המקור האמיתי לתמונה
   const imageUrl =
-    event?.imageUrl ||
-    event?.coverImageUrl ||
-    "";
+    invitation?.previewImage || "";
 
   const eventType =
     event?.eventType ||
     event?.type ||
     "";
 
-  return { title, rawDate, time, location, imageUrl, eventType };
+  return {
+    title,
+    rawDate,
+    time,
+    location,
+    imageUrl,
+    eventType,
+  };
 }
+
 
 
 
