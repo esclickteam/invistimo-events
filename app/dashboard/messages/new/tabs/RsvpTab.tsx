@@ -20,7 +20,7 @@ type Guest = {
 type Props = {
   guests: Guest[];
 
-  // 🟢 מגיעים מה־invitation (DB)
+  // מגיעים מה־Event + Invitation
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
@@ -75,7 +75,13 @@ export default function RsvpTab({
     return guests;
   }, [guests, filter]);
 
-  const blocked = guestsToSend.length === 0;
+  /* ================= BLOCKING RULES ================= */
+
+  const noAudience = guestsToSend.length === 0;
+  const missingHeaderImage = !headerImageUrl;
+
+  // WhatsApp לא מאפשר Template בלי Header Media
+  const blocked = noAudience || missingHeaderImage;
 
   /* ================= PREVIEW TEXT ================= */
 
@@ -103,12 +109,21 @@ export default function RsvpTab({
 
       {/* הסבר */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        📌 הודעת אישור הגעה נשלחת ב־WhatsApp בלבד  
+        📌 הודעת אישור הגעה נשלחת ב־WhatsApp בלבד
         <br />
-        ✏️ תוכן ההודעה קבוע לפי תבנית מאושרת  
+        ✏️ תוכן ההודעה קבוע לפי תבנית מאושרת
         <br />
         ⏱️ ניתן לבחור שליחה מיידית או מתוזמנת
       </section>
+
+      {/* אזהרה – אין תמונה */}
+      {missingHeaderImage && (
+        <section className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          ❌ חסרה תמונת הזמנה  
+          <br />
+          WhatsApp דורש תמונת Header לצורך שליחת תבנית RSVP
+        </section>
+      )}
 
       {/* תזמון */}
       <SendTiming
@@ -137,7 +152,8 @@ export default function RsvpTab({
           : "📲 שלח אישור הגעה ב־WhatsApp"}
       </SendButton>
 
-      {blocked && (
+      {/* הודעות חסימה */}
+      {noAudience && (
         <p className="text-sm text-red-500">
           יש לבחור לפחות נמען אחד
         </p>

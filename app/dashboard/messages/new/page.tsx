@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import RsvpTab from "./tabs/RsvpTab";
 import ReminderTab from "./tabs/ReminderTab";
 import ThankYouTab from "./tabs/ThankYouTab";
@@ -18,17 +18,86 @@ type Guest = {
 
 type TabKey = "rsvp" | "reminder" | "thankyou";
 
+type EventMeta = {
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  eventType?: string;
+  giftCreditUrl?: string;
+  headerImageUrl?: string;
+};
+
+/* ================= HELPERS ================= */
+
+function formatEventDate(value: any): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("he-IL");
+}
+
+/* ================= COMPONENT ================= */
+
 export default function NewMessagesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
 
-  /* ================= TEMP DATA (בהמשך מהשרת) ================= */
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [eventMeta, setEventMeta] = useState<EventMeta | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const guests: Guest[] = [];
+  /* ================= LOAD DATA ================= */
 
-  // ⭐ פרטי אירוע – מקור אמת אחד
-  const eventTitle = "האירוע שלנו";
-  const eventDate = "12/03/2026";
-  const eventLocation = "גן אירועים – תל אביב";
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetch("/api/invitations/my", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json();
+        const invitation = data?.invitation;
+        const event = invitation?.event;
+
+        if (!invitation || !event) {
+          setLoading(false);
+          return;
+        }
+
+        // 🧠 בניית EventMeta אחיד
+        const meta: EventMeta = {
+          eventTitle: event.title || "",
+          eventDate: formatEventDate(event.date),
+          eventLocation:
+            event.location?.address ||
+            event.location?.name ||
+            "",
+          eventType: event.eventType || "",
+          giftCreditUrl: event.giftCreditUrl || "",
+          headerImageUrl:
+            invitation.previewImage ||
+            invitation.headerImageUrl ||
+            "",
+        };
+
+        setEventMeta(meta);
+
+        // 👥 אורחים (אם קיימים ב־invitation)
+        if (Array.isArray(invitation.guests)) {
+          setGuests(invitation.guests);
+        }
+      } catch (err) {
+        console.error("❌ Failed to load invitation data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  if (loading) return null;
+  if (!eventMeta) return null;
 
   /* ================= RENDER ================= */
 
@@ -66,30 +135,15 @@ export default function NewMessagesPage() {
       {/* ================= Content ================= */}
       <main>
         {activeTab === "rsvp" && (
-          <RsvpTab
-            guests={guests}
-            eventTitle={eventTitle}
-            eventDate={eventDate}
-            eventLocation={eventLocation}
-          />
+          <RsvpTab guests={guests} {...eventMeta} />
         )}
 
         {activeTab === "reminder" && (
-          <ReminderTab
-            guests={guests}
-            eventTitle={eventTitle}
-            eventDate={eventDate}
-            eventLocation={eventLocation}
-          />
+          <ReminderTab guests={guests} {...eventMeta} />
         )}
 
         {activeTab === "thankyou" && (
-          <ThankYouTab
-            guests={guests}
-            eventTitle={eventTitle}
-            eventDate={eventDate}
-            eventLocation={eventLocation}
-          />
+          <ThankYouTab guests={guests} {...eventMeta} />
         )}
       </main>
     </div>

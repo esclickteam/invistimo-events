@@ -16,7 +16,7 @@ type SendTiming = "now" | "scheduled";
 type Props = {
   guests: Guest[];
 
-  // 🟢 מיושרים ל־page.tsx (גם אם לא בשימוש כרגע)
+  // 🟢 מיושרים ל־page.tsx
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
@@ -33,9 +33,9 @@ const DEFAULT_MESSAGE =
 
 export default function ThankYouTab({
   guests,
-  eventTitle,     // ⬅️ מתקבל (לא חובה להשתמש כרגע)
-  eventDate,      // ⬅️
-  eventLocation,  // ⬅️
+  eventTitle,
+  eventDate,
+  eventLocation,
 }: Props) {
   const [filter, setFilter] = useState<FilterType>("all");
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
@@ -48,18 +48,22 @@ export default function ThankYouTab({
 
   const guestsToSend = useMemo(() => {
     if (filter === "attended") {
-      // בעתיד: arrived === true
+      // בעתיד: ניתן להוסיף arrived === true
       return guests;
     }
     return guests;
   }, [guests, filter]);
 
-  /* ================= MESSAGE ================= */
+  /* ================= MESSAGE PREVIEW ================= */
 
   const previewText = useMemo(() => {
     if (!guestsToSend[0]) return message;
-    return message.replace(/{{name}}/g, guestsToSend[0].name);
-  }, [message, guestsToSend]);
+    return message
+      .replace(/{{name}}/g, guestsToSend[0].name)
+      .replace(/{{eventTitle}}/g, eventTitle)
+      .replace(/{{eventDate}}/g, eventDate)
+      .replace(/{{eventLocation}}/g, eventLocation);
+  }, [message, guestsToSend, eventTitle, eventDate, eventLocation]);
 
   const totalChars = previewText.length;
   const isBlocked = totalChars > CHAR_LIMIT;
@@ -67,17 +71,11 @@ export default function ThankYouTab({
   /* ================= SCHEDULE ================= */
 
   const scheduledAt = useMemo(() => {
-    if (
-      sendTiming !== "scheduled" ||
-      !scheduledDate ||
-      !scheduledTime
-    ) {
+    if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
       return null;
     }
-
     const [y, m, d] = scheduledDate.split("-").map(Number);
     const [hh, mm] = scheduledTime.split(":").map(Number);
-
     return new Date(y, m - 1, d, hh, mm, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
 
@@ -131,12 +129,8 @@ export default function ThankYouTab({
           onChange={(e) => setFilter(e.target.value as FilterType)}
           className="w-full border rounded-xl p-3"
         >
-          <option value="all">
-            לכל המוזמנים ({guests.length})
-          </option>
-          <option value="attended">
-            למי שהגיע לאירוע
-          </option>
+          <option value="all">לכל המוזמנים ({guests.length})</option>
+          <option value="attended">למי שהגיע לאירוע</option>
         </select>
 
         <p className="text-sm text-gray-500 mt-1">
@@ -171,9 +165,7 @@ export default function ThankYouTab({
 
       {/* PREVIEW */}
       <section>
-        <h3 className="font-semibold mb-2 text-center">
-          📱 תצוגה מקדימה
-        </h3>
+        <h3 className="font-semibold mb-2 text-center">📱 תצוגה מקדימה</h3>
 
         <div className="mx-auto w-[320px] bg-black rounded-[32px] p-3 shadow-xl">
           <div className="bg-white rounded-[24px] overflow-hidden">
@@ -234,11 +226,7 @@ export default function ThankYouTab({
       <button
         onClick={sendMessages}
         disabled={isBlocked || guestsToSend.length === 0}
-        className="
-          w-full bg-green-600 text-white py-4 rounded-xl
-          font-semibold text-lg
-          disabled:opacity-50 disabled:cursor-not-allowed
-        "
+        className="w-full bg-green-600 text-white py-4 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         📩 שליחת הודעת תודה
       </button>

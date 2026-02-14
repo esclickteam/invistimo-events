@@ -21,7 +21,7 @@ type Guest = {
 type Props = {
   guests: Guest[];
 
-  // 🟢 מיושרים ל־page.tsx (גם אם לא בשימוש כרגע)
+  // 🟢 מיושרים ל־page.tsx
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
@@ -41,9 +41,9 @@ const MESSAGE_NO_TABLE =
 
 export default function ReminderTab({
   guests,
-  eventTitle,     // ⬅️ מתקבל (לא חובה להשתמש כרגע)
-  eventDate,      // ⬅️
-  eventLocation,  // ⬅️
+  eventTitle,
+  eventDate,
+  eventLocation,
 }: Props) {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
@@ -68,42 +68,38 @@ export default function ReminderTab({
   /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
+    // אם יש אורחים עם שולחן – עובדים רק מולם
     if (guestsWithTable.length > 0) {
       return guestsWithTable;
     }
+    // אחרת – כל מי שאישר הגעה
     return confirmedGuests;
   }, [guestsWithTable, confirmedGuests]);
 
-  /* ================= MESSAGE ================= */
+  /* ================= MESSAGE PREVIEW ================= */
 
   const baseMessage =
-    guestsWithTable.length > 0
-      ? MESSAGE_WITH_TABLE
-      : MESSAGE_NO_TABLE;
+    guestsWithTable.length > 0 ? MESSAGE_WITH_TABLE : MESSAGE_NO_TABLE;
 
   const previewText = useMemo(() => {
     const g = guestsToSend[0];
     if (!g) return "";
 
     const table =
-      g.tableName ??
-      (typeof g.tableNumber === "number"
-        ? `שולחן ${g.tableNumber}`
-        : "");
+      g.tableName ?? (typeof g.tableNumber === "number" ? `שולחן ${g.tableNumber}` : "");
 
     return baseMessage
       .replace(/{{name}}/g, g.name || "")
       .replace(/{{tableName}}/g, table);
   }, [guestsToSend, baseMessage]);
 
-  const blocked =
-    guestsToSend.length === 0 ||
-    previewText.length > MAX_CHARS;
+  const blocked = guestsToSend.length === 0 || previewText.length > MAX_CHARS;
 
   /* ================= RENDER ================= */
 
   return (
     <div className="space-y-6">
+      {/* קהל יעד */}
       <AudienceFilterSelector
         value={filter}
         onChange={setFilter}
@@ -111,6 +107,7 @@ export default function ReminderTab({
         withTableCount={guestsWithTable.length}
       />
 
+      {/* הסבר */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
         📌 תזכורת נשלחת ב־SMS בלבד
         <br />
@@ -119,11 +116,10 @@ export default function ReminderTab({
         🪑 מספר שולחן מצורף רק למי שיש בפועל
       </section>
 
-      <SendTiming
-        scheduledAt={scheduledAt}
-        onChange={setScheduledAt}
-      />
+      {/* תזמון */}
+      <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
 
+      {/* כפתור שליחה */}
       <SendButton
         channel="sms"
         type="reminder"
@@ -131,11 +127,10 @@ export default function ReminderTab({
         scheduledAt={scheduledAt}
         disabled={blocked}
       >
-        {scheduledAt
-          ? "⏱️ תזמן תזכורת"
-          : "📩 שלח תזכורת"}
+        {scheduledAt ? "⏱️ תזמן תזכורת" : "📩 שלח תזכורת"}
       </SendButton>
 
+      {/* הודעת חסימה */}
       {blocked && (
         <p className="text-sm text-red-500">
           אין נמענים או שההודעה ארוכה מדי

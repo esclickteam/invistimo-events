@@ -4,7 +4,7 @@ type Props = {
   templateKey: "rsvp" | "table" | "custom";
   previewText: string;
   headerImageUrl?: string; // מגיע מה-DB
-  hasGiftButton?: boolean;
+  hasGiftButton?: boolean; // רק עבור table
 };
 
 export default function WhatsappTemplatePreview({
