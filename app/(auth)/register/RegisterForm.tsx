@@ -6,7 +6,7 @@ import Link from "next/link";
 
 /* ============================================================
    Register → Display only
-   המחיר נסגר בעמוד Pricing
+   מחיר סגור מגיע מ־Pricing
 ============================================================ */
 
 function RegisterFormInner() {
@@ -14,9 +14,8 @@ function RegisterFormInner() {
 
   /* ================= QUERY PARAMS ================= */
 
-  const price = Number(params.get("price") || 0);
-  const priceKey = params.get("priceKey") || "";
-  const planLabel = params.get("label") || "חבילה";
+  const price = Number(params.get("price"));
+  const priceKey = params.get("priceKey");
 
   /* ================= STATE ================= */
 
@@ -33,7 +32,7 @@ function RegisterFormInner() {
   /* ================= HANDLERS ================= */
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,18 +56,17 @@ function RegisterFormInner() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          ...form,
-        }),
+        body: JSON.stringify(form),
       });
 
       const registerData = await registerRes.json();
+
       if (!registerRes.ok || registerData?.success === false) {
         alert(registerData?.error || "שגיאה בהרשמה");
         return;
       }
 
-      /* 2️⃣ Stripe Checkout – עם מחיר סגור */
+      /* 2️⃣ Stripe Checkout – מחיר סגור */
       const checkoutRes = await fetch(
         "/api/stripe/create-checkout-session",
         {
@@ -102,15 +100,15 @@ function RegisterFormInner() {
 
   return (
     <div className="max-w-xl mx-auto pt-20 pb-28 px-5">
-      <h1 className="text-4xl font-serif font-bold text-[#5c4632] mb-3 text-center">
-        הרשמה ל־{planLabel}
+      <h1 className="text-4xl font-serif font-bold text-[#5c4632] mb-6 text-center">
+        הרשמה
       </h1>
 
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-[32px] border border-[#e6dccd] p-8 space-y-6 shadow"
       >
-        {/* inputs */}
+        {/* Inputs */}
         {["name", "email", "phone", "password"].map((field) => (
           <div key={field} className="flex flex-col gap-1">
             <label className="text-sm text-[#5c4632]">
@@ -133,7 +131,7 @@ function RegisterFormInner() {
           </div>
         ))}
 
-        {/* סכום – תצוגה בלבד */}
+        {/* מחיר – תצוגה בלבד */}
         <div className="text-center text-lg font-semibold text-[#5c4632]">
           סכום לתשלום: {price} ₪
         </div>

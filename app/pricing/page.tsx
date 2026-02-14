@@ -141,9 +141,16 @@ export default function PricingPage() {
     );
   };
 
-  const handleRegister = (plan: PlanKey) => {
-    router.push(`/register?plan=${plan}&records=${records}`);
-  };
+const handleRegister = (plan: PlanKey) => {
+  const totalPrice = calculateTotal(plan);
+
+  router.push(
+    `/register` +
+      `?plan=${plan}` +
+      `&guests=${records}` +
+      `&price=${totalPrice}`
+  );
+};
 
   /* ===================== תוכן משתנה לפיצ'רים ===================== */
 
