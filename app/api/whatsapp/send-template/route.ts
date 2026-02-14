@@ -140,7 +140,8 @@ export async function POST(req: NextRequest) {
           ? guest.phone
           : `972${guest.phone.replace(/^0/, "")}`;
 
-        const rsvpLink = `${process.env.NEXT_PUBLIC_APP_URL}/rsvp/${guest.token}`;
+        const rsvpLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invitation._id}?token=${guest.token}`;
+
 
         await sendRsvpTemplateMedia({
           to: phone,
