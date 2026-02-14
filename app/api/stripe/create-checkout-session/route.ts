@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 /* ============================================================
    Packages (fixed prices)
 ============================================================ */
-const PRICE_CONFIG: Record<
+ const PRICE_CONFIG: Record<
   string,
   { priceId: string; maxGuests: number; plan: "basic" | "premium" }
 > = {
