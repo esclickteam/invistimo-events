@@ -109,7 +109,7 @@ export default function NewMessagesPage() {
           📨 שליחת הודעות
         </h1>
         <p className="text-lg text-gray-500">
-          ניהול ושליחה לפי סבבים – מקצועי ומרווח
+          ניהול ושליחה לפי סבבים 
         </p>
       </header>
 
