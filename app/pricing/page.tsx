@@ -311,17 +311,17 @@ export default function PricingPage() {
 
 
   {/* כותרת צמודה יותר לאייקון */}
-  <h3 className="text-2xl md:text-3xl font-semibold leading-tight mt-10 md:mt-12">
+ <h3 className="text-2xl md:text-3xl font-semibold leading-tight mt-4 md:mt-6">
+
     {planMeta[plan].title}
   </h3>
 
   {/* מחיר צמוד לכותרת */}
-  <div className="mt-3">
-      <div className="text-3xl md:text-4xl font-bold leading-tight">
-
-      ₪{calculateTotal(plan)}
-    </div>
+ <div className="mt-1">
+  <div className="text-3xl md:text-4xl font-bold leading-none">
+    ₪{calculateTotal(plan)}
   </div>
+</div>
   
 </div>
 
