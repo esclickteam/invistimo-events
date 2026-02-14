@@ -182,7 +182,8 @@ export default function PricingPage() {
     return (
       <div
         className="mt-6 border-t pt-5 text-sm flex flex-col"
-        style={{ minHeight: 220 }}
+        style={{ minHeight: 260 }}
+
       >
         <p className="font-semibold text-base mb-3">תוספות אפשריות:</p>
 
@@ -294,16 +295,19 @@ export default function PricingPage() {
                     className="text-center mb-6 flex flex-col justify-between pt-4 md:pt-5"
                     style={{ minHeight: 220 }}
                   >
-                    <div className="flex justify-center mb-3">
-                      <Image
-                        src={planMeta[plan].icon}
-                        alt={planMeta[plan].alt}
-                        width={56}
-                        height={56}
-                        className="object-contain"
-                        priority={plan === "plan1"}
-                      />
-                    </div>
+                    <div className="flex justify-center mb-4">
+  <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-[24px] bg-white border border-[#e8d7c5] shadow-sm p-3">
+    <Image
+      src={planMeta[plan].icon}
+      alt={planMeta[plan].alt}
+      fill
+      className="object-contain"
+      sizes="(max-width: 768px) 96px, 112px"
+      priority={plan === "plan1"}
+    />
+  </div>
+</div>
+
 
                     <h3 className="text-2xl font-semibold leading-tight min-h-[56px] flex items-center justify-center">
                       {planMeta[plan].title}
