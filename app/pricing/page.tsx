@@ -274,8 +274,8 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="pb-32 px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10 items-stretch">
+      <section className="pt-20 md:pt-24 pb-32 px-6">
+        <div className="max-w-[1600px] mx-auto grid md:grid-cols-3 gap-12 items-stretch">
           {(["plan1", "plan2", "plan3"] as PlanKey[]).map((plan) => {
             const features = getPlanFeatures(plan);
 
@@ -284,82 +284,82 @@ export default function PricingPage() {
             const maxFeatureRows = 7;
             const fillers = Math.max(0, maxFeatureRows - features.length);
 
-            return (
-              <Card
-                key={plan}
-                className="rounded-3xl shadow-xl hover:shadow-2xl transition h-full flex flex-col"
-              >
-                <CardContent className="p-8 flex flex-col h-full">
-                  {/* HEADER קבוע גובה + אייקון מעל כותרת */}
-                  <div
-                    className="text-center mb-6 flex flex-col justify-between pt-4 md:pt-5"
-                    style={{ minHeight: 220 }}
-                  >
-                   <div className="flex justify-center mb-4">
-    <div className="relative w-32 h-32 md:w-36 md:h-36">
+           return (
+  <Card
+    key={plan}
+    className="rounded-[32px] shadow-xl hover:shadow-2xl transition h-full flex flex-col overflow-visible"
+  >
+    <CardContent className="relative flex h-full flex-col p-10 md:p-12 pt-[110px] md:pt-[140px]">
 
-    <Image
-      src={planMeta[plan].icon}
-      alt={planMeta[plan].alt}
-      fill
-      className="object-contain"
-            sizes="(max-width: 768px) 128px, 144px"
+      {/* HEADER קבוע גובה + אייקון חצי בחוץ */}
+      <div
+        className="text-center mb-8 flex flex-col justify-between"
+        style={{ minHeight: 320 }}
+      >
+        {/* אייקון יושב על השפה העליונה של הכרטיס */}
+        <div className="absolute left-1/2 -translate-x-1/2 -top-[75px] md:-top-[100px] z-20 pointer-events-none">
 
-      priority={plan === "plan1"}
-    />
-  </div>
-</div>
+          <div className="relative w-[150px] h-[150px] md:w-[200px] md:h-[200px]">
+            <Image
+              src={planMeta[plan].icon}
+              alt={planMeta[plan].alt}
+              fill
+              className="object-contain drop-shadow-md"
+              sizes="(max-width: 768px) 150px, 200px"
+              priority={plan === "plan1"}
+            />
+          </div>
+        </div>
 
+        <h3 className="text-2xl md:text-3xl font-semibold leading-tight min-h-[72px] flex items-center justify-center mt-4">
+          {planMeta[plan].title}
+        </h3>
 
-                    <h3 className="text-2xl font-semibold leading-tight min-h-[56px] flex items-center justify-center">
-                      {planMeta[plan].title}
-                    </h3>
+        <div className="mt-5">
+          <div className="text-5xl md:text-6xl font-bold leading-none">
+            ₪{calculateTotal(plan)}
+          </div>
+        </div>
+      </div>
 
-                    <div className="mt-3">
-                      <div className="text-4xl font-bold leading-none">
-                        ₪{calculateTotal(plan)}
-                      </div>
-                    </div>
-                  </div>
+      {/* FEATURES קבוע גובה */}
+      <ul className="text-sm space-y-3" style={{ minHeight: 260 }}>
+        {features.map((item, idx) => (
+          <li
+            key={`${plan}-feature-${idx}`}
+            className="flex gap-2 leading-6"
+          >
+            <Check size={16} className="mt-1 shrink-0" />
+            <span>{item}</span>
+          </li>
+        ))}
 
-                  {/* FEATURES קבוע גובה */}
-                  <ul className="text-sm space-y-3" style={{ minHeight: 260 }}>
-                    {features.map((item, idx) => (
-                      <li
-                        key={`${plan}-feature-${idx}`}
-                        className="flex gap-2 leading-6"
-                      >
-                        <Check size={16} className="mt-1 shrink-0" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
+        {Array.from({ length: fillers }).map((_, idx) => (
+          <li
+            key={`${plan}-filler-${idx}`}
+            className="flex gap-2 leading-6 opacity-0 select-none pointer-events-none"
+            aria-hidden="true"
+          >
+            <Check size={16} className="mt-1 shrink-0" />
+            <span>placeholder</span>
+          </li>
+        ))}
+      </ul>
 
-                    {/* fillers לשמירת גובה אחיד לכל הכרטיסים */}
-                    {Array.from({ length: fillers }).map((_, idx) => (
-                      <li
-                        key={`${plan}-filler-${idx}`}
-                        className="flex gap-2 leading-6 opacity-0 select-none pointer-events-none"
-                        aria-hidden="true"
-                      >
-                        <Check size={16} className="mt-1 shrink-0" />
-                        <span>placeholder</span>
-                      </li>
-                    ))}
-                  </ul>
+      {/* ADDONS */}
+      {renderAddons(plan)}
 
-                  {/* ADDONS קבוע גובה */}
-                  {renderAddons(plan)}
+      {/* BUTTON */}
+      <Button
+        className="rounded-full mt-auto py-5 text-base font-semibold"
+        onClick={() => handleRegister(plan)}
+      >
+        הרשמה
+      </Button>
+    </CardContent>
+  </Card>
+);
 
-                  {/* BUTTON תמיד בתחתית */}
-                  <Button
-                    className="rounded-full mt-auto py-5 text-base font-semibold"
-                    onClick={() => handleRegister(plan)}
-                  >
-                    הרשמה
-                  </Button>
-                </CardContent>
-              </Card>
-            );
           })}
         </div>
       </section>
