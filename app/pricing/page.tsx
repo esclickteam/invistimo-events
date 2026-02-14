@@ -275,7 +275,7 @@ export default function PricingPage() {
       </section>
 
       <section className="pt-20 md:pt-24 pb-32 px-6">
-        <div className="max-w-[1600px] mx-auto grid md:grid-cols-3 gap-12 items-stretch">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10 items-stretch">
           {(["plan1", "plan2", "plan3"] as PlanKey[]).map((plan) => {
             const features = getPlanFeatures(plan);
 
@@ -289,34 +289,36 @@ export default function PricingPage() {
     key={plan}
     className="rounded-[32px] shadow-xl hover:shadow-2xl transition h-full flex flex-col overflow-visible"
   >
-    <CardContent className="relative flex h-full flex-col p-10 md:p-12 pt-[110px] md:pt-[140px]">
+    <CardContent className="relative flex h-full flex-col p-8 md:p-9 pt-[96px] md:pt-[112px]">
+
 
       {/* HEADER קבוע גובה + אייקון חצי בחוץ */}
       <div
-        className="text-center mb-8 flex flex-col justify-between"
-        style={{ minHeight: 320 }}
-      >
-        {/* אייקון יושב על השפה העליונה של הכרטיס */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-[75px] md:-top-[100px] z-20 pointer-events-none">
+  className="text-center mb-6 flex flex-col justify-between"
+  style={{ minHeight: 220 }}
+>
 
-          <div className="relative w-[150px] h-[150px] md:w-[200px] md:h-[200px]">
-            <Image
-              src={planMeta[plan].icon}
-              alt={planMeta[plan].alt}
-              fill
-              className="object-contain drop-shadow-md"
-              sizes="(max-width: 768px) 150px, 200px"
-              priority={plan === "plan1"}
-            />
-          </div>
-        </div>
+        {/* אייקון יושב על השפה העליונה של הכרטיס */}
+       <div className="absolute left-1/2 -translate-x-1/2 -top-[52px] md:-top-[64px] z-20 pointer-events-none">
+  <div className="relative w-[104px] h-[104px] md:w-[128px] md:h-[128px]">
+    <Image
+      src={planMeta[plan].icon}
+      alt={planMeta[plan].alt}
+      fill
+      className="object-contain drop-shadow-md"
+      sizes="(max-width: 768px) 104px, 128px"
+      priority={plan === "plan1"}
+    />
+  </div>
+</div>
+
 
         <h3 className="text-2xl md:text-3xl font-semibold leading-tight min-h-[72px] flex items-center justify-center mt-4">
           {planMeta[plan].title}
         </h3>
 
         <div className="mt-5">
-          <div className="text-5xl md:text-6xl font-bold leading-none">
+          <div className="text-4xl md:text-5xl font-bold leading-none">
             ₪{calculateTotal(plan)}
           </div>
         </div>
