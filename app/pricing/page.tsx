@@ -296,17 +296,18 @@ export default function PricingPage() {
 <div className="text-center mb-5 flex flex-col items-center">
 
   <div className="absolute left-1/2 -translate-x-1/2 -top-[240px] md:-top-[300px] z-20 pointer-events-none">
-  <div className="relative w-[480px] h-[480px] md:w-[600px] md:h-[600px]">
+  <div className="relative w-[420px] h-[420px] md:w-[520px] md:h-[520px]">
     <Image
       src={planMeta[plan].icon}
       alt={planMeta[plan].alt}
       fill
       className="object-contain drop-shadow-md"
-      sizes="(max-width: 768px) 480px, 600px"
+      sizes="(max-width: 768px) 420px, 520px"
       priority={plan === "plan1"}
     />
   </div>
 </div>
+
 
 
 
