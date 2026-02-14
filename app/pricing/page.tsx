@@ -198,23 +198,34 @@ export default function PricingPage() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10">
 
           {(["plan1","plan2","plan3"] as PlanKey[]).map(plan => (
-            <Card key={plan} className="rounded-3xl shadow-xl hover:shadow-2xl transition">
-              <CardContent className="p-8 flex flex-col">
+           <Card
+  key={plan}
+  className="rounded-3xl shadow-xl hover:shadow-2xl transition h-full flex flex-col"
+>
 
-                <h3 className="text-2xl font-semibold mb-4 text-center">
-                  {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
-                  {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
-                  {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
-                </h3>
+            <CardContent className="p-8 flex flex-col h-full">
 
-                <div className="text-center mb-6">
-                  <div className="text-3xl font-bold">
-                    ₪{calculateTotal(plan)}
-                  </div>
-                  <div className="text-sm opacity-60">
-                    ₪{getRate(plan, records)} לרשומה
-                  </div>
-                </div>
+
+                <div className="text-center mb-6 h-[160px] flex flex-col justify-between">
+
+  
+  <h3 className="text-2xl font-semibold">
+    {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
+    {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
+    {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
+  </h3>
+
+  <div>
+    <div className="text-3xl font-bold">
+      ₪{calculateTotal(plan)}
+    </div>
+    <div className="text-sm opacity-60">
+      ₪{getRate(plan, records)} לרשומה
+    </div>
+  </div>
+
+</div>
+
 
                 <ul className="space-y-3 text-sm">
                   <li className="flex gap-2"><Check size={16}/> הזמנה דיגיטלית מלאה</li>
@@ -252,11 +263,12 @@ export default function PricingPage() {
                 {renderAddons(plan)}
 
                 <Button
-                  className="rounded-full mt-8 py-5"
-                  onClick={() => handleRegister(plan)}
-                >
-                  הרשמה
-                </Button>
+  className="rounded-full mt-auto pt-6 py-5"
+  onClick={() => handleRegister(plan)}
+>
+  הרשמה
+</Button>
+
 
               </CardContent>
             </Card>
