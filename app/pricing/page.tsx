@@ -135,10 +135,9 @@ export default function PricingPage() {
   };
 
   const handleRegister = (plan: PlanKey) => {
-    router.push(
-      `/register?plan=${plan}&records=${records}&price=${calculateTotal(plan)}`
-    );
-  };
+  router.push(`/register?plan=${plan}&records=${records}`);
+};
+
 
   /* ===================== תוכן משתנה לפיצ'רים ===================== */
 
@@ -296,13 +295,12 @@ export default function PricingPage() {
                     </h3>
 
                     <div className="mt-3">
-                      <div className="text-4xl font-bold leading-none">
-                        ₪{calculateTotal(plan)}
-                      </div>
-                      <div className="text-sm opacity-60 mt-2">
-                        ₪{getRate(plan, records)} לרשומה
-                      </div>
-                    </div>
+  <div className="text-4xl font-bold leading-none">
+    ₪{calculateTotal(plan)}
+  </div>
+</div>
+
+
                   </div>
 
                   {/* FEATURES קבוע גובה */}
