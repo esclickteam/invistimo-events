@@ -50,6 +50,8 @@ function calculateBase(plan: PlanKey, records: number) {
   return Math.round(records * getRate(plan, records));
 }
 
+/* ===================== COMPONENT ===================== */
+
 export default function PricingPage() {
   const router = useRouter();
   const options = Array.from({ length: 16 }, (_, i) => (i + 1) * 50);
@@ -61,6 +63,8 @@ export default function PricingPage() {
     plan2: { credit:false, seating:false, system:false, design:false },
     plan3: { credit:false, seating:false, system:false, design:false },
   });
+
+  /* ===================== אפסיילים ===================== */
 
   const getAddonPrices = (plan: PlanKey) => {
     if (plan === "plan1")
@@ -102,6 +106,8 @@ export default function PricingPage() {
     );
   };
 
+  /* ===================== רינדור אפסיילים ===================== */
+
   const renderAddons = (plan: PlanKey) => {
     const prices = getAddonPrices(plan);
     const selected = addons[plan];
@@ -110,40 +116,78 @@ export default function PricingPage() {
       <div className="mt-6 border-t pt-5 space-y-3 text-sm">
         <p className="font-semibold text-base">תוספות אפשריות:</p>
 
-        {[
-          { key: "credit", label: "מתנות באשראי (דרך ספק חיצוני)" },
-          { key: "seating", label: "הושבה דיגיטלית" },
-          { key: "system", label: "מערכת עצמאית לניהול ומעקב אירוע" },
-          { key: "design", label: "עיצוב הזמנה בהתאמה אישית" },
-        ].map(({ key, label }) => (
-          <label
-            key={key}
-            className="flex items-center justify-between cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={selected[key as keyof typeof selected]}
-                onChange={() =>
-                  toggleAddon(plan, key as keyof typeof selected)
-                }
-              />
-              {label}
-            </div>
+        <label className="flex items-center justify-between cursor-pointer">
 
-            <span className="w-24 text-right font-medium shrink-0">
-              {prices[key as keyof typeof prices] === 0
-                ? "כלול"
-                : `+ ₪${prices[key as keyof typeof prices]}`}
-            </span>
-          </label>
-        ))}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selected.credit}
+              onChange={() => toggleAddon(plan, "credit")}
+            />
+            מתנות באשראי (דרך ספק חיצוני)
+          </div>
+          <span className="w-24 text-right font-medium shrink-0">
+  {prices.credit === 0 ? "כלול" : `+ ₪${prices.credit}`}
+</span>
+
+        </label>
+
+       <label className="flex items-center justify-between cursor-pointer">
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selected.seating}
+              onChange={() => toggleAddon(plan, "seating")}
+            />
+            הושבה דיגיטלית
+          </div>
+         <span className="w-24 text-right font-medium shrink-0">
+  {prices.seating === 0 ? "כלול" : `+ ₪${prices.seating}`}
+</span>
+
+        </label>
+
+     <label className="flex items-center justify-between cursor-pointer">
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selected.system}
+              onChange={() => toggleAddon(plan, "system")}
+            />
+            מערכת עצמאית לניהול ומעקב אירוע
+          </div>
+         <span className="w-24 text-right font-medium shrink-0">
+  {prices.system === 0 ? "כלול" : `+ ₪${prices.system}`}
+</span>
+
+        </label>
+
+       <label className="flex items-center justify-between cursor-pointer">
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selected.design}
+              onChange={() => toggleAddon(plan, "design")}
+            />
+            עיצוב הזמנה בהתאמה אישית
+          </div>
+       <span className="w-24 text-right font-medium shrink-0">
+  {prices.design === 0 ? "כלול" : `+ ₪${prices.design}`}
+</span>
+
+        </label>
       </div>
     );
   };
 
+  /* ===================== UI ===================== */
+
   return (
     <main className="min-h-screen bg-[#f4efe9] text-[#3c342d]">
+
       <section className="pt-28 pb-16 text-center px-6">
         <h1 className="text-4xl md:text-5xl font-semibold mb-6">
           בחרו את החבילה המתאימה לאירוע שלכם
@@ -168,47 +212,84 @@ export default function PricingPage() {
 
       <section className="pb-32 px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10">
-          {(["plan1","plan2","plan3"] as PlanKey[]).map(plan => (
-            <Card
-              key={plan}
-              className="rounded-3xl shadow-xl hover:shadow-2xl transition h-full flex flex-col"
-            >
-              <CardContent className="p-8 flex flex-col h-full">
-                <div className="text-center mb-6">
-                  <h3 className="text-2xl font-semibold">
-                    {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
-                    {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
-                    {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
-                  </h3>
 
-                  <div>
-                    <div className="text-3xl font-bold">
-                      ₪{calculateTotal(plan)}
-                    </div>
-                    <div className="text-sm opacity-60">
-                      ₪{getRate(plan, records)} לרשומה
-                    </div>
-                  </div>
-                </div>
+          {(["plan1","plan2","plan3"] as PlanKey[]).map(plan => (
+           <Card
+  key={plan}
+  className="rounded-3xl shadow-xl hover:shadow-2xl transition h-full flex flex-col"
+>
+
+            <CardContent className="p-8 flex flex-col h-full">
+
+
+               <div className="text-center mb-6">
+
+  
+  <h3 className="text-2xl font-semibold">
+    {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
+    {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
+    {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
+  </h3>
+
+  <div>
+    <div className="text-3xl font-bold">
+      ₪{calculateTotal(plan)}
+    </div>
+    <div className="text-sm opacity-60">
+      ₪{getRate(plan, records)} לרשומה
+    </div>
+  </div>
+
+</div>
+
 
                 <ul className="space-y-3 text-sm">
                   <li className="flex gap-2"><Check size={16}/> הזמנה דיגיטלית מלאה</li>
                   <li className="flex gap-2"><Check size={16}/> שליחה ב-2 סבבי WhatsApp אוטומטיים לאישור הגעה</li>
-                  <li className="flex gap-2"><Check size={16}/> תזכורת ב-SMS לקראת האירוע</li>
+                  {plan === "plan3" ? (
+  <li className="flex gap-2">
+    <Check size={16}/>
+    תזכורת ב-SMS לקראת האירוע + מספר שולחן
+  </li>
+) : (
+  <li className="flex gap-2">
+    <Check size={16}/>
+    תזכורת ב-SMS לקראת האירוע
+  </li>
+)}
+
                   <li className="flex gap-2"><Check size={16}/> הודעת תודה לאחר האירוע ב-SMS</li>
+
+                  {plan === "plan2" && (
+                    <>
+                      <li className="flex gap-2"><Check size={16}/> מוקד טלפוני מקצועי</li>
+                      <li className="flex gap-2"><Check size={16}/> עד 3 ניסיונות חיוג לכל רשומה</li>
+                      <li className="flex gap-2"><Check size={16}/> תיעוד ועדכון סטטוסים בזמן אמת</li>
+                    </>
+                  )}
+
+                  {plan === "plan3" && (
+                    <>
+                      <li className="flex gap-2"><Check size={16}/> מוקד אנושי מלא</li>
+                      <li className="flex gap-2"><Check size={16}/> מערכת הושבה חכמה</li>
+                    </>
+                  )}
                 </ul>
 
                 {renderAddons(plan)}
 
                 <Button
-                  className="rounded-full mt-auto pt-6 py-5"
-                  onClick={() => handleRegister(plan)}
-                >
-                  הרשמה
-                </Button>
+  className="rounded-full mt-auto pt-6 py-5"
+  onClick={() => handleRegister(plan)}
+>
+  הרשמה
+</Button>
+
+
               </CardContent>
             </Card>
           ))}
+
         </div>
       </section>
     </main>
