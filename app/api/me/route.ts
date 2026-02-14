@@ -166,50 +166,54 @@ export async function GET() {
     );
 
     return NextResponse.json(
-      {
-        success: true,
-        user: {
-          _id: String(user._id),
-          name: user.name ?? "",
-          email: user.email ?? "",
+  {
+    success: true,
+    user: {
+      _id: String(user._id),
+      name: user.name ?? "",
+      email: user.email ?? "",
 
-          role: safeRole,
+      role: safeRole,
 
-          /* ===== STAFF ===== */
-          staffType: staffType,
-          assignedProducerId: user.assignedProducerId
-            ? String(user.assignedProducerId)
-            : null,
+      staffType: staffType,
+      assignedProducerId: user.assignedProducerId
+        ? String(user.assignedProducerId)
+        : null,
 
-          createdByProducer: !!user.createdByProducer,
+      createdByProducer: !!user.createdByProducer,
 
-          /* ===== AUTH RESOLUTION (NEW) ===== */
-          isProducerLike,
-          isProducerStaff,
-          effectiveRole,
+      isProducerLike,
+      isProducerStaff,
+      effectiveRole,
 
-          /* ===== BUSINESS ===== */
-          plan: user.plan,
-          guests: user.guests,
-          paidAmount: user.paidAmount,
-          planLimits: user.planLimits,
+      /* ✅ קריטי */
+      isActive: user.isActive === true,
 
-          includeCalls: !!user.includeCalls,
-          callsAddonPrice: user.callsAddonPrice ?? 0,
-          includeCreditGifts: !!user.includeCreditGifts,
+      plan: user.plan,
+      guests: user.guests,
+      paidAmount: user.paidAmount,
+      planLimits: user.planLimits,
 
-          producerPricePerRecord: user.producerPricePerRecord ?? 0,
+      includeCalls: !!user.includeCalls,
+      callsAddonPrice: user.callsAddonPrice ?? 0,
+      includeCreditGifts: !!user.includeCreditGifts,
 
-          /* ===== IMPERSONATION ===== */
-          impersonated: !!decoded.impersonated,
-          impersonatedBy: decoded.impersonatedBy ?? null,
-          impersonationRole: impersonationRole,
+      producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-          createdAt: user.createdAt,
-        },
-      },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+      impersonated: !!decoded.impersonated,
+      impersonatedBy: decoded.impersonatedBy ?? null,
+      impersonationRole: impersonationRole,
+
+      createdAt: user.createdAt,
+    },
+  },
+  { headers: { "Cache-Control": "no-store" } }
+);
+
+
+
+
+
   } catch (err) {
     console.error("❌ ME API ERROR:", err);
     return NextResponse.json(
