@@ -1383,27 +1383,27 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 )}
 
 
-      <textarea
-  value={message}
-  onChange={(e) => setMessage(e.target.value)}
-  rows={6}
-  readOnly={channel === "whatsapp"}
-  className={`w-[90%] md:w-[600px] border rounded-xl p-4 mb-6 ${
-    channel === "whatsapp" ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""
-  }`}
-/>
+{channel === "sms" && (
+  <>
+    <textarea
+      value={message}
+      onChange={(e) => setMessage(e.target.value)}
+      rows={6}
+      className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
+    />
 
-  <div className="w-[90%] md:w-[600px] -mt-4 mb-4">
-  {/* הערה קריטית – משתנים דינמיים */}
-  <p className="text-xs text-gray-500 leading-relaxed">
-    ℹ️ המשתנים בסוגריים מתעדכנים אוטומטית ואינם ניתנים לעריכה (
-    <span className="font-mono">{`{{name}}`}</span>,
-    <span className="font-mono">{`{{rsvpLink}}`}</span>,
-    <span className="font-mono">{`{{tableName}}`}</span>).
-  </p>
+    <div className="w-[90%] md:w-[600px] -mt-4 mb-4">
+      {/* הערה קריטית – משתנים דינמיים */}
+      <p className="text-xs text-gray-500 leading-relaxed">
+        ℹ️ המשתנים בסוגריים מתעדכנים אוטומטית ואינם ניתנים לעריכה (
+        <span className="font-mono">{`{{name}}`}</span>,
+        <span className="font-mono">{`{{rsvpLink}}`}</span>,
+        <span className="font-mono">{`{{tableName}}`}</span>).
+      </p>
+    </div>
+  </>
+)}
 
-  
-</div>
 
 
      {preview && (
