@@ -10,36 +10,68 @@ type PlanKey = "plan1" | "plan2" | "plan3";
 
 /* ===================== מדרגות מחיר ===================== */
 
-const plan1Rates = [
-  [50,1.19],[100,1.16],[150,1.13],[200,1.10],
-  [250,1.08],[300,1.06],[350,1.04],[400,1.02],
-  [450,1.00],[500,0.98],[550,0.96],[600,0.94],
-  [650,0.93],[700,0.92],[750,0.90],[800,0.88],
+const plan1Rates: [number, number][] = [
+  [50, 1.19],
+  [100, 1.16],
+  [150, 1.13],
+  [200, 1.1],
+  [250, 1.08],
+  [300, 1.06],
+  [350, 1.04],
+  [400, 1.02],
+  [450, 1.0],
+  [500, 0.98],
+  [550, 0.96],
+  [600, 0.94],
+  [650, 0.93],
+  [700, 0.92],
+  [750, 0.9],
+  [800, 0.88],
 ];
 
-const plan2Rates = [
-  [50,2.85],[100,2.38],[150,2.35],[200,2.29],
-  [250,2.26],[300,2.19],[350,2.15],[400,2.10],
-  [450,2.05],[500,2.00],[550,1.96],[600,1.92],
-  [650,1.92],[700,1.92],[750,1.92],[800,1.90],
+const plan2Rates: [number, number][] = [
+  [50, 2.85],
+  [100, 2.38],
+  [150, 2.35],
+  [200, 2.29],
+  [250, 2.26],
+  [300, 2.19],
+  [350, 2.15],
+  [400, 2.1],
+  [450, 2.05],
+  [500, 2.0],
+  [550, 1.96],
+  [600, 1.92],
+  [650, 1.92],
+  [700, 1.92],
+  [750, 1.92],
+  [800, 1.9],
 ];
 
-const plan3Rates = [
-  [50,3.75],[100,3.22],[150,2.98],[200,2.76],
-  [250,2.65],[300,2.52],[350,2.43],[400,2.35],
-  [450,2.28],[500,2.21],[550,2.14],[600,2.07],
-  [650,2.06],[700,2.05],[750,2.04],[800,2.03],
+const plan3Rates: [number, number][] = [
+  [50, 3.75],
+  [100, 3.22],
+  [150, 2.98],
+  [200, 2.76],
+  [250, 2.65],
+  [300, 2.52],
+  [350, 2.43],
+  [400, 2.35],
+  [450, 2.28],
+  [500, 2.21],
+  [550, 2.14],
+  [600, 2.07],
+  [650, 2.06],
+  [700, 2.05],
+  [750, 2.04],
+  [800, 2.03],
 ];
 
 function getRate(plan: PlanKey, records: number) {
   const table =
-    plan === "plan1"
-      ? plan1Rates
-      : plan === "plan2"
-      ? plan2Rates
-      : plan3Rates;
+    plan === "plan1" ? plan1Rates : plan === "plan2" ? plan2Rates : plan3Rates;
 
-  for (let [limit, rate] of table) {
+  for (const [limit, rate] of table) {
     if (records <= limit) return rate;
   }
 
@@ -59,25 +91,27 @@ export default function PricingPage() {
   const [records, setRecords] = useState<number>(200);
 
   const [addons, setAddons] = useState({
-    plan1: { credit:false, seating:false, system:false, design:false },
-    plan2: { credit:false, seating:false, system:false, design:false },
-    plan3: { credit:false, seating:false, system:false, design:false },
+    plan1: { credit: false, seating: false, system: false, design: false },
+    plan2: { credit: false, seating: false, system: false, design: false },
+    plan3: { credit: false, seating: false, system: false, design: false },
   });
 
   /* ===================== אפסיילים ===================== */
 
   const getAddonPrices = (plan: PlanKey) => {
-    if (plan === "plan1")
-      return { credit:150, seating:100, system:200, design:200 };
+    if (plan === "plan1") {
+      return { credit: 150, seating: 100, system: 200, design: 200 };
+    }
 
-    if (plan === "plan2")
-      return { credit:100, seating:80, system:150, design:150 };
+    if (plan === "plan2") {
+      return { credit: 100, seating: 80, system: 150, design: 150 };
+    }
 
-    return { credit:0, seating:0, system:100, design:100 };
+    return { credit: 0, seating: 0, system: 100, design: 100 };
   };
 
-  const toggleAddon = (plan: PlanKey, key: keyof typeof addons.plan1) => {
-    setAddons(prev => ({
+  const toggleAddon = (plan: PlanKey, key: keyof (typeof addons)["plan1"]) => {
+    setAddons((prev) => ({
       ...prev,
       [plan]: {
         ...prev[plan],
@@ -106,6 +140,34 @@ export default function PricingPage() {
     );
   };
 
+  /* ===================== תוכן משתנה לפיצ'רים ===================== */
+
+  const getPlanFeatures = (plan: PlanKey) => {
+    const shared = [
+      "הזמנה דיגיטלית מלאה",
+      "שליחה ב-2 סבבי WhatsApp אוטומטיים לאישור הגעה",
+      plan === "plan3"
+        ? "תזכורת ב-SMS לקראת האירוע + מספר שולחן"
+        : "תזכורת ב-SMS לקראת האירוע",
+      "הודעת תודה לאחר האירוע ב-SMS",
+    ];
+
+    if (plan === "plan2") {
+      return [
+        ...shared,
+        "מוקד טלפוני מקצועי",
+        "עד 3 ניסיונות חיוג לכל רשומה",
+        "תיעוד ועדכון סטטוסים בזמן אמת",
+      ];
+    }
+
+    if (plan === "plan3") {
+      return [...shared, "מוקד אנושי מלא", "מערכת הושבה חכמה"];
+    }
+
+    return shared;
+  };
+
   /* ===================== רינדור אפסיילים ===================== */
 
   const renderAddons = (plan: PlanKey) => {
@@ -113,72 +175,69 @@ export default function PricingPage() {
     const selected = addons[plan];
 
     return (
-      <div className="mt-6 border-t pt-5 space-y-3 text-sm">
-        <p className="font-semibold text-base">תוספות אפשריות:</p>
+      <div
+        className="mt-6 border-t pt-5 text-sm flex flex-col"
+        style={{ minHeight: 220 }}
+      >
+        <p className="font-semibold text-base mb-3">תוספות אפשריות:</p>
 
-        <label className="flex items-center justify-between cursor-pointer">
+        <div className="space-y-3">
+          <label className="flex items-center justify-between cursor-pointer gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={selected.credit}
+                onChange={() => toggleAddon(plan, "credit")}
+              />
+              <span className="leading-5">מתנות באשראי (דרך ספק חיצוני)</span>
+            </div>
+            <span className="w-24 text-left font-medium shrink-0">
+              {prices.credit === 0 ? "כלול" : `+ ₪${prices.credit}`}
+            </span>
+          </label>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selected.credit}
-              onChange={() => toggleAddon(plan, "credit")}
-            />
-            מתנות באשראי (דרך ספק חיצוני)
-          </div>
-          <span className="w-24 text-right font-medium shrink-0">
-  {prices.credit === 0 ? "כלול" : `+ ₪${prices.credit}`}
-</span>
+          <label className="flex items-center justify-between cursor-pointer gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={selected.seating}
+                onChange={() => toggleAddon(plan, "seating")}
+              />
+              <span className="leading-5">הושבה דיגיטלית</span>
+            </div>
+            <span className="w-24 text-left font-medium shrink-0">
+              {prices.seating === 0 ? "כלול" : `+ ₪${prices.seating}`}
+            </span>
+          </label>
 
-        </label>
+          <label className="flex items-center justify-between cursor-pointer gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={selected.system}
+                onChange={() => toggleAddon(plan, "system")}
+              />
+              <span className="leading-5">מערכת עצמאית לניהול ומעקב אירוע</span>
+            </div>
+            <span className="w-24 text-left font-medium shrink-0">
+              {prices.system === 0 ? "כלול" : `+ ₪${prices.system}`}
+            </span>
+          </label>
 
-       <label className="flex items-center justify-between cursor-pointer">
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selected.seating}
-              onChange={() => toggleAddon(plan, "seating")}
-            />
-            הושבה דיגיטלית
-          </div>
-         <span className="w-24 text-right font-medium shrink-0">
-  {prices.seating === 0 ? "כלול" : `+ ₪${prices.seating}`}
-</span>
-
-        </label>
-
-     <label className="flex items-center justify-between cursor-pointer">
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selected.system}
-              onChange={() => toggleAddon(plan, "system")}
-            />
-            מערכת עצמאית לניהול ומעקב אירוע
-          </div>
-         <span className="w-24 text-right font-medium shrink-0">
-  {prices.system === 0 ? "כלול" : `+ ₪${prices.system}`}
-</span>
-
-        </label>
-
-       <label className="flex items-center justify-between cursor-pointer">
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selected.design}
-              onChange={() => toggleAddon(plan, "design")}
-            />
-            עיצוב הזמנה בהתאמה אישית
-          </div>
-       <span className="w-24 text-right font-medium shrink-0">
-  {prices.design === 0 ? "כלול" : `+ ₪${prices.design}`}
-</span>
-
-        </label>
+          <label className="flex items-center justify-between cursor-pointer gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={selected.design}
+                onChange={() => toggleAddon(plan, "design")}
+              />
+              <span className="leading-5">עיצוב הזמנה בהתאמה אישית</span>
+            </div>
+            <span className="w-24 text-left font-medium shrink-0">
+              {prices.design === 0 ? "כלול" : `+ ₪${prices.design}`}
+            </span>
+          </label>
+        </div>
       </div>
     );
   };
@@ -186,8 +245,7 @@ export default function PricingPage() {
   /* ===================== UI ===================== */
 
   return (
-    <main className="min-h-screen bg-[#f4efe9] text-[#3c342d]">
-
+    <main className="min-h-screen bg-[#f4efe9] text-[#3c342d]" dir="rtl">
       <section className="pt-28 pb-16 text-center px-6">
         <h1 className="text-4xl md:text-5xl font-semibold mb-6">
           בחרו את החבילה המתאימה לאירוע שלכם
@@ -201,7 +259,7 @@ export default function PricingPage() {
             onChange={(e) => setRecords(Number(e.target.value))}
             className="w-full p-3 rounded-xl border bg-white shadow-sm"
           >
-            {options.map(num => (
+            {options.map((num) => (
               <option key={num} value={num}>
                 עד {num} רשומות
               </option>
@@ -211,85 +269,78 @@ export default function PricingPage() {
       </section>
 
       <section className="pb-32 px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10 items-stretch">
+          {(["plan1", "plan2", "plan3"] as PlanKey[]).map((plan) => {
+            const features = getPlanFeatures(plan);
 
-          {(["plan1","plan2","plan3"] as PlanKey[]).map(plan => (
-           <Card
-  key={plan}
-  className="rounded-3xl shadow-xl hover:shadow-2xl transition h-full flex flex-col"
->
+            // מיישר את אזור הפיצ'רים בין כל הכרטיסים:
+            // מקסימום שורות אצלך כרגע = 7 (בחבילה 2)
+            const maxFeatureRows = 7;
+            const fillers = Math.max(0, maxFeatureRows - features.length);
 
-            <CardContent className="p-8 flex flex-col h-full">
+            return (
+              <Card
+                key={plan}
+                className="rounded-3xl shadow-xl hover:shadow-2xl transition h-full flex flex-col"
+              >
+                <CardContent className="p-8 flex flex-col h-full">
+                  {/* HEADER קבוע גובה */}
+                  <div
+                    className="text-center mb-6 flex flex-col justify-between"
+                    style={{ minHeight: 140 }}
+                  >
+                    <h3 className="text-2xl font-semibold leading-tight">
+                      {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
+                      {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
+                      {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
+                    </h3>
 
+                    <div className="mt-3">
+                      <div className="text-4xl font-bold leading-none">
+                        ₪{calculateTotal(plan)}
+                      </div>
+                      <div className="text-sm opacity-60 mt-2">
+                        ₪{getRate(plan, records)} לרשומה
+                      </div>
+                    </div>
+                  </div>
 
-               <div className="text-center mb-6">
+                  {/* FEATURES קבוע גובה */}
+                  <ul className="text-sm space-y-3" style={{ minHeight: 260 }}>
+                    {features.map((item, idx) => (
+                      <li key={`${plan}-feature-${idx}`} className="flex gap-2 leading-6">
+                        <Check size={16} className="mt-1 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
 
-  
-  <h3 className="text-2xl font-semibold">
-    {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
-    {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
-    {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
-  </h3>
+                    {/* fillers לשמירת גובה אחיד לכל הכרטיסים */}
+                    {Array.from({ length: fillers }).map((_, idx) => (
+                      <li
+                        key={`${plan}-filler-${idx}`}
+                        className="flex gap-2 leading-6 opacity-0 select-none pointer-events-none"
+                        aria-hidden="true"
+                      >
+                        <Check size={16} className="mt-1 shrink-0" />
+                        <span>placeholder</span>
+                      </li>
+                    ))}
+                  </ul>
 
-  <div>
-    <div className="text-3xl font-bold">
-      ₪{calculateTotal(plan)}
-    </div>
-    <div className="text-sm opacity-60">
-      ₪{getRate(plan, records)} לרשומה
-    </div>
-  </div>
+                  {/* ADDONS קבוע גובה */}
+                  {renderAddons(plan)}
 
-</div>
-
-
-                <ul className="space-y-3 text-sm">
-                  <li className="flex gap-2"><Check size={16}/> הזמנה דיגיטלית מלאה</li>
-                  <li className="flex gap-2"><Check size={16}/> שליחה ב-2 סבבי WhatsApp אוטומטיים לאישור הגעה</li>
-                  {plan === "plan3" ? (
-  <li className="flex gap-2">
-    <Check size={16}/>
-    תזכורת ב-SMS לקראת האירוע + מספר שולחן
-  </li>
-) : (
-  <li className="flex gap-2">
-    <Check size={16}/>
-    תזכורת ב-SMS לקראת האירוע
-  </li>
-)}
-
-                  <li className="flex gap-2"><Check size={16}/> הודעת תודה לאחר האירוע ב-SMS</li>
-
-                  {plan === "plan2" && (
-                    <>
-                      <li className="flex gap-2"><Check size={16}/> מוקד טלפוני מקצועי</li>
-                      <li className="flex gap-2"><Check size={16}/> עד 3 ניסיונות חיוג לכל רשומה</li>
-                      <li className="flex gap-2"><Check size={16}/> תיעוד ועדכון סטטוסים בזמן אמת</li>
-                    </>
-                  )}
-
-                  {plan === "plan3" && (
-                    <>
-                      <li className="flex gap-2"><Check size={16}/> מוקד אנושי מלא</li>
-                      <li className="flex gap-2"><Check size={16}/> מערכת הושבה חכמה</li>
-                    </>
-                  )}
-                </ul>
-
-                {renderAddons(plan)}
-
-                <Button
-  className="rounded-full mt-auto pt-6 py-5"
-  onClick={() => handleRegister(plan)}
->
-  הרשמה
-</Button>
-
-
-              </CardContent>
-            </Card>
-          ))}
-
+                  {/* BUTTON תמיד בתחתית */}
+                  <Button
+                    className="rounded-full mt-auto py-5 text-base font-semibold"
+                    onClick={() => handleRegister(plan)}
+                  >
+                    הרשמה
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
     </main>
