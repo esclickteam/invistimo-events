@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 type User = {
@@ -9,9 +9,10 @@ type User = {
 
 export default function MessagesGate() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function checkUser() {
       try {
         const res = await fetch("/api/me", {
@@ -24,24 +25,35 @@ export default function MessagesGate() {
         }
 
         const data = await res.json();
-        const user: User = data.user;
+        const user: User | undefined = data?.user;
 
-        // 🟢 לקוחות קיימים
-        if (user?.isActive === true) {
-          router.replace("/dashboard/messages/legacy");
+        if (!user) {
+          router.replace("/login");
+          return;
+        }
+
+        // 🟢 לקוחות קיימים (legacy)
+        if (user.isActive === true) {
+          if (!cancelled) {
+            router.replace("/dashboard/messages/legacy");
+          }
           return;
         }
 
         // 🆕 לקוחות חדשים
-        router.replace("/dashboard/messages/new");
-      } catch (e) {
+        if (!cancelled) {
+          router.replace("/dashboard/messages/new");
+        }
+      } catch {
         router.replace("/login");
-      } finally {
-        setLoading(false);
       }
     }
 
     checkUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return null;
