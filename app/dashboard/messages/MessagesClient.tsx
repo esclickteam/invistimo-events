@@ -1389,7 +1389,6 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
       {filter === "all" && (
         <p className="text-xs text-orange-600 mt-1">
-          ⚠️ כולל גם אורחים שכבר ענו
         </p>
       )}
     </div>
