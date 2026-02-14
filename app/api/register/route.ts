@@ -33,20 +33,21 @@ export async function POST(req: Request) {
     const hashed = await bcrypt.hash(password, 12);
 
     /* ============================================================
-       יצירת משתמש – ללא חבילה וללא תשלום
+       יצירת משתמש – ללא תשלום (Stripe הוא מקור האמת)
     ============================================================ */
     const user = await User.create({
       name,
       email,
       password: hashed,
 
-      // ⛔ לא משולם עדיין
+      // ✅ enum חוקי
+      plan: "basic",
+
+      // ❗ עדיין לא משולם
       hasPaid: false,
       paidAmount: 0,
       isTrial: true,
 
-      // ברירת מחדל – יופעלו רק אחרי Webhook
-      plan: "none",
       guests: 0,
       maxMessages: 0,
       remainingMessages: 0,
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({
       success: true,
-      userId: user._id, // 🔥 קריטי ל־Stripe
+      userId: user._id,
     });
 
     res.cookies.set("authToken", token, {
