@@ -32,6 +32,7 @@ export default function EventDetailsForm({
     eventType: "wedding",
     date: "",
     time: "",
+    giftCreditUrl: "",
     location: {
       address: "",
       lat: null as number | null,
@@ -43,24 +44,23 @@ export default function EventDetailsForm({
      🔄 Sync event → local state
   ============================================================ */
   useEffect(() => {
-  if (!event) return;
+    if (!event) return;
 
-  setForm({
-    title: event.title ?? "",
-    eventType: event.eventType ?? "wedding",
-
-    date: event.date
-      ? new Date(event.date).toISOString().slice(0, 10)
-      : "",
-
-    time: event.time ?? "",
-    location: {
-      address: event.location?.address ?? "",
-      lat: event.location?.lat ?? null,
-      lng: event.location?.lng ?? null,
-    },
-  });
-}, [event]);
+    setForm({
+      title: event.title ?? "",
+      eventType: event.eventType ?? "wedding",
+      date: event.date
+        ? new Date(event.date).toISOString().slice(0, 10)
+        : "",
+      time: event.time ?? "",
+      giftCreditUrl: event.giftCreditUrl ?? "",
+      location: {
+        address: event.location?.address ?? "",
+        lat: event.location?.lat ?? null,
+        lng: event.location?.lng ?? null,
+      },
+    });
+  }, [event]);
 
   /* ============================================================
      💾 Save (UPSERT)
@@ -71,6 +71,7 @@ export default function EventDetailsForm({
       eventType: form.eventType,
       date: form.date,
       time: form.time,
+      giftCreditUrl: form.giftCreditUrl.trim(),
       location: {
         address: form.location.address,
         lat: form.location.lat,
@@ -81,6 +82,7 @@ export default function EventDetailsForm({
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(payload),
     });
 
@@ -103,6 +105,7 @@ export default function EventDetailsForm({
       <h2 className="text-xl font-semibold mb-5">🛠️ פרטי האירוע</h2>
 
       <div className="grid gap-4">
+
         {/* שם האירוע */}
         <input
           placeholder="שם האירוע"
@@ -177,6 +180,29 @@ export default function EventDetailsForm({
         <p className="text-xs text-gray-500 px-2">
           ניתן לבחור מיקום מהרשימה או להקליד ידנית
         </p>
+
+        {/* 🎁 מתנות באשראי */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600 px-2">
+            קישור למתנות באשראי (אופציונלי)
+          </label>
+          <input
+            type="url"
+            value={form.giftCreditUrl}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                giftCreditUrl: e.target.value,
+              }))
+            }
+            placeholder="https://gift.rsvpevents.co.il/events/..."
+            className="border rounded-full px-4 py-3 bg-white"
+          />
+          <p className="text-xs text-gray-400 px-2">
+            אם הוזן — יוצג ככפתור ב־WhatsApp ויצורף אוטומטית להודעות
+          </p>
+        </div>
+
       </div>
 
       <div className="flex justify-end gap-4 mt-6">

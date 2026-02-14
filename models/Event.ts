@@ -179,6 +179,13 @@ const EventSchema = new mongoose.Schema(
       },
     },
 
+    giftCreditUrl: {
+  type: String,
+  default: "",
+  trim: true,
+},
+
+
     /* =========================
        אזורים
     ========================= */
