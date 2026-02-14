@@ -1232,7 +1232,6 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
   {/* טקסט הכוונה מקצועי */}
   <p className="text-xs text-gray-500 mt-2">
-    💡 SMS – פתיחה גבוהה להזמנות | WhatsApp – שליחה אישית
   </p>
 </section>
 
