@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 
 import Invitation from "@/models/Invitation";
-import Guest from "@/models/Guest";
+import InvitationGuest from "@/models/InvitationGuest";
 
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import { sendTableNumberTemplate } from "@/lib/whatsapp/sendTableNumberTemplate";
@@ -125,10 +125,11 @@ export async function POST(req: NextRequest) {
 
       const event = invitation.eventId as any;
 
-      const guests = await Guest.find({
-        invitationId: invitation._id,
-        _id: { $in: body.audience },
-      }).lean();
+      const guests = await InvitationGuest.find({
+  invitationId: invitation._id,
+  _id: { $in: body.audience },
+}).lean();
+
 
       let sent = 0;
 
