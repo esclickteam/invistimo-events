@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import AudienceFilterSelector, {
   FilterType,
 } from "../shared/AudienceFilterSelector";
-import PhonePreview from "../shared/PhonePreview";
 import SendTiming from "../shared/SendTiming";
 import SendButton from "../shared/SendButton";
 
@@ -118,7 +117,6 @@ export default function ReminderTab({
         onChange={setScheduledAt}
       />
 
-      <PhonePreview channel="sms" text={previewText} />
 
       <SendButton
         channel="sms"

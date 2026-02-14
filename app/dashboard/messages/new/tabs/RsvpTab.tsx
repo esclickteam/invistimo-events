@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import AudienceFilterSelector, {
   FilterType,
 } from "../shared/AudienceFilterSelector";
-import PhonePreview from "../shared/PhonePreview";
 import SendTiming from "../shared/SendTiming";
 import SendButton from "../shared/SendButton";
+import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
 
 /* ================= TYPES ================= */
 
@@ -19,38 +19,30 @@ type Guest = {
 
 /* ================= CONSTANTS ================= */
 
-// שם התבנית המאושרת ב־360dialog
+// שם התבנית המאושרת במטה
 const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
 
-// טקסט תצוגה מקדימה בלבד (לא נשלח בפועל)
-const RSVP_PREVIEW_TEXT = `היי {{name}} 👋
-
+// ⚠️ טקסט תצוגה בלבד – 1:1 כמו התבנית (בלי לינק, בלי עריכה)
+const RSVP_PREVIEW_TEXT = `משפחה וחברים יקרים,
 נשמח לדעת אם תגיעו לחגוג איתנו 🎉
 
-לאישור הגעה לחצו כאן`;
+לאישור הגעה לחצו על הכפתור למטה 👇
+
+מחכים לשמוח איתכם 💖`;
 
 /* ================= COMPONENT ================= */
 
-export default function RsvpTab({
-  guests,
-}: {
-  guests: Guest[];
-}) {
+export default function RsvpTab({ guests }: { guests: Guest[] }) {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
-
-  // סבב שליחה
   const [filter, setFilter] = useState<FilterType>("all");
 
   /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
-    switch (filter) {
-      case "pending":
-        return guests.filter((g) => g.rsvp !== "yes");
-      case "all":
-      default:
-        return guests;
+    if (filter === "pending") {
+      return guests.filter((g) => g.rsvp !== "yes");
     }
+    return guests;
   }, [guests, filter]);
 
   const blocked = guestsToSend.length === 0;
@@ -64,18 +56,16 @@ export default function RsvpTab({
         value={filter}
         onChange={setFilter}
         totalCount={guests.length}
-        pendingCount={
-          guests.filter((g) => g.rsvp !== "yes").length
-        }
+        pendingCount={guests.filter((g) => g.rsvp !== "yes").length}
       />
 
       {/* ================= הסבר ================= */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        📌 הודעת אישור הגעה נשלחת ב־WhatsApp באמצעות תבנית מאושרת.
+        📌 הודעת אישור הגעה נשלחת ב־WhatsApp בלבד  
         <br />
-        ✏️ לא ניתן לערוך את תוכן ההודעה.
+        ✏️ תוכן ההודעה קבוע לפי תבנית מאושרת  
         <br />
-        ⏱️ ניתן לבחור מועד שליחה אוטומטי.
+        ⏱️ ניתן לבחור שליחה מיידית או מתוזמנת
       </section>
 
       {/* ================= תזמון ================= */}
@@ -84,12 +74,11 @@ export default function RsvpTab({
         onChange={setScheduledAt}
       />
 
-      {/* ================= תצוגה מקדימה ================= */}
-      <PhonePreview
-        channel="whatsapp"
-        text={RSVP_PREVIEW_TEXT}
+      {/* ================= תצוגה מקדימה – זהה לתבנית ================= */}
+      <WhatsappTemplatePreview
+        templateKey="rsvp"
+        previewText={RSVP_PREVIEW_TEXT}
         headerImageUrl="/whatsapp-invite-header.png"
-        showRsvpButton
       />
 
       {/* ================= שליחה ================= */}
