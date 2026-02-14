@@ -6,133 +6,19 @@ export const runtime = "nodejs";
 /* ============================================================
    Stripe instance
 ============================================================ */
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+});
 
 /* ============================================================
-   Packages (fixed prices)
-============================================================ */
- const PRICE_CONFIG: Record<
-  string,
-  { priceId: string; maxGuests: number; plan: "basic" | "premium" }
-> = {
-  basic_plan_49: {
-    priceId: "price_1SdWP9LCgfc20iubG9OFDPVs",
-    maxGuests: 100,
-    plan: "basic",
-  },
-  premium_100_v2: {
-    priceId: "price_1SdSGkLCgfc20iubDzINSFfW",
-    maxGuests: 100,
-    plan: "premium",
-  },
-  premium_200_v2: {
-    priceId: "price_1SfPbsLCgfc20iubw1ZSq3hE",
-    maxGuests: 200,
-    plan: "premium",
-  },
-  premium_300: {
-    priceId: "price_1SfPaoLCgfc20iubiRBsT6NF",
-    maxGuests: 300,
-    plan: "premium",
-  },
-  premium_400: {
-    priceId: "price_1SfPeALCgfc20iubmO93vP6z",
-    maxGuests: 400,
-    plan: "premium",
-  },
-  premium_500: {
-    priceId: "price_1SfPgNLCgfc20iubN2pcgF6T",
-    maxGuests: 500,
-    plan: "premium",
-  },
-  premium_600: {
-    priceId: "price_1SfPhlLCgfc20iubcsRvxp3H",
-    maxGuests: 600,
-    plan: "premium",
-  },
-  premium_700: {
-    priceId: "price_1SfPijLCgfc20iubU3bGUyHc",
-    maxGuests: 700,
-    plan: "premium",
-  },
-  premium_800: {
-    priceId: "price_1SfPjNLCgfc20iub4OuAyn1Y",
-    maxGuests: 800,
-    plan: "premium",
-  },
-  premium_1000: {
-    priceId: "price_1SdSqULCgfc20iubjawJsU7h",
-    maxGuests: 1000,
-    plan: "premium",
-  },
-};
-
-/* ============================================================
-   Add-ons (SMS)
-============================================================ */
-const ADDON_CONFIG: Record<string, { lookupKey: string; messages: number }> = {
-  extra_messages_500: {
-    lookupKey: "extra_messages_500",
-    messages: 500,
-  },
-};
-
-/* ============================================================
-   Price maps (₪)
-============================================================ */
-const PREMIUM_PRICE_MAP: Record<number, number> = {
-  100: 149,
-  200: 239,
-  300: 299,
-  400: 379,
-  500: 429,
-  600: 489,
-  700: 539,
-  800: 599,
-  1000: 699,
-};
-
-const CALLS_ADDON_MAP: Record<number, number> = {
-  100: 100,
-  200: 200,
-  300: 300,
-  400: 400,
-  500: 500,
-  600: 600,
-  700: 700,
-  800: 800,
-  1000: 1000,
-};
-
-const CREDIT_GIFTS_PRICE = 150;
-
-/* ============================================================
-   Helpers
-============================================================ */
-const ALLOWED_GUEST_LEVELS = [100, 200, 300, 400, 500, 600, 700, 800, 1000];
-
-function safeGuestLevel(value: any) {
-  const n = Number(value);
-  return ALLOWED_GUEST_LEVELS.includes(n) ? n : 100;
-}
-
-/* ============================================================
-   POST handler
+   POST handler – PRICE ONLY
 ============================================================ */
 export async function POST(req: Request) {
   try {
-    const {
-      priceKey,
-      email,
-      userId,
-      invitationId,
-      includeCalls = false,
-      includeCreditGifts = false,
-    } = await req.json();
+    const { amount, email, userId } = await req.json();
 
-    if (!priceKey || !email) {
+    if (!amount || amount <= 0 || !email) {
       return NextResponse.json(
-        { error: "Missing priceKey or email" },
+        { error: "Missing or invalid amount/email" },
         { status: 400 }
       );
     }
@@ -146,161 +32,32 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       CASE 1: SMS ADD-ON
+       Stripe Checkout – price_data דינמי
     ============================================================ */
-    if (ADDON_CONFIG[priceKey]) {
-      const addon = ADDON_CONFIG[priceKey];
-
-      const prices = await stripe.prices.list({
-        lookup_keys: [addon.lookupKey],
-        expand: ["data.product"],
-      });
-
-      const price = prices.data[0];
-      if (!price || !price.unit_amount) {
-        return NextResponse.json(
-          { error: "Price not found for add-on" },
-          { status: 400 }
-        );
-      }
-
-      const amount = price.unit_amount / 100;
-
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        customer_email: email,
-        line_items: [{ price: price.id, quantity: 1 }],
-        success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/payment/cancel`,
-        metadata: {
-          userId: userId || "",
-          invitationId: invitationId || "",
-          priceKey,
-          type: "addon",
-          messages: String(addon.messages),
-          amount: String(amount),
-        },
-      });
-
-      return NextResponse.json({ url: session.url });
-    }
-
-    /* ============================================================
-       CASE 2: PACKAGE PURCHASE
-    ============================================================ */
-    const config = PRICE_CONFIG[priceKey];
-    if (!config) {
-      return NextResponse.json(
-        { error: `Invalid priceKey: ${priceKey}` },
-        { status: 400 }
-      );
-    }
-
-    /* ============================================================
-       BASIC
-    ============================================================ */
-    if (config.plan === "basic") {
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        customer_email: email,
-        line_items: [{ price: config.priceId, quantity: 1 }],
-        success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/payment/cancel`,
-        metadata: {
-          userId: userId || "",
-          invitationId: invitationId || "",
-          priceKey,
-          plan: "basic",
-          maxGuests: String(config.maxGuests),
-          includeCalls: "false",
-          includeCreditGifts: "false",
-          type: "package",
-        },
-      });
-
-      return NextResponse.json({ url: session.url });
-    }
-
-    /* ============================================================
-       PREMIUM
-    ============================================================ */
-    const level = safeGuestLevel(config.maxGuests);
-    const basePrice = PREMIUM_PRICE_MAP[level];
-    const callsAddonPrice = includeCalls ? CALLS_ADDON_MAP[level] : 0;
-
-    const finalIncludeCreditGifts = includeCalls
-      ? true
-      : includeCreditGifts;
-
-    const creditGiftsAddonPrice =
-      finalIncludeCreditGifts && !includeCalls
-        ? CREDIT_GIFTS_PRICE
-        : 0;
-
-    const totalPaid =
-      basePrice + callsAddonPrice + creditGiftsAddonPrice;
-
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-      {
-        price_data: {
-          currency: "ils",
-          product_data: {
-            name: `Invistimo Premium (עד ${level} אורחים)`,
-          },
-          unit_amount: Math.round(basePrice * 100),
-        },
-        quantity: 1,
-      },
-    ];
-
-    if (includeCalls && callsAddonPrice > 0) {
-      lineItems.push({
-        price_data: {
-          currency: "ils",
-          product_data: {
-            name: "שירות אישורי הגעה טלפוניים (3 סבבים)",
-          },
-          unit_amount: Math.round(callsAddonPrice * 100),
-        },
-        quantity: 1,
-      });
-    }
-
-    if (finalIncludeCreditGifts) {
-      lineItems.push({
-        price_data: {
-          currency: "ils",
-          product_data: {
-            name: includeCalls
-              ? "🎁 מתנות באשראי לאורחים – כלול ללא עלות"
-              : "מתנות באשראי לאורחים",
-          },
-          unit_amount: includeCalls
-            ? 0
-            : Math.round(CREDIT_GIFTS_PRICE * 100),
-        },
-        quantity: 1,
-      });
-    }
-
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
-      line_items: lineItems,
+
+      line_items: [
+        {
+          price_data: {
+            currency: "ils",
+            product_data: {
+              name: "Invistimo – הרשמה",
+            },
+            unit_amount: Math.round(amount * 100), // ₪ → אגורות
+          },
+          quantity: 1,
+        },
+      ],
+
       success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/payment/cancel`,
+
       metadata: {
         userId: userId || "",
-        invitationId: invitationId || "",
-        priceKey,
-        plan: "premium",
-        maxGuests: String(level),
-        includeCalls: includeCalls ? "true" : "false",
-        callsAddonPrice: String(callsAddonPrice),
-        includeCreditGifts: finalIncludeCreditGifts ? "true" : "false",
-        creditGiftsAddonPrice: String(creditGiftsAddonPrice),
-        totalPaid: String(totalPaid),
-        type: "package",
+        amount: String(amount),
+        source: "pricing",
       },
     });
 

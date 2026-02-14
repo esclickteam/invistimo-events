@@ -5,17 +5,16 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   Register → Display only
-   מחיר סגור מגיע מ־Pricing
+   Register → Stripe (price only)
+   המחיר סגור ומגיע מ־Pricing
 ============================================================ */
 
 function RegisterFormInner() {
   const params = useSearchParams();
 
-  /* ================= QUERY PARAMS ================= */
+  /* ================= QUERY PARAM ================= */
 
-  const price = Number(params.get("price"));
-  const priceKey = params.get("priceKey");
+  const price = Number(params.get("price") || 0);
 
   /* ================= STATE ================= */
 
@@ -43,8 +42,8 @@ function RegisterFormInner() {
       return;
     }
 
-    if (!price || !priceKey) {
-      alert("נתוני תשלום חסרים, נא לבחור חבילה מחדש");
+    if (!price || price <= 0) {
+      alert("מחיר לא תקין, נא לבחור חבילה מחדש");
       return;
     }
 
@@ -66,7 +65,7 @@ function RegisterFormInner() {
         return;
       }
 
-      /* 2️⃣ Stripe Checkout – מחיר סגור */
+      /* 2️⃣ Stripe Checkout – לפי סכום בלבד */
       const checkoutRes = await fetch(
         "/api/stripe/create-checkout-session",
         {
@@ -74,8 +73,8 @@ function RegisterFormInner() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            priceKey,
-            price,
+            amount: price,          // ← זה מה שחשוב
+            currency: "ils",
             email: form.email,
           }),
         }
@@ -133,7 +132,7 @@ function RegisterFormInner() {
 
         {/* מחיר – תצוגה בלבד */}
         <div className="text-center text-lg font-semibold text-[#5c4632]">
-          סכום לתשלום: {price} ₪
+          סכום לתשלום: ₪{price}
         </div>
 
         {/* תקנון */}
@@ -159,7 +158,7 @@ function RegisterFormInner() {
         {/* כפתור */}
         <button
           type="submit"
-          disabled={loading || !price || !priceKey || !acceptedTerms}
+          disabled={loading || !price || !acceptedTerms}
           className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
         >
           {loading ? "מבצעת הרשמה..." : "הרשמה"}
