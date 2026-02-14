@@ -1155,7 +1155,9 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 {/* ================= WHATSAPP BALANCE ================= */}
 {channel === "whatsapp" &&
- balance?.whatsappRemaining !== undefined && (
+ balance &&
+ typeof balance.whatsappRemaining === "number" && (
+
   <div className="bg-gradient-to-r from-[#eef7ff] to-[#e6f0ff] border border-blue-200 rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
 
     <h2 className="text-lg font-semibold text-[#1d3f6e] mb-2">
@@ -1194,7 +1196,11 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
       {/* BALANCE CARD */}
-      {balance && (
+     {channel === "sms" &&
+ balance &&
+ typeof balance.remainingMessages === "number" && (
+
+
         <div className="bg-gradient-to-r from-[#fff7f0] to-[#f7ede2] border border-[#e2d6c8] rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
           <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
             💬 יתרת הודעות SMS
