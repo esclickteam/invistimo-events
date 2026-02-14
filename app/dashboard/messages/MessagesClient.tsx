@@ -356,6 +356,14 @@ useEffect(() => {
   }
 }, [channel]);
 
+useEffect(() => {
+  if (!(channel === "whatsapp" && templateKey === "table")) {
+    setIncludeGiftLink(false);
+    setGiftLink("");
+  }
+}, [channel, templateKey]);
+
+
 
 
 
@@ -549,6 +557,8 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 מספר השולחן שלך:
 🪑 ${tableName || "—"}
 
+${includeGiftLink && giftLink ? "ניתן גם לשלוח מתנה באשראי 🎁\n" : ""}
+
 מחכים לך!`;
 }
 
@@ -673,7 +683,10 @@ if (templateKey === "rsvp") {
 }
 
 if (templateKey === "table") {
-  selectedTemplateName = "table_number_update_invistimo";
+  selectedTemplateName =
+    includeGiftLink && giftLink
+      ? "table_number_update_with_gift"
+      : "table_number_update_invistimo";
 }
 
 if (templateKey === "custom") {
@@ -772,10 +785,12 @@ if (templateKey === "table") {
 
   payload = {
     ...payload,
+    eventId: invitation?.eventId?._id, // חשוב לשליפה מהשרת
     name: guest.name || "",
     tableName: tableName || "",
     eventType: String(eventType),
-    urlSuffix, // עכשיו באמת דינמי לכל אורח
+    urlSuffix,
+    giftCreditUrl: includeGiftLink ? giftLink : undefined,
   };
 }
 
@@ -1404,38 +1419,41 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
 
-      {/* ================= CREDIT GIFT LINK ================= */}
-<div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
-  <label className="flex items-start gap-2 cursor-pointer">
-    <input
-      type="checkbox"
-      checked={includeGiftLink}
-      onChange={(e) => setIncludeGiftLink(e.target.checked)}
-      className="mt-1"
-    />
-    <span className="text-sm text-[#4a413a]">
-      תוספת להודעה: קישור למתנות באשראי  
-      <span className="block text-xs text-gray-500">
-        מותנה בהרשמה למערכת ספק צד ג’ (RSVP)
-      </span>
-    </span>
-  </label>
-
-  {includeGiftLink && (
-    <div className="mt-4">
-      <label className="block text-sm font-semibold mb-1">
-        קישור למתנה באשראי (לכל האורחים)
-      </label>
+{/* ================= CREDIT GIFT LINK ================= */}
+{channel === "whatsapp" && templateKey === "table" && (
+  <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
+    <label className="flex items-start gap-2 cursor-pointer">
       <input
-        type="url"
-        placeholder="https://..."
-        value={giftLink}
-        onChange={(e) => setGiftLink(e.target.value)}
-        className="w-full border rounded-xl p-3"
+        type="checkbox"
+        checked={includeGiftLink}
+        onChange={(e) => setIncludeGiftLink(e.target.checked)}
+        className="mt-1"
       />
-    </div>
-  )}
-</div>
+      <span className="text-sm text-[#4a413a]">
+        תוספת להודעה: קישור למתנות באשראי  
+        <span className="block text-xs text-gray-500">
+          מותנה בהרשמה למערכת ספק צד ג’ (RSVP)
+        </span>
+      </span>
+    </label>
+
+    {includeGiftLink && (
+      <div className="mt-4">
+        <label className="block text-sm font-semibold mb-1">
+          קישור למתנה באשראי (לכל האורחים)
+        </label>
+        <input
+          type="url"
+          placeholder="https://..."
+          value={giftLink}
+          onChange={(e) => setGiftLink(e.target.value)}
+          className="w-full border rounded-xl p-3"
+        />
+      </div>
+    )}
+  </div>
+)}
+
 
 
 {/* PHONE PREVIEW */}
@@ -1511,14 +1529,29 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 )}
 
 {templateKey === "table" && (
-  <button
-    type="button"
-    disabled
-    className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
-  >
-    ניווט לאירוע
-  </button>
+  <div className="mt-2 space-y-2">
+    {/* כפתור ניווט */}
+    <button
+      type="button"
+      disabled
+      className="w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
+    >
+      ניווט לאירוע
+    </button>
+
+    {/* כפתור מתנה באשראי – רק אם קיים */}
+    {includeGiftLink && giftLink && (
+      <button
+        type="button"
+        disabled
+        className="w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
+      >
+        🎁 מתנה באשראי
+      </button>
+    )}
+  </div>
 )}
+
 
 
           </div>

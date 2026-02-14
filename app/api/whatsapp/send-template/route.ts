@@ -15,29 +15,28 @@ export const dynamic = "force-dynamic";
 type TemplateName =
   | "rsvp_invitation_media"
   | "table_number_update_invistimo"
+  | "table_number_update_with_gift" // ✅ חדש
   | "thank_you_message";
 
 type SendTemplateRequestBody = {
-  // common
-  eventId?: string; // חובה ל-RSVP
+  eventId?: string;
   to?: string;
   templateName?: TemplateName;
-  languageCode?: string; // default: he
+  languageCode?: string;
 
-  // RSVP (BODY)
-  eventTitle?: string; // {{1}}
-  eventDate?: string; // {{2}}
-  eventLocation?: string; // {{3}}
-  rsvpLink?: string; // קישור אישי מלא (הכפתור משתמש ממנו ב-suffix)
+  eventTitle?: string;
+  eventDate?: string;
+  eventLocation?: string;
+  rsvpLink?: string;
 
-  // HEADER
-  headerImageUrl?: string; // URL ציבורי (Cloudinary)
+  headerImageUrl?: string;
 
-  // table / thank you
   name?: string;
   tableName?: string;
   eventType?: string;
-  urlSuffix?: string; 
+  urlSuffix?: string;
+
+  giftCreditUrl?: string; // ✅ חדש
 };
 
 type ClientValidationResult =
@@ -67,38 +66,19 @@ function isTemplateName(value: unknown): value is TemplateName {
   return (
     value === "rsvp_invitation_media" ||
     value === "table_number_update_invistimo" ||
+    value === "table_number_update_with_gift" || // ✅ חדש
     value === "thank_you_message"
   );
 }
 
-/** נרמול תאריך לתצוגה */
 function normalizeDateInput(v: unknown): string {
   const s = safeTrim(v);
   if (!s) return "";
-
   const d = new Date(s);
   if (!Number.isNaN(d.getTime())) {
     return d.toLocaleDateString("he-IL");
   }
-
   return s;
-}
-
-/* ================= DB HELPERS ================= */
-
-async function findInvitationHeaderImage(eventId: string) {
-  const query = mongoose.Types.ObjectId.isValid(eventId)
-    ? { eventId: new mongoose.Types.ObjectId(eventId) }
-    : { eventId };
-
-  return (await Invitation.findOne(query)
-    .select("headerImageUrl eventId")
-    .lean()) as
-    | {
-        headerImageUrl?: string;
-        eventId?: string | mongoose.Types.ObjectId;
-      }
-    | null;
 }
 
 /* ================= VALIDATION ================= */
@@ -111,6 +91,13 @@ function validateCommon(
 
   if (
     templateName === "rsvp_invitation_media" &&
+    !isNonEmptyString(body.eventId)
+  ) {
+    return "Missing required field: eventId";
+  }
+
+  if (
+    templateName === "table_number_update_with_gift" &&
     !isNonEmptyString(body.eventId)
   ) {
     return "Missing required field: eventId";
@@ -134,15 +121,18 @@ function validateByTemplate(
       return "Missing required field: rsvpLink";
   }
 
-  if (templateName === "table_number_update_invistimo") {
-  if (!isNonEmptyString(body.name)) return "Missing required field: name";
-  if (!isNonEmptyString(body.tableName))
-    return "Missing required field: tableName";
-  if (!isNonEmptyString(body.eventType))
-    return "Missing required field: eventType";
-  if (!isNonEmptyString(body.urlSuffix))
-    return "Missing required field: urlSuffix"; // ← חדש
-}
+  if (
+    templateName === "table_number_update_invistimo" ||
+    templateName === "table_number_update_with_gift"
+  ) {
+    if (!isNonEmptyString(body.name)) return "Missing required field: name";
+    if (!isNonEmptyString(body.tableName))
+      return "Missing required field: tableName";
+    if (!isNonEmptyString(body.eventType))
+      return "Missing required field: eventType";
+    if (!isNonEmptyString(body.urlSuffix))
+      return "Missing required field: urlSuffix";
+  }
 
   if (templateName === "thank_you_message") {
     if (!isNonEmptyString(body.name)) return "Missing required field: name";
@@ -177,7 +167,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* 1️⃣ Template + Language */
     const templateResult = resolveTemplateAndLang(body);
     if (!templateResult.ok) {
       return NextResponse.json(
@@ -188,122 +177,68 @@ export async function POST(req: NextRequest) {
 
     const { templateName, languageCode } = templateResult;
 
-    /* 2️⃣ Normalize */
-    if (templateName === "rsvp_invitation_media") {
-      body.eventTitle = safeTrim(body.eventTitle);
-      body.eventDate = normalizeDateInput(body.eventDate);
-      body.eventLocation = safeTrim(body.eventLocation);
-      body.rsvpLink = safeTrim(body.rsvpLink);
-      body.headerImageUrl = safeTrim(body.headerImageUrl);
-      body.eventId = safeTrim(body.eventId);
-      body.to = safeTrim(body.to);
-    }
+    body.to = safeTrim(body.to);
+    body.eventId = safeTrim(body.eventId);
+    body.name = safeTrim(body.name);
+    body.tableName = safeTrim(body.tableName);
+    body.eventType = safeTrim(body.eventType);
+    body.urlSuffix = safeTrim(body.urlSuffix);
+    body.giftCreditUrl = safeTrim(body.giftCreditUrl);
 
-    if (templateName === "table_number_update_invistimo") {
-  body.name = safeTrim(body.name);
-  body.tableName = safeTrim(body.tableName);
-  body.eventType = safeTrim(body.eventType);
-  body.urlSuffix = safeTrim(body.urlSuffix); // ← חדש
-  body.to = safeTrim(body.to);
-}
-
-    if (templateName === "thank_you_message") {
-      body.name = safeTrim(body.name);
-      body.to = safeTrim(body.to);
-    }
-
-    /* 3️⃣ Validation */
     const commonError = validateCommon(body, templateName);
-    if (commonError) {
-      return NextResponse.json(
-        { success: false, error: commonError },
-        { status: 400 }
-      );
-    }
+    if (commonError)
+      return NextResponse.json({ success: false, error: commonError }, { status: 400 });
 
     const templateError = validateByTemplate(body, templateName);
-    if (templateError) {
-      return NextResponse.json(
-        { success: false, error: templateError },
-        { status: 400 }
-      );
-    }
+    if (templateError)
+      return NextResponse.json({ success: false, error: templateError }, { status: 400 });
 
     await db();
 
-    /* ================= RSVP ================= */
-    if (templateName === "rsvp_invitation_media") {
-      let headerImageUrl = body.headerImageUrl || "";
+    /* ================= TABLE WITH GIFT ================= */
+    if (templateName === "table_number_update_with_gift") {
+      let giftUrl = body.giftCreditUrl || "";
 
-      // fallback רק לשדה headerImageUrl מה-DB
-      if (!headerImageUrl) {
-        const invitation = await findInvitationHeaderImage(body.eventId!);
+      if (!giftUrl && body.eventId) {
+        const invitation = await Invitation.findOne({
+          eventId: new mongoose.Types.ObjectId(body.eventId),
+        })
+          .select("giftCreditUrl")
+          .lean();
 
-        if (!invitation || !isNonEmptyString(invitation.headerImageUrl)) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "MISSING_HEADER_IMAGE_URL_FOR_EVENT",
-            },
-            { status: 400 }
-          );
+        if (invitation?.giftCreditUrl) {
+          giftUrl = invitation.giftCreditUrl.trim();
         }
-
-        headerImageUrl = invitation.headerImageUrl.trim();
       }
 
-      if (!isValidHttpsUrl(headerImageUrl)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "headerImageUrl must be a public https URL",
-          },
-          { status: 400 }
-        );
-      }
-
-      if (!isValidHttpsUrl(body.rsvpLink!)) {
-        return NextResponse.json(
-          { success: false, error: "rsvpLink must be a public https URL" },
-          { status: 400 }
-        );
-      }
-
-      const providerResponse = await sendRsvpTemplateMedia({
+      const providerResponse = await sendTableNumberTemplate({
         to: body.to!,
-        eventTitle: body.eventTitle!,
-        eventDate: body.eventDate!,
-        eventLocation: body.eventLocation!,
-        rsvpLink: body.rsvpLink!, // לינק מלא; הפונקציה תגזור suffix לכפתור
-        headerImageUrl,
+        name: body.name!,
+        tableName: body.tableName!,
+        eventType: body.eventType!,
+        urlSuffix: body.urlSuffix!,
+        giftCreditUrl: giftUrl, // ✅ מועבר לפונקציה
         templateName,
         languageCode,
       });
 
       return NextResponse.json(
-        {
-          success: true,
-          templateName,
-          languageCode,
-          headerImageUrlUsed: headerImageUrl,
-          providerResponse,
-        },
+        { success: true, templateName, languageCode, providerResponse },
         { status: 200 }
       );
     }
 
-    /* ================= TABLE ================= */
+    /* ================= TABLE רגיל ================= */
     if (templateName === "table_number_update_invistimo") {
       const providerResponse = await sendTableNumberTemplate({
-  to: body.to!,
-  name: body.name!,
-  tableName: body.tableName!,
-  eventType: body.eventType!,
-  urlSuffix: body.urlSuffix!, // ← חדש
-  templateName,
-  languageCode,
-});
-
+        to: body.to!,
+        name: body.name!,
+        tableName: body.tableName!,
+        eventType: body.eventType!,
+        urlSuffix: body.urlSuffix!,
+        templateName,
+        languageCode,
+      });
 
       return NextResponse.json(
         { success: true, templateName, languageCode, providerResponse },

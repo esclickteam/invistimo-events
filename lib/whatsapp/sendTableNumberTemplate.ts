@@ -6,6 +6,9 @@ type SendTableNumberTemplateInput = {
   tableName: string;   // {{2}}
   eventType: string;   // {{3}}
   urlSuffix: string;   // כפתור URL {{1}}
+
+  giftCreditUrl?: string; // ✅ חדש – כפתור שני
+
   templateName?: string;
   languageCode?: string;
 };
@@ -88,6 +91,48 @@ export async function sendTableNumberTemplate(
   const templateName = sanitizeTemplateName(input.templateName);
   const languageCode = sanitizeLanguageCode(input.languageCode);
 
+  const isWithGift = templateName === "table_number_update_with_gift";
+
+  /* ================= COMPONENTS ================= */
+
+  const components: any[] = [
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: input.name.trim() },      
+        { type: "text", text: input.tableName.trim() }, 
+        { type: "text", text: input.eventType.trim() }, 
+      ],
+    },
+    {
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [
+        {
+          type: "text",
+          text: input.urlSuffix.trim(), // suffix בלבד
+        },
+      ],
+    },
+  ];
+
+  /* ================= כפתור שני אם קיים ================= */
+
+  if (isWithGift && isNonEmptyString(input.giftCreditUrl)) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: "1",
+      parameters: [
+        {
+          type: "text",
+          text: input.giftCreditUrl.trim(),
+        },
+      ],
+    });
+  }
+
   const payload = {
     messaging_product: "whatsapp",
     to,
@@ -95,27 +140,7 @@ export async function sendTableNumberTemplate(
     template: {
       name: templateName,
       language: { code: languageCode },
-      components: [
-        {
-          type: "body",
-          parameters: [
-            { type: "text", text: input.name.trim() },       // {{1}}
-            { type: "text", text: input.tableName.trim() },  // {{2}}
-            { type: "text", text: input.eventType.trim() },  // {{3}}
-          ],
-        },
-        {
-          type: "button",
-          sub_type: "url",
-          index: "0",
-          parameters: [
-            {
-              type: "text",
-              text: input.urlSuffix.trim(), // רק ה-suffix!
-            },
-          ],
-        },
-      ],
+      components,
     },
   };
 
