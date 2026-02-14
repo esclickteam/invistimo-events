@@ -1,12 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   Register → Stripe Checkout
-   חבילות חדשות בלבד + אפסיילים
+   Register → Display only
+   המחיר נסגר בעמוד Pricing
 ============================================================ */
 
 function RegisterFormInner() {
@@ -14,15 +14,9 @@ function RegisterFormInner() {
 
   /* ================= QUERY PARAMS ================= */
 
-  const plan = params.get("plan") || "";
-  const guests = Number(params.get("guests") || 0);
-
-  // מחיר בסיס שמגיע מדף התמחור (אמת מוחלטת)
-  const basePrice = Number(params.get("price") || 0);
-
-  // אפסיילים
-  const includeCalls = params.get("calls") === "1";
-  const includeCreditGifts = params.get("creditGifts") === "1";
+  const price = Number(params.get("price") || 0);
+  const priceKey = params.get("priceKey") || "";
+  const planLabel = params.get("label") || "חבילה";
 
   /* ================= STATE ================= */
 
@@ -35,60 +29,6 @@ function RegisterFormInner() {
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const [price, setPrice] = useState(basePrice);
-  const [priceKey, setPriceKey] = useState("");
-
-  const [callsAddonPrice, setCallsAddonPrice] = useState(0);
-  const [creditGiftsAddonPrice, setCreditGiftsAddonPrice] = useState(0);
-
-  /* ================= PRICE + ADDONS ================= */
-
-  useEffect(() => {
-    // BASIC – חבילה חדשה
-    if (plan === "basic") {
-      setCallsAddonPrice(0);
-      setCreditGiftsAddonPrice(0);
-      setPrice(basePrice);
-      setPriceKey("basic_plan_49");
-      return;
-    }
-
-    // PREMIUM – חבילה חדשה
-    if (plan === "premium") {
-      const CREDIT_GIFTS_PRICE = 150;
-
-      const callsAddon =
-        includeCalls && guests > 0 ? guests * 1 : 0;
-
-      const creditGiftsAddon =
-        includeCreditGifts ? CREDIT_GIFTS_PRICE : 0;
-
-      setCallsAddonPrice(callsAddon);
-      setCreditGiftsAddonPrice(creditGiftsAddon);
-
-      setPrice(basePrice + callsAddon + creditGiftsAddon);
-
-      const priceKeyMap: Record<number, string> = {
-        100: "premium_100_v2",
-        200: "premium_200_v2",
-        300: "premium_300",
-        400: "premium_400",
-        500: "premium_500",
-        600: "premium_600",
-        700: "premium_700",
-        800: "premium_800",
-        1000: "premium_1000",
-      };
-
-      setPriceKey(priceKeyMap[guests] || "");
-      return;
-    }
-
-    // fallback
-    setPrice(0);
-    setPriceKey("");
-  }, [plan, guests, includeCalls, includeCreditGifts, basePrice]);
 
   /* ================= HANDLERS ================= */
 
@@ -104,26 +44,21 @@ function RegisterFormInner() {
       return;
     }
 
-    if (!priceKey) {
-      alert("חבילה לא תקינה — נסי לבחור שוב");
+    if (!price || !priceKey) {
+      alert("נתוני תשלום חסרים, נא לבחור חבילה מחדש");
       return;
     }
 
     setLoading(true);
 
     try {
-      /* הרשמה */
+      /* 1️⃣ יצירת משתמש */
       const registerRes = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           ...form,
-          plan,
-          guests,
-          price,
-          includeCalls,
-          includeCreditGifts,
         }),
       });
 
@@ -133,7 +68,7 @@ function RegisterFormInner() {
         return;
       }
 
-      /* Stripe Checkout */
+      /* 2️⃣ Stripe Checkout – עם מחיר סגור */
       const checkoutRes = await fetch(
         "/api/stripe/create-checkout-session",
         {
@@ -142,12 +77,8 @@ function RegisterFormInner() {
           credentials: "include",
           body: JSON.stringify({
             priceKey,
+            price,
             email: form.email,
-            quantity: 1,
-            includeCalls,
-            callsAddonPrice,
-            includeCreditGifts,
-            creditGiftsAddonPrice,
           }),
         }
       );
@@ -172,7 +103,7 @@ function RegisterFormInner() {
   return (
     <div className="max-w-xl mx-auto pt-20 pb-28 px-5">
       <h1 className="text-4xl font-serif font-bold text-[#5c4632] mb-3 text-center">
-        הרשמה לחבילת {plan === "premium" ? "פרימיום" : "בסיס"}
+        הרשמה ל־{planLabel}
       </h1>
 
       <form
@@ -202,7 +133,7 @@ function RegisterFormInner() {
           </div>
         ))}
 
-        {/* סכום */}
+        {/* סכום – תצוגה בלבד */}
         <div className="text-center text-lg font-semibold text-[#5c4632]">
           סכום לתשלום: {price} ₪
         </div>
@@ -230,7 +161,7 @@ function RegisterFormInner() {
         {/* כפתור */}
         <button
           type="submit"
-          disabled={loading || price === 0 || !priceKey || !acceptedTerms}
+          disabled={loading || !price || !priceKey || !acceptedTerms}
           className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
         >
           {loading ? "מבצעת הרשמה..." : "הרשמה"}
