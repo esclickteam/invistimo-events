@@ -454,15 +454,6 @@ useEffect(() => {
   loadUser();
 }, [isDemo]);
 
-useEffect(() => {
-  if (!user) return;
-
-  // ⛔ משתמש שלא שילם – אין כניסה לדשבורד
-  if (!user.hasPaid) {
-    router.replace("/pricing");
-  }
-}, [user, router]);
-
 
 
 useEffect(() => {
