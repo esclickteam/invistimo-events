@@ -295,18 +295,19 @@ export default function PricingPage() {
       {/* HEADER קומפקטי + אייקון גדול */}
 <div className="text-center mb-5 flex flex-col items-center">
   {/* אייקון חצי בחוץ, גדול מאוד */}
-  <div className="absolute left-1/2 -translate-x-1/2 -top-[78px] md:-top-[96px] z-20 pointer-events-none">
-    <div className="relative w-[240px] h-[240px] md:w-[300px] md:h-[300px]">
-      <Image
-        src={planMeta[plan].icon}
-        alt={planMeta[plan].alt}
-        fill
-        className="object-contain drop-shadow-md"
-        sizes="(max-width: 768px) 240px, 300px"
-        priority={plan === "plan1"}
-      />
-    </div>
+  <div className="absolute left-1/2 -translate-x-1/2 -top-[170px] md:-top-[220px] z-20 pointer-events-none">
+  <div className="relative w-[480px] h-[480px] md:w-[600px] md:h-[600px]">
+    <Image
+      src={planMeta[plan].icon}
+      alt={planMeta[plan].alt}
+      fill
+      className="object-contain drop-shadow-md"
+      sizes="(max-width: 768px) 480px, 600px"
+      priority={plan === "plan1"}
+    />
   </div>
+</div>
+
 
   {/* כותרת צמודה יותר לאייקון */}
   <h3 className="text-2xl md:text-3xl font-semibold leading-tight mt-10 md:mt-12">
