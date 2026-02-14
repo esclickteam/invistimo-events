@@ -137,6 +137,7 @@ export async function GET(req: Request) {
           location
           imageUrl
           coverImageUrl
+          giftCreditUrl
         `,
       })
       .select(`

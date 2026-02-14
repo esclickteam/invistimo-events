@@ -357,11 +357,11 @@ useEffect(() => {
 }, [channel]);
 
 useEffect(() => {
-  if (!(channel === "whatsapp" && templateKey === "table")) {
+  if (channel !== "sms") {
     setIncludeGiftLink(false);
     setGiftLink("");
   }
-}, [channel, templateKey]);
+}, [channel]);
 
 
 
@@ -449,9 +449,10 @@ const disableSend =
     .replace(/{{navigationLink}}/g, navigationLink);
 
   // 🎁 מתנה באשראי
-  if (includeGiftLink && giftLink) {
-    finalMessage += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-  }
+  if (channel === "sms" && includeGiftLink && giftLink) {
+  finalMessage += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+}
+
 
   return finalMessage.trim();
 };
@@ -484,7 +485,7 @@ function buildEventTitle(meta: { title?: string; eventType?: string }) {
 
 
 function getEventMeta(invitation: any) {
-  const event = invitation?.eventId;
+  const event = invitation?.event;
 
   const title = event?.title || "";
   const rawDate = event?.date || "";
@@ -495,18 +496,22 @@ function getEventMeta(invitation: any) {
     event?.location?.name ||
     "";
 
-  // ✅ המקור האמיתי לתמונה
   const imageUrl =
-  typeof invitation?.previewImage === "string" &&
-  invitation.previewImage.startsWith("http")
-    ? invitation.previewImage
-    : "";
-
+    typeof invitation?.previewImage === "string" &&
+    invitation.previewImage.startsWith("http")
+      ? invitation.previewImage
+      : "";
 
   const eventType =
     event?.eventType ||
     event?.type ||
     "";
+
+  const giftCreditUrl =
+    typeof event?.giftCreditUrl === "string" &&
+    event.giftCreditUrl.startsWith("http")
+      ? event.giftCreditUrl
+      : "";
 
   return {
     title,
@@ -515,8 +520,10 @@ function getEventMeta(invitation: any) {
     location,
     imageUrl,
     eventType,
+    giftCreditUrl,
   };
 }
+
 
 
 
@@ -557,7 +564,8 @@ if (templateKey === "table") {
 מספר השולחן שלך:
 🪑 ${tableName || "—"}
 
-${includeGiftLink && giftLink ? "למתנה באשראי:\nלחצו על הכפתור למטה\n\n" : ""}
+${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור למטה\n\n" : ""}
+
 
 מחכים לך!`;
 }
@@ -684,11 +692,13 @@ if (templateKey === "rsvp") {
 }
 
 if (templateKey === "table") {
-  selectedTemplateName =
-    includeGiftLink && giftLink
-      ? "table_number_update_with_gift"
-      : "table_number_update_invistimo";
+  const meta = getEventMeta(invitation);
+
+  selectedTemplateName = meta.giftCreditUrl
+    ? "table_number_update_with_gift"
+    : "table_number_update_invistimo";
 }
+
 
 if (templateKey === "custom") {
   selectedTemplateName = "thank_you_message";
@@ -783,15 +793,16 @@ if (templateKey === "rsvp") {
 
 if (templateKey === "table") {
   const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
+  const meta = getEventMeta(invitation);
 
   payload = {
     ...payload,
-    eventId: invitation?.eventId?._id, // חשוב לשליפה מהשרת
+    eventId: invitation?.eventId?._id,
     name: guest.name || "",
     tableName: tableName || "",
     eventType: String(eventType),
     urlSuffix,
-    giftCreditUrl: includeGiftLink ? giftLink : undefined,
+    giftCreditUrl: meta.giftCreditUrl || undefined,
   };
 }
 
@@ -1421,7 +1432,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 
 
 {/* ================= CREDIT GIFT LINK ================= */}
-{channel === "whatsapp" && templateKey === "table" && (
+{channel === "sms" && templateKey === "table" && (
   <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
     <label className="flex items-start gap-2 cursor-pointer">
       <input
@@ -1431,17 +1442,14 @@ const progress = max > 0 ? (used / max) * 100 : 0;
         className="mt-1"
       />
       <span className="text-sm text-[#4a413a]">
-        תוספת להודעה: קישור למתנות באשראי  
-        <span className="block text-xs text-gray-500">
-          מותנה בהרשמה למערכת ספק צד ג’ (RSVP)
-        </span>
+        תוספת להודעה: קישור למתנות באשראי
       </span>
     </label>
 
     {includeGiftLink && (
       <div className="mt-4">
         <label className="block text-sm font-semibold mb-1">
-          קישור למתנה באשראי (לכל האורחים)
+          קישור למתנה באשראי
         </label>
         <input
           type="url"
@@ -1454,6 +1462,7 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     )}
   </div>
 )}
+
 
 
 
@@ -1541,7 +1550,8 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     </div>
 
     {/* כפתור מתנה באשראי */}
-    {includeGiftLink && giftLink && (
+    {getEventMeta(invitation)?.giftCreditUrl && (
+
       <div>
         <div className="py-3 text-center text-sm font-medium text-[#1d6fb8] flex items-center justify-center gap-2">
           <span>🔗</span>
