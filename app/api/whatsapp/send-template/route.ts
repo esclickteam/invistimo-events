@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import db from "@/lib/db";
+
 import Invitation from "@/models/Invitation";
+import Guest from "@/models/Guest";
 
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import { sendTableNumberTemplate } from "@/lib/whatsapp/sendTableNumberTemplate";
@@ -15,33 +17,35 @@ export const dynamic = "force-dynamic";
 type TemplateName =
   | "rsvp_invitation_media"
   | "table_number_update_invistimo"
-  | "table_number_update_with_gift" // ✅ חדש
+  | "table_number_update_with_gift"
   | "thank_you_message";
 
 type SendTemplateRequestBody = {
-  eventId?: string;
+  // RSVP (bulk)
+  invitationId?: string;
+  audience?: string[];
+
+  // single-recipient templates
   to?: string;
+
   templateName?: TemplateName;
   languageCode?: string;
 
+  // RSVP fields
   eventTitle?: string;
   eventDate?: string;
   eventLocation?: string;
   rsvpLink?: string;
-
   headerImageUrl?: string;
 
+  // table / thank you
   name?: string;
   tableName?: string;
   eventType?: string;
   urlSuffix?: string;
 
-  giftCreditUrl?: string; // ✅ חדש
+  giftCreditUrl?: string;
 };
-
-type ClientValidationResult =
-  | { ok: true; templateName: TemplateName; languageCode: string }
-  | { ok: false; error: string };
 
 /* ================= HELPERS ================= */
 
@@ -53,103 +57,13 @@ function safeTrim(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function isValidHttpsUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    return u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function isTemplateName(value: unknown): value is TemplateName {
   return (
     value === "rsvp_invitation_media" ||
     value === "table_number_update_invistimo" ||
-    value === "table_number_update_with_gift" || // ✅ חדש
+    value === "table_number_update_with_gift" ||
     value === "thank_you_message"
   );
-}
-
-function normalizeDateInput(v: unknown): string {
-  const s = safeTrim(v);
-  if (!s) return "";
-  const d = new Date(s);
-  if (!Number.isNaN(d.getTime())) {
-    return d.toLocaleDateString("he-IL");
-  }
-  return s;
-}
-
-/* ================= VALIDATION ================= */
-
-function validateCommon(
-  body: Partial<SendTemplateRequestBody>,
-  templateName: TemplateName
-): string | null {
-  if (!isNonEmptyString(body.to)) return "Missing required field: to";
-
-  if (
-    templateName === "rsvp_invitation_media" &&
-    !isNonEmptyString(body.eventId)
-  ) {
-    return "Missing required field: eventId";
-  }
-
-  if (
-    templateName === "table_number_update_with_gift" &&
-    !isNonEmptyString(body.eventId)
-  ) {
-    return "Missing required field: eventId";
-  }
-
-  return null;
-}
-
-function validateByTemplate(
-  body: Partial<SendTemplateRequestBody>,
-  templateName: TemplateName
-): string | null {
-  if (templateName === "rsvp_invitation_media") {
-    if (!isNonEmptyString(body.eventTitle))
-      return "Missing required field: eventTitle";
-    if (!isNonEmptyString(body.eventDate))
-      return "Missing required field: eventDate";
-    if (!isNonEmptyString(body.eventLocation))
-      return "Missing required field: eventLocation";
-    if (!isNonEmptyString(body.rsvpLink))
-      return "Missing required field: rsvpLink";
-  }
-
-  if (
-    templateName === "table_number_update_invistimo" ||
-    templateName === "table_number_update_with_gift"
-  ) {
-    if (!isNonEmptyString(body.name)) return "Missing required field: name";
-    if (!isNonEmptyString(body.tableName))
-      return "Missing required field: tableName";
-    if (!isNonEmptyString(body.eventType))
-      return "Missing required field: eventType";
-    if (!isNonEmptyString(body.urlSuffix))
-      return "Missing required field: urlSuffix";
-  }
-
-  if (templateName === "thank_you_message") {
-    if (!isNonEmptyString(body.name)) return "Missing required field: name";
-  }
-
-  return null;
-}
-
-function resolveTemplateAndLang(
-  body: Partial<SendTemplateRequestBody>
-): ClientValidationResult {
-  if (!isTemplateName(body.templateName)) {
-    return { ok: false, error: "Missing or invalid templateName" };
-  }
-
-  const languageCode = safeTrim(body.languageCode) || "he";
-  return { ok: true, templateName: body.templateName, languageCode };
 }
 
 /* ================= ROUTE ================= */
@@ -167,42 +81,117 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const templateResult = resolveTemplateAndLang(body);
-    if (!templateResult.ok) {
+    if (!isTemplateName(body.templateName)) {
       return NextResponse.json(
-        { success: false, error: templateResult.error },
+        { success: false, error: "Missing or invalid templateName" },
         { status: 400 }
       );
     }
 
-    const { templateName, languageCode } = templateResult;
-
-    body.to = safeTrim(body.to);
-    body.eventId = safeTrim(body.eventId);
-    body.name = safeTrim(body.name);
-    body.tableName = safeTrim(body.tableName);
-    body.eventType = safeTrim(body.eventType);
-    body.urlSuffix = safeTrim(body.urlSuffix);
-    body.giftCreditUrl = safeTrim(body.giftCreditUrl);
-
-    const commonError = validateCommon(body, templateName);
-    if (commonError)
-      return NextResponse.json({ success: false, error: commonError }, { status: 400 });
-
-    const templateError = validateByTemplate(body, templateName);
-    if (templateError)
-      return NextResponse.json({ success: false, error: templateError }, { status: 400 });
+    const templateName = body.templateName;
+    const languageCode = safeTrim(body.languageCode) || "he";
 
     await db();
 
-    /* ================= TABLE WITH GIFT ================= */
-    if (templateName === "table_number_update_with_gift") {
-      let giftUrl = body.giftCreditUrl || "";
+    /* =====================================================
+       RSVP – BULK WHATSAPP (NO `to` FROM CLIENT)
+    ===================================================== */
 
-      if (!giftUrl && body.eventId) {
-        const invitation = await Invitation.findOne({
-          eventId: new mongoose.Types.ObjectId(body.eventId),
-        })
+    if (templateName === "rsvp_invitation_media") {
+      if (
+        !isNonEmptyString(body.invitationId) ||
+        !Array.isArray(body.audience) ||
+        body.audience.length === 0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Missing invitationId or audience",
+          },
+          { status: 400 }
+        );
+      }
+
+      const invitation = await Invitation.findById(body.invitationId)
+        .populate("eventId")
+        .lean();
+
+      if (!invitation || !invitation.eventId) {
+        return NextResponse.json(
+          { success: false, error: "INV_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      const event = invitation.eventId as any;
+
+      const guests = await Guest.find({
+        invitationId: invitation._id,
+        _id: { $in: body.audience },
+      }).lean();
+
+      let sent = 0;
+
+      for (const guest of guests) {
+        if (!guest.phone || !guest.token) continue;
+
+        const phone = guest.phone.startsWith("972")
+          ? guest.phone
+          : `972${guest.phone.replace(/^0/, "")}`;
+
+        const rsvpLink = `${process.env.NEXT_PUBLIC_APP_URL}/rsvp/${guest.token}`;
+
+        await sendRsvpTemplateMedia({
+          to: phone,
+          eventTitle: event.title,
+          eventDate: event.date,
+          eventLocation:
+            event.location?.address || event.location?.name || "",
+          rsvpLink,
+          headerImageUrl:
+            invitation.previewImage || invitation.headerImageUrl,
+          templateName,
+          languageCode,
+        });
+
+        sent++;
+      }
+
+      return NextResponse.json(
+        { success: true, sent },
+        { status: 200 }
+      );
+    }
+
+    /* =====================================================
+       TABLE NUMBER (WITH / WITHOUT GIFT)
+    ===================================================== */
+
+    if (
+      templateName === "table_number_update_invistimo" ||
+      templateName === "table_number_update_with_gift"
+    ) {
+      if (
+        !isNonEmptyString(body.to) ||
+        !isNonEmptyString(body.name) ||
+        !isNonEmptyString(body.tableName) ||
+        !isNonEmptyString(body.eventType) ||
+        !isNonEmptyString(body.urlSuffix)
+      ) {
+        return NextResponse.json(
+          { success: false, error: "Missing required table fields" },
+          { status: 400 }
+        );
+      }
+
+      let giftUrl = safeTrim(body.giftCreditUrl);
+
+      if (
+        templateName === "table_number_update_with_gift" &&
+        !giftUrl &&
+        isNonEmptyString(body.invitationId)
+      ) {
+        const invitation = await Invitation.findById(body.invitationId)
           .select("giftCreditUrl")
           .lean();
 
@@ -212,55 +201,56 @@ export async function POST(req: NextRequest) {
       }
 
       const providerResponse = await sendTableNumberTemplate({
-        to: body.to!,
-        name: body.name!,
-        tableName: body.tableName!,
-        eventType: body.eventType!,
-        urlSuffix: body.urlSuffix!,
-        giftCreditUrl: giftUrl, // ✅ מועבר לפונקציה
+        to: body.to,
+        name: body.name,
+        tableName: body.tableName,
+        eventType: body.eventType,
+        urlSuffix: body.urlSuffix,
+        giftCreditUrl: giftUrl || undefined,
         templateName,
         languageCode,
       });
 
       return NextResponse.json(
-        { success: true, templateName, languageCode, providerResponse },
+        { success: true, providerResponse },
         { status: 200 }
       );
     }
 
-    /* ================= TABLE רגיל ================= */
-    if (templateName === "table_number_update_invistimo") {
-      const providerResponse = await sendTableNumberTemplate({
-        to: body.to!,
-        name: body.name!,
-        tableName: body.tableName!,
-        eventType: body.eventType!,
-        urlSuffix: body.urlSuffix!,
+    /* =====================================================
+       THANK YOU
+    ===================================================== */
+
+    if (templateName === "thank_you_message") {
+      if (!isNonEmptyString(body.to) || !isNonEmptyString(body.name)) {
+        return NextResponse.json(
+          { success: false, error: "Missing required fields" },
+          { status: 400 }
+        );
+      }
+
+      const providerResponse = await sendThankYouTemplate({
+        to: body.to,
+        name: body.name,
         templateName,
         languageCode,
       });
 
       return NextResponse.json(
-        { success: true, templateName, languageCode, providerResponse },
+        { success: true, providerResponse },
         { status: 200 }
       );
     }
-
-    /* ================= THANK YOU ================= */
-    const providerResponse = await sendThankYouTemplate({
-      to: body.to!,
-      name: body.name!,
-      templateName,
-      languageCode,
-    });
 
     return NextResponse.json(
-      { success: true, templateName, languageCode, providerResponse },
-      { status: 200 }
+      { success: false, error: "UNHANDLED_TEMPLATE" },
+      { status: 400 }
     );
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Unknown server error";
+
+    console.error("❌ WHATSAPP SEND ERROR:", message);
 
     return NextResponse.json(
       { success: false, error: message },
