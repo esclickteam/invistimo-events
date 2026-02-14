@@ -317,10 +317,12 @@ export default function PricingPage() {
 
   {/* מחיר צמוד לכותרת */}
   <div className="mt-3">
-    <div className="text-5xl md:text-6xl font-bold leading-none">
+      <div className="text-3xl md:text-4xl font-bold leading-tight">
+
       ₪{calculateTotal(plan)}
     </div>
   </div>
+  
 </div>
 
       {/* FEATURES קבוע גובה */}
