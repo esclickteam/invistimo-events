@@ -63,6 +63,10 @@ export interface IUser extends Document {
   smsUsed: number;
   testSmsUsed: number;
 
+  whatsappBalance: number;
+whatsappUsed: number;
+
+
   isTrial: boolean;
   trialStartedAt?: Date;
   trialExpiresAt?: Date;
@@ -180,6 +184,10 @@ const UserSchema = new Schema<IUser>(
     smsBalance: { type: Number, default: 0 },
     smsUsed: { type: Number, default: 0 },
     testSmsUsed: { type: Number, default: 0 },
+
+    whatsappBalance: { type: Number, default: 0 },
+whatsappUsed: { type: Number, default: 0 },
+
 
     isTrial: { type: Boolean, default: false },
     trialStartedAt: Date,

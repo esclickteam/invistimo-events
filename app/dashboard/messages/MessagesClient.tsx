@@ -23,9 +23,16 @@ type FilterType = "all" | "pending" | "withTable";
 type Channel = "whatsapp" | "sms";
 
 type Balance = {
+  // SMS
   maxMessages: number;
   remainingMessages: number;
+
+  // WhatsApp
+  whatsappBalance?: number;
+  whatsappUsed?: number;
+  whatsappRemaining?: number;
 };
+
 
 function formatEventDate(value: any): string {
   if (!value) return "";
@@ -669,6 +676,13 @@ setPreview({
 /* ================= SEND ================= */
 
 const sendWhatsApp = async (guest: Guest) => {
+
+  if (balance?.whatsappRemaining !== undefined && balance.whatsappRemaining <= 0) {
+  alert("אין יתרת הודעות WhatsApp");
+  return;
+}
+
+  
   if (!invitation) return;
 
   const cleanPhone =
@@ -830,6 +844,18 @@ const res = await fetch("/api/whatsapp/send-template", {
     }
 
     alert("✅ הודעת WhatsApp נשלחה בהצלחה");
+
+    // 🔄 ריענון יתרה אחרי שליחת WhatsApp
+const balanceRes = await fetch("/api/messages/balance", {
+  credentials: "include",
+  cache: "no-store",
+});
+
+const balanceData = await balanceRes.json();
+if (balanceData.success) {
+  setBalance(balanceData);
+}
+
   } catch (err) {
     console.error("❌ sendWhatsApp error:", err);
     alert("❌ שגיאה בשליחת WhatsApp");
@@ -1115,17 +1141,55 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     )}
 
     <button
-      onClick={() => router.back()}
-      className="text-sm text-gray-500 mb-3 hover:underline self-start"
-    >
-      ← חזרה
-    </button>
+  onClick={() => router.back()}
+  className="text-sm text-gray-500 mb-3 hover:underline self-start"
+>
+  ← חזרה
+</button>
 
-    <div className="w-full max-w-[900px] flex items-center justify-center mb-8">
+<div className="w-full max-w-[900px] flex items-center justify-center mb-8">
   <h1 className="text-3xl font-semibold text-[#4a413a] text-center">
     שליחת הודעות לאורחים 💌
   </h1>
 </div>
+
+{/* ================= WHATSAPP BALANCE ================= */}
+{channel === "whatsapp" &&
+ balance?.whatsappRemaining !== undefined && (
+  <div className="bg-gradient-to-r from-[#eef7ff] to-[#e6f0ff] border border-blue-200 rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
+
+    <h2 className="text-lg font-semibold text-[#1d3f6e] mb-2">
+      💬 יתרת הודעות WhatsApp
+    </h2>
+
+    <p className="text-4xl font-bold text-[#1d3f6e] mb-1">
+      {balance.whatsappRemaining}
+    </p>
+
+    <p className="text-sm text-blue-700">
+      שליחות זמינות לאירוע
+    </p>
+
+    {balance.whatsappRemaining <= 2 && balance.whatsappRemaining > 0 && (
+      <p className="text-xs text-orange-600 mt-2">
+        ⚠️ נותרו מעט שליחות WhatsApp
+      </p>
+    )}
+
+    {balance.whatsappRemaining === 0 && (
+      <p className="text-xs text-red-600 mt-2">
+        ❌ אין יתרת שליחות WhatsApp
+      </p>
+    )}
+  </div>
+)}
+
+
+
+
+
+
+
 
 
 
@@ -1746,11 +1810,22 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     sendingMain ||
     isDemo ||
     (channel === "whatsapp"
-  ? whatsappGuestsToSend.length === 0
-  : disableSend)
+      ? whatsappGuestsToSend.length === 0 ||
+        !!balance && (balance.whatsappRemaining ?? 0) <= 0
 
+
+      : disableSend)
   }
-  title={isDemo ? "שליחה זמינה לאחר פתיחת אירוע" : undefined}
+  title={
+    isDemo
+      ? "שליחה זמינה לאחר פתיחת אירוע"
+      : channel === "whatsapp" &&
+       !!balance && (balance.whatsappRemaining ?? 0) <= 0
+
+
+      ? "אין יתרת הודעות WhatsApp"
+      : undefined
+  }
   className="
     w-[90%] md:w-[600px]
     bg-green-600 text-white
@@ -1762,10 +1837,16 @@ const progress = max > 0 ? (used / max) * 100 : 0;
     ? "שולח..."
     : isDemo
     ? "🔒 שליחה זמינה לאחר פתיחת אירוע"
+    : channel === "whatsapp" &&
+      !!balance && (balance.whatsappRemaining ?? 0) <= 0
+
+
+    ? "❌ אין יתרת WhatsApp"
     : channel === "whatsapp"
     ? "💬 שלח ב־WhatsApp"
     : `📩 שליחה (${guestsToSend.length})`}
 </button>
+
 
 
 {/* כפתור פתיחת מודאל הודעות מתוזמנות */}
