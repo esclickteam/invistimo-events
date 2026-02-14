@@ -164,26 +164,31 @@ const EventSchema = new mongoose.Schema(
        מיקום
     ========================= */
     location: {
-      address: {
-        type: String,
-        default: "",
-        trim: true,
-      },
-      lat: {
-        type: Number,
-        default: undefined,
-      },
-      lng: {
-        type: Number,
-        default: undefined,
-      },
-    },
+  address: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+  lat: {
+    type: Number,
+    default: undefined,
+  },
+  lng: {
+    type: Number,
+    default: undefined,
+  },
+},
 
-    giftCreditUrl: {
+/* =========================
+   🎁 מתנות באשראי
+========================= */
+giftCreditUrl: {
   type: String,
   default: "",
   trim: true,
 },
+
+    
 
 
     /* =========================
