@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import AudienceFilterSelector, {
-  FilterType,
-} from "../shared/AudienceFilterSelector";
+import AudienceFilterSelector, { FilterType } from "../shared/AudienceFilterSelector";
 import SendTiming from "../shared/SendTiming";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
@@ -19,8 +17,6 @@ type Guest = {
 
 type Props = {
   guests: Guest[];
-
-  // מגיעים מה־Event + Invitation
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
@@ -29,7 +25,6 @@ type Props = {
 
 /* ================= CONSTANTS ================= */
 
-// שם התבנית המאושרת במטה
 const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
 
 /* ================= HELPERS ================= */
@@ -65,22 +60,24 @@ export default function RsvpTab({
 }: Props) {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
+  const [round, setRound] = useState<1 | 2>(1); // סבב ראשון או שני
 
   /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
-    if (filter === "pending") {
-      return guests.filter((g) => g.rsvp !== "yes");
+    if (round === 1) {
+      // סבב ראשון – שולח לכולם
+      return guests;
+    } else {
+      // סבב שני – שולח רק למי שטרם ענה
+      return guests.filter((g) => g.rsvp === "pending");
     }
-    return guests;
-  }, [guests, filter]);
+  }, [guests, round]);
 
   /* ================= BLOCKING RULES ================= */
 
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
-
-  // WhatsApp לא מאפשר Template בלי Header Media
   const blocked = noAudience || missingHeaderImage;
 
   /* ================= PREVIEW TEXT ================= */
@@ -99,12 +96,32 @@ export default function RsvpTab({
 
   return (
     <div className="space-y-6">
+      {/* בחירת סבב */}
+      <div className="flex gap-2">
+        <button
+          className={`flex-1 py-2 rounded-xl font-medium border ${
+            round === 1 ? "bg-blue-600 text-white" : "border-gray-300"
+          }`}
+          onClick={() => setRound(1)}
+        >
+          סבב 1 – לכולם
+        </button>
+        <button
+          className={`flex-1 py-2 rounded-xl font-medium border ${
+            round === 2 ? "bg-blue-600 text-white" : "border-gray-300"
+          }`}
+          onClick={() => setRound(2)}
+        >
+          סבב 2 – למי שטרם ענה
+        </button>
+      </div>
+
       {/* קהל יעד */}
       <AudienceFilterSelector
         value={filter}
         onChange={setFilter}
         totalCount={guests.length}
-        pendingCount={guests.filter((g) => g.rsvp !== "yes").length}
+        pendingCount={guests.filter((g) => g.rsvp === "pending").length}
       />
 
       {/* הסבר */}
@@ -126,12 +143,9 @@ export default function RsvpTab({
       )}
 
       {/* תזמון */}
-      <SendTiming
-        scheduledAt={scheduledAt}
-        onChange={setScheduledAt}
-      />
+      <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
 
-      {/* תצוגה מקדימה – 1:1 לתבנית */}
+      {/* תצוגה מקדימה */}
       <WhatsappTemplatePreview
         templateKey="rsvp"
         previewText={previewText}
@@ -149,13 +163,13 @@ export default function RsvpTab({
       >
         {scheduledAt
           ? "⏱️ תזמן אישור הגעה ב־WhatsApp"
-          : "📲 שלח אישור הגעה ב־WhatsApp"}
+          : `📲 שלח אישור הגעה – סבב ${round}`}
       </SendButton>
 
       {/* הודעות חסימה */}
       {noAudience && (
         <p className="text-sm text-red-500">
-          יש לבחור לפחות נמען אחד
+          אין נמענים לשליחה בסבב זה
         </p>
       )}
     </div>

@@ -6,10 +6,10 @@ type Props = {
   channel: "sms" | "whatsapp";
   type: "rsvp" | "reminder" | "thankyou";
 
-  audience: string[];          // IDs של אורחים
+  audience: string[];          // IDs של אורחים בסבב הנוכחי
   scheduledAt: Date | null;    // null = שליחה מיידית
 
-  // 👇 חדש – רלוונטי רק ל־WhatsApp RSVP
+  // 👇 חובה ל־WhatsApp RSVP
   templateName?: string;
 
   disabled?: boolean;
@@ -30,14 +30,15 @@ export default function SendButton({
   const handleSend = async () => {
     if (disabled || sending) return;
 
+    // 🔹 אין נמענים – חסום
     if (audience.length === 0) {
-      alert("לא נבחרו אורחים לשליחה");
+      alert("❌ אין נמענים לשליחה בסבב זה");
       return;
     }
 
-    // 🔒 הגנה לוגית: RSVP ב־WhatsApp חייב תבנית
+    // 🔹 WhatsApp RSVP חייב template
     if (channel === "whatsapp" && type === "rsvp" && !templateName) {
-      alert("חסרה תבנית WhatsApp לאישור הגעה");
+      alert("❌ חסרה תבנית WhatsApp לאישור הגעה");
       return;
     }
 
@@ -49,25 +50,25 @@ export default function SendButton({
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          channel,          // sms | whatsapp
-          type,             // rsvp | reminder | thankyou
-          templateName,     // קיים רק ב־WhatsApp RSVP
-          audience,         // guestIds
-          scheduledAt,      // null או Date
+          channel,        // sms | whatsapp
+          type,           // rsvp | reminder | thankyou
+          templateName,   // רק ל־WhatsApp RSVP
+          audience,       // guestIds של הסבב
+          scheduledAt,    // null = מיידית
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data?.success) {
-        alert(data?.error || "שליחת ההודעות נכשלה");
+        alert(data?.error || "❌ שליחת ההודעות נכשלה");
         return;
       }
 
       alert(
         scheduledAt
-          ? "⏱️ ההודעה תוזמנה בהצלחה"
-          : "✅ ההודעות נשלחו בהצלחה"
+          ? "⏱️ ההודעות תוזמנו בהצלחה"
+          : `✅ נשלחו ${audience.length} הודעות בהצלחה`
       );
     } catch (err) {
       console.error("SEND ERROR:", err);
@@ -80,7 +81,7 @@ export default function SendButton({
   return (
     <button
       onClick={handleSend}
-      disabled={disabled || sending}
+      disabled={disabled || sending || audience.length === 0}
       className="
         w-full
         bg-green-600
