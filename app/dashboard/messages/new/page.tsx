@@ -21,8 +21,16 @@ type TabKey = "rsvp" | "reminder" | "thankyou";
 export default function NewMessagesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
 
-  // זמני – יגיע מה־server
+  /* ================= TEMP DATA (בהמשך מהשרת) ================= */
+
   const guests: Guest[] = [];
+
+  // ⭐ פרטי אירוע – מקור אמת אחד
+  const eventTitle = "האירוע שלנו";
+  const eventDate = "12/03/2026";
+  const eventLocation = "גן אירועים – תל אביב";
+
+  /* ================= RENDER ================= */
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -57,14 +65,31 @@ export default function NewMessagesPage() {
 
       {/* ================= Content ================= */}
       <main>
-        {activeTab === "rsvp" && <RsvpTab guests={guests} />}
+        {activeTab === "rsvp" && (
+          <RsvpTab
+            guests={guests}
+            eventTitle={eventTitle}
+            eventDate={eventDate}
+            eventLocation={eventLocation}
+          />
+        )}
 
         {activeTab === "reminder" && (
-  <ReminderTab guests={guests} />
-)}
+          <ReminderTab
+            guests={guests}
+            eventTitle={eventTitle}
+            eventDate={eventDate}
+            eventLocation={eventLocation}
+          />
+        )}
 
         {activeTab === "thankyou" && (
-          <ThankYouTab guests={guests} />
+          <ThankYouTab
+            guests={guests}
+            eventTitle={eventTitle}
+            eventDate={eventDate}
+            eventLocation={eventLocation}
+          />
         )}
       </main>
     </div>

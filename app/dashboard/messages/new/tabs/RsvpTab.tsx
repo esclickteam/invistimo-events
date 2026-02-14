@@ -17,22 +17,52 @@ type Guest = {
   rsvp?: "yes" | "no" | "pending";
 };
 
+type Props = {
+  guests: Guest[];
+
+  // 🟢 מגיעים מה־invitation (DB)
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  headerImageUrl?: string;
+};
+
 /* ================= CONSTANTS ================= */
 
 // שם התבנית המאושרת במטה
 const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
 
-// ⚠️ טקסט תצוגה בלבד – 1:1 כמו התבנית (בלי לינק, בלי עריכה)
-const RSVP_PREVIEW_TEXT = `משפחה וחברים יקרים,
-נשמח לדעת אם תגיעו לחגוג איתנו 🎉
+/* ================= HELPERS ================= */
+
+function getRsvpPreviewText({
+  eventTitle,
+  eventDate,
+  eventLocation,
+}: {
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+}) {
+  return `משפחה וחברים יקרים,
+הנכם מוזמנים ל- ${eventTitle} 🤍
+
+📅 תאריך: ${eventDate}
+📍 מיקום: ${eventLocation}
 
 לאישור הגעה לחצו על הכפתור למטה 👇
 
 מחכים לשמוח איתכם 💖`;
+}
 
 /* ================= COMPONENT ================= */
 
-export default function RsvpTab({ guests }: { guests: Guest[] }) {
+export default function RsvpTab({
+  guests,
+  eventTitle,
+  eventDate,
+  eventLocation,
+  headerImageUrl,
+}: Props) {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
 
@@ -47,11 +77,23 @@ export default function RsvpTab({ guests }: { guests: Guest[] }) {
 
   const blocked = guestsToSend.length === 0;
 
+  /* ================= PREVIEW TEXT ================= */
+
+  const previewText = useMemo(
+    () =>
+      getRsvpPreviewText({
+        eventTitle,
+        eventDate,
+        eventLocation,
+      }),
+    [eventTitle, eventDate, eventLocation]
+  );
+
   /* ================= RENDER ================= */
 
   return (
     <div className="space-y-6">
-      {/* ================= קהל יעד ================= */}
+      {/* קהל יעד */}
       <AudienceFilterSelector
         value={filter}
         onChange={setFilter}
@@ -59,7 +101,7 @@ export default function RsvpTab({ guests }: { guests: Guest[] }) {
         pendingCount={guests.filter((g) => g.rsvp !== "yes").length}
       />
 
-      {/* ================= הסבר ================= */}
+      {/* הסבר */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
         📌 הודעת אישור הגעה נשלחת ב־WhatsApp בלבד  
         <br />
@@ -68,20 +110,20 @@ export default function RsvpTab({ guests }: { guests: Guest[] }) {
         ⏱️ ניתן לבחור שליחה מיידית או מתוזמנת
       </section>
 
-      {/* ================= תזמון ================= */}
+      {/* תזמון */}
       <SendTiming
         scheduledAt={scheduledAt}
         onChange={setScheduledAt}
       />
 
-      {/* ================= תצוגה מקדימה – זהה לתבנית ================= */}
+      {/* תצוגה מקדימה – 1:1 לתבנית */}
       <WhatsappTemplatePreview
         templateKey="rsvp"
-        previewText={RSVP_PREVIEW_TEXT}
-        headerImageUrl="/whatsapp-invite-header.png"
+        previewText={previewText}
+        headerImageUrl={headerImageUrl}
       />
 
-      {/* ================= שליחה ================= */}
+      {/* שליחה */}
       <SendButton
         channel="whatsapp"
         type="rsvp"

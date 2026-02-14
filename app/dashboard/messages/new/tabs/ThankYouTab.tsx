@@ -13,6 +13,15 @@ type Guest = {
 type FilterType = "all" | "attended";
 type SendTiming = "now" | "scheduled";
 
+type Props = {
+  guests: Guest[];
+
+  // 🟢 מיושרים ל־page.tsx (גם אם לא בשימוש כרגע)
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+};
+
 /* ================= CONSTANTS ================= */
 
 const CHAR_LIMIT = 130;
@@ -24,9 +33,10 @@ const DEFAULT_MESSAGE =
 
 export default function ThankYouTab({
   guests,
-}: {
-  guests: Guest[];
-}) {
+  eventTitle,     // ⬅️ מתקבל (לא חובה להשתמש כרגע)
+  eventDate,      // ⬅️
+  eventLocation,  // ⬅️
+}: Props) {
   const [filter, setFilter] = useState<FilterType>("all");
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
 

@@ -18,6 +18,15 @@ type Guest = {
   tableNumber?: number;
 };
 
+type Props = {
+  guests: Guest[];
+
+  // 🟢 מיושרים ל־page.tsx (גם אם לא בשימוש כרגע)
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+};
+
 /* ================= CONSTANTS ================= */
 
 const MAX_CHARS = 130;
@@ -32,9 +41,10 @@ const MESSAGE_NO_TABLE =
 
 export default function ReminderTab({
   guests,
-}: {
-  guests: Guest[];
-}) {
+  eventTitle,     // ⬅️ מתקבל (לא חובה להשתמש כרגע)
+  eventDate,      // ⬅️
+  eventLocation,  // ⬅️
+}: Props) {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
 
@@ -58,12 +68,9 @@ export default function ReminderTab({
   /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
-    // אם יש אורחים עם שולחן – עובדים רק מולם
     if (guestsWithTable.length > 0) {
       return guestsWithTable;
     }
-
-    // אחרת – כל מי שאישר הגעה
     return confirmedGuests;
   }, [guestsWithTable, confirmedGuests]);
 
@@ -116,7 +123,6 @@ export default function ReminderTab({
         scheduledAt={scheduledAt}
         onChange={setScheduledAt}
       />
-
 
       <SendButton
         channel="sms"
