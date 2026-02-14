@@ -102,17 +102,17 @@ export default function NewMessagesPage() {
   /* ================= RENDER ================= */
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-8">
       {/* ================= Header ================= */}
-      <header>
-        <h1 className="text-xl font-bold">📨 שליחת הודעות</h1>
-        <p className="text-sm text-gray-500">
+      <header className="text-center">
+        <h1 className="text-4xl font-extrabold mb-2 text-gray-800">📨 שליחת הודעות</h1>
+        <p className="text-lg text-gray-500">
           ניהול ושליחה לפי סבבים
         </p>
       </header>
 
       {/* ================= Tabs ================= */}
-      <div className="flex gap-4 border-b">
+      <div className="flex justify-center gap-4">
         <TabButton
           label="אישור הגעה"
           active={activeTab === "rsvp"}
@@ -133,7 +133,7 @@ export default function NewMessagesPage() {
       </div>
 
       {/* ================= Content ================= */}
-      <main>
+      <main className="mt-6 bg-white rounded-2xl shadow-lg p-6">
         {activeTab === "rsvp" && (
           <RsvpTab guests={guests} {...eventMeta} />
         )}
@@ -164,11 +164,13 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`pb-2 text-sm font-medium border-b-2 ${
-        active
-          ? "border-blue-600 text-blue-600"
-          : "border-transparent text-gray-500 hover:text-gray-700"
-      }`}
+      className={`
+        px-6 py-2 font-medium rounded-full transition-all
+        text-sm
+        ${active
+          ? "bg-blue-600 text-white shadow-md"
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"}
+      `}
     >
       {label}
     </button>
