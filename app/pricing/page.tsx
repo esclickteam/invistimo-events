@@ -296,13 +296,13 @@ export default function PricingPage() {
 <div className="text-center mb-5 flex flex-col items-center">
   {/* אייקון חצי בחוץ, גדול מאוד */}
   <div className="absolute left-1/2 -translate-x-1/2 -top-[78px] md:-top-[96px] z-20 pointer-events-none">
-    <div className="relative w-[156px] h-[156px] md:w-[192px] md:h-[192px]">
+    <div className="relative w-[240px] h-[240px] md:w-[300px] md:h-[300px]">
       <Image
         src={planMeta[plan].icon}
         alt={planMeta[plan].alt}
         fill
         className="object-contain drop-shadow-md"
-        sizes="(max-width: 768px) 156px, 192px"
+        sizes="(max-width: 768px) 240px, 300px"
         priority={plan === "plan1"}
       />
     </div>
