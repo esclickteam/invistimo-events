@@ -11,6 +11,8 @@ type Props = {
   totalCount?: number;
   pendingCount?: number;
   withTableCount?: number;
+
+  readOnly?: boolean; // <--- הוסף פרופ קריאה בלבד
 };
 
 /* ================= COMPONENT ================= */
@@ -21,6 +23,7 @@ export default function AudienceFilterSelector({
   totalCount,
   pendingCount,
   withTableCount,
+  readOnly = false, // ברירת מחדל: false
 }: Props) {
   return (
     <section>
@@ -28,7 +31,8 @@ export default function AudienceFilterSelector({
 
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as FilterType)}
+        onChange={(e) => !readOnly && onChange(e.target.value as FilterType)} // אם קריאה בלבד, לא מעדכן
+        disabled={readOnly} // הופך ל-disabled אם קריאה בלבד
         className="w-full border rounded-xl p-3 text-sm"
       >
         <option value="all">
