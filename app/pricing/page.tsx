@@ -292,37 +292,34 @@ export default function PricingPage() {
     <CardContent className="relative flex h-full flex-col p-8 md:p-9 pt-[96px] md:pt-[112px]">
 
 
-      {/* HEADER קבוע גובה + אייקון חצי בחוץ */}
-      <div
-  className="text-center mb-6 flex flex-col justify-between"
-  style={{ minHeight: 220 }}
->
+      {/* HEADER קומפקטי + אייקון גדול */}
+<div className="text-center mb-5 flex flex-col items-center">
+  {/* אייקון חצי בחוץ, גדול מאוד */}
+  <div className="absolute left-1/2 -translate-x-1/2 -top-[78px] md:-top-[96px] z-20 pointer-events-none">
+    <div className="relative w-[156px] h-[156px] md:w-[192px] md:h-[192px]">
+      <Image
+        src={planMeta[plan].icon}
+        alt={planMeta[plan].alt}
+        fill
+        className="object-contain drop-shadow-md"
+        sizes="(max-width: 768px) 156px, 192px"
+        priority={plan === "plan1"}
+      />
+    </div>
+  </div>
 
-        {/* אייקון יושב על השפה העליונה של הכרטיס */}
-       <div className="absolute left-1/2 -translate-x-1/2 -top-[52px] md:-top-[64px] z-20 pointer-events-none">
-  <div className="relative w-[104px] h-[104px] md:w-[128px] md:h-[128px]">
-    <Image
-      src={planMeta[plan].icon}
-      alt={planMeta[plan].alt}
-      fill
-      className="object-contain drop-shadow-md"
-      sizes="(max-width: 768px) 104px, 128px"
-      priority={plan === "plan1"}
-    />
+  {/* כותרת צמודה יותר לאייקון */}
+  <h3 className="text-2xl md:text-3xl font-semibold leading-tight mt-10 md:mt-12">
+    {planMeta[plan].title}
+  </h3>
+
+  {/* מחיר צמוד לכותרת */}
+  <div className="mt-3">
+    <div className="text-5xl md:text-6xl font-bold leading-none">
+      ₪{calculateTotal(plan)}
+    </div>
   </div>
 </div>
-
-
-        <h3 className="text-2xl md:text-3xl font-semibold leading-tight min-h-[72px] flex items-center justify-center mt-4">
-          {planMeta[plan].title}
-        </h3>
-
-        <div className="mt-5">
-          <div className="text-4xl md:text-5xl font-bold leading-none">
-            ₪{calculateTotal(plan)}
-          </div>
-        </div>
-      </div>
 
       {/* FEATURES קבוע גובה */}
       <ul className="text-sm space-y-3" style={{ minHeight: 260 }}>
