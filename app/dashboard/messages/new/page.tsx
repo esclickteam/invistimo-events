@@ -43,6 +43,7 @@ export default function NewMessagesPage() {
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [eventMeta, setEventMeta] = useState<EventMeta | null>(null);
+  const [invitationId, setInvitationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD DATA ================= */
@@ -64,6 +65,9 @@ export default function NewMessagesPage() {
           return;
         }
 
+        // ⭐ שמירת invitationId (קריטי!)
+        setInvitationId(invitation._id);
+
         // 🧠 בניית EventMeta אחיד
         const meta: EventMeta = {
           eventTitle: event.title || "",
@@ -82,7 +86,7 @@ export default function NewMessagesPage() {
 
         setEventMeta(meta);
 
-        // 👥 אורחים (אם קיימים ב־invitation)
+        // 👥 אורחים (לטאבים האחרים)
         if (Array.isArray(invitation.guests)) {
           setGuests(invitation.guests);
         }
@@ -96,8 +100,10 @@ export default function NewMessagesPage() {
     loadData();
   }, []);
 
+  /* ================= GUARDS ================= */
+
   if (loading) return null;
-  if (!eventMeta) return null;
+  if (!eventMeta || !invitationId) return null;
 
   /* ================= RENDER ================= */
 
@@ -109,7 +115,7 @@ export default function NewMessagesPage() {
           📨 שליחת הודעות
         </h1>
         <p className="text-lg text-gray-500">
-          ניהול ושליחה לפי סבבים 
+          ניהול ושליחה לפי סבבים
         </p>
       </header>
 
@@ -120,13 +126,11 @@ export default function NewMessagesPage() {
           active={activeTab === "rsvp"}
           onClick={() => setActiveTab("rsvp")}
         />
-
         <TabButton
           label="תזכורת"
           active={activeTab === "reminder"}
           onClick={() => setActiveTab("reminder")}
         />
-
         <TabButton
           label="הודעת תודה"
           active={activeTab === "thankyou"}
@@ -136,9 +140,26 @@ export default function NewMessagesPage() {
 
       {/* ================= Content ================= */}
       <main className="mt-6 bg-white rounded-2xl shadow-lg p-6">
-        {activeTab === "rsvp" && <RsvpTab guests={guests} {...eventMeta} />}
-        {activeTab === "reminder" && <ReminderTab guests={guests} {...eventMeta} />}
-        {activeTab === "thankyou" && <ThankYouTab guests={guests} {...eventMeta} />}
+        {activeTab === "rsvp" && (
+          <RsvpTab
+            invitationId={invitationId}
+            {...eventMeta}
+          />
+        )}
+
+        {activeTab === "reminder" && (
+          <ReminderTab
+            guests={guests}
+            {...eventMeta}
+          />
+        )}
+
+        {activeTab === "thankyou" && (
+          <ThankYouTab
+            guests={guests}
+            {...eventMeta}
+          />
+        )}
       </main>
     </div>
   );
@@ -160,9 +181,11 @@ function TabButton({
       onClick={onClick}
       className={`
         flex-1 px-6 py-3 rounded-full font-medium text-sm transition
-        ${active
-          ? "bg-blue-600 text-white shadow-md scale-105"
-          : "bg-gray-200 text-gray-700 hover:bg-gray-300"}
+        ${
+          active
+            ? "bg-blue-600 text-white shadow-md scale-105"
+            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+        }
       `}
     >
       {label}

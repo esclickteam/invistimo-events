@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import AudienceFilterSelector, { FilterType } from "../shared/AudienceFilterSelector";
 import SendTiming from "../shared/SendTiming";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
-
-/* ================= TYPES ================= */
 
 type Guest = {
   _id: string;
@@ -16,18 +14,14 @@ type Guest = {
 };
 
 type Props = {
-  guests: Guest[];
+  invitationId: string;        // מזהה ההזמנה
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
   headerImageUrl?: string;
 };
 
-/* ================= CONSTANTS ================= */
-
 const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
-
-/* ================= HELPERS ================= */
 
 function getRsvpPreviewText({
   eventTitle,
@@ -49,58 +43,64 @@ function getRsvpPreviewText({
 מחכים לשמוח איתכם 💖`;
 }
 
-/* ================= COMPONENT ================= */
-
 export default function RsvpTab({
-  guests,
+  invitationId,
   eventTitle,
   eventDate,
   eventLocation,
   headerImageUrl,
 }: Props) {
+  const [guests, setGuests] = useState<Guest[]>([]);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
-  const [round, setRound] = useState<1 | 2>(1); // סבב ראשון או שני
+  const [round, setRound] = useState<1 | 2>(1);
   const [roundSent, setRoundSent] = useState<{ [key in 1 | 2]: boolean }>({ 1: false, 2: false });
+  const [loadingGuests, setLoadingGuests] = useState(true);
 
-  /* ================= AUDIENCE ================= */
+  // ================= FETCH GUESTS FROM API =================
+  useEffect(() => {
+    async function loadGuests() {
+      try {
+        setLoadingGuests(true);
+        const res = await fetch(`/api/guests?invitation=${invitationId}`);
+        const data = await res.json();
+        if (Array.isArray(data.guests)) {
+          setGuests(data.guests);
+        }
+      } catch (err) {
+        console.error("❌ Failed to fetch guests", err);
+      } finally {
+        setLoadingGuests(false);
+      }
+    }
+
+    loadGuests();
+  }, [invitationId]);
 
   const guestsToSend = useMemo(() => {
-    if (round === 1) return guests; // סבב ראשון – שולח לכולם
-    return guests.filter((g) => g.rsvp === "pending"); // סבב שני – רק למי שטרם ענה
+    if (round === 1) return guests;
+    return guests.filter((g) => g.rsvp === "pending");
   }, [guests, round]);
 
-  const totalCount = guests.length; // מספר כולל כל המוזמנים
-  const pendingCount = guests.filter((g) => g.rsvp === "pending").length; // מספר שמצבו pending
-
-  /* ================= BLOCKING RULES ================= */
+  const totalCount = guests.length;
+  const pendingCount = guests.filter((g) => g.rsvp === "pending").length;
 
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
-  const blocked = noAudience || missingHeaderImage || roundSent[round];
-
-  /* ================= PREVIEW TEXT ================= */
+  const blocked = noAudience || missingHeaderImage || roundSent[round] || loadingGuests;
 
   const previewText = useMemo(
-    () =>
-      getRsvpPreviewText({
-        eventTitle,
-        eventDate,
-        eventLocation,
-      }),
+    () => getRsvpPreviewText({ eventTitle, eventDate, eventLocation }),
     [eventTitle, eventDate, eventLocation]
   );
-
-  /* ================= HANDLE SEND ================= */
 
   const handleAfterSend = () => {
     setRoundSent((prev) => ({ ...prev, [round]: true }));
   };
 
-  /* ================= RENDER ================= */
+  if (loadingGuests) return <p>טוען אורחים...</p>;
 
   return (
     <div className="space-y-6 bg-white p-6 rounded-xl shadow-md">
-      {/* בחירת סבב */}
       <div className="flex gap-2 mb-4">
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
@@ -122,16 +122,14 @@ export default function RsvpTab({
         </button>
       </div>
 
-      {/* קהל יעד */}
       <AudienceFilterSelector
-  value={round === 1 ? "all" : "pending"}       // סבב 1 = כולם, סבב 2 = טרם ענו
-  onChange={() => {}}                           // TypeScript דורש פונקציה, לא יעבוד כי readOnly
-  totalCount={guests.length}                    // מספר כל המוזמנים
-  pendingCount={guests.filter((g) => g.rsvp === "pending").length} // מספר מי שטרם ענה
-  readOnly={true}                               // הפילטר קריאה בלבד
-/>
+        value={round === 1 ? "all" : "pending"}
+        onChange={() => {}}
+        totalCount={totalCount}
+        pendingCount={pendingCount}
+        readOnly={true}
+      />
 
-      {/* הסבר */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
         📌 הודעת אישור הגעה נשלחת ב־WhatsApp בלבד
         <br />
@@ -140,7 +138,6 @@ export default function RsvpTab({
         ⏱️ ניתן לבחור שליחה מיידית או מתוזמנת
       </section>
 
-      {/* אזהרה – אין תמונה */}
       {missingHeaderImage && (
         <section className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
           ❌ חסרה תמונת הזמנה  
@@ -149,17 +146,14 @@ export default function RsvpTab({
         </section>
       )}
 
-      {/* תזמון */}
       <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
 
-      {/* תצוגה מקדימה */}
       <WhatsappTemplatePreview
         templateKey="rsvp"
         previewText={previewText}
         headerImageUrl={headerImageUrl}
       />
 
-      {/* שליחה */}
       <SendButton
         channel="whatsapp"
         type="rsvp"
@@ -175,7 +169,6 @@ export default function RsvpTab({
           : `📲 שלח אישור הגעה – סבב ${round}`}
       </SendButton>
 
-      {/* הודעות חסימה */}
       {noAudience && (
         <p className="text-sm text-red-500">
           אין נמענים לשליחה בסבב זה
