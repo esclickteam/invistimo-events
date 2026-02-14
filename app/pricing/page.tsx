@@ -295,7 +295,7 @@ export default function PricingPage() {
       {/* HEADER קומפקטי + אייקון גדול */}
 <div className="text-center mb-5 flex flex-col items-center">
   {/* אייקון חצי בחוץ, גדול מאוד */}
-  <div className="absolute left-1/2 -translate-x-1/2 -top-[170px] md:-top-[220px] z-20 pointer-events-none">
+  <div className="absolute left-1/2 -translate-x-1/2 -top-[240px] md:-top-[300px] z-20 pointer-events-none">
   <div className="relative w-[480px] h-[480px] md:w-[600px] md:h-[600px]">
     <Image
       src={planMeta[plan].icon}
@@ -307,6 +307,7 @@ export default function PricingPage() {
     />
   </div>
 </div>
+
 
 
   {/* כותרת צמודה יותר לאייקון */}
