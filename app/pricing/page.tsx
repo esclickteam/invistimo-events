@@ -219,7 +219,18 @@ export default function PricingPage() {
                 <ul className="space-y-3 text-sm">
                   <li className="flex gap-2"><Check size={16}/> הזמנה דיגיטלית מלאה</li>
                   <li className="flex gap-2"><Check size={16}/> שליחה ב-2 סבבי WhatsApp אוטומטיים לאישור הגעה</li>
-                  <li className="flex gap-2"><Check size={16}/> תזכורת ב-SMS לקראת האירוע</li>
+                  {plan === "plan3" ? (
+  <li className="flex gap-2">
+    <Check size={16}/>
+    תזכורת ב-SMS לקראת האירוע + מספר שולחן
+  </li>
+) : (
+  <li className="flex gap-2">
+    <Check size={16}/>
+    תזכורת ב-SMS לקראת האירוע
+  </li>
+)}
+
                   <li className="flex gap-2"><Check size={16}/> הודעת תודה לאחר האירוע ב-SMS</li>
 
                   {plan === "plan2" && (
@@ -234,7 +245,6 @@ export default function PricingPage() {
                     <>
                       <li className="flex gap-2"><Check size={16}/> מוקד אנושי מלא</li>
                       <li className="flex gap-2"><Check size={16}/> מערכת הושבה חכמה</li>
-                      <li className="flex gap-2"><Check size={16}/> שליחת SMS עם מספר שולחן</li>
                     </>
                   )}
                 </ul>
