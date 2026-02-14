@@ -12,11 +12,7 @@ export async function POST(req: Request) {
       name,
       email,
       password,
-      plan,
-      guests,
-      includeCalls,
-      includeCreditGifts,
-      createdByProducer, // ✅ חדש
+      createdByProducer,
     } = await req.json();
 
     if (!name || !email || !password) {
@@ -37,97 +33,40 @@ export async function POST(req: Request) {
     const hashed = await bcrypt.hash(password, 12);
 
     /* ============================================================
-       הגדרות חבילה בסיסיות (לא נוגעים במחירים)
-    ============================================================ */
-    let planLimits = {
-      maxGuests: 100,
-      smsEnabled: true,
-      seatingEnabled: false,
-      remindersEnabled: true,
-    };
-
-    let paidAmount = 49;
-    let guestsLevel = 100;
-
-    if (plan === "premium") {
-      const allowed = [100, 200, 300, 400, 500, 600, 700, 800, 1000];
-      const safeGuests = allowed.includes(Number(guests))
-        ? Number(guests)
-        : 100;
-
-      guestsLevel = safeGuests;
-
-      planLimits = {
-        maxGuests: safeGuests,
-        smsEnabled: true,
-        seatingEnabled: true,
-        remindersEnabled: true,
-      };
-
-      const priceMap: Record<number, number> = {
-        100: 149,
-        200: 239,
-        300: 299,
-        400: 379,
-        500: 429,
-        600: 489,
-        700: 539,
-        800: 599,
-        1000: 699,
-      };
-
-      paidAmount = priceMap[safeGuests] ?? 149;
-    }
-
-    /* ============================================================
-       תוספות
-    ============================================================ */
-    const includeCallsBool = Boolean(includeCalls);
-
-    // 🎁 אם יש אישורי הגעה טלפוניים – מתנות באשראי תמיד כלולות
-    const includeCreditGiftsBool = includeCallsBool
-      ? true
-      : Boolean(includeCreditGifts);
-
-    /* ============================================================
-       יצירת המשתמש
+       יצירת משתמש – ללא חבילה וללא תשלום
     ============================================================ */
     const user = await User.create({
-  name,
-  email,
-  password: hashed,
-  plan: plan || "basic",
-  guests: guestsLevel,
-  paidAmount,
-  planLimits,
+      name,
+      email,
+      password: hashed,
 
-  includeCalls: includeCallsBool,
-  callsAddonPrice: 0,
+      // ⛔ לא משולם עדיין
+      hasPaid: false,
+      paidAmount: 0,
+      isTrial: true,
 
-  includeCreditGifts: includeCreditGiftsBool,
-  creditGiftsAddonPrice: 0,
+      // ברירת מחדל – יופעלו רק אחרי Webhook
+      plan: "none",
+      guests: 0,
+      maxMessages: 0,
+      remainingMessages: 0,
 
-  // 🔹 העדכון הקריטי
-  createdByProducer: createdByProducer || null,
-});
-
+      createdByProducer: createdByProducer || null,
+      needsPasswordSetup: !createdByProducer,
+    });
 
     /* ============================================================
-       🟢 אם נוצר ע"י מפיק – לא מבצעים login
+       אם נוצר ע״י מפיק – לא מבצעים login
     ============================================================ */
     if (createdByProducer) {
       return NextResponse.json({
         success: true,
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-        },
+        userId: user._id,
       });
     }
 
     /* ============================================================
-       🔐 הרשמה רגילה – JWT + Cookie (לא נגע!)
+       הרשמה רגילה – JWT
     ============================================================ */
     const token = jwt.sign(
       { userId: user._id, email: user.email },
@@ -137,11 +76,7 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({
       success: true,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+      userId: user._id, // 🔥 קריטי ל־Stripe
     });
 
     res.cookies.set("authToken", token, {
