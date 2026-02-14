@@ -206,7 +206,7 @@ export default function PricingPage() {
             <CardContent className="p-8 flex flex-col h-full">
 
 
-                <div className="text-center mb-6 h-[160px] flex flex-col justify-between">
+               <div className="text-center mb-6">
 
   
   <h3 className="text-2xl font-semibold">
