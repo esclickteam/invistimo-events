@@ -295,7 +295,7 @@ export default function PricingPage() {
       {/* HEADER קומפקטי + אייקון גדול */}
 <div className="text-center mb-5 flex flex-col items-center">
 
-  <div className="absolute left-1/2 -translate-x-1/2 -top-[240px] md:-top-[300px] z-20 pointer-events-none">
+ <div className="absolute left-1/2 -translate-x-1/2 top-0 -translate-y-1/2 z-20 pointer-events-none">
   <div className="relative w-[420px] h-[420px] md:w-[520px] md:h-[520px]">
     <Image
       src={planMeta[plan].icon}
