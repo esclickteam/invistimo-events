@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 type FilterType = "all" | "pending" | "withTable";
 type TemplateType = "rsvp" | "table" | "custom";
+type Channel = "sms" | "whatsapp";
 
 type GuestDoc = {
   _id: string;
@@ -34,7 +35,6 @@ export async function POST(req: Request) {
     /* ================= AUTH ================= */
 
     const auth = await getUserIdFromRequest();
-
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -42,9 +42,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = auth.userId;
-
-    const user = await User.findById(userId).lean();
+    const user = await User.findById(auth.userId).lean();
     if (!user) {
       return NextResponse.json(
         { error: "USER_NOT_FOUND" },
@@ -52,29 +50,28 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!user.planLimits?.smsEnabled) {
-      return NextResponse.json(
-        {
-          error: "SMS_DISABLED",
-          message: "שליחת SMS אינה זמינה בחבילה הנוכחית",
-        },
-        { status: 403 }
-      );
-    }
-
     /* ================= BODY ================= */
 
     const {
       invitationId,
+      channel,
       template,
       filter,
       customText,
     }: {
       invitationId: string;
+      channel: Channel;
       template: TemplateType;
       filter: FilterType;
       customText?: string;
     } = await req.json();
+
+    if (!channel || !["sms", "whatsapp"].includes(channel)) {
+      return NextResponse.json(
+        { error: "INVALID_CHANNEL" },
+        { status: 400 }
+      );
+    }
 
     /* ================= LOAD INVITATION ================= */
 
@@ -86,7 +83,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (String(invitation.ownerId) !== String(userId)) {
+    if (String(invitation.ownerId) !== String(auth.userId)) {
       return NextResponse.json(
         { error: "FORBIDDEN" },
         { status: 403 }
@@ -97,43 +94,82 @@ export async function POST(req: Request) {
 
     const guests: GuestDoc[] = await Guest.find({ invitationId }).lean();
 
-    /* ================= FILTER TARGETS ================= */
-
     const targets: GuestDoc[] = guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
       if (filter === "withTable") return Boolean(g.tableName);
       return true;
     });
 
-    /* ================= BALANCE CHECK (SOURCE OF TRUTH) ================= */
-
-    // ❗ אין fallback – אם לא מאותחל זה באג
-    if (typeof invitation.remainingMessages !== "number") {
+    if (targets.length === 0) {
       return NextResponse.json(
-        {
-          error: "SMS_BALANCE_NOT_INITIALIZED",
-        },
-        { status: 500 }
+        { error: "NO_TARGETS" },
+        { status: 400 }
       );
     }
 
-    const remainingMessages = invitation.remainingMessages;
+    /* =====================================================
+       🟢 WHATSAPP FLOW — NO SMS CHECKS AT ALL
+    ===================================================== */
 
-    if (remainingMessages <= 0) {
+    if (channel === "whatsapp") {
+      // ⬅️ כאן בהמשך תחבר/י ל־sendWhatsAppTemplate
+      // כרגע רק רישום לוג לדוגמה
+
+      await MessageLog.insertMany(
+        targets.map((guest) => ({
+          invitationId,
+          guestId: guest._id,
+          phone: guest.phone,
+          channel: "whatsapp",
+          template,
+          text: "[WHATSAPP TEMPLATE]",
+          sentAt: new Date(),
+        }))
+      );
+
+      return NextResponse.json({
+        success: true,
+        channel: "whatsapp",
+        sent: targets.length,
+      });
+    }
+
+    /* =====================================================
+       🔵 SMS FLOW — ONLY HERE WE CHECK SMS LIMITS
+    ===================================================== */
+
+    if (!user.planLimits?.smsEnabled) {
       return NextResponse.json(
         {
-          error: "NO_SMS_BALANCE",
-          remainingMessages,
+          error: "SMS_DISABLED",
+          message: "שליחת SMS אינה זמינה בחבילה הנוכחית",
         },
         { status: 403 }
       );
     }
 
-    if (targets.length > remainingMessages) {
+    if (typeof invitation.remainingMessages !== "number") {
+      return NextResponse.json(
+        { error: "SMS_BALANCE_NOT_INITIALIZED" },
+        { status: 500 }
+      );
+    }
+
+    if (invitation.remainingMessages <= 0) {
       return NextResponse.json(
         {
           error: "NO_SMS_BALANCE",
-          remainingMessages,
+          remainingMessages: invitation.remainingMessages,
+        },
+        { status: 403 }
+      );
+    }
+
+    if (targets.length > invitation.remainingMessages) {
+      return NextResponse.json(
+        {
+          error: "NO_SMS_BALANCE",
+          remainingMessages: invitation.remainingMessages,
         },
         { status: 403 }
       );
@@ -172,32 +208,25 @@ export async function POST(req: Request) {
       actuallySent++;
     }
 
-    /* ================= UPDATE SMS BALANCE ================= */
-
-    let updatedInvitation = invitation;
-
     if (actuallySent > 0) {
-      updatedInvitation = await Invitation.findByIdAndUpdate(
-        invitation._id,
-        {
-          $inc: {
-            sentSmsCount: actuallySent,
-            remainingMessages: -actuallySent,
-          },
+      await Invitation.findByIdAndUpdate(invitation._id, {
+        $inc: {
+          sentSmsCount: actuallySent,
+          remainingMessages: -actuallySent,
         },
-        { new: true }
-      );
+      });
     }
 
     return NextResponse.json({
       success: true,
+      channel: "sms",
       sent: actuallySent,
-      remainingMessages: updatedInvitation.remainingMessages,
+      remainingMessages: invitation.remainingMessages - actuallySent,
     });
   } catch (err) {
-    console.error("❌ SMS SEND ERROR:", err);
+    console.error("❌ MESSAGE SEND ERROR:", err);
     return NextResponse.json(
-      { error: "SMS_SEND_FAILED" },
+      { error: "MESSAGE_SEND_FAILED" },
       { status: 500 }
     );
   }
