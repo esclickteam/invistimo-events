@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
@@ -96,6 +97,12 @@ export default function PricingPage() {
     plan3: { credit: false, seating: false, system: false, design: false },
   });
 
+  const planMeta: Record<PlanKey, { title: string; icon: string; alt: string }> = {
+    plan1: { title: "קל להזמין", icon: "/icons/1.png", alt: "אייקון חבילה 1" },
+    plan2: { title: "מזמינים חכם", icon: "/icons/2.png", alt: "אייקון חבילה 2" },
+    plan3: { title: "מזמינים ומושיבים", icon: "/icons/3.png", alt: "אייקון חבילה 3" },
+  };
+
   /* ===================== אפסיילים ===================== */
 
   const getAddonPrices = (plan: PlanKey) => {
@@ -135,9 +142,8 @@ export default function PricingPage() {
   };
 
   const handleRegister = (plan: PlanKey) => {
-  router.push(`/register?plan=${plan}&records=${records}`);
-};
-
+    router.push(`/register?plan=${plan}&records=${records}`);
+  };
 
   /* ===================== תוכן משתנה לפיצ'רים ===================== */
 
@@ -283,30 +289,40 @@ export default function PricingPage() {
                 className="rounded-3xl shadow-xl hover:shadow-2xl transition h-full flex flex-col"
               >
                 <CardContent className="p-8 flex flex-col h-full">
-                  {/* HEADER קבוע גובה */}
+                  {/* HEADER קבוע גובה + אייקון מעל כותרת */}
                   <div
-                    className="text-center mb-6 flex flex-col justify-between"
-                    style={{ minHeight: 140 }}
+                    className="text-center mb-6 flex flex-col justify-between pt-4 md:pt-5"
+                    style={{ minHeight: 220 }}
                   >
-                    <h3 className="text-2xl font-semibold leading-tight">
-                     {plan === "plan1" && "קל להזמין"}
-                    {plan === "plan2" && "מזמינים חכם"}
-                   {plan === "plan3" && "מזמינים ומושיבים"}
+                    <div className="flex justify-center mb-3">
+                      <Image
+                        src={planMeta[plan].icon}
+                        alt={planMeta[plan].alt}
+                        width={56}
+                        height={56}
+                        className="object-contain"
+                        priority={plan === "plan1"}
+                      />
+                    </div>
+
+                    <h3 className="text-2xl font-semibold leading-tight min-h-[56px] flex items-center justify-center">
+                      {planMeta[plan].title}
                     </h3>
 
                     <div className="mt-3">
-  <div className="text-4xl font-bold leading-none">
-    ₪{calculateTotal(plan)}
-  </div>
-</div>
-
-
+                      <div className="text-4xl font-bold leading-none">
+                        ₪{calculateTotal(plan)}
+                      </div>
+                    </div>
                   </div>
 
                   {/* FEATURES קבוע גובה */}
                   <ul className="text-sm space-y-3" style={{ minHeight: 260 }}>
                     {features.map((item, idx) => (
-                      <li key={`${plan}-feature-${idx}`} className="flex gap-2 leading-6">
+                      <li
+                        key={`${plan}-feature-${idx}`}
+                        className="flex gap-2 leading-6"
+                      >
                         <Check size={16} className="mt-1 shrink-0" />
                         <span>{item}</span>
                       </li>
