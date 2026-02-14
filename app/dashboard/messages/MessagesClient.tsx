@@ -1115,8 +1115,34 @@ const hasInvitation = !!invitation;
   const remaining = balance?.remainingMessages ?? 0;
 const max = balance?.maxMessages ?? 0;
 const used = max - remaining;
-
 const progress = max > 0 ? (used / max) * 100 : 0;
+
+const isWhatsapp = channel === "whatsapp";
+
+const remainingDynamic = isWhatsapp
+  ? balance?.whatsappRemaining ?? 0
+  : balance?.remainingMessages ?? 0;
+
+const maxDynamic = isWhatsapp
+  ? balance?.whatsappBalance ?? 0
+  : balance?.maxMessages ?? 0;
+
+const progressDynamic =
+  maxDynamic > 0 ? (remainingDynamic / maxDynamic) * 100 : 0;
+
+
+const balanceTitle = isWhatsapp
+  ? "💬 יתרת הודעות WhatsApp"
+  : "💬 יתרת הודעות SMS";
+
+const balanceSubTitle = isWhatsapp
+  ? "שליחות זמינות לאירוע"
+  : "הודעות SMS זמינות";
+
+const gradientClasses = isWhatsapp
+  ? "from-[#eef7ff] to-[#e6f0ff] border-blue-200"
+  : "from-[#fff7f0] to-[#f7ede2] border-[#e2d6c8]";
+
 
  return (
   <div className="p-10 flex flex-col items-center" dir="rtl">
@@ -1154,117 +1180,83 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 </div>
 
 
-{/* ================= WHATSAPP BALANCE ================= */}
-{channel === "whatsapp" &&
- balance &&
- typeof balance.whatsappRemaining === "number" && (
 
-  <div className="bg-gradient-to-r from-[#eef7ff] to-[#e6f0ff] border border-blue-200 rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
 
-    <h2 className="text-lg font-semibold text-[#1d3f6e] mb-2">
-      💬 יתרת הודעות WhatsApp
+
+
+
+
+
+{/* ================= BALANCE CARD (DYNAMIC) ================= */}
+{balance && typeof remainingDynamic === "number" && (
+  <div
+    className={`bg-gradient-to-r ${gradientClasses} border rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10`}
+  >
+    <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
+      {balanceTitle}
     </h2>
 
-    <p className="text-4xl font-bold text-[#1d3f6e] mb-1">
-      {balance.whatsappRemaining}
+    <div className="w-full bg-black/5 h-3 rounded-full overflow-hidden mb-3">
+      <div
+        className={`h-full transition-all duration-500 ${
+          remainingDynamic === 0 ? "bg-red-500" : "bg-green-500"
+        }`}
+        style={{ width: `${progressDynamic}%` }}
+      />
+    </div>
+
+    <p className="text-4xl font-bold text-[#4a413a] mb-1">
+      {remainingDynamic}
     </p>
 
-    <p className="text-sm text-blue-700">
-      שליחות זמינות לאירוע
+    <p className="text-sm text-[#6b5e52] mb-1">
+      {balanceSubTitle}
     </p>
 
-    {balance.whatsappRemaining <= 2 && balance.whatsappRemaining > 0 && (
-      <p className="text-xs text-orange-600 mt-2">
-        ⚠️ נותרו מעט שליחות WhatsApp
+    {remainingDynamic <= 2 && remainingDynamic > 0 && (
+      <p className="text-xs text-orange-600">
+        ⚠️ נותרו מעט הודעות
       </p>
     )}
 
-    {balance.whatsappRemaining === 0 && (
-      <p className="text-xs text-red-600 mt-2">
-        ❌ אין יתרת שליחות WhatsApp
+    {remainingDynamic === 0 && (
+      <p className="text-xs text-red-600">
+        ❌ אין יתרה זמינה
       </p>
+    )}
+
+    {/* רכישת חבילה רק ל-SMS */}
+    {!isWhatsapp && (
+      <div className="mt-5">
+        <select
+          className="w-full border rounded-xl p-3 mb-3"
+          value={selectedPackage ?? ""}
+          onChange={(e) => setSelectedPackage(Number(e.target.value))}
+        >
+          <option value="">בחרו חבילת הודעות לרכישה</option>
+          {SMS_PACKAGES.map((pkg) => (
+            <option key={pkg.count} value={pkg.count}>
+              {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
+            </option>
+          ))}
+        </select>
+
+        <button
+          onClick={() =>
+            router.push(
+              `/dashboard/purchase-sms?priceKey=extra_messages_${selectedPackage}`
+            )
+          }
+          disabled={!selectedPackage}
+          className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
+        >
+          💳 מעבר לתשלום ורכישת הודעות
+        </button>
+      </div>
     )}
   </div>
 )}
 
-
-
-
-
-
-
-
-
-
-      {/* BALANCE CARD */}
-     {channel === "sms" &&
- balance &&
- typeof balance.remainingMessages === "number" && (
-
-
-        <div className="bg-gradient-to-r from-[#fff7f0] to-[#f7ede2] border border-[#e2d6c8] rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10">
-          <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
-            💬 יתרת הודעות SMS
-          </h2>
-
-          <div className="w-full bg-[#e2d6c8]/40 h-3 rounded-full overflow-hidden mb-3">
-            <div
-              className={`h-full transition-all duration-500 ${
-                remaining === 0 ? "bg-red-500" : "bg-green-500"
-              }`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-
-          <p className="text-4xl font-bold text-[#4a413a] mb-1">
-  {remaining}
-</p>
-
-<p className="text-sm text-[#6b5e52] mb-1">
-  הודעות SMS זמינות
-</p>
-
-{remaining <= 20 && remaining > 0 && (
-  <p className="text-xs text-orange-600">
-    ⚠️ נותרו מעט הודעות – מומלץ לרכוש חבילה
-  </p>
-)}
-
-{remaining === 0 && (
-  <p className="text-xs text-red-600">
-    ❌ אין יתרת הודעות – יש לרכוש חבילה
-  </p>
-)}
-
-
-          <div className="mt-5">
-            <select
-              className="w-full border border-[#e2d6c8] rounded-xl p-3 mb-3"
-              value={selectedPackage ?? ""}
-              onChange={(e) => setSelectedPackage(Number(e.target.value))}
-            >
-              <option value="">בחרו חבילת הודעות לרכישה</option>
-              {SMS_PACKAGES.map((pkg) => (
-                <option key={pkg.count} value={pkg.count}>
-                  {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={() =>
-                router.push(
-                  `/dashboard/purchase-sms?priceKey=extra_messages_${selectedPackage}`
-                )
-              }
-              disabled={!selectedPackage}
-              className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
-            >
-              💳 מעבר לתשלום ורכישת הודעות
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* CHANNEL */}
       {/* ================= STEP 1: CHANNEL ================= */}
