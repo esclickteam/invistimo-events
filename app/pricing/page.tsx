@@ -295,14 +295,16 @@ export default function PricingPage() {
                     className="text-center mb-6 flex flex-col justify-between pt-4 md:pt-5"
                     style={{ minHeight: 220 }}
                   >
-                    <div className="flex justify-center mb-4">
-  <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-[24px] bg-white border border-[#e8d7c5] shadow-sm p-3">
+                   <div className="flex justify-center mb-4">
+    <div className="relative w-32 h-32 md:w-36 md:h-36">
+
     <Image
       src={planMeta[plan].icon}
       alt={planMeta[plan].alt}
       fill
       className="object-contain"
-      sizes="(max-width: 768px) 96px, 112px"
+            sizes="(max-width: 768px) 128px, 144px"
+
       priority={plan === "plan1"}
     />
   </div>
