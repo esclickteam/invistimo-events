@@ -312,7 +312,8 @@ export default function PricingPage() {
 
 
   {/* כותרת צמודה יותר לאייקון */}
-<h3 className="text-2xl md:text-3xl font-semibold leading-tight mt-4 md:mt-6 text-[#9C5A1A]">
+<h3 className="text-2xl md:text-3xl font-semibold leading-tight text-[#9C5A1A] mt-8 mb-3">
+
 
 
     {planMeta[plan].title}
