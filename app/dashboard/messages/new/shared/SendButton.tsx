@@ -2,55 +2,85 @@
 
 import { ReactNode, useState } from "react";
 
+/* ================= TYPES ================= */
+
 type Props = {
   channel: "sms" | "whatsapp";
   type: "rsvp" | "reminder" | "thankyou";
 
+  invitationId?: string;          // ⭐ חובה ל־WhatsApp RSVP
   audience: string[];
   scheduledAt: Date | null;
 
   templateName?: string;
   disabled?: boolean;
+  onAfterSend?: () => void;
+
   children: ReactNode;
 };
 
-// השתמש ב־React.FC<Props> כדי TypeScript ידע שיש children
+/* ================= COMPONENT ================= */
+
 const SendButton: React.FC<Props> = ({
   channel,
   type,
+  invitationId,
   audience,
   scheduledAt,
   templateName,
   disabled,
+  onAfterSend,
   children,
 }) => {
   const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
     if (disabled || sending) return;
+
     if (audience.length === 0) {
       alert("❌ אין נמענים לשליחה בסבב זה");
       return;
     }
-    if (channel === "whatsapp" && type === "rsvp" && !templateName) {
-      alert("❌ חסרה תבנית WhatsApp לאישור הגעה");
-      return;
+
+    // ===== WhatsApp RSVP validations =====
+    if (channel === "whatsapp" && type === "rsvp") {
+      if (!templateName) {
+        alert("❌ חסרה תבנית WhatsApp לאישור הגעה");
+        return;
+      }
+      if (!invitationId) {
+        alert("❌ חסר מזהה הזמנה (invitationId)");
+        return;
+      }
     }
 
     setSending(true);
 
     try {
-      const res = await fetch("/api/messages/send", {
+      let endpoint = "/api/messages/send";
+      let payload: any = {
+        channel,
+        type,
+        audience,
+        scheduledAt,
+      };
+
+      /* ================= WHATSAPP RSVP ================= */
+      if (channel === "whatsapp" && type === "rsvp") {
+        endpoint = "/api/whatsapp/send-template";
+        payload = {
+          invitationId,               // ⭐ קריטי
+          templateName,               // rsvp_invitation_media
+          audience,                   // guestIds
+          scheduledAt,
+        };
+      }
+
+      const res = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channel,
-          type,
-          templateName,
-          audience,
-          scheduledAt,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -63,8 +93,10 @@ const SendButton: React.FC<Props> = ({
       alert(
         scheduledAt
           ? "⏱️ ההודעות תוזמנו בהצלחה"
-          : `✅ נשלחו ${audience.length} הודעות בהצלחה`
+          : `✅ נשלחו ${data.sent ?? audience.length} הודעות בהצלחה`
       );
+
+      onAfterSend?.();
     } catch (err) {
       console.error("SEND ERROR:", err);
       alert("❌ שגיאה בשליחה");
@@ -73,11 +105,14 @@ const SendButton: React.FC<Props> = ({
     }
   };
 
+  /* ================= RENDER ================= */
+
   return (
     <button
       onClick={handleSend}
       disabled={disabled || sending || audience.length === 0}
-      className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition"
+      className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-semibold
+                 disabled:opacity-50 disabled:cursor-not-allowed transition"
     >
       {sending ? "שולח..." : children}
     </button>

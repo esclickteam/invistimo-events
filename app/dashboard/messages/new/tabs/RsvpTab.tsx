@@ -155,13 +155,15 @@ export default function RsvpTab({
       />
 
       <SendButton
-        channel="whatsapp"
-        type="rsvp"
-        templateName={RSVP_TEMPLATE_NAME}
-        audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={scheduledAt}
-        disabled={blocked}
-      >
+  channel="whatsapp"
+  type="rsvp"
+  invitationId={invitationId}   // ⭐ חובה
+  templateName={RSVP_TEMPLATE_NAME}
+  audience={guestsToSend.map((g) => g._id)}
+  scheduledAt={scheduledAt}
+  disabled={blocked}
+  onAfterSend={handleAfterSend}
+>
         {roundSent[round]
           ? "✅ נשלח"
           : scheduledAt
