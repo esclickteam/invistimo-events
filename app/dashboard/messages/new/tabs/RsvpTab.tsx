@@ -25,6 +25,7 @@ type Props = {
 
 /* ================= CONSTANTS ================= */
 
+// שם התבנית המאושרת במטה
 const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
 
 /* ================= HELPERS ================= */
@@ -59,26 +60,21 @@ export default function RsvpTab({
   headerImageUrl,
 }: Props) {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
-  const [filter, setFilter] = useState<FilterType>("all");
   const [round, setRound] = useState<1 | 2>(1); // סבב ראשון או שני
+  const [roundSent, setRoundSent] = useState<{ [key in 1 | 2]: boolean }>({ 1: false, 2: false });
 
   /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
-    if (round === 1) {
-      // סבב ראשון – שולח לכולם
-      return guests;
-    } else {
-      // סבב שני – שולח רק למי שטרם ענה
-      return guests.filter((g) => g.rsvp === "pending");
-    }
+    if (round === 1) return guests; // סבב ראשון – שולח לכולם
+    return guests.filter((g) => g.rsvp === "pending"); // סבב שני – רק למי שטרם ענה
   }, [guests, round]);
 
   /* ================= BLOCKING RULES ================= */
 
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
-  const blocked = noAudience || missingHeaderImage;
+  const blocked = noAudience || missingHeaderImage || roundSent[round];
 
   /* ================= PREVIEW TEXT ================= */
 
@@ -92,6 +88,12 @@ export default function RsvpTab({
     [eventTitle, eventDate, eventLocation]
   );
 
+  /* ================= HANDLE SEND ================= */
+
+  const handleAfterSend = () => {
+    setRoundSent((prev) => ({ ...prev, [round]: true }));
+  };
+
   /* ================= RENDER ================= */
 
   return (
@@ -103,23 +105,25 @@ export default function RsvpTab({
             round === 1 ? "bg-blue-600 text-white" : "border-gray-300"
           }`}
           onClick={() => setRound(1)}
+          disabled={roundSent[1]}
         >
-          סבב 1 – לכולם
+          סבב 1 – לכולם {roundSent[1] ? "(נשלח)" : ""}
         </button>
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
             round === 2 ? "bg-blue-600 text-white" : "border-gray-300"
           }`}
           onClick={() => setRound(2)}
+          disabled={roundSent[2]}
         >
-          סבב 2 – למי שטרם ענה
+          סבב 2 – למי שטרם ענה {roundSent[2] ? "(נשלח)" : ""}
         </button>
       </div>
 
       {/* קהל יעד */}
       <AudienceFilterSelector
-        value={filter}
-        onChange={setFilter}
+        value={round === 1 ? "all" : "pending"}
+        onChange={() => {}}
         totalCount={guests.length}
         pendingCount={guests.filter((g) => g.rsvp === "pending").length}
       />
@@ -161,8 +165,10 @@ export default function RsvpTab({
         scheduledAt={scheduledAt}
         disabled={blocked}
       >
-        {scheduledAt
-          ? "⏱️ תזמן אישור הגעה ב־WhatsApp"
+        {roundSent[round]
+          ? "✅ נשלח"
+          : scheduledAt
+          ? `⏱️ תזמן אישור הגעה – סבב ${round}`
           : `📲 שלח אישור הגעה – סבב ${round}`}
       </SendButton>
 

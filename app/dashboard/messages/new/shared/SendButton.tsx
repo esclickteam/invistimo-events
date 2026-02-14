@@ -1,101 +1,144 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { useMemo, useState } from "react";
+import AudienceFilterSelector from "../shared/AudienceFilterSelector";
+import SendTiming from "../shared/SendTiming";
+import SendButton from "../shared/SendButton";
+import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
 
-type Props = {
-  channel: "sms" | "whatsapp";
-  type: "rsvp" | "reminder" | "thankyou";
-
-  audience: string[];          // IDs של אורחים בסבב הנוכחי
-  scheduledAt: Date | null;    // null = שליחה מיידית
-
-  // 👇 חובה ל־WhatsApp RSVP
-  templateName?: string;
-
-  disabled?: boolean;
-  children: ReactNode;
+type Guest = {
+  _id: string;
+  name: string;
+  phone: string;
+  rsvp?: "yes" | "no" | "pending";
 };
 
-export default function SendButton({
-  channel,
-  type,
-  audience,
-  scheduledAt,
-  templateName,
-  disabled,
-  children,
+type Props = {
+  guests: Guest[];
+  eventTitle: string;
+  eventDate: string;
+  eventLocation: string;
+  headerImageUrl?: string;
+};
+
+const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
+
+export default function RsvpTab({
+  guests,
+  eventTitle,
+  eventDate,
+  eventLocation,
+  headerImageUrl,
 }: Props) {
-  const [sending, setSending] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
+  const [round, setRound] = useState<1 | 2>(1); // סבב 1 או סבב 2
 
-  const handleSend = async () => {
-    if (disabled || sending) return;
-
-    // 🔹 אין נמענים – חסום
-    if (audience.length === 0) {
-      alert("❌ אין נמענים לשליחה בסבב זה");
-      return;
+  /* ================= AUDIENCE ================= */
+  const guestsToSend = useMemo(() => {
+    if (round === 1) {
+      // סבב ראשון – לכולם
+      return guests;
+    } else {
+      // סבב שני – רק למי שטרם ענה
+      return guests.filter((g) => g.rsvp === "pending");
     }
+  }, [guests, round]);
 
-    // 🔹 WhatsApp RSVP חייב template
-    if (channel === "whatsapp" && type === "rsvp" && !templateName) {
-      alert("❌ חסרה תבנית WhatsApp לאישור הגעה");
-      return;
-    }
+  /* ================= BLOCKING RULES ================= */
+  const noAudience = guestsToSend.length === 0;
+  const missingHeaderImage = !headerImageUrl;
+  const blocked = noAudience || missingHeaderImage;
 
-    setSending(true);
+  /* ================= PREVIEW TEXT ================= */
+  const previewText = useMemo(() => {
+    return `משפחה וחברים יקרים,
+הנכם מוזמנים ל- ${eventTitle} 🤍
 
-    try {
-      const res = await fetch("/api/messages/send", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channel,        // sms | whatsapp
-          type,           // rsvp | reminder | thankyou
-          templateName,   // רק ל־WhatsApp RSVP
-          audience,       // guestIds של הסבב
-          scheduledAt,    // null = מיידית
-        }),
-      });
+📅 תאריך: ${eventDate}
+📍 מיקום: ${eventLocation}
 
-      const data = await res.json();
+לאישור הגעה לחצו על הכפתור למטה 👇
 
-      if (!res.ok || !data?.success) {
-        alert(data?.error || "❌ שליחת ההודעות נכשלה");
-        return;
-      }
+מחכים לשמוח איתכם 💖`;
+  }, [eventTitle, eventDate, eventLocation]);
 
-      alert(
-        scheduledAt
-          ? "⏱️ ההודעות תוזמנו בהצלחה"
-          : `✅ נשלחו ${audience.length} הודעות בהצלחה`
-      );
-    } catch (err) {
-      console.error("SEND ERROR:", err);
-      alert("❌ שגיאה בשליחה");
-    } finally {
-      setSending(false);
-    }
-  };
-
+  /* ================= RENDER ================= */
   return (
-    <button
-      onClick={handleSend}
-      disabled={disabled || sending || audience.length === 0}
-      className="
-        w-full
-        bg-green-600
-        text-white
-        py-4
-        rounded-xl
-        text-lg
-        font-semibold
-        disabled:opacity-50
-        disabled:cursor-not-allowed
-        transition
-      "
-    >
-      {sending ? "שולח..." : children}
-    </button>
+    <div className="space-y-6 max-w-2xl mx-auto p-4">
+      {/* סבב */}
+      <div className="flex gap-4">
+        <button
+          onClick={() => setRound(1)}
+          className={`flex-1 py-2 rounded-xl font-semibold ${
+            round === 1 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+          }`}
+        >
+          סבב 1 – לכולם
+        </button>
+        <button
+          onClick={() => setRound(2)}
+          className={`flex-1 py-2 rounded-xl font-semibold ${
+            round === 2 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+          }`}
+        >
+          סבב 2 – למי שטרם ענה
+        </button>
+      </div>
+
+      {/* קהל יעד */}
+      <AudienceFilterSelector
+        value={round === 1 ? "all" : "pending"}
+        onChange={() => {}}
+        totalCount={guests.length}
+        pendingCount={guests.filter((g) => g.rsvp === "pending").length}
+        readOnly={true} // לא מאפשר שינוי ידני, אוטומטי לפי סבב
+      />
+
+      {/* הסבר */}
+      <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        📌 הודעת אישור הגעה נשלחת ב־WhatsApp בלבד
+        <br />
+        ✏️ תוכן ההודעה קבוע לפי תבנית מאושרת
+        <br />
+        ⏱️ ניתן לבחור שליחה מיידית או מתוזמנת
+      </section>
+
+      {/* אזהרה */}
+      {missingHeaderImage && (
+        <section className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          ❌ חסרה תמונת הזמנה – WhatsApp דורש Header לצורך שליחת תבנית RSVP
+        </section>
+      )}
+
+      {/* תזמון */}
+      <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
+
+      {/* תצוגה מקדימה */}
+      <WhatsappTemplatePreview
+        templateKey="rsvp"
+        previewText={previewText}
+        headerImageUrl={headerImageUrl}
+      />
+
+      {/* כפתור שליחה */}
+      <SendButton
+        channel="whatsapp"
+        type="rsvp"
+        templateName={RSVP_TEMPLATE_NAME}
+        audience={guestsToSend.map((g) => g._id)}
+        scheduledAt={scheduledAt}
+        disabled={blocked}
+      >
+        {scheduledAt
+          ? `⏱️ תזמן אישור הגעה – סבב ${round}`
+          : `📲 שלח אישור הגעה – סבב ${round}`}
+      </SendButton>
+
+      {noAudience && (
+        <p className="text-sm text-red-500">
+          אין נמענים לשליחה בסבב זה
+        </p>
+      )}
+    </div>
   );
 }
