@@ -101,11 +101,12 @@ export default function ReminderTab({
     <div className="space-y-6">
       {/* קהל יעד */}
       <AudienceFilterSelector
-        value={filter}
-        onChange={setFilter}
-        totalCount={confirmedGuests.length}
-        withTableCount={guestsWithTable.length}
-      />
+  value={guestsWithTable.length > 0 ? "withTable" : "all"} // מציג לפי מצב האורחים
+  onChange={() => {}}                                       // לא ניתן לשנות
+  totalCount={confirmedGuests.length}                       // כמה אישרו
+  withTableCount={guestsWithTable.length}                  // כמה עם שולחן
+  readOnly={true}                                           // קריאה בלבד
+/>
 
       {/* הסבר */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">

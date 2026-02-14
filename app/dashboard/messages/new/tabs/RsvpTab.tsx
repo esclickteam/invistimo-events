@@ -25,7 +25,6 @@ type Props = {
 
 /* ================= CONSTANTS ================= */
 
-// שם התבנית המאושרת במטה
 const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
 
 /* ================= HELPERS ================= */
@@ -70,6 +69,9 @@ export default function RsvpTab({
     return guests.filter((g) => g.rsvp === "pending"); // סבב שני – רק למי שטרם ענה
   }, [guests, round]);
 
+  const totalCount = guests.length; // מספר כולל כל המוזמנים
+  const pendingCount = guests.filter((g) => g.rsvp === "pending").length; // מספר שמצבו pending
+
   /* ================= BLOCKING RULES ================= */
 
   const noAudience = guestsToSend.length === 0;
@@ -97,9 +99,9 @@ export default function RsvpTab({
   /* ================= RENDER ================= */
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white p-6 rounded-xl shadow-md">
       {/* בחירת סבב */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 mb-4">
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
             round === 1 ? "bg-blue-600 text-white" : "border-gray-300"
@@ -122,11 +124,12 @@ export default function RsvpTab({
 
       {/* קהל יעד */}
       <AudienceFilterSelector
-        value={round === 1 ? "all" : "pending"}
-        onChange={() => {}}
-        totalCount={guests.length}
-        pendingCount={guests.filter((g) => g.rsvp === "pending").length}
-      />
+  value={round === 1 ? "all" : "pending"}       // סבב 1 = כולם, סבב 2 = טרם ענו
+  onChange={() => {}}                           // TypeScript דורש פונקציה, לא יעבוד כי readOnly
+  totalCount={guests.length}                    // מספר כל המוזמנים
+  pendingCount={guests.filter((g) => g.rsvp === "pending").length} // מספר מי שטרם ענה
+  readOnly={true}                               // הפילטר קריאה בלבד
+/>
 
       {/* הסבר */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
