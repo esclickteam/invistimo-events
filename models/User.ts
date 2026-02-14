@@ -124,7 +124,11 @@ const UserSchema = new Schema<IUser>(
     hasPaid: { type: Boolean, default: false },
 
     // ✅ קריטי – לקוחות קיימים לא נפגעים
-    isActive: { type: Boolean, default: true },
+    isActive: {
+  type: Boolean,
+  default: false, // 🔴 חדש = לא פעיל
+},
+
 
     createdByAdmin: { type: Boolean, default: false },
 

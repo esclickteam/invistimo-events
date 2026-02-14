@@ -35,32 +35,38 @@ export async function POST(req: Request) {
        Stripe webhook is the source of truth
     ============================================================ */
     const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
+  name,
+  email,
+  password: hashedPassword,
 
-      role: "user",
+  role: "user",
 
-      // ✅ enum חוקי
-      plan: "basic",
+  // ✅ enum חוקי
+  plan: "basic",
 
-      // ❌ עדיין לא שילם
-      hasPaid: false,
-      paidAmount: 0,
-      isTrial: true,
+  // ❌ עדיין לא שילם
+  hasPaid: false,
+  paidAmount: 0,
 
-      // ❌ אין חבילה עדיין
-      guests: 0,
-      maxMessages: 0,
-      remainingMessages: 0,
-      smsBalance: 0,
+  // 🆕 קריטי – לקוח חדש
+  isActive: false,
 
-      includeCalls: false,
-      includeCreditGifts: false,
+  // אם את עדיין רוצה Trial לוגי (לא legacy)
+  isTrial: true,
 
-      createdByProducer: Boolean(createdByProducer),
-      needsPasswordSetup: !createdByProducer,
-    });
+  // ❌ אין חבילה / אין מודל הודעות ישן
+  guests: 0,
+  maxMessages: 0,
+  remainingMessages: 0,
+  smsBalance: 0,
+
+  includeCalls: false,
+  includeCreditGifts: false,
+
+  createdByProducer: Boolean(createdByProducer),
+  needsPasswordSetup: !createdByProducer,
+});
+
 
     /* ============================================================
        If created by producer – NO LOGIN
