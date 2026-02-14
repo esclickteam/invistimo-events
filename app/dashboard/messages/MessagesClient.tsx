@@ -550,17 +550,18 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 מחכים לשמוח איתכם 💖`;
   }
 
- if (templateKey === "table") {
+if (templateKey === "table") {
   return `היי ${g.name} 🌸
 שמחים לראות אותך 💛
 
 מספר השולחן שלך:
 🪑 ${tableName || "—"}
 
-${includeGiftLink && giftLink ? "ניתן גם לשלוח מתנה באשראי 🎁\n" : ""}
+${includeGiftLink && giftLink ? "למתנה באשראי:\nלחצו על הכפתור למטה\n\n" : ""}
 
 מחכים לך!`;
 }
+
 
 
   return `היי ${g.name} 🌸
@@ -1529,28 +1530,28 @@ const progress = max > 0 ? (used / max) * 100 : 0;
 )}
 
 {templateKey === "table" && (
-  <div className="mt-2 space-y-2">
-    {/* כפתור ניווט */}
-    <button
-      type="button"
-      disabled
-      className="w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
-    >
-      ניווט לאירוע
-    </button>
+  <div className="mt-2 border-t border-gray-200 bg-white">
 
-    {/* כפתור מתנה באשראי – רק אם קיים */}
+    {/* כפתור ניווט */}
+    <div className="border-b border-gray-200">
+      <div className="py-3 text-center text-sm font-medium text-[#1d6fb8] flex items-center justify-center gap-2">
+        <span>🔗</span>
+        ניווט לאירוע
+      </div>
+    </div>
+
+    {/* כפתור מתנה באשראי */}
     {includeGiftLink && giftLink && (
-      <button
-        type="button"
-        disabled
-        className="w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
-      >
-        🎁 מתנה באשראי
-      </button>
+      <div>
+        <div className="py-3 text-center text-sm font-medium text-[#1d6fb8] flex items-center justify-center gap-2">
+          <span>🔗</span>
+          מתנה באשראי
+        </div>
+      </div>
     )}
   </div>
 )}
+
 
 
 
