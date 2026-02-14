@@ -15,120 +15,102 @@ type Guest = {
   name: string;
   phone: string;
   rsvp?: "yes" | "no" | "pending";
-  tableName?: string;
-  tableNumber?: number;
 };
 
 /* ================= CONSTANTS ================= */
 
-const MAX_CHARS = 130;
+// שם התבנית המאושרת ב־360dialog
+const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
 
-const DEFAULT_MESSAGE =
-  "היי {{name}},\nנזכיר שהאירוע שלנו מתקרב 💛\nמספר השולחן שלך: {{tableName}}\nמחכים לראותך!";
+// טקסט תצוגה מקדימה בלבד (לא נשלח בפועל)
+const RSVP_PREVIEW_TEXT = `היי {{name}} 👋
+
+נשמח לדעת אם תגיעו לחגוג איתנו 🎉
+
+לאישור הגעה לחצו כאן`;
 
 /* ================= COMPONENT ================= */
 
-export default function ReminderTab({
+export default function RsvpTab({
   guests,
 }: {
   guests: Guest[];
 }) {
-  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
 
-  // 🔑 זה הפילטר
+  // סבב שליחה
   const [filter, setFilter] = useState<FilterType>("all");
 
-  /* ================= FILTER LOGIC ================= */
+  /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
     switch (filter) {
       case "pending":
-        return guests.filter((g) => g.rsvp === "pending");
-
-      case "withTable":
-        return guests.filter(
-          (g) =>
-            g.tableName ||
-            typeof g.tableNumber === "number"
-        );
-
+        return guests.filter((g) => g.rsvp !== "yes");
       case "all":
       default:
         return guests;
     }
   }, [guests, filter]);
 
-  /* ================= PREVIEW ================= */
-
-  const previewText = useMemo(() => {
-    const g = guestsToSend[0];
-    if (!g) return "";
-
-    const table =
-      g.tableName ??
-      (typeof g.tableNumber === "number"
-        ? `שולחן ${g.tableNumber}`
-        : "");
-
-    return message
-      .replace(/{{name}}/g, g.name)
-      .replace(/{{tableName}}/g, table);
-  }, [message, guestsToSend]);
-
-  const blocked =
-    guestsToSend.length === 0 ||
-    previewText.length > MAX_CHARS;
+  const blocked = guestsToSend.length === 0;
 
   /* ================= RENDER ================= */
 
   return (
     <div className="space-y-6">
+      {/* ================= קהל יעד ================= */}
       <AudienceFilterSelector
         value={filter}
         onChange={setFilter}
         totalCount={guests.length}
         pendingCount={
-          guests.filter((g) => g.rsvp === "pending").length
-        }
-        withTableCount={
-          guests.filter(
-            (g) =>
-              g.tableName ||
-              typeof g.tableNumber === "number"
-          ).length
+          guests.filter((g) => g.rsvp !== "yes").length
         }
       />
 
-      <section>
-        <label className="font-semibold block mb-1">
-          ✍️ תוכן התזכורת
-        </label>
-
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          rows={5}
-          className="w-full border rounded-xl p-3"
-        />
+      {/* ================= הסבר ================= */}
+      <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        📌 הודעת אישור הגעה נשלחת ב־WhatsApp באמצעות תבנית מאושרת.
+        <br />
+        ✏️ לא ניתן לערוך את תוכן ההודעה.
+        <br />
+        ⏱️ ניתן לבחור מועד שליחה אוטומטי.
       </section>
 
+      {/* ================= תזמון ================= */}
       <SendTiming
         scheduledAt={scheduledAt}
         onChange={setScheduledAt}
       />
 
-      <PhonePreview channel="sms" text={previewText} />
+      {/* ================= תצוגה מקדימה ================= */}
+      <PhonePreview
+        channel="whatsapp"
+        text={RSVP_PREVIEW_TEXT}
+        headerImageUrl="/whatsapp-invite-header.png"
+        showRsvpButton
+      />
 
+      {/* ================= שליחה ================= */}
       <SendButton
-        channel="sms"
-        type="reminder"
+        channel="whatsapp"
+        type="rsvp"
+        templateName={RSVP_TEMPLATE_NAME}
         audience={guestsToSend.map((g) => g._id)}
         scheduledAt={scheduledAt}
         disabled={blocked}
       >
-        {scheduledAt ? "⏱️ תזמן תזכורת" : "📩 שלח תזכורת"}
+        {scheduledAt
+          ? "⏱️ תזמן אישור הגעה ב־WhatsApp"
+          : "📲 שלח אישור הגעה ב־WhatsApp"}
       </SendButton>
+
+      {blocked && (
+        <p className="text-sm text-red-500">
+          יש לבחור לפחות נמען אחד
+        </p>
+      )}
     </div>
   );
 }

@@ -23,68 +23,57 @@ type Guest = {
 
 const MAX_CHARS = 130;
 
-const DEFAULT_MESSAGE =
+const MESSAGE_WITH_TABLE =
   "היי {{name}},\nנזכיר שהאירוע שלנו מתקרב 💛\nמספר השולחן שלך: {{tableName}}\nמחכים לראותך!";
+
+const MESSAGE_NO_TABLE =
+  "היי {{name}},\nנזכיר שהאירוע שלנו מתקרב 💛\nמחכים לראותך!";
 
 /* ================= COMPONENT ================= */
 
 export default function ReminderTab({
   guests,
-  invitationId,
 }: {
   guests: Guest[];
-  invitationId: string;
 }) {
-  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
-
-  // ✅ פילטר קהל
   const [filter, setFilter] = useState<FilterType>("all");
 
-  // ⛔️ בעתיד יבוא מה־user
-  const hasSeatingPackage = false;
+  /* ================= HELPERS ================= */
 
-  /* ================= COUNTS ================= */
+  const hasTable = (g: Guest) =>
+    !!g.tableName || typeof g.tableNumber === "number";
+
+  /* ================= GROUPS ================= */
 
   const confirmedGuests = useMemo(
     () => guests.filter((g) => g.rsvp === "yes"),
     [guests]
   );
 
-  const withTableGuests = useMemo(
-    () =>
-      confirmedGuests.filter(
-        (g) =>
-          g.tableName || typeof g.tableNumber === "number"
-      ),
+  const guestsWithTable = useMemo(
+    () => confirmedGuests.filter(hasTable),
     [confirmedGuests]
   );
 
-  /* ================= FILTER ================= */
+  /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
-    switch (filter) {
-      case "pending":
-        return guests.filter((g) => g.rsvp === "pending");
-
-      case "withTable":
-        return hasSeatingPackage
-          ? withTableGuests
-          : confirmedGuests;
-
-      case "all":
-      default:
-        return confirmedGuests;
+    // אם יש אורחים עם שולחן – עובדים רק מולם
+    if (guestsWithTable.length > 0) {
+      return guestsWithTable;
     }
-  }, [
-    filter,
-    guests,
-    confirmedGuests,
-    withTableGuests,
-    hasSeatingPackage,
-  ]);
 
-  /* ================= PREVIEW ================= */
+    // אחרת – כל מי שאישר הגעה
+    return confirmedGuests;
+  }, [guestsWithTable, confirmedGuests]);
+
+  /* ================= MESSAGE ================= */
+
+  const baseMessage =
+    guestsWithTable.length > 0
+      ? MESSAGE_WITH_TABLE
+      : MESSAGE_NO_TABLE;
 
   const previewText = useMemo(() => {
     const g = guestsToSend[0];
@@ -96,10 +85,10 @@ export default function ReminderTab({
         ? `שולחן ${g.tableNumber}`
         : "");
 
-    return message
+    return baseMessage
       .replace(/{{name}}/g, g.name || "")
       .replace(/{{tableName}}/g, table);
-  }, [message, guestsToSend]);
+  }, [guestsToSend, baseMessage]);
 
   const blocked =
     guestsToSend.length === 0 ||
@@ -113,34 +102,15 @@ export default function ReminderTab({
         value={filter}
         onChange={setFilter}
         totalCount={confirmedGuests.length}
-        pendingCount={
-          guests.filter((g) => g.rsvp === "pending").length
-        }
-        withTableCount={withTableGuests.length}
+        withTableCount={guestsWithTable.length}
       />
 
-      <section>
-        <label className="font-semibold block mb-1">
-          ✍️ תוכן התזכורת
-        </label>
-
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          rows={5}
-          className="w-full border rounded-xl p-3"
-        />
-
-        <p className="text-xs text-gray-500 mt-1">
-          {previewText.length}/{MAX_CHARS} תווים
-        </p>
-
-        <p className="text-xs text-gray-400 mt-1">
-          המשתנים{" "}
-          <span className="font-mono">{`{{name}}`}</span>,{" "}
-          <span className="font-mono">{`{{tableName}}`}</span>{" "}
-          מתעדכנים אוטומטית
-        </p>
+      <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        📌 תזכורת נשלחת ב־SMS בלבד
+        <br />
+        ⏱️ ניתן לשלוח מיידית או לתזמן
+        <br />
+        🪑 מספר שולחן מצורף רק למי שיש בפועל
       </section>
 
       <SendTiming
@@ -157,8 +127,16 @@ export default function ReminderTab({
         scheduledAt={scheduledAt}
         disabled={blocked}
       >
-        {scheduledAt ? "⏱️ תזמן תזכורת" : "📩 שלח תזכורת"}
+        {scheduledAt
+          ? "⏱️ תזמן תזכורת"
+          : "📩 שלח תזכורת"}
       </SendButton>
+
+      {blocked && (
+        <p className="text-sm text-red-500">
+          אין נמענים או שההודעה ארוכה מדי
+        </p>
+      )}
     </div>
   );
 }

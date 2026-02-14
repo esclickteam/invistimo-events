@@ -1,20 +1,26 @@
 "use client";
 
-type Props = {
-  channel: "sms" | "whatsapp";
-  text: string;
+/* ================= TYPES ================= */
 
-  // אופציונלי – לתצוגת WhatsApp עם תמונה וכפתור
+type SmsPreviewProps = {
+  channel: "sms";
+  text: string;
+};
+
+type WhatsappPreviewProps = {
+  channel: "whatsapp";
+  text: string;
   headerImageUrl?: string;
   showRsvpButton?: boolean;
 };
 
-export default function PhonePreview({
-  channel,
-  text,
-  headerImageUrl,
-  showRsvpButton,
-}: Props) {
+type Props = SmsPreviewProps | WhatsappPreviewProps;
+
+/* ================= COMPONENT ================= */
+
+export default function PhonePreview(props: Props) {
+  const { channel, text } = props;
+
   return (
     <div className="w-[320px] mx-auto">
       <p className="text-xs text-gray-500 mb-2 text-center">
@@ -43,6 +49,7 @@ export default function PhonePreview({
           {/* CONTENT */}
           <div className="p-4">
             {channel === "sms" ? (
+              /* ================= SMS ================= */
               <div className="flex justify-center">
                 <div className="rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words bg-gray-200 text-gray-900">
                   {text.split("\n").map((line, i) => (
@@ -51,11 +58,12 @@ export default function PhonePreview({
                 </div>
               </div>
             ) : (
+              /* ================= WHATSAPP ================= */
               <div className="max-w-[92%] mx-auto">
-                {/* HEADER IMAGE (WhatsApp) */}
-                {headerImageUrl ? (
+                {/* HEADER IMAGE */}
+                {props.headerImageUrl ? (
                   <img
-                    src={headerImageUrl}
+                    src={props.headerImageUrl}
                     alt="Invitation"
                     className="w-full h-[160px] object-cover rounded-t-2xl border border-b-0 border-gray-200"
                   />
@@ -73,7 +81,7 @@ export default function PhonePreview({
                 </div>
 
                 {/* CTA BUTTON */}
-                {showRsvpButton && (
+                {props.showRsvpButton && (
                   <button
                     type="button"
                     disabled

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 /* ================= TYPES ================= */
 
@@ -11,7 +11,6 @@ type Guest = {
 };
 
 type FilterType = "all" | "attended";
-
 type SendTiming = "now" | "scheduled";
 
 /* ================= CONSTANTS ================= */
@@ -23,45 +22,29 @@ const DEFAULT_MESSAGE =
 
 /* ================= COMPONENT ================= */
 
-export default function ThankYouTab() {
-  const [guests, setGuests] = useState<Guest[]>([]);
+export default function ThankYouTab({
+  guests,
+}: {
+  guests: Guest[];
+}) {
   const [filter, setFilter] = useState<FilterType>("all");
-
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
 
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
-  /* ================= LOAD GUESTS ================= */
-
-  useEffect(() => {
-    async function loadGuests() {
-      const res = await fetch("/api/guests", {
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setGuests(Array.isArray(data.guests) ? data.guests : []);
-    }
-
-    loadGuests();
-  }, []);
-
   /* ================= AUDIENCE ================= */
 
   const guestsToSend = useMemo(() => {
     if (filter === "attended") {
-      // בעתיד אפשר לחבר ל־arrived=true
+      // בעתיד: arrived === true
       return guests;
     }
     return guests;
   }, [guests, filter]);
 
-  /* ================= MESSAGE LOGIC ================= */
+  /* ================= MESSAGE ================= */
 
   const previewText = useMemo(() => {
     if (!guestsToSend[0]) return message;
@@ -71,10 +54,14 @@ export default function ThankYouTab() {
   const totalChars = previewText.length;
   const isBlocked = totalChars > CHAR_LIMIT;
 
-  /* ================= SEND ================= */
+  /* ================= SCHEDULE ================= */
 
   const scheduledAt = useMemo(() => {
-    if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
+    if (
+      sendTiming !== "scheduled" ||
+      !scheduledDate ||
+      !scheduledTime
+    ) {
       return null;
     }
 
@@ -83,6 +70,8 @@ export default function ThankYouTab() {
 
     return new Date(y, m - 1, d, hh, mm, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
+
+  /* ================= SEND ================= */
 
   const sendMessages = async () => {
     if (isBlocked) {
@@ -125,14 +114,19 @@ export default function ThankYouTab() {
     <div className="w-full max-w-[600px] space-y-8">
       {/* AUDIENCE */}
       <section>
-        <h3 className="font-semibold mb-2">קהל יעד</h3>
+        <h3 className="font-semibold mb-2">👥 קהל יעד</h3>
+
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value as FilterType)}
           className="w-full border rounded-xl p-3"
         >
-          <option value="all">לכל המוזמנים ({guests.length})</option>
-          <option value="attended">למי שהגיע לאירוע</option>
+          <option value="all">
+            לכל המוזמנים ({guests.length})
+          </option>
+          <option value="attended">
+            למי שהגיע לאירוע
+          </option>
         </select>
 
         <p className="text-sm text-gray-500 mt-1">
@@ -142,7 +136,7 @@ export default function ThankYouTab() {
 
       {/* MESSAGE */}
       <section>
-        <h3 className="font-semibold mb-2">תוכן ההודעה</h3>
+        <h3 className="font-semibold mb-2">✍️ תוכן ההודעה</h3>
 
         <textarea
           value={message}
@@ -160,13 +154,16 @@ export default function ThankYouTab() {
         </p>
 
         <p className="text-xs text-gray-400 mt-1">
-         <span className="font-mono">{`{{name}}`}</span>
+          משתנה:
+          <span className="font-mono ml-1">{`{{name}}`}</span>
         </p>
       </section>
 
       {/* PREVIEW */}
       <section>
-        <h3 className="font-semibold mb-2 text-center">תצוגה מקדימה</h3>
+        <h3 className="font-semibold mb-2 text-center">
+          📱 תצוגה מקדימה
+        </h3>
 
         <div className="mx-auto w-[320px] bg-black rounded-[32px] p-3 shadow-xl">
           <div className="bg-white rounded-[24px] overflow-hidden">

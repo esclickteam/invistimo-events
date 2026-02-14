@@ -9,8 +9,10 @@ type Props = {
   audience: string[];          // IDs של אורחים
   scheduledAt: Date | null;    // null = שליחה מיידית
 
-  disabled?: boolean;
+  // 👇 חדש – רלוונטי רק ל־WhatsApp RSVP
+  templateName?: string;
 
+  disabled?: boolean;
   children: ReactNode;
 };
 
@@ -19,6 +21,7 @@ export default function SendButton({
   type,
   audience,
   scheduledAt,
+  templateName,
   disabled,
   children,
 }: Props) {
@@ -32,6 +35,12 @@ export default function SendButton({
       return;
     }
 
+    // 🔒 הגנה לוגית: RSVP ב־WhatsApp חייב תבנית
+    if (channel === "whatsapp" && type === "rsvp" && !templateName) {
+      alert("חסרה תבנית WhatsApp לאישור הגעה");
+      return;
+    }
+
     setSending(true);
 
     try {
@@ -42,6 +51,7 @@ export default function SendButton({
         body: JSON.stringify({
           channel,          // sms | whatsapp
           type,             // rsvp | reminder | thankyou
+          templateName,     // קיים רק ב־WhatsApp RSVP
           audience,         // guestIds
           scheduledAt,      // null או Date
         }),
@@ -54,11 +64,11 @@ export default function SendButton({
         return;
       }
 
-      if (scheduledAt) {
-        alert("⏱️ ההודעה תוזמנה בהצלחה");
-      } else {
-        alert("✅ ההודעות נשלחו בהצלחה");
-      }
+      alert(
+        scheduledAt
+          ? "⏱️ ההודעה תוזמנה בהצלחה"
+          : "✅ ההודעות נשלחו בהצלחה"
+      );
     } catch (err) {
       console.error("SEND ERROR:", err);
       alert("❌ שגיאה בשליחה");
