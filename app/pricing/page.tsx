@@ -24,40 +24,59 @@ type PlanKey = "plan1" | "plan2" | "plan3";
 
 type PlanConfig = {
   title: string;
-  baseMultiplier: number;
+  highlight?: boolean;
   creditPrice: number;
   selfManagePrice: number;
-  highlight?: boolean;
 };
 
-/* ================= CONFIG ================= */
+/* ================= PLAN CONFIG ================= */
 
 const PLANS: Record<PlanKey, PlanConfig> = {
   plan1: {
-    title: "חבילה 1",
-    baseMultiplier: 1.5,
+    title: "חבילה 1 – אישורים בהודעות",
     creditPrice: 150,
     selfManagePrice: 150,
   },
   plan2: {
-    title: "חבילה 2",
-    baseMultiplier: 1.4,
+    title: "חבילה 2 – מוקד אנושי",
     creditPrice: 75,
     selfManagePrice: 100,
     highlight: true,
   },
   plan3: {
-    title: "חבילה 3",
-    baseMultiplier: 1.3,
+    title: "חבילה 3 – מוקד + הושבה",
     creditPrice: 0,
     selfManagePrice: 70,
   },
 };
 
-/* ================= HELPERS ================= */
+/* ================= PRICE HELPERS ================= */
 
-function calculateBase(records: number, multiplier: number): number {
-  return Math.round(records * multiplier);
+function getPlan1Rate(records: number) {
+  if (records <= 150) return 1.3;
+  if (records <= 300) return 1.2;
+  if (records <= 500) return 1.1;
+  return 0.95;
+}
+
+function getPlan2Rate(records: number) {
+  if (records <= 150) return 2.1;
+  if (records <= 300) return 1.95;
+  if (records <= 500) return 1.8;
+  return 1.65;
+}
+
+function calculateBasePrice(plan: PlanKey, records: number) {
+  if (plan === "plan1") {
+    return Math.round(records * getPlan1Rate(records));
+  }
+
+  if (plan === "plan2") {
+    return Math.round(records * getPlan2Rate(records));
+  }
+
+  // plan3 = plan2 + 0.3 לרשומה
+  return Math.round(records * (getPlan2Rate(records) + 0.3));
 }
 
 /* ================= COMPONENT ================= */
@@ -70,13 +89,7 @@ export default function PricingPage() {
   const [guests, setGuests] = useState<number>(150);
 
   const [selectedPlans, setSelectedPlans] = useState<
-    Record<
-      PlanKey,
-      {
-        credit: boolean;
-        selfManage: boolean;
-      }
-    >
+    Record<PlanKey, { credit: boolean; selfManage: boolean }>
   >({
     plan1: { credit: false, selfManage: false },
     plan2: { credit: false, selfManage: false },
@@ -88,16 +101,13 @@ export default function PricingPage() {
   };
 
   const handleRegister = (planKey: PlanKey, total: number) => {
-    router.push(
-      `/register?plan=${planKey}&guests=${guests}&price=${total}`
-    );
+    router.push(`/register?plan=${planKey}&guests=${guests}&price=${total}`);
   };
 
   return (
     <main className="min-h-screen bg-[#f7f3ee] text-[#4a413a]">
 
-      {/* ================= HERO ================= */}
-
+      {/* HERO */}
       <section className="pt-40 pb-32 text-center px-6">
         <motion.h1
           variants={fadeUp}
@@ -117,12 +127,11 @@ export default function PricingPage() {
         </Button>
       </section>
 
-      {/* ================= PRICING ================= */}
-
+      {/* PRICING */}
       <section id="pricing" className="pb-32 px-6">
         <div className="max-w-6xl mx-auto">
 
-          {/* Guest Dropdown */}
+          {/* GUEST DROPDOWN */}
           <div className="mb-12 max-w-md mx-auto">
             <label className="block mb-3 text-center font-medium">
               בחרו כמות אורחים
@@ -146,12 +155,10 @@ export default function PricingPage() {
             {(Object.keys(PLANS) as PlanKey[]).map((planKey) => {
               const plan = PLANS[planKey];
 
-              const basePrice = calculateBase(guests, plan.baseMultiplier);
+              const basePrice = calculateBasePrice(planKey, guests);
 
               const creditPrice =
-                selectedPlans[planKey].credit
-                  ? plan.creditPrice
-                  : 0;
+                selectedPlans[planKey].credit ? plan.creditPrice : 0;
 
               const selfManagePrice =
                 selectedPlans[planKey].selfManage
@@ -179,7 +186,7 @@ export default function PricingPage() {
                         {plan.title}
                       </h3>
 
-                      <div className="text-center mb-8">
+                      <div className="text-center mb-6">
                         <span className="text-3xl font-bold">
                           ₪{total}
                         </span>
@@ -197,13 +204,21 @@ export default function PricingPage() {
                           <Check size={16} />
                           מערכת RSVP מתקדמת
                         </li>
-                        <li className="flex gap-2">
-                          <Check size={16} />
-                          דשבורד ניהול אורחים
-                        </li>
+                        {planKey !== "plan1" && (
+                          <li className="flex gap-2">
+                            <Check size={16} />
+                            מוקד אנושי לאישורים
+                          </li>
+                        )}
+                        {planKey === "plan3" && (
+                          <li className="flex gap-2">
+                            <Check size={16} />
+                            מערכת סידורי הושבה מתקדמת
+                          </li>
+                        )}
                       </ul>
 
-                      {/* CREDIT CHECKBOX */}
+                      {/* CREDIT */}
                       <div className="mb-4">
                         <label className="flex items-center gap-3 cursor-pointer">
                           <input
@@ -228,7 +243,7 @@ export default function PricingPage() {
                         </label>
                       </div>
 
-                      {/* SELF MANAGE CHECKBOX */}
+                      {/* SELF MANAGE */}
                       <div className="mb-8">
                         <label className="flex items-center gap-3 cursor-pointer">
                           <input
