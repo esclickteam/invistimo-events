@@ -290,9 +290,9 @@ export default function PricingPage() {
                     style={{ minHeight: 140 }}
                   >
                     <h3 className="text-2xl font-semibold leading-tight">
-                      {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
-                      {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
-                      {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
+                     {plan === "plan1" && "קל להזמין"}
+                    {plan === "plan2" && "מזמינים חכם"}
+                   {plan === "plan3" && "מזמינים ומושיבים"}
                     </h3>
 
                     <div className="mt-3">
