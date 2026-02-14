@@ -8,13 +8,11 @@ export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const {
-      name,
-      email,
-      password,
-      createdByProducer,
-    } = await req.json();
+    const { name, email, password, createdByProducer } = await req.json();
 
+    /* ============================================================
+       Validation
+    ============================================================ */
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: "נא למלא את כל השדות" },
@@ -30,34 +28,42 @@ export async function POST(req: Request) {
       );
     }
 
-    const hashed = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     /* ============================================================
-       יצירת משתמש – ללא תשלום (Stripe הוא מקור האמת)
+       Create user – NO PAYMENT STATE HERE
+       Stripe webhook is the source of truth
     ============================================================ */
     const user = await User.create({
       name,
       email,
-      password: hashed,
+      password: hashedPassword,
+
+      role: "user",
 
       // ✅ enum חוקי
       plan: "basic",
 
-      // ❗ עדיין לא משולם
+      // ❌ עדיין לא שילם
       hasPaid: false,
       paidAmount: 0,
       isTrial: true,
 
+      // ❌ אין חבילה עדיין
       guests: 0,
       maxMessages: 0,
       remainingMessages: 0,
+      smsBalance: 0,
 
-      createdByProducer: createdByProducer || null,
+      includeCalls: false,
+      includeCreditGifts: false,
+
+      createdByProducer: Boolean(createdByProducer),
       needsPasswordSetup: !createdByProducer,
     });
 
     /* ============================================================
-       אם נוצר ע״י מפיק – לא מבצעים login
+       If created by producer – NO LOGIN
     ============================================================ */
     if (createdByProducer) {
       return NextResponse.json({
@@ -67,7 +73,7 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       הרשמה רגילה – JWT
+       Regular signup – issue JWT
     ============================================================ */
     const token = jwt.sign(
       { userId: user._id, email: user.email },
@@ -92,6 +98,9 @@ export async function POST(req: Request) {
     return res;
   } catch (error) {
     console.error("REGISTER ERROR:", error);
-    return NextResponse.json({ error: "שגיאה בשרת" }, { status: 500 });
+    return NextResponse.json(
+      { error: "שגיאה בשרת" },
+      { status: 500 }
+    );
   }
 }
