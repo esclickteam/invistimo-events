@@ -24,22 +24,17 @@ export interface IUser extends Document {
 
   paidAmount: number;
   hasPaid: boolean;
+  isActive: boolean; // ✅ חדש – שליטה על גישה
 
   producerId?: mongoose.Types.ObjectId | null;
   createdByProducer?: mongoose.Types.ObjectId | null;
   createdByAdmin?: boolean;
 
-  // לעובד מפיק - לאיזה מפיק הוא שייך
   assignedProducerId?: mongoose.Types.ObjectId | null;
-
-  // אם אצלך כבר בשימוש במקום אחר - משאירה
   assignedStaffIds?: mongoose.Types.ObjectId[];
-
-  // ✅ חדש: משתמשים (לקוחות) שמוקצים לעובד
   assignedClientIds?: mongoose.Types.ObjectId[];
 
   billingSource?: "site" | "admin" | "producer";
-
   producerPricePerRecord?: number;
 
   includeCalls: boolean;
@@ -64,12 +59,9 @@ export interface IUser extends Document {
   testSmsUsed: number;
 
   whatsappBalance: number;
-whatsappUsed: number;
-
+  whatsappUsed: number;
 
   isTrial: boolean;
-  trialStartedAt?: Date;
-  trialExpiresAt?: Date;
 
   isDemoUser?: boolean;
   needsPasswordSetup?: boolean;
@@ -126,10 +118,13 @@ const UserSchema = new Schema<IUser>(
       default: "basic",
     },
 
-    guests: { type: Number, default: 100 },
+    guests: { type: Number, default: 0 },
 
     paidAmount: { type: Number, default: 0 },
     hasPaid: { type: Boolean, default: false },
+
+    // ✅ קריטי – לקוחות קיימים לא נפגעים
+    isActive: { type: Boolean, default: true },
 
     createdByAdmin: { type: Boolean, default: false },
 
@@ -140,7 +135,6 @@ const UserSchema = new Schema<IUser>(
       index: true,
     },
 
-    // נשאר אם כבר בשימוש אצלך
     assignedStaffIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -148,7 +142,6 @@ const UserSchema = new Schema<IUser>(
       },
     ],
 
-    // ✅ חדש: הקצאת לקוחות לעובד
     assignedClientIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -170,15 +163,15 @@ const UserSchema = new Schema<IUser>(
     includeCreditGifts: { type: Boolean, default: false },
     creditGiftsAddonPrice: { type: Number, default: 0 },
 
-    smsPerRecord: { type: Number, default: 3 },
+    smsPerRecord: { type: Number, default: 0 },
     maxMessages: { type: Number, default: 0 },
 
     planLimits: {
-      maxGuests: { type: Number, default: 100 },
-      smsEnabled: { type: Boolean, default: true },
+      maxGuests: { type: Number, default: 0 },
+      smsEnabled: { type: Boolean, default: false },
       smsLimit: { type: Number, default: 0 },
       seatingEnabled: { type: Boolean, default: false },
-      remindersEnabled: { type: Boolean, default: true },
+      remindersEnabled: { type: Boolean, default: false },
     },
 
     smsBalance: { type: Number, default: 0 },
@@ -186,12 +179,9 @@ const UserSchema = new Schema<IUser>(
     testSmsUsed: { type: Number, default: 0 },
 
     whatsappBalance: { type: Number, default: 0 },
-whatsappUsed: { type: Number, default: 0 },
-
+    whatsappUsed: { type: Number, default: 0 },
 
     isTrial: { type: Boolean, default: false },
-    trialStartedAt: Date,
-    trialExpiresAt: Date,
 
     isDemoUser: { type: Boolean, default: false },
 
@@ -210,34 +200,25 @@ whatsappUsed: { type: Number, default: 0 },
    HOOKS
 ============================================================ */
 
-UserSchema.pre("validate", async function () {
+UserSchema.pre("validate", function () {
   const doc = this as HydratedDocument<IUser>;
 
-  // בונוס: includeCalls => includeCreditGifts
+  // includeCalls ⇒ includeCreditGifts
   if (doc.includeCalls) {
     doc.includeCreditGifts = true;
     doc.creditGiftsAddonPrice = 0;
   }
 
-  // אם לא staff - ניקוי שדות צוות
   if (doc.role === "user" || doc.role === "admin") {
-  doc.staffType = null;
-  doc.assignedProducerId = null;
-  doc.assignedClientIds = [];
-}
+    doc.staffType = null;
+    doc.assignedProducerId = null;
+    doc.assignedClientIds = [];
+  }
 
-  // אם staff בלי סוג - ברירת מחדל עובד מפיק
   if (doc.role === "staff" && !doc.staffType) {
     doc.staffType = "producer_staff";
   }
 
-  // עובד כללי - בלי שיוך למפיק ובלי רשימת לקוחות חובה
-  if (doc.role === "staff" && doc.staffType === "general_staff") {
-    doc.assignedProducerId = null;
-    // אפשר להשאיר assignedClientIds אם תרצי, אבל לא חובה
-  }
-
-  // עובד מפיק חייב שיוך למפיק
   if (
     doc.role === "staff" &&
     doc.staffType === "producer_staff" &&
@@ -249,53 +230,10 @@ UserSchema.pre("validate", async function () {
     );
   }
 
-  // מניעת כפילויות ב-assignedClientIds
-  if (Array.isArray(doc.assignedClientIds) && doc.assignedClientIds.length > 0) {
-    const unique = Array.from(
-      new Set(doc.assignedClientIds.map((id) => String(id)))
+  if (Array.isArray(doc.assignedClientIds)) {
+    doc.assignedClientIds = Array.from(
+      new Set(doc.assignedClientIds.map(String))
     ).map((id) => new mongoose.Types.ObjectId(id));
-    doc.assignedClientIds = unique;
-  }
-});
-
-UserSchema.pre("save", async function () {
-  const doc = this as HydratedDocument<IUser>;
-
-  if (doc.isTrial) {
-    doc.plan = "premium";
-    doc.guests = 1000;
-    doc.smsPerRecord = 3;
-    doc.maxMessages = 3000;
-    doc.hasPaid = false;
-
-    doc.planLimits = {
-      maxGuests: 1000,
-      smsEnabled: true,
-      smsLimit: 10,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-    return;
-  }
-
-  if (doc.role === "client" && doc.createdByProducer) {
-    doc.smsPerRecord ||= 3;
-    doc.maxMessages = (doc.guests || 0) * (doc.smsPerRecord || 0);
-    doc.hasPaid = false;
-    doc.paidAmount ||= 0;
-
-    doc.planLimits = {
-      maxGuests: doc.guests,
-      smsEnabled: true,
-      smsLimit: 0,
-      seatingEnabled: true,
-      remindersEnabled: true,
-    };
-    return;
-  }
-
-  if (doc.guests && doc.smsPerRecord) {
-    doc.maxMessages = doc.guests * doc.smsPerRecord;
   }
 });
 
@@ -304,8 +242,8 @@ UserSchema.pre("save", async function () {
 ============================================================ */
 
 UserSchema.index({ role: 1, staffType: 1 });
-UserSchema.index({ assignedProducerId: 1, role: 1, staffType: 1 });
-UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1, role: 1 });
+UserSchema.index({ assignedProducerId: 1, role: 1 });
+UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1 });
 
 /* ============================================================
    MODEL
