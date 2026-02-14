@@ -11,7 +11,7 @@ type PlanKey = "plan1" | "plan2" | "plan3";
 /* ===================== מדרגות לפי כל 50 רשומות ===================== */
 
 const plan1Rates = [
-  [50, 1.19],[100,1.16],[150,1.13],[200,1.10],
+  [50,1.19],[100,1.16],[150,1.13],[200,1.10],
   [250,1.08],[300,1.06],[350,1.04],[400,1.02],
   [450,1.00],[500,0.98],[550,0.96],[600,0.94],
   [650,0.93],[700,0.92],[750,0.90],[800,0.88],
@@ -46,9 +46,8 @@ function getRate(plan: PlanKey, records: number) {
   return table[table.length - 1][1];
 }
 
-function calculatePrice(plan: PlanKey, records: number) {
-  const rate = getRate(plan, records);
-  return Math.round(records * rate);
+function calculateBase(plan: PlanKey, records: number) {
+  return Math.round(records * getRate(plan, records));
 }
 
 /* ===================== COMPONENT ===================== */
@@ -58,17 +57,82 @@ export default function PricingPage() {
   const options = Array.from({ length: 16 }, (_, i) => (i + 1) * 50);
   const [records, setRecords] = useState<number>(200);
 
+  const [addons, setAddons] = useState({
+    plan1: { credit:false, seating:false, system:false, design:false },
+    plan2: { credit:false, seating:false, system:false, design:false },
+    plan3: { credit:false, seating:false, system:false, design:false },
+  });
+
+  const getAddonPrices = (plan: PlanKey) => {
+    if (plan === "plan1")
+      return { credit:150, seating:100, system:200, design:200 };
+
+    if (plan === "plan2")
+      return { credit:100, seating:80, system:150, design:150 };
+
+    return { credit:0, seating:0, system:100, design:100 };
+  };
+
+  const calculateTotal = (plan: PlanKey) => {
+    const base = calculateBase(plan, records);
+    const prices = getAddonPrices(plan);
+    const selected = addons[plan];
+
+    return (
+      base +
+      (selected.credit ? prices.credit : 0) +
+      (selected.seating ? prices.seating : 0) +
+      (selected.system ? prices.system : 0) +
+      (selected.design ? prices.design : 0)
+    );
+  };
+
+  const toggleAddon = (plan: PlanKey, key: keyof typeof addons.plan1) => {
+    setAddons(prev => ({
+      ...prev,
+      [plan]: {
+        ...prev[plan],
+        [key]: !prev[plan][key],
+      },
+    }));
+  };
+
   const handleRegister = (plan: PlanKey) => {
-    const price = calculatePrice(plan, records);
+    const price = calculateTotal(plan);
     router.push(`/register?plan=${plan}&records=${records}&price=${price}`);
+  };
+
+  const renderAddons = (plan: PlanKey) => {
+    const prices = getAddonPrices(plan);
+    const selected = addons[plan];
+
+    return (
+      <div className="space-y-3 mt-6 text-sm">
+        {Object.entries(prices).map(([key, value]) => (
+          <label key={key} className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selected[key as keyof typeof selected]}
+              onChange={() => toggleAddon(plan, key as any)}
+            />
+            {key === "credit" && "מתנות באשראי"}
+            {key === "seating" && "הושבה דיגיטלית"}
+            {key === "system" && "מערכת עצמאית לניהול אירוע"}
+            {key === "design" && "עיצוב הזמנה בהתאמה אישית"}
+            <span className="opacity-60">
+              {value === 0 ? " (כלול)" : ` + ₪${value}`}
+            </span>
+          </label>
+        ))}
+      </div>
+    );
   };
 
   return (
     <main className="min-h-screen bg-[#f4efe9] text-[#3c342d]">
 
-      {/* HEADER */}
-      <section className="pt-32 pb-16 text-center px-6">
-        <h1 className="text-4xl md:text-5xl font-semibold mb-6">
+      <section className="pt-28 pb-12 text-center">
+        <h1 className="text-4xl font-semibold mb-6">
           בחרו את החבילה המתאימה לאירוע שלכם
         </h1>
 
@@ -80,9 +144,9 @@ export default function PricingPage() {
           <select
             value={records}
             onChange={(e) => setRecords(Number(e.target.value))}
-            className="w-full p-3 rounded-xl border bg-white shadow-sm"
+            className="w-full p-3 rounded-xl border bg-white"
           >
-            {options.map((num) => (
+            {options.map(num => (
               <option key={num} value={num}>
                 עד {num} רשומות
               </option>
@@ -91,100 +155,41 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* PLANS */}
       <section className="pb-32 px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10">
 
-          {/* ================= PLAN 1 ================= */}
-          <Card className="rounded-3xl shadow-xl hover:shadow-2xl transition">
-            <CardContent className="p-8 flex flex-col h-full">
-              <h3 className="text-2xl font-semibold mb-4 text-center">
-                חבילה 1 – אישורים דיגיטליים
-              </h3>
+          {(["plan1","plan2","plan3"] as PlanKey[]).map(plan => (
+            <Card key={plan} className="rounded-3xl shadow-xl">
+              <CardContent className="p-8 flex flex-col h-full">
 
-              <div className="text-center mb-6">
-                <div className="text-3xl font-bold">
-                  ₪{calculatePrice("plan1", records)}
+                <h3 className="text-2xl font-semibold mb-4 text-center">
+                  {plan === "plan1" && "חבילה 1 – אישורים דיגיטליים"}
+                  {plan === "plan2" && "חבילה 2 – מוקד אנושי"}
+                  {plan === "plan3" && "חבילה 3 – מוקד + הושבה"}
+                </h3>
+
+                <div className="text-center mb-2">
+                  <div className="text-3xl font-bold">
+                    ₪{calculateTotal(plan)}
+                  </div>
+                  <div className="text-sm opacity-60">
+                    ₪{getRate(plan, records)} לרשומה
+                  </div>
                 </div>
-                <div className="text-sm opacity-70 mt-1">
-                  ₪{getRate("plan1", records)} לרשומה
-                </div>
-              </div>
 
-              <ul className="space-y-3 text-sm mb-8">
-                <li className="flex gap-2"><Check size={16}/> הזמנה דיגיטלית בעיצוב אישי</li>
-                <li className="flex gap-2"><Check size={16}/> 2 סבבי WhatsApp אוטומטיים</li>
-                <li className="flex gap-2"><Check size={16}/> SMS תזכורת לרשומות שלא השיבו</li>
-                <li className="flex gap-2"><Check size={16}/> קישור אישי לכל רשומה</li>
-                <li className="flex gap-2"><Check size={16}/> דשבורד מעקב בזמן אמת</li>
-                <li className="flex gap-2"><Check size={16}/> ייצוא לאקסל</li>
-              </ul>
+                {renderAddons(plan)}
 
-              <Button className="mt-auto rounded-full py-5" onClick={() => handleRegister("plan1")}>
-                הרשמה
-              </Button>
-            </CardContent>
-          </Card>
+                {/* ✔️ תוקן כאן — אין יותר התנגשות */}
+                <Button
+                  className="mt-auto rounded-full"
+                  onClick={() => handleRegister(plan)}
+                >
+                  הרשמה
+                </Button>
 
-          {/* ================= PLAN 2 ================= */}
-          <Card className="rounded-3xl shadow-xl border-2 border-[#c3a98c] hover:shadow-2xl transition">
-            <CardContent className="p-8 flex flex-col h-full">
-              <h3 className="text-2xl font-semibold mb-4 text-center">
-                חבילה 2 – מוקד אנושי
-              </h3>
-
-              <div className="text-center mb-6">
-                <div className="text-3xl font-bold">
-                  ₪{calculatePrice("plan2", records)}
-                </div>
-                <div className="text-sm opacity-70 mt-1">
-                  ₪{getRate("plan2", records)} לרשומה
-                </div>
-              </div>
-
-              <ul className="space-y-3 text-sm mb-8">
-                <li className="flex gap-2"><Check size={16}/> כל מה שכלול בחבילה 1</li>
-                <li className="flex gap-2"><Check size={16}/> מוקד טלפוני מקצועי</li>
-                <li className="flex gap-2"><Check size={16}/> עד 3 ניסיונות חיוג</li>
-                <li className="flex gap-2"><Check size={16}/> תיעוד מלא במערכת</li>
-                <li className="flex gap-2"><Check size={16}/> עדכון סטטוס בזמן אמת</li>
-              </ul>
-
-              <Button className="mt-auto rounded-full py-5 bg-[#4a413a] hover:bg-[#2e2722]" onClick={() => handleRegister("plan2")}>
-                הרשמה
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* ================= PLAN 3 ================= */}
-          <Card className="rounded-3xl shadow-xl hover:shadow-2xl transition">
-            <CardContent className="p-8 flex flex-col h-full">
-              <h3 className="text-2xl font-semibold mb-4 text-center">
-                חבילה 3 – מוקד + סידורי הושבה
-              </h3>
-
-              <div className="text-center mb-6">
-                <div className="text-3xl font-bold">
-                  ₪{calculatePrice("plan3", records)}
-                </div>
-                <div className="text-sm opacity-70 mt-1">
-                  ₪{getRate("plan3", records)} לרשומה
-                </div>
-              </div>
-
-              <ul className="space-y-3 text-sm mb-8">
-                <li className="flex gap-2"><Check size={16}/> כל מה שכלול בחבילה 2</li>
-                <li className="flex gap-2"><Check size={16}/> מערכת הושבה חכמה</li>
-                <li className="flex gap-2"><Check size={16}/> חלוקה לשולחנות ואזורי ישיבה</li>
-                <li className="flex gap-2"><Check size={16}/> SMS עם מספר שולחן</li>
-                <li className="flex gap-2"><Check size={16}/> ייצוא רשימות והדפסה</li>
-              </ul>
-
-              <Button className="mt-auto rounded-full py-5" onClick={() => handleRegister("plan3")}>
-                הרשמה
-              </Button>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
 
         </div>
       </section>
