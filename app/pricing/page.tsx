@@ -113,7 +113,7 @@ export default function PricingPage() {
     }
 
     if (plan === "plan2") {
-      return { credit: 100, seating: 80, system: 150, design: 150 };
+      return { credit: 100, seating: 5, system: 150, design: 150 };
     }
 
     return { credit: 0, seating: 0, system: 100, design: 100 };
