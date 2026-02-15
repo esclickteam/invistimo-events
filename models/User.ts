@@ -19,12 +19,14 @@ export interface IUser extends Document {
   role: "user" | "client" | "producer" | "staff" | "admin";
   staffType?: "producer_staff" | "general_staff" | null;
 
-  plan: "basic" | "premium";
+  /* 🔥 UPDATED PLAN TYPES */
+  plan: "basic" | "premium" | "plan1" | "plan2" | "plan3";
+
   guests: number;
 
   paidAmount: number;
   hasPaid: boolean;
-  isActive: boolean; // ✅ חדש – שליטה על גישה
+  isActive: boolean;
 
   producerId?: mongoose.Types.ObjectId | null;
   createdByProducer?: mongoose.Types.ObjectId | null;
@@ -42,6 +44,10 @@ export interface IUser extends Document {
 
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
+
+  /* 🔥 NEW ADDON FLAGS */
+  selfManageEnabled: boolean;
+  customDesignEnabled: boolean;
 
   smsPerRecord: number;
   maxMessages: number;
@@ -112,9 +118,10 @@ const UserSchema = new Schema<IUser>(
       index: true,
     },
 
+    /* 🔥 UPDATED PLAN ENUM */
     plan: {
       type: String,
-      enum: ["basic", "premium"],
+      enum: ["basic", "premium", "plan1", "plan2", "plan3"],
       default: "basic",
     },
 
@@ -123,12 +130,10 @@ const UserSchema = new Schema<IUser>(
     paidAmount: { type: Number, default: 0 },
     hasPaid: { type: Boolean, default: false },
 
-    // ✅ קריטי – לקוחות קיימים לא נפגעים
     isActive: {
-  type: Boolean,
-  default: false, // 🔴 חדש = לא פעיל
-},
-
+      type: Boolean,
+      default: false,
+    },
 
     createdByAdmin: { type: Boolean, default: false },
 
@@ -166,6 +171,10 @@ const UserSchema = new Schema<IUser>(
 
     includeCreditGifts: { type: Boolean, default: false },
     creditGiftsAddonPrice: { type: Number, default: 0 },
+
+    /* 🔥 NEW FIELDS */
+    selfManageEnabled: { type: Boolean, default: false },
+    customDesignEnabled: { type: Boolean, default: false },
 
     smsPerRecord: { type: Number, default: 0 },
     maxMessages: { type: Number, default: 0 },
@@ -207,7 +216,6 @@ const UserSchema = new Schema<IUser>(
 UserSchema.pre("validate", function () {
   const doc = this as HydratedDocument<IUser>;
 
-  // includeCalls ⇒ includeCreditGifts
   if (doc.includeCalls) {
     doc.includeCreditGifts = true;
     doc.creditGiftsAddonPrice = 0;
