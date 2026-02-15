@@ -64,6 +64,44 @@ export default function ReminderTab({
     longestGuestName?: string | null;
   } | null>(null);
 
+  /* ================= NEW: SHORT NAV LINK ================= */
+
+  const [shortNavigationLink, setShortNavigationLink] = useState("");
+
+  useEffect(() => {
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      setShortNavigationLink("");
+      return;
+    }
+
+    async function shorten() {
+      try {
+        const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+
+        const res = await fetch("/api/shorten-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ url: wazeUrl }),
+        });
+
+        const data = await res.json();
+
+        if (data?.shortUrl) {
+          setShortNavigationLink(data.shortUrl);
+        } else {
+          setShortNavigationLink(wazeUrl);
+        }
+      } catch {
+        setShortNavigationLink(
+          `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+        );
+      }
+    }
+
+    shorten();
+  }, [lat, lng]);
+
   /* ================= NEW: TEST MESSAGE ================= */
 
   const [testPhone, setTestPhone] = useState("");
@@ -113,10 +151,7 @@ export default function ReminderTab({
       : confirmedGuests;
   }, [guestsWithTable, confirmedGuests]);
 
-  const navigationLink =
-    typeof lat === "number" && typeof lng === "number"
-      ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-      : "";
+  const navigationLink = shortNavigationLink;
 
   const buildReminderMessage = (g: Guest) =>
     buildMessage({
@@ -207,6 +242,7 @@ export default function ReminderTab({
     eventDate,
     eventLocation,
     includeGiftLink,
+    shortNavigationLink, // ⭐ חשוב
   ]);
 
   /* ================= TEST SEND ================= */
@@ -218,7 +254,6 @@ export default function ReminderTab({
       setSendingTest(true);
 
       const res = await fetch("/api/sms/test", {
-
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -237,7 +272,7 @@ export default function ReminderTab({
       } else {
         alert("שליחה נכשלה ❌");
       }
-    } catch (err) {
+    } catch {
       alert("שגיאה בשליחה");
     } finally {
       setSendingTest(false);
@@ -279,7 +314,7 @@ export default function ReminderTab({
                 INVISTIMO · SMS
               </div>
               <div className="flex justify-center items-center h-full p-4">
-                <div className="bg-gray-200 text-gray-900 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right">
+                <div className="bg-gray-200 text-gray-900 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right break-words">
                   {renderPreviewText(preview.text)}
                 </div>
               </div>
