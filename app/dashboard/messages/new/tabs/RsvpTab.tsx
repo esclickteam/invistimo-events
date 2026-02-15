@@ -132,7 +132,8 @@ export default function RsvpTab({
   /* ================= UI ================= */
 
   return (
-    <div className="space-y-6 bg-white p-6 rounded-xl shadow-md">
+    <div className="space-y-6 p-6">
+
       {/* ===== ROUNDS (תמיד לחיצים) ===== */}
       <div className="flex gap-2">
         <button
