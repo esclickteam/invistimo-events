@@ -155,12 +155,13 @@ export default function NewMessagesPage() {
 )}
 
 
-        {activeTab === "thankyou" && (
-          <ThankYouTab
-            guests={guests}
-            {...eventMeta}
-          />
-        )}
+       {activeTab === "thankyou" && (
+  <ThankYouTab
+    invitationId={invitationId}
+    {...eventMeta}
+  />
+)}
+
       </main>
     </div>
   );

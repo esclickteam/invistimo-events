@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import AudienceFilterSelector, { FilterType } from "../shared/AudienceFilterSelector";
-import SendButton from "../shared/SendButton"; // <-- הוסף שורה זו
+import { useEffect, useMemo, useState } from "react";
+import AudienceFilterSelector from "../shared/AudienceFilterSelector";
+import SendButton from "../shared/SendButton";
 
+/* ================= TYPES ================= */
 
 type Guest = {
   _id: string;
@@ -14,45 +15,84 @@ type Guest = {
 type SendTiming = "now" | "scheduled";
 
 type Props = {
-  guests: Guest[];
+  invitationId: string;
 
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
 };
 
+/* ================= CONSTANTS ================= */
+
 const CHAR_LIMIT = 130;
+
 const DEFAULT_MESSAGE =
   "היי {{name}} 🌸\nשמחנו לראותכם באירוע.\nתודה שהשתתפתם בשמחתנו 💖";
 
+/* ================= COMPONENT ================= */
+
 export default function ThankYouTab({
-  guests,
+  invitationId,
   eventTitle,
   eventDate,
   eventLocation,
 }: Props) {
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
+  /* ================= LOAD GUESTS ================= */
+
+  useEffect(() => {
+    if (!invitationId) return;
+
+    async function loadGuests() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/guests?invitation=${invitationId}`);
+        const data = await res.json();
+
+        if (Array.isArray(data.guests)) {
+          setGuests(data.guests);
+        } else {
+          setGuests([]);
+        }
+      } catch (err) {
+        console.error("❌ Failed to load thank-you guests", err);
+        setGuests([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadGuests();
+  }, [invitationId]);
+
   /* ================= AUDIENCE ================= */
 
-  const guestsToSend = useMemo(() => guests, [guests]); // תמיד שולח לכל האורחים
+  const guestsToSend = useMemo(() => guests, [guests]);
 
   /* ================= MESSAGE PREVIEW ================= */
 
   const previewText = useMemo(() => {
     if (!guestsToSend[0]) return message;
+
     return message
-      .replace(/{{name}}/g, guestsToSend[0].name)
+      .replace(/{{name}}/g, guestsToSend[0].name || "")
       .replace(/{{eventTitle}}/g, eventTitle)
       .replace(/{{eventDate}}/g, eventDate)
       .replace(/{{eventLocation}}/g, eventLocation);
   }, [message, guestsToSend, eventTitle, eventDate, eventLocation]);
 
   const totalChars = previewText.length;
-  const isBlocked = totalChars > CHAR_LIMIT;
+  const isBlocked =
+    loading || guestsToSend.length === 0 || totalChars > CHAR_LIMIT;
+
+  /* ================= SCHEDULE ================= */
 
   const scheduledAt = useMemo(() => {
     if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
@@ -63,43 +103,11 @@ export default function ThankYouTab({
     return new Date(y, m - 1, d, hh, mm, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
 
-  /* ================= SEND ================= */
-
-  const sendMessages = async () => {
-    if (isBlocked) {
-      alert("❌ ההודעה חורגת מ־130 תווים");
-      return;
-    }
-    if (sendTiming === "scheduled" && !scheduledAt) {
-      alert("נא לבחור תאריך ושעה לשליחה");
-      return;
-    }
-
-    const res = await fetch("/api/sms/send", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "thankyou",
-        guestIds: guestsToSend.map((g) => g._id),
-        message,
-        scheduledAt,
-      }),
-    });
-
-    if (!res.ok) {
-      alert("❌ שליחת ההודעות נכשלה");
-      return;
-    }
-
-    alert(
-      sendTiming === "scheduled"
-        ? "⏱️ הודעת תודה תוזמנה בהצלחה"
-        : `✅ נשלחו ${guestsToSend.length} הודעות`
-    );
-  };
-
   /* ================= RENDER ================= */
+
+  if (loading) {
+    return <p className="text-sm text-gray-500">טוען אורחים…</p>;
+  }
 
   return (
     <div className="w-full max-w-[600px] space-y-8">
@@ -108,7 +116,7 @@ export default function ThankYouTab({
         value="all"
         onChange={() => {}}
         totalCount={guests.length}
-        readOnly={true} // קריאה בלבד
+        readOnly
       />
 
       {/* תוכן ההודעה */}
@@ -120,7 +128,11 @@ export default function ThankYouTab({
           rows={5}
           className="w-full border rounded-xl p-4"
         />
-        <p className={`text-xs mt-1 ${isBlocked ? "text-red-600" : "text-gray-500"}`}>
+        <p
+          className={`text-xs mt-1 ${
+            isBlocked ? "text-red-600" : "text-gray-500"
+          }`}
+        >
           {totalChars}/{CHAR_LIMIT} תווים
         </p>
         <p className="text-xs text-gray-400 mt-1">
@@ -186,9 +198,10 @@ export default function ThankYouTab({
       <SendButton
         channel="sms"
         type="thankyou"
+        invitationId={invitationId}
         audience={guestsToSend.map((g) => g._id)}
         scheduledAt={scheduledAt}
-        disabled={isBlocked || guestsToSend.length === 0}
+        disabled={isBlocked}
       >
         📩 שליחת הודעת תודה
       </SendButton>
