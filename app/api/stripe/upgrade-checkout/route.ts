@@ -71,11 +71,11 @@ export async function POST() {
       customer_email: user.email,
 
       metadata: {
-        type: "seating-upgrade",
-        userId: user._id.toString(),
-        currentPlan: user.plan ?? "",
-        amountCharged: String(amountToPay),
-      },
+  type: "seating-upgrade",   // 🔥 חשוב!
+  userId: user._id.toString(),
+  currentPlan: user.plan ?? "",
+  amountCharged: String(amountToPay),
+},
 
       line_items: [
         {

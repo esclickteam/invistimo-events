@@ -250,7 +250,7 @@ export async function POST(req: Request) {
           amount: amountFromStripe,
           currency: (session.currency || "ils").toLowerCase(),
           status: "paid",
-          type: "seating-upgrade",
+          type: "upgrade",
           isTest: !session.livemode,
           meta: {
             source: "seating-upgrade",
