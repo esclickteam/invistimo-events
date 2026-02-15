@@ -80,6 +80,11 @@ export default function ReminderTab({
     }
   };
 
+  useEffect(() => {
+  loadScheduledMessages();
+}, []);
+
+
   /* ================= TIMING ================= */
 
   type SendTiming = "now" | "scheduled";
@@ -349,17 +354,34 @@ export default function ReminderTab({
       </SendButton>
 
       {/* OPEN MODAL BUTTON */}
-      <div className="flex justify-center mt-6">
-  <button
-    onClick={async () => {
-      await loadScheduledMessages();
-      setShowScheduled(true);
-    }}
-    className="px-4 py-2 rounded-xl border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 transition"
-  >
-    📅 צפייה בהודעות מתוזמנות
-  </button>
-</div>
+     {scheduledMessages.length > 0 && (
+  <div className="w-full flex justify-center mt-8">
+
+    <button
+      onClick={async () => {
+        await loadScheduledMessages();
+        setShowScheduled(true);
+      }}
+      className="
+        flex items-center gap-2
+        px-6 py-3
+        rounded-2xl
+        bg-white
+        border border-gray-200
+        shadow-sm
+        text-sm font-medium text-gray-700
+        hover:bg-gray-50
+        hover:shadow-md
+        transition-all duration-200
+      "
+    >
+      <span>📅</span>
+      <span>צפייה בהודעות מתוזמנות</span>
+    </button>
+
+  </div>
+)}
+
 
 
       {/* MODAL */}
