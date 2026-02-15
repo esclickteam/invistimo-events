@@ -145,14 +145,24 @@ export default function PricingPage() {
 
 const handleRegister = (plan: PlanKey) => {
   const totalPrice = calculateTotal(plan);
+  const selected = addons[plan];
 
-  router.push(
-    `/register` +
-      `?plan=${plan}` +
-      `&guests=${records}` +
-      `&price=${totalPrice}`
-  );
+  const params = new URLSearchParams({
+    plan,
+    guests: String(records),
+    price: String(totalPrice),
+
+    // add-ons
+    includeSeating: String(selected.seating),
+    includeCalls: String(plan === "plan2" || plan === "plan3"), // לפי החבילות שלך
+    includeSystem: String(selected.system),
+    includeDesign: String(selected.design),
+    includeCreditGifts: String(selected.credit),
+  });
+
+  router.push(`/register?${params.toString()}`);
 };
+
 
   /* ===================== תוכן משתנה לפיצ'רים ===================== */
 

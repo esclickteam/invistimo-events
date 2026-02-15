@@ -5,8 +5,8 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 
 /* ============================================================
-   Register → Stripe (price only)
-   המחיר סגור ומגיע מ־Pricing
+   Register → Stripe
+   המחיר/חבילה/אורחים מגיעים מ־Pricing
 ============================================================ */
 
 function RegisterFormInner() {
@@ -15,6 +15,8 @@ function RegisterFormInner() {
   /* ================= QUERY PARAM ================= */
 
   const price = Number(params.get("price") || 0);
+  const guests = Number(params.get("guests") || 0);
+  const plan = String(params.get("plan") || "basic").trim();
 
   /* ================= STATE ================= */
 
@@ -47,9 +49,21 @@ function RegisterFormInner() {
       return;
     }
 
+    if (!guests || guests <= 0) {
+      alert("כמות רשומות לא תקינה, נא לבחור חבילה מחדש");
+      return;
+    }
+
+    if (!plan) {
+      alert("תוכנית לא תקינה, נא לבחור חבילה מחדש");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const normalizedEmail = form.email.trim().toLowerCase();
+
       /* 1️⃣ יצירת משתמש */
       const registerRes = await fetch("/api/register", {
         method: "POST",
@@ -57,7 +71,7 @@ function RegisterFormInner() {
         credentials: "include",
         body: JSON.stringify({
           ...form,
-          email: form.email.trim().toLowerCase(), // חשוב לאחידות
+          email: normalizedEmail,
         }),
       });
 
@@ -75,7 +89,7 @@ function RegisterFormInner() {
         return;
       }
 
-      /* 2️⃣ Stripe Checkout – לפי סכום בלבד + userId */
+      /* 2️⃣ Stripe Checkout */
       const checkoutRes = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,8 +97,10 @@ function RegisterFormInner() {
         body: JSON.stringify({
           amount: price,
           currency: "ils",
-          email: form.email.trim().toLowerCase(),
-          userId, // ✅ זה מה שהיה חסר
+          email: normalizedEmail,
+          userId,      // חובה
+          guests,      // חובה (פותר Missing or invalid guests)
+          plan,        // חשוב לעדכון החבילה ב-webhook
         }),
       });
 
@@ -129,7 +145,13 @@ function RegisterFormInner() {
             </label>
             <input
               name={field}
-              type={field === "password" ? "password" : field === "email" ? "email" : "text"}
+              type={
+                field === "password"
+                  ? "password"
+                  : field === "email"
+                  ? "email"
+                  : "text"
+              }
               value={(form as any)[field]}
               onChange={handleChange}
               className="w-full p-3 rounded-xl border border-[#d9c8b5]"
@@ -138,9 +160,12 @@ function RegisterFormInner() {
           </div>
         ))}
 
-        {/* מחיר – תצוגה בלבד */}
-        <div className="text-center text-lg font-semibold text-[#5c4632]">
-          סכום לתשלום: ₪{price}
+        {/* תצוגת פרטי חבילה */}
+        <div className="text-center text-[#5c4632] space-y-1">
+          <div className="text-lg font-semibold">סכום לתשלום: ₪{price}</div>
+          <div className="text-sm opacity-80">
+            חבילה: {plan} | כמות רשומות: {guests}
+          </div>
         </div>
 
         {/* תקנון */}
@@ -166,7 +191,7 @@ function RegisterFormInner() {
         {/* כפתור */}
         <button
           type="submit"
-          disabled={loading || !price || !acceptedTerms}
+          disabled={loading || !price || !acceptedTerms || !guests}
           className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
         >
           {loading ? "מבצעת הרשמה..." : "הרשמה"}
