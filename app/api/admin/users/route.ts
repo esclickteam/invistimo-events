@@ -318,128 +318,154 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= USER ================= */
-    const recordsNum = toSafeNumber(limits?.records, NaN);
-    const smsTotalNum = toSafeNumber(limits?.smsTotal, NaN);
-    const priceNum = toSafeNumber(billing?.price, NaN);
-    const paymentStatus = String(billing?.paymentStatus || "pending").toLowerCase();
+const recordsNum = toSafeNumber(limits?.records, NaN);
+const smsTotalNum = toSafeNumber(limits?.smsTotal, NaN);
+const priceNum = toSafeNumber(billing?.price, NaN);
+const paymentStatus = String(billing?.paymentStatus || "pending").toLowerCase(); // "paid" | "pending"
+const paymentMethod = String(billing?.paymentMethod || "").toLowerCase(); // "manual" | "stripe"
 
-    if (
-      !Number.isFinite(recordsNum) ||
-      !Number.isFinite(smsTotalNum) ||
-      !Number.isFinite(priceNum) ||
-      recordsNum < 0 ||
-      smsTotalNum < 0 ||
-      priceNum < 0
-    ) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_LIMITS_OR_BILLING" },
-        { status: 400 }
-      );
-    }
+if (
+  !Number.isFinite(recordsNum) ||
+  !Number.isFinite(smsTotalNum) ||
+  !Number.isFinite(priceNum) ||
+  recordsNum < 0 ||
+  smsTotalNum < 0 ||
+  priceNum < 0
+) {
+  return NextResponse.json(
+    { success: false, error: "INVALID_LIMITS_OR_BILLING" },
+    { status: 400 }
+  );
+}
 
-    const safePlan =
-      typeof plan === "string" && plan.trim()
-        ? plan.trim()
-        : "premium";
+if (!["manual", "stripe"].includes(paymentMethod)) {
+  return NextResponse.json(
+    { success: false, error: "INVALID_PAYMENT_METHOD" },
+    { status: 400 }
+  );
+}
 
-    const finalIncludeCalls =
-      safePlan === "plan2" ||
-      safePlan === "plan3" ||
-      addons?.calls?.enabled === true;
+const normalizedPaymentStatus =
+  paymentMethod === "stripe" ? "pending" : paymentStatus;
 
-    const finalIncludeCreditGifts =
-      safePlan === "plan3" ||
-      addons?.credit?.enabled === true;
+const safePlan =
+  typeof plan === "string" && plan.trim() ? plan.trim() : "premium";
 
-    const callsAddonPrice = toSafeNumber(addons?.calls?.price, 0);
-    const creditGiftsAddonPrice = toSafeNumber(addons?.credit?.price, 0);
+const finalIncludeCalls =
+  safePlan === "plan2" ||
+  safePlan === "plan3" ||
+  addons?.calls?.enabled === true;
 
-    const planLimits = {
-      maxGuests: recordsNum,
-      smsEnabled: true,
-      smsLimit: smsTotalNum,
-      seatingEnabled: true,
-      remindersEnabled: true,
-      callsEnabled: finalIncludeCalls,
-    };
+const finalIncludeCreditGifts =
+  safePlan === "plan3" ||
+  addons?.credit?.enabled === true;
 
-    const user = await User.create({
-      name: cleanName,
+const callsAddonPrice = toSafeNumber(addons?.calls?.price, 0);
+const creditGiftsAddonPrice = toSafeNumber(addons?.credit?.price, 0);
+
+const planLimits = {
+  maxGuests: recordsNum,
+  smsEnabled: true,
+  smsLimit: smsTotalNum,
+  seatingEnabled: true,
+  remindersEnabled: true,
+  callsEnabled: finalIncludeCalls,
+};
+
+// paid רק אם באמת שילם ידני עכשיו
+const isManualPaidNow =
+  paymentMethod === "manual" && normalizedPaymentStatus === "paid";
+
+const user = await User.create({
+  name: cleanName,
+  email: cleanEmail,
+  role: "user",
+
+  plan: safePlan,
+  planLimits,
+
+  guests: recordsNum,
+  maxMessages: smsTotalNum,
+
+  includeCalls: finalIncludeCalls,
+  includeCreditGifts: finalIncludeCreditGifts,
+  creditGiftsAddonPrice,
+
+  hasPaid: isManualPaidNow,
+  paidAmount: isManualPaidNow ? priceNum : 0,
+
+  needsPasswordSetup: true,
+  createdByAdmin: true,
+  billingSource: paymentMethod === "manual" ? "admin_manual" : "admin_stripe",
+});
+
+// אם סומן "שילם ידני" -> רושמים תשלום ושולחים מייל עכשיו
+if (isManualPaidNow) {
+  const adminId = auth.impersonatedBy
+    ? String(auth.impersonatedBy)
+    : String(auth.userId);
+
+  try {
+    await Payment.create({
       email: cleanEmail,
-      role: "user",
 
-      plan: safePlan,
-      planLimits,
+      stripeSessionId: null,
+      stripePaymentIntentId: null,
+      stripeCustomerId: null,
+      stripePriceId: null,
 
-      guests: recordsNum,
-      maxMessages: smsTotalNum,
+      priceKey: `admin_manual_${recordsNum}`,
+      maxGuests: recordsNum,
 
       includeCalls: finalIncludeCalls,
+      callsAddonPrice,
+
       includeCreditGifts: finalIncludeCreditGifts,
       creditGiftsAddonPrice,
 
-      hasPaid: paymentStatus === "paid",
-      paidAmount: priceNum,
+      amount: priceNum,
+      refundAmount: 0,
+      currency: "ils",
 
-      needsPasswordSetup: true,
-      createdByAdmin: true,
-      billingSource: "admin",
+      type: "package",
+      status: "paid",
+      isTest: false,
+
+      meta: {
+        source: "admin_manual",
+        adminId,
+        userId: String(user._id),
+      },
+      metadata: {
+        source: "admin_manual",
+        adminId,
+        userId: String(user._id),
+      },
     });
-
-    if (paymentStatus === "paid") {
-      const adminId = auth.impersonatedBy
-        ? String(auth.impersonatedBy)
-        : String(auth.userId);
-
-      await Payment.create({
-        email: cleanEmail,
-
-        stripeSessionId: null,
-        stripePaymentIntentId: null,
-        stripeCustomerId: null,
-        stripePriceId: null,
-
-        priceKey: `admin_manual_${recordsNum}`,
-        maxGuests: recordsNum,
-
-        includeCalls: finalIncludeCalls,
-        callsAddonPrice,
-
-        includeCreditGifts: finalIncludeCreditGifts,
-        creditGiftsAddonPrice,
-
-        amount: priceNum,
-        refundAmount: 0,
-        currency: "ils",
-
-        type: "package",
-        status: "paid",
-        isTest: false,
-
-        // תמיכה לשני מבנים נפוצים שראיתי אצלך
-        meta: {
-          source: "admin",
-          adminId,
-          userId: String(user._id),
-        },
-        metadata: {
-          source: "admin",
-          adminId,
-          userId: String(user._id),
-        },
-      });
-    }
-
-    try {
-      await sendPasswordSetupMail(String(user._id));
-    } catch (mailErr) {
-      console.error("❌ sendPasswordSetupMail failed (user):", mailErr);
-    }
-
+  } catch (payErr) {
+    console.error("❌ Payment.create failed (manual-paid user):", payErr);
     return NextResponse.json(
-      { success: true, userId: String(user._id) },
-      { status: 201 }
+      { success: false, error: "PAYMENT_RECORD_FAILED" },
+      { status: 500 }
     );
+  }
+
+  try {
+    await sendPasswordSetupMail(String(user._id));
+  } catch (mailErr) {
+    console.error("❌ sendPasswordSetupMail failed (manual-paid user):", mailErr);
+  }
+}
+
+// אם זה Stripe -> לא שולחים כאן מייל.
+// המייל יישלח רק ב-webhook אחרי checkout.session.completed מוצלח.
+return NextResponse.json(
+  { success: true, userId: String(user._id) },
+  { status: 201 }
+);
+
+
+
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
     return NextResponse.json(
