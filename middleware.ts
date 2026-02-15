@@ -7,6 +7,10 @@ type JwtPayloadShape = {
   role?: string;
   hasPaid?: boolean;
   exp?: number;
+
+  // ✅ עבור התחזות
+  impersonated?: boolean;
+  impersonationRole?: string; // "admin" | "producer" | ...
 };
 
 /* ========================================================
@@ -21,17 +25,24 @@ function redirectToLogin(req: NextRequest) {
 
 function redirectToPricing(req: NextRequest) {
   const url = req.nextUrl.clone();
-  // אם אצלך העמוד הוא /packages פשוט תחליפי ל- "/packages"
+  // אם אצלך זה /packages -> תשני כאן
   url.pathname = "/pricing";
   url.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
+  return NextResponse.redirect(url);
+}
+
+function redirectToForbidden(req: NextRequest) {
+  const url = req.nextUrl.clone();
+  url.pathname = "/"; // אפשר לשנות ל-"/403" אם יש עמוד כזה
   return NextResponse.redirect(url);
 }
 
 async function readJwtPayload(token: string): Promise<JwtPayloadShape | null> {
   try {
     const secret = process.env.JWT_SECRET;
+
+    // fallback decode אם אין סוד (לא אידיאלי, אבל עדיף מלא להתרסק)
     if (!secret) {
-      // fallback decode בלבד אם אין secret (לא אידיאלי לפרודקשן)
       return decodeJwt(token) as JwtPayloadShape;
     }
 
@@ -48,6 +59,7 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/pricing") ||
+    pathname.startsWith("/packages") ||
     pathname.startsWith("/contact") ||
     pathname.startsWith("/rsvp") ||
     pathname.startsWith("/seating-explained") ||
@@ -85,9 +97,7 @@ export async function middleware(req: NextRequest) {
   /* ========================================================
      1) Public pages
   ======================================================== */
-  if (isPublicPath(pathname)) {
-    return NextResponse.next();
-  }
+  if (isPublicPath(pathname)) return NextResponse.next();
 
   /* ========================================================
      2) Force WWW in production
@@ -107,37 +117,77 @@ export async function middleware(req: NextRequest) {
     cookies.get("adminAuthToken")?.value ||
     null;
 
-  const isAuthed = Boolean(token);
-
-  /* ========================================================
-     4) Route guards (Auth)
-  ======================================================== */
-  if (isProtectedDashboardPath(pathname) && !isAuthed) {
+  if (isProtectedDashboardPath(pathname) && !token) {
     return redirectToLogin(req);
   }
 
+  // אם לא נתיב מוגן - להמשיך
+  if (!isProtectedDashboardPath(pathname)) {
+    return NextResponse.next();
+  }
 
-  /* ========================================================
-   5) Paid guard (Business rule)
-   רק מי ש-hasPaid === true יכול דשבורד
-======================================================== */
-if (isProtectedDashboardPath(pathname) && token) {
-  const payload = await readJwtPayload(token);
-
-  // טוקן לא תקין / לא קריא => login
+  const payload = await readJwtPayload(token!);
   if (!payload) return redirectToLogin(req);
 
   const role = String(payload.role || "").toLowerCase();
 
-  // ✅ אדמין עוקף חבילת תשלום
+  // ✅ התחזות מאדמין: לא לחסום לפי hasPaid
+  const isImpersonatedAdminSession =
+    payload.impersonated === true &&
+    String(payload.impersonationRole || "").toLowerCase() === "admin";
+
   const isAdmin = role === "admin";
 
-  // ✅ רק משתמשים שאינם אדמין נחסמים לפי hasPaid
-  if (!isAdmin && payload.hasPaid !== true) {
-    return redirectToPricing(req);
-  }
-}
+  /* ========================================================
+     4) Route-level role checks
+  ======================================================== */
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isProducerStaffRoute = pathname.startsWith("/producer-staff");
+  const isProducerRoute = pathname.startsWith("/producer");
+  const isClientRoute = pathname.startsWith("/dashboard");
 
+  // admin routes: רק admin
+  if (isAdminRoute && !isAdmin) {
+    return redirectToForbidden(req);
+  }
+
+  // producer-staff route: staff/producer_staff/producer/admin/impersonated-admin
+  if (isProducerStaffRoute) {
+    const isProducerStaff =
+      role === "staff" ||
+      role === "producer_staff" ||
+      role === "staff_producer";
+
+    if (!isProducerStaff && !isAdmin && role !== "producer" && !isImpersonatedAdminSession) {
+      return redirectToForbidden(req);
+    }
+  }
+
+  // producer route: producer/admin/impersonated-admin
+  if (isProducerRoute && !isProducerStaffRoute) {
+    const allowed = role === "producer" || isAdmin || isImpersonatedAdminSession;
+    if (!allowed) return redirectToForbidden(req);
+  }
+
+  // client dashboard route: user/client/staff/producer/admin (לפי המערכת שלך)
+  if (isClientRoute) {
+    // אין חסימת role קשיחה כאן כדי לא לשבור זרימות קיימות
+  }
+
+  /* ========================================================
+     5) Paid guard
+     רק מי שאינו admin ואינו התחזות-admin חייב hasPaid===true
+  ======================================================== */
+  const requiresPaid =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/producer") ||
+    pathname.startsWith("/producer-staff");
+
+  if (requiresPaid && !isAdmin && !isImpersonatedAdminSession) {
+    if (payload.hasPaid !== true) {
+      return redirectToPricing(req);
+    }
+  }
 
   return NextResponse.next();
 }
@@ -148,6 +198,5 @@ export const config = {
     "/producer/:path*",
     "/producer-staff/:path*",
     "/admin/:path*",
-    // אם יש לך עוד נתיבי דשבורד, תוסיפי כאן
   ],
 };
