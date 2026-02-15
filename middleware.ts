@@ -127,8 +127,13 @@ if (isProtectedDashboardPath(pathname) && token) {
   // טוקן לא תקין / לא קריא => login
   if (!payload) return redirectToLogin(req);
 
-  // ✅ קשיח: false וגם undefined נחסמים
-  if (payload.hasPaid !== true) {
+  const role = String(payload.role || "").toLowerCase();
+
+  // ✅ אדמין עוקף חבילת תשלום
+  const isAdmin = role === "admin";
+
+  // ✅ רק משתמשים שאינם אדמין נחסמים לפי hasPaid
+  if (!isAdmin && payload.hasPaid !== true) {
     return redirectToPricing(req);
   }
 }
