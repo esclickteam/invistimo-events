@@ -134,7 +134,7 @@ export async function POST(req: Request) {
           amount,
           currency: (session.currency || "ils").toLowerCase(),
           status: "paid",
-          type: "registration",
+          type: "package",
           isTest: !session.livemode,
           meta: {
             source: "pricing",
