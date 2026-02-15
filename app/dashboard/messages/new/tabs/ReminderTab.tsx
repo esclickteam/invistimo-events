@@ -217,7 +217,8 @@ export default function ReminderTab({
     try {
       setSendingTest(true);
 
-      const res = await fetch("/api/sms/send-test", {
+      const res = await fetch("/api/sms/test", {
+
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
