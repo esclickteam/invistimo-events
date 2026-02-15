@@ -289,7 +289,8 @@ const handleRegister = (plan: PlanKey) => {
           <select
   value={records ?? ""}
   onChange={(e) => setRecords(Number(e.target.value))}
-  className="w-full p-3 rounded-xl border bg-white shadow-sm"
+    className="w-full p-3 rounded-xl border bg-white shadow-sm text-center"
+
 >
   <option value="" disabled>
     בחרו כמות רשומות
@@ -306,7 +307,8 @@ const handleRegister = (plan: PlanKey) => {
       </section>
 
       <section className="pt-20 md:pt-24 pb-32 px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-y-16 md:gap-10 items-stretch">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-y-28 md:gap-10 items-stretch">
+
 
           {(["plan1", "plan2", "plan3"] as PlanKey[]).map((plan) => {
             const features = getPlanFeatures(plan);
