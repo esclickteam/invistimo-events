@@ -4,7 +4,6 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
-import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 import Event from "@/models/Event";
 
 export const dynamic = "force-dynamic";
@@ -66,18 +65,22 @@ export async function GET(req: NextRequest) {
 
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
     if (!isAdminContext(auth)) {
-      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
 
     const { filter, scope, q } = buildUsersFilter(req);
 
-    const users = await User.find(filter)
-      .sort({ createdAt: -1 })
-      .lean();
+    const users = await User.find(filter).sort({ createdAt: -1 }).lean();
 
     const userIds = users.map((u: any) => u._id);
 
@@ -113,12 +116,16 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("❌ ADMIN USERS GET ERROR:", err);
-    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
 
 /* =========================================================
    POST – CREATE USER (ADMIN)
+   ❗️ לא שולח מייל סיסמה
 ========================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -126,11 +133,17 @@ export async function POST(req: NextRequest) {
 
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
 
     if (!isAdminContext(auth)) {
-      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
 
     const body = await req.json().catch(() => null);
@@ -156,12 +169,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* =========================================================
-       CREATE PASSWORD TOKEN (לכל סוג משתמש)
-    ========================================================= */
-    const passwordToken = crypto.randomBytes(32).toString("hex");
-    const passwordExpires = Date.now() + 1000 * 60 * 60 * 24;
-
     /* ================= PRODUCER ================= */
     if (role === "producer") {
       const pricePerRecord = Number(billing?.pricePerRecord || 0);
@@ -172,20 +179,20 @@ export async function POST(req: NextRequest) {
         role: "producer",
 
         producerPricePerRecord: pricePerRecord,
+
         hasPaid: true,
         paidAmount: 0,
 
         needsPasswordSetup: true,
-        resetPasswordToken: passwordToken,
-        resetPasswordExpires: passwordExpires,
 
         createdByAdmin: true,
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(user.email, passwordToken);
-
-      return NextResponse.json({ success: true, userId: String(user._id) }, { status: 201 });
+      return NextResponse.json(
+        { success: true, userId: String(user._id) },
+        { status: 201 }
+      );
     }
 
     /* ================= STAFF ================= */
@@ -199,16 +206,15 @@ export async function POST(req: NextRequest) {
         paidAmount: 0,
 
         needsPasswordSetup: true,
-        resetPasswordToken: passwordToken,
-        resetPasswordExpires: passwordExpires,
 
         createdByAdmin: true,
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(user.email, passwordToken);
-
-      return NextResponse.json({ success: true, userId: String(user._id) }, { status: 201 });
+      return NextResponse.json(
+        { success: true, userId: String(user._id) },
+        { status: 201 }
+      );
     }
 
     /* ================= USER ================= */
@@ -244,39 +250,24 @@ export async function POST(req: NextRequest) {
       includeCreditGifts: finalIncludeCreditGifts,
       creditGiftsAddonPrice: addons?.credit?.price || 0,
 
-      hasPaid: billing?.paymentStatus === "paid",
+      hasPaid: false,
       paidAmount: priceNum,
 
       needsPasswordSetup: true,
-      resetPasswordToken: passwordToken,
-      resetPasswordExpires: passwordExpires,
 
       createdByAdmin: true,
       billingSource: "admin",
     });
 
-    if (billing?.paymentStatus === "paid") {
-      await Payment.create({
-        email: normalizedEmail,
-        amount: priceNum,
-        currency: "ils",
-        type: "package",
-        status: "paid",
-        metadata: {
-          source: "admin",
-          adminId: auth.impersonatedBy
-            ? String(auth.impersonatedBy)
-            : String(auth.userId),
-          userId: String(user._id),
-        },
-      });
-    }
-
-    await sendPasswordSetupMail(user.email, passwordToken);
-
-    return NextResponse.json({ success: true, userId: String(user._id) }, { status: 201 });
+    return NextResponse.json(
+      { success: true, userId: String(user._id) },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
-    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }

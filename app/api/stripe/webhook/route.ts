@@ -199,11 +199,9 @@ export async function POST(req: Request) {
          PREVENT DOUBLE PROCESS (BUT NOT PASSWORD MAIL)
       ============================================================ */
 
-      // חסימה רק אם כבר לא צריך לשלוח מייל
-if (user.hasPaid && user.needsPasswordSetup === false) {
-  return NextResponse.json({ received: true });
-}
-
+      if (user.hasPaid && !user.needsPasswordSetup) {
+        return NextResponse.json({ received: true });
+      }
 
       /* ================= PLAN ================= */
 
@@ -259,7 +257,7 @@ if (user.hasPaid && user.needsPasswordSetup === false) {
          SEND PASSWORD SETUP EMAIL (ONCE)
       ============================================================ */
 
-      if (!user.password && !user.passwordHash) {
+      if (updatedUser.needsPasswordSetup) {
         await sendPasswordSetupMail(
           updatedUser.email,
           passwordToken
