@@ -43,7 +43,6 @@ function formatEventDate(value: any): string {
 export default function NewMessagesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
 
-  const [guests, setGuests] = useState<Guest[]>([]);
   const [eventMeta, setEventMeta] = useState<EventMeta | null>(null);
   const [invitationId, setInvitationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +73,7 @@ export default function NewMessagesPage() {
 
         setInvitationId(invitation._id);
 
-        const meta: EventMeta = {
+        setEventMeta({
           eventTitle: event.title || "",
           eventDate: formatEventDate(event.date),
           eventLocation:
@@ -89,13 +88,7 @@ export default function NewMessagesPage() {
             "",
           lat: event.location?.lat,
           lng: event.location?.lng,
-        };
-
-        setEventMeta(meta);
-
-        if (Array.isArray(invitation.guests)) {
-          setGuests(invitation.guests);
-        }
+        });
       } catch (err) {
         console.error("❌ Failed to load invitation data", err);
       } finally {
@@ -106,60 +99,15 @@ export default function NewMessagesPage() {
     loadData();
   }, []);
 
-  /* ================= STATES ================= */
+  /* ================= RENDER ================= */
 
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-gray-500">
-        טוען נתונים…
+        טוען…
       </div>
     );
   }
-
-  if (!eventMeta || !invitationId) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <header className="text-center mb-10">
-          <h1 className="text-4xl font-extrabold mb-3 text-gray-800">
-            📨 שליחת הודעות
-          </h1>
-          <p className="text-gray-500 text-lg">
-            עדיין אין אירוע פעיל
-          </p>
-        </header>
-
-        <div className="flex justify-center">
-          <div className="bg-white rounded-2xl shadow p-10 text-center max-w-md">
-            <h2 className="text-xl font-semibold mb-4">
-              כדי לשלוח הודעות צריך אירוע
-            </h2>
-
-            <p className="text-gray-600 mb-6">
-              ניתן ליצור אירוע חדש או לבחור אירוע קיים
-            </p>
-
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => (window.location.href = "/dashboard/events/new")}
-                className="px-5 py-2 rounded-lg bg-[#5c4632] text-white hover:opacity-90"
-              >
-                יצירת אירוע
-              </button>
-
-              <button
-                onClick={() => (window.location.href = "/dashboard/events")}
-                className="px-5 py-2 rounded-lg border hover:bg-gray-50"
-              >
-                בחירת אירוע קיים
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ================= RENDER ================= */
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
@@ -193,17 +141,25 @@ export default function NewMessagesPage() {
       </div>
 
       {/* ================= Content ================= */}
-      <main className="mt-6 p-6">
-        {activeTab === "rsvp" && (
-          <RsvpTab invitationId={invitationId} {...eventMeta} />
-        )}
+      <main className="mt-6 p-6 min-h-[300px] bg-white rounded-xl shadow">
+        {!invitationId || !eventMeta ? (
+          <div className="text-center text-gray-400 mt-20">
+            בחר/י אירוע כדי להתחיל לשלוח הודעות
+          </div>
+        ) : (
+          <>
+            {activeTab === "rsvp" && (
+              <RsvpTab invitationId={invitationId} {...eventMeta} />
+            )}
 
-        {activeTab === "reminder" && (
-          <ReminderTab invitationId={invitationId} {...eventMeta} />
-        )}
+            {activeTab === "reminder" && (
+              <ReminderTab invitationId={invitationId} {...eventMeta} />
+            )}
 
-        {activeTab === "thankyou" && (
-          <ThankYouTab invitationId={invitationId} {...eventMeta} />
+            {activeTab === "thankyou" && (
+              <ThankYouTab invitationId={invitationId} {...eventMeta} />
+            )}
+          </>
         )}
       </main>
     </div>
