@@ -128,29 +128,42 @@ export default function ReminderTab({
 
   /* ================= PREVIEW ================= */
 
-  useEffect(() => {
-    if (!invitationId || guestsToSend.length === 0) {
-      setPreview(null);
-      return;
+useEffect(() => {
+  if (!invitationId || guestsToSend.length === 0) {
+    setPreview(null);
+    return;
+  }
+
+  let longestText = "";
+  let longestGuest: Guest | null = null;
+
+  for (const g of guestsToSend) {
+    const text = buildReminderMessage(g);
+    if (text.length > longestText.length) {
+      longestText = text;
+      longestGuest = g;
     }
+  }
 
-    let longestText = "";
-    let longestGuest: Guest | null = null;
+  if (!longestGuest) {
+    setPreview(null);
+    return;
+  }
 
-    for (const g of guestsToSend) {
-      const text = buildReminderMessage(g);
-      if (text.length > longestText.length) {
-        longestText = text;
-        longestGuest = g;
-      }
-    }
+  // 👑 שלב 1 – הצגה מיידית בלי שרת
+  setPreview({
+    text: longestText,
+    totalChars: longestText.length,
+    parts: 1,
+    blocked: false,
+    overflow: 0,
+    limit: 200,
+    longestGuestName: longestGuest.name,
+  });
 
-    if (!longestGuest) {
-      setPreview(null);
-      return;
-    }
-
-    async function fetchPreview() {
+  // 👑 שלב 2 – בדיקה אמיתית ברקע
+  async function fetchPreview() {
+    try {
       const res = await fetch("/api/sms/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,32 +178,36 @@ export default function ReminderTab({
       const data = await res.json();
 
       if (
-        typeof data.totalChars !== "number" ||
-        typeof data.parts !== "number"
+        typeof data.totalChars === "number" &&
+        typeof data.parts === "number"
       ) {
-        setPreview(null);
-        return;
+        setPreview((prev) =>
+          prev
+            ? {
+                ...prev,
+                totalChars: data.totalChars,
+                parts: data.parts,
+                blocked: !data.allowed,
+                overflow: data.overflow ?? 0,
+                limit: data.limit ?? 200,
+              }
+            : prev
+        );
       }
-
-      setPreview({
-        text: longestText,
-        totalChars: data.totalChars,
-        parts: data.parts,
-        blocked: !data.allowed,
-        overflow: data.overflow ?? 0,
-        limit: data.limit ?? 200,
-        longestGuestName: longestGuest!.name,
-      });
+    } catch (err) {
+      console.error("Preview check failed", err);
     }
+  }
 
-    fetchPreview();
-  }, [
-    invitationId,
-    guestsToSend,
-    eventDate,
-    eventLocation,
-    includeGiftLink, // 👑 מתעדכן בלייב
-  ]);
+  fetchPreview();
+}, [
+  invitationId,
+  guestsToSend,
+  eventDate,
+  eventLocation,
+  includeGiftLink,
+]);
+
 
   const blocked =
     loading ||
@@ -245,29 +262,45 @@ export default function ReminderTab({
       )}
 
       {/* PHONE PREVIEW */}
-      {preview && (
-        <div className="w-[92%] max-w-[390px] mx-auto mt-4 mb-6">
+{preview && (
+  <div className="w-full flex justify-center mt-6 mb-8">
+    <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
 
-          <p className="text-sm text-gray-500 mb-2 text-center">
-            תצוגה מקדימה – כך האורח יקבל את ההודעה
-          </p>
+      {/* Notch */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[120px] h-[22px] bg-black rounded-b-2xl z-20" />
 
-          <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
-            <div className="rounded-[28px] overflow-hidden bg-white">
-              <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
-                INVISTIMO · SMS
-              </div>
+      {/* Screen */}
+      <div className="relative w-full h-full bg-[#f5f5f5] rounded-[38px] overflow-hidden">
 
-              <div className="p-4 flex justify-center">
-                <div className="rounded-2xl px-4 py-3 text-[14px] max-w-[85%] whitespace-pre-wrap leading-relaxed break-words bg-[#e9e9eb] text-gray-900">
+        {/* Header */}
+        <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold tracking-wide text-gray-700">
+          INVISTIMO · SMS
+        </div>
 
-                  {renderPreviewText(preview.text)}
-                </div>
-              </div>
-            </div>
+        {/* Message Area */}
+        <div className="flex justify-center items-start p-4">
+          <div className="
+            bg-gray-200
+            text-gray-900
+            rounded-3xl
+            px-4 py-3
+            text-sm
+            leading-relaxed
+            whitespace-pre-wrap
+            break-words
+            max-w-[85%]
+            text-right
+
+          ">
+            {renderPreviewText(preview.text)}
           </div>
         </div>
-      )}
+
+      </div>
+    </div>
+  </div>
+)}
+
 
       <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
 
