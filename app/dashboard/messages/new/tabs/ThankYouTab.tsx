@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
+import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import { buildMessage } from "@/lib/messages/buildMessage";
 
 /* ================= TYPES ================= */
 
@@ -10,9 +12,8 @@ type Guest = {
   _id: string;
   name: string;
   phone: string;
+  rsvp?: "yes" | "no" | "pending";
 };
-
-type SendTiming = "now" | "scheduled";
 
 type Props = {
   invitationId: string;
@@ -21,10 +22,13 @@ type Props = {
   eventLocation: string;
 };
 
-/* ================= CONSTANTS ================= */
+/* ================= TEMPLATE ================= */
 
-const DEFAULT_MESSAGE =
-  "היי {{name}} 🌸\nשמחנו לראותכם באירוע.\nתודה שהשתתפתם בשמחתנו 💖";
+const THANK_YOU_TEMPLATE =
+  "היי {{name}} 🌸\n\n" +
+  "שמחנו לראותכם באירוע 💛\n" +
+  "תודה שהשתתפתם בשמחתנו.\n\n" +
+  "מעריכים מאוד ❤️";
 
 /* ================= COMPONENT ================= */
 
@@ -36,15 +40,15 @@ export default function ThankYouTab({
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState<any>(null);
 
-  const [message, setMessage] = useState(DEFAULT_MESSAGE);
+  const [testPhone, setTestPhone] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
 
-  const [preview, setPreview] = useState<{
-    text: string;
-    totalChars: number;
-    blocked: boolean;
-  } | null>(null);
+  const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
+  const [showScheduled, setShowScheduled] = useState(false);
 
+  type SendTiming = "now" | "scheduled";
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
@@ -70,191 +74,347 @@ export default function ThankYouTab({
     loadGuests();
   }, [invitationId]);
 
-  const guestsToSend = useMemo(() => guests, [guests]);
+  const confirmedGuests = useMemo(
+    () => guests.filter((g) => g.rsvp === "yes"),
+    [guests]
+  );
 
-  /* ================= PREVIEW (LOCAL + SERVER VALIDATION) ================= */
+  const guestsToSend = useMemo(
+    () => confirmedGuests,
+    [confirmedGuests]
+  );
+
+  /* ================= LOAD SCHEDULED ================= */
+
+  const loadScheduledMessages = async () => {
+    try {
+      const res = await fetch("/api/scheduled-messages", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (data?.success) {
+        setScheduledMessages(
+          Array.isArray(data.messages) ? data.messages : []
+        );
+      } else {
+        setScheduledMessages([]);
+      }
+    } catch {
+      setScheduledMessages([]);
+    }
+  };
 
   useEffect(() => {
-    if (!guestsToSend[0]) {
+    loadScheduledMessages();
+  }, []);
+
+  /* ================= TIMING ================= */
+
+  const scheduledAt = useMemo(() => {
+    if (
+      sendTiming !== "scheduled" ||
+      !scheduledDate ||
+      !scheduledTime
+    )
+      return null;
+
+    const [year, month, day] = scheduledDate.split("-").map(Number);
+    const [hour, minute] = scheduledTime.split(":").map(Number);
+
+    return new Date(year, month - 1, day, hour, minute, 0, 0);
+  }, [sendTiming, scheduledDate, scheduledTime]);
+
+  /* ================= BUILD MESSAGE ================= */
+
+  const buildThankYouMessage = (g: Guest) =>
+    buildMessage({
+      template: THANK_YOU_TEMPLATE,
+      guest: g,
+      eventTitle,
+      eventDate,
+      eventLocation,
+    });
+
+  /* ================= PREVIEW ================= */
+
+  useEffect(() => {
+    if (!invitationId || guestsToSend.length === 0) {
       setPreview(null);
       return;
     }
 
-    // ✅ בנייה לוקאלית מיידית
-    const localText = message
-      .replace(/{{name}}/g, guestsToSend[0].name || "")
-      .replace(/{{eventTitle}}/g, eventTitle)
-      .replace(/{{eventDate}}/g, eventDate)
-      .replace(/{{eventLocation}}/g, eventLocation);
+    const firstGuest = guestsToSend[0];
+    const localText = buildThankYouMessage(firstGuest);
 
     setPreview({
       text: localText,
       totalChars: localText.length,
+      parts: Math.ceil(localText.length / 160),
       blocked: false,
+      loading: true,
     });
 
-    // ✅ בדיקה ברקע מול השרת (לא חוסם רינדור)
-    fetch("/api/sms/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        invitationId,
-        guestId: guestsToSend[0]._id,
-        messageOverride: localText,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data?.text) return;
-
-        setPreview({
-          text: data.text,
-          totalChars: data.totalChars,
-          blocked: !data.allowed,
+    async function validateWithServer() {
+      try {
+        const res = await fetch("/api/sms/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            invitationId,
+            guestId: firstGuest._id,
+            messageOverride: localText,
+          }),
         });
-      })
-      .catch(() => {});
-  }, [message, guestsToSend, eventTitle, eventDate, eventLocation]);
 
-  /* ================= SCHEDULE ================= */
+        const data = await res.json();
 
-  const scheduledAt = useMemo(() => {
-    if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
-      return null;
+        if (data?.text) {
+          setPreview({
+            text: data.text,
+            totalChars: data.totalChars,
+            parts: data.parts,
+            blocked: !data.allowed,
+            loading: false,
+          });
+        }
+      } catch {
+        setPreview((prev: any) => ({
+          ...prev,
+          loading: false,
+        }));
+      }
     }
-    const [y, m, d] = scheduledDate.split("-").map(Number);
-    const [hh, mm] = scheduledTime.split(":").map(Number);
-    return new Date(y, m - 1, d, hh, mm, 0, 0);
-  }, [sendTiming, scheduledDate, scheduledTime]);
 
-  const isBlocked =
-    loading ||
-    guestsToSend.length === 0 ||
-    preview?.blocked === true;
+    validateWithServer();
+  }, [invitationId, guestsToSend]);
+
+  /* ================= TEST MESSAGE ================= */
+
+  const sendTestMessage = async () => {
+    if (!preview?.text || !testPhone) return;
+
+    try {
+      setSendingTest(true);
+
+      const res = await fetch("/api/sms/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          invitationId,
+          phone: testPhone,
+          message: preview.text,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data?.success) {
+        alert("הודעת בדיקה נשלחה בהצלחה");
+        setTestPhone("");
+      } else {
+        alert("שגיאה בשליחת הודעת בדיקה");
+      }
+    } catch {
+      alert("שגיאה בשליחה");
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   if (loading) {
     return <p className="text-sm text-gray-500">טוען אורחים…</p>;
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
-      {/* קהל יעד */}
       <AudienceFilterSelector
         value="all"
         onChange={() => {}}
-        totalCount={guests.length}
+        totalCount={guestsToSend.length}
         readOnly
       />
 
-      {/* תוכן ההודעה */}
-      <section>
-        <h3 className="font-semibold mb-2">✍️ תוכן ההודעה</h3>
-
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          rows={5}
-          className="w-full border rounded-xl p-4"
-        />
-
-        {preview && (
-          <p
-            className={`text-xs mt-1 ${
-              preview.blocked ? "text-red-600" : "text-gray-500"
-            }`}
-          >
-            {preview.totalChars} תווים
-          </p>
-        )}
-
-        <p className="text-xs text-gray-400 mt-1">
-          משתנה: <span className="font-mono">{`{{name}}`}</span>
-        </p>
-      </section>
-
-      {/* תצוגה מקדימה */}
+      {/* PREVIEW */}
       {preview && (
-        <section>
-          <h3 className="font-semibold mb-3 text-center">📱 תצוגה מקדימה</h3>
-
-          <div className="w-full flex justify-center">
-            <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[120px] h-[22px] bg-black rounded-b-2xl" />
-
-              <div className="relative w-full h-full bg-transparent rounded-[38px] overflow-hidden">
-                <div className="bg-gray-100 text-center py-2 text-xs font-semibold border-b">
-                  INVISTIMO · SMS
-                </div>
-
-                <div className="flex justify-center items-center h-full p-4">
-                  <div className="bg-gray-200 rounded-2xl p-3 text-sm whitespace-pre-wrap max-w-[90%] text-right">
-                    {preview.text}
-                  </div>
+        <div className="w-full flex justify-center mt-6 mb-8">
+          <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[120px] h-[22px] bg-black rounded-b-2xl" />
+            <div className="relative w-full h-full bg-[#f5f5f5] rounded-[38px] overflow-hidden">
+              <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold text-gray-600 border-b">
+                INVISTIMO · SMS
+              </div>
+              <div className="flex justify-center items-center h-full p-4">
+                <div className="bg-gray-200 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right whitespace-pre-wrap">
+                  {preview.text}
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
       )}
 
-      {/* תזמון */}
-      <section className="border rounded-2xl p-6 bg-transparent shadow-none space-y-4" dir="rtl">
-        <h3 className="font-semibold">⏱️ מועד שליחה</h3>
+      {/* TEST MESSAGE */}
+      {preview && (
+        <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-4">
+          <div className="font-semibold">
+            ✏️ שליחת הודעה לבדיקה
+          </div>
 
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={sendTiming === "now"}
-            onChange={() => setSendTiming("now")}
-          />
-          שליחה מיידית
-        </label>
+          <p className="text-sm text-gray-500">
+            ההודעה תישלח למספר נייד בלבד – בדיוק כפי שהיא תישלח לאורחים
+          </p>
 
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={sendTiming === "scheduled"}
-            onChange={() => setSendTiming("scheduled")}
-          />
-          שליחה מתוזמנת
-        </label>
+          <div className="flex gap-3">
+            <input
+              type="tel"
+              placeholder="05XXXXXXXX"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="flex-1 border rounded-xl px-4 py-3 text-sm"
+            />
+
+            <button
+              onClick={sendTestMessage}
+              disabled={!testPhone || preview?.blocked || sendingTest}
+              className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-sm disabled:opacity-50"
+            >
+              {sendingTest ? "שולח..." : "שלח לבדיקה"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================= TIMING ================= */}
+      <div className="border rounded-2xl p-6 bg-transparent shadow-none space-y-5" dir="rtl">
+        <div className="flex items-center gap-2 font-semibold text-gray-800">
+          <span>⏱️</span>
+          <span>תזמון ההודעה</span>
+        </div>
+
+        <div className="space-y-3">
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="radio"
+              checked={sendTiming === "now"}
+              onChange={() => setSendTiming("now")}
+              className="accent-blue-600"
+            />
+            <span>שליחה מיידית</span>
+          </label>
+
+          {sendTiming === "now" && (
+            <div className="text-orange-600 text-sm mr-6">
+              ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל
+            </div>
+          )}
+
+          <label className="flex items-center gap-3 cursor-pointer mt-2">
+            <input
+              type="radio"
+              checked={sendTiming === "scheduled"}
+              onChange={() => setSendTiming("scheduled")}
+              className="accent-blue-600"
+            />
+            <span>שליחה מתוזמנת</span>
+          </label>
+
+          {sendTiming === "scheduled" && (
+            <div className="text-green-600 text-sm mr-6">
+              ✓ ניתן לערוך או לבטל עד מועד השליחה
+            </div>
+          )}
+        </div>
 
         {sendTiming === "scheduled" && (
-          <div className="flex gap-3 mt-2">
-            <input
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              className="flex-1 border rounded-xl p-3"
-            />
-            <input
-              type="time"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-              className="flex-1 border rounded-xl p-3"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-gray-600">
+                תאריך שליחה
+              </label>
+              <input
+                type="date"
+                min={new Date().toLocaleDateString("en-CA")}
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                className="border rounded-xl px-4 py-3 text-sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-gray-600">
+                שעת שליחה
+              </label>
+              <input
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="border rounded-xl px-4 py-3 text-sm"
+              />
+            </div>
           </div>
         )}
-      </section>
+      </div>
 
-      {/* שליחה */}
       <SendButton
         channel="sms"
         type="thankyou"
         invitationId={invitationId}
         audience={guestsToSend.map((g) => g._id)}
         scheduledAt={scheduledAt}
-        disabled={isBlocked}
+        disabled={
+          !preview ||
+          preview.blocked ||
+          (sendTiming === "scheduled" && !scheduledAt)
+        }
       >
-        📩 שליחת הודעת תודה
+        {sendTiming === "scheduled"
+          ? "⏱️ תזמן הודעת תודה"
+          : `📩 שלח הודעת תודה (${guestsToSend.length})`}
       </SendButton>
 
-      {isBlocked && (
-        <p className="text-sm text-red-500 text-center">
-          אין נמענים או שההודעה חסומה
-        </p>
+      {scheduledMessages.length > 0 && (
+        <div className="w-full flex justify-center mt-8">
+          <button
+            onClick={async () => {
+              await loadScheduledMessages();
+              setShowScheduled(true);
+            }}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            📅 צפייה בהודעות מתוזמנות
+          </button>
+        </div>
+      )}
+
+      {showScheduled && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-2xl relative w-[95%] max-w-[900px] max-h-[85vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                📅 הודעות מתוזמנות
+              </h2>
+
+              <button
+                onClick={() => setShowScheduled(false)}
+                className="text-gray-500 hover:text-black text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <ScheduledMessagesTable
+              messages={scheduledMessages}
+              onChange={loadScheduledMessages}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
