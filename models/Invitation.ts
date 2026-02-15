@@ -79,7 +79,6 @@ const InvitationSchema = new Schema(
     /**
      * 🖼️ previewImage
      * שימוש: תצוגה באתר בלבד
-     * פורמט: base64 / canvas export
      */
     previewImage: {
       type: String,
@@ -89,7 +88,6 @@ const InvitationSchema = new Schema(
     /**
      * 📲 headerImageUrl
      * שימוש: WhatsApp Media Template בלבד
-     * פורמט: URL ציבורי (Cloudinary / HTTPS)
      */
     headerImageUrl: {
       type: String,
@@ -125,13 +123,21 @@ const InvitationSchema = new Schema(
       default: 0,
     },
 
-    /* ================= RSVP STATE ================= */
+    /* ================= RSVP ROUNDS STATE ================= */
     /**
-     * ⛔ חסימת שליחת אישור הגעה מחדש
-     * null  → עוד לא נשלח
-     * Date → סבב ראשון נשלח
+     * null  → טרם נשלח
+     * Date → נשלח
      */
-    rsvpRoundSentAt: {
+
+    // סבב 1 – לכל האורחים
+    rsvpRound1SentAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    // סבב 2 – רק למי שלא ענה
+    rsvpRound2SentAt: {
       type: Date,
       default: null,
       index: true,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 
@@ -27,12 +26,6 @@ type SendTemplateRequestBody = {
 
   templateName?: TemplateName;
   languageCode?: string;
-
-  eventTitle?: string;
-  eventDate?: string;
-  eventLocation?: string;
-  rsvpLink?: string;
-  headerImageUrl?: string;
 
   name?: string;
   tableName?: string;
@@ -69,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     if (!isTemplateName(body.templateName)) {
       return NextResponse.json(
-        { success: false, error: "Missing or invalid templateName" },
+        { success: false, error: "INVALID_TEMPLATE" },
         { status: 400 }
       );
     }
@@ -90,7 +83,7 @@ export async function POST(req: NextRequest) {
         body.audience.length === 0
       ) {
         return NextResponse.json(
-          { success: false, error: "Missing invitationId or audience" },
+          { success: false, error: "MISSING_PARAMS" },
           { status: 400 }
         );
       }
@@ -106,19 +99,38 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // ⛔ חסימה – כבר נשלח סבב RSVP ראשון
-      if (invitation.rsvpRoundSentAt) {
+      const event = invitation.eventId as any;
+
+      // 🧠 קביעת סבב
+      const totalGuestsCount = await InvitationGuest.countDocuments({
+        invitationId: invitation._id,
+      });
+
+      const isRound1 = body.audience.length === totalGuestsCount;
+      const isRound2 = body.audience.length < totalGuestsCount;
+
+      // ⛔ חסימות
+      if (isRound1 && invitation.rsvpRound1SentAt) {
         return NextResponse.json(
           {
             success: false,
-            error: "RSVP_ALREADY_SENT",
-            sentAt: invitation.rsvpRoundSentAt,
+            error: "RSVP_ROUND_1_ALREADY_SENT",
+            sentAt: invitation.rsvpRound1SentAt,
           },
           { status: 409 }
         );
       }
 
-      const event = invitation.eventId as any;
+      if (isRound2 && invitation.rsvpRound2SentAt) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "RSVP_ROUND_2_ALREADY_SENT",
+            sentAt: invitation.rsvpRound2SentAt,
+          },
+          { status: 409 }
+        );
+      }
 
       const guests = await InvitationGuest.find({
         invitationId: invitation._id,
@@ -152,14 +164,18 @@ export async function POST(req: NextRequest) {
         sent++;
       }
 
-      // ✅ סימון חד־פעמי – הסבב נשלח
+      // ✅ סימון הסבב שנשלח
       await Invitation.updateOne(
         { _id: invitation._id },
-        { $set: { rsvpRoundSentAt: new Date() } }
+        {
+          $set: isRound1
+            ? { rsvpRound1SentAt: new Date() }
+            : { rsvpRound2SentAt: new Date() },
+        }
       );
 
       return NextResponse.json(
-        { success: true, sent },
+        { success: true, sent, round: isRound1 ? 1 : 2 },
         { status: 200 }
       );
     }
@@ -180,7 +196,7 @@ export async function POST(req: NextRequest) {
         !isNonEmptyString(body.urlSuffix)
       ) {
         return NextResponse.json(
-          { success: false, error: "Missing required table fields" },
+          { success: false, error: "MISSING_TABLE_FIELDS" },
           { status: 400 }
         );
       }
@@ -206,7 +222,7 @@ export async function POST(req: NextRequest) {
     if (templateName === "thank_you_message") {
       if (!isNonEmptyString(body.to) || !isNonEmptyString(body.name)) {
         return NextResponse.json(
-          { success: false, error: "Missing required fields" },
+          { success: false, error: "MISSING_FIELDS" },
           { status: 400 }
         );
       }

@@ -61,9 +61,9 @@ export default function RsvpTab({
   const [round, setRound] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(true);
 
-  // ⛔ חסימה אמיתית מהשרת
-  const [rsvpAlreadySent, setRsvpAlreadySent] = useState(false);
-  const [rsvpSentAt, setRsvpSentAt] = useState<Date | null>(null);
+  // 🔒 מצב סבבים מהשרת
+  const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
+  const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
 
   /* ================= LOAD DATA ================= */
 
@@ -84,9 +84,12 @@ export default function RsvpTab({
           setGuests(guestsData.guests);
         }
 
-        if (invitationData?.invitation?.rsvpRoundSentAt) {
-          setRsvpAlreadySent(true);
-          setRsvpSentAt(new Date(invitationData.invitation.rsvpRoundSentAt));
+        const inv = invitationData?.invitation;
+        if (inv?.rsvpRound1SentAt) {
+          setRound1SentAt(new Date(inv.rsvpRound1SentAt));
+        }
+        if (inv?.rsvpRound2SentAt) {
+          setRound2SentAt(new Date(inv.rsvpRound2SentAt));
         }
       } catch (err) {
         console.error("❌ Failed to load RSVP data", err);
@@ -115,21 +118,15 @@ export default function RsvpTab({
     loading ||
     noAudience ||
     missingHeaderImage ||
-    (round === 1 && rsvpAlreadySent);
+    (round === 1 && !!round1SentAt) ||
+    (round === 2 && !!round2SentAt);
 
   const previewText = useMemo(
-    () =>
-      getRsvpPreviewText({
-        eventTitle,
-        eventDate,
-        eventLocation,
-      }),
+    () => getRsvpPreviewText({ eventTitle, eventDate, eventLocation }),
     [eventTitle, eventDate, eventLocation]
   );
 
-  if (loading) {
-    return <p>טוען אורחים...</p>;
-  }
+  if (loading) return <p>טוען אורחים...</p>;
 
   /* ================= UI ================= */
 
@@ -142,9 +139,9 @@ export default function RsvpTab({
             round === 1 ? "bg-blue-600 text-white" : "border-gray-300"
           }`}
           onClick={() => setRound(1)}
-          disabled={rsvpAlreadySent}
+          disabled={!!round1SentAt}
         >
-          סבב 1 – לכולם {rsvpAlreadySent ? "(נשלח)" : ""}
+          סבב 1 – לכולם {round1SentAt ? "(נשלח)" : ""}
         </button>
 
         <button
@@ -152,8 +149,9 @@ export default function RsvpTab({
             round === 2 ? "bg-blue-600 text-white" : "border-gray-300"
           }`}
           onClick={() => setRound(2)}
+          disabled={!!round2SentAt}
         >
-          סבב 2 – למי שטרם ענה
+          סבב 2 – למי שטרם ענה {round2SentAt ? "(נשלח)" : ""}
         </button>
       </div>
 
@@ -166,47 +164,15 @@ export default function RsvpTab({
         readOnly
       />
 
-      {/* ===== INFO ===== */}
-      <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        📌 הודעת אישור הגעה נשלחת ב־WhatsApp בלבד
-        <br />
-        ✏️ תוכן ההודעה קבוע לפי תבנית מאושרת
-        <br />
-        ⏱️ ניתן לבחור שליחה מיידית או מתוזמנת
-      </section>
-
-      {missingHeaderImage && (
-        <section className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-          ❌ חסרה תמונת הזמנה
-          <br />
-          WhatsApp דורש תמונת Header לצורך שליחת תבנית RSVP
-        </section>
-      )}
-
-      {rsvpAlreadySent && round === 1 && rsvpSentAt && (
-        <section className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
-          ✅ סבב אישור הגעה כבר נשלח
-          <br />
-          📅 נשלח בתאריך:{" "}
-          {rsvpSentAt.toLocaleDateString("he-IL", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </section>
-      )}
-
-      {/* ===== TIMING ===== */}
-      <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
-
       {/* ===== PREVIEW ===== */}
       <WhatsappTemplatePreview
         templateKey="rsvp"
         previewText={previewText}
         headerImageUrl={headerImageUrl}
       />
+
+      {/* ===== TIMING ===== */}
+      <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
 
       {/* ===== SEND ===== */}
       <SendButton
@@ -218,8 +184,8 @@ export default function RsvpTab({
         scheduledAt={scheduledAt}
         disabled={blocked}
       >
-        {rsvpAlreadySent && round === 1
-          ? "✅ אישור הגעה נשלח"
+        {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
+          ? "✅ נשלח"
           : scheduledAt
           ? `⏱️ תזמן אישור הגעה – סבב ${round}`
           : `📲 שלח אישור הגעה – סבב ${round}`}

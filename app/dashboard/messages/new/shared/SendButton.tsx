@@ -85,12 +85,16 @@ const SendButton: React.FC<Props> = ({
 
       const data = await res.json();
 
-      /* ================= SERVER ERRORS ================= */
+      /* ================= SERVER BLOCKS ================= */
 
-      // ⛔ RSVP כבר נשלח – חסימה חכמה
-      if (data?.error === "RSVP_ALREADY_SENT") {
-        alert("ℹ️ אישור הגעה כבר נשלח בעבר ולא ניתן לשלוח שוב");
-        onAfterSend?.(); // מאפשר ל־UI להינעל
+      // ⛔ חסימת RSVP מהשרת (409 / קוד ייעודי)
+      if (
+        res.status === 409 ||
+        data?.error === "RSVP_ALREADY_SENT" ||
+        data?.error === "RSVP_ROUND_ALREADY_SENT"
+      ) {
+        alert("ℹ️ סבב זה כבר נשלח ולא ניתן לשלוח שוב");
+        onAfterSend?.(); // 🔒 נועל את ה־UI בוודאות
         return;
       }
 
@@ -107,7 +111,7 @@ const SendButton: React.FC<Props> = ({
           : `✅ נשלחו ${data.sent ?? audience.length} הודעות בהצלחה`
       );
 
-      onAfterSend?.();
+      onAfterSend?.(); // 🔒 נועל את הכפתור אחרי הצלחה
     } catch (err) {
       console.error("SEND ERROR:", err);
       alert("❌ שגיאה בשליחה");
