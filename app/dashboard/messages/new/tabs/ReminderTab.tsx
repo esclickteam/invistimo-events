@@ -168,52 +168,68 @@ export default function ReminderTab({
   /* ================= PREVIEW ================= */
 
   useEffect(() => {
-    if (!invitationId || guestsToSend.length === 0) {
-      setPreview(null);
-      return;
-    }
+  if (!invitationId || guestsToSend.length === 0) {
+    setPreview(null);
+    return;
+  }
 
-    let longestText = "";
-    let longestGuest: Guest | null = null;
+  // ================================
+  // 1️⃣ LOCAL PREVIEW – מיידי
+  // ================================
 
-    for (const g of guestsToSend) {
-      const text = buildReminderMessage(g);
-      if (text.length > longestText.length) {
-        longestText = text;
-        longestGuest = g;
-      }
-    }
+  const firstGuest = guestsToSend[0];
+  const localText = buildReminderMessage(firstGuest);
 
-    if (!longestGuest) return;
+  setPreview({
+    text: localText,
+    totalChars: localText.length,
+    parts: Math.ceil(localText.length / 160),
+    blocked: false, // זמני עד שהשרת מחזיר
+    loading: true,  // נוסיף אינדיקציה אם רוצים
+  });
 
-    async function fetchPreview() {
-      try {
-        const res = await fetch("/api/sms/preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            invitationId,
-            guestId: longestGuest!._id,
-            messageOverride: longestText,
-          }),
+  // ================================
+  // 2️⃣ SERVER VALIDATION – ברקע
+  // ================================
+
+  async function validateWithServer() {
+    try {
+      const res = await fetch("/api/sms/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          invitationId,
+          guestId: firstGuest._id,
+          messageOverride: localText,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data?.text) {
+        setPreview({
+          text: data.text,
+          totalChars: data.totalChars,
+          parts: data.parts,
+          blocked: !data.allowed,
+          loading: false,
         });
-
-        const data = await res.json();
-
-        if (data?.text) {
-          setPreview({
-            text: data.text,
-            totalChars: data.totalChars,
-            parts: data.parts,
-            blocked: !data.allowed,
-          });
-        }
-      } catch {}
+      }
+    } catch {
+      setPreview((prev: any) => ({
+        ...prev,
+        loading: false,
+      }));
     }
+  }
 
-    fetchPreview();
-  }, [invitationId, guestsToSend]);
+  validateWithServer();
+
+}, [invitationId, guestsToSend]);
+
+
+
 
   if (loading) {
     return <p className="text-sm text-gray-500">טוען אורחים…</p>;
