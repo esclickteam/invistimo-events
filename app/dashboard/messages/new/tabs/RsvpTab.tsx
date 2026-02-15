@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useEffect } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
-import SendTiming from "../shared/SendTiming";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
 
@@ -171,8 +170,6 @@ export default function RsvpTab({
         headerImageUrl={headerImageUrl}
       />
 
-      {/* ===== TIMING ===== */}
-      <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
 
       {/* ===== SEND ===== */}
       <SendButton
