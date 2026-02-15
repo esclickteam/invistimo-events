@@ -80,7 +80,6 @@ function getRate(plan: PlanKey, records: number) {
 }
 
 function calculateBase(plan: PlanKey, records: number) {
-  if (records === 10) return 5; // מחיר בדיקה קבוע
   return Math.round(records * getRate(plan, records));
 }
 
@@ -88,7 +87,8 @@ function calculateBase(plan: PlanKey, records: number) {
 
 export default function PricingPage() {
   const router = useRouter();
-  const options = [10, ...Array.from({ length: 16 }, (_, i) => (i + 1) * 50)];
+  const options = Array.from({ length: 16 }, (_, i) => (i + 1) * 50);
+
 
 
   const [records, setRecords] = useState<number>(200);
@@ -113,7 +113,7 @@ export default function PricingPage() {
     }
 
     if (plan === "plan2") {
-      return { credit: 100, seating: 5, system: 150, design: 150 };
+      return { credit: 100, seating: 80, system: 150, design: 150 };
     }
 
     return { credit: 0, seating: 0, system: 100, design: 100 };
