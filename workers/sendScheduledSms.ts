@@ -105,8 +105,8 @@ export async function sendScheduledSms() {
       const isReminder = msg.type === "reminder";
       const isThankYou = msg.type === "thankyou";
 
-      const usesNewLogic =
-        "reminderSentAt" in invitation || "thankYouSentAt" in invitation;
+      const usesNewLogic = user.isActive === false;
+
 
       if (usesNewLogic) {
         if (isReminder && invitation.reminderSentAt) {
