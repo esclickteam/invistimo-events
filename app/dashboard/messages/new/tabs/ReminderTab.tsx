@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
+import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 import { buildMessage } from "@/lib/messages/buildMessage";
 
 /* ================= TYPES ================= */
@@ -49,8 +50,35 @@ export default function ReminderTab({
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [includeGiftLink, setIncludeGiftLink] = useState(false);
+  const [includeGiftLink] = useState(false);
   const [preview, setPreview] = useState<any>(null);
+
+  /* ================= SCHEDULED MESSAGES ================= */
+
+  const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
+  const [showScheduled, setShowScheduled] = useState(false);
+
+  const loadScheduledMessages = async () => {
+    try {
+      const res = await fetch("/api/scheduled-messages", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (data?.success) {
+        setScheduledMessages(
+          Array.isArray(data.messages) ? data.messages : []
+        );
+      } else {
+        setScheduledMessages([]);
+      }
+    } catch (err) {
+      console.error("❌ Failed to load scheduled messages", err);
+      setScheduledMessages([]);
+    }
+  };
 
   /* ================= TIMING ================= */
 
@@ -73,33 +101,6 @@ export default function ReminderTab({
 
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
-
-  /* ================= TEST SMS ================= */
-
-  const [testPhone, setTestPhone] = useState("");
-  const [sendingTest, setSendingTest] = useState(false);
-  const [testsRemaining, setTestsRemaining] = useState<number | null>(null);
-
-  useEffect(() => {
-    async function loadRemaining() {
-      try {
-        const res = await fetch("/api/sms/test", {
-          method: "GET",
-          credentials: "include",
-        });
-
-        const data = await res.json();
-
-        if (typeof data.remaining === "number") {
-          setTestsRemaining(data.remaining);
-        }
-      } catch {
-        setTestsRemaining(0);
-      }
-    }
-
-    loadRemaining();
-  }, []);
 
   /* ================= LOAD GUESTS ================= */
 
@@ -207,7 +208,7 @@ export default function ReminderTab({
     }
 
     fetchPreview();
-  }, [invitationId, guestsToSend, includeGiftLink]);
+  }, [invitationId, guestsToSend]);
 
   if (loading) {
     return <p className="text-sm text-gray-500">טוען אורחים…</p>;
@@ -224,7 +225,7 @@ export default function ReminderTab({
         readOnly
       />
 
-      {/* PHONE PREVIEW */}
+      {/* PREVIEW */}
       {preview && (
         <div className="w-full flex justify-center mt-6 mb-8">
           <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
@@ -244,44 +245,91 @@ export default function ReminderTab({
       )}
 
       {/* TIMING */}
-      <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm space-y-3">
-        <div className="font-semibold">⏱️ תזמון ההודעה</div>
+      {/* ================= TIMING ================= */}
+<div className="border rounded-2xl p-6 bg-white shadow-sm space-y-5" dir="rtl">
+  <div className="flex items-center gap-2 font-semibold text-gray-800">
+    <span>⏱️</span>
+    <span>תזמון ההודעה</span>
+  </div>
 
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={sendTiming === "now"}
-            onChange={() => setSendTiming("now")}
-          />
-          שליחה מיידית
-        </label>
+  {/* RADIO OPTIONS */}
+  <div className="space-y-3">
 
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={sendTiming === "scheduled"}
-            onChange={() => setSendTiming("scheduled")}
-          />
-          שליחה מתוזמנת
-        </label>
+    <label className="flex items-center gap-3 cursor-pointer">
+      <input
+        type="radio"
+        checked={sendTiming === "now"}
+        onChange={() => setSendTiming("now")}
+        className="accent-blue-600"
+      />
+      <span>שליחה מיידית</span>
+    </label>
 
-        {sendTiming === "scheduled" && (
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              className="border rounded px-2 py-1"
-            />
-            <input
-              type="time"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-              className="border rounded px-2 py-1"
-            />
-          </div>
-        )}
+    {sendTiming === "now" && (
+      <div className="text-orange-600 text-sm mr-6">
+        ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל
       </div>
+    )}
+
+    <label className="flex items-center gap-3 cursor-pointer mt-2">
+      <input
+        type="radio"
+        checked={sendTiming === "scheduled"}
+        onChange={() => setSendTiming("scheduled")}
+        className="accent-blue-600"
+      />
+      <span>שליחה מתוזמנת</span>
+    </label>
+
+    {sendTiming === "scheduled" && (
+      <div className="text-green-600 text-sm mr-6">
+        ✓ ניתן לערוך או לבטל את ההודעה עד מועד השליחה
+      </div>
+    )}
+  </div>
+
+  {/* DATE + TIME */}
+  {sendTiming === "scheduled" && (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+      {/* DATE */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm text-gray-600">
+          תאריך שליחה
+        </label>
+        <input
+          type="date"
+          min={new Date().toLocaleDateString("en-CA")}
+          value={scheduledDate}
+          onChange={(e) => setScheduledDate(e.target.value)}
+          className="border rounded-xl px-4 py-3 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {/* TIME */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm text-gray-600">
+          שעת שליחה
+        </label>
+        <input
+          type="time"
+          min={
+            scheduledDate === new Date().toLocaleDateString("en-CA")
+              ? new Date().toTimeString().slice(0, 5)
+              : undefined
+          }
+          value={scheduledTime}
+          onChange={(e) => setScheduledTime(e.target.value)}
+          className="border rounded-xl px-4 py-3 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+    </div>
+  )}
+</div>
+
 
       <SendButton
         channel="sms"
@@ -299,6 +347,43 @@ export default function ReminderTab({
           ? "⏱️ תזמן תזכורת"
           : `📩 שלח תזכורת (${guestsToSend.length})`}
       </SendButton>
+
+      {/* OPEN MODAL BUTTON */}
+      <button
+        onClick={async () => {
+          await loadScheduledMessages();
+          setShowScheduled(true);
+        }}
+        className="mt-4 text-sm text-gray-600 underline hover:text-black"
+      >
+        📅 צפייה בהודעות מתוזמנות
+      </button>
+
+      {/* MODAL */}
+      {showScheduled && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-2xl relative w-[95%] max-w-[900px] max-h-[85vh] overflow-y-auto p-6">
+
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                📅 הודעות מתוזמנות
+              </h2>
+
+              <button
+                onClick={() => setShowScheduled(false)}
+                className="text-gray-500 hover:text-black text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <ScheduledMessagesTable
+              messages={scheduledMessages}
+              onChange={loadScheduledMessages}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
