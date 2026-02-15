@@ -8,29 +8,46 @@ export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const email = String(body?.email || "").trim().toLowerCase();
+    const password = String(body?.password || "");
 
     if (!email || !password) {
-      return NextResponse.json({ error: "חסרים פרטי התחברות" }, { status: 400 });
+      return NextResponse.json(
+        { error: "חסרים פרטי התחברות" },
+        { status: 400 }
+      );
     }
 
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
-      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
+      return NextResponse.json(
+        { error: "מייל או סיסמה שגויים" },
+        { status: 401 }
+      );
     }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
+      return NextResponse.json(
+        { error: "מייל או סיסמה שגויים" },
+        { status: 401 }
+      );
     }
 
+    // ערכים עסקיים חשובים
+    const hasPaid = Boolean(user.hasPaid);
+    const isTrial = Boolean(user.isTrial);
+
     /* ======================================================
-       🔐 JWT – מקור אמת
+       🔐 JWT – מקור אמת (כולל hasPaid)
     ====================================================== */
     const token = jwt.sign(
       {
         userId: user._id.toString(),
         role: user.role,
+        hasPaid, // ✅ קריטי ל-middleware
+        isTrial, // אופציונלי אבל שימושי
       },
       process.env.JWT_SECRET!,
       { expiresIn: "1h" }
@@ -44,22 +61,24 @@ export async function POST(req: Request) {
           name: user.name,
           email: user.email,
           role: user.role,
-          isTrial: user.isTrial,
+          hasPaid, // ✅ חשוב גם לקליינט
+          isTrial,
+          trialExpiresAt: user.trialExpiresAt ?? null,
+          smsUsed: user.smsUsed ?? 0,
+          smsLimit: user.planLimits?.smsLimit ?? 0,
         },
       },
       { headers: { "Cache-Control": "no-store" } }
     );
 
     /* ======================================================
-       🍪 Cookie Domain – אחיד כדי שלא יהיה "פעם נמחק פעם לא"
-       (הסיבה: www מול בלי www / סאב-דומיינים)
+       🍪 Cookie Domain – אחיד
     ====================================================== */
     const cookieDomain =
       process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 
     /* ======================================================
-       🔥 ניקוי cookies ישנים (קריטי!)
-       חשוב: לנקות עם אותו domain/path
+       🔥 ניקוי cookies ישנים (קריטי)
     ====================================================== */
     const cleanup = {
       path: "/",
@@ -68,14 +87,18 @@ export async function POST(req: Request) {
     };
 
     res.cookies.set("authToken", "", { ...cleanup, httpOnly: true });
+    res.cookies.set("producerAuthToken", "", { ...cleanup, httpOnly: true });
+    res.cookies.set("adminAuthToken", "", { ...cleanup, httpOnly: true });
+
     res.cookies.set("role", "", { ...cleanup, httpOnly: false });
     res.cookies.set("isTrial", "", { ...cleanup, httpOnly: false });
+    res.cookies.set("hasPaid", "", { ...cleanup, httpOnly: false });
     res.cookies.set("trialExpiresAt", "", { ...cleanup, httpOnly: false });
     res.cookies.set("smsUsed", "", { ...cleanup, httpOnly: false });
     res.cookies.set("smsLimit", "", { ...cleanup, httpOnly: false });
 
     /* ======================================================
-       🍪 Cookie בסיס – תואם לכל המערכת
+       🍪 Cookie בסיס
     ====================================================== */
     const baseCookie = {
       secure: process.env.NODE_ENV === "production",
@@ -96,7 +119,16 @@ export async function POST(req: Request) {
     /* ======================================================
        👤 Role (client-readable)
     ====================================================== */
-    res.cookies.set("role", user.role, {
+    res.cookies.set("role", String(user.role || "user"), {
+      ...baseCookie,
+      httpOnly: false,
+    });
+
+    /* ======================================================
+       💳 Paid status (client-readable, UX בלבד)
+       האבטחה עצמה נשענת על JWT+middleware
+    ====================================================== */
+    res.cookies.set("hasPaid", String(hasPaid), {
       ...baseCookie,
       httpOnly: false,
     });
@@ -104,18 +136,17 @@ export async function POST(req: Request) {
     /* ======================================================
        🧪 Trial
     ====================================================== */
-    res.cookies.set("isTrial", String(user.isTrial), {
+    res.cookies.set("isTrial", String(isTrial), {
       ...baseCookie,
       httpOnly: false,
     });
 
-    if (user.isTrial && user.trialExpiresAt) {
+    if (isTrial && user.trialExpiresAt) {
       res.cookies.set("trialExpiresAt", String(user.trialExpiresAt.getTime()), {
         ...baseCookie,
         httpOnly: false,
       });
     } else {
-      // אם אין טרייל/תאריך – לוודא שאין קוקייה ישנה
       res.cookies.set("trialExpiresAt", "", {
         ...cleanup,
         httpOnly: false,
