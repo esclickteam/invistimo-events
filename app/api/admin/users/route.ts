@@ -10,14 +10,41 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /* =========================================================
+   Types
+========================================================= */
+type AuthCtx = {
+  userId?: string;
+  role?: string;
+  impersonationRole?: string;
+  impersonatedBy?: string;
+};
+
+/* =========================================================
    Helpers
 ========================================================= */
-function isAdminContext(auth: any) {
-  return (
-    auth?.role === "admin" ||
-    auth?.impersonationRole === "admin" ||
-    !!auth?.impersonatedBy
-  );
+function isAdminContext(auth: AuthCtx | null | undefined) {
+  if (!auth) return false;
+
+  // אדמין רגיל
+  if (auth.role === "admin") return true;
+
+  // התחזות כאדמין
+  if (auth.impersonationRole === "admin") return true;
+
+  // אם יש impersonatedBy - נדרוש שגם role יהיה admin
+  // כדי לא לפתוח הרשאות בטעות לכל התחזות
+  if (auth.impersonatedBy && auth.role === "admin") return true;
+
+  return false;
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function toSafeNumber(v: unknown, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function buildUsersFilter(req: NextRequest) {
@@ -65,7 +92,7 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
+    const auth = (await getUserIdFromRequest(req)) as AuthCtx | null;
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -180,7 +207,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = await getUserIdFromRequest(req);
+    const auth = (await getUserIdFromRequest(req)) as AuthCtx | null;
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -198,20 +225,33 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const { name, email, role, limits, billing, addons, plan } = body || {};
 
+    const cleanName = String(name || "").trim();
+    const cleanEmail = String(email || "").toLowerCase().trim();
+    const cleanRole = String(role || "").trim();
 
-
-    if (!name || !email || !role) {
+    if (!cleanName || !cleanEmail || !cleanRole) {
       return NextResponse.json(
         { success: false, error: "MISSING_REQUIRED_FIELDS" },
         { status: 400 }
       );
     }
 
-    // מניעת כפילות מייל
-    const existing = await User.findOne({ email: String(email).toLowerCase() })
-      .select("_id")
-      .lean();
+    if (!isValidEmail(cleanEmail)) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_EMAIL" },
+        { status: 400 }
+      );
+    }
 
+    if (!["user", "producer", "staff"].includes(cleanRole)) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_ROLE" },
+        { status: 400 }
+      );
+    }
+
+    // מניעת כפילות מייל
+    const existing = await User.findOne({ email: cleanEmail }).select("_id").lean();
     if (existing) {
       return NextResponse.json(
         { success: false, error: "EMAIL_ALREADY_EXISTS" },
@@ -220,12 +260,12 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= PRODUCER ================= */
-    if (role === "producer") {
-      const pricePerRecord = Number(billing?.pricePerRecord || 0);
+    if (cleanRole === "producer") {
+      const pricePerRecord = toSafeNumber(billing?.pricePerRecord, 0);
 
       const user = await User.create({
-        name,
-        email: String(email).toLowerCase(),
+        name: cleanName,
+        email: cleanEmail,
         role: "producer",
 
         producerPricePerRecord: pricePerRecord,
@@ -238,7 +278,11 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(String(user._id));
+      try {
+        await sendPasswordSetupMail(String(user._id));
+      } catch (mailErr) {
+        console.error("❌ sendPasswordSetupMail failed (producer):", mailErr);
+      }
 
       return NextResponse.json(
         { success: true, userId: String(user._id) },
@@ -247,10 +291,10 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= STAFF ================= */
-    if (role === "staff") {
+    if (cleanRole === "staff") {
       const user = await User.create({
-        name,
-        email: String(email).toLowerCase(),
+        name: cleanName,
+        email: cleanEmail,
         role: "staff",
 
         hasPaid: false,
@@ -261,7 +305,11 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(String(user._id));
+      try {
+        await sendPasswordSetupMail(String(user._id));
+      } catch (mailErr) {
+        console.error("❌ sendPasswordSetupMail failed (staff):", mailErr);
+      }
 
       return NextResponse.json(
         { success: true, userId: String(user._id) },
@@ -270,38 +318,41 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= USER ================= */
-    const { records, smsTotal } = limits || {};
+    const recordsNum = toSafeNumber(limits?.records, NaN);
+    const smsTotalNum = toSafeNumber(limits?.smsTotal, NaN);
+    const priceNum = toSafeNumber(billing?.price, NaN);
+    const paymentStatus = String(billing?.paymentStatus || "pending").toLowerCase();
 
-    const { price, paymentStatus } = billing || {};
+    if (
+      !Number.isFinite(recordsNum) ||
+      !Number.isFinite(smsTotalNum) ||
+      !Number.isFinite(priceNum) ||
+      recordsNum < 0 ||
+      smsTotalNum < 0 ||
+      priceNum < 0
+    ) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_LIMITS_OR_BILLING" },
+        { status: 400 }
+      );
+    }
 
-    const recordsNum = Number(records);
-const smsTotalNum = Number(smsTotal);
-const priceNum = Number(price ?? 0);
-
-if (
-  Number.isNaN(recordsNum) ||
-  Number.isNaN(smsTotalNum) ||
-  Number.isNaN(priceNum)
-) {
-  return NextResponse.json(
-    { success: false, error: "INVALID_LIMITS_OR_BILLING" },
-    { status: 400 }
-  );
-}
-
+    const safePlan =
+      typeof plan === "string" && plan.trim()
+        ? plan.trim()
+        : "premium";
 
     const finalIncludeCalls =
-  plan === "plan2" ||
-  plan === "plan3" ||
-  addons?.calls?.enabled === true;
+      safePlan === "plan2" ||
+      safePlan === "plan3" ||
+      addons?.calls?.enabled === true;
 
+    const finalIncludeCreditGifts =
+      safePlan === "plan3" ||
+      addons?.credit?.enabled === true;
 
-
-const finalIncludeCreditGifts =
-  plan === "plan3" ||
-  addons?.credit?.enabled === true;
-
-
+    const callsAddonPrice = toSafeNumber(addons?.calls?.price, 0);
+    const creditGiftsAddonPrice = toSafeNumber(addons?.credit?.price, 0);
 
     const planLimits = {
       maxGuests: recordsNum,
@@ -313,21 +364,19 @@ const finalIncludeCreditGifts =
     };
 
     const user = await User.create({
-      name,
-      email: String(email).toLowerCase(),
+      name: cleanName,
+      email: cleanEmail,
       role: "user",
 
-      plan: plan || "premium",
-
+      plan: safePlan,
       planLimits,
 
       guests: recordsNum,
       maxMessages: smsTotalNum,
 
       includeCalls: finalIncludeCalls,
-includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
-
+      includeCreditGifts: finalIncludeCreditGifts,
+      creditGiftsAddonPrice,
 
       hasPaid: paymentStatus === "paid",
       paidAmount: priceNum,
@@ -338,8 +387,12 @@ creditGiftsAddonPrice: addons?.credit?.price || 0,
     });
 
     if (paymentStatus === "paid") {
+      const adminId = auth.impersonatedBy
+        ? String(auth.impersonatedBy)
+        : String(auth.userId);
+
       await Payment.create({
-        email: String(email).toLowerCase(),
+        email: cleanEmail,
 
         stripeSessionId: null,
         stripePaymentIntentId: null,
@@ -350,12 +403,10 @@ creditGiftsAddonPrice: addons?.credit?.price || 0,
         maxGuests: recordsNum,
 
         includeCalls: finalIncludeCalls,
-        callsAddonPrice: addons?.calls?.price || 0,
-
+        callsAddonPrice,
 
         includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
-
+        creditGiftsAddonPrice,
 
         amount: priceNum,
         refundAmount: 0,
@@ -365,17 +416,25 @@ creditGiftsAddonPrice: addons?.credit?.price || 0,
         status: "paid",
         isTest: false,
 
+        // תמיכה לשני מבנים נפוצים שראיתי אצלך
+        meta: {
+          source: "admin",
+          adminId,
+          userId: String(user._id),
+        },
         metadata: {
           source: "admin",
-          adminId: auth.impersonatedBy
-            ? String(auth.impersonatedBy)
-            : String(auth.userId),
+          adminId,
           userId: String(user._id),
         },
       });
     }
 
-    await sendPasswordSetupMail(String(user._id));
+    try {
+      await sendPasswordSetupMail(String(user._id));
+    } catch (mailErr) {
+      console.error("❌ sendPasswordSetupMail failed (user):", mailErr);
+    }
 
     return NextResponse.json(
       { success: true, userId: String(user._id) },
