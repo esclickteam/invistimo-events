@@ -246,7 +246,8 @@ export default function ReminderTab({
 
       {/* PHONE PREVIEW */}
       {preview && (
-        <div className="w-[90%] md:w-[360px] mt-4 mb-6">
+        <div className="w-[92%] max-w-[390px] mx-auto mt-4 mb-6">
+
           <p className="text-sm text-gray-500 mb-2 text-center">
             תצוגה מקדימה – כך האורח יקבל את ההודעה
           </p>
@@ -258,7 +259,8 @@ export default function ReminderTab({
               </div>
 
               <div className="p-4 flex justify-center">
-                <div className="rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words bg-gray-200 text-gray-900">
+                <div className="rounded-2xl px-4 py-3 text-[14px] max-w-[85%] whitespace-pre-wrap leading-relaxed break-words bg-[#e9e9eb] text-gray-900">
+
                   {renderPreviewText(preview.text)}
                 </div>
               </div>
