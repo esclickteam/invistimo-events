@@ -15,10 +15,15 @@ type Props = {
   templateName?: string;
   disabled?: boolean;
 
+  // ⭐ הוספה
+  includeGiftLink?: boolean;
+  giftLink?: string;
+
   onAfterSend?: () => void;
 
   children: ReactNode;
 };
+
 
 /* ================= COMPONENT ================= */
 
@@ -30,9 +35,14 @@ const SendButton: React.FC<Props> = ({
   scheduledAt,
   templateName,
   disabled,
+
+  includeGiftLink,   // ⭐
+  giftLink,          // ⭐
+
   onAfterSend,
   children,
 }) => {
+
   const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
@@ -70,8 +80,13 @@ const SendButton: React.FC<Props> = ({
     templateKey: mapTemplate[type],
     guestIds: audience,
     scheduledAt,
+
+    // ⭐ הוספה כאן
+    includeGiftLink,
+    giftLink,
   };
 }
+
 
 
       /* ================= WHATSAPP ================= */

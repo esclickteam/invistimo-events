@@ -50,7 +50,9 @@ export default function ReminderTab({
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [includeGiftLink] = useState(false);
+  const [includeGiftLink, setIncludeGiftLink] = useState(false);
+const [giftLink, setGiftLink] = useState(giftCreditUrl || "");
+
   const [preview, setPreview] = useState<any>(null);
 
   const [testPhone, setTestPhone] = useState("");
@@ -175,18 +177,19 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
   );
 
   const buildReminderMessage = (g: Guest) =>
-    buildMessage({
-      template: MESSAGE_WITH_TABLE,
-      guest: g,
-      eventDate,
-      eventLocation,
-      navigationLink:
-        typeof lat === "number" && typeof lng === "number"
-          ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-          : "",
-      includeGiftLink,
-      giftLink: giftCreditUrl || "",
-    });
+  buildMessage({
+    template: MESSAGE_WITH_TABLE,
+    guest: g,
+    eventDate,
+    eventLocation,
+    navigationLink:
+      typeof lat === "number" && typeof lng === "number"
+        ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+        : "",
+    includeGiftLink,
+    giftLink,
+  });
+
 
   /* ================= PREVIEW ================= */
 
@@ -249,7 +252,8 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
   validateWithServer();
 
-}, [invitationId, guestsToSend]);
+}, [invitationId, guestsToSend, includeGiftLink, giftLink]);
+
 
 const [testCount, setTestCount] = useState(0);
 const MAX_TEST_MESSAGES = 2;
@@ -332,6 +336,40 @@ const sendTestMessage = async () => {
           </div>
         </div>
       )}
+
+      {/* 🎁 קישור מתנה באשראי */}
+{preview && (
+  <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-4">
+
+    <label className="flex items-center gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={includeGiftLink}
+        onChange={(e) => setIncludeGiftLink(e.target.checked)}
+        className="accent-blue-600"
+      />
+      <span className="text-sm font-medium text-gray-800">
+        תוספת להודעה: קישור למתנות באשראי
+      </span>
+    </label>
+
+    {includeGiftLink && (
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">
+          קישור למתנה באשראי
+        </label>
+        <input
+          type="url"
+          value={giftLink}
+          onChange={(e) => setGiftLink(e.target.value)}
+          placeholder="https://..."
+          className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+    )}
+  </div>
+)}
+
 
       {/* TEST MESSAGE */}
 {preview && (
@@ -502,6 +540,9 @@ const sendTestMessage = async () => {
   invitationId={invitationId}
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
+  includeGiftLink={includeGiftLink}   // ⭐ הוספה
+  giftLink={giftLink}                 // ⭐ הוספה
+
 
   onAfterSend={async () => {
   if (sendTiming === "now") {
