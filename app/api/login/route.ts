@@ -11,18 +11,36 @@ export async function POST(req: Request) {
     const { email, password } = await req.json();
 
     if (!email || !password) {
-      return NextResponse.json({ error: "חסרים פרטי התחברות" }, { status: 400 });
+      return NextResponse.json(
+        { error: "חסרים פרטי התחברות" },
+        { status: 400 }
+      );
     }
 
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
-      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
+      return NextResponse.json(
+        { error: "מייל או סיסמה שגויים" },
+        { status: 401 }
+      );
     }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      return NextResponse.json({ error: "מייל או סיסמה שגויים" }, { status: 401 });
+      return NextResponse.json(
+        { error: "מייל או סיסמה שגויים" },
+        { status: 401 }
+      );
     }
+
+    /* ======================================================
+       🔐 חישוב גישה לדשבורד
+    ====================================================== */
+
+    const hasDashboardAccess =
+      user.hasDashboardAccess === true; 
+      // אם תרצי לפי תשלום:
+      // user.hasPaid === true
 
     /* ======================================================
        🔐 JWT – מקור אמת
@@ -31,6 +49,8 @@ export async function POST(req: Request) {
       {
         userId: user._id.toString(),
         role: user.role,
+        staffType: user.staffType || null,
+        hasDashboardAccess, // ⭐ חשוב!
       },
       process.env.JWT_SECRET!,
       { expiresIn: "1h" }
@@ -45,22 +65,17 @@ export async function POST(req: Request) {
           email: user.email,
           role: user.role,
           isTrial: user.isTrial,
+          hasDashboardAccess, // ⭐ גם ללקוח
         },
       },
       { headers: { "Cache-Control": "no-store" } }
     );
 
-    /* ======================================================
-       🍪 Cookie Domain – אחיד כדי שלא יהיה "פעם נמחק פעם לא"
-       (הסיבה: www מול בלי www / סאב-דומיינים)
-    ====================================================== */
     const cookieDomain =
-      process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+      process.env.NODE_ENV === "production"
+        ? ".invistimo.com"
+        : undefined;
 
-    /* ======================================================
-       🔥 ניקוי cookies ישנים (קריטי!)
-       חשוב: לנקות עם אותו domain/path
-    ====================================================== */
     const cleanup = {
       path: "/",
       maxAge: 0,
@@ -68,25 +83,17 @@ export async function POST(req: Request) {
     };
 
     res.cookies.set("authToken", "", { ...cleanup, httpOnly: true });
-    res.cookies.set("role", "", { ...cleanup, httpOnly: false });
-    res.cookies.set("isTrial", "", { ...cleanup, httpOnly: false });
-    res.cookies.set("trialExpiresAt", "", { ...cleanup, httpOnly: false });
-    res.cookies.set("smsUsed", "", { ...cleanup, httpOnly: false });
-    res.cookies.set("smsLimit", "", { ...cleanup, httpOnly: false });
 
-    /* ======================================================
-       🍪 Cookie בסיס – תואם לכל המערכת
-    ====================================================== */
     const baseCookie = {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax" as const,
       path: "/",
       domain: cookieDomain,
-      maxAge: 60 * 60, // 1 שעה
+      maxAge: 60 * 60,
     };
 
     /* ======================================================
-       🔐 Auth Token (HttpOnly)
+       🔐 Auth Token
     ====================================================== */
     res.cookies.set("authToken", token, {
       ...baseCookie,
@@ -94,7 +101,7 @@ export async function POST(req: Request) {
     });
 
     /* ======================================================
-       👤 Role (client-readable)
+       👤 Role
     ====================================================== */
     res.cookies.set("role", user.role, {
       ...baseCookie,
@@ -109,19 +116,6 @@ export async function POST(req: Request) {
       httpOnly: false,
     });
 
-    if (user.isTrial && user.trialExpiresAt) {
-      res.cookies.set("trialExpiresAt", String(user.trialExpiresAt.getTime()), {
-        ...baseCookie,
-        httpOnly: false,
-      });
-    } else {
-      // אם אין טרייל/תאריך – לוודא שאין קוקייה ישנה
-      res.cookies.set("trialExpiresAt", "", {
-        ...cleanup,
-        httpOnly: false,
-      });
-    }
-
     /* ======================================================
        ✉️ SMS limits
     ====================================================== */
@@ -130,14 +124,21 @@ export async function POST(req: Request) {
       httpOnly: false,
     });
 
-    res.cookies.set("smsLimit", String(user.planLimits?.smsLimit ?? 0), {
-      ...baseCookie,
-      httpOnly: false,
-    });
+    res.cookies.set(
+      "smsLimit",
+      String(user.planLimits?.smsLimit ?? 0),
+      {
+        ...baseCookie,
+        httpOnly: false,
+      }
+    );
 
     return res;
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    return NextResponse.json({ error: "שגיאה בשרת" }, { status: 500 });
+    return NextResponse.json(
+      { error: "שגיאה בשרת" },
+      { status: 500 }
+    );
   }
 }

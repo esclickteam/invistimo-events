@@ -31,6 +31,8 @@ interface User {
 
   role: UserRole;
 
+  hasDashboardAccess: boolean;
+
   /* ===== STAFF ===== */
   staffType?: StaffType;
   assignedProducerId?: string;
@@ -244,7 +246,15 @@ if (
 }
 
 // CLIENT רגיל
+// 🛑 אין גישה לדשבורד (לא שילם / לא פעיל)
+if (!nextUser.hasDashboardAccess) {
+  router.replace("/pricing");
+  return;
+}
+
+// CLIENT רגיל עם גישה
 router.replace("/dashboard");
+
 
 
 
