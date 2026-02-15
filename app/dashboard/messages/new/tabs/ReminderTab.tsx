@@ -183,6 +183,14 @@ export default function ReminderTab({
     guestsToSend.length === 0 ||
     !!preview?.blocked;
 
+  const renderPreviewText = (text: string) => {
+    return text.split("\n").map((line, i) => (
+      <p key={i} className="leading-relaxed">
+        {line || <span>&nbsp;</span>}
+      </p>
+    ));
+  };
+
   /* ================= RENDER ================= */
 
   if (loading) {
@@ -191,6 +199,7 @@ export default function ReminderTab({
 
   return (
     <div className="space-y-6">
+
       <AudienceFilterSelector
         value={guestsWithTable.length > 0 ? "withTable" : "all"}
         onChange={() => {}}
@@ -207,6 +216,32 @@ export default function ReminderTab({
         🪑 מספר שולחן מצורף רק למי שיש בפועל
       </section>
 
+      {/* PHONE PREVIEW */}
+      {preview && (
+        <div className="w-[90%] md:w-[360px] mt-4 mb-6">
+          <p className="text-sm text-gray-500 mb-2 text-center">
+            תצוגה מקדימה – כך האורח יקבל את ההודעה
+          </p>
+
+          <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
+            <div className="rounded-[28px] overflow-hidden bg-white">
+
+              <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
+                INVISTIMO · SMS
+              </div>
+
+              <div className="p-4 flex justify-center">
+                <div className="rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words bg-gray-200 text-gray-900">
+                  {renderPreviewText(preview.text)}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHAR INFO */}
       {preview && (
         <p
           className={`text-xs ${
@@ -218,15 +253,10 @@ export default function ReminderTab({
           }`}
         >
           {preview.blocked
-            ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit} תווים`
+            ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit}`
             : preview.parts === 1
             ? `הודעה אחת · ${preview.totalChars}/200`
             : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
-          {!preview.blocked && (
-            <span className="block text-[11px] text-gray-500">
-              ההודעה תחויב ב־<strong>{preview.parts}</strong> הודעות SMS
-            </span>
-          )}
         </p>
       )}
 
