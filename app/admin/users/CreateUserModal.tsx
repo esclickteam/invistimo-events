@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 
 type UserRole = "user" | "producer" | "staff";
-type PaymentStatus = "paid" | "stripe";
+type PaymentMethod = "manual" | "stripe";
+type PaymentStatusApi = "paid" | "pending";
 type PlanKey = "plan1" | "plan2" | "plan3";
-type AddonKey = "credit" | "seating" | "system" | "design" | "calls";
-
+type AddonKey = "credit" | "seating" | "system" | "design";
 
 type Props = {
   onClose: () => void;
@@ -17,10 +17,9 @@ const SMS_PER_RECORD = 3;
 /* איזה אפסיילים כלולים בכל חבילה */
 const includedByPlan: Record<PlanKey, AddonKey[]> = {
   plan1: [],
-  plan2: ["calls"],
-  plan3: ["credit", "seating", "calls"],
+  plan2: [],
+  plan3: ["credit", "seating"],
 };
-
 
 export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER BASIC ===== */
@@ -38,22 +37,19 @@ export default function CreateUserModal({ onClose }: Props) {
   const [includeCalls, setIncludeCalls] = useState(false);
 
   /* ===== ADDONS (חדש) ===== */
-  const [addons, setAddons] = useState<Record<
-  AddonKey,
-  { enabled: boolean; price: number }
->>({
-  credit: { enabled: false, price: 0 },
-  seating: { enabled: false, price: 0 },
-  system: { enabled: false, price: 0 },
-  design: { enabled: false, price: 0 },
-  calls: { enabled: false, price: 0 },
-});
-
+  const [addons, setAddons] = useState<
+    Record<AddonKey, { enabled: boolean; price: number }>
+  >({
+    credit: { enabled: false, price: 0 },
+    seating: { enabled: false, price: 0 },
+    system: { enabled: false, price: 0 },
+    design: { enabled: false, price: 0 },
+  });
 
   /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
-  const [paymentStatus, setPaymentStatus] =
-    useState<PaymentStatus>("stripe");
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>("stripe");
 
   /* ===== PRODUCER BILLING ===== */
   const [producerPricePerRecord, setProducerPricePerRecord] =
@@ -97,8 +93,11 @@ export default function CreateUserModal({ onClose }: Props) {
               includeCalls,
             },
             billing: {
-              price,
-              paymentStatus,
+              price: price === "" ? 0 : Number(price),
+              paymentMethod, // "manual" | "stripe"
+              paymentStatus: (paymentMethod === "stripe"
+                ? "pending"
+                : "paid") as PaymentStatusApi, // "paid" | "pending"
             },
             addons, // חדש
           };
@@ -117,7 +116,11 @@ export default function CreateUserModal({ onClose }: Props) {
         throw new Error("CREATE_USER_FAILED");
       }
 
-      if (paymentStatus === "stripe" && data.userId) {
+      if (
+        role === "user" &&
+        paymentMethod === "stripe" &&
+        data.userId
+      ) {
         const checkoutRes = await fetch(
           `/api/admin/users/${data.userId}/checkout`,
           {
@@ -306,8 +309,6 @@ export default function CreateUserModal({ onClose }: Props) {
                               "מערכת ניהול אירוע"}
                             {key === "design" &&
                               "עיצוב בהתאמה אישית"}
-                            {key === "calls" && "שירות שיחות טלפון"}
-
                           </span>
                         </label>
 
@@ -363,10 +364,10 @@ export default function CreateUserModal({ onClose }: Props) {
                 />
 
                 <select
-                  value={paymentStatus}
+                  value={paymentMethod}
                   onChange={(e) =>
-                    setPaymentStatus(
-                      e.target.value as PaymentStatus
+                    setPaymentMethod(
+                      e.target.value as PaymentMethod
                     )
                   }
                   className="w-full border rounded-lg px-4 py-2"
@@ -374,7 +375,7 @@ export default function CreateUserModal({ onClose }: Props) {
                   <option value="stripe">
                     לתשלום דרך Stripe
                   </option>
-                  <option value="paid">
+                  <option value="manual">
                     שולם ידנית
                   </option>
                 </select>
