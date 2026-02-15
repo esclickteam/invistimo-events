@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import User from "@/models/User";
 import { connectDB } from "@/lib/db";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     await connectDB();
@@ -35,22 +38,23 @@ export async function POST(req: Request) {
 
     /* ======================================================
        🔐 חישוב גישה לדשבורד
+       את יכולה לשנות את הלוגיקה לפי צורך (למשל לפי תשלום)
     ====================================================== */
-
     const hasDashboardAccess =
       user.hasDashboardAccess === true; 
-      // אם תרצי לפי תשלום:
+      // לחלופין:
       // user.hasPaid === true
 
     /* ======================================================
        🔐 JWT – מקור אמת
+       שימי לב: אין פה domain בקוקיז בהמשך
     ====================================================== */
     const token = jwt.sign(
       {
         userId: user._id.toString(),
         role: user.role,
         staffType: user.staffType || null,
-        hasDashboardAccess, // ⭐ חשוב!
+        hasDashboardAccess,
       },
       process.env.JWT_SECRET!,
       { expiresIn: "1h" }
@@ -60,40 +64,40 @@ export async function POST(req: Request) {
       {
         success: true,
         user: {
-          _id: user._id,
+          _id: user._id.toString(),
           name: user.name,
           email: user.email,
           role: user.role,
           isTrial: user.isTrial,
-          hasDashboardAccess, // ⭐ גם ללקוח
+          hasDashboardAccess,
         },
       },
-      { headers: { "Cache-Control": "no-store" } }
+      {
+        headers: { "Cache-Control": "no-store" },
+      }
     );
 
-    const cookieDomain =
-      process.env.NODE_ENV === "production"
-        ? ".invistimo.com"
-        : undefined;
-
-    const cleanup = {
+    /* ======================================================
+       🧹 ניקוי קוקי ישן (בלי domain!)
+    ====================================================== */
+    res.cookies.set("authToken", "", {
       path: "/",
       maxAge: 0,
-      domain: cookieDomain,
-    };
+      httpOnly: true,
+    });
 
-    res.cookies.set("authToken", "", { ...cleanup, httpOnly: true });
-
+    /* ======================================================
+       🍪 בסיס קוקיז (בלי domain!)
+    ====================================================== */
     const baseCookie = {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax" as const,
       path: "/",
-      domain: cookieDomain,
-      maxAge: 60 * 60,
+      maxAge: 60 * 60, // שעה
     };
 
     /* ======================================================
-       🔐 Auth Token
+       🔐 Auth Token (HttpOnly)
     ====================================================== */
     res.cookies.set("authToken", token, {
       ...baseCookie,
@@ -101,7 +105,7 @@ export async function POST(req: Request) {
     });
 
     /* ======================================================
-       👤 Role
+       👤 Role (נגיש ללקוח)
     ====================================================== */
     res.cookies.set("role", user.role, {
       ...baseCookie,
@@ -111,7 +115,7 @@ export async function POST(req: Request) {
     /* ======================================================
        🧪 Trial
     ====================================================== */
-    res.cookies.set("isTrial", String(user.isTrial), {
+    res.cookies.set("isTrial", String(user.isTrial ?? false), {
       ...baseCookie,
       httpOnly: false,
     });
