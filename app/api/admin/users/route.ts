@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
@@ -23,7 +24,6 @@ function isAdminContext(auth: any) {
 function buildUsersFilter(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
-  // all | active
   const scope = (searchParams.get("scope") || "all").toLowerCase();
   const q = (searchParams.get("q") || "").trim();
 
@@ -59,7 +59,6 @@ function buildUsersFilter(req: NextRequest) {
 
 /* =========================================================
    GET – ADMIN USERS LIST
-   /api/admin/users?scope=all|active&q=...
 ========================================================= */
 export async function GET(req: NextRequest) {
   try {
@@ -67,43 +66,16 @@ export async function GET(req: NextRequest) {
 
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     if (!isAdminContext(auth)) {
-      return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
     }
 
     const { filter, scope, q } = buildUsersFilter(req);
 
     const users = await User.find(filter)
-      .select(`
-        name
-        email
-        role
-        staffType
-        plan
-        guests
-        maxMessages
-        paidAmount
-        hasPaid
-        includeCalls
-        includeCreditGifts
-        createdByProducer
-        producerId
-        planLimits
-        smsUsed
-        createdAt
-        producerPricePerRecord
-        assignedProducerId
-        assignedStaffIds
-      `)
       .sort({ createdAt: -1 })
       .lean();
 
@@ -117,24 +89,6 @@ export async function GET(req: NextRequest) {
             .lean()
         : [];
 
-    const revenueAgg = await User.aggregate([
-      {
-        $match: {
-          isDemoUser: { $ne: true },
-          hasPaid: true,
-          paidAmount: { $gt: 0 },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: { $ifNull: ["$paidAmount", 0] } },
-        },
-      },
-    ]);
-
-    const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
-
     const eventByUserId = new Map<string, any>();
     for (const event of events) {
       const uid = String(event.userId);
@@ -143,33 +97,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const usersWithEventDate = users.map((u: any) => {
-      const event = eventByUserId.get(String(u._id));
-      return {
-        ...u,
-        eventDate: event?.date || null,
-      };
-    });
+    const usersWithEventDate = users.map((u: any) => ({
+      ...u,
+      eventDate: eventByUserId.get(String(u._id))?.date || null,
+    }));
 
-    return NextResponse.json(
-      {
-        success: true,
-        users: usersWithEventDate,
-        totalRevenue,
-        meta: {
-          scope, // all / active
-          q,
-          count: usersWithEventDate.length,
-        },
+    return NextResponse.json({
+      success: true,
+      users: usersWithEventDate,
+      meta: {
+        scope,
+        q,
+        count: usersWithEventDate.length,
       },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    });
   } catch (err) {
     console.error("❌ ADMIN USERS GET ERROR:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
 
@@ -182,23 +126,15 @@ export async function POST(req: NextRequest) {
 
     const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
     }
 
     if (!isAdminContext(auth)) {
-      return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
     }
 
     const body = await req.json().catch(() => null);
     const { name, email, role, limits, billing, addons, plan } = body || {};
-
-
 
     if (!name || !email || !role) {
       return NextResponse.json(
@@ -207,8 +143,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // מניעת כפילות מייל
-    const existing = await User.findOne({ email: String(email).toLowerCase() })
+    const normalizedEmail = String(email).toLowerCase();
+
+    const existing = await User.findOne({ email: normalizedEmail })
       .select("_id")
       .lean();
 
@@ -219,83 +156,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    /* =========================================================
+       CREATE PASSWORD TOKEN (לכל סוג משתמש)
+    ========================================================= */
+    const passwordToken = crypto.randomBytes(32).toString("hex");
+    const passwordExpires = Date.now() + 1000 * 60 * 60 * 24;
+
     /* ================= PRODUCER ================= */
     if (role === "producer") {
       const pricePerRecord = Number(billing?.pricePerRecord || 0);
 
       const user = await User.create({
         name,
-        email: String(email).toLowerCase(),
+        email: normalizedEmail,
         role: "producer",
 
         producerPricePerRecord: pricePerRecord,
-
         hasPaid: true,
         paidAmount: 0,
 
         needsPasswordSetup: true,
+        resetPasswordToken: passwordToken,
+        resetPasswordExpires: passwordExpires,
+
         createdByAdmin: true,
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(String(user._id));
+      await sendPasswordSetupMail(user.email, passwordToken);
 
-      return NextResponse.json(
-        { success: true, userId: String(user._id) },
-        { status: 201 }
-      );
+      return NextResponse.json({ success: true, userId: String(user._id) }, { status: 201 });
     }
 
     /* ================= STAFF ================= */
     if (role === "staff") {
       const user = await User.create({
         name,
-        email: String(email).toLowerCase(),
+        email: normalizedEmail,
         role: "staff",
 
         hasPaid: false,
         paidAmount: 0,
 
         needsPasswordSetup: true,
+        resetPasswordToken: passwordToken,
+        resetPasswordExpires: passwordExpires,
+
         createdByAdmin: true,
         billingSource: "admin",
       });
 
-      await sendPasswordSetupMail(String(user._id));
+      await sendPasswordSetupMail(user.email, passwordToken);
 
-      return NextResponse.json(
-        { success: true, userId: String(user._id) },
-        { status: 201 }
-      );
+      return NextResponse.json({ success: true, userId: String(user._id) }, { status: 201 });
     }
 
     /* ================= USER ================= */
-    const { records, smsTotal, includeCalls } = limits || {};
-    const { price, paymentStatus } = billing || {};
+    const recordsNum = Number(limits?.records || 0);
+    const smsTotalNum = Number(limits?.smsTotal || 0);
+    const priceNum = Number(billing?.price || 0);
 
-    const recordsNum = Number(records);
-const smsTotalNum = Number(smsTotal);
-const priceNum = Number(price ?? 0);
-
-if (
-  Number.isNaN(recordsNum) ||
-  Number.isNaN(smsTotalNum) ||
-  Number.isNaN(priceNum)
-) {
-  return NextResponse.json(
-    { success: false, error: "INVALID_LIMITS_OR_BILLING" },
-    { status: 400 }
-  );
-}
-
-
-    const finalIncludeCalls = !!includeCalls;
-
-const finalIncludeCreditGifts =
-  plan === "plan3" ||
-  addons?.credit?.enabled === true;
-
-
+    const finalIncludeCalls = !!limits?.includeCalls;
+    const finalIncludeCreditGifts =
+      plan === "plan3" || addons?.credit?.enabled === true;
 
     const planLimits = {
       maxGuests: recordsNum,
@@ -308,56 +231,37 @@ const finalIncludeCreditGifts =
 
     const user = await User.create({
       name,
-      email: String(email).toLowerCase(),
+      email: normalizedEmail,
       role: "user",
 
       plan: plan || "premium",
-
       planLimits,
 
       guests: recordsNum,
       maxMessages: smsTotalNum,
 
       includeCalls: finalIncludeCalls,
-includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
+      includeCreditGifts: finalIncludeCreditGifts,
+      creditGiftsAddonPrice: addons?.credit?.price || 0,
 
-
-      hasPaid: paymentStatus === "paid",
+      hasPaid: billing?.paymentStatus === "paid",
       paidAmount: priceNum,
 
       needsPasswordSetup: true,
+      resetPasswordToken: passwordToken,
+      resetPasswordExpires: passwordExpires,
+
       createdByAdmin: true,
       billingSource: "admin",
     });
 
-    if (paymentStatus === "paid") {
+    if (billing?.paymentStatus === "paid") {
       await Payment.create({
-        email: String(email).toLowerCase(),
-
-        stripeSessionId: null,
-        stripePaymentIntentId: null,
-        stripeCustomerId: null,
-        stripePriceId: null,
-
-        priceKey: `admin_manual_${recordsNum}`,
-        maxGuests: recordsNum,
-
-        includeCalls: finalIncludeCalls,
-        callsAddonPrice: 0,
-
-        includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
-
-
+        email: normalizedEmail,
         amount: priceNum,
-        refundAmount: 0,
         currency: "ils",
-
         type: "package",
         status: "paid",
-        isTest: false,
-
         metadata: {
           source: "admin",
           adminId: auth.impersonatedBy
@@ -368,17 +272,11 @@ creditGiftsAddonPrice: addons?.credit?.price || 0,
       });
     }
 
-    await sendPasswordSetupMail(String(user._id));
+    await sendPasswordSetupMail(user.email, passwordToken);
 
-    return NextResponse.json(
-      { success: true, userId: String(user._id) },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, userId: String(user._id) }, { status: 201 });
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
   }
 }
