@@ -8,7 +8,7 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   currentPaid: number;
-  currentPlan: Plan;          // ⭐ חדש
+  currentPlan: Plan;
   impersonated?: boolean;
 };
 
@@ -20,6 +20,12 @@ function getUpgradePrice(plan: Plan) {
   if (plan === "plan1") return 100;
   if (plan === "plan2") return 80;
   return 0; // plan3 כבר כולל הושבה
+}
+
+function getPlanLabel(plan: Plan) {
+  if (plan === "plan1") return "קל להזמין";
+  if (plan === "plan2") return "מזמינים חכם";
+  return "מזמינים ומושיבים";
 }
 
 /* =======================
@@ -37,21 +43,23 @@ export default function UpgradePlanModal({
 
   if (!isOpen || impersonated) return null;
 
-  const fullPrice = getUpgradePrice(currentPlan);
-  const amountToPay = Math.max(fullPrice, 0);
+  const upgradePrice = getUpgradePrice(currentPlan);
 
-  if (fullPrice === 0) return null; // plan3 לא צריך שדרוג
+  // אם זו חבילה 3 – אין צורך בשדרוג
+  if (upgradePrice === 0) return null;
 
   async function handleUpgrade() {
-    if (amountToPay <= 0) return;
-
     try {
       setLoading(true);
 
       const res = await fetch("/api/stripe/upgrade-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}), // לא צריך רשומות יותר
+        body: JSON.stringify({
+          currentPlan,
+          upgradeType: "seating-upgrade",
+          amount: upgradePrice,
+        }),
       });
 
       const data = await res.json();
@@ -78,13 +86,14 @@ export default function UpgradePlanModal({
         </h2>
 
         <p className="text-sm text-gray-600 mb-4">
-          החבילה הנוכחית שלך: <strong>{currentPlan}</strong>
+          החבילה הנוכחית שלך:{" "}
+          <strong>{getPlanLabel(currentPlan)}</strong>
         </p>
 
         <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
           <div className="flex justify-between font-semibold text-green-700">
             <span>לתשלום עכשיו:</span>
-            <span>{amountToPay} ₪</span>
+            <span>{upgradePrice} ₪</span>
           </div>
         </div>
 

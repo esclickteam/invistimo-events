@@ -347,10 +347,12 @@ setEventId(eventIdFromApi);
       </div>
 
       <UpgradePlanModal
-        isOpen={showUpgrade}
-        onClose={() => setShowUpgrade(false)}
-        currentPaid={user?.paidAmount ?? 0}
-      />
+  isOpen={showUpgrade}
+  onClose={() => setShowUpgrade(false)}
+  currentPaid={user?.paidAmount ?? 0}
+  currentPlan={(user?.plan as "plan1" | "plan2" | "plan3") ?? "plan1"}
+/>
+
     </>
   );
 }
