@@ -167,12 +167,13 @@ export async function POST(req: Request) {
       session.metadata?.source === "admin"
     ) {
       const paymentIntentId = String(session.payment_intent);
+      const amount = toNum(session.amount_total, 0) / 100;
+
+      /* ================= CREATE PAYMENT (ONCE) ================= */
 
       const existingPayment = await Payment.findOne({
         stripePaymentIntentId: paymentIntentId,
       }).lean();
-
-      const amount = toNum(session.amount_total, 0) / 100;
 
       if (!existingPayment) {
         await Payment.create({
@@ -195,12 +196,18 @@ export async function POST(req: Request) {
       }
 
       /* ============================================================
-         PREVENT DOUBLE ACTIVATION
+         PREVENT DOUBLE PROCESS (BUT NOT PASSWORD MAIL)
       ============================================================ */
 
-      if (user.hasPaid && user.paidAmount > 0) {
+      if (
+        user.hasPaid &&
+        user.paidAmount > 0 &&
+        user.resetPasswordToken
+      ) {
         return NextResponse.json({ received: true });
       }
+
+      /* ================= PLAN ================= */
 
       const plan = String(session.metadata?.plan || "plan1");
       const guests = toNum(session.metadata?.guests, 0);
@@ -219,11 +226,10 @@ export async function POST(req: Request) {
           base.planLimits.seatingEnabled || addonSeating,
       };
 
-      /* ============================================================
-         CREATE PASSWORD SETUP TOKEN
-      ============================================================ */
+      /* ================= PASSWORD TOKEN ================= */
 
       const passwordToken = crypto.randomBytes(32).toString("hex");
+      const passwordExpires = Date.now() + 1000 * 60 * 60 * 24;
 
       const updatedUser = await User.findByIdAndUpdate(
         user._id,
@@ -241,42 +247,42 @@ export async function POST(req: Request) {
           includeCreditGifts: base.includeCreditGifts || addonCredit,
           selfManageEnabled: addonSelfManage,
           customDesignEnabled: addonCustomDesign,
+
           needsPasswordSetup: true,
-          passwordSetupToken: passwordToken,
-          passwordSetupExpires:
-            Date.now() + 1000 * 60 * 60 * 24, // 24h
+          resetPasswordToken: passwordToken,
+          resetPasswordExpires: passwordExpires,
+
           updatedAt: new Date(),
         },
         { new: true }
       );
 
       /* ============================================================
-         EMAILS
+         SEND PASSWORD SETUP EMAIL (ONCE)
       ============================================================ */
 
-      try {
+      if (!user.password && !user.passwordHash) {
         await sendPasswordSetupMail(
           updatedUser.email,
           passwordToken
         );
-      } catch (err) {
-        console.error("❌ Failed to send password setup email", err);
+        console.log(
+          `✅ Password setup email sent to ${updatedUser.email}`
+        );
       }
 
-      try {
-        await notifyAdminPurchase({
-          email: user.email,
-          amount,
-          currency: "ils",
-          type:
-            session.metadata?.source === "admin"
-              ? "Admin payment"
-              : "New registration",
-          details: `plan=${plan} | guests=${guests}`,
-        });
-      } catch (err) {
-        console.error("❌ Failed to notify admin", err);
-      }
+      /* ================= ADMIN NOTIFY ================= */
+
+      await notifyAdminPurchase({
+        email: user.email,
+        amount,
+        currency: "ils",
+        type:
+          session.metadata?.source === "admin"
+            ? "Admin payment"
+            : "New registration",
+        details: `plan=${plan} | guests=${guests}`,
+      });
 
       return NextResponse.json({ received: true });
     }
