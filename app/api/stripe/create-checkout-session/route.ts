@@ -66,9 +66,9 @@ function getRate(plan: PlanKey, guests: number) {
 }
 
 function calculateBase(plan: PlanKey, guests: number) {
-  if (guests === 10) return 5; // 🔥 מחיר בדיקה מיוחד
   return Math.round(guests * getRate(plan, guests));
 }
+
 
 function toBool(v: unknown) {
   return String(v ?? "").toLowerCase() === "true";
