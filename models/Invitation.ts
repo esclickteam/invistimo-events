@@ -124,6 +124,18 @@ const InvitationSchema = new Schema(
       type: Number,
       default: 0,
     },
+
+    /* ================= RSVP STATE ================= */
+    /**
+     * ⛔ חסימת שליחת אישור הגעה מחדש
+     * null  → עוד לא נשלח
+     * Date → סבב ראשון נשלח
+     */
+    rsvpRoundSentAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -137,4 +149,5 @@ InvitationSchema.index({ eventId: 1 }, { unique: true });
 
 /* ================= MODEL ================= */
 
-export default models.Invitation || model("Invitation", InvitationSchema);
+export default models.Invitation ||
+  model("Invitation", InvitationSchema);

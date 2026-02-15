@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
 import db from "@/lib/db";
 import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
@@ -21,24 +20,20 @@ type TemplateName =
   | "thank_you_message";
 
 type SendTemplateRequestBody = {
-  // RSVP (bulk)
   invitationId?: string;
   audience?: string[];
 
-  // single-recipient templates
   to?: string;
 
   templateName?: TemplateName;
   languageCode?: string;
 
-  // RSVP fields
   eventTitle?: string;
   eventDate?: string;
   eventLocation?: string;
   rsvpLink?: string;
   headerImageUrl?: string;
 
-  // table / thank you
   name?: string;
   tableName?: string;
   eventType?: string;
@@ -70,16 +65,7 @@ function isTemplateName(value: unknown): value is TemplateName {
 
 export async function POST(req: NextRequest) {
   try {
-    let body: Partial<SendTemplateRequestBody>;
-
-    try {
-      body = (await req.json()) as Partial<SendTemplateRequestBody>;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: "Invalid JSON body" },
-        { status: 400 }
-      );
-    }
+    const body = (await req.json()) as Partial<SendTemplateRequestBody>;
 
     if (!isTemplateName(body.templateName)) {
       return NextResponse.json(
@@ -94,7 +80,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* =====================================================
-       RSVP – BULK WHATSAPP (NO `to` FROM CLIENT)
+       RSVP – BULK WHATSAPP
     ===================================================== */
 
     if (templateName === "rsvp_invitation_media") {
@@ -104,10 +90,7 @@ export async function POST(req: NextRequest) {
         body.audience.length === 0
       ) {
         return NextResponse.json(
-          {
-            success: false,
-            error: "Missing invitationId or audience",
-          },
+          { success: false, error: "Missing invitationId or audience" },
           { status: 400 }
         );
       }
@@ -123,13 +106,24 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // ⛔ חסימה – כבר נשלח סבב RSVP ראשון
+      if (invitation.rsvpRoundSentAt) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "RSVP_ALREADY_SENT",
+            sentAt: invitation.rsvpRoundSentAt,
+          },
+          { status: 409 }
+        );
+      }
+
       const event = invitation.eventId as any;
 
       const guests = await InvitationGuest.find({
-  invitationId: invitation._id,
-  _id: { $in: body.audience },
-}).lean();
-
+        invitationId: invitation._id,
+        _id: { $in: body.audience },
+      }).lean();
 
       let sent = 0;
 
@@ -140,10 +134,7 @@ export async function POST(req: NextRequest) {
           ? guest.phone
           : `972${guest.phone.replace(/^0/, "")}`;
 
-const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-
-
-
+        const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
         await sendRsvpTemplateMedia({
           to: phone,
@@ -153,13 +144,19 @@ const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=$
             event.location?.address || event.location?.name || "",
           rsvpLink,
           headerImageUrl:
-            invitation.previewImage || invitation.headerImageUrl,
+            invitation.headerImageUrl || invitation.previewImage,
           templateName,
           languageCode,
         });
 
         sent++;
       }
+
+      // ✅ סימון חד־פעמי – הסבב נשלח
+      await Invitation.updateOne(
+        { _id: invitation._id },
+        { $set: { rsvpRoundSentAt: new Date() } }
+      );
 
       return NextResponse.json(
         { success: true, sent },
@@ -168,7 +165,7 @@ const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=$
     }
 
     /* =====================================================
-       TABLE NUMBER (WITH / WITHOUT GIFT)
+       TABLE NUMBER
     ===================================================== */
 
     if (
@@ -188,37 +185,18 @@ const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=$
         );
       }
 
-      let giftUrl = safeTrim(body.giftCreditUrl);
-
-      if (
-        templateName === "table_number_update_with_gift" &&
-        !giftUrl &&
-        isNonEmptyString(body.invitationId)
-      ) {
-        const invitation = await Invitation.findById(body.invitationId)
-          .select("giftCreditUrl")
-          .lean();
-
-        if (invitation?.giftCreditUrl) {
-          giftUrl = invitation.giftCreditUrl.trim();
-        }
-      }
-
       const providerResponse = await sendTableNumberTemplate({
         to: body.to,
         name: body.name,
         tableName: body.tableName,
         eventType: body.eventType,
         urlSuffix: body.urlSuffix,
-        giftCreditUrl: giftUrl || undefined,
+        giftCreditUrl: body.giftCreditUrl,
         templateName,
         languageCode,
       });
 
-      return NextResponse.json(
-        { success: true, providerResponse },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: true, providerResponse });
     }
 
     /* =====================================================
@@ -240,24 +218,17 @@ const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=$
         languageCode,
       });
 
-      return NextResponse.json(
-        { success: true, providerResponse },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: true, providerResponse });
     }
 
     return NextResponse.json(
       { success: false, error: "UNHANDLED_TEMPLATE" },
       { status: 400 }
     );
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Unknown server error";
-
-    console.error("❌ WHATSAPP SEND ERROR:", message);
-
+  } catch (error: any) {
+    console.error("❌ WHATSAPP SEND ERROR:", error.message);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }

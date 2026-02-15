@@ -8,7 +8,7 @@ type Props = {
   channel: "sms" | "whatsapp";
   type: "rsvp" | "reminder" | "thankyou";
 
-  invitationId?: string;          // ⭐ חובה ל־WhatsApp RSVP
+  invitationId?: string;        // ⭐ חובה ל־WhatsApp RSVP
   audience: string[];
   scheduledAt: Date | null;
 
@@ -42,7 +42,7 @@ const SendButton: React.FC<Props> = ({
       return;
     }
 
-    // ===== WhatsApp RSVP validations =====
+    /* ===== WhatsApp RSVP validations ===== */
     if (channel === "whatsapp" && type === "rsvp") {
       if (!templateName) {
         alert("❌ חסרה תבנית WhatsApp לאישור הגעה");
@@ -69,9 +69,9 @@ const SendButton: React.FC<Props> = ({
       if (channel === "whatsapp" && type === "rsvp") {
         endpoint = "/api/whatsapp/send-template";
         payload = {
-          invitationId,               // ⭐ קריטי
-          templateName,               // rsvp_invitation_media
-          audience,                   // guestIds
+          invitationId,     // ⭐ קריטי
+          templateName,     // rsvp_invitation_media
+          audience,         // guestIds
           scheduledAt,
         };
       }
@@ -85,10 +85,21 @@ const SendButton: React.FC<Props> = ({
 
       const data = await res.json();
 
+      /* ================= SERVER ERRORS ================= */
+
+      // ⛔ RSVP כבר נשלח – חסימה חכמה
+      if (data?.error === "RSVP_ALREADY_SENT") {
+        alert("ℹ️ אישור הגעה כבר נשלח בעבר ולא ניתן לשלוח שוב");
+        onAfterSend?.(); // מאפשר ל־UI להינעל
+        return;
+      }
+
       if (!res.ok || !data?.success) {
         alert(data?.error || "❌ שליחת ההודעות נכשלה");
         return;
       }
+
+      /* ================= SUCCESS ================= */
 
       alert(
         scheduledAt
