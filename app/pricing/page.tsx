@@ -277,10 +277,10 @@ const handleRegister = (plan: PlanKey) => {
           <label className="block mb-2 font-medium">כמות רשומות</label>
 
           <select
-            value={records}
-            onChange={(e) => setRecords(Number(e.target.value))}
-            className="w-full p-3 rounded-xl border bg-white shadow-sm"
-          >
+  value={records}
+  onChange={(e) => setRecords(Number(e.target.value))}
+  className="w-full p-3 rounded-xl border bg-white shadow-sm text-center text-center-last"
+>
             {options.map((num) => (
               <option key={num} value={num}>
                 עד {num} רשומות
