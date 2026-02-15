@@ -40,8 +40,13 @@ interface User {
   guests?: number;
   plan?: string;
   planLimits?: {
-    maxMessages?: number;
-  };
+  maxGuests?: number;
+  smsEnabled?: boolean;
+  smsLimit?: number;
+  seatingEnabled?: boolean;
+  remindersEnabled?: boolean;
+  maxMessages?: number;
+};
 
   // ⭐ producer only
   producerPricePerRecord?: number;

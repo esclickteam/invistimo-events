@@ -14,19 +14,24 @@ export default function PaymentSuccessPage() {
         /* ======================================================
            1) קבלת משתמש מעודכן מהשרת (DB)
         ====================================================== */
-        const meRes = await fetch("/api/me", {
+        const meRes = await fetch("/api/auth/me", {
           credentials: "include",
+          cache: "no-store",
         });
 
         if (!meRes.ok) {
-          console.error("❌ Failed to fetch /api/me");
+          console.error("❌ Failed to fetch /api/auth/me");
           return;
         }
 
         const me = await meRes.json();
+        const user = me?.user;
 
-        if (!me?._id || me.hasPaid !== true) {
-          console.error("❌ Payment success but user not marked as paid", me);
+        if (!user?._id || user.hasPaid !== true) {
+          console.error(
+            "❌ Payment success but user not marked as paid",
+            me
+          );
           return;
         }
 
@@ -38,7 +43,7 @@ export default function PaymentSuccessPage() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            userId: me._id,
+            userId: user._id,
           }),
         });
 

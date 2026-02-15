@@ -81,6 +81,15 @@ const isProducer = pathname.includes("/events/production");
   const groups = useSeatingStore((s) => s.groups);
   const { user } = useAuth();
 
+  useEffect(() => {
+  if (!user) return;
+
+  if (user.planLimits?.seatingEnabled !== true) {
+    setBlockReason("no-plan");
+  }
+}, [user]);
+
+
 const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
 
