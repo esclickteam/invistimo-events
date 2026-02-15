@@ -7,28 +7,19 @@ import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
 
 /* ======================================================
-   BUSINESS SMS COUNT (SOURCE OF TRUTH)
-   Rule:
-   - <= 200 chars => 1
-   - 201–320 chars => 2
-   - > 320 chars => BLOCK (אין הודעה 3)
-   חשוב: [...text].length כדי לא להישבר עם אימוג'ים/עברית
+   BUSINESS SMS COUNT
 ====================================================== */
-
-
 function countBusinessSms(text: string) {
-  const length = [...text].length; // Unicode-safe (עברית + אימוג'ים)
+  const length = [...text].length;
 
   if (length <= 200) return 1;
   if (length <= 320) return 2;
 
-  return -1; // BLOCK – אין הודעה 3
+  return -1; // BLOCK
 }
 
-
-
 /* ======================================================
-   WORKER – SEND SCHEDULED SMS (BASED ONLY ON smsUsed)
+   WORKER
 ====================================================== */
 export async function sendScheduledSms() {
   await dbConnect();
@@ -39,9 +30,6 @@ export async function sendScheduledSms() {
   let sentTotal = 0;
   let failed = 0;
 
-  /* ======================================================
-     FETCH CANDIDATES
-  ====================================================== */
   const candidates = await ScheduledMessage.find({
     status: "scheduled",
     scheduledAt: { $lte: now },
@@ -53,9 +41,6 @@ export async function sendScheduledSms() {
   for (const candidate of candidates) {
     processed++;
 
-    /* ======================================================
-       ATOMIC LOCK – prevent double processing
-    ====================================================== */
     const msg = await ScheduledMessage.findOneAndUpdate(
       { _id: candidate._id, status: "scheduled" },
       { $set: { status: "sending" } },
@@ -65,9 +50,6 @@ export async function sendScheduledSms() {
     if (!msg) continue;
 
     try {
-      /* ======================================================
-         LOAD INVITATION / EVENT / USER
-      ====================================================== */
       const invitation = await Invitation.findById(msg.invitationId).lean();
       const event = invitation?.eventId
         ? await Event.findById(invitation.eventId).lean()
@@ -79,7 +61,7 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         LOAD GUESTS – SOURCE OF TRUTH
+         LOAD GUESTS
       ====================================================== */
       let guests: any[] = [];
 
@@ -93,13 +75,6 @@ export async function sendScheduledSms() {
 
         if ((msg as any).filter === "pending") query.rsvp = "pending";
 
-        if ((msg as any).filter === "withTable") {
-          query.$or = [
-            { tableName: { $exists: true, $ne: "" } },
-            { tableNumber: { $exists: true, $ne: null } },
-          ];
-        }
-
         guests = await InvitationGuest.find(query).lean();
       }
 
@@ -112,54 +87,105 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         LOCATION / NAVIGATION
+         LOCATION
       ====================================================== */
       const location = (invitation as any).eventLocation ?? (event as any)?.location;
-      const hasLocation = !!(location?.lat && location?.lng);
       let navigationLink = "";
 
-      if (hasLocation) {
+      if (location?.lat && location?.lng) {
         const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
         navigationLink = await shortenUrl(wazeUrl);
       }
 
       /* ======================================================
-         CALCULATE REMAINING (BASED ONLY ON maxMessages - smsUsed)
+         🔥 NEW LOGIC (NEW USERS)
+         אם קיים reminderSentAt בשדה → עובדים לפי שדות שליחה
       ====================================================== */
-      const maxMessages =
-        typeof (user as any).maxMessages === "number" ? (user as any).maxMessages : 0;
-      const smsUsed = typeof (user as any).smsUsed === "number" ? (user as any).smsUsed : 0;
 
-      const usesMaxMessages = maxMessages > 0;
-      const remainingMessages = usesMaxMessages ? Math.max(maxMessages - smsUsed, 0) : 0;
+      const isReminder = msg.type === "reminder";
+      const isThankYou = msg.type === "thankyou";
 
-      if (!usesMaxMessages) {
-        await ScheduledMessage.updateOne(
-          { _id: msg._id },
-          {
-            $set: {
-              status: "failed",
-              error: "SMS_LIMIT_NOT_CONFIGURED",
-              sentAt: new Date(),
-            },
-          }
-        );
-        failed++;
-        continue;
+      const usesNewLogic =
+        "reminderSentAt" in invitation || "thankYouSentAt" in invitation;
+
+      if (usesNewLogic) {
+        if (isReminder && invitation.reminderSentAt) {
+          await ScheduledMessage.updateOne(
+            { _id: msg._id },
+            {
+              $set: {
+                status: "failed",
+                error: "REMINDER_ALREADY_SENT",
+                sentAt: new Date(),
+              },
+            }
+          );
+          failed++;
+          continue;
+        }
+
+        if (isThankYou && invitation.thankYouSentAt) {
+          await ScheduledMessage.updateOne(
+            { _id: msg._id },
+            {
+              $set: {
+                status: "failed",
+                error: "THANKYOU_ALREADY_SENT",
+                sentAt: new Date(),
+              },
+            }
+          );
+          failed++;
+          continue;
+        }
       }
 
       /* ======================================================
-         WORST-CASE PREVIEW TEXT (TO CALC PARTS + BLOCK > 320)
+         OLD LOGIC (OLD USERS ONLY)
+      ====================================================== */
+
+      let remainingMessages = 0;
+
+      if (!usesNewLogic) {
+        const maxMessages =
+          typeof (user as any).maxMessages === "number"
+            ? (user as any).maxMessages
+            : 0;
+
+        const smsUsed =
+          typeof (user as any).smsUsed === "number"
+            ? (user as any).smsUsed
+            : 0;
+
+        if (maxMessages <= 0) {
+          await ScheduledMessage.updateOne(
+            { _id: msg._id },
+            {
+              $set: {
+                status: "failed",
+                error: "SMS_LIMIT_NOT_CONFIGURED",
+                sentAt: new Date(),
+              },
+            }
+          );
+          failed++;
+          continue;
+        }
+
+        remainingMessages = Math.max(maxMessages - smsUsed, 0);
+      }
+
+      /* ======================================================
+         PREVIEW LENGTH CHECK
       ====================================================== */
       const previewText = String((msg as any).messageContent || "")
-        .replace(/{{name}}/g, "שם מלא לדוגמה ארוך מאוד")
-        .replace(/{{rsvpLink}}/g, "https://example.com/very-long-link")
+        .replace(/{{name}}/g, "שם ארוך לבדיקה")
+        .replace(/{{rsvpLink}}/g, "https://example.com")
         .replace(/{{tableName}}/g, "שולחן 123")
         .replace(/{{navigationLink}}/g, navigationLink || "https://waze.com");
 
       const partsPerMessage = countBusinessSms(previewText);
 
-      // 🔒 אין הודעה 3 — חוסמים
       if (partsPerMessage === -1) {
         await ScheduledMessage.updateOne(
           { _id: msg._id },
@@ -175,26 +201,29 @@ export async function sendScheduledSms() {
         continue;
       }
 
-      const totalMessagesToCharge = guests.length * partsPerMessage;
+      if (!usesNewLogic) {
+        const totalMessagesToCharge = guests.length * partsPerMessage;
 
-      if (totalMessagesToCharge > remainingMessages) {
-        await ScheduledMessage.updateOne(
-          { _id: msg._id },
-          {
-            $set: {
-              status: "failed",
-              error: "SMS_LIMIT_REACHED",
-              sentAt: new Date(),
-            },
-          }
-        );
-        failed++;
-        continue;
+        if (totalMessagesToCharge > remainingMessages) {
+          await ScheduledMessage.updateOne(
+            { _id: msg._id },
+            {
+              $set: {
+                status: "failed",
+                error: "SMS_LIMIT_REACHED",
+                sentAt: new Date(),
+              },
+            }
+          );
+          failed++;
+          continue;
+        }
       }
 
       /* ======================================================
          SEND SMS
       ====================================================== */
+
       let sent = 0;
       let charged = 0;
 
@@ -205,63 +234,38 @@ export async function sendScheduledSms() {
         if (phone.startsWith("0")) phone = "972" + phone.slice(1);
         else if (!phone.startsWith("972")) phone = "972" + phone;
 
-        const tableName =
-          guest.tableName ||
-          (typeof guest.tableNumber === "number" ? `שולחן ${guest.tableNumber}` : "");
-
         const personalRsvpUrl = `https://www.invistimo.com/invite/${(invitation as any).shareId}?token=${guest.token}`;
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
         let finalText = String((msg as any).messageContent || "")
           .replace(/{{name}}/g, guest.name || "")
           .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-          .replace(/{{tableName}}/g, tableName)
           .replace(/{{navigationLink}}/g, navigationLink);
 
         finalText = finalText.trim();
         if (!finalText) continue;
 
         const parts = countBusinessSms(finalText);
+        if (parts === -1) continue;
 
-        // 🔒 אין הודעה 3 — אם יצא ארוך מדי, מפילים את כל ההודעה המתוזמנת
-        if (parts === -1) {
-          await ScheduledMessage.updateOne(
-            { _id: msg._id },
-            {
-              $set: {
-                status: "failed",
-                error: "MESSAGE_TOO_LONG",
-                sentAt: new Date(),
-              },
-            }
-          );
-          failed++;
-          throw new Error("MESSAGE_TOO_LONG");
-        }
+        if (!usesNewLogic && charged + parts > remainingMessages) break;
 
-        // 🔒 לא לעבור את היתרה לפי smsUsed
-        if (charged + parts > remainingMessages) break;
+        const res = await fetch("https://api.sms4free.co.il/ApiSMS/v2/SendSMS", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key: process.env.SMS4FREE_KEY,
+            user: process.env.SMS4FREE_USER,
+            pass: process.env.SMS4FREE_PASS,
+            sender: process.env.SMS4FREE_SENDER,
+            recipient: phone,
+            msg: finalText,
+          }),
+        });
 
-        try {
-          const res = await fetch("https://api.sms4free.co.il/ApiSMS/v2/SendSMS", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              key: process.env.SMS4FREE_KEY,
-              user: process.env.SMS4FREE_USER,
-              pass: process.env.SMS4FREE_PASS,
-              sender: process.env.SMS4FREE_SENDER,
-              recipient: phone,
-              msg: finalText,
-            }),
-          });
-
-          if (res.ok) {
-            sent++;
-            charged += parts;
-          }
-        } catch (err) {
-          console.error("❌ SMS SEND ERROR:", err);
+        if (res.ok) {
+          sent++;
+          charged += parts;
         }
       }
 
@@ -282,10 +286,32 @@ export async function sendScheduledSms() {
       sentTotal += sent;
 
       /* ======================================================
-         UPDATE smsUsed (THE ONLY SOURCE OF TRUTH)
+         UPDATE INVITATION FLAGS (NEW USERS ONLY)
       ====================================================== */
-      if (charged > 0) {
-        await User.updateOne({ _id: msg.userId }, { $inc: { smsUsed: charged } });
+      if (usesNewLogic && sent > 0) {
+        if (isReminder) {
+          await Invitation.updateOne(
+            { _id: invitation._id },
+            { $set: { reminderSentAt: new Date() } }
+          );
+        }
+
+        if (isThankYou) {
+          await Invitation.updateOne(
+            { _id: invitation._id },
+            { $set: { thankYouSentAt: new Date() } }
+          );
+        }
+      }
+
+      /* ======================================================
+         UPDATE smsUsed (OLD USERS ONLY)
+      ====================================================== */
+      if (!usesNewLogic && charged > 0) {
+        await User.updateOne(
+          { _id: msg.userId },
+          { $inc: { smsUsed: charged } }
+        );
       }
     } catch (err: any) {
       console.error("💥 Scheduled SMS Worker Error:", err);

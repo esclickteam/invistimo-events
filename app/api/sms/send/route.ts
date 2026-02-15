@@ -96,6 +96,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const usesNewLogic = user.isActive === false;
+
+
     /* ================= BALANCE ================= */
 const maxMessages =
   typeof user.maxMessages === "number" ? user.maxMessages : 0;
@@ -109,13 +112,6 @@ const remainingMessages = Math.max(
   0
 );
 
-
-if (remainingMessages <= 0) {
-  return NextResponse.json(
-    { success: false, error: "SMS_LIMIT_REACHED" },
-    { status: 403 }
-  );
-}
 
 
 
@@ -169,12 +165,25 @@ if (remainingMessages <= 0) {
 
     /* ================= INVITATION ================= */
     const invitation = await Invitation.findById(invitationId).lean();
-    if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: "INV_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
+
+if (!invitation) {
+  return NextResponse.json(
+    { success: false, error: "INVITATION_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+
+
+
+    if (!usesNewLogic && remainingMessages <= 0) {
+  return NextResponse.json(
+    { success: false, error: "SMS_LIMIT_REACHED" },
+    { status: 403 }
+  );
+}
+
+
 
     const event = invitation.eventId
       ? await Event.findById(invitation.eventId).lean()
@@ -248,7 +257,8 @@ if (partsPerMessage === -1) {
 
   const totalMessagesToCharge = guestsCount * partsPerMessage;
 
-  if (totalMessagesToCharge > remainingMessages) {
+  if (!usesNewLogic && totalMessagesToCharge > remainingMessages) {
+
     return NextResponse.json(
       {
         success: false,
@@ -386,7 +396,7 @@ if (parts === -1) {
 
 
 // 🔒 בדיקת יתרה אמיתית
-if (totalPartsSent + parts > remainingMessages) {
+if (!usesNewLogic && totalPartsSent + parts > remainingMessages) {
   continue;
 }
 
@@ -423,12 +433,13 @@ if (totalPartsSent + parts > remainingMessages) {
   
 
 
-    if (totalPartsSent > 0) {
+   if (!usesNewLogic && totalPartsSent > 0) {
   await User.updateOne(
     { _id: user._id },
     { $inc: { smsUsed: totalPartsSent } }
   );
 }
+
 
 
 // ✅ סימון שנשלחה הודעה
