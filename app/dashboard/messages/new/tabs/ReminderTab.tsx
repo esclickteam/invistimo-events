@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AudienceFilterSelector, {
   FilterType,
 } from "../shared/AudienceFilterSelector";
@@ -19,7 +19,7 @@ type Guest = {
 };
 
 type Props = {
-  guests: Guest[];
+  invitationId: string;
 
   // 🟢 מיושרים ל־page.tsx
   eventTitle: string;
@@ -40,13 +40,42 @@ const MESSAGE_NO_TABLE =
 /* ================= COMPONENT ================= */
 
 export default function ReminderTab({
-  guests,
+  invitationId,
   eventTitle,
   eventDate,
   eventLocation,
 }: Props) {
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [loading, setLoading] = useState(true);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
+
+  /* ================= LOAD GUESTS ================= */
+
+  useEffect(() => {
+    if (!invitationId) return;
+
+    async function loadGuests() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/guests?invitation=${invitationId}`);
+        const data = await res.json();
+
+        if (Array.isArray(data.guests)) {
+          setGuests(data.guests);
+        } else {
+          setGuests([]);
+        }
+      } catch (err) {
+        console.error("❌ Failed to load reminder guests", err);
+        setGuests([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadGuests();
+  }, [invitationId]);
 
   /* ================= HELPERS ================= */
 
@@ -86,27 +115,35 @@ export default function ReminderTab({
     if (!g) return "";
 
     const table =
-      g.tableName ?? (typeof g.tableNumber === "number" ? `שולחן ${g.tableNumber}` : "");
+      g.tableName ??
+      (typeof g.tableNumber === "number"
+        ? `שולחן ${g.tableNumber}`
+        : "");
 
     return baseMessage
       .replace(/{{name}}/g, g.name || "")
       .replace(/{{tableName}}/g, table);
   }, [guestsToSend, baseMessage]);
 
-  const blocked = guestsToSend.length === 0 || previewText.length > MAX_CHARS;
+  const blocked =
+    loading || guestsToSend.length === 0 || previewText.length > MAX_CHARS;
 
   /* ================= RENDER ================= */
+
+  if (loading) {
+    return <p className="text-sm text-gray-500">טוען אורחים…</p>;
+  }
 
   return (
     <div className="space-y-6">
       {/* קהל יעד */}
       <AudienceFilterSelector
-  value={guestsWithTable.length > 0 ? "withTable" : "all"} // מציג לפי מצב האורחים
-  onChange={() => {}}                                       // לא ניתן לשנות
-  totalCount={confirmedGuests.length}                       // כמה אישרו
-  withTableCount={guestsWithTable.length}                  // כמה עם שולחן
-  readOnly={true}                                           // קריאה בלבד
-/>
+        value={guestsWithTable.length > 0 ? "withTable" : "all"}
+        onChange={() => {}}
+        totalCount={confirmedGuests.length}
+        withTableCount={guestsWithTable.length}
+        readOnly
+      />
 
       {/* הסבר */}
       <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
@@ -124,6 +161,7 @@ export default function ReminderTab({
       <SendButton
         channel="sms"
         type="reminder"
+        invitationId={invitationId}
         audience={guestsToSend.map((g) => g._id)}
         scheduledAt={scheduledAt}
         disabled={blocked}
