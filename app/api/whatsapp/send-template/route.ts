@@ -129,7 +129,10 @@ if (templateName === "rsvp_invitation_media") {
   let sent = 0;
 
 for (const guest of guests) {
-  if (!guest.phone || !guest.token) continue;
+  if (!guest.phone || !guest.token) {
+    console.log("⛔ Skipped guest (missing phone/token):", guest._id);
+    continue;
+  }
 
   try {
     const phone = guest.phone.startsWith("972")
@@ -138,7 +141,10 @@ for (const guest of guests) {
 
     const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-    await sendRsvpTemplateMedia({
+    console.log("📤 Sending RSVP to:", phone);
+    console.log("🔗 RSVP Link:", rsvpLink);
+
+    const result = await sendRsvpTemplateMedia({
       to: phone,
       eventTitle: event.title,
       eventDate: event.date,
@@ -151,11 +157,15 @@ for (const guest of guests) {
       languageCode,
     });
 
+    console.log("📲 WHATSAPP RESULT:", JSON.stringify(result, null, 2));
+
     sent++;
-  } catch (err) {
-    console.error("❌ Failed sending RSVP to:", guest.phone, err);
+  } catch (err: any) {
+    console.error("❌ Failed sending RSVP to:", guest.phone);
+    console.error("❌ ERROR DETAILS:", err?.message || err);
   }
 }
+
 
 
 
