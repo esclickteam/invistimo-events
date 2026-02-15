@@ -181,27 +181,6 @@ export default function EventDetailsForm({
           ניתן לבחור מיקום מהרשימה או להקליד ידנית
         </p>
 
-        {/* 🎁 מתנות באשראי */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-gray-600 px-2">
-            קישור למתנות באשראי (אופציונלי)
-          </label>
-          <input
-            type="url"
-            value={form.giftCreditUrl}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                giftCreditUrl: e.target.value,
-              }))
-            }
-            placeholder="https://gift.rsvpevents.co.il/events/..."
-            className="border rounded-full px-4 py-3 bg-white"
-          />
-          <p className="text-xs text-gray-400 px-2">
-            אם הוזן — יוצג ככפתור ב־WhatsApp ויצורף אוטומטית להודעות
-          </p>
-        </div>
 
       </div>
 
