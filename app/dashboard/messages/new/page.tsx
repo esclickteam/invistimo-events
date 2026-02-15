@@ -25,7 +25,12 @@ type EventMeta = {
   eventType?: string;
   giftCreditUrl?: string;
   headerImageUrl?: string;
+
+  // 🔥 הוסיפי את זה
+  lat?: number;
+  lng?: number;
 };
+
 
 /* ================= HELPERS ================= */
 
@@ -70,19 +75,24 @@ export default function NewMessagesPage() {
 
         // 🧠 בניית EventMeta אחיד
         const meta: EventMeta = {
-          eventTitle: event.title || "",
-          eventDate: formatEventDate(event.date),
-          eventLocation:
-            event.location?.address ||
-            event.location?.name ||
-            "",
-          eventType: event.eventType || "",
-          giftCreditUrl: event.giftCreditUrl || "",
-          headerImageUrl:
-            invitation.previewImage ||
-            invitation.headerImageUrl ||
-            "",
-        };
+  eventTitle: event.title || "",
+  eventDate: formatEventDate(event.date),
+  eventLocation:
+    event.location?.address ||
+    event.location?.name ||
+    "",
+  eventType: event.eventType || "",
+  giftCreditUrl: event.giftCreditUrl || "",
+  headerImageUrl:
+    invitation.previewImage ||
+    invitation.headerImageUrl ||
+    "",
+
+  // 🔥 זה מה שחסר לך
+  lat: event.location?.lat,
+  lng: event.location?.lng,
+};
+
 
         setEventMeta(meta);
 
