@@ -214,22 +214,25 @@ export default function ReminderTab({
         const data = await res.json();
 
         if (
-          typeof data.totalChars === "number" &&
-          typeof data.parts === "number"
-        ) {
-          setPreview((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  totalChars: data.totalChars,
-                  parts: data.parts,
-                  blocked: !data.allowed,
-                  overflow: data.overflow ?? 0,
-                  limit: data.limit ?? 200,
-                }
-              : prev
-          );
+  typeof data.totalChars === "number" &&
+  typeof data.parts === "number"
+) {
+  setPreview((prev) =>
+    prev
+      ? {
+          ...prev,
+          text: data.finalMessage || prev.text, // ⭐⭐⭐ זה החלק החסר
+          totalChars: data.totalChars,
+          parts: data.parts,
+          blocked: !data.allowed,
+          overflow: data.overflow ?? 0,
+          limit: data.limit ?? 200,
         }
+      : prev
+  );
+}
+
+
       } catch (err) {
         console.error(err);
       }

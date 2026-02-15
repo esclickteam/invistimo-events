@@ -6,6 +6,7 @@ import Event from "@/models/Event";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { buildFinalSmsText } from "@/lib/sms/buildFinalSmsText";
+import { shortenUrl } from "@/lib/shortenUrl";
 
 export async function POST(req: Request) {
   try {
@@ -52,12 +53,8 @@ export async function POST(req: Request) {
       ? await Event.findById(invitation.eventId).lean()
       : null;
 
-    /* ================= BUILD FINAL SMS =================
-       ⚠️ אין פה שום SeatingTable
-       ⚠️ משתמשים רק ב־guest.tableName אם קיים
-       SOURCE OF TRUTH אחד בלבד
-    ===================================================== */
-    const finalText = await buildFinalSmsText({
+    /* ================= BUILD FINAL SMS ================= */
+    let finalText = await buildFinalSmsText({
       messageTemplate: messageOverride,
       guest,
       invitation,
@@ -66,13 +63,27 @@ export async function POST(req: Request) {
       giftLink,
     });
 
-    /* ================= COUNT (BUSINESS LOGIC) =================
-       חוק:
-       - עד 200 תווים → 1 הודעה
-       - 201–320 → 2 הודעות
-       - מעל 320 → חסימה
-    =========================================================== */
-    const length = [...finalText].length; // Unicode-safe (עברית + אימוג'ים)
+    /* ================= SHORTEN URLS =================
+       מקצרים רק URL אמיתיים
+       לא נוגעים בטמפלטים לא פתורים
+    ================================================== */
+    const urls = finalText.match(/https?:\/\/[^\s]+/g);
+
+    if (urls) {
+      for (const url of urls) {
+        if (url.includes("{{") || url.includes("}}")) continue;
+
+        try {
+          const short = await shortenUrl(url);
+          finalText = finalText.replace(url, short);
+        } catch (err) {
+          console.error("Shorten failed:", err);
+        }
+      }
+    }
+
+    /* ================= COUNT (BUSINESS LOGIC) ================= */
+    const length = [...finalText].length;
 
     let parts = 1;
     let allowed = true;
@@ -91,7 +102,7 @@ export async function POST(req: Request) {
     /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
-      text: finalText,
+      finalMessage: finalText, // 👈 חשוב כדי שהקליינט יעדכן טקסט
       totalChars: length,
       parts,
       allowed,
