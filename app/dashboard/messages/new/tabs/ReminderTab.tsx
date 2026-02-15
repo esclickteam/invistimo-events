@@ -446,11 +446,16 @@ const sendTestMessage = async () => {
   invitationId={invitationId}
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
-  onAfterSend={() => {
-    if (sendTiming === "now") {
-      setReminderSentAt(new Date());
-    }
-  }}
+
+  onAfterSend={async () => {
+  if (sendTiming === "now") {
+    setReminderSentAt(new Date());
+  }
+
+  await loadScheduledMessages(); // ⭐️ רק רענון רשימה
+}}
+
+  
   disabled={
     reminderAlreadySent ||
     !preview ||

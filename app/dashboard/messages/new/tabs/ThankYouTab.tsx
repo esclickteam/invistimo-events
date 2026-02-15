@@ -389,11 +389,16 @@ export default function ThankYouTab({
   invitationId={invitationId}
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
-  onAfterSend={() => {
-    if (sendTiming === "now") {
-      setThankYouSentAt(new Date());
-    }
-  }}
+
+  onAfterSend={async () => {
+  if (sendTiming === "now") {
+    setThankYouSentAt(new Date());
+  }
+
+  await loadScheduledMessages(); // ⭐️ זה מה שגורם לכפתור להופיע
+}}
+
+
   disabled={
     thankYouAlreadySent ||
     !preview ||
