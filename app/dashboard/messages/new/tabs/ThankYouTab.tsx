@@ -44,6 +44,8 @@ export default function ThankYouTab({
 
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
+  const [testRemaining, setTestRemaining] = useState<number | null>(null);
+
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
@@ -135,6 +137,25 @@ export default function ThankYouTab({
     loadScheduledMessages();
   }, []);
 
+  useEffect(() => {
+  async function loadTestLimit() {
+    try {
+      const res = await fetch("/api/sms/test", {
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (data?.success) {
+        setTestRemaining(data.remaining);
+      }
+    } catch {}
+  }
+
+  loadTestLimit();
+}, []);
+
+
   /* ================= TIMING ================= */
 
   const scheduledAt = useMemo(() => {
@@ -219,36 +240,43 @@ export default function ThankYouTab({
   /* ================= TEST MESSAGE ================= */
 
   const sendTestMessage = async () => {
-    if (!preview?.text || !testPhone) return;
+  if (!preview?.text || !testPhone) return;
 
-    try {
-      setSendingTest(true);
+  if (testRemaining !== null && testRemaining <= 0) {
+    alert("הגעת למגבלת הודעות בדיקה");
+    return;
+  }
 
-      const res = await fetch("/api/sms/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          invitationId,
-          phone: testPhone,
-          message: preview.text,
-        }),
-      });
+  try {
+    setSendingTest(true);
 
-      const data = await res.json();
+    const res = await fetch("/api/sms/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        invitationId,
+        phone: testPhone,
+        message: preview.text,
+      }),
+    });
 
-      if (data?.success) {
-        alert("הודעת בדיקה נשלחה בהצלחה");
-        setTestPhone("");
-      } else {
-        alert("שגיאה בשליחת הודעת בדיקה");
-      }
-    } catch {
-      alert("שגיאה בשליחה");
-    } finally {
-      setSendingTest(false);
+    const data = await res.json();
+
+    if (data?.success) {
+      setTestRemaining(data.remaining); // 🔥 מתעדכן מהשרת
+      alert("הודעת בדיקה נשלחה בהצלחה");
+      setTestPhone("");
+    } else {
+      alert(data?.error || "שגיאה בשליחת הודעת בדיקה");
     }
-  };
+  } catch {
+    alert("שגיאה בשליחה");
+  } finally {
+    setSendingTest(false);
+  }
+};
+
 
   const thankYouAlreadySent = !!thankYouSentAt;
 
@@ -314,6 +342,19 @@ export default function ThankYouTab({
               {sendingTest ? "שולח..." : "שלח לבדיקה"}
             </button>
           </div>
+
+          {testRemaining !== null && (
+  <div
+    className={`text-xs mt-1 ${
+      testRemaining <= 0
+        ? "text-red-500 font-medium"
+        : "text-gray-500"
+    }`}
+  >
+    נותרו {testRemaining} הודעות בדיקה
+  </div>
+)}
+
         </div>
       )}
 
@@ -395,16 +436,13 @@ export default function ThankYouTab({
   invitationId={invitationId}
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
-
   onAfterSend={async () => {
-  if (sendTiming === "now") {
-    setThankYouSentAt(new Date());
-  }
+    if (sendTiming === "now") {
+      setThankYouSentAt(new Date());
+    }
 
-  await loadScheduledMessages(); // ⭐️ זה מה שגורם לכפתור להופיע
-}}
-
-
+    await loadScheduledMessages();
+  }}
   disabled={
     thankYouAlreadySent ||
     !preview ||
@@ -412,6 +450,7 @@ export default function ThankYouTab({
     (sendTiming === "scheduled" && !scheduledAt)
   }
 >
+
   {thankYouAlreadySent
     ? "✅ הודעת תודה נשלחה"
     : sendTiming === "scheduled"
