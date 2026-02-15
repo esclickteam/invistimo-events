@@ -38,7 +38,7 @@ function clearAuthCookies(res: NextResponse) {
 
   expireCookie(res, "authToken", { domain: cookieDomain });
   expireCookie(res, "producerAuthToken", { domain: cookieDomain });
-  expireCookie(res, "adminAuthToken", { domain: cookieDomain }); // ✅ חדש
+  expireCookie(res, "adminAuthToken", { domain: cookieDomain });
 }
 
 /* =========================
@@ -51,10 +51,16 @@ type JwtPayload = {
   role?: "admin" | "producer" | "client" | "user" | "staff";
   hasPaid?: boolean;
   isTrial?: boolean;
+
+  // impersonation flags
   impersonated?: boolean;
   impersonatedBy?: string;
-  // ✅ fix: producer_staff (ולא staff_producer)
+  impersonatedByAdmin?: boolean;
+  adminId?: string;
+
+  // legacy/new impersonation role values
   impersonationRole?: "admin" | "producer" | "producer_staff" | "staff_producer";
+
   iat?: number;
   exp?: number;
 };
@@ -78,10 +84,10 @@ export async function GET() {
 
     const producerToken = cookieStore.get("producerAuthToken")?.value ?? null;
     const authToken = cookieStore.get("authToken")?.value ?? null;
-    const adminToken = cookieStore.get("adminAuthToken")?.value ?? null; // ✅ חדש
+    const adminToken = cookieStore.get("adminAuthToken")?.value ?? null;
 
-    // ✅ authToken ראשון, אחרת producer/admin
-    const token = authToken || producerToken || adminToken; // ✅ עודכן
+    // סדר עדיפויות: auth -> producer -> admin
+    const token = authToken || producerToken || adminToken;
 
     if (!token) {
       return NextResponse.json(
@@ -132,9 +138,8 @@ export async function GET() {
     const staffType = (user.staffType as string | null) ?? null;
     const impersonationRole = decoded.impersonationRole ?? null;
 
-    // ✅ Producer-like resolution
-    const isProducer =
-      safeRole === "producer" || impersonationRole === "producer";
+    // Producer-like resolution
+    const isProducer = safeRole === "producer" || impersonationRole === "producer";
 
     const isProducerStaff =
       (safeRole === "staff" && staffType === "producer_staff") ||
@@ -154,20 +159,24 @@ export async function GET() {
         ? "admin"
         : "user";
 
+    // סימון התחזות (תומך גם בפורמט החדש וגם בישן)
+    const isImpersonated =
+      !!decoded.impersonated || !!decoded.impersonatedByAdmin || !!decoded.impersonatedBy;
+
     console.log(
       "✅ ME:",
       user.email,
       "| role:",
       safeRole,
       "| hasPaid:",
-      user.hasPaid === true, // ✅ חדש
+      user.hasPaid === true,
       "| staffType:",
       staffType,
       "| impersonationRole:",
       impersonationRole,
       "| producerLike:",
       isProducerLike,
-      decoded.impersonated ? "| impersonated" : ""
+      isImpersonated ? "| impersonated" : ""
     );
 
     return NextResponse.json(
@@ -179,48 +188,57 @@ export async function GET() {
           email: user.email ?? "",
 
           role: safeRole,
+          effectiveRole,
 
-          staffType: staffType,
+          staffType,
           assignedProducerId: user.assignedProducerId
             ? String(user.assignedProducerId)
             : null,
-
           createdByProducer: !!user.createdByProducer,
 
           isProducerLike,
           isProducerStaff,
-          effectiveRole,
 
-          /* ✅ קריטי */
+          // Access / payment status
           isActive: user.isActive === true,
-          hasPaid: user.hasPaid === true, // ✅ חדש
-          isTrial: user.isTrial === true, // ✅ חדש
-          trialExpiresAt: user.trialExpiresAt ?? null, // ✅ חדש
+          hasPaid: user.hasPaid === true,
+          isTrial: user.isTrial === true,
+          trialExpiresAt: user.trialExpiresAt ?? null,
+          hasDashboardAccess: user.hasDashboardAccess === true,
 
-          // אופציונלי - שימושי ל-UI
-          hasDashboardAccess: user.hasDashboardAccess === true, // ✅ חדש
-
-          plan: user.plan,
-          guests: user.guests,
+          // Plan/package fields
+          plan: user.plan ?? "basic",
+          guests: user.guests ?? 0,
           paidAmount: user.paidAmount ?? 0,
-          planLimits: user.planLimits,
+          billingSource: user.billingSource ?? null,
+          planLimits: user.planLimits ?? {},
 
           includeCalls: !!user.includeCalls,
           callsAddonPrice: user.callsAddonPrice ?? 0,
+
           includeCreditGifts: !!user.includeCreditGifts,
+          creditGiftsAddonPrice: user.creditGiftsAddonPrice ?? 0,
+
+          smsPerRecord: user.smsPerRecord ?? 0,
+          maxMessages: user.maxMessages ?? 0,
+
+          // usage
+          smsUsed: user.smsUsed ?? 0,
+          smsBalance: user.smsBalance ?? 0,
+          whatsappBalance: user.whatsappBalance ?? 0,
+          whatsappUsed: user.whatsappUsed ?? 0,
 
           producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-          smsUsed: user.smsUsed ?? 0, // ✅ חדש
-          smsBalance: user.smsBalance ?? 0, // ✅ חדש
-          whatsappBalance: user.whatsappBalance ?? 0, // ✅ חדש
-          whatsappUsed: user.whatsappUsed ?? 0, // ✅ חדש
-
-          impersonated: !!decoded.impersonated,
+          // impersonation meta
+          impersonated: isImpersonated,
           impersonatedBy: decoded.impersonatedBy ?? null,
-          impersonationRole: impersonationRole,
+          impersonatedByAdmin: !!decoded.impersonatedByAdmin,
+          adminId: decoded.adminId ?? null,
+          impersonationRole,
 
           createdAt: user.createdAt,
+          updatedAt: user.updatedAt ?? null,
         },
       },
       { headers: { "Cache-Control": "no-store" } }
