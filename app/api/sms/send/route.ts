@@ -158,12 +158,7 @@ if (remainingMessages <= 0) {
       );
     }
 
-    if (template.requiresTable && filter !== "withTable") {
-      return NextResponse.json(
-        { success: false, error: "INVALID_FILTER_FOR_TABLE_MESSAGE" },
-        { status: 400 }
-      );
-    }
+   
 
     /* ⭐️ בחירת מקור הטקסט */
     const baseTemplateText =
