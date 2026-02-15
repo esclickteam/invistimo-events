@@ -251,8 +251,17 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
 }, [invitationId, guestsToSend]);
 
+const [testCount, setTestCount] = useState(0);
+const MAX_TEST_MESSAGES = 2;
+
+
 const sendTestMessage = async () => {
   if (!preview?.text || !testPhone) return;
+
+  if (testCount >= MAX_TEST_MESSAGES) {
+    alert("ניתן לשלוח עד 2 הודעות בדיקה בלבד");
+    return;
+  }
 
   try {
     setSendingTest(true);
@@ -271,10 +280,11 @@ const sendTestMessage = async () => {
     const data = await res.json();
 
     if (data?.success) {
+      setTestCount((prev) => prev + 1); // 🔥 מגדיל ספירה
       alert("הודעת בדיקה נשלחה בהצלחה");
       setTestPhone("");
     } else {
-      alert("שגיאה בשליחת הודעת בדיקה");
+      alert(data?.error || "שגיאה בשליחת הודעת בדיקה");
     }
   } catch {
     alert("שגיאה בשליחה");
@@ -282,6 +292,7 @@ const sendTestMessage = async () => {
     setSendingTest(false);
   }
 };
+
 
 
 
@@ -332,27 +343,67 @@ const sendTestMessage = async () => {
       </div>
     </div>
 
-    <p className="text-sm text-gray-500">
-      ההודעה תישלח למספר נייד בלבד – בדיוק כפי שהיא תישלח לאורחים
-    </p>
+    
 
-    <div className="flex gap-3">
-      <input
-        type="tel"
-        placeholder="05XXXXXXXX"
-        value={testPhone}
-        onChange={(e) => setTestPhone(e.target.value)}
-        className="flex-1 border rounded-xl px-4 py-3 text-sm"
-      />
+   <p className="text-sm text-gray-500 leading-relaxed">
+  ההודעה תישלח למספר נייד לבדיקה בלבד —
+  בדיוק כפי שהיא תישלח לאורחים באירוע.
+</p>
+
+<div className="flex gap-3 items-center">
+  <input
+    type="tel"
+    inputMode="numeric"
+    dir="ltr"
+    placeholder="05XXXXXXXX"
+    value={testPhone}
+    onChange={(e) => setTestPhone(e.target.value)}
+    className="
+      flex-1
+      border
+      rounded-xl
+      px-4
+      py-3
+      text-sm
+      focus:outline-none
+      focus:ring-2
+      focus:ring-blue-500
+      transition
+    "
+  />
+
+
+      
 
       <button
-        onClick={sendTestMessage}
-        disabled={!testPhone || preview?.blocked || sendingTest}
-        className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-sm disabled:opacity-50"
-      >
-        {sendingTest ? "שולח..." : "שלח לבדיקה"}
-      </button>
+  onClick={sendTestMessage}
+  disabled={
+    !testPhone ||
+    preview?.blocked ||
+    sendingTest ||
+    testCount >= MAX_TEST_MESSAGES
+  }
+  className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-sm disabled:opacity-50"
+>
+  {testCount >= MAX_TEST_MESSAGES
+    ? "הגעת למגבלת בדיקות"
+    : sendingTest
+    ? "שולח..."
+    : "שלח לבדיקה"}
+</button>
+
     </div>
+
+    <div
+  className={`text-xs mt-1 ${
+    testCount >= MAX_TEST_MESSAGES
+      ? "text-red-500 font-medium"
+      : "text-gray-500"
+  }`}
+>
+  נשלחו {testCount} מתוך {MAX_TEST_MESSAGES} הודעות בדיקה
+</div>
+
 
   </div>
 )}
@@ -519,7 +570,7 @@ const sendTestMessage = async () => {
                 📅 הודעות מתוזמנות
               </h2>
 
-              <button
+               <button
                 onClick={() => setShowScheduled(false)}
                 className="text-gray-500 hover:text-black text-xl"
               >

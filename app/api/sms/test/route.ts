@@ -8,7 +8,8 @@ import { shortenUrl } from "@/lib/shortenUrl";
 /* ================= CONFIG ================= */
 
 const RATE_LIMIT_MS = 60_000;
-const MAX_TEST_SMS = 10;
+const MAX_TEST_SMS = 2;
+
 
 const SMS_LIMIT_1 = 200;
 const SMS_LIMIT_2 = 320; // 🔒 אין הודעה 3
