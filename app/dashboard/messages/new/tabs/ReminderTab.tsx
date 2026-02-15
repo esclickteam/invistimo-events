@@ -273,12 +273,14 @@ useEffect(() => {
       <div className="relative w-full h-full bg-[#f5f5f5] rounded-[38px] overflow-hidden">
 
         {/* Header */}
-        <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold tracking-wide text-gray-700">
+        <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold tracking-wider text-gray-600 border-b">
+
           INVISTIMO · SMS
         </div>
 
         {/* Message Area */}
-        <div className="flex justify-center items-start p-4">
+        <div className="flex justify-center items-center h-full p-4">
+
           <div className="
             bg-gray-200
             text-gray-900
