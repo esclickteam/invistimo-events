@@ -55,38 +55,8 @@ export default function ReminderTab({
 
   const [preview, setPreview] = useState<any>(null);
 
-  /* ================= SHORT NAV LINK ================= */
 
-  const [shortNavigationLink, setShortNavigationLink] = useState("");
-
-  useEffect(() => {
-    if (typeof lat !== "number" || typeof lng !== "number") {
-      setShortNavigationLink("");
-      return;
-    }
-
-    async function shorten() {
-      try {
-        const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
-
-        const res = await fetch("/api/shorten-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ url: wazeUrl }),
-        });
-
-        const data = await res.json();
-        setShortNavigationLink(data?.shortUrl || wazeUrl);
-      } catch {
-        setShortNavigationLink(
-          `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-        );
-      }
-    }
-
-    shorten();
-  }, [lat, lng]);
+  
 
   /* ================= TEST SMS STATE ================= */
 
@@ -167,7 +137,11 @@ export default function ReminderTab({
       guest: g,
       eventDate,
       eventLocation,
-      navigationLink: shortNavigationLink,
+      navigationLink:
+  typeof lat === "number" && typeof lng === "number"
+    ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+    : "",
+
       includeGiftLink,
       giftLink: giftCreditUrl || "",
     });
@@ -236,7 +210,6 @@ export default function ReminderTab({
     invitationId,
     guestsToSend,
     includeGiftLink,
-    shortNavigationLink,
   ]);
 
   /* ================= TEST SEND ================= */
