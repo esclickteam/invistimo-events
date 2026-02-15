@@ -22,24 +22,19 @@ type Props = {
   eventTitle: string;
   eventDate: string;
   eventLocation: string;
+  lat?: number;
+  lng?: number;
 };
 
 /* ================= CONSTANTS ================= */
 
 const MESSAGE_WITH_TABLE =
-  "היי {{name}},\n" +
-  "נזכיר שהאירוע שלנו מתקרב 💛\n" +
-  "📅 {{eventDate}}\n" +
-  "📍 {{eventLocation}}\n" +
-  "מספר השולחן שלך: {{tableName}}\n" +
-  "מחכים לראותך!";
-
-const MESSAGE_NO_TABLE =
-  "היי {{name}},\n" +
-  "נזכיר שהאירוע שלנו מתקרב 💛\n" +
-  "📅 {{eventDate}}\n" +
-  "📍 {{eventLocation}}\n" +
-  "מחכים לראותך!";
+  "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
+  "מספר השולחן שלך באירוע:\n" +
+  "🪑 {{tableName}}\n\n" +
+  "📍 ניווט לאירוע:\n" +
+  "{{navigationLink}}\n\n" +
+  "מחכים לך!";
 
 /* ================= COMPONENT ================= */
 
@@ -47,6 +42,8 @@ export default function ReminderTab({
   invitationId,
   eventDate,
   eventLocation,
+  lat,
+  lng,
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,18 +102,25 @@ export default function ReminderTab({
       : confirmedGuests;
   }, [guestsWithTable, confirmedGuests]);
 
-  const baseTemplate =
-    guestsWithTable.length > 0
-      ? MESSAGE_WITH_TABLE
-      : MESSAGE_NO_TABLE;
+  const baseTemplate = MESSAGE_WITH_TABLE;
 
-  const buildReminderMessage = (g: Guest) =>
-    buildMessage({
-      template: baseTemplate,
-      guest: g,
-      eventDate,
-      eventLocation,
-    });
+const navigationLink =
+  typeof lat === "number" && typeof lng === "number"
+    ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+    : "";
+
+
+
+  const buildReminderMessage = (g: Guest) => {
+  return buildMessage({
+    template: baseTemplate,
+    guest: g,
+    eventDate,
+    eventLocation,
+    navigationLink,
+  });
+};
+
 
   /* ================= PREVIEW ================= */
 
