@@ -116,21 +116,23 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
+
   /* ========================================================
-     5) Paid guard (Business rule)
-     מי שיש לו hasPaid=false לא יכול דשבורד
-  ======================================================== */
-  if (isProtectedDashboardPath(pathname) && token) {
-    const payload = await readJwtPayload(token);
+   5) Paid guard (Business rule)
+   רק מי ש-hasPaid === true יכול דשבורד
+======================================================== */
+if (isProtectedDashboardPath(pathname) && token) {
+  const payload = await readJwtPayload(token);
 
-    // טוקן לא תקין / לא קריא => login
-    if (!payload) return redirectToLogin(req);
+  // טוקן לא תקין / לא קריא => login
+  if (!payload) return redirectToLogin(req);
 
-    // הכלל שלך:
-    if (payload.hasPaid === false) {
-      return redirectToPricing(req);
-    }
+  // ✅ קשיח: false וגם undefined נחסמים
+  if (payload.hasPaid !== true) {
+    return redirectToPricing(req);
   }
+}
+
 
   return NextResponse.next();
 }
