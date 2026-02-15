@@ -55,7 +55,6 @@ export default function ReminderTab({
   /* ================= TIMING ================= */
 
   type SendTiming = "now" | "scheduled";
-
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
@@ -75,13 +74,11 @@ export default function ReminderTab({
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
 
-  /* ================= TEST SMS STATE ================= */
+  /* ================= TEST SMS ================= */
 
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [testsRemaining, setTestsRemaining] = useState<number | null>(null);
-
-  /* ================= LOAD REMAINING FROM SERVER ================= */
 
   useEffect(() => {
     async function loadRemaining() {
@@ -183,13 +180,6 @@ export default function ReminderTab({
 
     if (!longestGuest) return;
 
-    setPreview({
-      text: longestText,
-      totalChars: longestText.length,
-      parts: 1,
-      blocked: false,
-    });
-
     async function fetchPreview() {
       try {
         const res = await fetch("/api/sms/preview", {
@@ -206,58 +196,18 @@ export default function ReminderTab({
         const data = await res.json();
 
         if (data?.text) {
-          setPreview((prev: any) =>
-            prev
-              ? {
-                  ...prev,
-                  text: data.text,
-                  totalChars: data.totalChars,
-                  parts: data.parts,
-                  blocked: !data.allowed,
-                }
-              : prev
-          );
+          setPreview({
+            text: data.text,
+            totalChars: data.totalChars,
+            parts: data.parts,
+            blocked: !data.allowed,
+          });
         }
       } catch {}
     }
 
     fetchPreview();
   }, [invitationId, guestsToSend, includeGiftLink]);
-
-  /* ================= TEST SEND ================= */
-
-  async function sendTestMessage() {
-    if (!preview?.text || !testPhone) return;
-
-    try {
-      setSendingTest(true);
-
-      const res = await fetch("/api/sms/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          phone: testPhone,
-          message: preview.text,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        if (typeof data.remaining === "number") {
-          setTestsRemaining(data.remaining);
-        }
-        alert("נשלח בהצלחה ✅");
-      } else {
-        alert("שליחה נכשלה ❌");
-      }
-    } catch {
-      alert("שגיאה בשליחה");
-    } finally {
-      setSendingTest(false);
-    }
-  }
 
   if (loading) {
     return <p className="text-sm text-gray-500">טוען אורחים…</p>;
@@ -274,65 +224,65 @@ export default function ReminderTab({
         readOnly
       />
 
-      {/* TIMING UI */}
-      <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm space-y-4">
+      {/* PHONE PREVIEW */}
+      {preview && (
+        <div className="w-full flex justify-center mt-6 mb-8">
+          <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[120px] h-[22px] bg-black rounded-b-2xl" />
+            <div className="relative w-full h-full bg-[#f5f5f5] rounded-[38px] overflow-hidden">
+              <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold text-gray-600 border-b">
+                INVISTIMO · SMS
+              </div>
+              <div className="flex justify-center items-center h-full p-4">
+                <div className="bg-gray-200 text-gray-900 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right break-words whitespace-pre-wrap">
+                  {preview.text}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TIMING */}
+      <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm space-y-3">
         <div className="font-semibold">⏱️ תזמון ההודעה</div>
 
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={sendTiming === "now"}
-              onChange={() => setSendTiming("now")}
-            />
-            שליחה מיידית
-          </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            checked={sendTiming === "now"}
+            onChange={() => setSendTiming("now")}
+          />
+          שליחה מיידית
+        </label>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={sendTiming === "scheduled"}
-              onChange={() => setSendTiming("scheduled")}
-            />
-            שליחה מתוזמנת
-          </label>
-        </div>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            checked={sendTiming === "scheduled"}
+            onChange={() => setSendTiming("scheduled")}
+          />
+          שליחה מתוזמנת
+        </label>
 
         {sendTiming === "scheduled" && (
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <input
               type="date"
-              min={new Date().toLocaleDateString("en-CA")}
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
-              className="flex-1 border rounded-lg px-3 py-2"
+              className="border rounded px-2 py-1"
             />
-
             <input
               type="time"
               value={scheduledTime}
               onChange={(e) => setScheduledTime(e.target.value)}
-              className="flex-1 border rounded-lg px-3 py-2"
+              className="border rounded px-2 py-1"
             />
-          </div>
-        )}
-
-        {scheduledAt && (
-          <div className="text-xs text-gray-500">
-            📅 תישלח ב־
-            <strong> {scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
-            בשעה{" "}
-            <strong>
-              {scheduledAt.toLocaleTimeString("he-IL", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </strong>
           </div>
         )}
       </div>
 
-      {/* SEND BUTTON */}
       <SendButton
         channel="sms"
         type="reminder"
@@ -349,7 +299,6 @@ export default function ReminderTab({
           ? "⏱️ תזמן תזכורת"
           : `📩 שלח תזכורת (${guestsToSend.length})`}
       </SendButton>
-
     </div>
   );
 }
