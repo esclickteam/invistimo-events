@@ -1,46 +1,29 @@
-import crypto from "crypto";
-import User from "@/models/User";
 import { sendEmail } from "@/lib/sendEmail";
 
 /* =========================================================
    SEND PASSWORD SETUP EMAIL
 ========================================================= */
-export async function sendPasswordSetupMail(userId: string) {
-  /* ===== TOKEN ===== */
-  const token = crypto.randomBytes(32).toString("hex");
-  const expires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 שעות
-
-  /* ===== UPDATE USER ===== */
-  const user = await User.findByIdAndUpdate(
-    userId,
-    {
-      resetPasswordToken: token,
-      resetPasswordExpires: expires,
-      needsPasswordSetup: true,
-    },
-    { new: true }
-  );
-
-  if (!user) {
-    throw new Error("USER_NOT_FOUND_FOR_PASSWORD_MAIL");
-  }
-
-  /* ===== LINK ===== */
+export async function sendPasswordSetupMail(
+  email: string,
+  token: string
+) {
+  /* ===== BASE URL ===== */
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
   if (!baseUrl) {
     throw new Error("MISSING_NEXT_PUBLIC_SITE_URL");
   }
 
+  /* ===== LINK ===== */
   const link = `${baseUrl}/set-password?token=${token}`;
 
   /* ===== SEND EMAIL ===== */
   await sendEmail({
-    to: user.email,
+    to: email,
     subject: "הגדרת סיסמה למערכת Invistimo",
     html: `
       <div style="font-family:Arial;direction:rtl;text-align:right">
-        <h2>שלום ${user.name},</h2>
+        <h2>שלום,</h2>
 
         <p>החשבון שלך נוצר בהצלחה 🎉</p>
 
