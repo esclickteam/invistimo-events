@@ -1,30 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  currentPaid: number;      // כמה כבר שולם בפועל
-  impersonated?: boolean;   // מצב התחזות
+  currentPaid: number;
+  impersonated?: boolean;
 };
 
 /* =======================
-   Constants
+   מדרגות מחיר – כמו PricingPage
 ======================= */
-const FULL_PREMIUM_PRICE = 779;
 
-const PRICE_TABLE: Record<number, number> = {
-  100: 149,
-  200: 239,
-  300: 299,
-  400: 379,
-  500: 429,
-  600: 489,
-  700: 539,
-  800: 599,
-  1000: 699,
-};
+const plan3Rates: [number, number][] = [
+  [50, 3.75],
+  [100, 3.22],
+  [150, 2.98],
+  [200, 2.76],
+  [250, 2.65],
+  [300, 2.52],
+  [350, 2.43],
+  [400, 2.35],
+  [450, 2.28],
+  [500, 2.21],
+  [550, 2.14],
+  [600, 2.07],
+  [650, 2.06],
+  [700, 2.05],
+  [750, 2.04],
+  [800, 2.03],
+];
+
+function getRate(records: number) {
+  for (const [limit, rate] of plan3Rates) {
+    if (records <= limit) return rate;
+  }
+  return plan3Rates[plan3Rates.length - 1][1];
+}
+
+function calculateBase(records: number) {
+  return Math.round(records * getRate(records));
+}
+
+/* =======================
+   Component
+======================= */
 
 export default function UpgradePlanModal({
   isOpen,
@@ -32,21 +53,16 @@ export default function UpgradePlanModal({
   currentPaid,
   impersonated = false,
 }: Props) {
-  const [guests, setGuests] = useState<number>(100);
+  const [records, setRecords] = useState<number>(200);
   const [loading, setLoading] = useState(false);
 
-  /* =======================
-     Guards – אל תציגי מודאל
-  ======================= */
-  if (
-    !isOpen ||
-    impersonated ||
-    currentPaid >= FULL_PREMIUM_PRICE
-  ) {
-    return null;
-  }
+  if (!isOpen || impersonated) return null;
 
-  const fullPrice = PRICE_TABLE[guests];
+  const fullPrice = useMemo(
+    () => calculateBase(records),
+    [records]
+  );
+
   const amountToPay = Math.max(fullPrice - currentPaid, 0);
 
   async function handleUpgrade() {
@@ -58,7 +74,7 @@ export default function UpgradePlanModal({
       const res = await fetch("/api/stripe/upgrade-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guests }),
+        body: JSON.stringify({ records }),
       });
 
       const data = await res.json();
@@ -68,7 +84,6 @@ export default function UpgradePlanModal({
         return;
       }
 
-      // 🔁 מעבר ל־Stripe
       window.location.href = data.url;
     } catch (err) {
       console.error(err);
@@ -77,6 +92,8 @@ export default function UpgradePlanModal({
       setLoading(false);
     }
   }
+
+  const options = Array.from({ length: 16 }, (_, i) => (i + 1) * 50);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
@@ -90,17 +107,17 @@ export default function UpgradePlanModal({
         </p>
 
         <label className="block text-sm mb-2">
-          בחרי כמות אורחים
+          בחרי כמות רשומות
         </label>
 
         <select
-          value={guests}
-          onChange={(e) => setGuests(Number(e.target.value))}
+          value={records}
+          onChange={(e) => setRecords(Number(e.target.value))}
           className="w-full border rounded-lg px-3 py-2 mb-4"
         >
-          {Object.keys(PRICE_TABLE).map((g) => (
-            <option key={g} value={g}>
-              עד {g} אורחים — {PRICE_TABLE[Number(g)]} ₪
+          {options.map((num) => (
+            <option key={num} value={num}>
+              עד {num} רשומות
             </option>
           ))}
         </select>
@@ -110,10 +127,12 @@ export default function UpgradePlanModal({
             <span>מחיר מלא:</span>
             <span>{fullPrice} ₪</span>
           </div>
+
           <div className="flex justify-between mb-1">
             <span>שולם:</span>
             <span>-{currentPaid} ₪</span>
           </div>
+
           <div className="flex justify-between font-semibold text-green-700">
             <span>לתשלום עכשיו:</span>
             <span>{amountToPay} ₪</span>

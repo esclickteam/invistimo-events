@@ -8,25 +8,40 @@ import User from "@/models/User";
 /* ============================================================
    Stripe
 ============================================================ */
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 /* ============================================================
-   מחירי מקור אמת
+   מדרגות מחיר – זהה ל-PricingPage (plan3 לדוגמה)
 ============================================================ */
-const BASE_PRICE = 49;
+const PLAN3_RATES: [number, number][] = [
+  [50, 3.75],
+  [100, 3.22],
+  [150, 2.98],
+  [200, 2.76],
+  [250, 2.65],
+  [300, 2.52],
+  [350, 2.43],
+  [400, 2.35],
+  [450, 2.28],
+  [500, 2.21],
+  [550, 2.14],
+  [600, 2.07],
+  [650, 2.06],
+  [700, 2.05],
+  [750, 2.04],
+  [800, 2.03],
+];
 
-const PREMIUM_PRICES: Record<number, number> = {
-  100: 149,
-  200: 239,
-  300: 299,
-  400: 379,
-  500: 429,
-  600: 489,
-  700: 539,
-  800: 599,
-  1000: 699,
-};
+function getRate(records: number) {
+  for (const [limit, rate] of PLAN3_RATES) {
+    if (records <= limit) return rate;
+  }
+  return PLAN3_RATES[PLAN3_RATES.length - 1][1];
+}
+
+function calculateFullPrice(records: number) {
+  return Math.round(records * getRate(records));
+}
 
 /* ============================================================
    HANDLER
@@ -39,7 +54,8 @@ export async function POST(req: Request) {
        🔐 AUTH
     =============================== */
     const cookieStore = await cookies();
-    const token = cookieStore.get("authToken")?.value;
+const token = cookieStore.get("authToken")?.value;
+
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -63,20 +79,23 @@ export async function POST(req: Request) {
     /* ===============================
        📦 REQUEST
     =============================== */
-    const { guests } = await req.json();
+    const { records } = await req.json();
 
-    const fullPrice = PREMIUM_PRICES[guests];
-    if (!fullPrice) {
+    if (!records || records <= 0) {
       return NextResponse.json(
-        { error: "Invalid package" },
+        { error: "Invalid records value" },
         { status: 400 }
       );
     }
 
     /* ===============================
-       💰 חישוב סכום לתשלום
+       💰 חישוב מחיר מלא
     =============================== */
-    const amountToPay = Math.max(fullPrice - BASE_PRICE, 0);
+    const fullPrice = calculateFullPrice(records);
+
+    const alreadyPaid = user.paidAmount ?? 0;
+
+    const amountToPay = Math.max(fullPrice - alreadyPaid, 0);
 
     if (amountToPay <= 0) {
       return NextResponse.json(
@@ -95,9 +114,9 @@ export async function POST(req: Request) {
       metadata: {
         type: "upgrade",
         userId: user._id.toString(),
-        targetGuests: String(guests),
-        basePrice: String(BASE_PRICE),
+        targetRecords: String(records),
         fullPrice: String(fullPrice),
+        alreadyPaid: String(alreadyPaid),
         amountCharged: String(amountToPay),
       },
 
@@ -107,8 +126,8 @@ export async function POST(req: Request) {
             currency: "ils",
             unit_amount: amountToPay * 100,
             product_data: {
-              name: `שדרוג ל־Premium (עד ${guests} אורחים)`,
-              description: `כבר שולם ${BASE_PRICE}₪ · תשלום הפרש`,
+              name: `שדרוג חבילה (עד ${records} רשומות)`,
+              description: `מחיר מלא ${fullPrice}₪ · שולם ${alreadyPaid}₪`,
             },
           },
           quantity: 1,
