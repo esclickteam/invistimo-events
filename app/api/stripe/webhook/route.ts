@@ -199,13 +199,11 @@ export async function POST(req: Request) {
          PREVENT DOUBLE PROCESS (BUT NOT PASSWORD MAIL)
       ============================================================ */
 
-      if (
-        user.hasPaid &&
-        user.paidAmount > 0 &&
-        user.resetPasswordToken
-      ) {
-        return NextResponse.json({ received: true });
-      }
+      // חסימה רק אם כבר לא צריך לשלוח מייל
+if (user.hasPaid && user.needsPasswordSetup === false) {
+  return NextResponse.json({ received: true });
+}
+
 
       /* ================= PLAN ================= */
 
