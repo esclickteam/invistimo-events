@@ -147,12 +147,13 @@ export default function NewMessagesPage() {
           />
         )}
 
-        {activeTab === "reminder" && (
-          <ReminderTab
-            guests={guests}
-            {...eventMeta}
-          />
-        )}
+       {activeTab === "reminder" && (
+  <ReminderTab
+    invitationId={invitationId}
+    {...eventMeta}
+  />
+)}
+
 
         {activeTab === "thankyou" && (
           <ThankYouTab
