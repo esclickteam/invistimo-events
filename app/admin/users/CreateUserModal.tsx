@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 type UserRole = "user" | "producer" | "staff";
 type PaymentStatus = "paid" | "stripe";
-type PlanKey = "plan1" | "plan2" | "plan3";
 
 type Props = {
   onClose: () => void;
@@ -12,72 +11,17 @@ type Props = {
 
 const SMS_PER_RECORD = 3;
 
-/* ===================== מדרגות מחיר ===================== */
-
-const plan1Rates: [number, number][] = [
-  [50, 1.19],[100, 1.16],[150, 1.13],[200, 1.1],[250, 1.08],
-  [300, 1.06],[350, 1.04],[400, 1.02],[450, 1.0],[500, 0.98],
-  [550, 0.96],[600, 0.94],[650, 0.93],[700, 0.92],[750, 0.9],[800, 0.88],
-];
-
-const plan2Rates: [number, number][] = [
-  [50, 2.85],[100, 2.38],[150, 2.35],[200, 2.29],[250, 2.26],
-  [300, 2.19],[350, 2.15],[400, 2.1],[450, 2.05],[500, 2.0],
-  [550, 1.96],[600, 1.92],[650, 1.92],[700, 1.92],[750, 1.92],[800, 1.9],
-];
-
-const plan3Rates: [number, number][] = [
-  [50, 3.75],[100, 3.22],[150, 2.98],[200, 2.76],[250, 2.65],
-  [300, 2.52],[350, 2.43],[400, 2.35],[450, 2.28],[500, 2.21],
-  [550, 2.14],[600, 2.07],[650, 2.06],[700, 2.05],[750, 2.04],[800, 2.03],
-];
-
-function getRate(plan: PlanKey, records: number) {
-  const table =
-    plan === "plan1" ? plan1Rates :
-    plan === "plan2" ? plan2Rates :
-    plan3Rates;
-
-  for (const [limit, rate] of table) {
-    if (records <= limit) return rate;
-  }
-
-  return table[table.length - 1][1];
-}
-
-function calculateBase(plan: PlanKey, records: number) {
-  return Math.round(records * getRate(plan, records));
-}
-
-function getAddonPrices(plan: PlanKey) {
-  if (plan === "plan1") return { credit:150, seating:100, system:200, design:200 };
-  if (plan === "plan2") return { credit:100, seating:80, system:150, design:150 };
-  return { credit:0, seating:0, system:100, design:100 };
-}
-
 export default function CreateUserModal({ onClose }: Props) {
-
   /* ===== USER BASIC ===== */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
-
-  /* ===== PLAN ===== */
-  const [plan, setPlan] = useState<PlanKey>("plan1");
 
   /* ===== USER LIMITS ===== */
   const [records, setRecords] = useState(100);
   const [smsTotal, setSmsTotal] = useState(records * SMS_PER_RECORD);
   const [smsAuto, setSmsAuto] = useState(true);
   const [includeCalls, setIncludeCalls] = useState(false);
-
-  /* ===== ADDONS ===== */
-  const [addons, setAddons] = useState({
-    credit: false,
-    seating: false,
-    system: false,
-    design: false,
-  });
 
   /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
@@ -95,53 +39,42 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }, [records, smsAuto]);
 
-  /* ===== AUTO PRICE CALC ===== */
-  useEffect(() => {
-    if (role !== "user") return;
-
-    const base = calculateBase(plan, records);
-    const prices = getAddonPrices(plan);
-
-    const total =
-      base +
-      (addons.credit ? prices.credit : 0) +
-      (addons.seating ? prices.seating : 0) +
-      (addons.system ? prices.system : 0) +
-      (addons.design ? prices.design : 0);
-
-    setPrice(total);
-  }, [plan, records, addons, role]);
-
-  /* ===================================================== SUBMIT */
+  /* =====================================================
+     SUBMIT
+  ===================================================== */
   async function handleSubmit() {
-    const payload =
-      role === "producer"
-        ? {
-            name,
-            email,
-            role,
-            billing: { pricePerRecord: producerPricePerRecord },
-          }
-        : role === "staff"
-        ? { name, email, role }
-        : {
-            name,
-            email,
-            role,
-            limits: {
-              records,
-              smsTotal,
-              smsPerRecord: SMS_PER_RECORD,
-              smsAuto,
-              includeCalls,
-            },
-            billing: {
-              price,
-              paymentStatus,
-            },
-            plan,
-            addons,
-          };
+   const payload =
+  role === "producer"
+    ? {
+        name,
+        email,
+        role,
+        billing: {
+          pricePerRecord: producerPricePerRecord,
+        },
+      }
+    : role === "staff"
+    ? {
+        name,
+        email,
+        role,
+      }
+    : {
+        name,
+        email,
+        role,
+        limits: {
+          records,
+          smsTotal,
+          smsPerRecord: SMS_PER_RECORD,
+          smsAuto,
+          includeCalls,
+        },
+        billing: {
+          price,
+          paymentStatus,
+        },
+      };
 
     try {
       const res = await fetch("/api/admin/users", {
@@ -153,12 +86,18 @@ export default function CreateUserModal({ onClose }: Props) {
 
       const data = await res.json();
 
-      if (!data.success) throw new Error("CREATE_USER_FAILED");
+      if (!data.success) {
+        throw new Error("CREATE_USER_FAILED");
+      }
 
+      /* ===== STRIPE FLOW ===== */
       if (paymentStatus === "stripe" && data.userId) {
         const checkoutRes = await fetch(
           `/api/admin/users/${data.userId}/checkout`,
-          { method: "POST", credentials: "include" }
+          {
+            method: "POST",
+            credentials: "include",
+          }
         );
 
         const checkoutData = await checkoutRes.json();
@@ -169,6 +108,7 @@ export default function CreateUserModal({ onClose }: Props) {
         }
       }
 
+      /* ===== MANUAL / NO PAYMENT ===== */
       onClose();
     } catch (err) {
       console.error("CREATE USER FAILED:", err);
@@ -176,113 +116,216 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }
 
-  /* ===================================================== UI */
+  /* =====================================================
+     UI
+  ===================================================== */
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
-
+        {/* HEADER */}
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-semibold">יצירת משתמש חדש</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-black text-xl">✕</button>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-black text-xl"
+          >
+            ✕
+          </button>
         </div>
 
+        {/* BODY */}
         <div className="p-6 space-y-8 overflow-y-auto">
-
           {/* USER INFO */}
           <section className="space-y-3">
-            <input type="text" placeholder="שם מלא"
-              value={name} onChange={(e)=>setName(e.target.value)}
-              className="w-full border rounded-lg px-4 py-2" />
+            <h3 className="text-sm font-bold text-gray-600">
+              פרטי משתמש
+            </h3>
 
-            <input type="email" placeholder="אימייל משתמש"
-              value={email} onChange={(e)=>setEmail(e.target.value)}
-              className="w-full border rounded-lg px-4 py-2" />
+            <input
+              type="text"
+              placeholder="שם מלא"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border rounded-lg px-4 py-2"
+            />
 
-            <select value={role}
-              onChange={(e)=>setRole(e.target.value as UserRole)}
-              className="w-full border rounded-lg px-4 py-2">
+            <input
+              type="email"
+              placeholder="אימייל משתמש"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border rounded-lg px-4 py-2"
+            />
+
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRole)}
+              className="w-full border rounded-lg px-4 py-2"
+            >
               <option value="user">לקוח</option>
               <option value="producer">מפיק</option>
               <option value="staff">עובד</option>
             </select>
           </section>
 
+          {/* USER */}
           {role === "user" && (
             <>
-              {/* PLAN */}
+              {/* LIMITS */}
               <section>
-                <label className="block text-sm font-bold mb-2">חבילה</label>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  מגבלות מערכת
+                </h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      כמות רשומות
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={records}
+                      onChange={(e) =>
+                        setRecords(Number(e.target.value))
+                      }
+                      className="w-full border rounded-lg px-4 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      כמות הודעות SMS
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={smsTotal}
+                      onChange={(e) => {
+                        setSmsAuto(false);
+                        setSmsTotal(Number(e.target.value));
+                      }}
+                      className="w-full border rounded-lg px-4 py-2"
+                    />
+
+                    <label className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={smsAuto}
+                        onChange={(e) =>
+                          setSmsAuto(e.target.checked)
+                        }
+                      />
+                      חישוב אוטומטי לפי רשומות
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              {/* SERVICES */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  שירותים
+                </h3>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={includeCalls}
+                    onChange={(e) =>
+                      setIncludeCalls(e.target.checked)
+                    }
+                  />
+                  <span>שירות שיחות טלפון</span>
+                </label>
+              </section>
+
+              {/* PAYMENT */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  תשלום
+                </h3>
+
+                <label className="block text-sm mb-1">
+                  מחיר כולל (₪)
+                </label>
+                <input
+                  type="number"
+                  value={price}
+                  onChange={(e) =>
+                    setPrice(
+                      e.target.value === ""
+                        ? ""
+                        : Number(e.target.value)
+                    )
+                  }
+                  className="w-full border rounded-lg px-4 py-2 mb-3"
+                />
+
                 <select
-                  value={plan}
-                  onChange={(e)=>setPlan(e.target.value as PlanKey)}
-                  className="w-full border rounded-lg px-4 py-2">
-                  <option value="plan1">חבילה 1</option>
-                  <option value="plan2">חבילה 2</option>
-                  <option value="plan3">חבילה 3</option>
+                  value={paymentStatus}
+                  onChange={(e) =>
+                    setPaymentStatus(
+                      e.target.value as PaymentStatus
+                    )
+                  }
+                  className="w-full border rounded-lg px-4 py-2"
+                >
+                  <option value="stripe">
+                    לתשלום דרך Stripe
+                  </option>
+                  <option value="paid">
+                    שולם ידנית
+                  </option>
                 </select>
-              </section>
-
-              {/* RECORDS */}
-              <section>
-                <label className="block text-sm font-medium mb-1">כמות רשומות</label>
-                <input type="number" min={1}
-                  value={records}
-                  onChange={(e)=>setRecords(Number(e.target.value))}
-                  className="w-full border rounded-lg px-4 py-2"/>
-              </section>
-
-              {/* ADDONS */}
-              <section className="space-y-2">
-                <label className="flex gap-2">
-                  <input type="checkbox"
-                    checked={addons.credit}
-                    onChange={()=>setAddons(prev=>({...prev,credit:!prev.credit}))}/>
-                  מתנות באשראי
-                </label>
-                <label className="flex gap-2">
-                  <input type="checkbox"
-                    checked={addons.seating}
-                    onChange={()=>setAddons(prev=>({...prev,seating:!prev.seating}))}/>
-                  הושבה דיגיטלית
-                </label>
-                <label className="flex gap-2">
-                  <input type="checkbox"
-                    checked={addons.system}
-                    onChange={()=>setAddons(prev=>({...prev,system:!prev.system}))}/>
-                  מערכת ניהול
-                </label>
-                <label className="flex gap-2">
-                  <input type="checkbox"
-                    checked={addons.design}
-                    onChange={()=>setAddons(prev=>({...prev,design:!prev.design}))}/>
-                  עיצוב אישי
-                </label>
-              </section>
-
-              {/* PRICE */}
-              <section>
-                <label className="block text-sm font-medium mb-1">מחיר כולל (₪)</label>
-                <input type="number" value={price}
-                  onChange={(e)=>setPrice(e.target.value===""?"":Number(e.target.value))}
-                  className="w-full border rounded-lg px-4 py-2 mb-3"/>
               </section>
             </>
           )}
+
+          {/* PRODUCER */}
+          {role === "producer" && (
+            <section>
+              <h3 className="text-sm font-bold text-gray-600 mb-3">
+                תמחור למפיק
+              </h3>
+
+              <label className="block text-sm mb-1">
+                מחיר לרשומה (₪)
+              </label>
+              <input
+                type="number"
+                value={producerPricePerRecord}
+                onChange={(e) =>
+                  setProducerPricePerRecord(
+                    e.target.value === ""
+                      ? ""
+                      : Number(e.target.value)
+                  )
+                }
+                className="w-full border rounded-lg px-4 py-2"
+              />
+            </section>
+          )}
         </div>
 
+        {/* FOOTER */}
         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border rounded-lg"
+          >
             ביטול
           </button>
 
           <button
             onClick={handleSubmit}
-            disabled={
-              !name ||
-              !email ||
-              (role === "user" && !price) ||
-              (role === "producer" && !producerPricePerRecord)
-            }
+           disabled={
+  !name ||
+  !email ||
+  (role === "user" && !price) ||
+  (role === "producer" && !producerPricePerRecord)
+  // staff לא צריך שום תנאי
+}
+
             className="px-5 py-2 rounded-lg bg-black text-white disabled:opacity-40"
           >
             צור משתמש
