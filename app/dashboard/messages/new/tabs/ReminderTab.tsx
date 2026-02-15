@@ -49,37 +49,21 @@ export default function ReminderTab({
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [includeGiftLink, setIncludeGiftLink] = useState(false);
+
   const [preview, setPreview] = useState<any>(null);
 
-  /* ================= TIMING ================= */
 
-  type SendTiming = "now" | "scheduled";
+  
 
-  const [sendTiming, setSendTiming] = useState<SendTiming>("now");
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [scheduledTime, setScheduledTime] = useState("");
-
-  const computedScheduledAt = useMemo(() => {
-    if (
-      sendTiming !== "scheduled" ||
-      !scheduledDate ||
-      !scheduledTime
-    ) {
-      return null;
-    }
-
-    const [year, month, day] = scheduledDate.split("-").map(Number);
-    const [hour, minute] = scheduledTime.split(":").map(Number);
-
-    return new Date(year, month - 1, day, hour, minute, 0, 0);
-  }, [sendTiming, scheduledDate, scheduledTime]);
-
-  /* ================= TEST SMS ================= */
+  /* ================= TEST SMS STATE ================= */
 
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [testsRemaining, setTestsRemaining] = useState<number | null>(null);
+
+  /* ================= LOAD REMAINING FROM SERVER ================= */
 
   useEffect(() => {
     async function loadRemaining() {
@@ -90,6 +74,7 @@ export default function ReminderTab({
         });
 
         const data = await res.json();
+
         if (typeof data.remaining === "number") {
           setTestsRemaining(data.remaining);
         }
@@ -152,9 +137,10 @@ export default function ReminderTab({
       eventDate,
       eventLocation,
       navigationLink:
-        typeof lat === "number" && typeof lng === "number"
-          ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-          : "",
+  typeof lat === "number" && typeof lng === "number"
+    ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+    : "",
+
       includeGiftLink,
       giftLink: giftCreditUrl || "",
     });
@@ -180,6 +166,13 @@ export default function ReminderTab({
 
     if (!longestGuest) return;
 
+    setPreview({
+      text: longestText,
+      totalChars: longestText.length,
+      parts: 1,
+      blocked: false,
+    });
+
     async function fetchPreview() {
       try {
         const res = await fetch("/api/sms/preview", {
@@ -196,18 +189,27 @@ export default function ReminderTab({
         const data = await res.json();
 
         if (data?.text) {
-          setPreview({
-            text: data.text,
-            totalChars: data.totalChars,
-            parts: data.parts,
-            blocked: !data.allowed,
-          });
+          setPreview((prev: any) =>
+            prev
+              ? {
+                  ...prev,
+                  text: data.text,
+                  totalChars: data.totalChars,
+                  parts: data.parts,
+                  blocked: !data.allowed,
+                }
+              : prev
+          );
         }
       } catch {}
     }
 
     fetchPreview();
-  }, [invitationId, guestsToSend, includeGiftLink]);
+  }, [
+    invitationId,
+    guestsToSend,
+    includeGiftLink,
+  ]);
 
   /* ================= TEST SEND ================= */
 
@@ -259,85 +261,70 @@ export default function ReminderTab({
         readOnly
       />
 
-      {/* TIMING UI */}
-      <div className="border rounded-xl p-4 bg-[#faf9f7] space-y-4 text-sm">
-        <div className="font-semibold">⏱️ תזמון ההודעה</div>
-
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={sendTiming === "now"}
-              onChange={() => setSendTiming("now")}
-            />
-            שליחה מיידית
-          </label>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={sendTiming === "scheduled"}
-              onChange={() => setSendTiming("scheduled")}
-            />
-            שליחה מתוזמנת
-          </label>
+      {/* PHONE PREVIEW */}
+      {preview && (
+        <div className="w-full flex justify-center mt-6 mb-8">
+          <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[120px] h-[22px] bg-black rounded-b-2xl" />
+            <div className="relative w-full h-full bg-[#f5f5f5] rounded-[38px] overflow-hidden">
+              <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold text-gray-600 border-b">
+                INVISTIMO · SMS
+              </div>
+              <div className="flex justify-center items-center h-full p-4">
+                <div className="bg-gray-200 text-gray-900 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right break-words whitespace-pre-wrap">
+                  {preview.text}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
 
-        {sendTiming === "scheduled" && (
-          <div className="flex gap-3">
-            <input
-              type="date"
-              min={new Date().toLocaleDateString("en-CA")}
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              className="flex-1 border rounded-lg px-3 py-2"
-            />
+      {/* TEST MESSAGE */}
+      {preview && (
+        <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm space-y-3">
+          <div className="font-semibold">שליחת הודעה לבדיקה ✏️</div>
 
-            <input
-              type="time"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-              className="flex-1 border rounded-lg px-3 py-2"
-            />
-          </div>
-        )}
-
-        {computedScheduledAt && (
           <div className="text-xs text-gray-500">
-            📅 תישלח ב־
-            <strong>
-              {" "}
-              {computedScheduledAt.toLocaleDateString("he-IL")}
-            </strong>{" "}
-            בשעה{" "}
-            <strong>
-              {computedScheduledAt.toLocaleTimeString("he-IL", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </strong>
+            בדיקות שנותרו: {testsRemaining ?? "..."} / 10
           </div>
-        )}
-      </div>
 
-      {/* SEND BUTTON */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="05XXXXXXXX"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="flex-1 border rounded-lg px-3 py-2"
+            />
+            <button
+              onClick={sendTestMessage}
+              disabled={sendingTest || (testsRemaining ?? 0) <= 0}
+              className="bg-gray-200 px-4 rounded-lg"
+            >
+              {sendingTest ? "שולח..." : "שלח לבדיקה"}
+            </button>
+          </div>
+
+          <div className="text-xs text-gray-400">
+          </div>
+        </div>
+      )}
+
+
       <SendButton
         channel="sms"
         type="reminder"
         invitationId={invitationId}
         audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={computedScheduledAt}
-
-        disabled={
-          !preview ||
-          preview.blocked ||
-          (sendTiming === "scheduled" && !computedScheduledAt)
-        }
+        scheduledAt={scheduledAt}
+        disabled={!preview || preview.blocked}
       >
-        {sendTiming === "scheduled"
+        {scheduledAt
           ? "⏱️ תזמן תזכורת"
           : `📩 שלח תזכורת (${guestsToSend.length})`}
       </SendButton>
+
     </div>
   );
 }
