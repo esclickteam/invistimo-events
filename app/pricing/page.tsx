@@ -306,7 +306,8 @@ const handleRegister = (plan: PlanKey) => {
       </section>
 
       <section className="pt-20 md:pt-24 pb-32 px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10 items-stretch">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-y-16 md:gap-10 items-stretch">
+
           {(["plan1", "plan2", "plan3"] as PlanKey[]).map((plan) => {
             const features = getPlanFeatures(plan);
 
@@ -318,7 +319,8 @@ const handleRegister = (plan: PlanKey) => {
            return (
   <Card
     key={plan}
-    className="rounded-[32px] shadow-xl hover:shadow-2xl transition h-full flex flex-col overflow-visible"
+      className="rounded-[32px] shadow-xl hover:shadow-2xl transition h-full flex flex-col overflow-visible mb-10 md:mb-0"
+
   >
     <CardContent className="relative flex h-full flex-col p-8 md:p-9 pt-[96px] md:pt-[112px]">
 
