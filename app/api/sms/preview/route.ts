@@ -101,14 +101,15 @@ export async function POST(req: Request) {
 
     /* ================= RESPONSE ================= */
     return NextResponse.json({
-      success: true,
-      finalMessage: finalText, // 👈 חשוב כדי שהקליינט יעדכן טקסט
-      totalChars: length,
-      parts,
-      allowed,
-      overflow,
-      limit: 320,
-    });
+  success: true,
+  text: finalText,          // ← זה מה שהקליינט צריך
+  finalMessage: finalText,  // אפשר להשאיר גם את זה
+  totalChars: length,
+  parts,
+  allowed,
+  overflow,
+  limit: 320,
+});
   } catch (err) {
     console.error("❌ SMS PREVIEW ERROR:", err);
     return NextResponse.json(
