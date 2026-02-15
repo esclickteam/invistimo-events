@@ -347,7 +347,7 @@ const handleRegister = (plan: PlanKey) => {
   
 </div>
 
-      {/* FEATURES קבוע גובה */}
+       {/* FEATURES קבוע גובה */}
       <ul className="text-sm space-y-3" style={{ minHeight: 260 }}>
         {features.map((item, idx) => (
           <li
