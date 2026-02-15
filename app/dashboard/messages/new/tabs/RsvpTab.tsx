@@ -60,9 +60,11 @@ export default function RsvpTab({
   const [round, setRound] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(true);
 
-  // 🔒 מצב סבבים מהשרת
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
+
+  // ✅ חדש – הודעה ידנית
+  const [manualMessage, setManualMessage] = useState("");
 
   /* ================= LOAD DATA ================= */
 
@@ -113,7 +115,6 @@ export default function RsvpTab({
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
 
-  // ⛔ חסימה רק של שליחה – לא של ניווט
   const blocked =
     loading ||
     noAudience ||
@@ -126,6 +127,19 @@ export default function RsvpTab({
     [eventTitle, eventDate, eventLocation]
   );
 
+  /* ================= MANUAL SEND ================= */
+
+  const sendManualWhatsapp = () => {
+    if (!manualMessage || guestsToSend.length === 0) return;
+
+    guestsToSend.forEach((guest) => {
+      const phone = guest.phone.replace(/\D/g, "");
+      const text = manualMessage.replace(/{{name}}/g, guest.name || "");
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    });
+  };
+
   if (loading) return <p>טוען אורחים...</p>;
 
   /* ================= UI ================= */
@@ -133,7 +147,7 @@ export default function RsvpTab({
   return (
     <div className="space-y-6 p-6">
 
-      {/* ===== ROUNDS (תמיד לחיצים) ===== */}
+      {/* ===== ROUNDS ===== */}
       <div className="flex gap-2">
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
@@ -170,8 +184,39 @@ export default function RsvpTab({
         headerImageUrl={headerImageUrl}
       />
 
+      {/* ================= MANUAL WHATSAPP ================= */}
+      <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="font-semibold">
+            ✍️ שליחה ידנית ב-WhatsApp
+          </div>
+          <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full">
+            ללא חיוב
+          </span>
+        </div>
 
-      {/* ===== SEND ===== */}
+        <p className="text-sm text-gray-500">
+          ההודעה תיפתח ב-WhatsApp Web ותישלח כהודעה רגילה
+        </p>
+
+        <textarea
+          value={manualMessage}
+          onChange={(e) => setManualMessage(e.target.value)}
+          rows={4}
+          className="w-full border rounded-xl p-3 text-sm"
+          placeholder="הקלד/י הודעה ידנית... ניתן להשתמש ב- {{name}}"
+        />
+
+        <button
+          onClick={sendManualWhatsapp}
+          disabled={!manualMessage || guestsToSend.length === 0}
+          className="w-full py-3 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50"
+        >
+          📲 פתח ב-WhatsApp ({guestsToSend.length})
+        </button>
+      </div>
+
+      {/* ===== SEND TEMPLATE ===== */}
       <SendButton
         channel="whatsapp"
         type="rsvp"
@@ -189,7 +234,9 @@ export default function RsvpTab({
       </SendButton>
 
       {noAudience && (
-        <p className="text-sm text-red-500">אין נמענים לשליחה בסבב זה</p>
+        <p className="text-sm text-red-500">
+          אין נמענים לשליחה בסבב זה
+        </p>
       )}
     </div>
   );
