@@ -14,7 +14,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
    מחיר שדרוג לפי חבילה בלבד
 ============================================================ */
 function getUpgradePrice(plan: string | undefined) {
-  if (plan === "plan1") return 100;
+  if (plan === "plan1") return 5;
   if (plan === "plan2") return 80;
   return 0; // plan3 או אחר – כבר כולל הושבה
 }
