@@ -51,20 +51,11 @@ export default function ReminderTab({
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
-
   const [includeGiftLink, setIncludeGiftLink] = useState(false);
 
-  const [preview, setPreview] = useState<{
-    text: string;
-    totalChars: number;
-    parts: number;
-    blocked: boolean;
-    overflow: number;
-    limit: number;
-    longestGuestName?: string | null;
-  } | null>(null);
+  const [preview, setPreview] = useState<any>(null);
 
-  /* ================= NEW: SHORT NAV LINK ================= */
+  /* ================= SHORT NAV LINK ================= */
 
   const [shortNavigationLink, setShortNavigationLink] = useState("");
 
@@ -86,12 +77,7 @@ export default function ReminderTab({
         });
 
         const data = await res.json();
-
-        if (data?.shortUrl) {
-          setShortNavigationLink(data.shortUrl);
-        } else {
-          setShortNavigationLink(wazeUrl);
-        }
+        setShortNavigationLink(data?.shortUrl || wazeUrl);
       } catch {
         setShortNavigationLink(
           `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
@@ -102,11 +88,34 @@ export default function ReminderTab({
     shorten();
   }, [lat, lng]);
 
-  /* ================= NEW: TEST MESSAGE ================= */
+  /* ================= TEST SMS STATE ================= */
 
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
-  const [testsRemaining, setTestsRemaining] = useState(10);
+  const [testsRemaining, setTestsRemaining] = useState<number | null>(null);
+
+  /* ================= LOAD REMAINING FROM SERVER ================= */
+
+  useEffect(() => {
+    async function loadRemaining() {
+      try {
+        const res = await fetch("/api/sms/test", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        const data = await res.json();
+
+        if (typeof data.remaining === "number") {
+          setTestsRemaining(data.remaining);
+        }
+      } catch {
+        setTestsRemaining(0);
+      }
+    }
+
+    loadRemaining();
+  }, []);
 
   /* ================= LOAD GUESTS ================= */
 
@@ -119,8 +128,7 @@ export default function ReminderTab({
         const res = await fetch(`/api/guests?invitation=${invitationId}`);
         const data = await res.json();
         setGuests(Array.isArray(data.guests) ? data.guests : []);
-      } catch (err) {
-        console.error(err);
+      } catch {
         setGuests([]);
       } finally {
         setLoading(false);
@@ -145,13 +153,13 @@ export default function ReminderTab({
     [confirmedGuests]
   );
 
-  const guestsToSend = useMemo(() => {
-    return guestsWithTable.length > 0
-      ? guestsWithTable
-      : confirmedGuests;
-  }, [guestsWithTable, confirmedGuests]);
-
-  const navigationLink = shortNavigationLink;
+  const guestsToSend = useMemo(
+    () =>
+      guestsWithTable.length > 0
+        ? guestsWithTable
+        : confirmedGuests,
+    [guestsWithTable, confirmedGuests]
+  );
 
   const buildReminderMessage = (g: Guest) =>
     buildMessage({
@@ -159,7 +167,7 @@ export default function ReminderTab({
       guest: g,
       eventDate,
       eventLocation,
-      navigationLink,
+      navigationLink: shortNavigationLink,
       includeGiftLink,
       giftLink: giftCreditUrl || "",
     });
@@ -183,19 +191,13 @@ export default function ReminderTab({
       }
     }
 
-    if (!longestGuest) {
-      setPreview(null);
-      return;
-    }
+    if (!longestGuest) return;
 
     setPreview({
       text: longestText,
       totalChars: longestText.length,
       parts: 1,
       blocked: false,
-      overflow: 0,
-      limit: 200,
-      longestGuestName: longestGuest.name,
     });
 
     async function fetchPreview() {
@@ -213,39 +215,28 @@ export default function ReminderTab({
 
         const data = await res.json();
 
-        if (
-  typeof data.totalChars === "number" &&
-  typeof data.parts === "number"
-) {
-  setPreview((prev) =>
-    prev
-      ? {
-          ...prev,
-          text: data.finalMessage || prev.text, // ⭐⭐⭐ זה החלק החסר
-          totalChars: data.totalChars,
-          parts: data.parts,
-          blocked: !data.allowed,
-          overflow: data.overflow ?? 0,
-          limit: data.limit ?? 200,
+        if (data?.text) {
+          setPreview((prev: any) =>
+            prev
+              ? {
+                  ...prev,
+                  text: data.text,
+                  totalChars: data.totalChars,
+                  parts: data.parts,
+                  blocked: !data.allowed,
+                }
+              : prev
+          );
         }
-      : prev
-  );
-}
-
-
-      } catch (err) {
-        console.error(err);
-      }
+      } catch {}
     }
 
     fetchPreview();
   }, [
     invitationId,
     guestsToSend,
-    eventDate,
-    eventLocation,
     includeGiftLink,
-    shortNavigationLink, // ⭐ חשוב
+    shortNavigationLink,
   ]);
 
   /* ================= TEST SEND ================= */
@@ -261,7 +252,6 @@ export default function ReminderTab({
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          invitationId,
           phone: testPhone,
           message: preview.text,
         }),
@@ -270,7 +260,9 @@ export default function ReminderTab({
       const data = await res.json();
 
       if (data.success) {
-        setTestsRemaining((prev) => Math.max(prev - 1, 0));
+        if (typeof data.remaining === "number") {
+          setTestsRemaining(data.remaining);
+        }
         alert("נשלח בהצלחה ✅");
       } else {
         alert("שליחה נכשלה ❌");
@@ -281,16 +273,6 @@ export default function ReminderTab({
       setSendingTest(false);
     }
   }
-
-  const blocked =
-    loading ||
-    guestsToSend.length === 0 ||
-    !!preview?.blocked;
-
-  const renderPreviewText = (text: string) =>
-    text.split("\n").map((line, i) => (
-      <p key={i}>{line || <span>&nbsp;</span>}</p>
-    ));
 
   if (loading) {
     return <p className="text-sm text-gray-500">טוען אורחים…</p>;
@@ -317,8 +299,8 @@ export default function ReminderTab({
                 INVISTIMO · SMS
               </div>
               <div className="flex justify-center items-center h-full p-4">
-                <div className="bg-gray-200 text-gray-900 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right break-words">
-                  {renderPreviewText(preview.text)}
+                <div className="bg-gray-200 text-gray-900 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right break-words whitespace-pre-wrap">
+                  {preview.text}
                 </div>
               </div>
             </div>
@@ -326,15 +308,13 @@ export default function ReminderTab({
         </div>
       )}
 
-      {/* TEST MESSAGE UI */}
+      {/* TEST MESSAGE */}
       {preview && (
         <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm space-y-3">
-          <div className="font-semibold">
-            שליחת הודעה לבדיקה ✏️
-          </div>
+          <div className="font-semibold">שליחת הודעה לבדיקה ✏️</div>
 
           <div className="text-xs text-gray-500">
-            בדיקות שנותרו: {testsRemaining} / 10
+            בדיקות שנותרו: {testsRemaining ?? "..."} / 10
           </div>
 
           <div className="flex gap-2">
@@ -347,7 +327,7 @@ export default function ReminderTab({
             />
             <button
               onClick={sendTestMessage}
-              disabled={sendingTest || testsRemaining <= 0}
+              disabled={sendingTest || (testsRemaining ?? 0) <= 0}
               className="bg-gray-200 px-4 rounded-lg"
             >
               {sendingTest ? "שולח..." : "שלח לבדיקה"}
@@ -368,7 +348,7 @@ export default function ReminderTab({
         invitationId={invitationId}
         audience={guestsToSend.map((g) => g._id)}
         scheduledAt={scheduledAt}
-        disabled={blocked}
+        disabled={!preview || preview.blocked}
       >
         {scheduledAt
           ? "⏱️ תזמן תזכורת"
