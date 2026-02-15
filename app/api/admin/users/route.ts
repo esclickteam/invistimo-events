@@ -270,7 +270,8 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= USER ================= */
-    const { records, smsTotal, includeCalls } = limits || {};
+    const { records, smsTotal } = limits || {};
+
     const { price, paymentStatus } = billing || {};
 
     const recordsNum = Number(records);
@@ -292,7 +293,8 @@ if (
     const finalIncludeCalls =
   plan === "plan2" ||
   plan === "plan3" ||
-  includeCalls === true;
+  addons?.calls?.enabled === true;
+
 
 
 const finalIncludeCreditGifts =
@@ -348,7 +350,8 @@ creditGiftsAddonPrice: addons?.credit?.price || 0,
         maxGuests: recordsNum,
 
         includeCalls: finalIncludeCalls,
-        callsAddonPrice: 0,
+        callsAddonPrice: addons?.calls?.price || 0,
+
 
         includeCreditGifts: finalIncludeCreditGifts,
 creditGiftsAddonPrice: addons?.credit?.price || 0,
