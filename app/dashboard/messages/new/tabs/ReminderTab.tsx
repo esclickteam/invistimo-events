@@ -251,7 +251,7 @@ export default function ReminderTab({
 
       {/* TIMING */}
       {/* ================= TIMING ================= */}
-<div className="border rounded-2xl p-6 bg-white shadow-sm space-y-5" dir="rtl">
+<div className="border rounded-2xl p-6 bg-transparent shadow-none space-y-5" dir="rtl">
   <div className="flex items-center gap-2 font-semibold text-gray-800">
     <span>⏱️</span>
     <span>תזמון ההודעה</span>
