@@ -396,7 +396,7 @@ const user = await User.create({
 
   needsPasswordSetup: true,
   createdByAdmin: true,
-  billingSource: paymentMethod === "manual" ? "admin_manual" : "admin_stripe",
+  billingSource: "admin",
 });
 
 // אם סומן "שילם ידני" -> רושמים תשלום ושולחים מייל עכשיו

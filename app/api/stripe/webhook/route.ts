@@ -229,12 +229,16 @@ export async function POST(req: Request) {
       seatingEnabled: base.planLimits.seatingEnabled || addonSeating,
     };
 
+    const billingSourceForUser =
+  source === "admin" ? "admin" : "site"; // pricing -> site
+
+
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
       {
         hasPaid: true,
         paidAmount: amount,
-        billingSource: source, // דינמי
+        billingSource: billingSourceForUser,
         isTrial: false,
         hasDashboardAccess: true,
 
@@ -268,17 +272,20 @@ export async function POST(req: Request) {
       }
     }
 
-    try {
-      await notifyAdminPurchase({
-        email: user.email,
-        amount,
-        currency: (session.currency || "ils").toLowerCase(),
-        type: "New registration",
-        details: `source=${source} | plan=${plan} | guests=${guests}`,
-      });
-    } catch (err) {
-      console.error("❌ Failed to notify admin", err);
-    }
+    if (createdPaymentNow) {
+  try {
+    await notifyAdminPurchase({
+      email: user.email,
+      amount,
+      currency: (session.currency || "ils").toLowerCase(),
+      type: "New registration",
+      details: `source=${source} | plan=${plan} | guests=${guests}`,
+    });
+  } catch (err) {
+    console.error("❌ Failed to notify admin", err);
+  }
+}
+
 
     return NextResponse.json({ received: true });
   } catch (err) {
