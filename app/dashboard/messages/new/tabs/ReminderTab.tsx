@@ -51,7 +51,8 @@ export default function ReminderTab({
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeGiftLink, setIncludeGiftLink] = useState(false);
-const [giftLink, setGiftLink] = useState(giftCreditUrl || "");
+  const [giftLink, setGiftLink] = useState("");
+
 
 
   const [preview, setPreview] = useState<any>(null);
