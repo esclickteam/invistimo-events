@@ -272,15 +272,20 @@ export async function POST(req: NextRequest) {
     const { price, paymentStatus } = billing || {};
 
     const recordsNum = Number(records);
-    const smsTotalNum = Number(smsTotal);
-    const priceNum = Number(price ?? 0);
+const smsTotalNum = Number(smsTotal);
+const priceNum = Number(price ?? 0);
 
-    if (!recordsNum || !smsTotalNum || Number.isNaN(priceNum)) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_LIMITS_OR_BILLING" },
-        { status: 400 }
-      );
-    }
+if (
+  Number.isNaN(recordsNum) ||
+  Number.isNaN(smsTotalNum) ||
+  Number.isNaN(priceNum)
+) {
+  return NextResponse.json(
+    { success: false, error: "INVALID_LIMITS_OR_BILLING" },
+    { status: 400 }
+  );
+}
+
 
     const finalIncludeCalls = !!includeCalls;
     const finalIncludeCreditGifts = finalIncludeCalls;
