@@ -59,7 +59,13 @@ export default function ThankYouTab({
   /* ================= LOAD GUESTS ================= */
 
   useEffect(() => {
-  if (!invitationId) return;
+  // 🔥 אין אירוע → לא טוענים כלום, אבל כן משחררים loading
+  if (!invitationId) {
+    setGuests([]);
+    setPreview(null);
+    setLoading(false);
+    return;
+  }
 
   async function loadData() {
     try {
@@ -79,7 +85,6 @@ export default function ThankYouTab({
       if (inv?.thankYouSentAt) {
         setThankYouSentAt(new Date(inv.thankYouSentAt));
       }
-
     } catch {
       setGuests([]);
     } finally {
@@ -89,6 +94,7 @@ export default function ThankYouTab({
 
   loadData();
 }, [invitationId]);
+
 
 
 
