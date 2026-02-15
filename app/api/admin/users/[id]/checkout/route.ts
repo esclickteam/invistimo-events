@@ -122,10 +122,12 @@ export async function POST(
       ],
 
       metadata: {
-        userId: String(user._id),
-        email: user.email,
-        role: user.role,
-      },
+  userId: String(user._id),
+  email: user.email,
+  role: user.role,
+  source: "admin"
+  
+},
 
       success_url: `${appUrl}/admin/users?paid=1`,
       cancel_url: `${appUrl}/admin/users?canceled=1`,

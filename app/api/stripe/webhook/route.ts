@@ -161,7 +161,11 @@ export async function POST(req: Request) {
        HANDLE PRICING
     ============================================================ */
 
-    if (session.metadata?.source === "pricing") {
+    if (
+  session.metadata?.source === "pricing" ||
+  session.metadata?.source === "admin"
+) {
+
 
       const paymentIntentId = String(session.payment_intent);
 
@@ -183,7 +187,7 @@ export async function POST(req: Request) {
           type: "package",
           isTest: !session.livemode,
           meta: {
-            source: "pricing",
+            source: session.metadata?.source || "pricing",
             stripeEventId: stripeEvent.id,
             plan: session.metadata?.plan ?? null,
             guests: session.metadata?.guests ?? null,
@@ -221,7 +225,7 @@ export async function POST(req: Request) {
         {
           hasPaid: true,
           paidAmount: amount,
-          billingSource: "pricing",
+          billingSource: session.metadata?.source || "pricing",
           isTrial: false,
           hasDashboardAccess: true,
           isActive: false,
