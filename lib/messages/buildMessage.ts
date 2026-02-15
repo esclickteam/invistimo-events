@@ -18,7 +18,7 @@ export type BuildMessageParams = {
   rsvpLink?: string;
   navigationLink?: string;
 
-  // Optional
+  // 🎁 Gift
   includeGiftLink?: boolean;
   giftLink?: string;
 };
@@ -39,11 +39,15 @@ export function buildMessage({
   includeGiftLink = false,
   giftLink = "",
 }: BuildMessageParams) {
+  /* ================= TABLE NAME ================= */
+
   const tableName =
     guest.tableName ||
     (typeof guest.tableNumber === "number"
       ? `שולחן ${guest.tableNumber}`
       : "");
+
+  /* ================= BASE REPLACEMENTS ================= */
 
   let text = template
     .replace(/{{name}}/g, guest.name || "")
@@ -54,13 +58,27 @@ export function buildMessage({
     .replace(/{{rsvpLink}}/g, rsvpLink)
     .replace(/{{navigationLink}}/g, navigationLink);
 
-  // 🎁 Gift link append
-  if (includeGiftLink && giftLink) {
-    text += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+  /* ================= 🎁 GIFT LINK ================= */
+
+  if (includeGiftLink && giftLink.trim()) {
+    text += `\n\n🎁 למתנה באשראי:\n${giftLink.trim()}`;
   }
 
-  // 🧹 ניקוי משתנים שלא הוחלפו (אם נשארו {{something}})
+  /* ================= CLEAN UNUSED PLACEHOLDERS ================= */
+
   text = text.replace(/{{[^}]+}}/g, "");
+
+  /* ================= REMOVE EXTRA EMPTY LINES ================= */
+
+  text = text
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line, index, arr) => {
+      // מסיר שורות ריקות כפולות
+      if (line !== "") return true;
+      return arr[index - 1] !== "";
+    })
+    .join("\n");
 
   return text.trim();
 }
