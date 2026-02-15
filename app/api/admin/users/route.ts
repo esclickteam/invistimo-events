@@ -289,7 +289,11 @@ if (
 }
 
 
-    const finalIncludeCalls = !!includeCalls;
+    const finalIncludeCalls =
+  plan === "plan2" ||
+  plan === "plan3" ||
+  includeCalls === true;
+
 
 const finalIncludeCreditGifts =
   plan === "plan3" ||
