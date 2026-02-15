@@ -196,7 +196,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null);
-    const { name, email, role, limits, billing, addons } = body || {};
+    const { name, email, role, limits, billing, addons, plan } = body || {};
+
 
 
     if (!name || !email || !role) {
@@ -291,7 +292,9 @@ if (
     const finalIncludeCalls = !!includeCalls;
 
 const finalIncludeCreditGifts =
+  plan === "plan3" ||
   addons?.credit?.enabled === true;
+
 
 
     const planLimits = {
@@ -308,7 +311,8 @@ const finalIncludeCreditGifts =
       email: String(email).toLowerCase(),
       role: "user",
 
-      plan: "premium",
+      plan: plan || "premium",
+
       planLimits,
 
       guests: recordsNum,
