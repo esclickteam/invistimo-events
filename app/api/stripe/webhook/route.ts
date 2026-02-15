@@ -224,7 +224,7 @@ export async function POST(req: Request) {
           billingSource: "pricing",
           isTrial: false,
           hasDashboardAccess: true,
-          isActive: true,
+          isActive: false,
           plan,
           guests,
           planLimits: finalPlanLimits,

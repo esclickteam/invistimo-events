@@ -50,8 +50,9 @@ export default function PaymentSuccessPage() {
           }
 
           if (!cancelled) {
-            router.replace("/dashboard");
-          }
+  window.location.href = "/dashboard";
+}
+
 
           return;
         } catch (err) {
