@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+
 type UserRole = "user" | "producer" | "staff";
 type PaymentStatus = "paid" | "stripe";
 
@@ -10,6 +11,12 @@ type Props = {
 };
 
 const SMS_PER_RECORD = 3;
+
+const RECORD_PACKAGES = [
+  50, 100, 150, 200, 250, 300, 350, 400,
+  450, 500, 550, 600, 650, 700, 750, 800,
+];
+
 
 export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER BASIC ===== */
@@ -177,21 +184,53 @@ export default function CreateUserModal({ onClose }: Props) {
                   מגבלות מערכת
                 </h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+
+
+
                   <div>
-                    <label className="block text-sm font-medium mb-1">
-                      כמות רשומות
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={records}
-                      onChange={(e) =>
-                        setRecords(Number(e.target.value))
-                      }
-                      className="w-full border rounded-lg px-4 py-2"
-                    />
-                  </div>
+  <label className="block text-sm font-medium mb-1">
+    כמות רשומות
+  </label>
+
+  <input
+    type="number"
+    min={1}
+    value={records}
+    onChange={(e) => setRecords(Number(e.target.value))}
+    className="w-full border rounded-lg px-4 py-2"
+  />
+
+  {/* חבילות מוכנות */}
+  <div className="mt-4">
+    <label className="block text-xs text-gray-500 mb-2">
+      או בחרי חבילה מוכנה:
+    </label>
+
+   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-2">
+
+      {RECORD_PACKAGES.map((num) => (
+        <button
+          key={num}
+          type="button"
+          onClick={() => setRecords(num)}
+          className={`
+            text-xs py-2 rounded-md border transition
+            ${
+              records === num
+                ? "bg-black text-white border-black"
+                : "bg-white hover:bg-gray-100"
+            }
+          `}
+        >
+          {num}
+        </button>
+      ))}
+    </div>
+  </div>
+</div>
+
+
 
                   <div>
                     <label className="block text-sm font-medium mb-1">
