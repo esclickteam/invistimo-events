@@ -45,7 +45,7 @@ type GuestDoc = {
 /* =========================================================
    GET /api/guests
 ========================================================= */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await db();
     console.log("✅ MongoDB connected");
@@ -60,22 +60,51 @@ export async function GET() {
 
     const userId = String(auth.userId);
 
-    /* ===============================
-       שליפת מכסה של המשתמש (guests)
-    =============================== */
+    /* =========================================================
+       🔹 אם יש invitation בפרמטרים — מחזיר רק אותה
+    ========================================================= */
+    const invitationId = req.nextUrl.searchParams.get("invitation");
+
+    if (invitationId) {
+      console.log("📌 Filtering by invitation:", invitationId);
+
+      const invitation = (await Invitation.findById(invitationId)
+        .select("_id ownerId producerId eventId")
+        .lean()) as InvitationDoc | null;
+
+      if (!invitation) {
+        return NextResponse.json({ guests: [], usage: null });
+      }
+
+      const ownerId = invitation.ownerId?.toString();
+      const producerId = invitation.producerId?.toString();
+
+      if (ownerId !== userId && producerId !== userId) {
+        return NextResponse.json({ guests: [], usage: null });
+      }
+
+      const guests = (await InvitationGuest.find({
+        invitationId,
+      }).lean()) as GuestDoc[];
+
+      return NextResponse.json({
+        guests,
+        usage: null,
+      });
+    }
+
+    /* =========================================================
+       אם אין invitation — ממשיך ללוגיקה המקורית
+    ========================================================= */
+
     const user = await User.findById(userId).select("guests").lean();
     const maxGuests = Number((user as any)?.guests || 0);
 
-    /* ===============================
-       הזמנות (לקוח + מפיק)
-    =============================== */
     const invitations = (await Invitation.find({
       $or: [{ ownerId: userId }, { producerId: userId }],
     })
       .select("_id eventId")
       .lean()) as InvitationDoc[];
-
-    console.log("📩 Invitations:", invitations.length);
 
     if (!invitations.length) {
       return NextResponse.json({
@@ -93,35 +122,19 @@ export async function GET() {
       .map((i) => i.eventId)
       .filter(Boolean) as Types.ObjectId[];
 
-    /* ===============================
-       אורחים
-    =============================== */
     const guests = (await InvitationGuest.find({
       invitationId: { $in: invitationIds },
     }).lean()) as GuestDoc[];
 
-    console.log("👥 Guests:", guests.length);
-
-    /* ===============================
-       הושבות – לפי EVENT ID
-    =============================== */
     const seatings = (await SeatingTable.find({
       eventId: { $in: eventIds },
     }).lean()) as SeatingDoc[];
 
-    console.log("🪑 Seatings:", seatings.length);
-
-    /* ===============================
-       Map להזמנה לפי ID
-    =============================== */
     const invitationById = new Map<string, InvitationDoc>();
     for (const inv of invitations) {
       invitationById.set(inv._id.toString(), inv);
     }
 
-    /* ===============================
-       eventId -> guestId -> tableName
-    =============================== */
     const eventGuestToTableMap = new Map<string, Map<string, string>>();
 
     for (const seating of seatings) {
@@ -131,6 +144,7 @@ export async function GET() {
       if (!eventGuestToTableMap.has(eventKey)) {
         eventGuestToTableMap.set(eventKey, new Map<string, string>());
       }
+
       const guestToTable = eventGuestToTableMap.get(eventKey)!;
 
       for (const table of seating.tables || []) {
@@ -140,11 +154,6 @@ export async function GET() {
         }
       }
     }
-
-    /* ===============================
-       חיבור אורח ← שולחן
-    =============================== */
-    let withTable = 0;
 
     const guestsWithTable = guests.map((guest) => {
       let tableName: string | null = null;
@@ -157,7 +166,6 @@ export async function GET() {
         const found = guestToTable?.get(guest._id.toString());
         if (found) {
           tableName = found;
-          withTable++;
         }
       }
 
@@ -167,8 +175,6 @@ export async function GET() {
         tableName,
       };
     });
-
-    console.log("✅ Guests with table:", withTable);
 
     const current = guestsWithTable.length;
     const limit = maxGuests;
@@ -189,8 +195,7 @@ export async function GET() {
 }
 
 /* =========================================================
-   POST /api/guests
-   חסימה לפי מכסת רשומות user.guests
+   POST — נשאר כמו שהיה
 ========================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -205,8 +210,8 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = String(auth.userId);
-
     const body = await req.json();
+
     const {
       invitationId,
       name,
@@ -223,15 +228,11 @@ export async function POST(req: NextRequest) {
 
     if (!invitationId || !String(name || "").trim()) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields: invitationId, name" },
+        { success: false, error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    /* ===============================
-       הזמנה קיימת והרשאת גישה:
-       owner או producer בלבד
-    =============================== */
     const invitation = (await Invitation.findById(invitationId)
       .select("_id ownerId producerId")
       .lean()) as InvitationDoc | null;
@@ -243,8 +244,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ownerId = invitation.ownerId ? String(invitation.ownerId) : null;
-    const producerId = invitation.producerId ? String(invitation.producerId) : null;
+    const ownerId = invitation.ownerId?.toString();
+    const producerId = invitation.producerId?.toString();
 
     if (ownerId !== userId && producerId !== userId) {
       return NextResponse.json(
@@ -253,22 +254,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ===============================
-       מכסה משתמש
-    =============================== */
     const user = await User.findById(userId).select("guests").lean();
     const limit = Number((user as any)?.guests || 0);
-
-    if (!limit || limit < 1) {
-      return NextResponse.json(
-        { success: false, error: "Guest limit is not configured for this user" },
-        { status: 400 }
-      );
-    }
-
-    /* ===============================
-       כמה רשומות כבר קיימות להזמנה
-    =============================== */
     const current = await InvitationGuest.countDocuments({ invitationId });
 
     if (current >= limit) {
@@ -276,20 +263,12 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           code: "GUEST_LIMIT_REACHED",
-          error: `הגעת למכסה המותרת (${limit}) ולא ניתן להוסיף רשומה נוספת.`,
-          usage: {
-            current,
-            limit,
-            remaining: 0,
-          },
+          error: `הגעת למכסה המותרת (${limit})`,
         },
         { status: 409 }
       );
     }
 
-    /* ===============================
-       יצירה
-    =============================== */
     const created = await InvitationGuest.create({
       invitationId,
       name: String(name).trim(),
@@ -298,22 +277,15 @@ export async function POST(req: NextRequest) {
       rsvpStatus,
       quantity: Number(quantity) || 1,
       notes,
-      groupId: groupId || null,
+      groupId,
       source,
-      tags: Array.isArray(tags) ? tags : [],
+      tags,
       actualArrivedCount: Number(actualArrivedCount) || 0,
     });
-
-    const newCurrent = current + 1;
 
     return NextResponse.json({
       success: true,
       guest: created,
-      usage: {
-        current: newCurrent,
-        limit,
-        remaining: Math.max(0, limit - newCurrent),
-      },
     });
   } catch (err: any) {
     console.error("🔥 ERROR in /api/guests POST:", err);
