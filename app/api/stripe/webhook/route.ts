@@ -103,6 +103,7 @@ export async function POST(req: Request) {
   try {
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
+      console.log("❌ Missing Stripe signature");
       return NextResponse.json({ error: "Missing signature" }, { status: 400 });
     }
 
@@ -122,6 +123,7 @@ export async function POST(req: Request) {
     }
 
     if (stripeEvent.type !== "checkout.session.completed") {
+      console.log("❌ Stripe event type is not checkout.session.completed");
       return NextResponse.json({ received: true });
     }
 
@@ -130,10 +132,12 @@ export async function POST(req: Request) {
     const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
     if (session.payment_status !== "paid") {
+      console.log("❌ Payment not successful");
       return NextResponse.json({ received: true });
     }
 
     if (!session.payment_intent) {
+      console.log("❌ Missing payment intent");
       return NextResponse.json({ received: true });
     }
 
@@ -157,6 +161,8 @@ export async function POST(req: Request) {
       console.error("❌ User not found for payment");
       return NextResponse.json({ received: true });
     }
+
+    console.log("✅ User found:", user.email);
 
     /* ============================================================
        HANDLE PRICING + ADMIN
@@ -200,27 +206,9 @@ export async function POST(req: Request) {
       ============================================================ */
 
       if (user.hasPaid && !user.needsPasswordSetup) {
+        console.log("❌ Payment already processed, skipping password email.");
         return NextResponse.json({ received: true });
       }
-
-      /* ================= PLAN ================= */
-
-      const plan = String(session.metadata?.plan || "plan1");
-      const guests = toNum(session.metadata?.guests, 0);
-
-      const base = getPlanDefaults(plan, guests);
-
-      const addonSeating = toBool(session.metadata?.seatingEnabled);
-      const addonCalls = toBool(session.metadata?.includeCalls);
-      const addonCredit = toBool(session.metadata?.includeCreditGifts);
-      const addonSelfManage = toBool(session.metadata?.selfManageEnabled);
-      const addonCustomDesign = toBool(session.metadata?.customDesignEnabled);
-
-      const finalPlanLimits = {
-        ...base.planLimits,
-        seatingEnabled:
-          base.planLimits.seatingEnabled || addonSeating,
-      };
 
       /* ================= PASSWORD TOKEN ================= */
 
@@ -236,18 +224,11 @@ export async function POST(req: Request) {
           isTrial: false,
           hasDashboardAccess: true,
           isActive: false,
-          plan,
-          guests,
-          planLimits: finalPlanLimits,
-          includeCalls: base.includeCalls || addonCalls,
-          includeCreditGifts: base.includeCreditGifts || addonCredit,
-          selfManageEnabled: addonSelfManage,
-          customDesignEnabled: addonCustomDesign,
-
-          needsPasswordSetup: true,
+          plan: session.metadata?.plan,
+          guests: session.metadata?.guests,
           resetPasswordToken: passwordToken,
           resetPasswordExpires: passwordExpires,
-
+          needsPasswordSetup: true,
           updatedAt: new Date(),
         },
         { new: true }
@@ -257,14 +238,15 @@ export async function POST(req: Request) {
          SEND PASSWORD SETUP EMAIL (ONCE)
       ============================================================ */
 
+      console.log("✅ Sending password setup email to", updatedUser.email);
+
       if (updatedUser.needsPasswordSetup) {
-        await sendPasswordSetupMail(
-          updatedUser.email,
-          passwordToken
-        );
-        console.log(
-          `✅ Password setup email sent to ${updatedUser.email}`
-        );
+        try {
+          await sendPasswordSetupMail(updatedUser.email, passwordToken);
+          console.log(`✅ Password setup email sent to ${updatedUser.email}`);
+        } catch (err) {
+          console.error("❌ Failed to send password setup email", err);
+        }
       }
 
       /* ================= ADMIN NOTIFY ================= */
@@ -277,7 +259,7 @@ export async function POST(req: Request) {
           session.metadata?.source === "admin"
             ? "Admin payment"
             : "New registration",
-        details: `plan=${plan} | guests=${guests}`,
+        details: `plan=${session.metadata?.plan} | guests=${session.metadata?.guests}`,
       });
 
       return NextResponse.json({ received: true });
