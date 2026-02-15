@@ -42,6 +42,7 @@ const InvitationSchema = new Schema(
     },
 
     /* ================= EVENT SNAPSHOT ================= */
+
     title: {
       type: String,
       required: true,
@@ -64,37 +65,32 @@ const InvitationSchema = new Schema(
     },
 
     /* ================= LOCATION ================= */
+
     location: {
       type: LocationSchema,
       default: () => ({}),
     },
 
     /* ================= DESIGN ================= */
+
     canvasData: {
       type: Object,
       required: true,
       default: {},
     },
 
-    /**
-     * 🖼️ previewImage
-     * שימוש: תצוגה באתר בלבד
-     */
     previewImage: {
       type: String,
       default: "",
     },
 
-    /**
-     * 📲 headerImageUrl
-     * שימוש: WhatsApp Media Template בלבד
-     */
     headerImageUrl: {
       type: String,
       default: "",
     },
 
     /* ================= SHARE ================= */
+
     shareId: {
       type: String,
       unique: true,
@@ -103,6 +99,7 @@ const InvitationSchema = new Schema(
     },
 
     /* ================= GUESTS ================= */
+
     guests: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -111,33 +108,51 @@ const InvitationSchema = new Schema(
     ],
 
     /* ================= LIMITS ================= */
+
     maxGuests: {
       type: Number,
       default: 100,
       required: true,
     },
 
-    /* ================= SMS (USAGE ONLY) ================= */
+    /* ================= SMS USAGE ================= */
+
     sentSmsCount: {
       type: Number,
       default: 0,
     },
 
-    /* ================= RSVP ROUNDS STATE ================= */
-    /**
-     * null  → טרם נשלח
-     * Date → נשלח
-     */
+    /* =====================================================
+       ================== SMS STATE ==================
+       null  → טרם נשלח
+       Date → נשלח
+    ===================================================== */
 
-    // סבב 1 – לכל האורחים
+    /* ===== RSVP ===== */
+
     rsvpRound1SentAt: {
       type: Date,
       default: null,
       index: true,
     },
 
-    // סבב 2 – רק למי שלא ענה
     rsvpRound2SentAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    /* ===== REMINDER (תזכורת אחת בלבד) ===== */
+
+    reminderSentAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    /* ===== THANK YOU (הודעת תודה אחת בלבד) ===== */
+
+    thankYouSentAt: {
       type: Date,
       default: null,
       index: true,
@@ -150,7 +165,7 @@ const InvitationSchema = new Schema(
 
 /* ================= INDEXES ================= */
 
-// 🔒 מוודא שלא תהיה יותר מהזמנה אחת לאותו Event
+// שלא תהיה יותר מהזמנה אחת לאותו Event
 InvitationSchema.index({ eventId: 1 }, { unique: true });
 
 /* ================= MODEL ================= */

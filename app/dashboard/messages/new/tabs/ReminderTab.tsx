@@ -55,6 +55,7 @@ export default function ReminderTab({
 
   const [testPhone, setTestPhone] = useState("");
 const [sendingTest, setSendingTest] = useState(false);
+const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
 
   /* ================= SCHEDULED MESSAGES ================= */
@@ -117,17 +118,30 @@ const [sendingTest, setSendingTest] = useState(false);
     if (!invitationId) return;
 
     async function loadGuests() {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/guests?invitation=${invitationId}`);
-        const data = await res.json();
-        setGuests(Array.isArray(data.guests) ? data.guests : []);
-      } catch {
-        setGuests([]);
-      } finally {
-        setLoading(false);
-      }
+  try {
+    setLoading(true);
+
+    const [guestsRes, invitationRes] = await Promise.all([
+      fetch(`/api/guests?invitation=${invitationId}`),
+      fetch(`/api/invitations/${invitationId}`),
+    ]);
+
+    const guestsData = await guestsRes.json();
+    const invitationData = await invitationRes.json();
+
+    setGuests(Array.isArray(guestsData.guests) ? guestsData.guests : []);
+
+    const inv = invitationData?.invitation;
+    if (inv?.reminderSentAt) {
+      setReminderSentAt(new Date(inv.reminderSentAt));
     }
+  } catch {
+    setGuests([]);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
     loadGuests();
   }, [invitationId]);
@@ -266,6 +280,7 @@ const sendTestMessage = async () => {
 
 
 
+  const reminderAlreadySent = !!reminderSentAt;
 
 
   if (loading) {
@@ -426,21 +441,30 @@ const sendTestMessage = async () => {
 
 
       <SendButton
-        channel="sms"
-        type="reminder"
-        invitationId={invitationId}
-        audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={scheduledAt}
-        disabled={
-          !preview ||
-          preview.blocked ||
-          (sendTiming === "scheduled" && !scheduledAt)
-        }
-      >
-        {sendTiming === "scheduled"
-          ? "⏱️ תזמן תזכורת"
-          : `📩 שלח תזכורת (${guestsToSend.length})`}
-      </SendButton>
+  channel="sms"
+  type="reminder"
+  invitationId={invitationId}
+  audience={guestsToSend.map((g) => g._id)}
+  scheduledAt={scheduledAt}
+  onAfterSend={() => {
+    if (sendTiming === "now") {
+      setReminderSentAt(new Date());
+    }
+  }}
+  disabled={
+    reminderAlreadySent ||
+    !preview ||
+    preview.blocked ||
+    (sendTiming === "scheduled" && !scheduledAt)
+  }
+>
+  {reminderAlreadySent
+    ? "✅ תזכורת נשלחה"
+    : sendTiming === "scheduled"
+    ? "⏱️ תזמן תזכורת"
+    : `📩 שלח תזכורת (${guestsToSend.length})`}
+</SendButton>
+
 
       {/* OPEN MODAL BUTTON */}
      {scheduledMessages.length > 0 && (

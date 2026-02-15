@@ -430,6 +430,15 @@ if (totalPartsSent + parts > remainingMessages) {
   );
 }
 
+// ✅ סימון שהתזכורת נשלחה
+if (templateKey === "table" && sent > 0) {
+  await Invitation.updateOne(
+    { _id: invitationId },
+    { $set: { reminderSentAt: new Date() } }
+  );
+}
+
+
 
 
     return NextResponse.json({

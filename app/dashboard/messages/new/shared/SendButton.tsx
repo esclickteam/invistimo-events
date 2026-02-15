@@ -14,6 +14,7 @@ type Props = {
 
   templateName?: string;
   disabled?: boolean;
+
   onAfterSend?: () => void;
 
   children: ReactNode;
@@ -37,21 +38,14 @@ const SendButton: React.FC<Props> = ({
   const handleSend = async () => {
     if (disabled || sending) return;
 
-    if (audience.length === 0) {
-      alert("❌ אין נמענים לשליחה בסבב זה");
+    if (!invitationId) {
+      alert("❌ חסר invitationId");
       return;
     }
 
-    /* ===== WhatsApp RSVP validations ===== */
-    if (channel === "whatsapp" && type === "rsvp") {
-      if (!templateName) {
-        alert("❌ חסרה תבנית WhatsApp לאישור הגעה");
-        return;
-      }
-      if (!invitationId) {
-        alert("❌ חסר מזהה הזמנה (invitationId)");
-        return;
-      }
+    if (!audience || audience.length === 0) {
+      alert("❌ אין נמענים לשליחה");
+      return;
     }
 
     setSending(true);
@@ -61,19 +55,26 @@ const SendButton: React.FC<Props> = ({
       let payload: any = {};
 
       /* ================= SMS ================= */
+
       if (channel === "sms") {
         endpoint = "/api/sms/send";
 
         payload = {
           invitationId,
-          templateKey: type === "reminder" ? "table" : type,
+          templateKey:
+            type === "reminder"
+              ? "table"
+              : type === "thankyou"
+              ? "thankyou"
+              : type,
           guestIds: audience,
           scheduledAt,
         };
       }
 
-      /* ================= WHATSAPP RSVP ================= */
-      if (channel === "whatsapp" && type === "rsvp") {
+      /* ================= WHATSAPP ================= */
+
+      if (channel === "whatsapp") {
         endpoint = "/api/whatsapp/send-template";
 
         payload = {
@@ -93,14 +94,16 @@ const SendButton: React.FC<Props> = ({
 
       const data = await res.json();
 
-      /* ================= SERVER BLOCKS ================= */
+      /* ================= SERVER BLOCK STATES ================= */
 
       if (
         res.status === 409 ||
         data?.error === "RSVP_ALREADY_SENT" ||
-        data?.error === "RSVP_ROUND_ALREADY_SENT"
+        data?.error === "RSVP_ROUND_ALREADY_SENT" ||
+        data?.error === "REMINDER_ALREADY_SENT" ||
+        data?.error === "THANKYOU_ALREADY_SENT"
       ) {
-        alert("ℹ️ סבב זה כבר נשלח ולא ניתן לשלוח שוב");
+        alert("ℹ️ הודעה זו כבר נשלחה ולא ניתן לשלוח שוב");
         onAfterSend?.();
         return;
       }
@@ -112,13 +115,18 @@ const SendButton: React.FC<Props> = ({
 
       /* ================= SUCCESS ================= */
 
-      alert(
-        scheduledAt
-          ? "⏱️ ההודעות תוזמנו בהצלחה"
-          : `✅ נשלחו ${data.sent ?? audience.length} הודעות בהצלחה`
-      );
+      if (scheduledAt) {
+        alert("⏱️ ההודעות תוזמנו בהצלחה");
+      } else {
+        alert(
+          `✅ נשלחו ${data.sent ?? audience.length} הודעות בהצלחה`
+        );
+      }
+
+      /* ================= UPDATE PARENT ================= */
 
       onAfterSend?.();
+
     } catch (err) {
       console.error("SEND ERROR:", err);
       alert("❌ שגיאה בשליחה");
@@ -132,9 +140,24 @@ const SendButton: React.FC<Props> = ({
   return (
     <button
       onClick={handleSend}
-      disabled={disabled || sending || audience.length === 0}
-      className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-semibold
-                 disabled:opacity-50 disabled:cursor-not-allowed transition"
+      disabled={
+        disabled ||
+        sending ||
+        !audience ||
+        audience.length === 0
+      }
+      className="
+        w-full
+        bg-green-600
+        text-white
+        py-4
+        rounded-xl
+        text-lg
+        font-semibold
+        disabled:opacity-50
+        disabled:cursor-not-allowed
+        transition
+      "
     >
       {sending ? "שולח..." : children}
     </button>
