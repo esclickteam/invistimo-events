@@ -10,41 +10,14 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /* =========================================================
-   Types
-========================================================= */
-type AuthCtx = {
-  userId?: string;
-  role?: string;
-  impersonationRole?: string;
-  impersonatedBy?: string;
-};
-
-/* =========================================================
    Helpers
 ========================================================= */
-function isAdminContext(auth: AuthCtx | null | undefined) {
-  if (!auth) return false;
-
-  // אדמין רגיל
-  if (auth.role === "admin") return true;
-
-  // התחזות כאדמין
-  if (auth.impersonationRole === "admin") return true;
-
-  // אם יש impersonatedBy - נדרוש שגם role יהיה admin
-  // כדי לא לפתוח הרשאות בטעות לכל התחזות
-  if (auth.impersonatedBy && auth.role === "admin") return true;
-
-  return false;
-}
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function toSafeNumber(v: unknown, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+function isAdminContext(auth: any) {
+  return (
+    auth?.role === "admin" ||
+    auth?.impersonationRole === "admin" ||
+    !!auth?.impersonatedBy
+  );
 }
 
 function buildUsersFilter(req: NextRequest) {
@@ -92,7 +65,7 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = (await getUserIdFromRequest(req)) as AuthCtx | null;
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -207,7 +180,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const auth = (await getUserIdFromRequest(req)) as AuthCtx | null;
+    const auth = await getUserIdFromRequest(req);
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -225,33 +198,20 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const { name, email, role, limits, billing, addons, plan } = body || {};
 
-    const cleanName = String(name || "").trim();
-    const cleanEmail = String(email || "").toLowerCase().trim();
-    const cleanRole = String(role || "").trim();
 
-    if (!cleanName || !cleanEmail || !cleanRole) {
+
+    if (!name || !email || !role) {
       return NextResponse.json(
         { success: false, error: "MISSING_REQUIRED_FIELDS" },
         { status: 400 }
       );
     }
 
-    if (!isValidEmail(cleanEmail)) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_EMAIL" },
-        { status: 400 }
-      );
-    }
-
-    if (!["user", "producer", "staff"].includes(cleanRole)) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_ROLE" },
-        { status: 400 }
-      );
-    }
-
     // מניעת כפילות מייל
-    const existing = await User.findOne({ email: cleanEmail }).select("_id").lean();
+    const existing = await User.findOne({ email: String(email).toLowerCase() })
+      .select("_id")
+      .lean();
+
     if (existing) {
       return NextResponse.json(
         { success: false, error: "EMAIL_ALREADY_EXISTS" },
@@ -260,12 +220,12 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= PRODUCER ================= */
-    if (cleanRole === "producer") {
-      const pricePerRecord = toSafeNumber(billing?.pricePerRecord, 0);
+    if (role === "producer") {
+      const pricePerRecord = Number(billing?.pricePerRecord || 0);
 
       const user = await User.create({
-        name: cleanName,
-        email: cleanEmail,
+        name,
+        email: String(email).toLowerCase(),
         role: "producer",
 
         producerPricePerRecord: pricePerRecord,
@@ -278,11 +238,7 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
-      try {
-        await sendPasswordSetupMail(String(user._id));
-      } catch (mailErr) {
-        console.error("❌ sendPasswordSetupMail failed (producer):", mailErr);
-      }
+      await sendPasswordSetupMail(String(user._id));
 
       return NextResponse.json(
         { success: true, userId: String(user._id) },
@@ -291,10 +247,10 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= STAFF ================= */
-    if (cleanRole === "staff") {
+    if (role === "staff") {
       const user = await User.create({
-        name: cleanName,
-        email: cleanEmail,
+        name,
+        email: String(email).toLowerCase(),
         role: "staff",
 
         hasPaid: false,
@@ -305,11 +261,7 @@ export async function POST(req: NextRequest) {
         billingSource: "admin",
       });
 
-      try {
-        await sendPasswordSetupMail(String(user._id));
-      } catch (mailErr) {
-        console.error("❌ sendPasswordSetupMail failed (staff):", mailErr);
-      }
+      await sendPasswordSetupMail(String(user._id));
 
       return NextResponse.json(
         { success: true, userId: String(user._id) },
@@ -318,19 +270,17 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= USER ================= */
-const recordsNum = toSafeNumber(limits?.records, NaN);
-const smsTotalNum = toSafeNumber(limits?.smsTotal, NaN);
-const priceNum = toSafeNumber(billing?.price, NaN);
-const paymentStatus = String(billing?.paymentStatus || "pending").toLowerCase(); // "paid" | "pending"
-const paymentMethod = String(billing?.paymentMethod || "").toLowerCase(); // "manual" | "stripe"
+    const { records, smsTotal, includeCalls } = limits || {};
+    const { price, paymentStatus } = billing || {};
+
+    const recordsNum = Number(records);
+const smsTotalNum = Number(smsTotal);
+const priceNum = Number(price ?? 0);
 
 if (
-  !Number.isFinite(recordsNum) ||
-  !Number.isFinite(smsTotalNum) ||
-  !Number.isFinite(priceNum) ||
-  recordsNum < 0 ||
-  smsTotalNum < 0 ||
-  priceNum < 0
+  Number.isNaN(recordsNum) ||
+  Number.isNaN(smsTotalNum) ||
+  Number.isNaN(priceNum)
 ) {
   return NextResponse.json(
     { success: false, error: "INVALID_LIMITS_OR_BILLING" },
@@ -338,134 +288,92 @@ if (
   );
 }
 
-if (!["manual", "stripe"].includes(paymentMethod)) {
-  return NextResponse.json(
-    { success: false, error: "INVALID_PAYMENT_METHOD" },
-    { status: 400 }
-  );
-}
 
-const normalizedPaymentStatus =
-  paymentMethod === "stripe" ? "pending" : paymentStatus;
-
-const safePlan =
-  typeof plan === "string" && plan.trim() ? plan.trim() : "premium";
-
-const finalIncludeCalls =
-  safePlan === "plan2" ||
-  safePlan === "plan3" ||
-  addons?.calls?.enabled === true;
+    const finalIncludeCalls = !!includeCalls;
 
 const finalIncludeCreditGifts =
-  safePlan === "plan3" ||
+  plan === "plan3" ||
   addons?.credit?.enabled === true;
 
-const callsAddonPrice = toSafeNumber(addons?.calls?.price, 0);
-const creditGiftsAddonPrice = toSafeNumber(addons?.credit?.price, 0);
 
-const planLimits = {
-  maxGuests: recordsNum,
-  smsEnabled: true,
-  smsLimit: smsTotalNum,
-  seatingEnabled: true,
-  remindersEnabled: true,
-  callsEnabled: finalIncludeCalls,
-};
 
-// paid רק אם באמת שילם ידני עכשיו
-const isManualPaidNow =
-  paymentMethod === "manual" && normalizedPaymentStatus === "paid";
-
-const user = await User.create({
-  name: cleanName,
-  email: cleanEmail,
-  role: "user",
-
-  plan: safePlan,
-  planLimits,
-
-  guests: recordsNum,
-  maxMessages: smsTotalNum,
-
-  includeCalls: finalIncludeCalls,
-  includeCreditGifts: finalIncludeCreditGifts,
-  creditGiftsAddonPrice,
-
-  hasPaid: isManualPaidNow,
-  paidAmount: isManualPaidNow ? priceNum : 0,
-
-  needsPasswordSetup: true,
-  createdByAdmin: true,
-  billingSource: "admin",
-});
-
-// אם סומן "שילם ידני" -> רושמים תשלום ושולחים מייל עכשיו
-if (isManualPaidNow) {
-  const adminId = auth.impersonatedBy
-    ? String(auth.impersonatedBy)
-    : String(auth.userId);
-
-  try {
-    await Payment.create({
-      email: cleanEmail,
-
-      stripeSessionId: null,
-      stripePaymentIntentId: null,
-      stripeCustomerId: null,
-      stripePriceId: null,
-
-      priceKey: `admin_manual_${recordsNum}`,
+    const planLimits = {
       maxGuests: recordsNum,
+      smsEnabled: true,
+      smsLimit: smsTotalNum,
+      seatingEnabled: true,
+      remindersEnabled: true,
+      callsEnabled: finalIncludeCalls,
+    };
+
+    const user = await User.create({
+      name,
+      email: String(email).toLowerCase(),
+      role: "user",
+
+      plan: plan || "premium",
+
+      planLimits,
+
+      guests: recordsNum,
+      maxMessages: smsTotalNum,
 
       includeCalls: finalIncludeCalls,
-      callsAddonPrice,
+includeCreditGifts: finalIncludeCreditGifts,
+creditGiftsAddonPrice: addons?.credit?.price || 0,
 
-      includeCreditGifts: finalIncludeCreditGifts,
-      creditGiftsAddonPrice,
 
-      amount: priceNum,
-      refundAmount: 0,
-      currency: "ils",
+      hasPaid: paymentStatus === "paid",
+      paidAmount: priceNum,
 
-      type: "package",
-      status: "paid",
-      isTest: false,
-
-      meta: {
-        source: "admin_manual",
-        adminId,
-        userId: String(user._id),
-      },
-      metadata: {
-        source: "admin_manual",
-        adminId,
-        userId: String(user._id),
-      },
+      needsPasswordSetup: true,
+      createdByAdmin: true,
+      billingSource: "admin",
     });
-  } catch (payErr) {
-    console.error("❌ Payment.create failed (manual-paid user):", payErr);
-    return NextResponse.json(
-      { success: false, error: "PAYMENT_RECORD_FAILED" },
-      { status: 500 }
-    );
-  }
 
-  try {
+    if (paymentStatus === "paid") {
+      await Payment.create({
+        email: String(email).toLowerCase(),
+
+        stripeSessionId: null,
+        stripePaymentIntentId: null,
+        stripeCustomerId: null,
+        stripePriceId: null,
+
+        priceKey: `admin_manual_${recordsNum}`,
+        maxGuests: recordsNum,
+
+        includeCalls: finalIncludeCalls,
+        callsAddonPrice: 0,
+
+        includeCreditGifts: finalIncludeCreditGifts,
+creditGiftsAddonPrice: addons?.credit?.price || 0,
+
+
+        amount: priceNum,
+        refundAmount: 0,
+        currency: "ils",
+
+        type: "package",
+        status: "paid",
+        isTest: false,
+
+        metadata: {
+          source: "admin",
+          adminId: auth.impersonatedBy
+            ? String(auth.impersonatedBy)
+            : String(auth.userId),
+          userId: String(user._id),
+        },
+      });
+    }
+
     await sendPasswordSetupMail(String(user._id));
-  } catch (mailErr) {
-    console.error("❌ sendPasswordSetupMail failed (manual-paid user):", mailErr);
-  }
-}
 
-// אם זה Stripe -> לא שולחים כאן מייל.
-// המייל יישלח רק ב-webhook אחרי checkout.session.completed מוצלח.
-return NextResponse.json(
-  { success: true, userId: String(user._id) },
-  { status: 201 }
-);
-
-
-
+    return NextResponse.json(
+      { success: true, userId: String(user._id) },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
     return NextResponse.json(

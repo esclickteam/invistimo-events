@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 
 type UserRole = "user" | "producer" | "staff";
-type PaymentMethod = "manual" | "stripe";
-type PaymentStatusApi = "paid" | "pending";
+type PaymentStatus = "paid" | "stripe";
 type PlanKey = "plan1" | "plan2" | "plan3";
-type AddonKey = "credit" | "seating" | "system" | "design" | "calls";
+type AddonKey = "credit" | "seating" | "system" | "design";
 
 type Props = {
   onClose: () => void;
@@ -17,8 +16,8 @@ const SMS_PER_RECORD = 3;
 /* איזה אפסיילים כלולים בכל חבילה */
 const includedByPlan: Record<PlanKey, AddonKey[]> = {
   plan1: [],
-  plan2: ["calls"],
-  plan3: ["credit", "seating", "calls"],
+  plan2: [],
+  plan3: ["credit", "seating"],
 };
 
 export default function CreateUserModal({ onClose }: Props) {
@@ -27,31 +26,34 @@ export default function CreateUserModal({ onClose }: Props) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
 
-  /* ===== PLAN ===== */
+  /* ===== PLAN (חדש) ===== */
   const [plan, setPlan] = useState<PlanKey>("plan1");
 
   /* ===== USER LIMITS ===== */
   const [records, setRecords] = useState(100);
   const [smsTotal, setSmsTotal] = useState(records * SMS_PER_RECORD);
   const [smsAuto, setSmsAuto] = useState(true);
+  const [includeCalls, setIncludeCalls] = useState(false);
 
-  /* ===== ADDONS ===== */
-  const [addons, setAddons] = useState<
-    Record<AddonKey, { enabled: boolean; price: number }>
-  >({
+  /* ===== ADDONS (חדש) ===== */
+  const [addons, setAddons] = useState<Record<
+    AddonKey,
+    { enabled: boolean; price: number }
+  >>({
     credit: { enabled: false, price: 0 },
     seating: { enabled: false, price: 0 },
     system: { enabled: false, price: 0 },
     design: { enabled: false, price: 0 },
-    calls: { enabled: false, price: 0 },
   });
 
   /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
+  const [paymentStatus, setPaymentStatus] =
+    useState<PaymentStatus>("stripe");
 
   /* ===== PRODUCER BILLING ===== */
-  const [producerPricePerRecord, setProducerPricePerRecord] = useState<number | "">("");
+  const [producerPricePerRecord, setProducerPricePerRecord] =
+    useState<number | "">("");
 
   /* ===== AUTO SMS CALC ===== */
   useEffect(() => {
@@ -82,19 +84,19 @@ export default function CreateUserModal({ onClose }: Props) {
             name,
             email,
             role,
-            plan,
+            plan, // חדש
             limits: {
               records,
               smsTotal,
               smsPerRecord: SMS_PER_RECORD,
               smsAuto,
+              includeCalls,
             },
             billing: {
-              price: price === "" ? 0 : Number(price),
-              paymentMethod, // "manual" | "stripe"
-              paymentStatus: (paymentMethod === "stripe" ? "pending" : "paid") as PaymentStatusApi,
+              price,
+              paymentStatus,
             },
-            addons,
+            addons, // חדש
           };
 
     try {
@@ -108,29 +110,30 @@ export default function CreateUserModal({ onClose }: Props) {
       const data = await res.json();
 
       if (!data.success) {
-        throw new Error(data?.error || "CREATE_USER_FAILED");
+        throw new Error("CREATE_USER_FAILED");
       }
 
-      if (role === "user" && paymentMethod === "stripe" && data.userId) {
-        const checkoutRes = await fetch(`/api/admin/users/${data.userId}/checkout`, {
-          method: "POST",
-          credentials: "include",
-        });
+      if (paymentStatus === "stripe" && data.userId) {
+        const checkoutRes = await fetch(
+          `/api/admin/users/${data.userId}/checkout`,
+          {
+            method: "POST",
+            credentials: "include",
+          }
+        );
 
         const checkoutData = await checkoutRes.json();
 
-        if (!checkoutData?.checkoutUrl) {
-          throw new Error(checkoutData?.error || "CHECKOUT_URL_MISSING");
+        if (checkoutData.checkoutUrl) {
+          window.location.href = checkoutData.checkoutUrl;
+          return;
         }
-
-        window.location.href = checkoutData.checkoutUrl;
-        return;
       }
 
       onClose();
     } catch (err) {
       console.error("CREATE USER FAILED:", err);
-      alert("שגיאה ביצירת משתמש / פתיחת תשלום");
+      alert("שגיאה ביצירת משתמש");
     }
   }
 
@@ -140,7 +143,10 @@ export default function CreateUserModal({ onClose }: Props) {
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-semibold">יצירת משתמש חדש</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-black text-xl">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-black text-xl"
+          >
             ✕
           </button>
         </div>
@@ -148,7 +154,9 @@ export default function CreateUserModal({ onClose }: Props) {
         <div className="p-6 space-y-8 overflow-y-auto">
           {/* USER INFO */}
           <section className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-600">פרטי משתמש</h3>
+            <h3 className="text-sm font-bold text-gray-600">
+              פרטי משתמש
+            </h3>
 
             <input
               type="text"
@@ -180,11 +188,17 @@ export default function CreateUserModal({ onClose }: Props) {
           {/* USER */}
           {role === "user" && (
             <>
+              {/* PLAN (חדש) */}
               <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">חבילה</h3>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  חבילה
+                </h3>
+
                 <select
                   value={plan}
-                  onChange={(e) => setPlan(e.target.value as PlanKey)}
+                  onChange={(e) =>
+                    setPlan(e.target.value as PlanKey)
+                  }
                   className="w-full border rounded-lg px-4 py-2"
                 >
                   <option value="plan1">חבילה 1</option>
@@ -193,23 +207,32 @@ export default function CreateUserModal({ onClose }: Props) {
                 </select>
               </section>
 
+              {/* LIMITS */}
               <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">מגבלות מערכת</h3>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  מגבלות מערכת
+                </h3>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">כמות רשומות</label>
+                    <label className="block text-sm font-medium mb-1">
+                      כמות רשומות
+                    </label>
                     <input
                       type="number"
                       min={1}
                       value={records}
-                      onChange={(e) => setRecords(Number(e.target.value))}
+                      onChange={(e) =>
+                        setRecords(Number(e.target.value))
+                      }
                       className="w-full border rounded-lg px-4 py-2"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">כמות הודעות SMS</label>
+                    <label className="block text-sm font-medium mb-1">
+                      כמות הודעות SMS
+                    </label>
                     <input
                       type="number"
                       min={0}
@@ -225,7 +248,9 @@ export default function CreateUserModal({ onClose }: Props) {
                       <input
                         type="checkbox"
                         checked={smsAuto}
-                        onChange={(e) => setSmsAuto(e.target.checked)}
+                        onChange={(e) =>
+                          setSmsAuto(e.target.checked)
+                        }
                       />
                       חישוב אוטומטי לפי רשומות
                     </label>
@@ -233,21 +258,30 @@ export default function CreateUserModal({ onClose }: Props) {
                 </div>
               </section>
 
+              {/* ADDONS (חדש) */}
               <section className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-600">אפסיילים</h3>
+                <h3 className="text-sm font-bold text-gray-600">
+                  אפסיילים
+                </h3>
 
                 {(Object.keys(addons) as AddonKey[]).map((key) => {
-                  const isIncluded = includedByPlan[plan].includes(key);
+                  const isIncluded =
+                    includedByPlan[plan].includes(key);
                   const value = addons[key];
 
                   return (
-                    <div key={key} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+                    <div
+                      key={key}
+                      className="border rounded-lg p-3 space-y-2 bg-gray-50"
+                    >
                       <div className="flex items-center justify-between">
                         <label className="flex items-center gap-3">
                           <input
                             type="checkbox"
                             disabled={isIncluded}
-                            checked={isIncluded ? true : value.enabled}
+                            checked={
+                              isIncluded ? true : value.enabled
+                            }
                             onChange={() =>
                               setAddons((prev) => ({
                                 ...prev,
@@ -260,16 +294,21 @@ export default function CreateUserModal({ onClose }: Props) {
                           />
 
                           <span>
-                            {key === "credit" && "מתנות באשראי"}
-                            {key === "seating" && "הושבה דיגיטלית"}
-                            {key === "system" && "מערכת ניהול אירוע"}
-                            {key === "design" && "עיצוב בהתאמה אישית"}
-                            {key === "calls" && "שירות שיחות טלפון"}
+                            {key === "credit" &&
+                              "מתנות באשראי"}
+                            {key === "seating" &&
+                              "הושבה דיגיטלית"}
+                            {key === "system" &&
+                              "מערכת ניהול אירוע"}
+                            {key === "design" &&
+                              "עיצוב בהתאמה אישית"}
                           </span>
                         </label>
 
                         {isIncluded && (
-                          <span className="text-green-600 text-sm font-medium">כלול בחבילה</span>
+                          <span className="text-green-600 text-sm font-medium">
+                            כלול בחבילה
+                          </span>
                         )}
                       </div>
 
@@ -295,26 +334,43 @@ export default function CreateUserModal({ onClose }: Props) {
                 })}
               </section>
 
+              {/* PAYMENT */}
               <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">תשלום</h3>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  תשלום
+                </h3>
 
-                <label className="block text-sm mb-1">מחיר כולל (₪)</label>
+                <label className="block text-sm mb-1">
+                  מחיר כולל (₪)
+                </label>
                 <input
                   type="number"
                   value={price}
                   onChange={(e) =>
-                    setPrice(e.target.value === "" ? "" : Number(e.target.value))
+                    setPrice(
+                      e.target.value === ""
+                        ? ""
+                        : Number(e.target.value)
+                    )
                   }
                   className="w-full border rounded-lg px-4 py-2 mb-3"
                 />
 
                 <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                  value={paymentStatus}
+                  onChange={(e) =>
+                    setPaymentStatus(
+                      e.target.value as PaymentStatus
+                    )
+                  }
                   className="w-full border rounded-lg px-4 py-2"
                 >
-                  <option value="stripe">לתשלום דרך Stripe</option>
-                  <option value="manual">שולם ידנית</option>
+                  <option value="stripe">
+                    לתשלום דרך Stripe
+                  </option>
+                  <option value="paid">
+                    שולם ידנית
+                  </option>
                 </select>
               </section>
             </>
@@ -323,14 +379,22 @@ export default function CreateUserModal({ onClose }: Props) {
           {/* PRODUCER */}
           {role === "producer" && (
             <section>
-              <h3 className="text-sm font-bold text-gray-600 mb-3">תמחור למפיק</h3>
+              <h3 className="text-sm font-bold text-gray-600 mb-3">
+                תמחור למפיק
+              </h3>
 
-              <label className="block text-sm mb-1">מחיר לרשומה (₪)</label>
+              <label className="block text-sm mb-1">
+                מחיר לרשומה (₪)
+              </label>
               <input
                 type="number"
                 value={producerPricePerRecord}
                 onChange={(e) =>
-                  setProducerPricePerRecord(e.target.value === "" ? "" : Number(e.target.value))
+                  setProducerPricePerRecord(
+                    e.target.value === ""
+                      ? ""
+                      : Number(e.target.value)
+                  )
                 }
                 className="w-full border rounded-lg px-4 py-2"
               />
@@ -339,7 +403,10 @@ export default function CreateUserModal({ onClose }: Props) {
         </div>
 
         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 border rounded-lg">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border rounded-lg"
+          >
             ביטול
           </button>
 
@@ -348,8 +415,9 @@ export default function CreateUserModal({ onClose }: Props) {
             disabled={
               !name ||
               !email ||
-              (role === "user" && (price === "" || Number(price) < 0)) ||
-              (role === "producer" && producerPricePerRecord === "")
+              (role === "user" && !price) ||
+              (role === "producer" &&
+                !producerPricePerRecord)
             }
             className="px-5 py-2 rounded-lg bg-black text-white disabled:opacity-40"
           >
