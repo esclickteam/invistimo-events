@@ -13,11 +13,22 @@ type AuthContext = {
   impersonationRole?: string | null;
 };
 
+/* =========================================================
+   Internal type – כדי לוודא שיש _id
+========================================================= */
+type UserWithId = IUser & {
+  _id: mongoose.Types.ObjectId;
+};
+
+/* =========================================================
+   Context helpers
+========================================================= */
+
 function isAdminByContext(auth?: AuthContext | null) {
   return (
     auth?.role === "admin" ||
     auth?.impersonationRole === "admin" ||
-    !!auth?.impersonatedBy // אדמין מתחזה
+    !!auth?.impersonatedBy
   );
 }
 
@@ -29,13 +40,14 @@ function isProducerStaffByContext(auth?: AuthContext | null) {
   return (
     (auth?.role === "staff" && auth?.staffType === "producer_staff") ||
     auth?.impersonationRole === "producer_staff" ||
-    auth?.impersonationRole === "staff_producer" // תאימות לאחור
+    auth?.impersonationRole === "staff_producer"
   );
 }
 
 /* =========================
    Legacy checks (by user doc)
 ========================= */
+
 export function isAdmin(user?: IUser | null) {
   return user?.role === "admin";
 }
@@ -45,7 +57,7 @@ export function isProducer(user?: IUser | null) {
 }
 
 /* =========================
-   Recommended checks (with auth context)
+   Recommended checks
 ========================= */
 
 export function canCreateUser({
@@ -53,7 +65,7 @@ export function canCreateUser({
   roleToCreate,
   auth,
 }: {
-  actingUser: IUser;
+  actingUser: UserWithId;
   roleToCreate: IUser["role"];
   auth?: AuthContext | null;
 }) {
@@ -65,8 +77,12 @@ export function canCreateUser({
     isProducerByContext(auth) ||
     isProducerStaffByContext(auth);
 
-  // מפיק/עוזר מפיק יכולים ליצור לקוח/משתמש צוות לפי הצורך שלך
-  if (producerLike && (roleToCreate === "client" || roleToCreate === "user" || roleToCreate === "staff")) {
+  if (
+    producerLike &&
+    (roleToCreate === "client" ||
+      roleToCreate === "user" ||
+      roleToCreate === "staff")
+  ) {
     return true;
   }
 
@@ -78,8 +94,8 @@ export function canEditUser({
   targetUser,
   auth,
 }: {
-  actingUser: IUser;
-  targetUser: IUser;
+  actingUser: UserWithId;
+  targetUser: UserWithId;
   auth?: AuthContext | null;
 }) {
   // ✅ אדמין אמיתי או אדמין בהתחזות
@@ -93,7 +109,9 @@ export function canEditUser({
   if (
     producerLike &&
     targetUser.createdByProducer &&
-    new mongoose.Types.ObjectId(targetUser.createdByProducer).equals(actingUser._id)
+    new mongoose.Types.ObjectId(
+      targetUser.createdByProducer
+    ).equals(actingUser._id)
   ) {
     return true;
   }

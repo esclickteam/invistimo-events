@@ -188,6 +188,8 @@ export async function GET() {
 
       /* ✅ קריטי */
       isActive: user.isActive === true,
+      hasDashboardAccess: user.hasDashboardAccess === true,
+
 
       plan: user.plan,
       guests: user.guests,
