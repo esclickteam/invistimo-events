@@ -115,36 +115,41 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
   /* ================= LOAD GUESTS ================= */
 
   useEffect(() => {
-    if (!invitationId) return;
-
-    async function loadGuests() {
-  try {
-    setLoading(true);
-
-    const [guestsRes, invitationRes] = await Promise.all([
-      fetch(`/api/guests?invitation=${invitationId}`),
-      fetch(`/api/invitations/${invitationId}`),
-    ]);
-
-    const guestsData = await guestsRes.json();
-    const invitationData = await invitationRes.json();
-
-    setGuests(Array.isArray(guestsData.guests) ? guestsData.guests : []);
-
-    const inv = invitationData?.invitation;
-    if (inv?.reminderSentAt) {
-      setReminderSentAt(new Date(inv.reminderSentAt));
-    }
-  } catch {
-    setGuests([]);
-  } finally {
+  // 🔥 אין אירוע → לא טוענים כלום
+  if (!invitationId) {
     setLoading(false);
+    setGuests([]);
+    return;
   }
-}
 
+  async function loadGuests() {
+    try {
+      setLoading(true);
 
-    loadGuests();
-  }, [invitationId]);
+      const [guestsRes, invitationRes] = await Promise.all([
+        fetch(`/api/guests?invitation=${invitationId}`),
+        fetch(`/api/invitations/${invitationId}`),
+      ]);
+
+      const guestsData = await guestsRes.json();
+      const invitationData = await invitationRes.json();
+
+      setGuests(Array.isArray(guestsData.guests) ? guestsData.guests : []);
+
+      const inv = invitationData?.invitation;
+      if (inv?.reminderSentAt) {
+        setReminderSentAt(new Date(inv.reminderSentAt));
+      }
+    } catch {
+      setGuests([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadGuests();
+}, [invitationId]);
+
 
   /* ================= HELPERS ================= */
 
