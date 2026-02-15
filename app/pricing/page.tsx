@@ -91,7 +91,8 @@ export default function PricingPage() {
 
 
 
-  const [records, setRecords] = useState<number>(200);
+  const [records, setRecords] = useState<number | null>(null);
+
 
   const [addons, setAddons] = useState({
     plan1: { credit: false, seating: false, system: false, design: false },
@@ -130,26 +131,34 @@ export default function PricingPage() {
   };
 
   const calculateTotal = (plan: PlanKey) => {
-    const base = calculateBase(plan, records);
-    const prices = getAddonPrices(plan);
-    const selected = addons[plan];
+  if (records === null) return 0;
 
-    return (
-      base +
-      (selected.credit ? prices.credit : 0) +
-      (selected.seating ? prices.seating : 0) +
-      (selected.system ? prices.system : 0) +
-      (selected.design ? prices.design : 0)
-    );
-  };
+  const base = calculateBase(plan, records);
+  const prices = getAddonPrices(plan);
+  const selected = addons[plan];
+
+  return (
+    base +
+    (selected.credit ? prices.credit : 0) +
+    (selected.seating ? prices.seating : 0) +
+    (selected.system ? prices.system : 0) +
+    (selected.design ? prices.design : 0)
+  );
+};
+
 
 const handleRegister = (plan: PlanKey) => {
+  if (records === null)
+ {
+    alert("בחרי כמות רשומות לפני ההרשמה");
+    return;
+  }
+
   const selected = addons[plan];
 
   const params = new URLSearchParams({
     plan,
     guests: String(records),
-
     seating: String(selected.seating),
     credit: String(selected.credit),
     system: String(selected.system),
@@ -158,6 +167,7 @@ const handleRegister = (plan: PlanKey) => {
 
   router.push(`/register?${params.toString()}`);
 };
+
 
 
 
@@ -277,16 +287,21 @@ const handleRegister = (plan: PlanKey) => {
           <label className="block mb-2 font-medium">כמות רשומות</label>
 
           <select
-  value={records}
+  value={records ?? ""}
   onChange={(e) => setRecords(Number(e.target.value))}
-  className="w-full p-3 rounded-xl border bg-white shadow-sm text-center text-center-last"
+  className="w-full p-3 rounded-xl border bg-white shadow-sm"
 >
-            {options.map((num) => (
-              <option key={num} value={num}>
-                עד {num} רשומות
-              </option>
-            ))}
-          </select>
+  <option value="" disabled>
+    בחרו כמות רשומות
+  </option>
+  {options.map((num) => (
+    <option key={num} value={num}>
+      עד {num} רשומות
+    </option>
+  ))}
+</select>
+
+
         </div>
       </section>
 
@@ -338,9 +353,16 @@ const handleRegister = (plan: PlanKey) => {
   {/* מחיר צמוד לכותרת */}
  <div className="mt-1">
   <div className="text-3xl md:text-4xl font-bold leading-none">
-    ₪{calculateTotal(plan)}
+    {records ? (
+      <>₪{calculateTotal(plan)}</>
+    ) : (
+      <span className="text-gray-400 text-xl font-medium">
+        בחרו כמות רשומות
+      </span>
+    )}
   </div>
 </div>
+
   
 </div>
 
