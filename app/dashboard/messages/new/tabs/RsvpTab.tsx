@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useEffect } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
-import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
+import GuestAutocomplete from "@/app/components/GuestAutocomplete";
 
 /* ================= TYPES ================= */
 
@@ -21,8 +21,6 @@ type Props = {
   eventLocation: string;
   headerImageUrl?: string;
 };
-
-const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
 
 /* ================= HELPERS ================= */
 
@@ -56,15 +54,12 @@ export default function RsvpTab({
   headerImageUrl,
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [round, setRound] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(true);
+  const [selectedGuestId, setSelectedGuestId] = useState<string>("");
 
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
-
-  // ✅ חדש – הודעה ידנית
-  const [manualMessage, setManualMessage] = useState("");
 
   /* ================= LOAD DATA ================= */
 
@@ -104,13 +99,17 @@ export default function RsvpTab({
 
   /* ================= DERIVED ================= */
 
-  const guestsToSend = useMemo(() => {
-    if (round === 1) return guests;
-    return guests.filter((g) => g.rsvp === "pending");
-  }, [guests, round]);
+  const baseAudience =
+    round === 1
+      ? guests
+      : guests.filter((g) => g.rsvp === "pending");
 
-  const totalCount = guests.length;
-  const pendingCount = guests.filter((g) => g.rsvp === "pending").length;
+  const selectedGuest =
+    baseAudience.find((g) => g._id === selectedGuestId) || null;
+
+  const guestsToSend = selectedGuest
+    ? [selectedGuest]
+    : baseAudience;
 
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
@@ -123,21 +122,48 @@ export default function RsvpTab({
     (round === 2 && !!round2SentAt);
 
   const previewText = useMemo(
-    () => getRsvpPreviewText({ eventTitle, eventDate, eventLocation }),
+    () =>
+      getRsvpPreviewText({
+        eventTitle,
+        eventDate,
+        eventLocation,
+      }),
     [eventTitle, eventDate, eventLocation]
   );
 
-  /* ================= MANUAL SEND ================= */
+  /* ================= MANUAL WHATSAPP ================= */
 
-  const sendManualWhatsapp = () => {
-    if (!manualMessage || guestsToSend.length === 0) return;
+  const openManualWhatsApp = (guest: Guest) => {
+    const cleanPhone =
+      typeof guest.phone === "string"
+        ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
+        : "";
+
+    if (!cleanPhone) {
+      alert("מספר טלפון לא תקין");
+      return;
+    }
+
+    const to = `972${cleanPhone}`;
+    const url = `https://wa.me/${to}?text=${encodeURIComponent(
+      previewText
+    )}`;
+
+    window.open(url, "_blank");
+  };
+
+  const sendManual = () => {
+    if (blocked) return;
 
     guestsToSend.forEach((guest) => {
-      const phone = guest.phone.replace(/\D/g, "");
-      const text = manualMessage.replace(/{{name}}/g, guest.name || "");
-      const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
-      window.open(url, "_blank");
+      openManualWhatsApp(guest);
     });
+
+    alert(
+      selectedGuest
+        ? "נפתח WhatsApp לאורח הנבחר"
+        : `נפתח WhatsApp עבור ${guestsToSend.length} אורחים`
+    );
   };
 
   if (loading) return <p>טוען אורחים...</p>;
@@ -147,7 +173,7 @@ export default function RsvpTab({
   return (
     <div className="space-y-6 p-6">
 
-      {/* ===== ROUNDS ===== */}
+      {/* ROUNDS */}
       <div className="flex gap-2">
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
@@ -168,70 +194,58 @@ export default function RsvpTab({
         </button>
       </div>
 
-      {/* ===== AUDIENCE ===== */}
+      {/* AUDIENCE SUMMARY */}
       <AudienceFilterSelector
         value={round === 1 ? "all" : "pending"}
         onChange={() => {}}
-        totalCount={totalCount}
-        pendingCount={pendingCount}
+        totalCount={guests.length}
+        pendingCount={
+          guests.filter((g) => g.rsvp === "pending").length
+        }
         readOnly
       />
 
-      {/* ===== PREVIEW ===== */}
+      {/* 🔍 GUEST AUTOCOMPLETE */}
+      <div className="w-full max-w-[600px]">
+        <label className="block mb-2 font-semibold text-[#4a413a]">
+          שליחה לאורח ספציפי (אופציונלי)
+        </label>
+
+        <GuestAutocomplete
+          guests={baseAudience}
+          value={selectedGuest}
+          onSelect={(id: string) => setSelectedGuestId(id)}
+        />
+
+        {selectedGuest && (
+          <button
+            onClick={() => setSelectedGuestId("")}
+            className="text-xs text-blue-600 mt-2 underline"
+          >
+            ניקוי בחירה – שלח לכולם
+          </button>
+        )}
+      </div>
+
+      {/* PREVIEW */}
       <WhatsappTemplatePreview
         templateKey="rsvp"
         previewText={previewText}
         headerImageUrl={headerImageUrl}
       />
 
-      {/* ================= MANUAL WHATSAPP ================= */}
-      <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="font-semibold">
-            ✍️ שליחה ידנית ב-WhatsApp
-          </div>
-          <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full">
-            ללא חיוב
-          </span>
-        </div>
-
-        <p className="text-sm text-gray-500">
-          ההודעה תיפתח ב-WhatsApp Web ותישלח כהודעה רגילה
-        </p>
-
-        <textarea
-          value={manualMessage}
-          onChange={(e) => setManualMessage(e.target.value)}
-          rows={4}
-          className="w-full border rounded-xl p-3 text-sm"
-          placeholder="הקלד/י הודעה ידנית... ניתן להשתמש ב- {{name}}"
-        />
-
-        <button
-          onClick={sendManualWhatsapp}
-          disabled={!manualMessage || guestsToSend.length === 0}
-          className="w-full py-3 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50"
-        >
-          📲 פתח ב-WhatsApp ({guestsToSend.length})
-        </button>
-      </div>
-
-      {/* ===== SEND TEMPLATE ===== */}
-      <SendButton
-        channel="whatsapp"
-        type="rsvp"
-        invitationId={invitationId}
-        templateName={RSVP_TEMPLATE_NAME}
-        audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={scheduledAt}
+      {/* SEND BUTTON */}
+      <button
+        onClick={sendManual}
         disabled={blocked}
+        className="w-full max-w-[600px] bg-green-600 text-white py-4 rounded-xl font-semibold disabled:opacity-50"
       >
-        {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
-          ? "✅ נשלח"
-          : scheduledAt
-          ? `⏱️ תזמן אישור הגעה – סבב ${round}`
-          : `📲 שלח אישור הגעה – סבב ${round}`}
-      </SendButton>
+        {blocked
+          ? "🚫 לא ניתן לשלוח"
+          : selectedGuest
+          ? "📲 פתח WhatsApp לאורח"
+          : `📲 פתח WhatsApp (${guestsToSend.length})`}
+      </button>
 
       {noAudience && (
         <p className="text-sm text-red-500">
