@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
-
+import "@/models/Event"; 
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import { sendTableNumberTemplate } from "@/lib/whatsapp/sendTableNumberTemplate";
 import { sendThankYouTemplate } from "@/lib/whatsapp/sendThankYouTemplate";
