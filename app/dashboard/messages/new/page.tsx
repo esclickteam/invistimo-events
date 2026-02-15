@@ -149,7 +149,8 @@ export default function NewMessagesPage() {
       </div>
 
       {/* ================= Content ================= */}
-      <main className="mt-6 bg-white rounded-2xl shadow-lg p-6">
+     <main className="mt-6 p-6">
+
         {activeTab === "rsvp" && (
           <RsvpTab
             invitationId={invitationId}
