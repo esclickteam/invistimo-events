@@ -10,7 +10,7 @@ import mongoose, {
    TYPES
 ============================================================ */
 
-export interface IUser {
+export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
@@ -24,8 +24,7 @@ export interface IUser {
 
   paidAmount: number;
   hasPaid: boolean;
-  isActive: boolean;
-  hasDashboardAccess: boolean; // 👈 חשוב להוסיף גם פה
+  isActive: boolean; // ✅ חדש – שליטה על גישה
 
   producerId?: mongoose.Types.ObjectId | null;
   createdByProducer?: mongoose.Types.ObjectId | null;
@@ -73,7 +72,6 @@ export interface IUser {
   createdAt: Date;
   updatedAt: Date;
 }
-
 
 /* ============================================================
    SCHEMA
@@ -125,21 +123,11 @@ const UserSchema = new Schema<IUser>(
     paidAmount: { type: Number, default: 0 },
     hasPaid: { type: Boolean, default: false },
 
-    hasDashboardAccess: {
-  type: Boolean,
-  default: false, // 🔴 משתמש חדש לא יכול להיכנס
-},
-
-
-    
-
     // ✅ קריטי – לקוחות קיימים לא נפגעים
     isActive: {
   type: Boolean,
   default: false, // 🔴 חדש = לא פעיל
 },
-
-
 
 
     createdByAdmin: { type: Boolean, default: false },
