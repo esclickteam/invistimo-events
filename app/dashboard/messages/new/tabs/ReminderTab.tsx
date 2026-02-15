@@ -53,6 +53,10 @@ export default function ReminderTab({
   const [includeGiftLink] = useState(false);
   const [preview, setPreview] = useState<any>(null);
 
+  const [testPhone, setTestPhone] = useState("");
+const [sendingTest, setSendingTest] = useState(false);
+
+
   /* ================= SCHEDULED MESSAGES ================= */
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
@@ -228,6 +232,39 @@ export default function ReminderTab({
 
 }, [invitationId, guestsToSend]);
 
+const sendTestMessage = async () => {
+  if (!preview?.text || !testPhone) return;
+
+  try {
+    setSendingTest(true);
+
+    const res = await fetch("/api/sms/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        invitationId,
+        phone: testPhone,
+        message: preview.text,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data?.success) {
+      alert("הודעת בדיקה נשלחה בהצלחה");
+      setTestPhone("");
+    } else {
+      alert("שגיאה בשליחת הודעת בדיקה");
+    }
+  } catch {
+    alert("שגיאה בשליחה");
+  } finally {
+    setSendingTest(false);
+  }
+};
+
+
 
 
 
@@ -264,6 +301,42 @@ export default function ReminderTab({
           </div>
         </div>
       )}
+
+      {/* TEST MESSAGE */}
+{preview && (
+  <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-4">
+
+    <div className="flex justify-between">
+      <div className="font-semibold">
+        ✏️ שליחת הודעה לבדיקה
+      </div>
+    </div>
+
+    <p className="text-sm text-gray-500">
+      ההודעה תישלח למספר נייד בלבד – בדיוק כפי שהיא תישלח לאורחים
+    </p>
+
+    <div className="flex gap-3">
+      <input
+        type="tel"
+        placeholder="05XXXXXXXX"
+        value={testPhone}
+        onChange={(e) => setTestPhone(e.target.value)}
+        className="flex-1 border rounded-xl px-4 py-3 text-sm"
+      />
+
+      <button
+        onClick={sendTestMessage}
+        disabled={!testPhone || preview?.blocked || sendingTest}
+        className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-sm disabled:opacity-50"
+      >
+        {sendingTest ? "שולח..." : "שלח לבדיקה"}
+      </button>
+    </div>
+
+  </div>
+)}
+
 
       {/* TIMING */}
       {/* ================= TIMING ================= */}
