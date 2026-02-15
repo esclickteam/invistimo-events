@@ -109,7 +109,7 @@ export default function PricingPage() {
 
   const getAddonPrices = (plan: PlanKey) => {
     if (plan === "plan1") {
-      return { credit: 150, seating: 5, system: 200, design: 200 };
+      return { credit: 150, seating: 100, system: 200, design: 200 };
     }
 
     if (plan === "plan2") {

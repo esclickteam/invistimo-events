@@ -17,7 +17,7 @@ type Props = {
 ======================= */
 
 function getUpgradePrice(plan: Plan) {
-  if (plan === "plan1") return 100;
+  if (plan === "plan1") return 5;
   if (plan === "plan2") return 80;
   return 0; // plan3 כבר כולל הושבה
 }
