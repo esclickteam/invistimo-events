@@ -24,7 +24,7 @@ type Props = {
   eventLocation: string;
   lat?: number;
   lng?: number;
-  giftCreditUrl?: string; // 👑 חדש
+  giftCreditUrl?: string;
 };
 
 /* ================= CONSTANTS ================= */
@@ -52,7 +52,7 @@ export default function ReminderTab({
   const [loading, setLoading] = useState(true);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
 
-  const [includeGiftLink, setIncludeGiftLink] = useState(false); // 👑 שליטה למשתמש
+  const [includeGiftLink, setIncludeGiftLink] = useState(false);
 
   const [preview, setPreview] = useState<{
     text: string;
@@ -63,6 +63,12 @@ export default function ReminderTab({
     limit: number;
     longestGuestName?: string | null;
   } | null>(null);
+
+  /* ================= NEW: TEST MESSAGE ================= */
+
+  const [testPhone, setTestPhone] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testsRemaining, setTestsRemaining] = useState(10);
 
   /* ================= LOAD GUESTS ================= */
 
@@ -76,7 +82,7 @@ export default function ReminderTab({
         const data = await res.json();
         setGuests(Array.isArray(data.guests) ? data.guests : []);
       } catch (err) {
-        console.error("❌ Failed to load reminder guests", err);
+        console.error(err);
         setGuests([]);
       } finally {
         setLoading(false);
@@ -107,16 +113,14 @@ export default function ReminderTab({
       : confirmedGuests;
   }, [guestsWithTable, confirmedGuests]);
 
-  const baseTemplate = MESSAGE_WITH_TABLE;
-
   const navigationLink =
     typeof lat === "number" && typeof lng === "number"
       ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
       : "";
 
-  const buildReminderMessage = (g: Guest) => {
-    return buildMessage({
-      template: baseTemplate,
+  const buildReminderMessage = (g: Guest) =>
+    buildMessage({
+      template: MESSAGE_WITH_TABLE,
       guest: g,
       eventDate,
       eventLocation,
@@ -124,105 +128,130 @@ export default function ReminderTab({
       includeGiftLink,
       giftLink: giftCreditUrl || "",
     });
-  };
 
   /* ================= PREVIEW ================= */
 
-useEffect(() => {
-  if (!invitationId || guestsToSend.length === 0) {
-    setPreview(null);
-    return;
-  }
-
-  let longestText = "";
-  let longestGuest: Guest | null = null;
-
-  for (const g of guestsToSend) {
-    const text = buildReminderMessage(g);
-    if (text.length > longestText.length) {
-      longestText = text;
-      longestGuest = g;
+  useEffect(() => {
+    if (!invitationId || guestsToSend.length === 0) {
+      setPreview(null);
+      return;
     }
-  }
 
-  if (!longestGuest) {
-    setPreview(null);
-    return;
-  }
+    let longestText = "";
+    let longestGuest: Guest | null = null;
 
-  // 👑 שלב 1 – הצגה מיידית בלי שרת
-  setPreview({
-    text: longestText,
-    totalChars: longestText.length,
-    parts: 1,
-    blocked: false,
-    overflow: 0,
-    limit: 200,
-    longestGuestName: longestGuest.name,
-  });
+    for (const g of guestsToSend) {
+      const text = buildReminderMessage(g);
+      if (text.length > longestText.length) {
+        longestText = text;
+        longestGuest = g;
+      }
+    }
 
-  // 👑 שלב 2 – בדיקה אמיתית ברקע
-  async function fetchPreview() {
+    if (!longestGuest) {
+      setPreview(null);
+      return;
+    }
+
+    setPreview({
+      text: longestText,
+      totalChars: longestText.length,
+      parts: 1,
+      blocked: false,
+      overflow: 0,
+      limit: 200,
+      longestGuestName: longestGuest.name,
+    });
+
+    async function fetchPreview() {
+      try {
+        const res = await fetch("/api/sms/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            invitationId,
+            guestId: longestGuest!._id,
+            messageOverride: longestText,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (
+          typeof data.totalChars === "number" &&
+          typeof data.parts === "number"
+        ) {
+          setPreview((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  totalChars: data.totalChars,
+                  parts: data.parts,
+                  blocked: !data.allowed,
+                  overflow: data.overflow ?? 0,
+                  limit: data.limit ?? 200,
+                }
+              : prev
+          );
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchPreview();
+  }, [
+    invitationId,
+    guestsToSend,
+    eventDate,
+    eventLocation,
+    includeGiftLink,
+  ]);
+
+  /* ================= TEST SEND ================= */
+
+  async function sendTestMessage() {
+    if (!preview?.text || !testPhone) return;
+
     try {
-      const res = await fetch("/api/sms/preview", {
+      setSendingTest(true);
+
+      const res = await fetch("/api/sms/send-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           invitationId,
-          guestId: longestGuest!._id,
-          messageOverride: longestText,
+          phone: testPhone,
+          message: preview.text,
         }),
       });
 
       const data = await res.json();
 
-      if (
-        typeof data.totalChars === "number" &&
-        typeof data.parts === "number"
-      ) {
-        setPreview((prev) =>
-          prev
-            ? {
-                ...prev,
-                totalChars: data.totalChars,
-                parts: data.parts,
-                blocked: !data.allowed,
-                overflow: data.overflow ?? 0,
-                limit: data.limit ?? 200,
-              }
-            : prev
-        );
+      if (data.success) {
+        setTestsRemaining((prev) => Math.max(prev - 1, 0));
+        alert("נשלח בהצלחה ✅");
+      } else {
+        alert("שליחה נכשלה ❌");
       }
     } catch (err) {
-      console.error("Preview check failed", err);
+      alert("שגיאה בשליחה");
+    } finally {
+      setSendingTest(false);
     }
   }
-
-  fetchPreview();
-}, [
-  invitationId,
-  guestsToSend,
-  eventDate,
-  eventLocation,
-  includeGiftLink,
-]);
-
 
   const blocked =
     loading ||
     guestsToSend.length === 0 ||
     !!preview?.blocked;
 
-  const renderPreviewText = (text: string) => {
-    return text.split("\n").map((line, i) => (
-      <p key={i} className="leading-relaxed">
-        {line || <span>&nbsp;</span>}
-      </p>
+  const renderPreviewText = (text: string) =>
+    text.split("\n").map((line, i) => (
+      <p key={i}>{line || <span>&nbsp;</span>}</p>
     ));
-  };
-
-  /* ================= RENDER ================= */
 
   if (loading) {
     return <p className="text-sm text-gray-500">טוען אורחים…</p>;
@@ -239,70 +268,58 @@ useEffect(() => {
         readOnly
       />
 
-      <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        📌 תזכורת נשלחת ב־SMS בלבד
-        <br />
-        ⏱️ ניתן לשלוח מיידית או לתזמן
-        <br />
-        🪑 מספר שולחן מצורף רק למי שיש בפועל
-      </section>
-
-      {/* 👑 שליטה על קישור מתנה */}
-      {giftCreditUrl && (
-        <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeGiftLink}
-              onChange={(e) => setIncludeGiftLink(e.target.checked)}
-            />
-            <span>להוסיף קישור למתנות באשראי</span>
-          </label>
+      {/* PHONE PREVIEW */}
+      {preview && (
+        <div className="w-full flex justify-center mt-6 mb-8">
+          <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[120px] h-[22px] bg-black rounded-b-2xl" />
+            <div className="relative w-full h-full bg-[#f5f5f5] rounded-[38px] overflow-hidden">
+              <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold text-gray-600 border-b">
+                INVISTIMO · SMS
+              </div>
+              <div className="flex justify-center items-center h-full p-4">
+                <div className="bg-gray-200 text-gray-900 rounded-3xl px-4 py-3 text-sm max-w-[85%] text-right">
+                  {renderPreviewText(preview.text)}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* PHONE PREVIEW */}
-{preview && (
-  <div className="w-full flex justify-center mt-6 mb-8">
-    <div className="relative w-[260px] h-[520px] bg-black rounded-[48px] p-3 shadow-2xl">
+      {/* TEST MESSAGE UI */}
+      {preview && (
+        <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm space-y-3">
+          <div className="font-semibold">
+            שליחת הודעה לבדיקה ✏️
+          </div>
 
-      {/* Notch */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[120px] h-[22px] bg-black rounded-b-2xl z-20" />
+          <div className="text-xs text-gray-500">
+            בדיקות שנותרו: {testsRemaining} / 10
+          </div>
 
-      {/* Screen */}
-      <div className="relative w-full h-full bg-[#f5f5f5] rounded-[38px] overflow-hidden">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="05XXXXXXXX"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="flex-1 border rounded-lg px-3 py-2"
+            />
+            <button
+              onClick={sendTestMessage}
+              disabled={sendingTest || testsRemaining <= 0}
+              className="bg-gray-200 px-4 rounded-lg"
+            >
+              {sendingTest ? "שולח..." : "שלח לבדיקה"}
+            </button>
+          </div>
 
-        {/* Header */}
-        <div className="bg-gray-100 text-center py-2 text-[11px] font-semibold tracking-wider text-gray-600 border-b">
-
-          INVISTIMO · SMS
-        </div>
-
-        {/* Message Area */}
-        <div className="flex justify-center items-center h-full p-4">
-
-          <div className="
-            bg-gray-200
-            text-gray-900
-            rounded-3xl
-            px-4 py-3
-            text-sm
-            leading-relaxed
-            whitespace-pre-wrap
-            break-words
-            max-w-[85%]
-            text-right
-
-          ">
-            {renderPreviewText(preview.text)}
+          <div className="text-xs text-gray-400">
+            הודעת בדיקה זו תחויב כהודעת SMS אחת
           </div>
         </div>
-
-      </div>
-    </div>
-  </div>
-)}
-
+      )}
 
       <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
 
@@ -319,11 +336,6 @@ useEffect(() => {
           : `📩 שלח תזכורת (${guestsToSend.length})`}
       </SendButton>
 
-      {blocked && (
-        <p className="text-sm text-red-500">
-          אין נמענים או שההודעה חורגת מהמגבלה
-        </p>
-      )}
     </div>
   );
 }
