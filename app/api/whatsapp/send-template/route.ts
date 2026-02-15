@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
-import "@/models/Event"; 
+import "@/models/Event";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import { sendTableNumberTemplate } from "@/lib/whatsapp/sendTableNumberTemplate";
 import { sendThankYouTemplate } from "@/lib/whatsapp/sendThankYouTemplate";
@@ -21,17 +21,13 @@ type TemplateName =
 type SendTemplateRequestBody = {
   invitationId?: string;
   audience?: string[];
-
   to?: string;
-
   templateName?: TemplateName;
   languageCode?: string;
-
   name?: string;
   tableName?: string;
   eventType?: string;
   urlSuffix?: string;
-
   giftCreditUrl?: string;
 };
 
@@ -73,7 +69,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* =====================================================
-       RSVP – BULK WHATSAPP
+       RSVP – BULK WHATSAPP (UPDATED LOGIC)
     ===================================================== */
 
     if (templateName === "rsvp_invitation_media") {
@@ -101,46 +97,42 @@ export async function POST(req: NextRequest) {
 
       const event = invitation.eventId as any;
 
-      // 🧠 קביעת סבב
-      const totalGuestsCount = await InvitationGuest.countDocuments({
-        invitationId: invitation._id,
-      });
-
-      const isRound1 = body.audience.length === totalGuestsCount;
-      const isRound2 = body.audience.length < totalGuestsCount;
-
-      // ⛔ חסימות
-      if (isRound1 && invitation.rsvpRound1SentAt) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "RSVP_ROUND_1_ALREADY_SENT",
-            sentAt: invitation.rsvpRound1SentAt,
-          },
-          { status: 409 }
-        );
-      }
-
-      if (isRound2 && invitation.rsvpRound2SentAt) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "RSVP_ROUND_2_ALREADY_SENT",
-            sentAt: invitation.rsvpRound2SentAt,
-          },
-          { status: 409 }
-        );
-      }
-
       const guests = await InvitationGuest.find({
         invitationId: invitation._id,
         _id: { $in: body.audience },
       }).lean();
 
+      if (!guests.length) {
+        return NextResponse.json(
+          { success: false, error: "NO_GUESTS_TO_SEND" },
+          { status: 400 }
+        );
+      }
+
+      // 🔒 בדיקה אם כולם כבר ענו
+      const allAnswered = guests.every(
+        (g: any) => g.rsvpStatus === "yes" || g.rsvpStatus === "no"
+      );
+
+      if (allAnswered) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "ALL_GUESTS_ALREADY_RESPONDED",
+          },
+          { status: 409 }
+        );
+      }
+
       let sent = 0;
 
       for (const guest of guests) {
         if (!guest.phone || !guest.token) continue;
+
+        // 🔥 לא שולחים למי שכבר ענה
+        if (guest.rsvpStatus === "yes" || guest.rsvpStatus === "no") {
+          continue;
+        }
 
         const phone = guest.phone.startsWith("972")
           ? guest.phone
@@ -164,18 +156,16 @@ export async function POST(req: NextRequest) {
         sent++;
       }
 
-      // ✅ סימון הסבב שנשלח
+      // ✅ שמירת תאריך שליחה אחרון בלבד
       await Invitation.updateOne(
         { _id: invitation._id },
         {
-          $set: isRound1
-            ? { rsvpRound1SentAt: new Date() }
-            : { rsvpRound2SentAt: new Date() },
+          $set: { rsvpLastSentAt: new Date() },
         }
       );
 
       return NextResponse.json(
-        { success: true, sent, round: isRound1 ? 1 : 2 },
+        { success: true, sent },
         { status: 200 }
       );
     }
