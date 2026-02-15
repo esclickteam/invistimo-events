@@ -72,103 +72,119 @@ export async function POST(req: NextRequest) {
        RSVP – BULK WHATSAPP (UPDATED LOGIC)
     ===================================================== */
 
-    if (templateName === "rsvp_invitation_media") {
-      if (
-        !isNonEmptyString(body.invitationId) ||
-        !Array.isArray(body.audience) ||
-        body.audience.length === 0
-      ) {
-        return NextResponse.json(
-          { success: false, error: "MISSING_PARAMS" },
-          { status: 400 }
-        );
-      }
+    /* =====================================================
+   RSVP – BULK WHATSAPP
+===================================================== */
 
-      const invitation = await Invitation.findById(body.invitationId)
-        .populate("eventId")
-        .lean();
+if (templateName === "rsvp_invitation_media") {
+  if (
+    !isNonEmptyString(body.invitationId) ||
+    !Array.isArray(body.audience) ||
+    body.audience.length === 0
+  ) {
+    return NextResponse.json(
+      { success: false, error: "MISSING_PARAMS" },
+      { status: 400 }
+    );
+  }
 
-      if (!invitation || !invitation.eventId) {
-        return NextResponse.json(
-          { success: false, error: "INV_NOT_FOUND" },
-          { status: 404 }
-        );
-      }
+  const invitation = await Invitation.findById(body.invitationId)
+    .populate("eventId")
+    .lean();
 
-      const event = invitation.eventId as any;
+  if (!invitation || !invitation.eventId) {
+    return NextResponse.json(
+      { success: false, error: "INV_NOT_FOUND" },
+      { status: 404 }
+    );
+  }
 
-      const guests = await InvitationGuest.find({
-        invitationId: invitation._id,
-        _id: { $in: body.audience },
-      }).lean();
+  const event = invitation.eventId as any;
 
-      if (!guests.length) {
-        return NextResponse.json(
-          { success: false, error: "NO_GUESTS_TO_SEND" },
-          { status: 400 }
-        );
-      }
+  /* =====================
+     קביעת סבב לפי DB
+  ===================== */
 
-      // 🔒 בדיקה אם כולם כבר ענו
-      const allAnswered = guests.every(
-        (g: any) => g.rsvpStatus === "yes" || g.rsvpStatus === "no"
-      );
+  let round: 1 | 2;
 
-      if (allAnswered) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "ALL_GUESTS_ALREADY_RESPONDED",
-          },
-          { status: 409 }
-        );
-      }
+  if (!invitation.rsvpRound1SentAt) {
+    round = 1;
+  } else if (!invitation.rsvpRound2SentAt) {
+    round = 2;
+  } else {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "RSVP_ROUNDS_COMPLETED",
+      },
+      { status: 409 }
+    );
+  }
 
-      let sent = 0;
+  const guests = await InvitationGuest.find({
+    invitationId: invitation._id,
+    _id: { $in: body.audience },
+  }).lean();
 
-      for (const guest of guests) {
-        if (!guest.phone || !guest.token) continue;
+  let sent = 0;
 
-        // 🔥 לא שולחים למי שכבר ענה
-        if (guest.rsvpStatus === "yes" || guest.rsvpStatus === "no") {
-          continue;
-        }
+for (const guest of guests) {
+  if (!guest.phone || !guest.token) continue;
 
-        const phone = guest.phone.startsWith("972")
-          ? guest.phone
-          : `972${guest.phone.replace(/^0/, "")}`;
+  try {
+    const phone = guest.phone.startsWith("972")
+      ? guest.phone
+      : `972${guest.phone.replace(/^0/, "")}`;
 
-        const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+    const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-        await sendRsvpTemplateMedia({
-          to: phone,
-          eventTitle: event.title,
-          eventDate: event.date,
-          eventLocation:
-            event.location?.address || event.location?.name || "",
-          rsvpLink,
-          headerImageUrl:
-            invitation.headerImageUrl || invitation.previewImage,
-          templateName,
-          languageCode,
-        });
+    await sendRsvpTemplateMedia({
+      to: phone,
+      eventTitle: event.title,
+      eventDate: event.date,
+      eventLocation:
+        event.location?.address || event.location?.name || "",
+      rsvpLink,
+      headerImageUrl:
+        invitation.headerImageUrl || invitation.previewImage,
+      templateName,
+      languageCode,
+    });
 
-        sent++;
-      }
+    sent++;
+  } catch (err) {
+    console.error("❌ Failed sending RSVP to:", guest.phone, err);
+  }
+}
 
-      // ✅ שמירת תאריך שליחה אחרון בלבד
-      await Invitation.updateOne(
-        { _id: invitation._id },
-        {
-          $set: { rsvpLastSentAt: new Date() },
-        }
-      );
 
-      return NextResponse.json(
-        { success: true, sent },
-        { status: 200 }
-      );
-    }
+
+
+  /* =====================
+   סימון הסבב שנשלח
+===================== */
+
+if (sent > 0) {
+  if (round === 1) {
+    await Invitation.updateOne(
+      { _id: invitation._id },
+      { $set: { rsvpRound1SentAt: new Date() } }
+    );
+  } else {
+    await Invitation.updateOne(
+      { _id: invitation._id },
+      { $set: { rsvpRound2SentAt: new Date() } }
+    );
+  }
+}
+
+
+  return NextResponse.json(
+    { success: true, sent, round },
+    { status: 200 }
+  );
+}
+
 
     /* =====================================================
        TABLE NUMBER

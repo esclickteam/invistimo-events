@@ -148,7 +148,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   // לתבנית:
   // https://www.invistimo.com/invite/{{1}}
   // נשלח:
-  // INHtag6CZG?token=...
+  // INHtag6CZG?token=...Q
   const buttonUrlParam = extractInviteSuffixForButton(input.rsvpLink);
 
   const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
