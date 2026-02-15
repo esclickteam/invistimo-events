@@ -45,7 +45,7 @@ const addonPrices: Record<
   { credit: number; seating: number; system: number; design: number }
 > = {
   plan1: { credit: 150, seating: 100, system: 200, design: 200 },
-  plan2: { credit: 100, seating: 5, system: 150, design: 150 },
+  plan2: { credit: 100, seating: 80, system: 150, design: 150 },
   plan3: { credit: 0, seating: 0, system: 100, design: 100 },
 };
 
