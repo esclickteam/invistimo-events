@@ -38,6 +38,7 @@ function clearAuthCookies(res: NextResponse) {
 
   expireCookie(res, "authToken", { domain: cookieDomain });
   expireCookie(res, "producerAuthToken", { domain: cookieDomain });
+  expireCookie(res, "adminAuthToken", { domain: cookieDomain }); // ✅ חדש
 }
 
 /* =========================
@@ -48,7 +49,8 @@ type JwtPayload = {
   id?: string;
   _id?: string;
   role?: "admin" | "producer" | "client" | "user" | "staff";
-
+  hasPaid?: boolean;
+  isTrial?: boolean;
   impersonated?: boolean;
   impersonatedBy?: string;
   // ✅ fix: producer_staff (ולא staff_producer)
@@ -76,9 +78,10 @@ export async function GET() {
 
     const producerToken = cookieStore.get("producerAuthToken")?.value ?? null;
     const authToken = cookieStore.get("authToken")?.value ?? null;
+    const adminToken = cookieStore.get("adminAuthToken")?.value ?? null; // ✅ חדש
 
-    // ✅ אם יש authToken – תמיד הוא האמת (גם בהתחזות)
-    const token = authToken || producerToken;
+    // ✅ authToken ראשון, אחרת producer/admin
+    const token = authToken || producerToken || adminToken; // ✅ עודכן
 
     if (!token) {
       return NextResponse.json(
@@ -156,6 +159,8 @@ export async function GET() {
       user.email,
       "| role:",
       safeRole,
+      "| hasPaid:",
+      user.hasPaid === true, // ✅ חדש
       "| staffType:",
       staffType,
       "| impersonationRole:",
@@ -166,54 +171,60 @@ export async function GET() {
     );
 
     return NextResponse.json(
-  {
-    success: true,
-    user: {
-      _id: String(user._id),
-      name: user.name ?? "",
-      email: user.email ?? "",
+      {
+        success: true,
+        user: {
+          _id: String(user._id),
+          name: user.name ?? "",
+          email: user.email ?? "",
 
-      role: safeRole,
+          role: safeRole,
 
-      staffType: staffType,
-      assignedProducerId: user.assignedProducerId
-        ? String(user.assignedProducerId)
-        : null,
+          staffType: staffType,
+          assignedProducerId: user.assignedProducerId
+            ? String(user.assignedProducerId)
+            : null,
 
-      createdByProducer: !!user.createdByProducer,
+          createdByProducer: !!user.createdByProducer,
 
-      isProducerLike,
-      isProducerStaff,
-      effectiveRole,
+          isProducerLike,
+          isProducerStaff,
+          effectiveRole,
 
-      /* ✅ קריטי */
-      isActive: user.isActive === true,
+          /* ✅ קריטי */
+          isActive: user.isActive === true,
+          hasPaid: user.hasPaid === true, // ✅ חדש
+          isTrial: user.isTrial === true, // ✅ חדש
+          trialExpiresAt: user.trialExpiresAt ?? null, // ✅ חדש
 
-      plan: user.plan,
-      guests: user.guests,
-      paidAmount: user.paidAmount,
-      planLimits: user.planLimits,
+          // אופציונלי - שימושי ל-UI
+          hasDashboardAccess: user.hasDashboardAccess === true, // ✅ חדש
 
-      includeCalls: !!user.includeCalls,
-      callsAddonPrice: user.callsAddonPrice ?? 0,
-      includeCreditGifts: !!user.includeCreditGifts,
+          plan: user.plan,
+          guests: user.guests,
+          paidAmount: user.paidAmount ?? 0,
+          planLimits: user.planLimits,
 
-      producerPricePerRecord: user.producerPricePerRecord ?? 0,
+          includeCalls: !!user.includeCalls,
+          callsAddonPrice: user.callsAddonPrice ?? 0,
+          includeCreditGifts: !!user.includeCreditGifts,
 
-      impersonated: !!decoded.impersonated,
-      impersonatedBy: decoded.impersonatedBy ?? null,
-      impersonationRole: impersonationRole,
+          producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-      createdAt: user.createdAt,
-    },
-  },
-  { headers: { "Cache-Control": "no-store" } }
-);
+          smsUsed: user.smsUsed ?? 0, // ✅ חדש
+          smsBalance: user.smsBalance ?? 0, // ✅ חדש
+          whatsappBalance: user.whatsappBalance ?? 0, // ✅ חדש
+          whatsappUsed: user.whatsappUsed ?? 0, // ✅ חדש
 
+          impersonated: !!decoded.impersonated,
+          impersonatedBy: decoded.impersonatedBy ?? null,
+          impersonationRole: impersonationRole,
 
-
-
-
+          createdAt: user.createdAt,
+        },
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (err) {
     console.error("❌ ME API ERROR:", err);
     return NextResponse.json(
