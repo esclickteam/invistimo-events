@@ -55,7 +55,10 @@ function RegisterFormInner() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          email: form.email.trim().toLowerCase(), // חשוב לאחידות
+        }),
       });
 
       const registerData = await registerRes.json();
@@ -65,20 +68,25 @@ function RegisterFormInner() {
         return;
       }
 
-      /* 2️⃣ Stripe Checkout – לפי סכום בלבד */
-      const checkoutRes = await fetch(
-        "/api/stripe/create-checkout-session",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            amount: price,          // ← זה מה שחשוב
-            currency: "ils",
-            email: form.email,
-          }),
-        }
-      );
+      // ✅ קריטי: userId מההרשמה
+      const userId = String(registerData?.userId || "").trim();
+      if (!userId) {
+        alert("Missing userId");
+        return;
+      }
+
+      /* 2️⃣ Stripe Checkout – לפי סכום בלבד + userId */
+      const checkoutRes = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          amount: price,
+          currency: "ils",
+          email: form.email.trim().toLowerCase(),
+          userId, // ✅ זה מה שהיה חסר
+        }),
+      });
 
       const checkoutData = await checkoutRes.json();
 
@@ -121,7 +129,7 @@ function RegisterFormInner() {
             </label>
             <input
               name={field}
-              type={field === "password" ? "password" : "text"}
+              type={field === "password" ? "password" : field === "email" ? "email" : "text"}
               value={(form as any)[field]}
               onChange={handleChange}
               className="w-full p-3 rounded-xl border border-[#d9c8b5]"

@@ -209,7 +209,7 @@ export async function POST(req: Request) {
           isTrial: false,
 
           hasDashboardAccess: true,
-          isActive: true,
+          isActive: false,
 
           // package data
           plan,
