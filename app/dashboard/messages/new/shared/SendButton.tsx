@@ -8,7 +8,7 @@ type Props = {
   channel: "sms" | "whatsapp";
   type: "rsvp" | "reminder" | "thankyou";
 
-  invitationId?: string;        // ⭐ חובה ל־WhatsApp RSVP
+  invitationId?: string;
   audience: string[];
   scheduledAt: Date | null;
 
@@ -57,21 +57,29 @@ const SendButton: React.FC<Props> = ({
     setSending(true);
 
     try {
-      let endpoint = "/api/messages/send";
-      let payload: any = {
-        channel,
-        type,
-        audience,
-        scheduledAt,
-      };
+      let endpoint = "";
+      let payload: any = {};
+
+      /* ================= SMS ================= */
+      if (channel === "sms") {
+        endpoint = "/api/sms/send";
+
+        payload = {
+          invitationId,
+          templateKey: type === "reminder" ? "table" : type,
+          guestIds: audience,
+          scheduledAt,
+        };
+      }
 
       /* ================= WHATSAPP RSVP ================= */
       if (channel === "whatsapp" && type === "rsvp") {
         endpoint = "/api/whatsapp/send-template";
+
         payload = {
-          invitationId,     // ⭐ קריטי
-          templateName,     // rsvp_invitation_media
-          audience,         // guestIds
+          invitationId,
+          templateName,
+          audience,
           scheduledAt,
         };
       }
@@ -87,14 +95,13 @@ const SendButton: React.FC<Props> = ({
 
       /* ================= SERVER BLOCKS ================= */
 
-      // ⛔ חסימת RSVP מהשרת (409 / קוד ייעודי)
       if (
         res.status === 409 ||
         data?.error === "RSVP_ALREADY_SENT" ||
         data?.error === "RSVP_ROUND_ALREADY_SENT"
       ) {
         alert("ℹ️ סבב זה כבר נשלח ולא ניתן לשלוח שוב");
-        onAfterSend?.(); // 🔒 נועל את ה־UI בוודאות
+        onAfterSend?.();
         return;
       }
 
@@ -111,7 +118,7 @@ const SendButton: React.FC<Props> = ({
           : `✅ נשלחו ${data.sent ?? audience.length} הודעות בהצלחה`
       );
 
-      onAfterSend?.(); // 🔒 נועל את הכפתור אחרי הצלחה
+      onAfterSend?.();
     } catch (err) {
       console.error("SEND ERROR:", err);
       alert("❌ שגיאה בשליחה");
