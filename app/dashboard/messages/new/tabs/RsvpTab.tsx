@@ -44,6 +44,13 @@ function getRsvpPreviewText({
 מחכים לשמוח איתכם 💖`;
 }
 
+function normalizePhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("972")) return digits;
+  if (digits.startsWith("0")) return "972" + digits.slice(1);
+  return digits;
+}
+
 /* ================= COMPONENT ================= */
 
 export default function RsvpTab({
@@ -97,6 +104,12 @@ export default function RsvpTab({
     loadData();
   }, [invitationId]);
 
+  /* ================= RESET SELECTION ON ROUND CHANGE ================= */
+
+  useEffect(() => {
+    setSelectedGuestId("");
+  }, [round]);
+
   /* ================= DERIVED ================= */
 
   const baseAudience =
@@ -106,20 +119,6 @@ export default function RsvpTab({
 
   const selectedGuest =
     baseAudience.find((g) => g._id === selectedGuestId) || null;
-
-  const guestsToSend = selectedGuest
-    ? [selectedGuest]
-    : baseAudience;
-
-  const noAudience = guestsToSend.length === 0;
-  const missingHeaderImage = !headerImageUrl;
-
-  const blocked =
-    loading ||
-    noAudience ||
-    missingHeaderImage ||
-    (round === 1 && !!round1SentAt) ||
-    (round === 2 && !!round2SentAt);
 
   const previewText = useMemo(
     () =>
@@ -131,21 +130,32 @@ export default function RsvpTab({
     [eventTitle, eventDate, eventLocation]
   );
 
+  const noAudience = baseAudience.length === 0;
+  const missingHeaderImage = !headerImageUrl;
+
+  const blocked =
+    loading ||
+    noAudience ||
+    missingHeaderImage ||
+    (round === 1 && !!round1SentAt) ||
+    (round === 2 && !!round2SentAt);
+
   /* ================= MANUAL WHATSAPP ================= */
 
   const openManualWhatsApp = (guest: Guest) => {
-    const cleanPhone =
-      typeof guest.phone === "string"
-        ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
-        : "";
+    if (!guest.phone) {
+      alert(`אין מספר טלפון לאורח ${guest.name}`);
+      return;
+    }
 
-    if (!cleanPhone) {
+    const normalized = normalizePhone(guest.phone);
+
+    if (!normalized) {
       alert("מספר טלפון לא תקין");
       return;
     }
 
-    const to = `972${cleanPhone}`;
-    const url = `https://wa.me/${to}?text=${encodeURIComponent(
+    const url = `https://wa.me/${normalized}?text=${encodeURIComponent(
       previewText
     )}`;
 
@@ -155,14 +165,14 @@ export default function RsvpTab({
   const sendManual = () => {
     if (blocked) return;
 
-    guestsToSend.forEach((guest) => {
-      openManualWhatsApp(guest);
-    });
+    if (selectedGuest) {
+      openManualWhatsApp(selectedGuest);
+      alert("נפתח WhatsApp לאורח הנבחר");
+      return;
+    }
 
     alert(
-      selectedGuest
-        ? "נפתח WhatsApp לאורח הנבחר"
-        : `נפתח WhatsApp עבור ${guestsToSend.length} אורחים`
+      "שליחה ידנית לכולם תפתח לשונית WhatsApp עבור כל אורח.\nמומלץ לבחור אורח ספציפי."
     );
   };
 
@@ -199,13 +209,11 @@ export default function RsvpTab({
         value={round === 1 ? "all" : "pending"}
         onChange={() => {}}
         totalCount={guests.length}
-        pendingCount={
-          guests.filter((g) => g.rsvp === "pending").length
-        }
+        pendingCount={guests.filter((g) => g.rsvp === "pending").length}
         readOnly
       />
 
-      {/* 🔍 GUEST AUTOCOMPLETE */}
+      {/* GUEST AUTOCOMPLETE */}
       <div className="w-full max-w-[600px]">
         <label className="block mb-2 font-semibold text-[#4a413a]">
           שליחה לאורח ספציפי (אופציונלי)
@@ -234,7 +242,7 @@ export default function RsvpTab({
         headerImageUrl={headerImageUrl}
       />
 
-      {/* SEND BUTTON */}
+      {/* MANUAL SEND BUTTON (AFTER PREVIEW) */}
       <button
         onClick={sendManual}
         disabled={blocked}
@@ -244,7 +252,7 @@ export default function RsvpTab({
           ? "🚫 לא ניתן לשלוח"
           : selectedGuest
           ? "📲 פתח WhatsApp לאורח"
-          : `📲 פתח WhatsApp (${guestsToSend.length})`}
+          : "📲 בחר אורח לשליחה ידנית"}
       </button>
 
       {noAudience && (
