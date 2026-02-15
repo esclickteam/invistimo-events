@@ -1273,14 +1273,7 @@ const gradientClasses = isWhatsapp
 
 
   <div className="flex gap-4">
-    <button
-      onClick={() => setChannel("whatsapp")}
-      className={`px-4 py-2 rounded-full border ${
-        channel === "whatsapp" ? "bg-blue-600 text-white" : ""
-      }`}
-    >
-      WhatsApp
-    </button>
+    
 
     <button
       disabled={!hasInvitation && !isDemo}
