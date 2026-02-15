@@ -47,32 +47,50 @@ export default function ThankYouTab({
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
+  
 
   type SendTiming = "now" | "scheduled";
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [thankYouSentAt, setThankYouSentAt] = useState<Date | null>(null);
+
 
   /* ================= LOAD GUESTS ================= */
 
   useEffect(() => {
-    if (!invitationId) return;
+  if (!invitationId) return;
 
-    async function loadGuests() {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/guests?invitation=${invitationId}`);
-        const data = await res.json();
-        setGuests(Array.isArray(data.guests) ? data.guests : []);
-      } catch {
-        setGuests([]);
-      } finally {
-        setLoading(false);
+  async function loadData() {
+    try {
+      setLoading(true);
+
+      const [guestsRes, invitationRes] = await Promise.all([
+        fetch(`/api/guests?invitation=${invitationId}`),
+        fetch(`/api/invitations/${invitationId}`),
+      ]);
+
+      const guestsData = await guestsRes.json();
+      const invitationData = await invitationRes.json();
+
+      setGuests(Array.isArray(guestsData.guests) ? guestsData.guests : []);
+
+      const inv = invitationData?.invitation;
+      if (inv?.thankYouSentAt) {
+        setThankYouSentAt(new Date(inv.thankYouSentAt));
       }
-    }
 
-    loadGuests();
-  }, [invitationId]);
+    } catch {
+      setGuests([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadData();
+}, [invitationId]);
+
+
 
   const confirmedGuests = useMemo(
     () => guests.filter((g) => g.rsvp === "yes"),
@@ -226,6 +244,9 @@ export default function ThankYouTab({
     }
   };
 
+  const thankYouAlreadySent = !!thankYouSentAt;
+
+
   if (loading) {
     return <p className="text-sm text-gray-500">טוען אורחים…</p>;
   }
@@ -363,21 +384,30 @@ export default function ThankYouTab({
       </div>
 
       <SendButton
-        channel="sms"
-        type="thankyou"
-        invitationId={invitationId}
-        audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={scheduledAt}
-        disabled={
-          !preview ||
-          preview.blocked ||
-          (sendTiming === "scheduled" && !scheduledAt)
-        }
-      >
-        {sendTiming === "scheduled"
-          ? "⏱️ תזמן הודעת תודה"
-          : `📩 שלח הודעת תודה (${guestsToSend.length})`}
-      </SendButton>
+  channel="sms"
+  type="thankyou"
+  invitationId={invitationId}
+  audience={guestsToSend.map((g) => g._id)}
+  scheduledAt={scheduledAt}
+  onAfterSend={() => {
+    if (sendTiming === "now") {
+      setThankYouSentAt(new Date());
+    }
+  }}
+  disabled={
+    thankYouAlreadySent ||
+    !preview ||
+    preview.blocked ||
+    (sendTiming === "scheduled" && !scheduledAt)
+  }
+>
+  {thankYouAlreadySent
+    ? "✅ הודעת תודה נשלחה"
+    : sendTiming === "scheduled"
+    ? "⏱️ תזמן הודעת תודה"
+    : `📩 שלח הודעת תודה (${guestsToSend.length})`}
+</SendButton>
+
 
       {scheduledMessages.length > 0 && (
         <div className="w-full flex justify-center mt-8">

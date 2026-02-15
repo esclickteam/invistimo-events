@@ -57,20 +57,22 @@ const SendButton: React.FC<Props> = ({
       /* ================= SMS ================= */
 
       if (channel === "sms") {
-        endpoint = "/api/sms/send";
+  endpoint = "/api/sms/send";
 
-        payload = {
-          invitationId,
-          templateKey:
-            type === "reminder"
-              ? "table"
-              : type === "thankyou"
-              ? "thankyou"
-              : type,
-          guestIds: audience,
-          scheduledAt,
-        };
-      }
+  const mapTemplate: Record<string, string> = {
+    rsvp: "rsvp",
+    reminder: "table",
+    thankyou: "custom",
+  };
+
+  payload = {
+    invitationId,
+    templateKey: mapTemplate[type],
+    guestIds: audience,
+    scheduledAt,
+  };
+}
+
 
       /* ================= WHATSAPP ================= */
 
