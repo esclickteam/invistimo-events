@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import User from "@/models/User";
-import Event from "@/models/Event";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
@@ -100,17 +99,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    /* ================= ENSURE EVENT ================= */
-    let event = await Event.findOne({ userId: user._id });
-
-    if (!event) {
-      event = await Event.create({
-        userId: user._id,
-        email: user.email,
-        status: "active",
-      });
-      console.log("✅ Event created for user:", String(user._id));
-    }
+     
 
     /* ============================================================
        CASE: NEW REGISTRATION – PRICING
