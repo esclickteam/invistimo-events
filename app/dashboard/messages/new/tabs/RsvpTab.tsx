@@ -131,14 +131,12 @@ export default function RsvpTab({
   );
 
   const noAudience = baseAudience.length === 0;
-  const missingHeaderImage = !headerImageUrl;
 
   const blocked =
-    loading ||
-    noAudience ||
-    missingHeaderImage ||
-    (round === 1 && !!round1SentAt) ||
-    (round === 2 && !!round2SentAt);
+  loading ||
+  noAudience ||
+  (round === 1 && !!round1SentAt) ||
+  (round === 2 && !!round2SentAt);
 
   /* ================= MANUAL WHATSAPP ================= */
 
