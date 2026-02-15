@@ -284,7 +284,6 @@ const handleRegister = (plan: PlanKey) => {
         </h1>
 
         <div className="max-w-sm mx-auto">
-          <label className="block mb-2 font-medium">כמות רשומות</label>
 
           <select
   value={records ?? ""}
