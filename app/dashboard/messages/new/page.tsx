@@ -7,15 +7,6 @@ import ThankYouTab from "./tabs/ThankYouTab";
 
 /* ================= TYPES ================= */
 
-type Guest = {
-  _id: string;
-  name: string;
-  phone: string;
-  rsvp?: "yes" | "no" | "pending";
-  tableName?: string;
-  tableNumber?: number;
-};
-
 type TabKey = "rsvp" | "reminder" | "thankyou";
 
 type EventMeta = {
@@ -27,6 +18,20 @@ type EventMeta = {
   headerImageUrl?: string;
   lat?: number;
   lng?: number;
+};
+
+/* ================= DEFAULTS ================= */
+
+// 🔥 תמיד יש EventMeta – גם אם אין אירוע
+const EMPTY_EVENT_META: EventMeta = {
+  eventTitle: "",
+  eventDate: "",
+  eventLocation: "",
+  eventType: "",
+  giftCreditUrl: "",
+  headerImageUrl: "",
+  lat: undefined,
+  lng: undefined,
 };
 
 /* ================= HELPERS ================= */
@@ -43,8 +48,10 @@ function formatEventDate(value: any): string {
 export default function NewMessagesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
 
-  const [eventMeta, setEventMeta] = useState<EventMeta | null>(null);
-  const [invitationId, setInvitationId] = useState<string | null>(null);
+  // ❌ אין null
+  const [eventMeta, setEventMeta] = useState<EventMeta>(EMPTY_EVENT_META);
+  const [invitationId, setInvitationId] = useState<string>("");
+
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD DATA ================= */
@@ -57,38 +64,33 @@ export default function NewMessagesPage() {
           cache: "no-store",
         });
 
-        if (!res.ok) {
-          setLoading(false);
-          return;
-        }
+        if (!res.ok) return;
 
         const data = await res.json();
         const invitation = data?.invitation;
         const event = invitation?.event;
 
-        if (!invitation || !event) {
-          setLoading(false);
-          return;
+        // 🟢 אם יש אירוע – מעדכנים
+        if (invitation && event) {
+          setInvitationId(invitation._id);
+
+          setEventMeta({
+            eventTitle: event.title || "",
+            eventDate: formatEventDate(event.date),
+            eventLocation:
+              event.location?.address ||
+              event.location?.name ||
+              "",
+            eventType: event.eventType || "",
+            giftCreditUrl: event.giftCreditUrl || "",
+            headerImageUrl:
+              invitation.previewImage ||
+              invitation.headerImageUrl ||
+              "",
+            lat: event.location?.lat,
+            lng: event.location?.lng,
+          });
         }
-
-        setInvitationId(invitation._id);
-
-        setEventMeta({
-          eventTitle: event.title || "",
-          eventDate: formatEventDate(event.date),
-          eventLocation:
-            event.location?.address ||
-            event.location?.name ||
-            "",
-          eventType: event.eventType || "",
-          giftCreditUrl: event.giftCreditUrl || "",
-          headerImageUrl:
-            invitation.previewImage ||
-            invitation.headerImageUrl ||
-            "",
-          lat: event.location?.lat,
-          lng: event.location?.lng,
-        });
       } catch (err) {
         console.error("❌ Failed to load invitation data", err);
       } finally {
@@ -142,24 +144,16 @@ export default function NewMessagesPage() {
 
       {/* ================= Content ================= */}
       <main className="mt-6 p-6 min-h-[300px] bg-white rounded-xl shadow">
-        {!invitationId || !eventMeta ? (
-          <div className="text-center text-gray-400 mt-20">
-            בחר/י אירוע כדי להתחיל לשלוח הודעות
-          </div>
-        ) : (
-          <>
-            {activeTab === "rsvp" && (
-              <RsvpTab invitationId={invitationId} {...eventMeta} />
-            )}
+        {activeTab === "rsvp" && (
+          <RsvpTab invitationId={invitationId} {...eventMeta} />
+        )}
 
-            {activeTab === "reminder" && (
-              <ReminderTab invitationId={invitationId} {...eventMeta} />
-            )}
+        {activeTab === "reminder" && (
+          <ReminderTab invitationId={invitationId} {...eventMeta} />
+        )}
 
-            {activeTab === "thankyou" && (
-              <ThankYouTab invitationId={invitationId} {...eventMeta} />
-            )}
-          </>
+        {activeTab === "thankyou" && (
+          <ThankYouTab invitationId={invitationId} {...eventMeta} />
         )}
       </main>
     </div>
