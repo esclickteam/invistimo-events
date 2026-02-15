@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 type UserRole = "user" | "producer" | "staff";
 type PaymentStatus = "paid" | "stripe";
+type PlanKey = "plan1" | "plan2" | "plan3";
+type AddonKey = "credit" | "seating" | "system" | "design";
 
 type Props = {
   onClose: () => void;
@@ -11,17 +13,38 @@ type Props = {
 
 const SMS_PER_RECORD = 3;
 
+/* איזה אפסיילים כלולים בכל חבילה */
+const includedByPlan: Record<PlanKey, AddonKey[]> = {
+  plan1: [],
+  plan2: [],
+  plan3: ["credit", "seating"],
+};
+
 export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER BASIC ===== */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
 
+  /* ===== PLAN (חדש) ===== */
+  const [plan, setPlan] = useState<PlanKey>("plan1");
+
   /* ===== USER LIMITS ===== */
   const [records, setRecords] = useState(100);
   const [smsTotal, setSmsTotal] = useState(records * SMS_PER_RECORD);
   const [smsAuto, setSmsAuto] = useState(true);
   const [includeCalls, setIncludeCalls] = useState(false);
+
+  /* ===== ADDONS (חדש) ===== */
+  const [addons, setAddons] = useState<Record<
+    AddonKey,
+    { enabled: boolean; price: number }
+  >>({
+    credit: { enabled: false, price: 0 },
+    seating: { enabled: false, price: 0 },
+    system: { enabled: false, price: 0 },
+    design: { enabled: false, price: 0 },
+  });
 
   /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
@@ -39,42 +62,42 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }, [records, smsAuto]);
 
-  /* =====================================================
-     SUBMIT
-  ===================================================== */
+  /* ===================================================== SUBMIT */
   async function handleSubmit() {
-   const payload =
-  role === "producer"
-    ? {
-        name,
-        email,
-        role,
-        billing: {
-          pricePerRecord: producerPricePerRecord,
-        },
-      }
-    : role === "staff"
-    ? {
-        name,
-        email,
-        role,
-      }
-    : {
-        name,
-        email,
-        role,
-        limits: {
-          records,
-          smsTotal,
-          smsPerRecord: SMS_PER_RECORD,
-          smsAuto,
-          includeCalls,
-        },
-        billing: {
-          price,
-          paymentStatus,
-        },
-      };
+    const payload =
+      role === "producer"
+        ? {
+            name,
+            email,
+            role,
+            billing: {
+              pricePerRecord: producerPricePerRecord,
+            },
+          }
+        : role === "staff"
+        ? {
+            name,
+            email,
+            role,
+          }
+        : {
+            name,
+            email,
+            role,
+            plan, // חדש
+            limits: {
+              records,
+              smsTotal,
+              smsPerRecord: SMS_PER_RECORD,
+              smsAuto,
+              includeCalls,
+            },
+            billing: {
+              price,
+              paymentStatus,
+            },
+            addons, // חדש
+          };
 
     try {
       const res = await fetch("/api/admin/users", {
@@ -90,7 +113,6 @@ export default function CreateUserModal({ onClose }: Props) {
         throw new Error("CREATE_USER_FAILED");
       }
 
-      /* ===== STRIPE FLOW ===== */
       if (paymentStatus === "stripe" && data.userId) {
         const checkoutRes = await fetch(
           `/api/admin/users/${data.userId}/checkout`,
@@ -108,7 +130,6 @@ export default function CreateUserModal({ onClose }: Props) {
         }
       }
 
-      /* ===== MANUAL / NO PAYMENT ===== */
       onClose();
     } catch (err) {
       console.error("CREATE USER FAILED:", err);
@@ -116,13 +137,10 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }
 
-  /* =====================================================
-     UI
-  ===================================================== */
+  /* ===================================================== UI */
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
-        {/* HEADER */}
         <div className="px-6 py-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-semibold">יצירת משתמש חדש</h2>
           <button
@@ -133,7 +151,6 @@ export default function CreateUserModal({ onClose }: Props) {
           </button>
         </div>
 
-        {/* BODY */}
         <div className="p-6 space-y-8 overflow-y-auto">
           {/* USER INFO */}
           <section className="space-y-3">
@@ -171,6 +188,25 @@ export default function CreateUserModal({ onClose }: Props) {
           {/* USER */}
           {role === "user" && (
             <>
+              {/* PLAN (חדש) */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-600 mb-3">
+                  חבילה
+                </h3>
+
+                <select
+                  value={plan}
+                  onChange={(e) =>
+                    setPlan(e.target.value as PlanKey)
+                  }
+                  className="w-full border rounded-lg px-4 py-2"
+                >
+                  <option value="plan1">חבילה 1</option>
+                  <option value="plan2">חבילה 2</option>
+                  <option value="plan3">חבילה 3</option>
+                </select>
+              </section>
+
               {/* LIMITS */}
               <section>
                 <h3 className="text-sm font-bold text-gray-600 mb-3">
@@ -222,21 +258,80 @@ export default function CreateUserModal({ onClose }: Props) {
                 </div>
               </section>
 
-              {/* SERVICES */}
-              <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">
-                  שירותים
+              {/* ADDONS (חדש) */}
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-600">
+                  אפסיילים
                 </h3>
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={includeCalls}
-                    onChange={(e) =>
-                      setIncludeCalls(e.target.checked)
-                    }
-                  />
-                  <span>שירות שיחות טלפון</span>
-                </label>
+
+                {(Object.keys(addons) as AddonKey[]).map((key) => {
+                  const isIncluded =
+                    includedByPlan[plan].includes(key);
+                  const value = addons[key];
+
+                  return (
+                    <div
+                      key={key}
+                      className="border rounded-lg p-3 space-y-2 bg-gray-50"
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            disabled={isIncluded}
+                            checked={
+                              isIncluded ? true : value.enabled
+                            }
+                            onChange={() =>
+                              setAddons((prev) => ({
+                                ...prev,
+                                [key]: {
+                                  ...prev[key],
+                                  enabled: !prev[key].enabled,
+                                },
+                              }))
+                            }
+                          />
+
+                          <span>
+                            {key === "credit" &&
+                              "מתנות באשראי"}
+                            {key === "seating" &&
+                              "הושבה דיגיטלית"}
+                            {key === "system" &&
+                              "מערכת ניהול אירוע"}
+                            {key === "design" &&
+                              "עיצוב בהתאמה אישית"}
+                          </span>
+                        </label>
+
+                        {isIncluded && (
+                          <span className="text-green-600 text-sm font-medium">
+                            כלול בחבילה
+                          </span>
+                        )}
+                      </div>
+
+                      {!isIncluded && value.enabled && (
+                        <input
+                          type="number"
+                          placeholder="מחיר אפסייל (₪) – אפשר 0"
+                          value={value.price}
+                          onChange={(e) =>
+                            setAddons((prev) => ({
+                              ...prev,
+                              [key]: {
+                                ...prev[key],
+                                price: Number(e.target.value),
+                              },
+                            }))
+                          }
+                          className="w-full border rounded-lg px-4 py-2"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </section>
 
               {/* PAYMENT */}
@@ -307,7 +402,6 @@ export default function CreateUserModal({ onClose }: Props) {
           )}
         </div>
 
-        {/* FOOTER */}
         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
           <button
             onClick={onClose}
@@ -318,14 +412,13 @@ export default function CreateUserModal({ onClose }: Props) {
 
           <button
             onClick={handleSubmit}
-           disabled={
-  !name ||
-  !email ||
-  (role === "user" && !price) ||
-  (role === "producer" && !producerPricePerRecord)
-  // staff לא צריך שום תנאי
-}
-
+            disabled={
+              !name ||
+              !email ||
+              (role === "user" && !price) ||
+              (role === "producer" &&
+                !producerPricePerRecord)
+            }
             className="px-5 py-2 rounded-lg bg-black text-white disabled:opacity-40"
           >
             צור משתמש
