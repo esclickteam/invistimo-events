@@ -44,7 +44,7 @@ async function requireAdmin() {
 ========================================================= */
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> } // ← ⚠️ בכוונה Promise
+  context: { params: Promise<{ id: string }> } // ← בכוונה Promise
 ) {
   try {
     await connectDB();
@@ -59,7 +59,7 @@ export async function POST(
     }
 
     /* ===== PARAMS ===== */
-    const { id: userId } = await context.params; // ← ⚠️ await חובה
+    const { id: userId } = await context.params;
 
     if (!userId) {
       return NextResponse.json(
@@ -121,10 +121,14 @@ export async function POST(
         },
       ],
 
+      /**
+       * 🔑 קריטי – כדי שה־Webhook ידע שזה תשלום אדמין
+       */
       metadata: {
         userId: String(user._id),
         email: user.email,
         role: user.role,
+        source: "admin", // ✅ חדש
       },
 
       success_url: `${appUrl}/admin/users?paid=1`,
@@ -142,8 +146,7 @@ export async function POST(
       {
         success: false,
         error: "CHECKOUT_FAILED",
-        details:
-          err instanceof Error ? err.message : String(err),
+        details: err instanceof Error ? err.message : String(err),
       },
       { status: 500 }
     );

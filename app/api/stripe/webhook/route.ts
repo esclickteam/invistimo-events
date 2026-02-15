@@ -5,6 +5,7 @@ import Payment from "@/models/Payment";
 import User from "@/models/User";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -158,11 +159,13 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       HANDLE PRICING
+       HANDLE PRICING + ADMIN
     ============================================================ */
 
-    if (session.metadata?.source === "pricing") {
-
+    if (
+      session.metadata?.source === "pricing" ||
+      session.metadata?.source === "admin"
+    ) {
       const paymentIntentId = String(session.payment_intent);
 
       const existingPayment = await Payment.findOne({
@@ -183,7 +186,7 @@ export async function POST(req: Request) {
           type: "package",
           isTest: !session.livemode,
           meta: {
-            source: "pricing",
+            source: session.metadata?.source,
             stripeEventId: stripeEvent.id,
             plan: session.metadata?.plan ?? null,
             guests: session.metadata?.guests ?? null,
@@ -216,12 +219,18 @@ export async function POST(req: Request) {
           base.planLimits.seatingEnabled || addonSeating,
       };
 
+      /* ============================================================
+         CREATE PASSWORD SETUP TOKEN
+      ============================================================ */
+
+      const passwordToken = crypto.randomBytes(32).toString("hex");
+
       const updatedUser = await User.findByIdAndUpdate(
         user._id,
         {
           hasPaid: true,
           paidAmount: amount,
-          billingSource: "pricing",
+          billingSource: session.metadata?.source,
           isTrial: false,
           hasDashboardAccess: true,
           isActive: false,
@@ -232,6 +241,10 @@ export async function POST(req: Request) {
           includeCreditGifts: base.includeCreditGifts || addonCredit,
           selfManageEnabled: addonSelfManage,
           customDesignEnabled: addonCustomDesign,
+          needsPasswordSetup: true,
+          passwordSetupToken: passwordToken,
+          passwordSetupExpires:
+            Date.now() + 1000 * 60 * 60 * 24, // 24h
           updatedAt: new Date(),
         },
         { new: true }
@@ -241,12 +254,13 @@ export async function POST(req: Request) {
          EMAILS
       ============================================================ */
 
-      if (updatedUser?.needsPasswordSetup) {
-        try {
-          await sendPasswordSetupMail(updatedUser._id.toString());
-        } catch (err) {
-          console.error("❌ Failed to send password setup email", err);
-        }
+      try {
+        await sendPasswordSetupMail(
+          updatedUser.email,
+          passwordToken
+        );
+      } catch (err) {
+        console.error("❌ Failed to send password setup email", err);
       }
 
       try {
@@ -254,7 +268,10 @@ export async function POST(req: Request) {
           email: user.email,
           amount,
           currency: "ils",
-          type: "New registration",
+          type:
+            session.metadata?.source === "admin"
+              ? "Admin payment"
+              : "New registration",
           details: `plan=${plan} | guests=${guests}`,
         });
       } catch (err) {
@@ -265,7 +282,6 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true });
-
   } catch (err) {
     console.error("🔥 Stripe webhook fatal error:", err);
     return NextResponse.json({ received: true });
