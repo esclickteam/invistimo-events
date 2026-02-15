@@ -349,15 +349,18 @@ export default function ReminderTab({
       </SendButton>
 
       {/* OPEN MODAL BUTTON */}
-      <button
-        onClick={async () => {
-          await loadScheduledMessages();
-          setShowScheduled(true);
-        }}
-        className="mt-4 text-sm text-gray-600 underline hover:text-black"
-      >
-        📅 צפייה בהודעות מתוזמנות
-      </button>
+      <div className="flex justify-center mt-6">
+  <button
+    onClick={async () => {
+      await loadScheduledMessages();
+      setShowScheduled(true);
+    }}
+    className="px-4 py-2 rounded-xl border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 transition"
+  >
+    📅 צפייה בהודעות מתוזמנות
+  </button>
+</div>
+
 
       {/* MODAL */}
       {showScheduled && (
