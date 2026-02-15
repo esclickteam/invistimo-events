@@ -10,57 +10,57 @@ export default function PaymentSuccessPage() {
     let cancelled = false;
 
     async function finalizePayment() {
-      try {
-        /* ======================================================
-           1) קבלת משתמש מעודכן מהשרת (DB)
-        ====================================================== */
-        const meRes = await fetch("/api/auth/me", {
-          credentials: "include",
-          cache: "no-store",
-        });
+      const maxAttempts = 10; // עד 10 ניסיונות
+      const delay = 1000; // כל שנייה
 
-        if (!meRes.ok) {
-          console.error("❌ Failed to fetch /api/auth/me");
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const meRes = await fetch("/api/me", {
+            credentials: "include",
+            cache: "no-store",
+          });
+
+          if (!meRes.ok) {
+            console.error("❌ Failed to fetch /api/me");
+            return;
+          }
+
+          const me = await meRes.json();
+          const user = me?.user;
+
+          // אם התשלום עוד לא עודכן – נחכה וננסה שוב
+          if (!user?._id || user.hasPaid !== true) {
+            await new Promise((r) => setTimeout(r, delay));
+            continue;
+          }
+
+          // ריענון טוקן
+          const refreshRes = await fetch("/api/auth/refresh-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              userId: user._id,
+            }),
+          });
+
+          if (!refreshRes.ok) {
+            console.error("❌ Failed to refresh auth token");
+            return;
+          }
+
+          if (!cancelled) {
+            router.replace("/dashboard");
+          }
+
           return;
+        } catch (err) {
+          console.error("❌ Payment finalize error", err);
+          await new Promise((r) => setTimeout(r, delay));
         }
-
-        const me = await meRes.json();
-        const user = me?.user;
-
-        if (!user?._id || user.hasPaid !== true) {
-          console.error(
-            "❌ Payment success but user not marked as paid",
-            me
-          );
-          return;
-        }
-
-        /* ======================================================
-           2) ריענון JWT (hasPaid=true נכנס לטוקן)
-        ====================================================== */
-        const refreshRes = await fetch("/api/auth/refresh-token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            userId: user._id,
-          }),
-        });
-
-        if (!refreshRes.ok) {
-          console.error("❌ Failed to refresh auth token");
-          return;
-        }
-
-        /* ======================================================
-           3) מעבר לדשבורד
-        ====================================================== */
-        if (!cancelled) {
-          router.replace("/dashboard");
-        }
-      } catch (err) {
-        console.error("❌ Payment success finalize error", err);
       }
+
+      console.error("❌ Payment not confirmed after retries");
     }
 
     finalizePayment();

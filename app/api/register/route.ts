@@ -14,13 +14,15 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const name = String(body?.name || "").trim();
-    const email = String(body?.email || "").trim().toLowerCase(); // ✅ normalize
+    const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
+    const phone = String(body?.phone || "").trim();
     const createdByProducer = Boolean(body?.createdByProducer);
 
     /* ============================================================
        Validation
     ============================================================ */
+
     if (!name || !email || !password) {
       return NextResponse.json(
         { success: false, error: "נא למלא את כל השדות" },
@@ -28,7 +30,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // אפשר להקשיח ולדרוש אימייל תקין:
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!emailOk) {
       return NextResponse.json(
@@ -55,48 +56,55 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     /* ============================================================
-       Create user – payment state starts as unpaid
-       Stripe webhook will activate paid state
+       Create user
+       ⛔ אין גישה לדשבורד עד Stripe webhook
     ============================================================ */
+
     const user = await User.create({
       name,
       email,
+      phone,
       password: hashedPassword,
 
       role: "user",
-      plan: "basic",
 
+      // 🔒 מתחיל ללא תשלום
+      plan: "plan1",
       hasPaid: false,
       paidAmount: 0,
 
       isActive: false,
-      hasDashboardAccess: false, // ✅ מומלץ להוסיף אם קיים בסכמה
-
-      isTrial: true,
+      hasDashboardAccess: false,
+      isTrial: false,
 
       guests: 0,
+
       maxMessages: 0,
       remainingMessages: 0,
+
       smsBalance: 0,
       smsUsed: 0,
+
       whatsappBalance: 0,
       whatsappUsed: 0,
 
       includeCalls: false,
-      callsAddonPrice: 0,
       includeCreditGifts: false,
-      creditGiftsAddonPrice: 0,
+      includeSeating: false,
+      includeSystem: false,
+      includeDesign: false,
 
       createdByProducer,
       needsPasswordSetup: !createdByProducer,
       billingSource: createdByProducer ? "producer" : "site",
     });
 
-    const userId = String(user._id); // ✅ חשוב להחזיר string
+    const userId = String(user._id);
 
     /* ============================================================
-       If created by producer – NO LOGIN
+       If created by producer → no login
     ============================================================ */
+
     if (createdByProducer) {
       return NextResponse.json({
         success: true,
@@ -105,12 +113,12 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       Regular signup – issue JWT
-       (שים לב: payload כולל role + hasPaid כדי שמידלוור יוכל להחליט)
+       Issue JWT (temporary until payment)
     ============================================================ */
+
     if (!process.env.JWT_SECRET) {
       return NextResponse.json(
-        { success: false, error: "JWT secret is missing" },
+        { success: false, error: "JWT secret missing" },
         { status: 500 }
       );
     }
@@ -131,20 +139,18 @@ export async function POST(req: Request) {
       userId,
     });
 
-    // ✅ cookie policy פר-סביבה
     const isProd = process.env.NODE_ENV === "production";
     const cookieDomain = isProd ? ".invistimo.com" : undefined;
 
     res.cookies.set("authToken", token, {
       httpOnly: true,
-      secure: isProd,                 // ✅ בלוקאל לא
-      sameSite: "lax",                // ✅ יציב לרוב הזרימות
+      secure: isProd,
+      sameSite: "lax",
       ...(cookieDomain ? { domain: cookieDomain } : {}),
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    // אופציונלי: קוקי role לקריאת קליינט
     res.cookies.set("role", "user", {
       httpOnly: false,
       secure: isProd,

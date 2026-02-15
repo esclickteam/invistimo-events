@@ -4,222 +4,173 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* ============================================================
-   Stripe instance
-============================================================ */
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error("Missing STRIPE_SECRET_KEY");
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-11-17.clover",
 });
 
-type PlanKey = "basic" | "premium" | "plan1" | "plan2" | "plan3";
+type PlanKey = "plan1" | "plan2" | "plan3";
 
-function toBool(v: unknown): boolean {
-  if (typeof v === "boolean") return v;
-  const s = String(v ?? "").toLowerCase().trim();
-  return s === "true" || s === "1" || s === "yes";
+/* ============================================================
+   PRICE TABLES
+============================================================ */
+
+const planRates: Record<PlanKey, [number, number][]> = {
+  plan1: [
+    [50,1.19],[100,1.16],[150,1.13],[200,1.1],[250,1.08],
+    [300,1.06],[350,1.04],[400,1.02],[450,1.0],[500,0.98],
+    [550,0.96],[600,0.94],[650,0.93],[700,0.92],[750,0.9],[800,0.88],
+  ],
+  plan2: [
+    [50,2.85],[100,2.38],[150,2.35],[200,2.29],[250,2.26],
+    [300,2.19],[350,2.15],[400,2.1],[450,2.05],[500,2.0],
+    [550,1.96],[600,1.92],[650,1.92],[700,1.92],[750,1.92],[800,1.9],
+  ],
+  plan3: [
+    [50,3.75],[100,3.22],[150,2.98],[200,2.76],[250,2.65],
+    [300,2.52],[350,2.43],[400,2.35],[450,2.28],[500,2.21],
+    [550,2.14],[600,2.07],[650,2.06],[700,2.05],[750,2.04],[800,2.03],
+  ],
+};
+
+/* ============================================================
+   ADDONS
+============================================================ */
+
+const addonPrices: Record<
+  PlanKey,
+  { credit: number; seating: number; system: number; design: number }
+> = {
+  plan1: { credit: 150, seating: 100, system: 200, design: 200 },
+  plan2: { credit: 100, seating: 5, system: 150, design: 150 },
+  plan3: { credit: 0, seating: 0, system: 100, design: 100 },
+};
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function isValidPlan(p: any): p is PlanKey {
+  return p === "plan1" || p === "plan2" || p === "plan3";
 }
 
-function toNum(v: unknown, fallback = 0): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function normalizePlan(raw: unknown): PlanKey {
-  const p = String(raw ?? "").trim().toLowerCase();
-  if (p === "plan1" || p === "plan2" || p === "plan3" || p === "premium" || p === "basic") {
-    return p;
+function getRate(plan: PlanKey, guests: number) {
+  const table = planRates[plan];
+  for (const [limit, rate] of table) {
+    if (guests <= limit) return rate;
   }
-  return "basic";
+  return table[table.length - 1][1];
+}
+
+function calculateBase(plan: PlanKey, guests: number) {
+  return Math.round(guests * getRate(plan, guests));
+}
+
+function toBool(v: unknown) {
+  return String(v ?? "").toLowerCase() === "true";
 }
 
 /* ============================================================
-   POST handler – PRICE + FULL METADATA + DEBUG LOGS
+   POST
 ============================================================ */
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const amountNum = toNum(body?.amount);
-    const email = String(body?.email || "").trim().toLowerCase();
-    const userId = String(body?.userId || "").trim();
+    const plan = body.plan;
+    const guests = Number(body.guests);
+    const email = String(body.email || "").trim().toLowerCase();
+    const userId = String(body.userId || "").trim();
 
-    // ✅ שדות שה-webhook צריך
-    const plan = normalizePlan(body?.plan);
-    const guests = toNum(body?.guests, 0);
-
-    const seatingEnabled = toBool(body?.seatingEnabled);
-    const includeCalls = toBool(body?.includeCalls);
-    const callsAddonPrice = toNum(body?.callsAddonPrice, 0);
-
-    const includeCreditGifts = toBool(body?.includeCreditGifts);
-    const creditGiftsAddonPrice = toNum(body?.creditGiftsAddonPrice, 0);
-
-    // אופציונלי
-    const smsPerRecord = toNum(body?.smsPerRecord, 0);
-    const maxMessages = toNum(body?.maxMessages, 0);
-
-    // ===== DEBUG: payload נכנס =====
-    console.log("🟦 [create-checkout] incoming body:", {
-      amountRaw: body?.amount,
-      amountNum,
-      email,
-      userId,
-      plan,
-      guests,
-      seatingEnabled,
-      includeCalls,
-      callsAddonPrice,
-      includeCreditGifts,
-      creditGiftsAddonPrice,
-      smsPerRecord,
-      maxMessages,
-    });
-
-    if (!Number.isFinite(amountNum) || amountNum <= 0) {
-      console.error("🟥 [create-checkout] invalid amount:", {
-        amountRaw: body?.amount,
-        amountNum,
-      });
-      return NextResponse.json(
-        { error: "Missing or invalid amount" },
-        { status: 400 }
-      );
-    }
-
-    if (!email) {
-      console.error("🟥 [create-checkout] missing email");
-      return NextResponse.json({ error: "Missing email" }, { status: 400 });
-    }
-
-    if (!userId) {
-      console.error("🟥 [create-checkout] missing userId");
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    if (!isValidPlan(plan)) {
+      return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
     if (!Number.isFinite(guests) || guests <= 0) {
-      console.error("🟥 [create-checkout] invalid guests:", {
-        guestsRaw: body?.guests,
-        guests,
-      });
-      return NextResponse.json(
-        { error: "Missing or invalid guests" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid guests" }, { status: 400 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    if (!baseUrl) {
-      console.error("🟥 [create-checkout] missing NEXT_PUBLIC_SITE_URL");
-      return NextResponse.json(
-        { error: "Missing NEXT_PUBLIC_SITE_URL" },
-        { status: 500 }
-      );
+    if (!email || !userId) {
+      return NextResponse.json({ error: "Missing identity fields" }, { status: 400 });
     }
 
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.error("🟥 [create-checkout] missing STRIPE_SECRET_KEY");
-      return NextResponse.json(
-        { error: "Missing STRIPE_SECRET_KEY" },
-        { status: 500 }
-      );
+    const seating = toBool(body.seating);
+    const credit = toBool(body.credit);
+    const system = toBool(body.system);
+    const design = toBool(body.design);
+
+    /* ================= BASE ================= */
+
+    const base = calculateBase(plan, guests);
+
+    /* ================= ADDONS ================= */
+
+    const prices = addonPrices[plan];
+    let total = base;
+
+    if (credit) total += prices.credit;
+    if (seating) total += prices.seating;
+    if (system) total += prices.system;
+    if (design) total += prices.design;
+
+    if (total <= 0) {
+      return NextResponse.json({ error: "Invalid total" }, { status: 400 });
     }
 
-    const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+    /* ================= STRIPE ================= */
 
-    // ===== DEBUG: metadata שתישלח לסטרייפ =====
-    const metadata = {
-      // identity
-      userId,
-      email,
+    if (!process.env.NEXT_PUBLIC_SITE_URL) {
+      return NextResponse.json({ error: "Missing site URL" }, { status: 500 });
+    }
 
-      // pricing core
-      amount: String(amountNum),
-      source: "pricing",
-      flow: "pricing_checkout",
+    const cleanBaseUrl = process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
 
-      // package fields
-      plan: String(plan),
-      guests: String(guests),
-
-      seatingEnabled: String(seatingEnabled),
-      includeCalls: String(includeCalls),
-      callsAddonPrice: String(callsAddonPrice),
-
-      includeCreditGifts: String(includeCreditGifts),
-      creditGiftsAddonPrice: String(creditGiftsAddonPrice),
-
-      // optional quotas
-      smsPerRecord: String(smsPerRecord),
-      maxMessages: String(maxMessages),
-    };
-
-    console.log("🟨 [create-checkout] metadata to stripe:", metadata);
-
-    /* ============================================================
-       Stripe Checkout
-    ============================================================ */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
       payment_method_types: ["card"],
-
       line_items: [
         {
           price_data: {
             currency: "ils",
             product_data: {
-              name: "Invistimo – הרשמה",
-              description: `Plan: ${plan} | Guests: ${guests}`,
+              name: `Invistimo – ${plan}`,
+              description: `Guests: ${guests}`,
             },
-            unit_amount: Math.round(amountNum * 100), // ₪ -> אגורות
+            unit_amount: Math.round(total * 100),
           },
           quantity: 1,
         },
       ],
-
       success_url: `${cleanBaseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${cleanBaseUrl}/payment/cancel`,
-      metadata,
-    });
+      metadata: {
+        source: "pricing",
+        userId,
+        plan,
+        guests: String(guests),
 
-    if (!session.url) {
-      console.error("🟥 [create-checkout] session created without url:", {
-        sessionId: session.id,
-      });
-      return NextResponse.json(
-        { error: "Failed to create checkout URL" },
-        { status: 500 }
-      );
-    }
+        seatingEnabled: String(seating),
+        includeCreditGifts: String(credit),
+        includeCalls: String(plan === "plan2" || plan === "plan3"),
+        selfManageEnabled: String(system),
+        customDesignEnabled: String(design),
 
-    // ===== DEBUG: session שנוצר =====
-    console.log("🟩 [create-checkout] session created:", {
-      sessionId: session.id,
-      paymentStatus: session.payment_status,
-      livemode: session.livemode,
-      amount_total: session.amount_total,
-      currency: session.currency,
-      customer_email: session.customer_email,
-      metadata: session.metadata,
-      url: session.url,
+        calculatedTotal: String(total),
+      },
     });
 
     return NextResponse.json({
       success: true,
       url: session.url,
-      sessionId: session.id,
-    });
-  } catch (err: any) {
-    console.error("❌ [create-checkout] Stripe checkout error:", {
-      message: err?.message,
-      type: err?.type,
-      code: err?.code,
-      raw: err,
     });
 
-    return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error("❌ create-checkout error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

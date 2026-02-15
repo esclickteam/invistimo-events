@@ -6,7 +6,7 @@ import Link from "next/link";
 
 /* ============================================================
    Register → Stripe
-   המחיר/חבילה/אורחים מגיעים מ־Pricing
+   השרת מחשב מחיר לפי plan + guests + addons
 ============================================================ */
 
 function RegisterFormInner() {
@@ -14,9 +14,13 @@ function RegisterFormInner() {
 
   /* ================= QUERY PARAM ================= */
 
-  const price = Number(params.get("price") || 0);
   const guests = Number(params.get("guests") || 0);
-  const plan = String(params.get("plan") || "basic").trim();
+  const plan = String(params.get("plan") || "plan1").trim();
+
+  const seating = params.get("seating") === "true";
+  const credit = params.get("credit") === "true";
+  const system = params.get("system") === "true";
+  const design = params.get("design") === "true";
 
   /* ================= STATE ================= */
 
@@ -41,11 +45,6 @@ function RegisterFormInner() {
 
     if (!acceptedTerms) {
       alert("יש לאשר את תקנון השימוש ומדיניות הפרטיות");
-      return;
-    }
-
-    if (!price || price <= 0) {
-      alert("מחיר לא תקין, נא לבחור חבילה מחדש");
       return;
     }
 
@@ -82,25 +81,26 @@ function RegisterFormInner() {
         return;
       }
 
-      // ✅ קריטי: userId מההרשמה
       const userId = String(registerData?.userId || "").trim();
       if (!userId) {
         alert("Missing userId");
         return;
       }
 
-      /* 2️⃣ Stripe Checkout */
+      /* 2️⃣ Stripe Checkout (השרת מחשב מחיר!) */
       const checkoutRes = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          amount: price,
-          currency: "ils",
           email: normalizedEmail,
-          userId,      // חובה
-          guests,      // חובה (פותר Missing or invalid guests)
-          plan,        // חשוב לעדכון החבילה ב-webhook
+          userId,
+          guests,
+          plan,
+          seating,
+          credit,
+          system,
+          design,
         }),
       });
 
@@ -160,9 +160,8 @@ function RegisterFormInner() {
           </div>
         ))}
 
-        {/* תצוגת פרטי חבילה */}
+        {/* תצוגת פרטי חבילה (בלי מחיר) */}
         <div className="text-center text-[#5c4632] space-y-1">
-          <div className="text-lg font-semibold">סכום לתשלום: ₪{price}</div>
           <div className="text-sm opacity-80">
             חבילה: {plan} | כמות רשומות: {guests}
           </div>
@@ -191,7 +190,7 @@ function RegisterFormInner() {
         {/* כפתור */}
         <button
           type="submit"
-          disabled={loading || !price || !acceptedTerms || !guests}
+          disabled={loading || !acceptedTerms || !guests}
           className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
         >
           {loading ? "מבצעת הרשמה..." : "הרשמה"}
