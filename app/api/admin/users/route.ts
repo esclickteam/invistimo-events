@@ -196,7 +196,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null);
-    const { name, email, role, limits, billing } = body || {};
+    const { name, email, role, limits, billing, addons } = body || {};
+
 
     if (!name || !email || !role) {
       return NextResponse.json(
@@ -288,7 +289,10 @@ if (
 
 
     const finalIncludeCalls = !!includeCalls;
-    const finalIncludeCreditGifts = finalIncludeCalls;
+
+const finalIncludeCreditGifts =
+  addons?.credit?.enabled === true;
+
 
     const planLimits = {
       maxGuests: recordsNum,
@@ -311,7 +315,9 @@ if (
       maxMessages: smsTotalNum,
 
       includeCalls: finalIncludeCalls,
-      includeCreditGifts: finalIncludeCreditGifts,
+includeCreditGifts: finalIncludeCreditGifts,
+creditGiftsAddonPrice: addons?.credit?.price || 0,
+
 
       hasPaid: paymentStatus === "paid",
       paidAmount: priceNum,
@@ -337,7 +343,8 @@ if (
         callsAddonPrice: 0,
 
         includeCreditGifts: finalIncludeCreditGifts,
-        creditGiftsAddonPrice: 0,
+creditGiftsAddonPrice: addons?.credit?.price || 0,
+
 
         amount: priceNum,
         refundAmount: 0,
