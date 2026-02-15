@@ -444,6 +444,13 @@ if (!usesNewLogic && totalPartsSent + parts > remainingMessages) {
 
 // ✅ סימון שנשלחה הודעה
 if (sent > 0) {
+  if (templateKey === "rsvp") {
+    await Invitation.updateOne(
+      { _id: invitationId },
+      { $set: { rsvpRound1SentAt: new Date() } }
+    );
+  }
+
   if (templateKey === "table") {
     await Invitation.updateOne(
       { _id: invitationId },
@@ -458,7 +465,6 @@ if (sent > 0) {
     );
   }
 }
-
 
 
     return NextResponse.json({

@@ -98,15 +98,13 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         🔥 NEW LOGIC (NEW USERS)
-         אם קיים reminderSentAt בשדה → עובדים לפי שדות שליחה
+         NEW LOGIC FLAG
       ====================================================== */
+      const isReminder = msg.templateKey === "table";
+      const isThankYou = msg.templateKey === "custom";
 
-      const isReminder = msg.type === "reminder";
-      const isThankYou = msg.type === "thankyou";
 
       const usesNewLogic = user.isActive === false;
-
 
       if (usesNewLogic) {
         if (isReminder && invitation.reminderSentAt) {
@@ -141,9 +139,8 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         OLD LOGIC (OLD USERS ONLY)
+         OLD LOGIC
       ====================================================== */
-
       let remainingMessages = 0;
 
       if (!usesNewLogic) {
@@ -176,7 +173,7 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         PREVIEW LENGTH CHECK
+         PREVIEW CHECK
       ====================================================== */
       const previewText = String((msg as any).messageContent || "")
         .replace(/{{name}}/g, "שם ארוך לבדיקה")
@@ -223,7 +220,6 @@ export async function sendScheduledSms() {
       /* ======================================================
          SEND SMS
       ====================================================== */
-
       let sent = 0;
       let charged = 0;
 
@@ -237,9 +233,16 @@ export async function sendScheduledSms() {
         const personalRsvpUrl = `https://www.invistimo.com/invite/${(invitation as any).shareId}?token=${guest.token}`;
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
+        // ✅ FIX – הוספת tableName
+        const tableName =
+          typeof guest.tableNumber === "number"
+            ? `שולחן ${guest.tableNumber}`
+            : guest.tableName || "";
+
         let finalText = String((msg as any).messageContent || "")
           .replace(/{{name}}/g, guest.name || "")
           .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+          .replace(/{{tableName}}/g, tableName)
           .replace(/{{navigationLink}}/g, navigationLink);
 
         finalText = finalText.trim();
@@ -269,9 +272,6 @@ export async function sendScheduledSms() {
         }
       }
 
-      /* ======================================================
-         UPDATE MESSAGE STATUS
-      ====================================================== */
       await ScheduledMessage.updateOne(
         { _id: msg._id },
         {
@@ -285,9 +285,6 @@ export async function sendScheduledSms() {
 
       sentTotal += sent;
 
-      /* ======================================================
-         UPDATE INVITATION FLAGS (NEW USERS ONLY)
-      ====================================================== */
       if (usesNewLogic && sent > 0) {
         if (isReminder) {
           await Invitation.updateOne(
@@ -304,9 +301,6 @@ export async function sendScheduledSms() {
         }
       }
 
-      /* ======================================================
-         UPDATE smsUsed (OLD USERS ONLY)
-      ====================================================== */
       if (!usesNewLogic && charged > 0) {
         await User.updateOne(
           { _id: msg.userId },
