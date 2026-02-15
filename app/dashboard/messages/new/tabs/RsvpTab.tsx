@@ -114,6 +114,7 @@ export default function RsvpTab({
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
 
+  // ⛔ חסימה רק של שליחה – לא של ניווט
   const blocked =
     loading ||
     noAudience ||
@@ -132,14 +133,13 @@ export default function RsvpTab({
 
   return (
     <div className="space-y-6 bg-white p-6 rounded-xl shadow-md">
-      {/* ===== ROUNDS ===== */}
+      {/* ===== ROUNDS (תמיד לחיצים) ===== */}
       <div className="flex gap-2">
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
             round === 1 ? "bg-blue-600 text-white" : "border-gray-300"
           }`}
           onClick={() => setRound(1)}
-          disabled={!!round1SentAt}
         >
           סבב 1 – לכולם {round1SentAt ? "(נשלח)" : ""}
         </button>
@@ -149,7 +149,6 @@ export default function RsvpTab({
             round === 2 ? "bg-blue-600 text-white" : "border-gray-300"
           }`}
           onClick={() => setRound(2)}
-          disabled={!!round2SentAt}
         >
           סבב 2 – למי שטרם ענה {round2SentAt ? "(נשלח)" : ""}
         </button>
@@ -192,9 +191,7 @@ export default function RsvpTab({
       </SendButton>
 
       {noAudience && (
-        <p className="text-sm text-red-500">
-          אין נמענים לשליחה בסבב זה
-        </p>
+        <p className="text-sm text-red-500">אין נמענים לשליחה בסבב זה</p>
       )}
     </div>
   );
