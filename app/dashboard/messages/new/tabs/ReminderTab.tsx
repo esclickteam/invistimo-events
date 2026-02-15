@@ -24,6 +24,7 @@ type Props = {
   eventLocation: string;
   lat?: number;
   lng?: number;
+  giftCreditUrl?: string; // 👑 חדש
 };
 
 /* ================= CONSTANTS ================= */
@@ -31,13 +32,11 @@ type Props = {
 const MESSAGE_WITH_TABLE =
   "היי {{name}} 🌸\n" +
   "שמחים לראות אותך 💛\n\n" +
-  "השולחן שלך:\n" +
+  "השולחן שלך באירוע :\n" +
   "🪑 {{tableName}}\n\n" +
   "📍 ניווט:\n" +
   "{{navigationLink}}\n\n" +
   "נתראה!";
-
-
 
 /* ================= COMPONENT ================= */
 
@@ -47,10 +46,13 @@ export default function ReminderTab({
   eventLocation,
   lat,
   lng,
+  giftCreditUrl,
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
+
+  const [includeGiftLink, setIncludeGiftLink] = useState(false); // 👑 שליטה למשתמש
 
   const [preview, setPreview] = useState<{
     text: string;
@@ -107,23 +109,22 @@ export default function ReminderTab({
 
   const baseTemplate = MESSAGE_WITH_TABLE;
 
-const navigationLink =
-  typeof lat === "number" && typeof lng === "number"
-    ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-    : "";
-
-
+  const navigationLink =
+    typeof lat === "number" && typeof lng === "number"
+      ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+      : "";
 
   const buildReminderMessage = (g: Guest) => {
-  return buildMessage({
-    template: baseTemplate,
-    guest: g,
-    eventDate,
-    eventLocation,
-    navigationLink,
-  });
-};
-
+    return buildMessage({
+      template: baseTemplate,
+      guest: g,
+      eventDate,
+      eventLocation,
+      navigationLink,
+      includeGiftLink,
+      giftLink: giftCreditUrl || "",
+    });
+  };
 
   /* ================= PREVIEW ================= */
 
@@ -183,7 +184,13 @@ const navigationLink =
     }
 
     fetchPreview();
-  }, [invitationId, guestsToSend, eventDate, eventLocation]);
+  }, [
+    invitationId,
+    guestsToSend,
+    eventDate,
+    eventLocation,
+    includeGiftLink, // 👑 מתעדכן בלייב
+  ]);
 
   const blocked =
     loading ||
@@ -223,6 +230,20 @@ const navigationLink =
         🪑 מספר שולחן מצורף רק למי שיש בפועל
       </section>
 
+      {/* 👑 שליטה על קישור מתנה */}
+      {giftCreditUrl && (
+        <div className="border rounded-xl p-4 bg-[#faf9f7] text-sm">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeGiftLink}
+              onChange={(e) => setIncludeGiftLink(e.target.checked)}
+            />
+            <span>להוסיף קישור למתנות באשראי</span>
+          </label>
+        </div>
+      )}
+
       {/* PHONE PREVIEW */}
       {preview && (
         <div className="w-[90%] md:w-[360px] mt-4 mb-6">
@@ -232,7 +253,6 @@ const navigationLink =
 
           <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
             <div className="rounded-[28px] overflow-hidden bg-white">
-
               <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
                 INVISTIMO · SMS
               </div>
@@ -242,29 +262,9 @@ const navigationLink =
                   {renderPreviewText(preview.text)}
                 </div>
               </div>
-
             </div>
           </div>
         </div>
-      )}
-
-      {/* CHAR INFO */}
-      {preview && (
-        <p
-          className={`text-xs ${
-            preview.blocked
-              ? "text-red-600"
-              : preview.parts > 1
-              ? "text-orange-600"
-              : "text-gray-500"
-          }`}
-        >
-          {preview.blocked
-            ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit}`
-            : preview.parts === 1
-            ? `הודעה אחת · ${preview.totalChars}/200`
-            : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
-        </p>
       )}
 
       <SendTiming scheduledAt={scheduledAt} onChange={setScheduledAt} />
