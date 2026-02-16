@@ -159,10 +159,10 @@ const UserSchema = new Schema<IUser>(
     ],
 
     billingSource: {
-      type: String,
-      enum: ["site", "admin", "producer"],
-      default: "site",
-    },
+  type: String,
+  enum: ["site", "admin", "producer", "pricing"],
+  default: "site",
+},
 
     producerPricePerRecord: { type: Number, default: 0 },
 
