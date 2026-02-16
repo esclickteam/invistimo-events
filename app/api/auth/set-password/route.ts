@@ -65,9 +65,8 @@ export async function POST(req: Request) {
        FIND USER BY TOKEN
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-  "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId billingSource hasPaid"
-);
-
+      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId billingSource hasPaid"
+    );
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
 
@@ -109,16 +108,27 @@ export async function POST(req: Request) {
     console.log("✅ PASSWORD SAVED");
 
     /* =========================
+       NORMALIZE ROLE FIELDS
+    ========================= */
+    const role = String(user.role ?? "").toLowerCase().trim();
+    const staffType = String(user.staffType ?? "").toLowerCase().trim();
+    const billingSource = String((user as any).billingSource ?? "")
+      .toLowerCase()
+      .trim();
+
+    const hasPaid = user.hasPaid === true;
+
+    /* =========================
        CREATE JWT
     ========================= */
-    console.log("User hasPaid status before JWT creation:", user.hasPaid);
+    console.log("User hasPaid status before JWT creation:", hasPaid);
 
     const authToken = jwt.sign(
       {
         userId: user._id.toString(),
-        role: user.role,
+        role, // normalized
         email: user.email,
-        hasPaid: user.hasPaid,  // הוספת המאפיין הזה
+        hasPaid, // always boolean
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -133,7 +143,8 @@ export async function POST(req: Request) {
       _id: user._id.toString(),
       name: user.name ?? "",
       email: user.email ?? "",
-      role: user.role,
+      role,
+      hasPaid, // ✅ חשוב לפרונט
       staffType: user.staffType ?? null,
       assignedProducerId: user.assignedProducerId
         ? user.assignedProducerId.toString()
@@ -143,25 +154,31 @@ export async function POST(req: Request) {
 
     let redirectTo = "/dashboard";
 
-if (user.role === "admin") {
-  redirectTo = "/admin";
-} else if (user.role === "producer") {
-  redirectTo = "/producer/dashboard";
-} else if (user.role === "staff") {
+    if (role === "admin") {
+      redirectTo = "/admin";
+    } else if (role === "producer") {
+      redirectTo = "/producer/dashboard";
+    } else if (role === "staff") {
+      const isProducerStaff =
+        staffType === "producer_staff" ||
+        !!user.assignedProducerId ||
+        billingSource === "producer" ||
+        billingSource === "admin";
 
-  const isProducerStaff =
-  user.staffType === "producer_staff" ||
-  !!user.assignedProducerId ||
-  user.billingSource === "producer" ||
-  user.billingSource === "admin";
+      if (isProducerStaff) {
+        redirectTo = "/producer-staff/dashboard";
+      }
+    }
 
-  if (isProducerStaff) {
-    redirectTo = "/producer-staff/dashboard";
-  }
-}
-
-
-    console.log("Safe user data before sending response:", safeUser);
+    console.log("🔀 REDIRECT DECISION", {
+      userId: safeUser._id,
+      role,
+      staffType,
+      assignedProducerId: safeUser.assignedProducerId,
+      billingSource,
+      hasPaid,
+      redirectTo,
+    });
 
     const response = NextResponse.json({
       success: true,
@@ -180,8 +197,19 @@ if (user.role === "admin") {
       maxAge: 60 * 60 * 24 * 7, // 7 ימים
     });
 
+    // clear optional tokens
     response.cookies.set({
       name: "producerAuthToken",
+      value: "",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set({
+      name: "adminAuthToken",
       value: "",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -193,7 +221,7 @@ if (user.role === "admin") {
     console.log("🍪 AUTH COOKIE SET", {
       userId: safeUser._id,
       role: safeUser.role,
-      producerPricePerRecord: safeUser.producerPricePerRecord,
+      hasPaid: safeUser.hasPaid,
       redirectTo,
     });
 
@@ -201,7 +229,7 @@ if (user.role === "admin") {
   } catch (error) {
     console.error("🔥 SET PASSWORD SERVER ERROR:", error);
     return NextResponse.json(
-          { success: false, message: "שגיאה בשרת" },
+      { success: false, message: "שגיאה בשרת" },
       { status: 500 }
     );
   }
