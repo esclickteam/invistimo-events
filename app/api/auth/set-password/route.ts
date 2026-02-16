@@ -145,9 +145,9 @@ export async function POST(req: Request) {
       redirectTo = "/admin";
     } else if (user.role === "producer") {
       redirectTo = "/producer/dashboard";
-    } else if (user.role === "staff") {
-  redirectTo = "/producer-staff/dashboard";
-}
+    } else if (user.role === "staff" && user.staffType === "producer_staff") {
+      redirectTo = "/producer-staff/dashboard";
+    }
 
     console.log("Safe user data before sending response:", safeUser);
 
