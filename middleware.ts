@@ -177,11 +177,17 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/producer") ||
     pathname.startsWith("/producer-staff");
 
-  if (requiresPaid && !isAdmin && !isImpersonatedAdminSession) {
-    if (payload.hasPaid !== true) {
-      return redirectToPricing(req);
-    }
+  if (
+  requiresPaid &&
+  role === "user" &&   // 👈 רק משתמש רגיל
+  !isAdmin &&
+  !isImpersonatedAdminSession
+) {
+  if (payload.hasPaid !== true) {
+    return redirectToPricing(req);
   }
+}
+
 
   return NextResponse.next();
 }
