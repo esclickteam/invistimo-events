@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { decodeJwt } from "jose";
+import jwt from "jsonwebtoken";
+
 
 /* ========================================================
    Types
@@ -48,7 +49,9 @@ function redirectToForbidden(req: NextRequest) {
 ======================================================== */
 function readJwtPayload(token: string): JwtPayloadShape | null {
   try {
-    return decodeJwt(token) as JwtPayloadShape;
+    if (!process.env.JWT_SECRET) return null;
+
+    return jwt.verify(token, process.env.JWT_SECRET) as JwtPayloadShape;
   } catch {
     return null;
   }
