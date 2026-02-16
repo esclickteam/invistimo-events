@@ -23,7 +23,7 @@ export default function SetPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   /* =========================
-     Get token from URL
+    Get token from URL
   ========================= */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -38,7 +38,7 @@ export default function SetPasswordPage() {
   }, []);
 
   /* =========================
-     Submit
+    Submit
   ========================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,22 +107,27 @@ export default function SetPasswordPage() {
       setPassword("");
       setConfirmPassword("");
 
+      // לוגים למעקב אחרי המשתמש
+      console.log('User data after password set:', data?.user);
+      console.log('User hasPaid status:', data?.user?.hasPaid);
+
       // בדיקה אם המשתמש שילם, הפנייה לדשבורד המתאים
       if (data?.user?.hasPaid) {
-  // אם המשתמש שילם, הפנה לדשבורד המתאים
-  if (data.user.role === "admin") {
-    router.replace("/admin");
-  } else if (data.user.role === "producer") {
-    router.replace("/producer/dashboard");
-  } else {
-    router.replace("/dashboard");
-  }
-} else {
-  // אם הוא לא שילם, הפנה לעמוד חבילות
-  const nextPath = data.redirectTo || "/pricing";
-  router.replace(nextPath);
-}
-
+        // אם המשתמש שילם, הפנה לדשבורד המתאים
+        console.log('Redirecting user to dashboard:', data.user.role); // לוג של ה-role
+        if (data.user.role === "admin") {
+          router.replace("/admin");
+        } else if (data.user.role === "producer") {
+          router.replace("/producer/dashboard");
+        } else {
+          router.replace("/dashboard");
+        }
+      } else {
+        // אם הוא לא שילם, הפנה לעמוד חבילות
+        const nextPath = data.redirectTo || "/pricing";
+        console.log('Redirecting to pricing page:', nextPath); // לוג אם המשתמש לא שילם
+        router.replace(nextPath);
+      }
 
       router.refresh();
     } catch (err) {
@@ -134,7 +139,7 @@ export default function SetPasswordPage() {
   };
 
   /* =========================
-     UI
+    UI
   ========================= */
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 px-4">
