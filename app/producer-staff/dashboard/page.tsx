@@ -34,10 +34,16 @@ export default function ProducerStaffDashboardPage() {
   /* ===============================
      Derived flags (בלי לשבור סדר hooks)
   =============================== */
-  const isProducerStaff =
-    !!user &&
-    user.role === "staff" &&
-    user.staffType === "producer_staff";
+  const normalizedRole = String(user?.role || "").toLowerCase().trim();
+
+const isProducerStaff =
+  !!user &&
+  (
+    normalizedRole === "staff" ||
+    normalizedRole === "producer_staff" ||
+    normalizedRole === "staff_producer"
+  );
+
 
   /* ===============================
      Guard – הרשאות

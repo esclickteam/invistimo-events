@@ -17,7 +17,10 @@ type UserRole =
   | "user"
   | "producer"
   | "client"
-  | "staff";
+  | "staff"
+  | "producer_staff"
+  | "staff_producer";
+
 
 type StaffType =
   | "producer_staff"
@@ -54,7 +57,8 @@ interface User {
   /* ===== IMPERSONATION ===== */
   impersonated?: boolean;
   impersonatedBy?: string;
-  impersonationRole?: "admin" | "producer";
+  impersonationRole?: "admin" | "producer" | "producer_staff" | "staff_producer";
+
 }
 
 
@@ -216,14 +220,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // אימות סופי מהשרת
       const nextUser = await refreshUser();
 
-      if (!nextUser) {
-        throw new Error("לא הצלחנו לטעון את המשתמש");
-      }
+if (!nextUser) {
+  throw new Error("לא הצלחנו לטעון את המשתמש");
+}
 
-      // ===== Redirect logic =====
+// ===== Redirect logic =====
+const role = String(nextUser.role || "").toLowerCase().trim();
+
+const isStaffLike =
+  role === "staff" ||
+  role === "producer_staff" ||
+  role === "staff_producer";
 
 // ⛔ ADMIN
-if (nextUser.role === "admin") {
+if (role === "admin") {
   router.replace("/admin");
   return;
 }
@@ -234,22 +244,20 @@ if (nextUser.impersonated) {
 }
 
 // PRODUCER
-if (nextUser.role === "producer") {
+if (role === "producer") {
   router.replace("/producer/dashboard");
   return;
 }
 
-// PRODUCER STAFF
-if (
-  nextUser.role === "staff" &&
-  nextUser.staffType === "producer_staff"
-) {
+// PRODUCER STAFF (כולל general_staff)
+if (isStaffLike) {
   router.replace("/producer-staff/dashboard");
   return;
 }
 
-// CLIENT רגיל
+// CLIENT/USER רגיל
 router.replace("/dashboard");
+
 
 
 
