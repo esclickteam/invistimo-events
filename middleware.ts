@@ -108,12 +108,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  /* 3) Read token (priority order) */
-  const authToken = cookies.get("authToken")?.value || null;
-  const producerAuthToken = cookies.get("producerAuthToken")?.value || null;
-  const adminAuthToken = cookies.get("adminAuthToken")?.value || null;
-
-  const token = authToken || producerAuthToken || adminAuthToken || null;
+  /* 3) Read token */
+  const token =
+    cookies.get("authToken")?.value ||
+    cookies.get("producerAuthToken")?.value ||
+    cookies.get("adminAuthToken")?.value ||
+    null;
 
   if (isProtectedDashboardPath(pathname) && !token) {
     return redirectToLogin(req);
@@ -126,12 +126,12 @@ export function middleware(req: NextRequest) {
   const payload = readJwtPayload(token!);
   if (!payload) return redirectToLogin(req);
 
-  const role = String(payload.role || "").toLowerCase().trim();
+  const role = String(payload.role || "").toLowerCase();
 
   /* 4) Impersonation */
   const isImpersonatedAdminSession =
     payload.impersonated === true &&
-    String(payload.impersonationRole || "").toLowerCase().trim() === "admin";
+    String(payload.impersonationRole || "").toLowerCase() === "admin";
 
   const isAdmin = role === "admin";
 
@@ -163,8 +163,7 @@ export function middleware(req: NextRequest) {
   }
 
   if (isProducerRoute) {
-    const allowed =
-      role === "producer" || isAdmin || isImpersonatedAdminSession;
+    const allowed = role === "producer" || isAdmin || isImpersonatedAdminSession;
     if (!allowed) return redirectToForbidden(req);
   }
 
@@ -172,36 +171,17 @@ export function middleware(req: NextRequest) {
     // intentionally open by role (לפי הלוגיקה שלך)
   }
 
-  /* 6) Paid guard – ❗ רק מהטוקן ❗
-     חשוב: staff לא נחסם לפי hasPaid
-  */
+  /* 6) Paid guard – ❗ רק מהטוקן ❗ */
   const requiresPaid =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/producer") ||
     pathname.startsWith("/producer-staff");
 
-  const isStaffLike =
-    role === "staff" || role === "producer_staff" || role === "staff_producer";
-
-  if (requiresPaid && !isAdmin && !isImpersonatedAdminSession && !isStaffLike) {
+  if (requiresPaid && !isAdmin && !isImpersonatedAdminSession) {
     if (payload.hasPaid !== true) {
       return redirectToPricing(req);
     }
   }
-
-  // Debug קצר (אפשר להסיר אחרי שהכול יציב)
-  // console.log("MW auth", {
-  //   path: pathname,
-  //   tokenSource: authToken
-  //     ? "authToken"
-  //     : producerAuthToken
-  //     ? "producerAuthToken"
-  //     : adminAuthToken
-  //     ? "adminAuthToken"
-  //     : "none",
-  //   role,
-  //   hasPaid: payload.hasPaid,
-  // });
 
   return NextResponse.next();
 }

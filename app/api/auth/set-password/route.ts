@@ -65,7 +65,7 @@ export async function POST(req: Request) {
        FIND USER BY TOKEN
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId billingSource hasPaid"
+      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId hasPaid"
     );
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
@@ -108,27 +108,16 @@ export async function POST(req: Request) {
     console.log("✅ PASSWORD SAVED");
 
     /* =========================
-       NORMALIZE ROLE FIELDS
-    ========================= */
-    const role = String(user.role ?? "").toLowerCase().trim();
-    const staffType = String(user.staffType ?? "").toLowerCase().trim();
-    const billingSource = String((user as any).billingSource ?? "")
-      .toLowerCase()
-      .trim();
-
-    const hasPaid = user.hasPaid === true;
-
-    /* =========================
        CREATE JWT
     ========================= */
-    console.log("User hasPaid status before JWT creation:", hasPaid);
+    console.log("User hasPaid status before JWT creation:", user.hasPaid);
 
     const authToken = jwt.sign(
       {
         userId: user._id.toString(),
-        role, // normalized
+        role: user.role,
         email: user.email,
-        hasPaid, // always boolean
+        hasPaid: user.hasPaid,  // הוספת המאפיין הזה
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -143,8 +132,7 @@ export async function POST(req: Request) {
       _id: user._id.toString(),
       name: user.name ?? "",
       email: user.email ?? "",
-      role,
-      hasPaid, // ✅ חשוב לפרונט
+      role: user.role,
       staffType: user.staffType ?? null,
       assignedProducerId: user.assignedProducerId
         ? user.assignedProducerId.toString()
@@ -153,32 +141,15 @@ export async function POST(req: Request) {
     };
 
     let redirectTo = "/dashboard";
-
-    if (role === "admin") {
+    if (user.role === "admin") {
       redirectTo = "/admin";
-    } else if (role === "producer") {
+    } else if (user.role === "producer") {
       redirectTo = "/producer/dashboard";
-    } else if (role === "staff") {
-      const isProducerStaff =
-        staffType === "producer_staff" ||
-        !!user.assignedProducerId ||
-        billingSource === "producer" ||
-        billingSource === "admin";
-
-      if (isProducerStaff) {
-        redirectTo = "/producer-staff/dashboard";
-      }
+    } else if (user.role === "staff" && user.staffType === "producer_staff") {
+      redirectTo = "/producer-staff/dashboard";
     }
 
-    console.log("🔀 REDIRECT DECISION", {
-      userId: safeUser._id,
-      role,
-      staffType,
-      assignedProducerId: safeUser.assignedProducerId,
-      billingSource,
-      hasPaid,
-      redirectTo,
-    });
+    console.log("Safe user data before sending response:", safeUser);
 
     const response = NextResponse.json({
       success: true,
@@ -197,19 +168,8 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 7, // 7 ימים
     });
 
-    // clear optional tokens
     response.cookies.set({
       name: "producerAuthToken",
-      value: "",
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-
-    response.cookies.set({
-      name: "adminAuthToken",
       value: "",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -221,7 +181,7 @@ export async function POST(req: Request) {
     console.log("🍪 AUTH COOKIE SET", {
       userId: safeUser._id,
       role: safeUser.role,
-      hasPaid: safeUser.hasPaid,
+      producerPricePerRecord: safeUser.producerPricePerRecord,
       redirectTo,
     });
 
@@ -229,7 +189,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("🔥 SET PASSWORD SERVER ERROR:", error);
     return NextResponse.json(
-      { success: false, message: "שגיאה בשרת" },
+          { success: false, message: "שגיאה בשרת" },
       { status: 500 }
     );
   }

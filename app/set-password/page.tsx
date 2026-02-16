@@ -4,18 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-type ApiUserRole = "admin" | "user" | "producer" | "client" | "staff";
-type ApiStaffType = "producer_staff" | "general_staff" | string;
-
 type ApiUser = {
   _id: string;
   name?: string;
   email: string;
-  role: ApiUserRole;
-  hasPaid?: boolean;
-  paidAmount?: number;
-  staffType?: ApiStaffType | null;
-  assignedProducerId?: string | null;
+  role: "admin" | "user" | "producer" | "client";
+  hasPaid: boolean;
+  paidAmount: number; // הוספת המאפיין הזה
 };
 
 export default function SetPasswordPage() {
@@ -78,7 +73,7 @@ export default function SetPasswordPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
+        credentials: "include", // ⭐ חשוב לקוקי auth
         body: JSON.stringify({
           token,
           password,
@@ -97,38 +92,45 @@ export default function SetPasswordPage() {
         return;
       }
 
-      // עדכון auth state
+      // ⭐ עדכון מיידי של ה-auth state (מונע צורך בריענון ידני)
       if (data.user) {
-        setUser(data.user as any);
+        setUser(data.user);
         setIsAuthenticated(true);
       } else {
+        // fallback אם user לא חזר מסיבה כלשהי
         const me = await refreshUser();
         if (me) setIsAuthenticated(true);
       }
 
-      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר...");
+      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
 
       // ניקוי שדות
       setPassword("");
       setConfirmPassword("");
 
-      // רענון נתונים
-      router.refresh();
+      // לוגים למעקב אחרי המשתמש
+      console.log('User data after password set:', data?.user);
+      console.log('User hasPaid status:', data?.user?.hasPaid);
 
-      // ✅ הניתוב נקבע מהשרת בלבד
-      // fallback אחרון אם משום מה redirectTo לא הגיע
-      const nextPath = data.redirectTo || "/dashboard";
+      // ריענון המידע על ה-token לאחר יצירת הסיסמה
+      router.refresh();  // זה מבצע ריענון של הדף עם הנתונים המעודכנים
 
-      console.log("✅ set-password redirect decision", {
-        redirectToFromApi: data.redirectTo,
-        finalNextPath: nextPath,
-        userRole: data.user?.role,
-        staffType: data.user?.staffType,
-        assignedProducerId: data.user?.assignedProducerId ?? null,
-        hasPaid: data.user?.hasPaid,
-      });
-
-      router.replace(nextPath);
+      // בדיקה אם המשתמש שילם, הפנייה לדשבורד המתאים
+      if (data?.user?.hasPaid) {
+        console.log('Redirecting user to dashboard:', data.user.role); 
+        if (data.user.role === "admin") {
+          router.replace("/admin");
+        } else if (data.user.role === "producer") {
+          router.replace("/producer/dashboard");
+        } else {
+          router.replace("/dashboard");
+        }
+      } else {
+        // אם לא שילם, הפנה לעמוד חבילות
+        const nextPath = data.redirectTo || "/pricing";
+        console.log('Redirecting to pricing page:', nextPath); // לוג אם המשתמש לא שילם
+        router.replace(nextPath);
+      }
     } catch (err) {
       console.error("❌ set-password frontend error:", err);
       setMessage("שגיאת רשת, נסה שוב");
