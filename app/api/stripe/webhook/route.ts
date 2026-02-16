@@ -9,7 +9,7 @@ import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* ============================================================
+/* =========================================================
    Stripe instance
 ============================================================ */
 
@@ -25,7 +25,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-11-17.clover",
 });
 
-/* ============================================================
+/* =========================================================
    Helpers
 ============================================================ */
 
@@ -38,7 +38,7 @@ function toBool(v: unknown): boolean {
   return String(v ?? "").toLowerCase() === "true";
 }
 
-/* ============================================================
+/* =========================================================
    PLAN AUTHORITY
 ============================================================ */
 
@@ -94,7 +94,7 @@ function getPlanDefaults(plan: string, guests: number) {
   }
 }
 
-/* ============================================================
+/* =========================================================
    WEBHOOK
 ============================================================ */
 
@@ -136,9 +136,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    /* ============================================================
+    /* =========================================================
        IDENTIFY USER
-    ============================================================ */
+    ========================================================= */
 
     let user: any = null;
 
@@ -157,9 +157,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    /* ============================================================
+    /* =========================================================
        HANDLE PRICING
-    ============================================================ */
+    ========================================================= */
 
     if (session.metadata?.source === "pricing") {
 
@@ -172,6 +172,7 @@ export async function POST(req: Request) {
       const amount = toNum(session.amount_total, 0) / 100;
 
       if (!existingPayment) {
+        // יצירת תשלום חדש
         await Payment.create({
           email: (user.email || "").toLowerCase(),
           stripeSessionId: session.id,
@@ -179,7 +180,7 @@ export async function POST(req: Request) {
           stripeCustomerId: (session.customer as string) || "",
           amount,
           currency: (session.currency || "ils").toLowerCase(),
-          status: "paid",
+          status: "paid", // סטטוס כ־paid
           type: "package",
           isTest: !session.livemode,
           meta: {
@@ -191,9 +192,9 @@ export async function POST(req: Request) {
         });
       }
 
-      /* ============================================================
+      /* =========================================================
          PREVENT DOUBLE ACTIVATION
-      ============================================================ */
+      ========================================================= */
 
       if (user.hasPaid && user.paidAmount > 0) {
         return NextResponse.json({ received: true });
@@ -237,9 +238,9 @@ export async function POST(req: Request) {
         { new: true }
       );
 
-      /* ============================================================
+      /* =========================================================
          EMAILS
-      ============================================================ */
+      ========================================================= */
 
       if (updatedUser?.needsPasswordSetup) {
         try {
