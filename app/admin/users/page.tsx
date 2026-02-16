@@ -1,6 +1,6 @@
-"use client";
+ "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import CreateUserModal from "./CreateUserModal";
 
 /* =========================
@@ -401,9 +401,12 @@ export default function AdminUsersPage() {
                                     assignedStaffIds,
                                   });
                                   if (ok) {
-                                    setEditingUserId(null);
-                                    await loadUsers();
-                                  }
+  setEditingUserId(null);
+  setAssignedProducerId(null);
+  setAssignedStaffIds([]);
+  await loadUsers();
+}
+
                                 } finally {
                                   setSavingAssignees(false);
                                 }
@@ -415,7 +418,12 @@ export default function AdminUsersPage() {
                             </button>
 
                             <button
-                              onClick={() => setEditingUserId(null)}
+                              onClick={() => {
+  setEditingUserId(null);
+  setAssignedProducerId(null);
+  setAssignedStaffIds([]);
+}}
+
                               className="px-4 py-2 bg-gray-300 rounded"
                             >
                               ביטול
