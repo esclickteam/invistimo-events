@@ -5,7 +5,6 @@ import Payment from "@/models/Payment";
 import User from "@/models/User";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
-import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,7 +102,6 @@ export async function POST(req: Request) {
   try {
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
-      console.log("❌ Missing Stripe signature");
       return NextResponse.json({ error: "Missing signature" }, { status: 400 });
     }
 
@@ -123,7 +121,6 @@ export async function POST(req: Request) {
     }
 
     if (stripeEvent.type !== "checkout.session.completed") {
-      console.log("❌ Stripe event type is not checkout.session.completed");
       return NextResponse.json({ received: true });
     }
 
@@ -132,12 +129,10 @@ export async function POST(req: Request) {
     const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
     if (session.payment_status !== "paid") {
-      console.log("❌ Payment not successful");
       return NextResponse.json({ received: true });
     }
 
     if (!session.payment_intent) {
-      console.log("❌ Missing payment intent");
       return NextResponse.json({ received: true });
     }
 
@@ -162,24 +157,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    console.log("✅ User found:", user.email);
-
     /* ============================================================
-       HANDLE PRICING + ADMIN
+       HANDLE PRICING
     ============================================================ */
 
-    if (
-      session.metadata?.source === "pricing" ||
-      session.metadata?.source === "admin"
-    ) {
-      const paymentIntentId = String(session.payment_intent);
-      const amount = toNum(session.amount_total, 0) / 100;
+    if (session.metadata?.source === "pricing") {
 
-      /* ================= CREATE PAYMENT (ONCE) ================= */
+      const paymentIntentId = String(session.payment_intent);
 
       const existingPayment = await Payment.findOne({
         stripePaymentIntentId: paymentIntentId,
       }).lean();
+
+      const amount = toNum(session.amount_total, 0) / 100;
 
       if (!existingPayment) {
         await Payment.create({
@@ -193,7 +183,7 @@ export async function POST(req: Request) {
           type: "package",
           isTest: !session.livemode,
           meta: {
-            source: session.metadata?.source,
+            source: "pricing",
             stripeEventId: stripeEvent.id,
             plan: session.metadata?.plan ?? null,
             guests: session.metadata?.guests ?? null,
@@ -202,70 +192,80 @@ export async function POST(req: Request) {
       }
 
       /* ============================================================
-         PREVENT DOUBLE PROCESS (BUT NOT PASSWORD MAIL)
+         PREVENT DOUBLE ACTIVATION
       ============================================================ */
 
-      if (user.hasPaid && !user.needsPasswordSetup) {
-        console.log("❌ Payment already processed, skipping password email.");
+      if (user.hasPaid && user.paidAmount > 0) {
         return NextResponse.json({ received: true });
       }
 
-      /* ================= PASSWORD TOKEN ================= */
+      const plan = String(session.metadata?.plan || "plan1");
+      const guests = toNum(session.metadata?.guests, 0);
 
-      const passwordToken = crypto.randomBytes(32).toString("hex");
-      const passwordExpires = Date.now() + 1000 * 60 * 60 * 24;
+      const base = getPlanDefaults(plan, guests);
+
+      const addonSeating = toBool(session.metadata?.seatingEnabled);
+      const addonCalls = toBool(session.metadata?.includeCalls);
+      const addonCredit = toBool(session.metadata?.includeCreditGifts);
+      const addonSelfManage = toBool(session.metadata?.selfManageEnabled);
+      const addonCustomDesign = toBool(session.metadata?.customDesignEnabled);
+
+      const finalPlanLimits = {
+        ...base.planLimits,
+        seatingEnabled:
+          base.planLimits.seatingEnabled || addonSeating,
+      };
 
       const updatedUser = await User.findByIdAndUpdate(
         user._id,
         {
           hasPaid: true,
           paidAmount: amount,
-          billingSource: session.metadata?.source,
+          billingSource: "pricing",
           isTrial: false,
           hasDashboardAccess: true,
           isActive: false,
-          plan: session.metadata?.plan,
-          guests: session.metadata?.guests,
-          resetPasswordToken: passwordToken,
-          resetPasswordExpires: passwordExpires,
-          needsPasswordSetup: true,
+          plan,
+          guests,
+          planLimits: finalPlanLimits,
+          includeCalls: base.includeCalls || addonCalls,
+          includeCreditGifts: base.includeCreditGifts || addonCredit,
+          selfManageEnabled: addonSelfManage,
+          customDesignEnabled: addonCustomDesign,
           updatedAt: new Date(),
         },
         { new: true }
       );
 
       /* ============================================================
-         SEND PASSWORD SETUP EMAIL (ONCE)
+         EMAILS
       ============================================================ */
 
-      console.log("✅ Sending password setup email to", updatedUser.email);
-
-      if (updatedUser.needsPasswordSetup) {
+      if (updatedUser?.needsPasswordSetup) {
         try {
-          await sendPasswordSetupMail(updatedUser.email, passwordToken);
-          console.log(`✅ Password setup email sent to ${updatedUser.email}`);
+          await sendPasswordSetupMail(updatedUser._id.toString());
         } catch (err) {
           console.error("❌ Failed to send password setup email", err);
         }
       }
 
-      /* ================= ADMIN NOTIFY ================= */
-
-      await notifyAdminPurchase({
-        email: user.email,
-        amount,
-        currency: "ils",
-        type:
-          session.metadata?.source === "admin"
-            ? "Admin payment"
-            : "New registration",
-        details: `plan=${session.metadata?.plan} | guests=${session.metadata?.guests}`,
-      });
+      try {
+        await notifyAdminPurchase({
+          email: user.email,
+          amount,
+          currency: "ils",
+          type: "New registration",
+          details: `plan=${plan} | guests=${guests}`,
+        });
+      } catch (err) {
+        console.error("❌ Failed to notify admin", err);
+      }
 
       return NextResponse.json({ received: true });
     }
 
     return NextResponse.json({ received: true });
+
   } catch (err) {
     console.error("🔥 Stripe webhook fatal error:", err);
     return NextResponse.json({ received: true });
