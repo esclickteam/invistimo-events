@@ -9,7 +9,7 @@ import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* ============================================================
+/* =========================================================
    Stripe instance
 ============================================================ */
 
@@ -25,7 +25,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-11-17.clover",
 });
 
-/* ============================================================
+/* =========================================================
    Helpers
 ============================================================ */
 
@@ -38,7 +38,7 @@ function toBool(v: unknown): boolean {
   return String(v ?? "").toLowerCase() === "true";
 }
 
-/* ============================================================
+/* =========================================================
    PLAN AUTHORITY
 ============================================================ */
 
@@ -94,7 +94,7 @@ function getPlanDefaults(plan: string, guests: number) {
   }
 }
 
-/* ============================================================
+/* =========================================================
    WEBHOOK
 ============================================================ */
 
@@ -102,6 +102,7 @@ export async function POST(req: Request) {
   try {
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
+      console.log("❌ Missing signature");
       return NextResponse.json({ error: "Missing signature" }, { status: 400 });
     }
 
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
     }
 
     if (stripeEvent.type !== "checkout.session.completed") {
+      console.log("Received event is not checkout.session.completed");
       return NextResponse.json({ received: true });
     }
 
@@ -129,24 +131,28 @@ export async function POST(req: Request) {
     const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
     if (session.payment_status !== "paid") {
+      console.log("Payment status is not 'paid', exiting...");
       return NextResponse.json({ received: true });
     }
 
     if (!session.payment_intent) {
+      console.log("No payment intent found, exiting...");
       return NextResponse.json({ received: true });
     }
 
-    /* ============================================================
+    /* =========================================================
        IDENTIFY USER
     ============================================================ */
 
     let user: any = null;
 
     if (session.metadata?.userId) {
+      console.log("UserId found in metadata:", session.metadata.userId);
       user = await User.findById(session.metadata.userId);
     }
 
     if (!user && session.customer_email) {
+      console.log("User not found with userId, searching by email...");
       user = await User.findOne({
         email: session.customer_email.toLowerCase(),
       });
@@ -157,11 +163,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    /* ============================================================
+    /* =========================================================
        HANDLE PRICING
     ============================================================ */
 
     if (session.metadata?.source === "pricing") {
+      console.log("Handling pricing for user:", user.email);
 
       const paymentIntentId = String(session.payment_intent);
 
@@ -191,11 +198,12 @@ export async function POST(req: Request) {
         });
       }
 
-      /* ============================================================
+      /* =========================================================
          PREVENT DOUBLE ACTIVATION
       ============================================================ */
 
       if (user.hasPaid && user.paidAmount > 0) {
+        console.log("User has already paid, exiting...");
         return NextResponse.json({ received: true });
       }
 
@@ -237,12 +245,13 @@ export async function POST(req: Request) {
         { new: true }
       );
 
-      /* ============================================================
+      /* =========================================================
          EMAILS
       ============================================================ */
 
       if (updatedUser?.needsPasswordSetup) {
         try {
+          console.log("Sending password setup email...");
           await sendPasswordSetupMail(updatedUser._id.toString());
         } catch (err) {
           console.error("❌ Failed to send password setup email", err);
@@ -250,6 +259,7 @@ export async function POST(req: Request) {
       }
 
       try {
+        console.log("Notifying admin about the purchase...");
         await notifyAdminPurchase({
           email: user.email,
           amount,
