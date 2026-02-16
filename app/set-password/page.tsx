@@ -9,7 +9,8 @@ type ApiUser = {
   name?: string;
   email: string;
   role: "admin" | "user" | "producer" | "client";
-  hasPaid: boolean; // הוספת המאפיין הזה
+  hasPaid: boolean;
+  paidAmount: number; // הוספת המאפיין הזה
 };
 
 export default function SetPasswordPage() {
@@ -41,103 +42,102 @@ export default function SetPasswordPage() {
     Submit
   ========================= */
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!token) {
-    setMessage("הקישור אינו תקף או שפג תוקפו");
-    return;
-  }
-
-  if (!password || !confirmPassword) {
-    setMessage("אנא מלא את כל השדות");
-    return;
-  }
-
-  if (password.length < 6) {
-    setMessage("הסיסמה חייבת להכיל לפחות 6 תווים");
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    setMessage("הסיסמאות אינן תואמות");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    setMessage("");
-
-    const res = await fetch("/api/auth/set-password", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include", // ⭐ חשוב לקוקי auth
-      body: JSON.stringify({
-        token,
-        password,
-      }),
-    });
-
-    const data: {
-      success?: boolean;
-      message?: string;
-      user?: ApiUser;
-      redirectTo?: string;
-    } = await res.json();
-
-    if (!res.ok || !data?.success) {
-      setMessage(data?.message || "אירעה שגיאה");
+    if (!token) {
+      setMessage("הקישור אינו תקף או שפג תוקפו");
       return;
     }
 
-    // ⭐ עדכון מיידי של ה-auth state (מונע צורך בריענון ידני)
-    if (data.user) {
-      setUser(data.user as any);
-      setIsAuthenticated(true);
-    } else {
-      // fallback אם user לא חזר מסיבה כלשהי
-      const me = await refreshUser();
-      if (me) setIsAuthenticated(true);
+    if (!password || !confirmPassword) {
+      setMessage("אנא מלא את כל השדות");
+      return;
     }
 
-    setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
+    if (password.length < 6) {
+      setMessage("הסיסמה חייבת להכיל לפחות 6 תווים");
+      return;
+    }
 
-    // ניקוי שדות
-    setPassword("");
-     setConfirmPassword("");
+    if (password !== confirmPassword) {
+      setMessage("הסיסמאות אינן תואמות");
+      return;
+    }
 
-    // לוגים למעקב אחרי המשתמש
-    console.log('User data after password set:', data?.user);
-    console.log('User hasPaid status:', data?.user?.hasPaid);
+    try {
+      setLoading(true);
+      setMessage("");
 
-    // ריענון המידע על ה-token לאחר יצירת הסיסמה
-    router.refresh();  // זה מבצע ריענון של הדף עם הנתונים המעודכנים
+      const res = await fetch("/api/auth/set-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // ⭐ חשוב לקוקי auth
+        body: JSON.stringify({
+          token,
+          password,
+        }),
+      });
 
-    // בדיקה אם המשתמש שילם, הפנייה לדשבורד המתאים
-    if (data?.user?.hasPaid) {
-      // אם המשתמש שילם, הפנה לדשבורד המתאים
-      console.log('Redirecting user to dashboard:', data.user.role); // לוג של ה-role
-      if (data.user.role === "admin") {
-        router.replace("/admin");
-      } else if (data.user.role === "producer") {
-        router.replace("/producer/dashboard");
-      } else {
-        router.replace("/dashboard");
+      const data: {
+        success?: boolean;
+        message?: string;
+        user?: ApiUser;
+        redirectTo?: string;
+      } = await res.json();
+
+      if (!res.ok || !data?.success) {
+        setMessage(data?.message || "אירעה שגיאה");
+        return;
       }
-    } else {
-      // אם הוא לא שילם, הפנה לעמוד חבילות
-      const nextPath = data.redirectTo || "/pricing";
-      console.log('Redirecting to pricing page:', nextPath); // לוג אם המשתמש לא שילם
-      router.replace(nextPath);
+
+      // ⭐ עדכון מיידי של ה-auth state (מונע צורך בריענון ידני)
+      if (data.user) {
+        setUser(data.user);
+        setIsAuthenticated(true);
+      } else {
+        // fallback אם user לא חזר מסיבה כלשהי
+        const me = await refreshUser();
+        if (me) setIsAuthenticated(true);
+      }
+
+      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
+
+      // ניקוי שדות
+      setPassword("");
+      setConfirmPassword("");
+
+      // לוגים למעקב אחרי המשתמש
+      console.log('User data after password set:', data?.user);
+      console.log('User hasPaid status:', data?.user?.hasPaid);
+
+      // ריענון המידע על ה-token לאחר יצירת הסיסמה
+      router.refresh();  // זה מבצע ריענון של הדף עם הנתונים המעודכנים
+
+      // בדיקה אם המשתמש שילם, הפנייה לדשבורד המתאים
+      if (data?.user?.hasPaid) {
+        console.log('Redirecting user to dashboard:', data.user.role); 
+        if (data.user.role === "admin") {
+          router.replace("/admin");
+        } else if (data.user.role === "producer") {
+          router.replace("/producer/dashboard");
+        } else {
+          router.replace("/dashboard");
+        }
+      } else {
+        // אם לא שילם, הפנה לעמוד חבילות
+        const nextPath = data.redirectTo || "/pricing";
+        console.log('Redirecting to pricing page:', nextPath); // לוג אם המשתמש לא שילם
+        router.replace(nextPath);
+      }
+    } catch (err) {
+      console.error("❌ set-password frontend error:", err);
+      setMessage("שגיאת רשת, נסה שוב");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("❌ set-password frontend error:", err);
-    setMessage("שגיאת רשת, נסה שוב");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   /* =========================
     UI
