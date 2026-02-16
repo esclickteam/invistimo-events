@@ -359,7 +359,7 @@ creditGiftsAddonPrice: addons?.credit?.price || 0,
         isTest: false,
 
         metadata: {
-          source: "admin",
+          source: "pricing",
           adminId: auth.impersonatedBy
             ? String(auth.impersonatedBy)
             : String(auth.userId),
