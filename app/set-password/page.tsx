@@ -4,13 +4,24 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
+type ApiUserRole =
+  | "admin"
+  | "user"
+  | "producer"
+  | "client"
+  | "staff"
+  | "producer_staff"
+  | "staff_producer";
+
 type ApiUser = {
   _id: string;
   name?: string;
   email: string;
-  role: "admin" | "user" | "producer" | "client";
-  hasPaid: boolean;
-  paidAmount: number; // הוספת המאפיין הזה
+  role: ApiUserRole;
+  hasPaid?: boolean;
+  paidAmount?: number;
+  staffType?: string | null;
+  assignedProducerId?: string | null;
 };
 
 export default function SetPasswordPage() {
@@ -24,7 +35,7 @@ export default function SetPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   /* =========================
-    Get token from URL
+     Get token from URL
   ========================= */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -39,7 +50,7 @@ export default function SetPasswordPage() {
   }, []);
 
   /* =========================
-    Submit
+     Submit
   ========================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +84,7 @@ export default function SetPasswordPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // ⭐ חשוב לקוקי auth
+        credentials: "include",
         body: JSON.stringify({
           token,
           password,
@@ -92,45 +103,39 @@ export default function SetPasswordPage() {
         return;
       }
 
-      // ⭐ עדכון מיידי של ה-auth state (מונע צורך בריענון ידני)
+      // עדכון מיידי של auth state
       if (data.user) {
-        setUser(data.user);
+        setUser(data.user as any);
         setIsAuthenticated(true);
       } else {
-        // fallback אם user לא חזר מסיבה כלשהי
         const me = await refreshUser();
-        if (me) setIsAuthenticated(true);
+        if (me) {
+          setIsAuthenticated(true);
+          setUser(me as any);
+        }
       }
 
-      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר לדשבורד...");
+      setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר...");
 
       // ניקוי שדות
       setPassword("");
       setConfirmPassword("");
 
-      // לוגים למעקב אחרי המשתמש
-      console.log('User data after password set:', data?.user);
-      console.log('User hasPaid status:', data?.user?.hasPaid);
+      // רענון נתונים אחרי יצירת קוקי
+      router.refresh();
 
-      // ריענון המידע על ה-token לאחר יצירת הסיסמה
-      router.refresh();  // זה מבצע ריענון של הדף עם הנתונים המעודכנים
+      // ✅ ניתוב רק לפי החלטת השרת (בלי hasPaid בפרונט)
+      const nextPath = data.redirectTo || "/dashboard";
 
-      // בדיקה אם המשתמש שילם, הפנייה לדשבורד המתאים
-      if (data?.user?.hasPaid) {
-        console.log('Redirecting user to dashboard:', data.user.role); 
-        if (data.user.role === "admin") {
-          router.replace("/admin");
-        } else if (data.user.role === "producer") {
-          router.replace("/producer/dashboard");
-        } else {
-          router.replace("/dashboard");
-        }
-      } else {
-        // אם לא שילם, הפנה לעמוד חבילות
-        const nextPath = data.redirectTo || "/pricing";
-        console.log('Redirecting to pricing page:', nextPath); // לוג אם המשתמש לא שילם
-        router.replace(nextPath);
-      }
+      console.log("✅ set-password redirect", {
+        nextPath,
+        role: data.user?.role,
+        staffType: data.user?.staffType,
+        assignedProducerId: data.user?.assignedProducerId ?? null,
+        hasPaid: data.user?.hasPaid,
+      });
+
+      router.replace(nextPath);
     } catch (err) {
       console.error("❌ set-password frontend error:", err);
       setMessage("שגיאת רשת, נסה שוב");
@@ -140,7 +145,7 @@ export default function SetPasswordPage() {
   };
 
   /* =========================
-    UI
+     UI
   ========================= */
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 px-4">

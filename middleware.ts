@@ -126,12 +126,18 @@ export function middleware(req: NextRequest) {
   const payload = readJwtPayload(token!);
   if (!payload) return redirectToLogin(req);
 
-  const role = String(payload.role || "").toLowerCase();
+  const role = String(payload.role || "").toLowerCase().trim();
+
+  // staff-like roles (לפי הבקשה שלך)
+  const isStaffLike =
+    role === "staff" ||
+    role === "producer_staff" ||
+    role === "staff_producer";
 
   /* 4) Impersonation */
   const isImpersonatedAdminSession =
     payload.impersonated === true &&
-    String(payload.impersonationRole || "").toLowerCase() === "admin";
+    String(payload.impersonationRole || "").toLowerCase().trim() === "admin";
 
   const isAdmin = role === "admin";
 
@@ -147,13 +153,8 @@ export function middleware(req: NextRequest) {
   }
 
   if (isProducerStaffRoute) {
-    const isProducerStaff =
-      role === "staff" ||
-      role === "producer_staff" ||
-      role === "staff_producer";
-
     if (
-      !isProducerStaff &&
+      !isStaffLike &&
       !isAdmin &&
       role !== "producer" &&
       !isImpersonatedAdminSession
@@ -171,13 +172,15 @@ export function middleware(req: NextRequest) {
     // intentionally open by role (לפי הלוגיקה שלך)
   }
 
-  /* 6) Paid guard – ❗ רק מהטוקן ❗ */
+  /* 6) Paid guard – ❗ רק מהטוקן ❗
+     staff-like לא תלויים ב-hasPaid
+  */
   const requiresPaid =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/producer") ||
     pathname.startsWith("/producer-staff");
 
-  if (requiresPaid && !isAdmin && !isImpersonatedAdminSession) {
+  if (requiresPaid && !isAdmin && !isImpersonatedAdminSession && !isStaffLike) {
     if (payload.hasPaid !== true) {
       return redirectToPricing(req);
     }
