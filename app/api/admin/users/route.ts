@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
         email: String(email).toLowerCase(),
         role: "staff",
 
-        hasPaid: false,
+        hasPaid: true, 
         paidAmount: 0,
 
         needsPasswordSetup: true,
