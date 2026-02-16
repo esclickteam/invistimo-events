@@ -121,7 +121,6 @@ export async function POST(req: Request) {
     }
 
     if (stripeEvent.type !== "checkout.session.completed") {
-      console.log("Received event is not checkout.session.completed");
       return NextResponse.json({ received: true });
     }
 
@@ -146,14 +145,12 @@ export async function POST(req: Request) {
     let user: any = null;
 
     if (session.metadata?.userId) {
-      console.log("UserId found in metadata:", session.metadata.userId);
       user = await User.findById(session.metadata.userId);
     }
 
     if (!user && session.customer_email) {
-      console.log("User not found with userId, searching by email...");
       user = await User.findOne({
-        email: session.customer_email.toLowerCase(),
+        email: String(session.customer_email).toLowerCase(),
       });
     }
 
@@ -166,104 +163,115 @@ export async function POST(req: Request) {
        HANDLE PRICING
     ============================================================ */
 
-    if (session.metadata?.source === "pricing") {
-      console.log("Handling pricing for user:", user.email);
-
-      const paymentIntentId = String(session.payment_intent);
-
-      const existingPayment = await Payment.findOne({
-        stripePaymentIntentId: paymentIntentId,
-      }).lean();
-
-      const amount = toNum(session.amount_total, 0) / 100;
-
-      if (!existingPayment) {
-        await Payment.create({
-          email: (user.email || "").toLowerCase(),
-          stripeSessionId: session.id,
-          stripePaymentIntentId: paymentIntentId,
-          stripeCustomerId: (session.customer as string) || "",
-          amount,
-          currency: (session.currency || "ils").toLowerCase(),
-          status: "paid",
-          type: "package",
-          isTest: !session.livemode,
-          meta: {
-            source: "pricing",
-            stripeEventId: stripeEvent.id,
-            plan: session.metadata?.plan ?? null,
-            guests: session.metadata?.guests ?? null,
-          },
-        });
-      }
-
-      /* =========================================================
-         PREVENT DOUBLE ACTIVATION
-      ============================================================ */
-
-      if (user.hasPaid && user.paidAmount > 0) {
-        console.log("User has already paid, exiting...");
-        return NextResponse.json({ received: true });
-      }
-
-      const plan = String(session.metadata?.plan || "plan1");
-      const guests = toNum(session.metadata?.guests, 0);
-
-      const base = getPlanDefaults(plan, guests);
-
-      const addonSeating = toBool(session.metadata?.seatingEnabled);
-      const addonCalls = toBool(session.metadata?.includeCalls);
-      const addonCredit = toBool(session.metadata?.includeCreditGifts);
-      const addonSelfManage = toBool(session.metadata?.selfManageEnabled);
-      const addonCustomDesign = toBool(session.metadata?.customDesignEnabled);
-
-      const finalPlanLimits = {
-        ...base.planLimits,
-        seatingEnabled:
-          base.planLimits.seatingEnabled || addonSeating,
-      };
-
-      const updatedUser = await User.findByIdAndUpdate(
-        user._id,
-        {
-          hasPaid: true,
-          paidAmount: amount,
-          billingSource: "pricing",
-          isTrial: false,
-          hasDashboardAccess: true,
-          isActive: false,
-          plan,
-          guests,
-          planLimits: finalPlanLimits,
-          includeCalls: base.includeCalls || addonCalls,
-          includeCreditGifts: base.includeCreditGifts || addonCredit,
-          selfManageEnabled: addonSelfManage,
-          customDesignEnabled: addonCustomDesign,
-          updatedAt: new Date(),
-        },
-        { new: true }
-      );
-
-    
-
-      try {
-        console.log("Notifying admin about the purchase...");
-        await notifyAdminPurchase({
-          email: user.email,
-          amount,
-          currency: "ils",
-          type: "New registration",
-          details: `plan=${plan} | guests=${guests}`,
-        });
-      } catch (err) {
-        console.error("❌ Failed to notify admin", err);
-      }
-
+    if (session.metadata?.source !== "pricing") {
       return NextResponse.json({ received: true });
     }
 
-    return NextResponse.json({ received: true });
+    const paymentIntentId = String(session.payment_intent);
+    const amount = toNum(session.amount_total, 0) / 100;
 
+    // 1) idempotency על Payment
+    const existingPayment = await Payment.findOne({
+      stripePaymentIntentId: paymentIntentId,
+    }).lean();
+
+    if (!existingPayment) {
+      await Payment.create({
+        email: (user.email || "").toLowerCase(),
+        stripeSessionId: session.id,
+        stripePaymentIntentId: paymentIntentId,
+        stripeCustomerId: (session.customer as string) || "",
+        amount,
+        currency: (session.currency || "ils").toLowerCase(),
+        status: "paid",
+        type: "package",
+        isTest: !session.livemode,
+        meta: {
+          source: "pricing",
+          stripeEventId: stripeEvent.id,
+          plan: session.metadata?.plan ?? null,
+          guests: session.metadata?.guests ?? null,
+          includeCalls: session.metadata?.includeCalls ?? null,
+          includeCreditGifts: session.metadata?.includeCreditGifts ?? null,
+          seatingEnabled: session.metadata?.seatingEnabled ?? null,
+          selfManageEnabled: session.metadata?.selfManageEnabled ?? null,
+          customDesignEnabled: session.metadata?.customDesignEnabled ?? null,
+        },
+      });
+    } else {
+      console.log("ℹ️ Payment already exists for paymentIntent:", paymentIntentId);
+    }
+
+    // 2) אם כבר הופעל משתמש בעבר – לא לעדכן שוב
+    if (user.hasPaid === true && Number(user.paidAmount || 0) > 0) {
+      console.log("ℹ️ User already activated, skipping update.");
+      return NextResponse.json({ received: true });
+    }
+
+    const plan = String(session.metadata?.plan || "plan1");
+    const guests = toNum(session.metadata?.guests, 0);
+    const base = getPlanDefaults(plan, guests);
+
+    // מה שבא מהמטא-דאטה
+    const addonSeating = toBool(session.metadata?.seatingEnabled);
+    const addonCalls = toBool(session.metadata?.includeCalls);
+    const addonCredit = toBool(session.metadata?.includeCreditGifts);
+    const addonSelfManage = toBool(session.metadata?.selfManageEnabled);
+    const addonCustomDesign = toBool(session.metadata?.customDesignEnabled);
+
+    // חישוב סופי: כלול בחבילה OR נרכש כתוספת
+    const finalIncludeCalls = base.includeCalls || addonCalls;
+    const finalIncludeCreditGifts = base.includeCreditGifts || addonCredit;
+    const finalSeatingEnabled = base.planLimits.seatingEnabled || addonSeating;
+
+    const finalPlanLimits = {
+      ...base.planLimits,
+      seatingEnabled: finalSeatingEnabled,
+    };
+
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        hasPaid: true,
+        paidAmount: amount,
+
+        // ✅ חשוב: enum חוקי במודל שלך
+        billingSource: "site",
+
+        isTrial: false,
+        hasDashboardAccess: true,
+        isActive: false,
+
+        plan,
+        guests,
+        planLimits: finalPlanLimits,
+
+        includeCalls: finalIncludeCalls,
+        includeCreditGifts: finalIncludeCreditGifts,
+        selfManageEnabled: addonSelfManage,
+        customDesignEnabled: addonCustomDesign,
+
+        updatedAt: new Date(),
+      },
+      { new: true }
+    );
+
+    // אין שליחת מייל כאן (בכוונה)
+    // המייל נשלח רק לפני תשלום, ביצירת המשתמש
+
+    try {
+      await notifyAdminPurchase({
+        email: user.email,
+        amount,
+        currency: "ils",
+        type: "New registration",
+        details: `plan=${plan} | guests=${guests}`,
+      });
+    } catch (err) {
+      console.error("❌ Failed to notify admin", err);
+    }
+
+    return NextResponse.json({ received: true });
   } catch (err) {
     console.error("🔥 Stripe webhook fatal error:", err);
     return NextResponse.json({ received: true });

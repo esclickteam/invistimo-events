@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 type UserRole = "user" | "producer" | "staff";
 type PaymentStatus = "paid" | "stripe";
 type PlanKey = "plan1" | "plan2" | "plan3";
-type AddonKey = "credit" | "seating" | "system" | "design";
+type AddonKey = "calls" | "credit" | "seating" | "system" | "design";
+
 
 type Props = {
   onClose: () => void;
@@ -16,9 +17,10 @@ const SMS_PER_RECORD = 3;
 /* איזה אפסיילים כלולים בכל חבילה */
 const includedByPlan: Record<PlanKey, AddonKey[]> = {
   plan1: [],
-  plan2: [],
-  plan3: ["credit", "seating"],
+  plan2: ["calls"],
+  plan3: ["calls", "credit", "seating"],
 };
+
 
 export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER BASIC ===== */
@@ -33,18 +35,19 @@ export default function CreateUserModal({ onClose }: Props) {
   const [records, setRecords] = useState(100);
   const [smsTotal, setSmsTotal] = useState(records * SMS_PER_RECORD);
   const [smsAuto, setSmsAuto] = useState(true);
-  const [includeCalls, setIncludeCalls] = useState(false);
 
   /* ===== ADDONS (חדש) ===== */
   const [addons, setAddons] = useState<Record<
-    AddonKey,
-    { enabled: boolean; price: number }
-  >>({
-    credit: { enabled: false, price: 0 },
-    seating: { enabled: false, price: 0 },
-    system: { enabled: false, price: 0 },
-    design: { enabled: false, price: 0 },
-  });
+  AddonKey,
+  { enabled: boolean; price: number }
+>>({
+  calls: { enabled: false, price: 0 },
+  credit: { enabled: false, price: 0 },
+  seating: { enabled: false, price: 0 },
+  system: { enabled: false, price: 0 },
+  design: { enabled: false, price: 0 },
+});
+
 
   /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
@@ -82,7 +85,9 @@ export default function CreateUserModal({ onClose }: Props) {
     included.has("design") || addons.design.enabled;
 
     const effectiveIncludeCalls =
-    plan === "plan2" || plan === "plan3" || includeCalls;
+    included.has("calls") || addons.calls.enabled;
+
+
 
   const payload =
     role === "producer"
@@ -124,6 +129,10 @@ export default function CreateUserModal({ onClose }: Props) {
           customDesignEnabled,
 
           addons: {
+  calls: {
+    ...addons.calls,
+    enabled: effectiveIncludeCalls,
+  },
   credit: {
     ...addons.credit,
     enabled: includeCreditGifts,
@@ -141,6 +150,7 @@ export default function CreateUserModal({ onClose }: Props) {
     enabled: customDesignEnabled,
   },
 },
+
 
         };
 
@@ -340,6 +350,7 @@ export default function CreateUserModal({ onClose }: Props) {
                           />
 
                           <span>
+                            {key === "calls" && "שיחות"}
                             {key === "credit" &&
                               "מתנות באשראי"}
                             {key === "seating" &&
@@ -461,7 +472,8 @@ export default function CreateUserModal({ onClose }: Props) {
             disabled={
               !name ||
               !email ||
-              (role === "user" && !price) ||
+              (role === "user" && price === "")
+ ||
               (role === "producer" &&
                 !producerPricePerRecord)
             }

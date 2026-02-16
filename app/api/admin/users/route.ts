@@ -270,10 +270,11 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================= USER ================= */
-    const { records, smsTotal, includeCalls } = limits || {};
-    const { price, paymentStatus } = billing || {};
+    /* ================= USER ================= */
+const { records, smsTotal, includeCalls } = limits || {};
+const { price, paymentStatus } = billing || {};
 
-    const recordsNum = Number(records);
+const recordsNum = Number(records);
 const smsTotalNum = Number(smsTotal);
 const priceNum = Number(price ?? 0);
 
@@ -288,92 +289,105 @@ if (
   );
 }
 
+const safePlan = String(plan || "plan1");
 
-    const finalIncludeCalls = !!includeCalls;
+// ✅ חישוב שרת אמיתי (לא לסמוך רק על הלקוח)
+const planIncludesCalls = safePlan === "plan2" || safePlan === "plan3";
+const planIncludesCredit = safePlan === "plan3";
+const planIncludesSeating = safePlan === "plan3";
 
+const finalIncludeCalls = planIncludesCalls || !!includeCalls;
 const finalIncludeCreditGifts =
-  plan === "plan3" ||
-  addons?.credit?.enabled === true;
+  planIncludesCredit || addons?.credit?.enabled === true;
+
+const finalSeatingEnabled =
+  planIncludesSeating || addons?.seating?.enabled === true;
+
+const finalSelfManageEnabled = addons?.system?.enabled === true;
+const finalCustomDesignEnabled = addons?.design?.enabled === true;
+
+const planLimits = {
+  maxGuests: recordsNum,
+  smsEnabled: true,
+  smsLimit: smsTotalNum,
+  seatingEnabled: finalSeatingEnabled, // ✅ במקום true קבוע
+  remindersEnabled: true,
+  callsEnabled: finalIncludeCalls,
+};
+
+const user = await User.create({
+  name,
+  email: String(email).toLowerCase(),
+  role: "user",
+
+  plan: safePlan,
+
+  planLimits,
+
+  guests: recordsNum,
+  maxMessages: smsTotalNum,
+
+  includeCalls: finalIncludeCalls,
+  includeCreditGifts: finalIncludeCreditGifts,
+  creditGiftsAddonPrice: Number(addons?.credit?.price || 0),
+
+  selfManageEnabled: finalSelfManageEnabled,
+  customDesignEnabled: finalCustomDesignEnabled,
+
+  hasPaid: paymentStatus === "paid",
+  paidAmount: priceNum,
+
+  needsPasswordSetup: true,
+  createdByAdmin: true,
+  billingSource: "admin",
+});
+
+if (paymentStatus === "paid") {
+  await Payment.create({
+    email: String(email).toLowerCase(),
+
+    stripeSessionId: null,
+    stripePaymentIntentId: null,
+    stripeCustomerId: null,
+    stripePriceId: null,
+
+    priceKey: `admin_manual_${recordsNum}`,
+    maxGuests: recordsNum,
+
+    includeCalls: finalIncludeCalls,
+    callsAddonPrice: 0,
+
+    includeCreditGifts: finalIncludeCreditGifts,
+    creditGiftsAddonPrice: Number(addons?.credit?.price || 0),
+
+    amount: priceNum,
+    refundAmount: 0,
+    currency: "ils",
+
+    type: "package",
+    status: "paid",
+    isTest: false,
+
+    meta: {
+      source: "admin",
+      adminId: auth.impersonatedBy
+        ? String(auth.impersonatedBy)
+        : String(auth.userId),
+      userId: String(user._id),
+      plan: safePlan,
+    },
+  });
+}
+
+// ✅ מייל פעם אחת ביצירת המשתמש (לפני תשלום Stripe / מיד בתשלום ידני)
+await sendPasswordSetupMail(String(user._id));
+
+return NextResponse.json(
+  { success: true, userId: String(user._id) },
+  { status: 201 }
+);
 
 
-
-    const planLimits = {
-      maxGuests: recordsNum,
-      smsEnabled: true,
-      smsLimit: smsTotalNum,
-      seatingEnabled: true,
-      remindersEnabled: true,
-      callsEnabled: finalIncludeCalls,
-    };
-
-    const user = await User.create({
-      name,
-      email: String(email).toLowerCase(),
-      role: "user",
-
-      plan: plan || "premium",
-
-      planLimits,
-
-      guests: recordsNum,
-      maxMessages: smsTotalNum,
-
-      includeCalls: finalIncludeCalls,
-includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
-
-
-      hasPaid: paymentStatus === "paid",
-      paidAmount: priceNum,
-
-      needsPasswordSetup: true,
-      createdByAdmin: true,
-      billingSource: "admin",
-    });
-
-    if (paymentStatus === "paid") {
-      await Payment.create({
-        email: String(email).toLowerCase(),
-
-        stripeSessionId: null,
-        stripePaymentIntentId: null,
-        stripeCustomerId: null,
-        stripePriceId: null,
-
-        priceKey: `admin_manual_${recordsNum}`,
-        maxGuests: recordsNum,
-
-        includeCalls: finalIncludeCalls,
-        callsAddonPrice: 0,
-
-        includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
-
-
-        amount: priceNum,
-        refundAmount: 0,
-        currency: "ils",
-
-        type: "package",
-        status: "paid",
-        isTest: false,
-
-        metadata: {
-          source: "pricing",
-          adminId: auth.impersonatedBy
-            ? String(auth.impersonatedBy)
-            : String(auth.userId),
-          userId: String(user._id),
-        },
-      });
-    }
-
-    await sendPasswordSetupMail(String(user._id));
-
-    return NextResponse.json(
-      { success: true, userId: String(user._id) },
-      { status: 201 }
-    );
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
     return NextResponse.json(
