@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
-
 
 type UserRole = "user" | "producer" | "staff";
 type PaymentStatus = "paid" | "stripe";
@@ -66,91 +64,78 @@ export default function CreateUserModal({ onClose }: Props) {
 
   /* ===================================================== SUBMIT */
   async function handleSubmit() {
-  const payload =
-    role === "producer"
-      ? {
-          name,
-          email,
-          role,
-          billing: {
-            pricePerRecord: producerPricePerRecord,
-          },
-        }
-      : role === "staff"
-      ? {
-          name,
-          email,
-          role,
-        }
-      : {
-          name,
-          email,
-          role,
-          plan, // חדש
-          limits: {
-            records,
-            smsTotal,
-            smsPerRecord: SMS_PER_RECORD,
-            smsAuto,
-            includeCalls,
-          },
-          billing: {
-            price,
-            paymentStatus,
-          },
-          addons, // חדש
-        };
+    const payload =
+      role === "producer"
+        ? {
+            name,
+            email,
+            role,
+            billing: {
+              pricePerRecord: producerPricePerRecord,
+            },
+          }
+        : role === "staff"
+        ? {
+            name,
+            email,
+            role,
+          }
+        : {
+            name,
+            email,
+            role,
+            plan, // חדש
+            limits: {
+              records,
+              smsTotal,
+              smsPerRecord: SMS_PER_RECORD,
+              smsAuto,
+              includeCalls,
+            },
+            billing: {
+              price,
+              paymentStatus,
+            },
+            addons, // חדש
+          };
 
-  try {
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!data.success) {
-      throw new Error("CREATE_USER_FAILED");
-    }
-
-    // אם התשלום דרך Stripe
-    if (paymentStatus === "stripe" && data.userId) {
-      const checkoutRes = await fetch(
-        `/api/admin/users/${data.userId}/checkout`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
-      );
-
-      const checkoutData = await checkoutRes.json();
-
-      if (checkoutData.checkoutUrl) {
-        window.location.href = checkoutData.checkoutUrl;
-        return;
+      if (!data.success) {
+        throw new Error("CREATE_USER_FAILED");
       }
-    }
 
-    // אם מדובר בלקוח
-    if (role === "user") {
-      if (paymentStatus === "paid") {
-        // אם האדמין סימן כ"שולם" ידנית
-        await sendPasswordSetupMail(data.userId);
+      if (paymentStatus === "stripe" && data.userId) {
+        const checkoutRes = await fetch(
+          `/api/admin/users/${data.userId}/checkout`,
+          {
+            method: "POST",
+            credentials: "include",
+          }
+        );
+
+        const checkoutData = await checkoutRes.json();
+
+        if (checkoutData.checkoutUrl) {
+          window.location.href = checkoutData.checkoutUrl;
+          return;
+        }
       }
-    } else {
-      // למפיקים ועובדים, שלח את המייל מיד אחרי יצירת המשתמש
-      await sendPasswordSetupMail(data.userId);
-    }
 
-    onClose();
-  } catch (err) {
-    console.error("CREATE USER FAILED:", err);
-    alert("שגיאה ביצירת משתמש");
+      onClose();
+    } catch (err) {
+      console.error("CREATE USER FAILED:", err);
+      alert("שגיאה ביצירת משתמש");
+    }
   }
-}
-
 
   /* ===================================================== UI */
   return (
