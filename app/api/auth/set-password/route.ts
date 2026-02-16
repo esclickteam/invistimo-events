@@ -65,8 +65,9 @@ export async function POST(req: Request) {
        FIND USER BY TOKEN
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId hasPaid"
-    );
+  "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId billingSource hasPaid"
+);
+
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
 
@@ -141,13 +142,24 @@ export async function POST(req: Request) {
     };
 
     let redirectTo = "/dashboard";
-    if (user.role === "admin") {
-      redirectTo = "/admin";
-    } else if (user.role === "producer") {
-      redirectTo = "/producer/dashboard";
-    } else if (user.role === "staff" && user.staffType === "producer_staff") {
-      redirectTo = "/producer-staff/dashboard";
-    }
+
+if (user.role === "admin") {
+  redirectTo = "/admin";
+} else if (user.role === "producer") {
+  redirectTo = "/producer/dashboard";
+} else if (user.role === "staff") {
+
+  const isProducerStaff =
+  user.staffType === "producer_staff" ||
+  !!user.assignedProducerId ||
+  user.billingSource === "producer" ||
+  user.billingSource === "admin";
+
+  if (isProducerStaff) {
+    redirectTo = "/producer-staff/dashboard";
+  }
+}
+
 
     console.log("Safe user data before sending response:", safeUser);
 
