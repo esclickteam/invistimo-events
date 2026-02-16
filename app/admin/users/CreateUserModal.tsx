@@ -62,42 +62,87 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }, [records, smsAuto]);
 
+  
+
   /* ===================================================== SUBMIT */
   async function handleSubmit() {
-    const payload =
-      role === "producer"
-        ? {
-            name,
-            email,
-            role,
-            billing: {
-              pricePerRecord: producerPricePerRecord,
-            },
-          }
-        : role === "staff"
-        ? {
-            name,
-            email,
-            role,
-          }
-        : {
-            name,
-            email,
-            role,
-            plan, // חדש
-            limits: {
-              records,
-              smsTotal,
-              smsPerRecord: SMS_PER_RECORD,
-              smsAuto,
-              includeCalls,
-            },
-            billing: {
-              price,
-              paymentStatus,
-            },
-            addons, // חדש
-          };
+  // ✅ לשים כאן
+  const included = new Set(includedByPlan[plan]);
+
+  const includeCreditGifts =
+    included.has("credit") || addons.credit.enabled;
+
+  const seatingEnabled =
+    included.has("seating") || addons.seating.enabled;
+
+  const selfManageEnabled =
+    included.has("system") || addons.system.enabled;
+
+  const customDesignEnabled =
+    included.has("design") || addons.design.enabled;
+
+    const effectiveIncludeCalls =
+    plan === "plan2" || plan === "plan3" || includeCalls;
+
+  const payload =
+    role === "producer"
+      ? {
+          name,
+          email,
+          role,
+          billing: {
+            pricePerRecord: producerPricePerRecord,
+          },
+        }
+      : role === "staff"
+      ? {
+          name,
+          email,
+          role,
+        }
+      : {
+          name,
+          email,
+          role,
+          plan,
+          limits: {
+  records,
+  smsTotal,
+  smsPerRecord: SMS_PER_RECORD,
+  smsAuto,
+  includeCalls: effectiveIncludeCalls,
+},
+          billing: {
+            price,
+            paymentStatus,
+          },
+
+          // ✅ להוסיף כאן בתוך ה-user payload
+          includeCreditGifts,
+          seatingEnabled,
+          selfManageEnabled,
+          customDesignEnabled,
+
+          addons: {
+  credit: {
+    ...addons.credit,
+    enabled: includeCreditGifts,
+  },
+  seating: {
+    ...addons.seating,
+    enabled: seatingEnabled,
+  },
+  system: {
+    ...addons.system,
+    enabled: selfManageEnabled,
+  },
+  design: {
+    ...addons.design,
+    enabled: customDesignEnabled,
+  },
+},
+
+        };
 
     try {
       const res = await fetch("/api/admin/users", {
@@ -113,7 +158,8 @@ export default function CreateUserModal({ onClose }: Props) {
         throw new Error("CREATE_USER_FAILED");
       }
 
-      if (paymentStatus === "stripe" && data.userId) {
+      if (role === "user" && paymentStatus === "stripe" && data.userId) {
+
         const checkoutRes = await fetch(
           `/api/admin/users/${data.userId}/checkout`,
           {
