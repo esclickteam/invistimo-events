@@ -4,7 +4,6 @@ import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import User from "@/models/User";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
-import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -245,18 +244,7 @@ export async function POST(req: Request) {
         { new: true }
       );
 
-      /* =========================================================
-         EMAILS
-      ============================================================ */
-
-      if (updatedUser?.needsPasswordSetup) {
-        try {
-          console.log("Sending password setup email...");
-          await sendPasswordSetupMail(updatedUser._id.toString());
-        } catch (err) {
-          console.error("❌ Failed to send password setup email", err);
-        }
-      }
+    
 
       try {
         console.log("Notifying admin about the purchase...");
