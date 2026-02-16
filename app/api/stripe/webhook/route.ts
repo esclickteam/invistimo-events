@@ -128,7 +128,6 @@ export async function POST(req: Request) {
 
     const session = stripeEvent.data.object as Stripe.Checkout.Session;
 
-    // וודא שהתשלום הושלם (סטטוס "paid")
     if (session.payment_status !== "paid") {
       return NextResponse.json({ received: true });
     }
@@ -242,7 +241,6 @@ export async function POST(req: Request) {
          EMAILS
       ============================================================ */
 
-      // שלח את המייל רק אחרי שהתשלום אושר בהצלחה
       if (updatedUser?.needsPasswordSetup) {
         try {
           await sendPasswordSetupMail(updatedUser._id.toString());
@@ -251,7 +249,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // שליחה לאדמין על הרכישה
       try {
         await notifyAdminPurchase({
           email: user.email,

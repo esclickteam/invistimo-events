@@ -307,73 +307,74 @@ const finalIncludeCreditGifts =
     };
 
     const user = await User.create({
-      name,
-      email: String(email).toLowerCase(),
-      role: "user",
+  name,
+  email: String(email).toLowerCase(),
+  role: "user",
 
-      plan: plan || "premium",
+  plan: plan || "premium",
 
-      planLimits,
+  planLimits,
 
-      guests: recordsNum,
-      maxMessages: smsTotalNum,
+  guests: recordsNum,
+  maxMessages: smsTotalNum,
 
-      includeCalls: finalIncludeCalls,
-includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
+  includeCalls: finalIncludeCalls,
+  includeCreditGifts: finalIncludeCreditGifts,
+  creditGiftsAddonPrice: addons?.credit?.price || 0,
 
+  hasPaid: paymentStatus === "paid", // רק אם התשלום עבר
+  paidAmount: priceNum,
 
-      hasPaid: paymentStatus === "paid",
-      paidAmount: priceNum,
+  needsPasswordSetup: true,
+  createdByAdmin: true,
+  billingSource: "admin",
+});
 
-      needsPasswordSetup: true,
-      createdByAdmin: true,
-      billingSource: "admin",
-    });
+// אם התשלום אושר (paymentStatus === "paid"), נעדכן את המידע ונתקדם עם התשלום
+if (paymentStatus === "paid") {
+  await Payment.create({
+    email: String(email).toLowerCase(),
+    stripeSessionId: null,
+    stripePaymentIntentId: null,
+    stripeCustomerId: null,
+    stripePriceId: null,
 
-    if (paymentStatus === "paid") {
-      await Payment.create({
-        email: String(email).toLowerCase(),
+    priceKey: `admin_manual_${recordsNum}`,
+    maxGuests: recordsNum,
 
-        stripeSessionId: null,
-        stripePaymentIntentId: null,
-        stripeCustomerId: null,
-        stripePriceId: null,
+    includeCalls: finalIncludeCalls,
+    callsAddonPrice: 0,
 
-        priceKey: `admin_manual_${recordsNum}`,
-        maxGuests: recordsNum,
+    includeCreditGifts: finalIncludeCreditGifts,
+    creditGiftsAddonPrice: addons?.credit?.price || 0,
 
-        includeCalls: finalIncludeCalls,
-        callsAddonPrice: 0,
+    amount: priceNum,
+    refundAmount: 0,
+    currency: "ils",
 
-        includeCreditGifts: finalIncludeCreditGifts,
-creditGiftsAddonPrice: addons?.credit?.price || 0,
+    type: "package",
+    status: "paid", // מצב התשלום
+    isTest: false,
 
+    metadata: {
+      source: "admin",
+      adminId: auth.impersonatedBy ? String(auth.impersonatedBy) : String(auth.userId),
+      userId: String(user._id),
+    },
+  });
 
-        amount: priceNum,
-        refundAmount: 0,
-        currency: "ils",
+  // שולחים את המייל רק אם התשלום אושר
+  await sendPasswordSetupMail(String(user._id));
+} else {
+  console.log("תשלום לא הושלם. המייל לא נשלח.");
+}
 
-        type: "package",
-        status: "paid",
-        isTest: false,
+return NextResponse.json(
+  { success: true, userId: String(user._id) },
+  { status: 201 }
+);
 
-        metadata: {
-          source: "admin",
-          adminId: auth.impersonatedBy
-            ? String(auth.impersonatedBy)
-            : String(auth.userId),
-          userId: String(user._id),
-        },
-      });
-    }
-
-    await sendPasswordSetupMail(String(user._id));
-
-    return NextResponse.json(
-      { success: true, userId: String(user._id) },
-      { status: 201 }
-    );
+    
   } catch (err) {
     console.error("🔥 ADMIN USERS POST ERROR:", err);
     return NextResponse.json(
