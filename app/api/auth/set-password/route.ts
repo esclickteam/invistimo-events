@@ -113,14 +113,16 @@ export async function POST(req: Request) {
        CREATE JWT
     ========================= */
     const authToken = jwt.sign(
-      {
-        userId: user._id.toString(),
-        role: user.role,
-        email: user.email,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+  {
+    userId: user._id.toString(),
+    role: user.role,
+    email: user.email,
+    hasPaid: user.hasPaid,  // הוספת המאפיין הזה
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: "7d" }
+);
+
 
     /* =========================
        RESPONSE + COOKIE
