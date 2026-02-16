@@ -105,7 +105,7 @@ export default function SetPasswordPage() {
 
     // ניקוי שדות
     setPassword("");
-    setConfirmPassword("");
+     setConfirmPassword("");
 
     // לוגים למעקב אחרי המשתמש
     console.log('User data after password set:', data?.user);
