@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
-
+import { decodeJwt } from "jose";
 
 /* ========================================================
    Types
@@ -49,9 +48,7 @@ function redirectToForbidden(req: NextRequest) {
 ======================================================== */
 function readJwtPayload(token: string): JwtPayloadShape | null {
   try {
-    if (!process.env.JWT_SECRET) return null;
-
-    return jwt.verify(token, process.env.JWT_SECRET) as JwtPayloadShape;
+    return decodeJwt(token) as JwtPayloadShape;
   } catch {
     return null;
   }
@@ -180,17 +177,11 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/producer") ||
     pathname.startsWith("/producer-staff");
 
-  if (
-  requiresPaid &&
-  role === "user" &&   // 👈 רק משתמש רגיל
-  !isAdmin &&
-  !isImpersonatedAdminSession
-) {
-  if (payload.hasPaid !== true) {
-    return redirectToPricing(req);
+  if (requiresPaid && !isAdmin && !isImpersonatedAdminSession) {
+    if (payload.hasPaid !== true) {
+      return redirectToPricing(req);
+    }
   }
-}
-
 
   return NextResponse.next();
 }
