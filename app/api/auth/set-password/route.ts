@@ -20,7 +20,6 @@ export async function POST(req: Request) {
     const rawToken = body?.token;
     const rawPassword = body?.password;
 
-    // לא לחשוף סיסמה בלוגים
     console.log("📦 BODY RECEIVED:", {
       hasToken: !!rawToken,
       passwordLength: rawPassword?.length ?? 0,
@@ -66,9 +65,8 @@ export async function POST(req: Request) {
        FIND USER BY TOKEN
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-  "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId"
-);
-
+      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId hasPaid"
+    );
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
 
@@ -112,50 +110,46 @@ export async function POST(req: Request) {
     /* =========================
        CREATE JWT
     ========================= */
-    const authToken = jwt.sign(
-  {
-    userId: user._id.toString(),
-    role: user.role,
-    email: user.email,
-    hasPaid: user.hasPaid,  // הוספת המאפיין הזה
-  },
-  process.env.JWT_SECRET,
-  { expiresIn: "7d" }
-);
+    console.log("User hasPaid status before JWT creation:", user.hasPaid);
 
+    const authToken = jwt.sign(
+      {
+        userId: user._id.toString(),
+        role: user.role,
+        email: user.email,
+        hasPaid: user.hasPaid,  // הוספת המאפיין הזה
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    console.log("Generated JWT:", authToken);
 
     /* =========================
        RESPONSE + COOKIE
     ========================= */
     const safeUser = {
-  _id: user._id.toString(),
-  name: user.name ?? "",
-  email: user.email ?? "",
-  role: user.role,
-
-  // ⭐ STAFF
-  staffType: user.staffType ?? null,
-  assignedProducerId: user.assignedProducerId
-    ? user.assignedProducerId.toString()
-    : null,
-
-  producerPricePerRecord: Number(user.producerPricePerRecord ?? 0),
-};
-
+      _id: user._id.toString(),
+      name: user.name ?? "",
+      email: user.email ?? "",
+      role: user.role,
+      staffType: user.staffType ?? null,
+      assignedProducerId: user.assignedProducerId
+        ? user.assignedProducerId.toString()
+        : null,
+      producerPricePerRecord: Number(user.producerPricePerRecord ?? 0),
+    };
 
     let redirectTo = "/dashboard";
+    if (user.role === "admin") {
+      redirectTo = "/admin";
+    } else if (user.role === "producer") {
+      redirectTo = "/producer/dashboard";
+    } else if (user.role === "staff" && user.staffType === "producer_staff") {
+      redirectTo = "/producer-staff/dashboard";
+    }
 
-if (user.role === "admin") {
-  redirectTo = "/admin";
-} else if (user.role === "producer") {
-  redirectTo = "/producer/dashboard";
-} else if (
-  user.role === "staff" &&
-  user.staffType === "producer_staff"
-) {
-  redirectTo = "/producer-staff/dashboard";
-}
-
+    console.log("Safe user data before sending response:", safeUser);
 
     const response = NextResponse.json({
       success: true,
@@ -164,7 +158,6 @@ if (user.role === "admin") {
       redirectTo,
     });
 
-    // טוקן ראשי
     response.cookies.set({
       name: "authToken",
       value: authToken,
@@ -175,7 +168,6 @@ if (user.role === "admin") {
       maxAge: 60 * 60 * 24 * 7, // 7 ימים
     });
 
-    // מומלץ: ניקוי טוקן מפיק ישן אם נשאר
     response.cookies.set({
       name: "producerAuthToken",
       value: "",
@@ -197,7 +189,7 @@ if (user.role === "admin") {
   } catch (error) {
     console.error("🔥 SET PASSWORD SERVER ERROR:", error);
     return NextResponse.json(
-      { success: false, message: "שגיאה בשרת" },
+          { success: false, message: "שגיאה בשרת" },
       { status: 500 }
     );
   }
