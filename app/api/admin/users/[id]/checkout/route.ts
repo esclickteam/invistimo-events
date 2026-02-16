@@ -122,6 +122,7 @@ export async function POST(
       ],
 
       metadata: {
+        source: "pricing", 
         userId: String(user._id),
         email: user.email,
         role: user.role,

@@ -154,13 +154,11 @@ export async function POST(req: Request) {
         userId,
         plan,
         guests: String(guests),
-
         seatingEnabled: String(seating),
         includeCreditGifts: String(credit),
         includeCalls: String(plan === "plan2" || plan === "plan3"),
         selfManageEnabled: String(system),
         customDesignEnabled: String(design),
-
         calculatedTotal: String(total),
       },
     });
