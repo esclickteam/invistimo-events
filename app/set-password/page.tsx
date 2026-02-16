@@ -9,6 +9,7 @@ type ApiUser = {
   name?: string;
   email: string;
   role: "admin" | "user" | "producer" | "client";
+  hasPaid: boolean; // הוספת המאפיין הזה
 };
 
 export default function SetPasswordPage() {
@@ -106,9 +107,23 @@ export default function SetPasswordPage() {
       setPassword("");
       setConfirmPassword("");
 
-      // ניווט מיידי + refresh לסנכרון App Router
-      const nextPath = data.redirectTo || "/dashboard";
-      router.replace(nextPath);
+      // בדיקה אם המשתמש שילם, הפנייה לדשבורד המתאים
+      if (data?.user?.hasPaid) {
+  // אם המשתמש שילם, הפנה לדשבורד המתאים
+  if (data.user.role === "admin") {
+    router.replace("/admin");
+  } else if (data.user.role === "producer") {
+    router.replace("/producer/dashboard");
+  } else {
+    router.replace("/dashboard");
+  }
+} else {
+  // אם הוא לא שילם, הפנה לעמוד חבילות
+  const nextPath = data.redirectTo || "/pricing";
+  router.replace(nextPath);
+}
+
+
       router.refresh();
     } catch (err) {
       console.error("❌ set-password frontend error:", err);
