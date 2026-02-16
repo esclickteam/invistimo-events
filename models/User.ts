@@ -228,8 +228,9 @@ UserSchema.pre("validate", function () {
   }
 
   if (doc.role === "staff" && !doc.staffType) {
-    doc.staffType = "producer_staff";
-  }
+  doc.staffType = "general_staff";
+}
+
 
   if (
     doc.role === "staff" &&
