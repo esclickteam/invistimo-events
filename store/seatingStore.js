@@ -553,142 +553,54 @@ console.table(
 initDemo: () => {
   set({
     demoMode: true,
-
     seatingMode: "regular",
 
     tables: [
-      { id: "table-1", name: "שולחן 1", number: 1, seats: 10, x: 200, y: 200, seatedGuests: [] },
-      { id: "table-2", name: "שולחן 2", number: 2, seats: 10, x: 500, y: 200, seatedGuests: [] },
-      { id: "table-3", name: "שולחן 3", number: 3, seats: 10, x: 800, y: 200, seatedGuests: [] },
-      { id: "table-4", name: "שולחן 4", number: 4, seats: 12, x: 1100, y: 200, seatedGuests: [] },
+      { id: "table-1", name: "שולחן 1", number: 1, seats: 10, x: 200, y: 250, seatedGuests: [] },
+      { id: "table-2", name: "שולחן 2", number: 2, seats: 10, x: 500, y: 250, seatedGuests: [] },
+      { id: "table-3", name: "שולחן 3", number: 3, seats: 10, x: 800, y: 250, seatedGuests: [] },
+      { id: "table-4", name: "שולחן 4", number: 4, seats: 12, x: 1100, y: 250, seatedGuests: [] },
     ],
 
     guests: [
       // ✅ מגיעים
-      {
-        id: "1",
-        _id: "1",
-        name: "אורן לוי",
-        guestsCount: 2,
-        arrivedCount: 2,
-        actualArrivedCount: 0,
-        rsvp: "yes",
-        tableId: "table-1",
-      },
-      {
-        id: "2",
-        _id: "2",
-        name: "נועה כהן",
-        guestsCount: 3,
-        arrivedCount: 3,
-        actualArrivedCount: 0,
-        rsvp: "yes",
-        tableId: "table-2",
-      },
-      {
-        id: "3",
-        _id: "3",
-        name: "דניאל פרץ",
-        guestsCount: 1,
-        arrivedCount: 1,
-        actualArrivedCount: 0,
-        rsvp: "yes",
-        tableId: "table-3",
-      },
-      {
-        id: "4",
-        _id: "4",
-        name: "שירה כהן",
-        guestsCount: 4,
-        arrivedCount: 4,
-        actualArrivedCount: 0,
-        rsvp: "yes",
-        tableId: "table-4",
-      },
+      { id: "1", _id: "1", name: "אורן לוי", guestsCount: 2, arrivedCount: 2, actualArrivedCount: 0, rsvp: "yes" },
+      { id: "2", _id: "2", name: "נועה כהן", guestsCount: 3, arrivedCount: 3, actualArrivedCount: 0, rsvp: "yes" },
+      { id: "3", _id: "3", name: "דניאל פרץ", guestsCount: 1, arrivedCount: 1, actualArrivedCount: 0, rsvp: "yes" },
+      { id: "4", _id: "4", name: "שירה כהן", guestsCount: 4, arrivedCount: 4, actualArrivedCount: 0, rsvp: "yes" },
 
       // 🟡 ממתינים
-      {
-        id: "5",
-        _id: "5",
-        name: "אלון מזרחי",
-        guestsCount: 2,
-        arrivedCount: 0,
-        actualArrivedCount: 0,
-        rsvp: "pending",
-      },
-      {
-        id: "6",
-        _id: "6",
-        name: "תמר לוי",
-        guestsCount: 1,
-        arrivedCount: 0,
-        actualArrivedCount: 0,
-        rsvp: "pending",
-      },
+      { id: "5", _id: "5", name: "אלון מזרחי", guestsCount: 2, arrivedCount: 0, actualArrivedCount: 0, rsvp: "pending" },
+      { id: "6", _id: "6", name: "תמר לוי", guestsCount: 1, arrivedCount: 0, actualArrivedCount: 0, rsvp: "pending" },
 
       // 🔴 לא מגיעים
-      {
-        id: "7",
-        _id: "7",
-        name: "רוני אברהם",
-        guestsCount: 2,
-        arrivedCount: 0,
-        actualArrivedCount: 0,
-        rsvp: "no",
-      },
-      {
-        id: "8",
-        _id: "8",
-        name: "מאיה ישראלי",
-        guestsCount: 1,
-        arrivedCount: 0,
-        actualArrivedCount: 0,
-        rsvp: "no",
-      },
+      { id: "7", _id: "7", name: "רוני אברהם", guestsCount: 2, arrivedCount: 0, actualArrivedCount: 0, rsvp: "no" },
+      { id: "8", _id: "8", name: "מאיה ישראלי", guestsCount: 1, arrivedCount: 0, actualArrivedCount: 0, rsvp: "no" },
 
       // 👨‍👩‍👧 קבוצה
-      {
-        id: "9",
-        _id: "9",
-        name: "משפחת כהן",
-        guestsCount: 5,
-        arrivedCount: 5,
-        actualArrivedCount: 0,
-        rsvp: "yes",
-        tableId: "table-4",
-        groupId: "group-1",
-      },
-      {
-        id: "10",
-        _id: "10",
-        name: "משפחת כהן 2",
-        guestsCount: 3,
-        arrivedCount: 3,
-        actualArrivedCount: 0,
-        rsvp: "yes",
-        tableId: "table-4",
-        groupId: "group-1",
-      },
+      { id: "9", _id: "9", name: "משפחת כהן", guestsCount: 5, arrivedCount: 5, actualArrivedCount: 0, rsvp: "yes", groupId: "group-1" },
+      { id: "10", _id: "10", name: "משפחת כהן 2", guestsCount: 3, arrivedCount: 3, actualArrivedCount: 0, rsvp: "yes", groupId: "group-1" },
     ],
 
     groups: [
-      {
-        _id: "group-1",
-        name: "משפחת כהן",
-        tableId: "table-4",
-        isSeated: true,
-      },
+      { _id: "group-1", name: "משפחת כהן", tableId: "table-4", isSeated: true },
     ],
 
     liveArrivals: {},
-
     background: null,
   });
 
   const { assignGuestBlock } = get();
 
-
+  // ⭐ שיבוץ אמיתי אחרי set (לא דרך tableId ב-guest!)
+  assignGuestBlock({ guestId: "1", tableId: "table-1" });
+  assignGuestBlock({ guestId: "2", tableId: "table-2" });
+  assignGuestBlock({ guestId: "3", tableId: "table-3" });
+  assignGuestBlock({ guestId: "4", tableId: "table-4" });
+  assignGuestBlock({ guestId: "9", tableId: "table-4" });
+  assignGuestBlock({ guestId: "10", tableId: "table-4" });
 },
+
 
 
   /* ---------------- ADD TABLE ---------------- */
