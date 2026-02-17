@@ -63,6 +63,8 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
 
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const removeFromSeat = useSeatingStore((s) => s.removeFromSeat);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
 
   const {
   stats,
@@ -324,7 +326,43 @@ const syncRemoveFromServer = async (guestId: string) => {
   /* ================= RENDER ================= */
 
   return (
-    <aside className="h-full w-[400px] flex flex-col bg-[#fdf9f6] border-l border-[#ead8cc]">
+  <>
+
+  {/* ===== MOBILE BUTTON ===== */}
+<button
+  onClick={() => setMobileOpen(true)}
+  className="md:hidden fixed bottom-5 left-5 z-40 bg-[#e6c3ad] text-white px-4 py-2 rounded-full shadow"
+>
+  אורחים
+</button>
+
+{/* ===== OVERLAY ===== */}
+{mobileOpen && (
+  <div
+    className="fixed inset-0 bg-black/40 z-40 md:hidden"
+    onClick={() => setMobileOpen(false)}
+  />
+)}
+
+
+
+    <aside
+  className={`
+    bg-[#fdf9f6] border-l border-[#ead8cc] flex flex-col
+    h-full w-[400px]
+    
+    fixed top-0 right-0 z-50
+    transform transition-transform duration-300
+    
+    md:static md:translate-x-0 md:z-auto md:pointer-events-auto
+    
+    ${mobileOpen 
+      ? "translate-x-0 pointer-events-auto" 
+      : "translate-x-full pointer-events-none"}
+  `}
+>
+
+
 
       {/* ===== Header ===== */}
       <div className="p-5 border-b border-[#ead8cc]">
@@ -600,5 +638,7 @@ if (!ok) {
         })}
       </div>
     </aside>
-  );
+</>
+);
+
 }
