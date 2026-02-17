@@ -1147,18 +1147,18 @@ console.log("INVITATION:", invitation);
 
 
         <button
-  onClick={() => {
-    if (isDemo) {
-      handleDemoBlockedAction();
-      return;
-    }
-
-    router.push("/dashboard/seating");
-  }}
+  onClick={() =>
+    router.push(
+      isDemo
+        ? "/try/dashboard/seating"
+        : "/dashboard/seating"
+    )
+  }
   className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
 >
   🪑 סידורי הושבה
 </button>
+
 
         <button
           onClick={() =>
@@ -1475,11 +1475,12 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
     guests={displayGuests}
     onEdit={(g) => setSelectedGuest(g)}
     onDelete={(g) => deleteGuest(g)}
+    
     onMessage={(g) =>
   router.push(
     isDemo
-      ? `/try/dashboard/messages?guestId=${g._id}`
-      : `/dashboard/messages?guestId=${g._id}`
+      ? `/try/dashboard/messages/new?guestId=${g._id}`
+       : `/dashboard/messages/new?guestId=${g._id}`
   )
 }
 onSeat={(g) =>
