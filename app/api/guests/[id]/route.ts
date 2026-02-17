@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
+import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 
@@ -137,28 +138,55 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     =============================== */
     if (typeof data.name === "string") guest.name = data.name;
     if (typeof data.phone === "string") guest.phone = data.phone;
-    if (typeof data.relation === "string") guest.relation = data.relation;
     if (typeof data.notes === "string") guest.notes = data.notes;
 
-    // ✅ groupId — או ObjectId תקין או להסיר שדה לגמרי
-    if ("groupId" in data) {
-      const raw = data.groupId;
+    /* ===============================
+   groupId — ידני קודם
+=============================== */
+if ("groupId" in data) {
+  const raw = data.groupId;
 
-      const cleaned =
-        raw === null ||
-        raw === undefined ||
-        raw === "" ||
-        raw === "null" ||
-        raw === "undefined"
-          ? null
-          : String(raw).trim();
+  const cleaned =
+    raw === null ||
+    raw === undefined ||
+    raw === "" ||
+    raw === "null" ||
+    raw === "undefined"
+      ? null
+      : String(raw).trim();
 
-      if (cleaned) {
-        guest.groupId = cleaned;
-      } else {
-        guest.groupId = undefined;
-      }
+  if (cleaned) {
+    guest.groupId = cleaned;
+  } else {
+    guest.groupId = undefined;
+  }
+}
+
+/* ===============================
+   relation — שיוך אוטומטי אם אין קבוצה
+=============================== */
+if (typeof data.relation === "string") {
+  const newRelation = data.relation.trim();
+  guest.relation = newRelation;
+
+  // רק אם אחרי הטיפול הידני אין groupId
+  if (!guest.groupId && newRelation) {
+    let group = await Group.findOne({
+      invitationId: invitation._id,
+      name: newRelation,
+    });
+
+    if (!group) {
+      group = await Group.create({
+        invitationId: invitation._id,
+        name: newRelation,
+      });
     }
+
+    guest.groupId = group._id;
+  }
+}
+
 
     /* ===============================
        הגבלת חבילה על guestsCount
