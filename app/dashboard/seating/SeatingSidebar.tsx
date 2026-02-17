@@ -346,7 +346,7 @@ const syncRemoveFromServer = async (guestId: string) => {
 
 
 
-    <aside
+     <aside
   className={`
     bg-[#fdf9f6] border-l border-[#ead8cc] flex flex-col
     h-full w-[400px]
