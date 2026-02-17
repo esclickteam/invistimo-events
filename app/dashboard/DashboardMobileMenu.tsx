@@ -101,8 +101,8 @@ export default function DashboardMobileMenu({
             <button
               onClick={() =>
                 isDemo
-                  ? go("/try/dashboard/messages")
-                  : go("/dashboard/messages")
+  ? go("/try/dashboard/messages/new")
+  : go("/dashboard/messages/new")
               }
               className="text-right"
             >

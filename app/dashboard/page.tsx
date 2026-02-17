@@ -1134,8 +1134,11 @@ console.log("INVITATION:", invitation);
 
         <button
           onClick={() =>
-            router.push(isDemo ? "/try/dashboard/messages" : "/dashboard/messages")
-          }
+            router.push(
+  isDemo
+    ? "/try/dashboard/messages/new"
+    : "/dashboard/messages/new"
+          )}
           className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold"
         >
           💬 שליחת הודעות
@@ -1392,9 +1395,9 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
   <button
     onClick={() =>
       router.push(
-        isDemo
-          ? `/try/dashboard/messages?guestId=${g._id}`
-          : `/dashboard/messages?guestId=${g._id}`
+          isDemo
+  ? `/try/dashboard/messages/new?guestId=${g._id}`
+  : `/dashboard/messages/new?guestId=${g._id}`
       )
     }
     title="שליחת הודעה"
