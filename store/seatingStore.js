@@ -687,13 +687,7 @@ initDemo: () => {
 
   const { assignGuestBlock } = get();
 
-  // ⭐ הושבה אמיתית לפי guestsCount
-  assignGuestBlock({ guestId: "1", tableId: "table-1" });
-  assignGuestBlock({ guestId: "2", tableId: "table-2" });
-  assignGuestBlock({ guestId: "3", tableId: "table-3" });
-  assignGuestBlock({ guestId: "4", tableId: "table-4" });
-  assignGuestBlock({ guestId: "9", tableId: "table-4" });
-  assignGuestBlock({ guestId: "10", tableId: "table-4" });
+
 },
 
 
