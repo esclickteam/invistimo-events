@@ -568,12 +568,7 @@ initDemo: () => {
 
   // ⭐ יצירת שולחנות דמו חדשים
   set({
-    tables: [
-      { id: "table-1", name: "שולחן 1", number: 1, seats: 10, x: 200, y: 250, seatedGuests: [] },
-      { id: "table-2", name: "שולחן 2", number: 2, seats: 10, x: 500, y: 250, seatedGuests: [] },
-      { id: "table-3", name: "שולחן 3", number: 3, seats: 10, x: 800, y: 250, seatedGuests: [] },
-      { id: "table-4", name: "שולחן 4", number: 4, seats: 12, x: 1100, y: 250, seatedGuests: [] },
-    ],
+    
 
     guests: [
       { id: "1", _id: "1", name: "אורן לוי", guestsCount: 2, arrivedCount: 2, actualArrivedCount: 0, rsvp: "yes" },
