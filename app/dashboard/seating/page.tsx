@@ -65,6 +65,7 @@ useEffect(() => {
   const pathname = usePathname();
 const isProducer = pathname.includes("/events/production");
 
+const isDemo = pathname.startsWith("/try/");
 
 
 
@@ -126,6 +127,8 @@ const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
    LOAD INITIAL DATA (ONCE)
 =============================== */
 useEffect(() => {
+  if (isDemo) return; // 🔥 בדמו לא טוענים מהשרת
+
   if (didLoadRef.current) return;
   didLoadRef.current = true;
 
@@ -211,7 +214,8 @@ setEventId(eventIdFromApi);
   }
 
   load();
-}, []);
+}, [isDemo]);
+
 
 
 

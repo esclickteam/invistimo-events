@@ -554,113 +554,41 @@ initDemo: () => {
   set({
     demoMode: true,
 
+    tables: [
+      { id: "table-1", name: "שולחן 1", number: 1, seats: 10, x: 200, y: 200, seatedGuests: [] },
+      { id: "table-2", name: "שולחן 2", number: 2, seats: 10, x: 500, y: 200, seatedGuests: [] },
+      { id: "table-3", name: "שולחן 3", number: 3, seats: 10, x: 800, y: 200, seatedGuests: [] },
+      { id: "table-5", name: "שולחן 5", number: 5, seats: 10, x: 1100, y: 200, seatedGuests: [] },
+    ],
 
     guests: [
-  {
-    id: "1",
-    _id: "1",
-    name: "אורן לוי",
-    guestsCount: 2,
-    confirmedGuestsCount: 2, // מגיעים
-    confirmed: true,
-    tableId: "table-5",
-    tableName: "5",
-  },
-  {
-    id: "2",
-    _id: "2",
-    name: "נועה כהן",
-    guestsCount: 1,
-    confirmedGuestsCount: 0, // ממתינה
-    confirmed: false,
-    tableId: undefined,
-    tableName: undefined,
-  },
-  {
-    id: "3",
-    _id: "3",
-    name: "דניאל לוי",
-    guestsCount: 3,
-    confirmedGuestsCount: 3,
-    confirmed: true,
-    tableId: "table-3",
-    tableName: "3",
-  },
-  {
-    id: "4",
-    _id: "4",
-    name: "מאיה ישראלי",
-    guestsCount: 1,
-    confirmedGuestsCount: 0, // לא מגיעה
-    confirmed: false,
-    tableId: undefined,
-    tableName: undefined,
-  },
-  {
-    id: "5",
-    _id: "5",
-    name: "יוסי כהן",
-    guestsCount: 1,
-    confirmedGuestsCount: 1,
-    confirmed: true,
-    tableId: "table-1",
-    tableName: "1",
-  },
-  {
-    id: "6",
-    _id: "6",
-    name: "שירה לוי",
-    guestsCount: 2,
-    confirmedGuestsCount: 0,
-    confirmed: false,
-    tableId: undefined,
-    tableName: undefined,
-  },
-  {
-    id: "7",
-    _id: "7",
-    name: "אלון פרץ",
-    guestsCount: 2,
-    confirmedGuestsCount: 2,
-    confirmed: true,
-    tableId: "table-2",
-    tableName: "2",
-  },
-  {
-    id: "8",
-    _id: "8",
-    name: "רוני אברהם",
-    guestsCount: 1,
-    confirmedGuestsCount: 0,
-    confirmed: false,
-    tableId: undefined,
-    tableName: undefined,
-  },
-  {
-    id: "9",
-    _id: "9",
-    name: "תמר כהן",
-    guestsCount: 1,
-    confirmedGuestsCount: 1,
-    confirmed: true,
-    tableId: "table-3",
-    tableName: "3",
-  },
-  {
-    id: "10",
-    _id: "10",
-    name: "איתי רוזן",
-    guestsCount: 2,
-    confirmedGuestsCount: 0,
-    confirmed: false,
-    tableId: undefined,
-    tableName: undefined,
-  },
-],
+      { id: "1", _id: "1", name: "אורן לוי", guestsCount: 2, rsvp: "yes", tableId: "table-5" },
+      { id: "2", _id: "2", name: "נועה כהן", guestsCount: 1, rsvp: "pending" },
+      { id: "3", _id: "3", name: "דניאל לוי", guestsCount: 3, rsvp: "yes", tableId: "table-3" },
+      { id: "4", _id: "4", name: "מאיה ישראלי", guestsCount: 1, rsvp: "no" },
+      { id: "5", _id: "5", name: "יוסי כהן", guestsCount: 1, rsvp: "yes", tableId: "table-1" },
+      { id: "6", _id: "6", name: "שירה לוי", guestsCount: 2, rsvp: "pending" },
+      { id: "7", _id: "7", name: "אלון פרץ", guestsCount: 2, rsvp: "yes", tableId: "table-2" },
+      { id: "8", _id: "8", name: "רוני אברהם", guestsCount: 1, rsvp: "pending" },
+      { id: "9", _id: "9", name: "תמר כהן", guestsCount: 1, rsvp: "yes", tableId: "table-3" },
+      { id: "10", _id: "10", name: "איתי רוזן", guestsCount: 2, rsvp: "pending" },
+    ],
 
-background: null,
+    groups: [],
 
+    liveArrivals: {},
+
+    background: null,
   });
+
+  // ⭐ עכשיו נשבץ אותם באמת לשולחנות
+  const { assignGuestBlock } = get();
+
+  assignGuestBlock({ guestId: "1", tableId: "table-5" });
+  assignGuestBlock({ guestId: "3", tableId: "table-3" });
+  assignGuestBlock({ guestId: "5", tableId: "table-1" });
+  assignGuestBlock({ guestId: "7", tableId: "table-2" });
+  assignGuestBlock({ guestId: "9", tableId: "table-3" });
 },
 
 
