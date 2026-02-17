@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
 
-const NOTES_OPTIONS = ["כשר מחפוד", "טבעוני", "אלרגיות", "נגישות", "אחר"];
+const NOTES_OPTIONS = [
+  "כשר מחפוד",
+  "טבעוני",
+  "צמחוני",
+  "אלרגיות",
+  "מנת ילדים",
+  "אחר"
+];
+
 
 export default function PublicInvitePage({ params }: any) {
   const router = useRouter();

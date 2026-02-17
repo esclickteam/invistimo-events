@@ -77,7 +77,16 @@ export default function InviteRsvpPage({ params }: any) {
   const CANVAS_WIDTH = 390;
   const CANVAS_HEIGHT = 700;
 
-  const NOTES_OPTIONS = ["כשר מחפוד", "טבעוני", "אלרגיות", "נגישות", "אחר"];
+  const NOTES_OPTIONS = [
+  "כשר מחפוד",
+  "טבעוני",
+  "צמחוני",
+  "אלרגיות",
+  "מנת ילדים",
+  "אחר"
+];
+
+
   const [shareId, setShareId] = useState<string | null>(null);
 
   /* ============================================================
