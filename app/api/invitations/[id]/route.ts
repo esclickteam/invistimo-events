@@ -100,47 +100,51 @@ export async function PUT(
 
     const body = await request.json();
 
-    const { title, eventType, eventDate, eventTime, canvasData, location } =
-      body;
+const {
+  title,
+  eventType,
+  eventDate,
+  eventTime,
+  canvasData,
+  location,
+  invitationSettings,
+} = body;
 
-    const updatePayload: any = {
-      updatedAt: new Date(),
-    };
+const updatePayload: any = {
+  updatedAt: new Date(),
+};
 
-    if (typeof title === "string" && title.trim()) {
-      updatePayload.title = title.trim();
-    }
+if (typeof title === "string" && title.trim()) {
+  updatePayload.title = title.trim();
+}
 
-    if (typeof eventType === "string" && eventType.trim()) {
-      updatePayload.eventType = eventType.trim();
-    }
+if (typeof eventType === "string" && eventType.trim()) {
+  updatePayload.eventType = eventType.trim();
+}
 
-    if (eventDate) {
-      updatePayload.eventDate = new Date(eventDate);
-    }
+if (eventDate) {
+  updatePayload.eventDate = new Date(eventDate);
+}
 
-    if (typeof eventTime === "string" && eventTime.trim()) {
-      updatePayload.eventTime = eventTime;
-    }
+if (typeof eventTime === "string" && eventTime.trim()) {
+  updatePayload.eventTime = eventTime;
+}
 
-    if (
-      location &&
-      ((typeof location.address === "string" && location.address.trim()) ||
-        location.lat !== undefined ||
-        location.lng !== undefined)
-    ) {
-      updatePayload.location = {
-        name: typeof location.name === "string" ? location.name.trim() : "",
-        address:
-          typeof location.address === "string" ? location.address.trim() : "",
-        lat: typeof location.lat === "number" ? location.lat : null,
-        lng: typeof location.lng === "number" ? location.lng : null,
-      };
-    }
+if (canvasData !== undefined) {
+  updatePayload.canvasData = canvasData;
+}
 
-    if (canvasData !== undefined) {
-      updatePayload.canvasData = canvasData;
-    }
+/* ⭐️ זה מה שחסר לך */
+if (invitationSettings !== undefined) {
+  const existing = await Invitation.findById(id).select("invitationSettings").lean();
+
+  updatePayload.invitationSettings = {
+    ...(existing?.invitationSettings || {}),
+    ...invitationSettings,
+  };
+}
+
+
 
     const updated = await Invitation.findByIdAndUpdate(
       id,
