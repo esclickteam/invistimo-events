@@ -109,7 +109,8 @@ export default function PublicInvitePage({ params }: any) {
      Active dynamic options
   ========================= */
   const activeMenuOptions = useMemo(() => {
-    if (!event?.invitationSettings?.menuOptions) return [];
+    if (!invite?.invitationSettings?.menuOptions) return [];
+
 
     const labels: Record<string, string> = {
       vegetarian: "צמחוני",
@@ -119,16 +120,20 @@ export default function PublicInvitePage({ params }: any) {
       kosher: "כשר",
     };
 
-    return Object.entries(event.invitationSettings.menuOptions)
+    return Object.entries(invite.invitationSettings.menuOptions)
+
       .filter(([_, enabled]) => enabled)
       .map(([key]) => labels[key]);
-  }, [event]);
+  }, [invite]);
+
 
   const customOptions =
-    event?.invitationSettings?.customOptions ?? [];
+  invite?.invitationSettings?.customOptions ?? [];
+
 
   const allowGuestNote =
-    event?.invitationSettings?.allowGuestNote ?? false;
+  invite?.invitationSettings?.allowGuestNote ?? false;
+
 
   /* =========================
      Submit
