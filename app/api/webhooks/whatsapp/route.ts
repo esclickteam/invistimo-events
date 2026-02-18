@@ -1,20 +1,83 @@
 import { NextResponse } from "next/server";
+import db from "@/lib/db";
+import WhatsappQueue from "@/models/WhatsappQueue";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * WhatsApp Webhook
+ * - NEVER do heavy logic here
+ * - ALWAYS return 200 fast
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // ⚠️ חשוב: לא לעשות כאן לוגיקה כבדה
-    // רק לוג / שמירה קצרה / enqueue
+    await db();
 
-    console.log("📩 WhatsApp Webhook:", JSON.stringify(body));
+    /**
+     * מבנה webhook של WhatsApp (360dialog / Meta):
+     * body.entry[].changes[].value.statuses[]
+     */
+    const entries = body?.entry ?? [];
 
-    // תמיד להחזיר 200 מהר
+    for (const entry of entries) {
+      const changes = entry?.changes ?? [];
+
+      for (const change of changes) {
+        const statuses = change?.value?.statuses ?? [];
+
+        for (const status of statuses) {
+          const wamid = status.id;
+          const state = status.status; // sent | delivered | read | failed
+          const timestamp = status.timestamp
+            ? new Date(Number(status.timestamp) * 1000)
+            : new Date();
+
+          if (!wamid || !state) continue;
+
+          // 🎯 delivered / read
+          if (state === "delivered" || state === "read") {
+            await WhatsappQueue.updateOne(
+              { wamid },
+              {
+                $set: {
+                  status: "delivered",
+                  deliveredAt: timestamp,
+                },
+              }
+            );
+          }
+
+          // ❌ failed
+          if (state === "failed") {
+            const errorCode =
+              status?.errors?.[0]?.code ??
+              status?.errors?.[0]?.error_code ??
+              null;
+
+            await WhatsappQueue.updateOne(
+              { wamid },
+              {
+                $set: {
+                  status: "failed",
+                  errorCode,
+                  failedAt: timestamp,
+                },
+              }
+            );
+          }
+        }
+      }
+    }
+
+    // ⚠️ תמיד להחזיר 200
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("❌ Webhook error", err);
-    return NextResponse.json({ ok: true }); // גם בשגיאה – 200
+    console.error("❌ WhatsApp Webhook error", err);
+
+    // גם בשגיאה – מחזירים 200 כדי ש-WhatsApp לא ינסה שוב
+    return NextResponse.json({ ok: true });
   }
 }
