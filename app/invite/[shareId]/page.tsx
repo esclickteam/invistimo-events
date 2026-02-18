@@ -6,7 +6,7 @@ import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
 
 /* ============================================================
-   MENU LABELS (מה שמוגדר בדשבורד)
+   MENU LABELS
 ============================================================ */
 
 const MENU_LABELS: Record<string, string> = {
@@ -81,37 +81,38 @@ export default function PublicInvitePage({ params }: any) {
   const router = useRouter();
 
   const [shareId, setShareId] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
   const [invite, setInvite] = useState<any>(null);
   const [event, setEvent] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
+
+  const [loading, setLoading] = useState(true);
   const [sent, setSent] = useState(false);
 
-  const [form, setForm] = useState<{
-    rsvp: "yes" | "no" | "pending";
-    arrivedCount: number;
-    notes: string[];
-  }>({
-    rsvp: "pending",
+  const [form, setForm] = useState({
+    rsvp: "pending" as "yes" | "no" | "pending",
     arrivedCount: 1,
-    notes: [],
+    notes: [] as string[],
   });
 
   /* ============================================================
-     UNWRAP PARAMS
+     UNWRAP PARAMS + TOKEN
   ============================================================ */
 
   useEffect(() => {
-    async function unwrap() {
+    (async () => {
       const resolved = await params;
       setShareId(resolved.shareId);
-    }
-    unwrap();
+
+      const sp = new URLSearchParams(window.location.search);
+      const t = sp.get("token");
+      if (t) setToken(t);
+    })();
   }, [params]);
 
   /* ============================================================
-     LOAD INVITATION
+     LOAD INVITATION + GUEST
   ============================================================ */
 
   useEffect(() => {
@@ -119,12 +120,33 @@ export default function PublicInvitePage({ params }: any) {
 
     async function fetchInvite() {
       try {
-        const res = await fetch(`/api/invite/${shareId}`);
+        const res = await fetch(
+          `/api/invite/${shareId}${token ? `?token=${token}` : ""}`
+        );
         const data = await res.json();
 
-        if (data.success && data.invitation && data.event) {
+        if (data.success) {
           setInvite(data.invitation);
           setEvent(data.event);
+
+          if (data.guest) {
+            setSelectedGuest(data.guest);
+
+            // אם כבר יש RSVP – נטעין אותו
+            if (data.guest.rsvp) {
+              setForm((f) => ({
+                ...f,
+                rsvp: data.guest.rsvp,
+                arrivedCount:
+                  typeof data.guest.arrivedCount === "number"
+                    ? data.guest.arrivedCount
+                    : 1,
+                notes: Array.isArray(data.guest.notes)
+                  ? data.guest.notes
+                  : [],
+              }));
+            }
+          }
         } else {
           setInvite(null);
         }
@@ -136,7 +158,7 @@ export default function PublicInvitePage({ params }: any) {
     }
 
     fetchInvite();
-  }, [shareId]);
+  }, [shareId, token]);
 
   /* ============================================================
      ACTIVE MENU OPTIONS
@@ -152,7 +174,7 @@ export default function PublicInvitePage({ params }: any) {
         key,
         label: MENU_LABELS[key],
       }))
-      .filter((item) => item.label);
+      .filter((x) => x.label);
   }, [invite]);
 
   const giftOptions = useMemo(() => invite?.giftOptions, [invite]);
@@ -189,13 +211,13 @@ export default function PublicInvitePage({ params }: any) {
     }
   }
 
-  if (loading) return <div className="p-10 text-center">טוען הזמנה…</div>;
-  if (!invite)
-    return <div className="p-10 text-center text-red-600">❌ ההזמנה לא נמצאה</div>;
-
   /* ============================================================
      RENDER
   ============================================================ */
+
+  if (loading) return <div className="p-10 text-center">טוען הזמנה…</div>;
+  if (!invite)
+    return <div className="p-10 text-center text-red-600">❌ ההזמנה לא נמצאה</div>;
 
   return (
     <div className="min-h-screen bg-[#faf9f6]">
@@ -223,7 +245,7 @@ export default function PublicInvitePage({ params }: any) {
                 onClick={() =>
                   setForm({ ...form, rsvp: "yes", arrivedCount: 1 })
                 }
-                className={`flex-1 py-3 rounded-full font-medium border ${
+                className={`flex-1 py-3 rounded-full border ${
                   form.rsvp === "yes"
                     ? "bg-[#c3b28b] text-white border-[#c3b28b]"
                     : "border-[#d1c7b4] text-[#6b6046]"
@@ -237,7 +259,7 @@ export default function PublicInvitePage({ params }: any) {
                 onClick={() =>
                   setForm({ ...form, rsvp: "no", arrivedCount: 0 })
                 }
-                className={`flex-1 py-3 rounded-full font-medium border ${
+                className={`flex-1 py-3 rounded-full border ${
                   form.rsvp === "no"
                     ? "bg-[#b88a8a] text-white border-[#b88a8a]"
                     : "border-[#d1c7b4] text-[#6b6046]"
