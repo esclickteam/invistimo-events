@@ -15,7 +15,9 @@ export default function EditEventPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        /* ===== Load Event ===== */
+        /* =========================
+           1️⃣ Load Event
+        ========================= */
         const eventRes = await fetch("/api/events", {
           credentials: "include",
           cache: "no-store",
@@ -33,22 +35,27 @@ export default function EditEventPage() {
         const loadedEvent = eventData.event;
         setEvent(loadedEvent);
 
-        /* ===== Load Invitation (לפי eventId) ===== */
+        /* =========================
+           2️⃣ Load Invitation BY eventId
+        ========================= */
         const invitationRes = await fetch(
-          `/api/invitations/${loadedEvent._id}`,
-          {
-            credentials: "include",
-            cache: "no-store",
-          }
-        );
+  `/api/invitations/by-event/${loadedEvent._id}`,
+  {
+    credentials: "include",
+    cache: "no-store",
+  }
+);
 
-        if (invitationRes.ok) {
-          const invitationData = await invitationRes.json();
-          if (invitationData?.success) {
-            setInvitation(invitationData.invitation);
-          }
+        if (!invitationRes.ok) {
+          setLoading(false);
+          return;
         }
 
+        const invitationData = await invitationRes.json();
+
+        if (invitationData?.success) {
+          setInvitation(invitationData.invitation);
+        }
       } catch (err) {
         console.error("❌ Failed to load page data:", err);
       } finally {
@@ -59,6 +66,9 @@ export default function EditEventPage() {
     loadData();
   }, []);
 
+  /* =========================
+     Loading
+  ========================= */
   if (loading) {
     return (
       <div className="p-10 text-center text-gray-500">
@@ -75,6 +85,9 @@ export default function EditEventPage() {
     );
   }
 
+  /* =========================
+     Render
+  ========================= */
   return (
     <div className="max-w-7xl mx-auto p-6 md:p-10" dir="rtl">
       {/* Back */}
@@ -89,20 +102,20 @@ export default function EditEventPage() {
         ✏️ עריכת אירוע
       </h1>
 
-      {/* Grid Layout */}
+      {/* Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        
+
+        {/* צד שמאל – הגדרות הזמנה */}
+        <div>
+          <EventInvitationSettings invitationId={invitation._id} />
+        </div>
+
         {/* צד ימין – פרטי האירוע */}
         <div>
           <EventDetailsForm
             event={event}
             onSaved={() => router.refresh()}
           />
-        </div>
-
-        {/* צד שמאל – הגדרות הזמנה */}
-        <div>
-          <EventInvitationSettings invitationId={invitation._id} />
         </div>
 
       </div>
