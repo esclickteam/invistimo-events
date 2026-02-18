@@ -7,6 +7,33 @@ import Event from "@/models/Event";
 export const dynamic = "force-dynamic";
 
 /* ============================================================
+   Helpers
+============================================================ */
+
+function toBool(v: unknown) {
+  return v === true || v === "true" || v === 1 || v === "1";
+}
+
+function cleanStr(v: unknown) {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeGiftOptions(raw: any) {
+  const creditEnabled = toBool(raw?.creditEnabled);
+  const payboxEnabled = toBool(raw?.payboxEnabled);
+
+  const creditUrl = creditEnabled ? cleanStr(raw?.creditUrl) : "";
+  const payboxUrl = payboxEnabled ? cleanStr(raw?.payboxUrl) : "";
+
+  return {
+    creditEnabled,
+    creditUrl,
+    payboxEnabled,
+    payboxUrl,
+  };
+}
+
+/* ============================================================
    GET — קבלת הזמנה לפי shareId
    אם מגיע token => מאתרים אורח לפי token + invitationId
    מחזירים invitation + event + guest (אם קיים)
@@ -43,6 +70,14 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    /* ============================================================
+       ✅ נרמול giftOptions כדי שה-Frontend יקבל תמיד מבנה עקבי
+    ============================================================ */
+    const safeInvitation = {
+      ...invitation,
+      giftOptions: normalizeGiftOptions((invitation as any)?.giftOptions),
+    };
 
     /* ============================================================
        2) שליפת האירוע (location האמיתי נמצא כאן)
@@ -91,9 +126,9 @@ export async function GET(
     return NextResponse.json(
       {
         success: true,
-        invitation,
+        invitation: safeInvitation, // ✅ כולל giftOptions עקבי
         event, // כולל location עם lat/lng
-        guest, // כולל guestsCount (מוזמנים) + arrivedCount (מגיעים)
+        guest, // arrivedCount תמיד קיים
       },
       { status: 200 }
     );

@@ -13,6 +13,23 @@ const LocationSchema = new Schema(
   { _id: false }
 );
 
+/* ================= GIFT OPTIONS SUB-SCHEMA ================= */
+
+const GiftOptionsSchema = new Schema(
+  {
+    // ✅ צ'קבוקס: מתנה באשראי
+    creditEnabled: { type: Boolean, default: false },
+    // קישור לתשלום באשראי
+    creditUrl: { type: String, default: "" },
+
+    // ✅ צ'קבוקס: מתנה ב-PayBox
+    payboxEnabled: { type: Boolean, default: false },
+    // קישור PayBox
+    payboxUrl: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 /* ================= INVITATION SCHEMA ================= */
 
 const InvitationSchema = new Schema(
@@ -122,6 +139,16 @@ const InvitationSchema = new Schema(
       default: 0,
     },
 
+    /* ================= GIFT OPTIONS =================
+       מוצג בעמוד ההזמנה מתחת לאישור הגעה
+       לפי מה שבעל האירוע מפעיל בדשבורד
+    ================================================ */
+
+    giftOptions: {
+      type: GiftOptionsSchema,
+      default: () => ({}),
+    },
+
     /* =====================================================
        ================== SMS STATE ==================
        null  → טרם נשלח
@@ -163,12 +190,40 @@ const InvitationSchema = new Schema(
   }
 );
 
+/* ================= VALIDATIONS (SAFE) =================
+   אם enabled=true אבל אין קישור → לא נכשיל שמירה,
+   אבל נוודא שהקישור נשמר בצורה נקייה.
+   (את ה"השבתה" של הכפתור נעשה ב-UI)
+====================================================== */
+
+InvitationSchema.pre("save", function () {
+  const doc = this as mongoose.Document & {
+    giftOptions?: {
+      creditEnabled?: boolean;
+      creditUrl?: string;
+      payboxEnabled?: boolean;
+      payboxUrl?: string;
+    };
+  };
+
+  const g = doc.giftOptions ?? {};
+
+  g.creditUrl = (g.creditUrl ?? "").trim();
+  g.payboxUrl = (g.payboxUrl ?? "").trim();
+
+  if (!g.creditEnabled) g.creditUrl = "";
+  if (!g.payboxEnabled) g.payboxUrl = "";
+
+  doc.giftOptions = g;
+});
+
 /* ================= INDEXES ================= */
 
 // שלא תהיה יותר מהזמנה אחת לאותו Event
 InvitationSchema.index({ eventId: 1 }, { unique: true });
 
+// אופציונלי: חיפוש מהיר לפי shareId כבר קיים עם index:true
+
 /* ================= MODEL ================= */
 
-export default models.Invitation ||
-  model("Invitation", InvitationSchema);
+export default models.Invitation || model("Invitation", InvitationSchema);

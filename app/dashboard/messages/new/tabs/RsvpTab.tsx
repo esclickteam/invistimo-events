@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
@@ -22,9 +22,15 @@ type Props = {
   headerImageUrl?: string;
 };
 
-const RSVP_ROUND1_TEMPLATE = "rsvp_invitation_media";
-const RSVP_ROUND2_TEMPLATE = "rsvp_reminder_invistimo"; 
+type GiftOptions = {
+  creditEnabled: boolean;
+  creditUrl: string;
+  payboxEnabled: boolean;
+  payboxUrl: string;
+};
 
+const RSVP_ROUND1_TEMPLATE = "rsvp_invitation_media";
+const RSVP_ROUND2_TEMPLATE = "rsvp_reminder_invistimo";
 
 /* ================= HELPERS ================= */
 
@@ -48,6 +54,16 @@ function getRsvpPreviewText({
 מחכים לשמוח איתכם 💖`;
 }
 
+function normalizeGiftOptions(raw: any): GiftOptions {
+  const g = raw ?? {};
+  return {
+    creditEnabled: !!g.creditEnabled,
+    creditUrl: String(g.creditUrl ?? ""),
+    payboxEnabled: !!g.payboxEnabled,
+    payboxUrl: String(g.payboxUrl ?? ""),
+  };
+}
+
 /* ================= COMPONENT ================= */
 
 export default function RsvpTab({
@@ -65,6 +81,21 @@ export default function RsvpTab({
   // 🔒 מצב סבבים מהשרת
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
+
+  // 🎁 Gift options
+  const [giftOptions, setGiftOptions] = useState<GiftOptions>({
+    creditEnabled: false,
+    creditUrl: "",
+    payboxEnabled: false,
+    payboxUrl: "",
+  });
+
+  const [savingGift, setSavingGift] = useState(false);
+  const [giftSaveError, setGiftSaveError] = useState<string>("");
+
+  // debounce timer
+  const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didInitGift = useRef(false);
 
   /* ================= LOAD DATA ================= */
 
@@ -86,12 +117,17 @@ export default function RsvpTab({
         }
 
         const inv = invitationData?.invitation;
+
         if (inv?.rsvpRound1SentAt) {
           setRound1SentAt(new Date(inv.rsvpRound1SentAt));
         }
         if (inv?.rsvpRound2SentAt) {
           setRound2SentAt(new Date(inv.rsvpRound2SentAt));
         }
+
+        // 🎁 load gift options
+        setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
+        didInitGift.current = true;
       } catch (err) {
         console.error("❌ Failed to load RSVP data", err);
       } finally {
@@ -101,6 +137,53 @@ export default function RsvpTab({
 
     loadData();
   }, [invitationId]);
+
+  /* ================= SAVE GIFT OPTIONS (DEBOUNCED) ================= */
+
+  useEffect(() => {
+    if (!didInitGift.current) return;
+
+    // clear old timer
+    if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
+
+    giftSaveTimer.current = setTimeout(async () => {
+      try {
+        setSavingGift(true);
+        setGiftSaveError("");
+
+        const payload: GiftOptions = {
+          creditEnabled: !!giftOptions.creditEnabled,
+          creditUrl: (giftOptions.creditUrl ?? "").trim(),
+          payboxEnabled: !!giftOptions.payboxEnabled,
+          payboxUrl: (giftOptions.payboxUrl ?? "").trim(),
+        };
+
+        // אם כבוי — ננקה URL כדי שלא יבלבל
+        if (!payload.creditEnabled) payload.creditUrl = "";
+        if (!payload.payboxEnabled) payload.payboxUrl = "";
+
+        const res = await fetch(`/api/invitations/${invitationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ giftOptions: payload }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "FAILED_TO_SAVE_GIFT_OPTIONS");
+        }
+      } catch (e: any) {
+        console.error("❌ Failed to save giftOptions", e);
+        setGiftSaveError("לא הצלחנו לשמור את הגדרות המתנה. נסי שוב.");
+      } finally {
+        setSavingGift(false);
+      }
+    }, 500);
+
+    return () => {
+      if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
+    };
+  }, [giftOptions, invitationId]);
 
   /* ================= DERIVED ================= */
 
@@ -128,11 +211,7 @@ export default function RsvpTab({
     [eventTitle, eventDate, eventLocation]
   );
 
-  const templateName =
-  round === 1
-    ? RSVP_ROUND1_TEMPLATE
-    : RSVP_ROUND2_TEMPLATE;
-
+  const templateName = round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_ROUND2_TEMPLATE;
 
   if (loading) return <p>טוען אורחים...</p>;
 
@@ -140,7 +219,6 @@ export default function RsvpTab({
 
   return (
     <div className="space-y-6 p-6">
-
       {/* ===== ROUNDS (תמיד לחיצים) ===== */}
       <div className="flex gap-2">
         <button
@@ -171,13 +249,92 @@ export default function RsvpTab({
         readOnly
       />
 
+      {/* ===== 🎁 GIFT OPTIONS ===== */}
+      <div className="rounded-2xl border border-gray-200 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">🎁 אפשרות מתנה בעמוד ההזמנה</h3>
+          <span className="text-xs text-gray-500">
+            {savingGift ? "שומר..." : "נשמר אוטומטית"}
+          </span>
+        </div>
+
+        {giftSaveError && (
+          <p className="text-sm text-red-600">{giftSaveError}</p>
+        )}
+
+        {/* Credit */}
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={giftOptions.creditEnabled}
+            onChange={(e) =>
+              setGiftOptions((prev) => ({
+                ...prev,
+                creditEnabled: e.target.checked,
+                creditUrl: e.target.checked ? prev.creditUrl : "",
+              }))
+            }
+          />
+          <span className="text-sm">מתנה באשראי</span>
+        </label>
+
+        <input
+          type="url"
+          className={`w-full border rounded-xl px-3 py-2 text-sm ${
+            giftOptions.creditEnabled
+              ? "border-gray-300"
+              : "border-gray-200 bg-gray-50 text-gray-400"
+          }`}
+          placeholder="הדביקו קישור לתשלום באשראי"
+          value={giftOptions.creditUrl}
+          disabled={!giftOptions.creditEnabled}
+          onChange={(e) =>
+            setGiftOptions((prev) => ({ ...prev, creditUrl: e.target.value }))
+          }
+        />
+
+        {/* PayBox */}
+        <label className="flex items-center gap-2 pt-1">
+          <input
+            type="checkbox"
+            checked={giftOptions.payboxEnabled}
+            onChange={(e) =>
+              setGiftOptions((prev) => ({
+                ...prev,
+                payboxEnabled: e.target.checked,
+                payboxUrl: e.target.checked ? prev.payboxUrl : "",
+              }))
+            }
+          />
+          <span className="text-sm">מתנה ב-PayBox</span>
+        </label>
+
+        <input
+          type="url"
+          className={`w-full border rounded-xl px-3 py-2 text-sm ${
+            giftOptions.payboxEnabled
+              ? "border-gray-300"
+              : "border-gray-200 bg-gray-50 text-gray-400"
+          }`}
+          placeholder="הדביקו קישור PayBox"
+          value={giftOptions.payboxUrl}
+          disabled={!giftOptions.payboxEnabled}
+          onChange={(e) =>
+            setGiftOptions((prev) => ({ ...prev, payboxUrl: e.target.value }))
+          }
+        />
+
+        <p className="text-xs text-gray-500">
+          יוצג לאורחים מתחת לאישור הגעה רק אם מופעל + יש קישור.
+        </p>
+      </div>
+
       {/* ===== PREVIEW ===== */}
       <WhatsappTemplatePreview
         templateKey="rsvp"
         previewText={previewText}
         headerImageUrl={headerImageUrl}
       />
-
 
       {/* ===== SEND ===== */}
       <SendButton

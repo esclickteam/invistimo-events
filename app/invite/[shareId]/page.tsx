@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
@@ -11,9 +11,61 @@ const NOTES_OPTIONS = [
   "צמחוני",
   "אלרגיות",
   "מנת ילדים",
-  "אחר"
+  "אחר",
 ];
 
+type GiftOptions = {
+  creditEnabled?: boolean;
+  creditUrl?: string;
+  payboxEnabled?: boolean;
+  payboxUrl?: string;
+};
+
+function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
+  const creditUrl = (giftOptions?.creditUrl ?? "").trim();
+  const payboxUrl = (giftOptions?.payboxUrl ?? "").trim();
+
+  const showCredit = !!giftOptions?.creditEnabled && !!creditUrl;
+  const showPaybox = !!giftOptions?.payboxEnabled && !!payboxUrl;
+
+  if (!showCredit && !showPaybox) return null;
+
+  return (
+    <div className="mt-2 rounded-2xl border border-[#e8dfcf] bg-[#faf9f6] p-4">
+      <div className="text-center font-medium text-[#6b6046] mb-3">
+        🎁 רוצים לשמח גם במתנה?
+      </div>
+
+      <div className="flex gap-3">
+        {showCredit && (
+          <a
+            href={creditUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4] hover:bg-[#f5f2ec] transition"
+          >
+            מתנה באשראי
+          </a>
+        )}
+
+        {showPaybox && (
+          <a
+            href={payboxUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4] hover:bg-[#f5f2ec] transition"
+          >
+            מתנה ב-PayBox
+          </a>
+        )}
+      </div>
+
+      <div className="text-[11px] text-center text-[#8a816f] mt-3">
+        הקישור נפתח בחלון חדש
+      </div>
+    </div>
+  );
+}
 
 export default function PublicInvitePage({ params }: any) {
   const router = useRouter();
@@ -27,8 +79,6 @@ export default function PublicInvitePage({ params }: any) {
 
   /* ============================================================
      RSVP FORM STATE
-     ❗ arrivedCount = כמה יגיעו
-     ❗ guestsCount לא קיים כאן יותר
   ============================================================ */
   const [form, setForm] = useState<{
     rsvp: "yes" | "no" | "pending";
@@ -114,7 +164,6 @@ export default function PublicInvitePage({ params }: any) {
 
   /* ============================================================
      שליחת RSVP
-     ❗ שולחים arrivedCount בלבד
   ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -150,6 +199,10 @@ export default function PublicInvitePage({ params }: any) {
       console.error("❌ RSVP error:", err);
     }
   }
+
+  const giftOptions: GiftOptions | undefined = useMemo(() => {
+    return invite?.giftOptions;
+  }, [invite]);
 
   if (loading) {
     return <div className="p-10 text-center">טוען הזמנה…</div>;
@@ -308,6 +361,9 @@ export default function PublicInvitePage({ params }: any) {
             >
               שליחת אישור הגעה
             </button>
+
+            {/* ✅ מתחת לאישור הגעה */}
+            <GiftSection giftOptions={giftOptions} />
           </form>
         ) : (
           <div className="w-full max-w-md bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold text-center">
