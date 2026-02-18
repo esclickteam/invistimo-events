@@ -73,17 +73,24 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
         const data = await res.json();
 
         if (data?.success && data.invitation?.invitationSettings) {
-          setSettings(data.invitation.invitationSettings);
-        } else {
-          setSettings(defaultSettings);
-        }
-      } catch (err) {
-        console.error("Failed loading invitation settings", err);
-        setSettings(defaultSettings);
-      } finally {
-        setLoading(false);
-      }
-    }
+  setSettings({
+    ...defaultSettings,
+    ...data.invitation.invitationSettings,
+    menuOptions: {
+      ...defaultSettings.menuOptions,
+      ...data.invitation.invitationSettings.menuOptions,
+    },
+  });
+} else {
+  setSettings(defaultSettings);
+}
+} catch (err) {
+  console.error("Failed loading invitation settings", err);
+  setSettings(defaultSettings);
+} finally {
+  setLoading(false);
+}
+}
 
     fetchInvitation();
   }, [invitationId]);
