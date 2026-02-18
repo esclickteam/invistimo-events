@@ -359,8 +359,12 @@ export default function RsvpTab({
       </div>
 
       {/* ===== PREVIEW ===== */}
-      <WhatsappTemplatePreview
-  templateKey={templateName} // 👈 מעבירים כמו שהוא
+     <WhatsappTemplatePreview
+  templateKey={
+    templateName === "rsvp_reminder_invistimo"
+      ? "rsvp_reminder"
+      : "rsvp"
+  }
   previewText={previewText}
   headerImageUrl={headerImageUrl}
 />

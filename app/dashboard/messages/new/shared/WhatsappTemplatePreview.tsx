@@ -1,15 +1,10 @@
 "use client";
 
 type Props = {
-  templateKey:
-    | "rsvp_invitation_media"
-    | "rsvp_reminder_invistimo"
-    | "table"
-    | "custom";
-
+  templateKey: "rsvp" | "rsvp_reminder" | "table" | "custom";
   previewText: string;
-  headerImageUrl?: string; // מגיע מה-DB
-  hasGiftButton?: boolean; // רק עבור table
+  headerImageUrl?: string;
+  hasGiftButton?: boolean;
 };
 
 export default function WhatsappTemplatePreview({
@@ -18,8 +13,8 @@ export default function WhatsappTemplatePreview({
   headerImageUrl,
   hasGiftButton,
 }: Props) {
-  const isRsvpRound1 = templateKey === "rsvp_invitation_media";
-  const isRsvpRound2 = templateKey === "rsvp_reminder_invistimo";
+  const isRsvpLike =
+    templateKey === "rsvp" || templateKey === "rsvp_reminder";
 
   return (
     <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl w-[360px]">
@@ -39,8 +34,8 @@ export default function WhatsappTemplatePreview({
         {/* BODY */}
         <div className="p-4">
           <div className="max-w-[92%] mx-auto">
-            {/* ================= HEADER IMAGE – רק סבב 1 ================= */}
-            {isRsvpRound1 && (
+            {/* ================= HEADER IMAGE (סבב 1 + סבב 2) ================= */}
+            {isRsvpLike && (
               headerImageUrl ? (
                 <img
                   src={headerImageUrl}
@@ -54,8 +49,8 @@ export default function WhatsappTemplatePreview({
               )
             )}
 
-            {/* ================= MESSAGE – רק סבב 1 ================= */}
-            {isRsvpRound1 && (
+            {/* ================= MESSAGE ================= */}
+            {isRsvpLike && (
               <div className="bg-[#dcf8c6] border border-gray-200 p-3 text-sm whitespace-pre-wrap leading-relaxed rounded-b-2xl border-t-0">
                 {previewText.split("\n").map((line, i) => (
                   <p key={i}>{line || <span>&nbsp;</span>}</p>
@@ -63,8 +58,8 @@ export default function WhatsappTemplatePreview({
               </div>
             )}
 
-            {/* ================= CTA – סבב 1 + סבב 2 ================= */}
-            {(isRsvpRound1 || isRsvpRound2) && (
+            {/* ================= CTA ================= */}
+            {isRsvpLike && (
               <button
                 disabled
                 className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
