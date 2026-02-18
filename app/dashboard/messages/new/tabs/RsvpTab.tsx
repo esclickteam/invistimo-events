@@ -54,6 +54,17 @@ function getRsvpPreviewText({
 מחכים לשמוח איתכם 💖`;
 }
 
+function getRsvpReminderPreviewText(eventTitle: string) {
+  return `משפחה וחברים יקרים,
+
+תזכורת קצרה לאישור הגעה ל־${eventTitle} 💜
+
+לאישור הגעה לחצו על הכפתור למטה 👇
+
+מחכים לשמוח איתכם 💖`;
+}
+
+
 function normalizeGiftOptions(raw: any): GiftOptions {
   const g = raw ?? {};
   return {
@@ -232,12 +243,19 @@ export default function RsvpTab({
   const previewText = useMemo(() => {
   if (!eventData) return "";
 
-  return getRsvpPreviewText({
-    eventTitle: eventData.title,
-    eventDate: eventData.date,
-    eventLocation: eventData.location,
-  });
-}, [eventData]);
+  // 🟢 סבב 1 – טקסט מלא
+  if (round === 1) {
+    return getRsvpPreviewText({
+      eventTitle: eventData.title,
+      eventDate: eventData.date,
+      eventLocation: eventData.location,
+    });
+  }
+
+  // 🟡 סבב 2 – תזכורת ({{1}} בלבד)
+  return getRsvpReminderPreviewText(eventData.title);
+}, [eventData, round]);
+
 
 
   const templateName = round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_ROUND2_TEMPLATE;
