@@ -120,7 +120,7 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
    
 
       <div className="space-y-3">
-        <h3 className="font-medium text-lg">אפשרויות מנה</h3>
+        <h3 className="font-medium text-lg">הגדרת הערות</h3>
 
         {Object.entries(settings.menuOptions).map(([key, value]) => {
           const typedKey = key as keyof MenuOptions;
