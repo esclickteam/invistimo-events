@@ -59,7 +59,7 @@ export default function EditEventPage() {
   if (!event) {
     return (
       <div className="p-10 text-center text-red-500">
-        לא נמצא אירוע
+       ℹ️ כדי לערוך פרטי אירוע והגדרות – יש ליצור הזמנה קודם.
       </div>
     );
   }
