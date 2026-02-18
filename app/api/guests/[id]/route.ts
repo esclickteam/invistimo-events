@@ -170,23 +170,28 @@ if (typeof data.relation === "string") {
   guest.relation = newRelation;
 
   // רק אם אחרי הטיפול הידני אין groupId
-  if (!guest.groupId && newRelation) {
-    let group = await Group.findOne({
-  invitationId: invitation._id,
-  eventId: invitation.eventId,
-  name: newRelation,
-});
+ if (!guest.groupId && newRelation) {
+  const group = await Group.findOneAndUpdate(
+    {
+      eventId: invitation.eventId,
+      name: newRelation,
+    },
+    {
+      $setOnInsert: {
+        invitationId: invitation._id,
+        eventId: invitation.eventId,
+        name: newRelation,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
 
-    if (!group) {
-  group = await Group.create({
-    invitationId: invitation._id,
-    eventId: invitation.eventId, // ⭐ זה מה שהיה חסר
-    name: newRelation,
-  });
+  guest.groupId = group._id;
 }
 
-    guest.groupId = group._id;
-  }
 }
 
 

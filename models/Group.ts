@@ -10,14 +10,12 @@ const GroupSchema = new Schema(
       type: Types.ObjectId,
       ref: "Event",
       required: true,
-      index: true,
     },
 
     /* 🟡 Legacy – לא להשתמש יותר בלוגיקה */
     invitationId: {
       type: Types.ObjectId,
       ref: "Invitation",
-      index: true,
       default: null,
     },
 
@@ -45,14 +43,14 @@ const GroupSchema = new Schema(
       min: 0,
     },
 
-    /* ⭐️⭐️⭐️ קריטי – שיוך קבוצה לשולחן */
+    /* ⭐️ שיוך קבוצה לשולחן */
     tableId: {
-      type: String, // UUID של השולחן (לא ObjectId!)
+      type: String, // UUID של השולחן (לא ObjectId)
       default: null,
       index: true,
     },
 
-    /* ⭐️ סטטוס הושבה (אופציונלי אבל מומלץ) */
+    /* ⭐️ סטטוס הושבה */
     isSeated: {
       type: Boolean,
       default: false,
@@ -66,8 +64,12 @@ const GroupSchema = new Schema(
 /* ============================================================
    Indexes
 ============================================================ */
-// ✅ מונע כפילויות שם קבוצה לאותו אירוע
-GroupSchema.index({ eventId: 1, name: 1 }, { unique: true });
+
+/* ✅ מונע כפילויות שם קבוצה לאותו אירוע */
+GroupSchema.index(
+  { eventId: 1, name: 1 },
+  { unique: true }
+);
 
 /* ============================================================
    Model Export (Next.js safe)
