@@ -177,11 +177,12 @@ if (typeof data.relation === "string") {
     });
 
     if (!group) {
-      group = await Group.create({
-        invitationId: invitation._id,
-        name: newRelation,
-      });
-    }
+  group = await Group.create({
+    invitationId: invitation._id,
+    eventId: invitation.eventId, // ⭐ זה מה שהיה חסר
+    name: newRelation,
+  });
+}
 
     guest.groupId = group._id;
   }
