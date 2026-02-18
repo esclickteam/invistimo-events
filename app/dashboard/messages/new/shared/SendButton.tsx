@@ -139,12 +139,15 @@ const SendButton: React.FC<Props> = ({
       /* ================= SUCCESS ================= */
 
       if (scheduledAt) {
-        alert("⏱️ ההודעות תוזמנו בהצלחה");
-      } else {
-        alert(
-          `✅ נשלחו ${data.sent ?? audience.length} הודעות בהצלחה`
-        );
-      }
+  alert("⏱️ ההודעות תוזמנו ונכנסו לתהליך שליחה");
+} else {
+  const count = data.queued ?? data.sent ?? audience.length;
+
+  alert(
+    `📤 ${count} הודעות נכנסו לתהליך שליחה ב-WhatsApp`
+  );
+}
+
 
       /* ================= UPDATE PARENT ================= */
 
