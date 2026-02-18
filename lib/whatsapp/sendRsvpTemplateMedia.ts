@@ -1,12 +1,10 @@
-// lib/whatsapp/sendRsvpTemplateMedia.ts
-
 export type SendRsvpTemplateMediaInput = {
   to: string;
 
-  // BODY VARIABLES – ORDER IS CRITICAL
-  eventTitle: string; // {{1}}
-  eventDate: string; // {{2}}
-  eventLocation: string; // {{3}}
+  // BODY VARIABLES
+  eventTitle: string;    // {{1}}
+  eventDate: string;     // {{2}} – סבב 1 בלבד
+  eventLocation: string; // {{3}} – סבב 1 בלבד
 
   /**
    * קישור אישי מלא, לדוגמה:
@@ -14,8 +12,6 @@ export type SendRsvpTemplateMediaInput = {
    *
    * בתבנית Meta הכפתור מוגדר:
    * https://www.invistimo.com/invite/{{1}}
-   * לכן מה שנשלח לכפתור הוא:
-   * INHtag6CZG?token=tSPo8g_1x5Li
    */
   rsvpLink: string;
 
@@ -26,7 +22,10 @@ export type SendRsvpTemplateMediaInput = {
   languageCode?: "he" | "he_IL" | string;
 };
 
-const DEFAULT_TEMPLATE_NAME = "rsvp_invitation_media";
+const ROUND1_TEMPLATE = "rsvp_invitation_media";
+const ROUND2_TEMPLATE = "rsvp_reminder_invistimo";
+
+const DEFAULT_TEMPLATE_NAME = ROUND1_TEMPLATE;
 const DEFAULT_LANGUAGE_CODE = "he";
 const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
 
@@ -68,12 +67,8 @@ function normalizePhoneIL(phone: string): string {
 }
 
 /**
- * מחלץ suffix מלא עבור כפתור URL:
  * https://www.invistimo.com/invite/INHtag6CZG?token=abc
  * => INHtag6CZG?token=abc
- *
- * תואם לתבנית:
- * https://www.invistimo.com/invite/{{1}}
  */
 function extractInviteSuffixForButton(rsvpLink: string): string {
   const u = new URL(rsvpLink.trim());
@@ -88,8 +83,7 @@ function extractInviteSuffixForButton(rsvpLink: string): string {
     );
   }
 
-  const query = u.search || "";
-  const suffix = `${inviteId}${query}`.trim();
+  const suffix = `${inviteId}${u.search || ""}`.trim();
 
   if (!suffix || /\s/.test(suffix)) {
     throw new Error("Invalid rsvpLink: extracted button suffix is invalid");
@@ -102,10 +96,6 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   if (!isNonEmptyString(input.to)) throw new Error("Missing field: to");
   if (!isNonEmptyString(input.eventTitle))
     throw new Error("Missing field: eventTitle");
-  if (!isNonEmptyString(input.eventDate))
-    throw new Error("Missing field: eventDate");
-  if (!isNonEmptyString(input.eventLocation))
-    throw new Error("Missing field: eventLocation");
   if (!isNonEmptyString(input.rsvpLink))
     throw new Error("Missing field: rsvpLink");
   if (!isNonEmptyString(input.headerImageUrl))
@@ -145,14 +135,34 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     throw new Error("Invalid rsvpLink (must be https)");
   }
 
-  // לתבנית:
-  // https://www.invistimo.com/invite/{{1}}
-  // נשלח:
-  // INHtag6CZG?token=...Q
   const buttonUrlParam = extractInviteSuffixForButton(input.rsvpLink);
 
   const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
   const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
+
+  /* ================= BODY PARAMETERS ================= */
+
+  let bodyParameters: { type: "text"; text: string }[] = [];
+
+  if (templateName === ROUND1_TEMPLATE) {
+    // 🟢 סבב 1 – 3 משתנים
+    bodyParameters = [
+      { type: "text", text: normalizeTemplateText(input.eventTitle) },    // {{1}}
+      { type: "text", text: normalizeTemplateText(input.eventDate) },     // {{2}}
+      { type: "text", text: normalizeTemplateText(input.eventLocation) }, // {{3}}
+    ];
+  } else if (templateName === ROUND2_TEMPLATE) {
+    // 🟡 סבב 2 – משתנה אחד בלבד
+    bodyParameters = [
+      { type: "text", text: normalizeTemplateText(input.eventTitle) }, // {{1}}
+    ];
+  } else {
+    throw new Error(
+      `Unsupported templateName "${templateName}". No BODY mapping defined.`
+    );
+  }
+
+  /* ================= PAYLOAD ================= */
 
   const payload = {
     messaging_product: "whatsapp",
@@ -173,11 +183,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
         },
         {
           type: "body",
-          parameters: [
-            { type: "text", text: normalizeTemplateText(input.eventTitle) }, // {{1}}
-            { type: "text", text: normalizeTemplateText(input.eventDate) }, // {{2}}
-            { type: "text", text: normalizeTemplateText(input.eventLocation) }, // {{3}}
-          ],
+          parameters: bodyParameters,
         },
         {
           type: "button",
