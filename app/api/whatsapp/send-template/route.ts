@@ -14,9 +14,11 @@ export const dynamic = "force-dynamic";
 
 type TemplateName =
   | "rsvp_invitation_media"
+  | "rsvp_reminder_invistimo"   
   | "table_number_update_invistimo"
   | "table_number_update_with_gift"
   | "thank_you_message";
+
 
 type SendTemplateRequestBody = {
   invitationId?: string;
@@ -44,11 +46,13 @@ function safeTrim(v: unknown): string {
 function isTemplateName(value: unknown): value is TemplateName {
   return (
     value === "rsvp_invitation_media" ||
+    value === "rsvp_reminder_invistimo" || 
     value === "table_number_update_invistimo" ||
     value === "table_number_update_with_gift" ||
     value === "thank_you_message"
   );
 }
+
 
 /* ================= ROUTE ================= */
 
@@ -76,7 +80,11 @@ export async function POST(req: NextRequest) {
    RSVP – BULK WHATSAPP
 ===================================================== */
 
-if (templateName === "rsvp_invitation_media") {
+if (
+  templateName === "rsvp_invitation_media" ||
+  templateName === "rsvp_reminder_invistimo"
+) {
+
   if (
     !isNonEmptyString(body.invitationId) ||
     !Array.isArray(body.audience) ||
@@ -107,19 +115,36 @@ if (templateName === "rsvp_invitation_media") {
 
   let round: 1 | 2;
 
-  if (!invitation.rsvpRound1SentAt) {
-    round = 1;
-  } else if (!invitation.rsvpRound2SentAt) {
-    round = 2;
-  } else {
+if (templateName === "rsvp_invitation_media") {
+  round = 1;
+
+  if (invitation.rsvpRound1SentAt) {
     return NextResponse.json(
-      {
-        success: false,
-        error: "RSVP_ROUNDS_COMPLETED",
-      },
+      { success: false, error: "RSVP_ROUND1_ALREADY_SENT" },
       { status: 409 }
     );
   }
+
+} else {
+  round = 2;
+
+  // 🚫 אי אפשר לשלוח סבב 2 לפני סבב 1
+  if (!invitation.rsvpRound1SentAt) {
+    return NextResponse.json(
+      { success: false, error: "ROUND1_NOT_SENT_YET" },
+      { status: 400 }
+    );
+  }
+
+  if (invitation.rsvpRound2SentAt) {
+    return NextResponse.json(
+      { success: false, error: "RSVP_ROUND2_ALREADY_SENT" },
+      { status: 409 }
+    );
+  }
+}
+
+
 
   const guests = await InvitationGuest.find({
     invitationId: invitation._id,

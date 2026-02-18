@@ -22,7 +22,9 @@ type Props = {
   headerImageUrl?: string;
 };
 
-const RSVP_TEMPLATE_NAME = "rsvp_invitation_media";
+const RSVP_ROUND1_TEMPLATE = "rsvp_invitation_media";
+const RSVP_ROUND2_TEMPLATE = "rsvp_reminder_invistimo"; 
+
 
 /* ================= HELPERS ================= */
 
@@ -126,6 +128,12 @@ export default function RsvpTab({
     [eventTitle, eventDate, eventLocation]
   );
 
+  const templateName =
+  round === 1
+    ? RSVP_ROUND1_TEMPLATE
+    : RSVP_ROUND2_TEMPLATE;
+
+
   if (loading) return <p>טוען אורחים...</p>;
 
   /* ================= UI ================= */
@@ -176,7 +184,7 @@ export default function RsvpTab({
         channel="whatsapp"
         type="rsvp"
         invitationId={invitationId}
-        templateName={RSVP_TEMPLATE_NAME}
+        templateName={templateName}
         audience={guestsToSend.map((g) => g._id)}
         scheduledAt={scheduledAt}
         disabled={blocked}
