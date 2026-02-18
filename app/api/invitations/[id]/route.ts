@@ -41,6 +41,9 @@ function normalizeGiftOptions(input: any) {
 /* ============================================================
    📥 GET — שליפת הזמנה לפי מזהה
 ============================================================ */
+/* ============================================================
+   📥 GET — שליפת הזמנה לפי invitationId או eventId
+============================================================ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -57,7 +60,12 @@ export async function GET(
       );
     }
 
-    const invitation = await Invitation.findById(id).populate("guests").lean();
+    // 🔥 חיפוש חכם: קודם לפי _id, אם לא נמצא — לפי eventId
+    let invitation =
+      (await Invitation.findById(id).populate("guests").lean()) ||
+      (await Invitation.findOne({ eventId: id })
+        .populate("guests")
+        .lean());
 
     if (!invitation) {
       return NextResponse.json(
@@ -78,6 +86,7 @@ export async function GET(
     );
   }
 }
+
 
 /* ============================================================
    💾 PUT — עדכון הזמנה קיימת (עדכון כללי)
