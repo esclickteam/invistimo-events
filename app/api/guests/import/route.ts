@@ -55,11 +55,16 @@ if (!Array.isArray(guests)) {
       .lean();
 
     if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
+  return NextResponse.json(
+    {
+      success: false,
+      error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
+      code: "NO_INVITATION",
+    },
+    { status: 404 }
+  );
+}
+
 
     const ownerId = invitation.ownerId ? String((invitation as any).ownerId) : null;
     const producerId = invitation.producerId ? String((invitation as any).producerId) : null;
