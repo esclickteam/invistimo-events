@@ -82,6 +82,14 @@ export default function RsvpTab({
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
 
+    // 📅 נתוני אירוע ל־Preview (חדש)
+  const [eventData, setEventData] = useState<{
+    title: string;
+    date: string;
+    location: string;
+  } | null>(null);
+
+
   // 🎁 Gift options
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
     creditEnabled: false,
@@ -128,6 +136,20 @@ export default function RsvpTab({
         // 🎁 load gift options
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
+
+        if (inv) {
+  setEventData({
+    title: inv.title ?? eventTitle,
+    date: inv.eventDate
+      ? new Date(inv.eventDate).toLocaleDateString("he-IL")
+      : eventDate,
+    location: inv.location?.address ?? eventLocation,
+  });
+}
+
+
+
+
       } catch (err) {
         console.error("❌ Failed to load RSVP data", err);
       } finally {
@@ -136,7 +158,8 @@ export default function RsvpTab({
     }
 
     loadData();
-  }, [invitationId]);
+  }, [invitationId, eventTitle, eventDate, eventLocation]);
+
 
   /* ================= SAVE GIFT OPTIONS (DEBOUNCED) ================= */
 
@@ -206,10 +229,16 @@ export default function RsvpTab({
     (round === 1 && !!round1SentAt) ||
     (round === 2 && !!round2SentAt);
 
-  const previewText = useMemo(
-    () => getRsvpPreviewText({ eventTitle, eventDate, eventLocation }),
-    [eventTitle, eventDate, eventLocation]
-  );
+  const previewText = useMemo(() => {
+  if (!eventData) return "";
+
+  return getRsvpPreviewText({
+    eventTitle: eventData.title,
+    eventDate: eventData.date,
+    eventLocation: eventData.location,
+  });
+}, [eventData]);
+
 
   const templateName = round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_ROUND2_TEMPLATE;
 
