@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
 
 /* ============================================================
-   MENU LABELS
+   MENU LABELS (מה שמוגדר בדשבורד)
 ============================================================ */
 
 const MENU_LABELS: Record<string, string> = {
@@ -16,7 +16,7 @@ const MENU_LABELS: Record<string, string> = {
   childrenMeal: "מנת ילדים",
   kosher: "כשר",
   kosherGlatt: "כשר גלאט",
-  kosherMahfoud: "כשר מחפוד",
+  kosherMahfoud: "כשר מחפוד", // ✅ חדש
   transportation: "הסעות",
 };
 
@@ -83,9 +83,6 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
 
 export default function PublicInvitePage({ params }: any) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const token = searchParams.get("token");
 
   const [shareId, setShareId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
@@ -95,11 +92,17 @@ export default function PublicInvitePage({ params }: any) {
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [sent, setSent] = useState(false);
 
-  const [form, setForm] = useState({
-    rsvp: "pending" as "yes" | "no" | "pending",
+  const [form, setForm] = useState<{
+    rsvp: "yes" | "no" | "pending";
+    arrivedCount: number;
+    notes: string[];
+  }>({
+    rsvp: "pending",
     arrivedCount: 1,
-    notes: [] as string[],
+    notes: [],
   });
+
+  const [guestsOpen, setGuestsOpen] = useState(false);
 
   /* ============================================================
      UNWRAP PARAMS
@@ -114,7 +117,7 @@ export default function PublicInvitePage({ params }: any) {
   }, [params]);
 
   /* ============================================================
-     LOAD INVITATION + GUEST
+     LOAD INVITATION
   ============================================================ */
 
   useEffect(() => {
@@ -122,16 +125,12 @@ export default function PublicInvitePage({ params }: any) {
 
     async function fetchInvite() {
       try {
-        const res = await fetch(
-          `/api/invite/${shareId}${token ? `?token=${token}` : ""}`
-        );
-
+        const res = await fetch(`/api/invite/${shareId}`);
         const data = await res.json();
 
         if (data.success && data.invitation && data.event) {
           setInvite(data.invitation);
           setEvent(data.event);
-          setSelectedGuest(data.guest || null);
         } else {
           setInvite(null);
           setEvent(null);
@@ -145,10 +144,10 @@ export default function PublicInvitePage({ params }: any) {
     }
 
     fetchInvite();
-  }, [shareId, token]);
+  }, [shareId]);
 
   /* ============================================================
-     ACTIVE MENU OPTIONS
+     ACTIVE MENU OPTIONS (רק מה שסומן בדשבורד)
   ============================================================ */
 
   const activeMenuOptions = useMemo(() => {
@@ -175,7 +174,7 @@ export default function PublicInvitePage({ params }: any) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!token || !selectedGuest?.token) {
+    if (!selectedGuest?.token) {
       alert("שגיאה בזיהוי האורח");
       return;
     }
@@ -208,10 +207,6 @@ export default function PublicInvitePage({ params }: any) {
     }
   }
 
-  /* ============================================================
-     STATES
-  ============================================================ */
-
   if (loading) {
     return <div className="p-10 text-center">טוען הזמנה…</div>;
   }
@@ -224,14 +219,6 @@ export default function PublicInvitePage({ params }: any) {
     );
   }
 
-  if (!token) {
-    return (
-      <div className="p-10 text-center text-red-600">
-        ❌ קישור לא תקין – נא להיכנס מההודעה שקיבלתם
-      </div>
-    );
-  }
-
   /* ============================================================
      RENDER
   ============================================================ */
@@ -240,6 +227,7 @@ export default function PublicInvitePage({ params }: any) {
     <div className="min-h-screen w-full overflow-y-auto bg-[#faf9f6]">
       <div className="flex flex-col items-center py-10 pb-32">
 
+        {/* עיצוב ההזמנה */}
         <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
           {invite.canvasData ? (
             <PublicInviteRenderer canvasData={invite.canvasData} />
@@ -250,6 +238,7 @@ export default function PublicInvitePage({ params }: any) {
           )}
         </div>
 
+        {/* טופס אישור הגעה */}
         {!sent ? (
           <form
             onSubmit={handleSubmit}
@@ -259,6 +248,7 @@ export default function PublicInvitePage({ params }: any) {
               נשמח לראותך באירוע!
             </div>
 
+            {/* מגיע / לא מגיע */}
             <div className="flex gap-4">
               <button
                 type="button"
@@ -333,6 +323,7 @@ export default function PublicInvitePage({ params }: any) {
           </div>
         )}
 
+        {/* כרטיס מיקום */}
         <div className="w-full flex justify-center">
           <EventLocationCard location={event?.location} />
         </div>

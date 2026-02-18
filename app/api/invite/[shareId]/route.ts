@@ -34,9 +34,11 @@ function normalizeGiftOptions(raw: any) {
 }
 
 /* ============================================================
-   GET
+   GET — קבלת הזמנה לפי shareId
+   אם מגיע token => מאתרים אורח לפי token + invitationId
+   מחזירים invitation + event + guest (אם קיים)
+   ❗️ GET בלבד — לא משנה נתונים
 ============================================================ */
-
 export async function GET(
   req: Request,
   context: { params: Promise<{ shareId: string }> }
@@ -48,52 +50,51 @@ export async function GET(
 
     if (!shareId || typeof shareId !== "string") {
       return NextResponse.json(
-        { success: false, error: "INVALID_SHARE_ID" },
+        { success: false, error: "Missing or invalid shareId" },
         { status: 400 }
       );
     }
 
+    // token מה-URL: /invite/:shareId?token=...
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("token");
 
     /* ============================================================
-       1) Invitation
+       1) שליפת ההזמנה (בלי populate)
     ============================================================ */
-
     const invitation = await Invitation.findOne({ shareId }).lean();
 
     if (!invitation) {
       return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
+        { success: false, error: "Invitation not found" },
         { status: 404 }
       );
     }
 
+    /* ============================================================
+       ✅ נרמול giftOptions כדי שה-Frontend יקבל תמיד מבנה עקבי
+    ============================================================ */
     const safeInvitation = {
       ...invitation,
-      giftOptions: normalizeGiftOptions(
-        (invitation as any)?.giftOptions
-      ),
+      giftOptions: normalizeGiftOptions((invitation as any)?.giftOptions),
     };
 
     /* ============================================================
-       2) Event
+       2) שליפת האירוע (location האמיתי נמצא כאן)
     ============================================================ */
-
     const event = await Event.findById(invitation.eventId).lean();
 
     if (!event) {
       return NextResponse.json(
-        { success: false, error: "EVENT_NOT_FOUND" },
+        { success: false, error: "Event not found" },
         { status: 404 }
       );
     }
 
     /* ============================================================
-       3) Guest validation (optional)
+       3) אימות אורח לפי token + invitationId (אם קיים token)
     ============================================================ */
-
-    let guest = null;
+    let guest: any = null;
 
     if (token) {
       const foundGuest = await InvitationGuest.findOne({
@@ -108,37 +109,33 @@ export async function GET(
         );
       }
 
+      // ✅ נרמול עקבי ל־Frontend:
+      // arrivedCount תמיד קיים (לפני RSVP = 0)
       guest = {
-        _id: foundGuest._id,
-        token: foundGuest.token, // ✅ מבטיח שהטוקן חוזר
-        name: foundGuest.name,
-        phone: foundGuest.phone,
-        rsvp: foundGuest.rsvp || "pending",
+        ...foundGuest,
         arrivedCount:
           typeof foundGuest.arrivedCount === "number"
             ? foundGuest.arrivedCount
             : 0,
-        notes: foundGuest.notes || [],
       };
     }
 
     /* ============================================================
        Response
     ============================================================ */
-
     return NextResponse.json(
       {
         success: true,
-        invitation: safeInvitation,
-        event,
-        guest, // יהיה null אם אין token
+        invitation: safeInvitation, // ✅ כולל giftOptions עקבי
+        event, // כולל location עם lat/lng
+        guest, // arrivedCount תמיד קיים
       },
       { status: 200 }
     );
   } catch (err) {
-    console.error("❌ GET /api/invite error:", err);
+    console.error("❌ Error in GET /api/invite/[shareId]:", err);
     return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
+      { success: false, error: "Server error" },
       { status: 500 }
     );
   }
