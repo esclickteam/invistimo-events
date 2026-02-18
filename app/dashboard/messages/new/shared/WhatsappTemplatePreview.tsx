@@ -1,7 +1,12 @@
 "use client";
 
 type Props = {
-  templateKey: "rsvp" | "rsvp_reminder" | "table" | "custom";
+  templateKey:
+    | "rsvp_invitation_media"
+    | "rsvp_reminder_invistimo"
+    | "table"
+    | "custom";
+
   previewText: string;
   headerImageUrl?: string; // מגיע מה-DB
   hasGiftButton?: boolean; // רק עבור table
@@ -13,8 +18,8 @@ export default function WhatsappTemplatePreview({
   headerImageUrl,
   hasGiftButton,
 }: Props) {
-  const isRsvp = templateKey === "rsvp";
-  const isRsvpReminder = templateKey === "rsvp_reminder";
+  const isRsvpRound1 = templateKey === "rsvp_invitation_media";
+  const isRsvpRound2 = templateKey === "rsvp_reminder_invistimo";
 
   return (
     <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl w-[360px]">
@@ -34,8 +39,8 @@ export default function WhatsappTemplatePreview({
         {/* BODY */}
         <div className="p-4">
           <div className="max-w-[92%] mx-auto">
-            {/* ================= HEADER IMAGE (RSVP סבב 1 בלבד) ================= */}
-            {isRsvp && (
+            {/* ================= HEADER IMAGE – רק סבב 1 ================= */}
+            {isRsvpRound1 && (
               headerImageUrl ? (
                 <img
                   src={headerImageUrl}
@@ -49,21 +54,17 @@ export default function WhatsappTemplatePreview({
               )
             )}
 
-            {/* ================= MESSAGE ================= */}
-            {!isRsvpReminder && (
-              <div
-                className={`bg-[#dcf8c6] border border-gray-200 p-3 text-sm whitespace-pre-wrap leading-relaxed ${
-                  isRsvp ? "rounded-b-2xl border-t-0" : "rounded-2xl"
-                }`}
-              >
+            {/* ================= MESSAGE – רק סבב 1 ================= */}
+            {isRsvpRound1 && (
+              <div className="bg-[#dcf8c6] border border-gray-200 p-3 text-sm whitespace-pre-wrap leading-relaxed rounded-b-2xl border-t-0">
                 {previewText.split("\n").map((line, i) => (
                   <p key={i}>{line || <span>&nbsp;</span>}</p>
                 ))}
               </div>
             )}
 
-            {/* ================= CTA ================= */}
-            {(isRsvp || isRsvpReminder) && (
+            {/* ================= CTA – סבב 1 + סבב 2 ================= */}
+            {(isRsvpRound1 || isRsvpRound2) && (
               <button
                 disabled
                 className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
@@ -72,6 +73,7 @@ export default function WhatsappTemplatePreview({
               </button>
             )}
 
+            {/* ================= TABLE TEMPLATE ================= */}
             {templateKey === "table" && (
               <div className="mt-2 border-t border-gray-200 bg-white rounded-b-2xl overflow-hidden">
                 <div className="py-3 text-center text-sm text-[#1d6fb8]">
