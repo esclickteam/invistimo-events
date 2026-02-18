@@ -293,11 +293,12 @@ export default function ThankYouTab({
     <div className="space-y-6">
 
       <AudienceFilterSelector
-        value="all"
-        onChange={() => {}}
-        totalCount={guestsToSend.length}
-        readOnly
-      />
+  value="withTable"
+  onChange={() => {}}
+  withTableCount={guestsToSend.length}
+  readOnly
+  allowedFilters={["withTable"]}   // ⭐ רק זה
+/>
 
       {/* EDIT MESSAGE */}
 <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-3">

@@ -12,7 +12,9 @@ type Props = {
   pendingCount?: number;
   withTableCount?: number;
 
-  readOnly?: boolean; // <--- הוסף פרופ קריאה בלבד
+  readOnly?: boolean;
+
+  allowedFilters?: FilterType[]; // ⭐ חדש
 };
 
 /* ================= COMPONENT ================= */
@@ -23,7 +25,8 @@ export default function AudienceFilterSelector({
   totalCount,
   pendingCount,
   withTableCount,
-  readOnly = false, // ברירת מחדל: false
+  readOnly = false,
+  allowedFilters = ["all", "pending", "withTable"], // ברירת מחדל – הכל
 }: Props) {
   return (
     <section>
@@ -31,24 +34,34 @@ export default function AudienceFilterSelector({
 
       <select
         value={value}
-        onChange={(e) => !readOnly && onChange(e.target.value as FilterType)} // אם קריאה בלבד, לא מעדכן
-        disabled={readOnly} // הופך ל-disabled אם קריאה בלבד
+        onChange={(e) =>
+          !readOnly && onChange(e.target.value as FilterType)
+        }
+        disabled={readOnly}
         className="w-full border rounded-xl p-3 text-sm"
       >
-        <option value="all">
-          לכל המוזמנים
-          {typeof totalCount === "number" ? ` (${totalCount})` : ""}
-        </option>
+        {allowedFilters.includes("all") && (
+          <option value="all">
+            לכל המוזמנים
+            {typeof totalCount === "number" ? ` (${totalCount})` : ""}
+          </option>
+        )}
 
-        <option value="pending">
-          למי שטרם ענה
-          {typeof pendingCount === "number" ? ` (${pendingCount})` : ""}
-        </option>
+        {allowedFilters.includes("pending") && (
+          <option value="pending">
+            למי שטרם ענה
+            {typeof pendingCount === "number" ? ` (${pendingCount})` : ""}
+          </option>
+        )}
 
-        <option value="withTable">
-          למי שיש מספר שולחן
-          {typeof withTableCount === "number" ? ` (${withTableCount})` : ""}
-        </option>
+        {allowedFilters.includes("withTable") && (
+          <option value="withTable">
+            למי שיש מספר שולחן
+            {typeof withTableCount === "number"
+              ? ` (${withTableCount})`
+              : ""}
+          </option>
+        )}
       </select>
 
       <p className="text-xs text-gray-500 mt-1">
