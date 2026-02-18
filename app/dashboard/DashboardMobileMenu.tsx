@@ -7,6 +7,7 @@ import { X, Pencil } from "lucide-react";
 type Props = {
   open: boolean;
   onClose: () => void;
+  invitationId?: string;
   invitationShareId?: string;
   isDemo?: boolean;
 };
@@ -14,6 +15,7 @@ type Props = {
 export default function DashboardMobileMenu({
   open,
   onClose,
+  invitationId,
   invitationShareId,
   isDemo = false,
 }: Props) {
@@ -31,6 +33,8 @@ export default function DashboardMobileMenu({
     onClose();
     setShowDemoModal(true);
   };
+
+  const hasInvitation = Boolean(invitationId);
 
   return (
     <>
@@ -50,23 +54,46 @@ export default function DashboardMobileMenu({
           </div>
 
           {/* Navigation */}
-          <nav className="flex flex-col gap-4 text-[#4a413a] font-medium">
+          <nav className="flex flex-col gap-5 text-[#4a413a] font-medium">
 
-           
-
-            {/* 🪑 סידורי הושבה */}
+            {/* 1️⃣ יצירת / עריכת הזמנה */}
             <button
-              onClick={() =>
-                isDemo
-                  ? go("/try/dashboard/seating")
-                  : go("/dashboard/seating")
-              }
+              onClick={() => {
+                if (isDemo) {
+                  demoBlock();
+                  return;
+                }
+
+                go(
+                  hasInvitation
+                    ? `/dashboard/edit-invite/${invitationId}`
+                    : "/dashboard/create-invite"
+                );
+              }}
               className="text-right"
             >
-              🪑 סידורי הושבה
+              {hasInvitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
             </button>
 
-            {/* 👁️ צפייה בהזמנה */}
+            {/* 2️⃣ עריכת פרטי האירוע */}
+            <button
+              disabled={!hasInvitation}
+              onClick={() => {
+                if (!hasInvitation) return;
+                if (isDemo) {
+                  demoBlock();
+                  return;
+                }
+                go("/dashboard/event");
+              }}
+              className={`text-right ${
+                !hasInvitation ? "text-gray-400 cursor-not-allowed" : ""
+              }`}
+            >
+              🛠️ עריכת פרטי האירוע
+            </button>
+
+            {/* 3️⃣ צפייה בהזמנה */}
             {invitationShareId && (
               <button
                 onClick={() =>
@@ -84,31 +111,35 @@ export default function DashboardMobileMenu({
               </button>
             )}
 
-            {/* 🛠️ עריכת פרטי האירוע */}
+            {/* 4️⃣ סידורי הושבה */}
             <button
+              disabled={!hasInvitation}
               onClick={() =>
                 isDemo
-                  ? demoBlock()
-                  : go("/dashboard/event")
+                  ? go("/try/dashboard/seating")
+                  : go("/dashboard/seating")
               }
-              className="flex items-center gap-2 text-right"
+              className={`text-right ${
+                !hasInvitation ? "text-gray-400 cursor-not-allowed" : ""
+              }`}
             >
-              <Pencil size={16} />
-              עריכת פרטי האירוע
+              🪑 סידורי הושבה
             </button>
 
-           {/* 💬 הודעות */}
-<button
-  onClick={() =>
-    isDemo
-      ? go("/try/dashboard/messages")
-      : go("/dashboard/messages")
-  }
-  className="text-right"
->
-  💬 שליחת הודעות
-</button>
-
+            {/* 5️⃣ שליחת הודעות */}
+            <button
+              disabled={!hasInvitation}
+              onClick={() =>
+                isDemo
+                  ? go("/try/dashboard/messages")
+                  : go("/dashboard/messages")
+              }
+              className={`text-right ${
+                !hasInvitation ? "text-gray-400 cursor-not-allowed" : ""
+              }`}
+            >
+              💬 שליחת הודעות
+            </button>
 
           </nav>
         </aside>
