@@ -360,10 +360,15 @@ export default function RsvpTab({
 
       {/* ===== PREVIEW ===== */}
       <WhatsappTemplatePreview
-        templateKey="rsvp"
-        previewText={previewText}
-        headerImageUrl={headerImageUrl}
-      />
+  templateKey={
+    templateName === "rsvp_reminder_invistimo"
+      ? "rsvp_reminder"
+      : "rsvp"
+  }
+  previewText={previewText}
+  headerImageUrl={headerImageUrl}
+/>
+
 
       {/* ===== SEND ===== */}
       <SendButton
