@@ -113,7 +113,7 @@ export default function EditEventPage() {
         {/* צד ימין – פרטי האירוע */}
         <div>
           <EventDetailsForm
-            event={event}
+            event={invitation}
             onSaved={() => router.refresh()}
           />
         </div>
