@@ -172,9 +172,10 @@ if (typeof data.relation === "string") {
   // רק אם אחרי הטיפול הידני אין groupId
   if (!guest.groupId && newRelation) {
     let group = await Group.findOne({
-      invitationId: invitation._id,
-      name: newRelation,
-    });
+  invitationId: invitation._id,
+  eventId: invitation.eventId,
+  name: newRelation,
+});
 
     if (!group) {
   group = await Group.create({
