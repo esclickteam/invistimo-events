@@ -385,9 +385,10 @@ export default function RsvpTab({
 
 {!round1SentAt && !round2SentAt && (
   <p className="text-xs text-gray-500 mb-2 text-center">
-    שליחת הודעות WhatsApp מתבצעת בהדרגה לפי מספר המוזמנים
+    תהליך שליחת הודעות WhatsApp החל. ההודעות נשלחות בהדרגה וייתכן שייקח מספר דקות עד להשלמת התהליך.
   </p>
 )}
+
 
 
       {/* ===== SEND ===== */}
@@ -401,7 +402,7 @@ export default function RsvpTab({
         disabled={blocked}
       >
         {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
-          ? "✅ נשלח"
+          ? "⏳ תהליך שליחה החל"
           : scheduledAt
           ? `⏱️ תזמן אישור הגעה – סבב ${round}`
           : `📲 שלח אישור הגעה – סבב ${round}`}
