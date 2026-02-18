@@ -161,12 +161,19 @@ export default function EventDetailsForm({
       invitationSettings: form.invitationSettings,
     };
 
-    const res = await fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(`/api/invitations/${event._id}`, {
+  method: "PUT",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    title: form.title.trim(),
+    eventType: form.eventType,
+    eventDate: form.date,
+    eventTime: form.time,
+    location: form.location,
+    invitationSettings: form.invitationSettings,
+  }),
+});
 
     const data = await res.json();
 

@@ -123,11 +123,11 @@ if (typeof eventType === "string" && eventType.trim()) {
 }
 
 if (eventDate) {
-  updatePayload.eventDate = new Date(eventDate);
+  updatePayload.date = new Date(eventDate);
 }
 
 if (typeof eventTime === "string" && eventTime.trim()) {
-  updatePayload.eventTime = eventTime;
+  updatePayload.time = eventTime;
 }
 
 if (canvasData !== undefined) {
