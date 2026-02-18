@@ -20,7 +20,22 @@ type InvitationSettings = {
 };
 
 type Props = {
-  eventId: string;
+  invitationId: string;
+};
+
+const defaultSettings: InvitationSettings = {
+  showStoryAfterConfirm: false,
+  showGiftLinkAfterConfirm: false,
+  allowGuestNote: false,
+  menuOptions: {
+    vegetarian: false,
+    vegan: false,
+    glutenFree: false,
+    childrenMeal: false,
+    kosher: false,
+    kosherGlatt: false,
+    transportation: false,
+  },
 };
 
 const MENU_LABELS: Record<keyof MenuOptions, string> = {
@@ -33,53 +48,67 @@ const MENU_LABELS: Record<keyof MenuOptions, string> = {
   transportation: "הסעות",
 };
 
-export default function EventInvitationSettings({ eventId }: Props) {
-  const [settings, setSettings] = useState<InvitationSettings | null>(null);
+export default function InvitationSettingsComponent({ invitationId }: Props) {
+  const [settings, setSettings] =
+    useState<InvitationSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   /* =========================
-     Fetch Settings
+     Load Invitation Settings
   ========================= */
   useEffect(() => {
-    const fetchSettings = async () => {
+    async function fetchInvitation() {
+      if (!invitationId) return;
+
       try {
-        const res = await fetch(`/api/events/${eventId}`);
+        const res = await fetch(`/api/invitations/${invitationId}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+
         const data = await res.json();
-        setSettings(data.invitationSettings);
+
+        if (data?.success && data.invitation?.invitationSettings) {
+          setSettings(data.invitation.invitationSettings);
+        } else {
+          setSettings(defaultSettings);
+        }
       } catch (err) {
-        console.error("Failed loading settings", err);
+        console.error("Failed loading invitation settings", err);
+        setSettings(defaultSettings);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
-    fetchSettings();
-  }, [eventId]);
+    fetchInvitation();
+  }, [invitationId]);
 
   /* =========================
-     Save Settings
+     Save Invitation Settings
   ========================= */
   const saveSettings = async () => {
-    if (!settings) return;
+    if (!invitationId) return;
 
     try {
       setSaving(true);
 
-      await fetch(`/api/events/${eventId}/invitation-settings`, {
-        method: "PUT",
+      await fetch(`/api/invitations/${invitationId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          invitationSettings: settings,
+        }),
       });
-
     } catch (err) {
-      console.error("Failed saving settings", err);
+      console.error("Failed saving invitation settings", err);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading || !settings) {
+  if (loading) {
     return <div className="text-center py-6">טוען הגדרות...</div>;
   }
 
@@ -87,7 +116,6 @@ export default function EventInvitationSettings({ eventId }: Props) {
     <div className="bg-white rounded-2xl shadow-md p-6 space-y-6" dir="rtl">
       <h2 className="text-xl font-semibold">⚙️ הגדרות הזמנה</h2>
 
-      {/* Story Toggle */}
       <Toggle
         label="הצג סיפור לאחר אישור"
         value={settings.showStoryAfterConfirm}
@@ -96,7 +124,6 @@ export default function EventInvitationSettings({ eventId }: Props) {
         }
       />
 
-      {/* Gift Toggle */}
       <Toggle
         label="הצג קישור מתנה לאחר אישור"
         value={settings.showGiftLinkAfterConfirm}
@@ -105,7 +132,6 @@ export default function EventInvitationSettings({ eventId }: Props) {
         }
       />
 
-      {/* Guest Note */}
       <Toggle
         label="אפשר הערת אורח"
         value={settings.allowGuestNote}
@@ -114,7 +140,6 @@ export default function EventInvitationSettings({ eventId }: Props) {
         }
       />
 
-      {/* Menu Options */}
       <div className="space-y-3">
         <h3 className="font-medium text-lg">אפשרויות מנה</h3>
 
@@ -140,7 +165,6 @@ export default function EventInvitationSettings({ eventId }: Props) {
         })}
       </div>
 
-      {/* Save Button */}
       <button
         onClick={saveSettings}
         disabled={saving}
@@ -153,7 +177,7 @@ export default function EventInvitationSettings({ eventId }: Props) {
 }
 
 /* =========================
-   Toggle Component
+   Toggle
 ========================= */
 
 type ToggleProps = {

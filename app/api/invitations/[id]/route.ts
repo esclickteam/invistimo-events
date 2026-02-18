@@ -196,12 +196,19 @@ export async function PATCH(
       updatedAt: new Date(),
     };
 
-    // 🎁 giftOptions
+    /* ================= GIFT OPTIONS ================= */
+
     if (body?.giftOptions !== undefined) {
       updatePayload.giftOptions = normalizeGiftOptions(body.giftOptions);
     }
 
-    // אם לא הגיע שום דבר לעדכון
+    /* ================= INVITATION SETTINGS ================= */
+
+    if (body?.invitationSettings !== undefined) {
+      updatePayload.invitationSettings = body.invitationSettings;
+    }
+
+    /* אם לא הגיע שום דבר לעדכון */
     if (Object.keys(updatePayload).length === 1) {
       return NextResponse.json(
         { success: false, error: "NO_FIELDS_TO_UPDATE" },

@@ -17,15 +17,43 @@ const LocationSchema = new Schema(
 
 const GiftOptionsSchema = new Schema(
   {
-    // ✅ צ'קבוקס: מתנה באשראי
     creditEnabled: { type: Boolean, default: false },
-    // קישור לתשלום באשראי
     creditUrl: { type: String, default: "" },
 
-    // ✅ צ'קבוקס: מתנה ב-PayBox
     payboxEnabled: { type: Boolean, default: false },
-    // קישור PayBox
     payboxUrl: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+/* ================= INVITATION SETTINGS SUB-SCHEMA ================= */
+
+const InvitationSettingsSchema = new Schema(
+  {
+    showStoryAfterConfirm: {
+      type: Boolean,
+      default: false,
+    },
+
+    showGiftLinkAfterConfirm: {
+      type: Boolean,
+      default: false,
+    },
+
+    allowGuestNote: {
+      type: Boolean,
+      default: false,
+    },
+
+    menuOptions: {
+      vegetarian: { type: Boolean, default: false },
+      vegan: { type: Boolean, default: false },
+      glutenFree: { type: Boolean, default: false },
+      childrenMeal: { type: Boolean, default: false },
+      kosher: { type: Boolean, default: false },
+      kosherGlatt: { type: Boolean, default: false },
+      transportation: { type: Boolean, default: false },
+    },
   },
   { _id: false }
 );
@@ -34,7 +62,6 @@ const GiftOptionsSchema = new Schema(
 
 const InvitationSchema = new Schema(
   {
-    /* ================= OWNER ================= */
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -42,7 +69,6 @@ const InvitationSchema = new Schema(
       index: true,
     },
 
-    /* ================= PRODUCER ================= */
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -50,7 +76,6 @@ const InvitationSchema = new Schema(
       index: true,
     },
 
-    /* ================= EVENT LINK ================= */
     eventId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
@@ -139,23 +164,21 @@ const InvitationSchema = new Schema(
       default: 0,
     },
 
-    /* ================= GIFT OPTIONS =================
-       מוצג בעמוד ההזמנה מתחת לאישור הגעה
-       לפי מה שבעל האירוע מפעיל בדשבורד
-    ================================================ */
+    /* ================= GIFT OPTIONS ================= */
 
     giftOptions: {
       type: GiftOptionsSchema,
       default: () => ({}),
     },
 
-    /* =====================================================
-       ================== SMS STATE ==================
-       null  → טרם נשלח
-       Date → נשלח
-    ===================================================== */
+    /* ================= INVITATION SETTINGS ================= */
 
-    /* ===== RSVP ===== */
+    invitationSettings: {
+      type: InvitationSettingsSchema,
+      default: () => ({}),
+    },
+
+    /* ================= SMS STATE ================= */
 
     rsvpRound1SentAt: {
       type: Date,
@@ -169,15 +192,11 @@ const InvitationSchema = new Schema(
       index: true,
     },
 
-    /* ===== REMINDER (תזכורת אחת בלבד) ===== */
-
     reminderSentAt: {
       type: Date,
       default: null,
       index: true,
     },
-
-    /* ===== THANK YOU (הודעת תודה אחת בלבד) ===== */
 
     thankYouSentAt: {
       type: Date,
@@ -190,11 +209,7 @@ const InvitationSchema = new Schema(
   }
 );
 
-/* ================= VALIDATIONS (SAFE) =================
-   אם enabled=true אבל אין קישור → לא נכשיל שמירה,
-   אבל נוודא שהקישור נשמר בצורה נקייה.
-   (את ה"השבתה" של הכפתור נעשה ב-UI)
-====================================================== */
+/* ================= PRE SAVE CLEANUP ================= */
 
 InvitationSchema.pre("save", function () {
   const doc = this as mongoose.Document & {
@@ -219,11 +234,9 @@ InvitationSchema.pre("save", function () {
 
 /* ================= INDEXES ================= */
 
-// שלא תהיה יותר מהזמנה אחת לאותו Event
 InvitationSchema.index({ eventId: 1 }, { unique: true });
-
-// אופציונלי: חיפוש מהיר לפי shareId כבר קיים עם index:true
 
 /* ================= MODEL ================= */
 
-export default models.Invitation || model("Invitation", InvitationSchema);
+export default models.Invitation ||
+  model("Invitation", InvitationSchema);

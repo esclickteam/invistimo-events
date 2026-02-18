@@ -9,40 +9,49 @@ export default function EditEventPage() {
   const router = useRouter();
 
   const [event, setEvent] = useState<any | null>(null);
+  const [invitation, setInvitation] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   /* ============================================================
-     📥 Load event
+     📥 Load Event + Invitation
   ============================================================ */
   useEffect(() => {
-    async function loadEvent() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/events", {
+        /* ===== Load Event ===== */
+        const eventRes = await fetch("/api/events", {
           credentials: "include",
           cache: "no-store",
         });
 
-        if (!res.ok) {
-          console.error("❌ Failed to fetch event:", res.status);
-          return;
+        if (eventRes.ok) {
+          const eventData = await eventRes.json();
+          if (eventData?.success) {
+            setEvent(eventData.event);
+          }
         }
 
-        const data = await res.json();
+        /* ===== Load Invitation ===== */
+        const invitationRes = await fetch("/api/invitations", {
+          credentials: "include",
+          cache: "no-store",
+        });
 
-        if (data?.success) {
-          setEvent(data.event || null);
-        } else {
-          setEvent(null);
+        if (invitationRes.ok) {
+          const invitationData = await invitationRes.json();
+          if (invitationData?.success) {
+            setInvitation(invitationData.invitation);
+          }
         }
+
       } catch (err) {
-        console.error("❌ Failed to load event:", err);
-        setEvent(null);
+        console.error("❌ Failed to load page data:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    loadEvent();
+    loadData();
   }, []);
 
   /* ============================================================
@@ -56,10 +65,10 @@ export default function EditEventPage() {
     );
   }
 
-  if (!event) {
+  if (!event || !invitation) {
     return (
-      <div className="p-10 text-center text-red-500">
-       ℹ️ כדי לערוך פרטי אירוע והגדרות – יש ליצור הזמנה קודם.
+      <div className="p-10 text-center text-[#4a413a]" dir="rtl">
+        ℹ️ כדי לערוך פרטי אירוע והגדרות – יש ליצור הזמנה קודם.
       </div>
     );
   }
@@ -86,7 +95,7 @@ export default function EditEventPage() {
         
         {/* צד שמאל – הגדרות הזמנה */}
         <div>
-          <EventInvitationSettings eventId={event._id} />
+          <EventInvitationSettings invitationId={invitation._id} />
         </div>
 
         {/* צד ימין – פרטי האירוע */}
