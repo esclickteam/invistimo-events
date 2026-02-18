@@ -169,34 +169,18 @@ for (const guest of guests) {
     console.log("📤 Sending RSVP to:", phone);
     console.log("🔗 RSVP Link:", rsvpLink);
 
-    let result;
-
-if (templateName === "rsvp_reminder_invistimo") {
-  // סבב 2 – תבנית עם פרמטר אחד בלבד ({{1}})
-  result = await sendRsvpTemplateMedia({
-    to: phone,
-    rsvpLink, // {{1}} גם ל־Body וגם ל־Button
-    headerImageUrl:
-      invitation.headerImageUrl || invitation.previewImage,
-    templateName,
-    languageCode,
-  });
-} else {
-  // סבב 1 – תבנית עם 3 פרמטרים
-  result = await sendRsvpTemplateMedia({
-    to: phone,
-    eventTitle: event.title,
-    eventDate: event.date,
-    eventLocation:
-      event.location?.address || event.location?.name || "",
-    rsvpLink,
-    headerImageUrl:
-      invitation.headerImageUrl || invitation.previewImage,
-    templateName,
-    languageCode,
-  });
-}
-
+    const result = await sendRsvpTemplateMedia({
+      to: phone,
+      eventTitle: event.title,
+      eventDate: event.date,
+      eventLocation:
+        event.location?.address || event.location?.name || "",
+      rsvpLink,
+      headerImageUrl:
+        invitation.headerImageUrl || invitation.previewImage,
+      templateName,
+      languageCode,
+    });
 
     console.log("📲 WHATSAPP RESULT:", JSON.stringify(result, null, 2));
 

@@ -1,34 +1,30 @@
 // lib/whatsapp/sendRsvpTemplateMedia.ts
 
-/* ================= TYPES ================= */
-
-type BaseInput = {
+export type SendRsvpTemplateMediaInput = {
   to: string;
+
+  // BODY VARIABLES – ORDER IS CRITICAL
+  eventTitle: string; // {{1}}
+  eventDate: string; // {{2}}
+  eventLocation: string; // {{3}}
+
+  /**
+   * קישור אישי מלא, לדוגמה:
+   * https://www.invistimo.com/invite/INHtag6CZG?token=tSPo8g_1x5Li
+   *
+   * בתבנית Meta הכפתור מוגדר:
+   * https://www.invistimo.com/invite/{{1}}
+   * לכן מה שנשלח לכפתור הוא:
+   * INHtag6CZG?token=tSPo8g_1x5Li
+   */
   rsvpLink: string;
-  headerImageUrl: string;
+
+  // HEADER
+  headerImageUrl: string; // חובה – URL ציבורי (https)
+
+  templateName?: string;
   languageCode?: "he" | "he_IL" | string;
 };
-
-/** סבב 1 – עם גוף */
-type RsvpRound1Input = BaseInput & {
-  templateName?: "rsvp_invitation_media";
-  eventTitle: string;
-  eventDate: string;
-  eventLocation: string;
-};
-
-/** סבב 2 – בלי גוף בכלל */
-type RsvpRound2Input = BaseInput & {
-  templateName: "rsvp_reminder_invistimo";
-};
-
-export type SendRsvpTemplateMediaInput =
-  | RsvpRound1Input
-  | RsvpRound2Input;
-
-  
-
-/* ================= CONSTS ================= */
 
 const DEFAULT_TEMPLATE_NAME = "rsvp_invitation_media";
 const DEFAULT_LANGUAGE_CODE = "he";
@@ -36,17 +32,15 @@ const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
 
 /* ================= HELPERS ================= */
 
-function isRound1Input(
-  input: SendRsvpTemplateMediaInput
-): input is RsvpRound1Input {
-  return input.templateName !== "rsvp_reminder_invistimo";
-}
-
-
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
+/**
+ * 🚫 חובה לתבניות WhatsApp:
+ * - אין \n \r \t
+ * - אין יותר מרווח אחד
+ */
 function normalizeTemplateText(text: string): string {
   return text
     .replace(/[\n\r\t]+/g, " ")
@@ -74,50 +68,53 @@ function normalizePhoneIL(phone: string): string {
 }
 
 /**
- * https://www.invistimo.com/invite/ABC?token=123
- * => ABC?token=123
+ * מחלץ suffix מלא עבור כפתור URL:
+ * https://www.invistimo.com/invite/INHtag6CZG?token=abc
+ * => INHtag6CZG?token=abc
+ *
+ * תואם לתבנית:
+ * https://www.invistimo.com/invite/{{1}}
  */
 function extractInviteSuffixForButton(rsvpLink: string): string {
   const u = new URL(rsvpLink.trim());
   const parts = u.pathname.split("/").filter(Boolean);
 
-  const inviteIndex = parts.findIndex(
-    (p) => p.toLowerCase() === "invite"
-  );
+  const inviteIndex = parts.findIndex((p) => p.toLowerCase() === "invite");
   const inviteId = inviteIndex >= 0 ? parts[inviteIndex + 1] : "";
 
   if (!inviteId) {
-    throw new Error("Invalid rsvpLink: inviteId not found");
+    throw new Error(
+      "Invalid rsvpLink: expected path like /invite/{id}, inviteId not found"
+    );
   }
 
-  const suffix = `${inviteId}${u.search || ""}`.trim();
+  const query = u.search || "";
+  const suffix = `${inviteId}${query}`.trim();
 
   if (!suffix || /\s/.test(suffix)) {
-    throw new Error("Invalid rsvpLink: bad button suffix");
+    throw new Error("Invalid rsvpLink: extracted button suffix is invalid");
   }
 
   return suffix;
 }
 
-function assertRequiredFields(input: SendRsvpTemplateMediaInput) {
+function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   if (!isNonEmptyString(input.to)) throw new Error("Missing field: to");
+  if (!isNonEmptyString(input.eventTitle))
+    throw new Error("Missing field: eventTitle");
+  if (!isNonEmptyString(input.eventDate))
+    throw new Error("Missing field: eventDate");
+  if (!isNonEmptyString(input.eventLocation))
+    throw new Error("Missing field: eventLocation");
   if (!isNonEmptyString(input.rsvpLink))
     throw new Error("Missing field: rsvpLink");
   if (!isNonEmptyString(input.headerImageUrl))
     throw new Error("Missing field: headerImageUrl");
-
-  if (input.templateName !== "rsvp_reminder_invistimo") {
-    if (!isNonEmptyString(input.eventTitle))
-      throw new Error("Missing field: eventTitle");
-    if (!isNonEmptyString(input.eventDate))
-      throw new Error("Missing field: eventDate");
-    if (!isNonEmptyString(input.eventLocation))
-      throw new Error("Missing field: eventLocation");
-  }
 }
 
-async function safeParseResponse(res: Response): Promise<any> {
+async function safeParseResponse(res: Response): Promise<unknown> {
   const text = await res.text().catch(() => "");
+  if (!text) return {};
   try {
     return JSON.parse(text);
   } catch {
@@ -127,9 +124,7 @@ async function safeParseResponse(res: Response): Promise<any> {
 
 /* ================= MAIN ================= */
 
-export async function sendRsvpTemplateMedia(
-  input: SendRsvpTemplateMediaInput
-) {
+export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   assertRequiredFields(input);
 
   const apiKey = process.env.WHATSAPP_API_KEY;
@@ -138,74 +133,26 @@ export async function sendRsvpTemplateMedia(
   }
 
   const to = normalizePhoneIL(input.to);
-  if (!isNonEmptyString(to)) {
+  if (!isNonEmptyString(to) || to.length < 10) {
     throw new Error(`Invalid phone number: ${input.to}`);
   }
 
   if (!isValidHttpsUrl(input.headerImageUrl)) {
-    throw new Error("Invalid headerImageUrl");
+    throw new Error("Invalid headerImageUrl (must be https)");
   }
 
   if (!isValidHttpsUrl(input.rsvpLink)) {
-    throw new Error("Invalid rsvpLink");
+    throw new Error("Invalid rsvpLink (must be https)");
   }
 
+  // לתבנית:
+  // https://www.invistimo.com/invite/{{1}}
+  // נשלח:
+  // INHtag6CZG?token=...Q
   const buttonUrlParam = extractInviteSuffixForButton(input.rsvpLink);
 
-  const templateName =
-    input.templateName || DEFAULT_TEMPLATE_NAME;
-  const languageCode =
-    input.languageCode || DEFAULT_LANGUAGE_CODE;
-
-  const isReminder =
-    templateName === "rsvp_reminder_invistimo";
-
-  const components: any[] = [
-    {
-      type: "header",
-      parameters: [
-        {
-          type: "image",
-          image: { link: input.headerImageUrl.trim() },
-        },
-      ],
-    },
-  ];
-
-  // ✅ גוף – רק בסבב 1
-  if (isRound1Input(input)) {
-  components.push({
-    type: "body",
-    parameters: [
-      {
-        type: "text",
-        text: normalizeTemplateText(input.eventTitle),
-      },
-      {
-        type: "text",
-        text: normalizeTemplateText(input.eventDate),
-      },
-      {
-        type: "text",
-        text: normalizeTemplateText(input.eventLocation),
-      },
-    ],
-  });
-}
-
-
-  // ✅ כפתור – תמיד
-  components.push({
-    type: "button",
-    sub_type: "url",
-    index: "0",
-    parameters: [
-      {
-        type: "text",
-        text: buttonUrlParam,
-      },
-    ],
-  });
+  const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
+  const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
 
   const payload = {
     messaging_product: "whatsapp",
@@ -214,7 +161,36 @@ export async function sendRsvpTemplateMedia(
     template: {
       name: templateName,
       language: { code: languageCode },
-      components,
+      components: [
+        {
+          type: "header",
+          parameters: [
+            {
+              type: "image",
+              image: { link: input.headerImageUrl.trim() },
+            },
+          ],
+        },
+        {
+          type: "body",
+          parameters: [
+            { type: "text", text: normalizeTemplateText(input.eventTitle) }, // {{1}}
+            { type: "text", text: normalizeTemplateText(input.eventDate) }, // {{2}}
+            { type: "text", text: normalizeTemplateText(input.eventLocation) }, // {{3}}
+          ],
+        },
+        {
+          type: "button",
+          sub_type: "url",
+          index: "0",
+          parameters: [
+            {
+              type: "text",
+              text: buttonUrlParam, // {{1}} של הכפתור
+            },
+          ],
+        },
+      ],
     },
   };
 
