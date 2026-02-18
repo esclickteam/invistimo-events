@@ -5,14 +5,23 @@ import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
 
-const NOTES_OPTIONS = [
-  "כשר מחפוד",
-  "טבעוני",
-  "צמחוני",
-  "אלרגיות",
-  "מנת ילדים",
-  "אחר",
-];
+/* ============================================================
+   MENU LABELS (מה שמוגדר בדשבורד)
+============================================================ */
+
+const MENU_LABELS: Record<string, string> = {
+  vegetarian: "צמחוני",
+  vegan: "טבעוני",
+  glutenFree: "ללא גלוטן",
+  childrenMeal: "מנת ילדים",
+  kosher: "כשר",
+  kosherGlatt: "כשר גלאט",
+  transportation: "הסעות",
+};
+
+/* ============================================================
+   Gift Section
+============================================================ */
 
 type GiftOptions = {
   creditEnabled?: boolean;
@@ -67,8 +76,13 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
   );
 }
 
+/* ============================================================
+   PUBLIC INVITE PAGE
+============================================================ */
+
 export default function PublicInvitePage({ params }: any) {
   const router = useRouter();
+
   const [shareId, setShareId] = useState<string | null>(null);
   const [invite, setInvite] = useState<any>(null);
   const [event, setEvent] = useState<any>(null);
@@ -77,9 +91,6 @@ export default function PublicInvitePage({ params }: any) {
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [sent, setSent] = useState(false);
 
-  /* ============================================================
-     RSVP FORM STATE
-  ============================================================ */
   const [form, setForm] = useState<{
     rsvp: "yes" | "no" | "pending";
     arrivedCount: number;
@@ -93,8 +104,9 @@ export default function PublicInvitePage({ params }: any) {
   const [guestsOpen, setGuestsOpen] = useState(false);
 
   /* ============================================================
-     unwrap params
+     UNWRAP PARAMS
   ============================================================ */
+
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -104,38 +116,9 @@ export default function PublicInvitePage({ params }: any) {
   }, [params]);
 
   /* ============================================================
-     זיהוי אורח לפי token (?token=)
+     LOAD INVITATION
   ============================================================ */
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const token = searchParams.get("token");
-    if (!token) return;
 
-    async function fetchGuest() {
-      try {
-        const res = await fetch(`/api/invitationGuests/byToken/${token}`);
-        const data = await res.json();
-
-        if (data.success && data.guest) {
-          setSelectedGuest(data.guest);
-
-          // ❗ ברירת מחדל: מגיע אדם אחד
-          setForm((prev) => ({
-            ...prev,
-            arrivedCount: 1,
-          }));
-        }
-      } catch (err) {
-        console.error("❌ Guest fetch error:", err);
-      }
-    }
-
-    fetchGuest();
-  }, []);
-
-  /* ============================================================
-     טעינת ההזמנה
-  ============================================================ */
   useEffect(() => {
     if (!shareId) return;
 
@@ -163,8 +146,30 @@ export default function PublicInvitePage({ params }: any) {
   }, [shareId]);
 
   /* ============================================================
-     שליחת RSVP
+     ACTIVE MENU OPTIONS (רק מה שסומן בדשבורד)
   ============================================================ */
+
+  const activeMenuOptions = useMemo(() => {
+    const menu = invite?.invitationSettings?.menuOptions;
+    if (!menu) return [];
+
+    return Object.entries(menu)
+      .filter(([_, value]) => value === true)
+      .map(([key]) => ({
+        key,
+        label: MENU_LABELS[key],
+      }))
+      .filter((item) => item.label);
+  }, [invite]);
+
+  const giftOptions: GiftOptions | undefined = useMemo(() => {
+    return invite?.giftOptions;
+  }, [invite]);
+
+  /* ============================================================
+     SUBMIT RSVP
+  ============================================================ */
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -188,6 +193,7 @@ export default function PublicInvitePage({ params }: any) {
       );
 
       const data = await res.json();
+
       if (data.success) {
         if (form.rsvp === "yes") {
           router.push("/thank-you");
@@ -200,27 +206,27 @@ export default function PublicInvitePage({ params }: any) {
     }
   }
 
-  const giftOptions: GiftOptions | undefined = useMemo(() => {
-    return invite?.giftOptions;
-  }, [invite]);
-
   if (loading) {
     return <div className="p-10 text-center">טוען הזמנה…</div>;
   }
 
   if (!invite) {
     return (
-      <div className="p-10 text-center text-red-600">❌ ההזמנה לא נמצאה</div>
+      <div className="p-10 text-center text-red-600">
+        ❌ ההזמנה לא נמצאה
+      </div>
     );
   }
 
   /* ============================================================
-     Render
+     RENDER
   ============================================================ */
+
   return (
     <div className="min-h-screen w-full overflow-y-auto bg-[#faf9f6]">
       <div className="flex flex-col items-center py-10 pb-32">
-        {/* הזמנה מעוצבת */}
+
+        {/* עיצוב ההזמנה */}
         <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
           {invite.canvasData ? (
             <PublicInviteRenderer canvasData={invite.canvasData} />
@@ -238,14 +244,7 @@ export default function PublicInvitePage({ params }: any) {
             className="w-full max-w-md bg-white rounded-2xl shadow p-8 flex flex-col gap-6"
           >
             <div className="text-center text-lg font-medium text-[#6b6046]">
-              {selectedGuest ? (
-                <>
-                  שלום {selectedGuest.name},<br />
-                  נשמח לראותך באירוע!
-                </>
-              ) : (
-                <>נשמח לראותך באירוע!</>
-              )}
+              נשמח לראותך באירוע!
             </div>
 
             {/* מגיע / לא מגיע */}
@@ -277,82 +276,35 @@ export default function PublicInvitePage({ params }: any) {
               </button>
             </div>
 
-            {form.rsvp === "yes" && (
-              <>
-                {/* כמות מגיעים */}
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
-                    כמה אנשים יגיעו?
-                  </label>
+            {form.rsvp === "yes" && activeMenuOptions.length > 0 && (
+              <div>
+                <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
+                  הערות:
+                </label>
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setGuestsOpen((v) => !v)}
-                      className="w-full flex justify-between items-center px-4 py-3 rounded-full border border-[#d1c7b4] bg-white"
+                <div className="grid grid-cols-2 gap-3">
+                  {activeMenuOptions.map((opt) => (
+                    <label
+                      key={opt.key}
+                      className="flex items-center gap-2 text-sm text-[#6b6046]"
                     >
-                      <span>{form.arrivedCount}</span>
-                      <span className="text-gray-400">▾</span>
-                    </button>
-
-                    {guestsOpen && (
-                      <div className="absolute z-20 mt-2 w-full rounded-2xl border border-[#d1c7b4] bg-white shadow-lg max-h-48 overflow-y-auto">
-                        {Array.from({ length: 15 }, (_, i) => i + 1).map(
-                          (num) => (
-                            <div
-                              key={num}
-                              onClick={() => {
-                                setForm({
-                                  ...form,
-                                  arrivedCount: num,
-                                });
-                                setGuestsOpen(false);
-                              }}
-                              className={`px-4 py-3 cursor-pointer hover:bg-[#faf9f6] ${
-                                form.arrivedCount === num
-                                  ? "bg-[#f3eee7] font-semibold"
-                                  : ""
-                              }`}
-                            >
-                              {num}
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
-                  </div>
+                      <input
+                        type="checkbox"
+                        checked={form.notes.includes(opt.label)}
+                        onChange={(e) => {
+                          setForm({
+                            ...form,
+                            notes: e.target.checked
+                              ? [...form.notes, opt.label]
+                              : form.notes.filter((n) => n !== opt.label),
+                          });
+                        }}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
                 </div>
-
-                {/* הערות */}
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
-                    הערות:
-                  </label>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {NOTES_OPTIONS.map((opt) => (
-                      <label
-                        key={opt}
-                        className="flex items-center gap-2 text-sm text-[#6b6046]"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={form.notes.includes(opt)}
-                          onChange={(e) => {
-                            setForm({
-                              ...form,
-                              notes: e.target.checked
-                                ? [...form.notes, opt]
-                                : form.notes.filter((n) => n !== opt),
-                            });
-                          }}
-                        />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </>
+              </div>
             )}
 
             <button
@@ -362,7 +314,6 @@ export default function PublicInvitePage({ params }: any) {
               שליחת אישור הגעה
             </button>
 
-            {/* ✅ מתחת לאישור הגעה */}
             <GiftSection giftOptions={giftOptions} />
           </form>
         ) : (
