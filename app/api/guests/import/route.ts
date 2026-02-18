@@ -15,12 +15,24 @@ export async function POST(req: NextRequest) {
   try {
     const { invitationId, guests } = await req.json();
 
-    if (!invitationId || !Array.isArray(guests)) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_REQUEST" },
-        { status: 400 }
-      );
-    }
+    if (!invitationId) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
+      code: "NO_INVITATION",
+    },
+    { status: 400 }
+  );
+}
+
+if (!Array.isArray(guests)) {
+  return NextResponse.json(
+    { success: false, error: "INVALID_REQUEST" },
+    { status: 400 }
+  );
+}
+
 
     await db();
 
