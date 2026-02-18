@@ -56,6 +56,7 @@ export default function ThankYouTab({
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [thankYouSentAt, setThankYouSentAt] = useState<Date | null>(null);
+  const [message, setMessage] = useState(THANK_YOU_TEMPLATE);
 
 
   /* ================= LOAD GUESTS ================= */
@@ -175,8 +176,10 @@ export default function ThankYouTab({
   /* ================= BUILD MESSAGE ================= */
 
   const buildThankYouMessage = (g: Guest) =>
-    buildMessage({
-      template: THANK_YOU_TEMPLATE,
+  buildMessage({
+    template: message,   // ⭐ משתמשים בטקסט הערוך
+
+
       guest: g,
       eventTitle,
       eventDate,
@@ -235,7 +238,8 @@ export default function ThankYouTab({
     }
 
     validateWithServer();
-  }, [invitationId, guestsToSend]);
+  }, [invitationId, guestsToSend, message]);
+
 
   /* ================= TEST MESSAGE ================= */
 
@@ -294,6 +298,27 @@ export default function ThankYouTab({
         totalCount={guestsToSend.length}
         readOnly
       />
+
+      {/* EDIT MESSAGE */}
+<div className="border rounded-2xl p-5 bg-white shadow-sm space-y-3">
+  <div className="font-semibold text-gray-800">
+    ✏️ עריכת תוכן ההודעה
+  </div>
+
+  <textarea
+    value={message}
+    onChange={(e) => setMessage(e.target.value)}
+    rows={6}
+    className="w-full border rounded-xl p-4 text-sm
+               focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+
+  <p className="text-xs text-gray-500">
+    משתנים אוטומטיים:
+    <span className="font-mono"> {"{{name}}"} </span>
+  </p>
+</div>
+
 
       {/* PREVIEW */}
       {preview && (
@@ -436,6 +461,7 @@ export default function ThankYouTab({
   invitationId={invitationId}
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
+  messageOverride={message} 
   onAfterSend={async () => {
     if (sendTiming === "now") {
       setThankYouSentAt(new Date());
