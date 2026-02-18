@@ -383,6 +383,13 @@ export default function RsvpTab({
   headerImageUrl={headerImageUrl}
 />
 
+{!round1SentAt && !round2SentAt && (
+  <p className="text-xs text-gray-500 mb-2 text-center">
+    שליחת הודעות WhatsApp מתבצעת בהדרגה לפי מספר המוזמנים
+  </p>
+)}
+
+
       {/* ===== SEND ===== */}
       <SendButton
         channel="whatsapp"
