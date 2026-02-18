@@ -116,29 +116,8 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
     <div className="bg-white rounded-2xl shadow-md p-6 space-y-6" dir="rtl">
       <h2 className="text-xl font-semibold">⚙️ הגדרות הזמנה</h2>
 
-      <Toggle
-        label="הצג סיפור לאחר אישור"
-        value={settings.showStoryAfterConfirm}
-        onChange={(val) =>
-          setSettings({ ...settings, showStoryAfterConfirm: val })
-        }
-      />
 
-      <Toggle
-        label="הצג קישור מתנה לאחר אישור"
-        value={settings.showGiftLinkAfterConfirm}
-        onChange={(val) =>
-          setSettings({ ...settings, showGiftLinkAfterConfirm: val })
-        }
-      />
-
-      <Toggle
-        label="אפשר הערת אורח"
-        value={settings.allowGuestNote}
-        onChange={(val) =>
-          setSettings({ ...settings, allowGuestNote: val })
-        }
-      />
+   
 
       <div className="space-y-3">
         <h3 className="font-medium text-lg">אפשרויות מנה</h3>

@@ -33,7 +33,7 @@ export default function EditEventPage() {
         const loadedEvent = eventData.event;
         setEvent(loadedEvent);
 
-        /* ===== Load Invitation USING loadedEvent ===== */
+        /* ===== Load Invitation (לפי eventId) ===== */
         const invitationRes = await fetch(
           `/api/invitations/${loadedEvent._id}`,
           {
@@ -77,6 +77,7 @@ export default function EditEventPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 md:p-10" dir="rtl">
+      {/* Back */}
       <button
         onClick={() => router.back()}
         className="text-sm text-gray-500 mb-4 hover:underline"
@@ -88,17 +89,22 @@ export default function EditEventPage() {
         ✏️ עריכת אירוע
       </h1>
 
+      {/* Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div>
-          <EventInvitationSettings invitationId={invitation._id} />
-        </div>
-
+        
+        {/* צד ימין – פרטי האירוע */}
         <div>
           <EventDetailsForm
             event={event}
             onSaved={() => router.refresh()}
           />
         </div>
+
+        {/* צד שמאל – הגדרות הזמנה */}
+        <div>
+          <EventInvitationSettings invitationId={invitation._id} />
+        </div>
+
       </div>
     </div>
   );
