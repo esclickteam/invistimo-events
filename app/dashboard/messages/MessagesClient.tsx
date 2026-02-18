@@ -1015,7 +1015,7 @@ const loadScheduledMessages = async () => {
       return;
     }
 
-    // 🎁 ולידציה – קישור מתנה באשראי
+     // 🎁 ולידציה – קישור מתנה באשראי
     if (includeGiftLink && !giftLink) {
       alert("נא להזין קישור למתנה באשראי");
       return;

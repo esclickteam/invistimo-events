@@ -15,14 +15,16 @@ type Props = {
   templateName?: string;
   disabled?: boolean;
 
-  // ⭐ הוספה
   includeGiftLink?: boolean;
   giftLink?: string;
+
+  messageOverride?: string;   // ⭐ הוספה כאן
 
   onAfterSend?: () => void;
 
   children: ReactNode;
 };
+
 
 
 /* ================= COMPONENT ================= */
@@ -36,12 +38,15 @@ const SendButton: React.FC<Props> = ({
   templateName,
   disabled,
 
-  includeGiftLink,   // ⭐
-  giftLink,          // ⭐
+  includeGiftLink,
+  giftLink,
+
+  messageOverride,   // ⭐ כאן
 
   onAfterSend,
   children,
 }) => {
+
 
   const [sending, setSending] = useState(false);
 
@@ -84,6 +89,7 @@ const SendButton: React.FC<Props> = ({
     // ⭐ הוספה כאן
     includeGiftLink,
     giftLink,
+    messageOverride, 
   };
 }
 

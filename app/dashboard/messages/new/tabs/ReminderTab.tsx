@@ -53,6 +53,8 @@ export default function ReminderTab({
   const [includeGiftLink, setIncludeGiftLink] = useState(false);
   const [giftLink, setGiftLink] = useState("");
 
+  const [message, setMessage] = useState(MESSAGE_WITH_TABLE);
+
 
 
   const [preview, setPreview] = useState<any>(null);
@@ -180,7 +182,8 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
   const buildReminderMessage = (g: Guest) =>
   buildMessage({
-    template: MESSAGE_WITH_TABLE,
+    template: message, // ⭐ משתמשים בטקסט הערוך
+
     guest: g,
     eventDate,
     eventLocation,
@@ -254,7 +257,8 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
   validateWithServer();
 
-}, [invitationId, guestsToSend, includeGiftLink, giftLink]);
+}, [invitationId, guestsToSend, includeGiftLink, giftLink, message]);
+
 
 
 const [testCount, setTestCount] = useState(0);
@@ -319,6 +323,29 @@ const sendTestMessage = async () => {
         withTableCount={guestsWithTable.length}
         readOnly
       />
+
+      {/* EDIT MESSAGE */}
+<div className="border rounded-2xl p-5 bg-white shadow-sm space-y-3">
+  <div className="font-semibold text-gray-800">
+    ✏️ עריכת תוכן ההודעה
+  </div>
+
+  <textarea
+    value={message}
+    onChange={(e) => setMessage(e.target.value)}
+    rows={6}
+    className="w-full border rounded-xl p-4 text-sm
+               focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+
+  <p className="text-xs text-gray-500">
+    משתנים אוטומטיים: 
+    <span className="font-mono"> {"{{name}}"} </span>
+    <span className="font-mono"> {"{{tableName}}"} </span>
+    <span className="font-mono"> {"{{navigationLink}}"} </span>
+  </p>
+</div>
+
 
       {/* PREVIEW */}
       {preview && (
@@ -542,8 +569,9 @@ const sendTestMessage = async () => {
   invitationId={invitationId}
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
-  includeGiftLink={includeGiftLink}   // ⭐ הוספה
-  giftLink={giftLink}                 // ⭐ הוספה
+  includeGiftLink={includeGiftLink}
+  giftLink={giftLink}
+  messageOverride={message}   // ⭐ זה החדש             // ⭐ הוספה
 
 
   onAfterSend={async () => {
