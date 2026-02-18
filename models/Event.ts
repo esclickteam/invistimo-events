@@ -224,12 +224,15 @@ const EventSchema = new mongoose.Schema(
       },
 
       menuOptions: {
-        vegetarian: { type: Boolean, default: false },
-        vegan: { type: Boolean, default: false },
-        glutenFree: { type: Boolean, default: false },
-        childrenMeal: { type: Boolean, default: false },
-        kosher: { type: Boolean, default: false },
-      },
+  vegetarian: { type: Boolean, default: false },
+  vegan: { type: Boolean, default: false },
+  glutenFree: { type: Boolean, default: false },
+  childrenMeal: { type: Boolean, default: false },
+  kosher: { type: Boolean, default: false },
+
+  kosherGlatt: { type: Boolean, default: false }, // חדש
+  transportation: { type: Boolean, default: false }, // חדש
+},
 
       allowGuestNote: {
         type: Boolean,

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import EventDetailsForm from "@/app/components/EventDetailsForm";
+import EventInvitationSettings from "@/app/components/EventInvitationSettings";
 
 export default function EditEventPage() {
   const router = useRouter();
@@ -55,11 +56,19 @@ export default function EditEventPage() {
     );
   }
 
+  if (!event) {
+    return (
+      <div className="p-10 text-center text-red-500">
+        לא נמצא אירוע
+      </div>
+    );
+  }
+
   /* ============================================================
      Render
   ============================================================ */
   return (
-    <div className="max-w-xl mx-auto p-6 md:p-10" dir="rtl">
+    <div className="max-w-7xl mx-auto p-6 md:p-10" dir="rtl">
       {/* Back */}
       <button
         onClick={() => router.back()}
@@ -68,16 +77,29 @@ export default function EditEventPage() {
         ← חזרה
       </button>
 
-      <h1 className="text-2xl font-semibold mb-6 text-[#4a413a]">
-        ✏️ פרטי האירוע
+      <h1 className="text-2xl font-semibold mb-8 text-[#4a413a]">
+        ✏️ עריכת אירוע
       </h1>
 
-      <EventDetailsForm
-        event={event}
-        onSaved={() => {
-          router.back();
-        }}
-      />
+      {/* Layout Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        
+        {/* צד שמאל – הגדרות הזמנה */}
+        <div>
+          <EventInvitationSettings eventId={event._id} />
+        </div>
+
+        {/* צד ימין – פרטי האירוע */}
+        <div>
+          <EventDetailsForm
+            event={event}
+            onSaved={() => {
+              router.refresh();
+            }}
+          />
+        </div>
+
+      </div>
     </div>
   );
 }
