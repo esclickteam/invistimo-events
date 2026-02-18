@@ -97,17 +97,18 @@ export default function DashboardMobileMenu({
               עריכת פרטי האירוע
             </button>
 
-            {/* 💬 הודעות */}
-            <button
-              onClick={() =>
-                isDemo
-  ? go("/try/dashboard/messages/new")
-  : go("/dashboard/messages/new")
-              }
-              className="text-right"
-            >
-              💬 שליחת הודעות
-            </button>
+           {/* 💬 הודעות */}
+<button
+  onClick={() =>
+    isDemo
+      ? go("/try/dashboard/messages")
+      : go("/dashboard/messages")
+  }
+  className="text-right"
+>
+  💬 שליחת הודעות
+</button>
+
 
           </nav>
         </aside>

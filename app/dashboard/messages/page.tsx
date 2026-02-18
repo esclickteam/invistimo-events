@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 type User = {
   isActive?: boolean;
@@ -9,6 +9,7 @@ type User = {
 
 export default function MessagesGate() {
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     let cancelled = false;
@@ -17,10 +18,11 @@ export default function MessagesGate() {
       try {
         const res = await fetch("/api/me", {
           credentials: "include",
+          cache: "no-store",
         });
 
         if (!res.ok) {
-          router.replace("/login");
+          if (!cancelled) router.replace("/login");
           return;
         }
 
@@ -28,24 +30,25 @@ export default function MessagesGate() {
         const user: User | undefined = data?.user;
 
         if (!user) {
-          router.replace("/login");
+          if (!cancelled) router.replace("/login");
           return;
         }
 
-        // 🟢 לקוחות קיימים (legacy)
+        // 🔒 לקוחות ישנים → תמיד legacy
         if (user.isActive === true) {
-          if (!cancelled) {
+          if (!cancelled && pathname !== "/dashboard/messages/legacy") {
             router.replace("/dashboard/messages/legacy");
           }
           return;
         }
 
-        // 🆕 לקוחות חדשים
-        if (!cancelled) {
+        // 🆕 כל השאר → new
+        if (!cancelled && pathname !== "/dashboard/messages/new") {
           router.replace("/dashboard/messages/new");
         }
+
       } catch {
-        router.replace("/login");
+        if (!cancelled) router.replace("/login");
       }
     }
 
@@ -54,7 +57,7 @@ export default function MessagesGate() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, pathname]);
 
   return null;
 }

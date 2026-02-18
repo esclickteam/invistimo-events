@@ -1136,8 +1136,8 @@ console.log("INVITATION:", invitation);
           onClick={() =>
             router.push(
   isDemo
-    ? "/try/dashboard/messages/new"
-    : "/dashboard/messages/new"
+    ? "/try/dashboard/messages"
+    : "/dashboard/messages"
           )}
           className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold"
         >
@@ -1396,8 +1396,8 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
     onClick={() =>
       router.push(
           isDemo
-  ? `/try/dashboard/messages/new?guestId=${g._id}`
-  : `/dashboard/messages/new?guestId=${g._id}`
+   ? `/try/dashboard/messages?guestId=${g._id}`
+   : `/dashboard/messages?guestId=${g._id}`
       )
     }
     title="שליחת הודעה"
@@ -1479,8 +1479,8 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
     onMessage={(g) =>
   router.push(
     isDemo
-      ? `/try/dashboard/messages/new?guestId=${g._id}`
-       : `/dashboard/messages/new?guestId=${g._id}`
+      ? `/try/dashboard/messages?guestId=${g._id}`
+      : `/dashboard/messages?guestId=${g._id}`
   )
 }
 onSeat={(g) =>
