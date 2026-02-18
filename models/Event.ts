@@ -99,7 +99,7 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-       ✅ NEW: עובדים מוקצים לאירוע
+       עובדים מוקצים לאירוע
     ========================= */
     assignedStaffIds: [
       {
@@ -151,12 +151,12 @@ const EventSchema = new mongoose.Schema(
        תאריך ושעה
     ========================= */
     date: {
-      type: String, // yyyy-mm-dd
+      type: String,
       required: true,
     },
 
     time: {
-      type: String, // HH:mm
+      type: String,
       default: "",
     },
 
@@ -164,32 +164,29 @@ const EventSchema = new mongoose.Schema(
        מיקום
     ========================= */
     location: {
-  address: {
-    type: String,
-    default: "",
-    trim: true,
-  },
-  lat: {
-    type: Number,
-    default: undefined,
-  },
-  lng: {
-    type: Number,
-    default: undefined,
-  },
-},
+      address: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+      lat: {
+        type: Number,
+        default: undefined,
+      },
+      lng: {
+        type: Number,
+        default: undefined,
+      },
+    },
 
-/* =========================
-   🎁 מתנות באשראי
-========================= */
-giftCreditUrl: {
-  type: String,
-  default: "",
-  trim: true,
-},
-
-    
-
+    /* =========================
+       מתנות באשראי
+    ========================= */
+    giftCreditUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
     /* =========================
        אזורים
@@ -210,6 +207,46 @@ giftCreditUrl: {
         type: String,
         default: "",
       },
+    },
+
+    /* =========================
+       ⚙️ הגדרות הזמנה (RSVP)
+    ========================= */
+    invitationSettings: {
+      showStoryAfterConfirm: {
+        type: Boolean,
+        default: false,
+      },
+
+      showGiftLinkAfterConfirm: {
+        type: Boolean,
+        default: false,
+      },
+
+      menuOptions: {
+        vegetarian: { type: Boolean, default: false },
+        vegan: { type: Boolean, default: false },
+        glutenFree: { type: Boolean, default: false },
+        childrenMeal: { type: Boolean, default: false },
+        kosher: { type: Boolean, default: false },
+      },
+
+      allowGuestNote: {
+        type: Boolean,
+        default: false,
+      },
+
+      customOptions: [
+        {
+          key: { type: String },
+          label: { type: String },
+          type: {
+            type: String,
+            enum: ["checkbox", "text"],
+            default: "checkbox",
+          },
+        },
+      ],
     },
 
     /* =========================
@@ -258,7 +295,8 @@ giftCreditUrl: {
   }
 );
 
-/* אופציונלי, אבל מומלץ מאוד לסינון מהיר לעובדי מפיק */
+/* אינדקס לעובדי מפיק */
 EventSchema.index({ producerId: 1, assignedStaffIds: 1, status: 1 });
 
-export default mongoose.models.Event || mongoose.model("Event", EventSchema);
+export default mongoose.models.Event ||
+  mongoose.model("Event", EventSchema);
