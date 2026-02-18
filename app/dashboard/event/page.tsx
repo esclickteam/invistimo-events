@@ -39,12 +39,12 @@ export default function EditEventPage() {
            2️⃣ Load Invitation BY eventId
         ========================= */
         const invitationRes = await fetch(
-  `/api/invitations/by-event/${loadedEvent._id}`,
-  {
-    credentials: "include",
-    cache: "no-store",
-  }
-);
+          `/api/invitations/by-event/${loadedEvent._id}`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
 
         if (!invitationRes.ok) {
           setLoading(false);
@@ -105,17 +105,17 @@ export default function EditEventPage() {
       {/* Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
-        {/* צד שמאל – הגדרות הזמנה */}
-        <div>
-          <EventInvitationSettings invitationId={invitation._id} />
-        </div>
-
         {/* צד ימין – פרטי האירוע */}
         <div>
           <EventDetailsForm
             event={invitation}
             onSaved={() => router.refresh()}
           />
+        </div>
+
+        {/* צד שמאל – הגדרות הזמנה */}
+        <div>
+          <EventInvitationSettings invitationId={invitation._id} />
         </div>
 
       </div>
