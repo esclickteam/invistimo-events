@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
 
 /* ================= CONFIG ================= */
 
-const BATCH_SIZE = 8;     // כמה הודעות בכל סבב
-const DELAY_MS = 2000;   // 2 שניות בין סבבים
+const BATCH_SIZE = 5;    // כמות הודעות בכל באצ'
+const DELAY_MS = 3000;  // השהיה בין באצ'ים (במילישניות)
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
