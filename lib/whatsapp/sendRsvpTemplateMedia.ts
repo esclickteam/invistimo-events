@@ -9,14 +9,11 @@ export type SendRsvpTemplateMediaInput = {
   /**
    * קישור אישי מלא, לדוגמה:
    * https://www.invistimo.com/invite/INHtag6CZG?token=tSPo8g_1x5Li
-   *
-   * בתבנית Meta הכפתור מוגדר:
-   * https://www.invistimo.com/invite/{{1}}
    */
   rsvpLink: string;
 
   // HEADER
-  headerImageUrl: string; // חובה – URL ציבורי (https)
+  headerImageUrl: string;
 
   templateName?: string;
   languageCode?: "he" | "he_IL" | string;
@@ -35,11 +32,6 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
-/**
- * 🚫 חובה לתבניות WhatsApp:
- * - אין \n \r \t
- * - אין יותר מרווח אחד
- */
 function normalizeTemplateText(text: string): string {
   return text
     .replace(/[\n\r\t]+/g, " ")
@@ -59,17 +51,11 @@ function isValidHttpsUrl(url: string): boolean {
 function normalizePhoneIL(phone: string): string {
   const p = String(phone || "").replace(/[^\d]/g, "");
   if (!p) return "";
-
   if (p.startsWith("972")) return p;
   if (p.startsWith("0")) return `972${p.slice(1)}`;
-
   return p;
 }
 
-/**
- * https://www.invistimo.com/invite/INHtag6CZG?token=abc
- * => INHtag6CZG?token=abc
- */
 function extractInviteSuffixForButton(rsvpLink: string): string {
   const u = new URL(rsvpLink.trim());
   const parts = u.pathname.split("/").filter(Boolean);
@@ -78,18 +64,10 @@ function extractInviteSuffixForButton(rsvpLink: string): string {
   const inviteId = inviteIndex >= 0 ? parts[inviteIndex + 1] : "";
 
   if (!inviteId) {
-    throw new Error(
-      "Invalid rsvpLink: expected path like /invite/{id}, inviteId not found"
-    );
+    throw new Error("Invalid rsvpLink: inviteId not found");
   }
 
-  const suffix = `${inviteId}${u.search || ""}`.trim();
-
-  if (!suffix || /\s/.test(suffix)) {
-    throw new Error("Invalid rsvpLink: extracted button suffix is invalid");
-  }
-
-  return suffix;
+  return `${inviteId}${u.search || ""}`;
 }
 
 function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
@@ -102,7 +80,7 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
     throw new Error("Missing field: headerImageUrl");
 }
 
-async function safeParseResponse(res: Response): Promise<unknown> {
+async function safeParseResponse(res: Response): Promise<any> {
   const text = await res.text().catch(() => "");
   if (!text) return {};
   try {
@@ -114,7 +92,9 @@ async function safeParseResponse(res: Response): Promise<unknown> {
 
 /* ================= MAIN ================= */
 
-export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
+export async function sendRsvpTemplateMedia(
+  input: SendRsvpTemplateMediaInput
+) {
   assertRequiredFields(input);
 
   const apiKey = process.env.WHATSAPP_API_KEY;
@@ -145,21 +125,17 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   let bodyParameters: { type: "text"; text: string }[] = [];
 
   if (templateName === ROUND1_TEMPLATE) {
-    // 🟢 סבב 1 – 3 משתנים
     bodyParameters = [
-      { type: "text", text: normalizeTemplateText(input.eventTitle) },    // {{1}}
-      { type: "text", text: normalizeTemplateText(input.eventDate) },     // {{2}}
-      { type: "text", text: normalizeTemplateText(input.eventLocation) }, // {{3}}
+      { type: "text", text: normalizeTemplateText(input.eventTitle) },
+      { type: "text", text: normalizeTemplateText(input.eventDate) },
+      { type: "text", text: normalizeTemplateText(input.eventLocation) },
     ];
   } else if (templateName === ROUND2_TEMPLATE) {
-    // 🟡 סבב 2 – משתנה אחד בלבד
     bodyParameters = [
-      { type: "text", text: normalizeTemplateText(input.eventTitle) }, // {{1}}
+      { type: "text", text: normalizeTemplateText(input.eventTitle) },
     ];
   } else {
-    throw new Error(
-      `Unsupported templateName "${templateName}". No BODY mapping defined.`
-    );
+    throw new Error(`Unsupported templateName "${templateName}"`);
   }
 
   /* ================= PAYLOAD ================= */
@@ -192,7 +168,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
           parameters: [
             {
               type: "text",
-              text: buttonUrlParam, // {{1}} של הכפתור
+              text: buttonUrlParam,
             },
           ],
         },
@@ -219,12 +195,16 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     );
   }
 
+  // ⭐⭐ הקריטי – מזהה הודעה ל-delivery tracking
+  const messageId = providerResponse?.messages?.[0]?.id ?? null;
+
   return {
     success: true,
     to,
     templateName,
     languageCode,
     buttonUrlParam,
+    messageId,          // 👈 זה מה שמחבר ל-Webhook
     providerResponse,
   };
 }

@@ -5,21 +5,11 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * WhatsApp Webhook
- * - NEVER do heavy logic here
- * - ALWAYS return 200 fast
- */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
     await db();
 
-    /**
-     * מבנה webhook של WhatsApp (360dialog / Meta):
-     * body.entry[].changes[].value.statuses[]
-     */
     const entries = body?.entry ?? [];
 
     for (const entry of entries) {
@@ -37,7 +27,6 @@ export async function POST(req: Request) {
 
           if (!wamid || !state) continue;
 
-          // 🎯 delivered / read
           if (state === "delivered" || state === "read") {
             await WhatsappQueue.updateOne(
               { wamid },
@@ -50,7 +39,6 @@ export async function POST(req: Request) {
             );
           }
 
-          // ❌ failed
           if (state === "failed") {
             const errorCode =
               status?.errors?.[0]?.code ??
@@ -72,12 +60,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // ⚠️ תמיד להחזיר 200
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("❌ WhatsApp Webhook error", err);
-
-    // גם בשגיאה – מחזירים 200 כדי ש-WhatsApp לא ינסה שוב
     return NextResponse.json({ ok: true });
   }
 }

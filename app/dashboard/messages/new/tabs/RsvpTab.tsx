@@ -64,7 +64,6 @@ function getRsvpReminderPreviewText(eventTitle: string) {
 מחכים לשמוח איתכם 💖`;
 }
 
-
 function normalizeGiftOptions(raw: any): GiftOptions {
   const g = raw ?? {};
   return {
@@ -89,17 +88,57 @@ export default function RsvpTab({
   const [round, setRound] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(true);
 
-  // 🔒 מצב סבבים מהשרת
+  // 🔒 מצב סבבים
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
 
-    // 📅 נתוני אירוע ל־Preview (חדש)
+  // 📅 נתוני אירוע ל־Preview
   const [eventData, setEventData] = useState<{
     title: string;
     date: string;
     location: string;
   } | null>(null);
 
+  // 📊 סטטיסטיקת WhatsApp
+  const [waStats, setWaStats] = useState<{
+    total: number;
+    delivered: number;
+    pending: number;
+    failed: number;
+  } | null>(null);
+
+  async function loadWhatsappStats() {
+    try {
+      const res = await fetch(
+        `/api/whatsapp/stats?invitationId=${invitationId}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+
+      if (data?.success) {
+        setWaStats({
+          total: data.total,
+          delivered: data.delivered,
+          pending: data.pending,
+          failed: data.failed,
+        });
+      }
+    } catch (e) {
+      console.error("❌ Failed to load WhatsApp stats", e);
+    }
+  }
+
+  useEffect(() => {
+    if (!round1SentAt && !round2SentAt) return;
+
+    loadWhatsappStats();
+
+    const interval = setInterval(() => {
+      loadWhatsappStats();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [round1SentAt, round2SentAt, invitationId]);
 
   // 🎁 Gift options
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
@@ -112,7 +151,6 @@ export default function RsvpTab({
   const [savingGift, setSavingGift] = useState(false);
   const [giftSaveError, setGiftSaveError] = useState<string>("");
 
-  // debounce timer
   const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didInitGift = useRef(false);
 
@@ -144,23 +182,18 @@ export default function RsvpTab({
           setRound2SentAt(new Date(inv.rsvpRound2SentAt));
         }
 
-        // 🎁 load gift options
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
 
         if (inv) {
-  setEventData({
-    title: inv.title ?? eventTitle,
-    date: inv.eventDate
-      ? new Date(inv.eventDate).toLocaleDateString("he-IL")
-      : eventDate,
-    location: inv.location?.address ?? eventLocation,
-  });
-}
-
-
-
-
+          setEventData({
+            title: inv.title ?? eventTitle,
+            date: inv.eventDate
+              ? new Date(inv.eventDate).toLocaleDateString("he-IL")
+              : eventDate,
+            location: inv.location?.address ?? eventLocation,
+          });
+        }
       } catch (err) {
         console.error("❌ Failed to load RSVP data", err);
       } finally {
@@ -171,13 +204,11 @@ export default function RsvpTab({
     loadData();
   }, [invitationId, eventTitle, eventDate, eventLocation]);
 
-
-  /* ================= SAVE GIFT OPTIONS (DEBOUNCED) ================= */
+  /* ================= SAVE GIFT OPTIONS ================= */
 
   useEffect(() => {
     if (!didInitGift.current) return;
 
-    // clear old timer
     if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
 
     giftSaveTimer.current = setTimeout(async () => {
@@ -187,14 +218,14 @@ export default function RsvpTab({
 
         const payload: GiftOptions = {
           creditEnabled: !!giftOptions.creditEnabled,
-          creditUrl: (giftOptions.creditUrl ?? "").trim(),
+          creditUrl: giftOptions.creditEnabled
+            ? giftOptions.creditUrl.trim()
+            : "",
           payboxEnabled: !!giftOptions.payboxEnabled,
-          payboxUrl: (giftOptions.payboxUrl ?? "").trim(),
+          payboxUrl: giftOptions.payboxEnabled
+            ? giftOptions.payboxUrl.trim()
+            : "",
         };
-
-        // אם כבוי — ננקה URL כדי שלא יבלבל
-        if (!payload.creditEnabled) payload.creditUrl = "";
-        if (!payload.payboxEnabled) payload.payboxUrl = "";
 
         const res = await fetch(`/api/invitations/${invitationId}`, {
           method: "PATCH",
@@ -232,7 +263,6 @@ export default function RsvpTab({
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
 
-  // ⛔ חסימה רק של שליחה – לא של ניווט
   const blocked =
     loading ||
     noAudience ||
@@ -241,24 +271,21 @@ export default function RsvpTab({
     (round === 2 && !!round2SentAt);
 
   const previewText = useMemo(() => {
-  if (!eventData) return "";
+    if (!eventData) return "";
 
-  // 🟢 סבב 1 – טקסט מלא
-  if (round === 1) {
-    return getRsvpPreviewText({
-      eventTitle: eventData.title,
-      eventDate: eventData.date,
-      eventLocation: eventData.location,
-    });
-  }
+    if (round === 1) {
+      return getRsvpPreviewText({
+        eventTitle: eventData.title,
+        eventDate: eventData.date,
+        eventLocation: eventData.location,
+      });
+    }
 
-  // 🟡 סבב 2 – תזכורת ({{1}} בלבד)
-  return getRsvpReminderPreviewText(eventData.title);
-}, [eventData, round]);
+    return getRsvpReminderPreviewText(eventData.title);
+  }, [eventData, round]);
 
-
-
-  const templateName = round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_ROUND2_TEMPLATE;
+  const templateName =
+    round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_ROUND2_TEMPLATE;
 
   if (loading) return <p>טוען אורחים...</p>;
 
@@ -266,7 +293,7 @@ export default function RsvpTab({
 
   return (
     <div className="space-y-6 p-6">
-      {/* ===== ROUNDS (תמיד לחיצים) ===== */}
+      {/* ===== ROUNDS ===== */}
       <div className="flex gap-2">
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
@@ -287,7 +314,6 @@ export default function RsvpTab({
         </button>
       </div>
 
-      {/* ===== AUDIENCE ===== */}
       <AudienceFilterSelector
         value={round === 1 ? "all" : "pending"}
         onChange={() => {}}
@@ -296,102 +322,20 @@ export default function RsvpTab({
         readOnly
       />
 
-      {/* ===== 🎁 GIFT OPTIONS ===== */}
-      <div className="rounded-2xl border border-gray-200 p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">🎁 אפשרות מתנה בעמוד ההזמנה</h3>
-          <span className="text-xs text-gray-500">
-            {savingGift ? "שומר..." : "נשמר אוטומטית"}
-          </span>
-        </div>
-
-        {giftSaveError && (
-          <p className="text-sm text-red-600">{giftSaveError}</p>
-        )}
-
-        {/* Credit */}
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={giftOptions.creditEnabled}
-            onChange={(e) =>
-              setGiftOptions((prev) => ({
-                ...prev,
-                creditEnabled: e.target.checked,
-                creditUrl: e.target.checked ? prev.creditUrl : "",
-              }))
-            }
-          />
-          <span className="text-sm">מתנה באשראי</span>
-        </label>
-
-        <input
-          type="url"
-          className={`w-full border rounded-xl px-3 py-2 text-sm ${
-            giftOptions.creditEnabled
-              ? "border-gray-300"
-              : "border-gray-200 bg-gray-50 text-gray-400"
-          }`}
-          placeholder="הדביקו קישור לתשלום באשראי"
-          value={giftOptions.creditUrl}
-          disabled={!giftOptions.creditEnabled}
-          onChange={(e) =>
-            setGiftOptions((prev) => ({ ...prev, creditUrl: e.target.value }))
-          }
-        />
-
-        {/* PayBox */}
-        <label className="flex items-center gap-2 pt-1">
-          <input
-            type="checkbox"
-            checked={giftOptions.payboxEnabled}
-            onChange={(e) =>
-              setGiftOptions((prev) => ({
-                ...prev,
-                payboxEnabled: e.target.checked,
-                payboxUrl: e.target.checked ? prev.payboxUrl : "",
-              }))
-            }
-          />
-          <span className="text-sm">מתנה ב-PayBox</span>
-        </label>
-
-        <input
-          type="url"
-          className={`w-full border rounded-xl px-3 py-2 text-sm ${
-            giftOptions.payboxEnabled
-              ? "border-gray-300"
-              : "border-gray-200 bg-gray-50 text-gray-400"
-          }`}
-          placeholder="הדביקו קישור PayBox"
-          value={giftOptions.payboxUrl}
-          disabled={!giftOptions.payboxEnabled}
-          onChange={(e) =>
-            setGiftOptions((prev) => ({ ...prev, payboxUrl: e.target.value }))
-          }
-        />
-
-        <p className="text-xs text-gray-500">
-          יוצג לאורחים מתחת לאישור הגעה רק אם מופעל + יש קישור.
-        </p>
-      </div>
-
-      {/* ===== PREVIEW ===== */}
       <WhatsappTemplatePreview
-  templateKey={templateName} // 👈 rsvp_invitation_media | rsvp_reminder_invistimo
-  previewText={previewText}
-  headerImageUrl={headerImageUrl}
-/>
+        templateKey={templateName}
+        previewText={previewText}
+        headerImageUrl={headerImageUrl}
+      />
 
-{!round1SentAt && !round2SentAt && (
-  <p className="text-xs text-gray-500 mb-2 text-center">
-    תהליך שליחת הודעות WhatsApp החל. ההודעות נשלחות בהדרגה וייתכן שייקח מספר דקות עד להשלמת התהליך.
-  </p>
-)}
+      {waStats && (
+        <p className="text-sm text-center text-gray-700">
+          נמסרו {waStats.delivered} מתוך {waStats.total}
+          {waStats.pending > 0 && ` (עוד ${waStats.pending} בתהליך)`}
+          {waStats.failed > 0 && ` • ${waStats.failed} נכשלו`}
+        </p>
+      )}
 
-
-
-      {/* ===== SEND ===== */}
       <SendButton
         channel="whatsapp"
         type="rsvp"
@@ -403,8 +347,6 @@ export default function RsvpTab({
       >
         {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
           ? "⏳ תהליך שליחה החל"
-          : scheduledAt
-          ? `⏱️ תזמן אישור הגעה – סבב ${round}`
           : `📲 שלח אישור הגעה – סבב ${round}`}
       </SendButton>
 
