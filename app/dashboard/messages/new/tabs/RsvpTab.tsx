@@ -82,6 +82,9 @@ export default function RsvpTab({
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
 
+  // 🧍 אורח ספציפי (חדש)
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
+
   // 🎁 Gift options
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
     creditEnabled: false,
@@ -93,7 +96,6 @@ export default function RsvpTab({
   const [savingGift, setSavingGift] = useState(false);
   const [giftSaveError, setGiftSaveError] = useState<string>("");
 
-  // debounce timer
   const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didInitGift = useRef(false);
 
@@ -125,7 +127,6 @@ export default function RsvpTab({
           setRound2SentAt(new Date(inv.rsvpRound2SentAt));
         }
 
-        // 🎁 load gift options
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
       } catch (err) {
@@ -138,12 +139,11 @@ export default function RsvpTab({
     loadData();
   }, [invitationId]);
 
-  /* ================= SAVE GIFT OPTIONS (DEBOUNCED) ================= */
+  /* ================= SAVE GIFT OPTIONS ================= */
 
   useEffect(() => {
     if (!didInitGift.current) return;
 
-    // clear old timer
     if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
 
     giftSaveTimer.current = setTimeout(async () => {
@@ -153,14 +153,14 @@ export default function RsvpTab({
 
         const payload: GiftOptions = {
           creditEnabled: !!giftOptions.creditEnabled,
-          creditUrl: (giftOptions.creditUrl ?? "").trim(),
+          creditUrl: giftOptions.creditEnabled
+            ? giftOptions.creditUrl.trim()
+            : "",
           payboxEnabled: !!giftOptions.payboxEnabled,
-          payboxUrl: (giftOptions.payboxUrl ?? "").trim(),
+          payboxUrl: giftOptions.payboxEnabled
+            ? giftOptions.payboxUrl.trim()
+            : "",
         };
-
-        // אם כבוי — ננקה URL כדי שלא יבלבל
-        if (!payload.creditEnabled) payload.creditUrl = "";
-        if (!payload.payboxEnabled) payload.payboxUrl = "";
 
         const res = await fetch(`/api/invitations/${invitationId}`, {
           method: "PATCH",
@@ -172,7 +172,7 @@ export default function RsvpTab({
           const data = await res.json().catch(() => null);
           throw new Error(data?.error || "FAILED_TO_SAVE_GIFT_OPTIONS");
         }
-      } catch (e: any) {
+      } catch (e) {
         console.error("❌ Failed to save giftOptions", e);
         setGiftSaveError("לא הצלחנו לשמור את הגדרות המתנה. נסי שוב.");
       } finally {
@@ -188,9 +188,15 @@ export default function RsvpTab({
   /* ================= DERIVED ================= */
 
   const guestsToSend = useMemo(() => {
+    // 🧍 אם נבחר אורח ספציפי – שולחים רק אליו
+    if (selectedGuestId) {
+      return guests.filter((g) => g._id === selectedGuestId);
+    }
+
+    // ברירת מחדל – ההתנהגות הקיימת
     if (round === 1) return guests;
     return guests.filter((g) => g.rsvp === "pending");
-  }, [guests, round]);
+  }, [guests, round, selectedGuestId]);
 
   const totalCount = guests.length;
   const pendingCount = guests.filter((g) => g.rsvp === "pending").length;
@@ -198,7 +204,6 @@ export default function RsvpTab({
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = !headerImageUrl;
 
-  // ⛔ חסימה רק של שליחה – לא של ניווט
   const blocked =
     loading ||
     noAudience ||
@@ -219,7 +224,7 @@ export default function RsvpTab({
 
   return (
     <div className="space-y-6 p-6">
-      {/* ===== ROUNDS (תמיד לחיצים) ===== */}
+      {/* ===== ROUNDS ===== */}
       <div className="flex gap-2">
         <button
           className={`flex-1 py-2 rounded-xl font-medium border ${
@@ -249,84 +254,27 @@ export default function RsvpTab({
         readOnly
       />
 
-      {/* ===== 🎁 GIFT OPTIONS ===== */}
-      <div className="rounded-2xl border border-gray-200 p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">🎁 אפשרות מתנה בעמוד ההזמנה</h3>
-          <span className="text-xs text-gray-500">
-            {savingGift ? "שומר..." : "נשמר אוטומטית"}
-          </span>
-        </div>
-
-        {giftSaveError && (
-          <p className="text-sm text-red-600">{giftSaveError}</p>
-        )}
-
-        {/* Credit */}
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={giftOptions.creditEnabled}
-            onChange={(e) =>
-              setGiftOptions((prev) => ({
-                ...prev,
-                creditEnabled: e.target.checked,
-                creditUrl: e.target.checked ? prev.creditUrl : "",
-              }))
-            }
-          />
-          <span className="text-sm">מתנה באשראי</span>
+      {/* ===== NEW: SINGLE GUEST SELECT ===== */}
+      <div className="max-w-sm">
+        <label className="block text-sm font-medium mb-1">
+          שליחה לאורח ספציפי (אופציונלי)
         </label>
 
-        <input
-          type="url"
-          className={`w-full border rounded-xl px-3 py-2 text-sm ${
-            giftOptions.creditEnabled
-              ? "border-gray-300"
-              : "border-gray-200 bg-gray-50 text-gray-400"
-          }`}
-          placeholder="הדביקו קישור לתשלום באשראי"
-          value={giftOptions.creditUrl}
-          disabled={!giftOptions.creditEnabled}
+        <select
+          value={selectedGuestId ?? ""}
           onChange={(e) =>
-            setGiftOptions((prev) => ({ ...prev, creditUrl: e.target.value }))
+            setSelectedGuestId(e.target.value || null)
           }
-        />
+          className="w-full border rounded-xl px-3 py-2 text-sm"
+        >
+          <option value="">לכל המוזמנים (ברירת מחדל)</option>
 
-        {/* PayBox */}
-        <label className="flex items-center gap-2 pt-1">
-          <input
-            type="checkbox"
-            checked={giftOptions.payboxEnabled}
-            onChange={(e) =>
-              setGiftOptions((prev) => ({
-                ...prev,
-                payboxEnabled: e.target.checked,
-                payboxUrl: e.target.checked ? prev.payboxUrl : "",
-              }))
-            }
-          />
-          <span className="text-sm">מתנה ב-PayBox</span>
-        </label>
-
-        <input
-          type="url"
-          className={`w-full border rounded-xl px-3 py-2 text-sm ${
-            giftOptions.payboxEnabled
-              ? "border-gray-300"
-              : "border-gray-200 bg-gray-50 text-gray-400"
-          }`}
-          placeholder="הדביקו קישור PayBox"
-          value={giftOptions.payboxUrl}
-          disabled={!giftOptions.payboxEnabled}
-          onChange={(e) =>
-            setGiftOptions((prev) => ({ ...prev, payboxUrl: e.target.value }))
-          }
-        />
-
-        <p className="text-xs text-gray-500">
-          יוצג לאורחים מתחת לאישור הגעה רק אם מופעל + יש קישור.
-        </p>
+          {guests.map((g) => (
+            <option key={g._id} value={g._id}>
+              {g.name} – {g.phone}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* ===== PREVIEW ===== */}
@@ -354,7 +302,7 @@ export default function RsvpTab({
       </SendButton>
 
       {noAudience && (
-        <p className="text-sm text-red-500">אין נמענים לשליחה בסבב זה</p>
+        <p className="text-sm text-red-500">אין נמענים לשליחה</p>
       )}
     </div>
   );
