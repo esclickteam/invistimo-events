@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
 
+const NOTES_OPTIONS = [
+  "כשר מחפוד",
+  "טבעוני",
+  "צמחוני",
+  "אלרגיות",
+  "מנת ילדים",
+  "אחר",
+];
+
 type GiftOptions = {
   creditEnabled?: boolean;
   creditUrl?: string;
@@ -68,17 +77,24 @@ export default function PublicInvitePage({ params }: any) {
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [sent, setSent] = useState(false);
 
-  const [form, setForm] = useState({
-    rsvp: "pending" as "yes" | "no" | "pending",
+  /* ============================================================
+     RSVP FORM STATE
+  ============================================================ */
+  const [form, setForm] = useState<{
+    rsvp: "yes" | "no" | "pending";
+    arrivedCount: number;
+    notes: string[];
+  }>({
+    rsvp: "pending",
     arrivedCount: 1,
-    notes: [] as string[],
+    notes: [],
   });
 
   const [guestsOpen, setGuestsOpen] = useState(false);
 
-  /* =========================
-     Load invite
-  ========================= */
+  /* ============================================================
+     unwrap params
+  ============================================================ */
   useEffect(() => {
     async function unwrap() {
       const resolved = await params;
@@ -87,57 +103,68 @@ export default function PublicInvitePage({ params }: any) {
     unwrap();
   }, [params]);
 
+  /* ============================================================
+     זיהוי אורח לפי token (?token=)
+  ============================================================ */
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get("token");
+    if (!token) return;
+
+    async function fetchGuest() {
+      try {
+        const res = await fetch(`/api/invitationGuests/byToken/${token}`);
+        const data = await res.json();
+
+        if (data.success && data.guest) {
+          setSelectedGuest(data.guest);
+
+          // ❗ ברירת מחדל: מגיע אדם אחד
+          setForm((prev) => ({
+            ...prev,
+            arrivedCount: 1,
+          }));
+        }
+      } catch (err) {
+        console.error("❌ Guest fetch error:", err);
+      }
+    }
+
+    fetchGuest();
+  }, []);
+
+  /* ============================================================
+     טעינת ההזמנה
+  ============================================================ */
   useEffect(() => {
     if (!shareId) return;
 
     async function fetchInvite() {
-      const res = await fetch(`/api/invite/${shareId}`);
-      const data = await res.json();
+      try {
+        const res = await fetch(`/api/invite/${shareId}`);
+        const data = await res.json();
 
-      if (data.success) {
-        setInvite(data.invitation);
-        setEvent(data.event);
+        if (data.success && data.invitation && data.event) {
+          setInvite(data.invitation);
+          setEvent(data.event);
+        } else {
+          setInvite(null);
+          setEvent(null);
+        }
+      } catch (err) {
+        console.error("❌ Invite fetch error:", err);
+        setInvite(null);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     fetchInvite();
   }, [shareId]);
 
-  /* =========================
-     Active dynamic options
-  ========================= */
-  const activeMenuOptions = useMemo(() => {
-    if (!invite?.invitationSettings?.menuOptions) return [];
-
-
-    const labels: Record<string, string> = {
-      vegetarian: "צמחוני",
-      vegan: "טבעוני",
-      glutenFree: "ללא גלוטן",
-      childrenMeal: "מנת ילדים",
-      kosher: "כשר",
-    };
-
-    return Object.entries(invite.invitationSettings.menuOptions)
-
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => labels[key]);
-  }, [invite]);
-
-
-  const customOptions =
-  invite?.invitationSettings?.customOptions ?? [];
-
-
-  const allowGuestNote =
-  invite?.invitationSettings?.allowGuestNote ?? false;
-
-
-  /* =========================
-     Submit
-  ========================= */
+  /* ============================================================
+     שליחת RSVP
+  ============================================================ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -146,30 +173,36 @@ export default function PublicInvitePage({ params }: any) {
       return;
     }
 
-    const res = await fetch(
-      `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rsvp: form.rsvp,
-          arrivedCount:
-            form.rsvp === "yes" ? form.arrivedCount : 0,
-          notes: form.notes,
-        }),
-      }
-    );
+    try {
+      const res = await fetch(
+        `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rsvp: form.rsvp,
+            arrivedCount: form.rsvp === "yes" ? form.arrivedCount : 0,
+            notes: form.notes,
+          }),
+        }
+      );
 
-    const data = await res.json();
-
-    if (data.success) {
-      if (form.rsvp === "yes") {
-        router.push("/thank-you");
-      } else {
-        setSent(true);
+      const data = await res.json();
+      if (data.success) {
+        if (form.rsvp === "yes") {
+          router.push("/thank-you");
+        } else {
+          setSent(true);
+        }
       }
+    } catch (err) {
+      console.error("❌ RSVP error:", err);
     }
   }
+
+  const giftOptions: GiftOptions | undefined = useMemo(() => {
+    return invite?.giftOptions;
+  }, [invite]);
 
   if (loading) {
     return <div className="p-10 text-center">טוען הזמנה…</div>;
@@ -177,216 +210,172 @@ export default function PublicInvitePage({ params }: any) {
 
   if (!invite) {
     return (
-      <div className="p-10 text-center text-red-600">
-        ❌ ההזמנה לא נמצאה
-      </div>
+      <div className="p-10 text-center text-red-600">❌ ההזמנה לא נמצאה</div>
     );
   }
 
+  /* ============================================================
+     Render
+  ============================================================ */
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center py-10 pb-32">
+    <div className="min-h-screen w-full overflow-y-auto bg-[#faf9f6]">
+      <div className="flex flex-col items-center py-10 pb-32">
+        {/* הזמנה מעוצבת */}
+        <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
+          {invite.canvasData ? (
+            <PublicInviteRenderer canvasData={invite.canvasData} />
+          ) : (
+            <div className="text-gray-400 text-center">
+              אין נתוני עיצוב להצגה
+            </div>
+          )}
+        </div>
 
-      {/* Invite Design */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
-        {invite.canvasData ? (
-          <PublicInviteRenderer canvasData={invite.canvasData} />
-        ) : (
-          <div className="text-gray-400 text-center">
-            אין נתוני עיצוב להצגה
-          </div>
-        )}
-      </div>
+        {/* טופס אישור הגעה */}
+        {!sent ? (
+          <form
+            onSubmit={handleSubmit}
+            className="w-full max-w-md bg-white rounded-2xl shadow p-8 flex flex-col gap-6"
+          >
+            <div className="text-center text-lg font-medium text-[#6b6046]">
+              {selectedGuest ? (
+                <>
+                  שלום {selectedGuest.name},<br />
+                  נשמח לראותך באירוע!
+                </>
+              ) : (
+                <>נשמח לראותך באירוע!</>
+              )}
+            </div>
 
-      {!sent ? (
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-md bg-white rounded-2xl shadow p-8 flex flex-col gap-6"
-        >
-          <div className="text-center text-lg font-medium text-[#6b6046]">
-            נשמח לראותך באירוע!
-          </div>
+            {/* מגיע / לא מגיע */}
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, rsvp: "yes" })}
+                className={`flex-1 py-3 rounded-full font-medium border ${
+                  form.rsvp === "yes"
+                    ? "bg-[#c3b28b] text-white border-[#c3b28b]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
+              >
+                מגיע
+              </button>
 
-          {/* Yes / No */}
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() =>
-                setForm({ ...form, rsvp: "yes" })
-              }
-              className={`flex-1 py-3 rounded-full border ${
-                form.rsvp === "yes"
-                  ? "bg-[#c3b28b] text-white border-[#c3b28b]"
-                  : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
-              }`}
-            >
-              מגיע
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setForm({
-                  ...form,
-                  rsvp: "no",
-                  arrivedCount: 0,
-                })
-              }
-              className={`flex-1 py-3 rounded-full border ${
-                form.rsvp === "no"
-                  ? "bg-[#b88a8a] text-white border-[#b88a8a]"
-                  : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
-              }`}
-            >
-              לא מגיע
-            </button>
-          </div>
-
-          {form.rsvp === "yes" && (
-            <>
-              {/* Arrived Count */}
-              <input
-                type="number"
-                min={1}
-                max={15}
-                value={form.arrivedCount}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    arrivedCount: Number(e.target.value),
-                  })
+              <button
+                type="button"
+                onClick={() =>
+                  setForm({ ...form, rsvp: "no", arrivedCount: 0 })
                 }
-                className="border rounded-full px-4 py-3"
-              />
+                className={`flex-1 py-3 rounded-full font-medium border ${
+                  form.rsvp === "no"
+                    ? "bg-[#b88a8a] text-white border-[#b88a8a]"
+                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                }`}
+              >
+                לא מגיע
+              </button>
+            </div>
 
-              {/* Dynamic Options */}
-              {(activeMenuOptions.length > 0 ||
-                customOptions.length > 0 ||
-                allowGuestNote) && (
+            {form.rsvp === "yes" && (
+              <>
+                {/* כמות מגיעים */}
                 <div>
-                  <label className="block mb-2 font-medium">
-                    העדפות מיוחדות:
+                  <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
+                    כמה אנשים יגיעו?
+                  </label>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setGuestsOpen((v) => !v)}
+                      className="w-full flex justify-between items-center px-4 py-3 rounded-full border border-[#d1c7b4] bg-white"
+                    >
+                      <span>{form.arrivedCount}</span>
+                      <span className="text-gray-400">▾</span>
+                    </button>
+
+                    {guestsOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-2xl border border-[#d1c7b4] bg-white shadow-lg max-h-48 overflow-y-auto">
+                        {Array.from({ length: 15 }, (_, i) => i + 1).map(
+                          (num) => (
+                            <div
+                              key={num}
+                              onClick={() => {
+                                setForm({
+                                  ...form,
+                                  arrivedCount: num,
+                                });
+                                setGuestsOpen(false);
+                              }}
+                              className={`px-4 py-3 cursor-pointer hover:bg-[#faf9f6] ${
+                                form.arrivedCount === num
+                                  ? "bg-[#f3eee7] font-semibold"
+                                  : ""
+                              }`}
+                            >
+                              {num}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* הערות */}
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
+                    הערות:
                   </label>
 
                   <div className="grid grid-cols-2 gap-3">
-
-                    {activeMenuOptions.map((opt: string) => (
+                    {NOTES_OPTIONS.map((opt) => (
                       <label
                         key={opt}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 text-sm text-[#6b6046]"
                       >
                         <input
                           type="checkbox"
                           checked={form.notes.includes(opt)}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setForm({
                               ...form,
                               notes: e.target.checked
                                 ? [...form.notes, opt]
-                                : form.notes.filter(
-                                    (n) => n !== opt
-                                  ),
-                            })
-                          }
+                                : form.notes.filter((n) => n !== opt),
+                            });
+                          }}
                         />
                         {opt}
                       </label>
                     ))}
-
-                    {customOptions
-                      .filter((c: any) => c.type === "checkbox")
-                      .map((opt: any) => (
-                        <label
-                          key={opt.key}
-                          className="flex items-center gap-2"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={form.notes.includes(
-                              opt.label
-                            )}
-                            onChange={(e) =>
-                              setForm({
-                                ...form,
-                                notes: e.target.checked
-                                  ? [
-                                      ...form.notes,
-                                      opt.label,
-                                    ]
-                                  : form.notes.filter(
-                                      (n) =>
-                                        n !== opt.label
-                                    ),
-                              })
-                            }
-                          />
-                          {opt.label}
-                        </label>
-                      ))}
                   </div>
-
-                  {customOptions
-                    .filter((c: any) => c.type === "text")
-                    .map((opt: any) => (
-                      <input
-                        key={opt.key}
-                        placeholder={opt.label}
-                        className="w-full border rounded-full px-4 py-3 mt-3"
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            notes: [
-                              ...form.notes.filter(
-                                (n) =>
-                                  !n.startsWith(
-                                    opt.label + ":"
-                                  )
-                              ),
-                              `${opt.label}: ${e.target.value}`,
-                            ],
-                          })
-                        }
-                      />
-                    ))}
-
-                  {allowGuestNote && (
-                    <textarea
-                      placeholder="הערה חופשית"
-                      className="w-full border rounded-2xl px-4 py-3 mt-3"
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          notes: [
-                            ...form.notes.filter(
-                              (n) =>
-                                !n.startsWith("הערה:")
-                            ),
-                            `הערה: ${e.target.value}`,
-                          ],
-                        })
-                      }
-                    />
-                  )}
                 </div>
-              )}
-            </>
-          )}
+              </>
+            )}
 
-          <button
-            type="submit"
-            className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
-          >
-            שליחת אישור הגעה
-          </button>
+            <button
+              type="submit"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
+            >
+              שליחת אישור הגעה
+            </button>
 
-          <GiftSection giftOptions={invite?.giftOptions} />
-        </form>
-      ) : (
-        <div className="w-full max-w-md bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold text-center">
-          ✓ תודה! תשובתך התקבלה
+            {/* ✅ מתחת לאישור הגעה */}
+            <GiftSection giftOptions={giftOptions} />
+          </form>
+        ) : (
+          <div className="w-full max-w-md bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold text-center">
+            ✓ תודה! תשובתך התקבלה
+          </div>
+        )}
+
+        {/* כרטיס מיקום */}
+        <div className="w-full flex justify-center">
+          <EventLocationCard location={event?.location} />
         </div>
-      )}
-
-      <EventLocationCard location={event?.location} />
+      </div>
     </div>
   );
 }
