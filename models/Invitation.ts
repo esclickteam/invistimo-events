@@ -52,6 +52,7 @@ const InvitationSettingsSchema = new Schema(
       childrenMeal: { type: Boolean, default: false },
       kosher: { type: Boolean, default: false },
       kosherGlatt: { type: Boolean, default: false },
+      kosherMahfoud: { type: Boolean, default: false },
       transportation: { type: Boolean, default: false },
     },
   },

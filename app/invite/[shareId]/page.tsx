@@ -16,6 +16,7 @@ const MENU_LABELS: Record<string, string> = {
   childrenMeal: "מנת ילדים",
   kosher: "כשר",
   kosherGlatt: "כשר גלאט",
+  kosherMahfoud: "כשר מחפוד", // ✅ חדש
   transportation: "הסעות",
 };
 

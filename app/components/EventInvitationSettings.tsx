@@ -9,6 +9,7 @@ type MenuOptions = {
   childrenMeal: boolean;
   kosher: boolean;
   kosherGlatt: boolean;
+  kosherMahfoud: boolean; // ✅ חדש
   transportation: boolean;
 };
 
@@ -34,6 +35,7 @@ const defaultSettings: InvitationSettings = {
     childrenMeal: false,
     kosher: false,
     kosherGlatt: false,
+    kosherMahfoud: false, // ✅ חדש
     transportation: false,
   },
 };
@@ -45,6 +47,7 @@ const MENU_LABELS: Record<keyof MenuOptions, string> = {
   childrenMeal: "מנת ילדים",
   kosher: "כשר",
   kosherGlatt: "כשר גלאט",
+  kosherMahfoud: "כשר מחפוד", // ✅ חדש
   transportation: "הסעות",
 };
 
@@ -115,9 +118,6 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 space-y-6" dir="rtl">
       <h2 className="text-xl font-semibold">⚙️ הגדרות הזמנה</h2>
-
-
-   
 
       <div className="space-y-3">
         <h3 className="font-medium text-lg">הגדרת הערות</h3>
