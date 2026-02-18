@@ -3,21 +3,14 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import "@/models/Event";
-import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+
+import WhatsappQueue from "@/models/WhatsappQueue";
+
 import { sendTableNumberTemplate } from "@/lib/whatsapp/sendTableNumberTemplate";
 import { sendThankYouTemplate } from "@/lib/whatsapp/sendThankYouTemplate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/* ================= CONFIG ================= */
-
-const BATCH_SIZE = 5;    // כמות הודעות בכל באצ'
-const DELAY_MS = 3000;  // השהיה בין באצ'ים (במילישניות)
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /* ================= TYPES ================= */
 
@@ -80,7 +73,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* =====================================================
-       RSVP – BULK WHATSAPP (SAFE + RATE LIMITED)
+       RSVP – QUEUE ONLY
     ===================================================== */
 
     if (
@@ -137,99 +130,71 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // ⛔ לא שולחים שוב למי שכבר קיבל
       const guests = await InvitationGuest.find({
         invitationId: invitation._id,
         _id: { $in: body.audience },
-        rsvpSentAt: { $exists: false },
       }).lean();
 
-      let sent = 0;
-      let rateLimited = false;
+      let queued = 0;
 
-      // ✅ שליחה מדורגת ובטוחה
-      try {
-        for (let i = 0; i < guests.length; i += BATCH_SIZE) {
-          const batch = guests.slice(i, i + BATCH_SIZE);
+      for (const guest of guests) {
+        if (!guest.phone || !guest.token) continue;
 
-          await Promise.allSettled(
-            batch.map(async (guest) => {
-              if (!guest.phone || !guest.token) return;
+        // 🔒 מניעת כפילויות
+        const exists = await WhatsappQueue.findOne({
+          invitationId: invitation._id,
+          guestId: guest._id,
+          templateName,
+          status: { $in: ["pending", "sending", "sent"] },
+        }).lean();
 
-              try {
-                const phone = guest.phone.startsWith("972")
-                  ? guest.phone
-                  : `972${guest.phone.replace(/^0/, "")}`;
+        if (exists) continue;
 
-                const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+        const phone = guest.phone.startsWith("972")
+          ? guest.phone
+          : `972${guest.phone.replace(/^0/, "")}`;
 
-                await sendRsvpTemplateMedia({
-                  to: phone,
-                  eventTitle: event.title,
-                  eventDate: event.date,
-                  eventLocation:
-                    event.location?.address || event.location?.name || "",
-                  rsvpLink,
-                  headerImageUrl:
-                    invitation.headerImageUrl || invitation.previewImage,
-                  templateName,
-                  languageCode,
-                });
+        const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-                sent++;
+        await WhatsappQueue.create({
+          invitationId: invitation._id,
+          guestId: guest._id,
+          phone,
+          templateName,
+          payload: {
+            eventTitle: event.title,
+            eventDate: event.date,
+            eventLocation:
+              event.location?.address || event.location?.name || "",
+            rsvpLink,
+            headerImageUrl:
+              invitation.headerImageUrl || invitation.previewImage,
+            languageCode,
+          },
+        });
 
-                // מסמנים על האורח שנשלח
-                await InvitationGuest.updateOne(
-                  { _id: guest._id },
-                  { $set: { rsvpSentAt: new Date() } }
-                );
-              } catch (err: any) {
-                const msg = err?.message || "";
-                console.error("❌ Failed sending RSVP:", msg);
+        queued++;
+      }
 
-                // 🚨 חסימת ספאם – עוצרים הכול
-                if (msg.includes("131048") || msg.includes("Spam Rate limit")) {
-                  rateLimited = true;
-                  throw new Error("WHATSAPP_RATE_LIMITED");
-                }
-              }
-            })
-          );
-
-          if (i + BATCH_SIZE < guests.length) {
-            await sleep(DELAY_MS);
-          }
+      // מסמנים סבב – נכנס לתור
+      await Invitation.updateOne(
+        { _id: invitation._id },
+        {
+          $set:
+            round === 1
+              ? { rsvpRound1SentAt: new Date() }
+              : { rsvpRound2SentAt: new Date() },
         }
-      } catch (e) {
-        console.warn("⛔ WhatsApp rate limited – stopping send");
-      }
-
-      // ❗ מסמנים סבב רק אם לא הייתה חסימה
-      if (sent > 0 && !rateLimited) {
-        await Invitation.updateOne(
-          { _id: invitation._id },
-          {
-            $set:
-              round === 1
-                ? { rsvpRound1SentAt: new Date() }
-                : { rsvpRound2SentAt: new Date() },
-          }
-        );
-      }
+      );
 
       return NextResponse.json(
-        {
-          success: true,
-          sent,
-          round,
-          rateLimited,
-        },
+        { success: true, queued, round },
         { status: 200 }
       );
     }
 
     /* =====================================================
-       TABLE NUMBER
+       TABLE NUMBER – SEND IMMEDIATE
     ===================================================== */
 
     if (
@@ -264,7 +229,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =====================================================
-       THANK YOU
+       THANK YOU – SEND IMMEDIATE
     ===================================================== */
 
     if (templateName === "thank_you_message") {
@@ -275,7 +240,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-       const providerResponse = await sendThankYouTemplate({
+      const providerResponse = await sendThankYouTemplate({
         to: body.to,
         name: body.name,
         templateName,
