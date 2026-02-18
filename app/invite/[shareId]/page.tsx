@@ -16,7 +16,7 @@ const MENU_LABELS: Record<string, string> = {
   childrenMeal: "מנת ילדים",
   kosher: "כשר",
   kosherGlatt: "כשר גלאט",
-  kosherMahfoud: "כשר מחפוד", // ✅ חדש
+  kosherMahfoud: "כשר מחפוד",
   transportation: "הסעות",
 };
 
@@ -52,7 +52,7 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
             href={creditUrl}
             target="_blank"
             rel="noreferrer"
-            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4] hover:bg-[#f5f2ec] transition"
+            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4]"
           >
             מתנה באשראי
           </a>
@@ -63,15 +63,11 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
             href={payboxUrl}
             target="_blank"
             rel="noreferrer"
-            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4] hover:bg-[#f5f2ec] transition"
+            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4]"
           >
             מתנה ב-PayBox
           </a>
         )}
-      </div>
-
-      <div className="text-[11px] text-center text-[#8a816f] mt-3">
-        הקישור נפתח בחלון חדש
       </div>
     </div>
   );
@@ -102,8 +98,6 @@ export default function PublicInvitePage({ params }: any) {
     notes: [],
   });
 
-  const [guestsOpen, setGuestsOpen] = useState(false);
-
   /* ============================================================
      UNWRAP PARAMS
   ============================================================ */
@@ -133,10 +127,8 @@ export default function PublicInvitePage({ params }: any) {
           setEvent(data.event);
         } else {
           setInvite(null);
-          setEvent(null);
         }
-      } catch (err) {
-        console.error("❌ Invite fetch error:", err);
+      } catch {
         setInvite(null);
       } finally {
         setLoading(false);
@@ -147,7 +139,7 @@ export default function PublicInvitePage({ params }: any) {
   }, [shareId]);
 
   /* ============================================================
-     ACTIVE MENU OPTIONS (רק מה שסומן בדשבורד)
+     ACTIVE MENU OPTIONS
   ============================================================ */
 
   const activeMenuOptions = useMemo(() => {
@@ -163,9 +155,7 @@ export default function PublicInvitePage({ params }: any) {
       .filter((item) => item.label);
   }, [invite]);
 
-  const giftOptions: GiftOptions | undefined = useMemo(() => {
-    return invite?.giftOptions;
-  }, [invite]);
+  const giftOptions = useMemo(() => invite?.giftOptions, [invite]);
 
   /* ============================================================
      SUBMIT RSVP
@@ -179,66 +169,44 @@ export default function PublicInvitePage({ params }: any) {
       return;
     }
 
-    try {
-      const res = await fetch(
-        `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            rsvp: form.rsvp,
-            arrivedCount: form.rsvp === "yes" ? form.arrivedCount : 0,
-            notes: form.notes,
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (data.success) {
-        if (form.rsvp === "yes") {
-          router.push("/thank-you");
-        } else {
-          setSent(true);
-        }
+    const res = await fetch(
+      `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rsvp: form.rsvp,
+          arrivedCount: form.rsvp === "yes" ? form.arrivedCount : 0,
+          notes: form.notes,
+        }),
       }
-    } catch (err) {
-      console.error("❌ RSVP error:", err);
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      form.rsvp === "yes" ? router.push("/thank-you") : setSent(true);
     }
   }
 
-  if (loading) {
-    return <div className="p-10 text-center">טוען הזמנה…</div>;
-  }
-
-  if (!invite) {
-    return (
-      <div className="p-10 text-center text-red-600">
-        ❌ ההזמנה לא נמצאה
-      </div>
-    );
-  }
+  if (loading) return <div className="p-10 text-center">טוען הזמנה…</div>;
+  if (!invite)
+    return <div className="p-10 text-center text-red-600">❌ ההזמנה לא נמצאה</div>;
 
   /* ============================================================
      RENDER
   ============================================================ */
 
   return (
-    <div className="min-h-screen w-full overflow-y-auto bg-[#faf9f6]">
+    <div className="min-h-screen bg-[#faf9f6]">
       <div className="flex flex-col items-center py-10 pb-32">
 
-        {/* עיצוב ההזמנה */}
         <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
-          {invite.canvasData ? (
+          {invite.canvasData && (
             <PublicInviteRenderer canvasData={invite.canvasData} />
-          ) : (
-            <div className="text-gray-400 text-center">
-              אין נתוני עיצוב להצגה
-            </div>
           )}
         </div>
 
-        {/* טופס אישור הגעה */}
         {!sent ? (
           <form
             onSubmit={handleSubmit}
@@ -252,11 +220,13 @@ export default function PublicInvitePage({ params }: any) {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => setForm({ ...form, rsvp: "yes" })}
+                onClick={() =>
+                  setForm({ ...form, rsvp: "yes", arrivedCount: 1 })
+                }
                 className={`flex-1 py-3 rounded-full font-medium border ${
                   form.rsvp === "yes"
                     ? "bg-[#c3b28b] text-white border-[#c3b28b]"
-                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                    : "border-[#d1c7b4] text-[#6b6046]"
                 }`}
               >
                 מגיע
@@ -270,36 +240,75 @@ export default function PublicInvitePage({ params }: any) {
                 className={`flex-1 py-3 rounded-full font-medium border ${
                   form.rsvp === "no"
                     ? "bg-[#b88a8a] text-white border-[#b88a8a]"
-                    : "bg-[#faf9f6] text-[#6b6046] border-[#d1c7b4]"
+                    : "border-[#d1c7b4] text-[#6b6046]"
                 }`}
               >
                 לא מגיע
               </button>
             </div>
 
+            {/* כמה מגיעים */}
+            {form.rsvp === "yes" && (
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-sm font-medium text-[#6b6046]">
+                  כמה מגיעים?
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((p) => ({
+                        ...p,
+                        arrivedCount: Math.max(1, p.arrivedCount - 1),
+                      }))
+                    }
+                    className="w-10 h-10 rounded-full border border-[#d1c7b4]"
+                  >
+                    −
+                  </button>
+
+                  <div className="min-w-[40px] text-center font-semibold">
+                    {form.arrivedCount}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((p) => ({
+                        ...p,
+                        arrivedCount: p.arrivedCount + 1,
+                      }))
+                    }
+                    className="w-10 h-10 rounded-full border border-[#d1c7b4]"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* הערות */}
             {form.rsvp === "yes" && activeMenuOptions.length > 0 && (
               <div>
-                <label className="block mb-2 text-sm font-medium text-[#5a5a5a]">
+                <label className="block mb-2 text-sm font-medium">
                   הערות:
                 </label>
 
                 <div className="grid grid-cols-2 gap-3">
                   {activeMenuOptions.map((opt) => (
-                    <label
-                      key={opt.key}
-                      className="flex items-center gap-2 text-sm text-[#6b6046]"
-                    >
+                    <label key={opt.key} className="flex gap-2 text-sm">
                       <input
                         type="checkbox"
                         checked={form.notes.includes(opt.label)}
-                        onChange={(e) => {
+                        onChange={(e) =>
                           setForm({
                             ...form,
                             notes: e.target.checked
                               ? [...form.notes, opt.label]
                               : form.notes.filter((n) => n !== opt.label),
-                          });
-                        }}
+                          })
+                        }
                       />
                       {opt.label}
                     </label>
@@ -318,15 +327,12 @@ export default function PublicInvitePage({ params }: any) {
             <GiftSection giftOptions={giftOptions} />
           </form>
         ) : (
-          <div className="w-full max-w-md bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold text-center">
+          <div className="bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold">
             ✓ תודה! תשובתך התקבלה
           </div>
         )}
 
-        {/* כרטיס מיקום */}
-        <div className="w-full flex justify-center">
-          <EventLocationCard location={event?.location} />
-        </div>
+        <EventLocationCard location={event?.location} />
       </div>
     </div>
   );
