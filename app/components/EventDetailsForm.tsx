@@ -17,7 +17,7 @@ const EVENT_TYPES = [
 ];
 
 type Props = {
-  event?: any | null;
+  event?: any | null; // בפועל זה Invitation
   onSaved: () => void;
   onClose?: () => void;
 };
@@ -27,12 +27,13 @@ export default function EventDetailsForm({
   onSaved,
   onClose,
 }: Props) {
+  const [saving, setSaving] = useState(false);
+
   const [form, setForm] = useState({
     title: "",
     eventType: "wedding",
     date: "",
     time: "",
-    giftCreditUrl: "",
     location: {
       address: "",
       lat: null as number | null,
@@ -41,7 +42,7 @@ export default function EventDetailsForm({
   });
 
   /* ============================================================
-     🔄 Sync event → local state
+     🔄 Sync Invitation → Local State
   ============================================================ */
   useEffect(() => {
     if (!event) return;
@@ -49,11 +50,10 @@ export default function EventDetailsForm({
     setForm({
       title: event.title ?? "",
       eventType: event.eventType ?? "wedding",
-      date: event.date
-        ? new Date(event.date).toISOString().slice(0, 10)
+      date: event.eventDate
+        ? new Date(event.eventDate).toISOString().slice(0, 10)
         : "",
-      time: event.time ?? "",
-      giftCreditUrl: event.giftCreditUrl ?? "",
+      time: event.eventTime ?? "",
       location: {
         address: event.location?.address ?? "",
         lat: event.location?.lat ?? null,
@@ -63,38 +63,48 @@ export default function EventDetailsForm({
   }, [event]);
 
   /* ============================================================
-     💾 Save (UPSERT)
+     💾 Save → UPDATE Invitation
   ============================================================ */
   async function save() {
-    const payload = {
-      title: form.title.trim(),
-      eventType: form.eventType,
-      date: form.date,
-      time: form.time,
-      giftCreditUrl: form.giftCreditUrl.trim(),
-      location: {
-        address: form.location.address,
-        lat: form.location.lat,
-        lng: form.location.lng,
-      },
-    };
+    if (!event?._id) return;
 
-    const res = await fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
+    try {
+      setSaving(true);
 
-    const data = await res.json();
+      const payload = {
+        title: form.title.trim(),
+        eventType: form.eventType,
+        eventDate: form.date,
+        eventTime: form.time,
+        location: {
+          address: form.location.address,
+          lat: form.location.lat,
+          lng: form.location.lng,
+        },
+      };
 
-    if (!data?.success) {
-      alert("❌ שגיאה בשמירת פרטי האירוע");
-      return;
+      const res = await fetch(`/api/invitations/${event._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!data?.success) {
+        alert("❌ שגיאה בשמירת פרטי האירוע");
+        return;
+      }
+
+      onSaved();
+      onClose?.();
+    } catch (err) {
+      console.error("Save failed:", err);
+      alert("❌ שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
-
-    onSaved();
-    onClose?.();
   }
 
   /* ============================================================
@@ -180,8 +190,6 @@ export default function EventDetailsForm({
         <p className="text-xs text-gray-500 px-2">
           ניתן לבחור מיקום מהרשימה או להקליד ידנית
         </p>
-
-
       </div>
 
       <div className="flex justify-end gap-4 mt-6">
@@ -196,9 +204,10 @@ export default function EventDetailsForm({
 
         <button
           onClick={save}
-          className="bg-[#c9b48f] text-white px-6 py-2 rounded-full font-semibold hover:opacity-90"
+          disabled={saving}
+          className="bg-[#c9b48f] text-white px-6 py-2 rounded-full font-semibold hover:opacity-90 disabled:opacity-50"
         >
-          שמירה
+          {saving ? "שומר..." : "שמירה"}
         </button>
       </div>
     </div>
