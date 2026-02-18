@@ -1083,37 +1083,46 @@ console.log("INVITATION:", invitation);
       </h2>
 
       {/* דסקטופ */}
-      {/* דסקטופ */}
-<div className="hidden md:flex flex-wrap gap-3">
+      <div className="hidden md:flex flex-wrap gap-3">
 
-  {/* 1️⃣ עריכת פרטי האירוע */}
-  <button
-    onClick={() =>
-      isDemo
-        ? handleDemoBlockedAction()
-        : router.push("/dashboard/event")
-    }
-    className="bg-white border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-50"
-  >
-    🛠️ עריכת פרטי האירוע
-  </button>
-
-  {/* 2️⃣ עריכת / יצירת הזמנה */}
+  {/* 1️⃣ יצירת / עריכת הזמנה */}
   <button
     onClick={() => {
       if (isDemo) {
         handleDemoBlockedAction();
         return;
       }
+
       router.push(
         invitation
           ? `/dashboard/edit-invite/${invitationId}`
           : "/dashboard/create-invite"
       );
     }}
-    className="bg-white border border-gray-300 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-50"
+    className="bg-black text-white px-6 py-3 rounded-full font-semibold"
   >
     {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+  </button>
+
+  {/* 2️⃣ עריכת פרטי האירוע */}
+  <button
+    onClick={() => {
+      if (!invitation) return;
+      if (isDemo) {
+        handleDemoBlockedAction();
+        return;
+      }
+      router.push("/dashboard/event");
+    }}
+    disabled={!invitation}
+    className={`
+      px-6 py-3 rounded-full
+      ${invitation
+        ? "bg-white border border-gray-300 hover:bg-gray-50"
+        : "bg-gray-100 text-gray-400 cursor-not-allowed"}
+    `}
+  >
+    🛠️ עריכת פרטי האירוע
   </button>
 
   {/* 3️⃣ צפייה בהזמנה */}
@@ -1128,7 +1137,7 @@ console.log("INVITATION:", invitation);
               "noopener,noreferrer"
             )
       }
-      className="bg-white border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-50 flex items-center gap-2"
+      className="bg-white border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-50"
     >
       👁️ צפייה בהזמנה
     </button>
@@ -1137,7 +1146,13 @@ console.log("INVITATION:", invitation);
   {/* 4️⃣ הוספת מוזמן */}
   <button
     onClick={() => setOpenAddModal(true)}
-    className="bg-black text-white px-6 py-3 rounded-full font-semibold"
+    disabled={!invitation}
+    className={`
+      px-6 py-3 rounded-full font-semibold
+      ${invitation
+        ? "bg-white border border-gray-300 hover:bg-gray-50"
+        : "bg-gray-100 text-gray-400 cursor-not-allowed"}
+    `}
   >
     + הוספת מוזמן
   </button>
@@ -1145,9 +1160,15 @@ console.log("INVITATION:", invitation);
   {/* 5️⃣ ייבוא מאקסל */}
   <button
     onClick={() => setShowImportModal(true)}
-    className="bg-white border border-gray-300 px-6 py-3 rounded-full hover:bg-gray-50"
+    disabled={!invitation}
+    className={`
+      px-6 py-3 rounded-full
+      ${invitation
+        ? "bg-white border border-gray-300 hover:bg-gray-50"
+        : "bg-gray-100 text-gray-400 cursor-not-allowed"}
+    `}
   >
-    📥 ייבוא מאקסל
+      📥 ייבוא מאקסל
   </button>
 
   {/* 6️⃣ סידורי הושבה */}
@@ -1159,7 +1180,13 @@ console.log("INVITATION:", invitation);
           : "/dashboard/seating"
       )
     }
-    className="bg-[#c9b48f] text-white px-6 py-3 rounded-full font-semibold"
+    disabled={!invitation}
+    className={`
+      px-6 py-3 rounded-full font-semibold
+      ${invitation
+        ? "bg-[#c9b48f] text-white"
+        : "bg-gray-200 text-gray-400 cursor-not-allowed"}
+    `}
   >
     🪑 סידורי הושבה
   </button>
@@ -1173,7 +1200,13 @@ console.log("INVITATION:", invitation);
           : "/dashboard/messages"
       )
     }
-    className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold"
+    disabled={!invitation}
+    className={`
+      px-6 py-3 rounded-full font-semibold
+      ${invitation
+        ? "bg-green-600 text-white"
+        : "bg-gray-200 text-gray-400 cursor-not-allowed"}
+    `}
   >
     💬 שליחת הודעות
   </button>
