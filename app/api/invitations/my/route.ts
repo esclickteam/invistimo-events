@@ -20,12 +20,10 @@ function toObjectId(id?: string | null) {
 function normalizeEventId(eventId: any): string | null {
   if (!eventId) return null;
 
-  // אם זה populate → אובייקט עם _id
   if (typeof eventId === "object" && eventId !== null && "_id" in eventId) {
     return String((eventId as any)._id);
   }
 
-  // אם זה כבר ObjectId
   if (mongoose.Types.ObjectId.isValid(eventId)) {
     return String(eventId);
   }
@@ -72,7 +70,7 @@ function resolveProducerContext(auth: any, user: any) {
 }
 
 /* ============================================================
-  GET — מחזיר את ההזמנה של המשתמש
+  GET — מחזיר הזמנה לפי Event העדכני ביותר
 ============================================================ */
 export async function GET(req: Request) {
   try {
@@ -121,11 +119,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, invitation: null });
     }
 
-    const invitation = await Invitation.findOne({
+    /* ===============================
+       שליפת כל ההזמנות + populate
+    =============================== */
+    const invitations = await Invitation.find({
       eventId: { $ne: null },
       $or: orFilters,
     })
-      .sort({ updatedAt: -1 })
       .populate({
         path: "eventId",
         select: `
@@ -138,6 +138,7 @@ export async function GET(req: Request) {
           imageUrl
           coverImageUrl
           giftCreditUrl
+          updatedAt
         `,
       })
       .select(`
@@ -153,6 +154,26 @@ export async function GET(req: Request) {
       `)
       .lean();
 
+    if (!invitations.length) {
+      return NextResponse.json({ success: true, invitation: null });
+    }
+
+    /* ===============================
+       🔥 בחירה לפי Event.updatedAt
+    =============================== */
+    const invitation = invitations
+      .filter(
+        (inv) =>
+          inv.eventId &&
+          typeof inv.eventId === "object" &&
+          (inv.eventId as any).updatedAt
+      )
+      .sort(
+        (a, b) =>
+          new Date((b.eventId as any).updatedAt).getTime() -
+          new Date((a.eventId as any).updatedAt).getTime()
+      )[0];
+
     if (!invitation) {
       return NextResponse.json({ success: true, invitation: null });
     }
@@ -163,11 +184,11 @@ export async function GET(req: Request) {
       success: true,
       invitation: {
         ...invitation,
-        eventId: normalizedEventId,   // ⭐ תמיד string
+        eventId: normalizedEventId, // תמיד string
         event:
           typeof invitation.eventId === "object"
             ? invitation.eventId
-            : null,                    // ⭐ האירוע המלא
+            : null,
       },
     });
   } catch (err) {
@@ -180,7 +201,7 @@ export async function GET(req: Request) {
 }
 
 /* ============================================================
-  POST — יצירת הזמנה
+  POST — יצירת הזמנה (ללא שינוי)
 ============================================================ */
 export async function POST(req: Request) {
   try {
@@ -254,7 +275,7 @@ export async function POST(req: Request) {
         success: true,
         invitation: {
           _id: invitation._id,
-          eventId: String(invitation.eventId), // ⭐ תמיד string
+          eventId: String(invitation.eventId),
           maxGuests: invitation.maxGuests,
           maxMessages: invitation.maxMessages,
           remainingMessages: invitation.remainingMessages,
