@@ -17,7 +17,7 @@ type Guest = {
 
 type Props = {
   invitationId: string;
-  eventTitle: string; // fallback בלבד (כמו ב-WhatsApp)
+  eventTitle: string;
   eventDate: string;
   eventLocation: string;
 };
@@ -28,6 +28,7 @@ type HalfType = "first" | "second" | null;
 
 function splitByHalf<T>(list: T[], half: HalfType) {
   if (!half) return list;
+
   const mid = Math.ceil(list.length / 2);
   return half === "first" ? list.slice(0, mid) : list.slice(mid);
 }
@@ -45,73 +46,52 @@ const RSVP_SMS_TEMPLATE =
 
 export default function RsvpSmsTab({
   invitationId,
-  eventTitle: fallbackEventTitle,
+  eventTitle,
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [half, setHalf] = useState<HalfType>(null);
 
-  // ⭐ בדיוק כמו ב-WhatsApp – event מה־Mongo
-  const [eventData, setEventData] = useState<{
-    title: string;
-  } | null>(null);
-
-  /* ================= LOAD DATA (כמו WhatsApp) ================= */
+  /* ================= LOAD GUESTS ================= */
 
   useEffect(() => {
-    async function loadData() {
+    async function loadGuests() {
       try {
         setLoading(true);
-
-        const [guestsRes, invitationRes] = await Promise.all([
-          fetch(`/api/guests?invitation=${invitationId}`, {
-            cache: "no-store",
-          }),
-          fetch(`/api/invitations/${invitationId}`, {
-            cache: "no-store",
-          }),
-        ]);
-
-        const guestsData = await guestsRes.json();
-        const invitationData = await invitationRes.json();
-
-        if (Array.isArray(guestsData?.guests)) {
-          setGuests(guestsData.guests);
-        }
-
-        const inv = invitationData?.invitation;
-
-        // ⭐ זה החלק הקריטי – event.title מה־Mongo
-        setEventData({
-          title: inv?.event?.title ?? fallbackEventTitle ?? "",
+        const res = await fetch(`/api/guests?invitation=${invitationId}`, {
+          cache: "no-store",
         });
-      } catch (err) {
-        console.error("❌ Failed to load SMS RSVP data", err);
+        const data = await res.json();
+        setGuests(Array.isArray(data?.guests) ? data.guests : []);
       } finally {
         setLoading(false);
       }
     }
 
-    if (invitationId) loadData();
-  }, [invitationId, fallbackEventTitle]);
+    if (invitationId) loadGuests();
+  }, [invitationId]);
 
   /* ================= DERIVED ================= */
 
+  // 🔹 pending בלבד
   const pendingGuests = useMemo(
     () => guests.filter((g) => g.rsvp === "pending"),
     [guests]
   );
 
+  // 🔹 מיון אלפביתי בעברית
   const sortedPendingGuests = useMemo(() => {
     return [...pendingGuests].sort((a, b) =>
       (a.name || "").localeCompare(b.name || "", "he")
     );
   }, [pendingGuests]);
 
+  // 🔹 חישוב חצאים
   const mid = Math.ceil(sortedPendingGuests.length / 2);
   const firstHalfCount = sortedPendingGuests.slice(0, mid).length;
   const secondHalfCount = sortedPendingGuests.slice(mid).length;
 
+  // 🔹 הרשימה שנשלחת בפועל
   const guestsToSend = useMemo(
     () => splitByHalf(sortedPendingGuests, half),
     [sortedPendingGuests, half]
@@ -119,11 +99,9 @@ export default function RsvpSmsTab({
 
   const noAudience = guestsToSend.length === 0;
 
-  /* ================= PREVIEW TEXT (Mongo only) ================= */
+  /* ================= PREVIEW TEXT ================= */
 
   const previewText = useMemo(() => {
-    if (!eventData) return "";
-
     const g = guestsToSend[0];
     if (!g || !g.token) return "";
 
@@ -131,9 +109,9 @@ export default function RsvpSmsTab({
 
     return RSVP_SMS_TEMPLATE
       .replace(/{{name}}/g, g.name || "")
-      .replace(/{{eventTitle}}/g, eventData.title)
+      .replace(/{{eventTitle}}/g, eventTitle || "")
       .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId, eventData]);
+  }, [guestsToSend, invitationId, eventTitle]);
 
   /* ================= UI ================= */
 
