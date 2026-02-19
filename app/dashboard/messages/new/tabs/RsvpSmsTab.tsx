@@ -17,7 +17,7 @@ type Guest = {
 
 type Props = {
   invitationId: string;
-  eventTitle: string; // fallback בלבד
+  eventTitle: string; // fallback בלבד (כמו ב-WhatsApp)
   eventDate: string;
   eventLocation: string;
 };
@@ -51,12 +51,12 @@ export default function RsvpSmsTab({
   const [loading, setLoading] = useState(true);
   const [half, setHalf] = useState<HalfType>(null);
 
-  // ⭐️ מקור האמת לתצוגה מקדימה – מה־Mongo
-  const [eventFromDb, setEventFromDb] = useState<{
+  // ⭐ בדיוק כמו ב-WhatsApp – event מה־Mongo
+  const [eventData, setEventData] = useState<{
     title: string;
   } | null>(null);
 
-  /* ================= LOAD DATA ================= */
+  /* ================= LOAD DATA (כמו WhatsApp) ================= */
 
   useEffect(() => {
     async function loadData() {
@@ -79,14 +79,11 @@ export default function RsvpSmsTab({
           setGuests(guestsData.guests);
         }
 
-        // ⭐️ event.title מה־Mongo
-        const mongoTitle =
-          invitationData?.invitation?.event?.title ??
-          fallbackEventTitle ??
-          "";
+        const inv = invitationData?.invitation;
 
-        setEventFromDb({
-          title: mongoTitle,
+        // ⭐ זה החלק הקריטי – event.title מה־Mongo
+        setEventData({
+          title: inv?.event?.title ?? fallbackEventTitle ?? "",
         });
       } catch (err) {
         console.error("❌ Failed to load SMS RSVP data", err);
@@ -125,7 +122,7 @@ export default function RsvpSmsTab({
   /* ================= PREVIEW TEXT (Mongo only) ================= */
 
   const previewText = useMemo(() => {
-    if (!eventFromDb) return "";
+    if (!eventData) return "";
 
     const g = guestsToSend[0];
     if (!g || !g.token) return "";
@@ -134,9 +131,9 @@ export default function RsvpSmsTab({
 
     return RSVP_SMS_TEMPLATE
       .replace(/{{name}}/g, g.name || "")
-      .replace(/{{eventTitle}}/g, eventFromDb.title)
+      .replace(/{{eventTitle}}/g, eventData.title)
       .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId, eventFromDb]);
+  }, [guestsToSend, invitationId, eventData]);
 
   /* ================= UI ================= */
 
