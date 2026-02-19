@@ -277,13 +277,21 @@ const [half, setHalf] = useState<HalfType>(null);
   /* ================= DERIVED ================= */
 
   const guestsToSend = useMemo(() => {
+  // 1️⃣ בחירת קהל
   const base =
     round === 1
       ? guests
       : guests.filter((g) => g.rsvp === "pending");
 
-  return splitByHalf(base, half);
+  // 2️⃣ מיון אלפביתי בעברית
+  const sorted = [...base].sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "", "he")
+  );
+
+  // 3️⃣ פיצול לחצי
+  return splitByHalf(sorted, half);
 }, [guests, round, half]);
+
 
 
   const totalCount = guests.length;
