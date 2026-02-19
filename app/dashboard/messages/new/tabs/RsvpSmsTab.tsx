@@ -42,14 +42,12 @@ const RSVP_SMS_TEMPLATE =
   "{{rsvpLink}}\n\n" +
   "מחכים לכם באהבה 💖";
 
-
 /* ================= COMPONENT ================= */
 
 export default function RsvpSmsTab({
   invitationId,
   eventTitle,
 }: Props) {
-
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [half, setHalf] = useState<HalfType>(null);
@@ -75,20 +73,25 @@ export default function RsvpSmsTab({
 
   /* ================= DERIVED ================= */
 
-  // רק מי שטרם ענה
+  // 🔹 pending בלבד
   const pendingGuests = useMemo(
     () => guests.filter((g) => g.rsvp === "pending"),
     [guests]
   );
 
-  // 🔥 מיון אלפביתי בעברית
+  // 🔹 מיון אלפביתי בעברית
   const sortedPendingGuests = useMemo(() => {
     return [...pendingGuests].sort((a, b) =>
       (a.name || "").localeCompare(b.name || "", "he")
     );
   }, [pendingGuests]);
 
-  // חצי ראשון / שני לפי הסדר הממויין
+  // 🔹 חישוב חצאים
+  const mid = Math.ceil(sortedPendingGuests.length / 2);
+  const firstHalfCount = sortedPendingGuests.slice(0, mid).length;
+  const secondHalfCount = sortedPendingGuests.slice(mid).length;
+
+  // 🔹 הרשימה שנשלחת בפועל
   const guestsToSend = useMemo(
     () => splitByHalf(sortedPendingGuests, half),
     [sortedPendingGuests, half]
@@ -99,17 +102,16 @@ export default function RsvpSmsTab({
   /* ================= PREVIEW TEXT ================= */
 
   const previewText = useMemo(() => {
-  const g = guestsToSend[0];
-  if (!g || !g.token) return "";
+    const g = guestsToSend[0];
+    if (!g || !g.token) return "";
 
-  const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
+    const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
 
-  return RSVP_SMS_TEMPLATE
-    .replace(/{{name}}/g, g.name || "")
-    .replace(/{{eventTitle}}/g, eventTitle || "")
-    .replace(/{{rsvpLink}}/g, rsvpLink);
-}, [guestsToSend, invitationId, eventTitle]);
-
+    return RSVP_SMS_TEMPLATE
+      .replace(/{{name}}/g, g.name || "")
+      .replace(/{{eventTitle}}/g, eventTitle || "")
+      .replace(/{{rsvpLink}}/g, rsvpLink);
+  }, [guestsToSend, invitationId, eventTitle]);
 
   /* ================= UI ================= */
 
@@ -117,7 +119,6 @@ export default function RsvpSmsTab({
 
   return (
     <div className="space-y-6">
-
       <AudienceFilterSelector
         value="pending"
         onChange={() => {}}
@@ -133,14 +134,28 @@ export default function RsvpSmsTab({
         <select
           value={half ?? ""}
           onChange={(e) =>
-            setHalf(e.target.value ? (e.target.value as HalfType) : null)
+            setHalf(
+              e.target.value === ""
+                ? null
+                : (e.target.value as HalfType)
+            )
           }
           className="w-full border rounded-xl p-3 text-sm"
         >
-          <option value="">כולם (ללא פיצול)</option>
-          <option value="first">חצי ראשון (א–ב)</option>
-          <option value="second">חצי שני (א–ב)</option>
+          <option value="">
+            כולם (ללא פיצול) – {sortedPendingGuests.length}
+          </option>
+          <option value="first">
+            חצי ראשון של הרשימה – {firstHalfCount}
+          </option>
+          <option value="second">
+            חצי שני של הרשימה – {secondHalfCount}
+          </option>
         </select>
+
+        <p className="text-xs text-gray-500 mt-1">
+          החצי נקבע לפי סדר אלפביתי של המוזמנים
+        </p>
       </div>
 
       {/* SUMMARY */}
@@ -150,10 +165,7 @@ export default function RsvpSmsTab({
 
       {/* PREVIEW */}
       {previewText && (
-        <TextMessagePreview
-          channel="sms"
-          text={previewText}
-        />
+        <TextMessagePreview channel="sms" text={previewText} />
       )}
 
       {/* SEND */}
