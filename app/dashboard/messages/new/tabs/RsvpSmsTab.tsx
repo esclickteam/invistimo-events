@@ -17,7 +17,7 @@ type Guest = {
 
 type Props = {
   invitationId: string;
-  eventTitle: string;
+  eventTitle: string; // fallback בלבד
   eventDate: string;
   eventLocation: string;
 };
@@ -28,7 +28,6 @@ type HalfType = "first" | "second" | null;
 
 function splitByHalf<T>(list: T[], half: HalfType) {
   if (!half) return list;
-
   const mid = Math.ceil(list.length / 2);
   return half === "first" ? list.slice(0, mid) : list.slice(mid);
 }
@@ -46,38 +45,58 @@ const RSVP_SMS_TEMPLATE =
 
 export default function RsvpSmsTab({
   invitationId,
-  eventTitle,
+  eventTitle: fallbackEventTitle,
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [half, setHalf] = useState<HalfType>(null);
 
-  // ⭐️ state מקומי לשם האירוע (ל־Preview)
-  const [localEventTitle, setLocalEventTitle] = useState(eventTitle);
+  // ⭐️ מקור האמת לתצוגה מקדימה – מה־Mongo
+  const [eventFromDb, setEventFromDb] = useState<{
+    title: string;
+  } | null>(null);
 
-  // ⭐️ סנכרון אם מגיע eventTitle חדש מהשרת
-  useEffect(() => {
-    setLocalEventTitle(eventTitle);
-  }, [eventTitle]);
-
-  /* ================= LOAD GUESTS ================= */
+  /* ================= LOAD DATA ================= */
 
   useEffect(() => {
-    async function loadGuests() {
+    async function loadData() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/guests?invitation=${invitationId}`, {
-          cache: "no-store",
+
+        const [guestsRes, invitationRes] = await Promise.all([
+          fetch(`/api/guests?invitation=${invitationId}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/invitations/${invitationId}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        const guestsData = await guestsRes.json();
+        const invitationData = await invitationRes.json();
+
+        if (Array.isArray(guestsData?.guests)) {
+          setGuests(guestsData.guests);
+        }
+
+        // ⭐️ event.title מה־Mongo
+        const mongoTitle =
+          invitationData?.invitation?.event?.title ??
+          fallbackEventTitle ??
+          "";
+
+        setEventFromDb({
+          title: mongoTitle,
         });
-        const data = await res.json();
-        setGuests(Array.isArray(data?.guests) ? data.guests : []);
+      } catch (err) {
+        console.error("❌ Failed to load SMS RSVP data", err);
       } finally {
         setLoading(false);
       }
     }
 
-    if (invitationId) loadGuests();
-  }, [invitationId]);
+    if (invitationId) loadData();
+  }, [invitationId, fallbackEventTitle]);
 
   /* ================= DERIVED ================= */
 
@@ -103,9 +122,11 @@ export default function RsvpSmsTab({
 
   const noAudience = guestsToSend.length === 0;
 
-  /* ================= PREVIEW TEXT ================= */
+  /* ================= PREVIEW TEXT (Mongo only) ================= */
 
   const previewText = useMemo(() => {
+    if (!eventFromDb) return "";
+
     const g = guestsToSend[0];
     if (!g || !g.token) return "";
 
@@ -113,9 +134,9 @@ export default function RsvpSmsTab({
 
     return RSVP_SMS_TEMPLATE
       .replace(/{{name}}/g, g.name || "")
-      .replace(/{{eventTitle}}/g, localEventTitle || "")
+      .replace(/{{eventTitle}}/g, eventFromDb.title)
       .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId, localEventTitle]);
+  }, [guestsToSend, invitationId, eventFromDb]);
 
   /* ================= UI ================= */
 
@@ -130,16 +151,6 @@ export default function RsvpSmsTab({
         readOnly
         allowedFilters={["pending"]}
       />
-
-      {/* OPTIONAL: אם תרצי בעתיד שדה עריכה */}
-      {/*
-      <input
-        value={localEventTitle}
-        onChange={(e) => setLocalEventTitle(e.target.value)}
-        className="w-full border rounded-xl p-3 text-sm"
-        placeholder="שם האירוע"
-      />
-      */}
 
       {/* HALF SELECTOR */}
       <div>
