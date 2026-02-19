@@ -28,6 +28,7 @@ type HalfType = "first" | "second" | null;
 
 function splitByHalf<T>(list: T[], half: HalfType) {
   if (!half) return list;
+
   const mid = Math.ceil(list.length / 2);
   return half === "first" ? list.slice(0, mid) : list.slice(mid);
 }
@@ -43,9 +44,7 @@ const RSVP_SMS_TEMPLATE =
 
 /* ================= COMPONENT ================= */
 
-export default function RsvpSmsTab({
-  invitationId,
-}: Props) {
+export default function RsvpSmsTab({ invitationId }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [half, setHalf] = useState<HalfType>(null);
@@ -71,14 +70,23 @@ export default function RsvpSmsTab({
 
   /* ================= DERIVED ================= */
 
+  // רק מי שטרם ענה
   const pendingGuests = useMemo(
     () => guests.filter((g) => g.rsvp === "pending"),
     [guests]
   );
 
+  // 🔥 מיון אלפביתי בעברית
+  const sortedPendingGuests = useMemo(() => {
+    return [...pendingGuests].sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "", "he")
+    );
+  }, [pendingGuests]);
+
+  // חצי ראשון / שני לפי הסדר הממויין
   const guestsToSend = useMemo(
-    () => splitByHalf(pendingGuests, half),
-    [pendingGuests, half]
+    () => splitByHalf(sortedPendingGuests, half),
+    [sortedPendingGuests, half]
   );
 
   const noAudience = guestsToSend.length === 0;
@@ -123,8 +131,8 @@ export default function RsvpSmsTab({
           className="w-full border rounded-xl p-3 text-sm"
         >
           <option value="">כולם (ללא פיצול)</option>
-          <option value="first">חצי ראשון</option>
-          <option value="second">חצי שני</option>
+          <option value="first">חצי ראשון (א–ב)</option>
+          <option value="second">חצי שני (א–ב)</option>
         </select>
       </div>
 
@@ -133,7 +141,7 @@ export default function RsvpSmsTab({
         הודעת SMS תישלח ל־{guestsToSend.length} מוזמנים
       </p>
 
-      {/* ✅ PREVIEW */}
+      {/* PREVIEW */}
       {previewText && (
         <TextMessagePreview
           channel="sms"
@@ -143,15 +151,15 @@ export default function RsvpSmsTab({
 
       {/* SEND */}
       <SendButton
-  channel="sms"
-  type="rsvp"
-  invitationId={invitationId}
-  audience={guestsToSend.map((g) => g._id)}
-  scheduledAt={null}   // ✅ חובה לפי הטיפוס
-  disabled={noAudience}
->
-  📩 שלח אישור הגעה SMS
-</SendButton>
+        channel="sms"
+        type="rsvp"
+        invitationId={invitationId}
+        audience={guestsToSend.map((g) => g._id)}
+        scheduledAt={null}
+        disabled={noAudience}
+      >
+        📩 שלח אישור הגעה SMS
+      </SendButton>
 
       {noAudience && (
         <p className="text-sm text-red-500 text-center">
