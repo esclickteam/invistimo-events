@@ -427,7 +427,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
         </p>
       )}
 
-      <SendButton
+       <SendButton
         channel="whatsapp"
         type="rsvp"
         invitationId={invitationId}
