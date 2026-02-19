@@ -173,9 +173,6 @@ if (!invitation) {
   );
 }
 
-const invitationName = invitation.title?.trim() || "";
-
-
 
 
 
@@ -393,11 +390,10 @@ const personalRsvpUrl =
 const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
 let finalText = baseMessage
-  .replace(/{{name}}/g, invitationName)   // ✅ כאן העדכון
+  .replace(/{{name}}/g, freshGuest.name || "")
   .replace(/{{rsvpLink}}/g, shortRsvpUrl)
   .replace(/{{tableName}}/g, tableName)
   .replace(/{{navigationLink}}/g, navigationLink);
-
 
 
 if (includeGiftLink && giftLink) {

@@ -157,23 +157,21 @@ export async function POST(req: NextRequest) {
         const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
         await WhatsappQueue.create({
-  invitationId: invitation._id,
-  guestId: guest._id,
-  phone,
-  templateName,
-  payload: {
-    name: invitation.title?.trim(), // ✅ השם הרשמי להזמנה
-    eventTitle: event.title,
-    eventDate: event.date,
-    eventLocation:
-      event.location?.address || event.location?.name || "",
-    rsvpLink,
-    headerImageUrl:
-      invitation.headerImageUrl || invitation.previewImage,
-    languageCode,
-  },
-});
-
+          invitationId: invitation._id,
+          guestId: guest._id,
+          phone,
+          templateName,
+          payload: {
+            eventTitle: event.title,
+            eventDate: event.date,
+            eventLocation:
+              event.location?.address || event.location?.name || "",
+            rsvpLink,
+            headerImageUrl:
+              invitation.headerImageUrl || invitation.previewImage,
+            languageCode,
+          },
+        });
 
         queued++;
       }
