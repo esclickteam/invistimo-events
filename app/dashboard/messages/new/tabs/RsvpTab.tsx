@@ -74,6 +74,23 @@ function normalizeGiftOptions(raw: any): GiftOptions {
   };
 }
 
+function splitByHalf<T>(
+  list: T[],
+  half: "first" | "second" | null
+) {
+  if (!half) return list; // ⭐ לא נבחר חצי → הכל
+
+  const mid = Math.ceil(list.length / 2);
+
+  if (half === "first") {
+    return list.slice(0, mid);
+  }
+
+  return list.slice(mid);
+}
+
+
+
 /* ================= COMPONENT ================= */
 
 export default function RsvpTab({
@@ -153,6 +170,13 @@ export default function RsvpTab({
 
   const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didInitGift = useRef(false);
+
+  type HalfType = "first" | "second" | null;
+
+
+const [half, setHalf] = useState<HalfType>(null);
+
+
 
   /* ================= LOAD DATA ================= */
 
@@ -253,9 +277,14 @@ export default function RsvpTab({
   /* ================= DERIVED ================= */
 
   const guestsToSend = useMemo(() => {
-    if (round === 1) return guests;
-    return guests.filter((g) => g.rsvp === "pending");
-  }, [guests, round]);
+  const base =
+    round === 1
+      ? guests
+      : guests.filter((g) => g.rsvp === "pending");
+
+  return splitByHalf(base, half);
+}, [guests, round, half]);
+
 
   const totalCount = guests.length;
   const pendingCount = guests.filter((g) => g.rsvp === "pending").length;
@@ -321,6 +350,32 @@ export default function RsvpTab({
         pendingCount={pendingCount}
         readOnly
       />
+
+      <div>
+  <h3 className="font-semibold mb-2">📊 שליחה לפי חצי רשימה</h3>
+
+  <select
+  value={half ?? ""}   // ⭐️ כאן הקסם
+  onChange={(e) =>
+    setHalf(
+      e.target.value === ""
+        ? null
+        : (e.target.value as HalfType)
+    )
+  }
+  className="w-full border rounded-xl p-3 text-sm"
+>
+  <option value="">כולם (ללא פיצול)</option>
+  <option value="first">חצי ראשון של הרשימה</option>
+  <option value="second">חצי שני של הרשימה</option>
+</select>
+
+
+  <p className="text-xs text-gray-500 mt-1">
+    החצי נקבע לפי סדר הרשימה המוצגת
+  </p>
+</div>
+
 
       <WhatsappTemplatePreview
         templateKey={templateName}
