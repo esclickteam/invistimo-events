@@ -292,6 +292,25 @@ const [half, setHalf] = useState<HalfType>(null);
   return splitByHalf(sorted, half);
 }, [guests, round, half]);
 
+// 🔢 חישוב כמויות לכל חצי (כדי להציג ב־select)
+const baseGuests = useMemo(() => {
+  return round === 1
+    ? guests
+    : guests.filter((g) => g.rsvp === "pending");
+}, [guests, round]);
+
+const sortedGuests = useMemo(() => {
+  return [...baseGuests].sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "", "he")
+  );
+}, [baseGuests]);
+
+const mid = Math.ceil(sortedGuests.length / 2);
+
+const firstHalfCount = sortedGuests.slice(0, mid).length;
+const secondHalfCount = sortedGuests.slice(mid).length;
+
+
 
 
   const totalCount = guests.length;
@@ -363,7 +382,7 @@ const [half, setHalf] = useState<HalfType>(null);
   <h3 className="font-semibold mb-2">📊 שליחה לפי חצי רשימה</h3>
 
   <select
-  value={half ?? ""}   // ⭐️ כאן הקסם
+  value={half ?? ""}
   onChange={(e) =>
     setHalf(
       e.target.value === ""
@@ -373,10 +392,19 @@ const [half, setHalf] = useState<HalfType>(null);
   }
   className="w-full border rounded-xl p-3 text-sm"
 >
-  <option value="">כולם (ללא פיצול)</option>
-  <option value="first">חצי ראשון של הרשימה</option>
-  <option value="second">חצי שני של הרשימה</option>
+  <option value="">
+    כולם (ללא פיצול) – {sortedGuests.length}
+  </option>
+
+  <option value="first">
+    חצי ראשון של הרשימה – {firstHalfCount}
+  </option>
+
+  <option value="second">
+    חצי שני של הרשימה – {secondHalfCount}
+  </option>
 </select>
+
 
 
   <p className="text-xs text-gray-500 mt-1">
