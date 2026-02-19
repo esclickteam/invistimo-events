@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import RsvpTab from "./tabs/RsvpTab";
+import RsvpSmsTab from "./tabs/RsvpSmsTab"; // ⭐ חדש
 import ReminderTab from "./tabs/ReminderTab";
 import ThankYouTab from "./tabs/ThankYouTab";
 
 /* ================= TYPES ================= */
 
-type TabKey = "rsvp" | "reminder" | "thankyou";
+type TabKey = "rsvp" | "rsvp_sms" | "reminder" | "thankyou";
 
 type EventMeta = {
   eventTitle: string;
@@ -22,7 +23,6 @@ type EventMeta = {
 
 /* ================= DEFAULTS ================= */
 
-// 🔥 תמיד יש EventMeta – גם אם אין אירוע
 const EMPTY_EVENT_META: EventMeta = {
   eventTitle: "",
   eventDate: "",
@@ -48,7 +48,6 @@ function formatEventDate(value: any): string {
 export default function NewMessagesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
 
-  // ❌ אין null
   const [eventMeta, setEventMeta] = useState<EventMeta>(EMPTY_EVENT_META);
   const [invitationId, setInvitationId] = useState<string>("");
 
@@ -70,7 +69,6 @@ export default function NewMessagesPage() {
         const invitation = data?.invitation;
         const event = invitation?.event;
 
-        // 🟢 אם יש אירוע – מעדכנים
         if (invitation && event) {
           setInvitationId(invitation._id);
 
@@ -130,11 +128,19 @@ export default function NewMessagesPage() {
           active={activeTab === "rsvp"}
           onClick={() => setActiveTab("rsvp")}
         />
+
+        <TabButton
+          label="אישור הגעה SMS"
+          active={activeTab === "rsvp_sms"}
+          onClick={() => setActiveTab("rsvp_sms")}
+        />
+
         <TabButton
           label="תזכורת"
           active={activeTab === "reminder"}
           onClick={() => setActiveTab("reminder")}
         />
+
         <TabButton
           label="הודעת תודה"
           active={activeTab === "thankyou"}
@@ -146,6 +152,10 @@ export default function NewMessagesPage() {
       <main className="mt-6 p-6 min-h-[300px] bg-white rounded-xl shadow">
         {activeTab === "rsvp" && (
           <RsvpTab invitationId={invitationId} {...eventMeta} />
+        )}
+
+        {activeTab === "rsvp_sms" && (
+          <RsvpSmsTab invitationId={invitationId} {...eventMeta} />
         )}
 
         {activeTab === "reminder" && (
