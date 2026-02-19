@@ -37,10 +37,11 @@ function splitByHalf<T>(list: T[], half: HalfType) {
 
 const RSVP_SMS_TEMPLATE =
   "היי {{name}},\n" +
-  "נשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\n" +
+  "נשמח לדעת אם תגיעו ל־{{eventTitle}} 🎉\n\n" +
   "לאישור הגעה לחצו כאן:\n" +
   "{{rsvpLink}}\n\n" +
   "מחכים לכם באהבה 💖";
+
 
 /* ================= COMPONENT ================= */
 
