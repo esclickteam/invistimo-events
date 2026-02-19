@@ -36,13 +36,13 @@ const MESSAGE_TEMPLATES: Record<
   { requiresTable?: boolean; content: string }
 > = {
   rsvp: {
-    content:
-      "היי {{name}},\n" +
-      "נשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\n" +
-      "לאישור הגעה לחצו כאן:\n" +
-      "{{rsvpLink}}\n\n" +
-      "מחכים לכם באהבה 💖",
-  },
+  content:
+    "היי {{name}},\n" +
+    "נשמח לדעת אם תגיעו ל־{{eventTitle}} 🎉\n\n" +
+    "לאישור הגעה לחצו כאן:\n" +
+    "{{rsvpLink}}\n\n" +
+    "מחכים לכם באהבה 💖",
+},
   table: {
     requiresTable: true,
     content:
@@ -189,6 +189,11 @@ if (!invitation) {
       ? await Event.findById(invitation.eventId).lean()
       : null;
 
+      const eventTitle =
+  event?.title ||
+  (event?.eventType === "brit" ? "הברית שלנו" : "האירוע שלנו");
+
+
     /* ================= QUERY ================= */
     const query: any = { invitationId };
     if (filter === "pending") query.rsvp = "pending";
@@ -231,10 +236,12 @@ if (hasLocation) {
 
   /* 🧮 חישוב worst-case */
   let previewContent = baseTemplateText
-    .replace(/{{name}}/g, "שם מלא לדוגמה ארוך מאוד")
-    .replace(/{{rsvpLink}}/g, "https://example.com/very-long-link")
-    .replace(/{{tableName}}/g, "שולחן 123")
-    .replace(/{{navigationLink}}/g, navigationLink);
+  .replace(/{{name}}/g, "שם מלא לדוגמה ארוך מאוד")
+  .replace(/{{eventTitle}}/g, eventTitle) // ✅ הוספה
+  .replace(/{{rsvpLink}}/g, "https://example.com/very-long-link")
+  .replace(/{{tableName}}/g, "שולחן 123")
+  .replace(/{{navigationLink}}/g, navigationLink);
+
 
   if (includeGiftLink && giftLink) {
     previewContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
@@ -272,10 +279,12 @@ if (partsPerMessage === -1) {
 
   /* 📦 התוכן האמיתי שנשמר */
   let messageContent = baseTemplateText
-    .replace(/{{name}}/g, "{{name}}")
-    .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
-    .replace(/{{tableName}}/g, "{{tableName}}")
-    .replace(/{{navigationLink}}/g, navigationLink);
+  .replace(/{{name}}/g, "{{name}}")
+  .replace(/{{eventTitle}}/g, eventTitle) // ✅ הוספה
+  .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
+  .replace(/{{tableName}}/g, "{{tableName}}")
+  .replace(/{{navigationLink}}/g, navigationLink);
+
 
   if (includeGiftLink && giftLink) {
     messageContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
@@ -309,11 +318,15 @@ if (partsPerMessage === -1) {
 
     /* ================= BASE MESSAGE ================= */
 
+
+
 const baseMessage = baseTemplateText
   .replace(/{{name}}/g, "{{name}}")
+  .replace(/{{eventTitle}}/g, eventTitle) // ✅ חדש
   .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
   .replace(/{{tableName}}/g, "{{tableName}}")
   .replace(/{{navigationLink}}/g, navigationLink);
+
 
 
 
@@ -377,10 +390,11 @@ const personalRsvpUrl =
 const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
 let finalText = baseMessage
- .replace(/{{name}}/g, freshGuest.name || "")
+  .replace(/{{name}}/g, freshGuest.name || "")
   .replace(/{{rsvpLink}}/g, shortRsvpUrl)
   .replace(/{{tableName}}/g, tableName)
   .replace(/{{navigationLink}}/g, navigationLink);
+
 
 if (includeGiftLink && giftLink) {
   finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
