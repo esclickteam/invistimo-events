@@ -47,8 +47,13 @@ const SendButton: React.FC<Props> = ({
   children,
 }) => {
 
+  const channelLabel =
+    channel === "sms" ? "SMS" : "WhatsApp";
+
 
   const [sending, setSending] = useState(false);
+
+  
 
   const handleSend = async () => {
     if (disabled || sending) return;
@@ -144,8 +149,8 @@ const SendButton: React.FC<Props> = ({
   const count = data.queued ?? data.sent ?? audience.length;
 
   alert(
-    `📤 ${count} הודעות נכנסו לתהליך שליחה ב-WhatsApp`
-  );
+  `📤 ${count} הודעות נכנסו לתהליך שליחה ב-${channelLabel}`
+);
 }
 
 
