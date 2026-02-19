@@ -11,8 +11,8 @@ type Guest = {
   _id: string;
   name: string;
   phone: string;
-  token?: string;
   rsvp?: "yes" | "no" | "pending";
+  token?: string;
 };
 
 type Props = {
@@ -32,48 +32,23 @@ function splitByHalf<T>(list: T[], half: HalfType) {
   return half === "first" ? list.slice(0, mid) : list.slice(mid);
 }
 
-function buildRsvpSmsText({
-  guest,
-  invitationId,
-  eventTitle,
-  eventDate,
-  eventLocation,
-}: {
-  guest: Guest;
-  invitationId: string;
-  eventTitle: string;
-  eventDate: string;
-  eventLocation: string;
-}) {
-  const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${
-    guest.token ?? guest._id
-  }`;
+/* ================= MESSAGE TEMPLATE ================= */
 
-  return `היי ${guest.name},
-🎉 נשמח לדעת אם תגיעו לחגוג איתנו
-
-${eventTitle ? `${eventTitle}\n` : ""}📅 ${eventDate}
-📍 ${eventLocation}
-
-לאישור הגעה לחצו כאן:
-${rsvpLink}
-
-מחכים לכם באהבה 💖`;
-}
+const RSVP_SMS_TEMPLATE =
+  "היי {{name}},\n" +
+  "נשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\n" +
+  "לאישור הגעה לחצו כאן:\n" +
+  "{{rsvpLink}}\n\n" +
+  "מחכים לכם באהבה 💖";
 
 /* ================= COMPONENT ================= */
 
 export default function RsvpSmsTab({
   invitationId,
-  eventTitle,
-  eventDate,
-  eventLocation,
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [half, setHalf] = useState<HalfType>(null);
-  const [scheduledAt] = useState<Date | null>(null);
 
   /* ================= LOAD GUESTS ================= */
 
@@ -85,12 +60,7 @@ export default function RsvpSmsTab({
           cache: "no-store",
         });
         const data = await res.json();
-
-        if (Array.isArray(data?.guests)) {
-          setGuests(data.guests);
-        }
-      } catch (err) {
-        console.error("❌ Failed to load guests for SMS", err);
+        setGuests(Array.isArray(data?.guests) ? data.guests : []);
       } finally {
         setLoading(false);
       }
@@ -111,18 +81,20 @@ export default function RsvpSmsTab({
     [pendingGuests, half]
   );
 
-  const previewGuest = guestsToSend[0] ?? null;
   const noAudience = guestsToSend.length === 0;
 
-  const previewText = previewGuest
-    ? buildRsvpSmsText({
-        guest: previewGuest,
-        invitationId,
-        eventTitle,
-        eventDate,
-        eventLocation,
-      })
-    : "";
+  /* ================= PREVIEW TEXT ================= */
+
+  const previewText = useMemo(() => {
+    const g = guestsToSend[0];
+    if (!g || !g.token) return "";
+
+    const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
+
+    return RSVP_SMS_TEMPLATE
+      .replace(/{{name}}/g, g.name || "")
+      .replace(/{{rsvpLink}}/g, rsvpLink);
+  }, [guestsToSend, invitationId]);
 
   /* ================= UI ================= */
 
@@ -130,7 +102,7 @@ export default function RsvpSmsTab({
 
   return (
     <div className="space-y-6">
-      {/* ===== Audience ===== */}
+
       <AudienceFilterSelector
         value="pending"
         onChange={() => {}}
@@ -139,50 +111,47 @@ export default function RsvpSmsTab({
         allowedFilters={["pending"]}
       />
 
-      {/* ===== Half selector ===== */}
+      {/* HALF SELECTOR */}
       <div>
         <h3 className="font-semibold mb-2">📊 שליחה לפי חצי רשימה</h3>
 
         <select
           value={half ?? ""}
           onChange={(e) =>
-            setHalf(e.target.value === "" ? null : (e.target.value as HalfType))
+            setHalf(e.target.value ? (e.target.value as HalfType) : null)
           }
           className="w-full border rounded-xl p-3 text-sm"
         >
           <option value="">כולם (ללא פיצול)</option>
-          <option value="first">חצי ראשון של הרשימה</option>
-          <option value="second">חצי שני של הרשימה</option>
+          <option value="first">חצי ראשון</option>
+          <option value="second">חצי שני</option>
         </select>
-
-        <p className="text-xs text-gray-500 mt-1">
-          ברירת מחדל – שליחה לכל מי שטרם ענה
-        </p>
       </div>
 
-      {/* ===== Summary ===== */}
+      {/* SUMMARY */}
       <p className="text-sm text-center text-gray-700">
         הודעת SMS תישלח ל־{guestsToSend.length} מוזמנים
       </p>
 
-      {/* ===== Preview ===== */}
-      <TextMessagePreview
-        channel="sms"
-        text={previewText}
-        loading={!previewGuest}
-      />
+      {/* ✅ PREVIEW */}
+      {previewText && (
+        <TextMessagePreview
+          channel="sms"
+          text={previewText}
+        />
+      )}
 
-      {/* ===== Send ===== */}
+      {/* SEND */}
       <SendButton
-        channel="sms"
-        type="rsvp"
-        invitationId={invitationId}
-        audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={scheduledAt}
-        disabled={noAudience}
-      >
-        📩 שלח אישור הגעה SMS
-      </SendButton>
+  channel="sms"
+  type="rsvp"
+  invitationId={invitationId}
+  audience={guestsToSend.map((g) => g._id)}
+  scheduledAt={null}   // ✅ חובה לפי הטיפוס
+  disabled={noAudience}
+>
+  📩 שלח אישור הגעה SMS
+</SendButton>
 
       {noAudience && (
         <p className="text-sm text-red-500 text-center">
