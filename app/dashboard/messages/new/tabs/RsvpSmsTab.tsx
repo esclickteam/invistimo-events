@@ -52,6 +52,14 @@ export default function RsvpSmsTab({
   const [loading, setLoading] = useState(true);
   const [half, setHalf] = useState<HalfType>(null);
 
+  // ⭐️ state מקומי לשם האירוע (ל־Preview)
+  const [localEventTitle, setLocalEventTitle] = useState(eventTitle);
+
+  // ⭐️ סנכרון אם מגיע eventTitle חדש מהשרת
+  useEffect(() => {
+    setLocalEventTitle(eventTitle);
+  }, [eventTitle]);
+
   /* ================= LOAD GUESTS ================= */
 
   useEffect(() => {
@@ -73,25 +81,21 @@ export default function RsvpSmsTab({
 
   /* ================= DERIVED ================= */
 
-  // 🔹 pending בלבד
   const pendingGuests = useMemo(
     () => guests.filter((g) => g.rsvp === "pending"),
     [guests]
   );
 
-  // 🔹 מיון אלפביתי בעברית
   const sortedPendingGuests = useMemo(() => {
     return [...pendingGuests].sort((a, b) =>
       (a.name || "").localeCompare(b.name || "", "he")
     );
   }, [pendingGuests]);
 
-  // 🔹 חישוב חצאים
   const mid = Math.ceil(sortedPendingGuests.length / 2);
   const firstHalfCount = sortedPendingGuests.slice(0, mid).length;
   const secondHalfCount = sortedPendingGuests.slice(mid).length;
 
-  // 🔹 הרשימה שנשלחת בפועל
   const guestsToSend = useMemo(
     () => splitByHalf(sortedPendingGuests, half),
     [sortedPendingGuests, half]
@@ -109,9 +113,9 @@ export default function RsvpSmsTab({
 
     return RSVP_SMS_TEMPLATE
       .replace(/{{name}}/g, g.name || "")
-      .replace(/{{eventTitle}}/g, eventTitle || "")
+      .replace(/{{eventTitle}}/g, localEventTitle || "")
       .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId, eventTitle]);
+  }, [guestsToSend, invitationId, localEventTitle]);
 
   /* ================= UI ================= */
 
@@ -126,6 +130,16 @@ export default function RsvpSmsTab({
         readOnly
         allowedFilters={["pending"]}
       />
+
+      {/* OPTIONAL: אם תרצי בעתיד שדה עריכה */}
+      {/*
+      <input
+        value={localEventTitle}
+        onChange={(e) => setLocalEventTitle(e.target.value)}
+        className="w-full border rounded-xl p-3 text-sm"
+        placeholder="שם האירוע"
+      />
+      */}
 
       {/* HALF SELECTOR */}
       <div>
