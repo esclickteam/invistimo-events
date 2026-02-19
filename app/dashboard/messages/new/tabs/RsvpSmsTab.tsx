@@ -158,16 +158,15 @@ export default function RsvpSmsTab({
 
       {/* SEND */}
       <SendButton
-  channel="sms"
-  type="rsvp"
-  invitationId={invitationId}
-  audience={guestsToSend.map((g) => g._id)}
-  scheduledAt={null}
-  messageOverride={previewText}   // ✅ זה החלק החשוב
-  disabled={noAudience}
->
-  📩 שלח אישור הגעה SMS
-</SendButton>
+        channel="sms"
+        type="rsvp"
+        invitationId={invitationId}
+        audience={guestsToSend.map((g) => g._id)}
+        scheduledAt={null}
+        disabled={noAudience}
+      >
+        📩 שלח אישור הגעה SMS
+      </SendButton>
 
       {noAudience && (
         <p className="text-sm text-red-500 text-center">
