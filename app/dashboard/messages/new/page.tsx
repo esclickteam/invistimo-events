@@ -124,7 +124,7 @@ export default function NewMessagesPage() {
       {/* ================= Tabs ================= */}
       <div className="flex justify-center gap-4 bg-gray-50 rounded-xl p-2 shadow-inner">
         <TabButton
-          label="אישור הגעה"
+          label=" WhatsApp אישור הגעה"
           active={activeTab === "rsvp"}
           onClick={() => setActiveTab("rsvp")}
         />
