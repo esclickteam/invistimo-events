@@ -45,7 +45,11 @@ const RSVP_SMS_TEMPLATE =
 
 /* ================= COMPONENT ================= */
 
-export default function RsvpSmsTab({ invitationId }: Props) {
+export default function RsvpSmsTab({
+  invitationId,
+  eventTitle,
+}: Props) {
+
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [half, setHalf] = useState<HalfType>(null);
@@ -95,15 +99,17 @@ export default function RsvpSmsTab({ invitationId }: Props) {
   /* ================= PREVIEW TEXT ================= */
 
   const previewText = useMemo(() => {
-    const g = guestsToSend[0];
-    if (!g || !g.token) return "";
+  const g = guestsToSend[0];
+  if (!g || !g.token) return "";
 
-    const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
+  const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
 
-    return RSVP_SMS_TEMPLATE
-      .replace(/{{name}}/g, g.name || "")
-      .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId]);
+  return RSVP_SMS_TEMPLATE
+    .replace(/{{name}}/g, g.name || "")
+    .replace(/{{eventTitle}}/g, eventTitle || "")
+    .replace(/{{rsvpLink}}/g, rsvpLink);
+}, [guestsToSend, invitationId, eventTitle]);
+
 
   /* ================= UI ================= */
 
