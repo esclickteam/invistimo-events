@@ -31,8 +31,8 @@ type Props = {
 
 const MESSAGE_WITH_TABLE =
   "היי {{name}} 🌸\n" +
-  "שמחים לראות אותך 💛\n\n" +
-  "השולחן שלך באירוע :\n" +
+  "שמחים לראות אותך ב־{{invitationTitle}} 💛\n\n" +
+  "השולחן שלך באירוע:\n" +
   "🪑 {{tableName}}\n\n" +
   "📍 ניווט:\n" +
   "{{navigationLink}}\n\n" +
@@ -42,6 +42,7 @@ const MESSAGE_WITH_TABLE =
 
 export default function ReminderTab({
   invitationId,
+  invitationTitle, // ⭐️ חובה
   eventDate,
   eventLocation,
   lat,
@@ -182,15 +183,20 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
   const buildReminderMessage = (g: Guest) =>
   buildMessage({
-    template: message, // ⭐ משתמשים בטקסט הערוך
+    template: message, // משתמשים בטקסט הערוך מה־textarea
 
     guest: g,
+
+    invitationTitle, // ✅ זה החלק שהיה חסר
+
     eventDate,
     eventLocation,
+
     navigationLink:
       typeof lat === "number" && typeof lng === "number"
         ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
         : "",
+
     includeGiftLink,
     giftLink,
   });
@@ -341,6 +347,7 @@ const sendTestMessage = async () => {
   <p className="text-xs text-gray-500">
     משתנים אוטומטיים: 
     <span className="font-mono"> {"{{name}}"} </span>
+    <span className="font-mono"> {"{{invitationTitle}}"} </span>
     <span className="font-mono"> {"{{tableName}}"} </span>
     <span className="font-mono"> {"{{navigationLink}}"} </span>
   </p>

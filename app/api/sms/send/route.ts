@@ -38,7 +38,7 @@ const MESSAGE_TEMPLATES: Record<
   rsvp: {
   content:
     "היי {{name}},\n" +
-    "נשמח לדעת אם תגיעו ל־{{eventTitle}} 🎉\n\n" +
+    "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
     "לאישור הגעה לחצו כאן:\n" +
     "{{rsvpLink}}\n\n" +
     "מחכים לכם באהבה 💖",
@@ -185,13 +185,8 @@ if (!invitation) {
 
 
 
-    const event = invitation.eventId
-      ? await Event.findById(invitation.eventId).lean()
-      : null;
-
-      const eventTitle =
-  event?.title ||
-  (event?.eventType === "brit" ? "הברית שלנו" : "האירוע שלנו");
+    const invitationTitle =
+  invitation.title?.trim() || "האירוע שלנו";
 
 
     /* ================= QUERY ================= */
@@ -220,7 +215,7 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
 }
 
 
-    const location = invitation.eventLocation ?? event?.location;
+    const location = invitation.eventLocation;
     const hasLocation = !!(location?.lat && location?.lng);
     let navigationLink = "";
 
@@ -237,7 +232,7 @@ if (hasLocation) {
   /* 🧮 חישוב worst-case */
   let previewContent = baseTemplateText
   .replace(/{{name}}/g, "שם מלא לדוגמה ארוך מאוד")
-  .replace(/{{eventTitle}}/g, eventTitle) // ✅ הוספה
+  .replace(/{{invitationTitle}}/g, invitationTitle)
   .replace(/{{rsvpLink}}/g, "https://example.com/very-long-link")
   .replace(/{{tableName}}/g, "שולחן 123")
   .replace(/{{navigationLink}}/g, navigationLink);
@@ -280,7 +275,7 @@ if (partsPerMessage === -1) {
   /* 📦 התוכן האמיתי שנשמר */
   let messageContent = baseTemplateText
   .replace(/{{name}}/g, "{{name}}")
-  .replace(/{{eventTitle}}/g, eventTitle) // ✅ הוספה
+  .replace(/{{invitationTitle}}/g, invitationTitle)
   .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
   .replace(/{{tableName}}/g, "{{tableName}}")
   .replace(/{{navigationLink}}/g, navigationLink);
@@ -322,7 +317,7 @@ if (partsPerMessage === -1) {
 
 const baseMessage = baseTemplateText
   .replace(/{{name}}/g, "{{name}}")
-  .replace(/{{eventTitle}}/g, eventTitle) // ✅ חדש
+  .replace(/{{invitationTitle}}/g, invitationTitle)
   .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
   .replace(/{{tableName}}/g, "{{tableName}}")
   .replace(/{{navigationLink}}/g, navigationLink);
