@@ -142,6 +142,7 @@ export async function GET(req: Request) {
       })
       .select(`
         _id
+        title
         eventId
         previewImage
         maxGuests
