@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AudienceFilterSelector from "../shared/AudienceFilterSelector";
+import AudienceFilterSelector, {
+  FilterType,
+} from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import TextMessagePreview from "../shared/TextMessagePreview";
 
@@ -18,8 +20,6 @@ type Guest = {
 type Props = {
   invitationId: string;
   eventTitle: string;
-  eventDate: string;
-  eventLocation: string;
 };
 
 /* ================= HELPERS ================= */
@@ -50,6 +50,9 @@ export default function RsvpSmsTab({
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [audienceFilter, setAudienceFilter] =
+    useState<FilterType>("all"); // ✅ ברירת מחדל – כולם
   const [half, setHalf] = useState<HalfType>(null);
 
   /* ================= LOAD GUESTS ================= */
@@ -71,35 +74,43 @@ export default function RsvpSmsTab({
     if (invitationId) loadGuests();
   }, [invitationId]);
 
-  /* ================= DERIVED ================= */
+  /* ================= COUNTS ================= */
 
-  // 🔹 pending בלבד
+  const totalCount = guests.length;
+
   const pendingGuests = useMemo(
     () => guests.filter((g) => g.rsvp === "pending"),
     [guests]
   );
 
-  // 🔹 מיון אלפביתי בעברית
-  const sortedPendingGuests = useMemo(() => {
-    return [...pendingGuests].sort((a, b) =>
+  /* ================= FILTER ================= */
+
+  const filteredGuests = useMemo(() => {
+    return audienceFilter === "pending" ? pendingGuests : guests;
+  }, [audienceFilter, guests, pendingGuests]);
+
+  /* ================= SORT ================= */
+
+  const sortedGuests = useMemo(() => {
+    return [...filteredGuests].sort((a, b) =>
       (a.name || "").localeCompare(b.name || "", "he")
     );
-  }, [pendingGuests]);
+  }, [filteredGuests]);
 
-  // 🔹 חישוב חצאים
-  const mid = Math.ceil(sortedPendingGuests.length / 2);
-  const firstHalfCount = sortedPendingGuests.slice(0, mid).length;
-  const secondHalfCount = sortedPendingGuests.slice(mid).length;
+  /* ================= HALF ================= */
 
-  // 🔹 הרשימה שנשלחת בפועל
+  const mid = Math.ceil(sortedGuests.length / 2);
+  const firstHalfCount = sortedGuests.slice(0, mid).length;
+  const secondHalfCount = sortedGuests.slice(mid).length;
+
   const guestsToSend = useMemo(
-    () => splitByHalf(sortedPendingGuests, half),
-    [sortedPendingGuests, half]
+    () => splitByHalf(sortedGuests, half),
+    [sortedGuests, half]
   );
 
   const noAudience = guestsToSend.length === 0;
 
-  /* ================= PREVIEW TEXT ================= */
+  /* ================= PREVIEW ================= */
 
   const previewText = useMemo(() => {
     const g = guestsToSend[0];
@@ -119,15 +130,19 @@ export default function RsvpSmsTab({
 
   return (
     <div className="space-y-6">
+      {/* AUDIENCE */}
       <AudienceFilterSelector
-        value="pending"
-        onChange={() => {}}
+        value={audienceFilter}
+        onChange={(v) => {
+          setAudienceFilter(v);
+          setHalf(null); // איפוס פיצול כשמשנים קהל
+        }}
+        totalCount={totalCount}
         pendingCount={pendingGuests.length}
-        readOnly
-        allowedFilters={["pending"]}
+        allowedFilters={["all", "pending"]}
       />
 
-      {/* HALF SELECTOR */}
+      {/* HALF */}
       <div>
         <h3 className="font-semibold mb-2">📊 שליחה לפי חצי רשימה</h3>
 
@@ -143,18 +158,18 @@ export default function RsvpSmsTab({
           className="w-full border rounded-xl p-3 text-sm"
         >
           <option value="">
-            כולם (ללא פיצול) – {sortedPendingGuests.length}
+            כולם (ללא פיצול) – {sortedGuests.length}
           </option>
           <option value="first">
-            חצי ראשון של הרשימה – {firstHalfCount}
+            חצי ראשון – {firstHalfCount}
           </option>
           <option value="second">
-            חצי שני של הרשימה – {secondHalfCount}
+            חצי שני – {secondHalfCount}
           </option>
         </select>
 
         <p className="text-xs text-gray-500 mt-1">
-          החצי נקבע לפי סדר אלפביתי של המוזמנים
+          החצי נקבע לפי סדר אלפביתי
         </p>
       </div>
 
