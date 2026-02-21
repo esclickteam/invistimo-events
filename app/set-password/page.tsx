@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
 type ApiUserRole =
@@ -31,6 +32,8 @@ export default function SetPasswordPage() {
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -75,15 +78,18 @@ export default function SetPasswordPage() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setMessage("יש לאשר את תקנון השימוש ומדיניות הפרטיות");
+      return;
+    }
+
     try {
       setLoading(true);
       setMessage("");
 
       const res = await fetch("/api/auth/set-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           token,
@@ -103,28 +109,25 @@ export default function SetPasswordPage() {
         return;
       }
 
-      // עדכון מיידי של auth state
+      // עדכון auth state
       if (data.user) {
         setUser(data.user as any);
         setIsAuthenticated(true);
       } else {
         const me = await refreshUser();
         if (me) {
-          setIsAuthenticated(true);
           setUser(me as any);
+          setIsAuthenticated(true);
         }
       }
 
       setMessage("הסיסמה הוגדרה בהצלחה 🎉 מעביר...");
 
-      // ניקוי שדות
       setPassword("");
       setConfirmPassword("");
 
-      // רענון נתונים אחרי יצירת קוקי
       router.refresh();
 
-      // ✅ ניתוב רק לפי החלטת השרת (בלי hasPaid בפרונט)
       const nextPath = data.redirectTo || "/dashboard";
 
       console.log("✅ set-password redirect", {
@@ -171,11 +174,32 @@ export default function SetPasswordPage() {
             className="w-full border rounded-lg p-2"
           />
 
+          {/* תנאי שימוש */}
+          <div className="flex items-start gap-3 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              disabled={loading}
+              className="mt-1 h-4 w-4"
+            />
+            <span>
+              הנני מאשר/ת את{" "}
+              <Link href="/terms" className="underline">
+                תקנון השימוש
+              </Link>{" "}
+              ו{" "}
+              <Link href="/privacy" className="underline">
+                מדיניות הפרטיות
+              </Link>
+            </span>
+          </div>
+
           <button
             type="submit"
-            disabled={loading || !token}
+            disabled={loading || !token || !acceptedTerms}
             className={`w-full py-2 rounded-lg text-white transition ${
-              loading || !token
+              loading || !token || !acceptedTerms
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-purple-600 hover:bg-purple-700"
             }`}
