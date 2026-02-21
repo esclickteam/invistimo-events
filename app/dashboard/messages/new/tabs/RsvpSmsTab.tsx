@@ -6,6 +6,7 @@ import AudienceFilterSelector, {
 } from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import TextMessagePreview from "../shared/TextMessagePreview";
+import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 
 /* ================= TYPES ================= */
 
@@ -58,7 +59,6 @@ export default function RsvpSmsTab({
   /* ================= TIMING ================= */
 
   type SendTiming = "now" | "scheduled";
-
   const [sendTiming, setSendTiming] =
     useState<SendTiming>("now");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -78,6 +78,36 @@ export default function RsvpSmsTab({
 
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
+
+  /* ================= SCHEDULED MESSAGES ================= */
+
+  const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
+  const [showScheduled, setShowScheduled] = useState(false);
+
+  const loadScheduledMessages = async () => {
+    try {
+      const res = await fetch("/api/scheduled-messages", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (data?.success) {
+        setScheduledMessages(
+          Array.isArray(data.messages) ? data.messages : []
+        );
+      } else {
+        setScheduledMessages([]);
+      }
+    } catch {
+      setScheduledMessages([]);
+    }
+  };
+
+  useEffect(() => {
+    loadScheduledMessages();
+  }, []);
 
   /* ================= LOAD GUESTS ================= */
 
@@ -149,9 +179,7 @@ export default function RsvpSmsTab({
       .replace(/{{name}}/g, g.name || "")
       .replace(/{{invitationTitle}}/g, invitationTitle || "")
       .replace(/{{rsvpLink}}/g, rsvpLink);
- }, [guestsToSend, invitationId, invitationTitle]);
-
-  /* ================= UI ================= */
+  }, [guestsToSend, invitationId, invitationTitle]);
 
   if (loading) return <p>טוען אורחים…</p>;
 
@@ -202,21 +230,14 @@ export default function RsvpSmsTab({
         </p>
       </div>
 
-      {/* SUMMARY */}
-      <p className="text-sm text-center text-gray-700">
-        הודעת SMS תישלח ל־{guestsToSend.length} מוזמנים
-      </p>
-
       {/* PREVIEW */}
       {previewText && (
         <TextMessagePreview channel="sms" text={previewText} />
       )}
 
-      {/* ================= TIMING ================= */}
+      {/* TIMING */}
       <div className="border rounded-2xl p-6 space-y-5">
-        <div className="flex items-center gap-2 font-semibold">
-          ⏱️ תזמון ההודעה
-        </div>
+        <div className="font-semibold">⏱️ תזמון ההודעה</div>
 
         <label className="flex items-center gap-3">
           <input
@@ -227,12 +248,6 @@ export default function RsvpSmsTab({
           />
           <span>שליחה מיידית</span>
         </label>
-
-        {sendTiming === "now" && (
-          <div className="text-orange-600 text-sm mr-6">
-            ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל
-          </div>
-        )}
 
         <label className="flex items-center gap-3">
           <input
@@ -246,30 +261,18 @@ export default function RsvpSmsTab({
 
         {sendTiming === "scheduled" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm text-gray-600">
-                תאריך שליחה
-              </label>
-              <input
-                type="date"
-                min={new Date().toLocaleDateString("en-CA")}
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className="border rounded-xl px-4 py-3 text-sm"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm text-gray-600">
-                שעת שליחה
-              </label>
-              <input
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                className="border rounded-xl px-4 py-3 text-sm"
-              />
-            </div>
+            <input
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+              className="border rounded-xl px-4 py-3 text-sm"
+            />
+            <input
+              type="time"
+              value={scheduledTime}
+              onChange={(e) => setScheduledTime(e.target.value)}
+              className="border rounded-xl px-4 py-3 text-sm"
+            />
           </div>
         )}
       </div>
@@ -281,6 +284,7 @@ export default function RsvpSmsTab({
         invitationId={invitationId}
         audience={guestsToSend.map((g) => g._id)}
         scheduledAt={scheduledAt}
+        onAfterSend={loadScheduledMessages}
         disabled={
           noAudience ||
           (sendTiming === "scheduled" && !scheduledAt)
@@ -291,10 +295,38 @@ export default function RsvpSmsTab({
           : "📩 שלח אישור הגעה SMS"}
       </SendButton>
 
-      {noAudience && (
-        <p className="text-sm text-red-500 text-center">
-          אין נמענים לשליחה
-        </p>
+      {/* OPEN MODAL BUTTON */}
+      {scheduledMessages.length > 0 && (
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={async () => {
+              await loadScheduledMessages();
+              setShowScheduled(true);
+            }}
+            className="px-6 py-3 rounded-2xl border shadow-sm text-sm"
+          >
+            📅 צפייה בהודעות מתוזמנות
+          </button>
+        </div>
+      )}
+
+      {/* MODAL */}
+      {showScheduled && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-2xl w-[95%] max-w-[900px] p-6">
+            <div className="flex justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                📅 הודעות מתוזמנות
+              </h2>
+              <button onClick={() => setShowScheduled(false)}>✕</button>
+            </div>
+
+            <ScheduledMessagesTable
+              messages={scheduledMessages}
+              onChange={loadScheduledMessages}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
