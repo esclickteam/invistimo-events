@@ -9,8 +9,11 @@ export type BuildMessageParams = {
     tableNumber?: number;
   };
 
+  // Invitation / Event Title
+  invitationTitle?: string; // ✅ חדש – העיקרי
+  eventTitle?: string;       // ⚠️ תמיכה לאחור (fallback)
+
   // Event
-  eventTitle?: string;
   eventDate?: string;
   eventLocation?: string;
 
@@ -29,7 +32,9 @@ export function buildMessage({
   template,
   guest,
 
+  invitationTitle = "",
   eventTitle = "",
+
   eventDate = "",
   eventLocation = "",
 
@@ -39,6 +44,11 @@ export function buildMessage({
   includeGiftLink = false,
   giftLink = "",
 }: BuildMessageParams) {
+  /* ================= TITLE ================= */
+
+  // 🧠 תמיד מעדיפים invitationTitle, ואם אין – נופלים ל-eventTitle
+  const titleToUse = invitationTitle || eventTitle;
+
   /* ================= TABLE NAME ================= */
 
   const tableName =
@@ -52,7 +62,8 @@ export function buildMessage({
   let text = template
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{tableName}}/g, tableName)
-    .replace(/{{eventTitle}}/g, eventTitle)
+    .replace(/{{invitationTitle}}/g, titleToUse) // ✅ חדש
+    .replace(/{{eventTitle}}/g, titleToUse)       // ⚠️ ישן – נשמר
     .replace(/{{eventDate}}/g, eventDate)
     .replace(/{{eventLocation}}/g, eventLocation)
     .replace(/{{rsvpLink}}/g, rsvpLink)
@@ -74,7 +85,6 @@ export function buildMessage({
     .split("\n")
     .map((line) => line.trimEnd())
     .filter((line, index, arr) => {
-      // מסיר שורות ריקות כפולות
       if (line !== "") return true;
       return arr[index - 1] !== "";
     })

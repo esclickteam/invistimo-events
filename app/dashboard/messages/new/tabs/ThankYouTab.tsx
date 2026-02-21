@@ -17,7 +17,7 @@ type Guest = {
 
 type Props = {
   invitationId: string;
-  eventTitle: string;
+  invitationTitle: string;
   eventDate: string;
   eventLocation: string;
 };
@@ -34,7 +34,7 @@ const THANK_YOU_TEMPLATE =
 
 export default function ThankYouTab({
   invitationId,
-  eventTitle,
+  invitationTitle,
   eventDate,
   eventLocation,
 }: Props) {
@@ -181,7 +181,7 @@ export default function ThankYouTab({
 
 
       guest: g,
-      eventTitle,
+      invitationTitle,
       eventDate,
       eventLocation,
     });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import RsvpTab from "./tabs/RsvpTab";
-import RsvpSmsTab from "./tabs/RsvpSmsTab"; // ⭐ חדש
+import RsvpSmsTab from "./tabs/RsvpSmsTab";
 import ReminderTab from "./tabs/ReminderTab";
 import ThankYouTab from "./tabs/ThankYouTab";
 
@@ -10,8 +10,8 @@ import ThankYouTab from "./tabs/ThankYouTab";
 
 type TabKey = "rsvp" | "rsvp_sms" | "reminder" | "thankyou";
 
-type EventMeta = {
-  eventTitle: string;
+type MessageMeta = {
+  invitationTitle: string;      // ✅ חדש
   eventDate: string;
   eventLocation: string;
   eventType?: string;
@@ -23,8 +23,8 @@ type EventMeta = {
 
 /* ================= DEFAULTS ================= */
 
-const EMPTY_EVENT_META: EventMeta = {
-  eventTitle: "",
+const EMPTY_META: MessageMeta = {
+  invitationTitle: "",
   eventDate: "",
   eventLocation: "",
   eventType: "",
@@ -48,7 +48,7 @@ function formatEventDate(value: any): string {
 export default function NewMessagesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
 
-  const [eventMeta, setEventMeta] = useState<EventMeta>(EMPTY_EVENT_META);
+  const [meta, setMeta] = useState<MessageMeta>(EMPTY_META);
   const [invitationId, setInvitationId] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
@@ -72,8 +72,8 @@ export default function NewMessagesPage() {
         if (invitation && event) {
           setInvitationId(invitation._id);
 
-          setEventMeta({
-            eventTitle: event.title || "",
+          setMeta({
+            invitationTitle: invitation.title || "",   // ✅ כאן השינוי
             eventDate: formatEventDate(event.date),
             eventLocation:
               event.location?.address ||
@@ -111,7 +111,7 @@ export default function NewMessagesPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
-      {/* ================= Header ================= */}
+      {/* Header */}
       <header className="text-center">
         <h1 className="text-5xl font-extrabold mb-2 text-gray-800">
           📨 שליחת הודעות
@@ -121,26 +121,23 @@ export default function NewMessagesPage() {
         </p>
       </header>
 
-      {/* ================= Tabs ================= */}
+      {/* Tabs */}
       <div className="flex justify-center gap-4 bg-gray-50 rounded-xl p-2 shadow-inner">
         <TabButton
-          label=" אישור הגעה WhatsApp"
+          label="אישור הגעה WhatsApp"
           active={activeTab === "rsvp"}
           onClick={() => setActiveTab("rsvp")}
         />
-
         <TabButton
           label="אישור הגעה SMS"
           active={activeTab === "rsvp_sms"}
           onClick={() => setActiveTab("rsvp_sms")}
         />
-
         <TabButton
           label="תזכורת"
           active={activeTab === "reminder"}
           onClick={() => setActiveTab("reminder")}
         />
-
         <TabButton
           label="הודעת תודה"
           active={activeTab === "thankyou"}
@@ -148,22 +145,22 @@ export default function NewMessagesPage() {
         />
       </div>
 
-      {/* ================= Content ================= */}
+      {/* Content */}
       <main className="mt-6 p-6 min-h-[300px] bg-white rounded-xl shadow">
         {activeTab === "rsvp" && (
-          <RsvpTab invitationId={invitationId} {...eventMeta} />
+          <RsvpTab invitationId={invitationId} {...meta} />
         )}
 
         {activeTab === "rsvp_sms" && (
-          <RsvpSmsTab invitationId={invitationId} {...eventMeta} />
+          <RsvpSmsTab invitationId={invitationId} {...meta} />
         )}
 
         {activeTab === "reminder" && (
-          <ReminderTab invitationId={invitationId} {...eventMeta} />
+          <ReminderTab invitationId={invitationId} {...meta} />
         )}
 
         {activeTab === "thankyou" && (
-          <ThankYouTab invitationId={invitationId} {...eventMeta} />
+          <ThankYouTab invitationId={invitationId} {...meta} />
         )}
       </main>
     </div>

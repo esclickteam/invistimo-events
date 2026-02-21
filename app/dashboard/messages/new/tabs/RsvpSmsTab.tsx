@@ -19,7 +19,7 @@ type Guest = {
 
 type Props = {
   invitationId: string;
-  eventTitle: string;
+  invitationTitle: string;
 };
 
 /* ================= HELPERS ================= */
@@ -37,7 +37,7 @@ function splitByHalf<T>(list: T[], half: HalfType) {
 
 const RSVP_SMS_TEMPLATE =
   "היי {{name}},\n" +
-  "נשמח לדעת אם תגיעו ל־{{eventTitle}} 🎉\n\n" +
+  "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
   "לאישור הגעה לחצו כאן:\n" +
   "{{rsvpLink}}\n\n" +
   "מחכים לכם באהבה 💖";
@@ -46,7 +46,7 @@ const RSVP_SMS_TEMPLATE =
 
 export default function RsvpSmsTab({
   invitationId,
-  eventTitle,
+  invitationTitle,
 }: Props) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,9 +147,9 @@ export default function RsvpSmsTab({
 
     return RSVP_SMS_TEMPLATE
       .replace(/{{name}}/g, g.name || "")
-      .replace(/{{eventTitle}}/g, eventTitle || "")
+      .replace(/{{invitationTitle}}/g, invitationTitle || "")
       .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId, eventTitle]);
+ }, [guestsToSend, invitationId, invitationTitle]);
 
   /* ================= UI ================= */
 

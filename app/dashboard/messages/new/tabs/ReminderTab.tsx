@@ -19,7 +19,7 @@ type Guest = {
 
 type Props = {
   invitationId: string;
-  eventTitle: string;
+  invitationTitle: string;
   eventDate: string;
   eventLocation: string;
   lat?: number;

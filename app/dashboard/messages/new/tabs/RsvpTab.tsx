@@ -16,7 +16,7 @@ type Guest = {
 
 type Props = {
   invitationId: string;
-  eventTitle: string;
+  invitationTitle: string;
   eventDate: string;
   eventLocation: string;
   headerImageUrl?: string;
@@ -35,16 +35,16 @@ const RSVP_ROUND2_TEMPLATE = "rsvp_reminder_invistimo";
 /* ================= HELPERS ================= */
 
 function getRsvpPreviewText({
-  eventTitle,
+  invitationTitle,
   eventDate,
   eventLocation,
 }: {
-  eventTitle: string;
+  invitationTitle: string;
   eventDate: string;
   eventLocation: string;
 }) {
   return `משפחה וחברים יקרים,
-הנכם מוזמנים ל- ${eventTitle} 🤍
+הנכם מוזמנים ל־${invitationTitle} 🤍
 
 📅 תאריך: ${eventDate}
 📍 מיקום: ${eventLocation}
@@ -54,10 +54,11 @@ function getRsvpPreviewText({
 מחכים לשמוח איתכם 💖`;
 }
 
-function getRsvpReminderPreviewText(eventTitle: string) {
+
+function getRsvpReminderPreviewText(invitationTitle: string) {
   return `משפחה וחברים יקרים,
 
-תזכורת קצרה לאישור הגעה ל־${eventTitle} 💜
+תזכורת קצרה לאישור הגעה ל־${invitationTitle} 💜
 
 לאישור הגעה לחצו על הכפתור למטה 👇
 
@@ -95,7 +96,7 @@ function splitByHalf<T>(
 
 export default function RsvpTab({
   invitationId,
-  eventTitle,
+  invitationTitle,
   eventDate,
   eventLocation,
   headerImageUrl,
@@ -211,7 +212,7 @@ const [half, setHalf] = useState<HalfType>(null);
 
         if (inv) {
           setEventData({
-            title: inv.title ?? eventTitle,
+            title: inv.title ?? invitationTitle,
             date: inv.eventDate
               ? new Date(inv.eventDate).toLocaleDateString("he-IL")
               : eventDate,
@@ -226,7 +227,7 @@ const [half, setHalf] = useState<HalfType>(null);
     }
 
     loadData();
-  }, [invitationId, eventTitle, eventDate, eventLocation]);
+  }, [invitationId, invitationTitle, eventDate, eventLocation]);
 
   /* ================= SAVE GIFT OPTIONS ================= */
 
@@ -331,7 +332,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
 
     if (round === 1) {
       return getRsvpPreviewText({
-        eventTitle: eventData.title,
+        invitationTitle: eventData.title,
         eventDate: eventData.date,
         eventLocation: eventData.location,
       });
