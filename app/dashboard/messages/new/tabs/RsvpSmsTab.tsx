@@ -52,8 +52,32 @@ export default function RsvpSmsTab({
   const [loading, setLoading] = useState(true);
 
   const [audienceFilter, setAudienceFilter] =
-    useState<FilterType>("all"); // ✅ ברירת מחדל – כולם
+    useState<FilterType>("all");
   const [half, setHalf] = useState<HalfType>(null);
+
+  /* ================= TIMING ================= */
+
+  type SendTiming = "now" | "scheduled";
+
+  const [sendTiming, setSendTiming] =
+    useState<SendTiming>("now");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+
+  const scheduledAt = useMemo(() => {
+    if (
+      sendTiming !== "scheduled" ||
+      !scheduledDate ||
+      !scheduledTime
+    ) {
+      return null;
+    }
+
+    const [year, month, day] = scheduledDate.split("-").map(Number);
+    const [hour, minute] = scheduledTime.split(":").map(Number);
+
+    return new Date(year, month - 1, day, hour, minute, 0, 0);
+  }, [sendTiming, scheduledDate, scheduledTime]);
 
   /* ================= LOAD GUESTS ================= */
 
@@ -61,9 +85,10 @@ export default function RsvpSmsTab({
     async function loadGuests() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/guests?invitation=${invitationId}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/guests?invitation=${invitationId}`,
+          { cache: "no-store" }
+        );
         const data = await res.json();
         setGuests(Array.isArray(data?.guests) ? data.guests : []);
       } finally {
@@ -86,7 +111,9 @@ export default function RsvpSmsTab({
   /* ================= FILTER ================= */
 
   const filteredGuests = useMemo(() => {
-    return audienceFilter === "pending" ? pendingGuests : guests;
+    return audienceFilter === "pending"
+      ? pendingGuests
+      : guests;
   }, [audienceFilter, guests, pendingGuests]);
 
   /* ================= SORT ================= */
@@ -135,7 +162,7 @@ export default function RsvpSmsTab({
         value={audienceFilter}
         onChange={(v) => {
           setAudienceFilter(v);
-          setHalf(null); // איפוס פיצול כשמשנים קהל
+          setHalf(null);
         }}
         totalCount={totalCount}
         pendingCount={pendingGuests.length}
@@ -144,7 +171,9 @@ export default function RsvpSmsTab({
 
       {/* HALF */}
       <div>
-        <h3 className="font-semibold mb-2">📊 שליחה לפי חצי רשימה</h3>
+        <h3 className="font-semibold mb-2">
+          📊 שליחה לפי חצי רשימה
+        </h3>
 
         <select
           value={half ?? ""}
@@ -183,16 +212,83 @@ export default function RsvpSmsTab({
         <TextMessagePreview channel="sms" text={previewText} />
       )}
 
+      {/* ================= TIMING ================= */}
+      <div className="border rounded-2xl p-6 space-y-5">
+        <div className="flex items-center gap-2 font-semibold">
+          ⏱️ תזמון ההודעה
+        </div>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="radio"
+            checked={sendTiming === "now"}
+            onChange={() => setSendTiming("now")}
+            className="accent-blue-600"
+          />
+          <span>שליחה מיידית</span>
+        </label>
+
+        {sendTiming === "now" && (
+          <div className="text-orange-600 text-sm mr-6">
+            ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל
+          </div>
+        )}
+
+        <label className="flex items-center gap-3">
+          <input
+            type="radio"
+            checked={sendTiming === "scheduled"}
+            onChange={() => setSendTiming("scheduled")}
+            className="accent-blue-600"
+          />
+          <span>שליחה מתוזמנת</span>
+        </label>
+
+        {sendTiming === "scheduled" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-gray-600">
+                תאריך שליחה
+              </label>
+              <input
+                type="date"
+                min={new Date().toLocaleDateString("en-CA")}
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                className="border rounded-xl px-4 py-3 text-sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-gray-600">
+                שעת שליחה
+              </label>
+              <input
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="border rounded-xl px-4 py-3 text-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* SEND */}
       <SendButton
         channel="sms"
         type="rsvp"
         invitationId={invitationId}
         audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={null}
-        disabled={noAudience}
+        scheduledAt={scheduledAt}
+        disabled={
+          noAudience ||
+          (sendTiming === "scheduled" && !scheduledAt)
+        }
       >
-        📩 שלח אישור הגעה SMS
+        {sendTiming === "scheduled"
+          ? "⏱️ תזמן אישור הגעה"
+          : "📩 שלח אישור הגעה SMS"}
       </SendButton>
 
       {noAudience && (
