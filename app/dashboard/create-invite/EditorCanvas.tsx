@@ -380,19 +380,18 @@ useEffect(() => {
      SELECTION HANDLING
   ============================================================ */
   const handleSelect = (id: string | null) => {
-  // 🔥 עדכון ישיר ב-store
-  useEditorStore.setState({ selectedId: id });
+  setSelected(id);
 
   const obj = objects.find((o) => o.id === id) || null;
   onSelect(obj);
 
   const node = id ? stageRef.current?.findOne(`.${id}`) : null;
 
-  transformerRef.current?.nodes(node ? [node] : []);
+  if (transformerRef.current) {
+    transformerRef.current.nodes(node ? [node] : []);
+  }
 
-  stageRef.current?.container().focus();
-
-  // מובייל
+  // 📱 מובייל – מיקום כפתור מחיקה
   if (isMobile && node && stageRef.current) {
     const stageBox =
       stageRef.current.container().getBoundingClientRect();
@@ -406,7 +405,6 @@ useEffect(() => {
     setMobileDeletePos(null);
   }
 };
-
 
 const startEditText = (obj: TextObject) => {
   const node = stageRef.current?.findOne(`.${obj.id}`) as Konva.Node | null;
@@ -442,38 +440,27 @@ const startEditText = (obj: TextObject) => {
   ============================================================ */
   useEffect(() => {
   const onKey = (e: KeyboardEvent) => {
-    console.log("KEY:", e.key); // 🔍 בדיקה
+    // ❌ אם עורכים טקסט – לא למחוק אובייקט
+    if (editingTextId) return;
 
-    // אם עורכים טקסט – לא למחוק
-    if (editingTextId) {
-      console.log("Editing text — skip delete");
-      return;
-    }
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+  removeObject(selectedId);
 
-    if (e.key === "Delete" || e.key === "Backspace") {
-      const state = useEditorStore.getState();
-      const id = state.selectedId;
+  // 🧹 ניקוי Transformer
+  transformerRef.current?.nodes([]);
 
-      console.log("Selected ID:", id); // 🔍 בדיקה
+  setSelected(null);
+  setMobileDeletePos(null);
 
-      if (!id) return;
+  lastTapRef.current = null;
 
-      // 🔥 מחיקה ישירות מה-store (לא דרך removeObject)
-      state.removeObject(id);
+}
 
-      transformerRef.current?.nodes([]);
-
-      state.setSelected(null);
-      setMobileDeletePos(null);
-      lastTapRef.current = null;
-
-      console.log("Deleted:", id); // 🔍 בדיקה
-    }
   };
 
   window.addEventListener("keydown", onKey);
   return () => window.removeEventListener("keydown", onKey);
-}, [editingTextId]);
+}, [selectedId, editingTextId, removeObject, setSelected]);
 
   /* ============================================================
    EXPORT
@@ -631,8 +618,6 @@ setCanvasFormat: (f: "vertical" | "square") => {
   width={CANVAS_WIDTH}
   height={CANVAS_HEIGHT}
   ref={stageRef}
-  tabIndex={1}                 // ✅ חדש
-  style={{ outline: "none" }}  // ✅ חדש
 
   onMouseDown={(e) => {
   if (e.target === e.target.getStage()) {
