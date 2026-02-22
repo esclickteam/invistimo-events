@@ -446,27 +446,38 @@ const startEditText = (obj: TextObject) => {
   ============================================================ */
   useEffect(() => {
   const onKey = (e: KeyboardEvent) => {
-    // ❌ אם עורכים טקסט – לא למחוק
-    if (editingTextId) return;
+    console.log("KEY:", e.key); // 🔍 בדיקה
+
+    // אם עורכים טקסט – לא למחוק
+    if (editingTextId) {
+      console.log("Editing text — skip delete");
+      return;
+    }
 
     if (e.key === "Delete" || e.key === "Backspace") {
-      const id = useEditorStore.getState().selectedId; // 🔥 קריאה ישירה מה-store
+      const state = useEditorStore.getState();
+      const id = state.selectedId;
+
+      console.log("Selected ID:", id); // 🔍 בדיקה
 
       if (!id) return;
 
-      removeObject(id);
+      // 🔥 מחיקה ישירות מה-store (לא דרך removeObject)
+      state.removeObject(id);
 
       transformerRef.current?.nodes([]);
 
-      setSelected(null);
+      state.setSelected(null);
       setMobileDeletePos(null);
       lastTapRef.current = null;
+
+      console.log("Deleted:", id); // 🔍 בדיקה
     }
   };
 
   window.addEventListener("keydown", onKey);
   return () => window.removeEventListener("keydown", onKey);
-}, [editingTextId, removeObject, setSelected]);
+}, [editingTextId]);
 
   /* ============================================================
    EXPORT
