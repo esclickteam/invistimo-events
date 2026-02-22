@@ -36,7 +36,7 @@ export default function PublicInviteRenderer({ canvasData }) {
      📱 התאמה חכמה לרוחב מסך
   ============================================================ */
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
