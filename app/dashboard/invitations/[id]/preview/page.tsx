@@ -157,7 +157,7 @@ export default function InvitationPreviewPage() {
       <p className="text-gray-500 mb-8">תצוגת מקדימה</p>
 
       {/* ⭐ תצוגה אמיתית של הקנבס */}
-      <div className="w-full max-w-md bg-white shadow rounded-xl mb-10 flex justify-center">
+      <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10 flex justify-center">
         {invitation.canvasData ? (
           <PublicInviteRenderer canvasData={invitation.canvasData} />
         ) : (

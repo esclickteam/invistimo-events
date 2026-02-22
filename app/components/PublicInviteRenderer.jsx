@@ -195,6 +195,7 @@ export default function PublicInviteRenderer({ canvasData }) {
     </div>
   );
 }
+
 /* ============================================================
    🖼 IMAGE
 ============================================================ */
@@ -202,14 +203,20 @@ function PreviewImage({ obj, canvasWidth, canvasHeight }) {
   const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;
 
-  // 🟣 BACKGROUND IMAGE – FIT TO CANVAS (STRETCH)
   if (obj.isBackground === true) {
+    const cover = getCoverRect({
+      canvasWidth,
+      canvasHeight,
+      imageWidth: image.width,
+      imageHeight: image.height,
+    });
+
     return (
       <KonvaImage
-        x={0}
-        y={0}
-        width={canvasWidth}
-        height={canvasHeight}
+        x={cover.x}
+        y={cover.y}
+        width={cover.width}
+        height={cover.height}
         image={image}
         opacity={obj.opacity ?? 1}
         rotation={0}
@@ -217,7 +224,6 @@ function PreviewImage({ obj, canvasWidth, canvasHeight }) {
     );
   }
 
-  // 🟢 רגיל – אלמנט לפי המידות שלו
   return (
     <KonvaImage
       x={obj.x}
