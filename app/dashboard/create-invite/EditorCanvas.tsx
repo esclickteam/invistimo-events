@@ -93,6 +93,8 @@ interface EditorCanvasProps {
 export interface EditorCanvasRef {
   getCanvasData?: () => any;
 
+  setOrientation?: (o: "portrait" | "landscape") => void;
+  
   getPreviewImage?: () => string; // ⭐️ זה החסר
 
   uploadBackground?: (file: File) => void;
@@ -108,9 +110,9 @@ export interface EditorCanvasRef {
 /* ============================================================
    CANVAS SIZE
 ============================================================ */
-const CANVAS_WIDTH = 400;
-const CANVAS_HEIGHT = 720;
 
+const PORTRAIT_SIZE = { width: 400, height: 720 };
+const LANDSCAPE_SIZE = { width: 720, height: 400 };
 
 /* ============================================================
    HELPERS
@@ -179,10 +181,14 @@ const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
   const isMobile =
   typeof window !== "undefined" && window.innerWidth <= 768;
 
-
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">(
+  "portrait"
+);
+const { width: CANVAS_WIDTH, height: CANVAS_HEIGHT } =
+  orientation === "portrait" ? PORTRAIT_SIZE : LANDSCAPE_SIZE;
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
-  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+ 
 
   const objects = useEditorStore((s) => s.objects as EditorObject[]);
   const selectedId = useEditorStore((s) => s.selectedId);
@@ -212,8 +218,9 @@ const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
   /* ============================================================
      AUTO SCALE
   ============================================================ */
-  useEffect(() => {
+useEffect(() => {
   if (!containerRef.current) return;
+  if (typeof ResizeObserver === "undefined") return;
 
   const observer = new ResizeObserver(([entry]) => {
     const { width, height } = entry.contentRect;
@@ -229,8 +236,7 @@ const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
 
   observer.observe(containerRef.current);
   return () => observer.disconnect();
-}, [setScale]);
-
+}, [CANVAS_WIDTH, CANVAS_HEIGHT, setScale]);
   
   /* ============================================================
      LOAD EXISTING CANVAS
@@ -339,7 +345,7 @@ useEffect(() => {
 };
 
 const startEditText = (obj: TextObject) => {
-  const node = stageRef.current?.findOne(`.${obj.id}`);
+  const node = stageRef.current?.findOne(`.${obj.id}`) as Konva.Node | null;
   if (!node) return;
 
   const stageBox = stageRef.current.container().getBoundingClientRect();
@@ -398,6 +404,9 @@ const startEditText = (obj: TextObject) => {
      EXPORT
   ============================================================ */
   useImperativeHandle(ref, () => ({
+  setOrientation: (o: "portrait" | "landscape") => {
+    setOrientation(o);
+  },
   /* =========================================================
      🆕 הוספת טקסט חדש + פתיחת עריכה
   ========================================================= */

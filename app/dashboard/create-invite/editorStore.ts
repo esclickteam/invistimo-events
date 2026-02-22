@@ -7,7 +7,7 @@ const CANVAS_WIDTH = 900;
 const CANVAS_HEIGHT = 1600;
 
 /* ============================================================
-   TYPES — FULL CANVA SUPPORT
+   TYPES — FULL CANVAS SUPPORT
 ============================================================ */
 export interface EditorObject {
   id: string;
@@ -51,6 +51,14 @@ export interface EditorObject {
 }
 
 /* ============================================================
+   CANVAS ORIENTATION
+   portrait  – לאורך (ברירת מחדל)
+   landscape – לרוחב
+   ⚠️ בנייד הכיוון תמיד יוצג כ־portrait (נקבע בקנבס, לא כאן)
+============================================================ */
+export type CanvasOrientation = "portrait" | "landscape";
+
+/* ============================================================
    STATE TYPES
 ============================================================ */
 interface EditorState {
@@ -62,10 +70,16 @@ interface EditorState {
 
   scale: number;
 
+  /** כיוון ההזמנה (נשמר ב־DB / Store) */
+  orientation: CanvasOrientation;
+
+  /** שינוי כיוון ע"י המשתמש (דסקטופ בלבד בפועל) */
+  setOrientation: (o: CanvasOrientation) => void;
+
   setSelected: (id: string | null) => void;
   updateObject: (id: string, data: Partial<EditorObject>) => void;
 
-  /** ⭐ הפונקציה שחסרה לך — טעינת אובייקטים מהדאטהבייס */
+  /** ⭐ טעינת אובייקטים מהדאטהבייס */
   setObjects: (objs: EditorObject[]) => void;
 
   addText: () => void;
@@ -102,7 +116,6 @@ interface EditorState {
 
   setScale: (scale: number) => void;
 }
-
 /* ============================================================
    ZUSTAND STORE
 ============================================================ */
@@ -115,6 +128,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   scale: 1,
 
+    orientation: "portrait",
+
+  setOrientation: (orientation) => set({ orientation }),
   setSelected: (id) => set({ selectedId: id }),
 
   /** ⭐⭐ הפונקציה החדשה — טעינת כל רשימת האובייקטים (מהשרת) ⭐⭐ */
