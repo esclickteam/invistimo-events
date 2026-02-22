@@ -15,61 +15,79 @@ export default function PublicInviteRenderer({ canvasData }) {
       typeof canvasData === "string"
         ? JSON.parse(canvasData)
         : canvasData;
-  } catch (err) {
-    console.error("❌ Invalid canvasData:", canvasData);
+  } catch {
     return null;
   }
 
-  if (!data || !Array.isArray(data.objects)) {
-    console.warn("⚠️ canvasData has no objects:", data);
-    return null;
-  }
+  if (!data || !Array.isArray(data.objects)) return null;
 
   const width = data.width || 400;
   const height = data.height || 720;
 
-  /* ================= RESPONSIVE SCALE ================= */
+  const isLandscape = width > height;
+
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
+  const [offsetY, setOffsetY] = useState(0);
 
   useEffect(() => {
     function updateScale() {
       if (!containerRef.current) return;
 
       const containerWidth = containerRef.current.offsetWidth;
+
       if (!containerWidth) return;
 
-      setScale(containerWidth / width);
+      if (!isLandscape) {
+        // PORTRAIT – התנהגות רגילה
+        setScale(containerWidth / width);
+        setOffsetY(0);
+      } else {
+        // LANDSCAPE – יחס 4:5 כמו אינסטגרם
+        const instagramHeight = containerWidth * 1.25;
+
+        const scaleX = containerWidth / width;
+        const scaleY = instagramHeight / height;
+
+        const fitScale = Math.min(scaleX, scaleY);
+
+        setScale(fitScale);
+
+        // מרכז אנכית
+        const renderedHeight = height * fitScale;
+        setOffsetY((instagramHeight - renderedHeight) / 2);
+      }
     }
 
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
-  }, [width]);
+  }, [width, height, isLandscape]);
 
   return (
     <div className="w-full flex justify-center">
       <div
         ref={containerRef}
-        className="w-full flex justify-center"
+        className="w-full max-w-md relative"
         style={{
-          overflow: "visible",
+          aspectRatio: isLandscape ? "4 / 5" : "auto",
         }}
       >
         <div
           style={{
+            position: "absolute",
+            top: offsetY,
+            left: 0,
             width: width * scale,
             height: height * scale,
-            position: "relative",
           }}
         >
-          {/* ================= K O N V A  ================= */}
           <Stage
-            width={width * scale}
-            height={height * scale}
+            width={width}
+            height={height}
             scaleX={scale}
             scaleY={scale}
-            listening={false} // ❌ לא מאזין למגעים
+            listening={false}
           >
             <Layer>
               {data.objects.map((obj) => {
@@ -130,7 +148,6 @@ export default function PublicInviteRenderer({ canvasData }) {
             </Layer>
           </Stage>
 
-          {/* ================= LOTTIE ================= */}
           {data.objects
             .filter((o) => o.type === "lottie")
             .map((obj) => (
@@ -148,27 +165,12 @@ export default function PublicInviteRenderer({ canvasData }) {
                 <Lottie animationData={obj.lottieData} />
               </div>
             ))}
-
-          {/* ================= GLASS LAYER ================= */}
-          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 10,
-              background: "transparent",
-              touchAction: "pan-y",
-            }}
-          />
         </div>
       </div>
     </div>
   );
 }
 
-/* ============================================================
-   🖼 IMAGE LOADER
-============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;
