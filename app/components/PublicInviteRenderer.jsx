@@ -5,11 +5,13 @@ import Lottie from "lottie-react";
 import useImage from "use-image";
 import { useEffect, useRef, useState } from "react";
 
+/* ============================================================
+   MAIN
+============================================================ */
 export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
   let data;
-
   try {
     data =
       typeof canvasData === "string"
@@ -25,51 +27,66 @@ export default function PublicInviteRenderer({ canvasData }) {
     return null;
   }
 
-  const width = data.width || 400;
-  const height = data.height || 720;
+  /* ============================================================
+     CANVAS SIZE (מה שנשמר מהעורך)
+  ============================================================ */
+  const baseWidth = data.width || 400;
+  const baseHeight = data.height || 720;
 
-  /* ================= RESPONSIVE SCALE ================= */
-  const containerRef = useRef(null);
+  const isLandscape = baseWidth > baseHeight;
+
+  /* ============================================================
+     RESPONSIVE SCALE (רוחב לפי המסך)
+  ============================================================ */
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     function updateScale() {
       if (!containerRef.current) return;
-
       const containerWidth = containerRef.current.offsetWidth;
       if (!containerWidth) return;
 
-      setScale(containerWidth / width);
+      setScale(containerWidth / baseWidth);
     }
 
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
-  }, [width]);
+  }, [baseWidth]);
 
+  /* ============================================================
+     🔥 STAGE DIMENSIONS – זה התיקון הקריטי 🔥
+  ============================================================ */
+  const stageWidth = baseWidth * scale;
+  const stageHeight = isLandscape
+    ? stageWidth * (baseHeight / baseWidth)
+    : baseHeight * scale;
+
+  /* ============================================================
+     RENDER
+  ============================================================ */
   return (
     <div className="w-full flex justify-center">
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{
-          overflow: "visible",
-        }}
+        style={{ overflow: "visible" }}
       >
         <div
           style={{
-            width: width * scale,
-            height: height * scale,
+            width: stageWidth,
+            height: stageHeight,
             position: "relative",
           }}
         >
-          {/* ================= K O N V A  ================= */}
+          {/* ================= KONVA ================= */}
           <Stage
-            width={width * scale}
-            height={height * scale}
+            width={stageWidth}
+            height={stageHeight}
             scaleX={scale}
             scaleY={scale}
-            listening={false} // ❌ לא מאזין למגעים
+            listening={false}
           >
             <Layer>
               {data.objects.map((obj) => {
@@ -99,6 +116,7 @@ export default function PublicInviteRenderer({ canvasData }) {
                       height={obj.radius * 2}
                       cornerRadius={obj.radius}
                       fill={obj.fill}
+                      opacity={obj.opacity ?? 1}
                     />
                   );
                 }
@@ -150,7 +168,6 @@ export default function PublicInviteRenderer({ canvasData }) {
             ))}
 
           {/* ================= GLASS LAYER ================= */}
-          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
           <div
             style={{
               position: "absolute",
