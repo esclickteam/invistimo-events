@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import cloudinary from "@/lib/cloudinary"; // אם כבר יש לך כזה
-// אם אין – תגידי, אתן לך גם אותו
+import cloudinary from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,19 +11,25 @@ export async function POST(req: NextRequest) {
 
     if (!file || typeof file === "string") {
       return NextResponse.json(
-        { error: "No file uploaded" },
+        { success: false, error: "NO_FILE" },
         { status: 400 }
       );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // המרה ל־Buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
+    // העלאה ל־Cloudinary
     const uploadResult: any = await new Promise((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
           {
-            folder: "invitations",
+            folder: "invistimo/invitations",
             resource_type: "image",
+            overwrite: true,
+            quality: "auto",
+            fetch_format: "auto",
           },
           (error, result) => {
             if (error) reject(error);
@@ -35,12 +40,13 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      url: uploadResult.secure_url,
+      success: true,
+      url: uploadResult.secure_url, // 👈 זה מה ששומרים ב־DB
     });
   } catch (err) {
     console.error("❌ upload-image error:", err);
     return NextResponse.json(
-      { error: "Upload failed" },
+      { success: false, error: "UPLOAD_FAILED" },
       { status: 500 }
     );
   }
