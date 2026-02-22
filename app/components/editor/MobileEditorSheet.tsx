@@ -6,10 +6,12 @@ export default function MobileEditorSheet({
   open,
   onClose,
   selectedType,
+  canvasRef,
 }: {
   open: boolean;
   onClose: () => void;
   selectedType: "text" | "image" | "shape" | null;
+  canvasRef: any;
 }) {
   if (!open) return null;
 
@@ -28,6 +30,27 @@ export default function MobileEditorSheet({
           <span className="font-semibold">כלי עיצוב</span>
           <button onClick={onClose}>
             <X />
+          </button>
+        </div>
+
+        {/* ===== אוריינטציה (זה החלק החשוב) ===== */}
+        <div className="flex gap-2 mb-4">
+          <button
+            className="flex-1 border rounded py-2 text-sm"
+            onClick={() =>
+              canvasRef?.current?.setOrientation?.("portrait")
+            }
+          >
+            📱 אורך
+          </button>
+
+          <button
+            className="flex-1 border rounded py-2 text-sm"
+            onClick={() =>
+              canvasRef?.current?.setOrientation?.("landscape")
+            }
+          >
+            🖥️ רוחב
           </button>
         </div>
 
