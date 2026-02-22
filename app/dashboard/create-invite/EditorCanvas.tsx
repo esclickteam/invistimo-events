@@ -312,6 +312,30 @@ useEffect(() => {
   });
 }, [objects]);
 
+/* ============================================================
+   🟦 RESIZE BACKGROUND WHEN CANVAS SIZE CHANGES (CRITICAL)
+============================================================ */
+useEffect(() => {
+  const bg = objects.find(
+    (o) => o.type === "image" && o.isBackground && o.image
+  ) as any;
+
+  if (!bg || !bg.image) return;
+
+  const dims = getCoverDims(
+    bg.image,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT
+  );
+
+  updateObject(bg.id, {
+    x: dims.x,
+    y: dims.y,
+    width: dims.width,
+    height: dims.height,
+  });
+}, [CANVAS_WIDTH, CANVAS_HEIGHT]);
+
   /* ============================================================
      UPLOAD CUSTOM INVITATION AS BACKGROUND (תוספת בלבד)
   ============================================================ */
@@ -581,7 +605,7 @@ setCanvasFormat: (f: "vertical" | "square") => {
     className="w-full h-full flex items-center justify-center bg-gray-100 overflow-auto relative"
   >
     <div
-      className="shadow-2xl rounded-3xl bg-white overflow-hidden relative"
+      className="shadow-2xl rounded-3xl bg-white overflow-visible relative"
       style={{
         transform: `scale(${scale})`,
         transformOrigin: "top center",
