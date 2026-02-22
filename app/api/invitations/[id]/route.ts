@@ -41,9 +41,7 @@ function normalizeGiftOptions(input: any) {
 /* ============================================================
    📥 GET — שליפת הזמנה לפי מזהה
 ============================================================ */
-/* ============================================================
-   📥 GET — שליפת הזמנה לפי invitationId או eventId
-============================================================ */
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -60,7 +58,6 @@ export async function GET(
       );
     }
 
-    // 🔥 חיפוש חכם: קודם לפי _id, אם לא נמצא — לפי eventId
     let invitation =
       (await Invitation.findById(id).populate("guests").lean()) ||
       (await Invitation.findOne({ eventId: id })
@@ -87,10 +84,11 @@ export async function GET(
   }
 }
 
-
 /* ============================================================
-   💾 PUT — עדכון הזמנה קיימת (עדכון כללי)
+   💾 PUT — עדכון מלא של הזמנה
+   🔥 כולל החלפה מלאה של canvasData
 ============================================================ */
+
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -109,38 +107,53 @@ export async function PUT(
 
     const body = await request.json();
 
-    const { title, eventType, eventDate, eventTime, canvasData, location, orientation } = body;
+    const {
+      title,
+      eventType,
+      eventDate,
+      eventTime,
+      canvasData,
+      location,
+      orientation,
+    } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
     };
 
-    if (typeof title === "string" && title.trim()) {
+    /* ================= TITLE ================= */
+
+    if (typeof title === "string") {
       updatePayload.title = title.trim();
     }
 
-    if (typeof eventType === "string" && eventType.trim()) {
+    /* ================= EVENT TYPE ================= */
+
+    if (typeof eventType === "string") {
       updatePayload.eventType = eventType.trim();
     }
+
+    /* ================= EVENT DATE ================= */
 
     if (eventDate) {
       updatePayload.eventDate = new Date(eventDate);
     }
 
-    if (typeof eventTime === "string" && eventTime.trim()) {
+    /* ================= EVENT TIME ================= */
+
+    if (typeof eventTime === "string") {
       updatePayload.eventTime = eventTime;
     }
 
-    if (orientation === "portrait" || orientation === "landscape") {
-  updatePayload.orientation = orientation;
-}
+    /* ================= ORIENTATION ================= */
 
-    if (
-      location &&
-      ((typeof location.address === "string" && location.address.trim()) ||
-        location.lat !== undefined ||
-        location.lng !== undefined)
-    ) {
+    if (orientation === "portrait" || orientation === "landscape") {
+      updatePayload.orientation = orientation;
+    }
+
+    /* ================= LOCATION ================= */
+
+    if (location) {
       updatePayload.location = {
         name: typeof location.name === "string" ? location.name.trim() : "",
         address:
@@ -150,9 +163,17 @@ export async function PUT(
       };
     }
 
-    if (canvasData !== undefined) {
+    /* =====================================================
+       🔥🔥🔥 החלפה מלאה של canvasData
+    ===================================================== */
+
+    if (canvasData && typeof canvasData === "object") {
       updatePayload.canvasData = canvasData;
     }
+
+    /* =====================================================
+       UPDATE DATABASE
+    ===================================================== */
 
     const updated = await Invitation.findByIdAndUpdate(
       id,
@@ -183,9 +204,9 @@ export async function PUT(
 }
 
 /* ============================================================
-   🩹 PATCH — עדכון חלקי (giftOptions וכו')
-   נדרש בשביל הצ׳קבוקסים והלינקים
+   🩹 PATCH — עדכון חלקי (giftOptions / invitationSettings)
 ============================================================ */
+
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -220,7 +241,6 @@ export async function PATCH(
       updatePayload.invitationSettings = body.invitationSettings;
     }
 
-    /* אם לא הגיע שום דבר לעדכון */
     if (Object.keys(updatePayload).length === 1) {
       return NextResponse.json(
         { success: false, error: "NO_FIELDS_TO_UPDATE" },
