@@ -21,73 +21,69 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   if (!data || !Array.isArray(data.objects)) return null;
 
-  const width = data.width || 400;
-  const height = data.height || 720;
-  const isLandscape = width > height;
+  const sourceWidth = data.width || 400;
+  const sourceHeight = data.height || 720;
 
   const containerRef = useRef(null);
-  const [scale, setScale] = useState(1);
-  const [offsetX, setOffsetX] = useState(0);
-  const [offsetY, setOffsetY] = useState(0);
+  const [layout, setLayout] = useState({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    canvasHeight: 0,
+  });
 
   useEffect(() => {
-    function updateScale() {
+    function updateLayout() {
       if (!containerRef.current) return;
 
       const containerWidth = containerRef.current.offsetWidth;
-      if (!containerWidth) return;
 
-      if (!isLandscape) {
-        // PORTRAIT רגיל
-        setScale(containerWidth / width);
-        setOffsetX(0);
-        setOffsetY(0);
-      } else {
-        // יחס פוסט אינסטגרם 4:5
-        const targetHeight = containerWidth * 1.25;
+      // 🎯 קנבס קבוע כמו פוסט אינסטגרם
+      const targetHeight = containerWidth * 1.25;
 
-        const scaleX = containerWidth / width;
-        const scaleY = targetHeight / height;
+      // חישוב scale כך שהתמונה תיכנס כולה
+      const scaleX = containerWidth / sourceWidth;
+      const scaleY = targetHeight / sourceHeight;
+      const scale = Math.min(scaleX, scaleY);
 
-        const fitScale = Math.min(scaleX, scaleY);
+      const renderedWidth = sourceWidth * scale;
+      const renderedHeight = sourceHeight * scale;
 
-        setScale(fitScale);
-
-        const renderedWidth = width * fitScale;
-        const renderedHeight = height * fitScale;
-
-        setOffsetX((containerWidth - renderedWidth) / 2);
-        setOffsetY((targetHeight - renderedHeight) / 2);
-      }
+      setLayout({
+        scale,
+        offsetX: (containerWidth - renderedWidth) / 2,
+        offsetY: (targetHeight - renderedHeight) / 2,
+        canvasHeight: targetHeight,
+      });
     }
 
-    updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
-  }, [width, height, isLandscape]);
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
+  }, [sourceWidth, sourceHeight]);
 
   return (
     <div className="w-full flex justify-center">
       <div
         ref={containerRef}
-        className="w-full max-w-md relative"
+        className="w-full max-w-md relative bg-white"
         style={{
-          aspectRatio: isLandscape ? "4 / 5" : "auto",
+          height: layout.canvasHeight,
           overflow: "hidden",
         }}
       >
         <div
           style={{
             position: "absolute",
-            top: offsetY,
-            left: offsetX,
+            top: layout.offsetY,
+            left: layout.offsetX,
           }}
         >
           <Stage
-            width={width}
-            height={height}
-            scaleX={scale}
-            scaleY={scale}
+            width={sourceWidth}
+            height={sourceHeight}
+            scaleX={layout.scale}
+            scaleY={layout.scale}
             listening={false}
           >
             <Layer>
@@ -149,6 +145,24 @@ export default function PublicInviteRenderer({ canvasData }) {
             </Layer>
           </Stage>
         </div>
+
+        {data.objects
+          .filter((o) => o.type === "lottie")
+          .map((obj) => (
+            <div
+              key={obj.id}
+              style={{
+                position: "absolute",
+                top: layout.offsetY + obj.y * layout.scale,
+                left: layout.offsetX + obj.x * layout.scale,
+                width: obj.width * layout.scale,
+                height: obj.height * layout.scale,
+                pointerEvents: "none",
+              }}
+            >
+              <Lottie animationData={obj.lottieData} />
+            </div>
+          ))}
       </div>
     </div>
   );
