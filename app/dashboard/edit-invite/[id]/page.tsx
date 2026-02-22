@@ -118,6 +118,7 @@ export default function EditInvitePage() {
         body: JSON.stringify({
           title: invite.title,
           canvasData,
+          orientation: canvasData.orientation,
         }),
       });
 
@@ -226,7 +227,10 @@ export default function EditInvitePage() {
             <EditorCanvas
               key={invite._id}
               ref={canvasRef}
-              initialData={invite.canvasData}
+              initialData={{
+  ...invite.canvasData,
+  orientation: invite.orientation,
+}}
               onSelect={setSelectedObject}
             />
 
