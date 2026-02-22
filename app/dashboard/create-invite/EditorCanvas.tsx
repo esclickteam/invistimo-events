@@ -446,27 +446,27 @@ const startEditText = (obj: TextObject) => {
   ============================================================ */
   useEffect(() => {
   const onKey = (e: KeyboardEvent) => {
-    // ❌ אם עורכים טקסט – לא למחוק אובייקט
+    // ❌ אם עורכים טקסט – לא למחוק
     if (editingTextId) return;
 
-    if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
-  removeObject(selectedId);
+    if (e.key === "Delete" || e.key === "Backspace") {
+      const id = useEditorStore.getState().selectedId; // 🔥 קריאה ישירה מה-store
 
-  // 🧹 ניקוי Transformer
-  transformerRef.current?.nodes([]);
+      if (!id) return;
 
-  setSelected(null);
-  setMobileDeletePos(null);
+      removeObject(id);
 
-  lastTapRef.current = null;
+      transformerRef.current?.nodes([]);
 
-}
-
+      setSelected(null);
+      setMobileDeletePos(null);
+      lastTapRef.current = null;
+    }
   };
 
   window.addEventListener("keydown", onKey);
   return () => window.removeEventListener("keydown", onKey);
-}, [selectedId, editingTextId, removeObject, setSelected]);
+}, [editingTextId, removeObject, setSelected]);
 
   /* ============================================================
    EXPORT
