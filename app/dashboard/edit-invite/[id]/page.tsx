@@ -264,75 +264,89 @@ export default function EditInvitePage() {
           {/* Content */}
           <div className="flex-1 relative bg-gray-100 overflow-hidden">
 
- {/* ================= IMAGE MODE ================= */}
+  {/* ================= IMAGE MODE ================= */}
 {designMode === "image" && (
-  <div className="flex-1 flex items-center justify-center bg-gray-100">
-    <div className="flex flex-col items-center gap-4 p-6">
+  <div className="flex flex-col items-center justify-center gap-4 p-6">
+    {/* כפתור העלאת תמונה */}
+    <button
+      type="button"
+      onClick={() => uploadInputRef.current?.click()}
+      className="bg-purple-600 text-white px-4 py-2 rounded-lg"
+    >
+      העלאת תמונת הזמנה
+    </button>
 
-      <button
-        type="button"
-        onClick={() => uploadInputRef.current?.click()}
-        className="bg-purple-600 text-white px-4 py-2 rounded-lg"
-      >
-        העלאת תמונת הזמנה
-      </button>
+    {/* input אמיתי (מוסתר) */}
+    <input
+      ref={uploadInputRef}
+      type="file"
+      accept="image/*"
+      hidden
+      onChange={async (e) => {
+        console.log("🔥 FILE INPUT CHANGED");
 
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
+        const file = e.target.files?.[0];
+        if (!file) {
+          console.log("❌ NO FILE");
+          return;
+        }
 
-          const fd = new FormData();
-          fd.append("file", file);
+        console.log("📦 FILE:", file.name);
 
-          const res = await fetch("/api/upload-image", {
-            method: "POST",
-            body: fd,
-          });
+        const fd = new FormData();
+        fd.append("file", file, file.name);
 
-          const data = await res.json();
+        console.log("🚀 SENDING TO API");
 
-          if (!data.url) {
-            alert("שגיאה בהעלאה");
-            return;
-          }
+        const res = await fetch("/api/upload-image", {
+          method: "POST",
+          body: fd,
+        });
 
-          setInvite((prev: any) => ({
-            ...prev,
-            inviteImageUrl: data.url,
-          }));
+        console.log("📡 RESPONSE STATUS:", res.status);
+
+        const data = await res.json();
+        console.log("✅ UPLOAD RESPONSE:", data);
+
+        if (!data.success) {
+          alert("שגיאה בהעלאה");
+          return;
+        }
+
+        setInvite((prev: any) => ({
+          ...prev,
+          inviteImageUrl: data.url,
+          designMode: "image",
+        }));
+      }}
+    />
+
+    {/* תצוגת תמונה */}
+    {invite.inviteImageUrl && (
+      <div
+        style={{
+          width: 400,
+          height: 400, // ריבוע פייסבוק / אינסטגרם
+          border: "1.5px solid #d4af37", // מסגרת זהב
+          borderRadius: 18,
+          overflow: "hidden",
+          background: "#f7f7f7",
         }}
-      />
-
-      {invite.inviteImageUrl && (
-        <div
+      >
+        <img
+          src={invite.inviteImageUrl}
+          alt="הזמנה"
           style={{
-            width: 400,
-            height: 400,
-            border: "2px solid #d4af37",
-            borderRadius: 20,
-            overflow: "hidden",
-            background: "#fff",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover", // התאמה אוטומטית גם לאורך וגם לרוחב
           }}
-        >
-          <img
-            src={invite.inviteImageUrl}
-            alt="הזמנה"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
-        </div>
-      )}
-    </div>
+        />
+      </div>
+    )}
   </div>
 )}
+
   {/* ================= CANVAS MODE ================= */}
   {designMode === "canvas" && (
     <>
