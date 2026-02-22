@@ -256,14 +256,15 @@ export default function EditInvitePage() {
           <div className="flex-1 relative bg-gray-100 overflow-hidden">
 
             <EditorCanvas
-              key={invite._id}
-              ref={canvasRef}
-              initialData={{
-                ...invite.canvasData,
-                orientation: invite.orientation,
-              }}
-              onSelect={setSelectedObject}
-            />
+  key={invite._id}
+  ref={canvasRef}
+  initialData={{
+    objects: invite.canvasData?.objects || [],
+    orientation: invite.canvasData?.orientation || "portrait",
+    canvasFormat: invite.canvasData?.canvasFormat || "vertical",
+  }}
+  onSelect={setSelectedObject}
+/>
 
             <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
               <ZoomControl canvasRef={canvasRef} />
