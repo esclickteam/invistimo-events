@@ -3,59 +3,47 @@
 import EventNavigationButtons from "@/app/components/EventNavigationButtons";
 
 export default function EventLocationCard({ location }) {
-  console.log("📍 EventLocationCard render");
-  console.log("📦 location prop:", location);
+  if (!location) return null;
 
-  if (!location) {
-    console.warn("⚠️ EventLocationCard: location is null/undefined");
-    return null;
-  }
+  const hasAddress = !!location.address?.trim();
+  const hasCoords =
+    typeof location.lat === "number" &&
+    typeof location.lng === "number";
 
-  if (!location.lat || !location.lng) {
-    console.warn("⚠️ EventLocationCard: missing lat/lng", {
-      lat: location.lat,
-      lng: location.lng,
-    });
-    return null;
-  }
-
-  const { lat, lng, address } = location;
-
-  console.log("🗺️ Rendering map with coords:", { lat, lng });
+  // אם אין כלום – לא מציגים
+  if (!hasAddress && !hasCoords) return null;
 
   return (
     <div className="w-full max-w-md bg-white rounded-2xl shadow p-5 mt-8">
       {/* כותרת + כתובת */}
-      <div className="text-center mb-4">
-        {address ? (
+      {hasAddress && (
+        <div className="text-center mb-4">
           <div className="text-sm text-[#6b5b3e] leading-relaxed">
-            {address}
+            {location.address}
           </div>
-        ) : (
-          console.warn("⚠️ EventLocationCard: address is empty")
-        )}
+          <div className="text-[#6b5b3e] text-sm mt-1">📍 מיקום האירוע</div>
+        </div>
+      )}
 
-        <div className="text-[#6b5b3e] text-sm mt-1">📍 מיקום האירוע</div>
-      </div>
-
-      {/* 🗺️ מפה */}
-      <div className="w-full h-[250px] rounded-2xl overflow-hidden border border-[#e6dccb] shadow-sm mb-5">
-        <iframe
-          width="100%"
-          height="100%"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          src={`https://www.google.com/maps?q=${lat},${lng}&z=16&output=embed`}
-          onLoad={() =>
-            console.log("✅ Google Maps iframe loaded successfully")
-          }
-        />
-      </div>
+      {/* 🗺️ מפה – רק אם יש קואורדינטות */}
+      {hasCoords && (
+        <div className="w-full h-[250px] rounded-2xl overflow-hidden border border-[#e6dccb] shadow-sm mb-5">
+          <iframe
+            width="100%"
+            height="100%"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            src={`https://www.google.com/maps?q=${location.lat},${location.lng}&z=16&output=embed`}
+          />
+        </div>
+      )}
 
       {/* כפתורי ניווט */}
-      <div className="flex justify-center gap-3">
-        <EventNavigationButtons location={location} />
-      </div>
+      {hasCoords && (
+        <div className="flex justify-center gap-3">
+          <EventNavigationButtons location={location} />
+        </div>
+      )}
     </div>
   );
 }
