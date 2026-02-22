@@ -231,66 +231,109 @@ export default function EditInvitePage() {
           {/* Content */}
           <div className="flex-1 relative bg-gray-100 overflow-hidden">
 
-            {designMode === "image" && invite.inviteImageUrl ? (
-              <div className="flex justify-center items-center p-6">
-                <img
-                  src={invite.inviteImageUrl}
-                  alt="הזמנה"
-                  className="max-w-md w-full rounded-2xl shadow"
-                />
-              </div>
-            ) : (
-              <>
-                <EditorCanvas
-                  key={invite._id}
-                  ref={canvasRef}
-                  initialData={{
-                    ...invite.canvasData,
-                    orientation: invite.orientation,
-                  }}
-                  onSelect={setSelectedObject}
-                />
+  {/* ================= IMAGE MODE ================= */}
+  {designMode === "image" && (
+    <div className="flex flex-col items-center justify-center gap-4 p-6">
+      {/* כפתור העלאת תמונה */}
+      <label className="cursor-pointer bg-purple-600 text-white px-4 py-2 rounded-lg">
+        העלאת תמונת הזמנה
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
 
-                <div className="absolute top-4 right-4 z-50">
-                  <ZoomControl canvasRef={canvasRef} />
-                </div>
-              </>
-            )}
-          </div>
+            const url = URL.createObjectURL(file);
 
-          {/* Mobile */}
-          <MobileBottomNav
-            active={mobileTab}
-            onChange={(tab) => {
-              setMobileTab(tab);
-              setSheetOpen(true);
+            setInvite((prev: any) => ({
+              ...prev,
+              inviteImageUrl: url,
+            }));
+          }}
+        />
+      </label>
+
+      {/* תצוגת תמונה */}
+      {invite.inviteImageUrl && (
+        <div
+          style={{
+            width: 400,
+            height: 400, // ריבוע פייסבוק / אינסטגרם
+            border: "1.5px solid #d4af37", // מסגרת זהב
+            borderRadius: 18,
+            overflow: "hidden",
+            background: "#f7f7f7",
+          }}
+        >
+          <img
+            src={invite.inviteImageUrl}
+            alt="הזמנה"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover", // התאמה אוטומטית גם לאורך וגם לרוחב
             }}
           />
+        </div>
+      )}
+    </div>
+  )}
 
-          <MobileBottomSheet
-            open={sheetOpen}
-            title=""
-            onClose={() => setSheetOpen(false)}
-            height="42vh"
-          >
-            {selectedObject?.type === "text" ? (
-              <TextEditorPanel
-                selected={selectedObject}
-                onApply={(patch) =>
-                  canvasRef.current?.updateSelected?.(patch)
-                }
-                onDelete={() =>
-                  canvasRef.current?.deleteSelected?.()
-                }
-              />
-            ) : (
-              <Sidebar
-                canvasRef={canvasRef}
-                googleApiKey={googleApiKey}
-                activeTab={mobileTab}
-              />
-            )}
-          </MobileBottomSheet>
+  {/* ================= CANVAS MODE ================= */}
+  {designMode === "canvas" && (
+    <>
+      <EditorCanvas
+        key={invite._id}
+        ref={canvasRef}
+        initialData={{
+          ...invite.canvasData,
+          orientation: invite.orientation,
+        }}
+        onSelect={setSelectedObject}
+      />
+
+      <div className="absolute top-4 right-4 z-50">
+        <ZoomControl canvasRef={canvasRef} />
+      </div>
+    </>
+  )}
+</div>
+
+{/* ================= MOBILE ================= */}
+<MobileBottomNav
+  active={mobileTab}
+  onChange={(tab) => {
+    setMobileTab(tab);
+    setSheetOpen(true);
+  }}
+/>
+
+<MobileBottomSheet
+  open={sheetOpen}
+  title=""
+  onClose={() => setSheetOpen(false)}
+  height="42vh"
+>
+  {selectedObject?.type === "text" ? (
+    <TextEditorPanel
+      selected={selectedObject}
+      onApply={(patch) =>
+        canvasRef.current?.updateSelected?.(patch)
+      }
+      onDelete={() =>
+        canvasRef.current?.deleteSelected?.()
+      }
+    />
+  ) : (
+    <Sidebar
+      canvasRef={canvasRef}
+      googleApiKey={googleApiKey}
+      activeTab={mobileTab}
+    />
+  )}
+</MobileBottomSheet>
         </div>
       </div>
     </QueryClientProvider>
