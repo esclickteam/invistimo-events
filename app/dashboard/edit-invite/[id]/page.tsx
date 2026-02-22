@@ -254,23 +254,24 @@ export default function EditInvitePage() {
             onClose={() => setSheetOpen(false)}
             height="42vh"
           >
-            {selectedObject?.type === "text" ? (
-              <TextEditorPanel
-                selected={selectedObject}
-                onApply={(patch) =>
-                  canvasRef.current?.updateSelected?.(patch)
-                }
-                onDelete={() =>
-                  canvasRef.current?.deleteSelected?.()
-                }
-              />
-            ) : (
-              <Sidebar
-                canvasRef={canvasRef}
-                googleApiKey={googleApiKey}
-                activeTab={mobileTab}
-              />
-            )}
+            {selectedObject ? (
+  <TextEditorPanel
+    selected={selectedObject}
+    onApply={(patch) =>
+      canvasRef.current?.updateSelected?.(patch)
+    }
+    onDelete={() =>
+      canvasRef.current?.deleteSelected?.()
+    }
+  />
+) : (
+  <Sidebar
+    canvasRef={canvasRef}
+    googleApiKey={googleApiKey}
+    activeTab={mobileTab}
+  />
+)}
+
           </MobileBottomSheet>
         </div>
       </div>
