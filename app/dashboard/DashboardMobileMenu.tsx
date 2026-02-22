@@ -38,16 +38,11 @@ export default function DashboardMobileMenu({
 
   return (
     <>
-      {/* ================= MOBILE DRAWER ================= */}
-      <div className="fixed inset-0 z-[1000] md:hidden" dir="rtl">
-        {/* Overlay */}
-        <div
-          className="absolute inset-0 bg-black/40 z-0"
-          onClick={onClose}
-        />
+      {/* Drawer */}
+      <div className="fixed inset-0 z-50 md:hidden" dir="rtl">
+        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-        {/* Drawer */}
-        <aside className="absolute top-0 right-0 z-10 h-full w-[80%] max-w-xs bg-[#f5eee7] border-l border-[#e2d6c8] shadow-xl p-6 flex flex-col gap-6">
+        <aside className="absolute top-0 right-0 h-full w-[80%] max-w-xs bg-[#f5eee7] border-l border-[#e2d6c8] shadow-xl p-6 flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <span className="font-semibold text-lg text-[#4a413a]">
@@ -60,7 +55,6 @@ export default function DashboardMobileMenu({
 
           {/* Navigation */}
           <nav className="flex flex-col gap-5 text-[#4a413a] font-medium">
-
             {/* 1️⃣ יצירת / עריכת הזמנה */}
             <button
               onClick={() => {
@@ -80,20 +74,16 @@ export default function DashboardMobileMenu({
               {hasInvitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
             </button>
 
-            {/* 2️⃣ עריכת פרטי האירוע */}
+            {/* 2️⃣ עריכת פרטי האירוע (פתוח תמיד) */}
             <button
-              disabled={!hasInvitation}
               onClick={() => {
-                if (!hasInvitation) return;
                 if (isDemo) {
                   demoBlock();
                   return;
                 }
                 go("/dashboard/event");
               }}
-              className={`text-right ${
-                !hasInvitation ? "text-gray-400 cursor-not-allowed" : ""
-              }`}
+              className="text-right"
             >
               🛠️ עריכת פרטי האירוע
             </button>
@@ -116,41 +106,32 @@ export default function DashboardMobileMenu({
               </button>
             )}
 
-            {/* 4️⃣ סידורי הושבה */}
+            {/* 4️⃣ סידורי הושבה (פתוח תמיד) */}
             <button
-              disabled={!hasInvitation}
               onClick={() =>
-                isDemo
-                  ? go("/try/dashboard/seating")
-                  : go("/dashboard/seating")
+                isDemo ? go("/try/dashboard/seating") : go("/dashboard/seating")
               }
-              className={`text-right ${
-                !hasInvitation ? "text-gray-400 cursor-not-allowed" : ""
-              }`}
+              className="text-right"
             >
               🪑 סידורי הושבה
             </button>
 
-            {/* 5️⃣ שליחת הודעות */}
+            {/* 5️⃣ שליחת הודעות (פתוח תמיד) */}
             <button
-              disabled={!hasInvitation}
               onClick={() =>
                 isDemo
                   ? go("/try/dashboard/messages")
                   : go("/dashboard/messages")
               }
-              className={`text-right ${
-                !hasInvitation ? "text-gray-400 cursor-not-allowed" : ""
-              }`}
+              className="text-right"
             >
               💬 שליחת הודעות
             </button>
-
           </nav>
         </aside>
       </div>
 
-      {/* ================= DEMO MODAL ================= */}
+      {/* 🧪 Demo Modal */}
       {showDemoModal && (
         <div className="fixed inset-0 z-[9999] flex items-end justify-center">
           <div
