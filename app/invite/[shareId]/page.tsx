@@ -224,10 +224,22 @@ export default function PublicInvitePage({ params }: any) {
       <div className="flex flex-col items-center py-10 pb-32">
 
         <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
-          {invite.canvasData && (
-            <PublicInviteRenderer canvasData={invite.canvasData} />
-          )}
-        </div>
+  {invite.inviteImageUrl ? (
+    <img
+      src={invite.inviteImageUrl}
+      alt="הזמנה"
+      className="w-full rounded-xl object-contain"
+    />
+  ) : (
+    invite.canvasData && (
+     <PublicInviteRenderer
+  canvasData={invite.canvasData}
+  designMode={invite.designMode}
+  inviteImageUrl={invite.inviteImageUrl}
+/>
+    )
+  )}
+</div>
 
         {!sent ? (
           <form

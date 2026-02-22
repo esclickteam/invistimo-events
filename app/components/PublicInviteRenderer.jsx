@@ -10,39 +10,26 @@ export default function PublicInviteRenderer({
   designMode,
   inviteImageUrl,
 }) {
-  /* ============================================================
-     🖼 IMAGE MODE — תמונה במקום קנבס
-     ============================================================ */
-  if (designMode === "image" && inviteImageUrl) {
+  /* =========================================================
+     🖼 IMAGE MODE — אם יש תמונה מציגים תמונה
+  ========================================================= */
+  if (
+    designMode === "image" &&
+    typeof inviteImageUrl === "string" &&
+    inviteImageUrl.trim()
+  ) {
     return (
-      <div className="w-full flex justify-center">
-        <div
-          style={{
-            width: 400,
-            height: 720,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img
-            src={inviteImageUrl}
-            alt="Invitation"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
-          />
-        </div>
-      </div>
+      <img
+        src={inviteImageUrl}
+        alt="הזמנה"
+        className="w-full rounded-xl object-contain"
+      />
     );
   }
 
-  /* ============================================================
-     🎨 CANVAS MODE — קוד קיים
-     ============================================================ */
-
+  /* =========================================================
+     🎨 CANVAS MODE — כמו שהיה
+  ========================================================= */
   if (!canvasData) return null;
 
   let data;
@@ -98,7 +85,7 @@ export default function PublicInviteRenderer({
             position: "relative",
           }}
         >
-          {/* ================= K O N V A ================= */}
+          {/* ================= KONVA ================= */}
           <Stage
             width={width * scale}
             height={height * scale}
@@ -184,7 +171,7 @@ export default function PublicInviteRenderer({
               </div>
             ))}
 
-          {/* ================= GLASS LAYER ================= */}
+          {/* ================= GLASS ================= */}
           <div
             style={{
               position: "absolute",
@@ -200,9 +187,9 @@ export default function PublicInviteRenderer({
   );
 }
 
-/* ============================================================
-   🖼 IMAGE LOADER (Konva)
-============================================================ */
+/* =========================================================
+   IMAGE LOADER
+========================================================= */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;
