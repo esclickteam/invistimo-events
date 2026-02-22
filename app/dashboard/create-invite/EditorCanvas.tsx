@@ -88,17 +88,20 @@ export type EditorObject =
 interface EditorCanvasProps {
   onSelect: (obj: EditorObject | null) => void;
   initialData?: {
-    objects: EditorObject[];
-    orientation?: "portrait" | "landscape";
-  };
+  objects: EditorObject[];
+  orientation?: "portrait" | "landscape";
+  canvasFormat?: "vertical" | "square"; // ✅ חובה
+};
 }
-
 export interface EditorCanvasRef {
   getCanvasData?: () => any;
 
   setOrientation?: (o: "portrait" | "landscape") => void;
-  
-  getPreviewImage?: () => string; // ⭐️ זה החסר
+
+  // 🆕 הוספה – שליטה בגודל הקנבס
+  setCanvasFormat?: (f: "vertical" | "square") => void;
+
+  getPreviewImage?: () => string;
 
   uploadBackground?: (file: File) => void;
   addText?: () => void;
@@ -109,7 +112,6 @@ export interface EditorCanvasRef {
   zoomOut?: () => void;
   resetZoom?: () => void;
 }
-
 /* ============================================================
    CANVAS SIZE
 ============================================================ */
@@ -185,9 +187,10 @@ const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
   const isMobile =
   typeof window !== "undefined" && window.innerWidth <= 768;
 
-  const [orientation, setOrientation] = useState<"portrait" | "landscape">(
-  "portrait"
-);
+const [orientation, setOrientation] = useState<
+  "portrait" | "landscape"
+>("portrait");
+
 const [canvasFormat, setCanvasFormat] = useState<"vertical" | "square">(
   "vertical"
 );
@@ -252,11 +255,17 @@ useEffect(() => {
   /* ============================================================
      LOAD EXISTING CANVAS
   ============================================================ */
-  useEffect(() => {
+
+useEffect(() => {
   if (!initialData?.objects) return;
 
-  const incomingOrientation = initialData?.orientation;
+  // ✅ canvas format
+  const format =
+    initialData.canvasFormat === "square" ? "square" : "vertical";
+  setCanvasFormat(format);
 
+  // ✅ orientation
+  const incomingOrientation = initialData.orientation;
   const o =
     incomingOrientation === "landscape" || incomingOrientation === "portrait"
       ? incomingOrientation
@@ -267,7 +276,7 @@ useEffect(() => {
 
   setObjects({
     objects: initialData.objects,
-    orientation: o, // ✅ זה היה חסר
+    orientation: o,
   });
 }, [initialData, setObjects]);
 
@@ -430,13 +439,24 @@ const startEditText = (obj: TextObject) => {
 }, [selectedId, editingTextId, removeObject, setSelected]);
 
   /* ============================================================
-     EXPORT
-  ============================================================ */
-  useImperativeHandle(ref, () => ({
+   EXPORT
+============================================================ */
+useImperativeHandle(ref, () => ({
+  /* =========================
+     ORIENTATION (קיים)
+  ========================= */
   setOrientation: (o: "portrait" | "landscape") => {
-  setOrientation(o);
-  useEditorStore.getState().setOrientation(o);
+    setOrientation(o);
+    useEditorStore.getState().setOrientation(o);
+  },
+
+  /* =========================
+     🆕 CANVAS FORMAT (זה החסר!)
+  ========================= */
+setCanvasFormat: (f: "vertical" | "square") => {
+  setCanvasFormat(f);
 },
+
   /* =========================================================
      🆕 הוספת טקסט חדש + פתיחת עריכה
   ========================================================= */
@@ -510,8 +530,9 @@ const startEditText = (obj: TextObject) => {
   /* =========================================================
      JSON של הקנבס
   ========================================================= */
-  getCanvasData: () => ({
+ getCanvasData: () => ({
   orientation: useEditorStore.getState().orientation,
+  canvasFormat, // ✅ זה הקריטי
   width: CANVAS_WIDTH,
   height: CANVAS_HEIGHT,
   objects: useEditorStore.getState().objects.map((o) => ({
