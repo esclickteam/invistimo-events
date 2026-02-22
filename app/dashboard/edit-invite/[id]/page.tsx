@@ -50,11 +50,6 @@ export default function EditInvitePage() {
   const [selectedObject, setSelectedObject] =
     useState<EditorObject | null>(null);
 
-  /* ===== NEW: design modes ===== */
-  const [designMode, setDesignMode] =
-    useState<"canvas" | "image">("canvas");
-  const [simpleImageUrl, setSimpleImageUrl] = useState<string>("");
-
   /* ================= Mobile UI ================= */
   const [mobileTab, setMobileTab] =
     useState<MobileNavTab>("backgrounds");
@@ -95,10 +90,6 @@ export default function EditInvitePage() {
           ...data.invitation,
           canvasData,
         });
-
-        // 👇 NEW
-        setDesignMode(data.invitation.designMode || "canvas");
-        setSimpleImageUrl(data.invitation.simpleImageUrl || "");
       } catch {
         alert("❌ שגיאה בטעינת ההזמנה");
       } finally {
@@ -113,42 +104,22 @@ export default function EditInvitePage() {
      Save invitation (PUT)
   ========================================================= */
   const handleSave = async () => {
-    if (!inviteId) return;
+    if (!inviteId || !canvasRef.current?.getCanvasData) return;
 
     try {
       setSaving(true);
 
-      let body: any;
-
-      if (designMode === "image") {
-        if (!simpleImageUrl) {
-          alert("❌ לא נבחרה תמונה");
-          return;
-        }
-
-        body = {
-          title: invite.title,
-          designMode: "image",
-          simpleImageUrl,
-        };
-      } else {
-        if (!canvasRef.current?.getCanvasData) return;
-
-        const canvasData = canvasRef.current.getCanvasData();
-
-        body = {
-          title: invite.title,
-          designMode: "canvas",
-          canvasData,
-          orientation: canvasData.orientation,
-        };
-      }
+      const canvasData = canvasRef.current.getCanvasData();
 
       const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          title: invite.title,
+          canvasData,
+          orientation: canvasData.orientation,
+        }),
       });
 
       const result = await res.json();
@@ -169,35 +140,9 @@ export default function EditInvitePage() {
      Preview (Public Invite)
   ========================================================= */
   const handlePreview = () => {
+    // עדיפות ל-shareId אם קיים
     const previewId = invite.shareId || invite._id;
     window.open(`/invite/${previewId}`, "_blank");
-  };
-
-  /* =========================================================
-     Upload handler
-  ========================================================= */
-  const handleUpload = async (file: File) => {
-    if (designMode === "canvas") {
-      canvasRef.current?.uploadBackground?.(file);
-      return;
-    }
-
-    // 🖼 image-only mode
-    // ⬇️ השתמשי כאן במנגנון ההעלאה הקיים שלך
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await res.json();
-    if (data?.url) {
-      setSimpleImageUrl(data.url);
-    } else {
-      alert("❌ שגיאה בהעלאת תמונה");
-    }
   };
 
   /* =========================================================
@@ -231,8 +176,6 @@ export default function EditInvitePage() {
 
           {/* Header */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
-
-            {/* Upload */}
             <button
               onClick={() => uploadInputRef.current?.click()}
               className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
@@ -247,39 +190,16 @@ export default function EditInvitePage() {
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleUpload(file);
+                if (file) {
+                  canvasRef.current?.uploadBackground?.(file);
+                }
                 e.currentTarget.value = "";
               }}
             />
 
-            {/* Mode toggle */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDesignMode("canvas")}
-                className={`px-3 py-2 rounded-full text-sm border ${
-                  designMode === "canvas"
-                    ? "bg-blue-600 text-white"
-                    : "bg-white"
-                }`}
-              >
-                🎨 קנבס
-              </button>
-
-              <button
-                onClick={() => setDesignMode("image")}
-                className={`px-3 py-2 rounded-full text-sm border ${
-                  designMode === "image"
-                    ? "bg-blue-600 text-white"
-                    : "bg-white"
-                }`}
-              >
-                🖼️ תמונה
-              </button>
-            </div>
-
             <div className="flex-1" />
 
-            {/* Preview */}
+            {/* 👁 Preview */}
             <button
               onClick={handlePreview}
               className="px-4 py-2 rounded-full border text-sm"
@@ -287,7 +207,7 @@ export default function EditInvitePage() {
               👁 תצוגה מקדימה
             </button>
 
-            {/* Save */}
+            {/* 💾 Save */}
             <button
               onClick={handleSave}
               disabled={saving}
@@ -301,45 +221,32 @@ export default function EditInvitePage() {
             </button>
           </div>
 
-          {/* Canvas / Image */}
+          {/* Canvas */}
           <div className="flex-1 relative bg-gray-100 overflow-hidden">
 
-            {designMode === "canvas" && (
-              <>
-                <EditorCanvas
-                  key={invite._id}
-                  ref={canvasRef}
-                  initialData={{
-                    ...invite.canvasData,
-                    orientation: invite.orientation,
-                  }}
-                  onSelect={setSelectedObject}
-                />
+            <EditorCanvas
+              key={invite._id}
+              ref={canvasRef}
+              initialData={{
+  ...invite.canvasData,
+  orientation: invite.orientation,
+}}
+              onSelect={setSelectedObject}
+            />
 
-                <div className="absolute top-4 right-4 z-50">
-                  <ZoomControl canvasRef={canvasRef} />
-                </div>
-              </>
-            )}
-
-            {designMode === "image" && simpleImageUrl && (
-              <div className="flex justify-center items-center h-full">
-                <img
-                  src={simpleImageUrl}
-                  className="max-h-full rounded-2xl border shadow"
-                />
-              </div>
-            )}
+            <div className="absolute top-4 right-4 z-50">
+              <ZoomControl canvasRef={canvasRef} />
+            </div>
           </div>
 
           {/* Mobile */}
           <MobileBottomNav
-            active={mobileTab}
-            onChange={(tab) => {
-              setMobileTab(tab);
-              setSheetOpen(true);
-            }}
-          />
+  active={mobileTab}
+  onChange={(tab) => {
+    setMobileTab(tab);
+    setSheetOpen(true);
+  }}
+/>
 
           <MobileBottomSheet
             open={sheetOpen}
