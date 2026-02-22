@@ -109,17 +109,7 @@ export async function PUT(
 
     const body = await request.json();
 
-   const {
-  title,
-  eventType,
-  eventDate,
-  eventTime,
-  canvasData,
-  location,
-  orientation,
-  designMode,
-  inviteImageUrl,
-} = body;
+    const { title, eventType, eventDate, eventTime, canvasData, location, orientation } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
@@ -164,24 +154,6 @@ export async function PUT(
       updatePayload.canvasData = canvasData;
     }
 
-    /* ================= DESIGN MODE ================= */
-
-if (designMode === "image") {
-  updatePayload.designMode = "image";
-
-  if (typeof inviteImageUrl === "string" && inviteImageUrl.trim()) {
-    updatePayload.inviteImageUrl = inviteImageUrl.trim();
-  }
-
-  // אופציונלי: מנקה קנבס כדי שלא יחזור
-  updatePayload.canvasData = undefined;
-}
-
-if (designMode === "canvas") {
-  updatePayload.designMode = "canvas";
-  updatePayload.inviteImageUrl = undefined;
-}
-
     const updated = await Invitation.findByIdAndUpdate(
       id,
       { $set: updatePayload },
@@ -209,7 +181,6 @@ if (designMode === "canvas") {
     );
   }
 }
-
 
 /* ============================================================
    🩹 PATCH — עדכון חלקי (giftOptions וכו')
@@ -248,19 +219,7 @@ export async function PATCH(
     if (body?.invitationSettings !== undefined) {
       updatePayload.invitationSettings = body.invitationSettings;
     }
-/* ================= DESIGN MODE ================= */
 
-if (body?.designMode === "image") {
-  updatePayload.designMode = "image";
-
-  if (typeof body.inviteImageUrl === "string") {
-    updatePayload.inviteImageUrl = body.inviteImageUrl.trim();
-  }
-}
-
-if (body?.designMode === "canvas") {
-  updatePayload.designMode = "canvas";
-}
     /* אם לא הגיע שום דבר לעדכון */
     if (Object.keys(updatePayload).length === 1) {
       return NextResponse.json(

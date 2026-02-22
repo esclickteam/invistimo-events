@@ -5,46 +5,7 @@ import Lottie from "lottie-react";
 import useImage from "use-image";
 import { useEffect, useRef, useState } from "react";
 
-export default function PublicInviteRenderer({
-  canvasData,
-  designMode,
-  inviteImageUrl,
-}) {
-  /* =========================================================
-     🖼 IMAGE MODE — תצוגת תמונת הזמנה בלבד
-     ❗ קנבס לא נוגע ❗
-  ========================================================= */
-  if (designMode === "image" && inviteImageUrl) {
-    return (
-      <div
-        style={{
-          width: 400,
-          height: 400, // ריבוע אינסטגרם / פייסבוק
-          border: "1.5px solid #d4af37", // זהב עדין
-          borderRadius: 18,
-          overflow: "hidden",
-          background: "#f7f7f7",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <img
-          src={inviteImageUrl}
-          alt="הזמנה"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover", // ⭐ התאמה אוטומטית גם לאורך וגם לרוחב
-          }}
-        />
-      </div>
-    );
-  }
-
-  /* =========================================================
-     🎨 CANVAS MODE — הקוד המקורי, לא נגעתי
-  ========================================================= */
+export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
   let data;
@@ -91,7 +52,9 @@ export default function PublicInviteRenderer({
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{ overflow: "visible" }}
+        style={{
+          overflow: "visible",
+        }}
       >
         <div
           style={{
@@ -100,13 +63,13 @@ export default function PublicInviteRenderer({
             position: "relative",
           }}
         >
-          {/* ================= KONVA ================= */}
+          {/* ================= K O N V A  ================= */}
           <Stage
             width={width * scale}
             height={height * scale}
             scaleX={scale}
             scaleY={scale}
-            listening={false}
+            listening={false} // ❌ לא מאזין למגעים
           >
             <Layer>
               {data.objects.map((obj) => {
@@ -186,7 +149,8 @@ export default function PublicInviteRenderer({
               </div>
             ))}
 
-          {/* ================= GLASS ================= */}
+          {/* ================= GLASS LAYER ================= */}
+          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
           <div
             style={{
               position: "absolute",
@@ -202,9 +166,9 @@ export default function PublicInviteRenderer({
   );
 }
 
-/* =========================================================
-   IMAGE LOADER — קנבס (לא נגעתי)
-========================================================= */
+/* ============================================================
+   🖼 IMAGE LOADER
+============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;

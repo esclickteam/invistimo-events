@@ -116,39 +116,28 @@ const InvitationSchema = new Schema(
 
     /* ================= DESIGN ================= */
 
-canvasData: {
-  type: Object,
-  required: true,
-  default: {},
-},
+    canvasData: {
+      type: Object,
+      required: true,
+      default: {},
+    },
 
-designMode: {
-  type: String,
-  enum: ["canvas", "image"],
-  default: "canvas",
-  index: true,
-},
-
-inviteImageUrl: {
-  type: String,
-  default: "",
-},
-
-orientation: {
+    orientation: {
   type: String,
   enum: ["portrait", "landscape"],
   default: "portrait",
 },
 
-previewImage: {
-  type: String,
-  default: "",
-},
+    previewImage: {
+      type: String,
+      default: "",
+    },
 
-headerImageUrl: {
-  type: String,
-  default: "",
-},
+    headerImageUrl: {
+      type: String,
+      default: "",
+    },
+
     /* ================= SHARE ================= */
 
     shareId: {
@@ -237,11 +226,7 @@ InvitationSchema.pre("save", function () {
       payboxEnabled?: boolean;
       payboxUrl?: string;
     };
-    designMode?: "canvas" | "image";
-    inviteImageUrl?: string;
   };
-
-  /* ===== Gift Options cleanup ===== */
 
   const g = doc.giftOptions ?? {};
 
@@ -252,26 +237,6 @@ InvitationSchema.pre("save", function () {
   if (!g.payboxEnabled) g.payboxUrl = "";
 
   doc.giftOptions = g;
-
-  /* ===== Design cleanup (safe, backward compatible) ===== */
-
-  // Trim image url
-  doc.inviteImageUrl = (doc.inviteImageUrl ?? "").trim();
-
-  // Default mode if missing (old invites)
-  const mode: "canvas" | "image" = (doc.designMode ?? "canvas") as
-    | "canvas"
-    | "image";
-
-  // If not in image mode, keep DB clean (optional but recommended)
-  if (mode !== "image") {
-    doc.inviteImageUrl = "";
-  }
-
-  // If in image mode but no url, fallback to canvas to avoid broken public view
-  if (mode === "image" && !doc.inviteImageUrl) {
-    doc.designMode = "canvas";
-  }
 });
 
 /* ================= INDEXES ================= */
