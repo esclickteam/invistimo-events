@@ -123,34 +123,24 @@ const SQUARE_SIZE = { width: 720, height: 720 };
 /* ============================================================
    HELPERS
 ============================================================ */
+
 function isBackgroundImage(obj: EditorObject) {
   return obj.type === "image" && obj.isBackground === true;
 }
 
-function getCoverDims(
-  img: HTMLImageElement | HTMLVideoElement,
+/**
+ * Background images are ALWAYS stretched to the canvas size.
+ * No aspect-ratio logic, no cover / contain.
+ */
+function getCanvasFitDims(
   canvasW: number,
   canvasH: number
 ) {
-  const iw = (img as any).width;
-  const ih = (img as any).height;
-
-  if (!iw || !ih) return { x: 0, y: 0, width: canvasW, height: canvasH };
-
-  const aspect = iw / ih;
-  let width = canvasW;
-  let height = canvasW / aspect;
-
-  if (height < canvasH) {
-    height = canvasH;
-    width = canvasH * aspect;
-  }
-
   return {
-    x: (canvasW - width) / 2,
-    y: (canvasH - height) / 2,
-    width,
-    height,
+    x: 0,
+    y: 0,
+    width: canvasW,
+    height: canvasH,
   };
 }
 
@@ -312,70 +302,42 @@ useEffect(() => {
   });
 }, [objects]);
 
-/* ============================================================
-   🟦 RESIZE BACKGROUND WHEN CANVAS SIZE CHANGES (CRITICAL)
-============================================================ */
-useEffect(() => {
-  const bg = objects.find(
-    (o) => o.type === "image" && o.isBackground && o.image
-  ) as any;
-
-  if (!bg || !bg.image) return;
-
-  const dims = getCoverDims(
-    bg.image,
-    CANVAS_WIDTH,
-    CANVAS_HEIGHT
-  );
-
-  updateObject(bg.id, {
-    x: dims.x,
-    y: dims.y,
-    width: dims.width,
-    height: dims.height,
-  });
-}, [CANVAS_WIDTH, CANVAS_HEIGHT]);
 
   /* ============================================================
      UPLOAD CUSTOM INVITATION AS BACKGROUND (תוספת בלבד)
   ============================================================ */
-  const handleUploadBackground = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const dims = getCoverDims(img, CANVAS_WIDTH, CANVAS_HEIGHT);
+const handleUploadBackground = (file: File) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const withoutOldBg = useEditorStore
+        .getState()
+        .objects.filter((o: any) => !isBackgroundImage(o));
 
-        const withoutOldBg = useEditorStore
-          .getState()
-          .objects.filter((o: any) => !isBackgroundImage(o));
-
-        setObjects({
-  objects: [
-    {
-      id: `bg-${Date.now()}`,
-      type: "image",
-      x: dims.x,
-      y: dims.y,
-      width: dims.width,
-      height: dims.height,
-      image: img,
-      url: reader.result as string,
-      isBackground: true,
-    },
-    ...withoutOldBg,
-  ],
-  orientation: useEditorStore.getState().orientation,
-});
-
-      };
-      img.src = reader.result as string;
+      setObjects({
+        objects: [
+          {
+            id: `bg-${Date.now()}`,
+            type: "image",
+            x: 0,
+            y: 0,
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
+            image: img,
+            url: reader.result as string,
+            isBackground: true,
+          },
+          ...withoutOldBg,
+        ],
+        orientation: useEditorStore.getState().orientation,
+      });
     };
-    
-    reader.readAsDataURL(file);
+    img.src = reader.result as string;
   };
-
+  reader.readAsDataURL(file);
+};
   /* ============================================================
      SELECTION HANDLING
   ============================================================ */
