@@ -117,10 +117,10 @@ const InvitationSchema = new Schema(
     /* ================= DESIGN ================= */
 
     canvasData: {
-      type: Object,
-      required: true,
-      default: {},
-    },
+  type: mongoose.Schema.Types.Mixed,
+  required: true,
+  default: {},
+},
 
     orientation: {
   type: String,
