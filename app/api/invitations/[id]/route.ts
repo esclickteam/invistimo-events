@@ -109,8 +109,7 @@ export async function PUT(
 
     const body = await request.json();
 
-    const { title, eventType, eventDate, eventTime, canvasData, location } =
-      body;
+    const { title, eventType, eventDate, eventTime, canvasData, location, orientation } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
@@ -131,6 +130,10 @@ export async function PUT(
     if (typeof eventTime === "string" && eventTime.trim()) {
       updatePayload.eventTime = eventTime;
     }
+
+    if (orientation === "portrait" || orientation === "landscape") {
+  updatePayload.orientation = orientation;
+}
 
     if (
       location &&

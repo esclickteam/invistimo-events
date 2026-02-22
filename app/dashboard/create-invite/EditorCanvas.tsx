@@ -242,10 +242,13 @@ useEffect(() => {
      LOAD EXISTING CANVAS
   ============================================================ */
   useEffect(() => {
-    if (initialData?.objects) {
-      setObjects(initialData.objects);
-    }
-  }, [initialData, setObjects]);
+  if (!initialData?.objects) return;
+
+  setObjects({
+    objects: initialData.objects,
+    orientation: (initialData as any).orientation, // מגיע מה-DB
+  });
+}, [initialData, setObjects]);
 
   /* ============================================================
      LOAD IMAGES
@@ -294,23 +297,28 @@ useEffect(() => {
           .getState()
           .objects.filter((o: any) => !isBackgroundImage(o));
 
-        setObjects([
-          {
-            id: `bg-${Date.now()}`,
-            type: "image",
-            x: dims.x,
-            y: dims.y,
-            width: dims.width,
-            height: dims.height,
-            image: img,
-            url: reader.result as string,
-            isBackground: true,
-          },
-          ...withoutOldBg,
-        ]);
+        setObjects({
+  objects: [
+    {
+      id: `bg-${Date.now()}`,
+      type: "image",
+      x: dims.x,
+      y: dims.y,
+      width: dims.width,
+      height: dims.height,
+      image: img,
+      url: reader.result as string,
+      isBackground: true,
+    },
+    ...withoutOldBg,
+  ],
+  orientation: useEditorStore.getState().orientation,
+});
+
       };
       img.src = reader.result as string;
     };
+    
     reader.readAsDataURL(file);
   };
 
@@ -405,8 +413,9 @@ const startEditText = (obj: TextObject) => {
   ============================================================ */
   useImperativeHandle(ref, () => ({
   setOrientation: (o: "portrait" | "landscape") => {
-    setOrientation(o);
-  },
+  setOrientation(o);
+  useEditorStore.getState().setOrientation(o);
+},
   /* =========================================================
      🆕 הוספת טקסט חדש + פתיחת עריכה
   ========================================================= */
@@ -481,13 +490,14 @@ const startEditText = (obj: TextObject) => {
      JSON של הקנבס
   ========================================================= */
   getCanvasData: () => ({
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-    objects: useEditorStore.getState().objects.map((o) => ({
-      ...o,
-      image: undefined,
-    })),
-  }),
+  orientation: useEditorStore.getState().orientation,
+  width: CANVAS_WIDTH,
+  height: CANVAS_HEIGHT,
+  objects: useEditorStore.getState().objects.map((o) => ({
+    ...o,
+    image: undefined,
+  })),
+}),
 
   /* =========================================================
      ⭐️⭐️ PREVIEW IMAGE – זה הקריטי ⭐️⭐️

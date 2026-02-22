@@ -80,7 +80,7 @@ interface EditorState {
   updateObject: (id: string, data: Partial<EditorObject>) => void;
 
   /** ⭐ טעינת אובייקטים מהדאטהבייס */
-  setObjects: (objs: EditorObject[]) => void;
+  setObjects: (payload: { objects: EditorObject[]; orientation?: CanvasOrientation }) => void;
 
   addText: () => void;
   addRect: () => void;
@@ -134,11 +134,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSelected: (id) => set({ selectedId: id }),
 
   /** ⭐⭐ הפונקציה החדשה — טעינת כל רשימת האובייקטים (מהשרת) ⭐⭐ */
-  setObjects: (objs) =>
-    set(() => ({
-      objects: objs,
-      selectedId: null,
-    })),
+  setObjects: (payload) =>
+  set(() => ({
+    objects: payload.objects,
+    orientation: payload.orientation ?? "portrait",
+    selectedId: null,
+  })),
 
   updateObject: (id, data) => {
   console.log("✏️ updateObject called", id, data);
