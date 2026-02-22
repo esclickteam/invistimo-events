@@ -110,22 +110,21 @@ export default function EditInvitePage() {
      Save invitation (PUT)
   ========================================================= */
   const handleSave = async () => {
-    if (!inviteId || !canvasRef.current?.getCanvasData) return;
+  if (!inviteId) return;
 
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      const canvasData = canvasRef.current.getCanvasData();
-
+    /* ================= IMAGE MODE ================= */
+    if (designMode === "image") {
       const res = await fetch(`/api/invitations/${inviteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           title: invite.title,
-          canvasData,
-          orientation: canvasData.orientation,
-          designMode, // ✅ נשמר רק אם קיים
+          designMode: "image",
+          inviteImageUrl: invite.inviteImageUrl,
         }),
       });
 
@@ -138,10 +137,44 @@ export default function EditInvitePage() {
 
       setInvite(result.invitation);
       alert("✅ ההזמנה עודכנה בהצלחה!");
-    } finally {
-      setSaving(false);
+      return;
     }
-  };
+
+    /* ================= CANVAS MODE ================= */
+    if (designMode === "canvas") {
+      if (!canvasRef.current?.getCanvasData) {
+        alert("❌ קנבס לא זמין");
+        return;
+      }
+
+      const canvasData = canvasRef.current.getCanvasData();
+
+      const res = await fetch(`/api/invitations/${inviteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: invite.title,
+          canvasData,
+          orientation: canvasData.orientation,
+          designMode: "canvas",
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!result.success) {
+        alert("❌ שגיאה בשמירה");
+        return;
+      }
+
+      setInvite(result.invitation);
+      alert("✅ ההזמנה עודכנה בהצלחה!");
+    }
+  } finally {
+    setSaving(false);
+  }
+};
 
   /* =========================================================
      Preview
@@ -247,10 +280,11 @@ export default function EditInvitePage() {
 
             const url = URL.createObjectURL(file);
 
-            setInvite((prev: any) => ({
-              ...prev,
-              inviteImageUrl: url,
-            }));
+          setInvite((prev: any) => ({
+  ...prev,
+  inviteImageUrl: url,
+  designMode: "image", // ⭐ חשוב
+}));
           }}
         />
       </label>
