@@ -354,7 +354,7 @@ export default function PublicInvitePage({ params }: any) {
           </div>
         )}
 
-        <EventLocationCard location={event?.location} />
+        <EventLocationCard location={invite?.location} />
       </div>
     </div>
   );
