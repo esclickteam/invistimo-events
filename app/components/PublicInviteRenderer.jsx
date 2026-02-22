@@ -23,11 +23,11 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   const width = data.width || 400;
   const height = data.height || 720;
-
   const isLandscape = width > height;
 
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
+  const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
 
   useEffect(() => {
@@ -35,27 +35,29 @@ export default function PublicInviteRenderer({ canvasData }) {
       if (!containerRef.current) return;
 
       const containerWidth = containerRef.current.offsetWidth;
-
       if (!containerWidth) return;
 
       if (!isLandscape) {
-        // PORTRAIT – התנהגות רגילה
+        // PORTRAIT רגיל
         setScale(containerWidth / width);
+        setOffsetX(0);
         setOffsetY(0);
       } else {
-        // LANDSCAPE – יחס 4:5 כמו אינסטגרם
-        const instagramHeight = containerWidth * 1.25;
+        // יחס פוסט אינסטגרם 4:5
+        const targetHeight = containerWidth * 1.25;
 
         const scaleX = containerWidth / width;
-        const scaleY = instagramHeight / height;
+        const scaleY = targetHeight / height;
 
         const fitScale = Math.min(scaleX, scaleY);
 
         setScale(fitScale);
 
-        // מרכז אנכית
+        const renderedWidth = width * fitScale;
         const renderedHeight = height * fitScale;
-        setOffsetY((instagramHeight - renderedHeight) / 2);
+
+        setOffsetX((containerWidth - renderedWidth) / 2);
+        setOffsetY((targetHeight - renderedHeight) / 2);
       }
     }
 
@@ -71,15 +73,14 @@ export default function PublicInviteRenderer({ canvasData }) {
         className="w-full max-w-md relative"
         style={{
           aspectRatio: isLandscape ? "4 / 5" : "auto",
+          overflow: "hidden",
         }}
       >
         <div
           style={{
             position: "absolute",
             top: offsetY,
-            left: 0,
-            width: width * scale,
-            height: height * scale,
+            left: offsetX,
           }}
         >
           <Stage
@@ -147,24 +148,6 @@ export default function PublicInviteRenderer({ canvasData }) {
               })}
             </Layer>
           </Stage>
-
-          {data.objects
-            .filter((o) => o.type === "lottie")
-            .map((obj) => (
-              <div
-                key={obj.id}
-                style={{
-                  position: "absolute",
-                  top: obj.y * scale,
-                  left: obj.x * scale,
-                  width: obj.width * scale,
-                  height: obj.height * scale,
-                  pointerEvents: "none",
-                }}
-              >
-                <Lottie animationData={obj.lottieData} />
-              </div>
-            ))}
         </div>
       </div>
     </div>
