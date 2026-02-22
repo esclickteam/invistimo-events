@@ -380,23 +380,19 @@ useEffect(() => {
      SELECTION HANDLING
   ============================================================ */
   const handleSelect = (id: string | null) => {
-  setSelected(id);
+  // 🔥 עדכון ישיר ב-store
+  useEditorStore.setState({ selectedId: id });
 
   const obj = objects.find((o) => o.id === id) || null;
   onSelect(obj);
 
   const node = id ? stageRef.current?.findOne(`.${id}`) : null;
 
-  if (transformerRef.current) {
-    transformerRef.current.nodes(node ? [node] : []);
-  }
+  transformerRef.current?.nodes(node ? [node] : []);
 
-  // ⭐️⭐️ חשוב מאוד – מאפשר Delete לעבוד
-  if (stageRef.current) {
-    stageRef.current.container().focus();
-  }
+  stageRef.current?.container().focus();
 
-  // 📱 מובייל – מיקום כפתור מחיקה
+  // מובייל
   if (isMobile && node && stageRef.current) {
     const stageBox =
       stageRef.current.container().getBoundingClientRect();
