@@ -847,21 +847,31 @@ if (isMobile) {
                 const bg = isBackgroundImage(obj);
 
                 if (bg) {
-                  return (
-                    <KonvaImage
-                      key={obj.id}
-                      name={obj.id}
-                      className={obj.id}
-                      x={0}
-                      y={0}
-                      width={CANVAS_WIDTH}
-                      height={CANVAS_HEIGHT}
-                      image={obj.image || undefined}
-                      draggable={false}
-                      onClick={() => handleSelect(obj.id)}
-                    />
-                  );
-                }
+  return (
+    <KonvaImage
+      key={obj.id}
+      name={obj.id}
+      className={obj.id}
+      x={0}
+      y={0}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
+      image={obj.image || undefined}
+      draggable={false}
+      listening={true}
+
+      onMouseDown={(e) => {
+        e.cancelBubble = true;   // ⭐ קריטי – מונע מה-Stage לבטל בחירה
+        handleSelect(obj.id);
+      }}
+
+      onClick={(e) => {
+        e.cancelBubble = true;   // ⭐ גיבוי לדסקטופ
+        handleSelect(obj.id);
+      }}
+    />
+  );
+}
 
                 return (
                   <KonvaImage
