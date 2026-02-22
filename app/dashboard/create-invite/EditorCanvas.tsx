@@ -618,37 +618,31 @@ setCanvasFormat: (f: "vertical" | "square") => {
   width={CANVAS_WIDTH}
   height={CANVAS_HEIGHT}
   ref={stageRef}
+  tabIndex={0} // ✅ קריטי כדי לקבל פוקוס למקלדת
 
   onMouseDown={(e) => {
-  if (e.target === e.target.getStage()) {
+    // ✅ קריטי: כל קליק בקנבס מחזיר פוקוס → Delete עובד
+    stageRef.current?.container()?.focus?.();
 
-  lastTapRef.current = null;
-  
+    if (e.target === e.target.getStage()) {
+      lastTapRef.current = null;
 
-    // ✍️ אם היינו בעריכת טקסט – רק לסיים עריכה
-    if (editingTextId) {
-  setEditingTextId(null);
-  setTextInputRect(null);
+      // ✍️ אם היינו בעריכת טקסט – רק לסיים עריכה
+      if (editingTextId) {
+        setEditingTextId(null);
+        setTextInputRect(null);
+        lastTapRef.current = null;
+        transformerRef.current?.nodes([]);
+        return; // ⛔ לא לבטל בחירה!
+      }
 
-  lastTapRef.current = null;
+      handleSelect(null);
 
-
-  // 🧹 קריטי: לנקות Transformer של הטקסט הערוך
-  transformerRef.current?.nodes([]);
-
-  return; // ⛔ לא לבטל בחירה!
-}
-
-// 🧹 רק אם לא בעריכה – לבטל בחירה
-handleSelect(null);
-
-if (isMobile) {
-  setMobileDeletePos(null);
-}
-
-
-  }
-}}
+      if (isMobile) {
+        setMobileDeletePos(null);
+      }
+    }
+  }}
 >
 
           <Layer ref={mainLayerRef}>

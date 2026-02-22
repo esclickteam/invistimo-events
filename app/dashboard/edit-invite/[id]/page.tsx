@@ -237,15 +237,7 @@ export default function EditInvitePage() {
             <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
   <ZoomControl canvasRef={canvasRef} />
 
-  {/* 🗑 מחיקה (דסקטופ) */}
-  <button
-    type="button"
-    onClick={() => canvasRef.current?.deleteSelected?.()}
-    className="hidden md:inline-flex items-center justify-center px-3 py-2 rounded-full bg-red-600 text-white text-sm shadow hover:bg-red-700"
-    title="מחיקת אובייקט נבחר"
-  >
-    🗑 מחק
-  </button>
+
 </div>
 
           </div>
