@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, Pencil } from "lucide-react";
+import { X } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -38,11 +38,16 @@ export default function DashboardMobileMenu({
 
   return (
     <>
-      {/* Drawer */}
+      {/* ================= MOBILE DRAWER ================= */}
       <div className="fixed inset-0 z-[1000] md:hidden" dir="rtl">
-        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+        {/* Overlay */}
+        <div
+          className="absolute inset-0 bg-black/40 z-0"
+          onClick={onClose}
+        />
 
-        <aside className="absolute top-0 right-0 h-full w-[80%] max-w-xs bg-[#f5eee7] border-l border-[#e2d6c8] shadow-xl p-6 flex flex-col gap-6">
+        {/* Drawer */}
+        <aside className="absolute top-0 right-0 z-10 h-full w-[80%] max-w-xs bg-[#f5eee7] border-l border-[#e2d6c8] shadow-xl p-6 flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <span className="font-semibold text-lg text-[#4a413a]">
@@ -145,7 +150,7 @@ export default function DashboardMobileMenu({
         </aside>
       </div>
 
-      {/* 🧪 Demo Modal */}
+      {/* ================= DEMO MODAL ================= */}
       {showDemoModal && (
         <div className="fixed inset-0 z-[9999] flex items-end justify-center">
           <div
