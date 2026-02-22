@@ -15,76 +15,61 @@ export default function PublicInviteRenderer({ canvasData }) {
       typeof canvasData === "string"
         ? JSON.parse(canvasData)
         : canvasData;
-  } catch {
+  } catch (err) {
+    console.error("❌ Invalid canvasData:", canvasData);
     return null;
   }
 
-  if (!data || !Array.isArray(data.objects)) return null;
+  if (!data || !Array.isArray(data.objects)) {
+    console.warn("⚠️ canvasData has no objects:", data);
+    return null;
+  }
 
-  const sourceWidth = data.width || 400;
-  const sourceHeight = data.height || 720;
+  const width = data.width || 400;
+  const height = data.height || 720;
 
+  /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef(null);
-  const [layout, setLayout] = useState({
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
-    canvasHeight: 0,
-  });
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
-    function updateLayout() {
+    function updateScale() {
       if (!containerRef.current) return;
 
       const containerWidth = containerRef.current.offsetWidth;
+      if (!containerWidth) return;
 
-      // 🎯 קנבס קבוע כמו פוסט אינסטגרם
-      const targetHeight = containerWidth * 1.25;
-
-      // חישוב scale כך שהתמונה תיכנס כולה
-      const scaleX = containerWidth / sourceWidth;
-      const scaleY = targetHeight / sourceHeight;
-      const scale = Math.min(scaleX, scaleY);
-
-      const renderedWidth = sourceWidth * scale;
-      const renderedHeight = sourceHeight * scale;
-
-      setLayout({
-        scale,
-        offsetX: (containerWidth - renderedWidth) / 2,
-        offsetY: (targetHeight - renderedHeight) / 2,
-        canvasHeight: targetHeight,
-      });
+      setScale(containerWidth / width);
     }
 
-    updateLayout();
-    window.addEventListener("resize", updateLayout);
-    return () => window.removeEventListener("resize", updateLayout);
-  }, [sourceWidth, sourceHeight]);
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [width]);
 
   return (
     <div className="w-full flex justify-center">
       <div
         ref={containerRef}
-        className="w-full max-w-md relative bg-white"
+        className="w-full flex justify-center"
         style={{
-          height: layout.canvasHeight,
-          overflow: "hidden",
+          overflow: "visible",
         }}
       >
         <div
           style={{
-            position: "absolute",
-            top: layout.offsetY,
-            left: layout.offsetX,
+            width: width * scale,
+            height: height * scale,
+            position: "relative",
           }}
         >
+          {/* ================= K O N V A  ================= */}
           <Stage
-            width={sourceWidth}
-            height={sourceHeight}
-            scaleX={layout.scale}
-            scaleY={layout.scale}
-            listening={false}
+            width={width * scale}
+            height={height * scale}
+            scaleX={scale}
+            scaleY={scale}
+            listening={false} // ❌ לא מאזין למגעים
           >
             <Layer>
               {data.objects.map((obj) => {
@@ -144,30 +129,46 @@ export default function PublicInviteRenderer({ canvasData }) {
               })}
             </Layer>
           </Stage>
-        </div>
 
-        {data.objects
-          .filter((o) => o.type === "lottie")
-          .map((obj) => (
-            <div
-              key={obj.id}
-              style={{
-                position: "absolute",
-                top: layout.offsetY + obj.y * layout.scale,
-                left: layout.offsetX + obj.x * layout.scale,
-                width: obj.width * layout.scale,
-                height: obj.height * layout.scale,
-                pointerEvents: "none",
-              }}
-            >
-              <Lottie animationData={obj.lottieData} />
-            </div>
-          ))}
+          {/* ================= LOTTIE ================= */}
+          {data.objects
+            .filter((o) => o.type === "lottie")
+            .map((obj) => (
+              <div
+                key={obj.id}
+                style={{
+                  position: "absolute",
+                  top: obj.y * scale,
+                  left: obj.x * scale,
+                  width: obj.width * scale,
+                  height: obj.height * scale,
+                  pointerEvents: "none",
+                }}
+              >
+                <Lottie animationData={obj.lottieData} />
+              </div>
+            ))}
+
+          {/* ================= GLASS LAYER ================= */}
+          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 10,
+              background: "transparent",
+              touchAction: "pan-y",
+            }}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
+/* ============================================================
+   🖼 IMAGE LOADER
+============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;
