@@ -5,11 +5,28 @@ import Lottie from "lottie-react";
 import useImage from "use-image";
 import { useEffect, useRef, useState } from "react";
 
+/* ============================================================
+   📐 helper: background-size: cover for Konva
+============================================================ */
+function getCoverRect({ canvasWidth, canvasHeight, imageWidth, imageHeight }) {
+  const scale = Math.max(
+    canvasWidth / imageWidth,
+    canvasHeight / imageHeight
+  );
+
+  const width = imageWidth * scale;
+  const height = imageHeight * scale;
+
+  const x = (canvasWidth - width) / 2;
+  const y = (canvasHeight - height) / 2;
+
+  return { x, y, width, height };
+}
+
 export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
 
   let data;
-
   try {
     data =
       typeof canvasData === "string"
@@ -20,10 +37,7 @@ export default function PublicInviteRenderer({ canvasData }) {
     return null;
   }
 
-  if (!data || !Array.isArray(data.objects)) {
-    console.warn("⚠️ canvasData has no objects:", data);
-    return null;
-  }
+  if (!data || !Array.isArray(data.objects)) return null;
 
   const width = data.width || 400;
   const height = data.height || 720;
@@ -35,10 +49,8 @@ export default function PublicInviteRenderer({ canvasData }) {
   useEffect(() => {
     function updateScale() {
       if (!containerRef.current) return;
-
       const containerWidth = containerRef.current.offsetWidth;
       if (!containerWidth) return;
-
       setScale(containerWidth / width);
     }
 
@@ -47,15 +59,17 @@ export default function PublicInviteRenderer({ canvasData }) {
     return () => window.removeEventListener("resize", updateScale);
   }, [width]);
 
+  const backgroundImages = data.objects.filter(
+    (o) => o.type === "image" && o.isBackground === true
+  );
+
+  const otherObjects = data.objects.filter(
+    (o) => !(o.type === "image" && o.isBackground === true)
+  );
+
   return (
     <div className="w-full flex justify-center">
-      <div
-        ref={containerRef}
-        className="w-full flex justify-center"
-        style={{
-          overflow: "visible",
-        }}
-      >
+      <div ref={containerRef} className="w-full flex justify-center">
         <div
           style={{
             width: width * scale,
@@ -63,16 +77,26 @@ export default function PublicInviteRenderer({ canvasData }) {
             position: "relative",
           }}
         >
-          {/* ================= K O N V A  ================= */}
           <Stage
             width={width * scale}
             height={height * scale}
             scaleX={scale}
             scaleY={scale}
-            listening={false} // ❌ לא מאזין למגעים
+            listening={false}
           >
             <Layer>
-              {data.objects.map((obj) => {
+              {/* ===== BACKGROUND FIRST ===== */}
+              {backgroundImages.map((obj) => (
+                <PreviewImage
+                  key={obj.id}
+                  obj={obj}
+                  canvasWidth={width}
+                  canvasHeight={height}
+                />
+              ))}
+
+              {/* ===== OTHER OBJECTS ===== */}
+              {otherObjects.map((obj) => {
                 if (obj.type === "rect") {
                   return (
                     <Rect
@@ -81,7 +105,7 @@ export default function PublicInviteRenderer({ canvasData }) {
                       y={obj.y}
                       width={obj.width}
                       height={obj.height}
-                      fill={obj.fill || "#ffffff"}
+                      fill={obj.fill || "#fff"}
                       opacity={obj.opacity ?? 1}
                       cornerRadius={obj.cornerRadius || 0}
                       rotation={obj.rotation || 0}
@@ -104,7 +128,14 @@ export default function PublicInviteRenderer({ canvasData }) {
                 }
 
                 if (obj.type === "image") {
-                  return <PreviewImage key={obj.id} obj={obj} />;
+                  return (
+                    <PreviewImage
+                      key={obj.id}
+                      obj={obj}
+                      canvasWidth={width}
+                      canvasHeight={height}
+                    />
+                  );
                 }
 
                 if (obj.type === "text") {
@@ -150,7 +181,6 @@ export default function PublicInviteRenderer({ canvasData }) {
             ))}
 
           {/* ================= GLASS LAYER ================= */}
-          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
           <div
             style={{
               position: "absolute",
@@ -167,11 +197,32 @@ export default function PublicInviteRenderer({ canvasData }) {
 }
 
 /* ============================================================
-   🖼 IMAGE LOADER
+   🖼 IMAGE
 ============================================================ */
-function PreviewImage({ obj }) {
+function PreviewImage({ obj, canvasWidth, canvasHeight }) {
   const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;
+
+  if (obj.isBackground === true) {
+    const cover = getCoverRect({
+      canvasWidth,
+      canvasHeight,
+      imageWidth: image.width,
+      imageHeight: image.height,
+    });
+
+    return (
+      <KonvaImage
+        x={cover.x}
+        y={cover.y}
+        width={cover.width}
+        height={cover.height}
+        image={image}
+        opacity={obj.opacity ?? 1}
+        rotation={0}
+      />
+    );
+  }
 
   return (
     <KonvaImage
