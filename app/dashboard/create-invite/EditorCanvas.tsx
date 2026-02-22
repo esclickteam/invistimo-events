@@ -391,6 +391,11 @@ useEffect(() => {
     transformerRef.current.nodes(node ? [node] : []);
   }
 
+  // ⭐️⭐️ חשוב מאוד – מאפשר Delete לעבוד
+  if (stageRef.current) {
+    stageRef.current.container().focus();
+  }
+
   // 📱 מובייל – מיקום כפתור מחיקה
   if (isMobile && node && stageRef.current) {
     const stageBox =
@@ -405,6 +410,7 @@ useEffect(() => {
     setMobileDeletePos(null);
   }
 };
+
 
 const startEditText = (obj: TextObject) => {
   const node = stageRef.current?.findOne(`.${obj.id}`) as Konva.Node | null;
@@ -618,6 +624,8 @@ setCanvasFormat: (f: "vertical" | "square") => {
   width={CANVAS_WIDTH}
   height={CANVAS_HEIGHT}
   ref={stageRef}
+  tabIndex={1}                 // ✅ חדש
+  style={{ outline: "none" }}  // ✅ חדש
 
   onMouseDown={(e) => {
   if (e.target === e.target.getStage()) {
