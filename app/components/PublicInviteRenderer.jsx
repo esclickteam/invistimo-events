@@ -32,61 +32,32 @@ export default function PublicInviteRenderer({ canvasData }) {
       typeof canvasData === "string"
         ? JSON.parse(canvasData)
         : canvasData;
-  } catch {
+  } catch (err) {
+    console.error("❌ Invalid canvasData:", canvasData);
     return null;
   }
 
   if (!data || !Array.isArray(data.objects)) return null;
 
-  /* ============================================================
-     🧩 CANVAS MODES
-  ============================================================ */
-  const CANVAS_MODES = {
-    vertical: {
-      width: data.width || 400,
-      height: data.height || 720,
-    },
-    square: {
-      width: 1080,
-      height: 1080,
-    },
-  };
+  const width = data.width || 400;
+  const height = data.height || 720;
 
-  const [canvasMode, setCanvasMode] = useState("vertical");
-
-  const targetWidth = CANVAS_MODES[canvasMode].width;
-  const targetHeight = CANVAS_MODES[canvasMode].height;
-
-  /* ============================================================
-     🔁 FIT ORIGINAL INVITE INTO TARGET CANVAS
-  ============================================================ */
-  const originalWidth = data.width || 400;
-  const originalHeight = data.height || 720;
-
-  const fitScale = Math.min(
-    targetWidth / originalWidth,
-    targetHeight / originalHeight
-  );
-
-  const offsetX = (targetWidth - originalWidth * fitScale) / 2;
-  const offsetY = (targetHeight - originalHeight * fitScale) / 2;
-
-  /* ================= VIEWPORT RESPONSIVE SCALE ================= */
+  /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef(null);
-  const [viewportScale, setViewportScale] = useState(1);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     function updateScale() {
       if (!containerRef.current) return;
-      const w = containerRef.current.offsetWidth;
-      if (!w) return;
-      setViewportScale(w / targetWidth);
+      const containerWidth = containerRef.current.offsetWidth;
+      if (!containerWidth) return;
+      setScale(containerWidth / width);
     }
 
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
-  }, [targetWidth]);
+  }, [width]);
 
   const backgroundImages = data.objects.filter(
     (o) => o.type === "image" && o.isBackground === true
@@ -97,63 +68,49 @@ export default function PublicInviteRenderer({ canvasData }) {
   );
 
   return (
-    <div className="w-full">
-      {/* ================= CANVAS SIZE SWITCH ================= */}
-      <div className="flex justify-center gap-3 mb-3">
-        <button
-          onClick={() => setCanvasMode("vertical")}
-          style={{
-            fontWeight: canvasMode === "vertical" ? "bold" : "normal",
-          }}
-        >
-          הזמנה רגילה
-        </button>
-        <button
-          onClick={() => setCanvasMode("square")}
-          style={{
-            fontWeight: canvasMode === "square" ? "bold" : "normal",
-          }}
-        >
-          פוסט ריבועי
-        </button>
-      </div>
-
+    <div className="w-full flex justify-center">
       <div ref={containerRef} className="w-full flex justify-center">
         <div
           style={{
-            width: targetWidth * viewportScale,
-            height: targetHeight * viewportScale,
+            width: width * scale,
+            height: height * scale,
             position: "relative",
           }}
         >
           <Stage
-            width={targetWidth * viewportScale}
-            height={targetHeight * viewportScale}
-            scaleX={viewportScale}
-            scaleY={viewportScale}
+            width={width * scale}
+            height={height * scale}
+            scaleX={scale}
+            scaleY={scale}
             listening={false}
           >
-            {/* ===== INVITE LAYER (FITTED) ===== */}
-            <Layer
-              x={offsetX}
-              y={offsetY}
-              scaleX={fitScale}
-              scaleY={fitScale}
-            >
-              {/* BACKGROUND */}
+            <Layer>
+              {/* ===== BACKGROUND FIRST ===== */}
               {backgroundImages.map((obj) => (
                 <PreviewImage
                   key={obj.id}
                   obj={obj}
-                  canvasWidth={originalWidth}
-                  canvasHeight={originalHeight}
+                  canvasWidth={width}
+                  canvasHeight={height}
                 />
               ))}
 
-              {/* OBJECTS */}
+              {/* ===== OTHER OBJECTS ===== */}
               {otherObjects.map((obj) => {
                 if (obj.type === "rect") {
-                  return <Rect key={obj.id} {...obj} />;
+                  return (
+                    <Rect
+                      key={obj.id}
+                      x={obj.x}
+                      y={obj.y}
+                      width={obj.width}
+                      height={obj.height}
+                      fill={obj.fill || "#fff"}
+                      opacity={obj.opacity ?? 1}
+                      cornerRadius={obj.cornerRadius || 0}
+                      rotation={obj.rotation || 0}
+                    />
+                  );
                 }
 
                 if (obj.type === "circle") {
@@ -175,20 +132,64 @@ export default function PublicInviteRenderer({ canvasData }) {
                     <PreviewImage
                       key={obj.id}
                       obj={obj}
-                      canvasWidth={originalWidth}
-                      canvasHeight={originalHeight}
+                      canvasWidth={width}
+                      canvasHeight={height}
                     />
                   );
                 }
 
                 if (obj.type === "text") {
-                  return <Text key={obj.id} {...obj} />;
+                  return (
+                    <Text
+                      key={obj.id}
+                      x={obj.x}
+                      y={obj.y}
+                      text={obj.text || ""}
+                      fontSize={obj.fontSize || 40}
+                      fontFamily={obj.fontFamily || "Arial"}
+                      fill={obj.fill || "#000"}
+                      width={obj.width}
+                      align={obj.align || "center"}
+                      opacity={obj.opacity ?? 1}
+                      rotation={obj.rotation || 0}
+                    />
+                  );
                 }
 
                 return null;
               })}
             </Layer>
           </Stage>
+
+          {/* ================= LOTTIE ================= */}
+          {data.objects
+            .filter((o) => o.type === "lottie")
+            .map((obj) => (
+              <div
+                key={obj.id}
+                style={{
+                  position: "absolute",
+                  top: obj.y * scale,
+                  left: obj.x * scale,
+                  width: obj.width * scale,
+                  height: obj.height * scale,
+                  pointerEvents: "none",
+                }}
+              >
+                <Lottie animationData={obj.lottieData} />
+              </div>
+            ))}
+
+          {/* ================= GLASS LAYER ================= */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 10,
+              background: "transparent",
+              touchAction: "pan-y",
+            }}
+          />
         </div>
       </div>
     </div>
@@ -210,8 +211,28 @@ function PreviewImage({ obj, canvasWidth, canvasHeight }) {
       imageHeight: image.height,
     });
 
-    return <KonvaImage {...cover} image={image} opacity={obj.opacity ?? 1} />;
+    return (
+      <KonvaImage
+        x={cover.x}
+        y={cover.y}
+        width={cover.width}
+        height={cover.height}
+        image={image}
+        opacity={obj.opacity ?? 1}
+        rotation={0}
+      />
+    );
   }
 
-  return <KonvaImage {...obj} image={image} />;
+  return (
+    <KonvaImage
+      x={obj.x}
+      y={obj.y}
+      width={obj.width}
+      height={obj.height}
+      image={image}
+      opacity={obj.opacity ?? 1}
+      rotation={obj.rotation || 0}
+    />
+  );
 }
