@@ -102,24 +102,6 @@ export default function Sidebar({
     <aside className="w-full md:w-72 bg-white border-r shadow-lg h-full flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
-<div className="px-4 py-3 border-b flex gap-2">
-  <button
-    type="button"
-    className="flex-1 border rounded py-1 hover:bg-gray-100"
-    onClick={() => canvasRef?.current?.setOrientation?.("portrait")}
-  >
-    לאורך
-  </button>
-
-  <button
-    type="button"
-    className="flex-1 border rounded py-1 hover:bg-gray-100"
-    onClick={() => canvasRef?.current?.setOrientation?.("landscape")}
-  >
-    לרוחב
-  </button>
-</div>
-
       {/* טאבים */}
       <div className="flex flex-wrap border-b text-sm font-medium">
         {([
