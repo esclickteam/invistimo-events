@@ -109,7 +109,17 @@ export async function PUT(
 
     const body = await request.json();
 
-    const { title, eventType, eventDate, eventTime, canvasData, location, orientation } = body;
+   const {
+  title,
+  eventType,
+  eventDate,
+  eventTime,
+  canvasData,
+  location,
+  orientation,
+  designMode,
+  inviteImageUrl,
+} = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
@@ -154,6 +164,24 @@ export async function PUT(
       updatePayload.canvasData = canvasData;
     }
 
+    /* ================= DESIGN MODE ================= */
+
+if (designMode === "image") {
+  updatePayload.designMode = "image";
+
+  if (typeof inviteImageUrl === "string" && inviteImageUrl.trim()) {
+    updatePayload.inviteImageUrl = inviteImageUrl.trim();
+  }
+
+  // אופציונלי: מנקה קנבס כדי שלא יחזור
+  updatePayload.canvasData = undefined;
+}
+
+if (designMode === "canvas") {
+  updatePayload.designMode = "canvas";
+  updatePayload.inviteImageUrl = undefined;
+}
+
     const updated = await Invitation.findByIdAndUpdate(
       id,
       { $set: updatePayload },
@@ -181,6 +209,7 @@ export async function PUT(
     );
   }
 }
+
 
 /* ============================================================
    🩹 PATCH — עדכון חלקי (giftOptions וכו')
