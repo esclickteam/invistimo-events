@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import DashboardHeader from "./DashboardHeader";
 import DashboardMobileMenu from "./DashboardMobileMenu";
@@ -24,6 +24,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // 🧪 דמו = כל מה שמתחיל ב־/try
   const isDemo = pathname.startsWith("/try");
@@ -34,6 +35,7 @@ export default function DashboardLayout({
 
   /* ============================================================
      Load Invitation (לא בדמו)
+     ✅ תומך גם ב-eventId (למפיקים / התחזות / כניסה מאירועים)
   ============================================================ */
   useEffect(() => {
     if (isDemo) {
@@ -49,7 +51,13 @@ export default function DashboardLayout({
 
     async function loadInvitation() {
       try {
-        const res = await fetch("/api/invitations/my", {
+        const eventIdFromUrl = searchParams.get("eventId");
+
+        const url = eventIdFromUrl
+          ? `/api/invitations/by-event/${eventIdFromUrl}`
+          : "/api/invitations/my";
+
+        const res = await fetch(url, {
           credentials: "include",
           cache: "no-store",
         });
@@ -58,16 +66,19 @@ export default function DashboardLayout({
 
         if (data?.success && data.invitation) {
           setInvitation(data.invitation);
+        } else {
+          setInvitation(null);
         }
       } catch (err) {
         console.error("❌ Failed to load invitation for dashboard", err);
+        setInvitation(null);
       } finally {
         setLoadingInvitation(false);
       }
     }
 
     loadInvitation();
-  }, [isDemo]);
+  }, [isDemo, searchParams]);
 
   /* ============================================================
      Render
@@ -85,10 +96,12 @@ export default function DashboardLayout({
 
       {/* =========================
           Mobile Menu
+          ✅ הכי חשוב: להעביר invitationId כדי שיזהה "עריכת הזמנה"
       ========================= */}
       <DashboardMobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
+        invitationId={invitation?._id}
         invitationShareId={invitation?.shareId}
         isDemo={isDemo}
       />
@@ -96,11 +109,7 @@ export default function DashboardLayout({
       {/* =========================
           Content
       ========================= */}
-      <main className="pt-16">
-
-        {/* אפשר להוסיף skeleton אם רוצים */}
-        {!loadingInvitation && children}
-      </main>
+      <main className="pt-16">{!loadingInvitation && children}</main>
     </div>
   );
 }
