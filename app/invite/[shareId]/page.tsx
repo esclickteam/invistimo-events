@@ -223,13 +223,11 @@ export default function PublicInvitePage({ params }: any) {
     <div className="min-h-screen bg-[#faf9f6]">
       <div className="flex flex-col items-center py-10 pb-32">
 
-        <div className="w-full mb-8 flex justify-center">
-  <div className="w-full max-w-3xl bg-white rounded-2xl shadow overflow-hidden">
-    {invite.canvasData && (
-      <PublicInviteRenderer canvasData={invite.canvasData} />
-    )}
-  </div>
-</div>
+        <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
+          {invite.canvasData && (
+            <PublicInviteRenderer canvasData={invite.canvasData} />
+          )}
+        </div>
 
         {!sent ? (
           <form
