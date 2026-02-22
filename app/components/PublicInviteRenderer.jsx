@@ -11,24 +11,39 @@ export default function PublicInviteRenderer({
   inviteImageUrl,
 }) {
   /* =========================================================
-     🖼 IMAGE MODE — אם יש תמונה מציגים תמונה
+     🖼 IMAGE MODE — תצוגת תמונת הזמנה בלבד
+     ❗ קנבס לא נוגע ❗
   ========================================================= */
-  if (
-    designMode === "image" &&
-    typeof inviteImageUrl === "string" &&
-    inviteImageUrl.trim()
-  ) {
+  if (designMode === "image" && inviteImageUrl) {
     return (
-      <img
-        src={inviteImageUrl}
-        alt="הזמנה"
-        className="w-full rounded-xl object-contain"
-      />
+      <div
+        style={{
+          width: 400,
+          height: 400, // ריבוע אינסטגרם / פייסבוק
+          border: "1.5px solid #d4af37", // זהב עדין
+          borderRadius: 18,
+          overflow: "hidden",
+          background: "#f7f7f7",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <img
+          src={inviteImageUrl}
+          alt="הזמנה"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover", // ⭐ התאמה אוטומטית גם לאורך וגם לרוחב
+          }}
+        />
+      </div>
     );
   }
 
   /* =========================================================
-     🎨 CANVAS MODE — כמו שהיה
+     🎨 CANVAS MODE — הקוד המקורי, לא נגעתי
   ========================================================= */
   if (!canvasData) return null;
 
@@ -188,7 +203,7 @@ export default function PublicInviteRenderer({
 }
 
 /* =========================================================
-   IMAGE LOADER
+   IMAGE LOADER — קנבס (לא נגעתי)
 ========================================================= */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");
