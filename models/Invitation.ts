@@ -122,6 +122,12 @@ const InvitationSchema = new Schema(
       default: {},
     },
 
+    designMode: {
+  type: String,
+  enum: ["canvas", "image"],
+  default: "canvas",
+},
+
     orientation: {
   type: String,
   enum: ["portrait", "landscape"],
@@ -132,6 +138,11 @@ const InvitationSchema = new Schema(
       type: String,
       default: "",
     },
+
+    simpleImageUrl: {
+  type: String,
+  default: "",
+},
 
     headerImageUrl: {
       type: String,
