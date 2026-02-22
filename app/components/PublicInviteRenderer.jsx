@@ -5,7 +5,45 @@ import Lottie from "lottie-react";
 import useImage from "use-image";
 import { useEffect, useRef, useState } from "react";
 
-export default function PublicInviteRenderer({ canvasData }) {
+export default function PublicInviteRenderer({
+  canvasData,
+  designMode = "canvas",
+  simpleImageUrl,
+}) {
+  /* ============================================================
+     🖼 IMAGE ONLY MODE (בלי קנבס בכלל)
+  ============================================================ */
+  if (designMode === "image" && simpleImageUrl) {
+    return (
+      <div className="w-full flex justify-center py-8">
+        <div
+          className="
+            relative
+            w-[360px] sm:w-[420px]
+            max-w-[92vw]
+            aspect-[9/16]
+            rounded-[28px]
+            border
+            border-[#E6D8C6]
+            bg-white
+            shadow-[0_10px_30px_rgba(0,0,0,0.12)]
+            overflow-hidden
+          "
+        >
+          <img
+            src={simpleImageUrl}
+            alt="Invitation"
+            className="w-full h-full object-cover object-center"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ============================================================
+     🎨 CANVAS MODE (הקוד הקיים שלך – לא נוגע)
+  ============================================================ */
+
   if (!canvasData) return null;
 
   let data;
@@ -52,9 +90,7 @@ export default function PublicInviteRenderer({ canvasData }) {
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{
-          overflow: "visible",
-        }}
+        style={{ overflow: "visible" }}
       >
         <div
           style={{
@@ -63,13 +99,13 @@ export default function PublicInviteRenderer({ canvasData }) {
             position: "relative",
           }}
         >
-          {/* ================= K O N V A  ================= */}
+          {/* ================= K O N V A ================= */}
           <Stage
             width={width * scale}
             height={height * scale}
             scaleX={scale}
             scaleY={scale}
-            listening={false} // ❌ לא מאזין למגעים
+            listening={false}
           >
             <Layer>
               {data.objects.map((obj) => {
@@ -150,7 +186,6 @@ export default function PublicInviteRenderer({ canvasData }) {
             ))}
 
           {/* ================= GLASS LAYER ================= */}
-          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
           <div
             style={{
               position: "absolute",

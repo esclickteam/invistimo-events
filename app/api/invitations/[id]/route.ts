@@ -39,9 +39,6 @@ function normalizeGiftOptions(input: any) {
 }
 
 /* ============================================================
-   📥 GET — שליפת הזמנה לפי מזהה
-============================================================ */
-/* ============================================================
    📥 GET — שליפת הזמנה לפי invitationId או eventId
 ============================================================ */
 export async function GET(
@@ -61,7 +58,7 @@ export async function GET(
     }
 
     // 🔥 חיפוש חכם: קודם לפי _id, אם לא נמצא — לפי eventId
-    let invitation =
+    const invitation =
       (await Invitation.findById(id).populate("guests").lean()) ||
       (await Invitation.findOne({ eventId: id })
         .populate("guests")
@@ -87,9 +84,8 @@ export async function GET(
   }
 }
 
-
 /* ============================================================
-   💾 PUT — עדכון הזמנה קיימת (עדכון כללי)
+   💾 PUT — עדכון הזמנה קיימת (כולל designMode)
 ============================================================ */
 export async function PUT(
   request: NextRequest,
@@ -109,17 +105,31 @@ export async function PUT(
 
     const body = await request.json();
 
-    const { title, eventType, eventDate, eventTime, canvasData, location, orientation } = body;
+    const {
+      title,
+      eventType,
+      eventDate,
+      eventTime,
+      canvasData,
+      location,
+      orientation,
+
+      // 🆕 חדש
+      designMode,
+      simpleImageUrl,
+    } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
     };
 
-    if (typeof title === "string" && title.trim()) {
+    /* ================= BASIC FIELDS ================= */
+
+    if (isNonEmptyString(title)) {
       updatePayload.title = title.trim();
     }
 
-    if (typeof eventType === "string" && eventType.trim()) {
+    if (isNonEmptyString(eventType)) {
       updatePayload.eventType = eventType.trim();
     }
 
@@ -127,13 +137,15 @@ export async function PUT(
       updatePayload.eventDate = new Date(eventDate);
     }
 
-    if (typeof eventTime === "string" && eventTime.trim()) {
+    if (isNonEmptyString(eventTime)) {
       updatePayload.eventTime = eventTime;
     }
 
     if (orientation === "portrait" || orientation === "landscape") {
-  updatePayload.orientation = orientation;
-}
+      updatePayload.orientation = orientation;
+    }
+
+    /* ================= LOCATION ================= */
 
     if (
       location &&
@@ -150,9 +162,22 @@ export async function PUT(
       };
     }
 
+    /* ================= DESIGN MODE ================= */
+
+    if (designMode === "canvas" || designMode === "image") {
+      updatePayload.designMode = designMode;
+    }
+
+    if (typeof simpleImageUrl === "string") {
+      updatePayload.simpleImageUrl = simpleImageUrl.trim();
+    }
+
+    // ⚠️ canvasData נעדכן רק אם נשלח בפועל
     if (canvasData !== undefined) {
       updatePayload.canvasData = canvasData;
     }
+
+    /* ================= SAVE ================= */
 
     const updated = await Invitation.findByIdAndUpdate(
       id,
@@ -183,8 +208,7 @@ export async function PUT(
 }
 
 /* ============================================================
-   🩹 PATCH — עדכון חלקי (giftOptions וכו')
-   נדרש בשביל הצ׳קבוקסים והלינקים
+   🩹 PATCH — עדכון חלקי (giftOptions / invitationSettings)
 ============================================================ */
 export async function PATCH(
   request: NextRequest,
@@ -220,7 +244,6 @@ export async function PATCH(
       updatePayload.invitationSettings = body.invitationSettings;
     }
 
-    /* אם לא הגיע שום דבר לעדכון */
     if (Object.keys(updatePayload).length === 1) {
       return NextResponse.json(
         { success: false, error: "NO_FIELDS_TO_UPDATE" },

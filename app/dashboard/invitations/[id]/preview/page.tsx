@@ -13,6 +13,10 @@ interface InvitationData {
   title?: string;
   shareId?: string;
   canvasData?: any;
+
+  // ➕ חדש
+  designMode?: "canvas" | "image";
+  simpleImageUrl?: string;
 }
 
 type LoadState = "loading" | "ready" | "not_found" | "unauthorized" | "error";
@@ -158,14 +162,12 @@ export default function InvitationPreviewPage() {
 
       {/* ⭐ תצוגה אמיתית של הקנבס */}
       <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10 flex justify-center">
-        {invitation.canvasData ? (
-          <PublicInviteRenderer canvasData={invitation.canvasData} />
-        ) : (
-          <div className="text-sm text-gray-500">
-            אין עדיין תוכן קנבס להזמנה הזו.
-          </div>
-        )}
-      </div>
+  <PublicInviteRenderer
+    canvasData={invitation.canvasData}
+    designMode={invitation.designMode}
+    simpleImageUrl={invitation.simpleImageUrl}
+  />
+</div>
 
       {/* ⭐ תצוגת iframe של הדף הציבורי */}
       <div className="text-center w-full flex flex-col items-center">
