@@ -380,8 +380,6 @@ useEffect(() => {
      SELECTION HANDLING
   ============================================================ */
   const handleSelect = (id: string | null) => {
-  stageRef.current?.container()?.focus?.();
-
   setSelected(id);
 
   const obj = objects.find((o) => o.id === id) || null;
@@ -393,21 +391,18 @@ useEffect(() => {
     transformerRef.current.nodes(node ? [node] : []);
   }
 
-  // ✅ אם ביטלנו בחירה – לנקות גם כפתור מחיקה
-  if (!id) {
-    setMobileDeletePos(null);
-    lastTapRef.current = null;
-  }
-
   // 📱 מובייל – מיקום כפתור מחיקה
   if (isMobile && node && stageRef.current) {
-    const stageBox = stageRef.current.container().getBoundingClientRect();
+    const stageBox =
+      stageRef.current.container().getBoundingClientRect();
     const r = node.getClientRect();
 
     setMobileDeletePos({
       x: stageBox.left + (r.x + r.width) * scale + 6,
       y: stageBox.top + r.y * scale - 6,
     });
+  } else {
+    setMobileDeletePos(null);
   }
 };
 
@@ -448,41 +443,24 @@ const startEditText = (obj: TextObject) => {
     // ❌ אם עורכים טקסט – לא למחוק אובייקט
     if (editingTextId) return;
 
-    // ✅ אם הפוקוס כרגע בתוך input/textarea/contenteditable – לא לגעת
-    const el = document.activeElement as HTMLElement | null;
-    if (
-      el &&
-      (el.tagName === "INPUT" ||
-        el.tagName === "TEXTAREA" ||
-        el.isContentEditable)
-    ) {
-      return;
-    }
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+  removeObject(selectedId);
 
-    const id = useEditorStore.getState().selectedId;
-    if (!id) return;
+  // 🧹 ניקוי Transformer
+  transformerRef.current?.nodes([]);
 
-    if (e.key === "Delete" || e.key === "Backspace") {
-      e.preventDefault();
-      e.stopPropagation();
+  setSelected(null);
+  setMobileDeletePos(null);
 
-      removeObject(id);
+  lastTapRef.current = null;
 
-      transformerRef.current?.nodes([]);
+}
 
-      setSelected(null);
-      onSelect(null);
-      setMobileDeletePos(null);
-      lastTapRef.current = null;
-
-      stageRef.current?.container()?.focus?.();
-    }
   };
 
-  // ✅ capture:true כדי לתפוס לפני רכיבים אחרים
-  window.addEventListener("keydown", onKey, { capture: true });
-  return () => window.removeEventListener("keydown", onKey, { capture: true } as any);
-}, [editingTextId, removeObject, setSelected, onSelect]);
+  window.addEventListener("keydown", onKey);
+  return () => window.removeEventListener("keydown", onKey);
+}, [selectedId, editingTextId, removeObject, setSelected]);
 
   /* ============================================================
    EXPORT
@@ -640,31 +618,37 @@ setCanvasFormat: (f: "vertical" | "square") => {
   width={CANVAS_WIDTH}
   height={CANVAS_HEIGHT}
   ref={stageRef}
-  tabIndex={0} // ✅ קריטי כדי לקבל פוקוס למקלדת
 
   onMouseDown={(e) => {
-    // ✅ קריטי: כל קליק בקנבס מחזיר פוקוס → Delete עובד
-    stageRef.current?.container()?.focus?.();
+  if (e.target === e.target.getStage()) {
 
-    if (e.target === e.target.getStage()) {
-      lastTapRef.current = null;
+  lastTapRef.current = null;
+  
 
-      // ✍️ אם היינו בעריכת טקסט – רק לסיים עריכה
-      if (editingTextId) {
-        setEditingTextId(null);
-        setTextInputRect(null);
-        lastTapRef.current = null;
-        transformerRef.current?.nodes([]);
-        return; // ⛔ לא לבטל בחירה!
-      }
+    // ✍️ אם היינו בעריכת טקסט – רק לסיים עריכה
+    if (editingTextId) {
+  setEditingTextId(null);
+  setTextInputRect(null);
 
-      handleSelect(null);
+  lastTapRef.current = null;
 
-      if (isMobile) {
-        setMobileDeletePos(null);
-      }
-    }
-  }}
+
+  // 🧹 קריטי: לנקות Transformer של הטקסט הערוך
+  transformerRef.current?.nodes([]);
+
+  return; // ⛔ לא לבטל בחירה!
+}
+
+// 🧹 רק אם לא בעריכה – לבטל בחירה
+handleSelect(null);
+
+if (isMobile) {
+  setMobileDeletePos(null);
+}
+
+
+  }
+}}
 >
 
           <Layer ref={mainLayerRef}>
