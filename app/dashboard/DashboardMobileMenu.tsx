@@ -39,7 +39,7 @@ export default function DashboardMobileMenu({
   return (
     <>
       {/* Drawer */}
-      <div className="fixed inset-0 z-50 md:hidden" dir="rtl">
+      <div className="fixed inset-0 z-[1000] md:hidden" dir="rtl">
         <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
         <aside className="absolute top-0 right-0 h-full w-[80%] max-w-xs bg-[#f5eee7] border-l border-[#e2d6c8] shadow-xl p-6 flex flex-col gap-6">
