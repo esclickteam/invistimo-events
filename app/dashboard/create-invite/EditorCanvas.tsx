@@ -116,6 +116,7 @@ export interface EditorCanvasRef {
 
 const PORTRAIT_SIZE = { width: 400, height: 720 };
 const LANDSCAPE_SIZE = { width: 720, height: 400 };
+const SQUARE_SIZE = { width: 720, height: 720 };
 
 /* ============================================================
    HELPERS
@@ -187,8 +188,15 @@ const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
   "portrait"
 );
+const [canvasFormat, setCanvasFormat] = useState<"vertical" | "square">(
+  "vertical"
+);
 const { width: CANVAS_WIDTH, height: CANVAS_HEIGHT } =
-  orientation === "portrait" ? PORTRAIT_SIZE : LANDSCAPE_SIZE;
+  canvasFormat === "square"
+    ? SQUARE_SIZE
+    : orientation === "portrait"
+    ? PORTRAIT_SIZE
+    : LANDSCAPE_SIZE;
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
  

@@ -52,6 +52,11 @@ export default function Sidebar({
   const [tab, setTab] = useState<SidebarTab>("text");
   const [isMobile, setIsMobile] = useState(false);
 
+  /* ================= קנבס ================= */
+  const [canvasFormat, setCanvasFormat] = useState<"vertical" | "square">(
+    "vertical"
+  );
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => setIsMobile(mq.matches);
@@ -83,26 +88,60 @@ export default function Sidebar({
   }, [googleApiKey]);
 
   const handleChange = useCallback(
-  (field: string, value: any) => {
-    if (!selectedId || !selectedObject) return;
+    (field: string, value: any) => {
+      if (!selectedId || !selectedObject) return;
 
-    const affectsLayout =
-      selectedObject.type === "text" &&
-      ["fontSize", "fontFamily", "fontWeight", "align"].includes(field);
+      const affectsLayout =
+        selectedObject.type === "text" &&
+        ["fontSize", "fontFamily", "fontWeight", "align"].includes(field);
 
-    updateObject(selectedId, {
-      [field]: value,
-      ...(affectsLayout ? { height: undefined } : null),
-    });
-  },
-  [selectedId, selectedObject, updateObject]
-);
+      updateObject(selectedId, {
+        [field]: value,
+        ...(affectsLayout ? { height: undefined } : null),
+      });
+    },
+    [selectedId, selectedObject, updateObject]
+  );
 
   return (
     <aside className="w-full md:w-72 bg-white border-r shadow-lg h-full flex flex-col">
       <div className="p-4 font-bold text-lg border-b">כלי עיצוב</div>
 
-      {/* טאבים */}
+      {/* ================= בחירת גודל קנבס ================= */}
+      <div className="p-3 border-b bg-gray-50 space-y-2">
+        <div className="text-sm font-semibold">גודל הזמנה</div>
+        <div className="flex gap-2">
+          <button
+            className={`flex-1 py-2 rounded border ${
+              canvasFormat === "vertical"
+                ? "bg-purple-600 text-white"
+                : "bg-white"
+            }`}
+            onClick={() => {
+              setCanvasFormat("vertical");
+              canvasRef?.current?.setCanvasFormat("vertical");
+            }}
+          >
+            אנכי
+          </button>
+
+          <button
+            className={`flex-1 py-2 rounded border ${
+              canvasFormat === "square"
+                ? "bg-purple-600 text-white"
+                : "bg-white"
+            }`}
+            onClick={() => {
+              setCanvasFormat("square");
+              canvasRef?.current?.setCanvasFormat("square");
+            }}
+          >
+            ריבוע (פוסט)
+          </button>
+        </div>
+      </div>
+
+      {/* ================= טאבים ================= */}
       <div className="flex flex-wrap border-b text-sm font-medium">
         {([
           ["text", "טקסט"],
@@ -126,7 +165,7 @@ export default function Sidebar({
         ))}
       </div>
 
-      {/* תוכן */}
+      {/* ================= תוכן ================= */}
       <div className="flex-1 overflow-y-auto p-3">
         {tab === "text" && (
           <div className="space-y-4">
@@ -139,7 +178,6 @@ export default function Sidebar({
 
             {selectedObject?.type === "text" && (
               <div className="p-3 border bg-gray-50 rounded space-y-4">
-                {/* פונט */}
                 <div>
                   <label className="block text-sm mb-1">פונט</label>
                   <select
@@ -157,7 +195,6 @@ export default function Sidebar({
                   </select>
                 </div>
 
-                {/* גודל */}
                 <div>
                   <label className="block text-sm mb-1">גודל</label>
                   <input
@@ -170,7 +207,6 @@ export default function Sidebar({
                   />
                 </div>
 
-                {/* צבע */}
                 <div>
                   <label className="block text-sm mb-1">צבע</label>
                   <input
@@ -181,46 +217,6 @@ export default function Sidebar({
                     }
                     className="w-full h-10 border rounded"
                   />
-                </div>
-
-                {/* עיצוב */}
-                <div className="flex gap-2">
-                  <button
-                    className={`border px-3 py-1 rounded ${
-                      selectedObject.fontWeight === "bold"
-                        ? "bg-gray-200"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      handleChange(
-                        "fontWeight",
-                        selectedObject.fontWeight === "bold"
-                          ? "normal"
-                          : "bold"
-                      )
-                    }
-                  >
-                    <b>B</b>
-                  </button>
-
-                  {/* ✅ סדר RTL נכון */}
-                  {[
-                    { key: "right", label: "ימין" },
-                    { key: "center", label: "מרכז" },
-                    { key: "left", label: "שמאל" },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      className={`border px-3 py-1 rounded ${
-                        selectedObject.align === key
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      onClick={() => handleChange("align", key)}
-                    >
-                      {label}
-                    </button>
-                  ))}
                 </div>
 
                 <button
