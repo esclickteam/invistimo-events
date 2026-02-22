@@ -1,9 +1,15 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Stage, Layer, Text, Rect, Image as KonvaImage } from "react-konva";
 import Lottie from "lottie-react";
 import useImage from "use-image";
-import { useEffect, useRef, useState } from "react";
+
+/* ============================================================
+   ✅ תמיד מציגים לאורח לאורך (PORTRAIT)
+============================================================ */
+const PORTRAIT_WIDTH = 400;
+const PORTRAIT_HEIGHT = 720;
 
 export default function PublicInviteRenderer({ canvasData }) {
   if (!canvasData) return null;
@@ -11,10 +17,7 @@ export default function PublicInviteRenderer({ canvasData }) {
   let data;
 
   try {
-    data =
-      typeof canvasData === "string"
-        ? JSON.parse(canvasData)
-        : canvasData;
+    data = typeof canvasData === "string" ? JSON.parse(canvasData) : canvasData;
   } catch (err) {
     console.error("❌ Invalid canvasData:", canvasData);
     return null;
@@ -25,53 +28,87 @@ export default function PublicInviteRenderer({ canvasData }) {
     return null;
   }
 
-  const width = data.width || 400;
-  const height = data.height || 720;
+  // נתוני מקור (מה שנשמר ב-DB)
+  const sourceWidth = Number(data.width) || PORTRAIT_WIDTH;
+  const sourceHeight = Number(data.height) || PORTRAIT_HEIGHT;
+
+  const sourceOrientation =
+    data.orientation === "landscape" || data.orientation === "portrait"
+      ? data.orientation
+      : sourceWidth > sourceHeight
+      ? "landscape"
+      : "portrait";
+
+  // ✅ יעד תמיד PORTRAIT לאורח
+  const targetWidth = PORTRAIT_WIDTH;
+  const targetHeight = PORTRAIT_HEIGHT;
 
   /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef(null);
-  const [scale, setScale] = useState(1);
+  const [fitScale, setFitScale] = useState(1);
 
   useEffect(() => {
     function updateScale() {
       if (!containerRef.current) return;
-
       const containerWidth = containerRef.current.offsetWidth;
       if (!containerWidth) return;
 
-      setScale(containerWidth / width);
+      // כדי שייכנס בול לרוחב המסך (בהזמנה לאורך)
+      setFitScale(containerWidth / targetWidth);
     }
 
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
-  }, [width]);
+  }, [targetWidth]);
+
+  /* ============================================================
+     ✅ SCALE פנימי כדי להכניס LANDSCAPE לתוך PORTRAIT בלי חיתוך
+  ============================================================ */
+  const innerScale = useMemo(() => {
+    if (sourceOrientation !== "landscape") return 1;
+
+    // להכניס את כל הרוחב/גובה של המקור לתוך PORTRAIT
+    const s = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+    return s > 0 ? s : 1;
+  }, [sourceOrientation, sourceWidth, sourceHeight, targetWidth, targetHeight]);
+
+  // מרכזים את המקור בתוך המסגרת לאורך
+  const offsetX = useMemo(() => {
+    const scaledW = sourceWidth * innerScale;
+    return (targetWidth - scaledW) / 2;
+  }, [sourceWidth, innerScale, targetWidth]);
+
+  const offsetY = useMemo(() => {
+    const scaledH = sourceHeight * innerScale;
+    return (targetHeight - scaledH) / 2;
+  }, [sourceHeight, innerScale, targetHeight]);
 
   return (
     <div className="w-full flex justify-center">
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{
-          overflow: "visible",
-        }}
+        style={{ overflow: "visible" }}
       >
         <div
           style={{
-            width: width * scale,
-            height: height * scale,
+            width: targetWidth * fitScale,
+            height: targetHeight * fitScale,
             position: "relative",
           }}
         >
           {/* ================= K O N V A  ================= */}
           <Stage
-            width={width * scale}
-            height={height * scale}
-            scaleX={scale}
-            scaleY={scale}
-            listening={false} // ❌ לא מאזין למגעים
+            width={targetWidth * fitScale}
+            height={targetHeight * fitScale}
+            // scale לפי המסך (רק להצגה)
+            scaleX={fitScale}
+            scaleY={fitScale}
+            listening={false}
           >
-            <Layer>
+            {/* Layer פנימי שמחזיק את כל המקור ומקטין אותו אם צריך */}
+            <Layer x={offsetX} y={offsetY} scaleX={innerScale} scaleY={innerScale}>
               {data.objects.map((obj) => {
                 if (obj.type === "rect") {
                   return (
@@ -90,15 +127,18 @@ export default function PublicInviteRenderer({ canvasData }) {
                 }
 
                 if (obj.type === "circle") {
+                  const r = obj.radius || 0;
                   return (
                     <Rect
                       key={obj.id}
                       x={obj.x}
                       y={obj.y}
-                      width={obj.radius * 2}
-                      height={obj.radius * 2}
-                      cornerRadius={obj.radius}
+                      width={r * 2}
+                      height={r * 2}
+                      cornerRadius={r}
                       fill={obj.fill}
+                      opacity={obj.opacity ?? 1}
+                      rotation={obj.rotation || 0}
                     />
                   );
                 }
@@ -121,6 +161,14 @@ export default function PublicInviteRenderer({ canvasData }) {
                       align={obj.align || "center"}
                       opacity={obj.opacity ?? 1}
                       rotation={obj.rotation || 0}
+                      lineHeight={obj.lineHeight ?? 1.2}
+                      fontStyle={[
+                        obj.fontWeight === "bold" ? "bold" : null,
+                        obj.italic ? "italic" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      textDecoration={obj.underline ? "underline" : undefined}
                     />
                   );
                 }
@@ -138,10 +186,11 @@ export default function PublicInviteRenderer({ canvasData }) {
                 key={obj.id}
                 style={{
                   position: "absolute",
-                  top: obj.y * scale,
-                  left: obj.x * scale,
-                  width: obj.width * scale,
-                  height: obj.height * scale,
+                  // ✅ גם לוטי נכנס לתוך ה"סקייל הפנימי" + מרכז
+                  top: (offsetY + obj.y * innerScale) * fitScale,
+                  left: (offsetX + obj.x * innerScale) * fitScale,
+                  width: obj.width * innerScale * fitScale,
+                  height: obj.height * innerScale * fitScale,
                   pointerEvents: "none",
                 }}
               >
@@ -150,7 +199,6 @@ export default function PublicInviteRenderer({ canvasData }) {
             ))}
 
           {/* ================= GLASS LAYER ================= */}
-          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
           <div
             style={{
               position: "absolute",
