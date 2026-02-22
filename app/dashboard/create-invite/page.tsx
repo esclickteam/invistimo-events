@@ -39,16 +39,12 @@ type EditorCanvasRef = {
   getCanvasData: () => {
     objects: EditorObject[];
   };
-
   getPreviewImage: () => string;
-
   uploadBackground: (file: File) => void;
   deleteSelected?: () => void;
   addText?: () => void;
-
-  updateSelected?: (patch: Record<string, any>) => void; // ⭐️ זה החסר
+  updateSelected?: (patch: Record<string, any>) => void;
 };
-
 
 /* =========================================================
    Component
@@ -56,11 +52,17 @@ type EditorCanvasRef = {
 export default function CreateInvitePage() {
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const readyImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const [selectedObject, setSelectedObject] =
     useState<EditorObject | null>(null);
 
   const [saving, setSaving] = useState(false);
+
+  /* ===== NEW: design mode ===== */
+  const [designMode, setDesignMode] = useState<"canvas" | "image">("canvas");
+  const [invitationId, setInvitationId] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   /* ===== Mobile UI State ===== */
   const [mobileTab, setMobileTab] =
@@ -87,66 +89,109 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     שמירה
+     שמירה (Canvas)
   ========================================================= */
   const handleSave = async () => {
-  try {
-    setSaving(true);
+    try {
+      setSaving(true);
 
-    const canvasJSON = canvasRef.current?.getCanvasData();
-    const previewBase64 = canvasRef.current?.getPreviewImage();
+      const canvasJSON = canvasRef.current?.getCanvasData();
+      const previewBase64 = canvasRef.current?.getPreviewImage();
 
-    if (!canvasJSON || !previewBase64) {
-      alert("❌ הקנבס לא מוכן");
-      return;
+      if (!canvasJSON || !previewBase64) {
+        alert("❌ הקנבס לא מוכן");
+        return;
+      }
+
+      const res = await fetch("/api/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: "ההזמנה שלי 🎉",
+          canvasData: canvasJSON,
+          designMode: "canvas",
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error);
+        return;
+      }
+
+      const id = data.invitation._id;
+      setInvitationId(id);
+
+      await fetch("/api/invitations/upload-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          invitationId: id,
+          base64Image: previewBase64,
+        }),
+      });
+
+      router.push(`/dashboard/invitations/${id}/preview`);
+    } catch (err) {
+      console.error(err);
+      alert("❌ שגיאה בשמירה");
+    } finally {
+      setSaving(false);
     }
-
-    // 1️⃣ שמירת ההזמנה (מבנה, טקסטים וכו')
-    const res = await fetch("/api/invitations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        title: "ההזמנה שלי 🎉",
-        canvasData: canvasJSON,
-      }),
-    });
-
-    const data = await res.json();
-    if (!data.success) {
-      alert(data.error);
-      return;
-    }
-
-    const invitationId = data.invitation._id;
-
-    // 2️⃣ העלאת preview ל־Cloudinary ושמירה כ־URL
-    await fetch("/api/invitations/upload-preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        invitationId,
-        base64Image: previewBase64,
-      }),
-    });
-
-    // 3️⃣ מעבר לפריוויו
-    router.push(`/dashboard/invitations/${invitationId}/preview`);
-  } catch (err) {
-    console.error(err);
-    alert("❌ שגיאה בשמירה");
-  } finally {
-    setSaving(false);
-  }
-};
-
+  };
 
   /* =========================================================
-     העלאת רקע
+     העלאת רקע לקנבס (קיים)
   ========================================================= */
   const handleUploadInvitation = (file: File) => {
     canvasRef.current?.uploadBackground(file);
+  };
+
+  /* =========================================================
+     NEW: העלאת הזמנה מוכנה כתמונה
+  ========================================================= */
+  const handleUploadReadyImage = async (file: File) => {
+    if (!invitationId) {
+      alert("❗ שמרי קודם את ההזמנה");
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/invitations/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const uploadData = await uploadRes.json();
+      if (!uploadData.url) {
+        alert("❌ שגיאה בהעלאת תמונה");
+        return;
+      }
+
+      await fetch(`/api/invitations/${invitationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          designMode: "image",
+          inviteImageUrl: uploadData.url,
+        }),
+      });
+
+      setDesignMode("image");
+      alert("✅ ההזמנה נשמרה כתמונה");
+    } catch (err) {
+      console.error(err);
+      alert("❌ שגיאה");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   /* =========================================================
@@ -183,55 +228,44 @@ export default function CreateInvitePage() {
   };
 
   /* =========================================================
-     כותרת Sheet (❌ בלי "text")
-  ========================================================= */
-  const mobileSheetTitle = (() => {
-    if (selectedObject?.type === "text") return "טקסט";
-
-    switch (mobileTab) {
-      case "backgrounds":
-        return "רקעים";
-      case "blessing":
-        return "ברית / ברכה";
-      case "wedding":
-        return "חתונה";
-      case "batmitzvah":
-        return "בת / מצווה";
-      default:
-        return "";
-    }
-  })();
-
-  /* =========================================================
      Render
   ========================================================= */
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100 overflow-hidden">
-        {/* ===== Desktop Sidebar ===== */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
           <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
         </div>
 
-        {/* ===== Editor Area ===== */}
         <div className="flex-1 flex flex-col min-h-0 relative">
           {/* ===== Top Bar ===== */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
             <button
-              onClick={() => uploadInputRef.current?.click()}
-              className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
+              onClick={() => setDesignMode("canvas")}
+              className={`px-3 py-1 rounded-full text-sm ${
+                designMode === "canvas" ? "bg-black text-white" : "bg-gray-200"
+              }`}
             >
-              ⬆️ העלאה
+              קנבס
+            </button>
+
+            <button
+              onClick={() => readyImageInputRef.current?.click()}
+              className={`px-3 py-1 rounded-full text-sm ${
+                designMode === "image" ? "bg-black text-white" : "bg-gray-200"
+              }`}
+            >
+              תמונה מוכנה
             </button>
 
             <input
-              ref={uploadInputRef}
+              ref={readyImageInputRef}
               type="file"
               accept="image/*"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleUploadInvitation(file);
+                if (file) handleUploadReadyImage(file);
                 e.currentTarget.value = "";
               }}
             />
@@ -251,52 +285,26 @@ export default function CreateInvitePage() {
             </button>
           </div>
 
-          {/* ===== Desktop Toolbar ===== */}
-          
-
           {/* ===== Canvas ===== */}
-          <div className="flex-1 relative bg-gray-100">
-  {/* Editor Canvas */}
-  <div className="absolute inset-0 pb-24 md:pb-0">
-    <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
-  </div>
+          {designMode === "canvas" && (
+            <div className="flex-1 relative bg-gray-100">
+              <div className="absolute inset-0 pb-24 md:pb-0">
+                <EditorCanvas ref={canvasRef} onSelect={setSelectedObject} />
+              </div>
+              <div className="absolute top-4 right-4 z-50">
+                <ZoomControl canvasRef={canvasRef} />
+              </div>
+            </div>
+          )}
 
-  {/* Zoom Control */}
-  <div className="absolute top-4 right-4 z-50">
-    <ZoomControl canvasRef={canvasRef} />
-  </div>
-</div>
+          {/* ===== Mobile UI ===== */}
+          <MobileBottomNav active={mobileTab} onChange={onChangeMobileTab} />
 
-          {/* ===== Floating Add Text Button (Mobile) ===== */}
-          <button
-            onClick={handleAddText}
-            className="
-              md:hidden
-              fixed bottom-28 right-4
-              z-50
-              px-5 py-3
-              rounded-full
-              bg-black text-white
-              text-sm
-              shadow-xl
-              active:scale-95
-            "
-          >
-            ➕ טקסט
-          </button>
-
-          {/* ===== Mobile Bottom Nav ===== */}
-          <MobileBottomNav
-            active={mobileTab}
-            onChange={onChangeMobileTab}
-          />
-
-          {/* ===== Mobile Bottom Sheet ===== */}
           <MobileBottomSheet
             open={sheetOpen}
-            title={mobileSheetTitle}
+            title="עריכה"
             onClose={closeSheet}
-            height={selectedObject?.type === "text" ? "42vh" : "52vh"}
+            height="52vh"
           >
             {selectedObject?.type === "text" ? (
               <TextEditorPanel

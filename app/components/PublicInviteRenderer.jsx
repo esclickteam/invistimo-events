@@ -5,7 +5,44 @@ import Lottie from "lottie-react";
 import useImage from "use-image";
 import { useEffect, useRef, useState } from "react";
 
-export default function PublicInviteRenderer({ canvasData }) {
+export default function PublicInviteRenderer({
+  canvasData,
+  designMode,
+  inviteImageUrl,
+}) {
+  /* ============================================================
+     🖼 IMAGE MODE — תמונה במקום קנבס
+     ============================================================ */
+  if (designMode === "image" && inviteImageUrl) {
+    return (
+      <div className="w-full flex justify-center">
+        <div
+          style={{
+            width: 400,
+            height: 720,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={inviteImageUrl}
+            alt="Invitation"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ============================================================
+     🎨 CANVAS MODE — קוד קיים
+     ============================================================ */
+
   if (!canvasData) return null;
 
   let data;
@@ -52,9 +89,7 @@ export default function PublicInviteRenderer({ canvasData }) {
       <div
         ref={containerRef}
         className="w-full flex justify-center"
-        style={{
-          overflow: "visible",
-        }}
+        style={{ overflow: "visible" }}
       >
         <div
           style={{
@@ -63,13 +98,13 @@ export default function PublicInviteRenderer({ canvasData }) {
             position: "relative",
           }}
         >
-          {/* ================= K O N V A  ================= */}
+          {/* ================= K O N V A ================= */}
           <Stage
             width={width * scale}
             height={height * scale}
             scaleX={scale}
             scaleY={scale}
-            listening={false} // ❌ לא מאזין למגעים
+            listening={false}
           >
             <Layer>
               {data.objects.map((obj) => {
@@ -150,7 +185,6 @@ export default function PublicInviteRenderer({ canvasData }) {
             ))}
 
           {/* ================= GLASS LAYER ================= */}
-          {/* ⭐ זה מה שגורם לגלילה לעבוד על הקנבס עצמו */}
           <div
             style={{
               position: "absolute",
@@ -167,7 +201,7 @@ export default function PublicInviteRenderer({ canvasData }) {
 }
 
 /* ============================================================
-   🖼 IMAGE LOADER
+   🖼 IMAGE LOADER (Konva)
 ============================================================ */
 function PreviewImage({ obj }) {
   const [image] = useImage(obj.url, "anonymous");

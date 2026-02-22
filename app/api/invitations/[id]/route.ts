@@ -219,7 +219,19 @@ export async function PATCH(
     if (body?.invitationSettings !== undefined) {
       updatePayload.invitationSettings = body.invitationSettings;
     }
+/* ================= DESIGN MODE ================= */
 
+if (body?.designMode === "image") {
+  updatePayload.designMode = "image";
+
+  if (typeof body.inviteImageUrl === "string") {
+    updatePayload.inviteImageUrl = body.inviteImageUrl.trim();
+  }
+}
+
+if (body?.designMode === "canvas") {
+  updatePayload.designMode = "canvas";
+}
     /* אם לא הגיע שום דבר לעדכון */
     if (Object.keys(updatePayload).length === 1) {
       return NextResponse.json(
