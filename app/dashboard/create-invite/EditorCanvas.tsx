@@ -240,10 +240,10 @@ useEffect(() => {
     const { width, height } = entry.contentRect;
 
     const factor = Math.min(
-      width / CANVAS_WIDTH,
-      height / CANVAS_HEIGHT,
-      1
-    );
+  width / CANVAS_WIDTH,
+  (height - 32) / CANVAS_HEIGHT, // ⭐ מרווח מובייל
+  1
+);
 
     setScale(factor);
   });
@@ -602,18 +602,29 @@ setCanvasFormat: (f: "vertical" | "square") => {
   return (
   <div
     ref={containerRef}
-    className="w-full h-full flex items-center justify-center bg-gray-100 overflow-auto relative"
+    className="
+  w-full
+  min-h-[100svh]
+  flex
+  items-start md:items-center
+  justify-center
+  bg-gray-100
+  overflow-auto
+  relative
+  p-4
+"
   >
     <div
-      className="shadow-2xl rounded-3xl bg-white overflow-visible relative"
-      style={{
-        transform: `scale(${scale})`,
-        transformOrigin: "top center",
-        width: `${CANVAS_WIDTH}px`,
-        height: `${CANVAS_HEIGHT}px`,
-        border: "10px solid #f8f8f8",
-      }}
-    >
+  className="shadow-2xl rounded-3xl bg-white overflow-visible relative"
+  style={{
+    transform: `scale(${scale})`,
+    transformOrigin: "top center",
+    width: `${CANVAS_WIDTH}px`,
+    height: `${CANVAS_HEIGHT}px`,
+    maxWidth: "100%",          // ⭐ חדש
+    border: "10px solid #f8f8f8",
+  }}
+>
       <Stage
   width={CANVAS_WIDTH}
   height={CANVAS_HEIGHT}
