@@ -30,9 +30,6 @@ type EditorObject = {
   [key: string]: any;
 };
 
-/* =========================================================
-   Component
-========================================================= */
 export default function EditInvitePage() {
   /* ================= Params ================= */
   const params = useParams();
@@ -171,6 +168,11 @@ export default function EditInvitePage() {
   }
 
   /* =========================================================
+     🔑 קובע תצוגה בפועל
+  ========================================================= */
+  const hasImage = Boolean(invite.inviteImageUrl);
+
+  /* =========================================================
      Render
   ========================================================= */
   return (
@@ -220,84 +222,46 @@ export default function EditInvitePage() {
             </button>
           </div>
 
-          {/* IMAGE MODE */}
-          {designMode === "image" && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-4 p-6">
+          {/* ================= תצוגה בפועל ================= */}
+          <div className="flex-1 flex items-center justify-center bg-gray-100">
 
-                <button
-                  type="button"
-                  onClick={() => uploadInputRef.current?.click()}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg"
-                >
-                  העלאת תמונת הזמנה
-                </button>
-
-                <input
-                  ref={uploadInputRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-
-                    const fd = new FormData();
-                    fd.append("file", file);
-
-                    const res = await fetch("/api/upload-image", {
-                      method: "POST",
-                      body: fd,
-                    });
-
-                    const data = await res.json();
-                    if (!data.url) return alert("שגיאה בהעלאה");
-
-                    setInvite((prev: any) => ({
-                      ...prev,
-                      inviteImageUrl: data.url,
-                    }));
+            {hasImage ? (
+              <div
+                style={{
+                  width: 400,
+                  height: 400,
+                  border: "2px solid #d4af37",
+                  borderRadius: 20,
+                  overflow: "hidden",
+                  background: "#fff",
+                }}
+              >
+                <img
+                  src={invite.inviteImageUrl}
+                  alt="הזמנה"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
                   }}
                 />
-
-                {invite.inviteImageUrl && (
-                  <div
-                    style={{
-                      width: 400,
-                      height: 400,
-                      border: "2px solid #d4af37",
-                      borderRadius: 20,
-                      overflow: "hidden",
-                      background: "#fff",
-                    }}
-                  >
-                    <img
-                      src={invite.inviteImageUrl}
-                      alt="הזמנה"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  </div>
-                )}
               </div>
-            </div>
-          )}
-
-          {/* CANVAS MODE */}
-          {designMode === "canvas" && (
-            <div className="flex-1 relative bg-gray-100 overflow-hidden">
-              <EditorCanvas
-                ref={canvasRef}
-                initialData={{
-                  ...invite.canvasData,
-                  orientation: invite.orientation,
-                }}
-                onSelect={setSelectedObject}
-              />
-              <div className="absolute top-4 right-4 z-50">
-                <ZoomControl canvasRef={canvasRef} />
+            ) : (
+              <div className="flex-1 relative bg-gray-100 overflow-hidden">
+                <EditorCanvas
+                  ref={canvasRef}
+                  initialData={{
+                    ...invite.canvasData,
+                    orientation: invite.orientation,
+                  }}
+                  onSelect={setSelectedObject}
+                />
+                <div className="absolute top-4 right-4 z-50">
+                  <ZoomControl canvasRef={canvasRef} />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Mobile */}
           <MobileBottomNav
