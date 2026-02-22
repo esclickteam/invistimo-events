@@ -50,8 +50,8 @@ export default function EditInvitePage() {
   const [selectedObject, setSelectedObject] =
     useState<EditorObject | null>(null);
 
-  const [designMode, setDesignMode] =
-    useState<"canvas" | "image">("canvas");
+  /* ===== NEW (safe) ===== */
+  const [designMode, setDesignMode] = useState<"canvas" | "image">("canvas");
 
   /* ================= Mobile UI ================= */
   const [mobileTab, setMobileTab] =
@@ -61,7 +61,7 @@ export default function EditInvitePage() {
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* =========================================================
-     Load invitation
+     Load invitation (GET)
   ========================================================= */
   useEffect(() => {
     if (!inviteId) {
@@ -83,6 +83,7 @@ export default function EditInvitePage() {
         }
 
         const canvasData = data.invitation.canvasData || { objects: [] };
+
         canvasData.objects = canvasData.objects.map((obj: any) => ({
           ...obj,
           image: undefined,
@@ -93,6 +94,7 @@ export default function EditInvitePage() {
           canvasData,
         });
 
+        // ✅ לקוחות קיימים → קנבס
         setDesignMode(data.invitation.designMode || "canvas");
       } catch {
         alert("❌ שגיאה בטעינת ההזמנה");
@@ -105,69 +107,92 @@ export default function EditInvitePage() {
   }, [inviteId]);
 
   /* =========================================================
-     Save
+     Save invitation (PUT)
   ========================================================= */
   const handleSave = async () => {
-    if (!inviteId) return;
+  if (!inviteId) return;
 
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      if (designMode === "image") {
-        const res = await fetch(`/api/invitations/${inviteId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            title: invite.title,
-            designMode: "image",
-            inviteImageUrl: invite.inviteImageUrl,
-          }),
-        });
+    /* ================= IMAGE MODE ================= */
+    if (designMode === "image") {
+      const res = await fetch(`/api/invitations/${inviteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: invite.title,
+          designMode: "image",
+          inviteImageUrl: invite.inviteImageUrl,
+        }),
+      });
 
-        const result = await res.json();
-        if (!result.success) return alert("❌ שגיאה בשמירה");
+      const result = await res.json();
 
-        setInvite(result.invitation);
-        alert("✅ ההזמנה עודכנה בהצלחה!");
+      if (!result.success) {
+        alert("❌ שגיאה בשמירה");
         return;
       }
 
-      if (designMode === "canvas") {
-        if (!canvasRef.current?.getCanvasData) return;
-
-        const canvasData = canvasRef.current.getCanvasData();
-
-        const res = await fetch(`/api/invitations/${inviteId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            title: invite.title,
-            canvasData,
-            orientation: canvasData.orientation,
-            designMode: "canvas",
-          }),
-        });
-
-        const result = await res.json();
-        if (!result.success) return alert("❌ שגיאה בשמירה");
-
-        setInvite(result.invitation);
-        alert("✅ ההזמנה עודכנה בהצלחה!");
-      }
-    } finally {
-      setSaving(false);
+      setInvite(result.invitation);
+      alert("✅ ההזמנה עודכנה בהצלחה!");
+      return;
     }
-  };
 
+    /* ================= CANVAS MODE ================= */
+    if (designMode === "canvas") {
+      if (!canvasRef.current?.getCanvasData) {
+        alert("❌ קנבס לא זמין");
+        return;
+      }
+
+      const canvasData = canvasRef.current.getCanvasData();
+
+      const res = await fetch(`/api/invitations/${inviteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: invite.title,
+          canvasData,
+          orientation: canvasData.orientation,
+          designMode: "canvas",
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!result.success) {
+        alert("❌ שגיאה בשמירה");
+        return;
+      }
+
+      setInvite(result.invitation);
+      alert("✅ ההזמנה עודכנה בהצלחה!");
+    }
+  } finally {
+    setSaving(false);
+  }
+};
+
+  /* =========================================================
+     Preview
+  ========================================================= */
   const handlePreview = () => {
     const previewId = invite.shareId || invite._id;
     window.open(`/invite/${previewId}`, "_blank");
   };
 
+  /* =========================================================
+     Loading
+  ========================================================= */
   if (loading || !invite) {
-    return <div className="p-10 text-center text-xl">טוען את ההזמנה...</div>;
+    return (
+      <div className="p-10 text-center text-xl">
+        טוען את ההזמנה...
+      </div>
+    );
   }
 
   /* =========================================================
@@ -179,7 +204,10 @@ export default function EditInvitePage() {
 
         {/* Sidebar */}
         <div className="hidden md:block w-[280px] shrink-0 border-l bg-white">
-          <Sidebar canvasRef={canvasRef} googleApiKey={googleApiKey} />
+          <Sidebar
+            canvasRef={canvasRef}
+            googleApiKey={googleApiKey}
+          />
         </div>
 
         {/* Main */}
@@ -187,10 +215,14 @@ export default function EditInvitePage() {
 
           {/* Header */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
+
+            {/* Mode Switch */}
             <button
               onClick={() => setDesignMode("canvas")}
               className={`px-3 py-1 rounded-full text-sm ${
-                designMode === "canvas" ? "bg-black text-white" : "bg-gray-200"
+                designMode === "canvas"
+                  ? "bg-black text-white"
+                  : "bg-gray-200"
               }`}
             >
               קנבס
@@ -199,7 +231,9 @@ export default function EditInvitePage() {
             <button
               onClick={() => setDesignMode("image")}
               className={`px-3 py-1 rounded-full text-sm ${
-                designMode === "image" ? "bg-black text-white" : "bg-gray-200"
+                designMode === "image"
+                  ? "bg-black text-white"
+                  : "bg-gray-200"
               }`}
             >
               תמונה
@@ -207,100 +241,151 @@ export default function EditInvitePage() {
 
             <div className="flex-1" />
 
-            <button onClick={handlePreview} className="px-4 py-2 rounded-full border text-sm">
+            <button
+              onClick={handlePreview}
+              className="px-4 py-2 rounded-full border text-sm"
+            >
               👁 תצוגה מקדימה
             </button>
 
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2 rounded-full bg-blue-600 text-white text-sm"
+              className={`px-5 py-2 rounded-full text-white text-sm ${
+                saving
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-              💾 שמור
+              {saving ? "שומר..." : "💾 שמור"}
             </button>
           </div>
 
-          {/* CONTENT */}
+          {/* Content */}
           <div className="flex-1 relative bg-gray-100 overflow-hidden">
 
-            {/* ================= IMAGE MODE ================= */}
-            {designMode === "image" && invite.inviteImageUrl && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div
-                  style={{
-                    width: 400,
-                    height: 720, // 🔥 גובה אמיתי – כמו קנבס
-                    border: "2px solid #d4af37",
-                    borderRadius: 20,
-                    overflow: "hidden",
-                    background: "#fff",
-                  }}
-                >
-                  <img
-                    src={invite.inviteImageUrl}
-                    alt="הזמנה"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
-                </div>
-              </div>
-            )}
+ {/* ================= IMAGE MODE ================= */}
+{designMode === "image" && (
+  <div className="flex-1 flex items-center justify-center bg-gray-100">
+    <div className="flex flex-col items-center gap-4 p-6">
 
-            {/* ================= CANVAS MODE ================= */}
-            {designMode === "canvas" && (
-              <>
-                <EditorCanvas
-                  ref={canvasRef}
-                  initialData={{
-                    ...invite.canvasData,
-                    orientation: invite.orientation,
-                  }}
-                  onSelect={setSelectedObject}
-                />
-                <div className="absolute top-4 right-4 z-50">
-                  <ZoomControl canvasRef={canvasRef} />
-                </div>
-              </>
-            )}
-          </div>
+      <button
+        type="button"
+        onClick={() => uploadInputRef.current?.click()}
+        className="bg-purple-600 text-white px-4 py-2 rounded-lg"
+      >
+        העלאת תמונת הזמנה
+      </button>
 
-          {/* Mobile */}
-          <MobileBottomNav
-            active={mobileTab}
-            onChange={(tab) => {
-              setMobileTab(tab);
-              setSheetOpen(true);
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          const fd = new FormData();
+          fd.append("file", file);
+
+          const res = await fetch("/api/upload-image", {
+            method: "POST",
+            body: fd,
+          });
+
+          const data = await res.json();
+
+          if (!data.url) {
+            alert("שגיאה בהעלאה");
+            return;
+          }
+
+          setInvite((prev: any) => ({
+            ...prev,
+            inviteImageUrl: data.url,
+          }));
+        }}
+      />
+
+      {invite.inviteImageUrl && (
+        <div
+          style={{
+            width: 400,
+            height: 400,
+            border: "2px solid #d4af37",
+            borderRadius: 20,
+            overflow: "hidden",
+            background: "#fff",
+          }}
+        >
+          <img
+            src={invite.inviteImageUrl}
+            alt="הזמנה"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
             }}
           />
+        </div>
+      )}
+    </div>
+  </div>
+)}
+  {/* ================= CANVAS MODE ================= */}
+  {designMode === "canvas" && (
+    <>
+      <EditorCanvas
+        key={invite._id}
+        ref={canvasRef}
+        initialData={{
+          ...invite.canvasData,
+          orientation: invite.orientation,
+        }}
+        onSelect={setSelectedObject}
+      />
 
-          <MobileBottomSheet
-            open={sheetOpen}
-            title=""
-            onClose={() => setSheetOpen(false)}
-            height="42vh"
-          >
-            {selectedObject?.type === "text" ? (
-              <TextEditorPanel
-                selected={selectedObject}
-                onApply={(patch) =>
-                  canvasRef.current?.updateSelected?.(patch)
-                }
-                onDelete={() =>
-                  canvasRef.current?.deleteSelected?.()
-                }
-              />
-            ) : (
-              <Sidebar
-                canvasRef={canvasRef}
-                googleApiKey={googleApiKey}
-                activeTab={mobileTab}
-              />
-            )}
-          </MobileBottomSheet>
+      <div className="absolute top-4 right-4 z-50">
+        <ZoomControl canvasRef={canvasRef} />
+      </div>
+    </>
+  )}
+</div>
+
+{/* ================= MOBILE ================= */}
+<MobileBottomNav
+  active={mobileTab}
+  onChange={(tab) => {
+    setMobileTab(tab);
+    setSheetOpen(true);
+  }}
+/>
+
+<MobileBottomSheet
+  open={sheetOpen}
+  title=""
+  onClose={() => setSheetOpen(false)}
+  height="42vh"
+>
+  {selectedObject?.type === "text" ? (
+    <TextEditorPanel
+      selected={selectedObject}
+      onApply={(patch) =>
+        canvasRef.current?.updateSelected?.(patch)
+      }
+      onDelete={() =>
+        canvasRef.current?.deleteSelected?.()
+      }
+    />
+  ) : (
+    <Sidebar
+      canvasRef={canvasRef}
+      googleApiKey={googleApiKey}
+      activeTab={mobileTab}
+    />
+  )}
+</MobileBottomSheet>
         </div>
       </div>
     </QueryClientProvider>
