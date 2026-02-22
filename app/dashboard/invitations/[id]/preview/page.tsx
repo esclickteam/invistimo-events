@@ -13,9 +13,18 @@ interface InvitationData {
   title?: string;
   shareId?: string;
   canvasData?: any;
+
+  // ✅ חדש – כדי לתמוך בתמונה / קנבס
+  designMode?: "canvas" | "image";
+  inviteImageUrl?: string;
 }
 
-type LoadState = "loading" | "ready" | "not_found" | "unauthorized" | "error";
+type LoadState =
+  | "loading"
+  | "ready"
+  | "not_found"
+  | "unauthorized"
+  | "error";
 
 /* -------------------------------------------------------------
    Component
@@ -47,7 +56,7 @@ export default function InvitationPreviewPage() {
     try {
       const res = await fetch(`/api/invitations/${id}`, {
         method: "GET",
-        credentials: "include", // ✅ חשוב אם ה-API מוגן/קורא cookies
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
       });
@@ -156,15 +165,13 @@ export default function InvitationPreviewPage() {
       <h1 className="text-3xl font-bold mb-2 text-center">{safeTitle}</h1>
       <p className="text-gray-500 mb-8">תצוגת מקדימה</p>
 
-      {/* ⭐ תצוגה אמיתית של הקנבס */}
+      {/* ⭐ תצוגה אמיתית של ההזמנה */}
       <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10 flex justify-center">
-        {invitation.canvasData ? (
-          <PublicInviteRenderer canvasData={invitation.canvasData} />
-        ) : (
-          <div className="text-sm text-gray-500">
-            אין עדיין תוכן קנבס להזמנה הזו.
-          </div>
-        )}
+        <PublicInviteRenderer
+          canvasData={invitation.canvasData}
+          designMode={invitation.designMode || "canvas"}
+          inviteImageUrl={invitation.inviteImageUrl || ""}
+        />
       </div>
 
       {/* ⭐ תצוגת iframe של הדף הציבורי */}
