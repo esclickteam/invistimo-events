@@ -380,6 +380,8 @@ useEffect(() => {
      SELECTION HANDLING
   ============================================================ */
   const handleSelect = (id: string | null) => {
+  stageRef.current?.container()?.focus?.();
+
   setSelected(id);
 
   const obj = objects.find((o) => o.id === id) || null;
@@ -391,18 +393,21 @@ useEffect(() => {
     transformerRef.current.nodes(node ? [node] : []);
   }
 
+  // ✅ אם ביטלנו בחירה – לנקות גם כפתור מחיקה
+  if (!id) {
+    setMobileDeletePos(null);
+    lastTapRef.current = null;
+  }
+
   // 📱 מובייל – מיקום כפתור מחיקה
   if (isMobile && node && stageRef.current) {
-    const stageBox =
-      stageRef.current.container().getBoundingClientRect();
+    const stageBox = stageRef.current.container().getBoundingClientRect();
     const r = node.getClientRect();
 
     setMobileDeletePos({
       x: stageBox.left + (r.x + r.width) * scale + 6,
       y: stageBox.top + r.y * scale - 6,
     });
-  } else {
-    setMobileDeletePos(null);
   }
 };
 
@@ -443,24 +448,41 @@ const startEditText = (obj: TextObject) => {
     // ❌ אם עורכים טקסט – לא למחוק אובייקט
     if (editingTextId) return;
 
-    if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
-  removeObject(selectedId);
+    // ✅ אם הפוקוס כרגע בתוך input/textarea/contenteditable – לא לגעת
+    const el = document.activeElement as HTMLElement | null;
+    if (
+      el &&
+      (el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.isContentEditable)
+    ) {
+      return;
+    }
 
-  // 🧹 ניקוי Transformer
-  transformerRef.current?.nodes([]);
+    const id = useEditorStore.getState().selectedId;
+    if (!id) return;
 
-  setSelected(null);
-  setMobileDeletePos(null);
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      e.stopPropagation();
 
-  lastTapRef.current = null;
+      removeObject(id);
 
-}
+      transformerRef.current?.nodes([]);
 
+      setSelected(null);
+      onSelect(null);
+      setMobileDeletePos(null);
+      lastTapRef.current = null;
+
+      stageRef.current?.container()?.focus?.();
+    }
   };
 
-  window.addEventListener("keydown", onKey);
-  return () => window.removeEventListener("keydown", onKey);
-}, [selectedId, editingTextId, removeObject, setSelected]);
+  // ✅ capture:true כדי לתפוס לפני רכיבים אחרים
+  window.addEventListener("keydown", onKey, { capture: true });
+  return () => window.removeEventListener("keydown", onKey, { capture: true } as any);
+}, [editingTextId, removeObject, setSelected, onSelect]);
 
   /* ============================================================
    EXPORT
