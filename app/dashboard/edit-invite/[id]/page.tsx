@@ -34,15 +34,12 @@ type EditorObject = {
    Component
 ========================================================= */
 export default function EditInvitePage() {
-  /* ================= Params ================= */
   const params = useParams();
   const inviteId = params?.id as string | undefined;
 
-  /* ================= Refs ================= */
   const canvasRef = useRef<EditorCanvasRef | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  /* ================= State ================= */
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,7 +47,6 @@ export default function EditInvitePage() {
   const [selectedObject, setSelectedObject] =
     useState<EditorObject | null>(null);
 
-  /* ================= Mobile UI ================= */
   const [mobileTab, setMobileTab] =
     useState<MobileNavTab>("backgrounds");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -58,7 +54,7 @@ export default function EditInvitePage() {
   const googleApiKey = "AIzaSyACcKM0Zf756koiR1MtC8OtS7xMUdwWjfg";
 
   /* =========================================================
-     Load invitation (GET)
+     Load invitation
   ========================================================= */
   useEffect(() => {
     if (!inviteId) {
@@ -101,7 +97,7 @@ export default function EditInvitePage() {
   }, [inviteId]);
 
   /* =========================================================
-     Save invitation (PUT)
+     Save
   ========================================================= */
   const handleSave = async () => {
     if (!inviteId || !canvasRef.current?.getCanvasData) return;
@@ -137,17 +133,44 @@ export default function EditInvitePage() {
   };
 
   /* =========================================================
-     Preview (Public Invite)
+     🔥 DELETE + SAVE
+  ========================================================= */
+  const handleDeleteSelected = async () => {
+    if (!inviteId || !canvasRef.current?.getCanvasData) return;
+
+    if (!selectedObject) {
+      alert("לא נבחר אובייקט למחיקה");
+      return;
+    }
+
+    // מחיקה מהקנבס
+    canvasRef.current.deleteSelected?.();
+
+    // שמירה אוטומטית לשרת
+    const canvasData = canvasRef.current.getCanvasData();
+
+    await fetch(`/api/invitations/${inviteId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        title: invite.title,
+        canvasData,
+        orientation: canvasData.orientation,
+      }),
+    });
+
+    setSelectedObject(null);
+  };
+
+  /* =========================================================
+     Preview
   ========================================================= */
   const handlePreview = () => {
-    // עדיפות ל-shareId אם קיים
     const previewId = invite.shareId || invite._id;
     window.open(`/invite/${previewId}`, "_blank");
   };
 
-  /* =========================================================
-     Loading
-  ========================================================= */
   if (loading || !invite) {
     return (
       <div className="p-10 text-center text-xl">
@@ -156,9 +179,6 @@ export default function EditInvitePage() {
     );
   }
 
-  /* =========================================================
-     Render
-  ========================================================= */
   return (
     <QueryClientProvider client={queryClient}>
       <div className="h-[100dvh] flex bg-gray-100">
@@ -171,11 +191,11 @@ export default function EditInvitePage() {
           />
         </div>
 
-        {/* Main */}
         <div className="flex-1 flex flex-col min-h-0 relative pb-[72px] md:pb-0">
 
           {/* Header */}
           <div className="sticky top-0 z-40 bg-white border-b px-4 py-3 flex items-center gap-3">
+
             <button
               onClick={() => uploadInputRef.current?.click()}
               className="px-4 py-2 rounded-full bg-violet-600 text-white text-sm"
@@ -199,7 +219,6 @@ export default function EditInvitePage() {
 
             <div className="flex-1" />
 
-            {/* 👁 Preview */}
             <button
               onClick={handlePreview}
               className="px-4 py-2 rounded-full border text-sm"
@@ -207,7 +226,19 @@ export default function EditInvitePage() {
               👁 תצוגה מקדימה
             </button>
 
-            {/* 💾 Save */}
+            {/* 🗑 DELETE */}
+            <button
+              onClick={handleDeleteSelected}
+              disabled={!selectedObject}
+              className={`px-4 py-2 rounded-full text-sm text-white ${
+                selectedObject
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
+            >
+              🗑 מחק
+            </button>
+
             <button
               onClick={handleSave}
               disabled={saving}
@@ -228,28 +259,26 @@ export default function EditInvitePage() {
               key={invite._id}
               ref={canvasRef}
               initialData={{
-  ...invite.canvasData,
-  orientation: invite.orientation,
-}}
+                ...invite.canvasData,
+                orientation: invite.orientation,
+              }}
               onSelect={setSelectedObject}
             />
 
             <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-  <ZoomControl canvasRef={canvasRef} />
-
-
-</div>
+              <ZoomControl canvasRef={canvasRef} />
+            </div>
 
           </div>
 
           {/* Mobile */}
           <MobileBottomNav
-  active={mobileTab}
-  onChange={(tab) => {
-    setMobileTab(tab);
-    setSheetOpen(true);
-  }}
-/>
+            active={mobileTab}
+            onChange={(tab) => {
+              setMobileTab(tab);
+              setSheetOpen(true);
+            }}
+          />
 
           <MobileBottomSheet
             open={sheetOpen}
@@ -258,23 +287,20 @@ export default function EditInvitePage() {
             height="42vh"
           >
             {selectedObject ? (
-  <TextEditorPanel
-    selected={selectedObject}
-    onApply={(patch) =>
-      canvasRef.current?.updateSelected?.(patch)
-    }
-    onDelete={() =>
-      canvasRef.current?.deleteSelected?.()
-    }
-  />
-) : (
-  <Sidebar
-    canvasRef={canvasRef}
-    googleApiKey={googleApiKey}
-    activeTab={mobileTab}
-  />
-)}
-
+              <TextEditorPanel
+                selected={selectedObject}
+                onApply={(patch) =>
+                  canvasRef.current?.updateSelected?.(patch)
+                }
+                onDelete={handleDeleteSelected}
+              />
+            ) : (
+              <Sidebar
+                canvasRef={canvasRef}
+                googleApiKey={googleApiKey}
+                activeTab={mobileTab}
+              />
+            )}
           </MobileBottomSheet>
         </div>
       </div>
