@@ -613,7 +613,13 @@ if (isMobile) {
 }}
 >
 
-          <Layer ref={mainLayerRef}>
+          <Layer
+  ref={mainLayerRef}
+  clipX={0}
+  clipY={0}
+  clipWidth={CANVAS_WIDTH}
+  clipHeight={CANVAS_HEIGHT}
+>
             {sortedObjects.map((obj) => {
               const isEditingThis = editingTextId === obj.id;
 
