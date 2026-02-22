@@ -87,7 +87,10 @@ export type EditorObject =
 
 interface EditorCanvasProps {
   onSelect: (obj: EditorObject | null) => void;
-  initialData?: { objects: EditorObject[] };
+  initialData?: {
+    objects: EditorObject[];
+    orientation?: "portrait" | "landscape";
+  };
 }
 
 export interface EditorCanvasRef {
@@ -244,9 +247,19 @@ useEffect(() => {
   useEffect(() => {
   if (!initialData?.objects) return;
 
+  const incomingOrientation = initialData?.orientation;
+
+  const o =
+    incomingOrientation === "landscape" || incomingOrientation === "portrait"
+      ? incomingOrientation
+      : "portrait";
+
+  setOrientation(o);
+  useEditorStore.getState().setOrientation(o);
+
   setObjects({
     objects: initialData.objects,
-    orientation: (initialData as any).orientation, // מגיע מה-DB
+    orientation: o, // ✅ זה היה חסר
   });
 }, [initialData, setObjects]);
 
