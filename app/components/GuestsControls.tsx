@@ -95,7 +95,7 @@ export default function GuestsControls({
       {/* ================= Groups + Main Tabs + Actions ================= */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         {/* צד ימין – קבוצות + פילטרים */}
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-2">
           {showGroups && (
             <>
               <select
