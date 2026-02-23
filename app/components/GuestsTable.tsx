@@ -218,14 +218,20 @@ export default function GuestsTable({
 
       {/* Mobile */}
       <div className="md:hidden">
-        <GuestsMobileList
-          guests={displayGuests}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onMessage={onMessage}
-          onSeat={onSeat}
-        />
-      </div>
+  <GuestsMobileList
+    guests={displayGuests}
+    onEdit={onEdit}
+    onDelete={onDelete}
+    onMessage={onMessage}
+    onSeat={onSeat}
+    onInviteLink={(g) => {
+      // כאן אין invitation/shareId,
+      // אז לפחות לא שוברים את הטייפים
+      const link = `https://www.invistimo.com/invite/${g.token}`;
+      window.open(link, "_blank", "noopener,noreferrer");
+    }}
+  />
+</div>
     </>
   );
 }
