@@ -24,6 +24,9 @@ type Props = {
   onDelete: (guest: Guest) => void;
   onMessage: (guest: Guest) => void;
   onSeat: (guest: Guest) => void;
+
+  // 🔗 חדש – קישור אישי
+  onInviteLink: (guest: Guest) => void;
 };
 
 /* ============================================================
@@ -54,6 +57,7 @@ export default function GuestsMobileList({
   onDelete,
   onMessage,
   onSeat,
+  onInviteLink, // 🔗 חדש
 }: Props) {
   if (!guests || guests.length === 0) {
     return (
@@ -134,6 +138,16 @@ export default function GuestsMobileList({
             {/* ================= Actions ================= */}
             <div className="flex items-center justify-between mt-4 pt-3 border-t">
               <div className="flex gap-5 text-lg">
+
+                <button
+  onClick={() => onInviteLink(g)}
+  title="קישור אישי להזמנה"
+  className="hover:opacity-70"
+>
+  🔗
+</button>
+
+
                 <button
                   onClick={() => onMessage(g)}
                   title="שליחת הודעה"

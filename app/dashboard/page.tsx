@@ -705,11 +705,19 @@ const guestTableMap = useMemo(() => {
 }, [guests]);
 
 
+/* ============================================================
+   🔗 קישור אישי להזמנה
+============================================================ */
+const getGuestInviteLink = (guest: Guest) => {
+  if (!invitation?.shareId) return "";
+  return `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+};
+
   /* ============================================================
      WhatsApp (אישי – אישור הגעה בלבד)
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
-    const inviteLink = `https://invistimo.com/invite/rsvp/${invitation.shareId}?token=${guest.token}`;
+    const inviteLink = getGuestInviteLink(guest);
     const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
 
     const cleanPhone =
@@ -1433,6 +1441,27 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
 
           <td className="p-3 flex gap-3">
 
+            <button
+  title="קליק – פתיחה | Shift + קליק – העתקה"
+  onClick={async (e) => {
+    const link = getGuestInviteLink(g);
+if (!link) return;
+
+    if (e.shiftKey) {
+      // ⌨️ Shift + Click → העתקה
+      await navigator.clipboard.writeText(link);
+      alert("🔗 הקישור האישי הועתק");
+      return;
+    }
+
+    // 🖱️ Click רגיל → פתיחה
+    window.open(link, "_blank", "noopener,noreferrer");
+  }}
+  className="hover:opacity-70 transition"
+>
+  🔗
+</button>
+
   {/* הודעה */}
   <button
     onClick={() =>
@@ -1517,21 +1546,29 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
     guests={displayGuests}
     onEdit={(g) => setSelectedGuest(g)}
     onDelete={(g) => deleteGuest(g)}
-    
+
     onMessage={(g) =>
-  router.push(
-    isDemo
-      ? `/try/dashboard/messages?guestId=${g._id}`
-      : `/dashboard/messages?guestId=${g._id}`
-  )
-}
-onSeat={(g) =>
-  router.push(
-    isDemo
-      ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-      : `/dashboard/seating?from=personal&guestId=${g._id}`
-  )
-}
+      router.push(
+        isDemo
+          ? `/try/dashboard/messages?guestId=${g._id}`
+          : `/dashboard/messages?guestId=${g._id}`
+      )
+    }
+
+    onSeat={(g) =>
+      router.push(
+        isDemo
+          ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
+          : `/dashboard/seating?from=personal&guestId=${g._id}`
+      )
+    }
+
+    onInviteLink={(g) => {
+  const link = getGuestInviteLink(g);
+  if (!link) return;
+  window.open(link, "_blank", "noopener,noreferrer");
+}}
+
   />
 </div>
 
