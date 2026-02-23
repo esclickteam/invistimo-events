@@ -1331,6 +1331,7 @@ console.log("INVITATION:", invitation);
         </th>
 
         <th className="p-3 text-right">הערות</th>
+        <th className="p-3 text-right">הזמנת אורח</th>
         <th className="p-3 text-right">פעולות</th>
       </tr>
     </thead>
@@ -1433,42 +1434,43 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
   })()}
 </td>
 
+{/* הערות */}
+<td className="p-3 text-sm text-gray-700">
+  {g.notes?.trim() || "-"}
+</td>
 
+{/* 🆕 הזמנת אורח */}
+<td className="p-3">
+  <button
+    title="קליק – פתיחה | Shift + קליק – העתקה"
+    onClick={async (e) => {
+      const link = getGuestInviteLink(g);
+      if (!link) return;
 
-          <td className="p-3 text-sm text-gray-700">
-            {g.notes?.trim() || "-"}
-          </td>
+      if (e.shiftKey) {
+        await navigator.clipboard.writeText(link);
+        alert("🔗 הקישור האישי הועתק");
+        return;
+      }
 
-          <td className="p-3 flex gap-3">
+      window.open(link, "_blank", "noopener,noreferrer");
+    }}
+    className="hover:underline text-[#8b6a2e] text-sm font-medium"
+  >
+    🔗 הזמנת אורח
+  </button>
+</td>
 
-            <button
-  title="קליק – פתיחה | Shift + קליק – העתקה"
-  onClick={async (e) => {
-    const link = getGuestInviteLink(g);
-if (!link) return;
-
-    if (e.shiftKey) {
-      // ⌨️ Shift + Click → העתקה
-      await navigator.clipboard.writeText(link);
-      alert("🔗 הקישור האישי הועתק");
-      return;
-    }
-
-    // 🖱️ Click רגיל → פתיחה
-    window.open(link, "_blank", "noopener,noreferrer");
-  }}
-  className="hover:opacity-70 transition"
->
-  🔗
-</button>
+{/* פעולות */}
+<td className="p-3 flex gap-3">
 
   {/* הודעה */}
   <button
     onClick={() =>
       router.push(
-          isDemo
-   ? `/try/dashboard/messages?guestId=${g._id}`
-   : `/dashboard/messages?guestId=${g._id}`
+        isDemo
+          ? `/try/dashboard/messages?guestId=${g._id}`
+          : `/dashboard/messages?guestId=${g._id}`
       )
     }
     title="שליחת הודעה"
@@ -1516,7 +1518,6 @@ if (!link) return;
   </button>
 
 </td>
-
           
         </tr>
       ))}
@@ -1524,7 +1525,8 @@ if (!link) return;
       {displayGuests.length === 0 && (
         <tr>
           <td
-  colSpan={canShowActualArrived ? 10 : 9}
+    colSpan={canShowActualArrived ? 11 : 10}
+
 
 
 
