@@ -1441,24 +1441,36 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
 
 {/* 🆕 הזמנת אורח */}
 <td className="p-3">
-  <button
-    title="קליק – פתיחה | Shift + קליק – העתקה"
-    onClick={async (e) => {
-      const link = getGuestInviteLink(g);
-      if (!link) return;
+  <div className="flex items-center gap-3">
 
-      if (e.shiftKey) {
+    {/* 🔗 פתיחת הזמנה */}
+    <button
+      title="פתיחת הזמנה"
+      onClick={() => {
+        const link = getGuestInviteLink(g);
+        if (!link) return;
+        window.open(link, "_blank", "noopener,noreferrer");
+      }}
+      className="hover:opacity-70 text-[#8b6a2e]"
+    >
+      🔗
+    </button>
+
+    {/* 📋 העתקת קישור */}
+    <button
+      title="העתקת קישור"
+      onClick={async () => {
+        const link = getGuestInviteLink(g);
+        if (!link) return;
         await navigator.clipboard.writeText(link);
-        alert("🔗 הקישור האישי הועתק");
-        return;
-      }
+        alert("📋 הקישור הועתק");
+      }}
+      className="hover:opacity-70 text-gray-600"
+    >
+      📋
+    </button>
 
-      window.open(link, "_blank", "noopener,noreferrer");
-    }}
-    className="hover:underline text-[#8b6a2e] text-sm font-medium"
-  >
-    🔗 
-  </button>
+  </div>
 </td>
 
 {/* פעולות */}
