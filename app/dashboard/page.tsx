@@ -1457,7 +1457,7 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
     }}
     className="hover:underline text-[#8b6a2e] text-sm font-medium"
   >
-    🔗 הזמנת אורח
+    🔗 
   </button>
 </td>
 
