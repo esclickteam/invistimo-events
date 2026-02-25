@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
           phone,
           templateName,
           payload: {
-            eventTitle: event.title,
+            eventTitle: invitation.title || event.title,
             eventDate: eventDateFormatted, // ✅ לא Date גולמי
             eventLocation, // ✅ נלקח מה-map/DB עם fallback
             rsvpLink,
