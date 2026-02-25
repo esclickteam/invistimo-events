@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Types } from "mongoose";
 import db from "@/lib/db";
 import WhatsappQueue from "@/models/WhatsappQueue";
 
@@ -8,43 +9,44 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const invitationId = searchParams.get("invitationId");
+    const invitationIdParam = searchParams.get("invitationId");
 
-    if (!invitationId) {
+    if (!invitationIdParam) {
       return NextResponse.json(
         { success: false, error: "MISSING_INVITATION_ID" },
         { status: 400 }
       );
     }
 
+    if (!Types.ObjectId.isValid(invitationIdParam)) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_INVITATION_ID" },
+        { status: 400 }
+      );
+    }
+
     await db();
 
-    const [
-      total,
-      delivered,
-      failed,
-      sent,
-      pending,
-    ] = await Promise.all([
-      WhatsappQueue.countDocuments({ invitationId }),
+    const invitationId = new Types.ObjectId(invitationIdParam);
+
+    // 🔥 זה העקיפה הנכונה והיחידה
+    const filter = { invitationId } as any;
+
+    const [total, sent, failed, pending] = await Promise.all([
+      WhatsappQueue.countDocuments(filter),
 
       WhatsappQueue.countDocuments({
-        invitationId,
-        status: "delivered",
-      }),
-
-      WhatsappQueue.countDocuments({
-        invitationId,
-        status: "failed",
-      }),
-
-      WhatsappQueue.countDocuments({
-        invitationId,
+        ...filter,
         status: "sent",
       }),
 
       WhatsappQueue.countDocuments({
-        invitationId,
+        ...filter,
+        status: "failed",
+      }),
+
+      WhatsappQueue.countDocuments({
+        ...filter,
         status: { $in: ["pending", "sending"] },
       }),
     ]);
@@ -52,12 +54,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       total,
-      delivered,
-      failed,
       sent,
+      failed,
       pending,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("❌ WHATSAPP STATS ERROR:", err);
     return NextResponse.json(
       { success: false, error: "STATS_FAILED" },
