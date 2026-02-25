@@ -73,15 +73,44 @@ function formatEventDateTimeIL(dateValue: any, timeValue?: any): string {
   return t ? `${dateStr} ${t}` : dateStr;
 }
 
+/**
+ * מנקה כתובת של גוגל:
+ * "חלוצי התעשייה 100, חיפה, 2620101, ישראל"
+ * => "חלוצי התעשייה 100, חיפה"
+ */
+function cleanILAddress(address: unknown): string {
+  const raw = typeof address === "string" ? address : "";
+  if (!raw) return "";
+
+  const parts = raw
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  // מסירים "ישראל"
+  const noIsrael = parts.filter((p) => p !== "ישראל");
+
+  // מסירים מיקוד (רק ספרות, לרוב 5-7)
+  const noZip = noIsrael.filter((p) => !/^\d{5,7}$/.test(p));
+
+  // מחזירים "רחוב, עיר"
+  if (noZip.length >= 2) return `${noZip[0]}, ${noZip[1]}`;
+
+  return noZip.join(", ");
+}
+
 function pickEventLocation(invitation: any, event: any): string {
   const fromInvitation =
-    invitation?.location?.address?.trim?.() || invitation?.location?.name?.trim?.();
-  if (fromInvitation) return fromInvitation;
+    cleanILAddress(invitation?.location?.address) ||
+    (typeof invitation?.location?.name === "string"
+      ? invitation.location.name.trim()
+      : "");
 
-  const fromEvent = event?.location?.address?.trim?.() || event?.location?.name?.trim?.();
-  if (fromEvent) return fromEvent;
+  const fromEvent =
+    cleanILAddress(event?.location?.address) ||
+    (typeof event?.location?.name === "string" ? event.location.name.trim() : "");
 
-  return "מיקום יישלח בהמשך";
+  return fromInvitation || fromEvent || "מיקום יישלח בהמשך";
 }
 
 /* ================= ROUTE ================= */
@@ -178,6 +207,8 @@ export async function POST(req: NextRequest) {
 
       const eventDateFormatted = formatEventDateTimeIL(dateValue, timeValue);
       const eventLocation = pickEventLocation(invitation, event);
+      const eventTitle =
+        (invitation as any)?.title?.trim?.() || (event as any)?.title || "האירוע";
 
       for (const guest of guests) {
         if (!guest.phone || !guest.token) continue;
@@ -204,9 +235,9 @@ export async function POST(req: NextRequest) {
           phone,
           templateName,
           payload: {
-            eventTitle: invitation.title || event.title,
-            eventDate: eventDateFormatted, // ✅ לא Date גולמי
-            eventLocation, // ✅ נלקח מה-map/DB עם fallback
+            eventTitle,
+            eventDate: eventDateFormatted,
+            eventLocation,
             rsvpLink,
             headerImageUrl: invitation.headerImageUrl || invitation.previewImage,
             languageCode,
