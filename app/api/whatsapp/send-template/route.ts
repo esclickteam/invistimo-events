@@ -165,7 +165,11 @@ export async function POST(req: NextRequest) {
             eventTitle: event.title,
             eventDate: event.date,
             eventLocation:
-              event.location?.address || event.location?.name || "",
+  invitation.location?.address ||
+  invitation.location?.name ||
+  event.location?.address ||
+  event.location?.name ||
+  "מיקום יישלח בהמשך",
             rsvpLink,
             headerImageUrl:
               invitation.headerImageUrl || invitation.previewImage,

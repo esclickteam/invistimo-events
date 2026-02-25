@@ -2,8 +2,8 @@ export type SendRsvpTemplateMediaInput = {
   to: string;
 
   // BODY VARIABLES
-  eventTitle: string;    // {{1}}
-  eventDate: string;     // {{2}} – סבב 1 בלבד
+  eventTitle: string; // {{1}}
+  eventDate: string; // {{2}} – סבב 1 בלבד
   eventLocation: string; // {{3}} – סבב 1 בלבד
 
   /**
@@ -33,10 +33,19 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 function normalizeTemplateText(text: string): string {
-  return text
+  return String(text ?? "")
     .replace(/[\n\r\t]+/g, " ")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+/**
+ * WhatsApp templates reject text params that are missing/empty.
+ * This guarantees a non-empty string (or returns a fallback).
+ */
+function safeTemplateText(value: unknown, fallback = "—"): string {
+  const s = normalizeTemplateText(String(value ?? ""));
+  return s.length ? s : fallback;
 }
 
 function isValidHttpsUrl(url: string): boolean {
@@ -92,9 +101,7 @@ async function safeParseResponse(res: Response): Promise<any> {
 
 /* ================= MAIN ================= */
 
-export async function sendRsvpTemplateMedia(
-  input: SendRsvpTemplateMediaInput
-) {
+export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   assertRequiredFields(input);
 
   const apiKey = process.env.WHATSAPP_API_KEY;
@@ -107,15 +114,17 @@ export async function sendRsvpTemplateMedia(
     throw new Error(`Invalid phone number: ${input.to}`);
   }
 
-  if (!isValidHttpsUrl(input.headerImageUrl)) {
+  const headerImageUrl = String(input.headerImageUrl ?? "").trim();
+  if (!isValidHttpsUrl(headerImageUrl)) {
     throw new Error("Invalid headerImageUrl (must be https)");
   }
 
-  if (!isValidHttpsUrl(input.rsvpLink)) {
+  const rsvpLink = String(input.rsvpLink ?? "").trim();
+  if (!isValidHttpsUrl(rsvpLink)) {
     throw new Error("Invalid rsvpLink (must be https)");
   }
 
-  const buttonUrlParam = extractInviteSuffixForButton(input.rsvpLink);
+  const buttonUrlParam = extractInviteSuffixForButton(rsvpLink);
 
   const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
   const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
@@ -125,14 +134,16 @@ export async function sendRsvpTemplateMedia(
   let bodyParameters: { type: "text"; text: string }[] = [];
 
   if (templateName === ROUND1_TEMPLATE) {
+    // Round 1 requires 3 body params in the approved template.
+    // WhatsApp rejects empty text params, so we always provide fallbacks.
     bodyParameters = [
-      { type: "text", text: normalizeTemplateText(input.eventTitle) },
-      { type: "text", text: normalizeTemplateText(input.eventDate) },
-      { type: "text", text: normalizeTemplateText(input.eventLocation) },
+      { type: "text", text: safeTemplateText(input.eventTitle, "—") },
+      { type: "text", text: safeTemplateText(input.eventDate, "תאריך יעודכן בהמשך") },
+      { type: "text", text: safeTemplateText(input.eventLocation, "מיקום יישלח בהמשך") },
     ];
   } else if (templateName === ROUND2_TEMPLATE) {
     bodyParameters = [
-      { type: "text", text: normalizeTemplateText(input.eventTitle) },
+      { type: "text", text: safeTemplateText(input.eventTitle, "—") },
     ];
   } else {
     throw new Error(`Unsupported templateName "${templateName}"`);
@@ -153,7 +164,7 @@ export async function sendRsvpTemplateMedia(
           parameters: [
             {
               type: "image",
-              image: { link: input.headerImageUrl.trim() },
+              image: { link: headerImageUrl },
             },
           ],
         },
@@ -168,7 +179,7 @@ export async function sendRsvpTemplateMedia(
           parameters: [
             {
               type: "text",
-              text: buttonUrlParam,
+              text: safeTemplateText(buttonUrlParam, "invite"),
             },
           ],
         },
@@ -204,7 +215,7 @@ export async function sendRsvpTemplateMedia(
     templateName,
     languageCode,
     buttonUrlParam,
-    messageId,          // 👈 זה מה שמחבר ל-Webhook
+    messageId, // 👈 זה מה שמחבר ל-Webhook
     providerResponse,
   };
 }
