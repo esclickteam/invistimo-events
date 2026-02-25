@@ -11,21 +11,18 @@ export const dynamic = "force-dynamic";
 
 /* ================= CONFIG ================= */
 
-const MAX_PER_RUN = 80;      // כמה הודעות בכל ריצה
-const DELAY_BETWEEN = 800;  // השהיה בין הודעות (ms)
+const MAX_PER_RUN = 80;
+const DELAY_BETWEEN = 800;
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+const sleep = (ms: number) =>
+  new Promise((r) => setTimeout(r, ms));
 
 /* ================= ROUTE ================= */
 
 export async function GET() {
   await db();
 
-  const jobs = await WhatsappQueue.find({
-    status: "pending",
-  })
+  const jobs = await WhatsappQueue.find({ status: "pending" })
     .sort({ createdAt: 1 })
     .limit(MAX_PER_RUN);
 
@@ -33,12 +30,17 @@ export async function GET() {
   let failed = 0;
 
   for (const job of jobs) {
-    try {
-      // 🔒 נועל את המשימה
-      job.status = "sending";
-      await job.save();
+    // 🔒 נעילה אטומית
+    const locked = await WhatsappQueue.findOneAndUpdate(
+      { _id: job._id, status: "pending" },
+      { status: "sending" },
+      { new: true }
+    );
 
-      const { templateName, phone, payload } = job;
+    if (!locked) continue;
+
+    try {
+      const { templateName, phone, payload } = locked;
 
       let result: any = null;
 
@@ -49,53 +51,77 @@ export async function GET() {
       ) {
         result = await sendRsvpTemplateMedia({
           to: phone,
-          ...payload,
           templateName,
+          ...(payload as {
+            eventTitle: string;
+            eventDate: string;
+            eventLocation: string;
+            rsvpLink: string;
+            headerImageUrl: string;
+          }),
         });
       }
 
       /* ===== TABLE NUMBER ===== */
-      if (
-        templateName === "table_number_update_invistimo" ||
-        templateName === "table_number_update_with_gift"
-      ) {
-        result = await sendTableNumberTemplate({
-          to: phone,
-          ...payload,
-          templateName,
-        });
-      }
+else if (
+  templateName === "table_number_update_invistimo" ||
+  templateName === "table_number_update_with_gift"
+) {
+  const tablePayload = payload as {
+    name: string;
+    tableName: string;
+    eventType: string;
+    urlSuffix?: string;
+  };
+
+  result = await sendTableNumberTemplate({
+    to: phone,
+    templateName,
+    name: tablePayload.name,
+    tableName: tablePayload.tableName,
+    eventType: tablePayload.eventType,
+    urlSuffix: tablePayload.urlSuffix ?? "",
+  });
+}
 
       /* ===== THANK YOU ===== */
-      if (templateName === "thank_you_message") {
+      else if (templateName === "thank_you_message") {
         result = await sendThankYouTemplate({
           to: phone,
-          ...payload,
           templateName,
+          ...(payload as {
+            name: string;
+          }),
         });
+      } else {
+        throw new Error(`Unknown templateName: ${templateName}`);
       }
 
-      // ✅ WhatsApp קיבל – אבל עדיין לא delivered
-      job.status = "sent";
-      job.sentAt = new Date();
-      job.wamid = result?.providerResponse?.messages?.[0]?.id || null;
-      await job.save();
+      // ✅ הצלחה
+      locked.status = "sent";
+      locked.sentAt = new Date();
+      locked.wamid =
+        result?.providerResponse?.messages?.[0]?.id ?? null;
 
+      await locked.save();
       sent++;
+
       await sleep(DELAY_BETWEEN);
     } catch (err: any) {
-      const msg = String(err?.message || "");
+      const msg = String(err?.message || err);
 
-      job.status = "failed";
-      job.attempts += 1;
-      job.lastError = msg;
-      await job.save();
+      locked.status = "failed";
+      locked.attempts += 1;
+      locked.lastError = msg;
 
+      await locked.save();
       failed++;
 
-      // 🚨 חסימת WhatsApp – עוצרים מייד
-      if (msg.includes("131048") || msg.toLowerCase().includes("rate")) {
-        console.warn("⛔ WhatsApp rate limit detected – stopping cron");
+      if (
+        msg.includes("131048") ||
+        msg.toLowerCase().includes("rate")
+      ) {
+        console.warn("⛔ WhatsApp rate limit – stopping cron");
         break;
       }
     }
