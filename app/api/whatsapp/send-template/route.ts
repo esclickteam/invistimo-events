@@ -54,6 +54,36 @@ function isTemplateName(value: unknown): value is TemplateName {
   );
 }
 
+/**
+ * פורמט תאריך ישראלי + שעה (אם קיימת)
+ * דוגמה: 25.03.2026 15:00
+ */
+function formatEventDateTimeIL(dateValue: any, timeValue?: any): string {
+  const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  if (isNaN(d.getTime())) return "";
+
+  const dateStr = new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+
+  const t = typeof timeValue === "string" ? timeValue.trim() : "";
+  return t ? `${dateStr} ${t}` : dateStr;
+}
+
+function pickEventLocation(invitation: any, event: any): string {
+  const fromInvitation =
+    invitation?.location?.address?.trim?.() || invitation?.location?.name?.trim?.();
+  if (fromInvitation) return fromInvitation;
+
+  const fromEvent = event?.location?.address?.trim?.() || event?.location?.name?.trim?.();
+  if (fromEvent) return fromEvent;
+
+  return "מיקום יישלח בהמשך";
+}
+
 /* ================= ROUTE ================= */
 
 export async function POST(req: NextRequest) {
@@ -137,6 +167,18 @@ export async function POST(req: NextRequest) {
 
       let queued = 0;
 
+      // ✅ בונים פעם אחת – זהה לכל האורחים
+      const dateValue =
+        (invitation as any)?.eventDate ??
+        (event as any)?.eventDate ??
+        (event as any)?.date;
+
+      const timeValue =
+        (invitation as any)?.eventTime ?? (event as any)?.eventTime;
+
+      const eventDateFormatted = formatEventDateTimeIL(dateValue, timeValue);
+      const eventLocation = pickEventLocation(invitation, event);
+
       for (const guest of guests) {
         if (!guest.phone || !guest.token) continue;
 
@@ -163,16 +205,10 @@ export async function POST(req: NextRequest) {
           templateName,
           payload: {
             eventTitle: event.title,
-            eventDate: event.date,
-            eventLocation:
-  invitation.location?.address ||
-  invitation.location?.name ||
-  event.location?.address ||
-  event.location?.name ||
-  "מיקום יישלח בהמשך",
+            eventDate: eventDateFormatted, // ✅ לא Date גולמי
+            eventLocation, // ✅ נלקח מה-map/DB עם fallback
             rsvpLink,
-            headerImageUrl:
-              invitation.headerImageUrl || invitation.previewImage,
+            headerImageUrl: invitation.headerImageUrl || invitation.previewImage,
             languageCode,
           },
         });
@@ -191,10 +227,7 @@ export async function POST(req: NextRequest) {
         }
       );
 
-      return NextResponse.json(
-        { success: true, queued, round },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: true, queued, round }, { status: 200 });
     }
 
     /* =====================================================
