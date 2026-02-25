@@ -11,18 +11,21 @@ export const dynamic = "force-dynamic";
 
 /* ================= CONFIG ================= */
 
-const MAX_PER_RUN = 80;
-const DELAY_BETWEEN = 800;
+const MAX_PER_RUN = 80;      // כמה הודעות בכל ריצה
+const DELAY_BETWEEN = 800;  // השהיה בין הודעות (ms)
 
-const sleep = (ms: number) =>
-  new Promise((r) => setTimeout(r, ms));
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 /* ================= ROUTE ================= */
 
 export async function GET() {
   await db();
 
-  const jobs = await WhatsappQueue.find({ status: "pending" })
+  const jobs = await WhatsappQueue.find({
+    status: "pending",
+  })
     .sort({ createdAt: 1 })
     .limit(MAX_PER_RUN);
 
@@ -30,17 +33,12 @@ export async function GET() {
   let failed = 0;
 
   for (const job of jobs) {
-    // 🔒 נעילה אטומית
-    const locked = await WhatsappQueue.findOneAndUpdate(
-      { _id: job._id, status: "pending" },
-      { status: "sending" },
-      { new: true }
-    );
-
-    if (!locked) continue;
-
     try {
-      const { templateName, phone, payload } = locked;
+      // 🔒 נועל את המשימה
+      job.status = "sending";
+      await job.save();
+
+      const { templateName, phone, payload } = job;
 
       let result: any = null;
 
@@ -51,77 +49,53 @@ export async function GET() {
       ) {
         result = await sendRsvpTemplateMedia({
           to: phone,
+          ...payload,
           templateName,
-          ...(payload as {
-            eventTitle: string;
-            eventDate: string;
-            eventLocation: string;
-            rsvpLink: string;
-            headerImageUrl: string;
-          }),
         });
       }
 
       /* ===== TABLE NUMBER ===== */
-else if (
-  templateName === "table_number_update_invistimo" ||
-  templateName === "table_number_update_with_gift"
-) {
-  const tablePayload = payload as {
-    name: string;
-    tableName: string;
-    eventType: string;
-    urlSuffix?: string;
-  };
-
-  result = await sendTableNumberTemplate({
-    to: phone,
-    templateName,
-    name: tablePayload.name,
-    tableName: tablePayload.tableName,
-    eventType: tablePayload.eventType,
-    urlSuffix: tablePayload.urlSuffix ?? "",
-  });
-}
-
-      /* ===== THANK YOU ===== */
-      else if (templateName === "thank_you_message") {
-        result = await sendThankYouTemplate({
+      if (
+        templateName === "table_number_update_invistimo" ||
+        templateName === "table_number_update_with_gift"
+      ) {
+        result = await sendTableNumberTemplate({
           to: phone,
+          ...payload,
           templateName,
-          ...(payload as {
-            name: string;
-          }),
         });
-      } else {
-        throw new Error(`Unknown templateName: ${templateName}`);
       }
 
-      // ✅ הצלחה
-      locked.status = "sent";
-      locked.sentAt = new Date();
-      locked.wamid =
-        result?.providerResponse?.messages?.[0]?.id ?? null;
+      /* ===== THANK YOU ===== */
+      if (templateName === "thank_you_message") {
+        result = await sendThankYouTemplate({
+          to: phone,
+          ...payload,
+          templateName,
+        });
+      }
 
-      await locked.save();
+      // ✅ WhatsApp קיבל – אבל עדיין לא delivered
+      job.status = "sent";
+      job.sentAt = new Date();
+      job.wamid = result?.providerResponse?.messages?.[0]?.id || null;
+      await job.save();
+
       sent++;
-
       await sleep(DELAY_BETWEEN);
     } catch (err: any) {
-      const msg = String(err?.message || err);
+      const msg = String(err?.message || "");
 
-      locked.status = "failed";
-      locked.attempts += 1;
-      locked.lastError = msg;
+      job.status = "failed";
+      job.attempts += 1;
+      job.lastError = msg;
+      await job.save();
 
-      await locked.save();
       failed++;
 
-      if (
-        msg.includes("131048") ||
-        msg.toLowerCase().includes("rate")
-      ) {
-        console.warn("⛔ WhatsApp rate limit – stopping cron");
+      // 🚨 חסימת WhatsApp – עוצרים מייד
+      if (msg.includes("131048") || msg.toLowerCase().includes("rate")) {
+        console.warn("⛔ WhatsApp rate limit detected – stopping cron");
         break;
       }
     }

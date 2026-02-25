@@ -1,36 +1,17 @@
-import { Schema, models, model, Model, Document } from "mongoose";
+import mongoose, { Schema, models, model } from "mongoose";
 
-/* ================= Types ================= */
+/**
+ * WhatsappQueue
+ * תור מרכזי לשליחת הודעות WhatsApp
+ * כל הודעה נשלחת ע"י Cron / Worker בלבד
+ */
 
-export interface WhatsappQueueDoc extends Document {
-  invitationId: Schema.Types.ObjectId;
-  guestId?: Schema.Types.ObjectId;
-  phone: string;
-  templateName: string;
-  payload: Record<string, any>;
-  status: "pending" | "sending" | "sent" | "failed";
-  attempts: number;
-  lastError?: string;
-  sentAt?: Date;
-  wamid?: string;
-}
-
-/* ================= Helpers ================= */
-
-function normalizePhone(phone: string): string {
-  let p = phone.replace(/\D/g, "");
-  if (p.startsWith("0")) p = "972" + p.slice(1);
-  return p;
-}
-
-/* ================= Schema ================= */
-
-const WhatsappQueueSchema = new Schema<WhatsappQueueDoc>(
+const WhatsappQueueSchema = new Schema(
   {
+    // קשרים (לא חובה אבל מומלץ)
     invitationId: {
       type: Schema.Types.ObjectId,
       ref: "Invitation",
-      required: true,
       index: true,
     },
 
@@ -40,23 +21,27 @@ const WhatsappQueueSchema = new Schema<WhatsappQueueDoc>(
       index: true,
     },
 
+    // יעד
     phone: {
       type: String,
       required: true,
       index: true,
     },
 
+    // שם התבנית (rsvp_invitation_media וכו')
     templateName: {
       type: String,
       required: true,
       index: true,
     },
 
+    // כל מה שצריך לשליחה (eventTitle, rsvpLink, headerImage וכו')
     payload: {
-      type: Schema.Types.Mixed,
+      type: Object,
       required: true,
     },
 
+    // סטטוס שליחה
     status: {
       type: String,
       enum: ["pending", "sending", "sent", "failed"],
@@ -64,46 +49,29 @@ const WhatsappQueueSchema = new Schema<WhatsappQueueDoc>(
       index: true,
     },
 
+    // ניסיונות שליחה
     attempts: {
       type: Number,
       default: 0,
     },
 
-    lastError: String,
+    // שגיאה אחרונה (אם נכשלה)
+    lastError: {
+      type: String,
+    },
 
-    sentAt: Date,
-
-    wamid: String,
+    // מתי נשלח בפועל
+    sentAt: {
+      type: Date,
+    },
   },
   {
-    timestamps: true,
+    timestamps: true, // createdAt / updatedAt
   }
 );
 
-/* ================= Indexes ================= */
-
-// 🔒 מונע כפילויות לחלוטין
-WhatsappQueueSchema.index(
-  { invitationId: 1, phone: 1, templateName: 1 },
-  { unique: true }
-);
-
-// אינדקס ל־cron
+// אינדקס חשוב לתור
 WhatsappQueueSchema.index({ status: 1, createdAt: 1 });
 
-/* ================= Hooks ================= */
-
-// ⚠️ שים לב לטיפוס של this
-WhatsappQueueSchema.pre("validate", function (this: WhatsappQueueDoc) {
-  if (this.phone) {
-    this.phone = normalizePhone(this.phone);
-  }
-});
-
-/* ================= Export ================= */
-
-const WhatsappQueue: Model<WhatsappQueueDoc> =
-  models.WhatsappQueue ||
-  model<WhatsappQueueDoc>("WhatsappQueue", WhatsappQueueSchema);
-
-export default WhatsappQueue;
+export default models.WhatsappQueue ||
+  model("WhatsappQueue", WhatsappQueueSchema);
