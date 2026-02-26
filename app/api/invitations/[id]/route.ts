@@ -4,7 +4,19 @@ import db from "@/lib/db";
 import "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 
+import { v2 as cloudinary } from "cloudinary";
+
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/* ============================================================
+   Cloudinary config
+============================================================ */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+});
 
 /* ============================================================
    Helpers
@@ -38,9 +50,15 @@ function normalizeGiftOptions(input: any) {
   };
 }
 
-/* ============================================================
-   📥 GET — שליפת הזמנה לפי מזהה
-============================================================ */
+function pickBase64Image(body: any): string {
+  const v = body?.previewBase64 ?? body?.base64Image ?? body?.previewImageBase64;
+  return typeof v === "string" ? v : "";
+}
+
+function isValidBase64Image(v: string) {
+  return typeof v === "string" && v.startsWith("data:image");
+}
+
 /* ============================================================
    📥 GET — שליפת הזמנה לפי invitationId או eventId
 ============================================================ */
@@ -61,11 +79,9 @@ export async function GET(
     }
 
     // 🔥 חיפוש חכם: קודם לפי _id, אם לא נמצא — לפי eventId
-    let invitation =
+    const invitation =
       (await Invitation.findById(id).populate("guests").lean()) ||
-      (await Invitation.findOne({ eventId: id })
-        .populate("guests")
-        .lean());
+      (await Invitation.findOne({ eventId: id }).populate("guests").lean());
 
     if (!invitation) {
       return NextResponse.json(
@@ -87,9 +103,9 @@ export async function GET(
   }
 }
 
-
 /* ============================================================
    💾 PUT — עדכון הזמנה קיימת (עדכון כללי)
+   ✅ כולל העלאת preview חדש ל-Cloudinary אם הגיע previewBase64/base64Image
 ============================================================ */
 export async function PUT(
   request: NextRequest,
@@ -109,7 +125,15 @@ export async function PUT(
 
     const body = await request.json();
 
-    const { title, eventType, eventDate, eventTime, canvasData, location, orientation } = body;
+    const {
+      title,
+      eventType,
+      eventDate,
+      eventTime,
+      canvasData,
+      location,
+      orientation,
+    } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
@@ -132,8 +156,8 @@ export async function PUT(
     }
 
     if (orientation === "portrait" || orientation === "landscape") {
-  updatePayload.orientation = orientation;
-}
+      updatePayload.orientation = orientation;
+    }
 
     if (
       location &&
@@ -154,6 +178,35 @@ export async function PUT(
       updatePayload.canvasData = canvasData;
     }
 
+    /* =========================
+       ✅ NEW: Upload preview image if provided
+    ========================= */
+    const previewBase64 = pickBase64Image(body);
+
+    if (isNonEmptyString(previewBase64)) {
+      if (!isValidBase64Image(previewBase64)) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_IMAGE_FORMAT" },
+          { status: 400 }
+        );
+      }
+
+      // public_id חדש בכל שמירה => URL חדש תמיד
+      const publicId = `invistimo/invitations/${id}_${Date.now()}`;
+
+      const upload = await cloudinary.uploader.upload(previewBase64, {
+        public_id: publicId,
+        resource_type: "image",
+        overwrite: false,
+        invalidate: true,
+      });
+
+      const imageUrl = upload.secure_url;
+
+      updatePayload.previewImage = imageUrl;
+      updatePayload.headerImageUrl = imageUrl; // ✅ כדי שוואטספ תמיד יקח חדש
+    }
+
     const updated = await Invitation.findByIdAndUpdate(
       id,
       { $set: updatePayload },
@@ -172,9 +225,12 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       invitation: updated,
+      // עוזר לדיבאג: האם באמת שמרנו לינק חדש
+      previewImage: updated.previewImage ?? null,
+      headerImageUrl: (updated as any).headerImageUrl ?? null,
     });
-  } catch (err) {
-    console.error("❌ Error in PUT /api/invitations/[id]:", err);
+  } catch (err: any) {
+    console.error("❌ Error in PUT /api/invitations/[id]:", err?.message || err);
     return NextResponse.json(
       { success: false, error: "Server error while updating" },
       { status: 500 }
@@ -184,7 +240,6 @@ export async function PUT(
 
 /* ============================================================
    🩹 PATCH — עדכון חלקי (giftOptions וכו')
-   נדרש בשביל הצ׳קבוקסים והלינקים
 ============================================================ */
 export async function PATCH(
   request: NextRequest,
@@ -209,13 +264,11 @@ export async function PATCH(
     };
 
     /* ================= GIFT OPTIONS ================= */
-
     if (body?.giftOptions !== undefined) {
       updatePayload.giftOptions = normalizeGiftOptions(body.giftOptions);
     }
 
     /* ================= INVITATION SETTINGS ================= */
-
     if (body?.invitationSettings !== undefined) {
       updatePayload.invitationSettings = body.invitationSettings;
     }
