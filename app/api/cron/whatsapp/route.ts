@@ -44,16 +44,20 @@ export async function GET(req: NextRequest) {
     /* ================= GUARD ================= */
 
     const secret = process.env.CRON_SECRET;
+const authHeader = req.headers.get("authorization");
+const isVercelCron = req.headers.get("x-vercel-cron");
 
-    if (secret) {
-      const authHeader = req.headers.get("authorization");
-      if (!authHeader || authHeader !== `Bearer ${secret}`) {
-        return NextResponse.json(
-          { success: false, error: "UNAUTHORIZED" },
-          { status: 401 }
-        );
-      }
-    }
+if (secret) {
+  const isValidBearer = authHeader === `Bearer ${secret}`;
+  const isRealVercelCron = isVercelCron === "1";
+
+  if (!isValidBearer && !isRealVercelCron) {
+    return NextResponse.json(
+      { success: false, error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
+  }
+}
 
     await db();
 
