@@ -187,9 +187,9 @@ const [half, setHalf] = useState<HalfType>(null);
         setLoading(true);
 
         const [guestsRes, invitationRes] = await Promise.all([
-          fetch(`/api/guests?invitation=${invitationId}`),
-          fetch(`/api/invitations/${invitationId}`),
-        ]);
+  fetch(`/api/guests?invitation=${invitationId}`, { cache: "no-store" }),
+  fetch(`/api/invitations/${invitationId}`, { cache: "no-store" }),
+]);
 
         const guestsData = await guestsRes.json();
         const invitationData = await invitationRes.json();
