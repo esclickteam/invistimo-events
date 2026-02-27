@@ -37,8 +37,8 @@ const WhatsappQueueSchema = new Schema(
     },
 
     /**
-     * מזהה לוגי למניעת כפילות (idempotent design)
-     * לדוגמה: invitationId_guestId_template_round1
+     * מזהה ייחודי אמיתי למניעת כפילות
+     * כל שליחה היא ישות נפרדת
      */
     idempotencyKey: {
       type: String,
@@ -135,17 +135,8 @@ WhatsappQueueSchema.index({
   lockedAt: 1,
 });
 
-// fallback כפילות לפי invitation+guest+template
-WhatsappQueueSchema.index(
-  { invitationId: 1, guestId: 1, templateName: 1 },
-  { unique: true, partialFilterExpression: { guestId: { $type: "objectId" } } }
-);
-
 /* ================= CLEANUP HELPERS ================= */
 
-/**
- * סטטי לשחרור הודעות שנתקעו על sending מעל X דקות
- */
 WhatsappQueueSchema.statics.releaseStuckJobs = async function (
   timeoutMinutes = 10
 ) {

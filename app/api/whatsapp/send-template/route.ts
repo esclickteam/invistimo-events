@@ -155,11 +155,11 @@ export async function POST(req: NextRequest) {
           if (!guest.phone || !guest.token) continue;
 
           const exists = await WhatsappQueue.findOne({
-            invitationId: invitation._id,
-            guestId: guest._id,
-            templateName,
-            status: { $in: ["pending", "sending", "sent"] },
-          }).session(session);
+  invitationId: invitation._id,
+  guestId: guest._id,
+  templateName,
+  status: { $in: ["pending", "sending"] }, // ❗ בלי "sent"
+}).session(session);
 
           if (exists) continue;
 
@@ -180,7 +180,7 @@ if (templateName === "rsvp_invitation_media") {
 }
 
 const idempotencyKey =
-  `${invitation._id}_${guest._id}_${templateName}_${round}`;
+  `${invitation._id}_${guest._id}_${templateName}_${round}_${Date.now()}`;
 
           queueDocs.push({
             invitationId: invitation._id,
