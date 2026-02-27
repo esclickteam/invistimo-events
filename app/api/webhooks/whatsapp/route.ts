@@ -8,6 +8,10 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    console.log("📩 WhatsApp Webhook RAW BODY:");
+    console.dir(body, { depth: null });
+
     await db();
 
     const entries = body?.entry ?? [];
@@ -20,14 +24,30 @@ export async function POST(req: Request) {
 
         for (const status of statuses) {
           const wamid = status.id;
-          const state = status.status; // sent | delivered | read | failed
+          const state = status.status;
           const timestamp = status.timestamp
             ? new Date(Number(status.timestamp) * 1000)
             : new Date();
 
+          const phone = status?.recipient_id ?? null;
+
+          console.log("📦 Status Update:", {
+            wamid,
+            state,
+            phone,
+            timestamp,
+            errors: status?.errors ?? null,
+          });
+
           if (!wamid || !state) continue;
 
+          if (state === "sent") {
+            console.log("✅ SENT:", wamid);
+          }
+
           if (state === "delivered" || state === "read") {
+            console.log("📬 DELIVERED/READ:", wamid);
+
             await WhatsappQueue.updateOne(
               { wamid },
               {
@@ -45,12 +65,25 @@ export async function POST(req: Request) {
               status?.errors?.[0]?.error_code ??
               null;
 
+            const errorMessage =
+              status?.errors?.[0]?.title ??
+              status?.errors?.[0]?.message ??
+              null;
+
+            console.error("❌ FAILED MESSAGE:", {
+              wamid,
+              phone,
+              errorCode,
+              errorMessage,
+            });
+
             await WhatsappQueue.updateOne(
               { wamid },
               {
                 $set: {
                   status: "failed",
                   errorCode,
+                  errorMessage,
                   failedAt: timestamp,
                 },
               }
