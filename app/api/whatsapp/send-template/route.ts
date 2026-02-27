@@ -169,10 +169,18 @@ export async function POST(req: NextRequest) {
 
           const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-          const round =
-  templateName === "rsvp_invitation_media" ? 1 : 2;
+          let round: 1 | 2;
 
-const idempotencyKey = `${invitation._id}_${guest._id}_${templateName}_${round}`;
+if (templateName === "rsvp_invitation_media") {
+  round = 1;
+} else if (templateName === "rsvp_reminder_invistimo") {
+  round = 2;
+} else {
+  throw new Error("INVALID_RSVP_TEMPLATE");
+}
+
+const idempotencyKey =
+  `${invitation._id}_${guest._id}_${templateName}_${round}`;
 
           queueDocs.push({
             invitationId: invitation._id,
