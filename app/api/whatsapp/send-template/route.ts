@@ -54,6 +54,43 @@ function isTemplateName(value: unknown): value is TemplateName {
   );
 }
 
+/* ================= FORMAT DATE ================= */
+
+function formatEventDateTime(
+  dateString?: string,
+  timeString?: string
+): string {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+
+  const formattedDate = `${dd}.${mm}.${yyyy}`;
+
+  if (!timeString) return formattedDate;
+
+  return `${formattedDate} ${timeString}`;
+}
+
+/* ================= CLEAN ADDRESS ================= */
+
+function cleanAddress(address?: string): string {
+  if (!address) return "";
+
+  return address
+    .replace(/,?\s*ישראל/gi, "")
+    .replace(/\b\d{5,7}\b/g, "")
+    .replace(/,+/g, ",")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .replace(/,$/, "");
+}
+
+/* ================= TRANSACTION RETRY ================= */
+
 async function runTransactionWithRetry<T>(
   fn: (session: mongoose.ClientSession) => Promise<T>,
   retries = 3
@@ -110,7 +147,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* =====================================================
-       RSVP – ATOMIC QUEUE (NO ROUND MARKING HERE)
+       RSVP – ATOMIC QUEUE
     ===================================================== */
 
     if (
@@ -154,50 +191,39 @@ export async function POST(req: NextRequest) {
         for (const guest of guests) {
           if (!guest.phone || !guest.token) continue;
 
-          const exists = await WhatsappQueue.findOne({
-  invitationId: invitation._id,
-  guestId: guest._id,
-  templateName,
-  status: { $in: ["pending", "sending"] }, // ❗ בלי "sent"
-}).session(session);
-
-          if (exists) continue;
-
           const phone = guest.phone.startsWith("972")
             ? guest.phone
             : `972${guest.phone.replace(/^0/, "")}`;
 
           const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-          let round: 1 | 2;
+          const round =
+            templateName === "rsvp_invitation_media" ? 1 : 2;
 
-if (templateName === "rsvp_invitation_media") {
-  round = 1;
-} else if (templateName === "rsvp_reminder_invistimo") {
-  round = 2;
-} else {
-  throw new Error("INVALID_RSVP_TEMPLATE");
-}
-
-const idempotencyKey =
-  `${invitation._id}_${guest._id}_${templateName}_${round}_${Date.now()}`;
+          const idempotencyKey =
+            `${invitation._id}_${guest._id}_${templateName}_${round}_${Date.now()}`;
 
           queueDocs.push({
-  invitationId: invitation._id,
-  guestId: guest._id,
-  phone,
-  templateName,
-  idempotencyKey,
-  payload: {
-    rsvpLink,
-    languageCode,
-    eventTitle: invitation.title,
-    eventDate: invitation.eventDate,
-    eventLocation: invitation.location?.address || "",
-    headerImageUrl: invitation.headerImageUrl || "",
-  },
-  status: "pending",
-});
+            invitationId: invitation._id,
+            guestId: guest._id,
+            phone,
+            templateName,
+            idempotencyKey,
+            payload: {
+              rsvpLink,
+              languageCode,
+              eventTitle: invitation.title,
+              eventDate: formatEventDateTime(
+                invitation.eventDate,
+                invitation.eventTime
+              ),
+              eventLocation: cleanAddress(
+                invitation.location?.address
+              ),
+              headerImageUrl: invitation.headerImageUrl || "",
+            },
+            status: "pending",
+          });
         }
 
         if (queueDocs.length === 0) {
