@@ -40,14 +40,14 @@ function isRsvpTemplate(name: string) {
 export async function GET(req: NextRequest) {
   try {
     // ✅ Guard
-    const token = new URL(req.url).searchParams.get("token");
     const secret = process.env.CRON_SECRET;
-    if (secret && token !== secret) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+
+if (secret) {
+  const cronSecret = req.headers.get("x-vercel-cron-secret");
+  if (cronSecret !== secret) {
+    return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+  }
+}
 
     await db();
 
