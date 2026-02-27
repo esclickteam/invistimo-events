@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import "@/models/Event";
-
 import WhatsappQueue from "@/models/WhatsappQueue";
 
 import { sendTableNumberTemplate } from "@/lib/whatsapp/sendTableNumberTemplate";
@@ -44,7 +44,7 @@ function safeTrim(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
- function isTemplateName(value: unknown): value is TemplateName {
+function isTemplateName(value: unknown): value is TemplateName {
   return (
     value === "rsvp_invitation_media" ||
     value === "rsvp_reminder_invistimo" ||
@@ -54,10 +54,6 @@ function safeTrim(v: unknown): string {
   );
 }
 
-/**
- * פורמט תאריך ישראלי + שעה (אם קיימת)
- * דוגמה: 25.03.2026 15:00
- */
 function formatEventDateTimeIL(dateValue: any, timeValue?: any): string {
   const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
   if (isNaN(d.getTime())) return "";
@@ -73,11 +69,6 @@ function formatEventDateTimeIL(dateValue: any, timeValue?: any): string {
   return t ? `${dateStr} ${t}` : dateStr;
 }
 
-/**
- * מנקה כתובת של גוגל:
- * "חלוצי התעשייה 100, חיפה, 2620101, ישראל"
- * => "חלוצי התעשייה 100, חיפה"
- */
 function cleanILAddress(address: unknown): string {
   const raw = typeof address === "string" ? address : "";
   if (!raw) return "";
@@ -85,30 +76,22 @@ function cleanILAddress(address: unknown): string {
   const parts = raw
     .split(",")
     .map((p) => p.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((p) => p !== "ישראל")
+    .filter((p) => !/^\d{5,7}$/.test(p));
 
-  // מסירים "ישראל"
-  const noIsrael = parts.filter((p) => p !== "ישראל");
-
-  // מסירים מיקוד (רק ספרות, לרוב 5-7)
-  const noZip = noIsrael.filter((p) => !/^\d{5,7}$/.test(p));
-
-  // מחזירים "רחוב, עיר"
-  if (noZip.length >= 2) return `${noZip[0]}, ${noZip[1]}`;
-
-  return noZip.join(", ");
+  if (parts.length >= 2) return `${parts[0]}, ${parts[1]}`;
+  return parts.join(", ");
 }
 
 function pickEventLocation(invitation: any, event: any): string {
   const fromInvitation =
     cleanILAddress(invitation?.location?.address) ||
-    (typeof invitation?.location?.name === "string"
-      ? invitation.location.name.trim()
-      : "");
+    invitation?.location?.name?.trim?.();
 
   const fromEvent =
     cleanILAddress(event?.location?.address) ||
-    (typeof event?.location?.name === "string" ? event.location.name.trim() : "");
+    event?.location?.name?.trim?.();
 
   return fromInvitation || fromEvent || "מיקום יישלח בהמשך";
 }
@@ -132,7 +115,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* =====================================================
-       RSVP – QUEUE ONLY
+       RSVP – ATOMIC QUEUE
     ===================================================== */
 
     if (
@@ -150,119 +133,127 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const invitation = await Invitation.findById(body.invitationId)
-        .populate("eventId")
-        .lean();
+      const session = await mongoose.startSession();
+      session.startTransaction();
 
-      if (!invitation || !invitation.eventId) {
+      try {
+        const invitation = await Invitation.findById(body.invitationId)
+          .populate("eventId")
+          .session(session);
+
+        if (!invitation || !invitation.eventId) {
+          throw new Error("INV_NOT_FOUND");
+        }
+
+        const event = invitation.eventId as any;
+
+        let round: 1 | 2;
+
+        if (templateName === "rsvp_invitation_media") {
+          round = 1;
+          if (invitation.rsvpRound1SentAt) {
+            throw new Error("RSVP_ROUND1_ALREADY_SENT");
+          }
+        } else {
+          round = 2;
+          if (!invitation.rsvpRound1SentAt) {
+            throw new Error("ROUND1_NOT_SENT_YET");
+          }
+          if (invitation.rsvpRound2SentAt) {
+            throw new Error("RSVP_ROUND2_ALREADY_SENT");
+          }
+        }
+
+        const guests = await InvitationGuest.find({
+          invitationId: invitation._id,
+          _id: { $in: body.audience },
+        }).session(session);
+
+        const dateValue =
+          invitation?.eventDate ??
+          event?.eventDate ??
+          event?.date;
+
+        const timeValue =
+          invitation?.eventTime ?? event?.eventTime;
+
+        const eventDateFormatted = formatEventDateTimeIL(dateValue, timeValue);
+        const eventLocation = pickEventLocation(invitation, event);
+        const eventTitle =
+          invitation?.title?.trim?.() || event?.title || "האירוע";
+
+        const queueDocs: any[] = [];
+
+        for (const guest of guests) {
+          if (!guest.phone || !guest.token) continue;
+
+          const exists = await WhatsappQueue.findOne({
+            invitationId: invitation._id,
+            guestId: guest._id,
+            templateName,
+            status: { $in: ["pending", "sending", "sent"] },
+          }).session(session);
+
+          if (exists) continue;
+
+          const phone = guest.phone.startsWith("972")
+            ? guest.phone
+            : `972${guest.phone.replace(/^0/, "")}`;
+
+          const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+
+          queueDocs.push({
+            invitationId: invitation._id,
+            guestId: guest._id,
+            phone,
+            templateName,
+            payload: {
+              eventTitle,
+              eventDate: eventDateFormatted,
+              eventLocation,
+              rsvpLink,
+              headerImageUrl:
+                invitation.headerImageUrl || invitation.previewImage,
+              languageCode,
+            },
+            status: "pending",
+          });
+        }
+
+        if (queueDocs.length === 0) {
+          throw new Error("NO_VALID_GUESTS");
+        }
+
+        await WhatsappQueue.insertMany(queueDocs, { session });
+
+        if (round === 1) {
+          invitation.rsvpRound1SentAt = new Date();
+        } else {
+          invitation.rsvpRound2SentAt = new Date();
+        }
+
+        await invitation.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
         return NextResponse.json(
-          { success: false, error: "INV_NOT_FOUND" },
-          { status: 404 }
+          { success: true, queued: queueDocs.length, round },
+          { status: 200 }
+        );
+      } catch (err: any) {
+        await session.abortTransaction();
+        session.endSession();
+
+        return NextResponse.json(
+          { success: false, error: err.message || "RSVP_QUEUE_FAILED" },
+          { status: 400 }
         );
       }
-
-      const event = invitation.eventId as any;
-
-      let round: 1 | 2;
-
-      if (templateName === "rsvp_invitation_media") {
-        round = 1;
-        if (invitation.rsvpRound1SentAt) {
-          return NextResponse.json(
-            { success: false, error: "RSVP_ROUND1_ALREADY_SENT" },
-            { status: 409 }
-          );
-        }
-      } else {
-        round = 2;
-        if (!invitation.rsvpRound1SentAt) {
-          return NextResponse.json(
-            { success: false, error: "ROUND1_NOT_SENT_YET" },
-            { status: 400 }
-          );
-        }
-        if (invitation.rsvpRound2SentAt) {
-          return NextResponse.json(
-            { success: false, error: "RSVP_ROUND2_ALREADY_SENT" },
-            { status: 409 }
-          );
-        }
-      }
-
-      const guests = await InvitationGuest.find({
-        invitationId: invitation._id,
-        _id: { $in: body.audience },
-      }).lean();
-
-      let queued = 0;
-
-      // ✅ בונים פעם אחת – זהה לכל האורחים
-      const dateValue =
-        (invitation as any)?.eventDate ??
-        (event as any)?.eventDate ??
-        (event as any)?.date;
-
-      const timeValue =
-        (invitation as any)?.eventTime ?? (event as any)?.eventTime;
-
-      const eventDateFormatted = formatEventDateTimeIL(dateValue, timeValue);
-      const eventLocation = pickEventLocation(invitation, event);
-      const eventTitle =
-        (invitation as any)?.title?.trim?.() || (event as any)?.title || "האירוע";
-
-      for (const guest of guests) {
-        if (!guest.phone || !guest.token) continue;
-
-        // 🔒 מניעת כפילויות
-        const exists = await WhatsappQueue.findOne({
-          invitationId: invitation._id,
-          guestId: guest._id,
-          templateName,
-          status: { $in: ["pending", "sending", "sent"] },
-        }).lean();
-
-        if (exists) continue;
-
-        const phone = guest.phone.startsWith("972")
-          ? guest.phone
-          : `972${guest.phone.replace(/^0/, "")}`;
-
-        const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-
-        await WhatsappQueue.create({
-          invitationId: invitation._id,
-          guestId: guest._id,
-          phone,
-          templateName,
-          payload: {
-            eventTitle,
-            eventDate: eventDateFormatted,
-            eventLocation,
-            rsvpLink,
-            headerImageUrl: invitation.headerImageUrl || invitation.previewImage,
-            languageCode,
-          },
-        });
-
-        queued++;
-      }
-
-      // מסמנים סבב – נכנס לתור
-      await Invitation.updateOne(
-        { _id: invitation._id },
-        {
-          $set:
-            round === 1
-              ? { rsvpRound1SentAt: new Date() }
-              : { rsvpRound2SentAt: new Date() },
-        }
-      );
-
-      return NextResponse.json({ success: true, queued, round }, { status: 200 });
     }
 
     /* =====================================================
-       TABLE NUMBER – SEND IMMEDIATE
+       TABLE NUMBER – IMMEDIATE
     ===================================================== */
 
     if (
@@ -297,7 +288,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =====================================================
-       THANK YOU – SEND IMMEDIATE
+       THANK YOU – IMMEDIATE
     ===================================================== */
 
     if (templateName === "thank_you_message") {

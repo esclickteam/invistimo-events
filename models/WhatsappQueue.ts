@@ -3,12 +3,13 @@ import mongoose, { Schema, models, model } from "mongoose";
 /**
  * WhatsappQueue
  * תור מרכזי לשליחת הודעות WhatsApp
- * כל הודעה נשלחת ע"י Cron / Worker בלבד
+ * Worker בלבד שולח בפועל
  */
 
 const WhatsappQueueSchema = new Schema(
   {
-    // קשרים (לא חובה אבל מומלץ)
+    /* ================= RELATIONS ================= */
+
     invitationId: {
       type: Schema.Types.ObjectId,
       ref: "Invitation",
@@ -21,14 +22,14 @@ const WhatsappQueueSchema = new Schema(
       index: true,
     },
 
-    // יעד
+    /* ================= TARGET ================= */
+
     phone: {
       type: String,
       required: true,
       index: true,
     },
 
-    // שם התבנית (rsvp_invitation_media וכו')
     templateName: {
       type: String,
       required: true,
@@ -36,36 +37,49 @@ const WhatsappQueueSchema = new Schema(
     },
 
     /**
-     * מזהה הודעה אצל ספק ה-WhatsApp (Meta/360dialog)
-     * שומר את ה-wamid שחוזר מהקריאה ל-API
+     * מזהה לוגי למניעת כפילות (idempotent design)
+     * לדוגמה: invitationId_guestId_template_round1
      */
+    idempotencyKey: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    /* ================= PROVIDER ================= */
+
     wamid: {
       type: String,
       default: null,
       index: true,
     },
 
-    /**
-     * שעת נעילה - כדי למנוע מצב ש-2 workers לוקחים אותו Job
-     * וגם כדי לשחרר jobs שנתקעו על "sending"
-     */
+    /* ================= LOCKING ================= */
+
     lockedAt: {
       type: Date,
       default: null,
       index: true,
     },
 
-    // כל מה שצריך לשליחה (eventTitle, rsvpLink, headerImage וכו')
+    /* ================= SCHEDULING ================= */
+
+    scheduledFor: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    /* ================= PAYLOAD ================= */
+
     payload: {
-      type: Object,
+      type: Schema.Types.Mixed,
       required: true,
     },
 
-    // סטטוס שליחה
-    // pending  - ממתין
-    // sending  - ננעל ע"י worker
-    // sent     - נשלח ל-API (accepted) אבל לא בהכרח delivered
-    // failed   - נכשל סופית
+    /* ================= STATUS ================= */
+
     status: {
       type: String,
       enum: ["pending", "sending", "sent", "failed"],
@@ -73,41 +87,85 @@ const WhatsappQueueSchema = new Schema(
       index: true,
     },
 
-    // ניסיונות שליחה
+    /* ================= RETRIES ================= */
+
     attempts: {
       type: Number,
       default: 0,
     },
 
-    // שגיאה אחרונה (אם נכשלה)
+    maxAttempts: {
+      type: Number,
+      default: 3,
+    },
+
     lastError: {
       type: String,
       default: null,
     },
 
-    // מתי נשלח בפועל
+    failReason: {
+      code: { type: String, default: null },
+      message: { type: String, default: null },
+      raw: { type: Schema.Types.Mixed, default: null },
+    },
+
     sentAt: {
       type: Date,
       default: null,
     },
   },
   {
-    timestamps: true, // createdAt / updatedAt
+    timestamps: true,
   }
 );
 
-// אינדקסים חשובים לתור
-WhatsappQueueSchema.index({ status: 1, createdAt: 1 });
+/* ================= INDEXES ================= */
 
-// אינדקס לשחרור stuck jobs
-WhatsappQueueSchema.index({ status: 1, lockedAt: 1 });
+// Polling יעיל ל-worker
+WhatsappQueueSchema.index({
+  status: 1,
+  scheduledFor: 1,
+  createdAt: 1,
+});
 
-// (אופציונלי, אבל מומלץ מאוד) מניעת כפילות ברמת DB לאותו אורח+טמפלט באותה הזמנה
-// אם תרצי בעתיד לשלוח שוב אותו template לאותו אורח, נוסיף campaignKey ונכלול אותו באינדקס.
+// שחרור jobs תקועים
+WhatsappQueueSchema.index({
+  status: 1,
+  lockedAt: 1,
+});
+
+// fallback כפילות לפי invitation+guest+template
 WhatsappQueueSchema.index(
   { invitationId: 1, guestId: 1, templateName: 1 },
   { unique: true, partialFilterExpression: { guestId: { $type: "objectId" } } }
 );
+
+/* ================= CLEANUP HELPERS ================= */
+
+/**
+ * סטטי לשחרור הודעות שנתקעו על sending מעל X דקות
+ */
+WhatsappQueueSchema.statics.releaseStuckJobs = async function (
+  timeoutMinutes = 10
+) {
+  const timeoutDate = new Date(
+    Date.now() - timeoutMinutes * 60 * 1000
+  );
+
+  return this.updateMany(
+    {
+      status: "sending",
+      lockedAt: { $lt: timeoutDate },
+    },
+    {
+      $set: {
+        status: "pending",
+        lockedAt: null,
+      },
+    }
+  );
+};
 
 export default models.WhatsappQueue ||
   model("WhatsappQueue", WhatsappQueueSchema);
