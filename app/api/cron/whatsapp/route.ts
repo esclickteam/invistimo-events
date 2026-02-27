@@ -39,15 +39,19 @@ function isRsvpTemplate(name: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    // ✅ Guard
+    // ✅ Guard (Vercel Cron uses Authorization: Bearer <CRON_SECRET>)
     const secret = process.env.CRON_SECRET;
 
-if (secret) {
-  const cronSecret = req.headers.get("x-vercel-cron-secret");
-  if (cronSecret !== secret) {
-    return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
-  }
-}
+    if (secret) {
+      const authHeader = req.headers.get("authorization");
+
+      if (!authHeader || authHeader !== `Bearer ${secret}`) {
+        return NextResponse.json(
+          { success: false, error: "UNAUTHORIZED" },
+          { status: 401 }
+        );
+      }
+    }
 
     await db();
 
