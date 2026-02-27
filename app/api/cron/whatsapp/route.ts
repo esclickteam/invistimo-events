@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
         await job.save();
         sent++;
 
-        /* ================= PROFESSIONAL ROUND COMPLETION CHECK ================= */
+        /* ================= ROUND COMPLETION (BUSINESS LOGIC) ================= */
 
         const remainingActive = await WhatsappQueue.countDocuments({
           invitationId: job.invitationId,
@@ -128,14 +128,7 @@ export async function GET(req: NextRequest) {
           status: { $in: ["pending", "sending"] },
         });
 
-        const remainingRetryable = await WhatsappQueue.countDocuments({
-          invitationId: job.invitationId,
-          templateName: job.templateName,
-          status: "failed",
-          attempts: { $lt: MAX_ATTEMPTS },
-        });
-
-        if (remainingActive === 0 && remainingRetryable === 0) {
+        if (remainingActive === 0) {
           if (job.templateName === "rsvp_invitation_media") {
             await Invitation.updateOne(
               { _id: job.invitationId, rsvpRound1SentAt: null },
