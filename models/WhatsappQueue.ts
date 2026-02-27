@@ -35,6 +35,26 @@ const WhatsappQueueSchema = new Schema(
       index: true,
     },
 
+    /**
+     * מזהה הודעה אצל ספק ה-WhatsApp (Meta/360dialog)
+     * שומר את ה-wamid שחוזר מהקריאה ל-API
+     */
+    wamid: {
+      type: String,
+      default: null,
+      index: true,
+    },
+
+    /**
+     * שעת נעילה - כדי למנוע מצב ש-2 workers לוקחים אותו Job
+     * וגם כדי לשחרר jobs שנתקעו על "sending"
+     */
+    lockedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
     // כל מה שצריך לשליחה (eventTitle, rsvpLink, headerImage וכו')
     payload: {
       type: Object,
@@ -42,6 +62,10 @@ const WhatsappQueueSchema = new Schema(
     },
 
     // סטטוס שליחה
+    // pending  - ממתין
+    // sending  - ננעל ע"י worker
+    // sent     - נשלח ל-API (accepted) אבל לא בהכרח delivered
+    // failed   - נכשל סופית
     status: {
       type: String,
       enum: ["pending", "sending", "sent", "failed"],
@@ -58,11 +82,13 @@ const WhatsappQueueSchema = new Schema(
     // שגיאה אחרונה (אם נכשלה)
     lastError: {
       type: String,
+      default: null,
     },
 
     // מתי נשלח בפועל
     sentAt: {
       type: Date,
+      default: null,
     },
   },
   {
@@ -70,8 +96,18 @@ const WhatsappQueueSchema = new Schema(
   }
 );
 
-// אינדקס חשוב לתור
+// אינדקסים חשובים לתור
 WhatsappQueueSchema.index({ status: 1, createdAt: 1 });
+
+// אינדקס לשחרור stuck jobs
+WhatsappQueueSchema.index({ status: 1, lockedAt: 1 });
+
+// (אופציונלי, אבל מומלץ מאוד) מניעת כפילות ברמת DB לאותו אורח+טמפלט באותה הזמנה
+// אם תרצי בעתיד לשלוח שוב אותו template לאותו אורח, נוסיף campaignKey ונכלול אותו באינדקס.
+WhatsappQueueSchema.index(
+  { invitationId: 1, guestId: 1, templateName: 1 },
+  { unique: true, partialFilterExpression: { guestId: { $type: "objectId" } } }
+);
 
 export default models.WhatsappQueue ||
   model("WhatsappQueue", WhatsappQueueSchema);
