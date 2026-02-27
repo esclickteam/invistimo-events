@@ -44,7 +44,7 @@ function safeTrim(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-function isTemplateName(value: unknown): value is TemplateName {
+ function isTemplateName(value: unknown): value is TemplateName {
   return (
     value === "rsvp_invitation_media" ||
     value === "rsvp_reminder_invistimo" ||

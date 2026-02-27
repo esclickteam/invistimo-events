@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({
+     return NextResponse.json({
       success: true,
       total,
       delivered,
