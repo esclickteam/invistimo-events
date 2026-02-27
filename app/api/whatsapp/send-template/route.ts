@@ -169,11 +169,17 @@ export async function POST(req: NextRequest) {
 
           const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
+          const round =
+  templateName === "rsvp_invitation_media" ? 1 : 2;
+
+const idempotencyKey = `${invitation._id}_${guest._id}_${templateName}_${round}`;
+
           queueDocs.push({
             invitationId: invitation._id,
             guestId: guest._id,
             phone,
             templateName,
+            idempotencyKey,
             payload: {
               rsvpLink,
               languageCode,
