@@ -54,46 +54,41 @@ function isTemplateName(value: unknown): value is TemplateName {
   );
 }
 
-function formatEventDateTimeIL(dateValue: any, timeValue?: any): string {
-  const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
-  if (isNaN(d.getTime())) return "";
+async function runTransactionWithRetry<T>(
+  fn: (session: mongoose.ClientSession) => Promise<T>,
+  retries = 3
+): Promise<T> {
+  let lastError: any;
 
-  const dateStr = new Intl.DateTimeFormat("he-IL", {
-    timeZone: "Asia/Jerusalem",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(d);
+  for (let i = 0; i < retries; i++) {
+    const session = await mongoose.startSession();
 
-  const t = typeof timeValue === "string" ? timeValue.trim() : "";
-  return t ? `${dateStr} ${t}` : dateStr;
-}
+    try {
+      let result!: T;
 
-function cleanILAddress(address: unknown): string {
-  const raw = typeof address === "string" ? address : "";
-  if (!raw) return "";
+      await session.withTransaction(async () => {
+        result = await fn(session);
+      });
 
-  const parts = raw
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .filter((p) => p !== "ישראל")
-    .filter((p) => !/^\d{5,7}$/.test(p));
+      session.endSession();
+      return result;
+    } catch (err: any) {
+      session.endSession();
+      lastError = err;
 
-  if (parts.length >= 2) return `${parts[0]}, ${parts[1]}`;
-  return parts.join(", ");
-}
+      if (
+        err?.message?.includes("catalog changes") ||
+        err?.errorLabels?.includes("TransientTransactionError")
+      ) {
+        await new Promise((r) => setTimeout(r, 200));
+        continue;
+      }
 
-function pickEventLocation(invitation: any, event: any): string {
-  const fromInvitation =
-    cleanILAddress(invitation?.location?.address) ||
-    invitation?.location?.name?.trim?.();
+      throw err;
+    }
+  }
 
-  const fromEvent =
-    cleanILAddress(event?.location?.address) ||
-    event?.location?.name?.trim?.();
-
-  return fromInvitation || fromEvent || "מיקום יישלח בהמשך";
+  throw lastError;
 }
 
 /* ================= ROUTE ================= */
@@ -115,7 +110,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* =====================================================
-       RSVP – ATOMIC QUEUE
+       RSVP – ATOMIC QUEUE (NO ROUND MARKING HERE)
     ===================================================== */
 
     if (
@@ -133,10 +128,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const session = await mongoose.startSession();
-      session.startTransaction();
-
-      try {
+      const result = await runTransactionWithRetry(async (session) => {
         const invitation = await Invitation.findById(body.invitationId)
           .populate("eventId")
           .session(session);
@@ -145,42 +137,17 @@ export async function POST(req: NextRequest) {
           throw new Error("INV_NOT_FOUND");
         }
 
-        const event = invitation.eventId as any;
-
-        let round: 1 | 2;
-
-        if (templateName === "rsvp_invitation_media") {
-          round = 1;
-          if (invitation.rsvpRound1SentAt) {
-            throw new Error("RSVP_ROUND1_ALREADY_SENT");
-          }
-        } else {
-          round = 2;
-          if (!invitation.rsvpRound1SentAt) {
-            throw new Error("ROUND1_NOT_SENT_YET");
-          }
-          if (invitation.rsvpRound2SentAt) {
-            throw new Error("RSVP_ROUND2_ALREADY_SENT");
-          }
+        if (
+          templateName === "rsvp_reminder_invistimo" &&
+          !invitation.rsvpRound1SentAt
+        ) {
+          throw new Error("ROUND1_NOT_SENT_YET");
         }
 
         const guests = await InvitationGuest.find({
           invitationId: invitation._id,
           _id: { $in: body.audience },
         }).session(session);
-
-        const dateValue =
-          invitation?.eventDate ??
-          event?.eventDate ??
-          event?.date;
-
-        const timeValue =
-          invitation?.eventTime ?? event?.eventTime;
-
-        const eventDateFormatted = formatEventDateTimeIL(dateValue, timeValue);
-        const eventLocation = pickEventLocation(invitation, event);
-        const eventTitle =
-          invitation?.title?.trim?.() || event?.title || "האירוע";
 
         const queueDocs: any[] = [];
 
@@ -202,21 +169,13 @@ export async function POST(req: NextRequest) {
 
           const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-          const idempotencyKey = `${invitation._id}_${guest._id}_${templateName}_${round}`;
-
           queueDocs.push({
             invitationId: invitation._id,
             guestId: guest._id,
             phone,
             templateName,
-            idempotencyKey,
             payload: {
-              eventTitle,
-              eventDate: eventDateFormatted,
-              eventLocation,
               rsvpLink,
-              headerImageUrl:
-                invitation.headerImageUrl || invitation.previewImage,
               languageCode,
             },
             status: "pending",
@@ -224,35 +183,18 @@ export async function POST(req: NextRequest) {
         }
 
         if (queueDocs.length === 0) {
-          throw new Error("NO_VALID_GUESTS");
+          return { queued: 0 };
         }
 
         await WhatsappQueue.insertMany(queueDocs, { session });
 
-        if (round === 1) {
-          invitation.rsvpRound1SentAt = new Date();
-        } else {
-          invitation.rsvpRound2SentAt = new Date();
-        }
+        return { queued: queueDocs.length };
+      });
 
-        await invitation.save({ session });
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return NextResponse.json(
-          { success: true, queued: queueDocs.length, round },
-          { status: 200 }
-        );
-      } catch (err: any) {
-        await session.abortTransaction();
-        session.endSession();
-
-        return NextResponse.json(
-          { success: false, error: err.message || "RSVP_QUEUE_FAILED" },
-          { status: 400 }
-        );
-      }
+      return NextResponse.json({
+        success: true,
+        queued: result.queued,
+      });
     }
 
     /* =====================================================
