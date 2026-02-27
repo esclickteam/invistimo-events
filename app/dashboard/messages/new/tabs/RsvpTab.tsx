@@ -509,18 +509,23 @@ const secondHalfCount = sortedGuests.slice(mid).length;
       )}
 
        <SendButton
-        channel="whatsapp"
-        type="rsvp"
-        invitationId={invitationId}
-        templateName={templateName}
-        audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={scheduledAt}
-        disabled={blocked}
-      >
-        {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
-          ? "⏳ תהליך שליחה החל"
-          : `📲 שלח אישור הגעה – סבב ${round}`}
-      </SendButton>
+  key={`${invitationId}-${templateName}-${
+    round === 1
+      ? (round1SentAt?.toISOString() ?? "null")
+      : (round2SentAt?.toISOString() ?? "null")
+  }`}
+  channel="whatsapp"
+  type="rsvp"
+  invitationId={invitationId}
+  templateName={templateName}
+  audience={guestsToSend.map((g) => g._id)}
+  scheduledAt={scheduledAt}
+  disabled={blocked}
+>
+  {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
+    ? "⏳ תהליך שליחה החל"
+    : `📲 שלח אישור הגעה – סבב ${round}`}
+</SendButton>
 
       {noAudience && (
         <p className="text-sm text-red-500">אין נמענים לשליחה בסבב זה</p>
