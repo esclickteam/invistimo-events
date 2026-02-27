@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import WhatsappQueue from "@/models/WhatsappQueue";
+import Invitation from "@/models/Invitation";
 
 import {
   sendRsvpTemplateMedia,
@@ -10,15 +11,13 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* ================= CONFIG (Vercel Cron Safe) ================= */
+/* ================= CONFIG ================= */
 
 const MAX_PER_RUN = 30;
 const DELAY_BETWEEN = 1200;
 const JITTER_MAX = 250;
 const STUCK_SENDING_AFTER_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
-
-const INC_ATTEMPTS_ON_RECOVERY = false;
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -39,12 +38,12 @@ function isRsvpTemplate(name: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    // ✅ Guard (Vercel Cron uses Authorization: Bearer <CRON_SECRET>)
+    /* ================= GUARD ================= */
+
     const secret = process.env.CRON_SECRET;
 
     if (secret) {
       const authHeader = req.headers.get("authorization");
-
       if (!authHeader || authHeader !== `Bearer ${secret}`) {
         return NextResponse.json(
           { success: false, error: "UNAUTHORIZED" },
@@ -55,7 +54,8 @@ export async function GET(req: NextRequest) {
 
     await db();
 
-    // ✅ Recovery: release stuck sending jobs (RSVP only)
+    /* ================= RECOVERY ================= */
+
     await WhatsappQueue.updateMany(
       {
         status: "sending",
@@ -65,18 +65,16 @@ export async function GET(req: NextRequest) {
           { lockedAt: { $exists: false } },
         ],
       },
-      INC_ATTEMPTS_ON_RECOVERY
-        ? { $set: { status: "pending", lockedAt: null }, $inc: { attempts: 1 } }
-        : { $set: { status: "pending", lockedAt: null } }
+      { $set: { status: "pending", lockedAt: null } }
     );
 
     let processed = 0;
     let sent = 0;
     let failed = 0;
-    let skippedNonRsvp = 0;
+
+    /* ================= MAIN LOOP ================= */
 
     for (let i = 0; i < MAX_PER_RUN; i++) {
-      // ✅ Atomic lock: take exactly one pending job
       const job = await WhatsappQueue.findOneAndUpdate(
         { status: "pending", attempts: { $lt: MAX_ATTEMPTS } },
         { $set: { status: "sending", lockedAt: new Date() } },
@@ -88,30 +86,26 @@ export async function GET(req: NextRequest) {
 
       try {
         const templateName = String(job.templateName);
-        const phone = String(job.phone);
 
-        // ✅ RSVP ONLY: anything else -> mark failed & continue
         if (!isRsvpTemplate(templateName)) {
-          job.attempts = (job.attempts ?? 0) + 1;
           job.status = "failed";
-          job.lastError = `CRON_RSVP_ONLY: unsupported template "${templateName}"`;
+          job.lastError = "CRON_RSVP_ONLY";
           job.lockedAt = null;
           await job.save();
           failed++;
-          skippedNonRsvp++;
           continue;
         }
 
-        const payload = (job.payload ?? {}) as Omit<
+        const payload = job.payload as Omit<
           SendRsvpTemplateMediaInput,
           "to" | "templateName"
         >;
 
         const result = await sendRsvpTemplateMedia({
-          to: phone,
+          to: job.phone,
           ...payload,
           templateName,
-        } as SendRsvpTemplateMediaInput);
+        });
 
         job.status = "sent";
         job.sentAt = new Date();
@@ -120,8 +114,31 @@ export async function GET(req: NextRequest) {
         job.lockedAt = null;
 
         await job.save();
-
         sent++;
+
+        /* ================= PROFESSIONAL ROUND COMPLETION CHECK ================= */
+
+        const remaining = await WhatsappQueue.countDocuments({
+          invitationId: job.invitationId,
+          templateName: job.templateName,
+          status: { $in: ["pending", "sending"] },
+        });
+
+        if (remaining === 0) {
+          if (job.templateName === "rsvp_invitation_media") {
+            await Invitation.updateOne(
+              { _id: job.invitationId, rsvpRound1SentAt: null },
+              { $set: { rsvpRound1SentAt: new Date() } }
+            );
+          }
+
+          if (job.templateName === "rsvp_reminder_invistimo") {
+            await Invitation.updateOne(
+              { _id: job.invitationId, rsvpRound2SentAt: null },
+              { $set: { rsvpRound2SentAt: new Date() } }
+            );
+          }
+        }
 
         const jitter = Math.floor(Math.random() * JITTER_MAX);
         await sleep(DELAY_BETWEEN + jitter);
@@ -142,7 +159,6 @@ export async function GET(req: NextRequest) {
         await job.save();
 
         if (isRateLimitError(msg)) {
-          console.warn("⛔ WhatsApp rate limit detected – stopping cron", msg);
           break;
         }
 
@@ -155,18 +171,11 @@ export async function GET(req: NextRequest) {
       processed,
       sent,
       failed,
-      skippedNonRsvp,
-      maxPerRun: MAX_PER_RUN,
-      delayBetween: DELAY_BETWEEN,
     });
   } catch (err: any) {
     console.error("❌ WHATSAPP CRON ERROR:", err);
     return NextResponse.json(
-      {
-        success: false,
-        error: "CRON_FAILED",
-        details: String(err?.message || err),
-      },
+      { success: false, error: "CRON_FAILED" },
       { status: 500 }
     );
   }
