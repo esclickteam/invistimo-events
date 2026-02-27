@@ -19,6 +19,11 @@ const JITTER_MAX = 250;
 const STUCK_SENDING_AFTER_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
 
+const RSVP_TEMPLATES = [
+  "rsvp_invitation_media",
+  "rsvp_reminder_invistimo",
+];
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -32,32 +37,26 @@ function nowMinus(ms: number) {
   return new Date(Date.now() - ms);
 }
 
-function isRsvpTemplate(name: string) {
-  return (
-    name === "rsvp_invitation_media" ||
-    name === "rsvp_reminder_invistimo"
-  );
-}
+/* ================= ROUTE ================= */
 
 export async function GET(req: NextRequest) {
   try {
     /* ================= GUARD ================= */
 
     const secret = process.env.CRON_SECRET;
-const authHeader = req.headers.get("authorization");
-const isVercelCron = req.headers.get("x-vercel-cron");
+    const authHeader = req.headers.get("authorization");
+    const isVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-if (secret) {
-  const isValidBearer = authHeader === `Bearer ${secret}`;
-  const isRealVercelCron = isVercelCron === "1";
+    if (secret) {
+      const isValidBearer = authHeader === `Bearer ${secret}`;
 
-  if (!isValidBearer && !isRealVercelCron) {
-    return NextResponse.json(
-      { success: false, error: "UNAUTHORIZED" },
-      { status: 401 }
-    );
-  }
-}
+      if (!isValidBearer && !isVercelCron) {
+        return NextResponse.json(
+          { success: false, error: "UNAUTHORIZED" },
+          { status: 401 }
+        );
+      }
+    }
 
     await db();
 
@@ -83,7 +82,11 @@ if (secret) {
 
     for (let i = 0; i < MAX_PER_RUN; i++) {
       const job = await WhatsappQueue.findOneAndUpdate(
-        { status: "pending", attempts: { $lt: MAX_ATTEMPTS } },
+        {
+          status: "pending",
+          attempts: { $lt: MAX_ATTEMPTS },
+          templateName: { $in: RSVP_TEMPLATES }, // 🔥 הסינון הקריטי
+        },
         { $set: { status: "sending", lockedAt: new Date() } },
         { sort: { createdAt: 1 }, new: true }
       );
@@ -92,17 +95,6 @@ if (secret) {
       processed++;
 
       try {
-        const templateName = String(job.templateName);
-
-        if (!isRsvpTemplate(templateName)) {
-          job.status = "failed";
-          job.lastError = "CRON_RSVP_ONLY";
-          job.lockedAt = null;
-          await job.save();
-          failed++;
-          continue;
-        }
-
         const payload = job.payload as Omit<
           SendRsvpTemplateMediaInput,
           "to" | "templateName"
@@ -111,7 +103,7 @@ if (secret) {
         const result = await sendRsvpTemplateMedia({
           to: job.phone,
           ...payload,
-          templateName,
+          templateName: job.templateName,
         });
 
         job.status = "sent";
@@ -124,7 +116,7 @@ if (secret) {
         await job.save();
         sent++;
 
-        /* ================= ROUND COMPLETION (BUSINESS LOGIC) ================= */
+        /* ================= ROUND COMPLETION ================= */
 
         const remainingActive = await WhatsappQueue.countDocuments({
           invitationId: job.invitationId,
