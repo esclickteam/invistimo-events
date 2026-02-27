@@ -183,17 +183,21 @@ const idempotencyKey =
   `${invitation._id}_${guest._id}_${templateName}_${round}_${Date.now()}`;
 
           queueDocs.push({
-            invitationId: invitation._id,
-            guestId: guest._id,
-            phone,
-            templateName,
-            idempotencyKey,
-            payload: {
-              rsvpLink,
-              languageCode,
-            },
-            status: "pending",
-          });
+  invitationId: invitation._id,
+  guestId: guest._id,
+  phone,
+  templateName,
+  idempotencyKey,
+  payload: {
+    rsvpLink,
+    languageCode,
+    eventTitle: invitation.title,
+    eventDate: invitation.eventDate,
+    eventLocation: invitation.location?.address || "",
+    headerImageUrl: invitation.headerImageUrl || "",
+  },
+  status: "pending",
+});
         }
 
         if (queueDocs.length === 0) {
