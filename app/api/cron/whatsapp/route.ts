@@ -33,7 +33,10 @@ function nowMinus(ms: number) {
 }
 
 function isRsvpTemplate(name: string) {
-  return name === "rsvp_invitation_media" || name === "rsvp_reminder_invistimo";
+  return (
+    name === "rsvp_invitation_media" ||
+    name === "rsvp_reminder_invistimo"
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -109,7 +112,8 @@ export async function GET(req: NextRequest) {
 
         job.status = "sent";
         job.sentAt = new Date();
-        job.wamid = result?.providerResponse?.messages?.[0]?.id || null;
+        job.wamid =
+          result?.providerResponse?.messages?.[0]?.id || null;
         job.lastError = null;
         job.lockedAt = null;
 
@@ -118,13 +122,20 @@ export async function GET(req: NextRequest) {
 
         /* ================= PROFESSIONAL ROUND COMPLETION CHECK ================= */
 
-        const remaining = await WhatsappQueue.countDocuments({
+        const remainingActive = await WhatsappQueue.countDocuments({
           invitationId: job.invitationId,
           templateName: job.templateName,
           status: { $in: ["pending", "sending"] },
         });
 
-        if (remaining === 0) {
+        const remainingRetryable = await WhatsappQueue.countDocuments({
+          invitationId: job.invitationId,
+          templateName: job.templateName,
+          status: "failed",
+          attempts: { $lt: MAX_ATTEMPTS },
+        });
+
+        if (remainingActive === 0 && remainingRetryable === 0) {
           if (job.templateName === "rsvp_invitation_media") {
             await Invitation.updateOne(
               { _id: job.invitationId, rsvpRound1SentAt: null },
