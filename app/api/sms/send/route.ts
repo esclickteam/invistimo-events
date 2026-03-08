@@ -44,7 +44,7 @@ const MESSAGE_TEMPLATES: Record<
     "מחכים לכם באהבה 💖",
 },
   table: {
-    requiresTable: true,
+    requiresTable: false,
     content:
       "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
       "מספר השולחן שלך באירוע:\n" +
