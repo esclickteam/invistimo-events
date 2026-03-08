@@ -56,6 +56,11 @@ export default function ReminderTab({
 
   const [message, setMessage] = useState(MESSAGE_WITH_TABLE);
 
+  type AudienceType = "all" | "withTable";
+
+const [audienceType, setAudienceType] =
+  useState<AudienceType>("withTable");
+
 
 
   const [preview, setPreview] = useState<any>(null);
@@ -173,13 +178,13 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
     [confirmedGuests]
   );
 
-  const guestsToSend = useMemo(
-    () =>
-      guestsWithTable.length > 0
-        ? guestsWithTable
-        : confirmedGuests,
-    [guestsWithTable, confirmedGuests]
-  );
+  const guestsToSend = useMemo(() => {
+  if (audienceType === "withTable") {
+    return guestsWithTable;
+  }
+
+  return confirmedGuests;
+}, [audienceType, guestsWithTable, confirmedGuests]);
 
   const buildReminderMessage = (g: Guest) =>
   buildMessage({
@@ -323,12 +328,11 @@ const sendTestMessage = async () => {
     <div className="space-y-6">
 
       <AudienceFilterSelector
-        value={guestsWithTable.length > 0 ? "withTable" : "all"}
-        onChange={() => {}}
-        totalCount={confirmedGuests.length}
-        withTableCount={guestsWithTable.length}
-        readOnly
-      />
+  value={audienceType}
+  onChange={(value) => setAudienceType(value as AudienceType)}
+  totalCount={confirmedGuests.length}
+  withTableCount={guestsWithTable.length}
+/>
 
       {/* EDIT MESSAGE */}
 <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-3">
