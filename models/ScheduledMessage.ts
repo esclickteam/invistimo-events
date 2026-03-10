@@ -19,24 +19,26 @@ export interface ScheduledMessageDocument {
   invitationId: Types.ObjectId;
   userId: Types.ObjectId;
 
-  channel: "sms";
+  channel: "sms" | "whatsapp";
 
   filter: "all" | "pending" | "withTable";
 
-  // ⭐️ מקור אמת לקהל (חדש – בלי שינוי לוגיקה)
+  // ⭐️ מקור אמת לקהל
   guestIds?: Types.ObjectId[];
 
-  // 🧠 לוגיקה (נשמר לצורכי בקרה / סטטיסטיקה)
+  // 🧠 לוגיקה / סטטיסטיקה
   templateKey: MessageTemplateKey;
 
-  // ✉️ מקור אמת – הטקסט הסופי שנשלח
+  roundNumber?: number;
+
+  // ✉️ מקור אמת לטקסט
   messageContent: string;
 
   // 🎁 מתנה באשראי
   includeGiftLink: boolean;
   giftLink?: string | null;
 
-  // ⚠️ LEGACY – לא בשימוש
+  // ⚠️ legacy
   text?: string;
 
   scheduledAt: Date;
@@ -46,8 +48,21 @@ export interface ScheduledMessageDocument {
   guestsCount?: number;
   sentCount?: number;
 
+  sentGuestIds?: Types.ObjectId[];
+  completedGuests?: Types.ObjectId[];
+
+  batchSize?: number;
+
+  lastAttemptAt?: Date;
+
   sentAt?: Date;
+
   error?: string;
+
+  lockedAt?: Date;
+  lockedBy?: string;
+
+  priority?: number;
 
   createdAt: Date;
   updatedAt: Date;
@@ -75,9 +90,10 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     channel: {
       type: String,
-      enum: ["sms"],
+      enum: ["sms", "whatsapp"],
       default: "sms",
       required: true,
+      index: true,
     },
 
     filter: {
@@ -87,7 +103,10 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
       required: true,
     },
 
-    // ⭐️ חדש – קהל נעול לתזמון
+    /* ======================
+       TARGET AUDIENCE
+    ====================== */
+
     guestIds: {
       type: [Schema.Types.ObjectId],
       ref: "InvitationGuest",
@@ -98,15 +117,22 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     /* ======================
        TEMPLATE META
     ====================== */
+
     templateKey: {
       type: String,
       enum: ["rsvp", "table", "custom"],
       required: true,
     },
 
+    roundNumber: {
+  type: Number,
+  default: 1,
+},
+
     /* ======================
-       SOURCE OF TRUTH
+       MESSAGE CONTENT
     ====================== */
+
     messageContent: {
       type: String,
       required: true,
@@ -115,6 +141,7 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     /* ======================
        CREDIT GIFT
     ====================== */
+
     includeGiftLink: {
       type: Boolean,
       default: false,
@@ -126,8 +153,9 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     },
 
     /* ======================
-       LEGACY / DEBUG
+       LEGACY
     ====================== */
+
     text: {
       type: String,
       default: "",
@@ -136,6 +164,7 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     /* ======================
        SCHEDULING
     ====================== */
+
     scheduledAt: {
       type: Date,
       required: true,
@@ -149,12 +178,55 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
       index: true,
     },
 
+    /* ======================
+       QUEUE CONTROL
+    ====================== */
+
+    batchSize: {
+      type: Number,
+      default: 50,
+    },
+
+    priority: {
+      type: Number,
+      default: 1,
+      index: true,
+    },
+
+    lockedAt: {
+      type: Date,
+    },
+
+    lockedBy: {
+      type: String,
+    },
+
+    lastAttemptAt: {
+      type: Date,
+    },
+
+    /* ======================
+       TRACKING
+    ====================== */
+
     guestsCount: {
       type: Number,
     },
 
     sentCount: {
       type: Number,
+    },
+
+    sentGuestIds: {
+      type: [Schema.Types.ObjectId],
+      ref: "InvitationGuest",
+      default: [],
+    },
+
+    completedGuests: {
+      type: [Schema.Types.ObjectId],
+      ref: "InvitationGuest",
+      default: [],
     },
 
     sentAt: {
@@ -174,19 +246,29 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
    INDEXES
 ====================================================== */
 
+// קרון מחפש הודעות לשליחה
 ScheduledMessageSchema.index({
   status: 1,
   scheduledAt: 1,
+  lockedAt: 1,
 });
 
+// רשימת הודעות להזמנה
 ScheduledMessageSchema.index({
   invitationId: 1,
   createdAt: -1,
 });
 
+// רשימת הודעות למשתמש
 ScheduledMessageSchema.index({
   userId: 1,
   createdAt: -1,
+});
+
+// שליחה לפי עדיפות
+ScheduledMessageSchema.index({
+  priority: -1,
+  scheduledAt: 1,
 });
 
 /* ======================================================

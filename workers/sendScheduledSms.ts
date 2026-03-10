@@ -9,22 +9,48 @@ import { shortenUrl } from "@/lib/shortenUrl";
 /* ======================================================
    BUSINESS SMS COUNT
 ====================================================== */
+
 function countBusinessSms(text: string) {
   const length = [...text].length;
 
   if (length <= 200) return 1;
   if (length <= 320) return 2;
 
-  return -1; // BLOCK
+  return -1;
+}
+
+/* ======================================================
+   RATE LIMIT QUEUE
+====================================================== */
+
+async function runParallel(tasks: (() => Promise<void>)[], concurrency = 5) {
+  const executing: Promise<void>[] = [];
+
+  for (const task of tasks) {
+    const p = task();
+    executing.push(p);
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing).catch(() => {});
+      executing.splice(
+        executing.findIndex((e) => e === p),
+        1
+      );
+    }
+  }
+
+  await Promise.allSettled(executing);
 }
 
 /* ======================================================
    WORKER
 ====================================================== */
+
 export async function sendScheduledSms() {
   await dbConnect();
 
   const now = new Date();
+  const workerId = `worker-${process.pid}-${Date.now()}`;
 
   let processed = 0;
   let sentTotal = 0;
@@ -33,8 +59,9 @@ export async function sendScheduledSms() {
   const candidates = await ScheduledMessage.find({
     status: "scheduled",
     scheduledAt: { $lte: now },
+    lockedAt: { $exists: false },
   })
-    .sort({ scheduledAt: 1 })
+    .sort({ priority: -1, scheduledAt: 1 })
     .limit(10)
     .lean();
 
@@ -42,8 +69,19 @@ export async function sendScheduledSms() {
     processed++;
 
     const msg = await ScheduledMessage.findOneAndUpdate(
-      { _id: candidate._id, status: "scheduled" },
-      { $set: { status: "sending" } },
+      {
+        _id: candidate._id,
+        status: "scheduled",
+        lockedAt: { $exists: false },
+      },
+      {
+        $set: {
+          status: "sending",
+          lockedAt: new Date(),
+          lockedBy: workerId,
+          lastAttemptAt: new Date(),
+        },
+      },
       { new: true }
     );
 
@@ -54,6 +92,7 @@ export async function sendScheduledSms() {
       const event = invitation?.eventId
         ? await Event.findById(invitation.eventId).lean()
         : null;
+
       const user = await User.findById(msg.userId).lean();
 
       if (!invitation || !user) {
@@ -63,33 +102,52 @@ export async function sendScheduledSms() {
       /* ======================================================
          LOAD GUESTS
       ====================================================== */
+
       let guests: any[] = [];
 
-      if (Array.isArray((msg as any).guestIds) && (msg as any).guestIds.length > 0) {
+      if (Array.isArray(msg.guestIds) && msg.guestIds.length > 0) {
         guests = await InvitationGuest.find({
-          _id: { $in: (msg as any).guestIds },
+          _id: { $in: msg.guestIds },
           invitationId: msg.invitationId,
         }).lean();
       } else {
         const query: any = { invitationId: msg.invitationId };
 
-        if ((msg as any).filter === "pending") query.rsvp = "pending";
+        if (msg.filter === "pending") query.rsvp = "pending";
 
         guests = await InvitationGuest.find(query).lean();
       }
 
+      const completed = msg.completedGuests || [];
+
+      guests = guests.filter(
+        (g) => !completed.some((id: any) => id.toString() === g._id.toString())
+      );
+
       if (!guests.length) {
         await ScheduledMessage.updateOne(
           { _id: msg._id },
-          { $set: { status: "sent", sentCount: 0, sentAt: new Date() } }
+          {
+            $set: {
+              status: "sent",
+              sentAt: new Date(),
+              lockedAt: null,
+              lockedBy: null,
+            },
+          }
         );
+
         continue;
       }
+
+      const batchSize = msg.batchSize || 50;
+      guests = guests.slice(0, batchSize);
 
       /* ======================================================
          LOCATION
       ====================================================== */
-      const location = (invitation as any).eventLocation ?? (event as any)?.location;
+
+      const location = invitation?.eventLocation ?? event?.location;
       let navigationLink = "";
 
       if (location?.lat && location?.lng) {
@@ -98,75 +156,35 @@ export async function sendScheduledSms() {
       }
 
       /* ======================================================
-         NEW LOGIC FLAG
+         FLAGS
       ====================================================== */
+
       const isReminder = msg.templateKey === "table";
       const isThankYou = msg.templateKey === "custom";
-
-
       const usesNewLogic = user.isActive === false;
 
       if (usesNewLogic) {
         if (isReminder && invitation.reminderSentAt) {
-          await ScheduledMessage.updateOne(
-            { _id: msg._id },
-            {
-              $set: {
-                status: "failed",
-                error: "REMINDER_ALREADY_SENT",
-                sentAt: new Date(),
-              },
-            }
-          );
-          failed++;
-          continue;
+          throw new Error("REMINDER_ALREADY_SENT");
         }
 
         if (isThankYou && invitation.thankYouSentAt) {
-          await ScheduledMessage.updateOne(
-            { _id: msg._id },
-            {
-              $set: {
-                status: "failed",
-                error: "THANKYOU_ALREADY_SENT",
-                sentAt: new Date(),
-              },
-            }
-          );
-          failed++;
-          continue;
+          throw new Error("THANKYOU_ALREADY_SENT");
         }
       }
 
       /* ======================================================
-         OLD LOGIC
+         OLD SMS LIMIT
       ====================================================== */
+
       let remainingMessages = 0;
 
       if (!usesNewLogic) {
-        const maxMessages =
-          typeof (user as any).maxMessages === "number"
-            ? (user as any).maxMessages
-            : 0;
-
-        const smsUsed =
-          typeof (user as any).smsUsed === "number"
-            ? (user as any).smsUsed
-            : 0;
+        const maxMessages = user.maxMessages ?? 0;
+        const smsUsed = user.smsUsed ?? 0;
 
         if (maxMessages <= 0) {
-          await ScheduledMessage.updateOne(
-            { _id: msg._id },
-            {
-              $set: {
-                status: "failed",
-                error: "SMS_LIMIT_NOT_CONFIGURED",
-                sentAt: new Date(),
-              },
-            }
-          );
-          failed++;
-          continue;
+          throw new Error("SMS_LIMIT_NOT_CONFIGURED");
         }
 
         remainingMessages = Math.max(maxMessages - smsUsed, 0);
@@ -175,7 +193,8 @@ export async function sendScheduledSms() {
       /* ======================================================
          PREVIEW CHECK
       ====================================================== */
-      const previewText = String((msg as any).messageContent || "")
+
+      const previewText = String(msg.messageContent || "")
         .replace(/{{name}}/g, "שם ארוך לבדיקה")
         .replace(/{{rsvpLink}}/g, "https://example.com")
         .replace(/{{tableName}}/g, "שולחן 123")
@@ -184,101 +203,107 @@ export async function sendScheduledSms() {
       const partsPerMessage = countBusinessSms(previewText);
 
       if (partsPerMessage === -1) {
-        await ScheduledMessage.updateOne(
-          { _id: msg._id },
-          {
-            $set: {
-              status: "failed",
-              error: "MESSAGE_TOO_LONG",
-              sentAt: new Date(),
-            },
-          }
-        );
-        failed++;
-        continue;
-      }
-
-      if (!usesNewLogic) {
-        const totalMessagesToCharge = guests.length * partsPerMessage;
-
-        if (totalMessagesToCharge > remainingMessages) {
-          await ScheduledMessage.updateOne(
-            { _id: msg._id },
-            {
-              $set: {
-                status: "failed",
-                error: "SMS_LIMIT_REACHED",
-                sentAt: new Date(),
-              },
-            }
-          );
-          failed++;
-          continue;
-        }
+        throw new Error("MESSAGE_TOO_LONG");
       }
 
       /* ======================================================
-         SEND SMS
+         SEND SMS (PARALLEL)
       ====================================================== */
+
       let sent = 0;
       let charged = 0;
 
+      const sentGuestIds: any[] = [];
+      const completedGuests: any[] = [];
+
+      const tasks: (() => Promise<void>)[] = [];
+
       for (const guest of guests) {
-        let phone = String(guest.phone || "").replace(/\D/g, "");
-        if (!phone) continue;
+        tasks.push(async () => {
+          let phone = String(guest.phone || "").replace(/\D/g, "");
+          if (!phone) return;
 
-        if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-        else if (!phone.startsWith("972")) phone = "972" + phone;
+          if (phone.startsWith("0")) phone = "972" + phone.slice(1);
+          else if (!phone.startsWith("972")) phone = "972" + phone;
 
-        const personalRsvpUrl = `https://www.invistimo.com/invite/${(invitation as any).shareId}?token=${guest.token}`;
-        const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+          const personalRsvpUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+          const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
-        // ✅ FIX – הוספת tableName
-        const tableName =
-          typeof guest.tableNumber === "number"
-            ? `שולחן ${guest.tableNumber}`
-            : guest.tableName || "";
+          const tableName =
+            typeof guest.tableNumber === "number"
+              ? `שולחן ${guest.tableNumber}`
+              : guest.tableName || "";
 
-        let finalText = String((msg as any).messageContent || "")
-          .replace(/{{name}}/g, guest.name || "")
-          .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-          .replace(/{{tableName}}/g, tableName)
-          .replace(/{{navigationLink}}/g, navigationLink);
+          let finalText = String(msg.messageContent || "")
+            .replace(/{{name}}/g, guest.name || "")
+            .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+            .replace(/{{tableName}}/g, tableName)
+            .replace(/{{navigationLink}}/g, navigationLink);
 
-        finalText = finalText.trim();
-        if (!finalText) continue;
+          finalText = finalText.trim();
+          if (!finalText) return;
 
-        const parts = countBusinessSms(finalText);
-        if (parts === -1) continue;
+          const parts = countBusinessSms(finalText);
+          if (parts === -1) return;
 
-        if (!usesNewLogic && charged + parts > remainingMessages) break;
+          try {
+            const res = await fetch(
+              "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  key: process.env.SMS4FREE_KEY,
+                  user: process.env.SMS4FREE_USER,
+                  pass: process.env.SMS4FREE_PASS,
+                  sender: process.env.SMS4FREE_SENDER,
+                  recipient: phone,
+                  msg: finalText,
+                }),
+              }
+            );
 
-        const res = await fetch("https://api.sms4free.co.il/ApiSMS/v2/SendSMS", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            key: process.env.SMS4FREE_KEY,
-            user: process.env.SMS4FREE_USER,
-            pass: process.env.SMS4FREE_PASS,
-            sender: process.env.SMS4FREE_SENDER,
-            recipient: phone,
-            msg: finalText,
-          }),
+            completedGuests.push(guest._id);
+
+            if (res.ok) {
+              sent++;
+              charged += parts;
+              sentGuestIds.push(guest._id);
+            }
+          } catch {
+            completedGuests.push(guest._id);
+          }
         });
-
-        if (res.ok) {
-          sent++;
-          charged += parts;
-        }
       }
+
+      await runParallel(tasks, 5);
+
+      /* ======================================================
+         UPDATE MESSAGE
+      ====================================================== */
+
+      await ScheduledMessage.updateOne(
+        { _id: msg._id },
+        {
+          $inc: { sentCount: sent },
+          $push: {
+            sentGuestIds: { $each: sentGuestIds },
+            completedGuests: { $each: completedGuests },
+          },
+        }
+      );
+
+      const finished =
+        (msg.sentCount || 0) + sent >= (msg.guestIds?.length || guests.length);
 
       await ScheduledMessage.updateOne(
         { _id: msg._id },
         {
           $set: {
-            status: "sent",
-            sentCount: sent,
-            sentAt: new Date(),
+            status: finished ? "sent" : "scheduled",
+            sentAt: finished ? new Date() : null,
+            lockedAt: null,
+            lockedBy: null,
           },
         }
       );
@@ -317,6 +342,8 @@ export async function sendScheduledSms() {
             status: "failed",
             error: err?.message || "UNKNOWN_ERROR",
             sentAt: new Date(),
+            lockedAt: null,
+            lockedBy: null,
           },
         }
       );

@@ -133,8 +133,8 @@ const remainingMessages = Math.max(
   includeGiftLink?: boolean;
   giftLink?: string;
   messageOverride?: string;
-
-  guestIds?: string[]; // ⭐️ חדש – מקור האמת
+  guestIds?: string[];
+  round?: 1 | 2;
 };
 
     const {
@@ -146,6 +146,7 @@ const remainingMessages = Math.max(
   giftLink,
   messageOverride,
   guestIds,
+  round = 1,
 } = body;
 
     if (!invitationId || !templateKey) {
@@ -168,7 +169,7 @@ const remainingMessages = Math.max(
     /* ⭐️ בחירת מקור הטקסט */
     const baseTemplateText =
   templateKey === "rsvp"
-    ? filter === "pending"
+    ? round === 2
       ? template.round2 ?? ""
       : template.round1 ?? ""
     : template.content ?? "";
@@ -185,24 +186,28 @@ if (!invitation) {
 
 /* ================= RSVP SMS ROUND BLOCK ================= */
 
+/* ================= RSVP SMS ROUND BLOCK ================= */
+
 if (templateKey === "rsvp") {
 
   // ❌ אי אפשר לשלוח סבב 2 לפני סבב 1
-  if (!invitation.rsvpSmsRound1SentAt && filter === "pending") {
+  if (round === 2 && !invitation.rsvpSmsRound1SentAt) {
     return NextResponse.json(
       { success: false, error: "ROUND2_NOT_ALLOWED_BEFORE_ROUND1" },
       { status: 400 }
     );
   }
 
-  if (invitation.rsvpSmsRound1SentAt && filter !== "pending") {
+  // ❌ אם כבר נשלח סבב 1 – לא מאפשרים לשלוח שוב סבב 1
+  if (round === 1 && invitation.rsvpSmsRound1SentAt) {
     return NextResponse.json(
       { success: false, error: "RSVP_SMS_ROUND1_ALREADY_SENT" },
       { status: 400 }
     );
   }
 
-  if (invitation.rsvpSmsRound2SentAt && filter === "pending") {
+  // ❌ אם כבר נשלח סבב 2 – לא מאפשרים לשלוח שוב סבב 2
+  if (round === 2 && invitation.rsvpSmsRound2SentAt) {
     return NextResponse.json(
       { success: false, error: "RSVP_SMS_ROUND2_ALREADY_SENT" },
       { status: 400 }
@@ -336,6 +341,7 @@ if (partsPerMessage === -1) {
     giftLink: giftLink || null,
     messageContent,
     guestIds: Array.isArray(guestIds) ? guestIds : [],
+    roundNumber: round,
   });
 
   return NextResponse.json({
@@ -496,11 +502,13 @@ if (sent > 0) {
 
     const invitationDoc = await Invitation.findById(invitationId);
 
-    if (!invitationDoc.rsvpSmsRound1SentAt) {
-      invitationDoc.rsvpSmsRound1SentAt = new Date();
-    } else if (!invitationDoc.rsvpSmsRound2SentAt) {
-      invitationDoc.rsvpSmsRound2SentAt = new Date();
-    }
+    if (round === 1) {
+  invitationDoc.rsvpSmsRound1SentAt = new Date();
+}
+
+if (round === 2) {
+  invitationDoc.rsvpSmsRound2SentAt = new Date();
+}
 
     await invitationDoc.save();
   }
