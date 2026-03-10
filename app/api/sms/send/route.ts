@@ -356,6 +356,22 @@ if (partsPerMessage === -1) {
     roundNumber: round,
   });
 
+  if (templateKey === "rsvp") {
+  if (round === 1) {
+    await Invitation.updateOne(
+      { _id: invitationId },
+      { $set: { rsvpSmsRound1SentAt: new Date() } }
+    );
+  }
+
+  if (round === 2) {
+    await Invitation.updateOne(
+      { _id: invitationId },
+      { $set: { rsvpSmsRound2SentAt: new Date() } }
+    );
+  }
+}
+
   return NextResponse.json({
     success: true,
     scheduled: true,
