@@ -523,6 +523,7 @@ const round2Scheduled = scheduledMessages.some(
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
   messageOverride={message}
+  round={round}
   onAfterSend={async () => {
   await loadScheduledMessages();
 

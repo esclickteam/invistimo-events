@@ -23,6 +23,8 @@ type Props = {
   onAfterSend?: () => void;
 
   children: ReactNode;
+
+  round?: 1 | 2; // ✅ נוסף
 };
 
 /* ================= COMPONENT ================= */
@@ -43,20 +45,17 @@ const SendButton: React.FC<Props> = ({
 
   onAfterSend,
   children,
+
+  round, // ✅ נוסף
 }) => {
   const channelLabel = channel === "sms" ? "SMS" : "WhatsApp";
 
-  // ⛔️ בזמן שליחה
   const [sending, setSending] = useState(false);
-
-  // ✅ אחרי הצלחה/חסימה מהשרת – נשאר חסום בלי רענון
   const [sent, setSent] = useState(false);
 
-  // 🔒 נעילה מיידית נגד דאבל-קליק (גם לפני שהסטייט מתעדכן)
   const inFlightRef = useRef(false);
 
   const handleSend = async () => {
-    // ⛔️ אם כבר נשלח / חסום / באמצע — לא עושים כלום
     if (disabled || sent || sending || inFlightRef.current) return;
 
     if (!invitationId) {
@@ -69,7 +68,6 @@ const SendButton: React.FC<Props> = ({
       return;
     }
 
-    // 🔒 ננעל מיידית
     inFlightRef.current = true;
     setSending(true);
 
@@ -97,6 +95,8 @@ const SendButton: React.FC<Props> = ({
           includeGiftLink,
           giftLink,
           messageOverride,
+
+          round, // ✅ נוסף
         };
       }
 
@@ -133,7 +133,6 @@ const SendButton: React.FC<Props> = ({
       ) {
         alert("ℹ️ הודעה זו כבר נשלחה ולא ניתן לשלוח שוב");
 
-        // ✅ נשאר חסום בלי רענון
         setSent(true);
         onAfterSend?.();
         return;
@@ -142,7 +141,6 @@ const SendButton: React.FC<Props> = ({
       if (!res.ok || !data?.success) {
         alert(data?.error || "❌ שליחת ההודעות נכשלה");
 
-        // ❌ נכשל → משחררים כדי שתוכלי לנסות שוב
         inFlightRef.current = false;
         setSending(false);
         return;
@@ -157,33 +155,28 @@ const SendButton: React.FC<Props> = ({
         alert(`📤 ${count} הודעות נכנסו לתהליך שליחה ב-${channelLabel}`);
       }
 
-      // ✅ הצליח → ננעל קבוע (בלי רענון)
       setSent(true);
-
-      /* ================= UPDATE PARENT ================= */
 
       onAfterSend?.();
     } catch (err) {
       console.error("SEND ERROR:", err);
       alert("❌ שגיאה בשליחה");
 
-      // ❌ שגיאה → משחררים כדי שתוכלי לנסות שוב
       inFlightRef.current = false;
       setSending(false);
       return;
     } finally {
-      // אם נשלח בהצלחה וננעל ב-sent, אין צורך להציג sending
       setSending(false);
-      // שימי לב: inFlightRef נשאר true רק אם sent=true, אחרת שחררנו אותו בנקודות הכשל
-      if (sent === false) {
-        // אם משום מה sent לא עודכן (מצבים נדירים), נוודא שחרור
-        // (אבל במקרי הצלחה הוא מתעדכן לפני ה-finally)
-      }
     }
   };
 
   const isDisabled =
-    disabled || sent || sending || inFlightRef.current || !audience || audience.length === 0;
+    disabled ||
+    sent ||
+    sending ||
+    inFlightRef.current ||
+    !audience ||
+    audience.length === 0;
 
   /* ================= RENDER ================= */
 
