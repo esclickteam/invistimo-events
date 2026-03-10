@@ -198,11 +198,25 @@ const round2Scheduled = scheduledMessages.some(
         const invitationData = await invitationRes.json();
         const inv = invitationData?.invitation;
 
-        setRsvpRound1Sent(!!inv?.rsvpSmsRound1SentAt);
-        setRsvpRound2Sent(!!inv?.rsvpSmsRound2SentAt);
+        const round1Sent =
+  inv?.rsvpRound1SentAt ||
+  inv?.rsvpSmsRound1SentAt;
 
-        setRsvpRound1Scheduled(!!inv?.rsvpSmsRound1ScheduledAt);
-        setRsvpRound2Scheduled(!!inv?.rsvpSmsRound2ScheduledAt);
+const round2Sent =
+  inv?.rsvpRound2SentAt ||
+  inv?.rsvpSmsRound2SentAt;
+
+const round1Scheduled =
+  inv?.rsvpSmsRound1ScheduledAt;
+
+const round2Scheduled =
+  inv?.rsvpSmsRound2ScheduledAt;
+
+setRsvpRound1Sent(!!round1Sent);
+setRsvpRound2Sent(!!round2Sent);
+
+setRsvpRound1Scheduled(!!round1Scheduled);
+setRsvpRound2Scheduled(!!round2Scheduled);
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;

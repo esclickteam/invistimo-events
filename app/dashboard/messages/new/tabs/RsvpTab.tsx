@@ -200,8 +200,18 @@ const [half, setHalf] = useState<HalfType>(null);
 
         const inv = invitationData?.invitation;
 
-        setRound1SentAt(inv?.rsvpRound1SentAt ? new Date(inv.rsvpRound1SentAt) : null);
-        setRound2SentAt(inv?.rsvpRound2SentAt ? new Date(inv.rsvpRound2SentAt) : null);
+        const round1 =
+  inv?.rsvpRound1SentAt ||
+  inv?.rsvpSmsRound1SentAt ||
+  inv?.rsvpSmsRound1ScheduledAt;
+
+const round2 =
+  inv?.rsvpRound2SentAt ||
+  inv?.rsvpSmsRound2SentAt ||
+  inv?.rsvpSmsRound2ScheduledAt;
+
+setRound1SentAt(round1 ? new Date(round1) : null);
+setRound2SentAt(round2 ? new Date(round2) : null);
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
