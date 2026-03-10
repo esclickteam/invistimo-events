@@ -211,6 +211,18 @@ rsvpSmsRound2SentAt: {
   index: true,
 },
 
+rsvpSmsRound1ScheduledAt: {
+  type: Date,
+  default: null,
+  index: true,
+},
+
+rsvpSmsRound2ScheduledAt: {
+  type: Date,
+  default: null,
+  index: true,
+},
+
     reminderSentAt: {
       type: Date,
       default: null,

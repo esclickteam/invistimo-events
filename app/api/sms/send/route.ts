@@ -205,21 +205,34 @@ if (templateKey === "rsvp") {
     );
   }
 
-  if (round === 2 && !invitation.rsvpSmsRound1SentAt) {
+  // ❗ סבב 2 מותר רק אם סבב 1 כבר נשלח או מתוזמן
+  if (
+    round === 2 &&
+    !invitation.rsvpSmsRound1SentAt &&
+    !invitation.rsvpSmsRound1ScheduledAt
+  ) {
     return NextResponse.json(
       { success: false, error: "ROUND2_NOT_ALLOWED_BEFORE_ROUND1" },
       { status: 400 }
     );
   }
 
-  if (round === 1 && invitation.rsvpSmsRound1SentAt) {
+  // ❗ חסימת סבב 1 אם כבר נשלח או מתוזמן
+  if (
+    round === 1 &&
+    (invitation.rsvpSmsRound1SentAt || invitation.rsvpSmsRound1ScheduledAt)
+  ) {
     return NextResponse.json(
       { success: false, error: "RSVP_SMS_ROUND1_ALREADY_SENT" },
       { status: 400 }
     );
   }
 
-  if (round === 2 && invitation.rsvpSmsRound2SentAt) {
+  // ❗ חסימת סבב 2 אם כבר נשלח או מתוזמן
+  if (
+    round === 2 &&
+    (invitation.rsvpSmsRound2SentAt || invitation.rsvpSmsRound2ScheduledAt)
+  ) {
     return NextResponse.json(
       { success: false, error: "RSVP_SMS_ROUND2_ALREADY_SENT" },
       { status: 400 }
@@ -356,20 +369,22 @@ if (partsPerMessage === -1) {
     roundNumber: round,
   });
 
-  if (templateKey === "rsvp") {
+if (templateKey === "rsvp") {
+
   if (round === 1) {
     await Invitation.updateOne(
       { _id: invitationId },
-      { $set: { rsvpSmsRound1SentAt: new Date() } }
+      { $set: { rsvpSmsRound1ScheduledAt: new Date() } }
     );
   }
 
   if (round === 2) {
     await Invitation.updateOne(
       { _id: invitationId },
-      { $set: { rsvpSmsRound2SentAt: new Date() } }
+      { $set: { rsvpSmsRound2ScheduledAt: new Date() } }
     );
   }
+
 }
 
   return NextResponse.json({
