@@ -90,6 +90,9 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   const [rsvpRound1Sent, setRsvpRound1Sent] = useState(false);
 const [rsvpRound2Sent, setRsvpRound2Sent] = useState(false);
 
+const [rsvpRound1Scheduled, setRsvpRound1Scheduled] = useState(false);
+const [rsvpRound2Scheduled, setRsvpRound2Scheduled] = useState(false);
+
   /* ================= GIFT OPTIONS ================= */
 
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
@@ -197,6 +200,9 @@ const round2Scheduled = scheduledMessages.some(
 
         setRsvpRound1Sent(!!inv?.rsvpSmsRound1SentAt);
         setRsvpRound2Sent(!!inv?.rsvpSmsRound2SentAt);
+
+        setRsvpRound1Scheduled(!!inv?.rsvpSmsRound1ScheduledAt);
+        setRsvpRound2Scheduled(!!inv?.rsvpSmsRound2ScheduledAt);
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
@@ -518,29 +524,34 @@ const round2Scheduled = scheduledMessages.some(
   scheduledAt={scheduledAt}
   messageOverride={message}
   onAfterSend={async () => {
-    await loadScheduledMessages();
+  await loadScheduledMessages();
 
+  if (sendTiming === "scheduled") {
+    if (round === 1) setRsvpRound1Scheduled(true);
+    if (round === 2) setRsvpRound2Scheduled(true);
+  } else {
     if (round === 1) setRsvpRound1Sent(true);
     if (round === 2) setRsvpRound2Sent(true);
-  }}
-  disabled={
-    noAudience ||
-    (sendTiming === "scheduled" && !scheduledAt) ||
-    (round === 1 && (rsvpRound1Sent || round1Scheduled)) ||
-    (round === 2 && (rsvpRound2Sent || round2Scheduled))
   }
+}}
+  disabled={
+  noAudience ||
+  (sendTiming === "scheduled" && !scheduledAt) ||
+  (round === 1 && (rsvpRound1Sent || rsvpRound1Scheduled || round1Scheduled)) ||
+  (round === 2 && (rsvpRound2Sent || rsvpRound2Scheduled || round2Scheduled))
+}
 >
-  {round === 1 && (rsvpRound1Sent || round1Scheduled)
-    ? round1Scheduled
-      ? "⏱️ סבב 1 כבר מתוזמן"
-      : "✔ סבב 1 כבר נשלח"
-    : round === 2 && (rsvpRound2Sent || round2Scheduled)
-    ? round2Scheduled
-      ? "⏱️ סבב 2 כבר מתוזמן"
-      : "✔ סבב 2 כבר נשלח"
-    : sendTiming === "scheduled"
-    ? "⏱️ תזמן אישור הגעה"
-    : "📩 שלח אישור הגעה SMS"}
+  {round === 1 && (rsvpRound1Sent || rsvpRound1Scheduled || round1Scheduled)
+  ? (rsvpRound1Scheduled || round1Scheduled)
+    ? "⏱️ סבב 1 כבר מתוזמן"
+    : "✔ סבב 1 כבר נשלח"
+  : round === 2 && (rsvpRound2Sent || rsvpRound2Scheduled || round2Scheduled)
+  ? (rsvpRound2Scheduled || round2Scheduled)
+    ? "⏱️ סבב 2 כבר מתוזמן"
+    : "✔ סבב 2 כבר נשלח"
+  : sendTiming === "scheduled"
+  ? "⏱️ תזמן אישור הגעה"
+  : "📩 שלח אישור הגעה SMS"}
 </SendButton>
 
       {/* OPEN MODAL BUTTON */}

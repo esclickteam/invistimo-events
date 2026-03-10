@@ -373,16 +373,26 @@ if (templateKey === "rsvp") {
 
   if (round === 1) {
     await Invitation.updateOne(
-      { _id: invitationId },
-      { $set: { rsvpSmsRound1ScheduledAt: new Date() } }
-    );
+  {
+    _id: invitationId,
+    rsvpSmsRound1ScheduledAt: { $in: [null, undefined] },
+  },
+  {
+    $set: { rsvpSmsRound1ScheduledAt: new Date() },
+  }
+);
   }
 
   if (round === 2) {
     await Invitation.updateOne(
-      { _id: invitationId },
-      { $set: { rsvpSmsRound2ScheduledAt: new Date() } }
-    );
+  {
+    _id: invitationId,
+    rsvpSmsRound2ScheduledAt: { $in: [null, undefined] },
+  },
+  {
+    $set: { rsvpSmsRound2ScheduledAt: new Date() },
+  }
+);
   }
 
 }
@@ -437,7 +447,7 @@ const baseMessage = baseTemplateText
 let totalPartsSent = 0;
 let sent = 0;
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 150;
 
 for (let i = 0; i < guests.length; i += BATCH_SIZE) {
   const batch = guests.slice(i, i + BATCH_SIZE);
@@ -540,14 +550,15 @@ if (sent > 0) {
 
     if (round === 1) {
   const result = await Invitation.updateOne(
-    {
-      _id: invitationId,
-      rsvpSmsRound1SentAt: { $in: [null, undefined] },
-    },
-    {
-      $set: { rsvpSmsRound1SentAt: new Date() },
-    }
-  );
+{
+  _id: invitationId,
+  rsvpSmsRound1SentAt: { $in: [null, undefined] },
+  rsvpSmsRound1ScheduledAt: { $in: [null, undefined] },
+},
+{
+  $set: { rsvpSmsRound1SentAt: new Date() },
+}
+);
 
   if (result.modifiedCount === 0) {
     throw new Error("ROUND1_ALREADY_SENT_RACE");
@@ -556,14 +567,15 @@ if (sent > 0) {
 
 if (round === 2) {
   const result = await Invitation.updateOne(
-    {
-      _id: invitationId,
-       rsvpSmsRound2SentAt: { $in: [null, undefined] },
-    },
-    {
-      $set: { rsvpSmsRound2SentAt: new Date() },
-    }
-  );
+{
+  _id: invitationId,
+  rsvpSmsRound2SentAt: { $in: [null, undefined] },
+  rsvpSmsRound2ScheduledAt: { $in: [null, undefined] },
+},
+{
+  $set: { rsvpSmsRound2SentAt: new Date() },
+}
+);
 
   if (result.modifiedCount === 0) {
     throw new Error("ROUND2_ALREADY_SENT_RACE");
