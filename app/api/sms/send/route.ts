@@ -392,96 +392,91 @@ const baseMessage = baseTemplateText
 
     
 let totalPartsSent = 0;
+let sent = 0;
 
+const BATCH_SIZE = 50;
 
-    let sent = 0;
+for (let i = 0; i < guests.length; i += BATCH_SIZE) {
+  const batch = guests.slice(i, i + BATCH_SIZE);
 
-    for (const guest of guests) {
-const freshGuest = await InvitationGuest.findById(guest._id).lean();
-if (!freshGuest) continue;
+  const tasks = batch.map(async (freshGuest) => {
 
-      if (
-  template.requiresTable &&
-  !freshGuest.tableName &&
-  typeof freshGuest.tableNumber !== "number"
-) {
-  continue;
-}
-
+    if (
+      template.requiresTable &&
+      !freshGuest.tableName &&
+      typeof freshGuest.tableNumber !== "number"
+    ) {
+      return null;
+    }
 
     const tableName =
-  typeof freshGuest.tableNumber === "number"
-    ? `שולחן ${freshGuest.tableNumber}`
-    : freshGuest.tableName || "";
+      typeof freshGuest.tableNumber === "number"
+        ? `שולחן ${freshGuest.tableNumber}`
+        : freshGuest.tableName || "";
 
+    let phone = (freshGuest.phone || "").replace(/\D/g, "");
+    if (!phone) return null;
 
-      let phone = (freshGuest.phone || "").replace(/\D/g, "");
-      if (!phone) continue;
+    if (phone.startsWith("0")) phone = "972" + phone.slice(1);
+    else if (!phone.startsWith("972")) phone = "972" + phone;
 
-      if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-      else if (!phone.startsWith("972")) phone = "972" + phone;
+    const personalRsvpUrl =
+      `https://www.invistimo.com/invite/${invitation.shareId}?token=${freshGuest.token}`;
 
-      // 🔗 קישור RSVP אישי
-const personalRsvpUrl =
-  `https://www.invistimo.com/invite/${invitation.shareId}?token=${freshGuest.token}`;
+    const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
-// ✂️ קיצור הקישור האישי
-const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+    let finalText = baseMessage
+      .replace(/{{name}}/g, freshGuest.name || "")
+      .replace(/{{rsvpLink}}/g, shortRsvpUrl)
+      .replace(/{{tableName}}/g, tableName)
+      .replace(/{{navigationLink}}/g, navigationLink);
 
-let finalText = baseMessage
-  .replace(/{{name}}/g, freshGuest.name || "")
-  .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-  .replace(/{{tableName}}/g, tableName)
-  .replace(/{{navigationLink}}/g, navigationLink);
-
-
-if (includeGiftLink && giftLink) {
-  finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-}
-
-const parts = countBusinessSms(finalText);
-
-
-if (parts === -1) {
-  continue; // ⬅️ מדלג רק על האורח הזה
-}
-
-
-
-// 🔒 בדיקת יתרה אמיתית
-if (!usesNewLogic && totalPartsSent + parts > remainingMessages) {
-  continue;
-}
-
-
-
-
-      try {
-        const res = await fetch(
-          "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              key: process.env.SMS4FREE_KEY,
-              user: process.env.SMS4FREE_USER,
-              pass: process.env.SMS4FREE_PASS,
-              sender: process.env.SMS4FREE_SENDER,
-              recipient: phone,
-              msg: finalText,
-            }),
-          }
-        );
-
-        if (res.ok) {
-  sent++;
-  totalPartsSent += parts;
-}
-
-      } catch (err) {
-        console.error("❌ SMS SEND ERROR:", err);
-      }
+    if (includeGiftLink && giftLink) {
+      finalText += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
     }
+
+    const parts = countBusinessSms(finalText);
+    if (parts === -1) return null;
+
+    try {
+      const res = await fetch(
+        "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key: process.env.SMS4FREE_KEY,
+            user: process.env.SMS4FREE_USER,
+            pass: process.env.SMS4FREE_PASS,
+            sender: process.env.SMS4FREE_SENDER,
+            recipient: phone,
+            msg: finalText,
+          }),
+        }
+      );
+
+      if (res.ok) {
+        return parts;
+      }
+
+      return null;
+
+    } catch (err) {
+      console.error("❌ SMS SEND ERROR:", err);
+      return null;
+    }
+
+  });
+
+  const results = await Promise.all(tasks);
+
+  for (const parts of results) {
+    if (parts) {
+      sent++;
+      totalPartsSent += parts;
+    }
+  }
+}
 
   
 
@@ -500,17 +495,37 @@ if (sent > 0) {
 
   if (templateKey === "rsvp") {
 
-    const invitationDoc = await Invitation.findById(invitationId);
-
     if (round === 1) {
-  invitationDoc.rsvpSmsRound1SentAt = new Date();
+  const result = await Invitation.updateOne(
+    {
+      _id: invitationId,
+      rsvpSmsRound1SentAt: { $in: [null, undefined] },
+    },
+    {
+      $set: { rsvpSmsRound1SentAt: new Date() },
+    }
+  );
+
+  if (result.modifiedCount === 0) {
+    throw new Error("ROUND1_ALREADY_SENT_RACE");
+  }
 }
 
 if (round === 2) {
-  invitationDoc.rsvpSmsRound2SentAt = new Date();
-}
+  const result = await Invitation.updateOne(
+    {
+      _id: invitationId,
+       rsvpSmsRound2SentAt: { $in: [null, undefined] },
+    },
+    {
+      $set: { rsvpSmsRound2SentAt: new Date() },
+    }
+  );
 
-    await invitationDoc.save();
+  if (result.modifiedCount === 0) {
+    throw new Error("ROUND2_ALREADY_SENT_RACE");
+  }
+}
   }
 
   if (templateKey === "table") {
