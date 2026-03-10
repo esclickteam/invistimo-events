@@ -76,6 +76,8 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   const [audienceFilter, setAudienceFilter] = useState<FilterType>("all");
   const [half, setHalf] = useState<HalfType>(null);
 
+  const [round, setRound] = useState<1 | 2>(1);
+
   /* ================= GIFT OPTIONS ================= */
 
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
@@ -270,16 +272,35 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   return (
     <div className="space-y-6">
       {/* AUDIENCE */}
-      <AudienceFilterSelector
-        value={audienceFilter}
-        onChange={(v) => {
-          setAudienceFilter(v);
-          setHalf(null);
-        }}
-        totalCount={totalCount}
-        pendingCount={pendingGuests.length}
-        allowedFilters={["all", "pending"]}
-      />
+     <div className="flex gap-3">
+
+  <button
+    onClick={() => {
+      setRound(1);
+      setAudienceFilter("all");
+      setHalf(null);
+    }}
+    className={`flex-1 rounded-xl py-3 text-sm ${
+      round === 1 ? "bg-blue-600 text-white" : "bg-gray-100"
+    }`}
+  >
+    סבב 1 – לכולם ({totalCount})
+  </button>
+
+  <button
+    onClick={() => {
+      setRound(2);
+      setAudienceFilter("pending");
+      setHalf(null);
+    }}
+    className={`flex-1 rounded-xl py-3 text-sm ${
+      round === 2 ? "bg-blue-600 text-white" : "bg-gray-100"
+    }`}
+  >
+    סבב 2 – למי שטרם ענה ({pendingGuests.length})
+  </button>
+
+</div>
 
       {/* HALF */}
       <div>
