@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
     await db();
 
     /* =====================================================
-       RSVP – ATOMIC QUEUE
+       RSVP – ATOMIC QUEUE WITH GLOBAL ROUND LOGIC
     ===================================================== */
 
     if (
@@ -174,11 +174,29 @@ export async function POST(req: NextRequest) {
           throw new Error("INV_NOT_FOUND");
         }
 
-        if (
-          templateName === "rsvp_reminder_invistimo" &&
-          !invitation.rsvpRound1SentAt
-        ) {
-          throw new Error("ROUND1_NOT_SENT_YET");
+        const isRound1 = templateName === "rsvp_invitation_media";
+        const isRound2 = templateName === "rsvp_reminder_invistimo";
+
+        const round1Already =
+          invitation.rsvpRound1SentAt ||
+          invitation.rsvpSmsRound1SentAt ||
+          invitation.rsvpSmsRound1ScheduledAt;
+
+        const round2Already =
+          invitation.rsvpRound2SentAt ||
+          invitation.rsvpSmsRound2SentAt ||
+          invitation.rsvpSmsRound2ScheduledAt;
+
+        if (isRound1 && round1Already) {
+          throw new Error("RSVP_ROUND1_ALREADY_SENT");
+        }
+
+        if (isRound2 && !round1Already) {
+          throw new Error("ROUND2_NOT_ALLOWED_BEFORE_ROUND1");
+        }
+
+        if (isRound2 && round2Already) {
+          throw new Error("RSVP_ROUND2_ALREADY_SENT");
         }
 
         const guests = await InvitationGuest.find({
@@ -197,8 +215,7 @@ export async function POST(req: NextRequest) {
 
           const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-          const round =
-            templateName === "rsvp_invitation_media" ? 1 : 2;
+          const round = isRound1 ? 1 : 2;
 
           const idempotencyKey =
             `${invitation._id}_${guest._id}_${templateName}_${round}_${Date.now()}`;
@@ -231,6 +248,22 @@ export async function POST(req: NextRequest) {
         }
 
         await WhatsappQueue.insertMany(queueDocs, { session });
+
+        if (isRound1) {
+          await Invitation.updateOne(
+            { _id: invitation._id, rsvpRound1SentAt: { $exists: false } },
+            { $set: { rsvpRound1SentAt: new Date() } },
+            { session }
+          );
+        }
+
+        if (isRound2) {
+          await Invitation.updateOne(
+            { _id: invitation._id, rsvpRound2SentAt: { $exists: false } },
+            { $set: { rsvpRound2SentAt: new Date() } },
+            { session }
+          );
+        }
 
         return { queued: queueDocs.length };
       });

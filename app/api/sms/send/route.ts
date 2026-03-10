@@ -189,7 +189,19 @@ if (!invitation) {
 
 /* ================= RSVP SMS ROUND BLOCK ================= */
 
+/* ================= GLOBAL RSVP ROUND BLOCK ================= */
+
 if (templateKey === "rsvp") {
+
+  const round1Already =
+    invitation.rsvpRound1SentAt ||
+    invitation.rsvpSmsRound1SentAt ||
+    invitation.rsvpSmsRound1ScheduledAt;
+
+  const round2Already =
+    invitation.rsvpRound2SentAt ||
+    invitation.rsvpSmsRound2SentAt ||
+    invitation.rsvpSmsRound2ScheduledAt;
 
   const existingScheduled = await ScheduledMessage.findOne({
     invitationId,
@@ -200,45 +212,34 @@ if (templateKey === "rsvp") {
 
   if (existingScheduled) {
     return NextResponse.json(
-      { success: false, error: "RSVP_SMS_ROUND_ALREADY_SCHEDULED" },
+      { success: false, error: "RSVP_ROUND_ALREADY_SCHEDULED" },
       { status: 400 }
     );
   }
 
-  // ❗ סבב 2 מותר רק אם סבב 1 כבר נשלח או מתוזמן
-  if (
-    round === 2 &&
-    !invitation.rsvpSmsRound1SentAt &&
-    !invitation.rsvpSmsRound1ScheduledAt
-  ) {
+  // סבב 2 מותר רק אם סבב 1 כבר נשלח באחד הערוצים
+  if (round === 2 && !round1Already) {
     return NextResponse.json(
       { success: false, error: "ROUND2_NOT_ALLOWED_BEFORE_ROUND1" },
       { status: 400 }
     );
   }
 
-  // ❗ חסימת סבב 1 אם כבר נשלח או מתוזמן
-  if (
-    round === 1 &&
-    (invitation.rsvpSmsRound1SentAt || invitation.rsvpSmsRound1ScheduledAt)
-  ) {
+  // חסימת סבב 1 אם כבר נשלח באחד הערוצים
+  if (round === 1 && round1Already) {
     return NextResponse.json(
-      { success: false, error: "RSVP_SMS_ROUND1_ALREADY_SENT" },
+      { success: false, error: "RSVP_ROUND1_ALREADY_SENT" },
       { status: 400 }
     );
   }
 
-  // ❗ חסימת סבב 2 אם כבר נשלח או מתוזמן
-  if (
-    round === 2 &&
-    (invitation.rsvpSmsRound2SentAt || invitation.rsvpSmsRound2ScheduledAt)
-  ) {
+  // חסימת סבב 2 אם כבר נשלח באחד הערוצים
+  if (round === 2 && round2Already) {
     return NextResponse.json(
-      { success: false, error: "RSVP_SMS_ROUND2_ALREADY_SENT" },
+      { success: false, error: "RSVP_ROUND2_ALREADY_SENT" },
       { status: 400 }
     );
   }
-
 }
 
 
@@ -549,38 +550,45 @@ if (sent > 0) {
   if (templateKey === "rsvp") {
 
     if (round === 1) {
-  const result = await Invitation.updateOne(
-{
-  _id: invitationId,
-  rsvpSmsRound1SentAt: { $in: [null, undefined] },
-  rsvpSmsRound1ScheduledAt: { $in: [null, undefined] },
-},
-{
-  $set: { rsvpSmsRound1SentAt: new Date() },
-}
-);
+      const result = await Invitation.updateOne(
+        {
+          _id: invitationId,
+          rsvpSmsRound1SentAt: { $in: [null, undefined] },
+          rsvpSmsRound1ScheduledAt: { $in: [null, undefined] },
+        },
+        {
+          $set: {
+            rsvpSmsRound1SentAt: new Date(),
+            rsvpRound1SentAt: new Date(),
+          }
+        }
+      );
 
-  if (result.modifiedCount === 0) {
-    throw new Error("ROUND1_ALREADY_SENT_RACE");
-  }
-}
+      if (result.modifiedCount === 0) {
+        throw new Error("ROUND1_ALREADY_SENT_RACE");
+      }
+    }
 
-if (round === 2) {
-  const result = await Invitation.updateOne(
-{
-  _id: invitationId,
-  rsvpSmsRound2SentAt: { $in: [null, undefined] },
-  rsvpSmsRound2ScheduledAt: { $in: [null, undefined] },
-},
-{
-  $set: { rsvpSmsRound2SentAt: new Date() },
-}
-);
+    if (round === 2) {
+      const result = await Invitation.updateOne(
+        {
+          _id: invitationId,
+          rsvpSmsRound2SentAt: { $in: [null, undefined] },
+          rsvpSmsRound2ScheduledAt: { $in: [null, undefined] },
+        },
+        {
+          $set: {
+            rsvpSmsRound2SentAt: new Date(),
+            rsvpRound2SentAt: new Date(),
+          }
+        }
+      );
 
-  if (result.modifiedCount === 0) {
-    throw new Error("ROUND2_ALREADY_SENT_RACE");
-  }
-}
+      if (result.modifiedCount === 0) {
+        throw new Error("ROUND2_ALREADY_SENT_RACE");
+      }
+    }
+
   }
 
   if (templateKey === "table") {
