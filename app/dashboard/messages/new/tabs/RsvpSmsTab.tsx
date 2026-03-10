@@ -98,6 +98,8 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
+  const [message, setMessage] = useState(RSVP_SMS_TEMPLATE);
+
   const scheduledAt = useMemo(() => {
     if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
       return null;
@@ -252,15 +254,16 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   /* ================= PREVIEW ================= */
 
   const previewText = useMemo(() => {
-    const g = guestsToSend[0];
-    if (!g || !g.token) return "";
+  const g = guestsToSend[0];
+  if (!g || !g.token) return "";
 
-    const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
+  const rsvpLink = `https://www.invistimo.com/invite/${invitationId}?token=${g.token}`;
 
-    return RSVP_SMS_TEMPLATE.replace(/{{name}}/g, g.name || "")
-      .replace(/{{invitationTitle}}/g, invitationTitle || "")
-      .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId, invitationTitle]);
+  return message
+    .replace(/{{name}}/g, g.name || "")
+    .replace(/{{invitationTitle}}/g, invitationTitle || "")
+    .replace(/{{rsvpLink}}/g, rsvpLink);
+}, [guestsToSend, invitationId, invitationTitle, message]);
 
   if (loading) return <p>טוען אורחים…</p>;
 
@@ -378,6 +381,29 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
         </p>
       </div>
 
+      <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-3">
+
+  <div className="font-semibold text-gray-800">
+    ✏️ עריכת תוכן ההודעה
+  </div>
+
+  <textarea
+    value={message}
+    onChange={(e) => setMessage(e.target.value)}
+    rows={6}
+    className="w-full border rounded-xl p-4 text-sm
+               focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+
+  <p className="text-xs text-gray-500">
+    משתנים אוטומטיים:
+    <span className="font-mono"> {"{{name}}"} </span>
+    <span className="font-mono"> {"{{invitationTitle}}"} </span>
+    <span className="font-mono"> {"{{rsvpLink}}"} </span>
+  </p>
+
+</div>
+
       {/* PREVIEW */}
       {previewText && <TextMessagePreview channel="sms" text={previewText} />}
 
@@ -425,14 +451,15 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
 
       {/* SEND */}
       <SendButton
-        channel="sms"
-        type="rsvp"
-        invitationId={invitationId}
-        audience={guestsToSend.map((g) => g._id)}
-        scheduledAt={scheduledAt}
-        onAfterSend={loadScheduledMessages}
-        disabled={noAudience || (sendTiming === "scheduled" && !scheduledAt)}
-      >
+  channel="sms"
+  type="rsvp"
+  invitationId={invitationId}
+  audience={guestsToSend.map((g) => g._id)}
+  scheduledAt={scheduledAt}
+  messageOverride={message}
+  onAfterSend={loadScheduledMessages}
+  disabled={noAudience || (sendTiming === "scheduled" && !scheduledAt)}
+>
         {sendTiming === "scheduled"
           ? "⏱️ תזמן אישור הגעה"
           : "📩 שלח אישור הגעה SMS"}
