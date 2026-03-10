@@ -136,7 +136,7 @@ const [rsvpRound2Sent, setRsvpRound2Sent] = useState(false);
   /* ================= SCHEDULED MESSAGES ================= */
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
-  
+
   const round1Scheduled = scheduledMessages.some(
   (m) =>
     m.templateKey === "rsvp" &&
@@ -517,25 +517,30 @@ const round2Scheduled = scheduledMessages.some(
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
   messageOverride={message}
-  onAfterSend={loadScheduledMessages}
+  onAfterSend={async () => {
+    await loadScheduledMessages();
+
+    if (round === 1) setRsvpRound1Sent(true);
+    if (round === 2) setRsvpRound2Sent(true);
+  }}
   disabled={
-  noAudience ||
-  (sendTiming === "scheduled" && !scheduledAt) ||
-  (round === 1 && (rsvpRound1Sent || round1Scheduled)) ||
-  (round === 2 && (rsvpRound2Sent || round2Scheduled))
-}
+    noAudience ||
+    (sendTiming === "scheduled" && !scheduledAt) ||
+    (round === 1 && (rsvpRound1Sent || round1Scheduled)) ||
+    (round === 2 && (rsvpRound2Sent || round2Scheduled))
+  }
 >
   {round === 1 && (rsvpRound1Sent || round1Scheduled)
-  ? round1Scheduled
-    ? "⏱️ סבב 1 כבר מתוזמן"
-    : "✔ סבב 1 כבר נשלח"
-  : round === 2 && (rsvpRound2Sent || round2Scheduled)
-  ? round2Scheduled
-    ? "⏱️ סבב 2 כבר מתוזמן"
-    : "✔ סבב 2 כבר נשלח"
-  : sendTiming === "scheduled"
-  ? "⏱️ תזמן אישור הגעה"
-  : "📩 שלח אישור הגעה SMS"}
+    ? round1Scheduled
+      ? "⏱️ סבב 1 כבר מתוזמן"
+      : "✔ סבב 1 כבר נשלח"
+    : round === 2 && (rsvpRound2Sent || round2Scheduled)
+    ? round2Scheduled
+      ? "⏱️ סבב 2 כבר מתוזמן"
+      : "✔ סבב 2 כבר נשלח"
+    : sendTiming === "scheduled"
+    ? "⏱️ תזמן אישור הגעה"
+    : "📩 שלח אישור הגעה SMS"}
 </SendButton>
 
       {/* OPEN MODAL BUTTON */}
