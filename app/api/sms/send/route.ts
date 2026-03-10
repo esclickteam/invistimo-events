@@ -184,13 +184,26 @@ if (!invitation) {
   );
 }
 
-/* ================= RSVP SMS ROUND BLOCK ================= */
+
 
 /* ================= RSVP SMS ROUND BLOCK ================= */
 
 if (templateKey === "rsvp") {
 
-  // ❌ אי אפשר לשלוח סבב 2 לפני סבב 1
+  const existingScheduled = await ScheduledMessage.findOne({
+    invitationId,
+    templateKey: "rsvp",
+    roundNumber: round,
+    status: { $in: ["scheduled", "sending"] },
+  });
+
+  if (existingScheduled) {
+    return NextResponse.json(
+      { success: false, error: "RSVP_SMS_ROUND_ALREADY_SCHEDULED" },
+      { status: 400 }
+    );
+  }
+
   if (round === 2 && !invitation.rsvpSmsRound1SentAt) {
     return NextResponse.json(
       { success: false, error: "ROUND2_NOT_ALLOWED_BEFORE_ROUND1" },
@@ -198,7 +211,6 @@ if (templateKey === "rsvp") {
     );
   }
 
-  // ❌ אם כבר נשלח סבב 1 – לא מאפשרים לשלוח שוב סבב 1
   if (round === 1 && invitation.rsvpSmsRound1SentAt) {
     return NextResponse.json(
       { success: false, error: "RSVP_SMS_ROUND1_ALREADY_SENT" },
@@ -206,7 +218,6 @@ if (templateKey === "rsvp") {
     );
   }
 
-  // ❌ אם כבר נשלח סבב 2 – לא מאפשרים לשלוח שוב סבב 2
   if (round === 2 && invitation.rsvpSmsRound2SentAt) {
     return NextResponse.json(
       { success: false, error: "RSVP_SMS_ROUND2_ALREADY_SENT" },
