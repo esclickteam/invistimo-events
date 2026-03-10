@@ -33,16 +33,24 @@ type FilterType = "all" | "pending" | "withTable";
 ====================================================== */
 const MESSAGE_TEMPLATES: Record<
   MessageTemplateKey,
-  { requiresTable?: boolean; content: string }
+  { requiresTable?: boolean; round1?: string; round2?: string; content?: string }
 > = {
   rsvp: {
-  content:
-    "היי {{name}},\n" +
-    "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
-    "לאישור הגעה לחצו כאן:\n" +
-    "{{rsvpLink}}\n\n" +
-    "מחכים לכם באהבה 💖",
-},
+    round1:
+      "היי {{name}},\n" +
+      "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
+      "לאישור הגעה לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לכם באהבה 💖",
+
+    round2:
+      "היי {{name}},\n" +
+      "תזכורת קצרה לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
+      "לאישור לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לכם 💖",
+  },
+
   table: {
     requiresTable: false,
     content:
@@ -53,6 +61,7 @@ const MESSAGE_TEMPLATES: Record<
       "{{navigationLink}}\n\n" +
       "מחכים לך!",
   },
+
   custom: {
     content:
       "היי {{name}} 🌸\n" +
@@ -158,10 +167,11 @@ const remainingMessages = Math.max(
 
     /* ⭐️ בחירת מקור הטקסט */
     const baseTemplateText =
-      messageOverride &&
-      messageOverride.trim() !== template.content.trim()
-        ? messageOverride
-        : template.content;
+  templateKey === "rsvp"
+    ? filter === "pending"
+      ? template.round2 ?? ""
+      : template.round1 ?? ""
+    : template.content ?? "";
 
     /* ================= INVITATION ================= */
     const invitation = await Invitation.findById(invitationId).lean();
