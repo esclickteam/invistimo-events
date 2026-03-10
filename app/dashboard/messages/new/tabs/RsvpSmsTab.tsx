@@ -60,12 +60,21 @@ function splitByHalf<T>(list: T[], half: HalfType) {
 
 /* ================= MESSAGE TEMPLATE ================= */
 
-const RSVP_SMS_TEMPLATE =
-  "היי {{name}},\n" +
-  "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
-  "לאישור הגעה לחצו כאן:\n" +
-  "{{rsvpLink}}\n\n" +
-  "מחכים לכם באהבה 💖";
+const RSVP_SMS_TEMPLATES = {
+  round1:
+    "היי {{name}},\n" +
+    "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
+    "לאישור הגעה לחצו כאן:\n" +
+    "{{rsvpLink}}\n\n" +
+    "מחכים לכם באהבה 💖",
+
+  round2:
+    "היי {{name}},\n" +
+    "תזכורת קצרה לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
+    "לאישור לחצו כאן:\n" +
+    "{{rsvpLink}}\n\n" +
+    "מחכים לכם 💖",
+};
 
 /* ================= COMPONENT ================= */
 
@@ -100,7 +109,15 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
-  const [message, setMessage] = useState(RSVP_SMS_TEMPLATE);
+  const [message, setMessage] = useState(RSVP_SMS_TEMPLATES.round1);
+
+  useEffect(() => {
+  setMessage(
+    round === 1
+      ? RSVP_SMS_TEMPLATES.round1
+      : RSVP_SMS_TEMPLATES.round2
+  );
+}, [round]);
 
   const scheduledAt = useMemo(() => {
     if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
