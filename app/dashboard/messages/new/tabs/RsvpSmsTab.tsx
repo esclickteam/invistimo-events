@@ -87,6 +87,9 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
 
   const [round, setRound] = useState<1 | 2>(1);
 
+  const [rsvpRound1Sent, setRsvpRound1Sent] = useState(false);
+const [rsvpRound2Sent, setRsvpRound2Sent] = useState(false);
+
   /* ================= GIFT OPTIONS ================= */
 
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
@@ -175,6 +178,9 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
 
         const invitationData = await invitationRes.json();
         const inv = invitationData?.invitation;
+
+        setRsvpRound1Sent(!!inv?.rsvpSmsRound1SentAt);
+        setRsvpRound2Sent(!!inv?.rsvpSmsRound2SentAt);
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
@@ -496,12 +502,21 @@ export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
   scheduledAt={scheduledAt}
   messageOverride={message}
   onAfterSend={loadScheduledMessages}
-  disabled={noAudience || (sendTiming === "scheduled" && !scheduledAt)}
+  disabled={
+    noAudience ||
+    (sendTiming === "scheduled" && !scheduledAt) ||
+    (round === 1 && rsvpRound1Sent) ||
+    (round === 2 && rsvpRound2Sent)
+  }
 >
-        {sendTiming === "scheduled"
-          ? "⏱️ תזמן אישור הגעה"
-          : "📩 שלח אישור הגעה SMS"}
-      </SendButton>
+  {round === 1 && rsvpRound1Sent
+    ? "✔ סבב 1 כבר נשלח"
+    : round === 2 && rsvpRound2Sent
+    ? "✔ סבב 2 כבר נשלח"
+    : sendTiming === "scheduled"
+    ? "⏱️ תזמן אישור הגעה"
+    : "📩 שלח אישור הגעה SMS"}
+</SendButton>
 
       {/* OPEN MODAL BUTTON */}
       {scheduledMessages.length > 0 && (
