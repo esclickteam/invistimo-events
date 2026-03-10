@@ -168,11 +168,12 @@ const remainingMessages = Math.max(
 
     /* ⭐️ בחירת מקור הטקסט */
     const baseTemplateText =
-  templateKey === "rsvp"
+  messageOverride?.trim() ||
+  (templateKey === "rsvp"
     ? round === 2
       ? template.round2 ?? ""
       : template.round1 ?? ""
-    : template.content ?? "";
+    : template.content ?? "");
 
     /* ================= INVITATION ================= */
     const invitation = await Invitation.findById(invitationId).lean();
