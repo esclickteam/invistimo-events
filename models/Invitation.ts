@@ -199,6 +199,18 @@ const InvitationSchema = new Schema(
       index: true,
     },
 
+    rsvpSmsRound1SentAt: {
+  type: Date,
+  default: null,
+  index: true,
+},
+
+rsvpSmsRound2SentAt: {
+  type: Date,
+  default: null,
+  index: true,
+},
+
     reminderSentAt: {
       type: Date,
       default: null,

@@ -173,6 +173,34 @@ if (!invitation) {
   );
 }
 
+/* ================= RSVP SMS ROUND BLOCK ================= */
+
+if (templateKey === "rsvp") {
+
+  // ❌ אי אפשר לשלוח סבב 2 לפני סבב 1
+  if (!invitation.rsvpSmsRound1SentAt && filter === "pending") {
+    return NextResponse.json(
+      { success: false, error: "ROUND2_NOT_ALLOWED_BEFORE_ROUND1" },
+      { status: 400 }
+    );
+  }
+
+  if (invitation.rsvpSmsRound1SentAt && filter !== "pending") {
+    return NextResponse.json(
+      { success: false, error: "RSVP_SMS_ROUND1_ALREADY_SENT" },
+      { status: 400 }
+    );
+  }
+
+  if (invitation.rsvpSmsRound2SentAt && filter === "pending") {
+    return NextResponse.json(
+      { success: false, error: "RSVP_SMS_ROUND2_ALREADY_SENT" },
+      { status: 400 }
+    );
+  }
+
+}
+
 
 
 
@@ -453,11 +481,18 @@ if (!usesNewLogic && totalPartsSent + parts > remainingMessages) {
 
 // ✅ סימון שנשלחה הודעה
 if (sent > 0) {
+
   if (templateKey === "rsvp") {
-    await Invitation.updateOne(
-      { _id: invitationId },
-      { $set: { rsvpRound1SentAt: new Date() } }
-    );
+
+    const invitationDoc = await Invitation.findById(invitationId);
+
+    if (!invitationDoc.rsvpSmsRound1SentAt) {
+      invitationDoc.rsvpSmsRound1SentAt = new Date();
+    } else if (!invitationDoc.rsvpSmsRound2SentAt) {
+      invitationDoc.rsvpSmsRound2SentAt = new Date();
+    }
+
+    await invitationDoc.save();
   }
 
   if (templateKey === "table") {
@@ -473,6 +508,7 @@ if (sent > 0) {
       { $set: { thankYouSentAt: new Date() } }
     );
   }
+
 }
 
 
