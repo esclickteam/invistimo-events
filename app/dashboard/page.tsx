@@ -1279,8 +1279,8 @@ console.log("INVITATION:", invitation);
 
 
       {/* ===================== DESKTOP TABLE ===================== */}
-<div className="hidden md:block w-full overflow-x-hidden max-h-[70vh] overflow-y-auto rounded-xl border bg-white">
- <table className="w-full table-fixed">
+<div className="hidden md:block w-full overflow-x-auto max-h-[70vh] overflow-y-auto rounded-xl border bg-white">
+   <table className="min-w-[1450px] w-full table-auto">
     <thead className="bg-gray-100 sticky top-0 z-10 whitespace-nowrap">
       <tr>
         <th
