@@ -22,7 +22,7 @@
 /* -----------------------------------------------------------
    בסיס אתר
 ----------------------------------------------------------- */
-body {
+ body {
   background: var(--cream);
   color: var(--brown-dark);
   font-family: "Heebo", sans-serif !important;
