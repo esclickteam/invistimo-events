@@ -66,13 +66,14 @@ export async function POST(req: Request) {
        Save URL in Invitation
     ========================= */
     await Invitation.updateOne(
-      { _id: invitationId },
-      {
-        $set: {
-          previewImage: imageUrl,
-        },
-      }
-    );
+  { _id: invitationId },
+  {
+    $set: {
+      previewImage: imageUrl,
+      headerImageUrl: imageUrl,
+    },
+  }
+);
 
     return NextResponse.json({
       success: true,
