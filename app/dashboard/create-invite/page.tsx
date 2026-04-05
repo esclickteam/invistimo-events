@@ -89,7 +89,7 @@ export default function CreateInvitePage() {
   /* =========================================================
      שמירה
   ========================================================= */
- const handleSave = async () => {
+  const handleSave = async () => {
   try {
     setSaving(true);
 
@@ -101,30 +101,9 @@ export default function CreateInvitePage() {
       return;
     }
 
-    // ✅ 1️⃣ העלאת תמונה ל־Cloudinary
-    const uploadRes = await fetch("/api/upload-image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        base64: previewBase64,
-      }),
-    });
-
-    const uploadData = await uploadRes.json();
-
-    if (!uploadData.success) {
-      alert("❌ שגיאה בהעלאת תמונה");
-      return;
-    }
-
-    const previewUrl = uploadData.url;
-
-    // ✅ אם אין header נפרד — משתמשים באותו URL
-    const headerUrl = previewUrl;
-
-    // ✅ 2️⃣ יצירת הזמנה עם התמונות
+    /* =========================
+       1️⃣ יצירת הזמנה
+    ========================= */
     const res = await fetch("/api/invitations", {
       method: "POST",
       headers: {
@@ -134,26 +113,54 @@ export default function CreateInvitePage() {
       body: JSON.stringify({
         title: "ההזמנה שלי 🎉",
         canvasData: canvasJSON,
-
-        // 🔥 זה התיקון החשוב
-        previewImage: previewUrl,
-        headerImageUrl: headerUrl,
       }),
     });
 
     const data = await res.json();
 
     if (!data.success) {
-      alert(data.error);
+      alert(data.error || "❌ שגיאה ביצירת הזמנה");
       return;
     }
 
     const invitationId = data.invitation._id;
 
-    // ✅ 3️⃣ מעבר לפריוויו
+    /* =========================
+       2️⃣ העלאת תמונה (Cloudinary)
+    ========================= */
+    const uploadRes = await fetch("/api/invitations/upload-preview", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        invitationId,
+        base64Image: previewBase64,
+      }),
+    });
+
+    if (!uploadRes.ok) {
+  const text = await uploadRes.text();
+  console.error("UPLOAD ERROR:", text);
+  alert("❌ שגיאה בהעלאת תמונה");
+  return;
+}
+
+const uploadData = await uploadRes.json();
+
+if (!uploadData.success) {
+  alert("❌ שגיאה בהעלאת תמונה");
+  return;
+}
+
+    /* =========================
+       3️⃣ מעבר לפריוויו
+    ========================= */
     router.push(`/dashboard/invitations/${invitationId}/preview`);
+
   } catch (err) {
-    console.error(err);
+    console.error("❌ SAVE ERROR:", err);
     alert("❌ שגיאה בשמירה");
   } finally {
     setSaving(false);
