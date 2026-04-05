@@ -44,7 +44,13 @@ export async function POST(req: Request) {
 
     /* ================= BODY ================= */
     const body = await req.json().catch(() => ({}));
-    const { eventId, canvasData } = body;
+
+    const {
+      eventId,
+      canvasData,
+      previewImage,       // 🔥 חדש
+      headerImageUrl,     // 🔥 חדש
+    } = body;
 
     /* ================= EVENT ================= */
     let event: any = null;
@@ -108,7 +114,10 @@ export async function POST(req: Request) {
       location: event.location || {},
 
       canvasData: canvasData || {},
-      previewImage: "", // ✅ תמיד ריק כאן
+
+      // 🔥🔥🔥 התיקון כאן
+      previewImage: previewImage || "",
+      headerImageUrl: headerImageUrl || "",
 
       shareId: nanoid(10),
       guests: [],
