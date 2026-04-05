@@ -569,21 +569,22 @@ setCanvasFormat: (f: "vertical" | "square") => {
      ⭐️⭐️ PREVIEW IMAGE – זה הקריטי ⭐️⭐️
   ========================================================= */
   getPreviewImage: () => {
-    const stage = stageRef.current;
-    if (!stage) return "";
+  const stage = stageRef.current;
+  if (!stage) return "";
 
-    return stage.toDataURL({
-      pixelRatio: 2,
-      mimeType: "image/png",
-    });
-  },
+  const MAX_WIDTH = 1200;
+  const scaleFactor = Math.min(1, MAX_WIDTH / stage.width());
 
-  /* =========================================================
-     ZOOM
-  ========================================================= */
-  zoomIn: () => setScale(Math.min(scale + 0.1, 3)),
-  zoomOut: () => setScale(Math.max(scale - 0.1, 0.3)),
-  resetZoom: () => setScale(1),
+  return stage.toDataURL({
+    pixelRatio: scaleFactor,
+    mimeType: "image/jpeg",
+    quality: 0.7,
+  });
+}, // 🔥 הסוגר הקריטי
+
+zoomIn: () => setScale(Math.min(scale + 0.1, 3)),
+zoomOut: () => setScale(Math.max(scale - 0.1, 0.3)),
+resetZoom: () => setScale(1),
 }));
 
 
