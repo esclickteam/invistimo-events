@@ -7,11 +7,12 @@ import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import MobileGuests from "./MobileGuests";
 import SeatingSidebar from "./SeatingSidebar";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext"; 
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 import ExportSeatingPdf from "./ExportSeatingPdf";
+import { useRef } from "react";
 
 
 /* ⭐ קומפוננטות עליונות */
@@ -38,6 +39,7 @@ export default function SeatingPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
 const [invitationId, setInvitationId] = useState<string | null>(null); 
+const didLoadRef = useRef(false);
 
 
 
@@ -61,10 +63,9 @@ useEffect(() => {
   
 
   const pathname = usePathname();
-const isDemo = pathname.startsWith("/try/");
-const searchParams = useSearchParams();
-const eventIdFromQuery = searchParams.get("eventId");
+const isProducer = pathname.includes("/events/production");
 
+const isDemo = pathname.startsWith("/try/");
 
 
 
@@ -81,34 +82,13 @@ const eventIdFromQuery = searchParams.get("eventId");
   const groups = useSeatingStore((s) => s.groups);
   const { user } = useAuth();
 
-  const effectiveRole =
-  user?.impersonationRole === "producer_staff"
-    ? "producer"
-    : user?.impersonationRole || user?.role;
-
-const canBypassPlan =
-  effectiveRole === "producer" ||
-  user?.impersonated === true ||
-  !!eventIdFromQuery;
-
-  const isProducer =
-  effectiveRole === "producer" || user?.impersonated === true;
-
   useEffect(() => {
   if (!user) return;
 
-  if (canBypassPlan) {
-    setBlockReason(null);
-    return;
-  }
-
   if (user.planLimits?.seatingEnabled !== true) {
     setBlockReason("no-plan");
-    return;
   }
-
-  setBlockReason(null);
-}, [user, canBypassPlan]);
+}, [user]);
 
 
 const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
@@ -149,6 +129,8 @@ const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 useEffect(() => {
   if (isDemo) return; // 🔥 בדמו לא טוענים מהשרת
 
+  if (didLoadRef.current) return;
+  didLoadRef.current = true;
 
   async function load() {
     try {
@@ -163,20 +145,11 @@ useEffect(() => {
       }
 
       /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
-
-const invUrl = eventIdFromQuery
-  ? `/api/invitations/by-event/${eventIdFromQuery}`
-  : "/api/invitations/my";
-
-const invRes = await fetch(invUrl, {
-  credentials: "include",
-  cache: "no-store",
-});
+      const invRes = await fetch("/api/invitations/my");
 const invData = await invRes.json();
 
 const invitationIdFromApi: string = invData?.invitation?._id;
-const eventIdFromApi: string =
-  invData?.invitation?.eventId || eventIdFromQuery;
+const eventIdFromApi: string = invData?.invitation?.eventId;
 
 if (!invitationIdFromApi || !eventIdFromApi) {
   console.error("❌ Missing invitation/event id", invData);
@@ -188,14 +161,12 @@ setEventId(eventIdFromApi);
 
 
       /* 2️⃣ אורחים – לפי eventId */
-      const gRes = await fetch(
-  `/api/seating/guests?invitationId=${invitationIdFromApi}`
-);
+      const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
 
-      if (gRes.status === 403 && !canBypassPlan) {
-  setBlockReason("no-plan");
-  return;
-}
+      if (gRes.status === 403) {
+        setBlockReason("no-plan");
+        return;
+      }
 
       const gData = await gRes.json();
 
@@ -211,14 +182,12 @@ setEventId(eventIdFromApi);
       }));
 
       /* 3️⃣ שולחנות + קנבס */
-      const tRes = await fetch(
-  `/api/seating/tables?invitationId=${invitationIdFromApi}`
-);
+      const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
 
-      if (tRes.status === 403 && !canBypassPlan) {
-  setBlockReason("no-plan");
-  return;
-}
+      if (tRes.status === 403) {
+        setBlockReason("no-plan");
+        return;
+      }
 
       const tData = await tRes.json();
 
@@ -245,7 +214,7 @@ setEventId(eventIdFromApi);
   }
 
   load();
-}, [isDemo, canBypassPlan, eventIdFromQuery]);
+}, [isDemo]);
 
 
 
@@ -513,7 +482,7 @@ return (
       background={background?.url || null}
       invitationId={invitationId}
       onAutoSave={() => saveSeating(false)}
-      hideSeats={false}
+      hideSeats={isProducer}
       sidebarOpen={sidebarOpen}
     />
   </div>

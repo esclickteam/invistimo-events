@@ -21,43 +21,26 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       ⭐ 1️⃣ query params (חדש!)
-    =============================== */
-    const { searchParams } = new URL(req.url);
-    const invitationIdFromQuery = searchParams.get("invitationId");
-
-    /* ===============================
-       2️⃣ params (fallback)
+       1️⃣ params (חובה await)
     =============================== */
     const { eventId } = await context.params;
 
-    if (!invitationIdFromQuery && !eventId) {
+    if (!eventId) {
       return NextResponse.json(
-        { success: false, error: "Missing invitationId or eventId" },
+        { success: false, error: "Missing eventId" },
         { status: 400 }
       );
     }
 
-    console.log("📤 LOAD SEATING TABLES:", {
-      invitationIdFromQuery,
-      eventId,
-    });
+    console.log("📤 LOAD SEATING TABLES:", { eventId });
 
     /* ===============================
-       ⭐ 3️⃣ שליפה חכמה
-       קודם invitationId → אח"כ eventId
+       2️⃣ שליפת הושבה לפי eventId
+       מסמך אחד = אירוע אחד
     =============================== */
-    let record = null;
-
-    if (invitationIdFromQuery) {
-      record = await SeatingTable.findOne({
-        invitationId: invitationIdFromQuery,
-      }).lean();
-    }
-
-    if (!record && eventId) {
-      record = await SeatingTable.findOne({ eventId }).lean();
-    }
+    const record =
+      (await SeatingTable.findOne({ eventId }).lean()) ||
+      (await SeatingTable.findOne({ invitationId: eventId }).lean());
 
     console.log("📦 RECORD FOUND:", {
       hasRecord: !!record,
@@ -68,7 +51,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     });
 
     /* ===============================
-       4️⃣ החזרה לפרונט
+       3️⃣ החזרה מלאה לפרונט
     =============================== */
     return NextResponse.json({
       success: true,

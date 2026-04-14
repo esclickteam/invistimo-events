@@ -14,52 +14,31 @@ export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 Guard */
+    /* 🔐 Guard אחיד – בדיקת הרשאת הושבה */
     const guard = await requireSeating();
     if (!guard.ok) {
       return guard.response!;
     }
 
-    /* ===============================
-       ⭐ 1️⃣ query params (חדש!)
-    =============================== */
-    const { searchParams } = new URL(req.url);
-    const invitationIdFromQuery = searchParams.get("invitationId");
-
-    /* ===============================
-       2️⃣ params fallback
-    =============================== */
+    /* ⭐ params */
     const { eventId } = await context.params;
 
-    if (!invitationIdFromQuery && !eventId) {
+    if (!eventId) {
       return NextResponse.json(
         { success: false, guests: [] },
         { status: 400 }
       );
     }
 
-    console.log("📤 LOAD GUESTS:", {
-      invitationIdFromQuery,
-      eventId,
-    });
-
     /* ===============================
-       ⭐ 3️⃣ קביעת invitationId אמיתי
+       1️⃣ מציאת ההזמנה לפי eventId בלבד
+       ⭐ קריטי להתחזות / מפיק
     =============================== */
-    let invitationId = invitationIdFromQuery;
+    const invitation = await Invitation.findOne({ eventId })
+      .select("_id")
+      .lean();
 
-    // fallback אם אין invitationId
-    if (!invitationId && eventId) {
-      const invitation = await Invitation.findOne({ eventId })
-        .select("_id")
-        .lean();
-
-      if (invitation?._id) {
-        invitationId = String(invitation._id);
-      }
-    }
-
-    if (!invitationId) {
+    if (!invitation) {
       return NextResponse.json({
         success: true,
         guests: [],
@@ -67,10 +46,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       4️⃣ שליפת האורחים
+       2️⃣ שליפת האורחים
     =============================== */
     const guests = await InvitationGuest.find({
-      invitationId,
+      invitationId: invitation._id,
     })
       .lean()
       .exec();

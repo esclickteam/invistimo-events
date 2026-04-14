@@ -4,11 +4,14 @@ import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
-import Group from "@/models/Group";
+import Group from "@/models/Group"; // ⭐ חובה
 import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
+/* ===============================
+   TYPES
+=============================== */
 type RouteContext = {
   params: Promise<{ eventId: string }>;
 };
@@ -22,22 +25,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
+    /* 🔐 Guard אחיד – הרשאת הושבה */
     const guard = await requireSeating();
     if (!guard.ok) return guard.response!;
 
     const userId = guard.userId!;
-
-    /* ===============================
-       ⭐ query (חדש!)
-    =============================== */
-    const { searchParams } = new URL(req.url);
-    const invitationIdFromQuery = searchParams.get("invitationId");
-
     const { eventId } = await context.params;
 
-    if (!invitationIdFromQuery && !eventId) {
+    if (!eventId) {
       return NextResponse.json(
-        { success: false, error: "Missing invitationId or eventId" },
+        { success: false, error: "Missing eventId" },
         { status: 400 }
       );
     }
@@ -46,56 +43,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     console.log("📥 SAVE SEATING BODY:", {
       eventId,
-      invitationIdFromQuery,
       tables: body.tables?.length,
+      zones: body.zones?.length,
     });
 
     /* ===============================
-       ⭐ מציאת invitation אמיתי
-    =============================== */
-    let invitation = null;
-
-    if (invitationIdFromQuery) {
-      invitation = await Invitation.findById(invitationIdFromQuery).lean();
-    }
-
-    if (!invitation && eventId) {
-      invitation = await Invitation.findOne({ eventId }).lean();
-    }
-
-    if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    const realInvitationId = String(invitation._id);
-
-    /* ===============================
-       🔐 הרשאות
-    =============================== */
-    const isOwner = String(invitation.ownerId) === String(userId);
-
-    const isProducer =
-      Array.isArray(invitation.producers) &&
-      invitation.producers.some(
-        (p: any) => String(p.userId ?? p) === String(userId)
-      );
-
-    if (!isOwner && !isProducer) {
-      return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    /* ===============================
-       DATA
+       TABLES
     =============================== */
     const rawTables = Array.isArray(body.tables) ? body.tables : [];
+
+    /* ===============================
+       ZONES
+    =============================== */
     const zones = Array.isArray(body.zones) ? body.zones : [];
 
+    /* ===============================
+       BACKGROUND
+    =============================== */
     let background: BackgroundPayload | null = null;
 
     if (typeof body.background === "string") {
@@ -110,9 +74,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
       };
     }
 
+    /* ===============================
+       CANVAS VIEW
+    =============================== */
     const canvasView =
       body.canvasView &&
-      typeof body.canvasView.scale === "number"
+      typeof body.canvasView.scale === "number" &&
+      typeof body.canvasView.x === "number" &&
+      typeof body.canvasView.y === "number"
         ? {
             scale: body.canvasView.scale,
             x: body.canvasView.x,
@@ -121,22 +90,46 @@ export async function POST(req: NextRequest, context: RouteContext) {
         : null;
 
     /* ===============================
-       GROUP SNAPSHOT
+       🔐 הרשאות – לפני כתיבה
+    =============================== */
+    const invitation = await Invitation.findOne({ eventId }).lean();
+
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, error: "INVITATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const isOwner = String(invitation.ownerId) === String(userId);
+    const isProducer =
+      Array.isArray(invitation.producers) &&
+      invitation.producers.some(
+        (p: any) => String(p.userId ?? p) === String(userId)
+      );
+
+    if (!isOwner && !isProducer) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* ===============================
+       ⭐ NORMALIZE GROUP SNAPSHOT
     =============================== */
     const groupIds: string[] = Array.from(
-      new Set(
-        rawTables
-          .map((t: any) => t?.group)
-          .filter((g: unknown): g is string => typeof g === "string")
-      )
-    );
+  new Set(
+    rawTables
+      .map((t: any) => t?.group)
+      .filter((g: unknown): g is string => typeof g === "string")
+  )
+);
 
     const groups =
       groupIds.length > 0
         ? await Group.find({
-            _id: {
-              $in: groupIds.map((id) => new mongoose.Types.ObjectId(id)),
-            },
+            _id: { $in: groupIds.map(id => new mongoose.Types.ObjectId(id)) },
             invitationId: invitation._id,
           }).lean()
         : [];
@@ -161,18 +154,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
         };
       }
 
+      // כבר snapshot או null
       return table;
     });
 
     /* ===============================
-       ⭐ SAVE לפי invitationId
+       SAVE / UPSERT (לפי eventId)
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
-      { invitationId: realInvitationId },
+      { eventId },
       {
         $set: {
-          invitationId: realInvitationId,
-          eventId: invitation.eventId,
+          eventId,
           tables,
           zones,
           background,
@@ -188,7 +181,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     /* ===============================
-       UPDATE GUESTS
+       שיוך אורחים לשולחנות
     =============================== */
     const updatedGuestIds = new Set<string>();
 
@@ -212,9 +205,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
+    /* 🧹 איפוס רק לאורחים שלא שובצו */
     await InvitationGuest.updateMany(
       {
-        invitationId: realInvitationId,
+        invitationId: invitation._id,
         _id: { $nin: Array.from(updatedGuestIds) },
       },
       { $set: { tableNumber: null, tableName: "" } }
@@ -223,7 +217,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       seatingId: saved._id,
-      invitationId: realInvitationId,
+      eventId,
       tablesCount: tables.length,
       zonesCount: zones.length,
     });
