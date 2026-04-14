@@ -307,22 +307,14 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
   if (!user) return;
 
   const url =
-    eventIdFromUrl
-      ? `/api/invitations/by-event/${eventIdFromUrl}`
-      : "/api/invitations/my";
+  eventIdFromUrl
+    ? `/api/invitations/by-event/any?invitationId=${eventIdFromUrl}`
+    : "/api/invitations/my";
 
   const res = await fetch(url, {
     credentials: "include",
     cache: "no-store",
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("loadInvitation failed:", res.status, text);
-    setInvitation(null);
-    setInvitationId("");
-    return;
-  }
 
   const data = await res.json();
 
@@ -339,21 +331,14 @@ async function loadEvent() {
   if (!user) return;
 
   const url =
-    eventIdFromUrl
-      ? `/api/events/${eventIdFromUrl}`
-      : "/api/events";
+  eventIdFromUrl
+    ? `/api/events/${eventIdFromUrl}`
+    : "/api/events";
 
   const res = await fetch(url, {
     credentials: "include",
     cache: "no-store",
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("loadEvent failed:", res.status, text);
-    setEvent(null);
-    return;
-  }
 
   const data = await res.json();
 
@@ -1196,27 +1181,23 @@ console.log("INVITATION:", invitation);
 
   {/* 6️⃣ סידורי הושבה */}
   <button
-  onClick={() => {
-    const target = eventIdFromUrl
-      ? isDemo
-        ? `/try/dashboard/seating?eventId=${eventIdFromUrl}`
-        : `/dashboard/seating?eventId=${eventIdFromUrl}`
-      : isDemo
-      ? "/try/dashboard/seating"
-      : "/dashboard/seating";
-
-    router.push(target);
-  }}
-  disabled={!invitation}
-  className={`
-    px-6 py-3 rounded-full font-semibold
-    ${invitation
-      ? "bg-[#c9b48f] text-white"
-      : "bg-gray-200 text-gray-400 cursor-not-allowed"}
-  `}
->
-  🪑 סידורי הושבה
-</button>
+    onClick={() =>
+      router.push(
+        isDemo
+          ? "/try/dashboard/seating"
+          : "/dashboard/seating"
+      )
+    }
+    disabled={!invitation}
+    className={`
+      px-6 py-3 rounded-full font-semibold
+      ${invitation
+        ? "bg-[#c9b48f] text-white"
+        : "bg-gray-200 text-gray-400 cursor-not-allowed"}
+    `}
+  >
+    🪑 סידורי הושבה
+  </button>
 
   {/* 7️⃣ שליחת הודעות */}
   <button

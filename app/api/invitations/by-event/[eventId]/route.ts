@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Invitation from "@/models/Invitation";
-import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ eventId: string }> }
-) {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
@@ -25,67 +21,26 @@ export async function GET(
     }
 
     /* =========================
-       Query params
+       Query params (חובה!)
     ========================= */
     const { searchParams } = new URL(req.url);
-    const invitationIdFromQuery = searchParams.get("invitationId");
+    const invitationId = searchParams.get("invitationId");
 
-    const { eventId } = await params;
-
-    if (!invitationIdFromQuery && !eventId) {
+    if (!invitationId) {
       return NextResponse.json(
-        { success: false, error: "MISSING_EVENT_OR_INVITATION_ID" },
+        { success: false, error: "MISSING_INVITATION_ID" },
         { status: 400 }
       );
     }
 
-    let invitation: any = null;
-    let event: any = null;
-
     /* =========================
-       1️⃣ לפי invitationId (עדיפות)
+       Load invitation
     ========================= */
-    if (invitationIdFromQuery) {
-      invitation = await Invitation.findById(invitationIdFromQuery).lean();
+    const invitation = await Invitation.findById(invitationId).lean();
 
-      if (!invitation) {
-        return NextResponse.json(
-          { success: false, error: "INVITATION_NOT_FOUND" },
-          { status: 404 }
-        );
-      }
-
-      if (invitation.eventId) {
-        event = await Event.findById(invitation.eventId).lean();
-      }
-
-      if (!event) {
-        return NextResponse.json(
-          { success: false, error: "EVENT_NOT_FOUND" },
-          { status: 404 }
-        );
-      }
-    }
-
-    /* =========================
-       2️⃣ fallback לפי eventId
-    ========================= */
-    if (!invitation && eventId) {
-      event = await Event.findById(eventId).lean();
-
-      if (!event) {
-        return NextResponse.json(
-          { success: false, error: "EVENT_NOT_FOUND" },
-          { status: 404 }
-        );
-      }
-
-      invitation = await Invitation.findOne({ eventId }).lean();
-    }
-
-    if (!event) {
+    if (!invitation) {
       return NextResponse.json(
-        { success: false, error: "EVENT_NOT_FOUND" },
+        { success: false, error: "INVITATION_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -93,18 +48,15 @@ export async function GET(
     /* =========================
        Authorization
     ========================= */
-    const isOwner = String(event.userId) === String(auth.userId);
+    const isOwner =
+      String(invitation.ownerId) === String(auth.userId);
 
     const isProducer =
-  auth.role === "producer" &&
-  (
-    String(event.createdByProducer) === String(auth.userId) ||
-    String(event.producerId) === String(auth.userId)
-  );
-
-    const isImpersonating = auth?.impersonated === true;
+      auth.role === "producer" &&
+      String(invitation.producerId ?? "") === String(auth.userId);
 
     const isAdmin = auth.role === "admin";
+    const isImpersonating = auth?.impersonated === true;
 
     if (!isOwner && !isProducer && !isAdmin && !isImpersonating) {
       return NextResponse.json(
@@ -118,10 +70,10 @@ export async function GET(
     ========================= */
     return NextResponse.json({
       success: true,
-      invitation: invitation || null,
+      invitation,
     });
   } catch (err) {
-    console.error("❌ GET /api/invitations/by-event failed:", err);
+    console.error("❌ GET invitation failed:", err);
 
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
