@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { UserPlus, ArrowUpRight, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -35,6 +36,9 @@ function isWithinDays(dateStr, days) {
 ========================= */
 export default function ProducerDashboard() {
   const { user, loading: authLoading, setUser, setIsAuthenticated } = useAuth();
+
+    const router = useRouter();
+
 
   const [clients, setClients] = useState([]);
   const [clientsLoading, setClientsLoading] = useState(false);
@@ -224,9 +228,9 @@ export default function ProducerDashboard() {
 
     // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
     if (client.event?._id) {
-      window.location.href = `/events/production/${client.event._id}?tab=overview`;
-      return;
-    }
+  router.push(`/events/production/${client.event._id}?tab=overview`);
+  return;
+}
 
     // 🟡 fallback: אם אין אירוע
     window.location.href = "/producer/dashboard";
@@ -338,16 +342,7 @@ export default function ProducerDashboard() {
     };
   }, [clients]);
 
-  /* =========================
-     Guards
-  ========================= */
-  if (user?.impersonated) {
-  window.location.href = "/events/production";
-  return null;
-}
-
-
-
+ 
   /* =========================
      UI
   ========================= */
