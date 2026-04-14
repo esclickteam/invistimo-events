@@ -26,20 +26,14 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // 🧪 דמו = כל מה שמתחיל ב־/try
   const isDemo = pathname.startsWith("/try");
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [loadingInvitation, setLoadingInvitation] = useState(true);
 
-  /* ============================================================
-     Load Invitation (לא בדמו)
-     ✅ תומך גם ב-eventId (למפיקים / התחזות / כניסה מאירועים)
-  ============================================================ */
   useEffect(() => {
     if (isDemo) {
-      // ⭐️ בדמו – הזמנה פיקטיבית בלבד
       setInvitation({
         _id: "demo",
         shareId: "demo",
@@ -50,22 +44,103 @@ export default function DashboardLayout({
     }
 
     async function loadInvitation() {
+      setLoadingInvitation(true);
+
       try {
         const eventIdFromUrl = searchParams.get("eventId");
+        console.log("🟡 DashboardLayout eventIdFromUrl:", eventIdFromUrl);
 
-        const url = eventIdFromUrl
-          ? `/api/invitations/by-event/${eventIdFromUrl}`
-          : "/api/invitations/my";
+        // 1) אם הגיע ID מה-URL, קודם ננסה כ-invitationId ישיר
+        if (eventIdFromUrl) {
+          console.log(
+            "🔵 Trying invitation by direct id:",
+            `/api/invitations/${eventIdFromUrl}`
+          );
 
-        const res = await fetch(url, {
+          const invitationRes = await fetch(`/api/invitations/${eventIdFromUrl}`, {
+            credentials: "include",
+            cache: "no-store",
+          });
+
+          if (invitationRes.ok) {
+            const invitationData = await invitationRes.json();
+            console.log("🟢 Direct invitation response:", invitationData);
+
+            if (invitationData?.success) {
+              const loadedInvitation =
+                invitationData.invitation || invitationData.data || invitationData;
+
+              if (loadedInvitation?._id) {
+                setInvitation(loadedInvitation);
+                return;
+              }
+            }
+          } else {
+            const text = await invitationRes.text();
+            console.error(
+              "🔴 Direct invitation fetch failed:",
+              invitationRes.status,
+              text
+            );
+          }
+
+          // 2) fallback - ננסה כ-eventId
+          console.log(
+            "🟠 Fallback to by-event:",
+            `/api/invitations/by-event/${eventIdFromUrl}`
+          );
+
+          const byEventRes = await fetch(
+            `/api/invitations/by-event/${eventIdFromUrl}`,
+            {
+              credentials: "include",
+              cache: "no-store",
+            }
+          );
+
+          if (!byEventRes.ok) {
+            const text = await byEventRes.text();
+            console.error(
+              "🔴 by-event fetch failed:",
+              byEventRes.status,
+              text
+            );
+            setInvitation(null);
+            return;
+          }
+
+          const byEventData = await byEventRes.json();
+          console.log("🟢 by-event response:", byEventData);
+
+          if (byEventData?.success && byEventData.invitation) {
+            setInvitation(byEventData.invitation);
+            return;
+          }
+
+          setInvitation(null);
+          return;
+        }
+
+        // 3) אם אין eventId ב-URL - נביא את ההזמנה של המשתמש
+        console.log("🔵 Loading my invitation: /api/invitations/my");
+
+        const myRes = await fetch("/api/invitations/my", {
           credentials: "include",
           cache: "no-store",
         });
 
-        const data = await res.json();
+        if (!myRes.ok) {
+          const text = await myRes.text();
+          console.error("🔴 /api/invitations/my failed:", myRes.status, text);
+          setInvitation(null);
+          return;
+        }
 
-        if (data?.success && data.invitation) {
-          setInvitation(data.invitation);
+        const myData = await myRes.json();
+        console.log("🟢 my invitation response:", myData);
+
+        if (myData?.success && myData.invitation) {
+          setInvitation(myData.invitation);
         } else {
           setInvitation(null);
         }
@@ -78,26 +153,16 @@ export default function DashboardLayout({
     }
 
     loadInvitation();
-  }, [isDemo, searchParams]);
+  }, [isDemo, searchParams, pathname]);
 
-  /* ============================================================
-     Render
-  ============================================================ */
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      {/* =========================
-          Header – קבוע למעלה
-      ========================= */}
       <DashboardHeader
         onOpenMenu={() => setMenuOpen(true)}
         invitation={invitation}
         isDemo={isDemo}
       />
 
-      {/* =========================
-          Mobile Menu
-          ✅ הכי חשוב: להעביר invitationId כדי שיזהה "עריכת הזמנה"
-      ========================= */}
       <DashboardMobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -106,9 +171,6 @@ export default function DashboardLayout({
         isDemo={isDemo}
       />
 
-      {/* =========================
-          Content
-      ========================= */}
       <main className="pt-16">{!loadingInvitation && children}</main>
     </div>
   );
