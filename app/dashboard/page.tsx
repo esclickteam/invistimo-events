@@ -306,9 +306,10 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
   async function loadInvitation() {
   if (!user) return;
 
-  const url = eventIdFromUrl
-    ? `/api/invitations/by-event?eventId=${eventIdFromUrl}`
-    : "/api/invitations/my";
+  const url =
+    eventIdFromUrl
+      ? `/api/invitations/by-event/${eventIdFromUrl}`
+      : "/api/invitations/my";
 
   const res = await fetch(url, {
     credentials: "include",
