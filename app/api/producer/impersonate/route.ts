@@ -108,16 +108,17 @@ export async function POST(req: NextRequest) {
        🎭 Impersonation token
     ========================= */
     const impersonationToken = jwt.sign(
-      {
-        userId: client._id.toString(),
-        role: "client",
-        impersonated: true,
-        impersonatedBy: producerId,
-        impersonationRole: "producer",
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
-    );
+  {
+    userId: client._id.toString(),
+    role: "client",
+    impersonated: true,
+    impersonatedBy: producerId,
+    impersonationRole: "producer",
+    hasPaid: true,
+  },
+  process.env.JWT_SECRET!,
+  { expiresIn: "1h" }
+);
 
     /* =========================
        ✅ Response

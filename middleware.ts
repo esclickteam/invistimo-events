@@ -136,9 +136,15 @@ export function middleware(req: NextRequest) {
   const isUserLike = role === "user" || role === "client";
 
   /* 4) Impersonation */
+  const impersonationRole = String(payload.impersonationRole || "")
+    .toLowerCase()
+    .trim();
+
   const isImpersonatedAdminSession =
-    payload.impersonated === true &&
-    String(payload.impersonationRole || "").toLowerCase().trim() === "admin";
+    payload.impersonated === true && impersonationRole === "admin";
+
+  const isImpersonatedProducerSession =
+    payload.impersonated === true && impersonationRole === "producer";
 
   const isAdmin = role === "admin";
 
@@ -165,15 +171,17 @@ export function middleware(req: NextRequest) {
   }
 
   if (isProducerRoute) {
-    const allowed = role === "producer" || isAdmin || isImpersonatedAdminSession;
+    const allowed =
+      role === "producer" || isAdmin || isImpersonatedAdminSession;
     if (!allowed) return redirectToForbidden(req);
   }
 
   if (isClientRoute) {
-    // intentionally open by role (לפי הלוגיקה שלך)
+    // intentionally open by role
   }
 
-  /* 6) Paid guard – רק user/client תלויים ב-hasPaid */
+  /* 6) Paid guard – רק user/client תלויים ב-hasPaid
+     אבל לא כאשר זו התחזות של מפיק */
   const requiresPaidForUser =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/producer") ||
@@ -183,7 +191,8 @@ export function middleware(req: NextRequest) {
     requiresPaidForUser &&
     isUserLike &&
     !isAdmin &&
-    !isImpersonatedAdminSession
+    !isImpersonatedAdminSession &&
+    !isImpersonatedProducerSession
   ) {
     if (payload.hasPaid !== true) {
       return redirectToPricing(req);
