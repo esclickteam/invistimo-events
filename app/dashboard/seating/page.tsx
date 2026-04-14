@@ -188,7 +188,9 @@ setEventId(eventIdFromApi);
 
 
       /* 2️⃣ אורחים – לפי eventId */
-      const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
+      const gRes = await fetch(
+  `/api/seating/guests?invitationId=${invitationIdFromApi}`
+);
 
       if (gRes.status === 403 && !canBypassPlan) {
   setBlockReason("no-plan");
@@ -209,7 +211,9 @@ setEventId(eventIdFromApi);
       }));
 
       /* 3️⃣ שולחנות + קנבס */
-      const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
+      const tRes = await fetch(
+  `/api/seating/tables?invitationId=${invitationIdFromApi}`
+);
 
       if (tRes.status === 403 && !canBypassPlan) {
   setBlockReason("no-plan");

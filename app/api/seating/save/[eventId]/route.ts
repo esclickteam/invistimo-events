@@ -4,14 +4,11 @@ import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
-import Group from "@/models/Group"; // ⭐ חובה
+import Group from "@/models/Group";
 import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 
-/* ===============================
-   TYPES
-=============================== */
 type RouteContext = {
   params: Promise<{ eventId: string }>;
 };
@@ -25,16 +22,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 Guard אחיד – הרשאת הושבה */
     const guard = await requireSeating();
     if (!guard.ok) return guard.response!;
 
     const userId = guard.userId!;
+
+    /* ===============================
+       ⭐ query (חדש!)
+    =============================== */
+    const { searchParams } = new URL(req.url);
+    const invitationIdFromQuery = searchParams.get("invitationId");
+
     const { eventId } = await context.params;
 
-    if (!eventId) {
+    if (!invitationIdFromQuery && !eventId) {
       return NextResponse.json(
-        { success: false, error: "Missing eventId" },
+        { success: false, error: "Missing invitationId or eventId" },
         { status: 400 }
       );
     }
@@ -43,56 +46,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     console.log("📥 SAVE SEATING BODY:", {
       eventId,
+      invitationIdFromQuery,
       tables: body.tables?.length,
-      zones: body.zones?.length,
     });
 
     /* ===============================
-       TABLES
+       ⭐ מציאת invitation אמיתי
     =============================== */
-    const rawTables = Array.isArray(body.tables) ? body.tables : [];
+    let invitation = null;
 
-    /* ===============================
-       ZONES
-    =============================== */
-    const zones = Array.isArray(body.zones) ? body.zones : [];
-
-    /* ===============================
-       BACKGROUND
-    =============================== */
-    let background: BackgroundPayload | null = null;
-
-    if (typeof body.background === "string") {
-      background = { url: body.background, opacity: 0.28 };
-    } else if (body.background?.url) {
-      background = {
-        url: body.background.url,
-        opacity:
-          typeof body.background.opacity === "number"
-            ? body.background.opacity
-            : 0.28,
-      };
+    if (invitationIdFromQuery) {
+      invitation = await Invitation.findById(invitationIdFromQuery).lean();
     }
 
-    /* ===============================
-       CANVAS VIEW
-    =============================== */
-    const canvasView =
-      body.canvasView &&
-      typeof body.canvasView.scale === "number" &&
-      typeof body.canvasView.x === "number" &&
-      typeof body.canvasView.y === "number"
-        ? {
-            scale: body.canvasView.scale,
-            x: body.canvasView.x,
-            y: body.canvasView.y,
-          }
-        : null;
-
-    /* ===============================
-       🔐 הרשאות – לפני כתיבה
-    =============================== */
-    const invitation = await Invitation.findOne({ eventId }).lean();
+    if (!invitation && eventId) {
+      invitation = await Invitation.findOne({ eventId }).lean();
+    }
 
     if (!invitation) {
       return NextResponse.json(
@@ -101,7 +70,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    const realInvitationId = String(invitation._id);
+
+    /* ===============================
+       🔐 הרשאות
+    =============================== */
     const isOwner = String(invitation.ownerId) === String(userId);
+
     const isProducer =
       Array.isArray(invitation.producers) &&
       invitation.producers.some(
@@ -116,20 +91,52 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       ⭐ NORMALIZE GROUP SNAPSHOT
+       DATA
+    =============================== */
+    const rawTables = Array.isArray(body.tables) ? body.tables : [];
+    const zones = Array.isArray(body.zones) ? body.zones : [];
+
+    let background: BackgroundPayload | null = null;
+
+    if (typeof body.background === "string") {
+      background = { url: body.background, opacity: 0.28 };
+    } else if (body.background?.url) {
+      background = {
+        url: body.background.url,
+        opacity:
+          typeof body.background.opacity === "number"
+            ? body.background.opacity
+            : 0.28,
+      };
+    }
+
+    const canvasView =
+      body.canvasView &&
+      typeof body.canvasView.scale === "number"
+        ? {
+            scale: body.canvasView.scale,
+            x: body.canvasView.x,
+            y: body.canvasView.y,
+          }
+        : null;
+
+    /* ===============================
+       GROUP SNAPSHOT
     =============================== */
     const groupIds: string[] = Array.from(
-  new Set(
-    rawTables
-      .map((t: any) => t?.group)
-      .filter((g: unknown): g is string => typeof g === "string")
-  )
-);
+      new Set(
+        rawTables
+          .map((t: any) => t?.group)
+          .filter((g: unknown): g is string => typeof g === "string")
+      )
+    );
 
     const groups =
       groupIds.length > 0
         ? await Group.find({
-            _id: { $in: groupIds.map(id => new mongoose.Types.ObjectId(id)) },
+            _id: {
+              $in: groupIds.map((id) => new mongoose.Types.ObjectId(id)),
+            },
             invitationId: invitation._id,
           }).lean()
         : [];
@@ -154,18 +161,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
         };
       }
 
-      // כבר snapshot או null
       return table;
     });
 
     /* ===============================
-       SAVE / UPSERT (לפי eventId)
+       ⭐ SAVE לפי invitationId
     =============================== */
     const saved = await SeatingTable.findOneAndUpdate(
-      { eventId },
+      { invitationId: realInvitationId },
       {
         $set: {
-          eventId,
+          invitationId: realInvitationId,
+          eventId: invitation.eventId,
           tables,
           zones,
           background,
@@ -181,7 +188,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     /* ===============================
-       שיוך אורחים לשולחנות
+       UPDATE GUESTS
     =============================== */
     const updatedGuestIds = new Set<string>();
 
@@ -205,10 +212,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    /* 🧹 איפוס רק לאורחים שלא שובצו */
     await InvitationGuest.updateMany(
       {
-        invitationId: invitation._id,
+        invitationId: realInvitationId,
         _id: { $nin: Array.from(updatedGuestIds) },
       },
       { $set: { tableNumber: null, tableName: "" } }
@@ -217,7 +223,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       seatingId: saved._id,
-      eventId,
+      invitationId: realInvitationId,
       tablesCount: tables.length,
       zonesCount: zones.length,
     });

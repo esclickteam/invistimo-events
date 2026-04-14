@@ -14,31 +14,52 @@ export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 Guard אחיד – בדיקת הרשאת הושבה */
+    /* 🔐 Guard */
     const guard = await requireSeating();
     if (!guard.ok) {
       return guard.response!;
     }
 
-    /* ⭐ params */
+    /* ===============================
+       ⭐ 1️⃣ query params (חדש!)
+    =============================== */
+    const { searchParams } = new URL(req.url);
+    const invitationIdFromQuery = searchParams.get("invitationId");
+
+    /* ===============================
+       2️⃣ params fallback
+    =============================== */
     const { eventId } = await context.params;
 
-    if (!eventId) {
+    if (!invitationIdFromQuery && !eventId) {
       return NextResponse.json(
         { success: false, guests: [] },
         { status: 400 }
       );
     }
 
-    /* ===============================
-       1️⃣ מציאת ההזמנה לפי eventId בלבד
-       ⭐ קריטי להתחזות / מפיק
-    =============================== */
-    const invitation = await Invitation.findOne({ eventId })
-      .select("_id")
-      .lean();
+    console.log("📤 LOAD GUESTS:", {
+      invitationIdFromQuery,
+      eventId,
+    });
 
-    if (!invitation) {
+    /* ===============================
+       ⭐ 3️⃣ קביעת invitationId אמיתי
+    =============================== */
+    let invitationId = invitationIdFromQuery;
+
+    // fallback אם אין invitationId
+    if (!invitationId && eventId) {
+      const invitation = await Invitation.findOne({ eventId })
+        .select("_id")
+        .lean();
+
+      if (invitation?._id) {
+        invitationId = String(invitation._id);
+      }
+    }
+
+    if (!invitationId) {
       return NextResponse.json({
         success: true,
         guests: [],
@@ -46,10 +67,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       2️⃣ שליפת האורחים
+       4️⃣ שליפת האורחים
     =============================== */
     const guests = await InvitationGuest.find({
-      invitationId: invitation._id,
+      invitationId,
     })
       .lean()
       .exec();
