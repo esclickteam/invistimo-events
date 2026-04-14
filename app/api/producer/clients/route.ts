@@ -172,21 +172,23 @@ export async function GET(req: NextRequest) {
       }
 
       return {
-        ...client,
-        event: {
-          _id: firstInvitationId,
-          eventMongoId: String(event._id),
-          date: event.date,
-          location:
-            typeof event.location === "object"
-              ? event.location.address
-              : event.location,
-          totalGuests,
-          approvedCount,
-          arrivedCount,
-          actualArrivedCount,
-        },
-      };
+  ...client,
+  eventId: String(event._id),
+  invitationId: firstInvitationId,
+  event: {
+    _id: String(event._id),
+    invitationId: firstInvitationId,
+    date: event.date,
+    location:
+      typeof event.location === "object"
+        ? event.location.address
+        : event.location,
+    totalGuests,
+    approvedCount,
+    arrivedCount,
+    actualArrivedCount,
+  },
+};
     });
 
     console.log("✅ FINAL RESULT COUNT:", result.length);

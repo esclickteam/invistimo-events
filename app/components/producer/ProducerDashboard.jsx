@@ -212,10 +212,10 @@ export default function ProducerDashboard() {
   console.log("🔍 client.eventId:", client?.eventId);
 
   const eventId =
-    client?.eventId ||
-    client?.event?._id ||
-    client?.event?.id ||
-    null;
+  client?.eventId ||
+  client?.event?._id ||
+  client?.event?.id ||
+  null;
 
   console.log("✅ resolved eventId:", eventId);
 
