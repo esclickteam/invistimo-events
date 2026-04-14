@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
+import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import mongoose from "mongoose";
 
@@ -18,9 +19,9 @@ export async function GET(
     console.log("👉 DB connected");
 
     /* =========================
-       Auth ✅ FIX
+       Auth
     ========================= */
-    const auth = await getUserIdFromRequest(req); // 🔥 הכי חשוב
+    const auth = await getUserIdFromRequest(req);
     console.log("👉 auth result:", auth);
 
     if (!auth?.userId) {
@@ -46,9 +47,10 @@ export async function GET(
     }
 
     /* =========================
-       Validate ObjectId ✅ FIX
+       Validate ObjectId
     ========================= */
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      console.warn("⛔ INVALID_EVENT_ID:", eventId);
       return NextResponse.json(
         { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
@@ -72,7 +74,7 @@ export async function GET(
     }
 
     /* =========================
-       Load invitation 🔥 לפני הרשאות
+       Load invitation
     ========================= */
     const invitation = await Invitation.findOne({
       eventId: eventObjectId,
@@ -81,28 +83,51 @@ export async function GET(
     console.log("👉 invitation query result:", invitation);
 
     /* =========================
-       Authorization ✅ משופר
+       Load event owner user
+    ========================= */
+    const eventOwner = await User.findById(event.userId)
+      .select("_id assignedProducerId")
+      .lean();
+
+    console.log("👉 eventOwner query result:", eventOwner);
+
+    /* =========================
+       Authorization
+       ✅ producer מורשה לפי assignedProducerId של הלקוח
     ========================= */
     const isOwner = String(event.userId) === String(auth.userId);
 
-    const isProducer =
+    const isProducerByClient =
       auth.role === "producer" &&
-      String(event.createdByProducer) === String(auth.userId);
+      !!eventOwner &&
+      String(eventOwner.assignedProducerId) === String(auth.userId);
 
     const isAdmin = auth.role === "admin";
 
     const isInvitationOwner =
-      invitation &&
+      !!invitation &&
       String(invitation.ownerId) === String(auth.userId);
+
+    console.log("👉 auth.userId:", String(auth.userId));
+    console.log("👉 auth.role:", auth.role);
+    console.log("👉 event.userId:", String(event.userId));
+    console.log(
+      "👉 eventOwner.assignedProducerId:",
+      eventOwner ? String(eventOwner.assignedProducerId) : null
+    );
+    console.log(
+      "👉 invitation.ownerId:",
+      invitation ? String(invitation.ownerId) : null
+    );
 
     console.log("👉 permissions:", {
       isOwner,
-      isProducer,
+      isProducerByClient,
       isAdmin,
       isInvitationOwner,
     });
 
-    if (!isOwner && !isProducer && !isAdmin && !isInvitationOwner) {
+    if (!isOwner && !isProducerByClient && !isAdmin && !isInvitationOwner) {
       console.warn("⛔ FORBIDDEN");
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
