@@ -3,12 +3,13 @@ import connectDB from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { eventId: string } } // ❗️ לא Promise
+  { params }: { params: { eventId: string } }
 ) {
   try {
     console.log("👉 [by-event] START");
@@ -18,7 +19,7 @@ export async function GET(
     /* =========================
        Auth
     ========================= */
-    const auth = await getUserIdFromRequest(req); // ❗️ להעביר req
+    const auth = await getUserIdFromRequest(req);
 
     console.log("👉 auth:", auth);
 
@@ -38,6 +39,17 @@ export async function GET(
       console.warn("⛔ MISSING_EVENT_ID");
       return NextResponse.json(
         { success: false, error: "MISSING_EVENT_ID" },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       ✅ בדיקה קריטית ל־ObjectId
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      console.warn("⛔ INVALID_OBJECT_ID:", eventId);
+      return NextResponse.json(
+        { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
       );
     }
@@ -86,7 +98,7 @@ export async function GET(
        Load invitation
     ========================= */
     const invitation = await Invitation.findOne({
-      eventId: event._id, // ✅ תיקון קריטי
+      eventId: event._id, // ✅ החשוב
     }).lean();
 
     console.log("👉 invitation found:", invitation);
