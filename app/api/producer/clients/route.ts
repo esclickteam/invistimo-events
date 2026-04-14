@@ -38,10 +38,12 @@ export async function GET(req: NextRequest) {
        👥 Clients – לפי assignedProducerId בלבד
     ========================= */
     const clients = await User.find({
-      assignedProducerId: producerObjectId,
-      role: { $in: ["client", "user"] },
-    })
-      .select("name email phone createdAt assignedProducerId billingSource")
+  assignedProducerId: producerObjectId,
+  role: { $in: ["client", "user"] }, // ⭐️ זה כל הסיפור
+})
+      .select(
+        "name email phone createdAt assignedProducerId billingSource"
+      )
       .sort({ createdAt: -1 })
       .lean();
 
@@ -143,7 +145,6 @@ export async function GET(req: NextRequest) {
 
     /* =========================
        🔗 Merge Client + Event + Stats
-       event._id = Invitation _id
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
@@ -154,7 +155,6 @@ export async function GET(req: NextRequest) {
       }
 
       const invIds = invitationsByEventId[String(event._id)] || [];
-      const firstInvitationId = invIds[0] ? String(invIds[0]) : null;
 
       let totalGuests = 0;
       let approvedCount = 0;
@@ -172,35 +172,22 @@ export async function GET(req: NextRequest) {
       }
 
       return {
-  ...client,
-  eventId: String(event._id),
-  invitationId: firstInvitationId,
-  event: {
-    _id: String(event._id),
-    invitationId: firstInvitationId,
-    date: event.date,
-    location:
-      typeof event.location === "object"
-        ? event.location.address
-        : event.location,
-    totalGuests,
-    approvedCount,
-    arrivedCount,
-    actualArrivedCount,
-  },
-};
+        ...client,
+        event: {
+          date: event.date,
+          location:
+            typeof event.location === "object"
+              ? event.location.address
+              : event.location,
+          totalGuests,
+          approvedCount,
+          arrivedCount,
+          actualArrivedCount,
+        },
+      };
     });
 
     console.log("✅ FINAL RESULT COUNT:", result.length);
-    console.log(
-      "🧪 Sample result:",
-      result[0]
-        ? {
-            clientId: String(result[0]._id),
-            event: result[0].event,
-          }
-        : null
-    );
 
     return NextResponse.json({
       success: true,

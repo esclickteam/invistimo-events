@@ -308,7 +308,7 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
 
   const url =
   eventIdFromUrl
-    ? `/api/invitations/by-event/any?invitationId=${eventIdFromUrl}`
+    ? `/api/invitations/by-event/${eventIdFromUrl}`
     : "/api/invitations/my";
 
   const res = await fetch(url, {

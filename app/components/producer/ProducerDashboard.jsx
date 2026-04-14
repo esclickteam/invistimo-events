@@ -204,27 +204,36 @@ export default function ProducerDashboard() {
   /* =========================
      Impersonation
   ========================= */
-  const handleManageClient = (client) => {
-  console.log("🔍 client:", client);
-  console.log("🔍 client.event:", client?.event);
-  console.log("🔍 client.event._id:", client?.event?._id);
-  console.log("🔍 client.event.id:", client?.event?.id);
-  console.log("🔍 client.eventId:", client?.eventId);
+  const handleManageClient = async (client) => {
+  try {
+    const res = await fetch("/api/producer/impersonate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ clientId: client._id }),
+    });
 
-  const eventId =
-  client?.eventId ||
-  client?.event?._id ||
-  client?.event?.id ||
-  null;
+    const data = await res.json();
 
-  console.log("✅ resolved eventId:", eventId);
+    if (!res.ok || !data?.success) {
+      alert(data?.message || "שגיאה בכניסה ללקוח");
+      return;
+    }
 
-  if (eventId) {
-    window.location.href = `/producer/events/${eventId}/guests?eventId=${eventId}`;
-    return;
+    // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
+    if (client.event?._id) {
+      window.location.href = `/events/production/${client.event._id}?tab=overview`;
+      return;
+    }
+
+    // 🟡 fallback: אם אין אירוע
+    window.location.href = "/producer/dashboard";
+  } catch (err) {
+    console.error("❌ handleManageClient error:", err);
+    alert("שגיאה בכניסה לניהול הלקוח");
   }
-
-  alert("לא נמצא eventId ללקוח הזה");
 };
 
 

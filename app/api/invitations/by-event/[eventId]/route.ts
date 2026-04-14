@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Invitation from "@/models/Invitation";
+import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ eventId: string }> } // ✅ Promise
+) {
   try {
     await connectDB();
 
@@ -20,27 +24,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    /* =========================
-       Query params (חובה!)
-    ========================= */
-    const { searchParams } = new URL(req.url);
-    const invitationId = searchParams.get("invitationId");
-
-    if (!invitationId) {
+    const { eventId } = await params; // ✅ await
+    if (!eventId) {
       return NextResponse.json(
-        { success: false, error: "MISSING_INVITATION_ID" },
+        { success: false, error: "MISSING_EVENT_ID" },
         { status: 400 }
       );
     }
 
     /* =========================
-       Load invitation
+       Load event
     ========================= */
-    const invitation = await Invitation.findById(invitationId).lean();
-
-    if (!invitation) {
+    const event = await Event.findById(eventId).lean();
+    if (!event) {
       return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
+        { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
       );
     }
@@ -48,17 +46,13 @@ export async function GET(req: NextRequest) {
     /* =========================
        Authorization
     ========================= */
-    const isOwner =
-      String(invitation.ownerId) === String(auth.userId);
-
+    const isOwner = String(event.userId) === String(auth.userId);
     const isProducer =
       auth.role === "producer" &&
-      String(invitation.producerId ?? "") === String(auth.userId);
-
+      String(event.createdByProducer) === String(auth.userId);
     const isAdmin = auth.role === "admin";
-    const isImpersonating = auth?.impersonated === true;
 
-    if (!isOwner && !isProducer && !isAdmin && !isImpersonating) {
+    if (!isOwner && !isProducer && !isAdmin) {
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
         { status: 403 }
@@ -66,15 +60,16 @@ export async function GET(req: NextRequest) {
     }
 
     /* =========================
-       Response
+       Load invitation
     ========================= */
+    const invitation = await Invitation.findOne({ eventId }).lean();
+
     return NextResponse.json({
       success: true,
-      invitation,
+      invitation: invitation || null,
     });
   } catch (err) {
-    console.error("❌ GET invitation failed:", err);
-
+    console.error("❌ GET /api/invitations/by-event failed:", err);
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
