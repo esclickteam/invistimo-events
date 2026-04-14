@@ -509,7 +509,7 @@ return (
       background={background?.url || null}
       invitationId={invitationId}
       onAutoSave={() => saveSeating(false)}
-      hideSeats={isProducer}
+      hideSeats={false}
       sidebarOpen={sidebarOpen}
     />
   </div>
