@@ -1196,23 +1196,27 @@ console.log("INVITATION:", invitation);
 
   {/* 6️⃣ סידורי הושבה */}
   <button
-    onClick={() =>
-      router.push(
-        isDemo
-          ? "/try/dashboard/seating"
-          : "/dashboard/seating"
-      )
-    }
-    disabled={!invitation}
-    className={`
-      px-6 py-3 rounded-full font-semibold
-      ${invitation
-        ? "bg-[#c9b48f] text-white"
-        : "bg-gray-200 text-gray-400 cursor-not-allowed"}
-    `}
-  >
-    🪑 סידורי הושבה
-  </button>
+  onClick={() => {
+    const target = eventIdFromUrl
+      ? isDemo
+        ? `/try/dashboard/seating?eventId=${eventIdFromUrl}`
+        : `/dashboard/seating?eventId=${eventIdFromUrl}`
+      : isDemo
+      ? "/try/dashboard/seating"
+      : "/dashboard/seating";
+
+    router.push(target);
+  }}
+  disabled={!invitation}
+  className={`
+    px-6 py-3 rounded-full font-semibold
+    ${invitation
+      ? "bg-[#c9b48f] text-white"
+      : "bg-gray-200 text-gray-400 cursor-not-allowed"}
+  `}
+>
+  🪑 סידורי הושבה
+</button>
 
   {/* 7️⃣ שליחת הודעות */}
   <button
