@@ -96,10 +96,11 @@ export async function GET(
     const isOwner = String(event.userId) === String(auth.userId);
 
     const isProducer =
-      Array.isArray(event.producers) &&
-      event.producers.some(
-        (p: any) => String(p.userId ?? p) === String(auth.userId)
-      );
+  auth.role === "producer" &&
+  (
+    String(event.createdByProducer) === String(auth.userId) ||
+    String(event.producerId) === String(auth.userId)
+  );
 
     const isImpersonating = auth?.impersonated === true;
 
