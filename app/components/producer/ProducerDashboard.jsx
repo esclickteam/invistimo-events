@@ -222,14 +222,13 @@ export default function ProducerDashboard() {
       return;
     }
 
-    // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
+    // אחרי התחזות - להיכנס לאזור הלקוח
     if (client.event?._id) {
       window.location.href = `/events/production/${client.event._id}?tab=overview`;
       return;
     }
 
-    // 🟡 fallback: אם אין אירוע
-    window.location.href = "/producer/dashboard";
+    window.location.href = data?.redirect || "/dashboard";
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
