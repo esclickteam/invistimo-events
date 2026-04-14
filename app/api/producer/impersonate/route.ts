@@ -44,18 +44,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // אם כבר בהתחזות
-    if (auth.impersonated) {
-      return NextResponse.json(
-        {
-          success: true,
-          alreadyImpersonated: true,
-          redirect: "/dashboard",
-        },
-        { status: 200 }
-      );
-    }
-
     const producerId = auth.userId;
 
     /* =========================
@@ -89,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* =========================
-       🍪 Cookies (⚠️ await!)
+       🍪 Cookies
     ========================= */
     const cookieStore = await cookies();
 
@@ -125,19 +113,18 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json(
       {
         success: true,
-        redirect: "/dashboard",
       },
       { status: 200 }
     );
 
     const opts = httpOnlyCookieOptions();
 
-    // שומרים את טוקן המפיק פעם אחת
+    // שומרים טוקן מפיק
     if (!existingProducerToken) {
       res.cookies.set("producerAuthToken", currentAuthToken, opts);
     }
 
-    // מחליפים authToken ללקוח
+    // מחליפים לטוקן לקוח
     res.cookies.set("authToken", impersonationToken, opts);
 
     return res;
