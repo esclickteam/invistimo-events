@@ -121,7 +121,6 @@ export default function DashboardPage() {
 
   const groups = useGroupStore((s) => s.groups);
   const searchParams = useSearchParams();
-  const invitationIdFromUrl = searchParams.get("invitationId");
   const eventIdFromUrl = searchParams.get("eventId");
 
   const [user, setUser] = useState<any | null>(null);
@@ -183,10 +182,9 @@ useEffect(() => {
 
   // ⭐️ אל תחסום producer בהתחזות
   if (
-  user.role === "producer" &&
-  !eventIdFromUrl &&
-  !user.impersonated &&
-  !invitationIdFromUrl // ✅ חשוב
+    user.role === "producer" &&
+    !eventIdFromUrl &&
+    !user.impersonated
   ) {
     console.error("Producer dashboard loaded without eventId");
     router.replace("/events");
@@ -308,13 +306,10 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
   async function loadInvitation() {
   if (!user) return;
 
-  let url = "/api/invitations/my";
-
-if (invitationIdFromUrl) {
-  url = `/api/invitations/${invitationIdFromUrl}`;
-} else if (eventIdFromUrl && eventIdFromUrl !== "null" && eventIdFromUrl !== "undefined") {
-  url = `/api/invitations/by-event/${eventIdFromUrl}`;
-}
+  const url =
+  eventIdFromUrl
+    ? `/api/invitations/by-event/${eventIdFromUrl}`
+    : "/api/invitations/my";
 
   const res = await fetch(url, {
     credentials: "include",
