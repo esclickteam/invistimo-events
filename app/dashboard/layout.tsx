@@ -34,12 +34,14 @@ export default function DashboardLayout({
   const [loadingInvitation, setLoadingInvitation] = useState(true);
 
   /* ============================================================
-     Load Invitation (לא בדמו)
-     ✅ תומך גם ב-eventId (למפיקים / התחזות / כניסה מאירועים)
+     Load Invitation
+     ✅ תומך:
+     - invitationId
+     - eventId (מפיקים)
+     - fallback ל־my
   ============================================================ */
   useEffect(() => {
     if (isDemo) {
-      // ⭐️ בדמו – הזמנה פיקטיבית בלבד
       setInvitation({
         _id: "demo",
         shareId: "demo",
@@ -51,11 +53,34 @@ export default function DashboardLayout({
 
     async function loadInvitation() {
       try {
-        const eventIdFromUrl = searchParams.get("eventId");
+        const invitationIdFromUrl =
+          searchParams.get("invitationId");
 
-        const url = eventIdFromUrl
-          ? `/api/invitations/by-event/${eventIdFromUrl}`
-          : "/api/invitations/my";
+        const eventIdFromUrl =
+          searchParams.get("eventId");
+
+        let url = "";
+
+        // ✅ עדיפות 1 – invitationId
+        if (invitationIdFromUrl) {
+          url = `/api/invitations/${invitationIdFromUrl}`;
+        }
+
+        // ✅ עדיפות 2 – eventId (מפיקים)
+        else if (eventIdFromUrl) {
+          url = `/api/invitations/by-event/${eventIdFromUrl}`;
+        }
+
+        // ✅ fallback – המשתמש הנוכחי
+        else {
+          url = `/api/invitations/my`;
+        }
+
+        // 🔒 הגנה
+        if (!url) {
+          setInvitation(null);
+          return;
+        }
 
         const res = await fetch(url, {
           credentials: "include",
@@ -70,7 +95,7 @@ export default function DashboardLayout({
           setInvitation(null);
         }
       } catch (err) {
-        console.error("❌ Failed to load invitation for dashboard", err);
+        console.error("❌ Failed to load invitation", err);
         setInvitation(null);
       } finally {
         setLoadingInvitation(false);
@@ -85,19 +110,14 @@ export default function DashboardLayout({
   ============================================================ */
   return (
     <div className="min-h-screen bg-[#faf7f3]" dir="rtl">
-      {/* =========================
-          Header – קבוע למעלה
-      ========================= */}
+      {/* ========================= Header ========================= */}
       <DashboardHeader
         onOpenMenu={() => setMenuOpen(true)}
         invitation={invitation}
         isDemo={isDemo}
       />
 
-      {/* =========================
-          Mobile Menu
-          ✅ הכי חשוב: להעביר invitationId כדי שיזהה "עריכת הזמנה"
-      ========================= */}
+      {/* ========================= Mobile Menu ========================= */}
       <DashboardMobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -106,10 +126,10 @@ export default function DashboardLayout({
         isDemo={isDemo}
       />
 
-      {/* =========================
-          Content
-      ========================= */}
-      <main className="pt-16">{!loadingInvitation && children}</main>
+      {/* ========================= Content ========================= */}
+      <main className="pt-16">
+        {!loadingInvitation && children}
+      </main>
     </div>
   );
 }
