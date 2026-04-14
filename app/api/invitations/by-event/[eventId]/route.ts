@@ -3,25 +3,24 @@ import connectDB from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> } // נשאר כמו שביקשת
 ) {
   try {
     console.log("👉 [by-event] START");
 
     await connectDB();
+    console.log("👉 DB connected");
 
     /* =========================
        Auth
     ========================= */
-    const auth = await getUserIdFromRequest(req);
-
-    console.log("👉 auth:", auth);
+    const auth = await getUserIdFromRequest();
+    console.log("👉 auth result:", auth);
 
     if (!auth?.userId) {
       console.warn("⛔ UNAUTHORIZED");
@@ -31,9 +30,13 @@ export async function GET(
       );
     }
 
-    const { eventId } = params;
+    /* =========================
+       Params
+    ========================= */
+    console.log("👉 raw params:", params);
 
-    console.log("👉 eventId from params:", eventId);
+    const { eventId } = await params;
+    console.log("👉 eventId extracted:", eventId);
 
     if (!eventId) {
       console.warn("⛔ MISSING_EVENT_ID");
@@ -44,22 +47,10 @@ export async function GET(
     }
 
     /* =========================
-       ✅ בדיקה קריטית ל־ObjectId
-    ========================= */
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      console.warn("⛔ INVALID_OBJECT_ID:", eventId);
-      return NextResponse.json(
-        { success: false, error: "INVALID_EVENT_ID" },
-        { status: 400 }
-      );
-    }
-
-    /* =========================
        Load event
     ========================= */
     const event = await Event.findById(eventId).lean();
-
-    console.log("👉 event found:", event);
+    console.log("👉 event query result:", event);
 
     if (!event) {
       console.warn("⛔ EVENT_NOT_FOUND:", eventId);
@@ -84,6 +75,8 @@ export async function GET(
       isOwner,
       isProducer,
       isAdmin,
+      eventUserId: event.userId,
+      authUserId: auth.userId,
     });
 
     if (!isOwner && !isProducer && !isAdmin) {
@@ -97,11 +90,8 @@ export async function GET(
     /* =========================
        Load invitation
     ========================= */
-    const invitation = await Invitation.findOne({
-      eventId: event._id, // ✅ החשוב
-    }).lean();
-
-    console.log("👉 invitation found:", invitation);
+    const invitation = await Invitation.findOne({ eventId }).lean();
+    console.log("👉 invitation query result:", invitation);
 
     return NextResponse.json({
       success: true,
