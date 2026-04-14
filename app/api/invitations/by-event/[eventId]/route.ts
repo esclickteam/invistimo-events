@@ -25,7 +25,7 @@ export async function GET(
     }
 
     /* =========================
-       ⭐ query params (חדש)
+       Query params
     ========================= */
     const { searchParams } = new URL(req.url);
     const invitationIdFromQuery = searchParams.get("invitationId");
@@ -39,11 +39,11 @@ export async function GET(
       );
     }
 
-    let invitation = null;
-    let event = null;
+    let invitation: any = null;
+    let event: any = null;
 
     /* =========================
-       ⭐ אם הגיע invitationId
+       1️⃣ לפי invitationId (עדיפות)
     ========================= */
     if (invitationIdFromQuery) {
       invitation = await Invitation.findById(invitationIdFromQuery).lean();
@@ -55,11 +55,20 @@ export async function GET(
         );
       }
 
-      event = await Event.findById(invitation.eventId).lean();
+      if (invitation.eventId) {
+        event = await Event.findById(invitation.eventId).lean();
+      }
+
+      if (!event) {
+        return NextResponse.json(
+          { success: false, error: "EVENT_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
     }
 
     /* =========================
-       fallback לפי eventId
+       2️⃣ fallback לפי eventId
     ========================= */
     if (!invitation && eventId) {
       event = await Event.findById(eventId).lean();
@@ -87,12 +96,16 @@ export async function GET(
     const isOwner = String(event.userId) === String(auth.userId);
 
     const isProducer =
-      auth.role === "producer" &&
-      String(event.createdByProducer) === String(auth.userId);
+      Array.isArray(event.producers) &&
+      event.producers.some(
+        (p: any) => String(p.userId ?? p) === String(auth.userId)
+      );
+
+    const isImpersonating = auth?.impersonated === true;
 
     const isAdmin = auth.role === "admin";
 
-    if (!isOwner && !isProducer && !isAdmin) {
+    if (!isOwner && !isProducer && !isAdmin && !isImpersonating) {
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
         { status: 403 }
