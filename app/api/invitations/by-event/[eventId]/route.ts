@@ -3,12 +3,13 @@ import connectDB from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ eventId: string }> } // נשאר כמו שביקשת
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     console.log("👉 [by-event] START");
@@ -17,9 +18,9 @@ export async function GET(
     console.log("👉 DB connected");
 
     /* =========================
-       Auth
+       Auth ✅ FIX
     ========================= */
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req); // 🔥 הכי חשוב
     console.log("👉 auth result:", auth);
 
     if (!auth?.userId) {
@@ -33,8 +34,6 @@ export async function GET(
     /* =========================
        Params
     ========================= */
-    console.log("👉 raw params:", params);
-
     const { eventId } = await params;
     console.log("👉 eventId extracted:", eventId);
 
@@ -47,9 +46,21 @@ export async function GET(
     }
 
     /* =========================
+       Validate ObjectId ✅ FIX
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_EVENT_ID" },
+        { status: 400 }
+      );
+    }
+
+    const eventObjectId = new mongoose.Types.ObjectId(eventId);
+
+    /* =========================
        Load event
     ========================= */
-    const event = await Event.findById(eventId).lean();
+    const event = await Event.findById(eventObjectId).lean();
     console.log("👉 event query result:", event);
 
     if (!event) {
@@ -61,7 +72,16 @@ export async function GET(
     }
 
     /* =========================
-       Authorization
+       Load invitation 🔥 לפני הרשאות
+    ========================= */
+    const invitation = await Invitation.findOne({
+      eventId: eventObjectId,
+    }).lean();
+
+    console.log("👉 invitation query result:", invitation);
+
+    /* =========================
+       Authorization ✅ משופר
     ========================= */
     const isOwner = String(event.userId) === String(auth.userId);
 
@@ -71,15 +91,18 @@ export async function GET(
 
     const isAdmin = auth.role === "admin";
 
+    const isInvitationOwner =
+      invitation &&
+      String(invitation.ownerId) === String(auth.userId);
+
     console.log("👉 permissions:", {
       isOwner,
       isProducer,
       isAdmin,
-      eventUserId: event.userId,
-      authUserId: auth.userId,
+      isInvitationOwner,
     });
 
-    if (!isOwner && !isProducer && !isAdmin) {
+    if (!isOwner && !isProducer && !isAdmin && !isInvitationOwner) {
       console.warn("⛔ FORBIDDEN");
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
@@ -88,11 +111,8 @@ export async function GET(
     }
 
     /* =========================
-       Load invitation
+       Response
     ========================= */
-    const invitation = await Invitation.findOne({ eventId }).lean();
-    console.log("👉 invitation query result:", invitation);
-
     return NextResponse.json({
       success: true,
       invitation: invitation || null,
