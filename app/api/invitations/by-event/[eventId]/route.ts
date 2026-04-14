@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ eventId: string }> } // ✅ Promise
+  { params }: { params: { eventId: string } } // ❗️ לא Promise
 ) {
   try {
     await connectDB();
@@ -16,7 +16,8 @@ export async function GET(
     /* =========================
        Auth
     ========================= */
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req); // ❗️ להעביר req
+
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -24,7 +25,8 @@ export async function GET(
       );
     }
 
-    const { eventId } = await params; // ✅ await
+    const { eventId } = params;
+
     if (!eventId) {
       return NextResponse.json(
         { success: false, error: "MISSING_EVENT_ID" },
@@ -36,6 +38,7 @@ export async function GET(
        Load event
     ========================= */
     const event = await Event.findById(eventId).lean();
+
     if (!event) {
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
@@ -47,9 +50,11 @@ export async function GET(
        Authorization
     ========================= */
     const isOwner = String(event.userId) === String(auth.userId);
+
     const isProducer =
       auth.role === "producer" &&
       String(event.createdByProducer) === String(auth.userId);
+
     const isAdmin = auth.role === "admin";
 
     if (!isOwner && !isProducer && !isAdmin) {
@@ -60,9 +65,11 @@ export async function GET(
     }
 
     /* =========================
-       Load invitation
+       Load invitation (FIXED)
     ========================= */
-    const invitation = await Invitation.findOne({ eventId }).lean();
+    const invitation = await Invitation.findOne({
+      eventId: event._id, // ✅ הקריטי
+    }).lean();
 
     return NextResponse.json({
       success: true,
@@ -70,6 +77,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("❌ GET /api/invitations/by-event failed:", err);
+
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
