@@ -8,24 +8,34 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ eventId: string }> } // ✅ Promise
+  { params }: { params: { eventId: string } } // ❗️ לא Promise
 ) {
   try {
+    console.log("👉 [by-event] START");
+
     await connectDB();
 
     /* =========================
        Auth
     ========================= */
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req); // ❗️ להעביר req
+
+    console.log("👉 auth:", auth);
+
     if (!auth?.userId) {
+      console.warn("⛔ UNAUTHORIZED");
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
-    const { eventId } = await params; // ✅ await
+    const { eventId } = params;
+
+    console.log("👉 eventId from params:", eventId);
+
     if (!eventId) {
+      console.warn("⛔ MISSING_EVENT_ID");
       return NextResponse.json(
         { success: false, error: "MISSING_EVENT_ID" },
         { status: 400 }
@@ -36,7 +46,11 @@ export async function GET(
        Load event
     ========================= */
     const event = await Event.findById(eventId).lean();
+
+    console.log("👉 event found:", event);
+
     if (!event) {
+      console.warn("⛔ EVENT_NOT_FOUND:", eventId);
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
         { status: 404 }
@@ -47,12 +61,21 @@ export async function GET(
        Authorization
     ========================= */
     const isOwner = String(event.userId) === String(auth.userId);
+
     const isProducer =
       auth.role === "producer" &&
       String(event.createdByProducer) === String(auth.userId);
+
     const isAdmin = auth.role === "admin";
 
+    console.log("👉 permissions:", {
+      isOwner,
+      isProducer,
+      isAdmin,
+    });
+
     if (!isOwner && !isProducer && !isAdmin) {
+      console.warn("⛔ FORBIDDEN");
       return NextResponse.json(
         { success: false, error: "FORBIDDEN" },
         { status: 403 }
@@ -63,8 +86,10 @@ export async function GET(
        Load invitation
     ========================= */
     const invitation = await Invitation.findOne({
-  eventId: event._id,
-}).lean();
+      eventId: event._id, // ✅ תיקון קריטי
+    }).lean();
+
+    console.log("👉 invitation found:", invitation);
 
     return NextResponse.json({
       success: true,
@@ -72,6 +97,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("❌ GET /api/invitations/by-event failed:", err);
+
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
