@@ -204,35 +204,13 @@ export default function ProducerDashboard() {
   /* =========================
      Impersonation
   ========================= */
-  const handleManageClient = async (client) => {
-  try {
-    const res = await fetch("/api/producer/impersonate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ clientId: client._id }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data?.success) {
-      alert(data?.message || "שגיאה בכניסה ללקוח");
-      return;
-    }
-
-    // אחרי התחזות - להיכנס לאזור הלקוח
-    if (client.event?._id) {
-      window.location.href = `/events/production/${client.event._id}?tab=overview`;
-      return;
-    }
-
-    window.location.href = data?.redirect || "/dashboard";
-  } catch (err) {
-    console.error("❌ handleManageClient error:", err);
-    alert("שגיאה בכניסה לניהול הלקוח");
+  const handleManageClient = (client) => {
+  if (client.event?._id) {
+    window.location.href = `/producer/events/${client.event._id}/guests?eventId=${client.event._id}`;
+    return;
   }
+
+  window.location.href = "/producer/dashboard";
 };
 
 
