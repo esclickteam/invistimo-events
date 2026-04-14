@@ -205,12 +205,26 @@ export default function ProducerDashboard() {
      Impersonation
   ========================= */
   const handleManageClient = (client) => {
-  if (client.event?._id) {
-    window.location.href = `/producer/events/${client.event._id}/guests?eventId=${client.event._id}`;
+  console.log("🔍 client:", client);
+  console.log("🔍 client.event:", client?.event);
+  console.log("🔍 client.event._id:", client?.event?._id);
+  console.log("🔍 client.event.id:", client?.event?.id);
+  console.log("🔍 client.eventId:", client?.eventId);
+
+  const eventId =
+    client?.event?._id ||
+    client?.event?.id ||
+    client?.eventId ||
+    null;
+
+  console.log("✅ resolved eventId:", eventId);
+
+  if (eventId) {
+    window.location.href = `/producer/events/${eventId}/guests?eventId=${eventId}`;
     return;
   }
 
-  window.location.href = "/producer/dashboard";
+  alert("לא נמצא eventId ללקוח הזה");
 };
 
 
