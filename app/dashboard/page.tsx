@@ -306,15 +306,22 @@ const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
   async function loadInvitation() {
   if (!user) return;
 
-  const url =
-  eventIdFromUrl
-    ? `/api/invitations/by-event/${eventIdFromUrl}`
+  const url = eventIdFromUrl
+    ? `/api/invitations/by-event?eventId=${eventIdFromUrl}`
     : "/api/invitations/my";
 
   const res = await fetch(url, {
     credentials: "include",
     cache: "no-store",
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("loadInvitation failed:", res.status, text);
+    setInvitation(null);
+    setInvitationId("");
+    return;
+  }
 
   const data = await res.json();
 
@@ -331,14 +338,21 @@ async function loadEvent() {
   if (!user) return;
 
   const url =
-  eventIdFromUrl
-    ? `/api/events/${eventIdFromUrl}`
-    : "/api/events";
+    eventIdFromUrl
+      ? `/api/events/${eventIdFromUrl}`
+      : "/api/events";
 
   const res = await fetch(url, {
     credentials: "include",
     cache: "no-store",
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("loadEvent failed:", res.status, text);
+    setEvent(null);
+    return;
+  }
 
   const data = await res.json();
 
