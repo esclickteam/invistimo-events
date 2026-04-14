@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ eventId: string }> } // ✅ Promise
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
     await connectDB();
@@ -24,18 +24,56 @@ export async function GET(
       );
     }
 
-    const { eventId } = await params; // ✅ await
-    if (!eventId) {
+    /* =========================
+       ⭐ query params (חדש)
+    ========================= */
+    const { searchParams } = new URL(req.url);
+    const invitationIdFromQuery = searchParams.get("invitationId");
+
+    const { eventId } = await params;
+
+    if (!invitationIdFromQuery && !eventId) {
       return NextResponse.json(
-        { success: false, error: "MISSING_EVENT_ID" },
+        { success: false, error: "MISSING_EVENT_OR_INVITATION_ID" },
         { status: 400 }
       );
     }
 
+    let invitation = null;
+    let event = null;
+
     /* =========================
-       Load event
+       ⭐ אם הגיע invitationId
     ========================= */
-    const event = await Event.findById(eventId).lean();
+    if (invitationIdFromQuery) {
+      invitation = await Invitation.findById(invitationIdFromQuery).lean();
+
+      if (!invitation) {
+        return NextResponse.json(
+          { success: false, error: "INVITATION_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      event = await Event.findById(invitation.eventId).lean();
+    }
+
+    /* =========================
+       fallback לפי eventId
+    ========================= */
+    if (!invitation && eventId) {
+      event = await Event.findById(eventId).lean();
+
+      if (!event) {
+        return NextResponse.json(
+          { success: false, error: "EVENT_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      invitation = await Invitation.findOne({ eventId }).lean();
+    }
+
     if (!event) {
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
@@ -47,9 +85,11 @@ export async function GET(
        Authorization
     ========================= */
     const isOwner = String(event.userId) === String(auth.userId);
+
     const isProducer =
       auth.role === "producer" &&
       String(event.createdByProducer) === String(auth.userId);
+
     const isAdmin = auth.role === "admin";
 
     if (!isOwner && !isProducer && !isAdmin) {
@@ -60,16 +100,15 @@ export async function GET(
     }
 
     /* =========================
-       Load invitation
+       Response
     ========================= */
-    const invitation = await Invitation.findOne({ eventId }).lean();
-
     return NextResponse.json({
       success: true,
       invitation: invitation || null,
     });
   } catch (err) {
     console.error("❌ GET /api/invitations/by-event failed:", err);
+
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
