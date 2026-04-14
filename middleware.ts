@@ -175,20 +175,25 @@ export function middleware(req: NextRequest) {
 
   /* 6) Paid guard – רק user/client תלויים ב-hasPaid */
   const requiresPaidForUser =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/producer") ||
-    pathname.startsWith("/producer-staff");
+  pathname.startsWith("/dashboard") ||
+  pathname.startsWith("/producer") ||
+  pathname.startsWith("/producer-staff");
 
-  if (
-    requiresPaidForUser &&
-    isUserLike &&
-    !isAdmin &&
-    !isImpersonatedAdminSession
-  ) {
-    if (payload.hasPaid !== true) {
-      return redirectToPricing(req);
-    }
+// 🔥 חריג לאזור הפקות
+const isProductionEvent =
+  pathname.startsWith("/events/production");
+
+if (
+  requiresPaidForUser &&
+  !isProductionEvent && // 👈 זה הפתרון
+  isUserLike &&
+  !isAdmin &&
+  !isImpersonatedAdminSession
+) {
+  if (payload.hasPaid !== true) {
+    return redirectToPricing(req);
   }
+}
 
   return NextResponse.next();
 }
@@ -202,5 +207,6 @@ export const config = {
     "/producer/:path*",
     "/producer-staff/:path*",
     "/admin/:path*",
+    "/events/production/:path*", // 👈 להוסיף את זה
   ],
 };
