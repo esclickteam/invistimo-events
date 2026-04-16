@@ -268,7 +268,19 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
 
   validateWithServer();
 
-}, [invitationId, guestsToSend, includeGiftLink, giftLink, message]);
+}, [
+  invitationId,
+  guestsToSend,
+  includeGiftLink,
+  giftLink,
+  message,
+
+  // ⭐️ תוסיפי את זה
+  lat,
+  lng,
+  eventLocation,
+  invitationTitle
+]);
 
 
 
