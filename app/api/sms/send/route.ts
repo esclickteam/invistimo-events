@@ -284,9 +284,11 @@ if (Array.isArray(guestIds) && guestIds.length > 0) {
 }
 
 
-    const location = invitation.eventLocation;
-    const hasLocation = !!(location?.lat && location?.lng);
-    let navigationLink = "";
+    const location = invitation.location;
+const hasLocation =
+  typeof location?.lat === "number" && typeof location?.lng === "number";
+
+let navigationLink = "";
 
 if (hasLocation) {
   const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
