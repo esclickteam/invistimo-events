@@ -73,21 +73,24 @@ export default function NewMessagesPage() {
           setInvitationId(invitation._id);
 
           setMeta({
-            invitationTitle: invitation.title || "",   // ✅ כאן השינוי
-            eventDate: formatEventDate(event.date),
-            eventLocation:
-              event.location?.address ||
-              event.location?.name ||
-              "",
-            eventType: event.eventType || "",
-            giftCreditUrl: event.giftCreditUrl || "",
-            headerImageUrl:
-              invitation.previewImage ||
-              invitation.headerImageUrl ||
-              "",
-            lat: event.location?.lat,
-            lng: event.location?.lng,
-          });
+  invitationTitle: invitation.title || "",
+  eventDate: formatEventDate(event?.date || invitation.eventDate),
+  eventLocation:
+    invitation.location?.address ||
+    invitation.location?.name ||
+    event?.location?.address ||
+    event?.location?.name ||
+    "",
+  eventType: event?.eventType || invitation.eventType || "",
+  giftCreditUrl: event?.giftCreditUrl || invitation.giftCreditUrl || "",
+  headerImageUrl:
+    invitation.previewImage ||
+    invitation.headerImageUrl ||
+    "",
+  lat: invitation.location?.lat ?? event?.location?.lat,
+  lng: invitation.location?.lng ?? event?.location?.lng,
+});
+
         }
       } catch (err) {
         console.error("❌ Failed to load invitation data", err);
