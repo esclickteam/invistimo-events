@@ -89,7 +89,7 @@ export default function NewMessagesPage() {
       }
 
       setMeta({
-        invitationTitle: invitation.title || "",
+        invitationTitle: event?.title || invitation.title || "",
 
         eventDate: formatEventDate(event?.date),
 
