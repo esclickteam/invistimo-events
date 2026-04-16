@@ -10,6 +10,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const invitationId = searchParams.get("invitationId");
+  const mode = searchParams.get("mode"); // ⭐️ חדש
 
   if (!invitationId) {
     return NextResponse.json(
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
      Load data
   ========================= */
 
-  const guests = await InvitationGuest.find({ invitationId }).lean();
+  let guests = await InvitationGuest.find({ invitationId }).lean();
 
   const groups = await Group.find({ invitationId }).lean();
   const groupMap = new Map<string, string>(
@@ -30,23 +31,43 @@ export async function GET(req: Request) {
   );
 
   /* =========================
-     Build Excel rows
-     (MATCH TABLE 1:1)
+     ⭐️ LIVE FILTER
   ========================= */
 
-  const rows = guests.map((g: any) => ({
-    "שם מלא": g.name || "",
-    "טלפון": g.phone || "",
-    "קרבה": g.relation || "",
-    "קבוצה": g.groupId ? groupMap.get(String(g.groupId)) || "" : "",
-    "סטטוס": RSVP_LABELS[g.rsvp as RSVPStatus] || "",
-    "מוזמנים": g.guestsCount ?? 0,
-    "מגיעים": g.arrivedCount ?? 0,
-    "מס' שולחן":
-      g.tableName ||
-      (g.tableNumber ? `שולחן ${g.tableNumber}` : ""),
-    "הערות": g.notes || "",
-  }));
+  if (mode === "live") {
+    guests = guests.filter(
+      (g: any) => (g.actualArrivedCount || 0) > 0
+    );
+  }
+
+  /* =========================
+     Build Excel rows
+  ========================= */
+
+  const rows = guests.map((g: any) => {
+    const baseRow: any = {
+      "שם מלא": g.name || "",
+      "טלפון": g.phone || "",
+      "קרבה": g.relation || "",
+      "קבוצה": g.groupId
+        ? groupMap.get(String(g.groupId)) || ""
+        : "",
+      "סטטוס": RSVP_LABELS[g.rsvp as RSVPStatus] || "",
+      "מוזמנים": g.guestsCount ?? 0,
+      "מגיעים": g.arrivedCount ?? 0,
+      "מס' שולחן":
+        g.tableName ||
+        (g.tableNumber ? `שולחן ${g.tableNumber}` : ""),
+      "הערות": g.notes || "",
+    };
+
+    // ⭐️ רק בלייב נוסיף עמודה
+    if (mode === "live") {
+      baseRow["מגיעים בפועל"] = g.actualArrivedCount ?? 0;
+    }
+
+    return baseRow;
+  });
 
   /* =========================
      Create Excel
@@ -54,7 +75,12 @@ export async function GET(req: Request) {
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "מוזמנים");
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    mode === "live" ? "הגיעו בפועל" : "מוזמנים"
+  );
 
   const buffer = XLSX.write(workbook, {
     type: "buffer",
@@ -62,17 +88,21 @@ export async function GET(req: Request) {
   });
 
   /* =========================
-     Hebrew filename (RFC 5987)
+     Filename
   ========================= */
 
-  const hebrewFilename = encodeURIComponent("מוזמנים.xlsx");
+  const filename =
+    mode === "live"
+      ? "מוזמנים_הגיעו_בפועל.xlsx"
+      : "מוזמנים.xlsx";
+
+  const hebrewFilename = encodeURIComponent(filename);
 
   return new NextResponse(buffer, {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-      // 👈 זה הקסם – תמיכה מלאה בעברית
       "Content-Disposition": `attachment; filename*=UTF-8''${hebrewFilename}`,
     },
   });

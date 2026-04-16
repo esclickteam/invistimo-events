@@ -370,7 +370,6 @@ async function loadEvent() {
 }
 
 const handleExportExcel = async () => {
-  // 🔒 חסימה בדמו
   if (isDemo) {
     handleDemoBlockedAction();
     return;
@@ -382,8 +381,9 @@ const handleExportExcel = async () => {
   }
 
   try {
+    // ⭐️ הוספנו mode
     const res = await fetch(
-      `/api/guests/export?invitationId=${invitationId}`,
+      `/api/guests/export?invitationId=${invitationId}&mode=${workMode}`,
       {
         credentials: "include",
       }
@@ -399,7 +399,13 @@ const handleExportExcel = async () => {
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "מוזמנים.xlsx";
+
+    // ⭐️ שם קובץ חכם
+    a.download =
+      workMode === "live"
+        ? "מוזמנים_הגיעו_בפועל.xlsx"
+        : "מוזמנים.xlsx";
+
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -410,7 +416,6 @@ const handleExportExcel = async () => {
     alert("שגיאת שרת בייצוא");
   }
 };
-
 
 
 
