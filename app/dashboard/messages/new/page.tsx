@@ -69,7 +69,7 @@ export default function NewMessagesPage() {
         const invitation = data?.invitation;
         const event = invitation?.event;
 
-        if (invitation && event) {
+        if (invitation) {
           setInvitationId(invitation._id);
 
           setMeta({

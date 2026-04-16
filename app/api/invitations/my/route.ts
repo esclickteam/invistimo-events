@@ -140,19 +140,26 @@ export async function GET(req: Request) {
           giftCreditUrl
         `,
       })
+
       .select(`
-        _id
-        title
-        eventId
-        previewImage
-        maxGuests
-        maxMessages
-        remainingMessages
-        shareId
-        producerId
-        ownerId
-      `)
-      .lean();
+  _id
+  title
+  eventId
+  previewImage
+  headerImageUrl
+  maxGuests
+  maxMessages
+  remainingMessages
+  shareId
+  producerId
+  ownerId
+  location
+  eventDate
+  eventTime
+  eventType
+  giftCreditUrl
+`)
+.lean();
 
     if (!invitation) {
       return NextResponse.json({ success: true, invitation: null });
