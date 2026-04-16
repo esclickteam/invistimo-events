@@ -56,71 +56,48 @@ export default function NewMessagesPage() {
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
-  async function loadData() {
-    try {
-      const res = await fetch("/api/invitations/my", {
-        credentials: "include",
-        cache: "no-store",
-      });
+    async function loadData() {
+      try {
+        const res = await fetch("/api/invitations/my", {
+          credentials: "include",
+          cache: "no-store",
+        });
 
-      if (!res.ok) return;
+        if (!res.ok) return;
 
-      const data = await res.json();
-      const invitation = data?.invitation;
+        const data = await res.json();
+        const invitation = data?.invitation;
+        const event = invitation?.event;
 
-      if (!invitation) return;
+        if (invitation && event) {
+          setInvitationId(invitation._id);
 
-      setInvitationId(invitation._id);
-
-      // ⭐️ מביאים event בנפרד
-      let event = null;
-
-      if (invitation.eventId) {
-        const eventRes = await fetch(
-          `/api/events/${invitation.eventId}`,
-          {
-            credentials: "include",
-            cache: "no-store",
-          }
-        );
-
-        const eventData = await eventRes.json();
-        event = eventData?.event;
+          setMeta({
+            invitationTitle: invitation.title || "",   // ✅ כאן השינוי
+            eventDate: formatEventDate(event.date),
+            eventLocation:
+              event.location?.address ||
+              event.location?.name ||
+              "",
+            eventType: event.eventType || "",
+            giftCreditUrl: event.giftCreditUrl || "",
+            headerImageUrl:
+              invitation.previewImage ||
+              invitation.headerImageUrl ||
+              "",
+            lat: event.location?.lat,
+            lng: event.location?.lng,
+          });
+        }
+      } catch (err) {
+        console.error("❌ Failed to load invitation data", err);
+      } finally {
+        setLoading(false);
       }
-
-      setMeta({
-        invitationTitle: event?.title || invitation.title || "",
-
-        eventDate: formatEventDate(event?.date),
-
-        eventLocation:
-          event?.location?.address ||
-          event?.location?.name ||
-          "",
-
-        eventType: event?.eventType || "",
-
-        giftCreditUrl: event?.giftCreditUrl || "",
-
-        headerImageUrl:
-          invitation.previewImage ||
-          invitation.headerImageUrl ||
-          "",
-
-        // ⭐️ עכשיו זה יעבוד!
-        lat: event?.location?.lat,
-        lng: event?.location?.lng,
-      });
-
-    } catch (err) {
-      console.error("❌ Failed to load invitation data", err);
-    } finally {
-      setLoading(false);
     }
-  }
 
-  loadData();
-}, []);
+    loadData();
+  }, []);
 
   /* ================= RENDER ================= */
 

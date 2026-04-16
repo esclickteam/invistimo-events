@@ -158,23 +158,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, invitation: null });
     }
 
-    const eventData =
-  typeof invitation.eventId === "object"
-    ? invitation.eventId
-    : null;
+    const normalizedEventId = normalizeEventId(invitation.eventId);
 
-const normalizedEventId = normalizeEventId(invitation.eventId);
-
-return NextResponse.json({
-  success: true,
-  invitation: {
-    ...invitation,
-    eventId: normalizedEventId,
-    event: eventData, // ⭐ תיקון פה
-  },
-});
-
-
+    return NextResponse.json({
+      success: true,
+      invitation: {
+        ...invitation,
+        eventId: normalizedEventId,   // ⭐ תמיד string
+        event:
+          typeof invitation.eventId === "object"
+            ? invitation.eventId
+            : null,                    // ⭐ האירוע המלא
+      },
+    });
   } catch (err) {
     console.error("❌ Error loading my invitation:", err);
     return NextResponse.json(
