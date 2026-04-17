@@ -172,16 +172,18 @@ if (typeof data.relation === "string") {
 
 // ⭐ יצירת קבוצה אוטומטית תמיד אם אין groupId
 if (!guest.groupId && guest.relation) {
+  const normalizedRelation = guest.relation.trim().toLowerCase();
+
   const group = await Group.findOneAndUpdate(
     {
       eventId: invitation.eventId,
-      name: guest.relation,
+      name: normalizedRelation,
     },
     {
       $setOnInsert: {
         invitationId: invitation._id,
         eventId: invitation.eventId,
-        name: guest.relation,
+        name: normalizedRelation,
       },
     },
     {
