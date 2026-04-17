@@ -11,11 +11,11 @@ export default function AddGuestToTableModal({
   onAutoSave,   // אופציונלי
   invitationId, // אופציונלי
 }) {
+  
   void invitationId; // כדי שלא תהיה אזהרת unused
-
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
-  const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
+const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
   /* ================= TABLE + GUESTS ================= */
 
@@ -44,44 +44,24 @@ export default function AddGuestToTableModal({
 
   const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
 
-  // כמה אנשים הקבוצה תופסת לצורך הושבה / חישוב מקומות
-  const getPartySize = (g) => {
-    // 🟢 LIVE – האמת היחידה
-    if (isLiveMode) {
-      const actual = Number(g?.actualArrivedCount ?? 0);
-      return actual > 0 ? Math.floor(actual) : 0;
-    }
+  // אם יש arrivedCount>0 נשתמש בו, אחרת guestsCount, אחרת 1
+ const getPartySize = (g) => {
+  // 🟢 LIVE – האמת היחידה
+  if (isLiveMode) {
+    const actual = Number(g?.actualArrivedCount ?? 0);
+    return actual > 0 ? Math.floor(actual) : 0;
+  }
 
-    // ⚪ תכנון רגיל
-    const arrived = Number(g?.arrivedCount ?? 0);
-    if (arrived > 0) return Math.floor(arrived);
+  // ⚪ תכנון רגיל
+  const arrived = Number(g?.arrivedCount ?? 0);
+  if (arrived > 0) return Math.floor(arrived);
 
-    const guestsCount = Number(g?.guestsCount ?? 0);
-    if (guestsCount > 0) return Math.floor(guestsCount);
+  const guestsCount = Number(g?.guestsCount ?? 0);
+  if (guestsCount > 0) return Math.floor(guestsCount);
 
-    return 1;
-  };
+  return 1;
+};
 
-  // כמה להציג בפועל בתוך המודאל על הכיסא
-  const getDisplayedPartySize = (guest, seatedGuest) => {
-    if (isLiveMode) {
-      const actualFromSeat = Number(seatedGuest?.actualArrivedCount ?? 0);
-      if (actualFromSeat > 0) return Math.floor(actualFromSeat);
-
-      const actualFromGuest = Number(guest?.actualArrivedCount ?? 0);
-      if (actualFromGuest > 0) return Math.floor(actualFromGuest);
-
-      const countFromSeat = Number(seatedGuest?.count ?? 0);
-      if (countFromSeat > 0) return Math.floor(countFromSeat);
-
-      return 0;
-    }
-
-    const countFromSeat = Number(seatedGuest?.count ?? 0);
-    if (countFromSeat > 0) return Math.floor(countFromSeat);
-
-    return getPartySize(guest);
-  };
 
   const extractNumberFromName = (name) => {
     const m = String(name || "").match(/\d+/);
@@ -99,7 +79,6 @@ export default function AddGuestToTableModal({
     const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
       index: i,
       guest: null,
-      seatedGuest: null,
     }));
 
     for (const s of tableData.seatedGuests || []) {
@@ -114,14 +93,19 @@ export default function AddGuestToTableModal({
         s.seatIndex < arr.length
       ) {
         arr[s.seatIndex].guest = g;
-        arr[s.seatIndex].seatedGuest = s;
       }
     }
 
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = tableData?.seatedGuests?.length ?? 0;
+  const occupied = isLiveMode
+  ? (tableData?.seatedGuests || []).reduce((sum, sg) => {
+      const actual = Number(sg?.actualArrivedCount ?? sg?.count ?? 0);
+      return sum + (actual > 0 ? Math.floor(actual) : 0);
+    }, 0)
+  : tableData?.seatedGuests?.length ?? 0;
+
   const remainingSeats = Math.max(0, (tableData?.seats ?? 0) - occupied);
 
   /* ================= AVAILABLE GUESTS ================= */
@@ -160,6 +144,7 @@ export default function AddGuestToTableModal({
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
 
+    // optimistic local
     const localRes = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
 
     if (!localRes?.ok) {
@@ -168,9 +153,11 @@ export default function AddGuestToTableModal({
     }
 
     try {
+      // ⭐ שמירה אחודה למונגו (במקום assign-table)
       if (onAutoSave) {
         const ok = await onAutoSave();
         if (!ok) {
+          // rollback אם שמירה נכשלה
           removeGuestFromTable(tableData.id, guestId);
           setError("שמירה נכשלה, ההושבה בוטלה");
           return;
@@ -181,6 +168,7 @@ export default function AddGuestToTableModal({
       setOpenSeat(null);
       setSearchTerm("");
     } catch {
+      // rollback
       removeGuestFromTable(tableData.id, guestId);
       setError("שגיאת רשת בשמירה");
     }
@@ -193,12 +181,15 @@ export default function AddGuestToTableModal({
 
     const guestId = getGuestId(guest);
 
+    // optimistic local
     removeGuestFromTable(tableData.id, guestId);
 
     try {
+      // ⭐ שמירה אחודה למונגו
       if (onAutoSave) {
         const ok = await onAutoSave();
         if (!ok) {
+          // rollback בסיסי: מחזירים לשולחן הנוכחי בלי seatIndex ספציפי
           const count = getPartySize(guest);
           assignGuestsToTable(tableData.id, guestId, count, 0);
           setError("שמירה נכשלה, ההסרה בוטלה");
@@ -229,8 +220,8 @@ export default function AddGuestToTableModal({
       return;
     }
 
+    // עדכון לוקאלי קודם
     const prevName = tableData.name;
-
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
         String(t.id) === String(tableData.id)
@@ -240,9 +231,11 @@ export default function AddGuestToTableModal({
     }));
 
     try {
+      // ⭐ שמירה אחודה למונגו
       if (onAutoSave) {
         const ok = await onAutoSave();
         if (!ok) {
+          // rollback
           useSeatingStore.setState((state) => ({
             tables: (state.tables || []).map((t) =>
               String(t.id) === String(tableData.id)
@@ -277,6 +270,7 @@ export default function AddGuestToTableModal({
           <X size={22} />
         </button>
 
+        {/* TITLE */}
         <div className="flex items-center justify-center gap-2 mb-2">
           {isEditingName ? (
             <input
@@ -310,10 +304,10 @@ export default function AddGuestToTableModal({
           <div className="text-red-600 text-center mb-3 font-medium">{error}</div>
         )}
 
+        {/* SEATS */}
         <div className="grid grid-cols-6 gap-4 justify-items-center">
           {seatsArray.map((seat, i) => {
             const g = seat.guest;
-            const seatedGuest = seat.seatedGuest;
             const isOpen = openSeat === i;
 
             return (
@@ -341,7 +335,7 @@ export default function AddGuestToTableModal({
                     <>
                       <span className="font-semibold truncate w-[90%]">{g.name}</span>
                       <span className="text-xs text-gray-600">
-                        ({getDisplayedPartySize(g, seatedGuest)} מגיעים)
+                        ({getPartySize(g)} מגיעים)
                       </span>
                     </>
                   ) : (
