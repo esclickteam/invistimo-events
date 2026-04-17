@@ -20,7 +20,6 @@ export async function requireSeating() {
   }
 
   const userId = auth.userId;
-
   const user = await User.findById(userId).lean();
 
   if (!user) {
@@ -34,14 +33,22 @@ export async function requireSeating() {
   }
 
   /**
-   * ⭐ אדמין בהתחזות – תמיד מותר
+   * ⭐ התחזות – תמיד מותר
    */
   if (user.impersonated === true) {
     return { ok: true, userId };
   }
 
   /**
-   * ⭐ בדיקת הרשאת הושבה
+   * ⭐ מפיק / אדמין – תמיד מותר
+   * לא בודקים להם plan של המשתמש המחובר
+   */
+  if (auth.role === "producer" || auth.role === "admin") {
+    return { ok: true, userId };
+  }
+
+  /**
+   * ⭐ לקוח רגיל – בדיקת הרשאת הושבה
    * - פרימיום תמיד כולל הושבה
    * - add-on עתידי דרך planLimits
    */
