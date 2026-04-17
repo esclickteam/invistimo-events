@@ -350,23 +350,24 @@ export async function GET(
     }
 
     const guests = await InvitationGuest.find({ invitationId })
-      .select(`
-  _id
-  name
-  phone
-  token
-  rsvp
-  guestsCount
-  arrivedCount
-  actualArrivedCount
-  relation
-  notes
-  tableName
-  tableNumber
-  createdAt
-`)
-      .sort({ createdAt: -1 })
-      .lean();
+  .select(`
+    _id
+    name
+    phone
+    token
+    rsvp
+    guestsCount
+    arrivedCount
+    actualArrivedCount
+    relation
+    groupId
+    notes
+    tableName
+    tableNumber
+    createdAt
+  `)
+  .sort({ createdAt: -1 })
+  .lean();
 
     const ownerUser = await User.findById((invitation as any).ownerId)
       .select("guests")
