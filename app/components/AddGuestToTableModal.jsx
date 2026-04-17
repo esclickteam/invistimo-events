@@ -11,11 +11,11 @@ export default function AddGuestToTableModal({
   onAutoSave,   // אופציונלי
   invitationId, // אופציונלי
 }) {
-  
   void invitationId; // כדי שלא תהיה אזהרת unused
+
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
-const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
+  const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
   /* ================= TABLE + GUESTS ================= */
 
@@ -44,24 +44,44 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
   const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
 
-  // אם יש arrivedCount>0 נשתמש בו, אחרת guestsCount, אחרת 1
- const getPartySize = (g) => {
-  // 🟢 LIVE – האמת היחידה
-  if (isLiveMode) {
-    const actual = Number(g?.actualArrivedCount ?? 0);
-    return actual > 0 ? Math.floor(actual) : 0;
-  }
+  // כמה אנשים הקבוצה תופסת לצורך הושבה / חישוב מקומות
+  const getPartySize = (g) => {
+    // 🟢 LIVE – האמת היחידה
+    if (isLiveMode) {
+      const actual = Number(g?.actualArrivedCount ?? 0);
+      return actual > 0 ? Math.floor(actual) : 0;
+    }
 
-  // ⚪ תכנון רגיל
-  const arrived = Number(g?.arrivedCount ?? 0);
-  if (arrived > 0) return Math.floor(arrived);
+    // ⚪ תכנון רגיל
+    const arrived = Number(g?.arrivedCount ?? 0);
+    if (arrived > 0) return Math.floor(arrived);
 
-  const guestsCount = Number(g?.guestsCount ?? 0);
-  if (guestsCount > 0) return Math.floor(guestsCount);
+    const guestsCount = Number(g?.guestsCount ?? 0);
+    if (guestsCount > 0) return Math.floor(guestsCount);
 
-  return 1;
-};
+    return 1;
+  };
 
+  // כמה להציג בפועל בתוך המודאל על הכיסא
+  const getDisplayedPartySize = (guest, seatedGuest) => {
+    if (isLiveMode) {
+      const actualFromSeat = Number(seatedGuest?.actualArrivedCount ?? 0);
+      if (actualFromSeat > 0) return Math.floor(actualFromSeat);
+
+      const actualFromGuest = Number(guest?.actualArrivedCount ?? 0);
+      if (actualFromGuest > 0) return Math.floor(actualFromGuest);
+
+      const countFromSeat = Number(seatedGuest?.count ?? 0);
+      if (countFromSeat > 0) return Math.floor(countFromSeat);
+
+      return 0;
+    }
+
+    const countFromSeat = Number(seatedGuest?.count ?? 0);
+    if (countFromSeat > 0) return Math.floor(countFromSeat);
+
+    return getPartySize(guest);
+  };
 
   const extractNumberFromName = (name) => {
     const m = String(name || "").match(/\d+/);
@@ -79,6 +99,7 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
     const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
       index: i,
       guest: null,
+      seatedGuest: null,
     }));
 
     for (const s of tableData.seatedGuests || []) {
@@ -93,6 +114,7 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
         s.seatIndex < arr.length
       ) {
         arr[s.seatIndex].guest = g;
+        arr[s.seatIndex].seatedGuest = s;
       }
     }
 
@@ -138,7 +160,6 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
 
-    // optimistic local
     const localRes = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
 
     if (!localRes?.ok) {
@@ -147,11 +168,9 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
     }
 
     try {
-      // ⭐ שמירה אחודה למונגו (במקום assign-table)
       if (onAutoSave) {
         const ok = await onAutoSave();
         if (!ok) {
-          // rollback אם שמירה נכשלה
           removeGuestFromTable(tableData.id, guestId);
           setError("שמירה נכשלה, ההושבה בוטלה");
           return;
@@ -162,7 +181,6 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
       setOpenSeat(null);
       setSearchTerm("");
     } catch {
-      // rollback
       removeGuestFromTable(tableData.id, guestId);
       setError("שגיאת רשת בשמירה");
     }
@@ -175,15 +193,12 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
     const guestId = getGuestId(guest);
 
-    // optimistic local
     removeGuestFromTable(tableData.id, guestId);
 
     try {
-      // ⭐ שמירה אחודה למונגו
       if (onAutoSave) {
         const ok = await onAutoSave();
         if (!ok) {
-          // rollback בסיסי: מחזירים לשולחן הנוכחי בלי seatIndex ספציפי
           const count = getPartySize(guest);
           assignGuestsToTable(tableData.id, guestId, count, 0);
           setError("שמירה נכשלה, ההסרה בוטלה");
@@ -214,8 +229,8 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
       return;
     }
 
-    // עדכון לוקאלי קודם
     const prevName = tableData.name;
+
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
         String(t.id) === String(tableData.id)
@@ -225,11 +240,9 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
     }));
 
     try {
-      // ⭐ שמירה אחודה למונגו
       if (onAutoSave) {
         const ok = await onAutoSave();
         if (!ok) {
-          // rollback
           useSeatingStore.setState((state) => ({
             tables: (state.tables || []).map((t) =>
               String(t.id) === String(tableData.id)
@@ -264,7 +277,6 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
           <X size={22} />
         </button>
 
-        {/* TITLE */}
         <div className="flex items-center justify-center gap-2 mb-2">
           {isEditingName ? (
             <input
@@ -298,10 +310,10 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
           <div className="text-red-600 text-center mb-3 font-medium">{error}</div>
         )}
 
-        {/* SEATS */}
         <div className="grid grid-cols-6 gap-4 justify-items-center">
           {seatsArray.map((seat, i) => {
             const g = seat.guest;
+            const seatedGuest = seat.seatedGuest;
             const isOpen = openSeat === i;
 
             return (
@@ -329,7 +341,7 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
                     <>
                       <span className="font-semibold truncate w-[90%]">{g.name}</span>
                       <span className="text-xs text-gray-600">
-                        ({getPartySize(g)} מגיעים)
+                        ({getDisplayedPartySize(g, seatedGuest)} מגיעים)
                       </span>
                     </>
                   ) : (
