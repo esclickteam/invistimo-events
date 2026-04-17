@@ -58,13 +58,13 @@ export default function ContactPage() {
         יצירת קשר
       </h1>
 
-      {/* 🔥 בלוק WhatsApp חדש */}
-      {/* 🔥 בלוק WhatsApp + שעות פעילות */}
-<section className="text-center mb-10">
-  <p className="text-sm text-[#7b6754] leading-relaxed">
+<section className="text-center mb-12 leading-relaxed">
+  <p className="text-base text-[#5a4a3a]">
     נשמח לעמוד לרשותכם בכל שאלה, בקשה, בירור, פנייה טכנית או פנייה בנוגע לשירותי{" "}
     <strong>Invistimo</strong>.
-    <br />
+  </p>
+
+  <p className="mt-2 text-base text-[#5a4a3a]">
     ניתן ליצור קשר גם בוואטסאפ:
   </p>
 
@@ -72,21 +72,23 @@ export default function ContactPage() {
     href="https://wa.me/972555039072"
     target="_blank"
     rel="noopener noreferrer"
-    className="inline-block mt-3 text-blue-600 font-semibold text-lg hover:underline"
+    className="block mt-4 text-xl font-semibold text-blue-600 hover:underline"
   >
     לחצו לצ׳אט עם נציג ב-WhatsApp
   </a>
 
-  <p className="mt-2 text-sm text-gray-600">
-    055-5039072
-  </p>
 
   {/* שעות פעילות */}
-  <div className="mt-4 text-sm text-[#7b6754] leading-relaxed">
+  <div className="mt-5 text-base text-[#5a4a3a]">
     <p className="font-semibold">שעות הפעילות שלנו:</p>
     <p>ימים א׳–ה׳: 09:00–18:00</p>
     <p>שישי וערבי חג: 09:00–12:00</p>
   </div>
+
+  {/* שורת מידע */}
+  <p className="mt-3 text-sm text-gray-500">
+    פניות מחוץ לשעות הפעילות ייענו בהקדם האפשרי
+  </p>
 </section>
 
       {/* פתיח */}
