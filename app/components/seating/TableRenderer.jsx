@@ -5,6 +5,7 @@ import { useRef, useMemo, useState, useEffect } from "react";
 import { Group, Circle, Rect, Text } from "react-konva";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useSearchParams } from "next/navigation";
+import { useGroupStore } from "@/store/groupStore";
 
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
@@ -176,7 +177,7 @@ function getSeatRotation(table, c) {
 
 const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 
-const groups = useSeatingStore((s) => s.groups);
+const groups = useGroupStore((s) => s.groups);
 
 const groupForTable = useMemo(() => {
   if (!table.seatedGuests?.length) return null;
@@ -251,7 +252,7 @@ const tableTitle = table.name || "";
 
 
 const tableLabel = groupForTable
-  ? `${tableTitle}\n${groupForTable.name}\n${occupiedSeatsCount}/${seatsTotal}`
+  ? `${groupForTable.name}\n${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`
   : `${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`;
 
 
