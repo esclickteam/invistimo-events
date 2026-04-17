@@ -92,7 +92,7 @@ export default function ContactPage() {
 </section>
 
       {/* פתיח */}
-      <section className="relative pr-6 mb-12 leading-relaxed">
+      <section className="relative pr-6 mb-12 leading-relaxed text-center">
   <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
 
 
