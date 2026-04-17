@@ -118,15 +118,12 @@ export default function DashboardMobileMenu({
 
             {/* 5️⃣ שליחת הודעות (פתוח תמיד) */}
             <button
-              onClick={() =>
-                isDemo
-                  ? go("/try/dashboard/messages")
-                  : go("/dashboard/messages")
-              }
-              className="text-right"
-            >
-              💬 שליחת הודעות
-            </button>
+  onClick={() => go("/dashboard/messages")}
+  className="text-right"
+>
+  💬 שליחת הודעות
+</button>
+
           </nav>
         </aside>
       </div>
