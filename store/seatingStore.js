@@ -232,6 +232,32 @@ getFreeSeats: (tableId) => {
   return Math.max(0, table.seats - occupied);
 },
 
+getOccupiedSeatsForTable: (tableId) => {
+  const { tables, guests, seatingMode, getGuestSeatCount } = get();
+
+  const table = tables.find(t => t.id === tableId);
+  if (!table) return 0;
+
+  if (seatingMode !== "live") {
+    return table.seatedGuests.length;
+  }
+
+  const guestMap = {};
+
+  table.seatedGuests.forEach((sg) => {
+    guestMap[sg.guestId] = true;
+  });
+
+  return Object.keys(guestMap).reduce((sum, guestId) => {
+    const guest = guests.find(
+      g => String(g.id ?? g._id) === String(guestId)
+    );
+    if (!guest) return sum;
+
+    return sum + getGuestSeatCount(guest);
+  }, 0);
+},
+
 
 
 canSeatGuestAtTable: (tableId, guest) => {

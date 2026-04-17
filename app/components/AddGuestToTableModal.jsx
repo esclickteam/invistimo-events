@@ -17,6 +17,9 @@ export default function AddGuestToTableModal({
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
 const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
+const getOccupiedSeatsForTable = useSeatingStore((s) => s.getOccupiedSeatsForTable);
+const tables = useSeatingStore((s) => s.tables);
+
   /* ================= TABLE + GUESTS ================= */
 
   const tableData = useSeatingStore((s) =>
@@ -99,17 +102,18 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = tableData?.seatedGuests?.length ?? 0;
+  const occupied = getOccupiedSeatsForTable(tableData?.id || tableData?._id);
+
   const remainingSeats = Math.max(0, (tableData?.seats ?? 0) - occupied);
 
   /* ================= AVAILABLE GUESTS ================= */
 
   const availableGuests = useMemo(() => {
-    const seatedIds = new Set(
-      (useSeatingStore.getState().tables || []).flatMap((t) =>
-        (t.seatedGuests || []).map((sg) => String(sg?.guestId))
-      )
-    );
+  const seatedIds = new Set(
+    (tables || []).flatMap((t) =>
+      (t.seatedGuests || []).map((sg) => String(sg?.guestId))
+    )
+  );
 
     return (tableGuests || []).filter((g) => {
       const id = getGuestId(g);
@@ -128,7 +132,7 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
         matchesSearch
       );
     });
-  }, [tableGuests, searchTerm, remainingSeats]);
+  }, [tableGuests, searchTerm, remainingSeats, tables]);
 
   /* ================= SEAT GUEST ================= */
 
