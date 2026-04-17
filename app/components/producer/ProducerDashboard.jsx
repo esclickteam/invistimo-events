@@ -235,7 +235,7 @@ export default function ProducerDashboard() {
       return;
     }
 
-    router.push(`/dashboard/production?eventId=${eventId}&tab=overview`);
+    router.push(`/events/production?eventId=${eventId}&tab=overview`);
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
