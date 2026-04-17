@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { UserPlus, ArrowUpRight, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ function isWithinDays(dateStr, days) {
 ========================= */
 export default function ProducerDashboard() {
   const { user, loading: authLoading, setUser, setIsAuthenticated } = useAuth();
+  const router = useRouter();
 
   const [clients, setClients] = useState([]);
   const [clientsLoading, setClientsLoading] = useState(false);
@@ -222,14 +224,18 @@ export default function ProducerDashboard() {
       return;
     }
 
-    // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
-    if (client.event?._id) {
-      window.location.href = `/dashboard/production?eventId=${client.event._id}`;
+    const eventId =
+      client?.event?._id ||
+      client?.eventId ||
+      data?.eventId ||
+      null;
+
+    if (!eventId) {
+      alert("לא נמצא eventId ללקוח");
       return;
     }
 
-    // 🟡 fallback: אם אין אירוע
-    window.location.href = "/producer/dashboard";
+    router.push(`/dashboard/production?eventId=${eventId}&tab=overview`);
   } catch (err) {
     console.error("❌ handleManageClient error:", err);
     alert("שגיאה בכניסה לניהול הלקוח");
@@ -337,15 +343,6 @@ export default function ProducerDashboard() {
       ),
     };
   }, [clients]);
-
-  /* =========================
-     Guards
-  ========================= */
-  if (user?.impersonated) {
-  window.location.href = "/events/production";
-  return null;
-}
-
 
 
   /* =========================
