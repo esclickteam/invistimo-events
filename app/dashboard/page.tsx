@@ -164,12 +164,14 @@ const canViewActualArrived =
 
 
 useEffect(() => {
-  if (!canViewActualArrived) {
-    setSeatingMode("planning");
-    return;
-  }
 
-  setSeatingMode(workMode === "live" ? "live" : "planning");
+  if (!canViewActualArrived) {
+  setSeatingMode("regular");
+  return;
+}
+
+setSeatingMode(workMode === "live" ? "live" : "regular");
+
 }, [canViewActualArrived, workMode, setSeatingMode]);
 
 
