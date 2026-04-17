@@ -8,6 +8,8 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import Event from "@/models/Event";
 import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 
+import Group from "@/models/Group";
+
 const HARD_GUEST_CAP = 10000;
 
 export const dynamic = "force-dynamic";
@@ -31,6 +33,10 @@ function normalizeGroupId(raw: unknown): string | null {
   }
   const v = String(raw).trim();
   return v || null;
+}
+
+function normalizeGroupName(raw: unknown): string {
+  return String(raw || "").replace(/\s+/g, " ").trim();
 }
 
 /* ============================================================
@@ -210,33 +216,60 @@ export async function POST(
       typeof guestsCount === "number" && guestsCount > 0 ? guestsCount : 1;
 
     const normalizedGroupId = normalizeGroupId(groupId);
+const normalizedRelation = normalizeGroupName(relation);
 
-    /* ================= יצירת המוזמן ================= */
-    const guest = await InvitationGuest.create({
+let finalGroupId = normalizedGroupId;
+
+// ✅ אם לא הגיע groupId אבל כן יש relation — יוצרים/מוצאים קבוצה אוטומטית
+if (!finalGroupId && normalizedRelation) {
+  const group = await Group.findOneAndUpdate(
+    {
       invitationId: (invitation as any)._id,
-      name: safeName,
-      phone: normalizedPhone || "",
-      relation: String(relation || "").trim(),
-      rsvp: ["yes", "no", "pending"].includes(String(rsvp)) ? rsvp : "pending",
-      guestsCount: incomingGuests,
-      ...(normalizedGroupId ? { groupId: normalizedGroupId } : {}),
-      tableNumber:
-        tableNumber !== null &&
-        tableNumber !== undefined &&
-        tableNumber !== "" &&
-        Number.isFinite(Number(tableNumber))
-          ? Number(tableNumber)
-          : undefined,
-      tableName:
-        tableNumber !== null &&
-        tableNumber !== undefined &&
-        tableNumber !== "" &&
-        Number.isFinite(Number(tableNumber))
-          ? `שולחן ${Number(tableNumber)}`
-          : undefined,
-      notes: "",
-      token: nanoid(12),
-    });
+      eventId: (invitation as any).eventId,
+      name: normalizedRelation,
+    },
+    {
+      $setOnInsert: {
+        invitationId: (invitation as any)._id,
+        eventId: (invitation as any).eventId,
+        name: normalizedRelation,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
+
+  finalGroupId = String(group._id);
+}
+
+/* ================= יצירת המוזמן ================= */
+const guest = await InvitationGuest.create({
+  invitationId: (invitation as any)._id,
+  name: safeName,
+  phone: normalizedPhone || "",
+  relation: normalizedRelation,
+  rsvp: ["yes", "no", "pending"].includes(String(rsvp)) ? rsvp : "pending",
+  guestsCount: incomingGuests,
+  ...(finalGroupId ? { groupId: finalGroupId } : {}),
+  tableNumber:
+    tableNumber !== null &&
+    tableNumber !== undefined &&
+    tableNumber !== "" &&
+    Number.isFinite(Number(tableNumber))
+      ? Number(tableNumber)
+      : undefined,
+  tableName:
+    tableNumber !== null &&
+    tableNumber !== undefined &&
+    tableNumber !== "" &&
+    Number.isFinite(Number(tableNumber))
+      ? `שולחן ${Number(tableNumber)}`
+      : undefined,
+  notes: "",
+  token: nanoid(12),
+});
 
     // ✅ עדכון expectedCount לקבוצה (אם האורח שייך לקבוצה)
     if ((guest as any).groupId) {
@@ -304,11 +337,11 @@ export async function GET(
     const userId = String(auth.userId);
 
     const invitation = await Invitation.findOne({
-      _id: invitationId,
-      $or: [{ ownerId: userId }, { producerId: userId }],
-    })
-      .select("_id ownerId")
-      .lean();
+  _id: invitationId,
+  $or: [{ ownerId: userId }, { producerId: userId }],
+})
+  .select("_id ownerId eventId")
+  .lean();
 
     if (!invitation) {
       return NextResponse.json(
@@ -385,11 +418,11 @@ export async function PUT(
     const userId = String(auth.userId);
 
     const invitation = await Invitation.findOne({
-      _id: invitationId,
-      $or: [{ ownerId: userId }, { producerId: userId }],
-    })
-      .select("_id")
-      .lean();
+  _id: invitationId,
+  $or: [{ ownerId: userId }, { producerId: userId }],
+})
+  .select("_id eventId")
+  .lean();
 
     if (!invitation) {
       return NextResponse.json(
@@ -419,6 +452,35 @@ export async function PUT(
 
     // ✅ נרמול groupId כדי שלא יישמר null/""/"null"/"undefined"
     const normalizedUpdates: any = { ...updates };
+
+    if ("relation" in normalizedUpdates) {
+  normalizedUpdates.relation = normalizeGroupName(normalizedUpdates.relation);
+
+  if (normalizedUpdates.relation) {
+    const group = await Group.findOneAndUpdate(
+      {
+        invitationId,
+        eventId: (invitation as any).eventId,
+        name: normalizedUpdates.relation,
+      },
+      {
+        $setOnInsert: {
+          invitationId,
+          eventId: (invitation as any).eventId,
+          name: normalizedUpdates.relation,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+      }
+    );
+
+    normalizedUpdates.groupId = String(group._id);
+  } else {
+    delete normalizedUpdates.groupId;
+  }
+}
 
     if ("groupId" in normalizedUpdates) {
       const cleaned = normalizeGroupId(normalizedUpdates.groupId);
@@ -495,7 +557,7 @@ export async function DELETE(
       _id: invitationId,
       $or: [{ ownerId: userId }, { producerId: userId }],
     })
-      .select("_id")
+      .select("_id eventId")
       .lean();
 
     if (!invitation) {

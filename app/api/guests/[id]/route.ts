@@ -169,32 +169,29 @@ if (typeof data.relation === "string") {
   const newRelation = data.relation.trim();
   guest.relation = newRelation;
 
-  if (newRelation) {
-    const normalizedGroupName = newRelation.replace(/\s+/g, " ").trim();
-
-    const group = await Group.findOneAndUpdate(
-      {
+  // רק אם אחרי הטיפול הידני אין groupId
+ if (!guest.groupId && newRelation) {
+  const group = await Group.findOneAndUpdate(
+    {
+      eventId: invitation.eventId,
+      name: newRelation,
+    },
+    {
+      $setOnInsert: {
         invitationId: invitation._id,
         eventId: invitation.eventId,
-        name: normalizedGroupName,
+        name: newRelation,
       },
-      {
-        $setOnInsert: {
-          invitationId: invitation._id,
-          eventId: invitation.eventId,
-          name: normalizedGroupName,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-      }
-    );
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
 
-    guest.groupId = group._id;
-  } else {
-    guest.groupId = undefined;
-  }
+  guest.groupId = group._id;
+}
+
 }
 
 
