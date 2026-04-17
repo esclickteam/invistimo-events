@@ -5,7 +5,7 @@ import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 /* ============================================================
-   GET — שליפת קבוצות לפי invitationId
+   GET — שליפת קבוצות לפי eventId של ההזמנה
 ============================================================ */
 export async function GET(req: NextRequest) {
   try {
@@ -29,7 +29,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const groups = await Group.find({ invitationId })
+    const invitation = await Invitation.findById(invitationId)
+      .select("_id eventId")
+      .lean();
+
+    if (!invitation?.eventId) {
+      return NextResponse.json(
+        { success: false, error: "Invitation not found" },
+        { status: 404 }
+      );
+    }
+
+    const groups = await Group.find({ eventId: invitation.eventId })
       .sort({ order: 1, createdAt: 1 })
       .lean();
 
@@ -68,32 +79,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // שליפת eventId מהזמנה
-    const invitation = await Invitation
-      .findById(invitationId)
-      .select("eventId");
+    const invitation = await Invitation.findById(invitationId)
+      .select("_id eventId")
+      .lean();
 
-    if (!invitation) {
+    if (!invitation?.eventId) {
       return NextResponse.json(
         { success: false, error: "Invitation not found" },
         { status: 404 }
       );
     }
 
-    const order = await Group.countDocuments({ invitationId });
+    const trimmedName = String(name).trim();
+
+    const existingGroup = await Group.findOne({
+      eventId: invitation.eventId,
+      name: trimmedName,
+    }).lean();
+
+    if (existingGroup) {
+      return NextResponse.json({
+        success: true,
+        group: existingGroup,
+      });
+    }
+
+    const order = await Group.countDocuments({ eventId: invitation.eventId });
 
     const group = await Group.create({
       invitationId,
       eventId: invitation.eventId,
-      name: name.trim(),
+      name: trimmedName,
       color: color || null,
       expectedCount,
       order,
     });
 
     return NextResponse.json({ success: true, group });
-  } catch (err) {
+  } catch (err: any) {
     console.error("POST /api/groups error:", err);
+
+    if (err?.code === 11000) {
+      return NextResponse.json(
+        { success: false, error: "Group already exists" },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
