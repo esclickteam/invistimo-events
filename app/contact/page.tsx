@@ -92,17 +92,14 @@ export default function ContactPage() {
 </section>
 
       {/* פתיח */}
-      <section className="relative pr-6 mb-12">
-        <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
-        <p>
-          נשמח לעמוד לרשותכם בכל שאלה, בקשה, בירור, פנייה טכנית או פנייה
-          בנוגע לשירותי <strong>Invistimo</strong>.
-        </p>
-        <p className="mt-3">
-          מענה יינתן באמצעות דוא״ל חוזר, לכן יש להקפיד להזין כתובת דוא״ל
-          תקינה.
-        </p>
-      </section>
+      <section className="relative pr-6 mb-12 leading-relaxed">
+  <span className="absolute right-0 top-2 h-full w-[2px] bg-[#eadfce]" />
+
+
+  <p className="mt-3 text-base text-[#5a4a3a]">
+    ניתן לפנות אלינו גם בטופס הבא:
+  </p>
+</section>
 
       {/* טופס יצירת קשר */}
       <form
