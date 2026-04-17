@@ -52,11 +52,42 @@ export default function ContactPage() {
     }
   }
 
-   return (
+  return (
     <div className="max-w-3xl mx-auto px-6 py-24">
       <h1 className="text-4xl font-bold mb-10 text-center">
         יצירת קשר
       </h1>
+
+      {/* 🔥 בלוק WhatsApp חדש */}
+      {/* 🔥 בלוק WhatsApp + שעות פעילות */}
+<section className="text-center mb-10">
+  <p className="text-sm text-[#7b6754] leading-relaxed">
+    נשמח לעמוד לרשותכם בכל שאלה, בקשה, בירור, פנייה טכנית או פנייה בנוגע לשירותי{" "}
+    <strong>Invistimo</strong>.
+    <br />
+    ניתן ליצור קשר גם בוואטסאפ:
+  </p>
+
+  <a
+    href="https://wa.me/972555039072"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-block mt-3 text-blue-600 font-semibold text-lg hover:underline"
+  >
+    לחצו לצ׳אט עם נציג ב-WhatsApp
+  </a>
+
+  <p className="mt-2 text-sm text-gray-600">
+    055-5039072
+  </p>
+
+  {/* שעות פעילות */}
+  <div className="mt-4 text-sm text-[#7b6754] leading-relaxed">
+    <p className="font-semibold">שעות הפעילות שלנו:</p>
+    <p>ימים א׳–ה׳: 09:00–18:00</p>
+    <p>שישי וערבי חג: 09:00–12:00</p>
+  </div>
+</section>
 
       {/* פתיח */}
       <section className="relative pr-6 mb-12">
@@ -131,7 +162,6 @@ export default function ContactPage() {
           />
         </div>
 
-        {/* הודעות הצלחה / שגיאה */}
         {success && (
           <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-green-800 text-sm">
             {success}
