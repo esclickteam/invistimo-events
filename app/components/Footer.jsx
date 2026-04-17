@@ -5,14 +5,42 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <footer className="mt-40 border-t border-[#e2d6c8] bg-[#f5eee7]">
-      <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6 text-[#6a5440]">
+      <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col items-center gap-10 text-[#6a5440]">
         
-        {/* זכויות יוצרים */}
-        <p className="text-sm text-center md:text-right">
-          © {new Date().getFullYear()} Invistimo · כל הזכויות שמורות
-        </p>
+        {/* 🔥 בלוק WhatsApp */}
+        <div className="text-center">
+          <p className="text-[#7b6754] text-sm">
+            לכל שאלה אנחנו כאן בשבילכם
+          </p>
 
-        {/* ניווט משפטי ומידע */}
+          <p className="mt-2 font-semibold">שעות הפעילות שלנו:</p>
+
+          <p className="text-sm">
+            ימים א׳–ה׳: 09:00–18:00
+          </p>
+
+          <p className="text-sm">
+            שישי וערבי חג: 09:00–12:00
+          </p>
+
+          {/* כפתור וואטסאפ */}
+          <a
+            href="https://wa.me/972555039072"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full font-semibold transition"
+          >
+            <span>התחילו בצ׳אט</span>
+
+            <img
+              src="/icons/whatsapp.png"
+              alt="WhatsApp"
+              className="w-5 h-5"
+            />
+          </a>
+        </div>
+
+        {/* ניווט */}
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">
           
           <Link
@@ -51,6 +79,11 @@ export default function Footer() {
           </Link>
 
         </nav>
+
+        {/* זכויות יוצרים */}
+        <p className="text-sm text-center">
+          © {new Date().getFullYear()} Invistimo · כל הזכויות שמורות
+        </p>
       </div>
     </footer>
   );
