@@ -223,23 +223,22 @@ let finalGroupId = normalizedGroupId;
 // ✅ אם לא הגיע groupId אבל כן יש relation — יוצרים/מוצאים קבוצה אוטומטית
 if (!finalGroupId && normalizedRelation) {
   const group = await Group.findOneAndUpdate(
-    {
+  {
+    eventId: (invitation as any).eventId,
+    name: normalizedRelation,
+  },
+  {
+    $setOnInsert: {
       invitationId: (invitation as any)._id,
       eventId: (invitation as any).eventId,
       name: normalizedRelation,
     },
-    {
-      $setOnInsert: {
-        invitationId: (invitation as any)._id,
-        eventId: (invitation as any).eventId,
-        name: normalizedRelation,
-      },
-    },
-    {
-      upsert: true,
-      new: true,
-    }
-  );
+  },
+  {
+    upsert: true,
+    new: true,
+  }
+);
 
   finalGroupId = String(group._id);
 }
@@ -458,23 +457,22 @@ export async function PUT(
 
   if (normalizedUpdates.relation) {
     const group = await Group.findOneAndUpdate(
-      {
-        invitationId,
-        eventId: (invitation as any).eventId,
-        name: normalizedUpdates.relation,
-      },
-      {
-        $setOnInsert: {
-          invitationId,
-          eventId: (invitation as any).eventId,
-          name: normalizedUpdates.relation,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-      }
-    );
+  {
+    eventId: (invitation as any).eventId,
+    name: normalizedUpdates.relation,
+  },
+  {
+    $setOnInsert: {
+      invitationId,
+      eventId: (invitation as any).eventId,
+      name: normalizedUpdates.relation,
+    },
+  },
+  {
+    upsert: true,
+    new: true,
+  }
+);
 
     normalizedUpdates.groupId = String(group._id);
   } else {
