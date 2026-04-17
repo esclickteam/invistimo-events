@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import RsvpTab from "./tabs/RsvpTab";
 import RsvpSmsTab from "./tabs/RsvpSmsTab";
 import ReminderTab from "./tabs/ReminderTab";
@@ -11,7 +12,7 @@ import ThankYouTab from "./tabs/ThankYouTab";
 type TabKey = "rsvp" | "rsvp_sms" | "reminder" | "thankyou";
 
 type MessageMeta = {
-  invitationTitle: string;      // ✅ חדש
+  invitationTitle: string;
   eventDate: string;
   eventLocation: string;
   eventType?: string;
@@ -34,6 +35,17 @@ const EMPTY_META: MessageMeta = {
   lng: undefined,
 };
 
+const DEMO_META: MessageMeta = {
+  invitationTitle: "החתונה של בר ומאי",
+  eventDate: "20.09.2026",
+  eventLocation: "גן האירועים קיסר, תל אביב",
+  eventType: "חתונה",
+  giftCreditUrl: "",
+  headerImageUrl: "",
+  lat: 32.0853,
+  lng: 34.7818,
+};
+
 /* ================= HELPERS ================= */
 
 function formatEventDate(value: any): string {
@@ -46,24 +58,35 @@ function formatEventDate(value: any): string {
 /* ================= COMPONENT ================= */
 
 export default function NewMessagesPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
+  const pathname = usePathname();
+  const isDemo = pathname.startsWith("/try");
 
+  const [activeTab, setActiveTab] = useState<TabKey>("rsvp");
   const [meta, setMeta] = useState<MessageMeta>(EMPTY_META);
   const [invitationId, setInvitationId] = useState<string>("");
-
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
     async function loadData() {
+      if (isDemo) {
+        setInvitationId("demo-invitation-id");
+        setMeta(DEMO_META);
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch("/api/invitations/my", {
           credentials: "include",
           cache: "no-store",
         });
 
-        if (!res.ok) return;
+        if (!res.ok) {
+          setLoading(false);
+          return;
+        }
 
         const data = await res.json();
         const invitation = data?.invitation;
@@ -73,24 +96,23 @@ export default function NewMessagesPage() {
           setInvitationId(invitation._id);
 
           setMeta({
-  invitationTitle: invitation.title || "",
-  eventDate: formatEventDate(event?.date || invitation.eventDate),
-  eventLocation:
-    invitation.location?.address ||
-    invitation.location?.name ||
-    event?.location?.address ||
-    event?.location?.name ||
-    "",
-  eventType: event?.eventType || invitation.eventType || "",
-  giftCreditUrl: event?.giftCreditUrl || invitation.giftCreditUrl || "",
-  headerImageUrl:
-    invitation.previewImage ||
-    invitation.headerImageUrl ||
-    "",
-  lat: invitation.location?.lat ?? event?.location?.lat,
-  lng: invitation.location?.lng ?? event?.location?.lng,
-});
-
+            invitationTitle: invitation.title || "",
+            eventDate: formatEventDate(event?.date || invitation.eventDate),
+            eventLocation:
+              invitation.location?.address ||
+              invitation.location?.name ||
+              event?.location?.address ||
+              event?.location?.name ||
+              "",
+            eventType: event?.eventType || invitation.eventType || "",
+            giftCreditUrl: event?.giftCreditUrl || invitation.giftCreditUrl || "",
+            headerImageUrl:
+              invitation.previewImage ||
+              invitation.headerImageUrl ||
+              "",
+            lat: invitation.location?.lat ?? event?.location?.lat,
+            lng: invitation.location?.lng ?? event?.location?.lng,
+          });
         }
       } catch (err) {
         console.error("❌ Failed to load invitation data", err);
@@ -100,7 +122,7 @@ export default function NewMessagesPage() {
     }
 
     loadData();
-  }, []);
+  }, [isDemo]);
 
   /* ================= RENDER ================= */
 
