@@ -17,7 +17,7 @@ type DecodedToken = {
 
   // חדש
   impersonated?: boolean;
-  impersonationRole?: string; // "admin" | ...
+  impersonationRole?: string;
   impersonatedBy?: string;
 
   iat?: number;
@@ -47,7 +47,7 @@ function setExpiredCookie(
     httpOnly: opts?.httpOnly ?? true,
   });
 
-  // מחיקה גם בלי domain (fallback חשוב)
+  // מחיקה גם בלי domain
   res.cookies.set(name, "", {
     ...base,
     httpOnly: opts?.httpOnly ?? true,
@@ -66,12 +66,15 @@ export async function POST() {
     }
 
     const cookieStore = await cookies();
-    const authToken = cookieStore.get("authToken")?.value || null;
-    const producerToken = cookieStore.get("producerAuthToken")?.value || null;
-    const adminCookieToken = cookieStore.get("adminAuthToken")?.value || null;
 
-    // authToken קודם, אחרת fallback
-    const token = authToken || producerToken || adminCookieToken;
+    const authToken = cookieStore.get("authToken")?.value || null;
+    const adminToken = cookieStore.get("adminToken")?.value || null;
+    const impersonationToken =
+      cookieStore.get("impersonationToken")?.value || null;
+    const legacyToken = cookieStore.get("token")?.value || null;
+
+    const token =
+      impersonationToken || authToken || adminToken || legacyToken;
 
     if (!token) {
       return NextResponse.json(
@@ -81,17 +84,19 @@ export async function POST() {
     }
 
     let decoded: DecodedToken;
+
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET) as DecodedToken;
-    } catch (err) {
+    } catch {
       return NextResponse.json(
         { success: false, error: "Invalid token" },
         { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    // תומך גם בישן וגם בחדש
-    const legacyImpersonation = !!decoded.impersonatedByAdmin && !!decoded.adminId;
+    const legacyImpersonation =
+      !!decoded.impersonatedByAdmin && !!decoded.adminId;
+
     const modernImpersonation =
       decoded.impersonated === true &&
       String(decoded.impersonationRole || "").toLowerCase() === "admin" &&
@@ -105,6 +110,7 @@ export async function POST() {
     }
 
     const adminId = decoded.adminId || decoded.impersonatedBy;
+
     if (!adminId) {
       return NextResponse.json(
         { success: false, error: "Missing admin reference" },
@@ -113,6 +119,7 @@ export async function POST() {
     }
 
     const admin = await User.findById(adminId).lean();
+
     if (!admin || admin.role !== "admin") {
       return NextResponse.json(
         { success: false, error: "Admin not found" },
@@ -120,12 +127,11 @@ export async function POST() {
       );
     }
 
-    // JWT חדש לאדמין
-    const adminToken = jwt.sign(
+    const newAdminToken = jwt.sign(
       {
         userId: String(admin._id),
         role: "admin",
-        hasPaid: true, // לא חובה, אבל מונע חסימות Paid guard בטעות
+        hasPaid: true,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
@@ -138,39 +144,30 @@ export async function POST() {
 
     const domain = getCookieDomain();
 
-    // ניקוי מוחלט של כל טוקני מצב קודם
+    // ניקוי כל הקוקיז שרואים אצלך בפועל
+    setExpiredCookie(res, "adminToken", { domain, httpOnly: true });
     setExpiredCookie(res, "authToken", { domain, httpOnly: true });
-    setExpiredCookie(res, "producerAuthToken", { domain, httpOnly: true });
-
-    // (אופציונלי) לנקות גם קוקיות client-readable אם אצלך בשימוש
-    setExpiredCookie(res, "role", { domain, httpOnly: false });
+    setExpiredCookie(res, "impersonationToken", { domain, httpOnly: true });
+    setExpiredCookie(res, "token", { domain, httpOnly: true });
     setExpiredCookie(res, "hasPaid", { domain, httpOnly: false });
 
-    // כתיבת טוקן אדמין חדש
     const baseCookie = {
       path: "/",
       sameSite: "lax" as const,
       secure: process.env.NODE_ENV === "production",
-      domain,
-      maxAge: 60 * 60, // 1h
+      ...(domain ? { domain } : {}),
+      maxAge: 60 * 60,
     };
 
-    // authToken הראשי
-    res.cookies.set("authToken", adminToken, {
+    // כתיבה מחדש של מצב אדמין
+    res.cookies.set("adminToken", newAdminToken, {
       ...baseCookie,
       httpOnly: true,
     });
 
-    // גיבוי אדמין ייעודי (שימושי לזרימות אדמין)
-    res.cookies.set("adminAuthToken", adminToken, {
+    res.cookies.set("authToken", newAdminToken, {
       ...baseCookie,
       httpOnly: true,
-    });
-
-    // client-readable role (אם UI שלך נשען על זה)
-    res.cookies.set("role", "admin", {
-      ...baseCookie,
-      httpOnly: false,
     });
 
     res.cookies.set("hasPaid", "true", {
@@ -181,6 +178,7 @@ export async function POST() {
     return res;
   } catch (err) {
     console.error("❌ Stop impersonation error:", err);
+
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500, headers: { "Cache-Control": "no-store" } }
