@@ -57,6 +57,7 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
   /* ===== STORE ===== */
   const guests = useSeatingStore((s) => s.guests) as Guest[];
   const groups = useGroupStore((s) => s.groups) as Group[];
+const loadGroups = useGroupStore((s) => s.loadGroups);
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
@@ -81,6 +82,11 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
 
   const [selectingGuestId, setSelectingGuestId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+
+  useEffect(() => {
+  if (!invitationId) return;
+  loadGroups(invitationId);
+}, [invitationId, loadGroups]);
 
 
   /* ================= HELPERS ================= */
