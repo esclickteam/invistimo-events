@@ -165,22 +165,23 @@ if ("groupId" in data) {
 /* ===============================
    relation — שיוך אוטומטי אם אין קבוצה
 =============================== */
+// ⭐ עדכון relation אם הגיע מהקליינט
 if (typeof data.relation === "string") {
-  const newRelation = data.relation.trim();
-  guest.relation = newRelation;
+  guest.relation = data.relation.trim();
+}
 
-  // רק אם אחרי הטיפול הידני אין groupId
- if (!guest.groupId && newRelation) {
+// ⭐ יצירת קבוצה אוטומטית תמיד אם אין groupId
+if (!guest.groupId && guest.relation) {
   const group = await Group.findOneAndUpdate(
     {
       eventId: invitation.eventId,
-      name: newRelation,
+      name: guest.relation,
     },
     {
       $setOnInsert: {
         invitationId: invitation._id,
         eventId: invitation.eventId,
-        name: newRelation,
+        name: guest.relation,
       },
     },
     {
@@ -190,8 +191,6 @@ if (typeof data.relation === "string") {
   );
 
   guest.groupId = group._id;
-}
-
 }
 
 
