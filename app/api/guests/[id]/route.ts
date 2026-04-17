@@ -165,34 +165,36 @@ if ("groupId" in data) {
 /* ===============================
    relation — שיוך אוטומטי אם אין קבוצה
 =============================== */
-// ⭐ עדכון relation אם הגיע מהקליינט
 if (typeof data.relation === "string") {
-  guest.relation = data.relation.trim();
-}
+  const newRelation = data.relation.trim();
+  guest.relation = newRelation;
 
-// ⭐ יצירת קבוצה אוטומטית תמיד אם אין groupId
-if (!guest.groupId && guest.relation) {
-  const normalizedRelation = guest.relation.trim().toLowerCase();
+  if (newRelation) {
+    const normalizedGroupName = newRelation.replace(/\s+/g, " ").trim();
 
-  const group = await Group.findOneAndUpdate(
-    {
-      eventId: invitation.eventId,
-      name: normalizedRelation,
-    },
-    {
-      $setOnInsert: {
+    const group = await Group.findOneAndUpdate(
+      {
         invitationId: invitation._id,
         eventId: invitation.eventId,
-        name: normalizedRelation,
+        name: normalizedGroupName,
       },
-    },
-    {
-      upsert: true,
-      new: true,
-    }
-  );
+      {
+        $setOnInsert: {
+          invitationId: invitation._id,
+          eventId: invitation.eventId,
+          name: normalizedGroupName,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+      }
+    );
 
-  guest.groupId = group._id;
+    guest.groupId = group._id;
+  } else {
+    guest.groupId = undefined;
+  }
 }
 
 
