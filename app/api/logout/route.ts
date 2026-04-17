@@ -1,11 +1,48 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function getCookieDomain() {
+  return process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+}
+
+function expireCookie(
+  res: NextResponse,
+  name: string,
+  httpOnly = true
+) {
+  const domain = getCookieDomain();
+
+  const base = {
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+  };
+
+  // מחיקה עם domain
+  res.cookies.set(name, "", {
+    ...base,
+    ...(domain ? { domain } : {}),
+    httpOnly,
+  });
+
+  // מחיקה גם בלי domain
+  res.cookies.set(name, "", {
+    ...base,
+    httpOnly,
+  });
+}
+
 export async function POST() {
   const res = NextResponse.json(
     { success: true },
     {
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
       },
@@ -13,61 +50,22 @@ export async function POST() {
   );
 
   /* =====================================================
-     🌐 Domain אחיד – מונע www / non-www באגים
+     🧹 ניקוי מלא של כל הקוקיז הרלוונטיים
   ===================================================== */
-  const cookieDomain =
-    process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
+  expireCookie(res, "authToken", true);
+  expireCookie(res, "producerAuthToken", true);
+  expireCookie(res, "adminToken", true);
+  expireCookie(res, "impersonationToken", true);
+  expireCookie(res, "token", true);
 
-  /* =====================================================
-     🍪 Base cookie config
-  ===================================================== */
-  const baseCookie = {
-    path: "/",
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    domain: cookieDomain,
-  };
+  expireCookie(res, "role", false);
+  expireCookie(res, "hasPaid", false);
 
-  const delHttpOnly = {
-    ...baseCookie,
-    httpOnly: true,
-    maxAge: 0,
-  };
+  expireCookie(res, "isTrial", false);
+  expireCookie(res, "trialExpiresAt", false);
 
-  const delClient = {
-    ...baseCookie,
-    httpOnly: false,
-    maxAge: 0,
-  };
-
-  /* =====================================================
-     🔐 AUTH TOKENS (הקריטי!)
-  ===================================================== */
-  res.cookies.set("authToken", "", delHttpOnly);
-  res.cookies.set("producerAuthToken", "", delHttpOnly);
-
-  /* =====================================================
-     👤 ROLE / STATE
-  ===================================================== */
-  res.cookies.set("role", "", delClient);
-
-  /* =====================================================
-     🧪 TRIAL
-  ===================================================== */
-  res.cookies.set("isTrial", "", delClient);
-  res.cookies.set("trialExpiresAt", "", delClient);
-
-  /* =====================================================
-     ✉️ SMS LIMITS
-  ===================================================== */
-  res.cookies.set("smsLimit", "", delClient);
-  res.cookies.set("smsUsed", "", delClient);
-
-  /* =====================================================
-     🧹 Future-proof (אם תוסיפי עוד cookies)
-  ===================================================== */
-  // res.cookies.set("impersonation", "", delClient);
-  // res.cookies.set("businessId", "", delClient);
+  expireCookie(res, "smsLimit", false);
+  expireCookie(res, "smsUsed", false);
 
   return res;
 }
