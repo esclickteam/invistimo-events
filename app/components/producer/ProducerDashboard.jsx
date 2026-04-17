@@ -224,7 +224,7 @@ export default function ProducerDashboard() {
 
     // ✅ אם יש אירוע – כניסה ל־Overview של ההפקה
     if (client.event?._id) {
-      window.location.href = `/events/production/${client.event._id}?tab=overview`;
+      window.location.href = `/dashboard/production?eventId=${client.event._id}`;
       return;
     }
 
