@@ -99,13 +99,7 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
     return arr;
   }, [tableData, tableGuests]);
 
-  const occupied = isLiveMode
-  ? seatsArray.reduce((sum, seat) => {
-      if (!seat?.guest) return sum;
-      return sum + getDisplayedPartySize(seat.guest, seat.seatedGuest);
-    }, 0)
-  : tableData?.seatedGuests?.length ?? 0;
-
+  const occupied = tableData?.seatedGuests?.length ?? 0;
   const remainingSeats = Math.max(0, (tableData?.seats ?? 0) - occupied);
 
   /* ================= AVAILABLE GUESTS ================= */
