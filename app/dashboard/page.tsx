@@ -1488,8 +1488,8 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
     onClick={() =>
       router.push(
         isDemo
-          ? `/try/dashboard/messages?guestId=${g._id}`
-          : `/dashboard/messages?guestId=${g._id}`
+  ? `/try/dashboard/messages/new?guestId=${g._id}`
+  : `/dashboard/messages/new?guestId=${g._id}`
       )
     }
     title="שליחת הודעה"
@@ -1569,12 +1569,12 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
     onDelete={(g) => deleteGuest(g)}
 
     onMessage={(g) =>
-      router.push(
-        isDemo
-          ? `/try/dashboard/messages?guestId=${g._id}`
-          : `/dashboard/messages?guestId=${g._id}`
-      )
-    }
+  router.push(
+    isDemo
+      ? `/try/dashboard/messages/new?guestId=${g._id}`
+      : `/dashboard/messages/new?guestId=${g._id}`
+  )
+}
 
     onSeat={(g) =>
       router.push(
