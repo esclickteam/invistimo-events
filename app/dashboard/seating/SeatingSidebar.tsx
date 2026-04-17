@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useSeatingStats } from "../../hooks/useSeatingStats";
+import { useGroupStore } from "@/store/groupStore";
 
 
 
@@ -55,7 +56,7 @@ export default function SeatingSidebar({ invitationId }: { invitationId?: string
 
   /* ===== STORE ===== */
   const guests = useSeatingStore((s) => s.guests) as Guest[];
-  const groups = useSeatingStore((s) => s.groups) as Group[];
+  const groups = useGroupStore((s) => s.groups) as Group[];
   const tables = useSeatingStore((s) => s.tables) as Table[];
   const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
 
@@ -173,23 +174,17 @@ const syncRemoveFromServer = async (guestId: string) => {
   /* ================= GROUPED GUESTS ================= */
 
   const groupedGuests = useMemo(() => {
-    const map: Record<string, Guest[]> = {};
+  const map: Record<string, Guest[]> = {};
 
-    guests.forEach((g) => {
-      const rawGroupId = g.groupId ? String(g.groupId) : null;
+  guests.forEach((g) => {
+    const key = normalizeGroupId(g.groupId);
 
-      const groupExists =
-        rawGroupId &&
-        groups.some((gr) => String(gr._id) === rawGroupId);
+    if (!map[key]) map[key] = [];
+    map[key].push(g);
+  });
 
-      const key = groupExists ? rawGroupId : NO_GROUP_KEY;
-
-      if (!map[key]) map[key] = [];
-      map[key].push(g);
-    });
-
-    return map;
-  }, [guests, groups]);
+  return map;
+}, [guests]);
 
   /* ================= TABLE LOOKUPS ================= */
 
