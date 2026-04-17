@@ -85,6 +85,11 @@ const isDemo = pathname.startsWith("/try/");
   useEffect(() => {
   if (!user) return;
 
+  // ⭐ אם זה מפיק – לא לחסום
+  if (user.role === "producer" || user.impersonated) {
+    return;
+  }
+
   if (user.planLimits?.seatingEnabled !== true) {
     setBlockReason("no-plan");
   }
