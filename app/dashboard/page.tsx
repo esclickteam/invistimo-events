@@ -1211,8 +1211,8 @@ console.log("INVITATION:", invitation);
     onClick={() =>
       router.push(
         isDemo
-          ? "/try/dashboard/messages"
-          : "/dashboard/messages"
+  ? "/try/dashboard/messages/new"
+  : "/dashboard/messages/new"
       )
     }
     disabled={!invitation}
