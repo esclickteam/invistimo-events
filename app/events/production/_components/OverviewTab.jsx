@@ -287,15 +287,12 @@ setBudgetDraft(data.event.budgetTotal);
 
   {/* 🔥 מעבר לדשבורד לקוח */}
   <button
-    onClick={() =>
-      router.push(
-        `/producer/events/${eventId}/guests?eventId=${eventId}`
-      )
-    }
-    className="px-4 py-2 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50"
-  >
-    👤 ניהול דשבורד לקוח
-  </button>
+  onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
+  className="px-4 py-2 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50"
+>
+  👤 ניהול דשבורד לקוח
+</button>
+  
 </div>
 
 
