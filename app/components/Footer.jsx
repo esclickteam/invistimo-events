@@ -30,7 +30,7 @@ export default function Footer() {
             rel="noopener noreferrer"
             className="mt-4 inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full font-semibold transition"
           >
-            <span>התחילו בצ׳אט</span>
+            <span>לחצו לצ׳אט עם נציג ב-WhatsApp</span>
 
             <img
               src="/icons/whatsapp.png"
