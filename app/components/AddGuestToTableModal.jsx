@@ -100,9 +100,9 @@ const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
   }, [tableData, tableGuests]);
 
   const occupied = isLiveMode
-  ? (tableData?.seatedGuests || []).reduce((sum, sg) => {
-      const actual = Number(sg?.actualArrivedCount ?? sg?.count ?? 0);
-      return sum + (actual > 0 ? Math.floor(actual) : 0);
+  ? seatsArray.reduce((sum, seat) => {
+      if (!seat?.guest) return sum;
+      return sum + getDisplayedPartySize(seat.guest, seat.seatedGuest);
     }, 0)
   : tableData?.seatedGuests?.length ?? 0;
 
