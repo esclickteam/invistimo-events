@@ -69,13 +69,18 @@ export default function ContactPage() {
   </p>
 
   <a
-    href="https://wa.me/972555039072"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="block mt-4 text-xl font-semibold text-blue-600 hover:underline"
-  >
-    לחצו לצ׳אט עם נציג ב-WhatsApp
-  </a>
+  href="https://wa.me/972555039072"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="mt-4 flex items-center justify-center gap-2 text-xl font-semibold text-blue-600 hover:underline"
+>
+  <img
+    src="/icons/whatsapp.png"
+    alt="WhatsApp"
+    className="w-6 h-6"
+  />
+  לחצו לצ׳אט עם נציג ב-WhatsApp
+</a>
 
 
   {/* שעות פעילות */}
