@@ -72,7 +72,7 @@ export default function ContactPage() {
   href="https://wa.me/972555039072"
   target="_blank"
   rel="noopener noreferrer"
-  className="mt-4 flex items-center justify-center gap-2 text-xl font-semibold text-blue-600 hover:underline"
+  className="mt-4 flex flex-row-reverse items-center justify-center gap-2 text-xl font-semibold text-blue-600 hover:underline"
 >
   <img
     src="/icons/whatsapp.png"
