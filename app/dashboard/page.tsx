@@ -648,15 +648,16 @@ useEffect(() => {
   if (isDemo) return;
   if (!invitationId) return;
 
-  // ❌ במצב LIVE לא עושים polling
-  if (workMode === "live") return;
+  // 🔥 תמיד טוען פעם ראשונה
+  loadGuests();
 
   const interval = setInterval(() => {
+    console.log("🔄 polling guests...");
     loadGuests();
   }, 2000);
 
   return () => clearInterval(interval);
-}, [invitationId, isDemo, workMode]);
+}, [invitationId]);
 
 
 
