@@ -113,35 +113,38 @@ export async function POST(req: NextRequest) {
           : null;
 
       /* ===============================
-         🔥 יצירת קבוצה לפי relation
+         🔥 קריאה נכונה מהאקסל (קרבה)
       =============================== */
 
-      let groupId = null;
-
-      const relationRaw = String(g.relation || "")
+      const relationRaw = String(
+        g.relation || g["קרבה"] || ""
+      )
         .replace(/\u00A0/g, " ")
         .trim();
+
+      let groupId = null;
 
       if (relationRaw.length > 0) {
         const relation = relationRaw.toLowerCase();
 
         const group = await Group.findOneAndUpdate(
-  {
-    invitationId: invitation._id, // ✅ זה התיקון
-    name: relation,
-  },
-  {
-    $setOnInsert: {
-      invitationId: invitation._id,
-      eventId: invitation.eventId, // אפשר להשאיר
-      name: relation,
-    },
-  },
-  {
-    upsert: true,
-    new: true,
-  }
-);
+          {
+            invitationId: invitation._id,
+            name: relation,
+          },
+          {
+            $setOnInsert: {
+              invitationId: invitation._id,
+              eventId: invitation.eventId,
+              name: relation,
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+
         groupId = group._id;
       }
 
@@ -151,7 +154,10 @@ export async function POST(req: NextRequest) {
         invitationId,
         name,
         phone,
-        relation: String(g.relation || "").trim() || null,
+
+        // 🔥 כאן גם חשוב
+        relation: relationRaw || null,
+
         groupId,
 
         rsvp: ["yes", "no", "pending"].includes(g.rsvp) ? g.rsvp : "pending",
