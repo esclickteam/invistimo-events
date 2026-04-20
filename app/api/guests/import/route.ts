@@ -126,23 +126,22 @@ export async function POST(req: NextRequest) {
         const relation = relationRaw.toLowerCase();
 
         const group = await Group.findOneAndUpdate(
-          {
-            eventId: invitation.eventId, // ✅ כאן התיקון
-            name: relation,
-          },
-          {
-            $setOnInsert: {
-              invitationId: invitation._id,
-              eventId: invitation.eventId, // ✅ כאן התיקון
-              name: relation,
-            },
-          },
-          {
-            upsert: true,
-            new: true,
-          }
-        );
-
+  {
+    invitationId: invitation._id, // ✅ זה התיקון
+    name: relation,
+  },
+  {
+    $setOnInsert: {
+      invitationId: invitation._id,
+      eventId: invitation.eventId, // אפשר להשאיר
+      name: relation,
+    },
+  },
+  {
+    upsert: true,
+    new: true,
+  }
+);
         groupId = group._id;
       }
 
