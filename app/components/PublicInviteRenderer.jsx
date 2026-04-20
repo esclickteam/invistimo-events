@@ -39,8 +39,8 @@ export default function PublicInviteRenderer({ canvasData }) {
 
   if (!data || !Array.isArray(data.objects)) return null;
 
-  const width = data.width || 400;
-  const height = data.height || 720;
+  const width = 1080;
+const height = 1350;
 
   /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef(null);
