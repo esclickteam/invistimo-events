@@ -154,6 +154,29 @@ function getCoverDims(
   };
 }
 
+function getContainDims(
+  img: HTMLImageElement | HTMLVideoElement,
+  canvasW: number,
+  canvasH: number
+) {
+  const iw = (img as any).width;
+  const ih = (img as any).height;
+
+  if (!iw || !ih) return { x: 0, y: 0, width: canvasW, height: canvasH };
+
+  const scale = Math.min(canvasW / iw, canvasH / ih);
+
+  const width = iw * scale;
+  const height = ih * scale;
+
+  return {
+    x: (canvasW - width) / 2,
+    y: (canvasH - height) / 2,
+    width,
+    height,
+  };
+}
+
 /* ============================================================
    REMOVE WHITE BACKGROUND
 ============================================================ */
@@ -322,11 +345,11 @@ useEffect(() => {
 
   if (!bg || !bg.image) return;
 
-  const dims = getCoverDims(
-    bg.image,
-    CANVAS_WIDTH,
-    CANVAS_HEIGHT
-  );
+  const dims = getContainDims(
+  bg.image,
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT
+);
 
   updateObject(bg.id, {
     x: dims.x,
@@ -345,7 +368,7 @@ useEffect(() => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        const dims = getCoverDims(img, CANVAS_WIDTH, CANVAS_HEIGHT);
+        const dims = getContainDims(img, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         const withoutOldBg = useEditorStore
           .getState()
@@ -572,15 +595,21 @@ setCanvasFormat: (f: "vertical" | "square") => {
   const stage = stageRef.current;
   if (!stage) return "";
 
-  const MAX_WIDTH = 1200;
-  const scaleFactor = Math.min(1, MAX_WIDTH / stage.width());
+  // 🧹 מנקה מסגרת סגולה
+  transformerRef.current?.nodes([]);
+
+  // 🧹 מבטל בחירה
+  useEditorStore.getState().setSelected(null);
+
+  // 🧠 רנדר לפני צילום
+  stage.batchDraw();
 
   return stage.toDataURL({
-    pixelRatio: scaleFactor,
+    pixelRatio: 2,
     mimeType: "image/jpeg",
-    quality: 0.7,
+    quality: 0.95,
   });
-}, // 🔥 הסוגר הקריטי
+},
 
 zoomIn: () => setScale(Math.min(scale + 0.1, 3)),
 zoomOut: () => setScale(Math.max(scale - 0.1, 0.3)),
@@ -653,6 +682,13 @@ if (isMobile) {
 >
 
           <Layer ref={mainLayerRef}>
+            <Rect
+  x={0}
+  y={0}
+  width={CANVAS_WIDTH}
+  height={CANVAS_HEIGHT}
+  fill="#ffffff"
+/>
             {sortedObjects.map((obj) => {
               const isEditingThis = editingTextId === obj.id;
 
@@ -853,10 +889,10 @@ if (isMobile) {
       key={obj.id}
       name={obj.id}
       className={obj.id}
-      x={0}
-      y={0}
-      width={CANVAS_WIDTH}
-      height={CANVAS_HEIGHT}
+     x={obj.x}
+y={obj.y}
+width={obj.width}
+height={obj.height}
       image={obj.image || undefined}
       draggable={false}
       listening={true}
