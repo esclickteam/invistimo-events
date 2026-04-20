@@ -653,7 +653,7 @@ useEffect(() => {
 
   const interval = setInterval(() => {
     loadGuests();
-  }, 5000);
+  }, 2000);
 
   return () => clearInterval(interval);
 }, [invitationId, isDemo, workMode]);
