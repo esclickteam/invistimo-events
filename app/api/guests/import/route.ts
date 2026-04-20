@@ -3,7 +3,7 @@ import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
-import Group from "@/models/Group"; // 🔥 חדש
+import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import crypto from "crypto";
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     const userId = String(auth.userId);
 
     const invitation = await Invitation.findById(invitationId)
-      .select("_id ownerId producerId eventId") // 🔥 חשוב eventId
+      .select("_id ownerId producerId eventId")
       .lean();
 
     if (!invitation) {
@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ownerId = invitation.ownerId ? String((invitation as any).ownerId) : null;
-    const producerId = invitation.producerId ? String((invitation as any).producerId) : null;
+    const ownerId = invitation.ownerId?.toString?.() || null;
+    const producerId = invitation.producerId?.toString?.() || null;
 
     const canAccess = ownerId === userId || producerId === userId;
 
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await User.findById(userId).select("guests").lean();
-    const limit = Number((user as any)?.guests || 0);
+    const limit = Number(user?.guests || 0);
 
     if (!limit || limit < 1) {
       return NextResponse.json(
@@ -112,49 +112,48 @@ export async function POST(req: NextRequest) {
           ? Number(rawTable)
           : null;
 
-      /* ====================================================
-         🔥 יצירת קבוצה לפי relation (החלק החדש)
-      ==================================================== */
+      /* ===============================
+         🔥 יצירת קבוצה לפי relation
+      =============================== */
 
       let groupId = null;
 
-// 🔥 ניקוי אמיתי של relation מהאקסל
-const relationRaw = String(g.relation || "")
-  .replace(/\u00A0/g, " ") // תווים נסתרים מאקסל
-  .trim();
+      const relationRaw = String(g.relation || "")
+        .replace(/\u00A0/g, " ")
+        .trim();
 
-if (relationRaw.length > 0) {
-  const relation = relationRaw.toLowerCase();
+      if (relationRaw.length > 0) {
+        const relation = relationRaw.toLowerCase();
 
-  const group = await Group.findOneAndUpdate(
-    {
-      eventId: invitation._id,
-      name: relation,
-    },
-    {
-      $setOnInsert: {
-        invitationId: invitation._id,
-        eventId: invitation._id,
-        name: relation,
-      },
-    },
-    {
-      upsert: true,
-      new: true,
-    }
-  );
+        const group = await Group.findOneAndUpdate(
+          {
+            eventId: invitation.eventId, // ✅ כאן התיקון
+            name: relation,
+          },
+          {
+            $setOnInsert: {
+              invitationId: invitation._id,
+              eventId: invitation.eventId, // ✅ כאן התיקון
+              name: relation,
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
 
-  groupId = group._id;
-}
+        groupId = group._id;
+      }
 
-      /* ==================================================== */
+      /* =============================== */
 
       validPayloads.push({
         invitationId,
         name,
         phone,
         relation: String(g.relation || "").trim() || null,
-        groupId, // 🔥 חדש
+        groupId,
 
         rsvp: ["yes", "no", "pending"].includes(g.rsvp) ? g.rsvp : "pending",
 
