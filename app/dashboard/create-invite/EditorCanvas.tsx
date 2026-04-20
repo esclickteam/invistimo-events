@@ -154,31 +154,6 @@ function getCoverDims(
   };
 }
 
-function getContainDims(img: HTMLImageElement, canvasW: number, canvasH: number) {
-  const imgRatio = img.width / img.height;
-  const canvasRatio = canvasW / canvasH;
-
-  let width;
-  let height;
-
-  if (imgRatio > canvasRatio) {
-    // תמונה רחבה
-    width = canvasW;
-    height = canvasW / imgRatio;
-  } else {
-    // תמונה גבוהה
-    height = canvasH;
-    width = canvasH * imgRatio;
-  }
-
-  return {
-    width,
-    height,
-    x: (canvasW - width) / 2,
-    y: (canvasH - height) / 2,
-  };
-}
-
 /* ============================================================
    REMOVE WHITE BACKGROUND
 ============================================================ */
@@ -347,11 +322,11 @@ useEffect(() => {
 
   if (!bg || !bg.image) return;
 
-  const dims = getContainDims(
-  bg.image,
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT
-);
+  const dims = getCoverDims(
+    bg.image,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT
+  );
 
   updateObject(bg.id, {
     x: dims.x,
@@ -370,7 +345,7 @@ useEffect(() => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        const dims = getContainDims(img, CANVAS_WIDTH, CANVAS_HEIGHT);
+        const dims = getCoverDims(img, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         const withoutOldBg = useEditorStore
           .getState()
@@ -597,21 +572,15 @@ setCanvasFormat: (f: "vertical" | "square") => {
   const stage = stageRef.current;
   if (!stage) return "";
 
-  // 🧹 מנקה מסגרת סגולה
-  transformerRef.current?.nodes([]);
-
-  // 🧹 מבטל בחירה
-  useEditorStore.getState().setSelected(null);
-
-  // 🧠 רנדר לפני צילום
-  stage.batchDraw();
+  const MAX_WIDTH = 1200;
+  const scaleFactor = Math.min(1, MAX_WIDTH / stage.width());
 
   return stage.toDataURL({
-    pixelRatio: 2,
+    pixelRatio: scaleFactor,
     mimeType: "image/jpeg",
-    quality: 0.95,
+    quality: 0.7,
   });
-},
+}, // 🔥 הסוגר הקריטי
 
 zoomIn: () => setScale(Math.min(scale + 0.1, 3)),
 zoomOut: () => setScale(Math.max(scale - 0.1, 0.3)),
@@ -684,13 +653,6 @@ if (isMobile) {
 >
 
           <Layer ref={mainLayerRef}>
-            <Rect
-  x={0}
-  y={0}
-  width={CANVAS_WIDTH}
-  height={CANVAS_HEIGHT}
-  fill="#ffffff"
-/>
             {sortedObjects.map((obj) => {
               const isEditingThis = editingTextId === obj.id;
 
@@ -891,10 +853,10 @@ if (isMobile) {
       key={obj.id}
       name={obj.id}
       className={obj.id}
-     x={obj.x}
-y={obj.y}
-width={obj.width}
-height={obj.height}
+      x={0}
+      y={0}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
       image={obj.image || undefined}
       draggable={false}
       listening={true}
