@@ -116,9 +116,9 @@ export interface EditorCanvasRef {
    CANVAS SIZE
 ============================================================ */
 
-const PORTRAIT_SIZE = { width: 1080, height: 1350 };
-const LANDSCAPE_SIZE = { width: 1350, height: 1080 };
-const SQUARE_SIZE = { width: 1080, height: 1080 };
+const PORTRAIT_SIZE = { width: 400, height: 720 };
+const LANDSCAPE_SIZE = { width: 720, height: 400 };
+const SQUARE_SIZE = { width: 720, height: 720 };
 
 /* ============================================================
    HELPERS
@@ -572,21 +572,15 @@ setCanvasFormat: (f: "vertical" | "square") => {
   const stage = stageRef.current;
   if (!stage) return "";
 
-  // 🧹 ניקוי Transformer
-  transformerRef.current?.nodes([]);
-
-  // 🧹 ביטול בחירה
-  useEditorStore.getState().setSelected(null);
-
-  // 🧠 רנדר מחדש לפני צילום
-  stage.batchDraw();
+  const MAX_WIDTH = 1200;
+  const scaleFactor = Math.min(1, MAX_WIDTH / stage.width());
 
   return stage.toDataURL({
-    pixelRatio: 2,
+    pixelRatio: scaleFactor,
     mimeType: "image/jpeg",
-    quality: 0.95,
+    quality: 0.7,
   });
-},
+}, // 🔥 הסוגר הקריטי
 
 zoomIn: () => setScale(Math.min(scale + 0.1, 3)),
 zoomOut: () => setScale(Math.max(scale - 0.1, 0.3)),
@@ -659,22 +653,13 @@ if (isMobile) {
 >
 
           <Layer ref={mainLayerRef}>
+            {sortedObjects.map((obj) => {
+              const isEditingThis = editingTextId === obj.id;
 
-  {/* 🟢 רקע לבן קבוע */}
-  <Rect
-    x={0}
-    y={0}
-    width={CANVAS_WIDTH}
-    height={CANVAS_HEIGHT}
-    fill="#ffffff"
-  />
-
-  {sortedObjects.map((obj) => {
-    const isEditingThis = editingTextId === obj.id;
-
-    if (obj.type === "text") {
-      loadFont(obj.fontFamily);
+              if (obj.type === "text") {
+                loadFont(obj.fontFamily);
               
+
 
               return (
   <Text
