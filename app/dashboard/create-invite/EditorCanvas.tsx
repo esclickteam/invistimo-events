@@ -154,26 +154,28 @@ function getCoverDims(
   };
 }
 
-function getContainDims(
-  img: HTMLImageElement | HTMLVideoElement,
-  canvasW: number,
-  canvasH: number
-) {
-  const iw = (img as any).width;
-  const ih = (img as any).height;
+function getContainDims(img: HTMLImageElement, canvasW: number, canvasH: number) {
+  const imgRatio = img.width / img.height;
+  const canvasRatio = canvasW / canvasH;
 
-  if (!iw || !ih) return { x: 0, y: 0, width: canvasW, height: canvasH };
+  let width;
+  let height;
 
-  const scale = Math.min(canvasW / iw, canvasH / ih);
-
-  const width = iw * scale;
-  const height = ih * scale;
+  if (imgRatio > canvasRatio) {
+    // תמונה רחבה
+    width = canvasW;
+    height = canvasW / imgRatio;
+  } else {
+    // תמונה גבוהה
+    height = canvasH;
+    width = canvasH * imgRatio;
+  }
 
   return {
-    x: (canvasW - width) / 2,
-    y: (canvasH - height) / 2,
     width,
     height,
+    x: (canvasW - width) / 2,
+    y: (canvasH - height) / 2,
   };
 }
 
