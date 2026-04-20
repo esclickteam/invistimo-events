@@ -3,40 +3,36 @@ import db from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
+import Group from "@/models/Group"; // 🔥 חדש
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-/* ============================================================
-   POST — ייבוא אורחים (Excel / CSV / Client) עם מכסה
-============================================================ */
 export async function POST(req: NextRequest) {
   try {
     const { invitationId, guests } = await req.json();
 
     if (!invitationId) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
-      code: "NO_INVITATION",
-    },
-    { status: 400 }
-  );
-}
+      return NextResponse.json(
+        {
+          success: false,
+          error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
+          code: "NO_INVITATION",
+        },
+        { status: 400 }
+      );
+    }
 
-if (!Array.isArray(guests)) {
-  return NextResponse.json(
-    { success: false, error: "INVALID_REQUEST" },
-    { status: 400 }
-  );
-}
-
+    if (!Array.isArray(guests)) {
+      return NextResponse.json(
+        { success: false, error: "INVALID_REQUEST" },
+        { status: 400 }
+      );
+    }
 
     await db();
 
-    /* ================= אימות משתמש ================= */
     const auth = await getUserIdFromRequest();
     if (!auth?.userId) {
       return NextResponse.json(
@@ -47,29 +43,24 @@ if (!Array.isArray(guests)) {
 
     const userId = String(auth.userId);
 
-    /* ================= הרשאה להזמנה =================
-       אם את רוצה גם producer, אפשר להוסיף OR בהתאם למבנה שלך
-    ================================================== */
     const invitation = await Invitation.findById(invitationId)
-      .select("_id ownerId producerId")
+      .select("_id ownerId producerId eventId") // 🔥 חשוב eventId
       .lean();
 
     if (!invitation) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
-      code: "NO_INVITATION",
-    },
-    { status: 404 }
-  );
-}
-
+      return NextResponse.json(
+        {
+          success: false,
+          error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
+          code: "NO_INVITATION",
+        },
+        { status: 404 }
+      );
+    }
 
     const ownerId = invitation.ownerId ? String((invitation as any).ownerId) : null;
     const producerId = invitation.producerId ? String((invitation as any).producerId) : null;
 
-    // תומך גם בבעלים וגם במפיק (אם צריך רק בעלים - תשאירי owner בלבד)
     const canAccess = ownerId === userId || producerId === userId;
 
     if (!canAccess) {
@@ -79,7 +70,6 @@ if (!Array.isArray(guests)) {
       );
     }
 
-    /* ================= מכסה של המשתמש ================= */
     const user = await User.findById(userId).select("guests").lean();
     const limit = Number((user as any)?.guests || 0);
 
@@ -90,7 +80,6 @@ if (!Array.isArray(guests)) {
       );
     }
 
-    /* ================= כמה כבר קיימים להזמנה ================= */
     const current = await InvitationGuest.countDocuments({ invitationId });
     let remaining = Math.max(0, limit - current);
 
@@ -106,44 +95,74 @@ if (!Array.isArray(guests)) {
       );
     }
 
-    /* ================= בניית רשימת payload תקינה ================= */
     const validPayloads: any[] = [];
 
     for (const g of guests) {
-      // שם חובה
       const name = String(g?.name || "").trim();
       if (!name) continue;
 
-      // טלפון אופציונלי
       const phone =
         g.phone && String(g.phone).replace(/\D/g, "").trim()
           ? String(g.phone).replace(/\D/g, "")
           : null;
 
-      // נרמול שולחן
       const rawTable = g.tableNumber ?? g.table ?? g.tableName ?? null;
       const tableNumber =
         rawTable !== null && rawTable !== "" && Number.isFinite(Number(rawTable))
           ? Number(rawTable)
           : null;
 
+      /* ====================================================
+         🔥 יצירת קבוצה לפי relation (החלק החדש)
+      ==================================================== */
+
+      let groupId = null;
+
+      if (g.relation) {
+        const relation = String(g.relation).trim().toLowerCase();
+
+        const group = await Group.findOneAndUpdate(
+          {
+            eventId: (invitation as any).eventId,
+            name: relation,
+          },
+          {
+            $setOnInsert: {
+              invitationId: invitation._id,
+              eventId: (invitation as any).eventId,
+              name: relation,
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+
+        groupId = group._id;
+      }
+
+      /* ==================================================== */
+
       validPayloads.push({
         invitationId,
         name,
         phone,
         relation: String(g.relation || "").trim() || null,
+        groupId, // 🔥 חדש
+
         rsvp: ["yes", "no", "pending"].includes(g.rsvp) ? g.rsvp : "pending",
+
         guestsCount: Number.isFinite(Number(g.guestsCount))
           ? Math.max(1, Number(g.guestsCount))
           : 1,
+
         arrivedCount: 0,
         notes: String(g.notes || "").trim() || null,
 
-        // הושבה
         tableNumber,
         tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
 
-        // טוקן ייחודי
         token: crypto.randomUUID(),
       });
     }
@@ -155,23 +174,9 @@ if (!Array.isArray(guests)) {
       );
     }
 
-    /* ================= ייבוא בפועל עם חסימת מכסה ================= */
     const toImport = validPayloads.slice(0, remaining);
     const skippedByLimit = Math.max(0, validPayloads.length - toImport.length);
 
-    if (toImport.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "GUEST_LIMIT_REACHED",
-          error: `אין מקום פנוי במכסה (${limit}).`,
-          usage: { current, limit, remaining: 0 },
-        },
-        { status: 409 }
-      );
-    }
-
-    // insertMany מהיר יותר מלולאה עם create
     await InvitationGuest.insertMany(toImport, { ordered: true });
 
     const importedCount = toImport.length;
