@@ -572,6 +572,10 @@ setCanvasFormat: (f: "vertical" | "square") => {
   const stage = stageRef.current;
   if (!stage) return "";
 
+  // 🔥🔥 זה הפתרון 🔥🔥
+  transformerRef.current?.nodes([]);
+  transformerRef.current?.getLayer()?.draw();
+
   const MAX_WIDTH = 1200;
   const scaleFactor = Math.min(1, MAX_WIDTH / stage.width());
 
@@ -580,7 +584,7 @@ setCanvasFormat: (f: "vertical" | "square") => {
     mimeType: "image/jpeg",
     quality: 0.7,
   });
-}, // 🔥 הסוגר הקריטי
+},
 
 zoomIn: () => setScale(Math.min(scale + 0.1, 3)),
 zoomOut: () => setScale(Math.max(scale - 0.1, 0.3)),
