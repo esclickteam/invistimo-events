@@ -6,13 +6,13 @@ import useImage from "use-image";
 import { useEffect, useRef, useState } from "react";
 
 /* ============================================================
-   📐 helper: background-size: cover for Konva
+   📐 helper: contain (בלי חיתוך)
 ============================================================ */
- function getCoverRect({ canvasWidth, canvasHeight, imageWidth, imageHeight }) {
+function getContainRect({ canvasWidth, canvasHeight, imageWidth, imageHeight }) {
   const scale = Math.min(
-  canvasWidth / imageWidth,
-  canvasHeight / imageHeight
-);
+    canvasWidth / imageWidth,
+    canvasHeight / imageHeight
+  );
 
   const width = imageWidth * scale;
   const height = imageHeight * scale;
@@ -40,7 +40,9 @@ export default function PublicInviteRenderer({ canvasData }) {
   if (!data || !Array.isArray(data.objects)) return null;
 
   const width = data.width || 400;
-  const height = data.height || 720;
+
+  /* ================= 👇 גובה דינמי לפי תמונה ================= */
+  const [dynamicHeight, setDynamicHeight] = useState(data.height || 720);
 
   /* ================= RESPONSIVE SCALE ================= */
   const containerRef = useRef(null);
@@ -59,6 +61,23 @@ export default function PublicInviteRenderer({ canvasData }) {
     return () => window.removeEventListener("resize", updateScale);
   }, [width]);
 
+  /* ================= 👇 התאמת גובה לפי תמונת רקע ================= */
+  useEffect(() => {
+    const bg = data.objects.find(
+      (o) => o.type === "image" && o.isBackground
+    );
+
+    if (!bg) return;
+
+    const img = new window.Image();
+    img.src = bg.url;
+
+    img.onload = () => {
+      const ratio = img.height / img.width;
+      setDynamicHeight(width * ratio);
+    };
+  }, [data, width]);
+
   const backgroundImages = data.objects.filter(
     (o) => o.type === "image" && o.isBackground === true
   );
@@ -73,29 +92,29 @@ export default function PublicInviteRenderer({ canvasData }) {
         <div
           style={{
             width: width * scale,
-            height: height * scale,
+            height: dynamicHeight * scale,
             position: "relative",
           }}
         >
           <Stage
             width={width * scale}
-            height={height * scale}
+            height={dynamicHeight * scale}
             scaleX={scale}
             scaleY={scale}
             listening={false}
           >
             <Layer>
-              {/* ===== BACKGROUND FIRST ===== */}
+              {/* ===== רקע ===== */}
               {backgroundImages.map((obj) => (
                 <PreviewImage
                   key={obj.id}
                   obj={obj}
                   canvasWidth={width}
-                  canvasHeight={height}
+                  canvasHeight={dynamicHeight}
                 />
               ))}
 
-              {/* ===== OTHER OBJECTS ===== */}
+              {/* ===== שאר האלמנטים ===== */}
               {otherObjects.map((obj) => {
                 if (obj.type === "rect") {
                   return (
@@ -133,7 +152,7 @@ export default function PublicInviteRenderer({ canvasData }) {
                       key={obj.id}
                       obj={obj}
                       canvasWidth={width}
-                      canvasHeight={height}
+                      canvasHeight={dynamicHeight}
                     />
                   );
                 }
@@ -161,7 +180,7 @@ export default function PublicInviteRenderer({ canvasData }) {
             </Layer>
           </Stage>
 
-          {/* ================= LOTTIE ================= */}
+          {/* ===== LOTTIE ===== */}
           {data.objects
             .filter((o) => o.type === "lottie")
             .map((obj) => (
@@ -180,7 +199,7 @@ export default function PublicInviteRenderer({ canvasData }) {
               </div>
             ))}
 
-          {/* ================= GLASS LAYER ================= */}
+          {/* ===== GLASS ===== */}
           <div
             style={{
               position: "absolute",
@@ -203,8 +222,9 @@ function PreviewImage({ obj, canvasWidth, canvasHeight }) {
   const [image] = useImage(obj.url, "anonymous");
   if (!image) return null;
 
+  /* ===== BACKGROUND → contain (בלי חיתוך) ===== */
   if (obj.isBackground === true) {
-    const cover = getCoverRect({
+    const rect = getContainRect({
       canvasWidth,
       canvasHeight,
       imageWidth: image.width,
@@ -213,13 +233,12 @@ function PreviewImage({ obj, canvasWidth, canvasHeight }) {
 
     return (
       <KonvaImage
-        x={cover.x}
-        y={cover.y}
-        width={cover.width}
-        height={cover.height}
+        x={rect.x}
+        y={rect.y}
+        width={rect.width}
+        height={rect.height}
         image={image}
         opacity={obj.opacity ?? 1}
-        rotation={0}
       />
     );
   }
