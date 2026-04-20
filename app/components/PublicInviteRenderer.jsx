@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 /* ============================================================
    📐 helper: background-size: cover for Konva
 ============================================================ */
-function getCoverRect({ canvasWidth, canvasHeight, imageWidth, imageHeight }) {
+ function getCoverRect({ canvasWidth, canvasHeight, imageWidth, imageHeight }) {
   const scale = Math.min(
   canvasWidth / imageWidth,
   canvasHeight / imageHeight
