@@ -118,29 +118,34 @@ export async function POST(req: NextRequest) {
 
       let groupId = null;
 
-      if (g.relation) {
-        const relation = String(g.relation).trim().toLowerCase();
+// 🔥 ניקוי אמיתי של relation מהאקסל
+const relationRaw = String(g.relation || "")
+  .replace(/\u00A0/g, " ") // תווים נסתרים מאקסל
+  .trim();
 
-        const group = await Group.findOneAndUpdate(
-          {
-            eventId: (invitation as any).eventId,
-            name: relation,
-          },
-          {
-            $setOnInsert: {
-              invitationId: invitation._id,
-              eventId: (invitation as any).eventId,
-              name: relation,
-            },
-          },
-          {
-            upsert: true,
-            new: true,
-          }
-        );
+if (relationRaw.length > 0) {
+  const relation = relationRaw.toLowerCase();
 
-        groupId = group._id;
-      }
+  const group = await Group.findOneAndUpdate(
+    {
+      eventId: invitation._id,
+      name: relation,
+    },
+    {
+      $setOnInsert: {
+        invitationId: invitation._id,
+        eventId: invitation._id,
+        name: relation,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+    }
+  );
+
+  groupId = group._id;
+}
 
       /* ==================================================== */
 
