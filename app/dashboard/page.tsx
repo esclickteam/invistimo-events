@@ -1353,7 +1353,11 @@ console.log("INVITATION:", invitation);
 
           <td className="p-3">
   <GuestGroupSelect
-  value={g.groupId}
+  value={
+  typeof g.groupId === "object"
+    ? (g.groupId as any)?._id
+    : g.groupId || ""
+}
   onChange={async (groupId) => {
     // UI
     setGuests((prev) =>
