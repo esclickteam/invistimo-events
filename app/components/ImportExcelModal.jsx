@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { useGroupStore } from "@/store/groupStore";
 
 /* ============================================================
    מיפוי סטטוס מאקסל → ערך מערכת
@@ -70,19 +69,17 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       const guests = rawJson
         .map((row) => {
           const name = String(row["שם"] || row["שם מלא"] || "").trim();
-          if (!name) return null;
+          if (!name) return null; // שדה חובה יחיד
 
           const rawStatus = String(row["סטטוס"] || "").trim();
           const tableNumber = normalizeTableNumber(
-            row["מס' שולחן"] ??
-              row["מספר שולחן"] ??
-              row["שולחן"] ??
-              ""
+            row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
           );
 
           return {
             name,
 
+            // טלפון אופציונלי
             phone:
               String(row["טלפון"] || "")
                 .replace(/\D/g, "")
@@ -90,20 +87,23 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
             relation: String(row["קרבה"] || "").trim() || null,
 
+            // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
 
+            // כמות מוזמנים לשורה (מינימום 1)
             guestsCount: Math.max(
               1,
               Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
             ),
 
+            // מתחיל תמיד מ-0
             arrivedCount: 0,
 
             notes: String(row["הערות"] || "").trim() || null,
 
+            // חשוב: שרת הייבוא שלך יודע לנרמל tableNumber/table/tableName
             tableNumber,
-            tableName:
-              tableNumber !== null ? `שולחן ${tableNumber}` : null,
+            tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
           };
         })
         .filter(Boolean);
@@ -115,62 +115,35 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
       const res = await fetch("/api/guests/import", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          invitationId,
-          guests,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitationId, guests }),
       });
 
       const result = await res.json();
       console.log("📦 Import result:", result);
 
-      /* =======================
-         ❌ שגיאות
-      ======================= */
+      // טיפול שגיאה מפורט לפי השרת החדש
       if (!res.ok || !result?.success) {
         if (res.status === 409 && result?.code === "GUEST_LIMIT_REACHED") {
           const limitMsg =
             result?.error ||
             `הגעת למכסת הרשומות (${result?.usage?.limit ?? "-"})`;
-
           alert(limitMsg);
-
           setSummary({
             type: "error",
             text: limitMsg,
             usage: result?.usage || null,
           });
-
           return;
         }
 
         const errMsg = result?.error || "שגיאה בייבוא הקובץ";
-
         alert(errMsg);
-
-        setSummary({
-          type: "error",
-          text: errMsg,
-          usage: result?.usage || null,
-        });
-
+        setSummary({ type: "error", text: errMsg, usage: result?.usage || null });
         return;
       }
 
-      /* ============================================================
-         🔥🔥🔥 הפתרון שלך - רענון קבוצות אחרי import
-      ============================================================ */
-      await useGroupStore.getState().loadGroups(invitationId);
-
-      /* רענון אורחים (אם קיים אצלך) */
-      onSuccess?.();
-
-      /* ============================================================
-         הצלחה
-      ============================================================ */
+      // הצלחה + תמיכה בייבוא חלקי בגלל מכסה
       const count = Number(result?.count || 0);
       const skippedByLimit = Number(result?.skippedByLimit || 0);
       const usage = result?.usage || null;
@@ -179,38 +152,20 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
         const msg =
           result?.message ||
           `יובאו ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
-
         alert(`⚠️ ${msg}`);
-
-        setSummary({
-          type: "partial",
-          text: msg,
-          usage,
-        });
+        setSummary({ type: "partial", text: msg, usage });
       } else {
-        const msg =
-          result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
-
+        const msg = result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
         alert(msg);
-
-        setSummary({
-          type: "success",
-          text: msg,
-          usage,
-        });
+        setSummary({ type: "success", text: msg, usage });
       }
 
+      onSuccess?.();
       onClose?.();
     } catch (err) {
       console.error(err);
-
       alert("שגיאה בקריאת הקובץ");
-
-      setSummary({
-        type: "error",
-        text: "שגיאה בקריאת הקובץ",
-        usage: null,
-      });
+      setSummary({ type: "error", text: "שגיאה בקריאת הקובץ", usage: null });
     } finally {
       setLoading(false);
     }
@@ -228,13 +183,10 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
         {/* שלב 1 */}
         <div className="mb-5">
-          <h3 className="font-semibold mb-1">
-            שלב 1: הורדת תבנית Excel
-          </h3>
+          <h3 className="font-semibold mb-1">שלב 1: הורדת תבנית Excel</h3>
           <p className="text-sm text-gray-600 mb-2">
             המערכת יודעת לעבוד עם קובץ אקסל במבנה מסוים.
           </p>
-
           <a
             href="/Invistimo.xlsx"
             download
@@ -246,9 +198,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
         {/* שלב 2 */}
         <div className="mb-5">
-          <h3 className="font-semibold mb-1">
-            שלב 2: הזנת נתוני אורחים
-          </h3>
+          <h3 className="font-semibold mb-1">שלב 2: הזנת נתוני אורחים</h3>
           <p className="text-sm text-gray-600">
             מלאו את נתוני האורחים בקובץ לפי הכותרות.
           </p>
@@ -256,10 +206,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
         {/* שלב 3 */}
         <div className="mb-5">
-          <h3 className="font-semibold mb-1">
-            שלב 3: העלאת הקובץ
-          </h3>
-
+          <h3 className="font-semibold mb-1">שלב 3: העלאת הקובץ</h3>
           <p className="text-sm text-gray-600 mb-3">
             בחרו את הקובץ המלא והעלו אותו למערכת.
           </p>
@@ -272,9 +219,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
           />
 
           {selectedFileName ? (
-            <p className="text-xs text-gray-500 mb-3">
-              נבחר קובץ: {selectedFileName}
-            </p>
+            <p className="text-xs text-gray-500 mb-3">נבחר קובץ: {selectedFileName}</p>
           ) : null}
 
           <button
@@ -286,7 +231,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
           </button>
         </div>
 
-        {/* סיכום */}
+        {/* סיכום אחרון */}
         {summary ? (
           <div
             className={`mt-4 rounded-xl p-3 text-sm ${
@@ -298,11 +243,9 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
             }`}
           >
             <div>{summary.text}</div>
-
             {summary.usage ? (
               <div className="mt-1 text-xs opacity-80">
-                שימוש: {summary.usage.current} /{" "}
-                {summary.usage.limit} (נותרו{" "}
+                שימוש: {summary.usage.current} / {summary.usage.limit} (נותרו{" "}
                 {summary.usage.remaining})
               </div>
             ) : null}
