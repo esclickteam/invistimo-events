@@ -67,46 +67,45 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
          ניקוי + נרמול נתונים לפני שליחה לשרת
       ============================================================ */
       const guests = rawJson
-        .map((row) => {
-          const name = String(row["שם"] || row["שם מלא"] || "").trim();
-          if (!name) return null; // שדה חובה יחיד
+  .map((row) => {
+    const name = String(row["שם"] || row["שם מלא"] || "").trim();
+    if (!name) return null;
 
-          const rawStatus = String(row["סטטוס"] || "").trim();
-          const tableNumber = normalizeTableNumber(
-            row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
-          );
+    const rawStatus = String(row["סטטוס"] || "").trim();
+    const tableNumber = normalizeTableNumber(
+      row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
+    );
 
-          return {
-            name,
+    const relationValue = String(
+      row["קרבה"] ??
+      row["קרבה "] ??
+      row[" קרבה"] ??
+      row["relation"] ??
+      row["Relation"] ??
+      ""
+    )
+      .replace(/\u00A0/g, " ")
+      .trim();
 
-            // טלפון אופציונלי
-            phone:
-              String(row["טלפון"] || "")
-                .replace(/\D/g, "")
-                .trim() || null,
-
-            relation: String(row["קרבה"] || "").trim() || null,
-
-            // RSVP תקני
-            rsvp: RSVP_MAP[rawStatus] || "pending",
-
-            // כמות מוזמנים לשורה (מינימום 1)
-            guestsCount: Math.max(
-              1,
-              Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
-            ),
-
-            // מתחיל תמיד מ-0
-            arrivedCount: 0,
-
-            notes: String(row["הערות"] || "").trim() || null,
-
-            // חשוב: שרת הייבוא שלך יודע לנרמל tableNumber/table/tableName
-            tableNumber,
-            tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
-          };
-        })
-        .filter(Boolean);
+    return {
+      name,
+      phone:
+        String(row["טלפון"] || "")
+          .replace(/\D/g, "")
+          .trim() || null,
+      relation: relationValue || null,
+      rsvp: RSVP_MAP[rawStatus] || "pending",
+      guestsCount: Math.max(
+        1,
+        Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
+      ),
+      arrivedCount: 0,
+      notes: String(row["הערות"] || "").trim() || null,
+      tableNumber,
+      tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
+    };
+  })
+  .filter(Boolean);
 
       if (guests.length === 0) {
         alert("לא נמצאו שורות תקינות לייבוא");
