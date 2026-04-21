@@ -5,9 +5,22 @@ import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import Group from "@/models/Group";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { recalcGroupExpectedCount } from "@/lib/recalcGroupExpectedCount";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
+
+function normalizePhone(phone: unknown): string | null {
+  const cleaned = String(phone || "").replace(/\D/g, "").trim();
+  return cleaned || null;
+}
+
+function normalizeGroupName(raw: unknown): string {
+  return String(raw || "")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,7 +73,6 @@ export async function POST(req: NextRequest) {
 
     const ownerId = invitation.ownerId?.toString?.() || null;
     const producerId = invitation.producerId?.toString?.() || null;
-
     const canAccess = ownerId === userId || producerId === userId;
 
     if (!canAccess) {
@@ -70,8 +82,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await User.findById(userId).select("guests").lean();
-    const limit = Number(user?.guests || 0);
+    const ownerUser = await User.findById(ownerId).select("guests").lean();
+    const limit = Number(ownerUser?.guests || 0);
 
     if (!limit || limit < 1) {
       return NextResponse.json(
@@ -81,7 +93,7 @@ export async function POST(req: NextRequest) {
     }
 
     const current = await InvitationGuest.countDocuments({ invitationId });
-    let remaining = Math.max(0, limit - current);
+    const remaining = Math.max(0, limit - current);
 
     if (remaining <= 0) {
       return NextResponse.json(
@@ -101,42 +113,31 @@ export async function POST(req: NextRequest) {
       const name = String(g?.name || "").trim();
       if (!name) continue;
 
-      const phone =
-        g.phone && String(g.phone).replace(/\D/g, "").trim()
-          ? String(g.phone).replace(/\D/g, "")
-          : null;
+      const phone = normalizePhone(g?.phone);
 
-      const rawTable = g.tableNumber ?? g.table ?? g.tableName ?? null;
+      const rawTable = g?.tableNumber ?? g?.table ?? g?.tableName ?? null;
       const tableNumber =
         rawTable !== null && rawTable !== "" && Number.isFinite(Number(rawTable))
           ? Number(rawTable)
           : null;
 
-      /* ===============================
-         🔥 קריאה נכונה מהאקסל (קרבה)
-      =============================== */
+      const normalizedRelation = normalizeGroupName(
+        g?.relation ?? g?.["קרבה"] ?? ""
+      );
 
-      const relationRaw = String(
-        g.relation || g["קרבה"] || ""
-      )
-        .replace(/\u00A0/g, " ")
-        .trim();
+      let groupId: string | null = null;
 
-      let groupId = null;
-
-      if (relationRaw.length > 0) {
-        const relation = relationRaw.toLowerCase();
-
+      if (normalizedRelation) {
         const group = await Group.findOneAndUpdate(
           {
-            invitationId: invitation._id,
-            name: relation,
+            eventId: invitation.eventId,
+            name: normalizedRelation,
           },
           {
             $setOnInsert: {
               invitationId: invitation._id,
               eventId: invitation.eventId,
-              name: relation,
+              name: normalizedRelation,
             },
           },
           {
@@ -145,33 +146,25 @@ export async function POST(req: NextRequest) {
           }
         );
 
-        groupId = group._id;
+        groupId = group?._id ? String(group._id) : null;
       }
-
-      /* =============================== */
 
       validPayloads.push({
         invitationId,
         name,
         phone,
-
-        // 🔥 כאן גם חשוב
-        relation: relationRaw || null,
-
+        relation: normalizedRelation || null,
         groupId,
-
-        rsvp: ["yes", "no", "pending"].includes(g.rsvp) ? g.rsvp : "pending",
-
-        guestsCount: Number.isFinite(Number(g.guestsCount))
+        rsvp: ["yes", "no", "pending"].includes(String(g?.rsvp))
+          ? g.rsvp
+          : "pending",
+        guestsCount: Number.isFinite(Number(g?.guestsCount))
           ? Math.max(1, Number(g.guestsCount))
           : 1,
-
         arrivedCount: 0,
-        notes: String(g.notes || "").trim() || null,
-
+        notes: String(g?.notes || "").trim() || null,
         tableNumber,
         tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
-
         token: crypto.randomUUID(),
       });
     }
@@ -187,6 +180,18 @@ export async function POST(req: NextRequest) {
     const skippedByLimit = Math.max(0, validPayloads.length - toImport.length);
 
     await InvitationGuest.insertMany(toImport, { ordered: true });
+
+    const affectedGroupIds = [
+      ...new Set(
+        toImport
+          .map((g) => (g.groupId ? String(g.groupId) : ""))
+          .filter(Boolean)
+      ),
+    ];
+
+    for (const gid of affectedGroupIds) {
+      await recalcGroupExpectedCount(gid);
+    }
 
     const importedCount = toImport.length;
     const newCurrent = current + importedCount;
