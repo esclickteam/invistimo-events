@@ -68,48 +68,56 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       ============================================================ */
       const guests = rawJson
   .map((row) => {
-    const name = String(row["שם"] || row["שם מלא"] || "").trim();
+    const normalizedRow = Object.fromEntries(
+      Object.entries(row || {}).map(([key, value]) => [
+        String(key)
+          .replace(/[\u200E\u200F\u202A-\u202E\uFEFF]/g, "")
+          .replace(/\u00A0/g, " ")
+          .trim(),
+        value,
+      ])
+    );
+
+    const name = String(
+      normalizedRow["שם"] || normalizedRow["שם מלא"] || ""
+    ).trim();
+
     if (!name) return null;
 
-    const rawStatus = String(row["סטטוס"] || "").trim();
+    const rawStatus = String(normalizedRow["סטטוס"] || "").trim();
+
     const tableNumber = normalizeTableNumber(
-      row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
+      normalizedRow["מס' שולחן"] ??
+        normalizedRow["מספר שולחן"] ??
+        normalizedRow["שולחן"] ??
+        ""
     );
 
     const relationValue = String(
-      row["קרבה"] ??
-      row["קרבה "] ??
-      row[" קרבה"] ??
-      row["relation"] ??
-      row["Relation"] ??
-      ""
+      normalizedRow["קרבה"] ??
+        normalizedRow["relation"] ??
+        normalizedRow["Relation"] ??
+        ""
     )
       .replace(/\u00A0/g, " ")
       .trim();
 
-    console.log("📥 row keys:", Object.keys(row || {}));
-    console.log("📥 relation value:", {
-      קרבה: row["קרבה"],
-      "קרבה ": row["קרבה "],
-      " קרבה": row[" קרבה"],
-      relation: row["relation"],
-      Relation: row["Relation"],
-    });
-
     return {
       name,
       phone:
-        String(row["טלפון"] || "")
+        String(normalizedRow["טלפון"] || "")
           .replace(/\D/g, "")
           .trim() || null,
       relation: relationValue || null,
       rsvp: RSVP_MAP[rawStatus] || "pending",
       guestsCount: Math.max(
         1,
-        Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
+        Number(
+          normalizedRow["מוזמנים"] ?? normalizedRow["כמות אורחים"] ?? 1
+        ) || 1
       ),
       arrivedCount: 0,
-      notes: String(row["הערות"] || "").trim() || null,
+      notes: String(normalizedRow["הערות"] || "").trim() || null,
       tableNumber,
       tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
     };
