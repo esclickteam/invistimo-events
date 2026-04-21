@@ -87,6 +87,15 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       .replace(/\u00A0/g, " ")
       .trim();
 
+    console.log("📥 row keys:", Object.keys(row || {}));
+    console.log("📥 relation value:", {
+      קרבה: row["קרבה"],
+      "קרבה ": row["קרבה "],
+      " קרבה": row[" קרבה"],
+      relation: row["relation"],
+      Relation: row["Relation"],
+    });
+
     return {
       name,
       phone:
