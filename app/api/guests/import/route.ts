@@ -95,6 +95,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    /* 🔥 cache לביצועים */
+    const groupsCache = new Map<string, any>();
+
     const validPayloads: any[] = [];
 
     for (const g of guests) {
@@ -112,51 +115,53 @@ export async function POST(req: NextRequest) {
           ? Number(rawTable)
           : null;
 
-      /* ===============================
-         🔥 קריאה נכונה מהאקסל (קרבה)
-      =============================== */
+      /* =====================================================
+         🔥 ניקוי קרבה (אקסל)
+      ===================================================== */
+      const relationRaw = String(g.relation || g["קרבה"] || "");
 
-      const relationRaw = String(
-        g.relation || g["קרבה"] || ""
-      )
+      const cleanRelation = relationRaw
+        .normalize("NFKC")
         .replace(/\u00A0/g, " ")
-        .trim();
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
 
       let groupId = null;
 
-      if (relationRaw.length > 0) {
-        const relation = relationRaw.toLowerCase();
-
-        const group = await Group.findOneAndUpdate(
-          {
-            invitationId: invitation._id,
-            name: relation,
-          },
-          {
-            $setOnInsert: {
+      if (cleanRelation) {
+        if (groupsCache.has(cleanRelation)) {
+          groupId = groupsCache.get(cleanRelation);
+        } else {
+          const group = await Group.findOneAndUpdate(
+            {
               invitationId: invitation._id,
-              eventId: invitation.eventId,
-              name: relation,
+              name: cleanRelation,
             },
-          },
-          {
-            upsert: true,
-            new: true,
-          }
-        );
+            {
+              $setOnInsert: {
+                invitationId: invitation._id,
+                eventId: invitation.eventId,
+                name: cleanRelation,
+              },
+            },
+            {
+              upsert: true,
+              new: true,
+            }
+          );
 
-        groupId = group._id;
+          groupId = group._id;
+          groupsCache.set(cleanRelation, groupId);
+        }
       }
-
-      /* =============================== */
 
       validPayloads.push({
         invitationId,
         name,
         phone,
 
-        // 🔥 כאן גם חשוב
-        relation: relationRaw || null,
+        relation: cleanRelation || null, // 🔥 חשוב!
 
         groupId,
 
