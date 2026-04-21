@@ -850,10 +850,8 @@ if (quickFilter === "call_will_reply") {
 
   // ⭐ פילטר לפי קבוצה
   if (selectedGroupId) {
-  list = list.filter(
-    (g) => String(g.groupId || "") === String(selectedGroupId)
-  );
-}
+    list = list.filter((g) => g.groupId === selectedGroupId);
+  }
 
   // 3) Sort
 list.sort((a, b) => {
@@ -1355,9 +1353,8 @@ console.log("INVITATION:", invitation);
 
           <td className="p-3">
   <GuestGroupSelect
-  value={g.groupId ? String(g.groupId) : ""}
+  value={g.groupId}
   onChange={async (groupId) => {
-
     // UI
     setGuests((prev) =>
       prev.map((guest) =>

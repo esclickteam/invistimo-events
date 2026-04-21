@@ -12,14 +12,15 @@ export default function GuestGroupSelect({ value, onChange }: Props) {
 
   return (
     <select
-      value={value ? String(value) : ""}
+      value={value || ""}
       onChange={(e) => onChange(e.target.value || null)}
-      className="rounded-md border px-2 py-1 text-sm bg-white w-full"
+        className="rounded-md border px-2 py-1 text-sm bg-white w-full"
+
     >
       <option value="">ללא קבוצה</option>
 
       {groups.map((group) => (
-        <option key={String(group._id)} value={String(group._id)}>
+        <option key={group._id} value={group._id}>
           {group.name}
         </option>
       ))}
