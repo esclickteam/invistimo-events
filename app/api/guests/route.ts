@@ -38,23 +38,9 @@ type InvitationDoc = {
 type GuestDoc = {
   _id: Types.ObjectId;
   invitationId: Types.ObjectId;
-  groupId?: Types.ObjectId | string | null;
   actualArrivedCount?: number;
   [key: string]: any;
 };
-
-/* =========================================================
-   Helpers
-========================================================= */
-function normalizeGuestForClient(guest: any) {
-  return {
-    ...guest,
-    _id: guest?._id ? String(guest._id) : "",
-    invitationId: guest?.invitationId ? String(guest.invitationId) : "",
-    groupId: guest?.groupId ? String(guest.groupId) : null,
-    actualArrivedCount: guest?.actualArrivedCount ?? 0,
-  };
-}
 
 /* =========================================================
    GET /api/guests
@@ -101,12 +87,8 @@ export async function GET(req: NextRequest) {
         invitationId,
       }).lean()) as GuestDoc[];
 
-      const normalizedGuests = guests.map((guest) =>
-        normalizeGuestForClient(guest)
-      );
-
       return NextResponse.json({
-        guests: normalizedGuests,
+        guests,
         usage: null,
       });
     }
@@ -168,7 +150,7 @@ export async function GET(req: NextRequest) {
       for (const table of seating.tables || []) {
         const tName = table.name || "-";
         for (const sg of table.seatedGuests || []) {
-          guestToTable.set(String(sg.guestId), tName);
+          guestToTable.set(sg.guestId.toString(), tName);
         }
       }
     }
@@ -176,19 +158,20 @@ export async function GET(req: NextRequest) {
     const guestsWithTable = guests.map((guest) => {
       let tableName: string | null = null;
 
-      const invitation = invitationById.get(String(guest.invitationId));
+      const invitation = invitationById.get(guest.invitationId.toString());
       const eventId = invitation?.eventId?.toString();
 
       if (eventId) {
         const guestToTable = eventGuestToTableMap.get(eventId);
-        const found = guestToTable?.get(String(guest._id));
+        const found = guestToTable?.get(guest._id.toString());
         if (found) {
           tableName = found;
         }
       }
 
       return {
-        ...normalizeGuestForClient(guest),
+        ...guest,
+        actualArrivedCount: guest.actualArrivedCount ?? 0,
         tableName,
       };
     });
@@ -302,7 +285,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      guest: normalizeGuestForClient(created.toObject()),
+      guest: created,
     });
   } catch (err: any) {
     console.error("🔥 ERROR in /api/guests POST:", err);

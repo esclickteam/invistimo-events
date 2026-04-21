@@ -116,40 +116,37 @@ export async function POST(req: NextRequest) {
          🔥 קריאה נכונה מהאקסל (קרבה)
       =============================== */
 
-      const relationRaw = String(g.relation || g["קרבה"] || "")
-  .replace(/\u00A0/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
+      const relationRaw = String(
+        g.relation || g["קרבה"] || ""
+      )
+        .replace(/\u00A0/g, " ")
+        .trim();
 
-let groupId = null;
+      let groupId = null;
 
-if (relationRaw) {
-  let group = await Group.findOne({
-    invitationId: invitation._id,
-    name: relationRaw,
-  });
+      if (relationRaw.length > 0) {
+        const relation = relationRaw.toLowerCase();
 
-  if (!group) {
-    try {
-      group = await Group.create({
-        invitationId: invitation._id,
-        eventId: invitation.eventId,
-        name: relationRaw,
-      });
-    } catch (err: any) {
-      if (err?.code === 11000) {
-        group = await Group.findOne({
-          invitationId: invitation._id,
-          name: relationRaw,
-        });
-      } else {
-        throw err;
+        const group = await Group.findOneAndUpdate(
+          {
+            invitationId: invitation._id,
+            name: relation,
+          },
+          {
+            $setOnInsert: {
+              invitationId: invitation._id,
+              eventId: invitation.eventId,
+              name: relation,
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+
+        groupId = group._id;
       }
-    }
-  }
-
-  groupId = group?._id || null;
-}
 
       /* =============================== */
 
