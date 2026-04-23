@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
-          code: "NO_INVITATION",
         },
         { status: 400 }
       );
@@ -49,19 +48,14 @@ export async function POST(req: NextRequest) {
 
     if (!invitation) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
-          code: "NO_INVITATION",
-        },
+        { success: false, error: "NO_INVITATION" },
         { status: 404 }
       );
     }
 
-    const ownerId = invitation.ownerId?.toString?.() || null;
-    const producerId = invitation.producerId?.toString?.() || null;
-
-    const canAccess = ownerId === userId || producerId === userId;
+    const canAccess =
+      invitation.ownerId?.toString() === userId ||
+      invitation.producerId?.toString() === userId;
 
     if (!canAccess) {
       return NextResponse.json(
@@ -73,27 +67,64 @@ export async function POST(req: NextRequest) {
     const user = await User.findById(userId).select("guests").lean();
     const limit = Number(user?.guests || 0);
 
-    if (!limit || limit < 1) {
-      return NextResponse.json(
-        { success: false, error: "GUEST_LIMIT_NOT_CONFIGURED" },
-        { status: 400 }
-      );
-    }
-
     const current = await InvitationGuest.countDocuments({ invitationId });
     let remaining = Math.max(0, limit - current);
 
     if (remaining <= 0) {
       return NextResponse.json(
-        {
-          success: false,
-          code: "GUEST_LIMIT_REACHED",
-          error: `הגעת למכסה המותרת (${limit}) ולא ניתן לייבא עוד רשומות.`,
-          usage: { current, limit, remaining: 0 },
-        },
+        { success: false, error: "GUEST_LIMIT_REACHED" },
         { status: 409 }
       );
     }
+
+    /* =======================================================
+       🔥 שלב 1: חילוץ קבוצות ייחודיות מהאקסל
+    ======================================================= */
+
+    const uniqueGroups = [
+      ...new Set(
+        guests
+          .map((g: any) =>
+            String(g.relation || g["קרבה"] || "")
+              .replace(/\u00A0/g, " ")
+              .trim()
+              .toLowerCase()
+          )
+          .filter(Boolean)
+      ),
+    ];
+
+    /* =======================================================
+       🔥 שלב 2: יצירת Map של קבוצות (בלי כפילויות)
+    ======================================================= */
+
+    const groupMap: Record<string, any> = {};
+
+    for (const name of uniqueGroups) {
+      const group = await Group.findOneAndUpdate(
+        {
+          eventId: invitation.eventId,
+          name,
+        },
+        {
+          $setOnInsert: {
+            invitationId: invitation._id,
+            eventId: invitation.eventId,
+            name,
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+        }
+      );
+
+      groupMap[name] = group._id;
+    }
+
+    /* =======================================================
+       🔥 שלב 3: בניית אורחים
+    ======================================================= */
 
     const validPayloads: any[] = [];
 
@@ -101,66 +132,34 @@ export async function POST(req: NextRequest) {
       const name = String(g?.name || "").trim();
       if (!name) continue;
 
-      const phone =
-        g.phone && String(g.phone).replace(/\D/g, "").trim()
-          ? String(g.phone).replace(/\D/g, "")
-          : null;
-
-      const rawTable = g.tableNumber ?? g.table ?? g.tableName ?? null;
-      const tableNumber =
-        rawTable !== null && rawTable !== "" && Number.isFinite(Number(rawTable))
-          ? Number(rawTable)
-          : null;
-
-      /* ===============================
-         🔥 קריאה נכונה מהאקסל (קרבה)
-      =============================== */
-
-      const relationRaw = String(
-        g.relation || g["קרבה"] || ""
-      )
+      const relationRaw = String(g.relation || g["קרבה"] || "")
         .replace(/\u00A0/g, " ")
         .trim();
 
-      let groupId = null;
+      const relationKey = relationRaw.toLowerCase();
 
-      if (relationRaw.length > 0) {
-        const relation = relationRaw.toLowerCase();
+      const phone =
+        g.phone && String(g.phone).replace(/\D/g, "")
+          ? String(g.phone).replace(/\D/g, "")
+          : null;
 
-        const group = await Group.findOneAndUpdate(
-          {
-            invitationId: invitation._id,
-            name: relation,
-          },
-          {
-            $setOnInsert: {
-              invitationId: invitation._id,
-              eventId: invitation.eventId,
-              name: relation,
-            },
-          },
-          {
-            upsert: true,
-            new: true,
-          }
-        );
-
-        groupId = group._id;
-      }
-
-      /* =============================== */
+      const tableNumber = Number.isFinite(Number(g.table))
+        ? Number(g.table)
+        : null;
 
       validPayloads.push({
         invitationId,
         name,
         phone,
 
-        // 🔥 כאן גם חשוב
         relation: relationRaw || null,
 
-        groupId,
+        // 🔥 פה השינוי הקריטי
+        groupId: groupMap[relationKey] || null,
 
-        rsvp: ["yes", "no", "pending"].includes(g.rsvp) ? g.rsvp : "pending",
+        rsvp: ["yes", "no", "pending"].includes(g.rsvp)
+          ? g.rsvp
+          : "pending",
 
         guestsCount: Number.isFinite(Number(g.guestsCount))
           ? Math.max(1, Number(g.guestsCount))
@@ -170,7 +169,7 @@ export async function POST(req: NextRequest) {
         notes: String(g.notes || "").trim() || null,
 
         tableNumber,
-        tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
+        tableName: tableNumber ? `שולחן ${tableNumber}` : null,
 
         token: crypto.randomUUID(),
       });
@@ -184,27 +183,12 @@ export async function POST(req: NextRequest) {
     }
 
     const toImport = validPayloads.slice(0, remaining);
-    const skippedByLimit = Math.max(0, validPayloads.length - toImport.length);
 
     await InvitationGuest.insertMany(toImport, { ordered: true });
 
-    const importedCount = toImport.length;
-    const newCurrent = current + importedCount;
-    const newRemaining = Math.max(0, limit - newCurrent);
-
     return NextResponse.json({
       success: true,
-      count: importedCount,
-      skippedByLimit,
-      usage: {
-        current: newCurrent,
-        limit,
-        remaining: newRemaining,
-      },
-      message:
-        skippedByLimit > 0
-          ? `יובאו ${importedCount} רשומות. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`
-          : `יובאו ${importedCount} רשומות בהצלחה.`,
+      count: toImport.length,
     });
   } catch (err) {
     console.error("❌ Import guests error:", err);
