@@ -187,6 +187,10 @@ const groupRaw = String(g.group || g["קבוצה"] || "")
         : null;
 
       const groupName = (groupRaw || relationRaw).trim();
+
+console.log("🔍 GROUP MAP KEYS:", Object.keys(groupMap));
+console.log("🔍 TRYING:", JSON.stringify(groupName));
+
 const groupId = groupMap[groupName] || null;
 
       console.log("➡️ MATCH GROUP:", relationRaw);
