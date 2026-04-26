@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       ...new Set(
         guests
           .map((g: any, i: number) => {
-            const raw = String(g.relation || g["קרבה"] || "");
+            const raw = String(g.group || g.relation || g["קבוצה"] || g["קרבה"] || "");
 
             const cleaned = raw
               .replace(/\u00A0/g, " ")
@@ -165,9 +165,14 @@ export async function POST(req: NextRequest) {
       if (!name) continue;
 
       const relationRaw = String(g.relation || g["קרבה"] || "")
-        .replace(/\u00A0/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+  .replace(/\u00A0/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const groupRaw = String(g.group || g["קבוצה"] || "")
+  .replace(/\u00A0/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
 
       console.log("➡️ RELATION RAW:", JSON.stringify(g.relation));
       console.log("➡️ RELATION CLEAN:", relationRaw);
@@ -181,7 +186,8 @@ export async function POST(req: NextRequest) {
         ? Number(g.table)
         : null;
 
-      const groupId = groupMap[relationRaw] || null;
+      const groupName = groupRaw || relationRaw;
+const groupId = groupMap[groupName] || null;
 
       console.log("➡️ MATCH GROUP:", relationRaw);
       console.log("➡️ GROUP ID:", groupId);

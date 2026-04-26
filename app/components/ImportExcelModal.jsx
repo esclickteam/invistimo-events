@@ -106,6 +106,9 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
           const relationOriginal = row["קרבה"];
           const relationRaw = normalizeText(relationOriginal);
 
+          const groupOriginal = row["קבוצה"];
+const groupRaw = normalizeText(groupOriginal);
+
           // 🔥 הלוג הכי חשוב
           console.log("➡️ RELATION RAW:", JSON.stringify(relationOriginal));
           console.log("➡️ RELATION CLEAN:", relationRaw);
@@ -132,6 +135,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
             phone: phoneClean || null,
 
             relation: relationRaw || null,
+              group: groupRaw || null,
 
             // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
