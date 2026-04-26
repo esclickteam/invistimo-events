@@ -13,12 +13,11 @@ export async function POST(req: NextRequest) {
   try {
     const { invitationId, guests } = await req.json();
 
+    console.log("📥 RAW REQUEST BODY:", guests);
+
     if (!invitationId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה",
-        },
+        { success: false, error: "כדי להוסיף מוזמנים יש ליצור הזמנה תחילה" },
         { status: 400 }
       );
     }
@@ -78,24 +77,33 @@ export async function POST(req: NextRequest) {
     }
 
     /* =======================================================
-       🔥 שלב 1: חילוץ קבוצות ייחודיות מהאקסל
+       🔥 שלב 1: חילוץ קבוצות (ללא lowercase!)
     ======================================================= */
 
     const uniqueGroups = [
       ...new Set(
         guests
-          .map((g: any) =>
-            String(g.relation || g["קרבה"] || "")
+          .map((g: any, i: number) => {
+            const raw = String(g.relation || g["קרבה"] || "");
+
+            const cleaned = raw
               .replace(/\u00A0/g, " ")
-              .trim()
-              .toLowerCase()
-          )
+              .replace(/\s+/g, " ")
+              .trim();
+
+            console.log(`🟡 GROUP RAW [${i}]:`, JSON.stringify(raw));
+            console.log(`🟢 GROUP CLEAN [${i}]:`, cleaned);
+
+            return cleaned;
+          })
           .filter(Boolean)
       ),
     ];
 
+    console.log("🔥 UNIQUE GROUPS:", uniqueGroups);
+
     /* =======================================================
-       🔥 שלב 2: יצירת קבוצות בצורה בטוחה (FIX DUPLICATE)
+       🔥 שלב 2: יצירת קבוצות
     ======================================================= */
 
     const groupMap: Record<string, any> = {};
@@ -104,6 +112,8 @@ export async function POST(req: NextRequest) {
       let group;
 
       try {
+        console.log("➡️ Creating/finding group:", name);
+
         group = await Group.findOneAndUpdate(
           {
             invitationId: invitation._id,
@@ -122,8 +132,9 @@ export async function POST(req: NextRequest) {
           }
         );
       } catch (err: any) {
-        // 🔥 אם יש duplicate – מביאים את הקיים
         if (err.code === 11000) {
+          console.log("⚠️ Duplicate group, fetching existing:", name);
+
           group = await Group.findOne({
             invitationId: invitation._id,
             name,
@@ -138,21 +149,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    console.log("🧠 GROUP MAP:", groupMap);
+
     /* =======================================================
-       🔥 שלב 3: בניית אורחים
+       🔥 שלב 3: בניית אורחים (עם לוגים)
     ======================================================= */
 
     const validPayloads: any[] = [];
 
-    for (const g of guests) {
+    for (const [index, g] of guests.entries()) {
+      console.log("====================================");
+      console.log(`👤 GUEST ${index + 1}`);
+
       const name = String(g?.name || "").trim();
       if (!name) continue;
 
       const relationRaw = String(g.relation || g["קרבה"] || "")
         .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
         .trim();
 
-      const relationKey = relationRaw.toLowerCase();
+      console.log("➡️ RELATION RAW:", JSON.stringify(g.relation));
+      console.log("➡️ RELATION CLEAN:", relationRaw);
 
       const phone =
         g.phone && String(g.phone).replace(/\D/g, "")
@@ -163,14 +181,18 @@ export async function POST(req: NextRequest) {
         ? Number(g.table)
         : null;
 
+      const groupId = groupMap[relationRaw] || null;
+
+      console.log("➡️ MATCH GROUP:", relationRaw);
+      console.log("➡️ GROUP ID:", groupId);
+
       validPayloads.push({
         invitationId,
         name,
         phone,
         relation: relationRaw || null,
 
-        // 🔥 שיוך קבוצה תקין
-        groupId: groupMap[relationKey] || null,
+        groupId,
 
         rsvp: ["yes", "no", "pending"].includes(g.rsvp)
           ? g.rsvp
@@ -198,6 +220,8 @@ export async function POST(req: NextRequest) {
     }
 
     const toImport = validPayloads.slice(0, remaining);
+
+    console.log("📦 FINAL INSERT:", toImport);
 
     await InvitationGuest.insertMany(toImport, { ordered: true });
 
