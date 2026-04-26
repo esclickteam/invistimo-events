@@ -186,7 +186,7 @@ const groupRaw = String(g.group || g["קבוצה"] || "")
         ? Number(g.table)
         : null;
 
-      const groupName = groupRaw || relationRaw;
+      const groupName = (groupRaw || relationRaw).trim();
 const groupId = groupMap[groupName] || null;
 
       console.log("➡️ MATCH GROUP:", relationRaw);
