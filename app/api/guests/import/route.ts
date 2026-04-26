@@ -95,31 +95,47 @@ export async function POST(req: NextRequest) {
     ];
 
     /* =======================================================
-       🔥 שלב 2: יצירת Map של קבוצות (בלי כפילויות)
+       🔥 שלב 2: יצירת קבוצות בצורה בטוחה (FIX DUPLICATE)
     ======================================================= */
 
     const groupMap: Record<string, any> = {};
 
     for (const name of uniqueGroups) {
-      const group = await Group.findOneAndUpdate(
-        {
-          eventId: invitation.eventId,
-          name,
-        },
-        {
-          $setOnInsert: {
+      let group;
+
+      try {
+        group = await Group.findOneAndUpdate(
+          {
             invitationId: invitation._id,
-            eventId: invitation.eventId,
             name,
           },
-        },
-        {
-          upsert: true,
-          new: true,
+          {
+            $setOnInsert: {
+              invitationId: invitation._id,
+              eventId: invitation.eventId,
+              name,
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
+      } catch (err: any) {
+        // 🔥 אם יש duplicate – מביאים את הקיים
+        if (err.code === 11000) {
+          group = await Group.findOne({
+            invitationId: invitation._id,
+            name,
+          });
+        } else {
+          throw err;
         }
-      );
+      }
 
-      groupMap[name] = group._id;
+      if (group) {
+        groupMap[name] = group._id;
+      }
     }
 
     /* =======================================================
@@ -151,10 +167,9 @@ export async function POST(req: NextRequest) {
         invitationId,
         name,
         phone,
-
         relation: relationRaw || null,
 
-        // 🔥 פה השינוי הקריטי
+        // 🔥 שיוך קבוצה תקין
         groupId: groupMap[relationKey] || null,
 
         rsvp: ["yes", "no", "pending"].includes(g.rsvp)
