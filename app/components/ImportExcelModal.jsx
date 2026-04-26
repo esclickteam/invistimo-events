@@ -211,8 +211,8 @@ const groupRaw = normalizeText(groupOriginal);
         setSummary({ type: "success", text: msg, usage });
       }
 
-      onSuccess?.();
-      onClose?.();
+      await onSuccess?.();
+onClose?.();
     } catch (err) {
       console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");

@@ -1643,10 +1643,15 @@ const tableFromStore = guestTableMap.get(guestKey) || null;
 
 {showImportModal && (
   <ImportExcelModal
-    invitationId={invitationId}
-    onClose={() => setShowImportModal(false)}
-    onSuccess={loadGuests}
-  />
+  invitationId={invitationId}
+  onClose={() => setShowImportModal(false)}
+  onSuccess={async () => {
+    await Promise.all([
+      loadGroups(invitationId),
+      loadGuests(),
+    ]);
+  }}
+/>
 )}
 
 <DemoToast
