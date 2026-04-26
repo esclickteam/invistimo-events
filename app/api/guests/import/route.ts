@@ -77,24 +77,21 @@ export async function POST(req: NextRequest) {
     }
 
     /* =======================================================
-       🔥 שלב 1: חילוץ קבוצות (ללא lowercase!)
+       🔥 שלב 1: חילוץ קבוצות
     ======================================================= */
 
     const uniqueGroups = [
       ...new Set(
         guests
-          .map((g: any, i: number) => {
-            const raw = String(g.group || g.relation || g["קבוצה"] || g["קרבה"] || "");
+          .map((g: any) => {
+            const raw = String(
+              g.group || g.relation || g["קבוצה"] || g["קרבה"] || ""
+            );
 
-            const cleaned = raw
+            return raw
               .replace(/\u00A0/g, " ")
               .replace(/\s+/g, " ")
               .trim();
-
-            console.log(`🟡 GROUP RAW [${i}]:`, JSON.stringify(raw));
-            console.log(`🟢 GROUP CLEAN [${i}]:`, cleaned);
-
-            return cleaned;
           })
           .filter(Boolean)
       ),
@@ -106,19 +103,10 @@ export async function POST(req: NextRequest) {
        🔥 שלב 2: יצירת קבוצות
     ======================================================= */
 
-    const groupMap: Record<string, any> = {};
-
     for (const name of uniqueGroups) {
-      let group;
-
       try {
-        console.log("➡️ Creating/finding group:", name);
-
-        group = await Group.findOneAndUpdate(
-          {
-            invitationId: invitation._id,
-            name,
-          },
+        await Group.findOneAndUpdate(
+          { invitationId: invitation._id, name },
           {
             $setOnInsert: {
               invitationId: invitation._id,
@@ -126,33 +114,36 @@ export async function POST(req: NextRequest) {
               name,
             },
           },
-          {
-            upsert: true,
-            new: true,
-          }
+          { upsert: true, new: true }
         );
       } catch (err: any) {
-        if (err.code === 11000) {
-          console.log("⚠️ Duplicate group, fetching existing:", name);
-
-          group = await Group.findOne({
-            invitationId: invitation._id,
-            name,
-          });
-        } else {
-          throw err;
-        }
-      }
-
-      if (group) {
-        groupMap[name] = group._id;
+        if (err.code !== 11000) throw err;
       }
     }
+
+    /* =======================================================
+       🔥 שלב 3: טעינה מחדש (הכי חשוב!)
+    ======================================================= */
+
+    const freshGroups = await Group.find({
+      invitationId: invitation._id,
+    });
+
+    const groupMap: Record<string, any> = {};
+
+    freshGroups.forEach((g) => {
+      const key = g.name
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      groupMap[key] = g._id;
+    });
 
     console.log("🧠 GROUP MAP:", groupMap);
 
     /* =======================================================
-       🔥 שלב 3: בניית אורחים (עם לוגים)
+       🔥 שלב 4: בניית אורחים
     ======================================================= */
 
     const validPayloads: any[] = [];
@@ -165,17 +156,22 @@ export async function POST(req: NextRequest) {
       if (!name) continue;
 
       const relationRaw = String(g.relation || g["קרבה"] || "")
-  .replace(/\u00A0/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-const groupRaw = String(g.group || g["קבוצה"] || "")
-  .replace(/\u00A0/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
+      const groupRaw = String(g.group || g["קבוצה"] || "")
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-      console.log("➡️ RELATION RAW:", JSON.stringify(g.relation));
-      console.log("➡️ RELATION CLEAN:", relationRaw);
+      const groupName = (groupRaw || relationRaw).trim();
+
+      console.log("🔍 TRYING:", JSON.stringify(groupName));
+
+      const groupId = groupMap[groupName] || null;
+
+      console.log("➡️ GROUP ID:", groupId);
 
       const phone =
         g.phone && String(g.phone).replace(/\D/g, "")
@@ -186,38 +182,22 @@ const groupRaw = String(g.group || g["קבוצה"] || "")
         ? Number(g.table)
         : null;
 
-      const groupName = (groupRaw || relationRaw).trim();
-
-console.log("🔍 GROUP MAP KEYS:", Object.keys(groupMap));
-console.log("🔍 TRYING:", JSON.stringify(groupName));
-
-const groupId = groupMap[groupName] || null;
-
-      console.log("➡️ MATCH GROUP:", relationRaw);
-      console.log("➡️ GROUP ID:", groupId);
-
       validPayloads.push({
         invitationId,
         name,
         phone,
         relation: relationRaw || null,
-
         groupId,
-
         rsvp: ["yes", "no", "pending"].includes(g.rsvp)
           ? g.rsvp
           : "pending",
-
         guestsCount: Number.isFinite(Number(g.guestsCount))
           ? Math.max(1, Number(g.guestsCount))
           : 1,
-
         arrivedCount: 0,
         notes: String(g.notes || "").trim() || null,
-
         tableNumber,
         tableName: tableNumber ? `שולחן ${tableNumber}` : null,
-
         token: crypto.randomUUID(),
       });
     }
