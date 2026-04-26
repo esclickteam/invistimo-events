@@ -29,20 +29,22 @@ function normalizeTableNumber(value) {
 }
 
 /* ============================================================
-   🔥 עזר: ניקוי טקסט (קריטי לקרבה)
+   🔥 עזר: ניקוי טקסט (עברית, רווחים, תווים נסתרים)
 ============================================================ */
 function normalizeText(value) {
   return String(value ?? "")
-    .normalize("NFKC") // 🔥 חשוב מאוד לעברית
+    .normalize("NFKC") // תקן תווים
     .replace(/[\u200B-\u200D\uFEFF]/g, "") // תווים נסתרים
-    .replace(/\u00A0/g, " ") // רווח לא תקין
-    .replace(/\s+/g, " ") // איחוד רווחים
+    .replace(/\u00A0/g, " ") // NBSP
+    .replace(/\s+/g, " ") // רווחים כפולים
     .trim();
 }
 
 export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // לשיפור UX - הודעה אחרונה מהייבוא
   const [summary, setSummary] = useState(null);
 
   const selectedFileName = useMemo(() => file?.name || "", [file]);
@@ -71,43 +73,76 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       }
 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      /* ============================================================
+         🔥 שינוי חשוב: קריאה מדויקת של האקסל
+      ============================================================ */
+      const rawJson = XLSX.utils.sheet_to_json(sheet, {
+        defval: "",
+        raw: false, // 🔥 חשוב מאוד
+      });
+
+      console.log("📄 RAW JSON FULL:", rawJson);
 
       /* ============================================================
          ניקוי + נרמול נתונים לפני שליחה לשרת
       ============================================================ */
       const guests = rawJson
-        .map((row) => {
-          const name = normalizeText(row["שם"] || row["שם מלא"]);
+        .map((row, index) => {
+          console.log("=================================");
+          console.log(`🔍 ROW ${index + 1}`);
+          console.log("RAW ROW:", row);
+
+          const nameRaw = row["שם"] || row["שם מלא"] || "";
+          const name = normalizeText(nameRaw);
+
+          console.log("➡️ NAME RAW:", JSON.stringify(nameRaw));
+          console.log("➡️ NAME CLEAN:", name);
+
           if (!name) return null;
 
           const rawStatus = normalizeText(row["סטטוס"]);
 
+          const relationOriginal = row["קרבה"];
+          const relationRaw = normalizeText(relationOriginal);
+
+          // 🔥 הלוג הכי חשוב
+          console.log("➡️ RELATION RAW:", JSON.stringify(relationOriginal));
+          console.log("➡️ RELATION CLEAN:", relationRaw);
+
+          const phoneRaw = row["טלפון"];
+          const phoneClean = normalizeText(phoneRaw).replace(/\D/g, "");
+
+          console.log("➡️ PHONE RAW:", phoneRaw);
+          console.log("➡️ PHONE CLEAN:", phoneClean);
+
           const tableNumber = normalizeTableNumber(
-            row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
+            row["מס' שולחן"] ??
+              row["מספר שולחן"] ??
+              row["שולחן"] ??
+              ""
           );
 
-          // 🔥 תיקון קריטי לקרבה
-          const relationRaw = normalizeText(row["קרבה"]);
-
-          // 🔍 בדיקה (אפשר למחוק אחרי בדיקה)
-          console.log("RELATION:", JSON.stringify(row["קרבה"]), "→", relationRaw);
+          console.log("➡️ TABLE:", tableNumber);
 
           return {
             name,
 
-            phone:
-              normalizeText(row["טלפון"]).replace(/\D/g, "") || null,
+            // טלפון אופציונלי
+            phone: phoneClean || null,
 
             relation: relationRaw || null,
 
+            // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
 
+            // כמות מוזמנים לשורה (מינימום 1)
             guestsCount: Math.max(
               1,
               Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
             ),
 
+            // מתחיל תמיד מ-0
             arrivedCount: 0,
 
             notes: normalizeText(row["הערות"]) || null,
@@ -117,6 +152,8 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
           };
         })
         .filter(Boolean);
+
+      console.log("📦 FINAL GUESTS:", guests);
 
       if (guests.length === 0) {
         alert("לא נמצאו שורות תקינות לייבוא");
@@ -132,28 +169,50 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       const result = await res.json();
       console.log("📦 Import result:", result);
 
+      // טיפול שגיאה מפורט לפי השרת החדש
       if (!res.ok || !result?.success) {
+        if (res.status === 409 && result?.code === "GUEST_LIMIT_REACHED") {
+          const limitMsg =
+            result?.error ||
+            `הגעת למכסת הרשומות (${result?.usage?.limit ?? "-"})`;
+          alert(limitMsg);
+          setSummary({
+            type: "error",
+            text: limitMsg,
+            usage: result?.usage || null,
+          });
+          return;
+        }
+
         const errMsg = result?.error || "שגיאה בייבוא הקובץ";
         alert(errMsg);
-        setSummary({ type: "error", text: errMsg });
+        setSummary({ type: "error", text: errMsg, usage: result?.usage || null });
         return;
       }
 
+      // הצלחה
       const count = Number(result?.count || 0);
+      const skippedByLimit = Number(result?.skippedByLimit || 0);
+      const usage = result?.usage || null;
 
-      alert(`✅ יובאו ${count} מוזמנים בהצלחה`);
-
-      setSummary({
-        type: "success",
-        text: `יובאו ${count} מוזמנים`,
-      });
+      if (skippedByLimit > 0) {
+        const msg =
+          result?.message ||
+          `יובאו ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
+        alert(`⚠️ ${msg}`);
+        setSummary({ type: "partial", text: msg, usage });
+      } else {
+        const msg = result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
+        alert(msg);
+        setSummary({ type: "success", text: msg, usage });
+      }
 
       onSuccess?.();
       onClose?.();
     } catch (err) {
-      console.error(err);
+      console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");
-      setSummary({ type: "error", text: "שגיאה בקריאת הקובץ" });
+      setSummary({ type: "error", text: "שגיאה בקריאת הקובץ", usage: null });
     } finally {
       setLoading(false);
     }
@@ -170,6 +229,32 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
         </h2>
 
         <div className="mb-5">
+          <h3 className="font-semibold mb-1">שלב 1: הורדת תבנית Excel</h3>
+          <p className="text-sm text-gray-600 mb-2">
+            המערכת יודעת לעבוד עם קובץ אקסל במבנה מסוים.
+          </p>
+          <a
+            href="/Invistimo.xlsx"
+            download
+            className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm hover:bg-blue-200 transition"
+          >
+            📄 הורדת תבנית אקסל
+          </a>
+        </div>
+
+        <div className="mb-5">
+          <h3 className="font-semibold mb-1">שלב 2: הזנת נתוני אורחים</h3>
+          <p className="text-sm text-gray-600">
+            מלאו את נתוני האורחים בקובץ לפי הכותרות.
+          </p>
+        </div>
+
+        <div className="mb-5">
+          <h3 className="font-semibold mb-1">שלב 3: העלאת הקובץ</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            בחרו את הקובץ המלא והעלו אותו למערכת.
+          </p>
+
           <input
             type="file"
             accept=".xlsx,.xls"
@@ -177,30 +262,33 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
             className="w-full border rounded p-2 mb-2"
           />
 
-          {selectedFileName && (
+          {selectedFileName ? (
             <p className="text-xs text-gray-500 mb-3">
               נבחר קובץ: {selectedFileName}
             </p>
-          )}
+          ) : null}
 
           <button
             onClick={handleImport}
             disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-full font-semibold hover:bg-green-700 transition disabled:opacity-60"
+            className="w-full bg-green-600 text-white py-3 rounded-full font-semibold hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? "מייבא..." : "העלאה"}
           </button>
         </div>
 
-        {summary && (
-          <div className="mt-4 bg-gray-100 rounded-xl p-3 text-sm">
+        {summary ? (
+          <div className="mt-4 rounded-xl p-3 text-sm bg-gray-100">
             {summary.text}
           </div>
-        )}
+        ) : null}
 
         <div className="text-center mt-6">
-          <button onClick={onClose} className="text-gray-500">
-            ביטול
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 transition"
+          >
+            ביטול וחזרה
           </button>
         </div>
       </div>
