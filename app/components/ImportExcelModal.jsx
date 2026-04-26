@@ -28,11 +28,21 @@ function normalizeTableNumber(value) {
   return Number.isFinite(num) ? num : null;
 }
 
+/* ============================================================
+   🔥 עזר: ניקוי טקסט (קריטי לקרבה)
+============================================================ */
+function normalizeText(value) {
+  return String(value ?? "")
+    .normalize("NFKC") // 🔥 חשוב מאוד לעברית
+    .replace(/[\u200B-\u200D\uFEFF]/g, "") // תווים נסתרים
+    .replace(/\u00A0/g, " ") // רווח לא תקין
+    .replace(/\s+/g, " ") // איחוד רווחים
+    .trim();
+}
+
 export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // לשיפור UX - הודעה אחרונה מהייבוא
   const [summary, setSummary] = useState(null);
 
   const selectedFileName = useMemo(() => file?.name || "", [file]);
@@ -68,40 +78,40 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       ============================================================ */
       const guests = rawJson
         .map((row) => {
-          const name = String(row["שם"] || row["שם מלא"] || "").trim();
-          if (!name) return null; // שדה חובה יחיד
+          const name = normalizeText(row["שם"] || row["שם מלא"]);
+          if (!name) return null;
 
-          const rawStatus = String(row["סטטוס"] || "").trim();
+          const rawStatus = normalizeText(row["סטטוס"]);
+
           const tableNumber = normalizeTableNumber(
             row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
           );
 
+          // 🔥 תיקון קריטי לקרבה
+          const relationRaw = normalizeText(row["קרבה"]);
+
+          // 🔍 בדיקה (אפשר למחוק אחרי בדיקה)
+          console.log("RELATION:", JSON.stringify(row["קרבה"]), "→", relationRaw);
+
           return {
             name,
 
-            // טלפון אופציונלי
             phone:
-              String(row["טלפון"] || "")
-                .replace(/\D/g, "")
-                .trim() || null,
+              normalizeText(row["טלפון"]).replace(/\D/g, "") || null,
 
-            relation: String(row["קרבה"] || "").trim() || null,
+            relation: relationRaw || null,
 
-            // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
 
-            // כמות מוזמנים לשורה (מינימום 1)
             guestsCount: Math.max(
               1,
               Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
             ),
 
-            // מתחיל תמיד מ-0
             arrivedCount: 0,
 
-            notes: String(row["הערות"] || "").trim() || null,
+            notes: normalizeText(row["הערות"]) || null,
 
-            // חשוב: שרת הייבוא שלך יודע לנרמל tableNumber/table/tableName
             tableNumber,
             tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
           };
@@ -122,50 +132,28 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       const result = await res.json();
       console.log("📦 Import result:", result);
 
-      // טיפול שגיאה מפורט לפי השרת החדש
       if (!res.ok || !result?.success) {
-        if (res.status === 409 && result?.code === "GUEST_LIMIT_REACHED") {
-          const limitMsg =
-            result?.error ||
-            `הגעת למכסת הרשומות (${result?.usage?.limit ?? "-"})`;
-          alert(limitMsg);
-          setSummary({
-            type: "error",
-            text: limitMsg,
-            usage: result?.usage || null,
-          });
-          return;
-        }
-
         const errMsg = result?.error || "שגיאה בייבוא הקובץ";
         alert(errMsg);
-        setSummary({ type: "error", text: errMsg, usage: result?.usage || null });
+        setSummary({ type: "error", text: errMsg });
         return;
       }
 
-      // הצלחה + תמיכה בייבוא חלקי בגלל מכסה
       const count = Number(result?.count || 0);
-      const skippedByLimit = Number(result?.skippedByLimit || 0);
-      const usage = result?.usage || null;
 
-      if (skippedByLimit > 0) {
-        const msg =
-          result?.message ||
-          `יובאו ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
-        alert(`⚠️ ${msg}`);
-        setSummary({ type: "partial", text: msg, usage });
-      } else {
-        const msg = result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
-        alert(msg);
-        setSummary({ type: "success", text: msg, usage });
-      }
+      alert(`✅ יובאו ${count} מוזמנים בהצלחה`);
+
+      setSummary({
+        type: "success",
+        text: `יובאו ${count} מוזמנים`,
+      });
 
       onSuccess?.();
       onClose?.();
     } catch (err) {
       console.error(err);
       alert("שגיאה בקריאת הקובץ");
-      setSummary({ type: "error", text: "שגיאה בקריאת הקובץ", usage: null });
+      setSummary({ type: "error", text: "שגיאה בקריאת הקובץ" });
     } finally {
       setLoading(false);
     }
@@ -181,36 +169,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
           ייבוא קובץ אקסל
         </h2>
 
-        {/* שלב 1 */}
         <div className="mb-5">
-          <h3 className="font-semibold mb-1">שלב 1: הורדת תבנית Excel</h3>
-          <p className="text-sm text-gray-600 mb-2">
-            המערכת יודעת לעבוד עם קובץ אקסל במבנה מסוים.
-          </p>
-          <a
-            href="/Invistimo.xlsx"
-            download
-            className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm hover:bg-blue-200 transition"
-          >
-            📄 הורדת תבנית אקסל
-          </a>
-        </div>
-
-        {/* שלב 2 */}
-        <div className="mb-5">
-          <h3 className="font-semibold mb-1">שלב 2: הזנת נתוני אורחים</h3>
-          <p className="text-sm text-gray-600">
-            מלאו את נתוני האורחים בקובץ לפי הכותרות.
-          </p>
-        </div>
-
-        {/* שלב 3 */}
-        <div className="mb-5">
-          <h3 className="font-semibold mb-1">שלב 3: העלאת הקובץ</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            בחרו את הקובץ המלא והעלו אותו למערכת.
-          </p>
-
           <input
             type="file"
             accept=".xlsx,.xls"
@@ -218,46 +177,30 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
             className="w-full border rounded p-2 mb-2"
           />
 
-          {selectedFileName ? (
-            <p className="text-xs text-gray-500 mb-3">נבחר קובץ: {selectedFileName}</p>
-          ) : null}
+          {selectedFileName && (
+            <p className="text-xs text-gray-500 mb-3">
+              נבחר קובץ: {selectedFileName}
+            </p>
+          )}
 
           <button
             onClick={handleImport}
             disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-full font-semibold hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full bg-green-600 text-white py-3 rounded-full font-semibold hover:bg-green-700 transition disabled:opacity-60"
           >
             {loading ? "מייבא..." : "העלאה"}
           </button>
         </div>
 
-        {/* סיכום אחרון */}
-        {summary ? (
-          <div
-            className={`mt-4 rounded-xl p-3 text-sm ${
-              summary.type === "success"
-                ? "bg-green-50 text-green-700"
-                : summary.type === "partial"
-                ? "bg-yellow-50 text-yellow-800"
-                : "bg-red-50 text-red-700"
-            }`}
-          >
-            <div>{summary.text}</div>
-            {summary.usage ? (
-              <div className="mt-1 text-xs opacity-80">
-                שימוש: {summary.usage.current} / {summary.usage.limit} (נותרו{" "}
-                {summary.usage.remaining})
-              </div>
-            ) : null}
+        {summary && (
+          <div className="mt-4 bg-gray-100 rounded-xl p-3 text-sm">
+            {summary.text}
           </div>
-        ) : null}
+        )}
 
         <div className="text-center mt-6">
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition"
-          >
-            ביטול וחזרה
+          <button onClick={onClose} className="text-gray-500">
+            ביטול
           </button>
         </div>
       </div>
