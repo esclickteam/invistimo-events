@@ -263,15 +263,17 @@ export async function sendScheduledSms() {
               }
             );
 
-            completedGuests.push(guest._id);
-
+            // ✅ רק הצלחות נכנסות (תיקון קריטי)
             if (res.ok) {
               sent++;
               charged += parts;
               sentGuestIds.push(guest._id);
+              completedGuests.push(guest._id);
+            } else {
+              console.error("SMS failed:", guest._id);
             }
-          } catch {
-            completedGuests.push(guest._id);
+          } catch (err) {
+            console.error("SMS error:", guest._id, err);
           }
         });
       }
@@ -293,8 +295,15 @@ export async function sendScheduledSms() {
         }
       );
 
-      const finished =
-        (msg.sentCount || 0) + sent >= (msg.guestIds?.length || guests.length);
+      // ✅ תיקון קריטי - חישוב נכון של סיום
+      const totalGuests = await InvitationGuest.countDocuments({
+        invitationId: msg.invitationId,
+      });
+
+      const totalCompleted =
+        (msg.completedGuests?.length || 0) + completedGuests.length;
+
+      const finished = totalCompleted >= totalGuests;
 
       await ScheduledMessage.updateOne(
         { _id: msg._id },
