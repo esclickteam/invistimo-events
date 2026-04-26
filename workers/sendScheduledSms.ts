@@ -6,22 +6,16 @@ import Event from "@/models/Event";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
 
-/* ======================================================
-   BUSINESS SMS COUNT
-====================================================== */
+/* ====================================================== */
 
 function countBusinessSms(text: string) {
   const length = [...text].length;
-
   if (length <= 200) return 1;
   if (length <= 320) return 2;
-
   return -1;
 }
 
-/* ======================================================
-   RATE LIMIT QUEUE
-====================================================== */
+/* ====================================================== */
 
 async function runParallel(tasks: (() => Promise<void>)[], concurrency = 5) {
   const executing: Promise<void>[] = [];
@@ -42,9 +36,7 @@ async function runParallel(tasks: (() => Promise<void>)[], concurrency = 5) {
   await Promise.allSettled(executing);
 }
 
-/* ======================================================
-   WORKER
-====================================================== */
+/* ====================================================== */
 
 export async function sendScheduledSms() {
   await dbConnect();
@@ -99,9 +91,7 @@ export async function sendScheduledSms() {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
       }
 
-      /* ======================================================
-         LOAD GUESTS
-      ====================================================== */
+      /* ================= LOAD GUESTS ================= */
 
       let guests: any[] = [];
 
@@ -112,9 +102,7 @@ export async function sendScheduledSms() {
         }).lean();
       } else {
         const query: any = { invitationId: msg.invitationId };
-
         if (msg.filter === "pending") query.rsvp = "pending";
-
         guests = await InvitationGuest.find(query).lean();
       }
 
@@ -124,7 +112,18 @@ export async function sendScheduledSms() {
         (g) => !completed.some((id: any) => id.toString() === g._id.toString())
       );
 
-      if (!guests.length) {
+      /* ================= 🔥 תיקון קריטי ================= */
+
+      const totalGuests =
+        Array.isArray(msg.guestIds) && msg.guestIds.length > 0
+          ? msg.guestIds.length
+          : await InvitationGuest.countDocuments({
+              invitationId: msg.invitationId,
+            });
+
+      const totalCompleted = msg.completedGuests?.length || 0;
+
+      if (!guests.length && totalCompleted >= totalGuests) {
         await ScheduledMessage.updateOne(
           { _id: msg._id },
           {
@@ -136,79 +135,13 @@ export async function sendScheduledSms() {
             },
           }
         );
-
         continue;
       }
 
       const batchSize = msg.batchSize || 50;
       guests = guests.slice(0, batchSize);
 
-      /* ======================================================
-         LOCATION
-      ====================================================== */
-
-      const location = invitation?.eventLocation ?? event?.location;
-      let navigationLink = "";
-
-      if (location?.lat && location?.lng) {
-        const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-        navigationLink = await shortenUrl(wazeUrl);
-      }
-
-      /* ======================================================
-         FLAGS
-      ====================================================== */
-
-      const isReminder = msg.templateKey === "table";
-      const isThankYou = msg.templateKey === "custom";
-      const usesNewLogic = user.isActive === false;
-
-      if (usesNewLogic) {
-        if (isReminder && invitation.reminderSentAt) {
-          throw new Error("REMINDER_ALREADY_SENT");
-        }
-
-        if (isThankYou && invitation.thankYouSentAt) {
-          throw new Error("THANKYOU_ALREADY_SENT");
-        }
-      }
-
-      /* ======================================================
-         OLD SMS LIMIT
-      ====================================================== */
-
-      let remainingMessages = 0;
-
-      if (!usesNewLogic) {
-        const maxMessages = user.maxMessages ?? 0;
-        const smsUsed = user.smsUsed ?? 0;
-
-        if (maxMessages <= 0) {
-          throw new Error("SMS_LIMIT_NOT_CONFIGURED");
-        }
-
-        remainingMessages = Math.max(maxMessages - smsUsed, 0);
-      }
-
-      /* ======================================================
-         PREVIEW CHECK
-      ====================================================== */
-
-      const previewText = String(msg.messageContent || "")
-        .replace(/{{name}}/g, "שם ארוך לבדיקה")
-        .replace(/{{rsvpLink}}/g, "https://example.com")
-        .replace(/{{tableName}}/g, "שולחן 123")
-        .replace(/{{navigationLink}}/g, navigationLink || "https://waze.com");
-
-      const partsPerMessage = countBusinessSms(previewText);
-
-      if (partsPerMessage === -1) {
-        throw new Error("MESSAGE_TOO_LONG");
-      }
-
-      /* ======================================================
-         SEND SMS (PARALLEL)
-      ====================================================== */
+      /* ================= SEND ================= */
 
       let sent = 0;
       let charged = 0;
@@ -226,24 +159,14 @@ export async function sendScheduledSms() {
           if (phone.startsWith("0")) phone = "972" + phone.slice(1);
           else if (!phone.startsWith("972")) phone = "972" + phone;
 
-          const personalRsvpUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-          const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
+          const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+          const shortUrl = await shortenUrl(personalUrl);
 
-          const tableName =
-            typeof guest.tableNumber === "number"
-              ? `שולחן ${guest.tableNumber}`
-              : guest.tableName || "";
-
-          let finalText = String(msg.messageContent || "")
+          let text = String(msg.messageContent || "")
             .replace(/{{name}}/g, guest.name || "")
-            .replace(/{{rsvpLink}}/g, shortRsvpUrl)
-            .replace(/{{tableName}}/g, tableName)
-            .replace(/{{navigationLink}}/g, navigationLink);
+            .replace(/{{rsvpLink}}/g, shortUrl);
 
-          finalText = finalText.trim();
-          if (!finalText) return;
-
-          const parts = countBusinessSms(finalText);
+          const parts = countBusinessSms(text);
           if (parts === -1) return;
 
           try {
@@ -258,31 +181,24 @@ export async function sendScheduledSms() {
                   pass: process.env.SMS4FREE_PASS,
                   sender: process.env.SMS4FREE_SENDER,
                   recipient: phone,
-                  msg: finalText,
+                  msg: text,
                 }),
               }
             );
 
-            // ✅ רק הצלחות נכנסות (תיקון קריטי)
             if (res.ok) {
               sent++;
               charged += parts;
               sentGuestIds.push(guest._id);
               completedGuests.push(guest._id);
-            } else {
-              console.error("SMS failed:", guest._id);
             }
-          } catch (err) {
-            console.error("SMS error:", guest._id, err);
-          }
+          } catch {}
         });
       }
 
       await runParallel(tasks, 5);
 
-      /* ======================================================
-         UPDATE MESSAGE
-      ====================================================== */
+      /* ================= UPDATE ================= */
 
       await ScheduledMessage.updateOne(
         { _id: msg._id },
@@ -295,15 +211,10 @@ export async function sendScheduledSms() {
         }
       );
 
-      // ✅ תיקון קריטי - חישוב נכון של סיום
-      const totalGuests = await InvitationGuest.countDocuments({
-        invitationId: msg.invitationId,
-      });
-
-      const totalCompleted =
+      const newTotalCompleted =
         (msg.completedGuests?.length || 0) + completedGuests.length;
 
-      const finished = totalCompleted >= totalGuests;
+      const finished = newTotalCompleted >= totalGuests;
 
       await ScheduledMessage.updateOne(
         { _id: msg._id },
@@ -319,30 +230,14 @@ export async function sendScheduledSms() {
 
       sentTotal += sent;
 
-      if (usesNewLogic && sent > 0) {
-        if (isReminder) {
-          await Invitation.updateOne(
-            { _id: invitation._id },
-            { $set: { reminderSentAt: new Date() } }
-          );
-        }
-
-        if (isThankYou) {
-          await Invitation.updateOne(
-            { _id: invitation._id },
-            { $set: { thankYouSentAt: new Date() } }
-          );
-        }
-      }
-
-      if (!usesNewLogic && charged > 0) {
+      if (!user.isActive && charged > 0) {
         await User.updateOne(
           { _id: msg.userId },
           { $inc: { smsUsed: charged } }
         );
       }
     } catch (err: any) {
-      console.error("💥 Scheduled SMS Worker Error:", err);
+      console.error("💥 Worker error:", err);
 
       await ScheduledMessage.updateOne(
         { _id: candidate._id },
@@ -350,7 +245,6 @@ export async function sendScheduledSms() {
           $set: {
             status: "failed",
             error: err?.message || "UNKNOWN_ERROR",
-            sentAt: new Date(),
             lockedAt: null,
             lockedBy: null,
           },
