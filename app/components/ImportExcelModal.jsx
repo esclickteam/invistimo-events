@@ -238,7 +238,7 @@ onClose?.();
             המערכת יודעת לעבוד עם קובץ אקסל במבנה מסוים.
           </p>
           <a
-            href="/Invistimo_v3.xlsx?v=3"
+            href="/Invistimo_v4.xlsx?v=4"
             download
             className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm hover:bg-blue-200 transition"
           >
