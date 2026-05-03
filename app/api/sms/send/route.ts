@@ -594,11 +594,11 @@ if (sent > 0) {
   }
 
   if (templateKey === "table") {
-    await Invitation.updateOne(
-      { _id: invitationId },
-      { $set: { reminderSentAt: new Date() } }
-    );
-  }
+  await Invitation.updateOne(
+    { _id: invitationId, reminderSentAt: { $in: [null, undefined] } },
+    { $set: { reminderSentAt: new Date() } }
+  );
+}
 
   if (templateKey === "custom") {
     await Invitation.updateOne(

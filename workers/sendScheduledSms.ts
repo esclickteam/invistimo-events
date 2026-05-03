@@ -213,22 +213,34 @@ export async function sendScheduledSms() {
       /* ================= UPDATE SUCCESS ================= */
 
       await ScheduledMessage.updateOne(
-        { _id: msg._id },
-        {
-          $set: {
-            status: "sent",
-            sentAt: new Date(),
-            lockedAt: null,
-          },
-          $inc: {
-            sentCount: sent,
-          },
-          $push: {
-            sentGuestIds: { $each: sentGuestIds },
-          },
-        }
-      );
+  { _id: msg._id },
+  {
+    $set: {
+      status: "sent",
+      sentAt: new Date(),
+      lockedAt: null,
+    },
+    $inc: {
+      sentCount: sent,
+    },
+    $push: {
+      sentGuestIds: { $each: sentGuestIds },
+    },
+  }
+);
 
+/* ================= 🔥 UPDATE REMINDER ================= */
+
+if (sent > 0 && msg.templateKey === "table") {
+  await Invitation.updateOne(
+    { _id: msg.invitationId, reminderSentAt: null },
+    {
+      $set: {
+        reminderSentAt: new Date(),
+      },
+    }
+  );
+}
       sentTotal += sent;
 
       if (!user.isActive && charged > 0) {
