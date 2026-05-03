@@ -1,9 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import dbConnect from "@/lib/db";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
+
+/* ================= AUTH ================= */
+async function getAuthUserId() {
+  const cookieStore = await cookies();
+
+  const token =
+    cookieStore.get("authToken")?.value ||
+    cookieStore.get("token")?.value ||
+    null;
+
+  if (!token) return null;
+
+  try {
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    return decoded?.userId || decoded?.id || decoded?._id || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ================= POST ================= */
 
 export async function POST(req: NextRequest) {
   await dbConnect();
+
+  const userId = await getAuthUserId();
+
+  if (!userId) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
 
   const body = await req.json();
 
@@ -13,7 +42,7 @@ export async function POST(req: NextRequest) {
     channel,
     scheduledAt,
     audience,
-    round, // 🔥 חשוב מאוד אצלך
+    round,
   } = body;
 
   if (!invitationId || !type || !channel || !scheduledAt) {
@@ -23,16 +52,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 🔥 חיפוש תזמון קיים לפי round
   let existing = await ScheduledMessage.findOne({
     invitationId,
     type,
     channel,
     round: round ?? 1,
+    userId, // 🔥 חשוב
     status: "pending",
   });
 
-  // ================= UPDATE =================
+  // UPDATE
   if (existing) {
     if (existing.lockedAt) {
       return NextResponse.json(
@@ -49,7 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(existing);
   }
 
-  // ================= CREATE =================
+  // CREATE
   const msg = await ScheduledMessage.create({
     invitationId,
     type,
@@ -59,6 +88,7 @@ export async function POST(req: NextRequest) {
     audience: audience ?? [],
     status: "pending",
     lockedAt: null,
+    userId, // 🔥🔥🔥 זה התיקון
   });
 
   return NextResponse.json(msg);

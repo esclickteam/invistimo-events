@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 /* ================= TYPES ================= */
 
@@ -29,22 +29,31 @@ export default function WhatsAppScheduleManager({
   type,
   existingSchedule,
   audience = [],
-  round, // 👈🔥 זה התיקון
+  round,
   onUpdated,
 }: Props) {
-  const [scheduledAt, setScheduledAt] = useState<string>(
-    existingSchedule?.scheduledAt
-      ? new Date(existingSchedule.scheduledAt).toISOString().slice(0, 16)
-      : ""
-  );
-
+  const [scheduledAt, setScheduledAt] = useState<string>("");
   const [loading, setLoading] = useState(false);
+
+  /* ================= SYNC EXISTING ================= */
+
+  useEffect(() => {
+    if (existingSchedule?.scheduledAt) {
+      setScheduledAt(
+        new Date(existingSchedule.scheduledAt)
+          .toISOString()
+          .slice(0, 16)
+      );
+    } else {
+      setScheduledAt("");
+    }
+  }, [existingSchedule]);
 
   const isEditable =
     !existingSchedule ||
     (existingSchedule.status === "pending" && !existingSchedule.lockedAt);
 
-  // ================= CREATE / UPDATE =================
+  /* ================= CREATE / UPDATE ================= */
 
   async function handleSave() {
     if (!scheduledAt) return alert("בחרי תאריך");
@@ -61,7 +70,7 @@ export default function WhatsAppScheduleManager({
           channel: "whatsapp",
           audience,
           scheduledAt: new Date(scheduledAt),
-          round, // 👈 עכשיו זה עובד
+          round: round ?? 1, // 🔥 תיקון
         }),
       });
 
@@ -78,7 +87,7 @@ export default function WhatsAppScheduleManager({
     }
   }
 
-  // ================= CANCEL =================
+  /* ================= CANCEL ================= */
 
   async function handleCancel() {
     if (!existingSchedule?._id) return;
@@ -105,7 +114,7 @@ export default function WhatsAppScheduleManager({
     }
   }
 
-  // ================= UI =================
+  /* ================= UI ================= */
 
   return (
     <div className="border rounded-xl p-4 space-y-4 bg-white">
@@ -128,7 +137,7 @@ export default function WhatsAppScheduleManager({
         type="datetime-local"
         value={scheduledAt}
         onChange={(e) => setScheduledAt(e.target.value)}
-        disabled={!isEditable}
+        disabled={!isEditable || loading}
         className="border rounded-lg p-2 w-full"
       />
 
