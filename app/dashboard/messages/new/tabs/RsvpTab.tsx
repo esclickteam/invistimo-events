@@ -251,33 +251,23 @@ const [half, setHalf] = useState<HalfType>(null);
 ]);
 
 const scheduleRes = await fetch(
-  `/api/scheduled/by-invitation?invitationId=${invitationId}&type=rsvp`,
+  `/api/scheduled/by-invitation?invitationId=${invitationId}&type=rsvp&round=${round}`,
   { cache: "no-store" }
 );
 
 const scheduleData = await scheduleRes.json();
 
-// 🔥 לוגים חשובים
-console.log("📦 scheduleData:", scheduleData);
-console.log("📦 scheduleData.schedule:", scheduleData?.schedule);
-
 if (scheduleData?.schedule) {
-  console.log("✅ FOUND schedule:", scheduleData.schedule);
-
   setExistingSchedule(scheduleData.schedule);
 
   if (scheduleData.schedule.scheduledAt) {
     const d = new Date(scheduleData.schedule.scheduledAt);
-
-    console.log("📅 parsed date:", d);
 
     setScheduledDate(d.toISOString().slice(0, 10));
     setScheduledTime(d.toISOString().slice(11, 16));
     setSendTiming("scheduled");
   }
 } else {
-  console.log("❌ NO schedule returned");
-
   setExistingSchedule(null);
 }
 
@@ -670,27 +660,29 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     </div>
   )}
 
-{existingSchedule?.status === "scheduled" &&
- existingSchedule?.scheduledAt && (
-  <>
-    <div className="text-sm text-gray-600">
-      מתוזמן ל־
-      {new Date(existingSchedule.scheduledAt).toLocaleDateString("he-IL")}{" "}
-      בשעה{" "}
-      {new Date(existingSchedule.scheduledAt).toLocaleTimeString("he-IL", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}
-    </div>
+{existingSchedule &&
+  existingSchedule.status === "scheduled" &&
+  existingSchedule.scheduledAt &&
+  !isNaN(new Date(existingSchedule.scheduledAt).getTime()) && (
+    <>
+      <div className="text-sm text-gray-600">
+        מתוזמן ל־
+        {new Date(existingSchedule.scheduledAt).toLocaleDateString("he-IL")}{" "}
+        בשעה{" "}
+        {new Date(existingSchedule.scheduledAt).toLocaleTimeString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </div>
 
-    <button
-      onClick={handleCancelSchedule}
-      disabled={cancelLoading}
-      className="w-full bg-red-500 text-white py-3 rounded-xl mt-2 disabled:opacity-60"
-    >
-      {cancelLoading ? "מבטל..." : "❌ בטל תזמון"}
-    </button>
-  </>
+      <button
+        onClick={handleCancelSchedule}
+        disabled={cancelLoading}
+        className="w-full bg-red-500 text-white py-3 rounded-xl mt-2 disabled:opacity-60"
+      >
+        {cancelLoading ? "מבטל..." : "❌ בטל תזמון"}
+      </button>
+    </>
 )}
 
 
