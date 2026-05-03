@@ -148,9 +148,7 @@ export async function POST(req: NextRequest) {
 
     await db();
 
-    /* =====================================================
-       RSVP – ATOMIC QUEUE WITH GLOBAL ROUND LOGIC
-    ===================================================== */
+    /* ================= RSVP ================= */
 
     if (
       templateName === "rsvp_invitation_media" ||
@@ -180,28 +178,20 @@ export async function POST(req: NextRequest) {
         const isRound2 = templateName === "rsvp_reminder_invistimo";
 
         const round1Already =
-  invitation.rsvpRound1SentAt ||
-  invitation.rsvpSmsRound1SentAt ||
-  invitation.rsvpSmsRound1ScheduledAt ||
-  invitation.rsvpWhatsappRound1ScheduledAt;
+          invitation.rsvpRound1SentAt ||
+          invitation.rsvpSmsRound1SentAt ||
+          invitation.rsvpSmsRound1ScheduledAt ||
+          invitation.rsvpWhatsappRound1ScheduledAt;
 
         const round2Already =
-  invitation.rsvpRound2SentAt ||
-  invitation.rsvpSmsRound2SentAt ||
-  invitation.rsvpSmsRound2ScheduledAt ||
-  invitation.rsvpWhatsappRound2ScheduledAt;
+          invitation.rsvpRound2SentAt ||
+          invitation.rsvpSmsRound2SentAt ||
+          invitation.rsvpSmsRound2ScheduledAt ||
+          invitation.rsvpWhatsappRound2ScheduledAt;
 
-        if (isRound1 && round1Already) {
-          throw new Error("RSVP_ROUND1_ALREADY_SENT");
-        }
-
-        if (isRound2 && !round1Already) {
-          throw new Error("ROUND2_NOT_ALLOWED_BEFORE_ROUND1");
-        }
-
-        if (isRound2 && round2Already) {
-          throw new Error("RSVP_ROUND2_ALREADY_SENT");
-        }
+        if (isRound1 && round1Already) throw new Error("RSVP_ROUND1_ALREADY_SENT");
+        if (isRound2 && !round1Already) throw new Error("ROUND2_NOT_ALLOWED_BEFORE_ROUND1");
+        if (isRound2 && round2Already) throw new Error("RSVP_ROUND2_ALREADY_SENT");
 
         const guests = await InvitationGuest.find({
           invitationId: invitation._id,
@@ -217,82 +207,58 @@ export async function POST(req: NextRequest) {
             ? guest.phone
             : `972${guest.phone.replace(/^0/, "")}`;
 
-          const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-
           const round = isRound1 ? 1 : 2;
-
-          const idempotencyKey =
-            `${invitation._id}_${guest._id}_${templateName}_${round}_${Date.now()}`;
 
           queueDocs.push({
             invitationId: invitation._id,
             guestId: guest._id,
             phone,
             templateName,
-            idempotencyKey,
+            idempotencyKey: `${invitation._id}_${guest._id}_${templateName}_${round}_${Date.now()}`,
             payload: {
-              rsvpLink,
+              rsvpLink: `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`,
               languageCode,
               eventTitle: invitation.title,
-              eventDate: formatEventDateTime(
-                invitation.eventDate,
-                invitation.eventTime
-              ),
-              eventLocation: cleanAddress(
-                invitation.location?.address
-              ),
+              eventDate: formatEventDateTime(invitation.eventDate, invitation.eventTime),
+              eventLocation: cleanAddress(invitation.location?.address),
               headerImageUrl: invitation.headerImageUrl || "",
             },
             status: scheduledAt ? "scheduled" : "pending",
-scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+            scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
           });
-        }
-
-        if (queueDocs.length === 0) {
-          return { queued: 0 };
         }
 
         await WhatsappQueue.insertMany(queueDocs, { session });
 
-        if (isRound1) {
-  await Invitation.updateOne(
-    { _id: invitation._id },
-    {
-      $set: {
-        rsvpWhatsappRound1ScheduledAt: scheduledAt
-          ? new Date(scheduledAt)
-          : new Date(),
-      },
-    },
-    { session }
-  );
-}
-
-if (isRound2) {
-  await Invitation.updateOne(
-    { _id: invitation._id },
-    {
-      $set: {
-        rsvpWhatsappRound2ScheduledAt: scheduledAt
-          ? new Date(scheduledAt)
-          : new Date(),
-      },
-    },
-    { session }
-  );
-}
-
-        if (isRound1) {
+        /* 🔥 תזמון */
+        if (isRound1 && scheduledAt) {
           await Invitation.updateOne(
-            { _id: invitation._id, rsvpRound1SentAt: { $exists: false } },
+            { _id: invitation._id },
+            { $set: { rsvpWhatsappRound1ScheduledAt: new Date(scheduledAt) } },
+            { session }
+          );
+        }
+
+        if (isRound2 && scheduledAt) {
+          await Invitation.updateOne(
+            { _id: invitation._id },
+            { $set: { rsvpWhatsappRound2ScheduledAt: new Date(scheduledAt) } },
+            { session }
+          );
+        }
+
+        /* 🔥 מיידי */
+        if (isRound1 && !scheduledAt) {
+          await Invitation.updateOne(
+            { _id: invitation._id, rsvpRound1SentAt: null },
             { $set: { rsvpRound1SentAt: new Date() } },
             { session }
           );
         }
 
-        if (isRound2) {
+        if (isRound2 && !scheduledAt) {
           await Invitation.updateOne(
-            { _id: invitation._id, rsvpRound2SentAt: { $exists: false } },
+            { _id: invitation._id, rsvpRound2SentAt: null },
             { $set: { rsvpRound2SentAt: new Date() } },
             { session }
           );
@@ -301,67 +267,7 @@ if (isRound2) {
         return { queued: queueDocs.length };
       });
 
-      return NextResponse.json({
-        success: true,
-        queued: result.queued,
-      });
-    }
-
-    /* =====================================================
-       TABLE NUMBER – IMMEDIATE
-    ===================================================== */
-
-    if (
-      templateName === "table_number_update_invistimo" ||
-      templateName === "table_number_update_with_gift"
-    ) {
-      if (
-        !isNonEmptyString(body.to) ||
-        !isNonEmptyString(body.name) ||
-        !isNonEmptyString(body.tableName) ||
-        !isNonEmptyString(body.eventType) ||
-        !isNonEmptyString(body.urlSuffix)
-      ) {
-        return NextResponse.json(
-          { success: false, error: "MISSING_TABLE_FIELDS" },
-          { status: 400 }
-        );
-      }
-
-      const providerResponse = await sendTableNumberTemplate({
-        to: body.to,
-        name: body.name,
-        tableName: body.tableName,
-        eventType: body.eventType,
-        urlSuffix: body.urlSuffix,
-        giftCreditUrl: body.giftCreditUrl,
-        templateName,
-        languageCode,
-      });
-
-      return NextResponse.json({ success: true, providerResponse });
-    }
-
-    /* =====================================================
-       THANK YOU – IMMEDIATE
-    ===================================================== */
-
-    if (templateName === "thank_you_message") {
-      if (!isNonEmptyString(body.to) || !isNonEmptyString(body.name)) {
-        return NextResponse.json(
-          { success: false, error: "MISSING_FIELDS" },
-          { status: 400 }
-        );
-      }
-
-      const providerResponse = await sendThankYouTemplate({
-        to: body.to,
-        name: body.name,
-        templateName,
-        languageCode,
-      });
-
-      return NextResponse.json({ success: true, providerResponse });
+      return NextResponse.json({ success: true, queued: result.queued });
     }
 
     return NextResponse.json(
