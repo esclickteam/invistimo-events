@@ -17,67 +17,25 @@ function countBusinessSms(text: string) {
 
 /* ====================================================== */
 
-async function runParallel(tasks: (() => Promise<void>)[], concurrency = 5) {
-  const executing: Promise<void>[] = [];
-
-  for (const task of tasks) {
-    const p = task();
-    executing.push(p);
-
-    if (executing.length >= concurrency) {
-      await Promise.race(executing).catch(() => {});
-      executing.splice(
-        executing.findIndex((e) => e === p),
-        1
-      );
-    }
-  }
-
-  await Promise.allSettled(executing);
-}
-
-/* ====================================================== */
-
 export async function sendScheduledSms() {
   await dbConnect();
 
   const now = new Date();
-  const workerId = `worker-${process.pid}-${Date.now()}`;
-
   let processed = 0;
   let sentTotal = 0;
   let failed = 0;
 
-  const candidates = await ScheduledMessage.find({
+  /* ======================================================
+     🔥 מביאים את כל ההודעות לשליחה (בלי limit)
+  ====================================================== */
+
+  const messages = await ScheduledMessage.find({
     status: "scheduled",
     scheduledAt: { $lte: now },
-    lockedAt: { $exists: false },
-  })
-    .sort({ priority: -1, scheduledAt: 1 })
-    .limit(10)
-    .lean();
+  });
 
-  for (const candidate of candidates) {
+  for (const msg of messages) {
     processed++;
-
-    const msg = await ScheduledMessage.findOneAndUpdate(
-      {
-        _id: candidate._id,
-        status: "scheduled",
-        lockedAt: { $exists: false },
-      },
-      {
-        $set: {
-          status: "sending",
-          lockedAt: new Date(),
-          lockedBy: workerId,
-          lastAttemptAt: new Date(),
-        },
-      },
-      { new: true }
-    );
-
-    if (!msg) continue;
 
     try {
       const invitation = await Invitation.findById(msg.invitationId).lean();
@@ -91,7 +49,7 @@ export async function sendScheduledSms() {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
       }
 
-      /* ================= LOAD GUESTS ================= */
+      /* ================= LOAD ALL GUESTS ================= */
 
       let guests: any[] = [];
 
@@ -106,124 +64,69 @@ export async function sendScheduledSms() {
         guests = await InvitationGuest.find(query).lean();
       }
 
-      const completed = msg.completedGuests || [];
-
-      guests = guests.filter(
-        (g) => !completed.some((id: any) => id.toString() === g._id.toString())
-      );
-
-      /* ================= 🔥 תיקון קריטי ================= */
-
-      const totalGuests =
-        Array.isArray(msg.guestIds) && msg.guestIds.length > 0
-          ? msg.guestIds.length
-          : await InvitationGuest.countDocuments({
-              invitationId: msg.invitationId,
-            });
-
-      const totalCompleted = msg.completedGuests?.length || 0;
-
-      if (!guests.length && totalCompleted >= totalGuests) {
-        await ScheduledMessage.updateOne(
-          { _id: msg._id },
-          {
-            $set: {
-              status: "sent",
-              sentAt: new Date(),
-              lockedAt: null,
-              lockedBy: null,
-            },
-          }
-        );
-        continue;
-      }
-
-      const batchSize = msg.batchSize || 50;
-      guests = guests.slice(0, batchSize);
-
-      /* ================= SEND ================= */
+      /* ================= SEND ALL (NO LIMIT) ================= */
 
       let sent = 0;
       let charged = 0;
 
       const sentGuestIds: any[] = [];
-      const completedGuests: any[] = [];
-
-      const tasks: (() => Promise<void>)[] = [];
 
       for (const guest of guests) {
-        tasks.push(async () => {
-          let phone = String(guest.phone || "").replace(/\D/g, "");
-          if (!phone) return;
+        let phone = String(guest.phone || "").replace(/\D/g, "");
+        if (!phone) continue;
 
-          if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-          else if (!phone.startsWith("972")) phone = "972" + phone;
+        if (phone.startsWith("0")) phone = "972" + phone.slice(1);
+        else if (!phone.startsWith("972")) phone = "972" + phone;
 
-          const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-          const shortUrl = await shortenUrl(personalUrl);
+        const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+        const shortUrl = await shortenUrl(personalUrl);
 
-          let text = String(msg.messageContent || "")
-            .replace(/{{name}}/g, guest.name || "")
-            .replace(/{{rsvpLink}}/g, shortUrl);
+        let text = String(msg.messageContent || "")
+          .replace(/{{name}}/g, guest.name || "")
+          .replace(/{{rsvpLink}}/g, shortUrl);
 
-          const parts = countBusinessSms(text);
-          if (parts === -1) return;
+        const parts = countBusinessSms(text);
+        if (parts === -1) continue;
 
-          try {
-            const res = await fetch(
-              "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  key: process.env.SMS4FREE_KEY,
-                  user: process.env.SMS4FREE_USER,
-                  pass: process.env.SMS4FREE_PASS,
-                  sender: process.env.SMS4FREE_SENDER,
-                  recipient: phone,
-                  msg: text,
-                }),
-              }
-            );
-
-            if (res.ok) {
-              sent++;
-              charged += parts;
-              sentGuestIds.push(guest._id);
-              completedGuests.push(guest._id);
+        try {
+          const res = await fetch(
+            "https://api.sms4free.co.il/ApiSMS/v2/SendSMS",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                key: process.env.SMS4FREE_KEY,
+                user: process.env.SMS4FREE_USER,
+                pass: process.env.SMS4FREE_PASS,
+                sender: process.env.SMS4FREE_SENDER,
+                recipient: phone,
+                msg: text,
+              }),
             }
-          } catch {}
-        });
-      }
+          );
 
-      await runParallel(tasks, 5);
+          if (res.ok) {
+            sent++;
+            charged += parts;
+            sentGuestIds.push(guest._id);
+          }
+        } catch {}
+      }
 
       /* ================= UPDATE ================= */
 
       await ScheduledMessage.updateOne(
         { _id: msg._id },
         {
-          $inc: { sentCount: sent },
+          $set: {
+            status: "sent",
+            sentAt: new Date(),
+          },
+          $inc: {
+            sentCount: sent,
+          },
           $push: {
             sentGuestIds: { $each: sentGuestIds },
-            completedGuests: { $each: completedGuests },
-          },
-        }
-      );
-
-      const newTotalCompleted =
-        (msg.completedGuests?.length || 0) + completedGuests.length;
-
-      const finished = newTotalCompleted >= totalGuests;
-
-      await ScheduledMessage.updateOne(
-        { _id: msg._id },
-        {
-          $set: {
-            status: finished ? "sent" : "scheduled",
-            sentAt: finished ? new Date() : null,
-            lockedAt: null,
-            lockedBy: null,
           },
         }
       );
@@ -240,13 +143,11 @@ export async function sendScheduledSms() {
       console.error("💥 Worker error:", err);
 
       await ScheduledMessage.updateOne(
-        { _id: candidate._id },
+        { _id: msg._id },
         {
           $set: {
             status: "failed",
             error: err?.message || "UNKNOWN_ERROR",
-            lockedAt: null,
-            lockedBy: null,
           },
         }
       );

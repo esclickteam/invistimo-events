@@ -26,38 +26,19 @@ export async function GET(request: Request) {
   }
 
   /* ======================================================
-     EXECUTE WORKER (MULTI-BATCH LOOP)
+     EXECUTE WORKER – SINGLE RUN (NO BATCHES)
   ====================================================== */
   try {
-    let totalSent = 0;
-    let totalProcessed = 0;
-    let totalFailed = 0;
-    let loops = 0;
-
-    const MAX_LOOPS = 10; // 🔥 כמה באצ'ים להריץ באותה קריאה
-
-    while (loops < MAX_LOOPS) {
-      const result = await sendScheduledSms();
-
-      totalSent += result.sent || 0;
-      totalProcessed += result.processed || 0;
-      totalFailed += result.failed || 0;
-
-      loops++;
-
-      // אם לא נשלח כלום – אין עוד מה לעשות
-      if (!result.sent) break;
-    }
+    const result = await sendScheduledSms();
 
     return NextResponse.json(
       {
         success: true,
         message: "Scheduled SMS worker executed",
         stats: {
-          totalSent,
-          totalProcessed,
-          totalFailed,
-          loops,
+          totalSent: result.sent || 0,
+          totalProcessed: result.processed || 0,
+          totalFailed: result.failed || 0,
         },
       },
       {
