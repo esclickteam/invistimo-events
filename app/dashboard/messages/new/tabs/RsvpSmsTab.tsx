@@ -200,17 +200,21 @@ const round2Scheduled = scheduledMessages.some(
 
         const round1Sent =
   inv?.rsvpRound1SentAt ||
-  inv?.rsvpSmsRound1SentAt;
+  inv?.rsvpSmsRound1SentAt ||
+  inv?.rsvpWhatsappRound1ScheduledAt; // 🔥 הוספה
 
 const round2Sent =
   inv?.rsvpRound2SentAt ||
-  inv?.rsvpSmsRound2SentAt;
+  inv?.rsvpSmsRound2SentAt ||
+  inv?.rsvpWhatsappRound2ScheduledAt; // 🔥 הוספה
 
 const round1Scheduled =
-  inv?.rsvpSmsRound1ScheduledAt;
+  inv?.rsvpSmsRound1ScheduledAt ||
+  inv?.rsvpWhatsappRound1ScheduledAt;
 
 const round2Scheduled =
-  inv?.rsvpSmsRound2ScheduledAt;
+  inv?.rsvpSmsRound2ScheduledAt ||
+  inv?.rsvpWhatsappRound2ScheduledAt;
 
 setRsvpRound1Sent(!!round1Sent);
 setRsvpRound2Sent(!!round2Sent);
