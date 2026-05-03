@@ -133,12 +133,9 @@ const SendButton: React.FC<Props> = ({
       ) {
         alert("ℹ️ הודעה זו כבר נשלחה ולא ניתן לשלוח שוב");
 
-        if (!scheduledAt) {
-  setSent(true); // רק אם שליחה מיידית
-}
-
-onAfterSend?.();
-return;
+        setSent(true);
+        onAfterSend?.();
+        return;
       }
 
       if (!res.ok || !data?.success) {
@@ -158,9 +155,7 @@ return;
         alert(`📤 ${count} הודעות נכנסו לתהליך שליחה ב-${channelLabel}`);
       }
 
-      if (!scheduledAt) {
-  setSent(true);
-}
+      setSent(true);
 
       onAfterSend?.();
     } catch (err) {
@@ -176,12 +171,12 @@ return;
   };
 
   const isDisabled =
-  disabled ||
-  (sent && !scheduledAt) || // 🔥 חשוב
-  sending ||
-  inFlightRef.current ||
-  !audience ||
-  audience.length === 0;
+    disabled ||
+    sent ||
+    sending ||
+    inFlightRef.current ||
+    !audience ||
+    audience.length === 0;
 
   /* ================= RENDER ================= */
 
@@ -202,11 +197,7 @@ return;
         transition
       "
     >
-      {sending
-  ? "שולח..."
-  : sent && !scheduledAt
-  ? "נשלח ✓"
-  : children}
+      {sent ? "נשלח ✓" : sending ? "שולח..." : children}
     </button>
   );
 };
