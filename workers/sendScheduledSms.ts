@@ -231,15 +231,30 @@ export async function sendScheduledSms() {
 
 /* ================= 🔥 UPDATE REMINDER ================= */
 
-if (sent > 0 && msg.templateKey === "table") {
-  await Invitation.updateOne(
-    { _id: msg.invitationId, reminderSentAt: null },
-    {
-      $set: {
-        reminderSentAt: new Date(),
-      },
-    }
-  );
+if (sent > 0) {
+  // 🔔 תזכורת (table)
+  if (msg.templateKey === "table") {
+    await Invitation.updateOne(
+      { _id: msg.invitationId, reminderSentAt: { $in: [null, undefined] } },
+      {
+        $set: {
+          reminderSentAt: new Date(),
+        },
+      }
+    );
+  }
+
+  // 💌 תודה (custom)
+  if (msg.templateKey === "custom") {
+    await Invitation.updateOne(
+      { _id: msg.invitationId, thankYouSentAt: { $in: [null, undefined] } },
+      {
+        $set: {
+          thankYouSentAt: new Date(),
+        },
+      }
+    );
+  }
 }
       sentTotal += sent;
 
