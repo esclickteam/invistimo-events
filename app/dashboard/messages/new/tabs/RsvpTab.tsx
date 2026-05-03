@@ -251,7 +251,7 @@ const [half, setHalf] = useState<HalfType>(null);
 ]);
 
 const scheduleRes = await fetch(
-  `/api/scheduled/by-invitation?invitationId=${invitationId}&type=rsvp&round=${round}`,
+  `/api/scheduled/by-invitation?invitationId=${invitationId}&type=rsvp`,
   { cache: "no-store" }
 );
 
