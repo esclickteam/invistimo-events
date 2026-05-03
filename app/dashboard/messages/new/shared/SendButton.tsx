@@ -133,9 +133,12 @@ const SendButton: React.FC<Props> = ({
       ) {
         alert("ℹ️ הודעה זו כבר נשלחה ולא ניתן לשלוח שוב");
 
-        setSent(true);
-        onAfterSend?.();
-        return;
+        if (!scheduledAt) {
+  setSent(true); // רק אם שליחה מיידית
+}
+
+onAfterSend?.();
+return;
       }
 
       if (!res.ok || !data?.success) {
@@ -171,12 +174,12 @@ const SendButton: React.FC<Props> = ({
   };
 
   const isDisabled =
-    disabled ||
-    sent ||
-    sending ||
-    inFlightRef.current ||
-    !audience ||
-    audience.length === 0;
+  disabled ||
+  (sent && !scheduledAt) || // 🔥 חשוב
+  sending ||
+  inFlightRef.current ||
+  !audience ||
+  audience.length === 0;
 
   /* ================= RENDER ================= */
 
