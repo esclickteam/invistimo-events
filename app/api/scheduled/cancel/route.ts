@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import ScheduledMessage from "@/models/ScheduledMessage";
+import WhatsAppQueue from "@/models/WhatsappQueue"; // 🔥 שינוי
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
-/* ======================================================
-   Auth Helper
-====================================================== */
+/* ====================================================== */
+
 async function getAuthUserId() {
   const cookieStore = await cookies();
 
@@ -33,9 +32,8 @@ async function getAuthUserId() {
   }
 }
 
-/* ======================================================
-   POST - Cancel Schedule
-====================================================== */
+/* ====================================================== */
+
 export async function POST(req: NextRequest) {
   await dbConnect();
 
@@ -60,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     /* ================= FIND ================= */
 
-    const schedule = await ScheduledMessage.findById(scheduleId);
+    const schedule = await WhatsAppQueue.findById(scheduleId); // 🔥 שינוי
 
     if (!schedule) {
       return NextResponse.json(

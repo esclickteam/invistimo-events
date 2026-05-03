@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import { sendScheduledSms } from "@/workers/sendScheduledSms";
-
-/* ======================================================
-   Vercel Cron – Send Scheduled SMS
-   🔔 רץ כל דקה דרך vercel.json
-====================================================== */
+import {
+  sendScheduledSms,
+  sendScheduledWhatsapp,
+} from "@/workers/sendScheduledSms";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(request: Request) {
-  /* ======================================================
-     AUTH – רק Vercel Cron
-  ====================================================== */
   const authHeader = request.headers.get("authorization");
 
   if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -25,20 +20,23 @@ export async function GET(request: Request) {
     );
   }
 
-  /* ======================================================
-     EXECUTE WORKER – SINGLE RUN (NO BATCHES)
-  ====================================================== */
   try {
-    const result = await sendScheduledSms();
+    const smsResult = await sendScheduledSms();
+    const whatsappResult = await sendScheduledWhatsapp();
 
     return NextResponse.json(
       {
         success: true,
-        message: "Scheduled SMS worker executed",
+        message: "Scheduled workers executed",
         stats: {
-          totalSent: result.sent || 0,
-          totalProcessed: result.processed || 0,
-          totalFailed: result.failed || 0,
+          sms: {
+            totalSent: smsResult.sent || 0,
+            totalProcessed: smsResult.processed || 0,
+            totalFailed: smsResult.failed || 0,
+          },
+          whatsapp: {
+            totalSent: whatsappResult.sent || 0,
+          },
         },
       },
       {

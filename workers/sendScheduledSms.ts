@@ -1,5 +1,6 @@
 import dbConnect from "@/lib/db";
-import ScheduledMessage from "@/models/ScheduledMessage";
+import ScheduledMessage from "@/models/ScheduledMessage"; // SMS
+import WhatsAppQueue from "@/models/WhatsappQueue";       // WhatsApp
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
@@ -51,6 +52,8 @@ async function sendWhatsappTemplate({
   }
 }
 
+/* ====================================================== */
+/* ================= SMS WORKER ================= */
 /* ====================================================== */
 
 export async function sendScheduledSms() {
@@ -115,7 +118,6 @@ export async function sendScheduledSms() {
   for (const msg of messages) {
     processed++;
 
-    /* 🔥 בדיקה לפני התחלת שליחה */
     const freshBefore = await ScheduledMessage.findById(msg._id).lean();
     if (!freshBefore || freshBefore.status === "cancelled") {
       console.log("⛔ skipped cancelled message", msg._id);
@@ -134,8 +136,6 @@ export async function sendScheduledSms() {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
       }
 
-      /* ================= LOAD GUESTS ================= */
-
       let guests: any[] = [];
 
       if (Array.isArray(msg.guestIds) && msg.guestIds.length > 0) {
@@ -153,10 +153,7 @@ export async function sendScheduledSms() {
       let charged = 0;
       const sentGuestIds: any[] = [];
 
-      /* ================= LOOP ================= */
-
       for (const guest of guests) {
-        /* 🔥 עצירה תוך כדי שליחה */
         const freshMid = await ScheduledMessage.findById(msg._id).lean();
         if (!freshMid || freshMid.status === "cancelled") {
           console.log("⛔ stopped mid-send", msg._id);
@@ -168,25 +165,6 @@ export async function sendScheduledSms() {
 
         if (phone.startsWith("0")) phone = "972" + phone.slice(1);
         else if (!phone.startsWith("972")) phone = "972" + phone;
-
-        /* ================= WHATSAPP ================= */
-
-        if (msg.channel === "whatsapp") {
-          const success = await sendWhatsappTemplate({
-            phone,
-            templateName: msg.templateName,
-            payload: msg.payload || {},
-          });
-
-          if (success) {
-            sent++;
-            sentGuestIds.push(guest._id);
-          }
-
-          continue;
-        }
-
-        /* ================= SMS ================= */
 
         const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
         const shortUrl = await shortenUrl(personalUrl);
@@ -224,10 +202,8 @@ export async function sendScheduledSms() {
         } catch {}
       }
 
-      /* ================= UPDATE SUCCESS ================= */
-
       await ScheduledMessage.updateOne(
-        { _id: msg._id, status: { $ne: "cancelled" } }, // 🔥 הגנה
+        { _id: msg._id, status: { $ne: "cancelled" } },
         {
           $set: {
             status: "sent",
@@ -268,4 +244,94 @@ export async function sendScheduledSms() {
     sent: sentTotal,
     failed,
   };
+}
+
+/* ====================================================== */
+/* ================= WHATSAPP WORKER ================= */
+/* ====================================================== */
+
+export async function sendScheduledWhatsapp() {
+  await dbConnect();
+
+  const now = new Date();
+
+  const messages: any[] = [];
+
+  for (let i = 0; i < 50; i++) {
+    const msg = await WhatsAppQueue.findOneAndUpdate(
+      {
+        status: "scheduled",
+        scheduledAt: { $lte: now },
+      },
+      {
+        $set: {
+          status: "sending",
+          lockedAt: new Date(),
+        },
+      },
+      {
+        sort: { scheduledAt: 1 },
+        new: true,
+      }
+    );
+
+    if (!msg) break;
+    messages.push(msg);
+  }
+
+  for (const msg of messages) {
+    const fresh = await WhatsAppQueue.findById(msg._id);
+    if (!fresh || fresh.status === "cancelled") continue;
+
+    const guests = await InvitationGuest.find({
+      _id: { $in: msg.guestIds || [] },
+    });
+
+    let sent = 0;
+    const sentGuestIds: any[] = [];
+
+    for (const guest of guests) {
+      const freshMid = await WhatsAppQueue.findById(msg._id);
+      if (!freshMid || freshMid.status === "cancelled") break;
+
+      let phone = String(guest.phone || "").replace(/\D/g, "");
+      if (!phone) continue;
+
+      if (phone.startsWith("0")) phone = "972" + phone.slice(1);
+      else if (!phone.startsWith("972")) phone = "972" + phone;
+
+      const success = await sendWhatsappTemplate({
+        phone,
+        templateName: msg.templateName,
+        payload: msg.payload || {},
+      });
+
+      if (success) {
+        sent++;
+        sentGuestIds.push(guest._id);
+      }
+    }
+
+    await WhatsAppQueue.updateOne(
+  { _id: msg._id, status: { $ne: "cancelled" } },
+  {
+    $set: {
+      status: "sent",
+      sentAt: new Date(),
+      lockedAt: null,
+    },
+    $inc: {
+      sentCount: sent,
+    },
+    $push: {
+      sentGuestIds: { $each: sentGuestIds },
+    },
+  }
+);
+
+} // סוף הלולאה
+
+return {
+  sent: messages.length,
+};
 }

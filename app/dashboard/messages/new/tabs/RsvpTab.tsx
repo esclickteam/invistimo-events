@@ -111,6 +111,7 @@ export default function RsvpTab({
 const [sendTiming, setSendTiming] = useState<SendTiming>("now");
 const [scheduledDate, setScheduledDate] = useState("");
 const [scheduledTime, setScheduledTime] = useState("");
+
 const [existingSchedule, setExistingSchedule] = useState<any | null>(null);
 const [cancelLoading, setCancelLoading] = useState(false);
 
@@ -170,13 +171,13 @@ useEffect(() => {
     }
   }
 
-async function handleCancelSchedule() {
+  async function handleCancelSchedule() {
   if (!existingSchedule?._id) return;
 
   const ok = confirm("לבטל את התזמון?");
   if (!ok) return;
 
-  setCancelLoading(true); // 🔥 מתחיל loading
+  setCancelLoading(true);
 
   try {
     const res = await fetch("/api/scheduled/cancel", {
@@ -191,7 +192,6 @@ async function handleCancelSchedule() {
 
     if (!res.ok) throw new Error(data.error);
 
-    // ניקוי UI
     setExistingSchedule(null);
     setScheduledDate("");
     setScheduledTime("");
@@ -201,7 +201,7 @@ async function handleCancelSchedule() {
   } catch (err: any) {
     alert(err.message);
   } finally {
-    setCancelLoading(false); // 🔥 תמיד מתאפס (גם אם יש שגיאה)
+    setCancelLoading(false);
   }
 }
 
@@ -266,19 +266,9 @@ if (scheduleData?.schedule) {
     setScheduledDate(d.toISOString().slice(0, 10));
     setScheduledTime(d.toISOString().slice(11, 16));
     setSendTiming("scheduled");
-  } else {
-    // אם יש schedule אבל בלי תאריך (נדיר)
-    setScheduledDate("");
-    setScheduledTime("");
-    setSendTiming("now");
   }
 } else {
-  // 🔥 הכי חשוב – אין תזמון בכלל
   setExistingSchedule(null);
-  setScheduledDate("");
-  setScheduledTime("");
-  setScheduledAt(null);
-  setSendTiming("now");
 }
 
         const guestsData = await guestsRes.json();
@@ -423,7 +413,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   noAudience ||
   missingHeaderImage ||
   (sendTiming === "scheduled" && !scheduledAt) ||
-  existingSchedule?.status === "pending" || // 🔥 זה מה שחסר
+  existingSchedule?.status === "scheduled" || // 👈 זה מה שחסר
   (round === 1 && !!round1SentAt) ||
   (round === 2 && !!round2SentAt);
 
@@ -666,7 +656,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     </div>
   )}
 
-  {existingSchedule && existingSchedule.status === "pending" && (
+{existingSchedule && existingSchedule.status === "scheduled" && (
   <>
     <div className="text-sm text-gray-600">
       מתוזמן ל־
@@ -687,8 +677,6 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     </button>
   </>
 )}
-
-
 
 
 </div>
