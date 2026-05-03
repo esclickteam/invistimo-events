@@ -178,9 +178,9 @@ export async function sendScheduledSms() {
         const shortUrl = await shortenUrl(personalUrl);
 
         let text = String(msg.messageContent || "")
-          .replace(/{{name}}/g, guest.name || "")
-          .replace(/{{rsvpLink}}/g, shortUrl);
-            .replace(/{{tableName}}/g, guest.tableName || ""); // 🔥 זה החסר
+  .replace(/{{name}}/g, guest.name || "")
+  .replace(/{{rsvpLink}}/g, shortUrl)
+  .replace(/{{tableName}}/g, guest.tableName || "");
 
         const parts = countBusinessSms(text);
         if (parts === -1) continue;
