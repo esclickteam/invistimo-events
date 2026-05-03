@@ -354,9 +354,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   loading ||
   noAudience ||
   missingHeaderImage ||
-  (sendTiming === "scheduled" && !scheduledAt) ||
-  (round === 1 && !!round1SentAt) ||
-  (round === 2 && !!round2SentAt);
+  (sendTiming === "scheduled" && !scheduledAt);
 
   const previewText = useMemo(() => {
     if (!eventData) return "";

@@ -10,7 +10,6 @@ import { cookies } from "next/headers";
 async function getAuthUserId() {
   const cookieStore = await cookies();
 
-  // תאימות אם אצלך לפעמים משתמשים בשם token אחר
   const token =
     cookieStore.get("authToken")?.value ||
     cookieStore.get("token")?.value ||
@@ -97,7 +96,6 @@ export async function PATCH(
       );
     }
 
-    // לא לאפשר זמן עבר
     if (scheduledAt.getTime() <= Date.now()) {
       return NextResponse.json(
         { success: false, error: "PAST_TIME_NOT_ALLOWED" },
@@ -105,22 +103,45 @@ export async function PATCH(
       );
     }
 
+    /* ================= FIND MESSAGE ================= */
     const msg = await ScheduledMessage.findOne({
       _id: id,
       userId: auth.userId,
-      status: "scheduled",
     });
 
     if (!msg) {
       return NextResponse.json(
-        { success: false, error: "NOT_FOUND_OR_LOCKED" },
+        { success: false, error: "NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    msg.text = text;
-    msg.scheduledAt = scheduledAt;
-    await msg.save();
+    /* ================= BLOCK IF SENT ================= */
+    if (msg.status === "sent") {
+      return NextResponse.json(
+        { success: false, error: "ALREADY_SENT" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= 🔥 RESET & UPDATE ================= */
+    await ScheduledMessage.updateOne(
+      { _id: id },
+      {
+        $set: {
+          messageContent: text,
+          scheduledAt: scheduledAt,
+
+          status: "scheduled",   // 🔥 מחזיר לתור
+          sentAt: null,          // 🔥 מאפס שליחה
+          lockedAt: null,        // 🔥 פותח נעילה
+          updatedAt: new Date(),
+        },
+        $unset: {
+          error: 1,              // 🔥 מנקה שגיאות ישנות
+        },
+      }
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -142,7 +163,6 @@ export async function DELETE(
   try {
     await dbConnect();
 
-    /* ================= AUTH ================= */
     const auth = await getAuthUserId();
     if (!auth.ok) {
       return NextResponse.json(
@@ -151,7 +171,6 @@ export async function DELETE(
       );
     }
 
-    /* ================= PARAMS ================= */
     const { id } = await context.params;
     if (!id) {
       return NextResponse.json(
@@ -163,13 +182,19 @@ export async function DELETE(
     const msg = await ScheduledMessage.findOne({
       _id: id,
       userId: auth.userId,
-      status: "scheduled",
     });
 
     if (!msg) {
       return NextResponse.json(
-        { success: false, error: "NOT_FOUND_OR_LOCKED" },
+        { success: false, error: "NOT_FOUND" },
         { status: 404 }
+      );
+    }
+
+    if (msg.status === "sent") {
+      return NextResponse.json(
+        { success: false, error: "ALREADY_SENT" },
+        { status: 400 }
       );
     }
 
