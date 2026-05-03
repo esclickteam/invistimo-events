@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useRef, useState } from "react";
+import React, { ReactNode, useRef, useState, useEffect } from "react";
 
 /* ================= TYPES ================= */
 
@@ -26,7 +26,6 @@ type Props = {
 
   round?: 1 | 2;
 
-  // 🔥 חדש
   messageId?: string | null;
 };
 
@@ -50,7 +49,7 @@ const SendButton: React.FC<Props> = ({
   children,
 
   round,
-  messageId, // 🔥 חדש
+  messageId,
 }) => {
   const channelLabel = channel === "sms" ? "SMS" : "WhatsApp";
 
@@ -58,6 +57,11 @@ const SendButton: React.FC<Props> = ({
   const [sent, setSent] = useState(false);
 
   const inFlightRef = useRef(false);
+
+  // 🔥 זה התיקון הקריטי
+  useEffect(() => {
+    setSent(false);
+  }, [scheduledAt]);
 
   const handleSend = async () => {
     if (disabled || sent || sending || inFlightRef.current) return;
@@ -119,7 +123,7 @@ const SendButton: React.FC<Props> = ({
 
       let res;
 
-      /* ================= 🔥 EDIT (PATCH) ================= */
+      /* ================= ✏️ EDIT ================= */
 
       if (messageId && scheduledAt) {
         res = await fetch(`/api/scheduled-message/${messageId}`, {
@@ -133,7 +137,7 @@ const SendButton: React.FC<Props> = ({
         });
       }
 
-      /* ================= 🆕 CREATE (POST) ================= */
+      /* ================= 🆕 CREATE ================= */
 
       else {
         res = await fetch(endpoint, {
@@ -146,7 +150,7 @@ const SendButton: React.FC<Props> = ({
 
       const data = await res.json();
 
-      /* ================= SERVER BLOCK STATES ================= */
+      /* ================= ERRORS ================= */
 
       if (
         res.status === 409 ||
@@ -202,8 +206,6 @@ const SendButton: React.FC<Props> = ({
     inFlightRef.current ||
     !audience ||
     audience.length === 0;
-
-  /* ================= RENDER ================= */
 
   return (
     <button
