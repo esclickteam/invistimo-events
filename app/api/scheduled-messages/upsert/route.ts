@@ -13,31 +13,52 @@ export async function POST(req: NextRequest) {
     channel,
     scheduledAt,
     audience,
+    round, // 🔥 חשוב מאוד אצלך
   } = body;
 
-  // אם כבר קיים תזמון → עדכון
+  if (!invitationId || !type || !channel || !scheduledAt) {
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 }
+    );
+  }
+
+  // 🔥 חיפוש תזמון קיים לפי round
   let existing = await ScheduledMessage.findOne({
     invitationId,
     type,
     channel,
+    round: round ?? 1,
     status: "pending",
   });
 
-  if (existing && !existing.lockedAt) {
-    existing.scheduledAt = scheduledAt;
+  // ================= UPDATE =================
+  if (existing) {
+    if (existing.lockedAt) {
+      return NextResponse.json(
+        { error: "ההודעה כבר בתהליך שליחה ולא ניתן לערוך" },
+        { status: 400 }
+      );
+    }
+
+    existing.scheduledAt = new Date(scheduledAt);
+    existing.audience = audience ?? existing.audience;
+
     await existing.save();
 
     return NextResponse.json(existing);
   }
 
-  // אם אין → יצירה
+  // ================= CREATE =================
   const msg = await ScheduledMessage.create({
     invitationId,
     type,
     channel,
-    scheduledAt,
-    audience,
+    round: round ?? 1,
+    scheduledAt: new Date(scheduledAt),
+    audience: audience ?? [],
     status: "pending",
+    lockedAt: null,
   });
 
   return NextResponse.json(msg);
