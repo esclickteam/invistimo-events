@@ -82,7 +82,7 @@ const WhatsappQueueSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["pending", "sending", "sent", "failed"],
+      enum: ["pending", "scheduled", "sent", "failed"],
       default: "pending",
       index: true,
     },
