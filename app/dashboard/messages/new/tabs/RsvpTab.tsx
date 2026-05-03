@@ -112,6 +112,7 @@ const [sendTiming, setSendTiming] = useState<SendTiming>("now");
 const [scheduledDate, setScheduledDate] = useState("");
 const [scheduledTime, setScheduledTime] = useState("");
 const [showScheduled, setShowScheduled] = useState(false);
+const [existingSchedule, setExistingSchedule] = useState<any>(null);
 
 useEffect(() => {
   if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
@@ -169,6 +170,20 @@ useEffect(() => {
     }
   }
 
+  async function loadSchedule() {
+  try {
+    const res = await fetch(
+      `/api/scheduled-messages?invitationId=${invitationId}&channel=whatsapp&type=rsvp&round=${round}`
+    );
+
+    const data = await res.json();
+
+    setExistingSchedule(data?.message || null);
+  } catch (err) {
+    console.error("❌ Failed to load schedule", err);
+  }
+}
+
   useEffect(() => {
     if (!round1SentAt && !round2SentAt) return;
 
@@ -180,6 +195,10 @@ useEffect(() => {
 
     return () => clearInterval(interval);
   }, [round1SentAt, round2SentAt, invitationId]);
+
+  useEffect(() => {
+  loadSchedule();
+}, [round]);
 
   // 🎁 Gift options
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
@@ -626,14 +645,19 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     : `📲 שלח אישור הגעה – סבב ${round}`}
 </SendButton>
 
-<div className="flex justify-center mt-3">
-  <button
-    onClick={() => setShowScheduled(true)}
-    className="border rounded-full px-4 py-2 text-sm bg-white shadow-sm hover:bg-gray-50"
-  >
-    צפייה בהודעות מתוזמנות 📅
-  </button>
-</div>
+{existingSchedule && (
+  <div className="flex justify-center mt-3">
+    <button
+      onClick={async () => {
+        await loadSchedule();
+        setShowScheduled(true);
+      }}
+      className="border rounded-full px-4 py-2 text-sm bg-white shadow-sm hover:bg-gray-50"
+    >
+      צפייה בהודעות מתוזמנות 📅
+    </button>
+  </div>
+)}
 
 {noAudience && (
   <p className="text-sm text-red-500">
@@ -647,14 +671,16 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     <div className="bg-white w-full max-w-lg rounded-2xl p-5 space-y-4">
 
       <WhatsAppScheduleManager
-        invitationId={invitationId}
-        type="rsvp"
-        round={round} 
-        audience={guestsToSend.map((g) => g._id)}
-        onUpdated={() => {
-          setShowScheduled(false);
-        }}
-      />
+  invitationId={invitationId}
+  type="rsvp"
+  round={round}
+  audience={guestsToSend.map((g) => g._id)}
+  existingSchedule={existingSchedule}
+  onUpdated={async () => {
+    await loadSchedule(); // 🔥 ריענון מהשרת
+    setShowScheduled(false);
+  }}
+/>
 
       <button
         onClick={() => setShowScheduled(false)}
