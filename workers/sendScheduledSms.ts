@@ -57,14 +57,60 @@ export async function sendScheduledSms() {
   await dbConnect();
 
   const now = new Date();
+
   let processed = 0;
   let sentTotal = 0;
   let failed = 0;
 
-  const messages = await ScheduledMessage.find({
-    status: "scheduled",
-    scheduledAt: { $lte: now },
-  });
+  const MAX_PER_RUN = 50;
+  const STUCK_AFTER_MS = 10 * 60 * 1000;
+
+  /* ================= 🔄 RECOVERY ================= */
+
+  await ScheduledMessage.updateMany(
+    {
+      status: "sending",
+      $or: [
+        { lockedAt: { $lt: new Date(Date.now() - STUCK_AFTER_MS) } },
+        { lockedAt: null },
+        { lockedAt: { $exists: false } },
+      ],
+    },
+    {
+      $set: {
+        status: "scheduled",
+        lockedAt: null,
+      },
+    }
+  );
+
+  /* ================= 🔥 FETCH WITH LOCK ================= */
+
+  const messages: any[] = [];
+
+  for (let i = 0; i < MAX_PER_RUN; i++) {
+    const msg = await ScheduledMessage.findOneAndUpdate(
+      {
+        status: "scheduled",
+        scheduledAt: { $lte: now },
+      },
+      {
+        $set: {
+          status: "sending",
+          lockedAt: new Date(),
+        },
+      },
+      {
+        sort: { scheduledAt: 1 },
+        new: true,
+      }
+    );
+
+    if (!msg) break;
+    messages.push(msg);
+  }
+
+  /* ================= PROCESS ================= */
 
   for (const msg of messages) {
     processed++;
@@ -163,7 +209,7 @@ export async function sendScheduledSms() {
         } catch {}
       }
 
-      /* ================= UPDATE ================= */
+      /* ================= UPDATE SUCCESS ================= */
 
       await ScheduledMessage.updateOne(
         { _id: msg._id },
@@ -171,6 +217,7 @@ export async function sendScheduledSms() {
           $set: {
             status: "sent",
             sentAt: new Date(),
+            lockedAt: null,
           },
           $inc: {
             sentCount: sent,
@@ -198,6 +245,7 @@ export async function sendScheduledSms() {
           $set: {
             status: "failed",
             error: err?.message || "UNKNOWN_ERROR",
+            lockedAt: null,
           },
         }
       );

@@ -49,7 +49,6 @@ export async function GET(req: NextRequest) {
 
     if (secret) {
       const isValidBearer = authHeader === `Bearer ${secret}`;
-
       if (!isValidBearer && !isVercelCron) {
         return NextResponse.json(
           { success: false, error: "UNAUTHORIZED" },
@@ -59,6 +58,18 @@ export async function GET(req: NextRequest) {
     }
 
     await db();
+
+    /* ================= 🔥 NEW: RELEASE SCHEDULED ================= */
+
+    await WhatsappQueue.updateMany(
+      {
+        status: "scheduled",
+        scheduledAt: { $lte: new Date() },
+      },
+      {
+        $set: { status: "pending" },
+      }
+    );
 
     /* ================= RECOVERY ================= */
 
@@ -85,7 +96,7 @@ export async function GET(req: NextRequest) {
         {
           status: "pending",
           attempts: { $lt: MAX_ATTEMPTS },
-          templateName: { $in: RSVP_TEMPLATES }, // 🔥 הסינון הקריטי
+          templateName: { $in: RSVP_TEMPLATES },
         },
         { $set: { status: "sending", lockedAt: new Date() } },
         { sort: { createdAt: 1 }, new: true }
@@ -121,7 +132,7 @@ export async function GET(req: NextRequest) {
         const remainingActive = await WhatsappQueue.countDocuments({
           invitationId: job.invitationId,
           templateName: job.templateName,
-          status: { $in: ["pending", "sending"] },
+          status: { $in: ["pending", "sending", "scheduled"] }, // 🔥 גם scheduled
         });
 
         if (remainingActive === 0) {
@@ -158,9 +169,7 @@ export async function GET(req: NextRequest) {
 
         await job.save();
 
-        if (isRateLimitError(msg)) {
-          break;
-        }
+        if (isRateLimitError(msg)) break;
 
         await sleep(400);
       }
