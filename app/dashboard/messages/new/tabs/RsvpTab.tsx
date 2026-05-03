@@ -104,11 +104,6 @@ export default function RsvpTab({
   const [guests, setGuests] = useState<Guest[]>([]);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [round, setRound] = useState<1 | 2>(1);
-
-  const templateName =
-  round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_ROUND2_TEMPLATE;
-
-
   const [loading, setLoading] = useState(true);
 
   type SendTiming = "now" | "scheduled";
@@ -116,7 +111,6 @@ export default function RsvpTab({
 const [sendTiming, setSendTiming] = useState<SendTiming>("now");
 const [scheduledDate, setScheduledDate] = useState("");
 const [scheduledTime, setScheduledTime] = useState("");
-const [messageId, setMessageId] = useState<string | null>(null);
 
 useEffect(() => {
   if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
@@ -222,32 +216,6 @@ const [half, setHalf] = useState<HalfType>(null);
         const guestsData = await guestsRes.json();
         const invitationData = await invitationRes.json();
 
-        // 🔥 LOAD EXISTING SCHEDULED MESSAGE
-try {
-  const res = await fetch(
-    `/api/scheduled-message?invitationId=${invitationId}&template=${templateName}&round=${round}`,
-    { cache: "no-store" }
-  );
-
-  const data = await res.json();
-
-  if (data?.message) {
-    setMessageId(data.message._id);
-
-    if (data.message.scheduledAt) {
-      const d = new Date(data.message.scheduledAt);
-
-      setSendTiming("scheduled");
-      setScheduledDate(d.toISOString().slice(0, 10));
-      setScheduledTime(d.toTimeString().slice(0, 5));
-    }
-  } else {
-    setMessageId(null);
-  }
-} catch (e) {
-  console.error("❌ Failed to load scheduled message", e);
-}
-
         if (Array.isArray(guestsData.guests)) {
           setGuests(guestsData.guests);
         }
@@ -289,7 +257,7 @@ setRound2SentAt(round2 ? new Date(round2) : null);
     }
 
     loadData();
-  }, [invitationId, invitationTitle, eventDate, eventLocation, round]);
+  }, [invitationId, invitationTitle, eventDate, eventLocation]);
 
   /* ================= SAVE GIFT OPTIONS ================= */
 
@@ -386,7 +354,9 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   loading ||
   noAudience ||
   missingHeaderImage ||
-  (sendTiming === "scheduled" && !scheduledAt);
+  (sendTiming === "scheduled" && !scheduledAt) ||
+  (round === 1 && !!round1SentAt) ||
+  (round === 2 && !!round2SentAt);
 
   const previewText = useMemo(() => {
     if (!eventData) return "";
@@ -402,7 +372,8 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     return getRsvpReminderPreviewText(eventData.title);
   }, [eventData, round]);
 
-
+  const templateName =
+    round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_ROUND2_TEMPLATE;
 
   if (loading) return <p>טוען אורחים...</p>;
 
@@ -648,7 +619,6 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   audience={guestsToSend.map((g) => g._id)}
   scheduledAt={scheduledAt}
   disabled={blocked}
-  messageId={messageId}
 >
   {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
     ? "⏳ תהליך שליחה החל"

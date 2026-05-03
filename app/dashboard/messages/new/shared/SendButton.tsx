@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useRef, useState, useEffect } from "react";
+import React, { ReactNode, useRef, useState } from "react";
 
 /* ================= TYPES ================= */
 
@@ -24,9 +24,7 @@ type Props = {
 
   children: ReactNode;
 
-  round?: 1 | 2;
-
-  messageId?: string | null;
+  round?: 1 | 2; // ✅ נוסף
 };
 
 /* ================= COMPONENT ================= */
@@ -48,8 +46,7 @@ const SendButton: React.FC<Props> = ({
   onAfterSend,
   children,
 
-  round,
-  messageId,
+  round, // ✅ נוסף
 }) => {
   const channelLabel = channel === "sms" ? "SMS" : "WhatsApp";
 
@@ -57,11 +54,6 @@ const SendButton: React.FC<Props> = ({
   const [sent, setSent] = useState(false);
 
   const inFlightRef = useRef(false);
-
-  // 🔥 זה התיקון הקריטי
-  useEffect(() => {
-    setSent(false);
-  }, [scheduledAt]);
 
   const handleSend = async () => {
     if (disabled || sent || sending || inFlightRef.current) return;
@@ -104,7 +96,7 @@ const SendButton: React.FC<Props> = ({
           giftLink,
           messageOverride,
 
-          round,
+          round, // ✅ נוסף
         };
       }
 
@@ -121,36 +113,16 @@ const SendButton: React.FC<Props> = ({
         };
       }
 
-      let res;
-
-      /* ================= ✏️ EDIT ================= */
-
-      if (messageId && scheduledAt) {
-        res = await fetch(`/api/scheduled-message/${messageId}`, {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scheduledAt,
-            messageContent: messageOverride || "",
-          }),
-        });
-      }
-
-      /* ================= 🆕 CREATE ================= */
-
-      else {
-        res = await fetch(endpoint, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
+      const res = await fetch(endpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
 
-      /* ================= ERRORS ================= */
+      /* ================= SERVER BLOCK STATES ================= */
 
       if (
         res.status === 409 ||
@@ -176,9 +148,7 @@ const SendButton: React.FC<Props> = ({
 
       /* ================= SUCCESS ================= */
 
-      if (messageId && scheduledAt) {
-        alert("✏️ ההודעה עודכנה בהצלחה");
-      } else if (scheduledAt) {
+      if (scheduledAt) {
         alert("⏱️ ההודעות תוזמנו ונכנסו לתהליך שליחה");
       } else {
         const count = data.queued ?? data.sent ?? audience.length;
@@ -186,6 +156,7 @@ const SendButton: React.FC<Props> = ({
       }
 
       setSent(true);
+
       onAfterSend?.();
     } catch (err) {
       console.error("SEND ERROR:", err);
@@ -206,6 +177,8 @@ const SendButton: React.FC<Props> = ({
     inFlightRef.current ||
     !audience ||
     audience.length === 0;
+
+  /* ================= RENDER ================= */
 
   return (
     <button
