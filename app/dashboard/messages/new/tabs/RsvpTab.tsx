@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
-
+import WhatsAppScheduleManager from "@/app/components/WhatsAppScheduleManager";
 /* ================= TYPES ================= */
 
 type Guest = {
@@ -111,6 +111,7 @@ export default function RsvpTab({
 const [sendTiming, setSendTiming] = useState<SendTiming>("now");
 const [scheduledDate, setScheduledDate] = useState("");
 const [scheduledTime, setScheduledTime] = useState("");
+const [showScheduled, setShowScheduled] = useState(false);
 
 useEffect(() => {
   if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
@@ -625,9 +626,51 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     : `📲 שלח אישור הגעה – סבב ${round}`}
 </SendButton>
 
-      {noAudience && (
-        <p className="text-sm text-red-500">אין נמענים לשליחה בסבב זה</p>
-      )}
+<div className="flex justify-center mt-3">
+  <button
+    onClick={() => setShowScheduled(true)}
+    className="border rounded-full px-4 py-2 text-sm bg-white shadow-sm hover:bg-gray-50"
+  >
+    צפייה בהודעות מתוזמנות 📅
+  </button>
+</div>
+
+{noAudience && (
+  <p className="text-sm text-red-500">
+    אין נמענים לשליחה בסבב זה
+  </p>
+)}
+
+{/* 👇👇👇 זה מה שחסר לך — להוסיף כאן */}
+{showScheduled && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white w-full max-w-lg rounded-2xl p-5 space-y-4">
+
+      <WhatsAppScheduleManager
+        invitationId={invitationId}
+        type="rsvp"
+        round={round} 
+        audience={guestsToSend.map((g) => g._id)}
+        onUpdated={() => {
+          setShowScheduled(false);
+        }}
+      />
+
+      <button
+        onClick={() => setShowScheduled(false)}
+        className="w-full bg-gray-200 py-2 rounded-xl"
+      >
+        סגור
+      </button>
+
     </div>
-  );
+  </div>
+)}
+
+</div>
+);
+
+
+
+
 }

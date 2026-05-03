@@ -2,14 +2,37 @@
 
 import React, { useState } from "react";
 
+/* ================= TYPES ================= */
+
+type ScheduleStatus = "pending" | "sent" | "cancelled";
+
+type ExistingSchedule = {
+  _id: string;
+  scheduledAt: string;
+  status: ScheduleStatus;
+  lockedAt?: string | null;
+};
+
+type Props = {
+  invitationId: string;
+  type: "rsvp" | "reminder" | "thankyou";
+  existingSchedule?: ExistingSchedule | null;
+  audience?: string[];
+  round?: 1 | 2;
+  onUpdated?: (data: any) => void;
+};
+
+/* ================= COMPONENT ================= */
+
 export default function WhatsAppScheduleManager({
   invitationId,
-  type, // "rsvp" | "reminder" | "thankyou"
-  existingSchedule, // אובייקט מהשרת אם כבר קיים
+  type,
+  existingSchedule,
   audience = [],
+  round, // 👈🔥 זה התיקון
   onUpdated,
-}) {
-  const [scheduledAt, setScheduledAt] = useState(
+}: Props) {
+  const [scheduledAt, setScheduledAt] = useState<string>(
     existingSchedule?.scheduledAt
       ? new Date(existingSchedule.scheduledAt).toISOString().slice(0, 16)
       : ""
@@ -38,17 +61,18 @@ export default function WhatsAppScheduleManager({
           channel: "whatsapp",
           audience,
           scheduledAt: new Date(scheduledAt),
+          round, // 👈 עכשיו זה עובד
         }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data?.error || "שגיאה בשמירה");
 
       alert("נשמר בהצלחה");
       onUpdated?.(data);
-    } catch (err) {
-      alert("שגיאה: " + err.message);
+    } catch (err: any) {
+      alert("שגיאה: " + (err?.message || "Unknown error"));
     } finally {
       setLoading(false);
     }
@@ -57,6 +81,7 @@ export default function WhatsAppScheduleManager({
   // ================= CANCEL =================
 
   async function handleCancel() {
+    if (!existingSchedule?._id) return;
     if (!confirm("לבטל את ההודעה המתוזמנת?")) return;
 
     setLoading(true);
@@ -68,12 +93,13 @@ export default function WhatsAppScheduleManager({
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+
+      if (!res.ok) throw new Error(data?.error || "שגיאה בביטול");
 
       alert("בוטל");
       onUpdated?.(null);
-    } catch (err) {
-      alert("שגיאה: " + err.message);
+    } catch (err: any) {
+      alert("שגיאה: " + (err?.message || "Unknown error"));
     } finally {
       setLoading(false);
     }
