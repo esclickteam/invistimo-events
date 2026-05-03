@@ -106,6 +106,28 @@ export default function RsvpTab({
   const [round, setRound] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(true);
 
+  type SendTiming = "now" | "scheduled";
+
+const [sendTiming, setSendTiming] = useState<SendTiming>("now");
+const [scheduledDate, setScheduledDate] = useState("");
+const [scheduledTime, setScheduledTime] = useState("");
+
+useEffect(() => {
+  if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
+    setScheduledAt(null);
+    return;
+  }
+
+  const [year, month, day] = scheduledDate.split("-").map(Number);
+  const [hour, minute] = scheduledTime.split(":").map(Number);
+
+  setScheduledAt(
+    new Date(year, month - 1, day, hour, minute, 0, 0)
+  );
+}, [sendTiming, scheduledDate, scheduledTime]);
+
+
+
   // 🔒 מצב סבבים
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
@@ -327,11 +349,12 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   const missingHeaderImage = !headerImageUrl;
 
   const blocked =
-    loading ||
-    noAudience ||
-    missingHeaderImage ||
-    (round === 1 && !!round1SentAt) ||
-    (round === 2 && !!round2SentAt);
+  loading ||
+  noAudience ||
+  missingHeaderImage ||
+  (sendTiming === "scheduled" && !scheduledAt) ||
+  (round === 1 && !!round1SentAt) ||
+  (round === 2 && !!round2SentAt);
 
   const previewText = useMemo(() => {
     if (!eventData) return "";
@@ -509,6 +532,69 @@ const secondHalfCount = sortedGuests.slice(mid).length;
         previewText={previewText}
         headerImageUrl={headerImageUrl}
       />
+
+      <div className="border rounded-2xl p-5 bg-white shadow-sm space-y-4">
+  
+  <div className="flex items-center justify-between">
+    <div className="font-semibold text-gray-800">
+      תזמון ההודעה
+    </div>
+    <span>⏱️</span>
+  </div>
+
+  {/* שליחה מיידית */}
+  <label
+    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer
+    ${sendTiming === "now" ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"}`}
+  >
+    <span className="text-sm">שליחה מיידית</span>
+
+    <input
+      type="radio"
+      checked={sendTiming === "now"}
+      onChange={() => {
+        setSendTiming("now");
+        setScheduledDate("");
+        setScheduledTime("");
+      }}
+      className="accent-blue-600"
+    />
+  </label>
+
+  {/* שליחה מתוזמנת */}
+  <label
+    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer
+    ${sendTiming === "scheduled" ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"}`}
+  >
+    <span className="text-sm">שליחה מתוזמנת</span>
+
+    <input
+      type="radio"
+      checked={sendTiming === "scheduled"}
+      onChange={() => setSendTiming("scheduled")}
+      className="accent-blue-600"
+    />
+  </label>
+
+  {/* תאריך ושעה */}
+  {sendTiming === "scheduled" && (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <input
+        type="date"
+        value={scheduledDate}
+        onChange={(e) => setScheduledDate(e.target.value)}
+        className="border rounded-xl px-4 py-3 text-sm"
+      />
+
+      <input
+        type="time"
+        value={scheduledTime}
+        onChange={(e) => setScheduledTime(e.target.value)}
+        className="border rounded-xl px-4 py-3 text-sm"
+      />
+    </div>
+  )}
+</div>
 
       {waStats && (
         <p className="text-sm text-center text-gray-700">
