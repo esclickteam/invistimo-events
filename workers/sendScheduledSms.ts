@@ -15,6 +15,42 @@ function countBusinessSms(text: string) {
   return -1;
 }
 
+/* ================= WHATSAPP SEND ================= */
+
+async function sendWhatsappTemplate({
+  phone,
+  templateName,
+  payload,
+}: any) {
+  try {
+    await fetch(
+      `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "template",
+          template: {
+            name: templateName,
+            language: { code: payload.languageCode || "he" },
+            components: payload.components || [],
+          },
+        }),
+      }
+    );
+
+    return true;
+  } catch (err) {
+    console.error("❌ WhatsApp send error", err);
+    return false;
+  }
+}
+
 /* ====================================================== */
 
 export async function sendScheduledSms() {
@@ -24,10 +60,6 @@ export async function sendScheduledSms() {
   let processed = 0;
   let sentTotal = 0;
   let failed = 0;
-
-  /* ======================================================
-     🔥 מביאים את כל ההודעות לשליחה (בלי limit)
-  ====================================================== */
 
   const messages = await ScheduledMessage.find({
     status: "scheduled",
@@ -49,7 +81,7 @@ export async function sendScheduledSms() {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
       }
 
-      /* ================= LOAD ALL GUESTS ================= */
+      /* ================= LOAD GUESTS ================= */
 
       let guests: any[] = [];
 
@@ -64,12 +96,11 @@ export async function sendScheduledSms() {
         guests = await InvitationGuest.find(query).lean();
       }
 
-      /* ================= SEND ALL (NO LIMIT) ================= */
-
       let sent = 0;
       let charged = 0;
-
       const sentGuestIds: any[] = [];
+
+      /* ================= LOOP ================= */
 
       for (const guest of guests) {
         let phone = String(guest.phone || "").replace(/\D/g, "");
@@ -77,6 +108,25 @@ export async function sendScheduledSms() {
 
         if (phone.startsWith("0")) phone = "972" + phone.slice(1);
         else if (!phone.startsWith("972")) phone = "972" + phone;
+
+        /* ================= WHATSAPP ================= */
+
+        if (msg.channel === "whatsapp") {
+          const success = await sendWhatsappTemplate({
+            phone,
+            templateName: msg.templateName,
+            payload: msg.payload || {},
+          });
+
+          if (success) {
+            sent++;
+            sentGuestIds.push(guest._id);
+          }
+
+          continue;
+        }
+
+        /* ================= SMS ================= */
 
         const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
         const shortUrl = await shortenUrl(personalUrl);

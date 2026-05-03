@@ -223,6 +223,18 @@ rsvpSmsRound2ScheduledAt: {
   index: true,
 },
 
+rsvpWhatsappRound1ScheduledAt: {
+  type: Date,
+  default: null,
+  index: true,
+},
+
+rsvpWhatsappRound2ScheduledAt: {
+  type: Date,
+  default: null,
+  index: true,
+},
+
     reminderSentAt: {
       type: Date,
       default: null,

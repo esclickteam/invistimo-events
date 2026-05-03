@@ -22,6 +22,7 @@ type TemplateName =
   | "thank_you_message";
 
 type SendTemplateRequestBody = {
+  scheduledAt?: string;
   invitationId?: string;
   audience?: string[];
   to?: string;
@@ -133,6 +134,7 @@ async function runTransactionWithRetry<T>(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<SendTemplateRequestBody>;
+    const scheduledAt = body.scheduledAt;
 
     if (!isTemplateName(body.templateName)) {
       return NextResponse.json(
@@ -178,14 +180,16 @@ export async function POST(req: NextRequest) {
         const isRound2 = templateName === "rsvp_reminder_invistimo";
 
         const round1Already =
-          invitation.rsvpRound1SentAt ||
-          invitation.rsvpSmsRound1SentAt ||
-          invitation.rsvpSmsRound1ScheduledAt;
+  invitation.rsvpRound1SentAt ||
+  invitation.rsvpSmsRound1SentAt ||
+  invitation.rsvpSmsRound1ScheduledAt ||
+  invitation.rsvpWhatsappRound1ScheduledAt;
 
         const round2Already =
-          invitation.rsvpRound2SentAt ||
-          invitation.rsvpSmsRound2SentAt ||
-          invitation.rsvpSmsRound2ScheduledAt;
+  invitation.rsvpRound2SentAt ||
+  invitation.rsvpSmsRound2SentAt ||
+  invitation.rsvpSmsRound2ScheduledAt ||
+  invitation.rsvpWhatsappRound2ScheduledAt;
 
         if (isRound1 && round1Already) {
           throw new Error("RSVP_ROUND1_ALREADY_SENT");
@@ -239,7 +243,8 @@ export async function POST(req: NextRequest) {
               ),
               headerImageUrl: invitation.headerImageUrl || "",
             },
-            status: "pending",
+            status: scheduledAt ? "scheduled" : "pending",
+scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
           });
         }
 
@@ -248,6 +253,34 @@ export async function POST(req: NextRequest) {
         }
 
         await WhatsappQueue.insertMany(queueDocs, { session });
+
+        if (isRound1) {
+  await Invitation.updateOne(
+    { _id: invitation._id },
+    {
+      $set: {
+        rsvpWhatsappRound1ScheduledAt: scheduledAt
+          ? new Date(scheduledAt)
+          : new Date(),
+      },
+    },
+    { session }
+  );
+}
+
+if (isRound2) {
+  await Invitation.updateOne(
+    { _id: invitation._id },
+    {
+      $set: {
+        rsvpWhatsappRound2ScheduledAt: scheduledAt
+          ? new Date(scheduledAt)
+          : new Date(),
+      },
+    },
+    { session }
+  );
+}
 
         if (isRound1) {
           await Invitation.updateOne(
