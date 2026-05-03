@@ -158,7 +158,9 @@ return;
         alert(`📤 ${count} הודעות נכנסו לתהליך שליחה ב-${channelLabel}`);
       }
 
-      setSent(true);
+      if (!scheduledAt) {
+  setSent(true);
+}
 
       onAfterSend?.();
     } catch (err) {
@@ -200,7 +202,11 @@ return;
         transition
       "
     >
-      {sent ? "נשלח ✓" : sending ? "שולח..." : children}
+      {sending
+  ? "שולח..."
+  : sent && !scheduledAt
+  ? "נשלח ✓"
+  : children}
     </button>
   );
 };
