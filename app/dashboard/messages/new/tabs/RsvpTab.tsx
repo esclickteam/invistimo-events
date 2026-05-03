@@ -648,7 +648,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   invitationId={invitationId}
   templateName={templateName}
   audience={guestsToSend.map((g) => g._id)}
-  scheduledAt={scheduledAt}
+  scheduledAt={scheduledAt || existingSchedule}
   disabled={blocked}
 >
   {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
