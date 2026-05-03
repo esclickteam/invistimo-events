@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
+import mongoose from "mongoose"; // 🔥 חשוב
 import WhatsappQueue from "@/models/WhatsappQueue";
 
 export async function GET(req: NextRequest) {
@@ -18,16 +19,22 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    /* ================= TEMPLATE ================= */
+
     const templateName =
       Number(round) === 1
         ? "rsvp_invitation_media"
         : "rsvp_reminder_invistimo";
 
+    /* ================= 🔥 FIX ================= */
+
     const schedule = await WhatsappQueue.findOne({
-      invitationId,
+      invitationId: new mongoose.Types.ObjectId(invitationId), // 🔥 זה הפתרון
       templateName,
       status: { $in: ["scheduled", "sending"] },
     }).lean();
+
+    /* ================= RESPONSE ================= */
 
     return NextResponse.json({
       success: true,
