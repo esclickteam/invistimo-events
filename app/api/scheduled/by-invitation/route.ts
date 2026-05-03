@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import WhatsAppQueue from "@/models/WhatsappQueue"; 
+import WhatsAppQueue from "@/models/WhatsAppQueue"; // ✔️ תואם לשם הקובץ שלך
 
 export async function GET(req: NextRequest) {
   await dbConnect();
@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const invitationId = searchParams.get("invitationId");
-    const type = searchParams.get("type");
     const round = searchParams.get("round");
 
     if (!invitationId) {
@@ -26,13 +25,13 @@ export async function GET(req: NextRequest) {
 
     const schedule = await WhatsAppQueue.findOne({
       invitationId,
-      templateName, // 🔥 חשוב
+      templateName,
       status: { $in: ["scheduled", "sending"] },
     }).lean();
 
     return NextResponse.json({
       success: true,
-      schedule,
+      schedule: schedule || null,
     });
 
   } catch (err: any) {
