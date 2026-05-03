@@ -257,17 +257,27 @@ const scheduleRes = await fetch(
 
 const scheduleData = await scheduleRes.json();
 
+// 🔥 לוגים חשובים
+console.log("📦 scheduleData:", scheduleData);
+console.log("📦 scheduleData.schedule:", scheduleData?.schedule);
+
 if (scheduleData?.schedule) {
+  console.log("✅ FOUND schedule:", scheduleData.schedule);
+
   setExistingSchedule(scheduleData.schedule);
 
   if (scheduleData.schedule.scheduledAt) {
     const d = new Date(scheduleData.schedule.scheduledAt);
+
+    console.log("📅 parsed date:", d);
 
     setScheduledDate(d.toISOString().slice(0, 10));
     setScheduledTime(d.toISOString().slice(11, 16));
     setSendTiming("scheduled");
   }
 } else {
+  console.log("❌ NO schedule returned");
+
   setExistingSchedule(null);
 }
 
