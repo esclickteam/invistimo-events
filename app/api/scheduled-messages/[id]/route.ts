@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 async function getAuthUserId() {
   const cookieStore = await cookies();
 
+  // תאימות אם אצלך לפעמים משתמשים בשם token אחר
   const token =
     cookieStore.get("authToken")?.value ||
     cookieStore.get("token")?.value ||
@@ -51,47 +52,6 @@ function normalizeEditPayload(body: any) {
 }
 
 /* ======================================================
-   GET – Load Scheduled Message
-====================================================== */
-export async function GET(req: NextRequest) {
-  try {
-    await dbConnect();
-
-    const auth = await getAuthUserId();
-    if (!auth.ok) {
-      return NextResponse.json(
-        { success: false, error: auth.error },
-        { status: auth.status }
-      );
-    }
-
-    const { searchParams } = new URL(req.url);
-
-    const invitationId = searchParams.get("invitationId");
-    const type = searchParams.get("type");
-    const channel = searchParams.get("channel");
-    const round = Number(searchParams.get("round") || 1);
-
-    const message = await ScheduledMessage.findOne({
-      invitationId,
-      type,
-      channel,
-      round,
-      userId: auth.userId,
-      status: "pending", // 🔥 חשוב
-    });
-
-    return NextResponse.json({ message });
-  } catch (err) {
-    console.error("GET scheduled message error:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
-    );
-  }
-}
-
-/* ======================================================
    PATCH – Edit Scheduled Message
 ====================================================== */
 export async function PATCH(
@@ -101,6 +61,7 @@ export async function PATCH(
   try {
     await dbConnect();
 
+    /* ================= AUTH ================= */
     const auth = await getAuthUserId();
     if (!auth.ok) {
       return NextResponse.json(
@@ -109,6 +70,7 @@ export async function PATCH(
       );
     }
 
+    /* ================= PARAMS ================= */
     const { id } = await context.params;
     if (!id) {
       return NextResponse.json(
@@ -117,6 +79,7 @@ export async function PATCH(
       );
     }
 
+    /* ================= BODY ================= */
     const body = await request.json().catch(() => null);
     if (!body) {
       return NextResponse.json(
@@ -134,6 +97,7 @@ export async function PATCH(
       );
     }
 
+    // לא לאפשר זמן עבר
     if (scheduledAt.getTime() <= Date.now()) {
       return NextResponse.json(
         { success: false, error: "PAST_TIME_NOT_ALLOWED" },
@@ -144,7 +108,7 @@ export async function PATCH(
     const msg = await ScheduledMessage.findOne({
       _id: id,
       userId: auth.userId,
-      status: "pending",
+      status: "scheduled",
     });
 
     if (!msg) {
@@ -178,6 +142,7 @@ export async function DELETE(
   try {
     await dbConnect();
 
+    /* ================= AUTH ================= */
     const auth = await getAuthUserId();
     if (!auth.ok) {
       return NextResponse.json(
@@ -186,6 +151,7 @@ export async function DELETE(
       );
     }
 
+    /* ================= PARAMS ================= */
     const { id } = await context.params;
     if (!id) {
       return NextResponse.json(
@@ -197,7 +163,7 @@ export async function DELETE(
     const msg = await ScheduledMessage.findOne({
       _id: id,
       userId: auth.userId,
-      status: "pending",
+      status: "scheduled",
     });
 
     if (!msg) {
