@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 async function getAuthUserId() {
   const cookieStore = await cookies();
 
+  // תאימות אם אצלך לפעמים משתמשים בשם token אחר
   const token =
     cookieStore.get("authToken")?.value ||
     cookieStore.get("token")?.value ||
@@ -33,10 +34,30 @@ async function getAuthUserId() {
   }
 }
 
+function normalizeEditPayload(body: any) {
+  const text =
+    typeof body?.text === "string"
+      ? body.text
+      : typeof body?.messageContent === "string"
+      ? body.messageContent
+      : "";
+
+  const scheduledAtRaw = body?.scheduledAt;
+  const scheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
+
+  return {
+    text: text.trim(),
+    scheduledAt,
+  };
+}
+
 /* ======================================================
-   POST – Create OR Update Scheduled Message
+   PATCH – Edit Scheduled Message
 ====================================================== */
-export async function POST(request: NextRequest) {
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
 
@@ -49,9 +70,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /* ================= PARAMS ================= */
+    const { id } = await context.params;
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "MISSING_ID" },
+        { status: 400 }
+      );
+    }
+
     /* ================= BODY ================= */
     const body = await request.json().catch(() => null);
-
     if (!body) {
       return NextResponse.json(
         { success: false, error: "INVALID_JSON" },
@@ -59,117 +88,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const {
-      invitationId,
-      templateName,
-      scheduledAt,
-      audience,
-      round,
-    } = body;
+    const { text, scheduledAt } = normalizeEditPayload(body);
 
-    if (!invitationId || !templateName || !scheduledAt) {
+    if (!text || !scheduledAt || Number.isNaN(scheduledAt.getTime())) {
       return NextResponse.json(
         { success: false, error: "MISSING_PARAMS" },
         { status: 400 }
       );
     }
 
-    const date = new Date(scheduledAt);
-
-    if (Number.isNaN(date.getTime())) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_DATE" },
-        { status: 400 }
-      );
-    }
-
-    if (date.getTime() <= Date.now()) {
+    // לא לאפשר זמן עבר
+    if (scheduledAt.getTime() <= Date.now()) {
       return NextResponse.json(
         { success: false, error: "PAST_TIME_NOT_ALLOWED" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= FIND EXISTING ================= */
-    const existing = await ScheduledMessage.findOne({
-      invitationId,
-      templateName,
-      round,
-      status: "scheduled",
-    });
-
-    if (existing) {
-      // 🔥 UPDATE
-      existing.scheduledAt = date;
-      existing.lockedAt = null;
-
-      await existing.save();
-
-      return NextResponse.json({
-        success: true,
-        updated: true,
-        data: existing,
-      });
-    }
-
-    /* ================= CREATE ================= */
-    const newMsg = await ScheduledMessage.create({
-      invitationId,
-      templateName,
-      scheduledAt: date,
-      audience,
-      round,
-      userId: auth.userId,
-      status: "scheduled",
-    });
-
-    return NextResponse.json({
-      success: true,
-      created: true,
-      data: newMsg,
-    });
-  } catch (err) {
-    console.error("POST scheduled message error:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
-    );
-  }
-}
-
-/* ======================================================
-   PATCH – Edit Scheduled Message (לפי ID)
-====================================================== */
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    await dbConnect();
-
-    const auth = await getAuthUserId();
-    if (!auth.ok) {
-      return NextResponse.json(
-        { success: false, error: auth.error },
-        { status: auth.status }
-      );
-    }
-
-    const { id } = await context.params;
-
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_JSON" },
-        { status: 400 }
-      );
-    }
-
-    const scheduledAt = new Date(body?.scheduledAt);
-
-    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
-      return NextResponse.json(
-        { success: false, error: "INVALID_DATE" },
         { status: 400 }
       );
     }
@@ -187,6 +118,7 @@ export async function PATCH(
       );
     }
 
+    msg.text = text;
     msg.scheduledAt = scheduledAt;
     await msg.save();
 
@@ -210,6 +142,7 @@ export async function DELETE(
   try {
     await dbConnect();
 
+    /* ================= AUTH ================= */
     const auth = await getAuthUserId();
     if (!auth.ok) {
       return NextResponse.json(
@@ -218,7 +151,14 @@ export async function DELETE(
       );
     }
 
+    /* ================= PARAMS ================= */
     const { id } = await context.params;
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "MISSING_ID" },
+        { status: 400 }
+      );
+    }
 
     const msg = await ScheduledMessage.findOne({
       _id: id,

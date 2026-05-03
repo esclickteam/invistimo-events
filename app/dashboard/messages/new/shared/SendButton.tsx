@@ -91,9 +91,11 @@ const SendButton: React.FC<Props> = ({
           templateKey: mapTemplate[type],
           guestIds: audience,
           scheduledAt,
+
           includeGiftLink,
           giftLink,
           messageOverride,
+
           round, // ✅ נוסף
         };
       }
@@ -108,7 +110,6 @@ const SendButton: React.FC<Props> = ({
           templateName,
           audience,
           scheduledAt,
-          round,
         };
       }
 

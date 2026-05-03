@@ -111,7 +111,6 @@ export default function RsvpTab({
 const [sendTiming, setSendTiming] = useState<SendTiming>("now");
 const [scheduledDate, setScheduledDate] = useState("");
 const [scheduledTime, setScheduledTime] = useState("");
-const [existingSchedule, setExistingSchedule] = useState<Date | null>(null);
 
 useEffect(() => {
   if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
@@ -238,23 +237,6 @@ const round2 =
 setRound1SentAt(round1 ? new Date(round1) : null);
 setRound2SentAt(round2 ? new Date(round2) : null);
 
-// 🔥 הוספה
-const scheduled =
-  round === 1
-    ? inv?.rsvpWhatsappRound1ScheduledAt
-    : inv?.rsvpWhatsappRound2ScheduledAt;
-
-if (scheduled) {
-  const d = new Date(scheduled);
-
-  setExistingSchedule(d);
-  setSendTiming("scheduled");
-
-  // 🔥 מפרקים לתאריך ושעה בשביל inputs
-  setScheduledDate(d.toISOString().slice(0, 10));
-  setScheduledTime(d.toTimeString().slice(0, 5));
-}
-
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
 
@@ -275,7 +257,7 @@ if (scheduled) {
     }
 
     loadData();
-}, [invitationId, invitationTitle, eventDate, eventLocation, round]);
+  }, [invitationId, invitationTitle, eventDate, eventLocation]);
 
   /* ================= SAVE GIFT OPTIONS ================= */
 
@@ -372,7 +354,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   loading ||
   noAudience ||
   missingHeaderImage ||
-  (sendTiming === "scheduled" && !scheduledAt && !existingSchedule) ||
+  (sendTiming === "scheduled" && !scheduledAt) ||
   (round === 1 && !!round1SentAt) ||
   (round === 2 && !!round2SentAt);
 
@@ -570,19 +552,15 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     <span className="text-sm">שליחה מיידית</span>
 
     <input
-  type="radio"
-  checked={sendTiming === "now"}
-  onChange={() => {
-    setSendTiming("now");
-
-    // ❗ אל תמחקי אם יש תזמון קיים
-    if (!existingSchedule) {
-      setScheduledDate("");
-      setScheduledTime("");
-    }
-  }}
-  className="accent-blue-600"
-/>
+      type="radio"
+      checked={sendTiming === "now"}
+      onChange={() => {
+        setSendTiming("now");
+        setScheduledDate("");
+        setScheduledTime("");
+      }}
+      className="accent-blue-600"
+    />
   </label>
 
   {/* שליחה מתוזמנת */}
@@ -595,16 +573,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     <input
       type="radio"
       checked={sendTiming === "scheduled"}
-      onChange={() => {
-  setSendTiming("scheduled");
-
-  if (existingSchedule) {
-    const d = existingSchedule;
-
-    setScheduledDate(d.toISOString().slice(0, 10));
-    setScheduledTime(d.toTimeString().slice(0, 5));
-  }
-}}
+      onChange={() => setSendTiming("scheduled")}
       className="accent-blue-600"
     />
   </label>
@@ -648,7 +617,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   invitationId={invitationId}
   templateName={templateName}
   audience={guestsToSend.map((g) => g._id)}
-  scheduledAt={scheduledAt || existingSchedule}
+  scheduledAt={scheduledAt}
   disabled={blocked}
 >
   {(round === 1 && round1SentAt) || (round === 2 && round2SentAt)
