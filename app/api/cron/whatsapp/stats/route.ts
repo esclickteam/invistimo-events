@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import WhatsappQueue from "@/models/tempQueue";
+import WhatsappQueue from "@/models/WhatsappQueue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

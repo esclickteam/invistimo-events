@@ -1,6 +1,6 @@
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage"; // SMS
-import WhatsappQueue from "@/models/tempQueue"; // WhatsApp
+import WhatsappQueue from "@/models/WhatsappQueue"; // WhatsApp
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";

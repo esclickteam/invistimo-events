@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import WhatsappQueue from "@/models/tempQueue";
+import WhatsappQueue from "@/models/WhatsappQueue";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import WhatsAppQueue from "@/models/tempQueue";
+import WhatsappQueue from "@/models/WhatsappQueue";
 
 export async function GET(req: NextRequest) {
   await dbConnect();
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
         ? "rsvp_invitation_media"
         : "rsvp_reminder_invistimo";
 
-    const schedule = await WhatsAppQueue.findOne({
+    const schedule = await WhatsappQueue.findOne({
       invitationId,
       templateName,
       status: { $in: ["scheduled", "sending"] },
