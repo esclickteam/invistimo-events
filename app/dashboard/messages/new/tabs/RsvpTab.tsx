@@ -670,8 +670,9 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     </div>
   )}
 
-{existingSchedule?.status === "scheduled" && (
-  <>
+{existingSchedule?.status === "scheduled" &&
+ existingSchedule?.scheduledAt &&
+ !isNaN(new Date(existingSchedule.scheduledAt).getTime()) && (  <>
     <div className="text-sm text-gray-600">
       מתוזמן ל־
       {new Date(existingSchedule.scheduledAt).toLocaleDateString("he-IL")}{" "}
