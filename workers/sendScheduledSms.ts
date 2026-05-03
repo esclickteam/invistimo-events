@@ -180,6 +180,7 @@ export async function sendScheduledSms() {
         let text = String(msg.messageContent || "")
           .replace(/{{name}}/g, guest.name || "")
           .replace(/{{rsvpLink}}/g, shortUrl);
+            .replace(/{{tableName}}/g, guest.tableName || ""); // 🔥 זה החסר
 
         const parts = countBusinessSms(text);
         if (parts === -1) continue;
