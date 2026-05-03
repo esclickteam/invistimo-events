@@ -225,12 +225,14 @@ const [half, setHalf] = useState<HalfType>(null);
         const round1 =
   inv?.rsvpRound1SentAt ||
   inv?.rsvpSmsRound1SentAt ||
-  inv?.rsvpSmsRound1ScheduledAt;
+  inv?.rsvpSmsRound1ScheduledAt ||
+  inv?.rsvpWhatsappRound1ScheduledAt; // 🔥 חדש
 
 const round2 =
   inv?.rsvpRound2SentAt ||
   inv?.rsvpSmsRound2SentAt ||
-  inv?.rsvpSmsRound2ScheduledAt;
+  inv?.rsvpSmsRound2ScheduledAt ||
+  inv?.rsvpWhatsappRound2ScheduledAt; // 🔥 חדש
 
 setRound1SentAt(round1 ? new Date(round1) : null);
 setRound2SentAt(round2 ? new Date(round2) : null);
