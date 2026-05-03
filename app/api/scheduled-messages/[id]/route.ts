@@ -124,7 +124,7 @@ export async function PATCH(
       );
     }
 
-    /* ================= 🔥 RESET & UPDATE ================= */
+    /* ================= 🔥 RESET MESSAGE ================= */
     await ScheduledMessage.updateOne(
       { _id: id },
       {

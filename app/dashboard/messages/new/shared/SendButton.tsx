@@ -24,7 +24,10 @@ type Props = {
 
   children: ReactNode;
 
-  round?: 1 | 2; // ✅ נוסף
+  round?: 1 | 2;
+
+  // 🔥 חדש
+  messageId?: string | null;
 };
 
 /* ================= COMPONENT ================= */
@@ -46,7 +49,8 @@ const SendButton: React.FC<Props> = ({
   onAfterSend,
   children,
 
-  round, // ✅ נוסף
+  round,
+  messageId, // 🔥 חדש
 }) => {
   const channelLabel = channel === "sms" ? "SMS" : "WhatsApp";
 
@@ -96,7 +100,7 @@ const SendButton: React.FC<Props> = ({
           giftLink,
           messageOverride,
 
-          round, // ✅ נוסף
+          round,
         };
       }
 
@@ -113,12 +117,32 @@ const SendButton: React.FC<Props> = ({
         };
       }
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let res;
+
+      /* ================= 🔥 EDIT (PATCH) ================= */
+
+      if (messageId && scheduledAt) {
+        res = await fetch(`/api/scheduled-message/${messageId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scheduledAt,
+            messageContent: messageOverride || "",
+          }),
+        });
+      }
+
+      /* ================= 🆕 CREATE (POST) ================= */
+
+      else {
+        res = await fetch(endpoint, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
 
       const data = await res.json();
 
@@ -148,7 +172,9 @@ const SendButton: React.FC<Props> = ({
 
       /* ================= SUCCESS ================= */
 
-      if (scheduledAt) {
+      if (messageId && scheduledAt) {
+        alert("✏️ ההודעה עודכנה בהצלחה");
+      } else if (scheduledAt) {
         alert("⏱️ ההודעות תוזמנו ונכנסו לתהליך שליחה");
       } else {
         const count = data.queued ?? data.sent ?? audience.length;
@@ -156,7 +182,6 @@ const SendButton: React.FC<Props> = ({
       }
 
       setSent(true);
-
       onAfterSend?.();
     } catch (err) {
       console.error("SEND ERROR:", err);
