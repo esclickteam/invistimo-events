@@ -65,11 +65,11 @@ const WhatsappQueueSchema = new Schema(
 
     /* ================= SCHEDULING ================= */
 
-    scheduledFor: {
-      type: Date,
-      default: null,
-      index: true,
-    },
+    scheduledAt: {
+  type: Date,
+  default: null,
+  index: true,
+},
 
     /* ================= PAYLOAD ================= */
 
@@ -125,7 +125,7 @@ const WhatsappQueueSchema = new Schema(
 // Polling יעיל ל-worker
 WhatsappQueueSchema.index({
   status: 1,
-  scheduledFor: 1,
+  scheduledAt: 1,
   createdAt: 1,
 });
 
