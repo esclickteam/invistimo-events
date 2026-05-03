@@ -111,6 +111,8 @@ export default function RsvpTab({
 const [sendTiming, setSendTiming] = useState<SendTiming>("now");
 const [scheduledDate, setScheduledDate] = useState("");
 const [scheduledTime, setScheduledTime] = useState("");
+const [existingSchedule, setExistingSchedule] = useState<any | null>(null);
+const [cancelLoading, setCancelLoading] = useState(false);
 
 useEffect(() => {
   if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
@@ -168,6 +170,41 @@ useEffect(() => {
     }
   }
 
+async function handleCancelSchedule() {
+  if (!existingSchedule?._id) return;
+
+  const ok = confirm("לבטל את התזמון?");
+  if (!ok) return;
+
+  setCancelLoading(true); // 🔥 מתחיל loading
+
+  try {
+    const res = await fetch("/api/scheduled/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scheduleId: existingSchedule._id,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error);
+
+    // ניקוי UI
+    setExistingSchedule(null);
+    setScheduledDate("");
+    setScheduledTime("");
+    setScheduledAt(null);
+    setSendTiming("now");
+
+  } catch (err: any) {
+    alert(err.message);
+  } finally {
+    setCancelLoading(false); // 🔥 תמיד מתאפס (גם אם יש שגיאה)
+  }
+}
+
   useEffect(() => {
     if (!round1SentAt && !round2SentAt) return;
 
@@ -213,6 +250,37 @@ const [half, setHalf] = useState<HalfType>(null);
   fetch(`/api/invitations/${invitationId}`, { cache: "no-store" }),
 ]);
 
+const scheduleRes = await fetch(
+  `/api/scheduled/by-invitation?invitationId=${invitationId}&type=rsvp&round=${round}`,
+  { cache: "no-store" }
+);
+
+const scheduleData = await scheduleRes.json();
+
+if (scheduleData?.schedule) {
+  setExistingSchedule(scheduleData.schedule);
+
+  if (scheduleData.schedule.scheduledAt) {
+    const d = new Date(scheduleData.schedule.scheduledAt);
+
+    setScheduledDate(d.toISOString().slice(0, 10));
+    setScheduledTime(d.toISOString().slice(11, 16));
+    setSendTiming("scheduled");
+  } else {
+    // אם יש schedule אבל בלי תאריך (נדיר)
+    setScheduledDate("");
+    setScheduledTime("");
+    setSendTiming("now");
+  }
+} else {
+  // 🔥 הכי חשוב – אין תזמון בכלל
+  setExistingSchedule(null);
+  setScheduledDate("");
+  setScheduledTime("");
+  setScheduledAt(null);
+  setSendTiming("now");
+}
+
         const guestsData = await guestsRes.json();
         const invitationData = await invitationRes.json();
 
@@ -257,7 +325,7 @@ setRound2SentAt(round2 ? new Date(round2) : null);
     }
 
     loadData();
-  }, [invitationId, invitationTitle, eventDate, eventLocation]);
+  }, [invitationId, invitationTitle, eventDate, eventLocation, round]);
 
   /* ================= SAVE GIFT OPTIONS ================= */
 
@@ -355,6 +423,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   noAudience ||
   missingHeaderImage ||
   (sendTiming === "scheduled" && !scheduledAt) ||
+  existingSchedule?.status === "pending" || // 🔥 זה מה שחסר
   (round === 1 && !!round1SentAt) ||
   (round === 2 && !!round2SentAt);
 
@@ -596,6 +665,32 @@ const secondHalfCount = sortedGuests.slice(mid).length;
       />
     </div>
   )}
+
+  {existingSchedule && existingSchedule.status === "pending" && (
+  <>
+    <div className="text-sm text-gray-600">
+      מתוזמן ל־
+      {new Date(existingSchedule.scheduledAt).toLocaleDateString("he-IL")}{" "}
+      בשעה{" "}
+      {new Date(existingSchedule.scheduledAt).toLocaleTimeString("he-IL", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}
+    </div>
+
+    <button
+      onClick={handleCancelSchedule}
+      disabled={cancelLoading}
+      className="w-full bg-red-500 text-white py-3 rounded-xl mt-2 disabled:opacity-60"
+    >
+      {cancelLoading ? "מבטל..." : "❌ בטל תזמון"}
+    </button>
+  </>
+)}
+
+
+
+
 </div>
 
       {waStats && (

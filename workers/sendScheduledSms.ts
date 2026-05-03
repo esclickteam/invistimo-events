@@ -115,6 +115,13 @@ export async function sendScheduledSms() {
   for (const msg of messages) {
     processed++;
 
+    /* 🔥 בדיקה לפני התחלת שליחה */
+    const freshBefore = await ScheduledMessage.findById(msg._id).lean();
+    if (!freshBefore || freshBefore.status === "cancelled") {
+      console.log("⛔ skipped cancelled message", msg._id);
+      continue;
+    }
+
     try {
       const invitation = await Invitation.findById(msg.invitationId).lean();
       const event = invitation?.eventId
@@ -149,6 +156,13 @@ export async function sendScheduledSms() {
       /* ================= LOOP ================= */
 
       for (const guest of guests) {
+        /* 🔥 עצירה תוך כדי שליחה */
+        const freshMid = await ScheduledMessage.findById(msg._id).lean();
+        if (!freshMid || freshMid.status === "cancelled") {
+          console.log("⛔ stopped mid-send", msg._id);
+          break;
+        }
+
         let phone = String(guest.phone || "").replace(/\D/g, "");
         if (!phone) continue;
 
@@ -178,9 +192,9 @@ export async function sendScheduledSms() {
         const shortUrl = await shortenUrl(personalUrl);
 
         let text = String(msg.messageContent || "")
-  .replace(/{{name}}/g, guest.name || "")
-  .replace(/{{rsvpLink}}/g, shortUrl)
-  .replace(/{{tableName}}/g, guest.tableName || "");
+          .replace(/{{name}}/g, guest.name || "")
+          .replace(/{{rsvpLink}}/g, shortUrl)
+          .replace(/{{tableName}}/g, guest.tableName || "");
 
         const parts = countBusinessSms(text);
         if (parts === -1) continue;
@@ -213,57 +227,24 @@ export async function sendScheduledSms() {
       /* ================= UPDATE SUCCESS ================= */
 
       await ScheduledMessage.updateOne(
-  { _id: msg._id },
-  {
-    $set: {
-      status: "sent",
-      sentAt: new Date(),
-      lockedAt: null,
-    },
-    $inc: {
-      sentCount: sent,
-    },
-    $push: {
-      sentGuestIds: { $each: sentGuestIds },
-    },
-  }
-);
+        { _id: msg._id, status: { $ne: "cancelled" } }, // 🔥 הגנה
+        {
+          $set: {
+            status: "sent",
+            sentAt: new Date(),
+            lockedAt: null,
+          },
+          $inc: {
+            sentCount: sent,
+          },
+          $push: {
+            sentGuestIds: { $each: sentGuestIds },
+          },
+        }
+      );
 
-/* ================= 🔥 UPDATE REMINDER ================= */
-
-if (sent > 0) {
-  // 🔔 תזכורת (table)
-  if (msg.templateKey === "table") {
-    await Invitation.updateOne(
-      { _id: msg.invitationId, reminderSentAt: { $in: [null, undefined] } },
-      {
-        $set: {
-          reminderSentAt: new Date(),
-        },
-      }
-    );
-  }
-
-  // 💌 תודה (custom)
-  if (msg.templateKey === "custom") {
-    await Invitation.updateOne(
-      { _id: msg.invitationId, thankYouSentAt: { $in: [null, undefined] } },
-      {
-        $set: {
-          thankYouSentAt: new Date(),
-        },
-      }
-    );
-  }
-}
       sentTotal += sent;
 
-      if (!user.isActive && charged > 0) {
-        await User.updateOne(
-          { _id: msg.userId },
-          { $inc: { smsUsed: charged } }
-        );
-      }
     } catch (err: any) {
       console.error("💥 Worker error:", err);
 
