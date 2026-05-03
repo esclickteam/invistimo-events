@@ -413,7 +413,11 @@ const secondHalfCount = sortedGuests.slice(mid).length;
   noAudience ||
   missingHeaderImage ||
   (sendTiming === "scheduled" && !scheduledAt) ||
-  existingSchedule?.status === "scheduled" || // 👈 זה מה שחסר
+  (
+    existingSchedule?.status === "scheduled" &&
+    existingSchedule?.scheduledAt &&
+    !isNaN(new Date(existingSchedule.scheduledAt).getTime())
+  ) ||
   (round === 1 && !!round1SentAt) ||
   (round === 2 && !!round2SentAt);
 
