@@ -1,6 +1,6 @@
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage"; // SMS
-import WhatsAppQueue from "@/models/WhatsAppQueue";    // WhatsApp
+import WhatsappQueue from "@/models/tempQueue"; // WhatsApp
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
@@ -258,7 +258,7 @@ export async function sendScheduledWhatsapp() {
   const messages: any[] = [];
 
   for (let i = 0; i < 50; i++) {
-    const msg = await WhatsAppQueue.findOneAndUpdate(
+    const msg = await WhatsappQueue.findOneAndUpdate(
       {
         status: "scheduled",
         scheduledAt: { $lte: now },
@@ -280,7 +280,7 @@ export async function sendScheduledWhatsapp() {
   }
 
   for (const msg of messages) {
-    const fresh = await WhatsAppQueue.findById(msg._id);
+    const fresh = await WhatsappQueue.findById(msg._id);
     if (!fresh || fresh.status === "cancelled") continue;
 
     const guests = await InvitationGuest.find({
@@ -291,7 +291,7 @@ export async function sendScheduledWhatsapp() {
     const sentGuestIds: any[] = [];
 
     for (const guest of guests) {
-      const freshMid = await WhatsAppQueue.findById(msg._id);
+      const freshMid = await WhatsappQueue.findById(msg._id);
       if (!freshMid || freshMid.status === "cancelled") break;
 
       let phone = String(guest.phone || "").replace(/\D/g, "");
@@ -312,7 +312,7 @@ export async function sendScheduledWhatsapp() {
       }
     }
 
-    await WhatsAppQueue.updateOne(
+    await WhatsappQueue.updateOne(
   { _id: msg._id, status: { $ne: "cancelled" } },
   {
     $set: {

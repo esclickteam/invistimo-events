@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import WhatsAppQueue from "@/models/WhatsAppQueue"; // ✔️ תואם לשם הקובץ שלך
+import WhatsAppQueue from "@/models/tempQueue";
 
 export async function GET(req: NextRequest) {
   await dbConnect();

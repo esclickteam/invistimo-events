@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import WhatsappQueue from "@/models/WhatsAppQueue";
+import WhatsappQueue from "@/models/tempQueue";
 import Invitation from "@/models/Invitation";
 
 import {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import WhatsAppQueue from "@/models/WhatsAppQueue"; // 🔥 שינוי
+import WhatsappQueue from "@/models/tempQueue";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     /* ================= FIND ================= */
 
-    const schedule = await WhatsAppQueue.findById(scheduleId); // 🔥 שינוי
+    const schedule = await WhatsappQueue.findById(scheduleId); // 🔥 שינוי
 
     if (!schedule) {
       return NextResponse.json(
