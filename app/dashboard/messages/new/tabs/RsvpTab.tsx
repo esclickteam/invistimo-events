@@ -670,50 +670,28 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     </div>
   )}
 
-{(() => {
-  console.log("🧪 existingSchedule:", existingSchedule);
+{existingSchedule?.status === "scheduled" &&
+ existingSchedule?.scheduledAt && (
+  <>
+    <div className="text-sm text-gray-600">
+      מתוזמן ל־
+      {new Date(existingSchedule.scheduledAt).toLocaleDateString("he-IL")}{" "}
+      בשעה{" "}
+      {new Date(existingSchedule.scheduledAt).toLocaleTimeString("he-IL", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}
+    </div>
 
-  const parsedDate = existingSchedule?.scheduledAt
-    ? new Date(existingSchedule.scheduledAt)
-    : null;
-
-  console.log("🧪 parsedDate:", parsedDate);
-  console.log(
-    "🧪 isValid:",
-    parsedDate && !isNaN(parsedDate.getTime())
-  );
-
-  if (
-    existingSchedule?.status === "scheduled" &&
-    existingSchedule?.scheduledAt &&
-    parsedDate &&
-    !isNaN(parsedDate.getTime())
-  ) {
-    return (
-      <>
-        <div className="text-sm text-gray-600">
-          מתוזמן ל־
-          {parsedDate.toLocaleDateString("he-IL")}{" "}
-          בשעה{" "}
-          {parsedDate.toLocaleTimeString("he-IL", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </div>
-
-        <button
-          onClick={handleCancelSchedule}
-          disabled={cancelLoading}
-          className="w-full bg-red-500 text-white py-3 rounded-xl mt-2 disabled:opacity-60"
-        >
-          {cancelLoading ? "מבטל..." : "❌ בטל תזמון"}
-        </button>
-      </>
-    );
-  }
-
-  return null;
-})()}
+    <button
+      onClick={handleCancelSchedule}
+      disabled={cancelLoading}
+      className="w-full bg-red-500 text-white py-3 rounded-xl mt-2 disabled:opacity-60"
+    >
+      {cancelLoading ? "מבטל..." : "❌ בטל תזמון"}
+    </button>
+  </>
+)}
 
 
 </div>
