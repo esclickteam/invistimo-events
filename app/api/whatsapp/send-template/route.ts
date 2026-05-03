@@ -181,13 +181,11 @@ export async function POST(req: NextRequest) {
           invitation.rsvpRound1SentAt ||
           invitation.rsvpSmsRound1SentAt ||
           invitation.rsvpSmsRound1ScheduledAt ||
-          invitation.rsvpWhatsappRound1ScheduledAt;
 
         const round2Already =
           invitation.rsvpRound2SentAt ||
           invitation.rsvpSmsRound2SentAt ||
           invitation.rsvpSmsRound2ScheduledAt ||
-          invitation.rsvpWhatsappRound2ScheduledAt;
 
         if (isRound1 && round1Already) throw new Error("RSVP_ROUND1_ALREADY_SENT");
         if (isRound2 && !round1Already) throw new Error("ROUND2_NOT_ALLOWED_BEFORE_ROUND1");

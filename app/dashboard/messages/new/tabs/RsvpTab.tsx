@@ -132,6 +132,9 @@ useEffect(() => {
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
 
+  const [isScheduledRound1, setIsScheduledRound1] = useState(false);
+const [isScheduledRound2, setIsScheduledRound2] = useState(false);
+
   // 📅 נתוני אירוע ל־Preview
   const [eventData, setEventData] = useState<{
     title: string;
@@ -222,17 +225,29 @@ const [half, setHalf] = useState<HalfType>(null);
 
         const inv = invitationData?.invitation;
 
+        setIsScheduledRound1(
+  !!(
+    inv?.rsvpWhatsappRound1ScheduledAt ||
+    inv?.rsvpSmsRound1ScheduledAt
+  )
+);
+
+setIsScheduledRound2(
+  !!(
+    inv?.rsvpWhatsappRound2ScheduledAt ||
+    inv?.rsvpSmsRound2ScheduledAt
+  )
+);
+
         const round1 =
   inv?.rsvpRound1SentAt ||
   inv?.rsvpSmsRound1SentAt ||
-  inv?.rsvpSmsRound1ScheduledAt ||
-  inv?.rsvpWhatsappRound1ScheduledAt; // 🔥 חדש
+  inv?.rsvpWhatsappRound1SentAt;
 
 const round2 =
   inv?.rsvpRound2SentAt ||
   inv?.rsvpSmsRound2SentAt ||
-  inv?.rsvpSmsRound2ScheduledAt ||
-  inv?.rsvpWhatsappRound2ScheduledAt; // 🔥 חדש
+  inv?.rsvpWhatsappRound2SentAt;
 
 setRound1SentAt(round1 ? new Date(round1) : null);
 setRound2SentAt(round2 ? new Date(round2) : null);
@@ -383,23 +398,34 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     <div className="space-y-6 p-6">
       {/* ===== ROUNDS ===== */}
       <div className="flex gap-2">
-        <button
-          className={`flex-1 py-2 rounded-xl font-medium border ${
-            round === 1 ? "bg-blue-600 text-white" : "border-gray-300"
-          }`}
-          onClick={() => setRound(1)}
-        >
-          סבב 1 – לכולם {round1SentAt ? "(נשלח)" : ""}
-        </button>
 
         <button
-          className={`flex-1 py-2 rounded-xl font-medium border ${
-            round === 2 ? "bg-blue-600 text-white" : "border-gray-300"
-          }`}
-          onClick={() => setRound(2)}
-        >
-          סבב 2 – למי שטרם ענה {round2SentAt ? "(נשלח)" : ""}
-        </button>
+  className={`flex-1 py-2 rounded-xl font-medium border ${
+    round === 1 ? "bg-blue-600 text-white" : "border-gray-300"
+  }`}
+  onClick={() => setRound(1)}
+>
+  סבב 1 – לכולם{" "}
+  {round1SentAt
+    ? "(נשלח)"
+    : isScheduledRound1
+    ? "(מתוזמן)"
+    : ""}
+</button>
+
+        <button
+  className={`flex-1 py-2 rounded-xl font-medium border ${
+    round === 2 ? "bg-blue-600 text-white" : "border-gray-300"
+  }`}
+  onClick={() => setRound(2)}
+>
+  סבב 2 – למי שטרם ענה{" "}
+  {round2SentAt
+    ? "(נשלח)"
+    : isScheduledRound2
+    ? "(מתוזמן)"
+    : ""}
+</button>
       </div>
 
       <AudienceFilterSelector
