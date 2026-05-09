@@ -59,14 +59,25 @@ export async function GET(
     );
   } catch (err: any) {
     if (err?.message === "UNAUTHORIZED") {
-      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
+
     if (err?.message === "FORBIDDEN") {
-      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
 
     console.error("ADMIN USER GET ERROR:", err);
-    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
+
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
 
@@ -84,11 +95,6 @@ export async function PATCH(
     const { id } = await context.params;
     const body = await req.json();
 
-    /**
-     * ❗ IMPORTANT:
-     * שליטה מלאה לאדמין.
-     * כל לוגיקה חכמה נשארת ב־UserSchema בלבד.
-     */
     const allowedUpdate: any = {
       name: body.name,
       email: body.email,
@@ -123,11 +129,15 @@ export async function PATCH(
 
       isTrial: body.isTrial,
       isDemoUser: body.isDemoUser,
+
+      eventDate: body.eventDate,
     };
 
     // ניקוי undefined – לא לדרוס שדות קיימים
     Object.keys(allowedUpdate).forEach((key) => {
-      if (allowedUpdate[key] === undefined) delete allowedUpdate[key];
+      if (allowedUpdate[key] === undefined) {
+        delete allowedUpdate[key];
+      }
     });
 
     const updatedUser = await User.findOneAndUpdate(
@@ -148,22 +158,100 @@ export async function PATCH(
         success: true,
         user: updatedUser,
       },
-      { headers: { "Cache-Control": "no-store" } }
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   } catch (err: any) {
     if (err?.message === "UNAUTHORIZED") {
-      return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
     }
+
     if (err?.message === "FORBIDDEN") {
-      return NextResponse.json({ success: false, error: "FORBIDDEN" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN" },
+        { status: 403 }
+      );
     }
 
     console.error("ADMIN USER UPDATE ERROR:", err);
-    return NextResponse.json({ success: false, error: "SERVER_ERROR" }, { status: 500 });
+
+    return NextResponse.json(
+      { success: false, error: "SERVER_ERROR" },
+      { status: 500 }
+    );
   }
 }
 
 /* =========================================================
-   DELETE – OPTIONAL (ADMIN)
+   DELETE – ADMIN DELETE USER
 ========================================================= */
-// export async function DELETE(...) {}
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectDB();
+    await requireAdmin(req);
+
+    const { id } = await context.params;
+
+    const deletedUser = await User.findByIdAndDelete(id);
+
+    if (!deletedUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "USER_NOT_FOUND",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (err: any) {
+    if (err?.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (err?.message === "FORBIDDEN") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FORBIDDEN",
+        },
+        { status: 403 }
+      );
+    }
+
+    console.error("ADMIN USER DELETE ERROR:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "SERVER_ERROR",
+      },
+      { status: 500 }
+    );
+  }
+}

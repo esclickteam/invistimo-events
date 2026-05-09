@@ -120,12 +120,35 @@ const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
   }
 }
 
-  function removeUserFromView(userId: string) {
-    if (!confirm("להסיר את המשתמש מהתצוגה?")) return;
-    const updated = [...hiddenUserIds, userId];
-    setHiddenUserIds(updated);
-    sessionStorage.setItem("adminHiddenUsers", JSON.stringify(updated));
+  async function removeUser(userId: string) {
+  const confirmed = confirm(
+    "האם למחוק את המשתמש לצמיתות?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      alert("מחיקת המשתמש נכשלה");
+      return;
+    }
+
+    setUsers((prev) =>
+      prev.filter((u) => u._id !== userId)
+    );
+
+  } catch (error) {
+    console.error(error);
+    alert("אירעה שגיאה במחיקה");
   }
+}
 
   /* =========================
      EFFECTS
@@ -247,10 +270,10 @@ const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
 
                       {u.role !== "admin" && (
                         <button
-                          onClick={() => removeUserFromView(u._id)}
+                          onClick={() => removeUser(u._id)}
                           className="px-3 py-1 bg-red-600 text-white rounded-full text-xs"
                         >
-                          הסר
+                         מחק
                         </button>
                       )}
                     </td>
