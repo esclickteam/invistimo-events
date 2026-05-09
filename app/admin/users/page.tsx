@@ -343,12 +343,7 @@ const filteredUsers = users
   עריכת משתמש
 </button>
 
-                      <button
-                        onClick={() => toggleCalls(u._id, !u.includeCalls)}
-                        className="px-3 py-1 bg-black text-white rounded-full text-xs"
-                      >
-                        {u.includeCalls ? "כבה שיחות" : "הפעל שיחות"}
-                      </button>
+                      
 
                       {u.role !== "admin" && (
   <button
