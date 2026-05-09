@@ -147,7 +147,11 @@ for (const invitation of invitations) {
   }
 }
 
-    const usersWithEventDate = users
+    const today = new Date();
+
+today.setHours(0, 0, 0, 0);
+
+const usersWithEventDate = users
   .map((u: any) => {
     const invitation = invitationByUserId.get(String(u._id));
 
@@ -157,16 +161,37 @@ for (const invitation of invitations) {
     };
   })
   .sort((a: any, b: any) => {
-    // משתמשים בלי תאריך יורדים לסוף
+
+    // בלי תאריך -> לסוף
     if (!a.eventDate) return 1;
     if (!b.eventDate) return -1;
 
+    const dateA = new Date(a.eventDate);
+    const dateB = new Date(b.eventDate);
+
+    dateA.setHours(0, 0, 0, 0);
+    dateB.setHours(0, 0, 0, 0);
+
+    const isPastA = dateA < today;
+    const isPastB = dateB < today;
+
+    // עתידיים לפני עבר
+    if (isPastA && !isPastB) return 1;
+    if (!isPastA && isPastB) return -1;
+
+    // שניהם עתידיים -> הכי קרוב ראשון
+    if (!isPastA && !isPastB) {
+      return (
+        dateA.getTime() - dateB.getTime()
+      );
+    }
+
+    // שניהם עבר -> הכי חדש קודם
     return (
-      new Date(a.eventDate).getTime() -
-      new Date(b.eventDate).getTime()
+      dateB.getTime() - dateA.getTime()
     );
   });
-
+  
     return NextResponse.json(
       {
         success: true,
