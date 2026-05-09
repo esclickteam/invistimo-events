@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
+import { useAuth } from "@/context/AuthContext";
 
 /* ================= TYPES ================= */
 
@@ -101,6 +102,7 @@ export default function RsvpTab({
   eventLocation,
   headerImageUrl,
 }: Props) {
+  const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [round, setRound] = useState<1 | 2>(1);
@@ -134,6 +136,8 @@ useEffect(() => {
   // 🔒 מצב סבבים
   const [round1SentAt, setRound1SentAt] = useState<Date | null>(null);
   const [round2SentAt, setRound2SentAt] = useState<Date | null>(null);
+  const [round1Locked, setRound1Locked] = useState(true);
+const [round2Locked, setRound2Locked] = useState(true);
 
   // 📅 נתוני אירוע ל־Preview
   const [eventData, setEventData] = useState<{
@@ -295,6 +299,14 @@ const round2 =
 setRound1SentAt(round1 ? new Date(round1) : null);
 setRound2SentAt(round2 ? new Date(round2) : null);
 
+setRound1Locked(
+  inv?.messageLocks?.rsvpWhatsappRound1 ?? true
+);
+
+setRound2Locked(
+  inv?.messageLocks?.rsvpWhatsappRound2 ?? true
+);
+
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
 
@@ -362,6 +374,46 @@ setRound2SentAt(round2 ? new Date(round2) : null);
       if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
     };
   }, [giftOptions, invitationId]);
+
+
+  async function toggleMessageLock(
+  key: string,
+  current: boolean
+) {
+  try {
+    const res = await fetch(
+      "/api/admin/toggle-message-lock",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId,
+          key,
+          value: !current,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("FAILED");
+    }
+
+    if (key === "rsvpWhatsappRound1") {
+      setRound1Locked(!current);
+    }
+
+    if (key === "rsvpWhatsappRound2") {
+      setRound2Locked(!current);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה בעדכון הסבב");
+  }
+}
+
 
   /* ================= DERIVED ================= */
 
@@ -715,9 +767,44 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     : `📲 שלח אישור הגעה – סבב ${round}`}
 </SendButton>
 
+{user?.role === "admin" && (
+  <button
+    onClick={() =>
+      toggleMessageLock(
+        round === 1
+          ? "rsvpWhatsappRound1"
+          : "rsvpWhatsappRound2",
+
+        round === 1
+          ? round1Locked
+          : round2Locked
+      )
+    }
+    className={`w-full py-3 rounded-xl text-white font-medium ${
+      (
+        round === 1
+          ? round1Locked
+          : round2Locked
+      )
+        ? "bg-orange-500"
+        : "bg-green-600"
+    }`}
+  >
+    {(
+      round === 1
+        ? round1Locked
+        : round2Locked
+    )
+      ? "🔓 פתח סבב"
+      : "🔒 סגור סבב"}
+  </button>
+)}
+
       {noAudience && (
         <p className="text-sm text-red-500">אין נמענים לשליחה בסבב זה</p>
       )}
     </div>
+
+    
   );
 }

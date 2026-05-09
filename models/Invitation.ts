@@ -246,6 +246,49 @@ rsvpWhatsappRound2ScheduledAt: {
       default: null,
       index: true,
     },
+    /* ================= MESSAGE LOCKS ================= */
+
+messageLocks: {
+  rsvpSmsRound1: {
+    type: Boolean,
+    default: true,
+  },
+
+  rsvpSmsRound2: {
+    type: Boolean,
+    default: true,
+  },
+
+  rsvpWhatsappRound1: {
+    type: Boolean,
+    default: true,
+  },
+
+  rsvpWhatsappRound2: {
+    type: Boolean,
+    default: true,
+  },
+
+  reminderSms: {
+    type: Boolean,
+    default: true,
+  },
+
+  reminderWhatsapp: {
+    type: Boolean,
+    default: true,
+  },
+
+  thankyouSms: {
+    type: Boolean,
+    default: true,
+  },
+
+  thankyouWhatsapp: {
+    type: Boolean,
+    default: true,
+  },
+},
   },
   {
     timestamps: true,

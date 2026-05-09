@@ -7,6 +7,7 @@ import AudienceFilterSelector, {
 import SendButton from "../shared/SendButton";
 import TextMessagePreview from "../shared/TextMessagePreview";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import { useAuth } from "@/context/AuthContext";
 
 /* ================= TYPES ================= */
 
@@ -79,6 +80,7 @@ const RSVP_SMS_TEMPLATES = {
 /* ================= COMPONENT ================= */
 
 export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
+  const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -93,6 +95,8 @@ const [rsvpRound2Sent, setRsvpRound2Sent] = useState(false);
 const [rsvpRound1Scheduled, setRsvpRound1Scheduled] = useState(false);
 const [rsvpRound2Scheduled, setRsvpRound2Scheduled] = useState(false);
 
+const [round1Locked, setRound1Locked] = useState(true);
+const [round2Locked, setRound2Locked] = useState(true);
   /* ================= GIFT OPTIONS ================= */
 
   const [giftOptions, setGiftOptions] = useState<GiftOptions>({
@@ -222,6 +226,14 @@ setRsvpRound2Sent(!!round2Sent);
 setRsvpRound1Scheduled(!!round1Scheduled);
 setRsvpRound2Scheduled(!!round2Scheduled);
 
+setRound1Locked(
+  inv?.messageLocks?.rsvpSmsRound1 ?? true
+);
+
+setRound2Locked(
+  inv?.messageLocks?.rsvpSmsRound2 ?? true
+);
+
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
       } catch (e) {
@@ -288,6 +300,44 @@ setRsvpRound2Scheduled(!!round2Scheduled);
     () => guests.filter((g) => g.rsvp === "pending"),
     [guests]
   );
+
+  async function toggleMessageLock(
+  key: string,
+  current: boolean
+) {
+  try {
+    const res = await fetch(
+      "/api/admin/toggle-message-lock",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId,
+          key,
+          value: !current,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("FAILED");
+    }
+
+    if (key === "rsvpSmsRound1") {
+      setRound1Locked(!current);
+    }
+
+    if (key === "rsvpSmsRound2") {
+      setRound2Locked(!current);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה בעדכון הסבב");
+  }
+}
 
   /* ================= FILTER ================= */
 
@@ -556,8 +606,16 @@ setRsvpRound2Scheduled(!!round2Scheduled);
   disabled={
   noAudience ||
   (sendTiming === "scheduled" && !scheduledAt) ||
-  (round === 1 && (rsvpRound1Sent || rsvpRound1Scheduled || round1Scheduled)) ||
-  (round === 2 && (rsvpRound2Sent || rsvpRound2Scheduled || round2Scheduled))
+  (
+  round === 1 &&
+  (rsvpRound1Sent || rsvpRound1Scheduled || round1Scheduled) &&
+  round1Locked
+)||
+  (
+  round === 2 &&
+  (rsvpRound2Sent || rsvpRound2Scheduled || round2Scheduled) &&
+  round2Locked
+)
 }
 >
   {round === 1 && (rsvpRound1Sent || rsvpRound1Scheduled || round1Scheduled)
@@ -572,6 +630,39 @@ setRsvpRound2Scheduled(!!round2Scheduled);
   ? "⏱️ תזמן אישור הגעה"
   : "📩 שלח אישור הגעה SMS"}
 </SendButton>
+
+{user?.role === "admin" && (
+  <button
+    onClick={() =>
+      toggleMessageLock(
+        round === 1
+          ? "rsvpSmsRound1"
+          : "rsvpSmsRound2",
+
+        round === 1
+          ? round1Locked
+          : round2Locked
+      )
+    }
+    className={`w-full py-3 rounded-xl text-white font-medium ${
+      (
+        round === 1
+          ? round1Locked
+          : round2Locked
+      )
+        ? "bg-orange-500"
+        : "bg-green-600"
+    }`}
+  >
+    {(
+      round === 1
+        ? round1Locked
+        : round2Locked
+    )
+      ? "🔓 פתח סבב"
+      : "🔒 סגור סבב"}
+  </button>
+)}
 
       {/* OPEN MODAL BUTTON */}
       {scheduledMessages.length > 0 && (

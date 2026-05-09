@@ -5,6 +5,7 @@ import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 import { buildMessage } from "@/lib/messages/buildMessage";
+import { useAuth } from "@/context/AuthContext";
 
 /* ================= TYPES ================= */
 
@@ -49,6 +50,7 @@ export default function ReminderTab({
   lng,
   giftCreditUrl,
 }: Props) {
+  const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeGiftLink, setIncludeGiftLink] = useState(false);
@@ -68,7 +70,7 @@ const [audienceType, setAudienceType] =
   const [testPhone, setTestPhone] = useState("");
 const [sendingTest, setSendingTest] = useState(false);
 const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
-
+const [reminderLocked, setReminderLocked] = useState(true);
 
   /* ================= SCHEDULED MESSAGES ================= */
 
@@ -151,6 +153,9 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
       const inv = invitationData?.invitation;
       if (inv?.reminderSentAt) {
         setReminderSentAt(new Date(inv.reminderSentAt));
+        setReminderLocked(
+  inv?.messageLocks?.reminderSms ?? true
+);
       }
     } catch {
       setGuests([]);
@@ -162,6 +167,37 @@ const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
   loadGuests();
 }, [invitationId]);
 
+
+async function toggleMessageLock(
+  current: boolean
+) {
+  try {
+    const res = await fetch(
+      "/api/admin/toggle-message-lock",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId,
+          key: "reminderSms",
+          value: !current,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("FAILED");
+    }
+
+    setReminderLocked(!current);
+
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה בעדכון הנעילה");
+  }
+}
 
   /* ================= HELPERS ================= */
 
@@ -595,7 +631,7 @@ const sendTestMessage = async () => {
 
   
   disabled={
-    reminderAlreadySent ||
+    (reminderAlreadySent && reminderLocked) ||
     !preview ||
     preview.blocked ||
     (sendTiming === "scheduled" && !scheduledAt)
@@ -609,9 +645,27 @@ const sendTestMessage = async () => {
 </SendButton>
 
 
+{user?.role === "admin" && (
+  <button
+    onClick={() =>
+      toggleMessageLock(reminderLocked)
+    }
+    className={`w-full py-3 rounded-xl text-white font-medium ${
+      reminderLocked
+        ? "bg-orange-500"
+        : "bg-green-600"
+    }`}
+  >
+    {reminderLocked
+      ? "🔓 פתח תזכורת"
+      : "🔒 סגור תזכורת"}
+  </button>
+)}
+
       {/* OPEN MODAL BUTTON */}
      {scheduledMessages.length > 0 && (
   <div className="w-full flex justify-center mt-8">
+
 
     <button
       onClick={async () => {

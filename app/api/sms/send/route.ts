@@ -194,14 +194,20 @@ if (!invitation) {
 if (templateKey === "rsvp") {
 
   const round1Already =
+  (
     invitation.rsvpRound1SentAt ||
     invitation.rsvpSmsRound1SentAt ||
-    invitation.rsvpSmsRound1ScheduledAt;
+    invitation.rsvpSmsRound1ScheduledAt
+  ) &&
+  invitation.messageLocks?.rsvpSmsRound1;
 
-  const round2Already =
+const round2Already =
+  (
     invitation.rsvpRound2SentAt ||
     invitation.rsvpSmsRound2SentAt ||
-    invitation.rsvpSmsRound2ScheduledAt;
+    invitation.rsvpSmsRound2ScheduledAt
+  ) &&
+  invitation.messageLocks?.rsvpSmsRound2;
 
   const existingScheduled = await ScheduledMessage.findOne({
     invitationId,
@@ -243,7 +249,43 @@ if (templateKey === "rsvp") {
 }
 
 
+/* ================= REMINDER BLOCK ================= */
 
+if (templateKey === "table") {
+
+  const reminderAlready =
+    invitation.reminderSentAt &&
+    invitation.messageLocks?.reminderSms;
+
+  if (reminderAlready) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "REMINDER_ALREADY_SENT",
+      },
+      { status: 400 }
+    );
+  }
+}
+
+/* ================= THANK YOU BLOCK ================= */
+
+if (templateKey === "custom") {
+
+  const thankyouAlready =
+    invitation.thankYouSentAt &&
+    invitation.messageLocks?.thankyouSms;
+
+  if (thankyouAlready) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "THANKYOU_ALREADY_SENT",
+      },
+      { status: 400 }
+    );
+  }
+}
 
     if (!usesNewLogic && remainingMessages <= 0) {
   return NextResponse.json(

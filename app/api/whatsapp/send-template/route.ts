@@ -178,16 +178,22 @@ export async function POST(req: NextRequest) {
         const isRound2 = templateName === "rsvp_reminder_invistimo";
 
         const round1Already =
-          invitation.rsvpRound1SentAt ||
-          invitation.rsvpSmsRound1SentAt ||
-          invitation.rsvpSmsRound1ScheduledAt ||
-          invitation.rsvpWhatsappRound1ScheduledAt;
+  (
+    invitation.rsvpRound1SentAt ||
+    invitation.rsvpSmsRound1SentAt ||
+    invitation.rsvpSmsRound1ScheduledAt ||
+    invitation.rsvpWhatsappRound1ScheduledAt
+  ) &&
+  invitation.messageLocks?.rsvpWhatsappRound1;
 
-        const round2Already =
-          invitation.rsvpRound2SentAt ||
-          invitation.rsvpSmsRound2SentAt ||
-          invitation.rsvpSmsRound2ScheduledAt ||
-          invitation.rsvpWhatsappRound2ScheduledAt;
+const round2Already =
+  (
+    invitation.rsvpRound2SentAt ||
+    invitation.rsvpSmsRound2SentAt ||
+    invitation.rsvpSmsRound2ScheduledAt ||
+    invitation.rsvpWhatsappRound2ScheduledAt
+  ) &&
+  invitation.messageLocks?.rsvpWhatsappRound2;
 
         if (isRound1 && round1Already) throw new Error("RSVP_ROUND1_ALREADY_SENT");
         if (isRound2 && !round1Already) throw new Error("ROUND2_NOT_ALLOWED_BEFORE_ROUND1");

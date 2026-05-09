@@ -5,6 +5,7 @@ import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 import { buildMessage } from "@/lib/messages/buildMessage";
+import { useAuth } from "@/context/AuthContext";
 
 /* ================= TYPES ================= */
 
@@ -38,6 +39,7 @@ export default function ThankYouTab({
   eventDate,
   eventLocation,
 }: Props) {
+  const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<any>(null);
@@ -56,6 +58,7 @@ export default function ThankYouTab({
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [thankYouSentAt, setThankYouSentAt] = useState<Date | null>(null);
+  const [thankYouLocked, setThankYouLocked] = useState(true);
   const [message, setMessage] = useState(THANK_YOU_TEMPLATE);
 
 
@@ -87,6 +90,9 @@ export default function ThankYouTab({
       const inv = invitationData?.invitation;
       if (inv?.thankYouSentAt) {
         setThankYouSentAt(new Date(inv.thankYouSentAt));
+        setThankYouLocked(
+  inv?.messageLocks?.thankyouSms ?? true
+);
       }
     } catch {
       setGuests([]);
@@ -110,6 +116,39 @@ export default function ThankYouTab({
     () => confirmedGuests,
     [confirmedGuests]
   );
+
+
+  async function toggleMessageLock(
+  current: boolean
+) {
+  try {
+    const res = await fetch(
+      "/api/admin/toggle-message-lock",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId,
+          key: "thankyouSms",
+          value: !current,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("FAILED");
+    }
+
+    setThankYouLocked(!current);
+
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה בעדכון הנעילה");
+  }
+}
+
 
   /* ================= LOAD SCHEDULED ================= */
 
@@ -471,7 +510,7 @@ export default function ThankYouTab({
     await loadScheduledMessages();
   }}
   disabled={
-    thankYouAlreadySent ||
+    (thankYouAlreadySent && thankYouLocked) ||
     !preview ||
     preview.blocked ||
     (sendTiming === "scheduled" && !scheduledAt)
@@ -485,6 +524,22 @@ export default function ThankYouTab({
     : `📩 שלח הודעת תודה (${guestsToSend.length})`}
 </SendButton>
 
+{user?.role === "admin" && (
+  <button
+    onClick={() =>
+      toggleMessageLock(thankYouLocked)
+    }
+    className={`w-full py-3 rounded-xl text-white font-medium ${
+      thankYouLocked
+        ? "bg-orange-500"
+        : "bg-green-600"
+    }`}
+  >
+    {thankYouLocked
+      ? "🔓 פתח תודה"
+      : "🔒 סגור תודה"}
+  </button>
+)}
 
       {scheduledMessages.length > 0 && (
         <div className="w-full flex justify-center mt-8">
