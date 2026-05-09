@@ -770,7 +770,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
 
 {(
   user?.role === "admin" ||
-  document.cookie.includes("adminToken")
+  (user as any)?.impersonatedByAdmin
 ) && (
   <button
     onClick={() =>

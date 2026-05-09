@@ -647,7 +647,7 @@ const sendTestMessage = async () => {
 
 {(
   user?.role === "admin" ||
-  document.cookie.includes("adminToken")
+  (user as any)?.impersonatedByAdmin
 ) && (
   <button
     onClick={() =>

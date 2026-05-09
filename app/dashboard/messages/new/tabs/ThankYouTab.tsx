@@ -526,7 +526,7 @@ export default function ThankYouTab({
 
 {(
   user?.role === "admin" ||
-  document.cookie.includes("adminToken")
+  (user as any)?.impersonatedByAdmin
 ) && (
   <button
     onClick={() =>
