@@ -55,6 +55,7 @@ const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
   const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
 const [roleFilter, setRoleFilter] = useState("all");
+const [eventFilter, setEventFilter] = useState("future");
 
   /* =========================
      LOAD DATA
@@ -163,17 +164,47 @@ const [roleFilter, setRoleFilter] = useState("all");
   }, []);
 
   if (loading) return <div className="text-gray-500">טוען משתמשים…</div>;
-  const filteredUsers = users
+  const today = new Date();
+
+today.setHours(0, 0, 0, 0);
+
+const filteredUsers = users
   .filter((u) => !hiddenUserIds.includes(u._id))
   .filter((u) => {
+
+    /* SEARCH */
     const matchesSearch =
       u.name?.toLowerCase().includes(search.toLowerCase()) ||
       u.email?.toLowerCase().includes(search.toLowerCase());
 
+    /* ROLE */
     const matchesRole =
       roleFilter === "all" || u.role === roleFilter;
 
-    return matchesSearch && matchesRole;
+    /* EVENT FILTER */
+    let matchesEvent = true;
+
+    if (eventFilter === "future") {
+      matchesEvent =
+        !!u.eventDate &&
+        new Date(u.eventDate) >= today;
+    }
+
+    if (eventFilter === "past") {
+      matchesEvent =
+        !!u.eventDate &&
+        new Date(u.eventDate) < today;
+    }
+
+    if (eventFilter === "noDate") {
+      matchesEvent = !u.eventDate;
+    }
+
+    return (
+      matchesSearch &&
+      matchesRole &&
+      matchesEvent
+    );
   });
 
   /* =========================
@@ -215,6 +246,21 @@ const [roleFilter, setRoleFilter] = useState("all");
     <option value="staff">Staff</option>
     <option value="client">Client</option>
   </select>
+
+{/* EVENT FILTER */}
+<select
+  value={eventFilter}
+  onChange={(e) => setEventFilter(e.target.value)}
+  className="border rounded-xl px-4 py-3 w-full md:w-52"
+>
+  <option value="future">אירועים עתידיים</option>
+
+  <option value="past">אירועים שעברו</option>
+
+  <option value="noDate">ללא תאריך</option>
+
+  <option value="all">הכל</option>
+</select>
 
   {/* COUNT */}
   <div className="bg-gray-100 rounded-xl px-4 py-3 text-sm flex items-center">
