@@ -47,19 +47,19 @@ export async function POST(req: NextRequest) {
 
     const user = await User.findById(auth.userId).lean();
 
-const isAdmin =
-  user?.role === "admin" ||
-  !!req.cookies.get("adminToken");
+    const isAdmin =
+      user?.role === "admin" ||
+      !!req.cookies.get("adminToken");
 
-if (!isAdmin) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "FORBIDDEN",
-    },
-    { status: 403 }
-  );
-}
+    if (!isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FORBIDDEN",
+        },
+        { status: 403 }
+      );
+    }
 
     /* ================= BODY ================= */
 
@@ -103,14 +103,60 @@ if (!isAdmin) {
       );
     }
 
+    /* ================= UPDATE DATA ================= */
+
+    const updateData: any = {
+      [`messageLocks.${key}`]: value,
+    };
+
+    /* ================= RESET ROUND ================= */
+
+    // false = פתיחת סבב מחדש
+    if (value === false) {
+
+      // RSVP SMS ROUND 1
+      if (key === "rsvpSmsRound1") {
+        updateData.rsvpRound1SentAt = null;
+        updateData.rsvpSmsRound1SentAt = null;
+        updateData.rsvpSmsRound1ScheduledAt = null;
+      }
+
+      // RSVP SMS ROUND 2
+      if (key === "rsvpSmsRound2") {
+        updateData.rsvpRound2SentAt = null;
+        updateData.rsvpSmsRound2SentAt = null;
+        updateData.rsvpSmsRound2ScheduledAt = null;
+      }
+
+      // RSVP WHATSAPP ROUND 1
+      if (key === "rsvpWhatsappRound1") {
+        updateData.rsvpRound1SentAt = null;
+        updateData.rsvpWhatsappRound1ScheduledAt = null;
+      }
+
+      // RSVP WHATSAPP ROUND 2
+      if (key === "rsvpWhatsappRound2") {
+        updateData.rsvpRound2SentAt = null;
+        updateData.rsvpWhatsappRound2ScheduledAt = null;
+      }
+
+      // REMINDER
+      if (key === "reminderSms") {
+        updateData.reminderSentAt = null;
+      }
+
+      // THANK YOU
+      if (key === "thankyouSms") {
+        updateData.thankYouSentAt = null;
+      }
+    }
+
     /* ================= UPDATE ================= */
 
     await Invitation.updateOne(
       { _id: invitationId },
       {
-        $set: {
-          [`messageLocks.${key}`]: value,
-        },
+        $set: updateData,
       }
     );
 
