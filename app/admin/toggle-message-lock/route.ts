@@ -47,15 +47,19 @@ export async function POST(req: NextRequest) {
 
     const user = await User.findById(auth.userId).lean();
 
-    if (!user || user.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "FORBIDDEN",
-        },
-        { status: 403 }
-      );
-    }
+const isAdmin =
+  user?.role === "admin" ||
+  !!req.cookies.get("adminToken");
+
+if (!isAdmin) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "FORBIDDEN",
+    },
+    { status: 403 }
+  );
+}
 
     /* ================= BODY ================= */
 
