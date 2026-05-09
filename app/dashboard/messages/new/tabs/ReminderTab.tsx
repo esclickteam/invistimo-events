@@ -645,7 +645,10 @@ const sendTestMessage = async () => {
 </SendButton>
 
 
-{user?.role === "admin" && (
+{(
+  user?.role === "admin" ||
+  document.cookie.includes("adminToken")
+) && (
   <button
     onClick={() =>
       toggleMessageLock(reminderLocked)

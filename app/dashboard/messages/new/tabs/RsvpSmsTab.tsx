@@ -631,7 +631,10 @@ setRound2Locked(
   : "📩 שלח אישור הגעה SMS"}
 </SendButton>
 
-{user?.role === "admin" && (
+{(
+  user?.role === "admin" ||
+  document.cookie.includes("adminToken")
+) && (
   <button
     onClick={() =>
       toggleMessageLock(

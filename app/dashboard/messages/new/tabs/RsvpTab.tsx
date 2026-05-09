@@ -767,7 +767,10 @@ const secondHalfCount = sortedGuests.slice(mid).length;
     : `📲 שלח אישור הגעה – סבב ${round}`}
 </SendButton>
 
-{user?.role === "admin" && (
+{(
+  user?.role === "admin" ||
+  document.cookie.includes("adminToken")
+) && (
   <button
     onClick={() =>
       toggleMessageLock(
