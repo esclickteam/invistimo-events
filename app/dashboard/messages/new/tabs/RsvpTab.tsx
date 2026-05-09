@@ -103,6 +103,7 @@ export default function RsvpTab({
   headerImageUrl,
 }: Props) {
   const { user } = useAuth();
+  console.log(user);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [round, setRound] = useState<1 | 2>(1);
