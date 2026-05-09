@@ -184,6 +184,7 @@ export async function POST(req: Request) {
 
         impersonated: true,
         impersonatedBy: adminUserId,
+        impersonatedByAdmin: true,
         impersonationRole: "admin",
         originalTargetRole: impersonationRole,
       },
