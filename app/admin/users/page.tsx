@@ -53,6 +53,8 @@ const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
 
   const [impersonating, setImpersonating] = useState<string | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+const [roleFilter, setRoleFilter] = useState("all");
 
   /* =========================
      LOAD DATA
@@ -161,6 +163,18 @@ const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
   }, []);
 
   if (loading) return <div className="text-gray-500">טוען משתמשים…</div>;
+  const filteredUsers = users
+  .filter((u) => !hiddenUserIds.includes(u._id))
+  .filter((u) => {
+    const matchesSearch =
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase());
+
+    const matchesRole =
+      roleFilter === "all" || u.role === roleFilter;
+
+    return matchesSearch && matchesRole;
+  });
 
   /* =========================
      RENDER
@@ -176,6 +190,37 @@ const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
           ➕ יצירת משתמש
         </button>
       </div>
+
+<div className="flex flex-col md:flex-row gap-3 mb-6">
+
+  {/* SEARCH */}
+  <input
+    type="text"
+    placeholder="חיפוש לפי שם או אימייל..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className="border rounded-xl px-4 py-3 w-full md:w-80"
+  />
+
+  {/* ROLE FILTER */}
+  <select
+    value={roleFilter}
+    onChange={(e) => setRoleFilter(e.target.value)}
+    className="border rounded-xl px-4 py-3 w-full md:w-52"
+  >
+    <option value="all">כל המשתמשים</option>
+    <option value="admin">Admin</option>
+    <option value="user">User</option>
+    <option value="producer">Producer</option>
+    <option value="staff">Staff</option>
+    <option value="client">Client</option>
+  </select>
+
+  {/* COUNT */}
+  <div className="bg-gray-100 rounded-xl px-4 py-3 text-sm flex items-center">
+    נמצאו {filteredUsers.length} משתמשים
+  </div>
+</div>
 
       <div className="overflow-x-auto bg-white border rounded-xl shadow-sm">
         <table className="min-w-full text-right">
@@ -195,7 +240,7 @@ const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
           </thead>
 
           <tbody>
-  {users
+ {filteredUsers
     .filter((u) => !hiddenUserIds.includes(u._id))
     .map((u) => (
       <React.Fragment key={u._id}>

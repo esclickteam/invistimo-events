@@ -4,7 +4,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
-import Event from "@/models/Event";
+import Invitation from "@/models/Invitation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -109,13 +109,15 @@ export async function GET(req: NextRequest) {
 
     const userIds = users.map((u: any) => u._id);
 
-    const events =
-      userIds.length > 0
-        ? await Event.find({ userId: { $in: userIds } })
-            .select("userId date")
-            .sort({ date: -1 })
-            .lean()
-        : [];
+    const invitations =
+  userIds.length > 0
+    ? await Invitation.find({
+        ownerId: { $in: userIds },
+      })
+        .select("ownerId eventDate")
+        .sort({ eventDate: -1 })
+        .lean()
+    : [];
 
     const revenueAgg = await User.aggregate([
       {
@@ -135,21 +137,24 @@ export async function GET(req: NextRequest) {
 
     const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
 
-    const eventByUserId = new Map<string, any>();
-    for (const event of events) {
-      const uid = String(event.userId);
-      if (!eventByUserId.has(uid)) {
-        eventByUserId.set(uid, event);
-      }
-    }
+    const invitationByUserId = new Map<string, any>();
+
+for (const invitation of invitations) {
+  const uid = String(invitation.ownerId);
+
+  if (!invitationByUserId.has(uid)) {
+    invitationByUserId.set(uid, invitation);
+  }
+}
 
     const usersWithEventDate = users.map((u: any) => {
-      const event = eventByUserId.get(String(u._id));
-      return {
-        ...u,
-        eventDate: event?.date || null,
-      };
-    });
+  const invitation = invitationByUserId.get(String(u._id));
+
+  return {
+    ...u,
+    eventDate: invitation?.eventDate || null,
+  };
+});
 
     return NextResponse.json(
       {
