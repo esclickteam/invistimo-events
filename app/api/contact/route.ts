@@ -14,11 +14,15 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+
     const { name, email, subject, message } = body;
 
     if (!name || !email || !message) {
       return NextResponse.json(
-        { success: false, error: "Missing fields" },
+        {
+          success: false,
+          error: "Missing fields",
+        },
         { status: 400 }
       );
     }
@@ -33,8 +37,11 @@ export async function POST(req: Request) {
       // ✅ שולח מדומיין מאומת
       from: "Invistimo <support@invistimo.com>",
 
-      // ✅ Outlook + Gmail (בלי רווחים)
+      // ✅ מיילי התמיכה
       to: recipients,
+
+      // ✅ גם Gmail יקבל עותק
+      bcc: ["invistimo9@gmail.com"],
 
       // ✅ תשובה חוזרת ללקוח
       replyTo: email,
@@ -50,7 +57,14 @@ export async function POST(req: Request) {
           <p><strong>שם:</strong> ${name}</p>
           <p><strong>אימייל:</strong> ${email}</p>
 
+          ${
+            subject
+              ? `<p><strong>נושא:</strong> ${subject}</p>`
+              : ""
+          }
+
           <p><strong>הודעה:</strong></p>
+
           <p>${message.replace(/\n/g, "<br />")}</p>
 
           <hr />
@@ -62,12 +76,17 @@ export async function POST(req: Request) {
       `,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+    });
   } catch (error) {
     console.error("CONTACT FORM ERROR:", error);
 
     return NextResponse.json(
-      { success: false, error: "Server error" },
+      {
+        success: false,
+        error: "Server error",
+      },
       { status: 500 }
     );
   }
