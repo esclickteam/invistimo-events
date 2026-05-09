@@ -147,14 +147,25 @@ for (const invitation of invitations) {
   }
 }
 
-    const usersWithEventDate = users.map((u: any) => {
-  const invitation = invitationByUserId.get(String(u._id));
+    const usersWithEventDate = users
+  .map((u: any) => {
+    const invitation = invitationByUserId.get(String(u._id));
 
-  return {
-    ...u,
-    eventDate: invitation?.eventDate || null,
-  };
-});
+    return {
+      ...u,
+      eventDate: invitation?.eventDate || null,
+    };
+  })
+  .sort((a: any, b: any) => {
+    // משתמשים בלי תאריך יורדים לסוף
+    if (!a.eventDate) return 1;
+    if (!b.eventDate) return -1;
+
+    return (
+      new Date(a.eventDate).getTime() -
+      new Date(b.eventDate).getTime()
+    );
+  });
 
     return NextResponse.json(
       {
