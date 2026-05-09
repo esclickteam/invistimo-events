@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       [`messageLocks.${key}`]: value,
     };
 
-    /* ================= RESET ROUND ================= */
+    /* ================= OPEN ROUND ================= */
 
     // false = פתיחת סבב מחדש
     if (value === false) {
@@ -148,6 +148,42 @@ export async function POST(req: NextRequest) {
       // THANK YOU
       if (key === "thankyouSms") {
         updateData.thankYouSentAt = null;
+      }
+    }
+
+    /* ================= CLOSE ROUND ================= */
+
+    // true = סגירת סבב
+    if (value === true) {
+
+      // RSVP SMS ROUND 1
+      if (key === "rsvpSmsRound1") {
+        updateData.rsvpSmsRound1SentAt = new Date();
+      }
+
+      // RSVP SMS ROUND 2
+      if (key === "rsvpSmsRound2") {
+        updateData.rsvpSmsRound2SentAt = new Date();
+      }
+
+      // RSVP WHATSAPP ROUND 1
+      if (key === "rsvpWhatsappRound1") {
+        updateData.rsvpRound1SentAt = new Date();
+      }
+
+      // RSVP WHATSAPP ROUND 2
+      if (key === "rsvpWhatsappRound2") {
+        updateData.rsvpRound2SentAt = new Date();
+      }
+
+      // REMINDER
+      if (key === "reminderSms") {
+        updateData.reminderSentAt = new Date();
+      }
+
+      // THANK YOU
+      if (key === "thankyouSms") {
+        updateData.thankYouSentAt = new Date();
       }
     }
 
