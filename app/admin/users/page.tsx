@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import CreateUserModal from "./CreateUserModal";
 
 /* =========================
@@ -11,7 +11,8 @@ type AdminUser = {
   name?: string;
   email: string;
   role: "admin" | "user";
-  plan?: "basic" | "premium";
+  plan?: string;
+guests?: number;
   includeCalls?: boolean;
   callsRounds?: number;
   createdAt?: string;
@@ -38,9 +39,17 @@ export default function AdminUsersPage() {
   const [producers, setProducers] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
 
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [assignedProducerId, setAssignedProducerId] = useState<string | null>(null);
-  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
+ const [editingUserId, setEditingUserId] = useState<string | null>(null);
+
+const [editName, setEditName] = useState("");
+const [editEmail, setEditEmail] = useState("");
+const [editEventDate, setEditEventDate] = useState("");
+const [editGuests, setEditGuests] = useState<number>(0);
+
+const [assignedProducerId, setAssignedProducerId] =
+  useState<string | null>(null);
+
+const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
 
   const [impersonating, setImpersonating] = useState<string | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
@@ -153,6 +162,7 @@ export default function AdminUsersPage() {
               <th className="p-3">אימייל</th>
               <th className="p-3">תפקיד</th>
               <th className="p-3">חבילה</th>
+              <th className="p-3">רשומות</th>
               <th className="p-3">תאריך אירוע</th>
               <th className="p-3">מפיק מטפל</th>
               <th className="p-3">עובד מטפל</th>
@@ -162,72 +172,33 @@ export default function AdminUsersPage() {
           </thead>
 
           <tbody>
-            {users
-              .filter((u) => !hiddenUserIds.includes(u._id))
-              .map((u) => (
-                <>
+  {users
+    .filter((u) => !hiddenUserIds.includes(u._id))
+    .map((u) => (
+      <React.Fragment key={u._id}>
+                
                   {/* ROW */}
-                  <tr key={u._id} className="border-t text-sm">
+                  <tr className="border-t text-sm hover:bg-gray-50 transition">
                     <td className="p-3">{u.name || "-"}</td>
                     <td className="p-3">{u.email}</td>
                     <td className="p-3 font-semibold">{u.role}</td>
                     <td className="p-3">{u.plan || "-"}</td>
+                    <td className="p-3 font-semibold">
+  {u.guests || 0}
+</td>
                     <td className="p-3">
                       {u.eventDate
                         ? new Date(u.eventDate).toLocaleDateString("he-IL")
                         : "—"}
                     </td>
+
                     <td className="p-3">
-  <select
-    className="border rounded px-2 py-1 text-sm w-full"
-    value={u.assignedProducerId || ""}
-    onChange={async (e) => {
-      await fetch(`/api/admin/users/${u._id}/assignees`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assignedProducerId: e.target.value || null,
-          assignedStaffIds: u.assignedStaffIds || [],
-        }),
-      });
-      loadUsers();
-    }}
-  >
-    <option value="">— ללא מפיק —</option>
-    {producers.map((p) => (
-      <option key={p._id} value={p._id}>
-        {p.name}
-      </option>
-    ))}
-  </select>
+  {producers.find((p) => p._id === u.assignedProducerId)?.name || "—"}
 </td>
 
                     
                     <td className="p-3">
-  <select
-    className="border rounded px-2 py-1 text-sm w-full"
-    value={u.assignedStaffIds?.[0] || ""}
-    onChange={async (e) => {
-      await fetch(`/api/admin/users/${u._id}/assignees`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assignedProducerId: u.assignedProducerId || null,
-          assignedStaffIds: e.target.value ? [e.target.value] : [],
-        }),
-      });
-      loadUsers();
-    }}
-  >
-    <option value="">— ללא עובד —</option>
-    {staff.map((s) => (
-      <option key={s._id} value={s._id}>
-        {s.name}
-      </option>
-    ))}
-  </select>
+  {staff.find((s) => s._id === u.assignedStaffIds?.[0])?.name || "—"}
 </td>
 
                     <td className="p-3">
@@ -235,15 +206,28 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="p-3 flex gap-2 flex-wrap">
                       <button
-                        onClick={() => {
-                          setEditingUserId(u._id);
-                          setAssignedProducerId(null);
-                          setAssignedStaffIds([]);
-                        }}
-                        className="px-3 py-1 bg-gray-700 text-white rounded-full text-xs"
-                      >
-                        עריכת מטפלים
-                      </button>
+  onClick={() => {
+    setEditingUserId(u._id);
+
+    setEditName(u.name || "");
+    setEditEmail(u.email || "");
+
+    setEditEventDate(
+      u.eventDate
+        ? new Date(u.eventDate).toISOString().split("T")[0]
+        : ""
+    );
+
+    setEditGuests(u.guests || 0);
+
+    setAssignedProducerId(u.assignedProducerId || null);
+
+    setAssignedStaffIds(u.assignedStaffIds || []);
+  }}
+  className="px-3 py-1 bg-gray-700 text-white rounded-full text-xs"
+>
+  עריכת משתמש
+</button>
 
                       <button
                         onClick={() => toggleCalls(u._id, !u.includeCalls)}
@@ -273,86 +257,217 @@ export default function AdminUsersPage() {
                   </tr>
 
                   {/* EDIT ROW */}
-                  {editingUserId === u._id && (
-                    <tr className="bg-gray-50">
-                      <td colSpan={9} className="p-4 space-y-4">
-                        <div>
-                          <label className="block text-sm mb-1">מפיק מטפל</label>
-                          <select
-                            className="border rounded px-3 py-2 w-full"
-                            value={assignedProducerId ?? ""}
-                            onChange={(e) =>
-                              setAssignedProducerId(e.target.value || null)
-                            }
-                          >
-                            <option value="">ללא מפיק</option>
-                            {producers.map((p) => (
-                              <option key={p._id} value={p._id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+          {/* EDIT USER ROW */}
+{editingUserId === u._id && (
+  <tr className="bg-gray-50 border-b animate-in fade-in duration-300">
+    <td colSpan={10} className="p-6">
+      <div className="bg-white border rounded-2xl p-6 shadow-sm">
 
-                        <div>
-                          <label className="block text-sm mb-1">עובדים מטפלים</label>
-                          <select
-                            multiple
-                            className="border rounded px-3 py-2 w-full h-32"
-                            value={assignedStaffIds}
-                            onChange={(e) =>
-                              setAssignedStaffIds(
-                                Array.from(e.target.selectedOptions, (o) => o.value)
-                              )
-                            }
-                          >
-                            {staff.map((s) => (
-                              <option key={s._id} value={s._id}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold">
+              עריכת משתמש
+            </h2>
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={async () => {
-                              await fetch(
-                                `/api/admin/users/${u._id}/assignees`,
-                                {
-                                  method: "PATCH",
-                                  credentials: "include",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    assignedProducerId,
-                                    assignedStaffIds,
-                                  }),
-                                }
-                              );
-                              setEditingUserId(null);
-                              loadUsers();
-                            }}
-                            className="px-4 py-2 bg-black text-white rounded"
-                          >
-                            שמור
-                          </button>
+            <p className="text-sm text-gray-500 mt-1">
+              עריכת פרטי משתמש, רשומות ומטפלים
+            </p>
+          </div>
 
-                          <button
-                            onClick={() => setEditingUserId(null)}
-                            className="px-4 py-2 bg-gray-300 rounded"
-                          >
-                            ביטול
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
+          <button
+            onClick={() => setEditingUserId(null)}
+            className="text-sm text-gray-500 hover:text-black"
+          >
+            ✕ סגור
+          </button>
+        </div>
+
+        {/* USER DETAILS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          {/* NAME */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              שם מלא
+            </label>
+
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full border rounded-xl px-4 py-3"
+            />
+          </div>
+
+          {/* EMAIL */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              אימייל
+            </label>
+
+            <input
+              type="email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              className="w-full border rounded-xl px-4 py-3"
+            />
+          </div>
+
+          {/* EVENT DATE */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              תאריך אירוע
+            </label>
+
+            <input
+              type="date"
+              value={editEventDate}
+              onChange={(e) => setEditEventDate(e.target.value)}
+              className="w-full border rounded-xl px-4 py-3"
+            />
+          </div>
+
+          {/* GUESTS */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              כמות רשומות / אורחים
+            </label>
+
+            <input
+              type="number"
+              value={editGuests}
+              onChange={(e) =>
+                setEditGuests(Number(e.target.value))
+              }
+              className="w-full border rounded-xl px-4 py-3"
+            />
+          </div>
+        </div>
+
+        {/* ASSIGNEES */}
+        <div className="mt-8 border-t pt-6">
+
+          <h3 className="text-sm font-semibold text-gray-700 mb-4">
+            מטפלים
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            {/* PRODUCER */}
+            <div>
+              <label className="block text-sm mb-2">
+                מפיק מטפל
+              </label>
+
+              <select
+                className="w-full border rounded-xl px-4 py-3"
+                value={assignedProducerId ?? ""}
+                onChange={(e) =>
+                  setAssignedProducerId(
+                    e.target.value || null
+                  )
+                }
+              >
+                <option value="">ללא מפיק</option>
+
+                {producers.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* STAFF */}
+            <div>
+              <label className="block text-sm mb-2">
+                עובדים מטפלים
+              </label>
+
+              <select
+                multiple
+                className="w-full border rounded-xl px-4 py-3 h-36"
+                value={assignedStaffIds}
+                onChange={(e) =>
+                  setAssignedStaffIds(
+                    Array.from(
+                      e.target.selectedOptions,
+                      (o) => o.value
+                    )
+                  )
+                }
+              >
+                {staff.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="flex gap-3 mt-8">
+
+          <button
+            onClick={async () => {
+              await fetch(`/api/admin/users/${u._id}`, {
+                method: "PATCH",
+                credentials: "include",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  name: editName,
+                  email: editEmail,
+                  eventDate: editEventDate,
+                  guests: editGuests,
+                }),
+              });
+
+              await fetch(
+                `/api/admin/users/${u._id}/assignees`,
+                {
+                  method: "PATCH",
+                  credentials: "include",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    assignedProducerId,
+                    assignedStaffIds,
+                  }),
+                }
+              );
+
+              setEditingUserId(null);
+
+              loadUsers();
+            }}
+            className="px-6 py-3 bg-black text-white rounded-xl hover:opacity-90"
+          >
+            שמור שינויים
+          </button>
+
+          <button
+            onClick={() => setEditingUserId(null)}
+            className="px-6 py-3 bg-gray-200 rounded-xl"
+          >
+            ביטול
+          </button>
+        </div>
+      </div>
+    </td>
+  </tr>
+)}
+                </React.Fragment>
               ))}
 
             {users.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-6 text-center text-gray-500">
+                <td colSpan={10} className="p-6 text-center text-gray-500">
                   לא נמצאו משתמשים
                 </td>
               </tr>
