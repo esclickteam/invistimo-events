@@ -5,41 +5,17 @@ import EventSupplier from "@/models/EventSupplier";
 
 export async function POST(
   request: NextRequest,
-  {
-    params,
-  }: {
-    params: Promise<{
-      eventId: string;
-      supplierRowId: string;
-    }>;
-  }
+  { params }: { params: Promise<{ eventId: string; supplierRowId: string }> }
 ) {
   await db();
 
-  console.log(
-    "FILES PATH:",
-    EventSupplier.schema.path("files")
-  );
+  const { supplierRowId } = await params;
 
-  console.log(
-    "FILES OBJ:",
-    EventSupplier.schema.obj.files
-  );
-
-  const { supplierRowId } =
-    await params;
-
-  const formData =
-    await request.formData();
-
-  const files = formData.getAll(
-    "files"
-  ) as File[];
+  const formData = await request.formData();
+  const files = formData.getAll("files") as File[];
 
   if (!files || files.length === 0) {
-    return NextResponse.json([], {
-      status: 200,
-    });
+    return NextResponse.json([], { status: 200 });
   }
 
   const uploadedFiles: Array<{
@@ -50,64 +26,46 @@ export async function POST(
   }> = [];
 
   for (const file of files) {
-    const bytes =
-      await file.arrayBuffer();
-
+    const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const result: any =
-      await new Promise(
-        (resolve, reject) => {
-          cloudinary.uploader
-            .upload_stream(
-              {
-                folder: `events/suppliers/${supplierRowId}`,
-                resource_type: "raw",
+    const result: any = await new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: `events/suppliers/${supplierRowId}`,
+            resource_type: "raw",
 
-                filename_override:
-                  file.name,
-
-                use_filename: false,
-
-                unique_filename: false,
-              },
-              (error, result) => {
-                if (error)
-                  reject(error);
-                else resolve(result);
-              }
-            )
-            .end(buffer);
-        }
-      );
+            // ⭐⭐⭐ העיקר כאן ⭐⭐⭐
+            filename_override: file.name, // שומר שם + סיומת (.pdf)
+            use_filename: false,
+            unique_filename: false,
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        )
+        .end(buffer);
+    });
 
     uploadedFiles.push({
-      name: file.name,
-      url: result.secure_url,
-      publicId: result.public_id,
-      type: file.type,
+      name: file.name,              // למשל: "הסכם ספק.pdf"
+      url: result.secure_url,       // URL תקין
+      publicId: result.public_id,   // כולל .pdf
+      type: file.type,              // application/pdf
     });
   }
 
-  console.log(
-    "UPLOADED:",
-    uploadedFiles
-  );
-
-  const row =
-    await EventSupplier.findByIdAndUpdate(
-      supplierRowId,
-      {
-        $push: {
-          files: {
-            $each: uploadedFiles,
-          },
-        },
+  const row = await EventSupplier.findByIdAndUpdate(
+    supplierRowId,
+    {
+      $push: {
+        files: { $each: uploadedFiles },
       },
-      { new: true }
-    ).lean();
+    },
+    { new: true }
+  ).lean();
 
-  return NextResponse.json(
-    row?.files || []
-  );
+  return NextResponse.json(row?.files || []);
 }

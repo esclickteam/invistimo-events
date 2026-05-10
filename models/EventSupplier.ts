@@ -138,14 +138,10 @@ const EventSupplierSchema = new mongoose.Schema(
     /* =========================
        📎 קבצים
     ========================= */
-    files: [
-      {
-        name: { type: String, required: true },
-        url: { type: String, required: true },
-        publicId: { type: String, required: true },
-        type: String,
-      },
-    ],
+    files: {
+  type: [mongoose.Schema.Types.Mixed],
+  default: [],
+},
   },
   { timestamps: true }
 );
