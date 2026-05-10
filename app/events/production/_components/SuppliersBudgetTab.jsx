@@ -285,41 +285,63 @@ export default function SuppliersTab({ eventId }) {
   ====================== */
 
   async function selectSupplier(
-    row,
-    supplier
-  ) {
-    const updated = {
-      supplierId: supplier._id,
-      supplierName: supplier.name,
-      price: supplier.basePrice || 0,
-      advance: 0,
-      balance: supplier.basePrice || 0,
-    };
-
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === row.id
-          ? {
-              ...r,
-              ...updated,
-            }
-          : r
-      )
+  row,
+  supplier
+) {
+  const totalPrice =
+    Number(
+      supplier.basePrice || 0
     );
 
-    await fetch(
-      `/api/events/${eventId}/suppliers/${row.id}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updated),
-      }
+  const advancePrice =
+    Number(
+      supplier.advancePrice || 0
     );
 
-    setCompareModal(null);
-  }
+  const updated = {
+    supplierId: supplier._id,
+
+    supplierName:
+      supplier.name,
+
+    phone:
+      supplier.phone || "",
+
+    price: totalPrice,
+
+    advance: advancePrice,
+
+    balance:
+      totalPrice - advancePrice,
+  };
+
+  setRows((prev) =>
+    prev.map((r) =>
+      r.id === row.id
+        ? {
+            ...r,
+            ...updated,
+          }
+        : r
+    )
+  );
+
+  await fetch(
+    `/api/events/${eventId}/suppliers/${row.id}`,
+    {
+      method: "PATCH",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify(updated),
+    }
+  );
+
+  setCompareModal(null);
+}
 
   if (loading) {
     return (
@@ -1266,7 +1288,7 @@ function SupplierCompareModal({
           bg-white
           rounded-[36px]
           w-full
-          max-w-7xl
+          max-w-6xl
           max-h-[92vh]
           overflow-y-auto
           shadow-[0_30px_120px_rgba(0,0,0,0.18)]
@@ -1362,159 +1384,89 @@ function SupplierCompareModal({
                 border
                 border-gray-200
                 bg-white
-                overflow-hidden
+                p-7
                 hover:-translate-y-1
                 hover:shadow-[0_25px_80px_rgba(124,58,237,0.12)]
                 transition-all
               "
             >
-              {/* IMAGE */}
-              <div className="relative h-[260px] bg-gray-100 overflow-hidden">
+              {/* TOP */}
+              <div className="flex items-start justify-between gap-4">
 
-                {s.image ? (
-                  <img
-                    src={s.image}
-                    alt={s.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full flex items-center justify-center text-7xl bg-gradient-to-br from-violet-100 to-purple-50">
-                    📸
-                  </div>
-                )}
-
-                <div
-                  className="
-                    absolute
-                    top-5
-                    right-5
-                    rounded-full
-                    bg-white/90
-                    backdrop-blur
-                    px-4
-                    py-2
-                    text-sm
-                    font-bold
-                    shadow-md
-                  "
-                >
-                  ₪
-                  {Number(
-                    s.basePrice || 0
-                  ).toLocaleString()}
-                </div>
-              </div>
-
-              {/* CONTENT */}
-              <div className="p-7">
-
-                {/* NAME */}
-                <div className="flex items-start justify-between gap-4">
-
-                  <div>
-                    <h3 className="text-3xl font-black text-[#1E1B2E]">
-                      {s.name}
-                    </h3>
-
-                    <div className="flex items-center gap-2 mt-3">
-
-                      <div
-                        className="
-                          rounded-full
-                          bg-green-50
-                          text-green-700
-                          border
-                          border-green-100
-                          px-3
-                          py-1
-                          text-xs
-                          font-bold
-                        "
-                      >
-                        ⭐ 4.9
-                      </div>
-
-                      <div
-                        className="
-                          rounded-full
-                          bg-purple-50
-                          text-purple-700
-                          border
-                          border-purple-100
-                          px-3
-                          py-1
-                          text-xs
-                          font-bold
-                        "
-                      >
-                        מומלץ
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CONTACT */}
-                <div className="mt-6 space-y-3">
+                <div>
+                  <h3 className="text-3xl font-black text-[#1E1B2E]">
+                    {s.name}
+                  </h3>
 
                   {s.phone && (
                     <div
                       className="
                         flex
                         items-center
-                        gap-3
-                        rounded-2xl
-                        bg-gray-50
-                        border
-                        border-gray-100
-                        px-4
-                        py-3
+                        gap-2
+                        mt-4
+                        text-gray-600
                       "
                     >
-                      <span className="text-lg">
-                        📞
-                      </span>
+                      <span>📞</span>
 
-                      <span className="font-medium text-[#1E1B2E]">
+                      <span className="font-medium">
                         {s.phone}
                       </span>
                     </div>
                   )}
-
-                  {s.instagram && (
-                    <a
-                      href={s.instagram}
-                      target="_blank"
-                      className="
-                        flex
-                        items-center
-                        gap-3
-                        rounded-2xl
-                        bg-purple-50
-                        border
-                        border-purple-100
-                        px-4
-                        py-3
-                        text-purple-700
-                        font-semibold
-                        hover:bg-purple-100
-                        transition
-                      "
-                    >
-                      📷 Instagram
-                    </a>
-                  )}
                 </div>
 
-                {/* INCLUDES */}
+                <div className="text-left">
+
+                  <p className="text-sm text-gray-500">
+                    תשלום כולל
+                  </p>
+
+                  <h2 className="text-3xl font-black text-[#1E1B2E] mt-1">
+                    ₪
+                    {Number(
+                      s.basePrice || 0
+                    ).toLocaleString()}
+                  </h2>
+                </div>
+              </div>
+
+              {/* ADVANCE */}
+              <div
+                className="
+                  mt-6
+                  rounded-3xl
+                  bg-purple-50
+                  border
+                  border-purple-100
+                  p-5
+                "
+              >
+                <p className="text-sm text-gray-500">
+                  מקדמה
+                </p>
+
+                <h3 className="text-2xl font-black text-[#1E1B2E] mt-2">
+                  ₪
+                  {Number(
+                    s.advancePrice || 0
+                  ).toLocaleString()}
+                </h3>
+              </div>
+
+              {/* INCLUDES */}
+              {(s.includes || []).length >
+                0 && (
                 <div className="mt-7">
 
                   <p className="text-sm font-black text-[#1E1B2E] mb-4">
-                    מה כלול
+                    מה כוללת החבילה
                   </p>
 
                   <div className="flex flex-wrap gap-2">
 
-                    {(s.includes || []).map(
+                    {s.includes.map(
                       (item, idx) => (
                         <div
                           key={idx}
@@ -1536,54 +1488,56 @@ function SupplierCompareModal({
                     )}
                   </div>
                 </div>
+              )}
 
-                {/* NOTES */}
-                {s.notes && (
-                  <div
-                    className="
-                      mt-7
-                      rounded-3xl
-                      bg-gray-50
-                      border
-                      border-gray-100
-                      p-5
-                    "
-                  >
-                    <p className="text-sm font-bold text-[#1E1B2E] mb-2">
-                      הערות
-                    </p>
+              {/* NOTES */}
+              {s.notes && (
+                <div
+                  className="
+                    mt-7
+                    rounded-3xl
+                    bg-gray-50
+                    border
+                    border-gray-100
+                    p-5
+                  "
+                >
+                  <p className="text-sm font-bold text-[#1E1B2E] mb-2">
+                    הערות
+                  </p>
 
-                    <p className="text-sm text-gray-600 leading-7">
-                      {s.notes}
-                    </p>
-                  </div>
-                )}
+                  <p className="text-sm text-gray-600 leading-7">
+                    {s.notes}
+                  </p>
+                </div>
+              )}
 
-                {/* ACTIONS */}
-                <div className="mt-8 flex gap-3">
+              {/* ACTIONS */}
+              <div className="mt-8 flex gap-3">
 
-                  <button
-                    onClick={() =>
-                      onSelect(s)
-                    }
-                    className="
-                      flex-1
-                      rounded-2xl
-                      bg-gradient-to-r
-                      from-violet-600
-                      to-purple-500
-                      text-white
-                      py-4
-                      text-lg
-                      font-black
-                      shadow-[0_15px_40px_rgba(124,58,237,0.25)]
-                      hover:-translate-y-0.5
-                      transition
-                    "
-                  >
-                    בחר ספק
-                  </button>
+                <button
+                  onClick={() =>
+                    onSelect(s)
+                  }
+                  className="
+                    flex-1
+                    rounded-2xl
+                    bg-gradient-to-r
+                    from-violet-600
+                    to-purple-500
+                    text-white
+                    py-4
+                    text-lg
+                    font-black
+                    shadow-[0_15px_40px_rgba(124,58,237,0.25)]
+                    hover:-translate-y-0.5
+                    transition
+                  "
+                >
+                  בחר ספק
+                </button>
 
+                {s.phone && (
                   <button
                     onClick={() =>
                       window.open(
@@ -1601,7 +1555,7 @@ function SupplierCompareModal({
                   >
                     📞
                   </button>
-                </div>
+                )}
               </div>
             </div>
           ))}

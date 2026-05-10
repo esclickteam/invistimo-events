@@ -91,6 +91,29 @@ const EventSupplierSchema = new mongoose.Schema(
       trim: true,
     },
 
+    supplierOptions: [
+  {
+    name: String,
+
+    phone: String,
+
+    totalPrice: {
+      type: Number,
+      default: 0,
+    },
+
+    advancePrice: {
+      type: Number,
+      default: 0,
+    },
+
+    includes: {
+      type: [String],
+      default: [],
+    },
+  },
+],
+
     /* =========================
        💰 תמחור
     ========================= */
