@@ -1300,8 +1300,8 @@ useEffect(() => {
   async function loadSuppliers() {
     try {
       const res = await fetch(
-        `/api/suppliers?category=${row.category}&sub=${row.sub}`
-      );
+  `/api/suppliers?categoryId=${row.categoryId}&sub=${row.sub}`
+);
 
       const data = await res.json();
 
