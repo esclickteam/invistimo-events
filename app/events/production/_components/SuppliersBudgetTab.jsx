@@ -1483,43 +1483,83 @@ useEffect(() => {
                   )}
                 </div>
 
-                <div className="text-left">
+                <div className="text-left flex flex-col items-end gap-3">
 
-                  <p className="text-sm text-gray-500">
-                    תשלום כולל
-                  </p>
+  <button
+    onClick={async () => {
+      if (
+        !confirm(
+          "למחוק את הספק?"
+        )
+      )
+        return;
 
-                  <h2 className="text-3xl font-black text-[#1E1B2E] mt-1">
-                    ₪
-                    {Number(
-                      s.basePrice || 0
-                    ).toLocaleString()}
-                  </h2>
-                </div>
-              </div>
+      await fetch(
+        `/api/suppliers/${s._id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
-              {/* ADVANCE */}
-              <div
-                className="
-                  mt-6
-                  rounded-3xl
-                  bg-purple-50
-                  border
-                  border-purple-100
-                  p-5
-                "
-              >
-                <p className="text-sm text-gray-500">
-                  מקדמה
-                </p>
+      setSuppliers((prev) =>
+        prev.filter(
+          (item) =>
+            item._id !== s._id
+        )
+      );
+    }}
+    className="
+      rounded-xl
+      bg-red-50
+      border
+      border-red-100
+      text-red-600
+      px-3
+      py-2
+      text-xs
+      font-bold
+    "
+  >
+    מחק ספק
+  </button>
 
-                <h3 className="text-2xl font-black text-[#1E1B2E] mt-2">
-                  ₪
-                  {Number(
-                    s.advancePrice || 0
-                  ).toLocaleString()}
-                </h3>
-              </div>
+  <div>
+    <p className="text-sm text-gray-500">
+      תשלום כולל
+    </p>
+
+    <h2 className="text-3xl font-black text-[#1E1B2E] mt-1">
+      ₪
+      {Number(
+        s.basePrice || 0
+      ).toLocaleString()}
+    </h2>
+  </div>
+</div>
+</div>
+
+{/* ADVANCE */}
+<div
+  className="
+    mt-6
+    rounded-3xl
+    bg-purple-50
+    border
+    border-purple-100
+    p-5
+  "
+>
+  <p className="text-sm text-gray-500">
+    מקדמה
+  </p>
+
+  <h3 className="text-2xl font-black text-[#1E1B2E] mt-2">
+    ₪
+    {Number(
+      s.advancePrice || 0
+    ).toLocaleString()}
+  </h3>
+</div>
 
               {/* INCLUDES */}
               {(s.includes || []).length >
