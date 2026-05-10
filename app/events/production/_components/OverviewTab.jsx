@@ -29,6 +29,7 @@ export default function OverviewTab({ eventId }) {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [error, setError] = useState("");
   
 
@@ -117,6 +118,111 @@ const available =
     () => tasks.filter((t) => t.status !== TASK_STATUS.DONE).length,
     [tasks]
   );
+
+  
+
+  const smartAlerts = useMemo(() => {
+  const alerts = [];
+
+  const today = new Date();
+
+  const eventDate = event?.date
+    ? new Date(event.date)
+    : null;
+
+  const daysLeft = eventDate
+    ? Math.ceil(
+        (eventDate - today) / (1000 * 60 * 60 * 24)
+      )
+    : null;
+
+  /* =====================
+     BUDGET ALERTS
+  ===================== */
+
+  if (progress >= 90) {
+    alerts.push({
+      id: "budget-danger",
+      type: "danger",
+      title: "התקציב כמעט נוצל",
+      description: `נוצלו ${progress}% מהתקציב`,
+    });
+  }
+
+  if (available <= 5000) {
+    alerts.push({
+      id: "low-budget",
+      type: "warning",
+      title: "יתרה נמוכה",
+      description: `נותרו ₪${available.toLocaleString()}`,
+    });
+  }
+
+  /* =====================
+     TASK ALERTS
+  ===================== */
+
+  if (activeTasks >= 10) {
+    alerts.push({
+      id: "many-tasks",
+      type: "warning",
+      title: "יש הרבה משימות פתוחות",
+      description: `${activeTasks} משימות עדיין פעילות`,
+    });
+  }
+
+  const overdueTasks = tasks.filter((task) => {
+    if (!task.dueDate) return false;
+
+    return (
+      task.status !== TASK_STATUS.DONE &&
+      new Date(task.dueDate) < today
+    );
+  });
+
+  if (overdueTasks.length > 0) {
+    alerts.push({
+      id: "overdue-tasks",
+      type: "danger",
+      title: "יש משימות באיחור",
+      description: `${overdueTasks.length} משימות עברו את התאריך`,
+    });
+  }
+
+  /* =====================
+     EVENT DATE ALERTS
+  ===================== */
+
+  if (daysLeft !== null && daysLeft <= 30) {
+    alerts.push({
+      id: "event-close",
+      type: "info",
+      title: "האירוע מתקרב",
+      description: `נותרו ${daysLeft} ימים לאירוע`,
+    });
+  }
+
+  if (
+    daysLeft !== null &&
+    daysLeft <= 14 &&
+    activeTasks > 0
+  ) {
+    alerts.push({
+      id: "urgent-tasks",
+      type: "danger",
+      title: "נותרו משימות לפני האירוע",
+      description: `${activeTasks} משימות עדיין פתוחות`,
+    });
+  }
+
+  return alerts;
+}, [
+  progress,
+  available,
+  activeTasks,
+  tasks,
+  event,
+]);
 
   /* =====================
      ACTIONS
@@ -271,11 +377,26 @@ setBudgetDraft(data.event.budgetTotal);
     <div
       className="max-w-6xl mx-auto px-4 py-10 space-y-8"
       dir="rtl"
-      style={{ background: "#F7F4EF" }}
+      style={{
+  background:
+    "linear-gradient(to bottom, #F8F5F1, #F3EFE8)",
+}}
     >
       {/* HEADER */}
       {/* HEADER */}
-<div className="bg-white rounded-2xl px-6 py-5 border border-[#E7E3DC] flex justify-between items-center">
+<div className="
+bg-white/80
+backdrop-blur-xl
+rounded-[32px]
+px-6
+py-5
+border
+border-white/40
+shadow-[0_10px_40px_rgba(0,0,0,0.06)]
+flex
+justify-between
+items-center
+">
   <div>
     <h1 className="text-2xl font-semibold">
       {event.title} · {event.date}
@@ -295,6 +416,18 @@ setBudgetDraft(data.event.budgetTotal);
   
 </div>
 
+{/* SMART ALERTS */}
+
+{smartAlerts.length > 0 && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {smartAlerts.map((alert) => (
+      <SmartAlertCard
+        key={alert.id}
+        alert={alert}
+      />
+    ))}
+  </div>
+)}
 
       {/* BUDGET */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -426,7 +559,16 @@ setBudgetDraft(data.event.budgetTotal);
 function BudgetCard({ title, value, highlight = false }) {
   return (
     <div
-      className="rounded-2xl p-5 border border-[#E7E3DC]"
+      className="
+rounded-3xl
+p-5
+border
+border-white/40
+transition-all
+duration-300
+hover:-translate-y-1
+hover:shadow-[0_15px_40px_rgba(109,106,244,0.12)]
+"
       style={{
         background: highlight
           ? "linear-gradient(180deg, #F4F3FF, #FFFFFF)"
@@ -505,6 +647,94 @@ function EditableBudgetCard({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+function SmartAlertCard({ alert }) {
+  const styles = {
+    danger: {
+      bg: "linear-gradient(135deg,#FFF1F1,#FFFFFF)",
+      border: "#FECACA",
+      icon: "⚠️",
+    },
+    warning: {
+      bg: "linear-gradient(135deg,#FFF8E7,#FFFFFF)",
+      border: "#FDE68A",
+      icon: "💡",
+    },
+    info: {
+      bg: "linear-gradient(135deg,#F3F0FF,#FFFFFF)",
+      border: "#C4B5FD",
+      icon: "✨",
+    },
+  };
+
+  const current =
+    styles[alert.type] || styles.info;
+
+  return (
+    <div
+      className="
+        rounded-3xl
+        p-5
+        border
+        transition-all
+        duration-300
+        hover:-translate-y-1
+      "
+      style={{
+        background: current.bg,
+        borderColor: current.border,
+        boxShadow:
+          "0 12px 35px rgba(0,0,0,0.06)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-4">
+          <div className="text-2xl">
+            {current.icon}
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-[15px]">
+              {alert.title}
+            </h3>
+
+            <p className="text-sm text-gray-600 mt-1">
+              {alert.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            className="
+              text-xs
+              px-3
+              py-1.5
+              rounded-full
+              bg-white
+              border
+              hover:bg-gray-50
+            "
+          >
+            קראתי
+          </button>
+
+          <button
+            className="
+              text-xs
+              px-3
+              py-1.5
+              rounded-full
+              bg-black
+              text-white
+            "
+          >
+            הסתר
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
