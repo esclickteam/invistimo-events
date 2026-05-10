@@ -1272,7 +1272,35 @@ function SupplierCompareModal({
   onClose,
   onSelect,
 }) {
-  const suppliers = [];
+  const [suppliers, setSuppliers] =
+  useState([]);
+
+useEffect(() => {
+  async function loadSuppliers() {
+    try {
+      const res = await fetch(
+        `/api/suppliers?category=${row.category}&sub=${row.sub}`
+      );
+
+      const data = await res.json();
+
+      setSuppliers(
+        Array.isArray(data)
+          ? data
+          : []
+      );
+    } catch (err) {
+      console.error(
+        "SUPPLIERS ERROR",
+        err
+      );
+
+      setSuppliers([]);
+    }
+  }
+
+  loadSuppliers();
+}, [row]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1370,8 +1398,7 @@ function SupplierCompareModal({
         {/* GRID */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-7 p-8">
 
-          {Array.isArray(suppliers) &&
-  suppliers.map((s) => (
+          {suppliers.map((s) => (
             <div
               key={s._id}
               className="
