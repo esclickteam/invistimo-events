@@ -178,5 +178,14 @@ EventSupplierSchema.post(
 /* =========================================================
    Export (HMR-safe)
 ========================================================= */
-export default mongoose.models.EventSupplier ||
-  mongoose.model("EventSupplier", EventSupplierSchema);
+if (mongoose.models.EventSupplier) {
+  delete mongoose.models.EventSupplier;
+}
+
+const EventSupplier =
+  mongoose.model(
+    "EventSupplier",
+    EventSupplierSchema
+  );
+
+export default EventSupplier;
