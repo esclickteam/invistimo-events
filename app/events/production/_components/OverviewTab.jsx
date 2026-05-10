@@ -360,40 +360,66 @@ export default function OverviewTab({ eventId }) {
             </p>
           </div>
 
+
+
           <div className="text-center">
-            <p className="text-sm text-gray-500 mb-1">תאריך האירוע</p>
-            <div className="text-center">
-  <p className="text-sm text-gray-500 mb-1">
+  <p
+    className="
+      text-[11px]
+      tracking-[0.25em]
+      uppercase
+      text-gray-400
+      mb-4
+    "
+  >
     תאריך האירוע
   </p>
 
-  <p className="text-xl font-bold text-[#28212E]">
+  <h2
+    className="
+      text-4xl
+      md:text-5xl
+      font-black
+      text-[#1E1B2E]
+      leading-none
+      tracking-tight
+    "
+  >
     {new Date(event.date).toLocaleDateString("he-IL", {
       day: "2-digit",
       month: "long",
       year: "numeric",
     })}
-  </p>
-
-  <p className="text-sm text-gray-500 mt-1">
-    {new Date(event.date).toLocaleTimeString("he-IL", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}
-  </p>
+  </h2>
 
   {daysLeft !== null && daysLeft >= 0 && (
-    <p className="text-sm text-gray-500 mt-2">
-      נותרו {daysLeft} ימים לאירוע
-    </p>
+    <div
+      className="
+        inline-flex
+        items-center
+        gap-2
+        mt-5
+        px-5
+        py-2.5
+        rounded-full
+        bg-gradient-to-r
+        from-purple-50
+        to-violet-50
+        border
+        border-purple-100
+        shadow-[0_8px_20px_rgba(124,58,237,0.08)]
+      "
+    >
+      <span className="text-purple-500 text-sm">
+        ⏳
+      </span>
+
+      <span className="text-sm font-semibold text-[#4B4453]">
+        נותרו {daysLeft} ימים לאירוע
+      </span>
+    </div>
   )}
 </div>
-            {daysLeft !== null && daysLeft >= 0 && (
-              <p className="text-sm text-gray-500 mt-2">
-                נותרו {daysLeft} ימים לאירוע
-              </p>
-            )}
-          </div>
 
           <button
             onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
