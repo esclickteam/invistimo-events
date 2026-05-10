@@ -343,92 +343,156 @@ export default function OverviewTab({ eventId }) {
       }}
     >
       {/* HERO */}
-      <section className="relative overflow-hidden rounded-[34px] border border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(81,55,120,0.10)] backdrop-blur-xl px-7 py-7">
-        <div className="absolute left-0 top-0 h-full w-64 bg-gradient-to-br from-purple-200/70 to-transparent rounded-full blur-2xl" />
+      <section
+  className="
+    relative
+    overflow-hidden
+    rounded-[40px]
+    border
+    border-white/60
+    backdrop-blur-2xl
+    px-6
+    md:px-8
+    py-7
+  "
+  style={{
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.94), rgba(245,236,255,0.88))",
+    boxShadow:
+      "0 30px 80px rgba(124,58,237,0.10)",
+  }}
+>
+  {/* GLOW */}
+  <div
+    className="
+      absolute
+      -top-20
+      left-0
+      h-[320px]
+      w-[320px]
+      rounded-full
+      blur-3xl
+    "
+    style={{
+      background:
+        "radial-gradient(circle, rgba(168,85,247,0.18), transparent 70%)",
+    }}
+  />
 
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-purple-600 text-xl">✦</span>
-              <h1 className="text-2xl md:text-3xl font-bold text-[#28212E]">
-                {event.title}
-              </h1>
-            </div>
+  <div
+    className="
+      relative
+      flex
+      flex-col
+      md:flex-row
+      items-center
+      justify-between
+      gap-6
+    "
+  >
+    {/* RIGHT SIDE */}
+    <div className="flex items-center gap-4">
+      <div
+        className="
+          hidden
+          md:flex
+          h-16
+          w-16
+          rounded-[24px]
+          bg-gradient-to-br
+          from-violet-500
+          to-purple-400
+          items-center
+          justify-center
+          text-white
+          text-3xl
+          shadow-[0_15px_40px_rgba(124,58,237,0.30)]
+        "
+      >
+        ✦
+      </div>
 
-            <p className="text-sm text-gray-500">
-              {activeTasks} משימות פעילות
-            </p>
+      <div className="text-center md:text-right">
+        <h1
+          className="
+            text-3xl
+            md:text-4xl
+            font-black
+            text-[#1E1B2E]
+            tracking-tight
+          "
+        >
+          {event.title}
+        </h1>
+
+        <p
+          className="
+            mt-2
+            text-base
+            md:text-lg
+            text-gray-500
+            font-medium
+          "
+        >
+          {new Date(event.date).toLocaleDateString("he-IL", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })}
+        </p>
+
+        {daysLeft !== null && daysLeft >= 0 && (
+          <div
+            className="
+              inline-flex
+              items-center
+              gap-2
+              mt-4
+              px-4
+              py-2
+              rounded-full
+              bg-white/80
+              border
+              border-purple-100
+              shadow-sm
+            "
+          >
+            <span className="text-purple-500">
+              ⏳
+            </span>
+
+            <span className="text-sm font-medium text-[#4B4453]">
+              נותרו {daysLeft} ימים לאירוע
+            </span>
           </div>
+        )}
+      </div>
+    </div>
 
-
-
-          <div className="text-center">
-  <p
-    className="
-      text-[11px]
-      tracking-[0.25em]
-      uppercase
-      text-gray-400
-      mb-4
-    "
-  >
-    תאריך האירוע
-  </p>
-
-  <h2
-    className="
-      text-4xl
-      md:text-5xl
-      font-black
-      text-[#1E1B2E]
-      leading-none
-      tracking-tight
-    "
-  >
-    {new Date(event.date).toLocaleDateString("he-IL", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    })}
-  </h2>
-
-  {daysLeft !== null && daysLeft >= 0 && (
-    <div
+    {/* BUTTON */}
+    <button
+      onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
       className="
-        inline-flex
-        items-center
-        gap-2
-        mt-5
-        px-5
-        py-2.5
-        rounded-full
-        bg-gradient-to-r
-        from-purple-50
-        to-violet-50
+        rounded-2xl
+        bg-white/90
         border
-        border-purple-100
-        shadow-[0_8px_20px_rgba(124,58,237,0.08)]
+        border-white/60
+        px-5
+        py-3
+        text-sm
+        font-semibold
+        text-[#28212E]
+        shadow-[0_10px_30px_rgba(124,58,237,0.08)]
+        hover:-translate-y-1
+        hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
+        transition-all
+        duration-300
       "
     >
-      <span className="text-purple-500 text-sm">
-        ⏳
-      </span>
-
-      <span className="text-sm font-semibold text-[#4B4453]">
-        נותרו {daysLeft} ימים לאירוע
-      </span>
-    </div>
-  )}
-</div>
-
-          <button
-            onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
-            className="rounded-2xl border border-purple-100 bg-white/80 px-5 py-3 text-sm font-semibold text-[#28212E] shadow-sm hover:shadow-md transition"
-          >
-            👤 ניהול דשבורד לקוח
-          </button>
-        </div>
-      </section>
+      👤 ניהול דשבורד לקוח
+    </button>
+  </div>
+</section>
 
       {/* ALERTS */}
       <section className="rounded-[30px] border border-white/60 bg-white/65 shadow-[0_16px_50px_rgba(81,55,120,0.08)] backdrop-blur-xl p-5 md:p-6">
