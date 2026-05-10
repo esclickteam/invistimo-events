@@ -727,60 +727,41 @@ function SupplierCard({
         border-gray-100
         bg-white
         p-6
-        space-y-5
+        space-y-6
       "
     >
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      {/* TOP */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
 
         <div>
-          <p className="text-sm text-gray-500">
-            {row.sub}
+          <p className="text-sm text-purple-600 font-semibold">
+            {row.category}
           </p>
 
-          <h3 className="text-xl font-black text-[#1E1B2E] mt-1">
-            {row.supplierName ||
-              "לא נבחר ספק"}
+          <h3 className="text-2xl font-black text-[#1E1B2E] mt-1">
+            {row.sub}
           </h3>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-
-          <button
-            onClick={onCompare}
-            className="
-              rounded-xl
-              bg-purple-50
-              text-purple-700
-              border
-              border-purple-100
-              px-4
-              py-2
-              text-sm
-              font-semibold
-            "
-          >
-            השווה ספקים
-          </button>
-
-          <button
-            onClick={() =>
-              onRemove(row.id)
-            }
-            className="
-              rounded-xl
-              bg-red-50
-              text-red-600
-              border
-              border-red-100
-              px-4
-              py-2
-              text-sm
-              font-semibold
-            "
-          >
-            הסר
-          </button>
-        </div>
+        <button
+          onClick={() =>
+            onRemove(row.id)
+          }
+          className="
+            rounded-xl
+            bg-red-50
+            text-red-600
+            border
+            border-red-100
+            px-4
+            py-2
+            text-sm
+            font-semibold
+            w-fit
+          "
+        >
+          הסר
+        </button>
       </div>
 
       {/* STATUS */}
@@ -808,6 +789,146 @@ function SupplierCard({
         )}
       </div>
 
+      {/* SELECTED SUPPLIER */}
+      {row.supplierName ? (
+        <div
+          className="
+            rounded-[28px]
+            border
+            border-green-100
+            bg-gradient-to-br
+            from-green-50/70
+            to-white
+            p-5
+          "
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+
+                <div
+                  className="
+                    rounded-full
+                    bg-green-100
+                    text-green-700
+                    px-3
+                    py-1
+                    text-xs
+                    font-bold
+                  "
+                >
+                  ✓ ספק נבחר
+                </div>
+
+              </div>
+
+              <h3 className="text-2xl font-black text-[#1E1B2E] mt-4">
+                {row.supplierName}
+              </h3>
+
+              {row.phone && (
+                <div className="flex items-center gap-2 mt-3 text-gray-600">
+                  <span>📞</span>
+
+                  <span className="font-medium">
+                    {row.phone}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="text-left">
+
+              <p className="text-sm text-gray-500">
+                מחיר ספק
+              </p>
+
+              <h2 className="text-3xl font-black text-[#1E1B2E] mt-1">
+                ₪
+                {Number(
+                  row.price || 0
+                ).toLocaleString()}
+              </h2>
+
+              <button
+                onClick={onCompare}
+                className="
+                  mt-4
+                  rounded-xl
+                  bg-black
+                  text-white
+                  px-4
+                  py-2
+                  text-sm
+                  font-semibold
+                "
+              >
+                החלף ספק
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="
+            rounded-[28px]
+            border
+            border-dashed
+            border-purple-200
+            bg-purple-50/40
+            p-8
+            text-center
+          "
+        >
+          <div
+            className="
+              mx-auto
+              h-16
+              w-16
+              rounded-2xl
+              bg-white
+              border
+              border-purple-100
+              flex
+              items-center
+              justify-center
+              text-2xl
+              shadow-sm
+            "
+          >
+            ✨
+          </div>
+
+          <h3 className="mt-5 text-xl font-black text-[#1E1B2E]">
+            עדיין לא נבחר ספק
+          </h3>
+
+          <p className="text-sm text-gray-500 mt-3 leading-7">
+            ניתן לבחור ספק עבור
+            {` ${row.sub}`}
+          </p>
+
+          <button
+            onClick={onCompare}
+            className="
+              mt-6
+              rounded-2xl
+              bg-gradient-to-r
+              from-violet-600
+              to-purple-500
+              text-white
+              px-6
+              py-3
+              font-bold
+              shadow-[0_12px_30px_rgba(124,58,237,0.25)]
+            "
+          >
+            + הוסף ספק לבחירה
+          </button>
+        </div>
+      )}
+
       {/* FINANCIAL */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
@@ -834,9 +955,43 @@ function SupplierCard({
         />
       </div>
 
+      {/* NOTES */}
+      <div>
+        <p className="text-sm font-bold text-[#1E1B2E] mb-2">
+          הערות
+        </p>
+
+        <textarea
+          value={row.notes || ""}
+          onChange={(e) =>
+            onUpdate(
+              row.id,
+              "notes",
+              e.target.value
+            )
+          }
+          placeholder="הערות על הספק..."
+          className="
+            w-full
+            min-h-[100px]
+            rounded-2xl
+            border
+            border-gray-200
+            bg-white/80
+            p-4
+            text-sm
+            outline-none
+            focus:border-purple-300
+            focus:ring-4
+            focus:ring-purple-100
+          "
+        />
+      </div>
+
       {/* FILES */}
       <div>
         <div className="flex items-center justify-between mb-3">
+
           <p className="font-semibold text-[#1E1B2E]">
             קבצים וחוזים
           </p>
