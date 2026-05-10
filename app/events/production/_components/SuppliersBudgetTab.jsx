@@ -1964,11 +1964,24 @@ function FilePreviewModal({
         <div className="h-[80vh] bg-gray-50 flex items-center justify-center">
 
           {isPdf ? (
-  <iframe
-    src={url}
-    className="w-full h-full"
-  />
-) : isImage ? (
+            <button
+              onClick={() =>
+                window.open(
+                  url,
+                  "_blank"
+                )
+              }
+              className="
+                rounded-2xl
+                bg-black
+                text-white
+                px-6
+                py-4
+              "
+            >
+              פתח PDF
+            </button>
+          ) : isImage ? (
             <img
               src={url}
               alt={name}
