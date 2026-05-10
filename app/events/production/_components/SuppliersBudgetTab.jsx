@@ -1774,7 +1774,6 @@ setSuppliers((prev) => [
   created,
 ]);
 
-onSelect(created);
 
                 setOpenCreateModal(false);
 
