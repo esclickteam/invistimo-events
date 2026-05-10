@@ -362,7 +362,32 @@ export default function OverviewTab({ eventId }) {
 
           <div className="text-center">
             <p className="text-sm text-gray-500 mb-1">תאריך האירוע</p>
-            <p className="text-xl font-bold text-[#28212E]">{event.date}</p>
+            <div className="text-center">
+  <p className="text-sm text-gray-500 mb-1">
+    תאריך האירוע
+  </p>
+
+  <p className="text-xl font-bold text-[#28212E]">
+    {new Date(event.date).toLocaleDateString("he-IL", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })}
+  </p>
+
+  <p className="text-sm text-gray-500 mt-1">
+    {new Date(event.date).toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+  </p>
+
+  {daysLeft !== null && daysLeft >= 0 && (
+    <p className="text-sm text-gray-500 mt-2">
+      נותרו {daysLeft} ימים לאירוע
+    </p>
+  )}
+</div>
             {daysLeft !== null && daysLeft >= 0 && (
               <p className="text-sm text-gray-500 mt-2">
                 נותרו {daysLeft} ימים לאירוע
