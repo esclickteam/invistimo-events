@@ -27,74 +27,38 @@ export async function GET(req: Request) {
 
     if (!auth?.userId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "UNAUTHORIZED",
-        },
+        { success: false, error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
 
     if (!isAdminContext(auth)) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "FORBIDDEN",
-        },
+        { success: false, error: "FORBIDDEN" },
         { status: 403 }
       );
     }
 
-    /* =========================================================
-       PRODUCERS
-       כל משתמש רגיל יכול להיות "מפיק מטפל"
-    ========================================================= */
     const [producers, staff] = await Promise.all([
-      User.find({
-        role: {
-          $in: ["user", "producer", "admin"],
-        },
-      })
-        .select("name email role")
+      User.find({ role: "producer" })
+        .select("name email")
         .sort({ name: 1 })
         .lean(),
 
-      /* =========================================================
-         STAFF
-      ========================================================= */
-      User.find({
-        role: "staff",
-      })
-        .select(
-          "name email staffType assignedProducerId"
-        )
+      User.find({ role: "staff" })
+        .select("name email staffType assignedProducerId")
         .sort({ name: 1 })
         .lean(),
     ]);
 
     return NextResponse.json(
-      {
-        success: true,
-        producers,
-        staff,
-      },
-      {
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      }
+      { success: true, producers, staff },
+      { headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
-    console.error(
-      "❌ ASSIGNEES GET ERROR:",
-      err
-    );
-
+    console.error("❌ ASSIGNEES GET ERROR:", err);
     return NextResponse.json(
-      {
-        success: false,
-        error: "SERVER_ERROR",
-      },
+      { success: false, error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
