@@ -63,8 +63,8 @@ export async function POST(
       )
       .map((s, index) => ({
         eventId,
-        title: s.supplierName || s.name || "ספק",
-        phone: s.phone || "",
+        title: s.supplierName || "ספק",
+        phone: "",
         source: "supplier",
         supplierId: s.supplierId,
         status: "pending",
