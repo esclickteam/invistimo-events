@@ -178,11 +178,8 @@ EventSupplierSchema.post(
 /* =========================================================
    Export (HMR-safe)
 ========================================================= */
-if (mongoose.models.EventSupplier) {
-  delete mongoose.models.EventSupplier;
-}
-
 const EventSupplier =
+  mongoose.models.EventSupplier ||
   mongoose.model(
     "EventSupplier",
     EventSupplierSchema
