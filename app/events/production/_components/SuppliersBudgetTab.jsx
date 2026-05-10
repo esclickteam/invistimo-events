@@ -1963,9 +1963,10 @@ function FilePreviewModal({
 
         <div className="h-[80vh] bg-gray-50 flex items-center justify-center">
 
-          {isPdf ? (
-  <iframe
+         {isPdf ? (
+  <embed
     src={url}
+    type="application/pdf"
     className="w-full h-full"
   />
 ) : isImage ? (
