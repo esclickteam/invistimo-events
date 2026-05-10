@@ -3,10 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-
-/* =====================
-   STATUS CONFIG
-===================== */
 const TASK_STATUS = {
   OPEN: "open",
   WAITING: "waiting",
@@ -26,33 +22,36 @@ const STATUS_STYLE = {
 };
 
 export default function OverviewTab({ eventId }) {
+  const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [alerts, setAlerts] = useState([]);
   const [error, setError] = useState("");
-  
+
+  const [readAlerts, setReadAlerts] = useState([]);
+  const [hiddenAlerts, setHiddenAlerts] = useState([]);
 
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState("");
 
-  /* 🆕 budget edit (נשאר לתאימות) */
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState(0);
   const [savingBudget, setSavingBudget] = useState(false);
   const [budget, setBudget] = useState(null);
 
-const router = useRouter();
-
-  /* =====================
-     LOAD DATA
-  ===================== */
   useEffect(() => {
     if (!eventId) {
       setLoading(false);
       setError("NO_EVENT_ID");
       return;
     }
+
+    const savedRead = localStorage.getItem(`readAlerts-${eventId}`);
+    const savedHidden = localStorage.getItem(`hiddenAlerts-${eventId}`);
+
+    setReadAlerts(savedRead ? JSON.parse(savedRead) : []);
+    setHiddenAlerts(savedHidden ? JSON.parse(savedHidden) : []);
 
     async function load() {
       setLoading(true);
@@ -62,6 +61,7 @@ const router = useRouter();
         const res = await fetch(`/api/events/${eventId}/overview`, {
           cache: "no-store",
         });
+
         const data = await res.json();
 
         if (!res.ok || !data.success) {
@@ -71,19 +71,12 @@ const router = useRouter();
 
         setEvent(data.event);
         setTasks(data.tasks || []);
-
         setBudget(data.budget);
 
-
-// 🛑 לא לדרוס draft אם המשתמש באמצע עריכה
-setBudgetDraft((prev) => {
-  // אם כבר יש ערך – לא לגעת
-  if (prev && prev > 0) return prev;
-
-  // אתחול פעם אחת בלבד
-  return data.event?.budgetTotal ?? 0;
-});
-
+        setBudgetDraft((prev) => {
+          if (prev && prev > 0) return prev;
+          return data.event?.budgetTotal ?? 0;
+        });
       } catch (e) {
         setError("NETWORK_ERROR");
       } finally {
@@ -94,24 +87,13 @@ setBudgetDraft((prev) => {
     load();
   }, [eventId]);
 
-  const budgetTotal =
-  budget?.total ?? event?.budgetTotal ?? 0;
-
-const commitments =
-  budget?.commitments ?? 0;
-
-const paid =
-  budget?.paid ?? 0;
-
-const available =
-  budget?.available ?? budgetTotal;
-
-
-
+  const budgetTotal = budget?.total ?? event?.budgetTotal ?? 0;
+  const commitments = budget?.commitments ?? 0;
+  const paid = budget?.paid ?? 0;
+  const available = budget?.available ?? budgetTotal;
 
   const progress = budgetTotal
-    ? Math.round((commitments / budgetTotal) * 100)
-
+    ? Math.min(Math.round((commitments / budgetTotal) * 100), 100)
     : 0;
 
   const activeTasks = useMemo(
@@ -119,114 +101,114 @@ const available =
     [tasks]
   );
 
-  
+  const daysLeft = useMemo(() => {
+    if (!event?.date) return null;
+
+    const today = new Date();
+    const eventDate = new Date(event.date);
+
+    if (Number.isNaN(eventDate.getTime())) return null;
+
+    return Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+  }, [event]);
 
   const smartAlerts = useMemo(() => {
-  const alerts = [];
+    const alerts = [];
+    const today = new Date();
 
-  const today = new Date();
+    if (progress >= 90) {
+      alerts.push({
+        id: "budget-danger",
+        type: "danger",
+        icon: "!",
+        title: "התקציב כמעט נוצל",
+        description: `נוצלו ${progress}% מהתקציב`,
+        action: "לצפייה בתקציב",
+      });
+    }
 
-  const eventDate = event?.date
-    ? new Date(event.date)
-    : null;
+    if (available <= 5000) {
+      alerts.push({
+        id: "low-budget",
+        type: "warning",
+        icon: "₪",
+        title: "יתרה נמוכה",
+        description: `נותרו ₪${available.toLocaleString()} בלבד`,
+        action: "לבדיקת תקציב",
+      });
+    }
 
-  const daysLeft = eventDate
-    ? Math.ceil(
-        (eventDate - today) / (1000 * 60 * 60 * 24)
-      )
-    : null;
+    const overdueTasks = tasks.filter((task) => {
+      if (!task.dueDate) return false;
 
-  /* =====================
-     BUDGET ALERTS
-  ===================== */
-
-  if (progress >= 90) {
-    alerts.push({
-      id: "budget-danger",
-      type: "danger",
-      title: "התקציב כמעט נוצל",
-      description: `נוצלו ${progress}% מהתקציב`,
+      return (
+        task.status !== TASK_STATUS.DONE &&
+        new Date(task.dueDate) < today
+      );
     });
+
+    if (overdueTasks.length > 0) {
+      alerts.push({
+        id: "overdue-tasks",
+        type: "danger",
+        icon: "!",
+        title: "יש משימות באיחור",
+        description: `${overdueTasks.length} משימות עברו את התאריך`,
+        action: "טפל עכשיו",
+      });
+    }
+
+    if (activeTasks >= 10) {
+      alerts.push({
+        id: "many-tasks",
+        type: "warning",
+        icon: "✓",
+        title: "יש הרבה משימות פתוחות",
+        description: `${activeTasks} משימות עדיין פעילות`,
+        action: "לצפייה במשימות",
+      });
+    }
+
+    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 30) {
+      alerts.push({
+        id: "event-close",
+        type: "info",
+        icon: "⏱",
+        title: "האירוע מתקרב",
+        description: `נותרו ${daysLeft} ימים לאירוע`,
+        action: "קראתי",
+      });
+    }
+
+    if (daysLeft !== null && daysLeft <= 14 && activeTasks > 0) {
+      alerts.push({
+        id: "urgent-tasks",
+        type: "danger",
+        icon: "!",
+        title: "נותרו משימות לפני האירוע",
+        description: `${activeTasks} משימות עדיין פתוחות`,
+        action: "טפל עכשיו",
+      });
+    }
+
+    return alerts;
+  }, [progress, available, activeTasks, tasks, daysLeft]);
+
+  const visibleAlerts = smartAlerts.filter(
+    (alert) => !hiddenAlerts.includes(alert.id)
+  );
+
+  function markAlertAsRead(alertId) {
+    const next = Array.from(new Set([...readAlerts, alertId]));
+    setReadAlerts(next);
+    localStorage.setItem(`readAlerts-${eventId}`, JSON.stringify(next));
   }
 
-  if (available <= 5000) {
-    alerts.push({
-      id: "low-budget",
-      type: "warning",
-      title: "יתרה נמוכה",
-      description: `נותרו ₪${available.toLocaleString()}`,
-    });
+  function hideAlert(alertId) {
+    const next = Array.from(new Set([...hiddenAlerts, alertId]));
+    setHiddenAlerts(next);
+    localStorage.setItem(`hiddenAlerts-${eventId}`, JSON.stringify(next));
   }
-
-  /* =====================
-     TASK ALERTS
-  ===================== */
-
-  if (activeTasks >= 10) {
-    alerts.push({
-      id: "many-tasks",
-      type: "warning",
-      title: "יש הרבה משימות פתוחות",
-      description: `${activeTasks} משימות עדיין פעילות`,
-    });
-  }
-
-  const overdueTasks = tasks.filter((task) => {
-    if (!task.dueDate) return false;
-
-    return (
-      task.status !== TASK_STATUS.DONE &&
-      new Date(task.dueDate) < today
-    );
-  });
-
-  if (overdueTasks.length > 0) {
-    alerts.push({
-      id: "overdue-tasks",
-      type: "danger",
-      title: "יש משימות באיחור",
-      description: `${overdueTasks.length} משימות עברו את התאריך`,
-    });
-  }
-
-  /* =====================
-     EVENT DATE ALERTS
-  ===================== */
-
-  if (daysLeft !== null && daysLeft <= 30) {
-    alerts.push({
-      id: "event-close",
-      type: "info",
-      title: "האירוע מתקרב",
-      description: `נותרו ${daysLeft} ימים לאירוע`,
-    });
-  }
-
-  if (
-    daysLeft !== null &&
-    daysLeft <= 14 &&
-    activeTasks > 0
-  ) {
-    alerts.push({
-      id: "urgent-tasks",
-      type: "danger",
-      title: "נותרו משימות לפני האירוע",
-      description: `${activeTasks} משימות עדיין פתוחות`,
-    });
-  }
-
-  return alerts;
-}, [
-  progress,
-  available,
-  activeTasks,
-  tasks,
-  event,
-]);
-
-  /* =====================
-     ACTIONS
-  ===================== */
 
   async function addTask() {
     if (!newTitle.trim()) return;
@@ -260,9 +242,7 @@ const available =
 
   async function updateTask(taskId, field, value) {
     setTasks((prev) =>
-      prev.map((t) =>
-        t._id === taskId ? { ...t, [field]: value } : t
-      )
+      prev.map((t) => (t._id === taskId ? { ...t, [field]: value } : t))
     );
 
     try {
@@ -284,80 +264,63 @@ const available =
         );
       }
     } catch (e) {
-      const res = await fetch(`/api/events/${eventId}/overview`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (data?.success) {
-        setTasks(data.tasks || []);
-      }
       setError("FAILED_TO_UPDATE_TASK");
     }
   }
 
-  /* 🆕 SAVE BUDGET – נשאר כמו שהוא */
   async function saveBudget() {
-  // 🛑 לא שומרים אם לא באמת בעריכה
-  if (!isEditingBudget) return;
+    if (!isEditingBudget) return;
 
-  const nextBudget = Number(budgetDraft);
+    const nextBudget = Number(budgetDraft);
 
-  // 🛑 הגנות קריטיות
-  if (
-    Number.isNaN(nextBudget) ||
-    nextBudget <= 0 ||
-    nextBudget === event?.budgetTotal
-  ) {
-    setIsEditingBudget(false);
-    setBudgetDraft(event?.budgetTotal || 0);
-    return;
-  }
-
-  setSavingBudget(true);
-  setError("");
-
-  try {
-    const res = await fetch(`/api/events/${eventId}/overview`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        budgetTotal: nextBudget,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      throw new Error("SAVE_BUDGET_FAILED");
+    if (
+      Number.isNaN(nextBudget) ||
+      nextBudget <= 0 ||
+      nextBudget === event?.budgetTotal
+    ) {
+      setIsEditingBudget(false);
+      setBudgetDraft(event?.budgetTotal || 0);
+      return;
     }
 
-    // ✅ עדכון event
-setEvent(data.event);
+    setSavingBudget(true);
+    setError("");
 
-// ✅ עדכון budget מחושב (כדי שהכרטיסים יתעדכנו מייד)
-setBudget((prev) => ({
-  ...prev,
-  total: data.event.budgetTotal,
-  available: Math.max(
-    data.event.budgetTotal - (prev?.commitments || 0),
-    0
-  ),
-}));
+    try {
+      const res = await fetch(`/api/events/${eventId}/overview`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budgetTotal: nextBudget,
+        }),
+      });
 
-setBudgetDraft(data.event.budgetTotal);
+      const data = await res.json();
 
+      if (!res.ok || !data.success) {
+        throw new Error("SAVE_BUDGET_FAILED");
+      }
 
-  } catch (e) {
-    setError("שגיאה בשמירת התקציב");
-  } finally {
-    setSavingBudget(false);
-    setIsEditingBudget(false);
+      setEvent(data.event);
+
+      setBudget((prev) => ({
+        ...prev,
+        total: data.event.budgetTotal,
+        available: Math.max(
+          data.event.budgetTotal - (prev?.commitments || 0),
+          0
+        ),
+      }));
+
+      setBudgetDraft(data.event.budgetTotal);
+    } catch (e) {
+      setError("שגיאה בשמירת התקציב");
+    } finally {
+      setSavingBudget(false);
+      setIsEditingBudget(false);
+    }
   }
-}
 
-  /* =====================
-     UI STATES
-  ===================== */
   if (loading) return <div className="p-10">טוען…</div>;
 
   if (!event) {
@@ -370,120 +333,166 @@ setBudgetDraft(data.event.budgetTotal);
     );
   }
 
-  /* =====================
-     RENDER
-  ===================== */
   return (
     <div
-      className="max-w-6xl mx-auto px-4 py-10 space-y-8"
       dir="rtl"
+      className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-7"
       style={{
-  background:
-    "linear-gradient(to bottom, #F8F5F1, #F3EFE8)",
-}}
+        background:
+          "radial-gradient(circle at top right, #F3E8FF 0, transparent 28%), linear-gradient(to bottom, #FFF7F0, #F7F2EC)",
+      }}
     >
-      {/* HEADER */}
-      {/* HEADER */}
-<div className="
-bg-white/80
-backdrop-blur-xl
-rounded-[32px]
-px-6
-py-5
-border
-border-white/40
-shadow-[0_10px_40px_rgba(0,0,0,0.06)]
-flex
-justify-between
-items-center
-">
-  <div>
-    <h1 className="text-2xl font-semibold">
-      {event.title} · {event.date}
-    </h1>
-    <div className="text-sm text-gray-500">
-      {activeTasks} משימות פעילות
-    </div>
-  </div>
+      {/* HERO */}
+      <section className="relative overflow-hidden rounded-[34px] border border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(81,55,120,0.10)] backdrop-blur-xl px-7 py-7">
+        <div className="absolute left-0 top-0 h-full w-64 bg-gradient-to-br from-purple-200/70 to-transparent rounded-full blur-2xl" />
 
-  {/* 🔥 מעבר לדשבורד לקוח */}
-  <button
-  onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
-  className="px-4 py-2 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50"
->
-  👤 ניהול דשבורד לקוח
-</button>
-  
-</div>
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-purple-600 text-xl">✦</span>
+              <h1 className="text-2xl md:text-3xl font-bold text-[#28212E]">
+                {event.title}
+              </h1>
+            </div>
 
-{/* SMART ALERTS */}
+            <p className="text-sm text-gray-500">
+              {activeTasks} משימות פעילות
+            </p>
+          </div>
 
-{smartAlerts.length > 0 && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {smartAlerts.map((alert) => (
-      <SmartAlertCard
-        key={alert.id}
-        alert={alert}
-      />
-    ))}
-  </div>
-)}
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-1">תאריך האירוע</p>
+            <p className="text-xl font-bold text-[#28212E]">{event.date}</p>
+            {daysLeft !== null && daysLeft >= 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                נותרו {daysLeft} ימים לאירוע
+              </p>
+            )}
+          </div>
 
-      {/* BUDGET */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-  <EditableBudgetCard
-  title="תקציב מתוכנן"
-  value={isEditingBudget ? budgetDraft : budgetTotal}
-  isEditing={isEditingBudget}
-  loading={savingBudget}
-  onEdit={() => {
-    setBudgetDraft(budgetTotal);
+          <button
+            onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
+            className="rounded-2xl border border-purple-100 bg-white/80 px-5 py-3 text-sm font-semibold text-[#28212E] shadow-sm hover:shadow-md transition"
+          >
+            👤 ניהול דשבורד לקוח
+          </button>
+        </div>
+      </section>
 
-    setIsEditingBudget(true);
-  }}
-  onCancel={() => {
-    setBudgetDraft(budgetTotal);
+      {/* ALERTS */}
+      <section className="rounded-[30px] border border-white/60 bg-white/65 shadow-[0_16px_50px_rgba(81,55,120,0.08)] backdrop-blur-xl p-5 md:p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-[#28212E]">
+            ✨ התראות חכמות
+          </h2>
 
-    setIsEditingBudget(false);
-  }}
-  onChange={setBudgetDraft}
-  onSave={saveBudget}
-/>
+          <span className="text-xs rounded-full bg-purple-50 text-purple-700 px-3 py-1">
+            {visibleAlerts.length} פעילות
+          </span>
+        </div>
 
-  <BudgetCard title="התחייבויות" value={commitments} />
-<BudgetCard title="שולם בפועל" value={paid} />
-<BudgetCard title="יתרה זמינה" value={available} highlight />
-</div>
+        {visibleAlerts.length === 0 ? (
+          <div className="rounded-3xl bg-white/70 border border-white/60 p-6 text-center text-sm text-gray-500">
+            אין התראות פתוחות כרגע. הכל נראה תקין ✨
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {visibleAlerts.map((alert) => (
+              <SmartAlertCard
+                key={alert.id}
+                alert={alert}
+                isRead={readAlerts.includes(alert.id)}
+                onRead={() => markAlertAsRead(alert.id)}
+                onHide={() => hideAlert(alert.id)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* BUDGET CARDS */}
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <EditableBudgetCard
+          title="תקציב מתוכנן"
+          value={isEditingBudget ? budgetDraft : budgetTotal}
+          icon="💼"
+          isEditing={isEditingBudget}
+          loading={savingBudget}
+          onEdit={() => {
+            setBudgetDraft(budgetTotal);
+            setIsEditingBudget(true);
+          }}
+          onCancel={() => {
+            setBudgetDraft(budgetTotal);
+            setIsEditingBudget(false);
+          }}
+          onChange={setBudgetDraft}
+          onSave={saveBudget}
+        />
+
+        <BudgetCard title="סה״כ התחייבויות" value={commitments} icon="🧾" />
+        <BudgetCard title="שולם בפועל" value={paid} icon="💳" />
+        <BudgetCard title="יתרה זמינה" value={available} icon="💎" highlight />
+      </section>
 
       {/* PROGRESS */}
-      <div className="bg-white rounded-xl p-4 border border-[#E7E3DC]">
-        <div className="flex justify-between text-sm mb-2 text-gray-600">
-          <span>ניצול תקציב</span>
-          <span>{progress}%</span>
+      <section className="rounded-[26px] border border-white/60 bg-white/75 shadow-[0_14px_45px_rgba(81,55,120,0.07)] backdrop-blur-xl p-5">
+        <div className="flex justify-between text-sm mb-3">
+          <span className="font-semibold text-[#28212E]">ניצול התקציב</span>
+          <span className="font-bold text-purple-700">{progress}%</span>
         </div>
-        <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+
+        <div className="h-3 bg-gray-200/70 rounded-full overflow-hidden">
           <div
-            className="h-full rounded-full"
+            className="h-full rounded-full shadow-[0_0_18px_rgba(124,58,237,0.45)]"
             style={{
               width: `${progress}%`,
-              background:
-                "linear-gradient(90deg, #6D6AF4, #8B87FF)",
+              background: "linear-gradient(90deg, #7C3AED, #A78BFA)",
             }}
           />
         </div>
-      </div>
+      </section>
 
       {/* TASKS */}
-      <div className="bg-white rounded-2xl border border-[#E7E3DC] p-6 space-y-4">
-        <h2 className="text-lg font-semibold">משימות</h2>
+      <section className="rounded-[30px] border border-white/60 bg-white/75 shadow-[0_16px_55px_rgba(81,55,120,0.08)] backdrop-blur-xl p-5 md:p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[#28212E]">משימות</h2>
+          <span className="rounded-2xl bg-gray-100 px-3 py-2 text-sm">📋</span>
+        </div>
 
         {error && <div className="text-sm text-red-600">{error}</div>}
 
-        <div className="divide-y">
+        <div className="flex flex-col md:flex-row gap-3">
+          <button
+            onClick={addTask}
+            className="px-6 py-3 rounded-2xl text-sm font-semibold text-white shadow-[0_10px_25px_rgba(124,58,237,0.25)]"
+            style={{
+              background: "linear-gradient(135deg, #7C3AED, #8B5CF6)",
+            }}
+          >
+            הוסף
+          </button>
+
+          <input
+            type="date"
+            value={newDate}
+            onChange={(e) => setNewDate(e.target.value)}
+            className="border border-gray-200 bg-white/80 rounded-2xl px-4 py-3 text-sm outline-none focus:border-purple-300"
+          />
+
+          <input
+            placeholder="הוסף משימה חדשה…"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            className="flex-1 border border-gray-200 bg-white/80 rounded-2xl px-4 py-3 text-sm outline-none focus:border-purple-300"
+          />
+        </div>
+
+        <div className="divide-y divide-gray-100">
           {tasks.map((task) => (
             <div
               key={task._id}
-              className="py-4 flex flex-col md:flex-row justify-between gap-4"
+              className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
               <div className="flex items-center gap-4">
                 <select
@@ -491,7 +500,7 @@ items-center
                   onChange={(e) =>
                     updateTask(task._id, "status", e.target.value)
                   }
-                  className={`text-xs px-2 py-1 rounded ${STATUS_STYLE[task.status]}`}
+                  className={`text-xs px-3 py-2 rounded-full border-0 outline-none ${STATUS_STYLE[task.status]}`}
                 >
                   {Object.values(TASK_STATUS).map((s) => (
                     <option key={s} value={s}>
@@ -504,7 +513,7 @@ items-center
                   className={`font-medium ${
                     task.status === TASK_STATUS.DONE
                       ? "line-through text-gray-400"
-                      : ""
+                      : "text-[#28212E]"
                   }`}
                 >
                   {task.title}
@@ -517,77 +526,140 @@ items-center
                 onChange={(e) =>
                   updateTask(task._id, "dueDate", e.target.value)
                 }
-                className="text-sm border rounded-lg px-3 py-1.5"
+                className="text-sm border border-gray-200 bg-white/80 rounded-xl px-3 py-2 outline-none"
               />
             </div>
           ))}
         </div>
+      </section>
+    </div>
+  );
+}
 
-        {/* ADD TASK */}
-        <div className="pt-4 border-t flex gap-3">
-          <input
-            placeholder="הוסף משימה חדשה…"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="flex-1 border rounded-lg px-4 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm"
-          />
-          <button
-            onClick={addTask}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-            style={{
-              background:
-                "linear-gradient(90deg, #6D6AF4, #8B87FF)",
-            }}
-          >
-            הוסף
-          </button>
+function SmartAlertCard({ alert, isRead, onRead, onHide }) {
+  const styles = {
+    danger: {
+      bg: "linear-gradient(135deg,#FFF1F2,#FFFFFF)",
+      border: "#FDA4AF",
+      iconBg: "#FFE4E6",
+      text: "text-rose-700",
+      button: "from-rose-500 to-red-500",
+    },
+    warning: {
+      bg: "linear-gradient(135deg,#FFF7ED,#FFFFFF)",
+      border: "#FDBA74",
+      iconBg: "#FFEDD5",
+      text: "text-orange-700",
+      button: "from-orange-400 to-amber-400",
+    },
+    info: {
+      bg: "linear-gradient(135deg,#F5F3FF,#FFFFFF)",
+      border: "#C4B5FD",
+      iconBg: "#EDE9FE",
+      text: "text-violet-700",
+      button: "from-violet-500 to-purple-500",
+    },
+  };
+
+  const current = styles[alert.type] || styles.info;
+
+  return (
+    <div
+      className={`relative rounded-[26px] p-5 border transition-all duration-300 hover:-translate-y-1 ${
+        isRead ? "opacity-60" : ""
+      }`}
+      style={{
+        background: current.bg,
+        borderColor: current.border,
+        boxShadow: "0 14px 40px rgba(81,55,120,0.08)",
+      }}
+    >
+      <button
+        onClick={onHide}
+        className="absolute top-3 left-3 h-7 w-7 rounded-full bg-white/75 text-gray-400 hover:text-gray-700"
+      >
+        ×
+      </button>
+
+      <div className="flex items-start gap-4">
+        <div
+          className="h-12 w-12 rounded-2xl flex items-center justify-center font-bold"
+          style={{ background: current.iconBg }}
+        >
+          <span className={current.text}>{alert.icon}</span>
+        </div>
+
+        <div className="flex-1">
+          <h3 className={`font-bold text-sm ${current.text}`}>
+            {alert.title}
+          </h3>
+
+          <p className="text-sm text-gray-600 mt-2">
+            {alert.description}
+          </p>
+
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={onRead}
+              className="rounded-xl bg-white px-4 py-2 text-xs font-semibold shadow-sm"
+            >
+              {isRead ? "נקרא" : "קראתי"}
+            </button>
+
+            <button
+              onClick={onHide}
+              className={`rounded-xl bg-gradient-to-r ${current.button} px-4 py-2 text-xs font-semibold text-white shadow-sm`}
+            >
+              הסתר
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* =====================
-   COMPONENTS
-===================== */
-function BudgetCard({ title, value, highlight = false }) {
+function BudgetCard({ title, value, icon, highlight = false }) {
   return (
     <div
       className="
-rounded-3xl
-p-5
-border
-border-white/40
-transition-all
-duration-300
-hover:-translate-y-1
-hover:shadow-[0_15px_40px_rgba(109,106,244,0.12)]
-"
+        rounded-[26px]
+        p-5
+        border
+        border-white/60
+        bg-white/75
+        backdrop-blur-xl
+        transition-all
+        duration-300
+        hover:-translate-y-1
+      "
       style={{
         background: highlight
-          ? "linear-gradient(180deg, #F4F3FF, #FFFFFF)"
-          : "#FFFFFF",
-        boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
+          ? "linear-gradient(135deg, #F4ECFF, #FFFFFF)"
+          : "#FFFFFFCC",
+        boxShadow: "0 14px 40px rgba(81,55,120,0.08)",
       }}
     >
-      <p className="text-sm text-gray-500 mb-1">{title}</p>
-      <p className="text-2xl font-semibold">
-        ₪{value.toLocaleString()}
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-500 mb-2">{title}</p>
+          <p className="text-2xl font-bold text-[#28212E]">
+            ₪{Number(value || 0).toLocaleString()}
+          </p>
+        </div>
+
+        <div className="h-12 w-12 rounded-2xl bg-purple-100/80 flex items-center justify-center text-xl">
+          {icon}
+        </div>
+      </div>
     </div>
   );
 }
 
-
 function EditableBudgetCard({
   title,
   value,
+  icon,
   isEditing,
   loading,
   onEdit,
@@ -597,142 +669,68 @@ function EditableBudgetCard({
 }) {
   return (
     <div
-      className="rounded-2xl p-5 border border-[#E7E3DC]"
-      style={{
-        background: "#FFFFFF",
-        boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
-      }}
-    >
-      <p className="text-sm text-gray-500 mb-2">{title}</p>
-
-      {isEditing ? (
-        <div className="flex gap-2 items-center">
-          <input
-            type="number"
-            value={value}
-            onChange={(e) => onChange(Number(e.target.value))}
-            className="flex-1 border rounded-lg px-3 py-2 text-lg"
-          />
-
-          <button
-            onClick={onSave}
-            disabled={loading}
-            className="px-4 py-2 rounded-lg text-white text-sm"
-            style={{
-              background:
-                "linear-gradient(90deg, #6D6AF4, #8B87FF)",
-            }}
-          >
-            שמור
-          </button>
-
-          <button
-            onClick={onCancel}
-            className="px-3 py-2 rounded-lg text-sm border"
-          >
-            ביטול
-          </button>
-        </div>
-      ) : (
-        <div className="flex justify-between items-center">
-          <p className="text-2xl font-semibold">
-            ₪{value.toLocaleString()}
-          </p>
-
-          <button
-            onClick={onEdit}
-            className="text-sm text-[#6D6AF4] hover:underline"
-          >
-            עריכה
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-function SmartAlertCard({ alert }) {
-  const styles = {
-    danger: {
-      bg: "linear-gradient(135deg,#FFF1F1,#FFFFFF)",
-      border: "#FECACA",
-      icon: "⚠️",
-    },
-    warning: {
-      bg: "linear-gradient(135deg,#FFF8E7,#FFFFFF)",
-      border: "#FDE68A",
-      icon: "💡",
-    },
-    info: {
-      bg: "linear-gradient(135deg,#F3F0FF,#FFFFFF)",
-      border: "#C4B5FD",
-      icon: "✨",
-    },
-  };
-
-  const current =
-    styles[alert.type] || styles.info;
-
-  return (
-    <div
       className="
-        rounded-3xl
+        rounded-[26px]
         p-5
         border
+        border-purple-200/70
+        bg-white/75
+        backdrop-blur-xl
         transition-all
         duration-300
         hover:-translate-y-1
       "
       style={{
-        background: current.bg,
-        borderColor: current.border,
-        boxShadow:
-          "0 12px 35px rgba(0,0,0,0.06)",
+        background: "linear-gradient(135deg, #FFFFFF, #F8F3FF)",
+        boxShadow: "0 14px 40px rgba(81,55,120,0.08)",
       }}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex gap-4">
-          <div className="text-2xl">
-            {current.icon}
-          </div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <p className="text-sm text-gray-500 mb-2">{title}</p>
 
-          <div>
-            <h3 className="font-semibold text-[15px]">
-              {alert.title}
-            </h3>
+          {isEditing ? (
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => onChange(Number(e.target.value))}
+                className="w-full border rounded-xl px-3 py-2 text-lg"
+              />
 
-            <p className="text-sm text-gray-600 mt-1">
-              {alert.description}
-            </p>
-          </div>
+              <button
+                onClick={onSave}
+                disabled={loading}
+                className="px-4 py-2 rounded-xl text-white text-sm bg-purple-600"
+              >
+                שמור
+              </button>
+
+              <button
+                onClick={onCancel}
+                className="px-3 py-2 rounded-xl text-sm border"
+              >
+                ביטול
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-2xl font-bold text-[#28212E]">
+                ₪{Number(value || 0).toLocaleString()}
+              </p>
+
+              <button
+                onClick={onEdit}
+                className="text-sm text-purple-600 hover:underline mt-2"
+              >
+                עריכה
+              </button>
+            </>
+          )}
         </div>
 
-        <div className="flex gap-2">
-          <button
-            className="
-              text-xs
-              px-3
-              py-1.5
-              rounded-full
-              bg-white
-              border
-              hover:bg-gray-50
-            "
-          >
-            קראתי
-          </button>
-
-          <button
-            className="
-              text-xs
-              px-3
-              py-1.5
-              rounded-full
-              bg-black
-              text-white
-            "
-          >
-            הסתר
-          </button>
+        <div className="h-12 w-12 rounded-2xl bg-purple-100/80 flex items-center justify-center text-xl">
+          {icon}
         </div>
       </div>
     </div>
