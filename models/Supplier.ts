@@ -1,13 +1,8 @@
 // models/Supplier.js
-
 import mongoose from "mongoose";
 
 const SupplierSchema = new mongoose.Schema(
   {
-    /* ======================
-       BASIC
-    ====================== */
-
     name: {
       type: String,
       required: true,
@@ -24,28 +19,10 @@ const SupplierSchema = new mongoose.Schema(
       trim: true,
     },
 
-    instagram: {
-      type: String,
-      trim: true,
-    },
-
-    image: {
-      type: String,
-      trim: true,
-    },
-
-    /* ======================
-       FINANCIAL
-    ====================== */
-
     basePrice: {
       type: Number,
       default: 0,
     },
-
-    /* ======================
-       CATEGORY
-    ====================== */
 
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -58,29 +35,6 @@ const SupplierSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
-    /* ======================
-       DETAILS
-    ====================== */
-
-    includes: {
-      type: [String],
-      default: [],
-    },
-
-    notes: {
-      type: String,
-      trim: true,
-    },
-
-    rating: {
-      type: Number,
-      default: 5,
-    },
-
-    /* ======================
-       OWNER
-    ====================== */
 
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -96,9 +50,5 @@ const SupplierSchema = new mongoose.Schema(
  * ⚠️ חובה ב־Next.js App Router
  * אחרת תקבלי MissingSchemaError ב־populate
  */
-
 export default mongoose.models.Supplier ||
-  mongoose.model(
-    "Supplier",
-    SupplierSchema
-  );
+  mongoose.model("Supplier", SupplierSchema);
