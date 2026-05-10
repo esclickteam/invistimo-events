@@ -8,32 +8,168 @@ import db from "@/lib/db";
 ========================================================= */
 
 export async function GET(request: NextRequest) {
-  await db();
+  try {
+    await db();
 
-  const { searchParams } = new URL(request.url);
-  const categoryId = searchParams.get("categoryId");
-  const sub = searchParams.get("sub");
+    const { searchParams } = new URL(
+      request.url
+    );
 
-  if (!categoryId || !sub) {
+    const categoryId =
+      searchParams.get("categoryId");
+
+    const category =
+      searchParams.get("category");
+
+    const sub =
+      searchParams.get("sub");
+
+    /* =========================
+       VALIDATION
+    ========================= */
+
+    if (!sub) {
+      return NextResponse.json(
+        {
+          error: "sub is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       QUERY
+    ========================= */
+
+    let query: any = {
+      sub,
+    };
+
+    // עדיפות ל-categoryId
+    if (
+      categoryId &&
+      categoryId !== "undefined"
+    ) {
+      query.categoryId = categoryId;
+    }
+
+    // fallback לפי category
+    else if (category) {
+      query.category = category;
+    }
+
+    const suppliers =
+      await Supplier.find(query)
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
+
     return NextResponse.json(
-      { error: "categoryId and sub are required" },
-      { status: 400 }
+      suppliers
+    );
+  } catch (error) {
+    console.error(
+      "GET suppliers error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Failed loading suppliers",
+      },
+      { status: 500 }
     );
   }
-
-  const suppliers = await Supplier.find({ categoryId, sub }).lean();
-  return NextResponse.json(suppliers);
 }
 
 /* =========================================================
    POST – הוספת ספק חדש למאגר
 ========================================================= */
 
-export async function POST(request: NextRequest) {
-  await db();
+export async function POST(
+  request: NextRequest
+) {
+  try {
+    await db();
 
-  const body = await request.json();
+    const body =
+      await request.json();
 
-  const supplier = await Supplier.create(body);
-  return NextResponse.json(supplier);
+    const {
+      categoryId,
+      category,
+      sub,
+      name,
+      phone,
+      basePrice,
+      advancePrice,
+      includes,
+    } = body;
+
+    /* =========================
+       VALIDATION
+    ========================= */
+
+    if (
+      !categoryId ||
+      !category ||
+      !sub ||
+      !name
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing required fields",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       CREATE
+    ========================= */
+
+    const supplier =
+      await Supplier.create({
+        categoryId,
+        category,
+        sub,
+
+        name,
+
+        phone: phone || "",
+
+        basePrice:
+          Number(basePrice || 0),
+
+        advancePrice:
+          Number(advancePrice || 0),
+
+        includes:
+          Array.isArray(includes)
+            ? includes
+            : [],
+
+        notes: "",
+      });
+
+    return NextResponse.json(
+      supplier
+    );
+  } catch (error) {
+    console.error(
+      "POST supplier error:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Failed creating supplier",
+      },
+      { status: 500 }
+    );
+  }
 }
