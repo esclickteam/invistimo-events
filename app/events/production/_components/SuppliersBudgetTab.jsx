@@ -972,7 +972,10 @@ function SupplierCard({
 
         <MoneyField
           label="יתרה"
-          value={row.balance}
+          value={
+  Number(row.price || 0) -
+  Number(row.advance || 0)
+}
           disabled
         />
       </div>
@@ -1269,16 +1272,7 @@ function SupplierCompareModal({
   onClose,
   onSelect,
 }) {
-  const [suppliers, setSuppliers] =
-    useState([]);
-
-  useEffect(() => {
-    fetch(
-      `/api/suppliers?category=${row.category}&sub=${row.sub}`
-    )
-      .then((r) => r.json())
-      .then(setSuppliers);
-  }, [row]);
+  const suppliers = [];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1376,7 +1370,8 @@ function SupplierCompareModal({
         {/* GRID */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-7 p-8">
 
-          {suppliers.map((s) => (
+          {Array.isArray(suppliers) &&
+  suppliers.map((s) => (
             <div
               key={s._id}
               className="
