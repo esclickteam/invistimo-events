@@ -1721,48 +1721,60 @@ useEffect(() => {
                       "Content-Type":
                         "application/json",
                     },
+
                     body: JSON.stringify({
-                      category:
-                        row.category,
+  categoryId:
+    row.categoryId,
 
-                      sub: row.sub,
+  category:
+    row.category,
 
-                      name:
-                        newSupplier.name,
+  sub:
+    row.sub,
 
-                      phone:
-                        newSupplier.phone,
+  name:
+    newSupplier.name,
 
-                      basePrice:
-                        Number(
-                          newSupplier.basePrice
-                        ),
+  phone:
+    newSupplier.phone,
 
-                      advancePrice:
-                        Number(
-                          newSupplier.advancePrice
-                        ),
+  basePrice:
+    Number(
+      newSupplier.basePrice
+    ),
 
-                      includes:
-                        newSupplier.includes
-                          .split(",")
-                          .map((i) =>
-                            i.trim()
-                          )
-                          .filter(Boolean),
-                    }),
+  advancePrice:
+    Number(
+      newSupplier.advancePrice
+    ),
+
+  includes:
+    newSupplier.includes
+      ? [newSupplier.includes]
+      : [],
+}),
+
                   }
                 );
 
-                const created =
-                  await res.json();
+                if (!res.ok) {
+  const errorText =
+    await res.text();
 
-                setSuppliers((prev) => [
-                  ...prev,
-                  created,
-                ]);
+  console.error(errorText);
 
-                onSelect(created);
+  return;
+}
+
+const created =
+  await res.json();
+
+setSuppliers((prev) => [
+  ...prev,
+  created,
+]);
+
+onSelect(created);
 
                 setOpenCreateModal(false);
 
