@@ -672,6 +672,10 @@ export default function SuppliersTab({ eventId }) {
         />
       )}
     </div>
+
+
+
+
   );
 }
 
@@ -718,6 +722,8 @@ function SummaryCard({
           "
         >
           {icon}
+
+          
         </div>
       </div>
     </div>
@@ -1272,8 +1278,23 @@ function SupplierCompareModal({
   onClose,
   onSelect,
 }) {
+
+
+
   const [suppliers, setSuppliers] =
   useState([]);
+
+  const [openCreateModal, setOpenCreateModal] =
+  useState(false);
+
+const [newSupplier, setNewSupplier] =
+  useState({
+    name: "",
+    phone: "",
+    basePrice: "",
+    advancePrice: "",
+    includes: "",
+  });
 
 useEffect(() => {
   async function loadSuppliers() {
@@ -1333,22 +1354,45 @@ useEffect(() => {
             justify-between
           "
         >
-          <div>
-            <p className="text-sm text-purple-600 font-bold">
-              Supplier Selection
-            </p>
+          <div className="flex items-center gap-4">
 
-            <h3 className="text-3xl font-black text-[#1E1B2E] mt-1">
-              בחירת ספק
-            </h3>
+  <div>
+    <p className="text-sm text-purple-600 font-bold">
+      Supplier Selection
+    </p>
 
-            <p className="text-gray-500 mt-2">
-              {row.category} · {row.sub}
-            </p>
-          </div>
+    <h3 className="text-3xl font-black text-[#1E1B2E] mt-1">
+      בחירת ספק
+    </h3>
 
-          <button
-            onClick={onClose}
+    <p className="text-gray-500 mt-2">
+      {row.category} · {row.sub}
+    </p>
+  </div>
+
+  <button
+    onClick={() =>
+      setOpenCreateModal(true)
+    }
+    className="
+      rounded-2xl
+      bg-gradient-to-r
+      from-violet-600
+      to-purple-500
+      text-white
+      px-5
+      py-3
+      font-bold
+      shadow-[0_10px_30px_rgba(124,58,237,0.2)]
+    "
+  >
+    + ספק חדש
+  </button>
+</div>
+
+<button
+  onClick={onClose}
+
             className="
               h-12
               w-12
@@ -1581,8 +1625,169 @@ useEffect(() => {
               </div>
             </div>
           ))}
-        </div>
+
+                </div>
       </div>
+
+      {/* CREATE SUPPLIER MODAL */}
+      {openCreateModal && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4">
+
+          <div className="bg-white rounded-[32px] w-full max-w-xl p-8 space-y-5">
+
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-black">
+                הוספת ספק
+              </h3>
+
+              <button
+                onClick={() =>
+                  setOpenCreateModal(false)
+                }
+              >
+                <X />
+              </button>
+            </div>
+
+            <input
+              placeholder="שם ספק"
+              value={newSupplier.name}
+              onChange={(e) =>
+                setNewSupplier({
+                  ...newSupplier,
+                  name: e.target.value,
+                })
+              }
+              className="w-full rounded-2xl border border-gray-200 p-4"
+            />
+
+            <input
+              placeholder="טלפון"
+              value={newSupplier.phone}
+              onChange={(e) =>
+                setNewSupplier({
+                  ...newSupplier,
+                  phone: e.target.value,
+                })
+              }
+              className="w-full rounded-2xl border border-gray-200 p-4"
+            />
+
+            <input
+              placeholder="מחיר"
+              type="number"
+              value={newSupplier.basePrice}
+              onChange={(e) =>
+                setNewSupplier({
+                  ...newSupplier,
+                  basePrice: e.target.value,
+                })
+              }
+              className="w-full rounded-2xl border border-gray-200 p-4"
+            />
+
+            <input
+              placeholder="מקדמה"
+              type="number"
+              value={newSupplier.advancePrice}
+              onChange={(e) =>
+                setNewSupplier({
+                  ...newSupplier,
+                  advancePrice: e.target.value,
+                })
+              }
+              className="w-full rounded-2xl border border-gray-200 p-4"
+            />
+
+            <textarea
+              placeholder="מה כוללת החבילה"
+              value={newSupplier.includes}
+              onChange={(e) =>
+                setNewSupplier({
+                  ...newSupplier,
+                  includes: e.target.value,
+                })
+              }
+              className="w-full min-h-[120px] rounded-2xl border border-gray-200 p-4"
+            />
+
+            <button
+              onClick={async () => {
+                const res = await fetch(
+                  "/api/suppliers",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+                    body: JSON.stringify({
+                      category:
+                        row.category,
+
+                      sub: row.sub,
+
+                      name:
+                        newSupplier.name,
+
+                      phone:
+                        newSupplier.phone,
+
+                      basePrice:
+                        Number(
+                          newSupplier.basePrice
+                        ),
+
+                      advancePrice:
+                        Number(
+                          newSupplier.advancePrice
+                        ),
+
+                      includes:
+                        newSupplier.includes
+                          .split(",")
+                          .map((i) =>
+                            i.trim()
+                          )
+                          .filter(Boolean),
+                    }),
+                  }
+                );
+
+                const created =
+                  await res.json();
+
+                setSuppliers((prev) => [
+                  ...prev,
+                  created,
+                ]);
+
+                onSelect(created);
+
+                setOpenCreateModal(false);
+
+                setNewSupplier({
+                  name: "",
+                  phone: "",
+                  basePrice: "",
+                  advancePrice: "",
+                  includes: "",
+                });
+              }}
+              className="
+                w-full
+                rounded-2xl
+                bg-black
+                text-white
+                py-4
+                font-bold
+              "
+            >
+              שמור ספק
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
