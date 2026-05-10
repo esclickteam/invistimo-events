@@ -12,16 +12,39 @@ const SupplierSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
+      default: "",
     },
 
     link: {
       type: String,
       trim: true,
+      default: "",
     },
 
     basePrice: {
       type: Number,
       default: 0,
+    },
+
+    advancePrice: {
+      type: Number,
+      default: 0,
+    },
+
+    includes: {
+      type: [String],
+      default: [],
+    },
+
+    notes: {
+      type: String,
+      default: "",
+    },
+
+    category: {
+      type: String,
+      trim: true,
+      default: "",
     },
 
     categoryId: {
