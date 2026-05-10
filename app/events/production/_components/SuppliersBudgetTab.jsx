@@ -1964,11 +1964,28 @@ function FilePreviewModal({
         <div className="h-[80vh] bg-gray-50 flex items-center justify-center">
 
          {isPdf ? (
-  <embed
-    src={url}
-    type="application/pdf"
-    className="w-full h-full"
-  />
+  <div className="text-center space-y-4">
+    <p className="font-bold text-lg">
+      הקובץ הוא PDF
+    </p>
+
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="
+        inline-block
+        rounded-2xl
+        bg-black
+        text-white
+        px-8
+        py-4
+        font-bold
+      "
+    >
+      פתח PDF
+    </a>
+  </div>
 ) : isImage ? (
             <img
               src={url}
