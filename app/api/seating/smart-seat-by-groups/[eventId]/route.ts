@@ -149,7 +149,7 @@ function getTableName(table: SeatingInnerTable) {
   return table.name || "שולחן";
 }
 
-/* ✅ חדש — חילוץ מספר שולחן מהשם, לדוגמה: "שולחן 16" => 16 */
+/* ✅ חילוץ מספר שולחן מהשם, לדוגמה: "שולחן 16" => 16 */
 function getTableNumber(table: SeatingInnerTable, fallbackIndex: number) {
   const name = String(table.name || "").trim();
   const match = name.match(/\d+/);
@@ -172,6 +172,35 @@ function getTableCapacity(table: SeatingInnerTable) {
 
 function getUsedSeats(table: TableState) {
   return table.capacity - table.remaining;
+}
+
+function isPartiallyUsedTable(table: TableState) {
+  const used = getUsedSeats(table);
+  return used > 0 && table.remaining > 0;
+}
+
+function compareByTableNumber(a: TableState, b: TableState) {
+  if (a.tableNumber !== b.tableNumber) {
+    return a.tableNumber - b.tableNumber;
+  }
+
+  return a.originalIndex - b.originalIndex;
+}
+
+/*
+  ✅ שילוב חכם:
+  1. קודם חורים בשולחנות שכבר התחילו להתמלא.
+  2. בתוך החורים — לפי מספר שולחן מהנמוך לגבוה.
+  3. אחר כך שולחנות ריקים — גם לפי מספר מהנמוך לגבוה.
+*/
+function compareSmartFillOrder(a: TableState, b: TableState) {
+  const aPartial = isPartiallyUsedTable(a);
+  const bPartial = isPartiallyUsedTable(b);
+
+  if (aPartial && !bPartial) return -1;
+  if (!aPartial && bPartial) return 1;
+
+  return compareByTableNumber(a, b);
 }
 
 function findNextEmptyTableIndex(
@@ -213,17 +242,7 @@ function seatWholeGroupBestFit(
 ) {
   const bestTable = tableStates
     .filter((table) => table.remaining >= group.seatsNeeded)
-    .sort((a, b) => {
-      const aUsed = getUsedSeats(a);
-      const bUsed = getUsedSeats(b);
-
-      // קודם למלא שולחנות שכבר התחילו להתמלא
-      if (aUsed > 0 && bUsed === 0) return -1;
-      if (aUsed === 0 && bUsed > 0) return 1;
-
-      // Best fit — הכי פחות מקום שנשאר אחרי הכנסה
-      return a.remaining - b.remaining;
-    })[0];
+    .sort(compareSmartFillOrder)[0];
 
   if (!bestTable) {
     return false;
@@ -243,17 +262,7 @@ function splitGroupIntoAvailableTables(
 
   const availableTables = tableStates
     .filter((table) => table.remaining > 0)
-    .sort((a, b) => {
-      const aUsed = getUsedSeats(a);
-      const bUsed = getUsedSeats(b);
-
-      // קודם חורים בשולחנות קיימים
-      if (aUsed > 0 && bUsed === 0) return -1;
-      if (aUsed === 0 && bUsed > 0) return 1;
-
-      // אחר כך שולחנות עם הכי הרבה מקום
-      return b.remaining - a.remaining;
-    });
+    .sort(compareSmartFillOrder);
 
   for (const table of availableTables) {
     if (!remainingMembers.length) break;
@@ -378,13 +387,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         };
       })
       .filter((table) => table.tableId && table.capacity > 0)
-      .sort((a, b) => {
-        if (a.tableNumber !== b.tableNumber) {
-          return a.tableNumber - b.tableNumber;
-        }
-
-        return a.originalIndex - b.originalIndex;
-      });
+      .sort(compareByTableNumber);
 
     if (!tableStates.length) {
       return NextResponse.json(
@@ -512,7 +515,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     /* =========================================================
        שלב 1:
        קבוצות גדולות קודם.
-       קבוצה גדולה מקבלת שולחנות ריקים ברצף.
+       קבוצה גדולה מקבלת שולחנות ריקים ברצף לפי מספר שולחן.
        אם היא גדולה משולחן אחד — היא תמלא כמה שולחנות מאותה קבוצה.
        לא מכניסים לתוכה קבוצות קטנות בשלב הזה.
     ========================================================= */
@@ -547,7 +550,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
     /* =========================================================
        שלב 2:
        קבוצות קטנות.
-       קודם מנסים להכניס קבוצה שלמה.
+       קודם חורים בשולחנות שכבר התמלאו חלקית,
+       אבל לפי מספר שולחן מהנמוך לגבוה.
+       אם אין חור מתאים — עוברים לשולחן ריק הכי נמוך.
        אם אין מקום לקבוצה שלמה — מפצלים רק אם חייבים.
     ========================================================= */
 
@@ -569,6 +574,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
        שלב 3:
        ללא קבוצה / בודדים אחרונים.
        נכנסים רק אחרי שכל הקבוצות שובצו.
+       גם כאן: קודם חורים, ואז שולחנות ריקים, הכל לפי מספר עולה.
     ========================================================= */
 
     const sortedNoGroupBuckets = noGroupBuckets.sort(
