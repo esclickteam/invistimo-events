@@ -34,7 +34,10 @@ export async function POST(
         .upload_stream(
           {
             folder: `events/suppliers/${supplierRowId}`,
-            resource_type: "auto",
+            resource_type:
+  file.type === "application/pdf"
+    ? "raw"
+    : "image",
 
             // ⭐⭐⭐ העיקר כאן ⭐⭐⭐
             filename_override: file.name, // שומר שם + סיומת (.pdf)
