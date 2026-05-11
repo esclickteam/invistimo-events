@@ -55,6 +55,7 @@ type SeatingInnerTable = {
 type TableState = {
   tableId: string;
   tableName: string;
+  tableNumber: number;
   capacity: number;
   remaining: number;
   originalIndex: number;
@@ -146,6 +147,22 @@ function getGroupId(guest: InvitationGuestDoc) {
 
 function getTableName(table: SeatingInnerTable) {
   return table.name || "שולחן";
+}
+
+/* ✅ חדש — חילוץ מספר שולחן מהשם, לדוגמה: "שולחן 16" => 16 */
+function getTableNumber(table: SeatingInnerTable, fallbackIndex: number) {
+  const name = String(table.name || "").trim();
+  const match = name.match(/\d+/);
+
+  if (match) {
+    const number = Number(match[0]);
+
+    if (Number.isFinite(number) && number > 0) {
+      return number;
+    }
+  }
+
+  return fallbackIndex + 1;
 }
 
 function getTableCapacity(table: SeatingInnerTable) {
@@ -340,24 +357,34 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     /* ===============================
-       4. בניית שולחנות לפי הסדר הקיים
-       לא ממיינים לפי גודל כדי לשמור על סדר הקנבס
+       4. בניית שולחנות לפי מספר שולחן
+       ✅ שולחן 1 ואז 2 ואז 3 וכן הלאה
     =============================== */
 
     const tableStates: TableState[] = rawTables
       .map((table, index) => {
         const capacity = getTableCapacity(table);
+        const tableName = getTableName(table);
+        const tableNumber = getTableNumber(table, index);
 
         return {
           tableId: table.id,
-          tableName: getTableName(table),
+          tableName,
+          tableNumber,
           capacity,
           remaining: capacity,
           originalIndex: index,
           seatedGuests: [],
         };
       })
-      .filter((table) => table.tableId && table.capacity > 0);
+      .filter((table) => table.tableId && table.capacity > 0)
+      .sort((a, b) => {
+        if (a.tableNumber !== b.tableNumber) {
+          return a.tableNumber - b.tableNumber;
+        }
+
+        return a.originalIndex - b.originalIndex;
+      });
 
     if (!tableStates.length) {
       return NextResponse.json(
@@ -690,6 +717,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
             $set: {
               tableId: tableState.tableId,
               tableName: tableState.tableName,
+              tableNumber: tableState.tableNumber,
               seatNumber: seatIndex + 1,
             },
           }
@@ -737,6 +765,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       tablesSummary: tableStates.map((table) => ({
         tableId: table.tableId,
         tableName: table.tableName,
+        tableNumber: table.tableNumber,
         capacity: table.capacity,
         usedSeats: table.capacity - table.remaining,
         remaining: table.remaining,
