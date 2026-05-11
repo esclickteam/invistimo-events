@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import cloudinary from "@/lib/cloudinary";
 import db from "@/lib/db";
 import EventSupplier from "@/models/EventSupplier";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 
 export async function POST(
   request: NextRequest,
@@ -29,35 +32,26 @@ export async function POST(
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const result: any = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-  .upload_stream(
-    {
-      folder: `events/suppliers/${supplierRowId}`,
+    const tempPath = path.join(
+  os.tmpdir(),
+  file.name
+);
 
-      resource_type:
-        file.type === "application/pdf"
-          ? "raw"
-          : "image",
+await fs.writeFile(tempPath, buffer);
 
-      format:
-        file.type === "application/pdf"
-          ? "pdf"
-          : undefined,
+const result = await cloudinary.uploader.upload(
+  tempPath,
+  {
+    folder: `events/suppliers/${supplierRowId}`,
 
-      filename_override: file.name,
+    resource_type:
+      file.type === "application/pdf"
+        ? "raw"
+        : "image",
+  }
+);
 
-      use_filename: false,
-      unique_filename: false,
-    },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        )
-        .end(buffer);
-    });
-
+await fs.unlink(tempPath);
     uploadedFiles.push({
       name: file.name,              // למשל: "הסכם ספק.pdf"
       url: result.secure_url,       // URL תקין
