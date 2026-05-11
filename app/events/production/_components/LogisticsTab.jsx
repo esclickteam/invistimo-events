@@ -46,12 +46,7 @@ const STATUS_META = {
   },
 };
 
-
-function TimelineRow({
-  item,
-  onUpdate,
-  onDelete,
-}) {
+function TimelineRow({ item, onUpdate, onDelete }) {
   const {
     setNodeRef,
     attributes,
@@ -66,10 +61,7 @@ function TimelineRow({
     <div
       ref={setNodeRef}
       style={{
-        transform:
-          CSS.Transform.toString(
-            transform
-          ),
+        transform: CSS.Transform.toString(transform),
         transition,
       }}
       className="
@@ -87,7 +79,6 @@ function TimelineRow({
       "
     >
       {/* DRAG */}
-
       <button
         {...attributes}
         {...listeners}
@@ -97,13 +88,10 @@ function TimelineRow({
           shrink-0
         "
       >
-        <GripVertical
-          size={18}
-        />
+        <GripVertical size={18} />
       </button>
 
       {/* ICON */}
-
       <div
         className="
           h-11
@@ -120,11 +108,8 @@ function TimelineRow({
       </div>
 
       {/* TITLE + TIME */}
-
       <div className="flex-1 min-w-0 overflow-hidden text-right">
-
         {/* TIME */}
-
         <div
           className="
             flex
@@ -134,23 +119,15 @@ function TimelineRow({
             mb-1
           "
         >
-          <Clock3
-            size={12}
-            className="text-gray-400"
-          />
+          <Clock3 size={12} className="text-gray-400" />
 
           <input
             type="time"
-            value={item.time}
+            value={item.time || ""}
             onChange={(e) =>
-              onUpdate(
-                item._id,
-                {
-                  time:
-                    e.target
-                      .value,
-                }
-              )
+              onUpdate(item._id, {
+                time: e.target.value,
+              })
             }
             className="
               bg-transparent
@@ -163,18 +140,12 @@ function TimelineRow({
         </div>
 
         {/* TITLE */}
-
         <input
-          value={item.title}
+          value={item.title || ""}
           onChange={(e) =>
-            onUpdate(
-              item._id,
-              {
-                title:
-                  e.target
-                    .value,
-              }
-            )
+            onUpdate(item._id, {
+              title: e.target.value,
+            })
           }
           className="
             w-full
@@ -189,7 +160,6 @@ function TimelineRow({
         />
 
         {/* SUBTITLE */}
-
         <div
           className="
             text-[10px]
@@ -203,13 +173,11 @@ function TimelineRow({
       </div>
 
       {/* STATUS */}
-
       <select
-        value={item.status}
+        value={item.status || "pending"}
         onChange={(e) =>
           onUpdate(item._id, {
-            status:
-              e.target.value,
+            status: e.target.value,
           })
         }
         className={`
@@ -223,33 +191,20 @@ function TimelineRow({
           font-bold
           outline-none
           ${
-            STATUS_META[
-              item.status
-            ]?.className
+            STATUS_META[item.status || "pending"]?.className
           }
         `}
       >
-        {Object.keys(
-          STATUS_META
-        ).map((key) => (
-          <option
-            key={key}
-            value={key}
-          >
-            {
-              STATUS_META[key]
-                .label
-            }
+        {Object.keys(STATUS_META).map((key) => (
+          <option key={key} value={key}>
+            {STATUS_META[key].label}
           </option>
         ))}
       </select>
 
       {/* DELETE */}
-
       <button
-        onClick={() =>
-          onDelete(item._id)
-        }
+        onClick={() => onDelete(item._id)}
         className="
           h-10
           w-10
@@ -327,7 +282,7 @@ function LogisticsRow({ item, onUpdate, onDelete }) {
 
       <div className="flex-1 min-w-0 overflow-hidden">
         <input
-          value={item.title}
+          value={item.title || ""}
           onChange={(e) =>
             onUpdate(item._id, {
               title: e.target.value,
@@ -347,7 +302,7 @@ function LogisticsRow({ item, onUpdate, onDelete }) {
       </div>
 
       <select
-        value={item.status}
+        value={item.status || "pending"}
         onChange={(e) =>
           onUpdate(item._id, {
             status: e.target.value,
@@ -363,7 +318,9 @@ function LogisticsRow({ item, onUpdate, onDelete }) {
           text-xs
           font-bold
           outline-none
-          ${STATUS_META[item.status]?.className}
+          ${
+            STATUS_META[item.status || "pending"]?.className
+          }
         `}
       >
         {Object.keys(STATUS_META).map((key) => (
@@ -396,16 +353,12 @@ function LogisticsRow({ item, onUpdate, onDelete }) {
 }
 
 export default function LogisticsTab({ eventId }) {
-  const [logisticsSteps, setLogisticsSteps] =
-  useState([]);
-
-const [timelineSteps, setTimelineSteps] =
-  useState([]);
+  const [logisticsSteps, setLogisticsSteps] = useState([]);
+  const [timelineSteps, setTimelineSteps] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [newLogistic, setNewLogistic] = useState({
     title: "",
-    time: "",
     status: "pending",
   });
 
@@ -416,65 +369,40 @@ const [timelineSteps, setTimelineSteps] =
   });
 
   useEffect(() => {
-  if (!eventId) return;
+    if (!eventId) return;
 
-  async function load() {
-    setLoading(true);
+    async function load() {
+      setLoading(true);
 
-    try {
-      const [
-        logisticsRes,
-        timelineRes,
-      ] = await Promise.all([
-        fetch(
-          `/api/events/${eventId}/logistics`,
-          {
+      try {
+        const [logisticsRes, timelineRes] = await Promise.all([
+          fetch(`/api/events/${eventId}/logistics`, {
             cache: "no-store",
-          }
-        ),
-
-        fetch(
-          `/api/events/${eventId}/timeline`,
-          {
+          }),
+          fetch(`/api/events/${eventId}/timeline`, {
             cache: "no-store",
-          }
-        ),
-      ]);
+          }),
+        ]);
 
-      const logisticsData =
-        await logisticsRes.json();
+        const logisticsData = await logisticsRes.json();
+        const timelineData = await timelineRes.json();
 
-      const timelineData =
-        await timelineRes.json();
+        if (logisticsData.success) {
+          setLogisticsSteps(logisticsData.steps || []);
+        }
 
-      if (
-        logisticsData.success
-      ) {
-        setLogisticsSteps(
-          logisticsData.steps ||
-            []
-        );
+        if (timelineData.success) {
+          setTimelineSteps(timelineData.steps || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-
-      if (
-        timelineData.success
-      ) {
-        setTimelineSteps(
-          timelineData.steps ||
-            []
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
-  }
 
-  load();
-}, [eventId]);
-
-  
+    load();
+  }, [eventId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -483,9 +411,8 @@ const [timelineSteps, setTimelineSteps] =
     })
   );
 
-  
   async function addLogisticsStep() {
-    if (!newLogistic.title) return;
+    if (!newLogistic.title.trim()) return;
 
     try {
       const res = await fetch(`/api/events/${eventId}/logistics`, {
@@ -493,19 +420,23 @@ const [timelineSteps, setTimelineSteps] =
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(newLogistic),
+        body: JSON.stringify({
+          title: newLogistic.title,
+          status: newLogistic.status,
+        }),
       });
 
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data.success && data.step) {
         setLogisticsSteps((prev) => [...prev, data.step]);
 
         setNewLogistic({
           title: "",
-          time: "",
           status: "pending",
         });
+      } else {
+        console.error("ADD logistics failed", data);
       }
     } catch (err) {
       console.error(err);
@@ -513,7 +444,7 @@ const [timelineSteps, setTimelineSteps] =
   }
 
   async function addTimelineStep() {
-    if (!newEvent.title) return;
+    if (!newEvent.title.trim()) return;
 
     try {
       const res = await fetch(`/api/events/${eventId}/timeline`, {
@@ -521,12 +452,16 @@ const [timelineSteps, setTimelineSteps] =
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(newEvent),
+        body: JSON.stringify({
+          title: newEvent.title,
+          time: newEvent.time,
+          status: newEvent.status,
+        }),
       });
 
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data.success && data.step) {
         setTimelineSteps((prev) => [...prev, data.step]);
 
         setNewEvent({
@@ -534,6 +469,8 @@ const [timelineSteps, setTimelineSteps] =
           time: "",
           status: "pending",
         });
+      } else {
+        console.error("ADD timeline failed", data);
       }
     } catch (err) {
       console.error(err);
@@ -541,55 +478,121 @@ const [timelineSteps, setTimelineSteps] =
   }
 
   async function updateLogisticsStep(id, patch) {
+    const prevSteps = logisticsSteps;
+
     setLogisticsSteps((prev) =>
       prev.map((s) =>
-        s._id === id ? { ...s, ...patch } : s
+        s._id === id
+          ? {
+              ...s,
+              ...patch,
+            }
+          : s
       )
     );
 
-    await fetch(`/api/logistics/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(patch),
-    });
+    try {
+      const res = await fetch(`/api/logistics/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        setLogisticsSteps(prevSteps);
+        console.error("UPDATE logistics failed", data);
+      }
+    } catch (err) {
+      setLogisticsSteps(prevSteps);
+      console.error(err);
+    }
   }
 
   async function updateTimelineStep(id, patch) {
+    const prevSteps = timelineSteps;
+
     setTimelineSteps((prev) =>
       prev.map((s) =>
-        s._id === id ? { ...s, ...patch } : s
+        s._id === id
+          ? {
+              ...s,
+              ...patch,
+            }
+          : s
       )
     );
 
-    await fetch(`/api/timeline/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(patch),
-    });
+    try {
+      const res = await fetch(`/api/timeline/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        setTimelineSteps(prevSteps);
+        console.error("UPDATE timeline failed", data);
+      }
+    } catch (err) {
+      setTimelineSteps(prevSteps);
+      console.error(err);
+    }
   }
 
   async function deleteLogisticsStep(id) {
+    const prevSteps = logisticsSteps;
+
     setLogisticsSteps((prev) =>
       prev.filter((s) => s._id !== id)
     );
 
-    await fetch(`/api/logistics/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      const res = await fetch(`/api/logistics/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        setLogisticsSteps(prevSteps);
+        console.error("DELETE logistics failed", data);
+      }
+    } catch (err) {
+      setLogisticsSteps(prevSteps);
+      console.error(err);
+    }
   }
 
   async function deleteTimelineStep(id) {
+    const prevSteps = timelineSteps;
+
     setTimelineSteps((prev) =>
       prev.filter((s) => s._id !== id)
     );
 
-    await fetch(`/api/timeline/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      const res = await fetch(`/api/timeline/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        setTimelineSteps(prevSteps);
+        console.error("DELETE timeline failed", data);
+      }
+    } catch (err) {
+      setTimelineSteps(prevSteps);
+      console.error(err);
+    }
   }
 
   function handleLogisticsDragEnd({ active, over }) {
@@ -602,6 +605,8 @@ const [timelineSteps, setTimelineSteps] =
     const newIndex = logisticsSteps.findIndex(
       (i) => i._id === over.id
     );
+
+    if (oldIndex === -1 || newIndex === -1) return;
 
     setLogisticsSteps(
       arrayMove(logisticsSteps, oldIndex, newIndex)
@@ -619,11 +624,12 @@ const [timelineSteps, setTimelineSteps] =
       (i) => i._id === over.id
     );
 
+    if (oldIndex === -1 || newIndex === -1) return;
+
     setTimelineSteps(
       arrayMove(timelineSteps, oldIndex, newIndex)
     );
   }
-
 
   if (loading) {
     return (
@@ -757,16 +763,7 @@ const [timelineSteps, setTimelineSteps] =
             "
           >
             <button
-              onClick={() => {
-                addLogisticsStep();
-
-                setNewLogistic({
-                  title: "",
-                  time: "",
-                  status: "pending",
-                  
-                });
-              }}
+              onClick={addLogisticsStep}
               className="
                 rounded-2xl
                 bg-gradient-to-r
@@ -804,28 +801,6 @@ const [timelineSteps, setTimelineSteps] =
                 text-sm
               "
             />
-
-            <input
-              type="time"
-              value={newLogistic.time}
-              onChange={(e) =>
-                setNewLogistic((p) => ({
-                  ...p,
-                  time: e.target.value,
-                }))
-              }
-              className="
-                w-[115px]
-                shrink-0
-                rounded-2xl
-                border
-                border-[#E7E2DD]
-                px-4
-                py-4
-                outline-none
-                text-sm
-              "
-            />
           </div>
 
           <DndContext
@@ -842,8 +817,8 @@ const [timelineSteps, setTimelineSteps] =
                   <LogisticsRow
                     key={item._id}
                     item={item}
-                    onUpdate={updateTimelineStep}
-                    onDelete={deleteTimelineStep}
+                    onUpdate={updateLogisticsStep}
+                    onDelete={deleteLogisticsStep}
                   />
                 ))}
               </div>
@@ -915,16 +890,7 @@ const [timelineSteps, setTimelineSteps] =
             "
           >
             <button
-              onClick={() => {
-                addTimelineStep();
-
-                setNewEvent({
-                  title: "",
-                  time: "",
-                  status: "pending",
-                  
-                });
-              }}
+              onClick={addTimelineStep}
               className="
                 rounded-2xl
                 bg-gradient-to-r
@@ -1000,8 +966,8 @@ const [timelineSteps, setTimelineSteps] =
                   <TimelineRow
                     key={item._id}
                     item={item}
-                    onUpdate={updateLogisticsStep}
-                    onDelete={deleteLogisticsStep}
+                    onUpdate={updateTimelineStep}
+                    onDelete={deleteTimelineStep}
                   />
                 ))}
               </div>
