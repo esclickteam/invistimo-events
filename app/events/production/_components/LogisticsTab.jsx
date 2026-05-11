@@ -403,7 +403,8 @@ function LogisticsRow({
       className="
   relative
   grid
-  grid-cols-[40px_56px_minmax(220px,1fr)_150px_50px]
+    grid-cols-[40px_56px_minmax(320px,1fr)_170px_50px]
+
   items-center
   gap-4
   rounded-[26px]
@@ -486,7 +487,7 @@ function LogisticsRow({
 
       {/* TITLE */}
 
-      <div className="flex-1 min-w-[260px]">
+      <div className="flex-1 min-w-[340px]">
         <input
           value={item.title}
           onChange={(e) =>
@@ -501,7 +502,7 @@ function LogisticsRow({
           }
           className="
   w-full
-  min-w-[260px]
+  min-w-[340px]
   bg-transparent
   outline-none
   text-lg
