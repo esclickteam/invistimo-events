@@ -470,10 +470,12 @@ export default function CalendarTab({ eventId }) {
         date: form.date,
         meetingDate: form.date,
         eventDate: form.date,
+        dueDate: form.date,
 
         time: form.time || "",
         meetingTime: form.time || "",
         eventTime: form.time || "",
+        hour: form.time || "",
 
         summary: form.description || "",
         description: form.description || "",
@@ -751,23 +753,23 @@ export default function CalendarTab({ eventId }) {
         className="
           grid
           grid-cols-1
-          2xl:grid-cols-[330px_1fr_330px]
           xl:grid-cols-[300px_1fr_300px]
+          2xl:grid-cols-[330px_1fr_330px]
           gap-6
           items-start
         "
       >
-        {/* LEFT - SELECTED DATE DETAILS */}
+        {/* RIGHT - UPCOMING WEEK */}
         <SidePanel
-          title="פירוט היום הנבחר"
-          subtitle={formatDisplayDate(selectedDate)}
-          icon={ClipboardList}
+          title="7 ימים קדימה"
+          subtitle="כל מה שמתקרב השבוע"
+          icon={Clock3}
         >
-          {selectedDateItems.length === 0 ? (
-            <EmptyBox text="אין פריטים ביום הזה." />
+          {upcomingWeekItems.length === 0 ? (
+            <EmptyBox text="אין פריטים בשבוע הקרוב." />
           ) : (
             <div className="space-y-3">
-              {selectedDateItems.map((item) => (
+              {upcomingWeekItems.map((item) => (
                 <CalendarSmallCard
                   key={item.id}
                   item={item}
@@ -776,31 +778,6 @@ export default function CalendarTab({ eventId }) {
               ))}
             </div>
           )}
-
-          <button
-            type="button"
-            onClick={() => openCreateModal(selectedDate)}
-            className="
-              mt-4
-              w-full
-              rounded-2xl
-              border
-              border-[#E7D8FF]
-              bg-[#F4EDFF]
-              text-[#6D28D9]
-              px-4
-              py-3
-              text-sm
-              font-black
-              flex
-              items-center
-              justify-center
-              gap-2
-            "
-          >
-            <Plus size={16} />
-            הוסף ליום הזה
-          </button>
         </SidePanel>
 
         {/* CENTER - CALENDAR */}
@@ -978,17 +955,17 @@ export default function CalendarTab({ eventId }) {
           )}
         </div>
 
-        {/* RIGHT - UPCOMING WEEK */}
+        {/* LEFT - SELECTED DATE DETAILS */}
         <SidePanel
-          title="7 ימים קדימה"
-          subtitle="כל מה שמתקרב השבוע"
-          icon={Clock3}
+          title="פירוט היום הנבחר"
+          subtitle={formatDisplayDate(selectedDate)}
+          icon={ClipboardList}
         >
-          {upcomingWeekItems.length === 0 ? (
-            <EmptyBox text="אין פריטים בשבוע הקרוב." />
+          {selectedDateItems.length === 0 ? (
+            <EmptyBox text="אין פריטים ביום הזה." />
           ) : (
             <div className="space-y-3">
-              {upcomingWeekItems.map((item) => (
+              {selectedDateItems.map((item) => (
                 <CalendarSmallCard
                   key={item.id}
                   item={item}
@@ -997,6 +974,31 @@ export default function CalendarTab({ eventId }) {
               ))}
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => openCreateModal(selectedDate)}
+            className="
+              mt-4
+              w-full
+              rounded-2xl
+              border
+              border-[#E7D8FF]
+              bg-[#F4EDFF]
+              text-[#6D28D9]
+              px-4
+              py-3
+              text-sm
+              font-black
+              flex
+              items-center
+              justify-center
+              gap-2
+            "
+          >
+            <Plus size={16} />
+            הוסף ליום הזה
+          </button>
         </SidePanel>
       </section>
 

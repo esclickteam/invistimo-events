@@ -167,14 +167,18 @@ async function requireEventAccess(eventId: string, userId: string) {
   };
 }
 
-/* =========================
-   GET – Load conversations
-========================= */
-export async function GET(
+/* =========================================================
+   PATCH – Update conversation/calendar item
+   Route:
+   /api/events/[eventId]/conversations/[conversationId]
+========================================================= */
+
+export async function PATCH(
   req: NextRequest,
   context: {
     params: Promise<{
       eventId: string;
+      conversationId: string;
     }>;
   }
 ) {
@@ -193,7 +197,8 @@ export async function GET(
       );
     }
 
-    const { eventId } = await context.params;
+    const { eventId, conversationId } =
+      await context.params;
 
     const access = await requireEventAccess(
       eventId,
@@ -204,22 +209,64 @@ export async function GET(
       return access.error;
     }
 
-    const conversations = await EventConversation.find({
-      eventId,
-    })
-      .sort({
-        date: 1,
-        time: 1,
-        createdAt: -1,
-      })
-      .lean();
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_CONVERSATION_ID",
+        },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json();
+
+    const updates = normalizeConversationBody(body);
+
+    if (!updates.entityName || !updates.date) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "MISSING_FIELDS",
+          required: {
+            entityName: !!updates.entityName,
+            date: !!updates.date,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    const conversation =
+      await EventConversation.findOneAndUpdate(
+        {
+          _id: conversationId,
+          eventId,
+        },
+        {
+          $set: updates,
+        },
+        {
+          new: true,
+        }
+      );
+
+    if (!conversation) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CONVERSATION_NOT_FOUND",
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      conversations,
+      conversation,
     });
   } catch (err) {
-    console.error("❌ GET conversations failed:", err);
+    console.error("❌ PATCH conversation failed:", err);
 
     return NextResponse.json(
       {
@@ -231,14 +278,18 @@ export async function GET(
   }
 }
 
-/* =========================
-   POST – Create calendar item / meeting / reminder / event
-========================= */
-export async function POST(
+/* =========================================================
+   DELETE – Delete conversation/calendar item
+   Route:
+   /api/events/[eventId]/conversations/[conversationId]
+========================================================= */
+
+export async function DELETE(
   req: NextRequest,
   context: {
     params: Promise<{
       eventId: string;
+      conversationId: string;
     }>;
   }
 ) {
@@ -257,7 +308,8 @@ export async function POST(
       );
     }
 
-    const { eventId } = await context.params;
+    const { eventId, conversationId } =
+      await context.params;
 
     const access = await requireEventAccess(
       eventId,
@@ -268,38 +320,38 @@ export async function POST(
       return access.error;
     }
 
-    const body = await req.json();
-
-    const normalized = normalizeConversationBody(body);
-
-    if (!normalized.entityName || !normalized.date) {
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       return NextResponse.json(
         {
           success: false,
-          error: "MISSING_FIELDS",
-          required: {
-            entityName: !!normalized.entityName,
-            date: !!normalized.date,
-          },
+          error: "INVALID_CONVERSATION_ID",
         },
         { status: 400 }
       );
     }
 
-    const conversation = await EventConversation.create({
-      eventId,
+    const deleted =
+      await EventConversation.findOneAndDelete({
+        _id: conversationId,
+        eventId,
+      });
 
-      ...normalized,
-
-      createdBy: auth.userId,
-    });
+    if (!deleted) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CONVERSATION_NOT_FOUND",
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      conversation,
+      deletedId: conversationId,
     });
   } catch (err) {
-    console.error("❌ POST conversation failed:", err);
+    console.error("❌ DELETE conversation failed:", err);
 
     return NextResponse.json(
       {
