@@ -2036,6 +2036,7 @@ function ProducerCalendarModal({
   onClose,
   onManage,
 }) {
+  
   const [currentMonth, setCurrentMonth] =
     useState(() => {
       const now = new Date();
@@ -2045,6 +2046,16 @@ function ProducerCalendarModal({
         1
       );
     });
+
+    const [selectedDate, setSelectedDate] =
+  useState(() => {
+    const now = new Date();
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+  });
 
   if (!open) return null;
 
@@ -2099,36 +2110,74 @@ function ProducerCalendarModal({
   }
 
   function goPrevMonth() {
-    setCurrentMonth(
-      new Date(year, month - 1, 1)
-    );
-  }
+  const newMonth = new Date(year, month - 1, 1);
 
-  function goNextMonth() {
-    setCurrentMonth(
-      new Date(year, month + 1, 1)
-    );
-  }
+  setCurrentMonth(newMonth);
+  setSelectedDate(newMonth);
+}
+
+function goNextMonth() {
+  const newMonth = new Date(year, month + 1, 1);
+
+  setCurrentMonth(newMonth);
+  setSelectedDate(newMonth);
+}
 
   function goToday() {
-    const now = new Date();
-    setCurrentMonth(
-      new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        1
-      )
-    );
-  }
+  const now = new Date();
+
+  setCurrentMonth(
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    )
+  );
+
+  setSelectedDate(
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    )
+  );
+}
 
   const upcomingEvents = events
-    .filter((event) => {
-      const d = new Date(event.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return d >= today;
-    })
-    .slice(0, 8);
+  .filter((event) => {
+    const d = new Date(event.date);
+
+    if (Number.isNaN(d.getTime())) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(today);
+    weekEnd.setDate(today.getDate() + 7);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    return d >= today && d <= weekEnd;
+  })
+  .sort((a, b) => {
+    const aDate = `${a.date}T${a.time || "00:00"}`;
+    const bDate = `${b.date}T${b.time || "00:00"}`;
+
+    return (
+      new Date(aDate).getTime() -
+      new Date(bDate).getTime()
+    );
+  });
+
+const selectedDateEvents = eventsForDate(selectedDate).sort(
+  (a, b) => {
+    const aTime = a.time || "99:99";
+    const bTime = b.time || "99:99";
+
+    return aTime.localeCompare(bTime);
+  }
+);
 
   return (
     <div
@@ -2347,19 +2396,28 @@ function ProducerCalendarModal({
 
                 return (
                   <div
-                    key={index}
-                    className={`
-                      min-h-[135px]
-                      border-b
-                      border-l
-                      border-[#F0ECE7]
-                      p-2
-                      ${
-                        date
-                          ? "bg-white"
-                          : "bg-[#FCFBFA]"
-                      }
-                    `}
+  key={index}
+  onClick={() => {
+    if (date) {
+      setSelectedDate(date);
+    }
+  }}
+  className={`
+    min-h-[135px]
+    cursor-pointer
+    border-b
+    border-l
+    border-[#F0ECE7]
+    p-2
+    ${
+      date && sameDay(date, selectedDate)
+        ? "bg-[#F4EDFF]"
+        : date
+          ? "bg-white"
+          : "bg-[#FCFBFA]"
+    }
+  `}
+
                   >
                     {date && (
                       <>
@@ -2389,7 +2447,10 @@ function ProducerCalendarModal({
                             <button
                               type="button"
                               key={`${event.id}-${event.clientId}`}
-                              onClick={() => onManage(event.client)}
+                              onClick={(e) => {
+  e.stopPropagation();
+  onManage(event.client);
+}}
                               className="
                                 w-full
                                 rounded-xl
@@ -2433,155 +2494,249 @@ function ProducerCalendarModal({
           </div>
 
           <aside
-            className="
-              rounded-[30px]
-              border
-              border-[#ECE5DE]
-              bg-white
-              p-5
-              h-fit
-            "
-          >
-            <div className="flex items-center gap-3 mb-5">
-              <div
-                className="
-                  h-12
-                  w-12
-                  rounded-2xl
-                  bg-[#F5E7DC]
-                  text-[#7A4A35]
-                  flex
-                  items-center
-                  justify-center
-                "
-              >
-                <Clock3 size={18} />
-              </div>
+  className="
+    rounded-[30px]
+    border
+    border-[#ECE5DE]
+    bg-white
+    p-5
+    h-fit
+    max-h-[calc(92vh-190px)]
+    overflow-y-auto
+  "
+>
+  <div className="flex items-center gap-3 mb-5">
+    <div
+      className="
+        h-12
+        w-12
+        rounded-2xl
+        bg-[#F5E7DC]
+        text-[#7A4A35]
+        flex
+        items-center
+        justify-center
+      "
+    >
+      <Clock3 size={18} />
+    </div>
 
-              <div>
-                <h3 className="text-xl font-black text-[#1E1B2E]">
-                  אירועים קרובים
-                </h3>
+    <div>
+      <h3 className="text-xl font-black text-[#1E1B2E]">
+        אירועים קרובים
+      </h3>
 
-                <p className="text-xs text-gray-400">
-                  לחצי על אירוע כדי להיכנס לניהול
-                </p>
-              </div>
-            </div>
-
-            {upcomingEvents.length === 0 ? (
-              <div
-                className="
-                  rounded-2xl
-                  border
-                  border-dashed
-                  border-[#E8DDD3]
-                  bg-[#FCFBFA]
-                  p-5
-                  text-center
-                  text-sm
-                  text-gray-400
-                  font-bold
-                "
-              >
-                אין אירועים קרובים.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingEvents.map((event) => (
-                  <button
-                    key={`${event.id}-${event.clientId}`}
-                    type="button"
-                    onClick={() => onManage(event.client)}
-                    className="
-                      w-full
-                      rounded-2xl
-                      border
-                      border-[#F0ECE7]
-                      bg-[#FCFBFA]
-                      p-4
-                      text-right
-                      hover:border-[#E7D8FF]
-                      hover:bg-[#F4EDFF]
-                      transition
-                    "
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-black text-[#1E1B2E]">
-  {event.title}
-</div>
-
-<div className="text-xs text-gray-400 mt-1">
-  לקוח: {event.clientName}
-</div>
-
-<div className="text-xs text-gray-400 mt-1">
-  אירוע: {event.eventTitle}
-</div>
-
-{event.time && (
-  <div className="text-xs text-gray-500 mt-1">
-    שעה: {event.time}
+      <p className="text-xs text-gray-400">
+        רק 7 ימים קדימה
+      </p>
+    </div>
   </div>
-)}
 
-<div className="mt-2 inline-flex rounded-full bg-[#F4EDFF] text-[#6D28D9] px-3 py-1 text-[11px] font-black">
-  {event.typeLabel}
-</div>
-                      </div>
+  {upcomingEvents.length === 0 ? (
+    <div
+      className="
+        rounded-2xl
+        border
+        border-dashed
+        border-[#E8DDD3]
+        bg-[#FCFBFA]
+        p-5
+        text-center
+        text-sm
+        text-gray-400
+        font-bold
+      "
+    >
+      אין פריטים בשבוע הקרוב.
+    </div>
+  ) : (
+    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+      {upcomingEvents.map((event) => (
+        <ProducerCalendarEventCard
+          key={`${event.id}-${event.clientId}`}
+          event={event}
+          onManage={onManage}
+        />
+      ))}
+    </div>
+  )}
 
-                      <span
-                        className={`
-                          rounded-full
-                          border
-                          px-3
-                          py-1.5
-                          text-[11px]
-                          font-black
-                          ${event.status.className}
-                        `}
-                      >
-                        {event.status.label}
-                      </span>
-                    </div>
+  <div
+    className="
+      mt-6
+      pt-5
+      border-t
+      border-[#F0ECE7]
+    "
+  >
+    <div className="flex items-center gap-3 mb-4">
+      <div
+        className="
+          h-11
+          w-11
+          rounded-2xl
+          bg-[#F4EDFF]
+          text-[#8B5CF6]
+          flex
+          items-center
+          justify-center
+        "
+      >
+        <CalendarDays size={17} />
+      </div>
 
-                    <div
-                      className="
-                        mt-3
-                        grid
-                        grid-cols-2
-                        gap-2
-                        text-xs
-                        text-gray-500
-                      "
-                    >
-                      <div className="flex items-center gap-1">
-                        <CalendarDays size={13} />
-                        {formatDate(event.date)}
-                      </div>
+      <div>
+        <h3 className="text-lg font-black text-[#1E1B2E]">
+          פירוט יומי
+        </h3>
 
-                      <div className="flex items-center gap-1 truncate">
-                        <MapPin size={13} />
-                        {event.location || "—"}
-                      </div>
+        <p className="text-xs text-gray-400">
+          {selectedDate.toLocaleDateString("he-IL", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        </p>
+      </div>
+    </div>
 
-                      <div>
-                        מוזמנים: {event.totalGuests || "—"}
-                      </div>
-
-                      <div>
-                        אישרו: {event.approvedCount || 0}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </aside>
+    {selectedDateEvents.length === 0 ? (
+      <div
+        className="
+          rounded-2xl
+          border
+          border-dashed
+          border-[#E8DDD3]
+          bg-[#FCFBFA]
+          p-5
+          text-center
+          text-sm
+          text-gray-400
+          font-bold
+        "
+      >
+        אין פריטים ביום הזה.
+      </div>
+    ) : (
+      <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+        {selectedDateEvents.map((event) => (
+          <ProducerCalendarEventCard
+            key={`${event.id}-${event.clientId}-day`}
+            event={event}
+            onManage={onManage}
+          />
+        ))}
+      </div>
+    )}
+  </div>
+</aside>
         </div>
       </div>
     </div>
+  );
+}
+
+function ProducerCalendarEventCard({
+  event,
+  onManage,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onManage(event.client)}
+      className="
+        w-full
+        rounded-2xl
+        border
+        border-[#F0ECE7]
+        bg-[#FCFBFA]
+        p-4
+        text-right
+        hover:border-[#E7D8FF]
+        hover:bg-[#F4EDFF]
+        transition
+      "
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-black text-[#1E1B2E] truncate">
+            {event.title}
+          </div>
+
+          <div className="text-xs text-gray-400 mt-1">
+            לקוח: {event.clientName}
+          </div>
+
+          <div className="text-xs text-gray-400 mt-1">
+            אירוע: {event.eventTitle}
+          </div>
+
+          {event.time && (
+            <div className="text-xs text-gray-500 mt-1">
+              שעה: {event.time}
+            </div>
+          )}
+        </div>
+
+        <span
+          className={`
+            rounded-full
+            border
+            px-3
+            py-1.5
+            text-[11px]
+            font-black
+            ${
+              event.kind === "calendar-item"
+                ? "bg-[#F4EDFF] text-[#6D28D9] border-[#E7D8FF]"
+                : event.status?.className ||
+                  "bg-purple-50 text-purple-700 border-purple-100"
+            }
+          `}
+        >
+          {event.typeLabel || event.status?.label || "אירוע"}
+        </span>
+      </div>
+
+      <div
+        className="
+          mt-3
+          grid
+          grid-cols-2
+          gap-2
+          text-xs
+          text-gray-500
+        "
+      >
+        <div className="flex items-center gap-1">
+          <CalendarDays size={13} />
+          {formatDate(event.date)}
+        </div>
+
+        <div className="flex items-center gap-1 truncate">
+          <MapPin size={13} />
+          {event.location || "—"}
+        </div>
+
+        {event.kind === "main-event" && (
+          <>
+            <div>
+              מוזמנים: {event.totalGuests || "—"}
+            </div>
+
+            <div>
+              אישרו: {event.approvedCount || 0}
+            </div>
+          </>
+        )}
+
+        {event.description && event.kind !== "main-event" && (
+          <div className="col-span-2 text-gray-400 line-clamp-2">
+            {event.description}
+          </div>
+        )}
+      </div>
+    </button>
   );
 }
 
