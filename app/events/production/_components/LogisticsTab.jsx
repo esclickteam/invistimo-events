@@ -487,7 +487,7 @@ function LogisticsRow({
 
       {/* TITLE */}
 
-      <div className="flex-1 min-w-[340px]">
+     <div className="flex-1 min-w-[340px] flex justify-end">
         <input
           value={item.title}
           onChange={(e) =>
@@ -508,7 +508,8 @@ function LogisticsRow({
   text-lg
   font-black
   text-[#1E1B2E]
-  truncate
+  text-right
+  pr-2
 "
         />
       </div>
