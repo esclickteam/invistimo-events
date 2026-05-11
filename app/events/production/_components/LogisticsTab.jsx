@@ -248,7 +248,7 @@ function TimelineRow({
 
       {/* TITLE */}
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-[220px]">
         <input
           value={item.title}
           onChange={(e) =>
@@ -262,14 +262,50 @@ function TimelineRow({
             )
           }
           className="
-            w-full
-            bg-transparent
-            outline-none
-            text-lg
-            font-black
-            text-[#1E1B2E]
-          "
+  w-full
+  min-w-[220px]
+  bg-transparent
+  outline-none
+  text-lg
+  font-black
+  text-[#1E1B2E]
+"
         />
+<select
+  value={item.status}
+  onChange={(e) =>
+    onUpdate(item._id, {
+      status: e.target.value,
+    })
+  }
+  className={`
+    rounded-full
+    border
+    px-4
+    py-2
+    text-sm
+    font-bold
+    outline-none
+    ${
+      STATUS_META[item.status]
+        ?.className
+    }
+  `}
+>
+  {Object.keys(
+    STATUS_META
+  ).map((key) => (
+    <option
+      key={key}
+      value={key}
+    >
+      {
+        STATUS_META[key]
+          .label
+      }
+    </option>
+  ))}
+</select>
 
         <div
           className="
