@@ -417,15 +417,9 @@ function TableRenderer({ table, hideSeats = false }) {
       {layout.type === "round" && (
         <>
           <Circle
-            radius={radius}
-            fill={tableFill}
-            stroke={tableStroke}
-            strokeWidth={1.4}
-            shadowColor={tableShadowColor}
-            shadowBlur={9}
-            shadowOffset={{ x: 0, y: 4 }}
-            shadowOpacity={0.7}
-          />
+  radius={radius}
+  fill={tableFill}
+/>
 
           <Text
             text={tableLabel}
@@ -445,19 +439,13 @@ function TableRenderer({ table, hideSeats = false }) {
       {layout.type === "square" && (
         <>
           <Rect
-            width={size}
-            height={size}
-            offsetX={size / 2}
-            offsetY={size / 2}
-            fill={tableFill}
-            stroke={tableStroke}
-            strokeWidth={1.4}
-            cornerRadius={10}
-            shadowColor={tableShadowColor}
-            shadowBlur={9}
-            shadowOffset={{ x: 0, y: 4 }}
-            shadowOpacity={0.7}
-          />
+  width={size}
+  height={size}
+  offsetX={size / 2}
+  offsetY={size / 2}
+  fill={tableFill}
+  cornerRadius={10}
+/>
 
           <Text
             text={tableLabel}
@@ -477,19 +465,13 @@ function TableRenderer({ table, hideSeats = false }) {
       {layout.type === "banquet" && (
         <>
           <Rect
-            width={width}
-            height={height}
-            offsetX={width / 2}
-            offsetY={height / 2}
-            fill={tableFill}
-            stroke={tableStroke}
-            strokeWidth={1.4}
-            cornerRadius={12}
-            shadowColor={tableShadowColor}
-            shadowBlur={9}
-            shadowOffset={{ x: 0, y: 4 }}
-            shadowOpacity={0.7}
-          />
+  width={width}
+  height={height}
+  offsetX={width / 2}
+  offsetY={height / 2}
+  fill={tableFill}
+  cornerRadius={12}
+/>
 
           <Text
             text={tableLabel}
